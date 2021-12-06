@@ -1424,6 +1424,8 @@ bool String::IsInPlaceInternalizable(InstanceType instance_type) {
   switch (instance_type) {
     case STRING_TYPE:
     case ONE_BYTE_STRING_TYPE:
+    case SHARED_STRING_TYPE:
+    case SHARED_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
       return true;

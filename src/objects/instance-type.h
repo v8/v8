@@ -141,6 +141,9 @@ enum InstanceType : uint16_t {
       kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
   SHARED_STRING_TYPE = STRING_TYPE | kSharedStringTag,
   SHARED_ONE_BYTE_STRING_TYPE = ONE_BYTE_STRING_TYPE | kSharedStringTag,
+  SHARED_THIN_STRING_TYPE = THIN_STRING_TYPE | kSharedStringTag,
+  SHARED_THIN_ONE_BYTE_STRING_TYPE =
+      THIN_ONE_BYTE_STRING_TYPE | kSharedStringTag,
 
 // Most instance types are defined in Torque, with the exception of the string
 // types above. They are ordered by inheritance hierarchy so that we can easily

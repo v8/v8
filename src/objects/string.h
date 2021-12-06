@@ -12,6 +12,7 @@
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/map.h"
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
 #include "src/strings/unicode-decoder.h"
@@ -180,6 +181,7 @@ class String : public TorqueGeneratedString<String, Name> {
   };
 
   template <typename IsolateT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   void MakeThin(IsolateT* isolate, String canonical);
 
   template <typename Char>

@@ -235,10 +235,13 @@ UNINITIALIZED_TEST(YoungInternalization) {
   CHECK_EQ(*two_byte_intern1, *two_byte_intern2);
 }
 
+enum TestHitOrMiss { kTestMiss, kTestHit };
+
 class ConcurrentInternalizationThread final : public v8::base::Thread {
  public:
   ConcurrentInternalizationThread(MultiClientIsolateTest* test,
                                   Handle<FixedArray> shared_strings,
+                                  TestHitOrMiss hit_or_miss,
                                   base::Semaphore* sema_ready,
                                   base::Semaphore* sema_execute_start,
                                   base::Semaphore* sema_execute_complete)
@@ -246,6 +249,7 @@ class ConcurrentInternalizationThread final : public v8::base::Thread {
             base::Thread::Options("ConcurrentInternalizationThread")),
         test_(test),
         shared_strings_(shared_strings),
+        hit_or_miss_(hit_or_miss),
         sema_ready_(sema_ready),
         sema_execute_start_(sema_execute_start),
         sema_execute_complete_(sema_execute_complete) {}
@@ -260,12 +264,22 @@ class ConcurrentInternalizationThread final : public v8::base::Thread {
 
     HandleScope scope(i_isolate);
 
+    Handle<String> manual_thin_actual =
+        factory->InternalizeString(factory->NewStringFromAsciiChecked("TODO"));
+
     for (int i = 0; i < shared_strings_->length(); i++) {
       Handle<String> input_string(String::cast(shared_strings_->get(i)),
                                   i_isolate);
-      CHECK(input_string->InSharedHeap());
-      Handle<String> interned = factory->InternalizeString(input_string);
-      CHECK_EQ(*input_string, *interned);
+      CHECK(input_string->IsShared());
+      if (hit_or_miss_ == kTestMiss) {
+        Handle<String> interned = factory->InternalizeString(input_string);
+        CHECK_EQ(*input_string, *interned);
+      } else {
+        // TODO(v8:12007): Make this branch also test InternalizeString. But
+        // LookupString needs to be made threadsafe first and restart-aware.
+        input_string->MakeThin(i_isolate, *manual_thin_actual);
+        CHECK(input_string->IsThinString());
+      }
     }
 
     sema_execute_complete_->Signal();
@@ -274,12 +288,14 @@ class ConcurrentInternalizationThread final : public v8::base::Thread {
  private:
   MultiClientIsolateTest* test_;
   Handle<FixedArray> shared_strings_;
+  TestHitOrMiss hit_or_miss_;
   base::Semaphore* sema_ready_;
   base::Semaphore* sema_execute_start_;
   base::Semaphore* sema_execute_complete_;
 };
 
-UNINITIALIZED_TEST(ConcurrentInternalization) {
+namespace {
+void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
 
@@ -298,12 +314,20 @@ UNINITIALIZED_TEST(ConcurrentInternalization) {
   Handle<FixedArray> shared_strings =
       factory->NewFixedArray(kStrings, AllocationType::kSharedOld);
   for (int i = 0; i < kStrings; i++) {
-    char* ascii = new char[i + 2];
-    for (int j = 0; j < i + 1; j++) ascii[j] = 'a';
-    ascii[i + 1] = '\0';
-    Handle<String> string =
-        factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld);
-    CHECK(string->InSharedHeap());
+    char* ascii = new char[i + 3];
+    // Don't make single character strings, which might will end up
+    // deduplicating to an RO string and mess up the string table hit test.
+    for (int j = 0; j < i + 2; j++) ascii[j] = 'a';
+    ascii[i + 2] = '\0';
+    if (hit_or_miss == kTestHit) {
+      // When testing concurrent string table hits, pre-internalize a string of
+      // the same contents so all subsequent internalizations are hits.
+      factory->InternalizeString(factory->NewStringFromAsciiChecked(ascii));
+    }
+    Handle<String> string = String::Share(
+        i_isolate,
+        factory->NewStringFromAsciiChecked(ascii, AllocationType::kOld));
+    CHECK(string->IsShared());
     string->EnsureHash();
     shared_strings->set(i, *string);
     delete[] ascii;
@@ -315,7 +339,7 @@ UNINITIALIZED_TEST(ConcurrentInternalization) {
   std::vector<std::unique_ptr<ConcurrentInternalizationThread>> threads;
   for (int i = 0; i < kThreads; i++) {
     auto thread = std::make_unique<ConcurrentInternalizationThread>(
-        &test, shared_strings, &sema_ready, &sema_execute_start,
+        &test, shared_strings, hit_or_miss, &sema_ready, &sema_execute_start,
         &sema_execute_complete);
     CHECK(thread->Start());
     threads.push_back(std::move(thread));
@@ -328,6 +352,15 @@ UNINITIALIZED_TEST(ConcurrentInternalization) {
   for (auto& thread : threads) {
     thread->Join();
   }
+}
+}  // namespace
+
+UNINITIALIZED_TEST(ConcurrentInternalizationMiss) {
+  TestConcurrentInternalization(kTestMiss);
+}
+
+UNINITIALIZED_TEST(ConcurrentInternalizationHit) {
+  TestConcurrentInternalization(kTestHit);
 }
 
 namespace {

@@ -51,7 +51,9 @@ namespace internal {
   V(UNCACHED_EXTERNAL_STRING_TYPE)                       \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)              \
   V(SHARED_STRING_TYPE)                                  \
-  V(SHARED_ONE_BYTE_STRING_TYPE)
+  V(SHARED_THIN_STRING_TYPE)                             \
+  V(SHARED_ONE_BYTE_STRING_TYPE)                         \
+  V(SHARED_THIN_ONE_BYTE_STRING_TYPE)
 
 #define INSTANCE_TYPE_LIST(V) \
   INSTANCE_TYPE_LIST_BASE(V)  \
@@ -100,7 +102,11 @@ namespace internal {
                                                                                \
   V(SHARED_STRING_TYPE, kVariableSizeSentinel, shared_string, SharedString)    \
   V(SHARED_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                        \
-    shared_one_byte_string, SharedOneByteString)
+    shared_one_byte_string, SharedOneByteString)                               \
+  V(SHARED_THIN_STRING_TYPE, ThinString::kSize, shared_thin_string,            \
+    SharedThinString)                                                          \
+  V(SHARED_THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize,                       \
+    shared_thin_one_byte_string, SharedThinOneByteString)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate

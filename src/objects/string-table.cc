@@ -437,13 +437,11 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   //    correctly ordered by LookupKey's write mutex and see the updated map
   //    during the re-lookup.
   //
-  //    For lookup misses, the internalized string map is the same map in RO
-  //    space regardless of which thread is doing the lookup.
+  // For lookup misses, the internalized string map is the same map in RO space
+  // regardless of which thread is doing the lookup.
   //
-  //    For lookup hits, String::MakeThin is not threadsafe but is currently
-  //    only called on strings that are not accessible from multiple threads,
-  //    even if in the shared heap. TODO(v8:12007) Make String::MakeThin
-  //    threadsafe so old- generation flat strings can be shared across threads.
+  // For lookup hits, String::MakeThin is threadsafe and spinlocks on
+  // migrating into a ThinString.
 
   string = String::Flatten(isolate, string);
   if (string->IsInternalizedString()) return string;
@@ -454,6 +452,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   if (!string->IsInternalizedString()) {
     string->MakeThin(isolate, *result);
   }
+
   return result;
 }
 
