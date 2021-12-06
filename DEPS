@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0142a6445cf453e5db1ff8aeda4fdd173a15aaa7',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '623bc83ae78145992b1c0d9482f8a87635f6ff4f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '075dd7e22837a69189003e4fa84499acf63188cf',
   'buildtools/clang_format/script':
@@ -276,7 +276,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'efd9399ae01364926be2a38946127fdf463480db',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '4d362c3ae4bd356a1178ef0a50624014d83639dc',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd812be7bc18912c71a2a02ce4aefaab8ede19ba6',
   'tools/clang/dsymutil': {
     'packages': [
       {
