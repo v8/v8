@@ -351,6 +351,17 @@ Response isValidRangeOfPositions(std::vector<std::pair<int, int>>& positions) {
   }
   return Response::Success();
 }
+
+bool hitBreakReasonEncodedAsOther(v8::debug::BreakReasons breakReasons) {
+  // The listed break reasons are not explicitly encoded in CDP when
+  // reporting the break. They are summarized as 'other'.
+  v8::debug::BreakReasons otherBreakReasons(
+      {v8::debug::BreakReason::kStep,
+       v8::debug::BreakReason::kDebuggerStatement,
+       v8::debug::BreakReason::kScheduled, v8::debug::BreakReason::kAsyncStep,
+       v8::debug::BreakReason::kAlreadyPaused});
+  return breakReasons.contains_any(otherBreakReasons);
+}
 }  // namespace
 
 V8DebuggerAgentImpl::V8DebuggerAgentImpl(
@@ -382,7 +393,8 @@ void V8DebuggerAgentImpl::enableImpl() {
 
   if (isPaused()) {
     didPause(0, v8::Local<v8::Value>(), std::vector<v8::debug::BreakpointId>(),
-             v8::debug::kException, false, {});
+             v8::debug::kException, false,
+             v8::debug::BreakReasons({v8::debug::BreakReason::kAlreadyPaused}));
   }
 }
 
@@ -1825,18 +1837,18 @@ void V8DebuggerAgentImpl::didPause(
   const BreakReason otherHitReason =
       std::make_pair(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
   const bool otherBreakReasons =
-      hitRegularBreakpoint ||
-      breakReasons.contains(v8::debug::BreakReason::kStep) ||
-      breakReasons.contains(v8::debug::BreakReason::kDebuggerStatement) ||
-      breakReasons.contains(v8::debug::BreakReason::kScheduled);
+      hitRegularBreakpoint || hitBreakReasonEncodedAsOther(breakReasons);
   if (otherBreakReasons && std::find(hitReasons.begin(), hitReasons.end(),
                                      otherHitReason) == hitReasons.end()) {
     hitReasons.push_back(
         std::make_pair(protocol::Debugger::Paused::ReasonEnum::Other, nullptr));
   }
 
-  // TODO(kimanh): We should always know why we pause. Print a
-  // warning if we don't and fall back to Other.
+  // We should always know why we pause: either the pause relates to this agent
+  // (`hitReason` is non empty), or it relates to another agent (hit a
+  // breakpoint there, or a triggered pause was scheduled by other agent).
+  DCHECK(hitReasons.size() > 0 || !hitBreakpoints.empty() ||
+         breakReasons.contains(v8::debug::BreakReason::kAgent));
   String16 breakReason = protocol::Debugger::Paused::ReasonEnum::Other;
   std::unique_ptr<protocol::DictionaryValue> breakAuxData;
   if (hitReasons.size() == 1) {

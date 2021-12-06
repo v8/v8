@@ -205,7 +205,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   int m_ignoreScriptParsedEventsCounter;
   size_t m_originalHeapLimit = 0;
   bool m_scheduledOOMBreak = false;
-  bool m_scheduledAssertBreak = false;
   int m_targetContextGroupId = 0;
   int m_pausedContextGroupId = 0;
   int m_continueToLocationBreakpointId;

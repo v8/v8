@@ -122,12 +122,15 @@ enum StepAction {
 
 // Record the reason for why the debugger breaks.
 enum class BreakReason : uint8_t {
+  kAlreadyPaused,
   kStep,
+  kAsyncStep,
   kException,
   kAssert,
   kDebuggerStatement,
   kOOM,
-  kScheduled
+  kScheduled,
+  kAgent
 };
 typedef base::EnumSet<BreakReason> BreakReasons;
 

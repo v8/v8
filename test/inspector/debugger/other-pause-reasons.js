@@ -105,5 +105,22 @@ InspectorTest.runAsyncTestSuite([
 
     await Protocol.Runtime.runScript({scriptId});
     await tearDownEnvironment();
-  }
+  },
+  async function testAsyncSteppingPauseReason() {
+    await setUpEnvironment();
+    await Protocol.Debugger.setInstrumentationBreakpoint(
+        {instrumentation: 'beforeScriptExecution'});
+    const stepOnPause = (({params: {reason, data}}) => {
+      InspectorTest.log(`Paused with reason: ${reason} and data: ${
+          data ? JSON.stringify(data) : '{}'}.`);
+      Protocol.Debugger.stepInto({breakOnAsyncCall: true});
+    });
+    Protocol.Debugger.onPaused(stepOnPause);
+    const expression =
+        `debugger; setTimeout('console.log(3);//# sourceURL=bar.js', 0);`;
+    const {result: {scriptId}} = await Protocol.Runtime.compileScript(
+        {expression, sourceURL: 'foo.js', persistScript: true});
+    await Protocol.Runtime.runScript({scriptId});
+    await tearDownEnvironment();
+  },
 ]);
