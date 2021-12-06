@@ -44,6 +44,9 @@
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/date/date.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/gdb-jit.h"
@@ -3294,6 +3297,15 @@ Local<String> StackFrame::GetScriptSourceMappingURL() const {
 
 Local<String> StackFrame::GetFunctionName() const {
   auto self = Utils::OpenHandle(this);
+#if V8_ENABLE_WEBASSEMBLY
+  if (self->IsWasm()) {
+    auto isolate = self->GetIsolate();
+    auto instance = handle(self->GetWasmInstance(), isolate);
+    auto func_index = self->GetWasmFunctionIndex();
+    return Utils::ToLocal(
+        i::GetWasmFunctionDebugName(isolate, instance, func_index));
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   auto name = i::StackFrameInfo::GetFunctionName(self);
   if (!name->IsString()) return {};
   return Local<String>::Cast(Utils::ToLocal(name));

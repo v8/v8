@@ -1094,8 +1094,7 @@ std::shared_ptr<StackFrame> V8Debugger::symbolize(
   int lineNumber = v8Frame->GetLineNumber() - 1;
   int columnNumber = v8Frame->GetColumn() - 1;
   CachedStackFrameKey key{scriptId, lineNumber, columnNumber};
-  auto functionName =
-      toProtocolString(isolate(), v8::debug::GetFunctionDebugName(v8Frame));
+  auto functionName = toProtocolString(isolate(), v8Frame->GetFunctionName());
   auto it = m_cachedStackFrames.find(key);
   if (it != m_cachedStackFrames.end() && !it->second.expired()) {
     auto stackFrame = it->second.lock();
