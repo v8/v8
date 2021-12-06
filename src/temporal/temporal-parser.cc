@@ -182,10 +182,20 @@ int32_t ScanFractionalPart(base::Vector<Char> str, int32_t s, int64_t* out) {
 // TimeFraction: FractionalPart
 SCAN_FORWARD(TimeFractionalPart, FractionalPart, int32_t)
 
-// Fraction: DecimalSeparator TimeFractionalPart
+// Fraction: DecimalSeparator FractionalPart
 // DecimalSeparator: one of , .
 template <typename Char>
 int32_t ScanFraction(base::Vector<Char> str, int32_t s, int32_t* out) {
+  if ((str.length() < (s + 2)) || (!IsDecimalSeparator(str[s]))) return 0;
+  int32_t len;
+  if ((len = ScanFractionalPart(str, s + 1, out)) == 0) return 0;
+  return len + 1;
+}
+
+// TimeFraction: DecimalSeparator TimeFractionalPart
+// DecimalSeparator: one of , .
+template <typename Char>
+int32_t ScanTimeFraction(base::Vector<Char> str, int32_t s, int32_t* out) {
   if ((str.length() < (s + 2)) || (!IsDecimalSeparator(str[s]))) return 0;
   int32_t len;
   if ((len = ScanTimeFractionalPart(str, s + 1, out)) == 0) return 0;
@@ -193,12 +203,10 @@ int32_t ScanFraction(base::Vector<Char> str, int32_t s, int32_t* out) {
 }
 
 template <typename Char>
-int32_t ScanFraction(base::Vector<Char> str, int32_t s,
-                     ParsedISO8601Result* r) {
-  return ScanFraction(str, s, &(r->time_nanosecond));
+int32_t ScanTimeFraction(base::Vector<Char> str, int32_t s,
+                         ParsedISO8601Result* r) {
+  return ScanTimeFraction(str, s, &(r->time_nanosecond));
 }
-// TimeFraction: Fraction
-SCAN_FORWARD(TimeFraction, Fraction, ParsedISO8601Result)
 
 // TimeSpec:
 //  TimeHour
@@ -544,7 +552,6 @@ int32_t ScanTimeZoneUTCOffsetName(base::Vector<Char> str, int32_t s) {
     if ((len = ScanMinuteSecond(str, cur, &second)) == 0) return 0;
     cur += len;
     len = ScanFraction(str, cur, &fraction);
-    // TODO(ftang) Problem See Issue 1794
     return cur + len - s;
   } else {
     if ((len = ScanMinuteSecond(str, cur, &minute)) == 0) {
@@ -557,7 +564,6 @@ int32_t ScanTimeZoneUTCOffsetName(base::Vector<Char> str, int32_t s) {
       return cur - s;
     }
     cur += len;
-    // TODO(ftang) Problem See Issue 1794
     len = ScanFraction(str, cur, &fraction);
     //  Sign Hour MinuteSecond MinuteSecond [Fraction]
     return cur + len - s;
