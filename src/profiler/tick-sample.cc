@@ -9,7 +9,6 @@
 #include "include/v8-profiler.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
-#include "src/execution/embedder-state.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/simulator.h"
 #include "src/execution/vm-state-inl.h"
@@ -179,8 +178,6 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   frames_count = static_cast<unsigned>(info.frames_count);
   has_external_callback = info.external_callback_entry != nullptr;
   context = info.context;
-  embedder_context = info.embedder_context;
-  embedder_state = info.embedder_state;
   if (has_external_callback) {
     external_callback_entry = info.external_callback_entry;
   } else if (frames_count) {
@@ -213,14 +210,6 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   sample_info->frames_count = 0;
   sample_info->vm_state = isolate->current_vm_state();
   sample_info->external_callback_entry = nullptr;
-  sample_info->embedder_state = EmbedderStateTag::EMPTY;
-
-  EmbedderState* embedder_state = isolate->current_embedder_state();
-  if (embedder_state != nullptr) {
-    sample_info->embedder_context =
-        reinterpret_cast<void*>(embedder_state->native_context_address());
-    sample_info->embedder_state = embedder_state->GetState();
-  }
   sample_info->context = nullptr;
   if (sample_info->vm_state == GC) return true;
 

@@ -65,8 +65,6 @@ class V8Inspector;
 
 namespace v8 {
 
-class EmbedderState;
-
 namespace base {
 class RandomNumberGenerator;
 }  // namespace base
@@ -1302,7 +1300,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   THREAD_LOCAL_TOP_ACCESSOR(ExternalCallbackScope*, external_callback_scope)
 
   THREAD_LOCAL_TOP_ACCESSOR(StateTag, current_vm_state)
-  THREAD_LOCAL_TOP_ACCESSOR(EmbedderState*, current_embedder_state)
 
   void SetData(uint32_t slot, void* data) {
     DCHECK_LT(slot, Internals::kNumIsolateDataSlots);

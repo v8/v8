@@ -23,7 +23,6 @@ struct V8_EXPORT TickSample {
 
   TickSample()
       : state(OTHER),
-        embedder_state(EmbedderStateTag::EMPTY),
         pc(nullptr),
         external_callback_entry(nullptr),
         frames_count(0),
@@ -83,7 +82,6 @@ struct V8_EXPORT TickSample {
   void print() const;
 
   StateTag state;  // The state of the VM.
-  EmbedderStateTag embedder_state;
   void* pc;        // Instruction pointer.
   union {
     void* tos;  // Top stack value (*sp).
@@ -93,7 +91,6 @@ struct V8_EXPORT TickSample {
   static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
   void* stack[kMaxFramesCount];     // Call stack.
   void* context = nullptr;          // Address of the incumbent native context.
-  void* embedder_context = nullptr;  // Address of the embedder native context.
   unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
   bool update_stats_ : 1;  // Whether the sample should update aggregated stats.
