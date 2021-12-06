@@ -2461,6 +2461,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                       base::Optional<TNode<Object>> arg1 = base::nullopt,
                       base::Optional<TNode<Object>> arg2 = base::nullopt);
 
+  TNode<HeapObject> GetPendingMessage();
+  void SetPendingMessage(TNode<HeapObject> message);
+
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.

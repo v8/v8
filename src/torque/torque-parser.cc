@@ -1740,16 +1740,32 @@ base::Optional<ParseResult> MakeLabelBlock(ParseResultIterator* child_results) {
 }
 
 base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
-  auto variable = child_results->NextAs<std::string>();
+  auto parameter_names = child_results->NextAs<std::vector<std::string>>();
   auto body = child_results->NextAs<Statement*>();
-  if (!IsLowerCamelCase(variable)) {
-    NamingConventionError("Exception", variable, "lowerCamelCase");
+  for (const std::string& variable : parameter_names) {
+    if (!IsLowerCamelCase(variable)) {
+      NamingConventionError("Exception", variable, "lowerCamelCase");
+    }
+  }
+  if (parameter_names.size() != 2) {
+    ReportError(
+        "A catch clause needs to have exactly two parameters: The exception "
+        "and the message. How about: \"catch (exception, message) { ...\".");
   }
   ParameterList parameters;
-  parameters.names.push_back(MakeNode<Identifier>(variable));
+
+  parameters.names.push_back(MakeNode<Identifier>(parameter_names[0]));
   parameters.types.push_back(MakeNode<BasicTypeExpression>(
       std::vector<std::string>{}, MakeNode<Identifier>("JSAny"),
       std::vector<TypeExpression*>{}));
+  parameters.names.push_back(MakeNode<Identifier>(parameter_names[1]));
+  parameters.types.push_back(MakeNode<UnionTypeExpression>(
+      MakeNode<BasicTypeExpression>(std::vector<std::string>{},
+                                    MakeNode<Identifier>("JSMessageObject"),
+                                    std::vector<TypeExpression*>{}),
+      MakeNode<BasicTypeExpression>(std::vector<std::string>{},
+                                    MakeNode<Identifier>("TheHole"),
+                                    std::vector<TypeExpression*>{})));
   parameters.has_varargs = false;
   TryHandler* result = MakeNode<TryHandler>(
       TryHandler::HandlerKind::kCatch, MakeNode<Identifier>(kCatchLabelName),
@@ -2573,7 +2589,8 @@ struct TorqueGrammar : Grammar {
       Rule({Token("label"), &name,
             TryOrDefault<ParameterList>(&parameterListNoVararg), &block},
            MakeLabelBlock),
-      Rule({Token("catch"), Token("("), &identifier, Token(")"), &block},
+      Rule({Token("catch"), Token("("),
+            List<std::string>(&identifier, Token(",")), Token(")"), &block},
            MakeCatchBlock)};
 
   // Result: ExpressionWithSource

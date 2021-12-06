@@ -948,7 +948,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
+  // The first overload doesn't set the corresponding pending message, which
+  // has to be set separately or be guaranteed to not have changed.
   Object ReThrow(Object exception);
+  Object ReThrow(Object exception, Object message);
 
   // Find the correct handler for the current pending exception. This also
   // clears and returns the current pending exception.

@@ -3421,12 +3421,21 @@ void ImplementationVisitor::GenerateCatchBlock(
   if (catch_block) {
     base::Optional<Binding<LocalLabel>*> catch_handler =
         TryLookupLabel(kCatchLabelName);
+    // Reset the local scopes to prevent the macro calls below from using the
+    // current catch handler.
+    BindingsManagersScope bindings_managers_scope;
     if (assembler().CurrentBlockIsComplete()) {
       assembler().Bind(*catch_block);
-      assembler().Goto((*catch_handler)->block, 1);
+      GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                                 "GetAndResetPendingMessage"),
+                   Arguments{{}, {}}, {}, false);
+      assembler().Goto((*catch_handler)->block, 2);
     } else {
       CfgAssemblerScopedTemporaryBlock temp(&assembler(), *catch_block);
-      assembler().Goto((*catch_handler)->block, 1);
+      GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                                 "GetAndResetPendingMessage"),
+                   Arguments{{}, {}}, {}, false);
+      assembler().Goto((*catch_handler)->block, 2);
     }
   }
 }

@@ -78,6 +78,12 @@ RUNTIME_FUNCTION(Runtime_ReThrow) {
   return isolate->ReThrow(args[0]);
 }
 
+RUNTIME_FUNCTION(Runtime_ReThrowWithMessage) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  return isolate->ReThrow(args[0], args[1]);
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());

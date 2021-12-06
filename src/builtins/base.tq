@@ -775,7 +775,9 @@ macro Equal(implicit context: Context)(left: JSAny, right: JSAny): Boolean {
 
 extern macro StrictEqual(JSAny, JSAny): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
-extern runtime ReThrow(Context, JSAny): never;
+
+extern runtime ReThrowWithMessage(
+    Context, JSAny, TheHole | JSMessageObject): never;
 extern runtime Throw(implicit context: Context)(JSAny): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 

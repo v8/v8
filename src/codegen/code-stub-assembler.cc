@@ -22,6 +22,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -6165,6 +6166,20 @@ void CodeStubAssembler::ThrowTypeError(TNode<Context> context,
                 *arg2);
   }
   Unreachable();
+}
+
+TNode<HeapObject> CodeStubAssembler::GetPendingMessage() {
+  TNode<ExternalReference> pending_message = ExternalConstant(
+      ExternalReference::address_of_pending_message(isolate()));
+  return UncheckedCast<HeapObject>(LoadFullTagged(pending_message));
+}
+void CodeStubAssembler::SetPendingMessage(TNode<HeapObject> message) {
+  CSA_DCHECK(this, Word32Or(IsTheHole(message),
+                            InstanceTypeEqual(LoadInstanceType(message),
+                                              JS_MESSAGE_OBJECT_TYPE)));
+  TNode<ExternalReference> pending_message = ExternalConstant(
+      ExternalReference::address_of_pending_message(isolate()));
+  StoreFullTaggedNoWriteBarrier(pending_message, message);
 }
 
 TNode<BoolT> CodeStubAssembler::InstanceTypeEqual(TNode<Int32T> instance_type,

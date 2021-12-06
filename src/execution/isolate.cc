@@ -1742,6 +1742,14 @@ Object Isolate::ReThrow(Object exception) {
   return ReadOnlyRoots(heap()).exception();
 }
 
+Object Isolate::ReThrow(Object exception, Object message) {
+  DCHECK(!has_pending_exception());
+  DCHECK(!has_pending_message());
+
+  set_pending_message(message);
+  return ReThrow(exception);
+}
+
 namespace {
 #if V8_ENABLE_WEBASSEMBLY
 // This scope will set the thread-in-wasm flag after the execution of all
