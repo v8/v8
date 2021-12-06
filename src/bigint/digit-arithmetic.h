@@ -17,6 +17,8 @@ static constexpr int kHalfDigitBits = kDigitBits / 2;
 static constexpr digit_t kHalfDigitBase = digit_t{1} << kHalfDigitBits;
 static constexpr digit_t kHalfDigitMask = kHalfDigitBase - 1;
 
+constexpr bool digit_ismax(digit_t x) { return static_cast<digit_t>(~x) == 0; }
+
 // {carry} will be set to 0 or 1.
 inline digit_t digit_add2(digit_t a, digit_t b, digit_t* carry) {
 #if HAVE_TWODIGIT_T
