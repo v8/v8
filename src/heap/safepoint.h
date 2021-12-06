@@ -131,7 +131,7 @@ class IsolateSafepoint final {
   base::RecursiveMutex local_heaps_mutex_;
   LocalHeap* local_heaps_head_;
 
-  std::atomic<int> active_safepoint_scopes_;
+  int active_safepoint_scopes_;
 
   friend class Heap;
   friend class GlobalSafepoint;
