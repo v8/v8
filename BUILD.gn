@@ -5040,6 +5040,8 @@ v8_component("v8_libbase") {
     "src/base/sanitizer/asan.h",
     "src/base/sanitizer/lsan-page-allocator.cc",
     "src/base/sanitizer/lsan-page-allocator.h",
+    "src/base/sanitizer/lsan-virtual-address-space.cc",
+    "src/base/sanitizer/lsan-virtual-address-space.h",
     "src/base/sanitizer/lsan.h",
     "src/base/sanitizer/msan.h",
     "src/base/sanitizer/tsan.h",

@@ -14,6 +14,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
+#include "src/base/sanitizer/lsan-virtual-address-space.h"
 #include "src/base/vector.h"
 #include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
@@ -86,7 +87,12 @@ v8::PageAllocator* GetPlatformPageAllocator() {
 }
 
 v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
+#if defined(LEAK_SANITIZER)
+  static base::LeakyObject<base::LsanVirtualAddressSpace> vas(
+      std::make_unique<base::VirtualAddressSpace>());
+#else
   static base::LeakyObject<base::VirtualAddressSpace> vas;
+#endif
   return vas.get();
 }
 
