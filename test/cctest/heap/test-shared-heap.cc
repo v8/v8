@@ -169,23 +169,39 @@ void AllocateInSharedHeap(Isolate* shared_isolate, int iterations = 100) {
       shared_isolate,
       [iterations](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
         HandleScope outer_scope(i_client_isolate);
-        std::vector<Handle<FixedArray>> arrays;
-        const int kKeptAliveArrays = 1000;
+        std::vector<Handle<FixedArray>> arrays_in_handles;
+        const int kKeptAliveInHandle = 1000;
+        const int kKeptAliveInHeap = 100;
+        Handle<FixedArray> arrays_in_heap =
+            i_client_isolate->factory()->NewFixedArray(kKeptAliveInHeap,
+                                                       AllocationType::kYoung);
 
         for (int i = 0; i < kNumIterations * iterations; i++) {
           HandleScope scope(i_client_isolate);
           Handle<FixedArray> array = i_client_isolate->factory()->NewFixedArray(
               100, AllocationType::kSharedOld);
-          if (i < kKeptAliveArrays) {
-            // Keep some of those arrays alive across GCs.
-            arrays.push_back(scope.CloseAndEscape(array));
+          if (i < kKeptAliveInHandle) {
+            // Keep some of those arrays alive across GCs through handles.
+            arrays_in_handles.push_back(scope.CloseAndEscape(array));
           }
+
+          if (i < kKeptAliveInHeap) {
+            // Keep some of those arrays alive across GCs through client heap
+            // references.
+            arrays_in_heap->set(i, *array);
+          }
+
           i_client_isolate->factory()->NewFixedArray(100,
                                                      AllocationType::kYoung);
         }
 
-        for (Handle<FixedArray> array : arrays) {
+        for (Handle<FixedArray> array : arrays_in_handles) {
           CHECK_EQ(array->length(), 100);
+        }
+
+        for (int i = 0; i < kKeptAliveInHeap; i++) {
+          FixedArray array = FixedArray::cast(arrays_in_heap->get(i));
+          CHECK_EQ(array.length(), 100);
         }
       });
 }

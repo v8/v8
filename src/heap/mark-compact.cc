@@ -21,6 +21,7 @@
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/invalidated-slots-inl.h"
@@ -1140,7 +1141,70 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     UNREACHABLE();
   }
 
-  // VisitEmbedderPointer is defined by ObjectVisitor to call VisitPointers.
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    MarkObject(host, target);
+  }
+
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    MarkObject(host, rinfo->target_object(cage_base()));
+  }
+
+ private:
+  V8_INLINE void MarkObject(HeapObject host, Object object) {
+    if (!object.IsHeapObject()) return;
+    collector_->MarkObject(host, HeapObject::cast(object));
+  }
+
+  MarkCompactCollector* const collector_;
+};
+
+class MarkCompactCollector::SharedHeapObjectVisitor final
+    : public ObjectVisitorWithCageBases {
+ public:
+  explicit SharedHeapObjectVisitor(MarkCompactCollector* collector)
+      : ObjectVisitorWithCageBases(collector->isolate()),
+        collector_(collector) {}
+
+  void VisitPointer(HeapObject host, ObjectSlot p) final {
+    MarkObject(host, p.load(cage_base()));
+  }
+
+  void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
+    MaybeObject object = p.load(cage_base());
+    HeapObject heap_object;
+    if (object.GetHeapObject(&heap_object)) MarkObject(host, heap_object);
+  }
+
+  void VisitMapPointer(HeapObject host) final {
+    MarkObject(host, host.map(cage_base()));
+  }
+
+  void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final {
+    for (ObjectSlot p = start; p < end; ++p) {
+      // The map slot should be handled in VisitMapPointer.
+      DCHECK_NE(host.map_slot(), p);
+      DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
+      MarkObject(host, p.load(cage_base()));
+    }
+  }
+
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // At the moment, custom roots cannot contain CodeDataContainers - the only
+    // objects that can contain Code pointers.
+    UNREACHABLE();
+  }
+
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final {
+    for (MaybeObjectSlot p = start; p < end; ++p) {
+      // The map slot should be handled in VisitMapPointer.
+      DCHECK_NE(host.map_slot(), ObjectSlot(p));
+      VisitPointer(host, p);
+    }
+  }
+
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     MarkObject(host, target);
@@ -1151,8 +1215,11 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
  private:
   V8_INLINE void MarkObject(HeapObject host, Object object) {
+    DCHECK(!BasicMemoryChunk::FromHeapObject(host)->InSharedHeap());
     if (!object.IsHeapObject()) return;
-    collector_->MarkObject(host, HeapObject::cast(object));
+    HeapObject heap_object = HeapObject::cast(object);
+    if (!BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap()) return;
+    collector_->MarkObject(host, heap_object);
   }
 
   MarkCompactCollector* const collector_;
@@ -1777,12 +1844,29 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
   // Custom marking for top optimized frame.
   ProcessTopOptimizedFrame(custom_root_body_visitor, isolate());
 
-  if (isolate()->global_safepoint()) {
+  if (isolate()->is_shared()) {
     isolate()->global_safepoint()->IterateClientIsolates(
         [this, custom_root_body_visitor](Isolate* client) {
           ProcessTopOptimizedFrame(custom_root_body_visitor, client);
         });
   }
+}
+
+void MarkCompactCollector::MarkObjectsFromClientHeaps() {
+  if (!isolate()->is_shared()) return;
+
+  SharedHeapObjectVisitor visitor(this);
+
+  isolate()->global_safepoint()->IterateClientIsolates(
+      [&visitor](Isolate* client) {
+        Heap* heap = client->heap();
+        HeapObjectIterator iterator(heap, HeapObjectIterator::kNoFiltering);
+        for (HeapObject obj = iterator.Next(); !obj.is_null();
+             obj = iterator.Next()) {
+          PtrComprCageBase cage_base = GetPtrComprCageBase(obj);
+          obj.IterateFast(cage_base, &visitor);
+        }
+      });
 }
 
 void MarkCompactCollector::VisitObject(HeapObject obj) {
@@ -2175,6 +2259,11 @@ void MarkCompactCollector::MarkLiveObjects() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
     CustomRootBodyMarkingVisitor custom_root_body_visitor(this);
     MarkRoots(&root_visitor, &custom_root_body_visitor);
+  }
+
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_CLIENT_HEAPS);
+    MarkObjectsFromClientHeaps();
   }
 
   {
@@ -3030,10 +3119,13 @@ static inline SlotCallbackResult UpdateStrongCodeSlot(
 
 }  // namespace
 
+static constexpr bool kClientHeap = true;
+
 // Visitor for updating root pointers and to-space pointers.
 // It does not expect to encounter pointers to dead objects.
-class PointersUpdatingVisitor : public ObjectVisitorWithCageBases,
-                                public RootVisitor {
+template <bool in_client_heap = false>
+class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
+                                      public RootVisitor {
  public:
   explicit PointersUpdatingVisitor(Heap* heap)
       : ObjectVisitorWithCageBases(heap) {}
@@ -3087,14 +3179,34 @@ class PointersUpdatingVisitor : public ObjectVisitorWithCageBases,
     }
   }
 
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    // This visitor nevers visits code objects.
-    UNREACHABLE();
+  void VisitMapPointer(HeapObject object) override {
+    if (in_client_heap) {
+      UpdateStrongSlotInternal(cage_base(), object.map_slot());
+    } else {
+      UNREACHABLE();
+    }
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    // This visitor nevers visits code objects.
-    UNREACHABLE();
+    if (in_client_heap) {
+      Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+      CHECK_WITH_MSG(!target.InSharedHeap(),
+                     "refs into shared heap not yet supported here.");
+    } else {
+      // This visitor nevers visits code objects.
+      UNREACHABLE();
+    }
+  }
+
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
+    if (in_client_heap) {
+      HeapObject target = rinfo->target_object(cage_base());
+      CHECK_WITH_MSG(!target.InSharedHeap(),
+                     "refs into shared heap not yet supported here.");
+    } else {
+      // This visitor nevers visits code objects.
+      UNREACHABLE();
+    }
   }
 
  private:
@@ -3929,7 +4041,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
   void ProcessVisitAll() {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "ToSpaceUpdatingItem::ProcessVisitAll");
-    PointersUpdatingVisitor visitor(heap_);
+    PointersUpdatingVisitor<> visitor(heap_);
     for (Address cur = start_; cur < end_;) {
       HeapObject object = HeapObject::FromAddress(cur);
       Map map = object.map(visitor.cage_base());
@@ -3944,7 +4056,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
                  "ToSpaceUpdatingItem::ProcessVisitLive");
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
-    PointersUpdatingVisitor visitor(heap_);
+    PointersUpdatingVisitor<> visitor(heap_);
     for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
              chunk_, marking_state_->bitmap(chunk_))) {
       object_and_size.first.IterateBodyFast(visitor.cage_base(), &visitor);
@@ -4268,15 +4380,20 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor updating_visitor(heap());
-
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS);
     // The external string table is updated at the end.
+    PointersUpdatingVisitor<> updating_visitor(heap());
     heap_->IterateRootsIncludingClients(
         &updating_visitor,
         base::EnumSet<SkipRoot>{SkipRoot::kExternalStringTable});
+  }
+
+  {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS);
+    UpdatePointersInClientHeaps();
   }
 
   {
@@ -4322,6 +4439,23 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     EvacuationWeakObjectRetainer evacuation_object_retainer;
     heap()->ProcessWeakListRoots(&evacuation_object_retainer);
   }
+}
+
+void MarkCompactCollector::UpdatePointersInClientHeaps() {
+  if (!isolate()->is_shared()) return;
+
+  PointersUpdatingVisitor<kClientHeap> visitor(heap());
+
+  isolate()->global_safepoint()->IterateClientIsolates(
+      [&visitor](Isolate* client) {
+        Heap* heap = client->heap();
+        HeapObjectIterator iterator(heap, HeapObjectIterator::kNoFiltering);
+        for (HeapObject obj = iterator.Next(); !obj.is_null();
+             obj = iterator.Next()) {
+          PtrComprCageBase cage_base = GetPtrComprCageBase(obj);
+          obj.IterateFast(cage_base, &visitor);
+        }
+      });
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
@@ -4832,7 +4966,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(),
            GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor updating_visitor(heap());
+  PointersUpdatingVisitor<> updating_visitor(heap());
   std::vector<std::unique_ptr<UpdatingItem>> updating_items;
 
   // Create batches of global handles.

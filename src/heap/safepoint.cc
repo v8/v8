@@ -29,13 +29,15 @@ IsolateSafepoint::IsolateSafepoint(Heap* heap)
     : heap_(heap), local_heaps_head_(nullptr), active_safepoint_scopes_(0) {}
 
 void IsolateSafepoint::EnterLocalSafepointScope() {
-  // Safepoints need to be initiated on the main thread.
-  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
+  // Safepoints need to be initiated on some main thread.
   DCHECK_NULL(LocalHeap::Current());
   DCHECK(AllowGarbageCollection::IsAllowed());
 
   LockMutex(heap_->isolate()->main_thread_local_heap());
   if (++active_safepoint_scopes_ > 1) return;
+
+  // Local safepoint can only be initiated on the isolate's main thread.
+  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
 
   TimedHistogramScope timer(
       heap_->isolate()->counters()->gc_time_to_safepoint());
@@ -47,6 +49,9 @@ void IsolateSafepoint::EnterLocalSafepointScope() {
 }
 
 void IsolateSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
+  // Safepoints need to be initiated on some main thread.
+  DCHECK_NULL(LocalHeap::Current());
+
   {
     IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
     LockMutex(initiator->main_thread_local_heap());

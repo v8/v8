@@ -4942,7 +4942,7 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
                                         base::EnumSet<SkipRoot> options) {
   IterateRoots(v, options);
 
-  if (isolate()->global_safepoint()) {
+  if (isolate()->is_shared()) {
     isolate()->global_safepoint()->IterateClientIsolates(
         [v, options](Isolate* client) {
           client->heap()->IterateRoots(v, options);

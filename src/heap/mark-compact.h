@@ -456,6 +456,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   class RootMarkingVisitor;
   class CustomRootBodyMarkingVisitor;
+  class SharedHeapObjectVisitor;
 
   enum IterationMode {
     kKeepMarking,
@@ -638,6 +639,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootVisitor* root_visitor,
                  ObjectVisitor* custom_root_body_visitor);
+
+  // Mark all objects that are directly referenced from one of the clients
+  // heaps.
+  void MarkObjectsFromClientHeaps();
+
+  // Updates pointers to shared objects from client heaps.
+  void UpdatePointersInClientHeaps();
 
   // Marks object reachable from harmony weak maps and wrapper tracing.
   void ProcessEphemeronMarking();
