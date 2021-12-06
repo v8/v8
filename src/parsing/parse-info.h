@@ -63,7 +63,6 @@ class Zone;
   V(post_parallel_compile_tasks_for_eager_toplevel, bool, 1, _) \
   V(post_parallel_compile_tasks_for_lazy, bool, 1, _)           \
   V(collect_source_positions, bool, 1, _)                       \
-  V(allow_harmony_top_level_await, bool, 1, _)                  \
   V(is_repl_mode, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {

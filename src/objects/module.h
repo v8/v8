@@ -119,9 +119,6 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> EvaluateMaybeAsync(
       Isolate* isolate, Handle<Module> module);
 
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerEvaluate(
-      Isolate* isolate, Handle<Module> module);
-
   // Set module's status back to kUnlinked and reset other internal state.
   // This is used when instantiation fails.
   static void Reset(Isolate* isolate, Handle<Module> module);

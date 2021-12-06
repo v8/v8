@@ -923,12 +923,9 @@ class ParserBase {
       if (flags().parsing_while_debugging() == ParsingWhileDebugging::kYes) {
         ReportMessageAt(scanner()->location(),
                         MessageTemplate::kAwaitNotInDebugEvaluate);
-      } else if (flags().allow_harmony_top_level_await()) {
-        ReportMessageAt(scanner()->location(),
-                        MessageTemplate::kAwaitNotInAsyncContext);
       } else {
         ReportMessageAt(scanner()->location(),
-                        MessageTemplate::kAwaitNotInAsyncFunction);
+                        MessageTemplate::kAwaitNotInAsyncContext);
       }
       return;
     }
@@ -1068,8 +1065,7 @@ class ParserBase {
     return IsResumableFunction(function_state_->kind());
   }
   bool is_await_allowed() const {
-    return is_async_function() || (flags().allow_harmony_top_level_await() &&
-                                   IsModule(function_state_->kind()));
+    return is_async_function() || IsModule(function_state_->kind());
   }
   bool is_await_as_identifier_disallowed() {
     return flags().is_module() ||

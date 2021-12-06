@@ -44,7 +44,6 @@ ALL_VARIANT_FLAGS = {
   "turboprop_as_toptier": [["--turboprop-as-toptier", "--turboprop"]],
   "instruction_scheduling": [["--turbo-instruction-scheduling"]],
   "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]],
-  "top_level_await": [["--harmony-top-level-await"]],
   "wasm_write_protect_code": [["--wasm-write-protect-code-memory"]],
   # Google3 variants.
   "google3_icu": [[]],
