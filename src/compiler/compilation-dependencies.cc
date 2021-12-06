@@ -1140,16 +1140,7 @@ V8_INLINE void TraceInvalidCompilationDependency(
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {
-  for (auto dep : dependencies_) {
-    if (!dep->IsValid()) {
-      if (FLAG_trace_compilation_dependencies) {
-        TraceInvalidCompilationDependency(dep);
-      }
-      dependencies_.clear();
-      return false;
-    }
-    dep->PrepareInstall();
-  }
+  if (!PrepareInstall()) return false;
 
   {
     PendingDependencies pending_deps(zone_);
@@ -1197,6 +1188,44 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 #endif
 
   dependencies_.clear();
+  return true;
+}
+
+bool CompilationDependencies::PrepareInstall() {
+  if (V8_UNLIKELY(FLAG_predictable)) {
+    return PrepareInstallPredictable();
+  }
+
+  for (auto dep : dependencies_) {
+    if (!dep->IsValid()) {
+      if (FLAG_trace_compilation_dependencies) {
+        TraceInvalidCompilationDependency(dep);
+      }
+      dependencies_.clear();
+      return false;
+    }
+    dep->PrepareInstall();
+  }
+  return true;
+}
+
+bool CompilationDependencies::PrepareInstallPredictable() {
+  CHECK(FLAG_predictable);
+
+  std::vector<const CompilationDependency*> deps(dependencies_.begin(),
+                                                 dependencies_.end());
+  std::sort(deps.begin(), deps.end());
+
+  for (auto dep : deps) {
+    if (!dep->IsValid()) {
+      if (FLAG_trace_compilation_dependencies) {
+        TraceInvalidCompilationDependency(dep);
+      }
+      dependencies_.clear();
+      return false;
+    }
+    dep->PrepareInstall();
+  }
   return true;
 }
 

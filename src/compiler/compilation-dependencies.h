@@ -168,6 +168,9 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   };
 
  private:
+  bool PrepareInstall();
+  bool PrepareInstallPredictable();
+
   using CompilationDependencySet =
       ZoneUnorderedSet<const CompilationDependency*, CompilationDependencyHash,
                        CompilationDependencyEqual>;
