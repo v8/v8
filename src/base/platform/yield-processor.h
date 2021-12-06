@@ -11,6 +11,23 @@
 // other hyper-thread on this core. See the following for context:
 // https://software.intel.com/en-us/articles/benefitting-power-and-performance-sleep-loops
 
+#if defined(V8_CC_MSVC)
+// MSVC does not support inline assembly via __asm__ and provides compiler
+// intrinsics instead. Check if there is a usable intrinsic.
+//
+// intrin.h is an expensive header, so only include it if we're on a host
+// architecture that has a usable intrinsic.
+#if defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_X64)
+#include <intrin.h>
+#define YIELD_PROCESSOR _mm_pause()
+#elif defined(V8_HOST_ARCH_ARM64) || \
+    (defined(V8_HOST_ARCH_ARM) && __ARM_ARCH >= 6)
+#include <intrin.h>
+#define YIELD_PROCESSOR __yield()
+#endif  // V8_HOST_ARCH
+
+#else  // !V8_CC_MSVC
+
 #if defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_X64)
 #define YIELD_PROCESSOR __asm__ __volatile__("pause")
 #elif defined(V8_HOST_ARCH_ARM64) || \
@@ -28,6 +45,8 @@
 #elif defined(V8_HOST_ARCH_PPC64)
 #define YIELD_PROCESSOR __asm__ __volatile__("or 31,31,31")
 #endif  // V8_HOST_ARCH
+
+#endif  // V8_CC_MSVC
 
 #ifndef YIELD_PROCESSOR
 #define YIELD_PROCESSOR ((void)0)
