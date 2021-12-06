@@ -3360,6 +3360,14 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
     i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
   }
 
+  // Simulate errors before disposing V8, as that resets flags (via
+  // FlagList::ResetAllFlags()), but error simulation reads the random seed.
+  if (options.simulate_errors && is_valid_fuzz_script()) {
+    // Simulate several errors detectable by fuzzers behind a flag if the
+    // minimum file size for fuzzing was executed.
+    FuzzerMonitor::SimulateErrors();
+  }
+
   if (dispose) {
     V8::Dispose();
     V8::DisposePlatform();
@@ -3421,12 +3429,6 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   if (dispose) {
     delete counters_file_;
     delete counter_map_;
-  }
-
-  if (options.simulate_errors && is_valid_fuzz_script()) {
-    // Simulate several errors detectable by fuzzers behind a flag if the
-    // minimum file size for fuzzing was executed.
-    FuzzerMonitor::SimulateErrors();
   }
 }
 
