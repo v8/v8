@@ -91,9 +91,6 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   if (access.is_store_in_literal) {
     os << " (store in literal)";
   }
-  if (access.maybe_initializing_or_transitioning_store) {
-    os << " (initializing or transitioning store)";
-  }
   os << "]";
   return os;
 }
@@ -1883,6 +1880,7 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
 
 #define ACCESS_OP_LIST(V)                                                \
   V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)                 \
+  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)                 \
   V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)             \
   V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)             \
   V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)    \
@@ -1903,17 +1901,6 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
   }
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
-
-const Operator* SimplifiedOperatorBuilder::StoreField(
-    const FieldAccess& access, bool maybe_initializing_or_transitioning) {
-  FieldAccess store_access = access;
-  store_access.maybe_initializing_or_transitioning_store =
-      maybe_initializing_or_transitioning;
-  return zone()->New<Operator1<FieldAccess>>(
-      IrOpcode::kStoreField,
-      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead, "StoreField",
-      2, 1, 1, 0, 1, 0, store_access);
-}
 
 const Operator* SimplifiedOperatorBuilder::LoadMessage() {
   return zone()->New<Operator>(IrOpcode::kLoadMessage, Operator::kEliminatable,

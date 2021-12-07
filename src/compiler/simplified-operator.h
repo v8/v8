@@ -84,10 +84,6 @@ struct FieldAccess {
 #ifdef V8_HEAP_SANDBOX
   ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
 #endif
-  bool maybe_initializing_or_transitioning_store;  // store is potentially
-                                                   // initializing a newly
-                                                   // allocated object or part
-                                                   // of a map transition.
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -96,18 +92,18 @@ struct FieldAccess {
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
         const_field_info(ConstFieldInfo::None()),
-        is_store_in_literal(false),
-        maybe_initializing_or_transitioning_store(false) {}
+        is_store_in_literal(false) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
-              bool is_store_in_literal = false,
+              bool is_store_in_literal = false
 #ifdef V8_HEAP_SANDBOX
-              ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
+              ,
+              ExternalPointerTag external_pointer_tag = kExternalPointerNullTag
 #endif
-              bool maybe_initializing_or_transitioning_store = false)
+              )
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -116,12 +112,12 @@ struct FieldAccess {
         machine_type(machine_type),
         write_barrier_kind(write_barrier_kind),
         const_field_info(const_field_info),
-        is_store_in_literal(is_store_in_literal),
+        is_store_in_literal(is_store_in_literal)
 #ifdef V8_HEAP_SANDBOX
-        external_pointer_tag(external_pointer_tag),
+        ,
+        external_pointer_tag(external_pointer_tag)
 #endif
-        maybe_initializing_or_transitioning_store(
-            maybe_initializing_or_transitioning_store) {
+  {
     DCHECK_GE(offset, 0);
     DCHECK_IMPLIES(
         machine_type.IsMapWord(),
@@ -1047,8 +1043,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);
-  const Operator* StoreField(FieldAccess const&,
-                             bool maybe_initializing_or_transitioning = true);
+  const Operator* StoreField(FieldAccess const&);
 
   // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);
