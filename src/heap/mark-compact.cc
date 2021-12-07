@@ -1130,9 +1130,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // At the moment, custom roots cannot contain CodeDataContainers - the only
-    // objects that can contain Code pointers.
-    UNREACHABLE();
+    MarkObject(host, slot.load(code_cage_base()));
   }
 
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
@@ -1191,9 +1189,7 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // At the moment, custom roots cannot contain CodeDataContainers - the only
-    // objects that can contain Code pointers.
-    UNREACHABLE();
+    MarkObject(host, slot.load(code_cage_base()));
   }
 
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
@@ -1861,9 +1857,9 @@ void MarkCompactCollector::MarkObjectsFromClientHeaps() {
       [&visitor](Isolate* client) {
         Heap* heap = client->heap();
         HeapObjectIterator iterator(heap, HeapObjectIterator::kNoFiltering);
+        PtrComprCageBase cage_base(client);
         for (HeapObject obj = iterator.Next(); !obj.is_null();
              obj = iterator.Next()) {
-          PtrComprCageBase cage_base = GetPtrComprCageBase(obj);
           obj.IterateFast(cage_base, &visitor);
         }
       });
@@ -4450,9 +4446,9 @@ void MarkCompactCollector::UpdatePointersInClientHeaps() {
       [&visitor](Isolate* client) {
         Heap* heap = client->heap();
         HeapObjectIterator iterator(heap, HeapObjectIterator::kNoFiltering);
+        PtrComprCageBase cage_base(client);
         for (HeapObject obj = iterator.Next(); !obj.is_null();
              obj = iterator.Next()) {
-          PtrComprCageBase cage_base = GetPtrComprCageBase(obj);
           obj.IterateFast(cage_base, &visitor);
         }
       });
