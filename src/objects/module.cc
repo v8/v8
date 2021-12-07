@@ -247,11 +247,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
   STACK_CHECK(isolate, MaybeHandle<Object>());
-  return Module::EvaluateMaybeAsync(isolate, module);
-}
 
-MaybeHandle<Object> Module::EvaluateMaybeAsync(Isolate* isolate,
-                                               Handle<Module> module) {
   // In the event of errored evaluation, return a rejected promise.
   if (module->status() == kErrored) {
     // If we have a top level capability we assume it has already been
@@ -288,8 +284,8 @@ MaybeHandle<Object> Module::EvaluateMaybeAsync(Isolate* isolate,
   DCHECK(module->top_level_capability().IsUndefined());
 
   if (module->IsSourceTextModule()) {
-    return SourceTextModule::EvaluateMaybeAsync(
-        isolate, Handle<SourceTextModule>::cast(module));
+    return SourceTextModule::Evaluate(isolate,
+                                      Handle<SourceTextModule>::cast(module));
   } else {
     return SyntheticModule::Evaluate(isolate,
                                      Handle<SyntheticModule>::cast(module));

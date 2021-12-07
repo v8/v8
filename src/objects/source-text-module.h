@@ -179,10 +179,6 @@ class SourceTextModule
                                            AsyncParentCompletionSet* exec_list);
 
   // Implementation of spec concrete method Evaluate.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> EvaluateMaybeAsync(
-      Isolate* isolate, Handle<SourceTextModule> module);
-
-  // Continued implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
       Isolate* isolate, Handle<SourceTextModule> module);
 
