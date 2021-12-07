@@ -24,47 +24,8 @@ void StatsTable::SetCounterFunction(CounterLookupCallback f) {
   lookup_function_ = f;
 }
 
-int* StatsCounterBase::FindLocationInStatsTable() const {
+int* StatsCounter::FindLocationInStatsTable() const {
   return counters_->FindLocation(name_);
-}
-
-StatsCounterThreadSafe::StatsCounterThreadSafe(Counters* counters,
-                                               const char* name)
-    : StatsCounterBase(counters, name) {}
-
-void StatsCounterThreadSafe::Set(int Value) {
-  if (ptr_) {
-    base::MutexGuard Guard(&mutex_);
-    SetLoc(ptr_, Value);
-  }
-}
-
-void StatsCounterThreadSafe::Increment() {
-  if (ptr_) {
-    base::MutexGuard Guard(&mutex_);
-    IncrementLoc(ptr_);
-  }
-}
-
-void StatsCounterThreadSafe::Increment(int value) {
-  if (ptr_) {
-    base::MutexGuard Guard(&mutex_);
-    IncrementLoc(ptr_, value);
-  }
-}
-
-void StatsCounterThreadSafe::Decrement() {
-  if (ptr_) {
-    base::MutexGuard Guard(&mutex_);
-    DecrementLoc(ptr_);
-  }
-}
-
-void StatsCounterThreadSafe::Decrement(int value) {
-  if (ptr_) {
-    base::MutexGuard Guard(&mutex_);
-    DecrementLoc(ptr_, value);
-  }
 }
 
 void Histogram::AddSample(int sample) {
@@ -121,11 +82,8 @@ bool TimedHistogram::ToggleRunningState(bool expect_to_run) const {
 
 Counters::Counters(Isolate* isolate)
     :
-#define SC(name, caption) name##_(this, "c:" #caption),
-      STATS_COUNTER_TS_LIST(SC)
-#undef SC
 #ifdef V8_RUNTIME_CALL_STATS
-          runtime_call_stats_(RuntimeCallStats::kMainIsolateThread),
+      runtime_call_stats_(RuntimeCallStats::kMainIsolateThread),
       worker_thread_runtime_call_stats_(),
 #endif
       isolate_(isolate),
@@ -262,7 +220,7 @@ Counters::Counters(Isolate* isolate)
   };
   // clang-format on
   for (const auto& counter : kStatsCounters) {
-    this->*counter.member = StatsCounter(this, counter.caption);
+    (this->*counter.member).Init(this, counter.caption);
   }
 }
 
@@ -272,7 +230,6 @@ void Counters::ResetCounterFunction(CounterLookupCallback f) {
 #define SC(name, caption) name##_.Reset();
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
-  STATS_COUNTER_TS_LIST(SC)
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 

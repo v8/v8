@@ -211,11 +211,15 @@ inline void CheckedDecrement(
 
 template <typename T>
 V8_INLINE std::atomic<T>* AsAtomicPtr(T* t) {
+  STATIC_ASSERT(sizeof(T) == sizeof(std::atomic<T>));
+  STATIC_ASSERT(alignof(T) >= alignof(std::atomic<T>));
   return reinterpret_cast<std::atomic<T>*>(t);
 }
 
 template <typename T>
 V8_INLINE const std::atomic<T>* AsAtomicPtr(const T* t) {
+  STATIC_ASSERT(sizeof(T) == sizeof(std::atomic<T>));
+  STATIC_ASSERT(alignof(T) >= alignof(std::atomic<T>));
   return reinterpret_cast<const std::atomic<T>*>(t);
 }
 

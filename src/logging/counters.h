@@ -91,58 +91,32 @@ class StatsTable {
   AddHistogramSampleCallback add_histogram_sample_function_;
 };
 
-// Base class for stats counters.
-class StatsCounterBase {
- protected:
-  Counters* counters_;
-  const char* name_;
-  int* ptr_;
-
-  StatsCounterBase() = default;
-  StatsCounterBase(Counters* counters, const char* name)
-      : counters_(counters), name_(name), ptr_(nullptr) {}
-
-  void SetLoc(int* loc, int value) { *loc = value; }
-  void IncrementLoc(int* loc) { (*loc)++; }
-  void IncrementLoc(int* loc, int value) { (*loc) += value; }
-  void DecrementLoc(int* loc) { (*loc)--; }
-  void DecrementLoc(int* loc, int value) { (*loc) -= value; }
-
-  V8_EXPORT_PRIVATE int* FindLocationInStatsTable() const;
-};
-
-// StatsCounters are dynamically created values which can be tracked in
-// the StatsTable.  They are designed to be lightweight to create and
-// easy to use.
+// StatsCounters are dynamically created values which can be tracked in the
+// StatsTable. They are designed to be lightweight to create and easy to use.
 //
 // Internally, a counter represents a value in a row of a StatsTable.
 // The row has a 32bit value for each process/thread in the table and also
-// a name (stored in the table metadata).  Since the storage location can be
-// thread-specific, this class cannot be shared across threads. Note: This
-// class is not thread safe.
-class StatsCounter : public StatsCounterBase {
+// a name (stored in the table metadata). Since the storage location can be
+// thread-specific, this class cannot be shared across threads.
+// This class is thread-safe.
+class StatsCounter {
  public:
-  // Sets the counter to a specific value.
   void Set(int value) {
-    if (int* loc = GetPtr()) SetLoc(loc, value);
+    if (std::atomic<int>* loc = GetPtr()) {
+      loc->store(value, std::memory_order_relaxed);
+    }
   }
 
-  // Increments the counter.
-  void Increment() {
-    if (int* loc = GetPtr()) IncrementLoc(loc);
+  void Increment(int value = 1) {
+    if (std::atomic<int>* loc = GetPtr()) {
+      loc->fetch_add(value, std::memory_order_relaxed);
+    }
   }
 
-  void Increment(int value) {
-    if (int* loc = GetPtr()) IncrementLoc(loc, value);
-  }
-
-  // Decrements the counter.
-  void Decrement() {
-    if (int* loc = GetPtr()) DecrementLoc(loc);
-  }
-
-  void Decrement(int value) {
-    if (int* loc = GetPtr()) DecrementLoc(loc, value);
+  void Decrement(int value = 1) {
+    if (std::atomic<int>* loc = GetPtr()) {
+      loc->fetch_sub(value, std::memory_order_relaxed);
+    }
   }
 
   // Is this counter enabled?
@@ -152,8 +126,8 @@ class StatsCounter : public StatsCounterBase {
   // Get the internal pointer to the counter. This is used
   // by the code generator to emit code that manipulates a
   // given counter without calling the runtime system.
-  int* GetInternalPointer() {
-    int* loc = GetPtr();
+  std::atomic<int>* GetInternalPointer() {
+    std::atomic<int>* loc = GetPtr();
     DCHECK_NOT_NULL(loc);
     return loc;
   }
@@ -161,47 +135,44 @@ class StatsCounter : public StatsCounterBase {
  private:
   friend class Counters;
 
-  StatsCounter() = default;
-  StatsCounter(Counters* counters, const char* name)
-      : StatsCounterBase(counters, name), lookup_done_(false) {}
+  void Init(Counters* counters, const char* name) {
+    DCHECK_NULL(counters_);
+    DCHECK_NOT_NULL(counters);
+    // Counter names always start with "c:V8.".
+    DCHECK_EQ(0, memcmp(name, "c:V8.", 5));
+    counters_ = counters;
+    name_ = name;
+  }
+
+  V8_EXPORT_PRIVATE int* FindLocationInStatsTable() const;
 
   // Reset the cached internal pointer.
-  void Reset() { lookup_done_ = false; }
+  void Reset() {
+    lookup_done_.store(false, std::memory_order_release);
+    ptr_.store(nullptr, std::memory_order_release);
+  }
 
   // Returns the cached address of this counter location.
-  int* GetPtr() {
-    if (lookup_done_) return ptr_;
-    lookup_done_ = true;
-    ptr_ = FindLocationInStatsTable();
-    return ptr_;
+  std::atomic<int>* GetPtr() {
+    // {Init} must have been called.
+    DCHECK_NOT_NULL(counters_);
+    DCHECK_NOT_NULL(name_);
+    auto* ptr = ptr_.load(std::memory_order_acquire);
+    if (V8_LIKELY(ptr)) return ptr;
+    if (!lookup_done_.load(std::memory_order_acquire)) {
+      ptr = base::AsAtomicPtr(FindLocationInStatsTable());
+      ptr_.store(ptr, std::memory_order_release);
+      lookup_done_.store(true, std::memory_order_release);
+    }
+    // Re-load after checking {lookup_done_}.
+    return ptr_.load(std::memory_order_acquire);
   }
 
-  bool lookup_done_;
-};
-
-// Thread safe version of StatsCounter.
-class V8_EXPORT_PRIVATE StatsCounterThreadSafe : public StatsCounterBase {
- public:
-  void Set(int Value);
-  void Increment();
-  void Increment(int value);
-  void Decrement();
-  void Decrement(int value);
-  bool Enabled() { return ptr_ != nullptr; }
-  int* GetInternalPointer() {
-    DCHECK_NOT_NULL(ptr_);
-    return ptr_;
-  }
-
- private:
-  friend class Counters;
-
-  StatsCounterThreadSafe(Counters* counters, const char* name);
-  void Reset() { ptr_ = FindLocationInStatsTable(); }
-
-  base::Mutex mutex_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StatsCounterThreadSafe);
+  Counters* counters_ = nullptr;
+  const char* name_ = nullptr;
+  // A pointer to an atomic, set atomically in {GetPtr}.
+  std::atomic<std::atomic<int>*> ptr_{nullptr};
+  std::atomic<bool> lookup_done_{false};
 };
 
 // A Histogram represents a dynamically created histogram in the
@@ -621,11 +592,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 
-#define SC(name, caption) \
-  StatsCounterThreadSafe* name() { return &name##_; }
-  STATS_COUNTER_TS_LIST(SC)
-#undef SC
-
   // clang-format off
   enum Id {
 #define RATE_ID(name, caption, max, res) k_##name,
@@ -645,7 +611,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #define COUNTER_ID(name, caption) k_##name,
     STATS_COUNTER_LIST_1(COUNTER_ID)
     STATS_COUNTER_LIST_2(COUNTER_ID)
-    STATS_COUNTER_TS_LIST(COUNTER_ID)
     STATS_COUNTER_NATIVE_CODE_LIST(COUNTER_ID)
 #undef COUNTER_ID
 #define COUNTER_ID(name) kCountOf##name, kSizeOf##name,
@@ -679,7 +644,7 @@ class Counters : public std::enable_shared_from_this<Counters> {
 
  private:
   friend class StatsTable;
-  friend class StatsCounterBase;
+  friend class StatsCounter;
   friend class Histogram;
   friend class NestedTimedHistogramScope;
 
@@ -726,10 +691,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
   STATS_COUNTER_NATIVE_CODE_LIST(SC)
-#undef SC
-
-#define SC(name, caption) StatsCounterThreadSafe name##_;
-  STATS_COUNTER_TS_LIST(SC)
 #undef SC
 
 #define SC(name)                  \

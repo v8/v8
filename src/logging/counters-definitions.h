@@ -349,11 +349,9 @@ namespace internal {
   /* Total code size (including metadata) of baseline code or bytecode. */     \
   SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
   /* Total count of functions compiled using the baseline compiler. */         \
-  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
-
-#define STATS_COUNTER_TS_LIST(SC)                         \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes) \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                  \
+  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)               \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
   SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
 
 // List of counters that can be incremented from generated code. We need them in
