@@ -51,17 +51,8 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
   BackgroundCompileTask* NewBackgroundCompileTask(
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
       size_t stack_size = FLAG_stack_size) {
-    UnoptimizedCompileState state(isolate);
-    std::unique_ptr<ParseInfo> outer_parse_info =
-        test::OuterParseInfoForShared(isolate, shared, &state);
-    AstValueFactory* ast_value_factory =
-        outer_parse_info->GetOrCreateAstValueFactory();
-    AstNodeFactory ast_node_factory(ast_value_factory,
-                                    outer_parse_info->zone());
-
     return new BackgroundCompileTask(
-        isolate, shared, outer_parse_info->state(),
-        outer_parse_info->character_stream()->Clone(),
+        isolate, shared, test::SourceCharacterStreamForShared(isolate, shared),
         isolate->counters()->worker_thread_runtime_call_stats(),
         isolate->counters()->compile_function_on_background(), FLAG_stack_size);
   }

@@ -687,7 +687,8 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     i::Handle<i::String> str = Utils::OpenHandle(*(source));
 
     // Set up ParseInfo.
-    i::UnoptimizedCompileState compile_state(i_isolate);
+    i::UnoptimizedCompileState compile_state;
+    i::ReusableUnoptimizedCompileState reusable_state(i_isolate);
 
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForToplevelCompile(
@@ -698,7 +699,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       flags.set_is_eager(true);
     }
 
-    i::ParseInfo parse_info(i_isolate, flags, &compile_state);
+    i::ParseInfo parse_info(i_isolate, flags, &compile_state, &reusable_state);
 
     i::Handle<i::Script> script = parse_info.CreateScript(
         i_isolate, str, i::kNullMaybeHandle, ScriptOriginOptions());

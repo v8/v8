@@ -367,8 +367,6 @@ AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
 
 template <typename IsolateT>
 void AstValueFactory::Internalize(IsolateT* isolate) {
-  if (!zone_) return;
-
   // Strings need to be internalized before values, because values refer to
   // strings.
   for (AstRawString* current = strings_; current != nullptr;) {
@@ -378,7 +376,6 @@ void AstValueFactory::Internalize(IsolateT* isolate) {
   }
 
   ResetStrings();
-  zone_ = nullptr;
 }
 template EXPORT_TEMPLATE_DEFINE(
     V8_EXPORT_PRIVATE) void AstValueFactory::Internalize(Isolate* isolate);

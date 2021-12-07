@@ -19,6 +19,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
+#include "src/parsing/scanner-character-streams.h"
 #include "src/zone/zone-list-inl.h"
 #include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"
@@ -74,13 +75,9 @@ class LazyCompileDispatcherTest : public TestWithNativeContext {
   static void EnqueueUnoptimizedCompileJob(LazyCompileDispatcher* dispatcher,
                                            Isolate* isolate,
                                            Handle<SharedFunctionInfo> shared) {
-    UnoptimizedCompileState state(isolate);
-    std::unique_ptr<ParseInfo> outer_parse_info =
-        test::OuterParseInfoForShared(isolate, shared, &state);
     if (dispatcher->IsEnqueued(shared)) return;
     dispatcher->Enqueue(isolate->main_thread_local_isolate(), shared,
-                        outer_parse_info->state(),
-                        outer_parse_info->character_stream()->Clone());
+                        test::SourceCharacterStreamForShared(isolate, shared));
   }
 };
 

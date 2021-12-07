@@ -161,39 +161,61 @@ class ParseInfo;
 // The mutable state for a parse + unoptimized compile operation.
 class V8_EXPORT_PRIVATE UnoptimizedCompileState {
  public:
-  explicit UnoptimizedCompileState(Isolate*);
-  UnoptimizedCompileState(const UnoptimizedCompileState& other) V8_NOEXCEPT;
+  const PendingCompilationErrorHandler* pending_error_handler() const {
+    return &pending_error_handler_;
+  }
+  PendingCompilationErrorHandler* pending_error_handler() {
+    return &pending_error_handler_;
+  }
 
+ private:
+  PendingCompilationErrorHandler pending_error_handler_;
+};
+
+// A container for ParseInfo fields that are reusable across multiple parses and
+// unoptimized compiles.
+//
+// Note that this is different from UnoptimizedCompileState, which has mutable
+// state for a single compilation that is not reusable across multiple
+// compilations.
+class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
+ public:
+  explicit ReusableUnoptimizedCompileState(Isolate* isolate);
+  explicit ReusableUnoptimizedCompileState(LocalIsolate* isolate);
+  ~ReusableUnoptimizedCompileState();
+
+  Zone* zone() { return &zone_; }
+  AstValueFactory* ast_value_factory() const {
+    return ast_value_factory_.get();
+  }
   uint64_t hash_seed() const { return hash_seed_; }
   AccountingAllocator* allocator() const { return allocator_; }
   const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
   }
   Logger* logger() const { return logger_; }
-  PendingCompilationErrorHandler* pending_error_handler() {
-    return &pending_error_handler_;
-  }
-  const PendingCompilationErrorHandler* pending_error_handler() const {
-    return &pending_error_handler_;
-  }
   LazyCompileDispatcher* dispatcher() const { return dispatcher_; }
 
  private:
   uint64_t hash_seed_;
   AccountingAllocator* allocator_;
-  const AstStringConstants* ast_string_constants_;
-  PendingCompilationErrorHandler pending_error_handler_;
   Logger* logger_;
   LazyCompileDispatcher* dispatcher_;
+  const AstStringConstants* ast_string_constants_;
+  Zone zone_;
+  std::unique_ptr<AstValueFactory> ast_value_factory_;
 };
 
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
   ParseInfo(Isolate* isolate, const UnoptimizedCompileFlags flags,
-            UnoptimizedCompileState* state);
+            UnoptimizedCompileState* state,
+            ReusableUnoptimizedCompileState* reusable_state);
   ParseInfo(LocalIsolate* isolate, const UnoptimizedCompileFlags flags,
-            UnoptimizedCompileState* state, uintptr_t stack_limit);
+            UnoptimizedCompileState* state,
+            ReusableUnoptimizedCompileState* reusable_state,
+            uintptr_t stack_limit);
 
   ~ParseInfo();
 
@@ -204,26 +226,28 @@ class V8_EXPORT_PRIVATE ParseInfo {
                               ScriptOriginOptions origin_options,
                               NativesFlag natives = NOT_NATIVES_CODE);
 
-  // Either returns the ast-value-factory associcated with this ParseInfo, or
-  // creates and returns a new factory if none exists.
-  AstValueFactory* GetOrCreateAstValueFactory();
-
-  Zone* zone() const { return zone_.get(); }
+  Zone* zone() const { return reusable_state_->zone(); }
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
 
-  // Getters for state.
-  uint64_t hash_seed() const { return state_->hash_seed(); }
-  AccountingAllocator* allocator() const { return state_->allocator(); }
-  const AstStringConstants* ast_string_constants() const {
-    return state_->ast_string_constants();
+  // Getters for reusable state.
+  uint64_t hash_seed() const { return reusable_state_->hash_seed(); }
+  AccountingAllocator* allocator() const {
+    return reusable_state_->allocator();
   }
-  Logger* logger() const { return state_->logger(); }
+  const AstStringConstants* ast_string_constants() const {
+    return reusable_state_->ast_string_constants();
+  }
+  Logger* logger() const { return reusable_state_->logger(); }
+  LazyCompileDispatcher* dispatcher() const {
+    return reusable_state_->dispatcher();
+  }
+  const UnoptimizedCompileState* state() const { return state_; }
+
+  // Getters for state.
   PendingCompilationErrorHandler* pending_error_handler() {
     return state_->pending_error_handler();
   }
-  LazyCompileDispatcher* dispatcher() const { return state_->dispatcher(); }
-  const UnoptimizedCompileState* state() const { return state_; }
 
   // Accessors for per-thread state.
   uintptr_t stack_limit() const { return stack_limit_; }
@@ -264,8 +288,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
   AstValueFactory* ast_value_factory() const {
-    DCHECK(ast_value_factory_.get());
-    return ast_value_factory_.get();
+    return reusable_state_->ast_value_factory();
   }
 
   const AstRawString* function_name() const { return function_name_; }
@@ -302,6 +325,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
  private:
   ParseInfo(const UnoptimizedCompileFlags flags, UnoptimizedCompileState* state,
+            ReusableUnoptimizedCompileState* reusable_state,
             uintptr_t stack_limit, RuntimeCallStats* runtime_call_stats);
 
   void CheckFlagsForToplevelCompileFromScript(Script script,
@@ -310,8 +334,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //------------- Inputs to parsing and scope analysis -----------------------
   const UnoptimizedCompileFlags flags_;
   UnoptimizedCompileState* state_;
+  ReusableUnoptimizedCompileState* reusable_state_;
 
-  std::unique_ptr<Zone> zone_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
   uintptr_t stack_limit_;
@@ -321,7 +345,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ConsumedPreparseData> consumed_preparse_data_;
-  std::unique_ptr<AstValueFactory> ast_value_factory_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
   SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.

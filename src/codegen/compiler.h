@@ -511,12 +511,13 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // Compiler::FinalizeBackgroundCompileTask.
   BackgroundCompileTask(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
-      const UnoptimizedCompileState* compile_state,
       std::unique_ptr<Utf16CharacterStream> character_stream,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
       TimedHistogram* timer, int max_stack_size);
 
   void Run();
+  void Run(LocalIsolate* isolate,
+           ReusableUnoptimizedCompileState* reusable_state);
 
   MaybeHandle<SharedFunctionInfo> FinalizeScript(
       Isolate* isolate, Handle<String> source,

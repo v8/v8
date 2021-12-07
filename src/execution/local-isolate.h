@@ -67,6 +67,17 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   base::SharedMutex* internalized_string_access() {
     return isolate_->internalized_string_access();
   }
+  const AstStringConstants* ast_string_constants() {
+    return isolate_->ast_string_constants();
+  }
+  LazyCompileDispatcher* lazy_compile_dispatcher() {
+    return isolate_->lazy_compile_dispatcher();
+  }
+  Logger* main_thread_logger() {
+    // TODO(leszeks): This is needed for logging in ParseInfo. Figure out a way
+    // to use the LocalLogger for this instead.
+    return isolate_->logger();
+  }
 
   v8::internal::LocalFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid

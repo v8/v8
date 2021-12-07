@@ -169,34 +169,44 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(Script script) {
                              script.IsUserJavaScript());
 }
 
-UnoptimizedCompileState::UnoptimizedCompileState(Isolate* isolate)
+ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
+    Isolate* isolate)
     : hash_seed_(HashSeed(isolate)),
       allocator_(isolate->allocator()),
-      ast_string_constants_(isolate->ast_string_constants()),
       logger_(isolate->logger()),
-      dispatcher_(isolate->lazy_compile_dispatcher()) {}
+      dispatcher_(isolate->lazy_compile_dispatcher()),
+      ast_string_constants_(isolate->ast_string_constants()),
+      zone_(allocator_, "unoptimized-compile-zone"),
+      ast_value_factory_(
+          new AstValueFactory(zone(), ast_string_constants(), hash_seed())) {}
 
-UnoptimizedCompileState::UnoptimizedCompileState(
-    const UnoptimizedCompileState& other) V8_NOEXCEPT
-    : hash_seed_(other.hash_seed()),
-      allocator_(other.allocator()),
-      ast_string_constants_(other.ast_string_constants()),
-      logger_(other.logger()),
-      dispatcher_(other.dispatcher()) {}
+ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
+    LocalIsolate* isolate)
+    : hash_seed_(HashSeed(isolate)),
+      allocator_(isolate->allocator()),
+      logger_(isolate->main_thread_logger()),
+      dispatcher_(isolate->lazy_compile_dispatcher()),
+      ast_string_constants_(isolate->ast_string_constants()),
+      zone_(allocator_, "unoptimized-compile-zone"),
+      ast_value_factory_(
+          new AstValueFactory(zone(), ast_string_constants(), hash_seed())) {}
+
+ReusableUnoptimizedCompileState::~ReusableUnoptimizedCompileState() = default;
 
 ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
-                     UnoptimizedCompileState* state, uintptr_t stack_limit,
+                     UnoptimizedCompileState* state,
+                     ReusableUnoptimizedCompileState* reusable_state,
+                     uintptr_t stack_limit,
                      RuntimeCallStats* runtime_call_stats)
     : flags_(flags),
       state_(state),
-      zone_(std::make_unique<Zone>(state->allocator(), "parser-zone")),
+      reusable_state_(reusable_state),
       extension_(nullptr),
       script_scope_(nullptr),
       stack_limit_(stack_limit),
       parameters_end_pos_(kNoSourcePosition),
       max_function_literal_id_(kFunctionLiteralIdInvalid),
       character_stream_(nullptr),
-      ast_value_factory_(nullptr),
       function_name_(nullptr),
       runtime_call_stats_(runtime_call_stats),
       source_range_map_(nullptr),
@@ -212,13 +222,18 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
 }
 
 ParseInfo::ParseInfo(Isolate* isolate, const UnoptimizedCompileFlags flags,
-                     UnoptimizedCompileState* state)
-    : ParseInfo(flags, state, isolate->stack_guard()->real_climit(),
+                     UnoptimizedCompileState* state,
+                     ReusableUnoptimizedCompileState* reusable_state)
+    : ParseInfo(flags, state, reusable_state,
+                isolate->stack_guard()->real_climit(),
                 isolate->counters()->runtime_call_stats()) {}
 
 ParseInfo::ParseInfo(LocalIsolate* isolate, const UnoptimizedCompileFlags flags,
-                     UnoptimizedCompileState* state, uintptr_t stack_limit)
-    : ParseInfo(flags, state, stack_limit, isolate->runtime_call_stats()) {}
+                     UnoptimizedCompileState* state,
+                     ReusableUnoptimizedCompileState* reusable_state,
+                     uintptr_t stack_limit)
+    : ParseInfo(flags, state, reusable_state, stack_limit,
+                isolate->runtime_call_stats()) {}
 
 ParseInfo::~ParseInfo() = default;
 
@@ -269,14 +284,6 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         LocalIsolate* isolate, Handle<String> source,
         MaybeHandle<FixedArray> maybe_wrapped_arguments,
         ScriptOriginOptions origin_options, NativesFlag natives);
-
-AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
-  if (!ast_value_factory_.get()) {
-    ast_value_factory_.reset(
-        new AstValueFactory(zone(), ast_string_constants(), hash_seed()));
-  }
-  return ast_value_factory();
-}
 
 void ParseInfo::AllocateSourceRangeMap() {
   DCHECK(flags().block_coverage_enabled());

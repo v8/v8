@@ -55,13 +55,13 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
  public:
   LocalFactoryTest()
       : TestWithIsolateAndZone(),
-        state_(isolate()),
+        reusable_state_(isolate()),
         parse_info_(
             isolate(),
             UnoptimizedCompileFlags::ForToplevelCompile(
                 isolate(), true, construct_language_mode(FLAG_use_strict),
                 REPLMode::kNo, ScriptType::kClassic, FLAG_lazy),
-            &state_),
+            &state_, &reusable_state_),
         local_isolate_(isolate()->main_thread_local_isolate()) {}
 
   FunctionLiteral* ParseProgram(const char* source) {
@@ -105,6 +105,7 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
  private:
   SaveFlags save_flags_;
   UnoptimizedCompileState state_;
+  ReusableUnoptimizedCompileState reusable_state_;
   ParseInfo parse_info_;
   LocalIsolate* local_isolate_;
   Handle<String> source_string_;

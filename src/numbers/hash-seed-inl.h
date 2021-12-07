@@ -17,9 +17,11 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class LocalIsolate;
 class ReadOnlyRoots;
 
 inline uint64_t HashSeed(Isolate* isolate);
+inline uint64_t HashSeed(LocalIsolate* isolate);
 inline uint64_t HashSeed(ReadOnlyRoots roots);
 
 }  // namespace internal
@@ -33,6 +35,10 @@ namespace v8 {
 namespace internal {
 
 inline uint64_t HashSeed(Isolate* isolate) {
+  return HashSeed(ReadOnlyRoots(isolate));
+}
+
+inline uint64_t HashSeed(LocalIsolate* isolate) {
   return HashSeed(ReadOnlyRoots(isolate));
 }
 

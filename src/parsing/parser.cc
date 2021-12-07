@@ -424,7 +424,7 @@ Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info,
                Handle<Script> script)
     : ParserBase<Parser>(
           info->zone(), &scanner_, info->stack_limit(),
-          info->GetOrCreateAstValueFactory(), info->pending_error_handler(),
+          info->ast_value_factory(), info->pending_error_handler(),
           info->runtime_call_stats(), info->logger(), info->flags(), true),
       local_isolate_(local_isolate),
       info_(info),

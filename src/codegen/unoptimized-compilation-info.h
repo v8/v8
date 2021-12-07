@@ -35,7 +35,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
                              FunctionLiteral* literal);
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
-  const UnoptimizedCompileState* state() const { return state_; }
+  LazyCompileDispatcher* dispatcher() { return dispatcher_; }
   const Utf16CharacterStream* character_stream() const {
     return character_stream_;
   }
@@ -90,8 +90,8 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
   // Compilation flags.
   const UnoptimizedCompileFlags flags_;
 
-  // Compilation state.
-  const UnoptimizedCompileState* state_;
+  // For dispatching eager compilation of lazily compiled functions.
+  LazyCompileDispatcher* dispatcher_;
   const Utf16CharacterStream* character_stream_;
 
   // The root AST node of the function literal being compiled.

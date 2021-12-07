@@ -2528,7 +2528,7 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
         literal->ShouldEagerCompile(),
         info()->flags().post_parallel_compile_tasks_for_eager_toplevel());
     // There exists a lazy compile dispatcher.
-    DCHECK(info()->state()->dispatcher());
+    DCHECK(info()->dispatcher());
     // There exists a cloneable character stream.
     DCHECK(info()->character_stream()->can_be_cloned_for_parallel_access());
 
@@ -2542,9 +2542,8 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
              .ToHandle(&shared_info)) {
       shared_info =
           Compiler::GetSharedFunctionInfo(literal, script_, local_isolate_);
-      info()->state()->dispatcher()->Enqueue(
-          local_isolate_, shared_info, info()->state(),
-          info()->character_stream()->Clone());
+      info()->dispatcher()->Enqueue(local_isolate_, shared_info,
+                                    info()->character_stream()->Clone());
     }
   } else if (eager_inner_literals_ && literal->ShouldEagerCompile()) {
     DCHECK(!IsInEagerLiterals(literal, *eager_inner_literals_));

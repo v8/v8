@@ -13,11 +13,14 @@
 #include "src/codegen/compiler.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/roots/roots.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
@@ -86,7 +89,6 @@ LazyCompileDispatcher::~LazyCompileDispatcher() {
 
 void LazyCompileDispatcher::Enqueue(
     LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
-    const UnoptimizedCompileState* compile_state,
     std::unique_ptr<Utf16CharacterStream> character_stream) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompilerDispatcherEnqueue");
@@ -94,7 +96,7 @@ void LazyCompileDispatcher::Enqueue(
 
   std::unique_ptr<Job> job =
       std::make_unique<Job>(std::make_unique<BackgroundCompileTask>(
-          isolate_, shared_info, compile_state, std::move(character_stream),
+          isolate_, shared_info, std::move(character_stream),
           worker_thread_runtime_call_stats_, background_compile_timer_,
           static_cast<int>(max_stack_size_)));
 
@@ -259,6 +261,17 @@ void LazyCompileDispatcher::ScheduleIdleTaskFromAnyThread(
 void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompileDispatcherDoBackgroundWork");
+
+  WorkerThreadRuntimeCallStatsScope worker_thread_scope(
+      worker_thread_runtime_call_stats_);
+
+  LocalIsolate isolate(isolate_, ThreadKind::kBackground,
+                       worker_thread_scope.Get());
+  UnparkedScope unparked_scope(&isolate);
+  LocalHandleScope handle_scope(&isolate);
+
+  ReusableUnoptimizedCompileState reusable_state(&isolate);
+
   while (!delegate->ShouldYield()) {
     Job* job = nullptr;
     {
@@ -281,7 +294,7 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
       PrintF("LazyCompileDispatcher: doing background work\n");
     }
 
-    job->task->Run();
+    job->task->Run(&isolate, &reusable_state);
 
     {
       base::MutexGuard lock(&mutex_);

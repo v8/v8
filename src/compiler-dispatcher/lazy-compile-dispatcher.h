@@ -85,7 +85,6 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   ~LazyCompileDispatcher();
 
   void Enqueue(LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
-               const UnoptimizedCompileState* compile_state,
                std::unique_ptr<Utf16CharacterStream> character_stream);
 
   // Returns true if there is a pending job registered for the given function.
