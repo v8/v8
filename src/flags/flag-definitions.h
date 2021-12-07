@@ -1251,7 +1251,7 @@ DEFINE_BOOL_READONLY(write_protect_code_memory, true,
 #else
 DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
 #endif
-#if defined(V8_ATOMIC_MARKING_STATE) && defined(V8_ATOMIC_OBJECT_FIELD_WRITES)
+#if defined(V8_ATOMIC_OBJECT_FIELD_WRITES)
 #define V8_CONCURRENT_MARKING_BOOL true
 #else
 #define V8_CONCURRENT_MARKING_BOOL false
