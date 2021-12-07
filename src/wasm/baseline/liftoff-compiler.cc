@@ -721,14 +721,16 @@ class LiftoffCompiler {
   }
 
   void TierupCheck(FullDecoder* decoder, WasmCodePosition position,
-                   int budget_used) {
+                   int budget_used, Register scratch_reg) {
     if (for_debugging_ != kNoDebugging) return;
     CODE_COMMENT("tierup check");
     // We never want to blow the entire budget at once.
     const int kMax = FLAG_wasm_tiering_budget / 4;
     if (budget_used > kMax) budget_used = kMax;
 
-    LiftoffRegister budget_reg = __ GetUnusedRegister(kGpReg, {});
+    LiftoffRegister budget_reg = scratch_reg == no_reg
+                                     ? __ GetUnusedRegister(kGpReg, {})
+                                     : LiftoffRegister(scratch_reg);
     __ Fill(budget_reg, liftoff::kTierupBudgetOffset, ValueKind::kI32);
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
     // The cached instance will be reloaded separately.
@@ -2235,7 +2237,7 @@ class LiftoffCompiler {
 
   void TierupCheckOnExit(FullDecoder* decoder) {
     if (!dynamic_tiering()) return;
-    TierupCheck(decoder, decoder->position(), __ pc_offset());
+    TierupCheck(decoder, decoder->position(), __ pc_offset(), no_reg);
     LiftoffRegList pinned;
     LiftoffRegister budget = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister array = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -2580,23 +2582,23 @@ class LiftoffCompiler {
     __ PushRegister(kind, dst);
   }
 
-  void BrImpl(FullDecoder* decoder, Control* target) {
-    if (!target->br_merge()->reached) {
-      target->label_state.InitMerge(
-          *__ cache_state(), __ num_locals(), target->br_merge()->arity,
-          target->stack_depth + target->num_exceptions);
-    }
+  void BrImpl(FullDecoder* decoder, Control* target, Register scratch_reg) {
     if (dynamic_tiering()) {
       if (target->is_loop()) {
         DCHECK(target->label.get()->is_bound());
         int jump_distance = __ pc_offset() - target->label.get()->pos();
-        TierupCheck(decoder, decoder->position(), jump_distance);
+        TierupCheck(decoder, decoder->position(), jump_distance, scratch_reg);
       } else {
         // To estimate time spent in this function more accurately, we could
         // increment the tiering budget on forward jumps. However, we don't
         // know the jump distance yet; using a blanket value has been tried
         // and found to not make a difference.
       }
+    }
+    if (!target->br_merge()->reached) {
+      target->label_state.InitMerge(
+          *__ cache_state(), __ num_locals(), target->br_merge()->arity,
+          target->stack_depth + target->num_exceptions);
     }
     __ MergeStackWith(target->label_state, target->br_merge()->arity,
                       target->is_loop() ? LiftoffAssembler::kBackwardJump
@@ -2606,10 +2608,14 @@ class LiftoffCompiler {
 
   void BrOrRet(FullDecoder* decoder, uint32_t depth,
                uint32_t /* drop_values */) {
+    BrOrRetImpl(decoder, depth, no_reg);
+  }
+
+  void BrOrRetImpl(FullDecoder* decoder, uint32_t depth, Register scratch_reg) {
     if (depth == decoder->control_depth() - 1) {
       DoReturn(decoder, 0);
     } else {
-      BrImpl(decoder, decoder->control_at(depth));
+      BrImpl(decoder, decoder->control_at(depth), scratch_reg);
     }
   }
 
@@ -2622,12 +2628,16 @@ class LiftoffCompiler {
           decoder->control_at(depth)->br_merge()->arity);
     }
 
+    Register scratch_reg = no_reg;
+    if (dynamic_tiering()) {
+      scratch_reg = __ GetUnusedRegister(kGpReg, {}).gp();
+    }
     Label cont_false;
 
     // Test the condition on the value stack, jump to {cont_false} if zero.
     JumpIfFalse(decoder, &cont_false);
 
-    BrOrRet(decoder, depth, 0);
+    BrOrRetImpl(decoder, depth, scratch_reg);
     __ bind(&cont_false);
   }
 
