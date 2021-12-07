@@ -27,6 +27,7 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/embedder-state.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/runtime-profiler.h"
@@ -3323,6 +3324,10 @@ void Heap::OnMoveEvent(HeapObject target, HeapObject source,
     LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source.address(),
                                                          target.address()));
   } else if (target.IsNativeContext()) {
+    if (isolate_->current_embedder_state() != nullptr) {
+      isolate_->current_embedder_state()->OnMoveEvent(source.address(),
+                                                      target.address());
+    }
     PROFILE(isolate_,
             NativeContextMoveEvent(source.address(), target.address()));
   }
