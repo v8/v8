@@ -656,15 +656,15 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
   void* task = reinterpret_cast<void*>(id * 2 + 1);
   switch (type) {
     case v8::debug::kDebugPromiseThen:
-      asyncTaskScheduledForStack("Promise.then", task, false);
+      asyncTaskScheduledForStack(toStringView("Promise.then"), task, false);
       if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugPromiseCatch:
-      asyncTaskScheduledForStack("Promise.catch", task, false);
+      asyncTaskScheduledForStack(toStringView("Promise.catch"), task, false);
       if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugPromiseFinally:
-      asyncTaskScheduledForStack("Promise.finally", task, false);
+      asyncTaskScheduledForStack(toStringView("Promise.finally"), task, false);
       if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugWillHandle:
@@ -677,7 +677,7 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
       break;
     case v8::debug::kAsyncFunctionSuspended: {
       if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) {
-        asyncTaskScheduledForStack("await", task, true, true);
+        asyncTaskScheduledForStack(toStringView("await"), task, true, true);
       }
       auto stackIt = m_asyncTaskStacks.find(task);
       if (stackIt != m_asyncTaskStacks.end() && !stackIt->second.expired()) {
@@ -976,7 +976,7 @@ void V8Debugger::externalAsyncTaskFinished(const V8StackTraceId& parent) {
 
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
                                     bool recurring) {
-  asyncTaskScheduledForStack(toString16(taskName), task, recurring);
+  asyncTaskScheduledForStack(taskName, task, recurring);
   asyncTaskCandidateForStepping(task);
 }
 
@@ -995,13 +995,13 @@ void V8Debugger::asyncTaskFinished(void* task) {
   asyncTaskFinishedForStack(task);
 }
 
-void V8Debugger::asyncTaskScheduledForStack(const String16& taskName,
+void V8Debugger::asyncTaskScheduledForStack(const StringView& taskName,
                                             void* task, bool recurring,
                                             bool skipTopFrame) {
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
   std::shared_ptr<AsyncStackTrace> asyncStack = AsyncStackTrace::capture(
-      this, taskName, V8StackTraceImpl::maxCallStackSizeToCapture,
+      this, toString16(taskName), V8StackTraceImpl::maxCallStackSizeToCapture,
       skipTopFrame);
   if (asyncStack) {
     m_asyncTaskStacks[task] = asyncStack;

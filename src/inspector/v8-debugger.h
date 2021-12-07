@@ -161,7 +161,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   v8::MaybeLocal<v8::Array> collectionsEntries(v8::Local<v8::Context> context,
                                                v8::Local<v8::Value> value);
 
-  void asyncTaskScheduledForStack(const String16& taskName, void* task,
+  void asyncTaskScheduledForStack(const StringView& taskName, void* task,
                                   bool recurring, bool skipTopFrame = false);
   void asyncTaskCanceledForStack(void* task);
   void asyncTaskStartedForStack(void* task);
