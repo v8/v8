@@ -4028,6 +4028,64 @@ void TurboAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
   vsll_vi(v0, v0, 1);
   vmerge_vx(dst, kScratchReg, dst);
 }
+
+void TurboAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
+                              MemOperand src) {
+  if (ts == 8) {
+    Lbu(kScratchReg2, src);
+    VU.set(kScratchReg, E64, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    VU.set(kScratchReg, E8, m1);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 16) {
+    Lhu(kScratchReg2, src);
+    VU.set(kScratchReg, E16, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 32) {
+    Lwu(kScratchReg2, src);
+    VU.set(kScratchReg, E32, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 64) {
+    Ld(kScratchReg2, src);
+    VU.set(kScratchReg, E64, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void TurboAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
+                               MemOperand dst) {
+  if (sz == 8) {
+    VU.set(kScratchReg, E8, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sb(kScratchReg, dst);
+  } else if (sz == 16) {
+    VU.set(kScratchReg, E16, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sh(kScratchReg, dst);
+  } else if (sz == 32) {
+    VU.set(kScratchReg, E32, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sw(kScratchReg, dst);
+  } else {
+    DCHECK_EQ(sz, 64);
+    VU.set(kScratchReg, E64, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sd(kScratchReg, dst);
+  }
+}
 // -----------------------------------------------------------------------------
 // Runtime calls.
 

@@ -762,6 +762,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vwaddu_wx(VRegister vd, VRegister vs2, Register rs1,
                  MaskType mask = NoMask);
+  void vid_v(VRegister vd, MaskType mask = Mask);
 
 #define DEFINE_OPIVV(name, funct6)                           \
   void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
@@ -823,7 +824,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPMVV(vmulhu, VMULHU_FUNCT6)
   DEFINE_OPMVV(vmulhsu, VMULHSU_FUNCT6)
   DEFINE_OPMVV(vmulh, VMULH_FUNCT6)
+  DEFINE_OPMVV(vwmul, VWMUL_FUNCT6)
+  DEFINE_OPMVV(vwmulu, VWMULU_FUNCT6)
   DEFINE_OPMVV(vwaddu, VWADDU_FUNCT6)
+  DEFINE_OPMVV(vwadd, VWADD_FUNCT6)
+  DEFINE_OPMVV(vcompress, VCOMPRESS_FUNCT6)
   DEFINE_OPIVX(vsadd, VSADD_FUNCT6)
   DEFINE_OPIVV(vsadd, VSADD_FUNCT6)
   DEFINE_OPIVI(vsadd, VSADD_FUNCT6)
@@ -984,7 +989,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_VFUNARY(vfcvt_x_f_v, VFUNARY0_FUNCT6, VFCVT_X_F_V)
   DEFINE_VFUNARY(vfcvt_f_x_v, VFUNARY0_FUNCT6, VFCVT_F_X_V)
   DEFINE_VFUNARY(vfcvt_f_xu_v, VFUNARY0_FUNCT6, VFCVT_F_XU_V)
+  DEFINE_VFUNARY(vfwcvt_xu_f_v, VFUNARY0_FUNCT6, VFWCVT_XU_F_V)
+  DEFINE_VFUNARY(vfwcvt_x_f_v, VFUNARY0_FUNCT6, VFWCVT_X_F_V)
+  DEFINE_VFUNARY(vfwcvt_f_x_v, VFUNARY0_FUNCT6, VFWCVT_F_X_V)
+  DEFINE_VFUNARY(vfwcvt_f_xu_v, VFUNARY0_FUNCT6, VFWCVT_F_XU_V)
+  DEFINE_VFUNARY(vfwcvt_f_f_v, VFUNARY0_FUNCT6, VFWCVT_F_F_V)
+
   DEFINE_VFUNARY(vfncvt_f_f_w, VFUNARY0_FUNCT6, VFNCVT_F_F_W)
+  DEFINE_VFUNARY(vfncvt_x_f_w, VFUNARY0_FUNCT6, VFNCVT_X_F_W)
+  DEFINE_VFUNARY(vfncvt_xu_f_w, VFUNARY0_FUNCT6, VFNCVT_XU_F_W)
 
   DEFINE_VFUNARY(vfclass_v, VFUNARY1_FUNCT6, VFCLASS_V)
   DEFINE_VFUNARY(vfsqrt_v, VFUNARY1_FUNCT6, VFSQRT_V)
@@ -1301,6 +1314,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
         vl = vlmax();
         assm_->vsetvlmax(rd, sew_, lmul_);
       }
+    }
+
+    void set(Register rd, int8_t sew, int8_t lmul) {
+      DCHECK_GE(sew, E8);
+      DCHECK_LE(sew, E64);
+      DCHECK_GE(lmul, m1);
+      DCHECK_LE(lmul, mf2);
+      set(rd, VSew(sew), Vlmul(lmul));
     }
 
     void set(RoundingMode mode) {
@@ -1739,6 +1760,18 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
  private:
   RegList* available_;
   RegList old_available_;
+};
+
+class LoadStoreLaneParams {
+ public:
+  int sz;
+  uint8_t laneidx;
+
+  LoadStoreLaneParams(MachineRepresentation rep, uint8_t laneidx);
+
+ private:
+  LoadStoreLaneParams(uint8_t laneidx, int sz, int lanes)
+      : sz(sz), laneidx(laneidx % lanes) {}
 };
 
 }  // namespace internal

@@ -736,6 +736,14 @@ enum Opcode : uint32_t {
   RO_V_VMUL_VX = OP_MVX | (VMUL_FUNCT6 << kRvvFunct6Shift),
   RO_V_VMUL_VV = OP_MVV | (VMUL_FUNCT6 << kRvvFunct6Shift),
 
+  VWMUL_FUNCT6 = 0b111011,
+  RO_V_VWMUL_VX = OP_MVX | (VWMUL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWMUL_VV = OP_MVV | (VWMUL_FUNCT6 << kRvvFunct6Shift),
+
+  VWMULU_FUNCT6 = 0b111000,
+  RO_V_VWMULU_VX = OP_MVX | (VWMULU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWMULU_VV = OP_MVV | (VWMULU_FUNCT6 << kRvvFunct6Shift),
+
   VMULHSU_FUNCT6 = 0b100110,
   RO_V_VMULHSU_VX = OP_MVX | (VMULHSU_FUNCT6 << kRvvFunct6Shift),
   RO_V_VMULHSU_VV = OP_MVV | (VMULHSU_FUNCT6 << kRvvFunct6Shift),
@@ -744,6 +752,10 @@ enum Opcode : uint32_t {
   RO_V_VMULH_VX = OP_MVX | (VMULH_FUNCT6 << kRvvFunct6Shift),
   RO_V_VMULH_VV = OP_MVV | (VMULH_FUNCT6 << kRvvFunct6Shift),
 
+  VWADD_FUNCT6 = 0b110001,
+  RO_V_VWADD_VV = OP_MVV | (VWADD_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWADD_VX = OP_MVX | (VWADD_FUNCT6 << kRvvFunct6Shift),
+
   VWADDU_FUNCT6 = 0b110000,
   RO_V_VWADDU_VV = OP_MVV | (VWADDU_FUNCT6 << kRvvFunct6Shift),
   RO_V_VWADDU_VX = OP_MVX | (VWADDU_FUNCT6 << kRvvFunct6Shift),
@@ -751,6 +763,9 @@ enum Opcode : uint32_t {
   VWADDUW_FUNCT6 = 0b110101,
   RO_V_VWADDUW_VX = OP_MVX | (VWADDUW_FUNCT6 << kRvvFunct6Shift),
   RO_V_VWADDUW_VV = OP_MVV | (VWADDUW_FUNCT6 << kRvvFunct6Shift),
+
+  VCOMPRESS_FUNCT6 = 0b010111,
+  RO_V_VCOMPRESS_VV = OP_MVV | (VCOMPRESS_FUNCT6 << kRvvFunct6Shift),
 
   VSADDU_FUNCT6 = 0b100000,
   RO_V_VSADDU_VI = OP_IVI | (VSADDU_FUNCT6 << kRvvFunct6Shift),
@@ -895,9 +910,13 @@ enum Opcode : uint32_t {
 
   VWXUNARY0_FUNCT6 = 0b010000,
   VRXUNARY0_FUNCT6 = 0b010000,
+  VMUNARY0_FUNCT6 = 0b010100,
 
   RO_V_VWXUNARY0 = OP_MVV | (VWXUNARY0_FUNCT6 << kRvvFunct6Shift),
   RO_V_VRXUNARY0 = OP_MVX | (VRXUNARY0_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMUNARY0 = OP_MVV | (VMUNARY0_FUNCT6 << kRvvFunct6Shift),
+
+  VID_V = 0b10001,
 
   VXUNARY0_FUNCT6 = 0b010010,
   RO_V_VXUNARY0 = OP_MVV | (VXUNARY0_FUNCT6 << kRvvFunct6Shift),
@@ -927,7 +946,14 @@ enum Opcode : uint32_t {
   VFCVT_X_F_V = 0b00001,
   VFCVT_F_XU_V = 0b00010,
   VFCVT_F_X_V = 0b00011,
+  VFWCVT_XU_F_V = 0b01000,
+  VFWCVT_X_F_V = 0b01001,
+  VFWCVT_F_XU_V = 0b01010,
+  VFWCVT_F_X_V = 0b01011,
+  VFWCVT_F_F_V = 0b01100,
   VFNCVT_F_F_W = 0b10100,
+  VFNCVT_X_F_W = 0b10001,
+  VFNCVT_XU_F_W = 0b10000,
 
   VFCLASS_V = 0b10000,
   VFSQRT_V = 0b00000,
@@ -1193,14 +1219,10 @@ enum FClassFlag {
   V(E8)            \
   V(E16)           \
   V(E32)           \
-  V(E64)           \
-  V(E128)          \
-  V(E256)          \
-  V(E512)          \
-  V(E1024)
+  V(E64)
 
-enum VSew {
 #define DEFINE_FLAG(name) name,
+enum VSew {
   RVV_SEW(DEFINE_FLAG)
 #undef DEFINE_FLAG
 };

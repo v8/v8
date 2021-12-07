@@ -2003,7 +2003,7 @@ TEST(RVV_VSETIVLI) {
   HandleScope scope(isolate);
   auto fn = [](MacroAssembler& assm) {
     __ VU.set(t0, VSew::E8, Vlmul::m1);
-    __ vsetivli(t0, 16, VSew::E128, Vlmul::m1);
+    __ vsetivli(t0, 16, VSew::E64, Vlmul::m1);
   };
   GenAndRunTest(fn);
 }

@@ -396,7 +396,7 @@ class Simulator : public SimulatorBase {
     if ((rvv_vtype() & 0b100) == 0) {
       return static_cast<float>(0x1 << (rvv_vtype() & 0x7));
     } else {
-      return 1.0 / static_cast<float>(0x1 << (4 - rvv_vtype() & 0x7));
+      return 1.0 / static_cast<float>(0x1 << (4 - rvv_vtype() & 0x3));
     }
   }
   inline uint32_t rvv_vsew() const { return ((rvv_vtype() >> 3) & 0x7); }
@@ -434,7 +434,7 @@ class Simulator : public SimulatorBase {
   }
   inline uint64_t rvv_vlmax() const {
     if ((rvv_vlmul() & 0b100) != 0) {
-      return (rvv_vlen() / rvv_sew()) >> (rvv_vlmul() & 0b11);
+      return (rvv_vlen() / rvv_sew()) >> (4 - (rvv_vlmul() & 0b11));
     } else {
       return ((rvv_vlen() << rvv_vlmul()) / rvv_sew());
     }

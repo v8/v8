@@ -117,7 +117,16 @@ static inline bool is_overlapped_widen(const int astart, int asize,
   }
 }
 
+#ifdef DEBUG
+#define require_align(val, pos)                  \
+  if (!is_aligned(val, pos)) {                   \
+    std::cout << val << " " << pos << std::endl; \
+  }                                              \
+  CHECK_EQ(is_aligned(val, pos), true)
+#else
 #define require_align(val, pos) CHECK_EQ(is_aligned(val, pos), true)
+#endif
+
 #define require_noover(astart, asize, bstart, bsize) \
   CHECK_EQ(!is_overlapped(astart, asize, bstart, bsize), true)
 #define require_noover_widen(astart, asize, bstart, bsize) \
@@ -157,9 +166,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
   } else if (rvv_vsew() == E64) {  \
     VV_PARAMS(64);                 \
     BODY                           \
-  } else if (rvv_vsew() == E128) { \
-    VV_PARAMS(128);                \
-    BODY                           \
   } else {                         \
     UNREACHABLE();                 \
   }                                \
@@ -180,9 +186,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
     BODY                           \
   } else if (rvv_vsew() == E64) {  \
     VV_UPARAMS(64);                \
-    BODY                           \
-  } else if (rvv_vsew() == E128) { \
-    VV_UPARAMS(128);               \
     BODY                           \
   } else {                         \
     UNREACHABLE();                 \
@@ -205,9 +208,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
   } else if (rvv_vsew() == E64) {  \
     VX_PARAMS(64);                 \
     BODY                           \
-  } else if (rvv_vsew() == E128) { \
-    VX_PARAMS(128);                \
-    BODY                           \
   } else {                         \
     UNREACHABLE();                 \
   }                                \
@@ -228,9 +228,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
     BODY                           \
   } else if (rvv_vsew() == E64) {  \
     VX_UPARAMS(64);                \
-    BODY                           \
-  } else if (rvv_vsew() == E128) { \
-    VX_UPARAMS(128);               \
     BODY                           \
   } else {                         \
     UNREACHABLE();                 \
@@ -253,9 +250,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
   } else if (rvv_vsew() == E64) {  \
     VI_PARAMS(64);                 \
     BODY                           \
-  } else if (rvv_vsew() == E128) { \
-    VI_PARAMS(128);                \
-    BODY                           \
   } else {                         \
     UNREACHABLE();                 \
   }                                \
@@ -277,9 +271,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
   } else if (rvv_vsew() == E64) {  \
     VI_UPARAMS(64);                \
     BODY                           \
-  } else if (rvv_vsew() == E128) { \
-    VI_UPARAMS(128);               \
-    BODY                           \
   } else {                         \
     UNREACHABLE();                 \
   }                                \
@@ -293,6 +284,19 @@ static inline bool is_overlapped_widen(const int astart, int asize,
   CHECK_LE(rvv_vsew() * 2, kRvvELEN);            \
   require_align(rvv_vd_reg(), rvv_vflmul() * 2); \
   require_vm;
+
+#define VI_NARROW_CHECK_COMMON                    \
+  CHECK_LE(rvv_vflmul(), 4);                      \
+  CHECK_LE(rvv_vsew() * 2, kRvvELEN);             \
+  require_align(rvv_vs2_reg(), rvv_vflmul() * 2); \
+  require_align(rvv_vd_reg(), rvv_vflmul());      \
+  require_vm;
+
+#define RVV_VI_CHECK_SLIDE(is_over)           \
+  require_align(rvv_vs2_reg(), rvv_vflmul()); \
+  require_align(rvv_vd_reg(), rvv_vflmul());  \
+  require_vm;                                 \
+  if (is_over) require(rvv_vd_reg() != rvv_vs2_reg());
 
 #define RVV_VI_CHECK_DDS(is_rs)                                           \
   VI_WIDE_CHECK_COMMON;                                                   \
@@ -328,6 +332,13 @@ static inline bool is_overlapped_widen(const int astart, int asize,
                            rvv_vflmul());                                 \
     }                                                                     \
   }
+
+#define RVV_VI_CHECK_SDS(is_vs1)                              \
+  VI_NARROW_CHECK_COMMON;                                     \
+  if (rvv_vd_reg() != rvv_vs2_reg())                          \
+    require_noover(rvv_vd_reg(), rvv_vflmul(), rvv_vs2_reg(), \
+                   rvv_vflmul() * 2);                         \
+  if (is_vs1) require_align(rvv_vs1_reg(), rvv_vflmul());
 
 #define RVV_VI_VV_LOOP_WIDEN(BODY) \
   RVV_VI_GENERAL_LOOP_BASE         \
@@ -412,9 +423,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
   } else if (rvv_vsew() == E64) {    \
     VXI_PARAMS(64);                  \
     BODY;                            \
-  } else if (rvv_vsew() == E128) {   \
-    VXI_PARAMS(128);                 \
-    BODY                             \
   }                                  \
   RVV_VI_LOOP_END                    \
   rvv_trace_vd();
@@ -957,6 +965,11 @@ static inline bool is_overlapped_widen(const int astart, int asize,
 
 #define RVV_VI_VFP_CVT_SCALE(BODY8, BODY16, BODY32, CHECK8, CHECK16, CHECK32, \
                              is_widen, eew_check)                             \
+  if (is_widen) {                                                             \
+    RVV_VI_CHECK_DSS(false);                                                  \
+  } else {                                                                    \
+    RVV_VI_CHECK_SDS(false);                                                  \
+  }                                                                           \
   CHECK(eew_check);                                                           \
   switch (rvv_vsew()) {                                                       \
     case E8: {                                                                \
@@ -5000,22 +5013,26 @@ void Simulator::DecodeRvvIVV() {
       if (rvv_vsew() == E8) {
         VV_PARAMS(8);
         int16_t result = (int16_t)vs1 * (int16_t)vs2;
-        result += get_round(static_cast<int>(rvv_vxrm()), result, 7);
+        uint8_t round = get_round(static_cast<int>(rvv_vxrm()), result, 7);
+        result = (result >> 7) + round;
         vd = signed_saturation<int16_t, int8_t>(result, 8);
       } else if (rvv_vsew() == E16) {
         VV_PARAMS(16);
         int32_t result = (int32_t)vs1 * (int32_t)vs2;
-        result += get_round(static_cast<int>(rvv_vxrm()), result, 15);
+        uint8_t round = get_round(static_cast<int>(rvv_vxrm()), result, 15);
+        result = (result >> 15) + round;
         vd = signed_saturation<int32_t, int16_t>(result, 16);
       } else if (rvv_vsew() == E32) {
         VV_PARAMS(32);
         int64_t result = (int64_t)vs1 * (int64_t)vs2;
-        result += get_round(static_cast<int>(rvv_vxrm()), result, 31);
+        uint8_t round = get_round(static_cast<int>(rvv_vxrm()), result, 31);
+        result = (result >> 31) + round;
         vd = signed_saturation<int64_t, int32_t>(result, 32);
       } else if (rvv_vsew() == E64) {
         VV_PARAMS(64);
         __int128_t result = (__int128_t)vs1 * (__int128_t)vs2;
-        result += get_round(static_cast<int>(rvv_vxrm()), result, 63);
+        uint8_t round = get_round(static_cast<int>(rvv_vxrm()), result, 63);
+        result = (result >> 63) + round;
         vd = signed_saturation<__int128_t, int64_t>(result, 64);
       } else {
         UNREACHABLE();
@@ -5056,6 +5073,7 @@ void Simulator::DecodeRvvIVV() {
         }
       }
       RVV_VI_LOOP_END;
+      rvv_trace_vd();
       break;
     }
     default:
@@ -5166,6 +5184,7 @@ void Simulator::DecodeRvvIVI() {
       RVV_VI_VI_LOOP_CMP({ res = vs2 > simm5; })
       break;
     case RO_V_VSLIDEDOWN_VI: {
+      RVV_VI_CHECK_SLIDE(false);
       const uint8_t sh = instr_.RvvUimm5();
       RVV_VI_GENERAL_LOOP_BASE
 
@@ -5195,6 +5214,7 @@ void Simulator::DecodeRvvIVI() {
         } break;
       }
       RVV_VI_LOOP_END
+      rvv_trace_vd();
     } break;
     case RO_V_VSRL_VI:
       RVV_VI_VI_ULOOP({ vd = vs2 >> uimm5; })
@@ -5436,8 +5456,61 @@ void Simulator::DecodeRvvIVX() {
 void Simulator::DecodeRvvMVV() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVV);
   switch (instr_.InstructionBits() & kVTypeMask) {
+    case RO_V_VMUNARY0: {
+      if (instr_.Vs1Value() == VID_V) {
+        CHECK(rvv_vsew() >= E8 && rvv_vsew() <= E64);
+        uint8_t rd_num = rvv_vd_reg();
+        require_align(rd_num, rvv_vflmul());
+        require_vm;
+        for (uint8_t i = rvv_vstart(); i < rvv_vl(); ++i) {
+          RVV_VI_LOOP_MASK_SKIP();
+          switch (rvv_vsew()) {
+            case E8:
+              Rvvelt<uint8_t>(rd_num, i, true) = i;
+              break;
+            case E16:
+              Rvvelt<uint16_t>(rd_num, i, true) = i;
+              break;
+            case E32:
+              Rvvelt<uint32_t>(rd_num, i, true) = i;
+              break;
+            default:
+              Rvvelt<uint64_t>(rd_num, i, true) = i;
+              break;
+          }
+        }
+        set_rvv_vstart(0);
+      } else {
+        UNIMPLEMENTED_RISCV();
+      }
+      break;
+    }
     case RO_V_VMUL_VV: {
       RVV_VI_VV_LOOP({ vd = vs2 * vs1; })
+      break;
+    }
+    case RO_V_VWMUL_VV: {
+      RVV_VI_CHECK_DSS(true);
+      RVV_VI_VV_LOOP_WIDEN({
+        VI_WIDE_OP_AND_ASSIGN(vs2, vs1, 0, *, +, int);
+        USE(vd);
+      })
+      break;
+    }
+    case RO_V_VWMULU_VV: {
+      RVV_VI_CHECK_DSS(true);
+      RVV_VI_VV_LOOP_WIDEN({
+        VI_WIDE_OP_AND_ASSIGN(vs2, vs1, 0, *, +, uint);
+        USE(vd);
+      })
+      break;
+    }
+    case RO_V_VMULHU_VV: {
+      RVV_VI_VV_LOOP({ vd = ((__uint128_t)vs2 * vs1) >> rvv_sew(); })
+      break;
+    }
+    case RO_V_VMULH_VV: {
+      RVV_VI_VV_LOOP({ vd = ((__int128_t)vs2 * vs1) >> rvv_sew(); })
       break;
     }
     case RO_V_VDIV_VV: {
@@ -5518,6 +5591,52 @@ void Simulator::DecodeRvvMVV() {
         USE(vd);
       })
       break;
+    case RO_V_VWADD_VV:
+      RVV_VI_CHECK_DSS(true);
+      RVV_VI_VV_LOOP_WIDEN({
+        VI_WIDE_OP_AND_ASSIGN(vs2, vs1, 0, +, +, int);
+        USE(vd);
+      })
+      break;
+    case RO_V_VCOMPRESS_VV: {
+      CHECK_EQ(rvv_vstart(), 0);
+      require_align(rvv_vd_reg(), rvv_vflmul());
+      require_align(rvv_vs2_reg(), rvv_vflmul());
+      require(rvv_vd_reg() != rvv_vs2_reg());
+      require_noover(rvv_vd_reg(), rvv_vflmul(), rvv_vs1_reg(), 1);
+
+      reg_t pos = 0;
+
+      RVV_VI_GENERAL_LOOP_BASE
+      const uint64_t midx = i / 64;
+      const uint64_t mpos = i % 64;
+
+      bool do_mask = (Rvvelt<uint64_t>(rvv_vs1_reg(), midx) >> mpos) & 0x1;
+      if (do_mask) {
+        switch (rvv_vsew()) {
+          case E8:
+            Rvvelt<uint8_t>(rvv_vd_reg(), pos, true) =
+                Rvvelt<uint8_t>(rvv_vs2_reg(), i);
+            break;
+          case E16:
+            Rvvelt<uint16_t>(rvv_vd_reg(), pos, true) =
+                Rvvelt<uint16_t>(rvv_vs2_reg(), i);
+            break;
+          case E32:
+            Rvvelt<uint32_t>(rvv_vd_reg(), pos, true) =
+                Rvvelt<uint32_t>(rvv_vs2_reg(), i);
+            break;
+          default:
+            Rvvelt<uint64_t>(rvv_vd_reg(), pos, true) =
+                Rvvelt<uint64_t>(rvv_vs2_reg(), i);
+            break;
+        }
+
+        ++pos;
+      }
+      RVV_VI_LOOP_END;
+      rvv_trace_vd();
+    } break;
     default:
       v8::base::EmbeddedVector<char, 256> buffer;
       disasm::NameConverter converter;
@@ -5775,6 +5894,81 @@ void Simulator::DecodeRvvFVV() {
                         vs2);
               },
               { ; }, { ; }, { ; }, false, (rvv_vsew() >= E16))
+          break;
+        case VFNCVT_X_F_W:
+          RVV_VI_VFP_CVT_SCALE(
+              { UNREACHABLE(); }, { UNREACHABLE(); },
+              {
+                auto vs2 = Rvvelt<double>(rvv_vs2_reg(), i);
+                int32_t& vd = Rvvelt<int32_t>(rvv_vd_reg(), i, true);
+                vd = RoundF2IHelper<int32_t>(vs2, read_csr_value(csr_frm));
+              },
+              { ; }, { ; }, { ; }, false, (rvv_vsew() <= E32))
+          break;
+        case VFNCVT_XU_F_W:
+          RVV_VI_VFP_CVT_SCALE(
+              { UNREACHABLE(); }, { UNREACHABLE(); },
+              {
+                auto vs2 = Rvvelt<double>(rvv_vs2_reg(), i);
+                uint32_t& vd = Rvvelt<uint32_t>(rvv_vd_reg(), i, true);
+                vd = RoundF2IHelper<uint32_t>(vs2, read_csr_value(csr_frm));
+              },
+              { ; }, { ; }, { ; }, false, (rvv_vsew() <= E32))
+          break;
+        case VFWCVT_F_X_V:
+          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); },
+                               {
+                                 auto vs2 = Rvvelt<int16_t>(rvv_vs2_reg(), i);
+                                 Rvvelt<float32_t>(rvv_vd_reg(), i, true) =
+                                     static_cast<float>(vs2);
+                               },
+                               {
+                                 auto vs2 = Rvvelt<int32_t>(rvv_vs2_reg(), i);
+                                 Rvvelt<double>(rvv_vd_reg(), i, true) =
+                                     static_cast<double>(vs2);
+                               },
+                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E8))
+          break;
+        case VFWCVT_F_XU_V:
+          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); },
+                               {
+                                 auto vs2 = Rvvelt<uint16_t>(rvv_vs2_reg(), i);
+                                 Rvvelt<float32_t>(rvv_vd_reg(), i, true) =
+                                     static_cast<float>(vs2);
+                               },
+                               {
+                                 auto vs2 = Rvvelt<uint32_t>(rvv_vs2_reg(), i);
+                                 Rvvelt<double>(rvv_vd_reg(), i, true) =
+                                     static_cast<double>(vs2);
+                               },
+                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E8))
+          break;
+        case VFWCVT_XU_F_V:
+          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); }, { UNREACHABLE(); },
+                               {
+                                 auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
+                                 Rvvelt<uint64_t>(rvv_vd_reg(), i, true) =
+                                     static_cast<uint64_t>(vs2);
+                               },
+                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
+          break;
+        case VFWCVT_X_F_V:
+          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); }, { UNREACHABLE(); },
+                               {
+                                 auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
+                                 Rvvelt<int64_t>(rvv_vd_reg(), i, true) =
+                                     static_cast<int64_t>(vs2);
+                               },
+                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
+          break;
+        case VFWCVT_F_F_V:
+          RVV_VI_VFP_CVT_SCALE({ UNREACHABLE(); }, { UNREACHABLE(); },
+                               {
+                                 auto vs2 = Rvvelt<float32_t>(rvv_vs2_reg(), i);
+                                 Rvvelt<double>(rvv_vd_reg(), i, true) =
+                                     static_cast<double>(vs2);
+                               },
+                               { ; }, { ; }, { ; }, true, (rvv_vsew() >= E16))
           break;
         default:
           UNSUPPORTED_RISCV();
@@ -6108,6 +6302,8 @@ void Simulator::DecodeVType() {
     case RO_V_VSETVLI: {
       uint64_t avl;
       set_rvv_vtype(rvv_zimm());
+      CHECK_GE(rvv_vsew(), E8);
+      CHECK_LE(rvv_vsew(), E64);
       if (rs1_reg() != zero_reg) {
         avl = rs1();
       } else if (rd_reg() != zero_reg) {
@@ -6125,6 +6321,8 @@ void Simulator::DecodeVType() {
       if (!(instr_.InstructionBits() & 0x40000000)) {
         uint64_t avl;
         set_rvv_vtype(rs2());
+        CHECK_GE(rvv_sew(), E8);
+        CHECK_LE(rvv_sew(), E64);
         if (rs1_reg() != zero_reg) {
           avl = rs1();
         } else if (rd_reg() != zero_reg) {

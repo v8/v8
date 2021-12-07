@@ -961,6 +961,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                   Vlmul lmul);
   void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
 
+  void LoadLane(int sz, VRegister dst, uint8_t laneidx, MemOperand src);
+  void StoreLane(int sz, VRegister src, uint8_t laneidx, MemOperand dst);
+
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
