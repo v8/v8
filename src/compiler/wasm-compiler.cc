@@ -1784,7 +1784,7 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
     }
   }
 
-  // We need to sign extend the value
+  // We need to sign or zero extend the value
   if (memtype.IsSigned()) {
     DCHECK(!isFloat);
     if (valueSizeInBits < 32) {
@@ -1803,6 +1803,8 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
                                   shiftBitCount);
       }
     }
+  } else if (wasmtype == wasm::kWasmI64 && valueSizeInBits < 64) {
+    result = gasm_->ChangeUint32ToUint64(result);
   }
 
   return result;
@@ -5285,15 +5287,24 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
     const OperatorByRep operator_by_rep = nullptr;
     const OperatorByAtomicLoadRep operator_by_atomic_load_params = nullptr;
     const OperatorByAtomicStoreRep operator_by_atomic_store_rep = nullptr;
+    const wasm::ValueType wasm_type;
 
     constexpr AtomicOpInfo(Type t, MachineType m, OperatorByType o)
         : type(t), machine_type(m), operator_by_type(o) {}
     constexpr AtomicOpInfo(Type t, MachineType m, OperatorByRep o)
         : type(t), machine_type(m), operator_by_rep(o) {}
-    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicLoadRep o)
-        : type(t), machine_type(m), operator_by_atomic_load_params(o) {}
-    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicStoreRep o)
-        : type(t), machine_type(m), operator_by_atomic_store_rep(o) {}
+    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicLoadRep o,
+                           wasm::ValueType v)
+        : type(t),
+          machine_type(m),
+          operator_by_atomic_load_params(o),
+          wasm_type(v) {}
+    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicStoreRep o,
+                           wasm::ValueType v)
+        : type(t),
+          machine_type(m),
+          operator_by_atomic_store_rep(o),
+          wasm_type(v) {}
 
     // Constexpr, hence just a table lookup in most compilers.
     static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
@@ -5301,6 +5312,10 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #define CASE(Name, Type, MachType, Op) \
   case wasm::kExpr##Name:              \
     return {Type, MachineType::MachType(), &MachineOperatorBuilder::Op};
+#define CASE_LOAD_STORE(Name, Type, MachType, Op, WasmType)             \
+  case wasm::kExpr##Name:                                               \
+    return {Type, MachineType::MachType(), &MachineOperatorBuilder::Op, \
+            WasmType};
 
         // Binops.
         CASE(I32AtomicAdd, kOneInput, Uint32, Word32AtomicAdd)
@@ -5363,24 +5378,39 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
              Word64AtomicCompareExchange)
 
         // Load.
-        CASE(I32AtomicLoad, kNoInput, Uint32, Word32AtomicLoad)
-        CASE(I64AtomicLoad, kNoInput, Uint64, Word64AtomicLoad)
-        CASE(I32AtomicLoad8U, kNoInput, Uint8, Word32AtomicLoad)
-        CASE(I32AtomicLoad16U, kNoInput, Uint16, Word32AtomicLoad)
-        CASE(I64AtomicLoad8U, kNoInput, Uint8, Word64AtomicLoad)
-        CASE(I64AtomicLoad16U, kNoInput, Uint16, Word64AtomicLoad)
-        CASE(I64AtomicLoad32U, kNoInput, Uint32, Word64AtomicLoad)
+        CASE_LOAD_STORE(I32AtomicLoad, kNoInput, Uint32, Word32AtomicLoad,
+                        wasm::kWasmI32)
+        CASE_LOAD_STORE(I64AtomicLoad, kNoInput, Uint64, Word64AtomicLoad,
+                        wasm::kWasmI64)
+        CASE_LOAD_STORE(I32AtomicLoad8U, kNoInput, Uint8, Word32AtomicLoad,
+                        wasm::kWasmI32)
+        CASE_LOAD_STORE(I32AtomicLoad16U, kNoInput, Uint16, Word32AtomicLoad,
+                        wasm::kWasmI32)
+        CASE_LOAD_STORE(I64AtomicLoad8U, kNoInput, Uint8, Word64AtomicLoad,
+                        wasm::kWasmI64)
+        CASE_LOAD_STORE(I64AtomicLoad16U, kNoInput, Uint16, Word64AtomicLoad,
+                        wasm::kWasmI64)
+        CASE_LOAD_STORE(I64AtomicLoad32U, kNoInput, Uint32, Word64AtomicLoad,
+                        wasm::kWasmI64)
 
         // Store.
-        CASE(I32AtomicStore, kOneInput, Uint32, Word32AtomicStore)
-        CASE(I64AtomicStore, kOneInput, Uint64, Word64AtomicStore)
-        CASE(I32AtomicStore8U, kOneInput, Uint8, Word32AtomicStore)
-        CASE(I32AtomicStore16U, kOneInput, Uint16, Word32AtomicStore)
-        CASE(I64AtomicStore8U, kOneInput, Uint8, Word64AtomicStore)
-        CASE(I64AtomicStore16U, kOneInput, Uint16, Word64AtomicStore)
-        CASE(I64AtomicStore32U, kOneInput, Uint32, Word64AtomicStore)
+        CASE_LOAD_STORE(I32AtomicStore, kOneInput, Uint32, Word32AtomicStore,
+                        wasm::kWasmI32)
+        CASE_LOAD_STORE(I64AtomicStore, kOneInput, Uint64, Word64AtomicStore,
+                        wasm::kWasmI64)
+        CASE_LOAD_STORE(I32AtomicStore8U, kOneInput, Uint8, Word32AtomicStore,
+                        wasm::kWasmI32)
+        CASE_LOAD_STORE(I32AtomicStore16U, kOneInput, Uint16, Word32AtomicStore,
+                        wasm::kWasmI32)
+        CASE_LOAD_STORE(I64AtomicStore8U, kOneInput, Uint8, Word64AtomicStore,
+                        wasm::kWasmI64)
+        CASE_LOAD_STORE(I64AtomicStore16U, kOneInput, Uint16, Word64AtomicStore,
+                        wasm::kWasmI64)
+        CASE_LOAD_STORE(I64AtomicStore32U, kOneInput, Uint32, Word64AtomicStore,
+                        wasm::kWasmI64)
 
 #undef CASE
+#undef CASE_LOAD_STORE
 
         case wasm::kExprAtomicNotify:
           return {kSpecial, MachineType::Int32(), OperatorByType{nullptr}};
@@ -5423,8 +5453,28 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
     std::copy_n(inputs + 1, num_actual_inputs, input_nodes + 2);
     input_nodes[num_actual_inputs + 2] = effect();
     input_nodes[num_actual_inputs + 3] = control();
-    return gasm_->AddNode(
+
+#ifdef V8_TARGET_BIG_ENDIAN
+    // Reverse the value bytes before storing.
+    if (info.operator_by_atomic_store_rep) {
+      input_nodes[num_actual_inputs + 1] = BuildChangeEndiannessStore(
+          input_nodes[num_actual_inputs + 1],
+          info.machine_type.representation(), info.wasm_type);
+    }
+#endif
+
+    Node* result = gasm_->AddNode(
         graph()->NewNode(op, num_actual_inputs + 4, input_nodes));
+
+#ifdef V8_TARGET_BIG_ENDIAN
+    // Reverse the value bytes after load.
+    if (info.operator_by_atomic_load_params) {
+      result =
+          BuildChangeEndiannessLoad(result, info.machine_type, info.wasm_type);
+    }
+#endif
+
+    return result;
   }
 
   // After we've bounds-checked, compute the effective offset.
