@@ -487,13 +487,16 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
     return;
   }
 
-  Handle<Context> context(function->context(), isolate_);
-  if (context->IsNativeContext() || context->IsScriptContext()) {
-    serializer->WriteUint32(0);
-  } else {
-    DCHECK(context->IsFunctionContext() || context->IsBlockContext());
-    uint32_t context_id = GetContextId(context);
-    serializer->WriteUint32(context_id + 1);
+  {
+    DisallowGarbageCollection no_gc;
+    Context context = function->context();
+    if (context.IsNativeContext() || context.IsScriptContext()) {
+      serializer->WriteUint32(0);
+    } else {
+      DCHECK(context.IsFunctionContext() || context.IsBlockContext());
+      uint32_t context_id = GetContextId(context);
+      serializer->WriteUint32(context_id + 1);
+    }
   }
 
   SerializeSource(serializer, function);
@@ -503,8 +506,8 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
       FunctionKindToFunctionFlags(function->shared().kind()));
 
   if (function->has_prototype_slot() && function->has_instance_prototype()) {
-    Handle<JSObject> prototype = Handle<JSObject>::cast(
-        handle(function->instance_prototype(), isolate_));
+    DisallowGarbageCollection no_gc;
+    JSObject prototype = JSObject::cast(function->instance_prototype());
     uint32_t prototype_id = GetObjectId(prototype);
     serializer->WriteUint32(prototype_id + 1);
   } else {
@@ -717,7 +720,7 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
   uint32_t parent_context_id = 0;
   if (!context->previous().IsNativeContext() &&
       !context->previous().IsScriptContext()) {
-    parent_context_id = GetContextId(handle(context->previous(), isolate_)) + 1;
+    parent_context_id = GetContextId(context->previous()) + 1;
   }
 
   // TODO(v8:11525): Use less space for encoding the context type.
@@ -854,19 +857,19 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       break;
     case JS_FUNCTION_TYPE:
       serializer.WriteUint32(ValueType::FUNCTION_ID);
-      serializer.WriteUint32(GetFunctionId(Handle<JSFunction>::cast(object)));
+      serializer.WriteUint32(GetFunctionId(JSFunction::cast(*object)));
       break;
     case JS_CLASS_CONSTRUCTOR_TYPE:
       serializer.WriteUint32(ValueType::CLASS_ID);
-      serializer.WriteUint32(GetClassId(Handle<JSFunction>::cast(object)));
+      serializer.WriteUint32(GetClassId(JSFunction::cast(*object)));
       break;
     case JS_OBJECT_TYPE:
       serializer.WriteUint32(ValueType::OBJECT_ID);
-      serializer.WriteUint32(GetObjectId(Handle<JSObject>::cast(object)));
+      serializer.WriteUint32(GetObjectId(JSObject::cast(*object)));
       break;
     case JS_ARRAY_TYPE:
       serializer.WriteUint32(ValueType::ARRAY_ID);
-      serializer.WriteUint32(GetArrayId(Handle<JSArray>::cast(object)));
+      serializer.WriteUint32(GetArrayId(JSArray::cast(*object)));
       break;
     case JS_REG_EXP_TYPE: {
       Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(object);
@@ -897,7 +900,7 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
   // TODO(v8:11525): Support more types.
 }
 
-uint32_t WebSnapshotSerializer::GetFunctionId(Handle<JSFunction> function) {
+uint32_t WebSnapshotSerializer::GetFunctionId(JSFunction function) {
   int id;
   bool return_value = function_ids_.Lookup(function, &id);
   DCHECK(return_value);
@@ -905,7 +908,7 @@ uint32_t WebSnapshotSerializer::GetFunctionId(Handle<JSFunction> function) {
   return static_cast<uint32_t>(id);
 }
 
-uint32_t WebSnapshotSerializer::GetClassId(Handle<JSFunction> function) {
+uint32_t WebSnapshotSerializer::GetClassId(JSFunction function) {
   int id;
   bool return_value = class_ids_.Lookup(function, &id);
   DCHECK(return_value);
@@ -913,7 +916,7 @@ uint32_t WebSnapshotSerializer::GetClassId(Handle<JSFunction> function) {
   return static_cast<uint32_t>(id);
 }
 
-uint32_t WebSnapshotSerializer::GetContextId(Handle<Context> context) {
+uint32_t WebSnapshotSerializer::GetContextId(Context context) {
   int id;
   bool return_value = context_ids_.Lookup(context, &id);
   DCHECK(return_value);
@@ -921,7 +924,7 @@ uint32_t WebSnapshotSerializer::GetContextId(Handle<Context> context) {
   return static_cast<uint32_t>(id);
 }
 
-uint32_t WebSnapshotSerializer::GetArrayId(Handle<JSArray> array) {
+uint32_t WebSnapshotSerializer::GetArrayId(JSArray array) {
   int id;
   bool return_value = array_ids_.Lookup(array, &id);
   DCHECK(return_value);
@@ -929,7 +932,7 @@ uint32_t WebSnapshotSerializer::GetArrayId(Handle<JSArray> array) {
   return static_cast<uint32_t>(id);
 }
 
-uint32_t WebSnapshotSerializer::GetObjectId(Handle<JSObject> object) {
+uint32_t WebSnapshotSerializer::GetObjectId(JSObject object) {
   int id;
   bool return_value = object_ids_.Lookup(object, &id);
   DCHECK(return_value);

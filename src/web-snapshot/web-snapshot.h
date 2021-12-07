@@ -181,11 +181,11 @@ class V8_EXPORT WebSnapshotSerializer
   void SerializeExport(Handle<JSObject> object, Handle<String> export_name);
   void WriteValue(Handle<Object> object, ValueSerializer& serializer);
 
-  uint32_t GetFunctionId(Handle<JSFunction> function);
-  uint32_t GetClassId(Handle<JSFunction> function);
-  uint32_t GetContextId(Handle<Context> context);
-  uint32_t GetArrayId(Handle<JSArray> array);
-  uint32_t GetObjectId(Handle<JSObject> object);
+  uint32_t GetFunctionId(JSFunction function);
+  uint32_t GetClassId(JSFunction function);
+  uint32_t GetContextId(Context context);
+  uint32_t GetArrayId(JSArray array);
+  uint32_t GetObjectId(JSObject object);
 
   ValueSerializer string_serializer_;
   ValueSerializer map_serializer_;
