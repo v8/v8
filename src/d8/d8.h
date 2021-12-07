@@ -209,6 +209,16 @@ class Worker : public std::enable_shared_from_this<Worker> {
   friend class ProcessMessageTask;
   friend class TerminateTask;
 
+  enum class State {
+    kReady,
+    kRunning,
+    kTerminating,
+    kTerminated,
+    kTerminatingAndJoining,
+    kTerminatedAndJoined
+  };
+  bool is_running() const;
+
   void ProcessMessage(std::unique_ptr<SerializationData> data);
   void ProcessMessages();
 
@@ -231,7 +241,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
   SerializationDataQueue out_queue_;
   base::Thread* thread_ = nullptr;
   char* script_;
-  std::atomic<bool> running_;
+  std::atomic<State> state_;
   // For signalling that the worker has started.
   base::Semaphore started_semaphore_{0};
 
