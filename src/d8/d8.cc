@@ -2721,19 +2721,16 @@ void Shell::ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
   ReportException(isolate, try_catch->Message(), try_catch->Exception());
 }
 
-int32_t* Counter::Bind(const char* name, bool is_histogram) {
-  int i;
-  for (i = 0; i < kMaxNameSize - 1 && name[i]; i++)
-    name_[i] = static_cast<char>(name[i]);
-  name_[i] = '\0';
+void Counter::Bind(const char* name, bool is_histogram) {
+  base::OS::StrNCpy(name_, kMaxNameSize, name, kMaxNameSize);
+  // Explicitly null-terminate, in case {name} is longer than {kMaxNameSize}.
+  name_[kMaxNameSize - 1] = '\0';
   is_histogram_ = is_histogram;
-  return ptr();
 }
 
-void Counter::AddSample(int32_t sample) {
-  base::Relaxed_AtomicIncrement(reinterpret_cast<base::Atomic32*>(&count_), 1);
-  base::Relaxed_AtomicIncrement(
-      reinterpret_cast<base::Atomic32*>(&sample_total_), sample);
+void Counter::AddSample(int sample) {
+  count_.fetch_add(1, std::memory_order_relaxed);
+  sample_total_.fetch_add(sample, std::memory_order_relaxed);
 }
 
 CounterCollection::CounterCollection() {

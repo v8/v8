@@ -45,18 +45,24 @@ struct DynamicImportData;
 class Counter {
  public:
   static const int kMaxNameSize = 64;
-  int32_t* Bind(const char* name, bool histogram);
-  int32_t* ptr() { return &count_; }
-  int32_t count() { return count_; }
-  int32_t sample_total() { return sample_total_; }
-  bool is_histogram() { return is_histogram_; }
+  void Bind(const char* name, bool histogram);
+  // TODO(12482): Return pointer to an atomic.
+  int* ptr() {
+    STATIC_ASSERT(sizeof(int) == sizeof(count_));
+    return reinterpret_cast<int*>(&count_);
+  }
+  int count() const { return count_.load(std::memory_order_relaxed); }
+  int sample_total() const {
+    return sample_total_.load(std::memory_order_relaxed);
+  }
+  bool is_histogram() const { return is_histogram_; }
   void AddSample(int32_t sample);
 
  private:
-  int32_t count_;
-  int32_t sample_total_;
+  std::atomic<int> count_;
+  std::atomic<int> sample_total_;
   bool is_histogram_;
-  uint8_t name_[kMaxNameSize];
+  char name_[kMaxNameSize];
 };
 
 // A set of counters and associated information.  An instance of this
