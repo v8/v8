@@ -613,9 +613,6 @@ class String : public TorqueGeneratedString<String, Name> {
   SlowGetFlatContent(const DisallowGarbageCollection& no_gc,
                      const SharedStringAccessGuardIfNeeded&);
 
-  static Handle<String> SlowCopy(Isolate* isolate, Handle<SeqString> source,
-                                 AllocationType allocation);
-
   V8_EXPORT_PRIVATE static Handle<String> SlowShare(Isolate* isolate,
                                                     Handle<String> source);
 

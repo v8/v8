@@ -80,31 +80,6 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
   return result;
 }
 
-Handle<String> String::SlowCopy(Isolate* isolate, Handle<SeqString> source,
-                                AllocationType allocation) {
-  int length = source->length();
-  Handle<String> copy;
-  if (source->IsOneByteRepresentation()) {
-    copy = isolate->factory()
-               ->NewRawOneByteString(length, allocation)
-               .ToHandleChecked();
-    DisallowGarbageCollection no_gc;
-    String::FlatContent content = source->GetFlatContent(no_gc);
-    CopyChars(SeqOneByteString::cast(*copy).GetChars(no_gc),
-              content.ToOneByteVector().begin(), length);
-    return copy;
-  } else {
-    copy = isolate->factory()
-               ->NewRawTwoByteString(length, allocation)
-               .ToHandleChecked();
-    DisallowGarbageCollection no_gc;
-    String::FlatContent content = source->GetFlatContent(no_gc);
-    CopyChars(SeqTwoByteString::cast(*copy).GetChars(no_gc),
-              content.ToUC16Vector().begin(), length);
-  }
-  return copy;
-}
-
 Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
   DCHECK(FLAG_shared_string_table);
   Handle<String> flat = Flatten(isolate, source, AllocationType::kSharedOld);
