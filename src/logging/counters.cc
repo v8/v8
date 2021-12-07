@@ -188,37 +188,33 @@ Counters::Counters(Isolate* isolate)
         .Initialize(histogram.caption, 1000, 500000, 50, this);
   }
 
-  // clang-format off
-  static const struct {
+  static constexpr struct {
     StatsCounter Counters::*member;
     const char* caption;
   } kStatsCounters[] = {
-#define SC(name, caption) {&Counters::name##_, "c:" #caption},
-  STATS_COUNTER_LIST_1(SC)
-  STATS_COUNTER_LIST_2(SC)
-  STATS_COUNTER_NATIVE_CODE_LIST(SC)
-#undef SC
-#define SC(name)                                             \
-  {&Counters::count_of_##name##_, "c:" "V8.CountOf_" #name}, \
-  {&Counters::size_of_##name##_, "c:" "V8.SizeOf_" #name},
-      INSTANCE_TYPE_LIST(SC)
-#undef SC
-#define SC(name)                            \
-  {&Counters::count_of_CODE_TYPE_##name##_, \
-    "c:" "V8.CountOf_CODE_TYPE-" #name},     \
-  {&Counters::size_of_CODE_TYPE_##name##_,  \
-    "c:" "V8.SizeOf_CODE_TYPE-" #name},
-      CODE_KIND_LIST(SC)
-#undef SC
-#define SC(name)                              \
-  {&Counters::count_of_FIXED_ARRAY_##name##_, \
-    "c:" "V8.CountOf_FIXED_ARRAY-" #name},     \
-  {&Counters::size_of_FIXED_ARRAY_##name##_,  \
-    "c:" "V8.SizeOf_FIXED_ARRAY-" #name},
-      FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
+#define SC(name, caption) {&Counters::name##_, "c:" caption},
+#define BARE_SC(name, caption) SC(name, #caption)
+#define COUNT_AND_SIZE_SC(name)            \
+  SC(count_of_##name, "V8.CountOf_" #name) \
+  SC(size_of_##name, "V8.SizeOf_" #name)
+#define CODE_KIND_SC(name) COUNT_AND_SIZE_SC(CODE_TYPE_##name)
+#define FIXED_ARRAY_INSTANCE_TYPE_SC(name) COUNT_AND_SIZE_SC(FIXED_ARRAY_##name)
+
+      // clang-format off
+  STATS_COUNTER_LIST_1(BARE_SC)
+  STATS_COUNTER_LIST_2(BARE_SC)
+  STATS_COUNTER_NATIVE_CODE_LIST(BARE_SC)
+  INSTANCE_TYPE_LIST(COUNT_AND_SIZE_SC)
+  CODE_KIND_LIST(CODE_KIND_SC)
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_INSTANCE_TYPE_SC)
+  // clang-format on
+
+#undef FIXED_ARRAY_INSTANCE_TYPE_SC
+#undef CODE_KIND_SC
+#undef COUNT_AND_SIZE_SC
+#undef BARE_SC
 #undef SC
   };
-  // clang-format on
   for (const auto& counter : kStatsCounters) {
     (this->*counter.member).Init(this, counter.caption);
   }
