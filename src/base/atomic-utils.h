@@ -178,6 +178,27 @@ using AsAtomic8 = AsAtomicImpl<base::Atomic8>;
 using AsAtomic32 = AsAtomicImpl<base::Atomic32>;
 using AsAtomicWord = AsAtomicImpl<base::AtomicWord>;
 
+template <int Width>
+struct AtomicTypeFromByteWidth {};
+template <>
+struct AtomicTypeFromByteWidth<1> {
+  using type = base::Atomic8;
+};
+template <>
+struct AtomicTypeFromByteWidth<2> {
+  using type = base::Atomic16;
+};
+template <>
+struct AtomicTypeFromByteWidth<4> {
+  using type = base::Atomic32;
+};
+#if V8_HOST_ARCH_64_BIT
+template <>
+struct AtomicTypeFromByteWidth<8> {
+  using type = base::Atomic64;
+};
+#endif
+
 // This is similar to AsAtomicWord but it explicitly deletes functionality
 // provided atomic access to bit representation of stored values.
 template <typename TAtomicStorageType>

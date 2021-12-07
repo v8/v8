@@ -681,6 +681,15 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     }
   }
 
+  // Atomically reads a field using relaxed memory ordering. Can only be used
+  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
+  template <class T,
+            typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                     std::is_enum<T>::value) &&
+                                        !std::is_floating_point<T>::value,
+                                    int>::type = 0>
+  inline T Relaxed_ReadField(size_t offset) const;
+
   template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
                                                  std::is_enum<T>::value,
                                              int>::type = 0>
