@@ -1344,6 +1344,8 @@ filegroup(
         "src/heap/heap-controller.cc",
         "src/heap/heap-controller.h",
         "src/heap/heap-inl.h",
+        "src/heap/heap-layout-tracer.cc",
+        "src/heap/heap-layout-tracer.h",
         "src/heap/heap-write-barrier-inl.h",
         "src/heap/heap-write-barrier.cc",
         "src/heap/heap-write-barrier.h",

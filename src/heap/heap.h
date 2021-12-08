@@ -500,6 +500,20 @@ class Heap {
     return "Unknown collector";
   }
 
+  static inline const char* CollectorName(v8::GCType gc_type) {
+    switch (gc_type) {
+      case kGCTypeScavenge:
+        return "Scavenger";
+      case kGCTypeMarkSweepCompact:
+        return "Mark-Compact";
+      case kGCTypeMinorMarkCompact:
+        return "Minor Mark-Compact";
+      default:
+        break;
+    }
+    return "Unknown collector";
+  }
+
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);

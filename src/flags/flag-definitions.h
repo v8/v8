@@ -1205,6 +1205,10 @@ DEFINE_BOOL(trace_gc_freelists_verbose, false,
             "prints details of freelists of each page before and after "
             "each major garbage collection")
 DEFINE_IMPLICATION(trace_gc_freelists_verbose, trace_gc_freelists)
+DEFINE_BOOL(trace_gc_heap_layout, false,
+            "print layout of pages in heap before and after gc")
+DEFINE_BOOL(trace_gc_heap_layout_ignore_minor_gc, true,
+            "do not print trace line before and after minor-gc")
 DEFINE_BOOL(trace_evacuation_candidates, false,
             "Show statistics about the pages evacuation by the compaction")
 DEFINE_BOOL(

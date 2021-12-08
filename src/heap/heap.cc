@@ -51,6 +51,7 @@
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
+#include "src/heap/heap-layout-tracer.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -1762,9 +1763,22 @@ bool Heap::CollectGarbage(AllocationSpace space,
         PROFILE(isolate_, CodeMovingGCEvent());
       }
 
-      GCType gc_type = collector == GarbageCollector::MARK_COMPACTOR
-                           ? kGCTypeMarkSweepCompact
-                           : kGCTypeScavenge;
+      GCType gc_type;
+
+      switch (collector) {
+        case GarbageCollector::MARK_COMPACTOR:
+          gc_type = kGCTypeMarkSweepCompact;
+          break;
+        case GarbageCollector::SCAVENGER:
+          gc_type = kGCTypeScavenge;
+          break;
+        case GarbageCollector::MINOR_MARK_COMPACTOR:
+          gc_type = kGCTypeMinorMarkCompact;
+          break;
+        default:
+          UNREACHABLE();
+      }
+
       {
         GCCallbacksScope scope(this);
         // Temporary override any embedder stack state as callbacks may create
@@ -5652,6 +5666,19 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
 
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     space_[i] = nullptr;
+  }
+
+  // Set up layout tracing callback.
+  if (V8_UNLIKELY(FLAG_trace_gc_heap_layout)) {
+    v8::GCType gc_type = kGCTypeMarkSweepCompact;
+    if (V8_UNLIKELY(!FLAG_trace_gc_heap_layout_ignore_minor_gc)) {
+      gc_type = static_cast<v8::GCType>(gc_type | kGCTypeScavenge |
+                                        kGCTypeMinorMarkCompact);
+    }
+    AddGCPrologueCallback(HeapLayoutTracer::GCProloguePrintHeapLayout, gc_type,
+                          nullptr);
+    AddGCEpilogueCallback(HeapLayoutTracer::GCEpiloguePrintHeapLayout, gc_type,
+                          nullptr);
   }
 }
 
