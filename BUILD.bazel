@@ -621,6 +621,7 @@ filegroup(
         "src/base/v8-fallthrough.h",
         "src/base/vlq-base64.cc",
         "src/base/vlq-base64.h",
+        "src/base/platform/yield-processor.h",
     ] + select({
         "@config//:is_posix": [
             "src/base/platform/platform-posix.cc",
