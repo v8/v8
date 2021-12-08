@@ -424,6 +424,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return num_heap_slots() > 0;
   }
 
+#ifdef DEBUG
+  bool IsReparsedMemberInitializerScope() const;
+#endif
   // Use Scope::ForEach for depth first traversal of scopes.
   // Before:
   // void Scope::VisitRecursively() {
@@ -1474,6 +1477,13 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
+  void ReplaceReparsedClassScope(Isolate* isolate,
+                                 AstValueFactory* ast_value_factory,
+                                 ClassScope* old_scope);
+#ifdef DEBUG
+  bool is_reparsed_class_scope() const { return is_reparsed_class_scope_; }
+#endif
+
  private:
   friend class Scope;
   friend class PrivateNameScopeIterator;
@@ -1519,6 +1529,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // This is only maintained during reparsing, restored from the
   // preparsed data.
   bool should_save_class_variable_index_ = false;
+#ifdef DEBUG
+  bool is_reparsed_class_scope_ = false;
+#endif
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the
