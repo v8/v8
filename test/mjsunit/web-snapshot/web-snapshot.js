@@ -99,6 +99,34 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   assertFalse(b);
 })();
 
+(function TestStringWithNull() {
+  function createObjects() {
+    globalThis.s = 'l\0l';
+  }
+  const { s } = takeAndUseWebSnapshot(createObjects, ['s']);
+  assertEquals(108, s.charCodeAt(0));
+  assertEquals(0, s.charCodeAt(1));
+  assertEquals(108, s.charCodeAt(2));
+})();
+
+(function TestTwoByteString() {
+  function createObjects() {
+    globalThis.s = '\u{1F600}';
+  }
+  const { s } = takeAndUseWebSnapshot(createObjects, ['s']);
+  assertEquals('\u{1F600}', s);
+})();
+
+(function TestTwoByteStringWithNull() {
+  function createObjects() {
+    globalThis.s = 'l\0l\u{1F600}';
+  }
+  const { s } = takeAndUseWebSnapshot(createObjects, ['s']);
+  assertEquals(108, s.charCodeAt(0));
+  assertEquals(0, s.charCodeAt(1));
+  assertEquals(108, s.charCodeAt(2));
+})();
+
 (function TestFunction() {
   function createObjects() {
     globalThis.foo = {

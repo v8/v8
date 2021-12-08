@@ -398,8 +398,13 @@ void WebSnapshotSerializer::SerializeString(Handle<String> string,
     string_serializer_.WriteRawBytes(chars.begin(),
                                      chars.length() * sizeof(uint8_t));
   } else if (flat.IsTwoByte()) {
-    // TODO(v8:11525): Support two-byte strings.
-    UNREACHABLE();
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+    v8::Local<v8::String> api_string = Utils::ToLocal(string);
+    int length = api_string->Utf8Length(v8_isolate);
+    std::unique_ptr<char[]> buffer(new char[length]);
+    api_string->WriteUtf8(v8_isolate, buffer.get(), length);
+    string_serializer_.WriteUint32(length);
+    string_serializer_.WriteRawBytes(buffer.get(), length * sizeof(uint8_t));
   } else {
     UNREACHABLE();
   }
@@ -1127,8 +1132,7 @@ void WebSnapshotDeserializer::DeserializeStrings() {
   STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
   strings_ = isolate_->factory()->NewFixedArray(string_count_);
   for (uint32_t i = 0; i < string_count_; ++i) {
-    // TODO(v8:11525): Read strings as UTF-8.
-    MaybeHandle<String> maybe_string = deserializer_->ReadOneByteString();
+    MaybeHandle<String> maybe_string = deserializer_->ReadUtf8String();
     Handle<String> string;
     if (!maybe_string.ToHandle(&string)) {
       Throw("Malformed string");
