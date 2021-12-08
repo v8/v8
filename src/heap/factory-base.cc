@@ -358,6 +358,29 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
 }
 
 template <typename Impl>
+Handle<UncompiledDataWithoutPreparseDataWithJob>
+FactoryBase<Impl>::NewUncompiledDataWithoutPreparseDataWithJob(
+    Handle<String> inferred_name, int32_t start_position,
+    int32_t end_position) {
+  return TorqueGeneratedFactory<
+      Impl>::NewUncompiledDataWithoutPreparseDataWithJob(inferred_name,
+                                                         start_position,
+                                                         end_position,
+                                                         kNullAddress,
+                                                         AllocationType::kOld);
+}
+
+template <typename Impl>
+Handle<UncompiledDataWithPreparseDataAndJob>
+FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
+    Handle<String> inferred_name, int32_t start_position, int32_t end_position,
+    Handle<PreparseData> preparse_data) {
+  return TorqueGeneratedFactory<Impl>::NewUncompiledDataWithPreparseDataAndJob(
+      inferred_name, start_position, end_position, preparse_data, kNullAddress,
+      AllocationType::kOld);
+}
+
+template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
     Builtin builtin, FunctionKind kind) {

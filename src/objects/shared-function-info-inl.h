@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -92,6 +93,8 @@ void PreparseData::set_child(int index, PreparseData value,
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseDataWithJob)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
@@ -789,6 +792,17 @@ void SharedFunctionInfo::set_uncompiled_data_with_preparse_data(
 
 bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData() const {
   return function_data(kAcquireLoad).IsUncompiledDataWithoutPreparseData();
+}
+
+void SharedFunctionInfo::ClearUncompiledDataJobPointer() {
+  UncompiledData uncompiled_data = this->uncompiled_data();
+  if (uncompiled_data.IsUncompiledDataWithPreparseDataAndJob()) {
+    UncompiledDataWithPreparseDataAndJob::cast(uncompiled_data)
+        .set_job(kNullAddress);
+  } else if (uncompiled_data.IsUncompiledDataWithoutPreparseDataWithJob()) {
+    UncompiledDataWithoutPreparseDataWithJob::cast(uncompiled_data)
+        .set_job(kNullAddress);
+  }
 }
 
 void SharedFunctionInfo::ClearPreparseData() {

@@ -230,6 +230,8 @@ class ZoneForwardList;
   V(UncompiledData)                            \
   V(UncompiledDataWithPreparseData)            \
   V(UncompiledDataWithoutPreparseData)         \
+  V(UncompiledDataWithPreparseDataAndJob)      \
+  V(UncompiledDataWithoutPreparseDataWithJob)  \
   V(Undetectable)                              \
   V(UniqueName)                                \
   IF_WASM(V, WasmApiFunctionRef)               \

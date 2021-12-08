@@ -25,6 +25,12 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#ifdef DEBUG
+#define DEBUG_ASSERT_EQ ASSERT_EQ
+#else
+#define DEBUG_ASSERT_EQ(...)
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -397,11 +403,17 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskNoIdleTime) {
 
   EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
+
   // Run compile steps.
   platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
   // Job should be ready to finalize.
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 1u);
   ASSERT_EQ(
       dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
       LazyCompileDispatcher::Job::State::kReadyToFinalize);
@@ -415,7 +427,8 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskNoIdleTime) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // Job should be ready to finalize.
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
   ASSERT_EQ(
       dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
       LazyCompileDispatcher::Job::State::kReadyToFinalize);
@@ -444,11 +457,17 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskSmallIdleTime) {
   EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_1);
   EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
 
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
+
   // Run compile steps.
   platform.RunJobTasksAndBlock(V8::GetCurrentPlatform());
 
   // Both jobs should be ready to finalize.
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 2);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 2u);
   ASSERT_EQ(
       dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
           ->state,
@@ -464,7 +483,9 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskSmallIdleTime) {
   platform.RunIdleTask(2.0, 1.0);
 
   // Only one of the jobs should be finalized.
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 1u);
   if (dispatcher.IsEnqueued(shared_1)) {
     ASSERT_EQ(
         dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
@@ -532,7 +553,9 @@ TEST_F(LazyCompileDispatcherTest, FinishNowWithWorkerTask) {
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
   ASSERT_NE(
       dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
       LazyCompileDispatcher::Job::State::kReadyToFinalize);
@@ -544,6 +567,7 @@ TEST_F(LazyCompileDispatcherTest, FinishNowWithWorkerTask) {
   ASSERT_TRUE(dispatcher.FinishNow(shared));
   // Finishing removes the SFI from the queue.
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 0u);
   ASSERT_TRUE(shared->is_compiled());
   if (platform.IdleTaskPending()) platform.ClearIdleTask();
   ASSERT_FALSE(platform.JobTaskPending());
@@ -620,7 +644,9 @@ TEST_F(LazyCompileDispatcherTest, AbortJobNotStarted) {
   EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
   ASSERT_NE(
       dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
       LazyCompileDispatcher::Job::State::kReadyToFinalize);
@@ -645,7 +671,9 @@ TEST_F(LazyCompileDispatcherTest, AbortJobAlreadyStarted) {
   EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared);
 
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
   ASSERT_NE(
       dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
       LazyCompileDispatcher::Job::State::kReadyToFinalize);
@@ -674,7 +702,9 @@ TEST_F(LazyCompileDispatcherTest, AbortJobAlreadyStarted) {
 
   // Job should have finished running and then been aborted.
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 1u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 1u);
   ASSERT_EQ(
       dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
       LazyCompileDispatcher::Job::State::kAborted);
@@ -760,7 +790,9 @@ TEST_F(LazyCompileDispatcherTest, CompileMultipleOnBackgroundThread) {
 
   EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
 
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 2);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 0u);
   ASSERT_NE(
       dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
           ->state,
@@ -781,7 +813,9 @@ TEST_F(LazyCompileDispatcherTest, CompileMultipleOnBackgroundThread) {
 
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.JobTaskPending());
-  ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 2);
+  DEBUG_ASSERT_EQ(dispatcher.all_jobs_.size(), 2u);
+  ASSERT_EQ(dispatcher.pending_background_jobs_.size(), 0u);
+  ASSERT_EQ(dispatcher.finalizable_jobs_.size(), 2u);
   ASSERT_EQ(
       dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
           ->state,

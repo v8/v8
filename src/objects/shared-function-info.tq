@@ -135,6 +135,24 @@ extern class UncompiledDataWithPreparseData extends UncompiledData {
   preparse_data: PreparseData;
 }
 
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithoutPreparseDataWithJob extends
+    UncompiledDataWithoutPreparseData {
+  // TODO(v8:10391): Define the field as ExternalPointer or move jobs into cage.
+  job: RawPtr;
+}
+
+@generateBodyDescriptor
+@generateUniqueMap
+@generateFactoryFunction
+extern class UncompiledDataWithPreparseDataAndJob extends
+    UncompiledDataWithPreparseData {
+  // TODO(v8:10391): Define the field as ExternalPointer or move jobs into cage.
+  job: RawPtr;
+}
+
 @export
 class OnHeapBasicBlockProfilerData extends HeapObject {
   block_ids: ByteArray;  // Stored as 4-byte ints

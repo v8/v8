@@ -115,13 +115,29 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   struct Job {
     enum class State {
+      // Background thread states (Enqueue + DoBackgroundWork)
+      // ---
+
+      // In the pending task queue.
       kPending,
+      // Currently running on a background thread.
       kRunning,
+      kAbortRequested,  // ... but we want to drop the result.
+      // In the finalizable task queue.
       kReadyToFinalize,
-      kFinalized,
-      kAbortRequested,
       kAborted,
-      kPendingToRunOnForeground
+
+      // Main thread states (FinishNow and FinalizeSingleJob)
+      // ---
+
+      // Popped off the pending task queue.
+      kPendingToRunOnForeground,
+      // Popped off the finalizable task queue.
+      kFinalizingNow,
+      kAbortingNow,  // ... and we want to abort
+
+      // Finished finalizing, ready for deletion.
+      kFinalized,
     };
 
     explicit Job(std::unique_ptr<BackgroundCompileTask> task);
@@ -140,12 +156,25 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   void WaitForJobIfRunningOnBackground(Job* job, const base::MutexGuard&);
   Job* GetJobFor(Handle<SharedFunctionInfo> shared,
                  const base::MutexGuard&) const;
-  std::tuple<SharedFunctionInfo, Job*> GetSingleFinalizableJob(
-      const base::MutexGuard&);
+  Job* PopSingleFinalizeJob();
   void ScheduleIdleTaskFromAnyThread(const base::MutexGuard&);
   bool FinalizeSingleJob();
   void DoBackgroundWork(JobDelegate* delegate);
   void DoIdleWork(double deadline_in_seconds);
+
+  // DeleteJob without the mutex held.
+  void DeleteJob(Job* job);
+  // DeleteJob with the mutex already held.
+  void DeleteJob(Job* job, const base::MutexGuard&);
+
+  void NotifyAddedBackgroundJob(const base::MutexGuard& lock) {
+    ++num_jobs_for_background_;
+    VerifyBackgroundTaskCount(lock);
+  }
+  void NotifyRemovedBackgroundJob(const base::MutexGuard& lock) {
+    --num_jobs_for_background_;
+    VerifyBackgroundTaskCount(lock);
+  }
 
 #ifdef DEBUG
   void VerifyBackgroundTaskCount(const base::MutexGuard&);
@@ -171,19 +200,24 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   // the mutex |mutex_| while accessing them.
   mutable base::Mutex mutex_;
 
-  // Mapping from SharedFunctionInfo to the corresponding unoptimized
-  // compilation job.
-  SharedToJobMap shared_to_unoptimized_job_;
-
   // True if an idle task is scheduled to be run.
   bool idle_task_scheduled_;
 
   // The set of jobs that can be run on a background thread.
-  std::unordered_set<Job*> pending_background_jobs_;
+  std::vector<Job*> pending_background_jobs_;
+
+  // The set of jobs that can be finalized on the main thread.
+  std::vector<Job*> finalizable_jobs_;
 
   // The total number of jobs ready to execute on background, both those pending
   // and those currently running.
   std::atomic<size_t> num_jobs_for_background_;
+
+#ifdef DEBUG
+  // The set of all allocated jobs, used for verification of the various queues
+  // and counts.
+  std::unordered_set<Job*> all_jobs_;
+#endif
 
   // If not nullptr, then the main thread waits for the task processing
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.

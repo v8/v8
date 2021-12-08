@@ -201,6 +201,25 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     return;
   }
 
+  if (obj->IsUncompiledDataWithoutPreparseDataWithJob()) {
+    Handle<UncompiledDataWithoutPreparseDataWithJob> data =
+        Handle<UncompiledDataWithoutPreparseDataWithJob>::cast(obj);
+    Address job = data->job();
+    data->set_job(kNullAddress);
+    SerializeGeneric(data);
+    data->set_job(job);
+    return;
+  }
+  if (obj->IsUncompiledDataWithPreparseDataAndJob()) {
+    Handle<UncompiledDataWithPreparseDataAndJob> data =
+        Handle<UncompiledDataWithPreparseDataAndJob>::cast(obj);
+    Address job = data->job();
+    data->set_job(kNullAddress);
+    SerializeGeneric(data);
+    data->set_job(job);
+    return;
+  }
+
   // NOTE(mmarchini): If we try to serialize an InterpreterData our process
   // will crash since it stores a code object. Instead, we serialize the
   // bytecode array stored within the InterpreterData, which is the important

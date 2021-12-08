@@ -14458,6 +14458,8 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
     CODET_TYPE,
     UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
     UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
+    UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
+    UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
     FUNCTION_TEMPLATE_INFO_TYPE,
 #if V8_ENABLE_WEBASSEMBLY
     WASM_CAPI_FUNCTION_DATA_TYPE,
@@ -14469,16 +14471,17 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
   Label check_is_bytecode_array(this);
   Label check_is_baseline_data(this);
   Label check_is_asm_wasm_data(this);
-  Label check_is_uncompiled_data_without_preparse_data(this);
-  Label check_is_uncompiled_data_with_preparse_data(this);
+  Label check_is_uncompiled_data(this);
   Label check_is_function_template_info(this);
   Label check_is_interpreter_data(this);
   Label check_is_wasm_function_data(this);
   Label* case_labels[] = {
     &check_is_bytecode_array,
     &check_is_baseline_data,
-    &check_is_uncompiled_data_without_preparse_data,
-    &check_is_uncompiled_data_with_preparse_data,
+    &check_is_uncompiled_data,
+    &check_is_uncompiled_data,
+    &check_is_uncompiled_data,
+    &check_is_uncompiled_data,
     &check_is_function_template_info,
 #if V8_ENABLE_WEBASSEMBLY
     &check_is_wasm_function_data,
@@ -14506,9 +14509,7 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
   // Compile lazy
-  BIND(&check_is_uncompiled_data_with_preparse_data);
-  Goto(&check_is_uncompiled_data_without_preparse_data);
-  BIND(&check_is_uncompiled_data_without_preparse_data);
+  BIND(&check_is_uncompiled_data);
   sfi_code = HeapConstant(BUILTIN_CODET(isolate(), CompileLazy));
   Goto(if_compile_lazy ? if_compile_lazy : &done);
 

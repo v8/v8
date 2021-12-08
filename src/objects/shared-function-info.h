@@ -145,6 +145,31 @@ class UncompiledDataWithPreparseData
   TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData)
 };
 
+// Class representing data for an uncompiled function that does not have any
+// data from the pre-parser, either because it's a leaf function or because the
+// pre-parser bailed out, but has a job pointer.
+class UncompiledDataWithoutPreparseDataWithJob
+    : public TorqueGeneratedUncompiledDataWithoutPreparseDataWithJob<
+          UncompiledDataWithoutPreparseDataWithJob,
+          UncompiledDataWithoutPreparseData> {
+ public:
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseDataWithJob)
+};
+
+// Class representing data for an uncompiled function that has pre-parsed scope
+// data and a job pointer.
+class UncompiledDataWithPreparseDataAndJob
+    : public TorqueGeneratedUncompiledDataWithPreparseDataAndJob<
+          UncompiledDataWithPreparseDataAndJob,
+          UncompiledDataWithPreparseData> {
+ public:
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseDataAndJob)
+};
+
 class InterpreterData
     : public TorqueGeneratedInterpreterData<InterpreterData, Struct> {
  public:
@@ -351,6 +376,7 @@ class SharedFunctionInfo
   inline void set_uncompiled_data_with_preparse_data(
       UncompiledDataWithPreparseData data);
   inline bool HasUncompiledDataWithoutPreparseData() const;
+  inline void ClearUncompiledDataJobPointer();
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.

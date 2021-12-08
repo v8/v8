@@ -525,11 +525,15 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
 
   bool FinalizeFunction(Isolate* isolate, Compiler::ClearExceptionFlag flag);
 
+  void AbortFunction();
+
   UnoptimizedCompileFlags flags() const { return flags_; }
   LanguageMode language_mode() const { return language_mode_; }
 
  private:
   void ReportStatistics(Isolate* isolate);
+
+  void ClearFunctionJobPointer();
 
   // Data needed for parsing and compilation. These need to be initialized
   // before the compilation starts.

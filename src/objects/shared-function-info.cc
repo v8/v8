@@ -549,13 +549,25 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (scope_data != nullptr) {
     Handle<PreparseData> preparse_data = scope_data->Serialize(isolate);
 
-    data = isolate->factory()->NewUncompiledDataWithPreparseData(
-        lit->GetInferredName(isolate), lit->start_position(),
-        lit->end_position(), preparse_data);
+    if (lit->should_parallel_compile()) {
+      data = isolate->factory()->NewUncompiledDataWithPreparseDataAndJob(
+          lit->GetInferredName(isolate), lit->start_position(),
+          lit->end_position(), preparse_data);
+    } else {
+      data = isolate->factory()->NewUncompiledDataWithPreparseData(
+          lit->GetInferredName(isolate), lit->start_position(),
+          lit->end_position(), preparse_data);
+    }
   } else {
-    data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
-        lit->GetInferredName(isolate), lit->start_position(),
-        lit->end_position());
+    if (lit->should_parallel_compile()) {
+      data = isolate->factory()->NewUncompiledDataWithoutPreparseDataWithJob(
+          lit->GetInferredName(isolate), lit->start_position(),
+          lit->end_position());
+    } else {
+      data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
+          lit->GetInferredName(isolate), lit->start_position(),
+          lit->end_position());
+    }
   }
 
   shared_info->set_uncompiled_data(*data);
