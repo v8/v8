@@ -484,7 +484,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<FixedArray> array, int new_len,
       AllocationType allocation = AllocationType::kYoung);
 
-  Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
+  Handle<FixedArray> CopyFixedArray(
+      Handle<FixedArray> array,
+      AllocationType allocation = AllocationType::kYoung);
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(Handle<FixedDoubleArray> array);
 
@@ -1045,7 +1047,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   HeapObject New(Handle<Map> map, AllocationType allocation);
 
   template <typename T>
-  Handle<T> CopyArrayWithMap(Handle<T> src, Handle<Map> map);
+  Handle<T> CopyArrayWithMap(
+      Handle<T> src, Handle<Map> map,
+      AllocationType allocation = AllocationType::kYoung);
   template <typename T>
   Handle<T> CopyArrayAndGrow(Handle<T> src, int grow_by,
                              AllocationType allocation);

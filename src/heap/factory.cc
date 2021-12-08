@@ -1474,7 +1474,8 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
   Handle<FixedArray> supertypes;
   if (opt_parent.is_null()) {
-    supertypes = NewFixedArray(wasm::kMinimumSupertypeArraySize);
+    supertypes =
+        NewFixedArray(wasm::kMinimumSupertypeArraySize, AllocationType::kOld);
     for (int i = 0; i < supertypes->length(); i++) {
       supertypes->set(i, *undefined_value());
     }
@@ -1489,7 +1490,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     if (last_defined_index == parent_supertypes->length() - 1) {
       supertypes = CopyArrayAndGrow(parent_supertypes, 1, AllocationType::kOld);
     } else {
-      supertypes = CopyFixedArray(parent_supertypes);
+      supertypes = CopyFixedArray(parent_supertypes, AllocationType::kOld);
     }
     supertypes->set(last_defined_index + 1, *opt_parent);
   }
@@ -1499,7 +1500,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   DisallowGarbageCollection no_gc;
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), type_address);
-  result.set_supertypes(*supertypes);
+  result.set_supertypes(*supertypes, SKIP_WRITE_BARRIER);
   result.set_subtypes(*subtypes);
   result.set_instance_size(instance_size_bytes);
   result.set_instance(*instance);
@@ -1952,9 +1953,10 @@ inline void ZeroEmbedderFields(i::JSObject obj) {
 }  // namespace
 
 template <typename T>
-Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map) {
+Handle<T> Factory::CopyArrayWithMap(Handle<T> src, Handle<Map> map,
+                                    AllocationType allocation) {
   int len = src->length();
-  HeapObject new_object = AllocateRawFixedArray(len, AllocationType::kYoung);
+  HeapObject new_object = AllocateRawFixedArray(len, allocation);
   DisallowGarbageCollection no_gc;
   new_object.set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
   T result = T::cast(new_object);
@@ -2090,9 +2092,10 @@ Handle<FixedArray> Factory::CopyFixedArrayUpTo(Handle<FixedArray> array,
   return handle(result, isolate());
 }
 
-Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
+Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array,
+                                           AllocationType allocation) {
   if (array->length() == 0) return array;
-  return CopyArrayWithMap(array, handle(array->map(), isolate()));
+  return CopyArrayWithMap(array, handle(array->map(), isolate()), allocation);
 }
 
 Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
