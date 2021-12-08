@@ -2706,16 +2706,15 @@ bool Isolate::AreWasmExceptionsEnabled(Handle<Context> context) {
 
 bool Isolate::IsWasmDynamicTieringEnabled() {
 #if V8_ENABLE_WEBASSEMBLY
+  if (FLAG_wasm_dynamic_tiering) return true;
   if (wasm_dynamic_tiering_enabled_callback()) {
     HandleScope handle_scope(this);
     v8::Local<v8::Context> api_context =
         v8::Utils::ToLocal(handle(context(), this));
     return wasm_dynamic_tiering_enabled_callback()(api_context);
   }
-  return FLAG_wasm_dynamic_tiering;
-#else
-  return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
+  return false;
 }
 
 Handle<Context> Isolate::GetIncumbentContext() {
