@@ -5,6 +5,7 @@
 // The test needs --wasm-tier-up because we can't serialize and deserialize
 // Liftoff code.
 // Flags: --allow-natives-syntax --throws --wasm-tier-up
+// Flags: --no-wasm-dynamic-tiering
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let kTableSize = 3;
