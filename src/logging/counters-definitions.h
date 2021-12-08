@@ -142,7 +142,7 @@ namespace internal {
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                               \
   /* Total V8 time (including JS and runtime calls, exluding callbacks) */ \
-  HT(execute_precise, V8.ExecuteMicroSeconds, 1000000, MICROSECOND)
+  HT(execute, V8.ExecuteMicroSeconds, 1000000, MICROSECOND)
 
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
   /* Timer histograms, thread safe: HT(name, caption, max, unit) */            \

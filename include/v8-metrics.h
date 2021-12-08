@@ -230,6 +230,8 @@ struct V8_EXPORT LongTaskStats {
   int64_t gc_full_atomic_wall_clock_duration_us = 0;
   int64_t gc_full_incremental_wall_clock_duration_us = 0;
   int64_t gc_young_wall_clock_duration_us = 0;
+  // Only collected with --slow-histograms
+  int64_t v8_execute_us = 0;
 };
 
 }  // namespace metrics

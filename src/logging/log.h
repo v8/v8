@@ -277,14 +277,22 @@ class Logger : public CodeEventListener {
 
   static void DefaultEventLoggerSentinel(const char* name, int event) {}
 
-  static void CallEventLogger(Isolate* isolate, const char* name,
-                              v8::LogEventStatus se, bool expose_to_api) {
-    if (!isolate->event_logger()) return;
+  V8_INLINE static void CallEventLoggerInternal(Isolate* isolate,
+                                                const char* name,
+                                                v8::LogEventStatus se,
+                                                bool expose_to_api) {
     if (isolate->event_logger() == DefaultEventLoggerSentinel) {
       LOG(isolate, TimerEvent(se, name));
     } else if (expose_to_api) {
       isolate->event_logger()(name, static_cast<v8::LogEventStatus>(se));
     }
+  }
+
+  V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
+                                        v8::LogEventStatus se,
+                                        bool expose_to_api) {
+    if (!isolate->event_logger()) return;
+    CallEventLoggerInternal(isolate, name, se, expose_to_api);
   }
 
   V8_EXPORT_PRIVATE bool is_logging();
