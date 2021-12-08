@@ -357,6 +357,10 @@ void LazyCompileDispatcher::AbortAll() {
       DeleteJob(job, lock);
     }
     finalizable_jobs_.clear();
+    for (Job* job : jobs_to_dispose_) {
+      delete job;
+    }
+    jobs_to_dispose_.clear();
 
     DCHECK_EQ(all_jobs_.size(), 0);
     num_jobs_for_background_ = 0;
@@ -411,7 +415,7 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
     {
       base::MutexGuard lock(&mutex_);
 
-      if (pending_background_jobs_.empty()) return;
+      if (pending_background_jobs_.empty()) break;
       job = pending_background_jobs_.back();
       pending_background_jobs_.pop_back();
       DCHECK_EQ(job->state, Job::State::kPending);
@@ -450,6 +454,20 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
         ScheduleIdleTaskFromAnyThread(lock);
       }
     }
+  }
+
+  while (!delegate->ShouldYield()) {
+    Job* job = nullptr;
+    {
+      base::MutexGuard lock(&job_dispose_mutex_);
+      if (jobs_to_dispose_.empty()) break;
+      job = jobs_to_dispose_.back();
+      jobs_to_dispose_.pop_back();
+      if (jobs_to_dispose_.empty()) {
+        num_jobs_for_background_--;
+      }
+    }
+    delete job;
   }
 
   // Don't touch |this| anymore after this point, as it might have been
@@ -537,7 +555,11 @@ void LazyCompileDispatcher::DeleteJob(Job* job, const base::MutexGuard&) {
 #ifdef DEBUG
   all_jobs_.erase(job);
 #endif
-  delete job;
+  base::MutexGuard lock(&job_dispose_mutex_);
+  jobs_to_dispose_.push_back(job);
+  if (jobs_to_dispose_.size() == 1) {
+    num_jobs_for_background_++;
+  }
 }
 
 #ifdef DEBUG
@@ -570,7 +592,8 @@ void LazyCompileDispatcher::VerifyBackgroundTaskCount(const base::MutexGuard&) {
 
   CHECK_EQ(pending_background_jobs_.size(), pending_jobs);
   CHECK_EQ(finalizable_jobs_.size(), finalizable_jobs);
-  CHECK_EQ(num_jobs_for_background_.load(), pending_jobs + running_jobs);
+  CHECK_EQ(num_jobs_for_background_.load(),
+           pending_jobs + running_jobs + (jobs_to_dispose_.empty() ? 0 : 1));
 }
 #endif
 

@@ -20,6 +20,7 @@
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/utils/identity-map.h"
+#include "src/utils/locked-queue.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
@@ -223,6 +224,9 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.
   Job* main_thread_blocking_on_job_;
   base::ConditionVariable main_thread_blocking_signal_;
+
+  mutable base::Mutex job_dispose_mutex_;
+  std::vector<Job*> jobs_to_dispose_;
 
   // Test support.
   base::AtomicValue<bool> block_for_testing_;
