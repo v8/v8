@@ -10,6 +10,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/base/small-vector.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -552,7 +553,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   IsCompiledScope is_compiled_scope_;
   FinalizeUnoptimizedCompilationDataList finalize_unoptimized_compilation_data_;
   DeferredFinalizationJobDataList jobs_to_retry_finalization_on_main_thread_;
-  int use_counts_[v8::Isolate::kUseCounterFeatureCount] = {0};
+  base::SmallVector<v8::Isolate::UseCounterFeature, 8> use_counts_;
   int total_preparse_skipped_ = 0;
 
   // Single function data for top-level function compilation.

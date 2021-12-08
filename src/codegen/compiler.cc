@@ -1547,7 +1547,7 @@ void BackgroundCompileTask::Run(
 
   parser.ParseOnBackground(isolate, &info, start_position_, end_position_,
                            function_literal_id_);
-  parser.UpdateStatistics(script_, use_counts_, &total_preparse_skipped_);
+  parser.UpdateStatistics(script_, &use_counts_, &total_preparse_skipped_);
 
   // Save the language mode.
   language_mode_ = info.language_mode();
@@ -1691,14 +1691,13 @@ void BackgroundCompileTask::AbortFunction() {
 
 void BackgroundCompileTask::ReportStatistics(Isolate* isolate) {
   // Update use-counts.
-  for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
-       ++i) {
-    v8::Isolate::UseCounterFeature feature =
-        static_cast<v8::Isolate::UseCounterFeature>(i);
-    isolate->CountUsage(feature, use_counts_[i]);
+  for (auto feature : use_counts_) {
+    isolate->CountUsage(feature);
   }
-  isolate->counters()->total_preparse_skipped()->Increment(
-      total_preparse_skipped_);
+  if (total_preparse_skipped_ > 0) {
+    isolate->counters()->total_preparse_skipped()->Increment(
+        total_preparse_skipped_);
+  }
 }
 
 BackgroundDeserializeTask::BackgroundDeserializeTask(

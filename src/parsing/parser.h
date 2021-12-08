@@ -12,6 +12,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
 #include "src/parsing/import-assertions.h"
@@ -163,8 +164,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, Handle<Script> script);
-  void UpdateStatistics(Handle<Script> script, int* use_counters,
-                        int* preparse_skipped);
+  void UpdateStatistics(
+      Handle<Script> script,
+      base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counters,
+      int* preparse_skipped);
   template <typename IsolateT>
   void HandleSourceURLComments(IsolateT* isolate, Handle<Script> script);
 

@@ -3370,19 +3370,21 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
       total_preparse_skipped_);
 }
 
-void Parser::UpdateStatistics(Handle<Script> script, int* use_counts,
-                              int* preparse_skipped) {
+void Parser::UpdateStatistics(
+    Handle<Script> script,
+    base::SmallVector<v8::Isolate::UseCounterFeature, 8>* use_counts,
+    int* preparse_skipped) {
   // Move statistics to Isolate.
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     if (use_counts_[feature] > 0) {
-      use_counts[feature]++;
+      use_counts->emplace_back(v8::Isolate::UseCounterFeature(feature));
     }
   }
   if (scanner_.FoundHtmlComment()) {
-    use_counts[v8::Isolate::kHtmlComment]++;
+    use_counts->emplace_back(v8::Isolate::kHtmlComment);
     if (script->line_offset() == 0 && script->column_offset() == 0) {
-      use_counts[v8::Isolate::kHtmlCommentInExternalScript]++;
+      use_counts->emplace_back(v8::Isolate::kHtmlCommentInExternalScript);
     }
   }
   *preparse_skipped = total_preparse_skipped_;
