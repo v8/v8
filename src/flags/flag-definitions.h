@@ -998,6 +998,8 @@ DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,
                   "trace interpretation of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_streaming, false,
                   "trace streaming compilation of wasm code")
+DEFINE_DEBUG_BOOL(trace_wasm_stack_switching, false,
+                  "trace wasm stack switching")
 DEFINE_BOOL(liftoff, true,
             "enable Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(liftoff_only, false,

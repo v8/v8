@@ -2869,13 +2869,6 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
         WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
     InstallFunc(isolate, suspender_proto, "returnPromiseOnSuspend",
                 WebAssemblySuspenderReturnPromiseOnSuspend, 1);
-    std::unique_ptr<wasm::StackMemory> stack(
-        wasm::StackMemory::GetCurrentStackView(isolate));
-    auto continuation = WasmContinuationObject::New(isolate, std::move(stack));
-    isolate->heap()
-        ->roots_table()
-        .slot(RootIndex::kActiveContinuation)
-        .store(*continuation);
   }
 
   // Setup Function

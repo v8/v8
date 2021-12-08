@@ -62,13 +62,19 @@ class StackHandlerIterator {
  public:
   StackHandlerIterator(const StackFrame* frame, StackHandler* handler)
       : limit_(frame->fp()), handler_(handler) {
-    // Make sure the handler has already been unwound to this frame.
-    DCHECK(frame->sp() <= AddressOf(handler));
 #if V8_ENABLE_WEBASSEMBLY
+    // Make sure the handler has already been unwound to this frame. With stack
+    // switching this is not equivalent to the inequality below, because the
+    // frame and the handler could be in different stacks.
+    DCHECK_IMPLIES(!FLAG_experimental_wasm_stack_switching,
+                   frame->sp() <= AddressOf(handler));
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
     // beyond the limit, we know we always want to unwind one handler.
     if (frame->is_c_wasm_entry()) handler_ = handler_->next();
+#else
+    // Make sure the handler has already been unwound to this frame.
+    DCHECK_LE(frame->sp(), AddressOf(handler));
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
 
@@ -103,6 +109,13 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
     : StackFrameIteratorBase(isolate, true) {
   Reset(t);
 }
+#if V8_ENABLE_WEBASSEMBLY
+StackFrameIterator::StackFrameIterator(Isolate* isolate,
+                                       wasm::StackMemory* stack)
+    : StackFrameIterator(isolate) {
+  Reset(isolate->thread_local_top(), stack);
+}
+#endif
 
 void StackFrameIterator::Advance() {
   DCHECK(!done());
@@ -122,8 +135,14 @@ void StackFrameIterator::Advance() {
   frame_ = SingletonFor(type, &state);
 
   // When we're done iterating over the stack frames, the handler
-  // chain must have been completely unwound.
-  DCHECK(!done() || handler_ == nullptr);
+  // chain must have been completely unwound. Except for wasm stack-switching:
+  // we stop at the end of the current segment.
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK_IMPLIES(done() && !FLAG_experimental_wasm_stack_switching,
+                 handler_ == nullptr);
+#else
+  DCHECK_IMPLIES(done(), handler_ == nullptr);
+#endif
 }
 
 StackFrame* StackFrameIterator::Reframe() {
@@ -139,6 +158,19 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
   frame_ = SingletonFor(type, &state);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
+  if (stack->jmpbuf()->sp == stack->base()) {
+    // Empty stack.
+    return;
+  }
+  StackFrame::State state;
+  ReturnPromiseOnSuspendFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
+  handler_ = StackHandler::FromAddress(Isolate::handler(top));
+  frame_ = SingletonFor(StackFrame::RETURN_PROMISE_ON_SUSPEND, &state);
+}
+#endif
 
 StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type,
                                                  StackFrame::State* state) {
@@ -562,7 +594,12 @@ void StackFrame::SetReturnAddressLocationResolver(
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
-  DCHECK_NE(state->fp, kNullAddress);
+#if V8_ENABLE_WEBASSEMBLY
+  if (state->fp == kNullAddress) {
+    DCHECK(FLAG_experimental_wasm_stack_switching);
+    return NO_FRAME_TYPE;
+  }
+#endif
 
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
@@ -792,11 +829,11 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
   switch (frame_type) {
     case BUILTIN_EXIT:
-      return BUILTIN_EXIT;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
-      return WASM_EXIT;
+    case RETURN_PROMISE_ON_SUSPEND:
 #endif  // V8_ENABLE_WEBASSEMBLY
+      return frame_type;
     default:
       return EXIT;
   }
@@ -939,8 +976,16 @@ int CommonFrame::ComputeExpressionsCount() const {
 }
 
 void CommonFrame::ComputeCallerState(State* state) const {
-  state->sp = caller_sp();
   state->fp = caller_fp();
+#if V8_ENABLE_WEBASSEMBLY
+  if (state->fp == kNullAddress) {
+    // An empty FP signals the first frame of a stack segment. The caller is
+    // on a different stack, or is unbound (suspended stack).
+    DCHECK(FLAG_experimental_wasm_stack_switching);
+    return;
+  }
+#endif
+  state->sp = caller_sp();
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(ComputePCAddress(fp())));
   state->callee_fp = fp();
@@ -2099,11 +2144,8 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
 
 void ReturnPromiseOnSuspendFrame::Iterate(RootVisitor* v) const {
   //  See JsToWasmFrame layout.
-#ifdef DEBUG
-  Code code = GetContainingCode(isolate(), pc());
-  DCHECK(code.is_builtin() &&
-         code.builtin_id() == Builtin::kWasmReturnPromiseOnSuspend);
-#endif
+  //  We cannot DCHECK that the pc matches the expected builtin code here,
+  //  because the return address is on a different stack.
   // The [fp + BuiltinFrameConstants::kGCScanSlotCountOffset] on the stack is a
   // value indicating how many values should be scanned from the top.
   intptr_t scan_count = *reinterpret_cast<intptr_t*>(
@@ -2114,6 +2156,15 @@ void ReturnPromiseOnSuspendFrame::Iterate(RootVisitor* v) const {
       &Memory<Address>(sp() + scan_count * kSystemPointerSize));
   v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                        spill_slot_limit);
+}
+
+// static
+void ReturnPromiseOnSuspendFrame::GetStateForJumpBuffer(
+    wasm::JumpBuffer* jmpbuf, State* state) {
+  DCHECK_NE(jmpbuf->fp, kNullAddress);
+  DCHECK_EQ(ComputeFrameType(jmpbuf->fp), RETURN_PROMISE_ON_SUSPEND);
+  FillState(jmpbuf->fp, jmpbuf->sp, state);
+  DCHECK_NE(*state->pc_address, kNullAddress);
 }
 
 WasmInstanceObject WasmCompileLazyFrame::wasm_instance() const {

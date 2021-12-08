@@ -157,6 +157,10 @@ namespace metrics {
 class Recorder;
 }  // namespace metrics
 
+namespace wasm {
+class StackMemory;
+}
+
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
   do {                                                 \
     Isolate* __isolate__ = (isolate);                  \
@@ -1895,6 +1899,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   SimulatorData* simulator_data() { return simulator_data_; }
 #endif
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+  wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
+#endif
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
                    bool is_shared);
@@ -2342,6 +2350,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::vector<MemoryRange> code_pages_buffer2_;
   // The mutex only guards adding pages, the retrieval is signal safe.
   base::Mutex code_pages_mutex_;
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  wasm::StackMemory* wasm_stacks_;
+#endif
 
   // Enables the host application to provide a mechanism for recording a
   // predefined set of data as crash keys to be used in postmortem debugging

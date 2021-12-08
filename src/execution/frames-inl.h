@@ -241,7 +241,7 @@ inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
 
 inline ReturnPromiseOnSuspendFrame::ReturnPromiseOnSuspendFrame(
     StackFrameIteratorBase* iterator)
-    : StubFrame(iterator) {}
+    : ExitFrame(iterator) {}
 
 inline CWasmEntryFrame::CWasmEntryFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}

@@ -722,6 +722,9 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
                  *isolate->roots_table().slot(RootIndex::kActiveContinuation)),
              isolate);
   auto target = WasmContinuationObject::New(isolate, *parent);
+  auto target_stack =
+      Managed<wasm::StackMemory>::cast(target->stack()).get().get();
+  isolate->wasm_stacks()->Add(target_stack);
   isolate->roots_table().slot(RootIndex::kActiveContinuation).store(*target);
   SyncStackLimit(isolate);
   return *target;

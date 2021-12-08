@@ -120,6 +120,9 @@ class ConcurrentMarkingVisitor final
   int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
     return VisitJSObjectSubclass(map, object);
   }
+  int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
+    return VisitJSObjectSubclass(map, object);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   int VisitJSWeakCollection(Map map, JSWeakCollection object) {

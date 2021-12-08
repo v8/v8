@@ -3658,6 +3658,7 @@ namespace {
 // Helper function for WasmReturnPromiseOnSuspend.
 void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf) {
   __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
+  __ movq(rbp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
   // The stack limit is set separately under the ExecutionAccess lock.
   // TODO(thibaudm): Reload live registers.
 }
@@ -3674,17 +3675,11 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
     __ decq(param_count);
   }
 
-  constexpr int kFrameMarkerOffset = -kSystemPointerSize;
-  // This slot contains the number of slots at the top of the frame that need to
-  // be scanned by the GC.
-  constexpr int kParamCountOffset =
-      BuiltinWasmWrapperConstants::kGCScanSlotCountOffset - kSystemPointerSize;
-  // The frame marker is not included in the slot count.
-  constexpr int kNumSpillSlots =
-      -(kParamCountOffset - kFrameMarkerOffset) / kSystemPointerSize;
-  __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
+  __ subq(rsp, Immediate(ReturnPromiseOnSuspendFrameConstants::kSpillAreaSize));
 
-  __ movq(MemOperand(rbp, kParamCountOffset), param_count);
+  __ movq(
+      MemOperand(rbp, ReturnPromiseOnSuspendFrameConstants::kParamCountOffset),
+      param_count);
 
   // -------------------------------------------
   // Get the instance and wasm call target.
@@ -3721,6 +3716,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
       jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
       kForeignForeignAddressTag, r8);
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufSpOffset), rsp);
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufFpOffset), rbp);
   Register stack_limit_address = rcx;
   __ movq(stack_limit_address,
           FieldOperand(wasm_instance,
@@ -3762,9 +3758,9 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
       target_jmpbuf,
       FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
       kForeignForeignAddressTag, r8);
+  __ Move(GCScanSlotPlace, 0);
   // Switch stack!
   LoadJumpBuffer(masm, target_jmpbuf);
-  __ movq(rbp, rsp);  // New stack, there is no frame yet.
   foreign_jmpbuf = no_reg;
   target_jmpbuf = no_reg;
   // live: [rsi, rdi]
@@ -3827,7 +3823,6 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
       kForeignForeignAddressTag, r8);
   // Switch stack!
   LoadJumpBuffer(masm, jmpbuf);
-  __ leaq(rbp, Operand(rsp, (kNumSpillSlots + 1) * kSystemPointerSize));
   __ Move(GCScanSlotPlace, 1);
   __ Push(wasm_instance);  // Spill.
   __ Move(kContextRegister, Smi::zero());
@@ -3841,7 +3836,9 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Epilogue.
   // -------------------------------------------
-  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
+  __ movq(
+      param_count,
+      MemOperand(rbp, ReturnPromiseOnSuspendFrameConstants::kParamCountOffset));
   __ LeaveFrame(StackFrame::RETURN_PROMISE_ON_SUSPEND);
   __ DropArguments(param_count, r8, TurboAssembler::kCountIsInteger,
                    TurboAssembler::kCountExcludesReceiver);

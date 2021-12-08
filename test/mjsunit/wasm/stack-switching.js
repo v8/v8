@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --experimental-wasm-stack-switching
+// Flags: --allow-natives-syntax --experimental-wasm-stack-switching --expose-gc
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -25,4 +25,16 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);
   wrapper();
   assertEquals(42, instance.exports.g.value);
+})();
+
+(function TestStackSwitchGC() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let gc_index = builder.addImport('m', 'gc', kSig_v_v);
+  builder.addFunction("test", kSig_v_v)
+      .addBody([kExprCallFunction, gc_index]).exportFunc();
+  let instance = builder.instantiate({'m': {'gc': gc}});
+  let suspender = new WebAssembly.Suspender();
+  let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);
+  wrapper();
 })();

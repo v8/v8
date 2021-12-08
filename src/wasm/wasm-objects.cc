@@ -1749,6 +1749,7 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
       isolate->factory()->NewStruct(WASM_CONTINUATION_OBJECT_TYPE));
   stack->jmpbuf()->stack_limit = stack->jslimit();
   stack->jmpbuf()->sp = stack->base();
+  stack->jmpbuf()->fp = kNullAddress;
   result->set_jmpbuf(*isolate->factory()->NewForeign(
       reinterpret_cast<Address>(stack->jmpbuf())));
   size_t external_size = stack->owned_size();
@@ -1769,7 +1770,8 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
 // static
 Handle<WasmContinuationObject> WasmContinuationObject::New(
     Isolate* isolate, WasmContinuationObject parent) {
-  auto stack = std::unique_ptr<wasm::StackMemory>(wasm::StackMemory::New());
+  auto stack =
+      std::unique_ptr<wasm::StackMemory>(wasm::StackMemory::New(isolate));
   return New(isolate, std::move(stack), parent);
 }
 
