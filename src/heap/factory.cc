@@ -3335,15 +3335,13 @@ Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
 
 Handle<StackFrameInfo> Factory::NewStackFrameInfo(
     Handle<Object> receiver_or_instance, Handle<Object> function,
-    Handle<HeapObject> code_object, int code_offset_or_source_position,
-    int flags, Handle<FixedArray> parameters) {
+    int offset_or_source_position, int flags, Handle<FixedArray> parameters) {
   auto info = NewStructInternal<StackFrameInfo>(STACK_FRAME_INFO_TYPE,
                                                 AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   info.set_receiver_or_instance(*receiver_or_instance, SKIP_WRITE_BARRIER);
   info.set_function(*function, SKIP_WRITE_BARRIER);
-  info.set_code_object(*code_object, SKIP_WRITE_BARRIER);
-  info.set_code_offset_or_source_position(code_offset_or_source_position);
+  info.set_offset_or_source_position(offset_or_source_position);
   info.set_flags(flags);
   info.set_parameters(*parameters, SKIP_WRITE_BARRIER);
   return handle(info, isolate());

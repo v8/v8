@@ -17,8 +17,7 @@ bitfield struct StackFrameInfoFlags extends uint31 {
 extern class StackFrameInfo extends Struct {
   receiver_or_instance: JSAny;
   function: JSFunction|Smi;
-  code_object: HeapObject;
-  code_offset_or_source_position: Smi;
+  offset_or_source_position: Smi;
   flags: SmiTagged<StackFrameInfoFlags>;
   parameters: FixedArray;
 }
