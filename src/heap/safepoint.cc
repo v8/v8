@@ -48,21 +48,49 @@ void IsolateSafepoint::EnterLocalSafepointScope() {
   barrier_.WaitUntilRunningThreadsInSafepoint(running);
 }
 
-void IsolateSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
-  // Safepoints need to be initiated on some main thread.
-  DCHECK_NULL(LocalHeap::Current());
+class PerClientSafepointData final {
+ public:
+  explicit PerClientSafepointData(Isolate* isolate) : isolate_(isolate) {}
 
-  {
-    IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
-    LockMutex(initiator->main_thread_local_heap());
+  void set_locked_and_running(size_t running) {
+    locked_ = true;
+    running_ = running;
   }
-  CHECK_EQ(++active_safepoint_scopes_, 1);
 
+  IsolateSafepoint* safepoint() const { return heap()->safepoint(); }
+  Heap* heap() const { return isolate_->heap(); }
+  Isolate* isolate() const { return isolate_; }
+
+  bool is_locked() const { return locked_; }
+  size_t running() const { return running_; }
+
+ private:
+  Isolate* const isolate_;
+  size_t running_ = 0;
+  bool locked_ = false;
+};
+
+void IsolateSafepoint::InitiateGlobalSafepointScope(
+    Isolate* initiator, PerClientSafepointData* client_data) {
+  IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
+  LockMutex(initiator->main_thread_local_heap());
+  InitiateGlobalSafepointScopeRaw(initiator, client_data);
+}
+
+void IsolateSafepoint::TryInitiateGlobalSafepointScope(
+    Isolate* initiator, PerClientSafepointData* client_data) {
+  if (!local_heaps_mutex_.TryLock()) return;
+  InitiateGlobalSafepointScopeRaw(initiator, client_data);
+}
+
+void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
+    Isolate* initiator, PerClientSafepointData* client_data) {
+  CHECK_EQ(++active_safepoint_scopes_, 1);
   barrier_.Arm();
 
   size_t running =
       SetSafepointRequestedFlags(IncludeMainThreadUnlessInitiator(initiator));
-  barrier_.WaitUntilRunningThreadsInSafepoint(running);
+  client_data->set_locked_and_running(running);
 }
 
 IsolateSafepoint::IncludeMainThread
@@ -148,6 +176,11 @@ void IsolateSafepoint::WaitInSafepoint() { barrier_.WaitInSafepoint(); }
 void IsolateSafepoint::WaitInUnpark() { barrier_.WaitInUnpark(); }
 
 void IsolateSafepoint::NotifyPark() { barrier_.NotifyPark(); }
+
+void IsolateSafepoint::WaitUntilRunningThreadsInSafepoint(
+    const PerClientSafepointData* client_data) {
+  barrier_.WaitUntilRunningThreadsInSafepoint(client_data->running());
+}
 
 void IsolateSafepoint::Barrier::Arm() {
   base::MutexGuard guard(&mutex_);
@@ -286,6 +319,9 @@ void GlobalSafepoint::RemoveClient(Isolate* client) {
 void GlobalSafepoint::AssertNoClients() { DCHECK_NULL(clients_head_); }
 
 void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
+  // Safepoints need to be initiated on some main thread.
+  DCHECK_NULL(LocalHeap::Current());
+
   if (!clients_mutex_.TryLock()) {
     IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
     ParkedScope parked_scope(initiator->main_thread_local_heap());
@@ -297,14 +333,36 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
   TRACE_GC(initiator->heap()->tracer(),
            GCTracer::Scope::TIME_TO_GLOBAL_SAFEPOINT);
 
-  IterateClientIsolates([this, initiator](Isolate* client) {
-    Heap* client_heap = client->heap();
-    client_heap->safepoint()->EnterGlobalSafepointScope(initiator);
+  std::vector<PerClientSafepointData> clients;
 
-    USE(this);
-    DCHECK_EQ(client->shared_isolate(), shared_isolate_);
-    DCHECK(client_heap->deserialization_complete());
+  // Try to initiate safepoint for all clients. Fail immediately when the
+  // local_heaps_mutex_ can't be locked without blocking.
+  IterateClientIsolates([&clients, initiator](Isolate* client) {
+    clients.emplace_back(client);
+    client->heap()->safepoint()->TryInitiateGlobalSafepointScope(
+        initiator, &clients.back());
   });
+
+  // Iterate all clients again to initiate the safepoint for all of them - even
+  // if that means blocking.
+  for (PerClientSafepointData& client : clients) {
+    if (client.is_locked()) continue;
+    client.safepoint()->InitiateGlobalSafepointScope(initiator, &client);
+  }
+
+#if DEBUG
+  for (const PerClientSafepointData& client : clients) {
+    DCHECK_EQ(client.isolate()->shared_isolate(), shared_isolate_);
+    DCHECK(client.heap()->deserialization_complete());
+  }
+#endif  // DEBUG
+
+  // Now that safepoints were initiated for all clients, wait until all threads
+  // of all clients reached a safepoint.
+  for (const PerClientSafepointData& client : clients) {
+    DCHECK(client.is_locked());
+    client.safepoint()->WaitUntilRunningThreadsInSafepoint(&client);
+  }
 }
 
 void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
