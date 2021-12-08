@@ -23800,9 +23800,9 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source, type);
 
-  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
-  // task here in the main thread.
-  task->Run();
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   // Possible errors are only produced while compiling.
@@ -24125,7 +24125,9 @@ TEST(StreamingWithDebuggingEnabledLate) {
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source);
 
-  task->Run();
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   CHECK(!try_catch.HasCaught());
@@ -24235,7 +24237,10 @@ TEST(StreamingWithHarmonyScopes) {
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source);
-  task->Run();
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   // Parsing should succeed (the script will be parsed and compiled in a context

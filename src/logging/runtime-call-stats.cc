@@ -323,8 +323,7 @@ void WorkerThreadRuntimeCallStats::AddToMainTable(
 }
 
 WorkerThreadRuntimeCallStatsScope::WorkerThreadRuntimeCallStatsScope(
-    WorkerThreadRuntimeCallStats* worker_stats)
-    : table_(nullptr) {
+    WorkerThreadRuntimeCallStats* worker_stats) {
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
 
   table_ = reinterpret_cast<RuntimeCallStats*>(

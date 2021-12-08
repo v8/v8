@@ -120,17 +120,8 @@ class BaselineBatchCompilerJob {
 
   // Executed in the background thread.
   void Compile() {
-#ifdef V8_RUNTIME_CALL_STATS
-    WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
-        isolate_for_local_isolate_->counters()
-            ->worker_thread_runtime_call_stats());
-    LocalIsolate local_isolate(isolate_for_local_isolate_,
-                               ThreadKind::kBackground,
-                               runtime_call_stats_scope.Get());
-#else
     LocalIsolate local_isolate(isolate_for_local_isolate_,
                                ThreadKind::kBackground);
-#endif
     local_isolate.heap()->AttachPersistentHandles(std::move(handles_));
     UnparkedScope unparked_scope(&local_isolate);
     LocalHandleScope handle_scope(&local_isolate);

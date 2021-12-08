@@ -3292,7 +3292,8 @@ void Parser::UpdateStatistics(
 void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
                                int start_position, int end_position,
                                int function_literal_id) {
-  RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseBackgroundProgram);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kParseProgram,
+            RuntimeCallStats::CounterMode::kThreadSpecific);
   parsing_on_main_thread_ = false;
 
   DCHECK_NULL(info->literal());

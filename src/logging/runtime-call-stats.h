@@ -314,6 +314,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, RewriteReturnResult)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, ScopeAnalysis)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Script)                           \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Compile, CompileTask)                      \
                                                                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateFPRegisters)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateGeneralRegisters)        \
@@ -390,7 +391,6 @@ class RuntimeCallTimer final {
   V(CodeGenerationFromStringsCallbacks)        \
   V(CompileBackgroundBaselinePreVisit)         \
   V(CompileBackgroundBaselineVisit)            \
-  V(CompileBackgroundCompileTask)              \
   V(CompileBaseline)                           \
   V(CompileBaselineFinalization)               \
   V(CompileBaselinePreVisit)                   \
@@ -683,14 +683,20 @@ class WorkerThreadRuntimeCallStats final {
 // when it is destroyed.
 class V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
  public:
+  WorkerThreadRuntimeCallStatsScope() = default;
   explicit WorkerThreadRuntimeCallStatsScope(
       WorkerThreadRuntimeCallStats* off_thread_stats);
   ~WorkerThreadRuntimeCallStatsScope();
 
+  WorkerThreadRuntimeCallStatsScope(WorkerThreadRuntimeCallStatsScope&&) =
+      delete;
+  WorkerThreadRuntimeCallStatsScope(const WorkerThreadRuntimeCallStatsScope&) =
+      delete;
+
   RuntimeCallStats* Get() const { return table_; }
 
  private:
-  RuntimeCallStats* table_;
+  RuntimeCallStats* table_ = nullptr;
 };
 
 #define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_id) \
@@ -713,7 +719,9 @@ class V8_NODISCARD RuntimeCallTimerScope {
   inline RuntimeCallTimerScope(Isolate* isolate,
                                RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(LocalIsolate* isolate,
-                               RuntimeCallCounterId counter_id);
+                               RuntimeCallCounterId counter_id,
+                               RuntimeCallStats::CounterMode mode =
+                                   RuntimeCallStats::CounterMode::kExact);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallCounterId counter_id,
                                RuntimeCallStats::CounterMode mode =

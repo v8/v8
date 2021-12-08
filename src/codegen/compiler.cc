@@ -1340,15 +1340,14 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
 }
 
 #ifdef V8_RUNTIME_CALL_STATS
-RuntimeCallCounterId RuntimeCallCounterIdForCompileBackground(
-    ParseInfo* parse_info) {
+RuntimeCallCounterId RuntimeCallCounterIdForCompile(ParseInfo* parse_info) {
   if (parse_info->flags().is_toplevel()) {
     if (parse_info->flags().is_eval()) {
-      return RuntimeCallCounterId::kCompileBackgroundEval;
+      return RuntimeCallCounterId::kCompileEval;
     }
-    return RuntimeCallCounterId::kCompileBackgroundScript;
+    return RuntimeCallCounterId::kCompileScript;
   }
-  return RuntimeCallCounterId::kCompileBackgroundFunction;
+  return RuntimeCallCounterId::kCompileFunction;
 }
 #endif  // V8_RUNTIME_CALL_STATS
 
@@ -1460,11 +1459,8 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
 }  // namespace
 
 void BackgroundCompileTask::Run() {
-  WorkerThreadRuntimeCallStatsScope worker_thread_scope(
-      worker_thread_runtime_call_stats_);
-
-  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground,
-                       worker_thread_scope.Get());
+  DCHECK_NE(ThreadId::Current(), isolate_for_local_isolate_->thread_id());
+  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(&isolate);
 
@@ -1473,13 +1469,20 @@ void BackgroundCompileTask::Run() {
   Run(&isolate, &reusable_state);
 }
 
+void BackgroundCompileTask::RunOnMainThread(Isolate* isolate) {
+  LocalHandleScope handle_scope(isolate->main_thread_local_isolate());
+  ReusableUnoptimizedCompileState reusable_state(isolate);
+  Run(isolate->main_thread_local_isolate(), &reusable_state);
+}
+
 void BackgroundCompileTask::Run(
     LocalIsolate* isolate, ReusableUnoptimizedCompileState* reusable_state) {
   TimedHistogramScope timer(timer_);
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "BackgroundCompileTask::Run");
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileBackgroundCompileTask);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileCompileTask,
+            RuntimeCallStats::CounterMode::kThreadSpecific);
 
   bool toplevel_script_compilation = flags_.is_toplevel();
 
@@ -1554,8 +1557,8 @@ void BackgroundCompileTask::Run(
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
-  RCS_SCOPE(info.runtime_call_stats(),
-            RuntimeCallCounterIdForCompileBackground(&info));
+  RCS_SCOPE(isolate, RuntimeCallCounterIdForCompile(&info),
+            RuntimeCallStats::CounterMode::kThreadSpecific);
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
   if (info.literal() != nullptr) {

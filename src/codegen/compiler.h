@@ -517,6 +517,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
       TimedHistogram* timer, int max_stack_size);
 
   void Run();
+  void RunOnMainThread(Isolate* isolate);
   void Run(LocalIsolate* isolate,
            ReusableUnoptimizedCompileState* reusable_state);
 

@@ -12,6 +12,7 @@
 #include "src/base/platform/time.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/parked-scope.h"
@@ -266,7 +267,7 @@ bool LazyCompileDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   }
 
   if (job->state == Job::State::kPendingToRunOnForeground) {
-    job->task->Run();
+    job->task->RunOnMainThread(isolate_);
     job->state = Job::State::kFinalizingNow;
   }
 
@@ -400,11 +401,7 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompileDispatcherDoBackgroundWork");
 
-  WorkerThreadRuntimeCallStatsScope worker_thread_scope(
-      worker_thread_runtime_call_stats_);
-
-  LocalIsolate isolate(isolate_, ThreadKind::kBackground,
-                       worker_thread_scope.Get());
+  LocalIsolate isolate(isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(&isolate);
 

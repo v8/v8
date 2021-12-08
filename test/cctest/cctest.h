@@ -528,6 +528,25 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
   return CompileRunWithOrigin(v8_str(source), origin_url);
 }
 
+// Run a ScriptStreamingTask in a separate thread.
+class StreamerThread : public v8::base::Thread {
+ public:
+  static void StartThreadForTaskAndJoin(
+      v8::ScriptCompiler::ScriptStreamingTask* task) {
+    StreamerThread thread(task);
+    CHECK(thread.Start());
+    thread.Join();
+  }
+
+  explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)
+      : Thread(Thread::Options()), task_(task) {}
+
+  void Run() override { task_->Run(); }
+
+ private:
+  v8::ScriptCompiler::ScriptStreamingTask* task_;
+};
+
 // Takes a JSFunction and runs it through the test version of the optimizing
 // pipeline, allocating the temporary compilation artifacts in a given Zone.
 // For possible {flags} values, look at OptimizedCompilationInfo::Flag.  If
