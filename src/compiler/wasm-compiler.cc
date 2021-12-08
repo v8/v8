@@ -169,10 +169,11 @@ class WasmGraphAssembler : public GraphAssembler {
       : GraphAssembler(mcgraph, zone), simplified_(zone) {}
 
   template <typename... Args>
-  Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id, Args*... args) {
+  Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id,
+                        Operator::Properties properties, Args*... args) {
     auto* call_descriptor = GetBuiltinCallDescriptor(
         WasmRuntimeStubIdToBuiltinName(stub_id), temp_zone(),
-        StubCallMode::kCallWasmRuntimeStub);
+        StubCallMode::kCallWasmRuntimeStub, false, properties);
     // A direct call to a wasm runtime stub defined in this module.
     // Just encode the stub index. This will be patched at relocation.
     Node* call_target = mcgraph()->RelocatableIntPtrConstant(
@@ -668,6 +669,7 @@ Node* WasmGraphBuilder::RefNull() { return LOAD_ROOT(NullValue, null_value); }
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
   return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRefFunc,
+                                Operator::kNoThrow,
                                 gasm_->Uint32Constant(function_index));
 }
 
@@ -729,9 +731,8 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
       mcgraph()->machine()->StackPointerGreaterThan(StackCheckKind::kWasm),
       limit, effect()));
 
-  Node* if_true;
-  Node* if_false;
-  gasm_->Branch(check, &if_true, &if_false, BranchHint::kTrue);
+  Diamond stack_check(graph(), mcgraph()->common(), check, BranchHint::kTrue);
+  stack_check.Chain(control());
 
   if (stack_check_call_operator_ == nullptr) {
     // Build and cache the stack check call operator and the constant
@@ -747,23 +748,22 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
         NoContextDescriptor{},                // descriptor
         0,                                    // stack parameter count
         CallDescriptor::kNoFlags,             // flags
-        Operator::kNoProperties,              // properties
+        Operator::kNoThrow,                   // properties
         StubCallMode::kCallWasmRuntimeStub);  // stub call mode
     stack_check_call_operator_ = mcgraph()->common()->Call(call_descriptor);
   }
 
-  Node* call =
-      graph()->NewNode(stack_check_call_operator_.get(),
-                       stack_check_code_node_.get(), effect(), if_false);
+  Node* call = graph()->NewNode(stack_check_call_operator_.get(),
+                                stack_check_code_node_.get(), effect(),
+                                stack_check.if_false);
+
   SetSourcePosition(call, position);
 
-  DCHECK_GT(call->op()->ControlOutputCount(), 0);
-  Node* merge = graph()->NewNode(mcgraph()->common()->Merge(2), if_true, call);
   DCHECK_GT(call->op()->EffectOutputCount(), 0);
-  Node* ephi = graph()->NewNode(mcgraph()->common()->EffectPhi(2), effect(),
-                                call, merge);
+  DCHECK_EQ(call->op()->ControlOutputCount(), 0);
+  Node* ephi = stack_check.EffectPhi(effect(), call);
 
-  SetEffectControl(ephi, merge);
+  SetEffectControl(ephi, stack_check.merge);
 }
 
 void WasmGraphBuilder::PatchInStackCheckIfNeeded() {
@@ -2421,7 +2421,8 @@ Node* WasmGraphBuilder::MemoryGrow(Node* input) {
   needs_stack_check_ = true;
   if (!env_->module->is_memory64) {
     // For 32-bit memories, just call the builtin.
-    return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmMemoryGrow, input);
+    return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmMemoryGrow,
+                                  Operator::kNoThrow, input);
   }
 
   // If the input is not a positive int32, growing will always fail
@@ -2435,7 +2436,8 @@ Node* WasmGraphBuilder::MemoryGrow(Node* input) {
   SetControl(is_32_bit.if_true);
 
   Node* grow_result = gasm_->ChangeInt32ToInt64(gasm_->CallRuntimeStub(
-      wasm::WasmCode::kWasmMemoryGrow, gasm_->TruncateInt64ToInt32(input)));
+      wasm::WasmCode::kWasmMemoryGrow, Operator::kNoThrow,
+      gasm_->TruncateInt64ToInt32(input)));
 
   Node* diamond_result = is_32_bit.Phi(MachineRepresentation::kWord64,
                                        grow_result, gasm_->Int64Constant(-1));
@@ -2449,9 +2451,9 @@ Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
   needs_stack_check_ = true;
   uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(tag);
 
-  Node* values_array =
-      gasm_->CallRuntimeStub(wasm::WasmCode::kWasmAllocateFixedArray,
-                             gasm_->IntPtrConstant(encoded_size));
+  Node* values_array = gasm_->CallRuntimeStub(
+      wasm::WasmCode::kWasmAllocateFixedArray, Operator::kNoThrow,
+      gasm_->IntPtrConstant(encoded_size));
   SetSourcePosition(values_array, position);
 
   uint32_t index = 0;
@@ -2510,6 +2512,7 @@ Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
   Node* exception_tag = LoadTagFromTable(tag_index);
 
   Node* throw_call = gasm_->CallRuntimeStub(wasm::WasmCode::kWasmThrow,
+                                            Operator::kNoProperties,
                                             exception_tag, values_array);
   SetSourcePosition(throw_call, position);
   return throw_call;
@@ -2556,7 +2559,8 @@ Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   // TODO(v8:8091): Currently the message of the original exception is not being
   // preserved when rethrown to the console. The pending message will need to be
   // saved when caught and restored here while being rethrown.
-  return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRethrow, except_obj);
+  return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRethrow,
+                                Operator::kNoProperties, except_obj);
 }
 
 Node* WasmGraphBuilder::ExceptionTagEqual(Node* caught_tag,
@@ -3709,12 +3713,13 @@ void WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
 Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,
                                  wasm::WasmCodePosition position) {
   return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableGet,
+                                Operator::kNoThrow,
                                 gasm_->IntPtrConstant(table_index), index);
 }
 
 void WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
                                 wasm::WasmCodePosition position) {
-  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableSet,
+  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableSet, Operator::kNoThrow,
                          gasm_->IntPtrConstant(table_index), index, val);
 }
 
@@ -5464,7 +5469,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   switch (opcode) {
     case wasm::kExprAtomicNotify:
       return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmAtomicNotify,
-                                    effective_offset, inputs[1]);
+                                    Operator::kNoThrow, effective_offset,
+                                    inputs[1]);
 
     case wasm::kExprI32AtomicWait: {
       auto* call_descriptor = GetI32AtomicWaitCallDescriptor();
@@ -5597,8 +5603,8 @@ void WasmGraphBuilder::TableInit(uint32_t table_index,
                                  uint32_t elem_segment_index, Node* dst,
                                  Node* src, Node* size,
                                  wasm::WasmCodePosition position) {
-  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableInit, dst, src, size,
-                         gasm_->NumberConstant(table_index),
+  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableInit, Operator::kNoThrow,
+                         dst, src, size, gasm_->NumberConstant(table_index),
                          gasm_->NumberConstant(elem_segment_index));
 }
 
@@ -5619,15 +5625,15 @@ void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
 void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
                                  uint32_t table_src_index, Node* dst, Node* src,
                                  Node* size, wasm::WasmCodePosition position) {
-  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableCopy, dst, src, size,
-                         gasm_->NumberConstant(table_dst_index),
+  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableCopy, Operator::kNoThrow,
+                         dst, src, size, gasm_->NumberConstant(table_dst_index),
                          gasm_->NumberConstant(table_src_index));
 }
 
 Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
                                   Node* delta) {
   return BuildChangeSmiToInt32(gasm_->CallRuntimeStub(
-      wasm::WasmCode::kWasmTableGrow,
+      wasm::WasmCode::kWasmTableGrow, Operator::kNoThrow,
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), delta,
       value));
 }
@@ -5648,7 +5654,7 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
 void WasmGraphBuilder::TableFill(uint32_t table_index, Node* start, Node* value,
                                  Node* count) {
   gasm_->CallRuntimeStub(
-      wasm::WasmCode::kWasmTableFill,
+      wasm::WasmCode::kWasmTableFill, Operator::kNoThrow,
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), start,
       count, value);
 }
