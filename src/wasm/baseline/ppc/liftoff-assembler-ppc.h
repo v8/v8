@@ -432,7 +432,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
           scratch = GetRegisterThatIsNotOneOf(src_addr);
           push(scratch);
         }
-        LoadF64LE(dst.fp(), src_op, r0, ip);
+        LoadF64LE(dst.fp(), src_op, r0, scratch);
         if (offset_reg == ip) {
           pop(scratch);
         }
