@@ -5,7 +5,6 @@
 // The test needs --wasm-tier-up because we can't serialize and deserialize
 // Liftoff code.
 // Flags: --allow-natives-syntax --print-wasm-code --wasm-tier-up
-// Flags: --no-wasm-dynamic-tiering
 
 // Just test that printing the code of the following wasm modules does not
 // crash.

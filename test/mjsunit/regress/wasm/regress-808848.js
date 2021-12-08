@@ -4,7 +4,7 @@
 
 // The test needs --wasm-tier-up because we can't serialize and deserialize
 // Liftoff code.
-// Flags: --allow-natives-syntax --wasm-tier-up --no-wasm-dynamic-tiering
+// Flags: --allow-natives-syntax --wasm-tier-up
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

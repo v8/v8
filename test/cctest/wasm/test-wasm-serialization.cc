@@ -31,9 +31,7 @@ namespace test_wasm_serialization {
 // Approximate gtest TEST_F style, in case we adopt gtest.
 class WasmSerializationTest {
  public:
-  WasmSerializationTest()
-      : zone_(&allocator_, ZONE_NAME),
-        no_wasm_dynamic_tiering_(&FLAG_wasm_dynamic_tiering, false) {
+  WasmSerializationTest() : zone_(&allocator_, ZONE_NAME) {
     // Don't call here if we move to gtest.
     SetUp();
   }
@@ -186,7 +184,6 @@ class WasmSerializationTest {
   v8::OwnedBuffer data_;
   v8::MemorySpan<const uint8_t> wire_bytes_ = {nullptr, 0};
   v8::MemorySpan<const uint8_t> serialized_bytes_ = {nullptr, 0};
-  FlagScope<bool> no_wasm_dynamic_tiering_;
 };
 
 const char* WasmSerializationTest::kFunctionName = "increment";

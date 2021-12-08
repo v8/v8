@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-eh --allow-natives-syntax
 // Disable Liftoff so we can serialize the module.
-// Flags: --no-liftoff --no-wasm-dynamic-tiering
+// Flags: --no-liftoff
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
