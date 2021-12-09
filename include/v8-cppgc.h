@@ -183,43 +183,6 @@ class V8_EXPORT JSHeapConsistency final {
   /**
    * Gets the required write barrier type for a specific write.
    *
-   * Note: Handling for C++ to JS references.
-   *
-   * \param ref The reference being written to.
-   * \param params Parameters that may be used for actual write barrier calls.
-   *   Only filled if return value indicates that a write barrier is needed. The
-   *   contents of the `params` are an implementation detail.
-   * \param callback Callback returning the corresponding heap handle. The
-   *   callback is only invoked if the heap cannot otherwise be figured out. The
-   *   callback must not allocate.
-   * \returns whether a write barrier is needed and which barrier to invoke.
-   */
-  template <typename HeapHandleCallback>
-  V8_DEPRECATED("Write barriers automatically emitted by TracedReference.")
-  static V8_INLINE WriteBarrierType
-      GetWriteBarrierType(const TracedReferenceBase& ref,
-                          WriteBarrierParams& params,
-                          HeapHandleCallback callback) {
-    if (ref.IsEmpty()) return WriteBarrierType::kNone;
-
-    if (V8_LIKELY(!cppgc::internal::WriteBarrier::
-                      IsAnyIncrementalOrConcurrentMarking())) {
-      return cppgc::internal::WriteBarrier::Type::kNone;
-    }
-    cppgc::HeapHandle& handle = callback();
-    if (!cppgc::subtle::HeapState::IsMarking(handle)) {
-      return cppgc::internal::WriteBarrier::Type::kNone;
-    }
-    params.heap = &handle;
-#if V8_ENABLE_CHECKS
-    params.type = cppgc::internal::WriteBarrier::Type::kMarking;
-#endif  // !V8_ENABLE_CHECKS
-    return cppgc::internal::WriteBarrier::Type::kMarking;
-  }
-
-  /**
-   * Gets the required write barrier type for a specific write.
-   *
    * Note: Handling for JS to C++ references.
    *
    * \param wrapper The wrapper that has been written into.
@@ -235,7 +198,7 @@ class V8_EXPORT JSHeapConsistency final {
    * \returns whether a write barrier is needed and which barrier to invoke.
    */
   template <typename HeapHandleCallback>
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Write barriers automatically emitted when using "
       "`SetAlignedPointerInInternalFields()`.")
   static V8_INLINE WriteBarrierType
@@ -255,26 +218,10 @@ class V8_EXPORT JSHeapConsistency final {
    * has not yet been processed.
    *
    * \param params The parameters retrieved from `GetWriteBarrierType()`.
-   * \param ref The reference being written to.
-   */
-  V8_DEPRECATED("Write barriers automatically emitted by TracedReference.")
-  static V8_INLINE void DijkstraMarkingBarrier(const WriteBarrierParams& params,
-                                               cppgc::HeapHandle& heap_handle,
-                                               const TracedReferenceBase& ref) {
-    cppgc::internal::WriteBarrier::CheckParams(WriteBarrierType::kMarking,
-                                               params);
-    DijkstraMarkingBarrierSlow(heap_handle, ref);
-  }
-
-  /**
-   * Conservative Dijkstra-style write barrier that processes an object if it
-   * has not yet been processed.
-   *
-   * \param params The parameters retrieved from `GetWriteBarrierType()`.
    * \param object The pointer to the object. May be an interior pointer to a
    *   an interface of the actual object.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Write barriers automatically emitted when using "
       "`SetAlignedPointerInInternalFields()`.")
   static V8_INLINE void DijkstraMarkingBarrier(const WriteBarrierParams& params,
@@ -283,24 +230,10 @@ class V8_EXPORT JSHeapConsistency final {
     cppgc::internal::WriteBarrier::DijkstraMarkingBarrier(params, object);
   }
 
-  /**
-   * Generational barrier for maintaining consistency when running with multiple
-   * generations.
-   *
-   * \param params The parameters retrieved from `GetWriteBarrierType()`.
-   * \param ref The reference being written to.
-   */
-  V8_DEPRECATED("Write barriers automatically emitted by TracedReference.")
-  static V8_INLINE void GenerationalBarrier(const WriteBarrierParams& params,
-                                            const TracedReferenceBase& ref) {}
-
  private:
   JSHeapConsistency() = delete;
 
   static void CheckWrapper(v8::Local<v8::Object>&, int, const void*);
-
-  static void DijkstraMarkingBarrierSlow(cppgc::HeapHandle&,
-                                         const TracedReferenceBase& ref);
 };
 
 /**

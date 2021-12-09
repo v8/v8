@@ -91,12 +91,6 @@ void CppHeap::CollectGarbageForTesting(cppgc::EmbedderStackState stack_state) {
   return internal::CppHeap::From(this)->CollectGarbageForTesting(stack_state);
 }
 
-void JSHeapConsistency::DijkstraMarkingBarrierSlow(
-    cppgc::HeapHandle& heap_handle, const TracedReferenceBase& ref) {
-  auto& heap_base = cppgc::internal::HeapBase::From(heap_handle);
-  static_cast<JSVisitor*>(&heap_base.marker()->Visitor())->Trace(ref);
-}
-
 void JSHeapConsistency::CheckWrapper(v8::Local<v8::Object>& wrapper,
                                      int wrapper_index, const void* wrappable) {
   CHECK_EQ(wrappable,

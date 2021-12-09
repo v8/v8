@@ -126,46 +126,6 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReferenceWithExplicitAPI) {
 #pragma GCC diagnostic pop
 }
 
-TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
-// TODO(v8:12165): Remove test when fully removing the deprecated API.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  if (!FLAG_incremental_marking) return;
-  v8::HandleScope scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-  cppgc::Persistent<Wrappable> wrappable =
-      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  Wrappable::destructor_callcount = 0;
-  SimulateIncrementalMarking();
-  // Pick a sentinel to compare against.
-  void* kMagicAddress = &Wrappable::destructor_callcount;
-  {
-    // The following snippet shows the embedder code for implementing a GC-safe
-    // setter for C++ to JS references.
-    v8::HandleScope nested_scope(v8_isolate());
-    v8::Local<v8::Object> api_object =
-        WrapperHelper::CreateWrapper(context, nullptr, nullptr);
-    // Setting only one field to avoid treating this as wrappable backref, see
-    // `LocalEmbedderHeapTracer::ExtractWrapperInfo`.
-    api_object->SetAlignedPointerInInternalField(1, kMagicAddress);
-    wrappable->SetWrapper(v8_isolate(), api_object);
-    JSHeapConsistency::WriteBarrierParams params;
-
-    auto barrier_type = JSHeapConsistency::GetWriteBarrierType(
-        wrappable->wrapper(), params,
-        [this]() -> cppgc::HeapHandle& { return cpp_heap().GetHeapHandle(); });
-    EXPECT_EQ(JSHeapConsistency::WriteBarrierType::kMarking, barrier_type);
-    JSHeapConsistency::DijkstraMarkingBarrier(
-        params, cpp_heap().GetHeapHandle(), wrappable->wrapper());
-  }
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  EXPECT_EQ(kMagicAddress,
-            wrappable->wrapper()->GetAlignedPointerFromInternalField(1));
-#pragma GCC diagnostic pop
-}
-
 #endif  // !_MSC_VER || __clang__
 
 #if DEBUG
