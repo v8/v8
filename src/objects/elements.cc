@@ -3407,13 +3407,29 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    if (typed_array.WasDetached()) return Just<int64_t>(-1);
+    // If this is called via Array.prototype.indexOf (not
+    // TypedArray.prototype.indexOf), it's possible that the TypedArray is
+    // detached / out of bounds here.
+    if V8_UNLIKELY (typed_array.WasDetached()) return Just<int64_t>(-1);
+    bool out_of_bounds = false;
+    size_t typed_array_length =
+        typed_array.GetLengthOrOutOfBounds(out_of_bounds);
+    if V8_UNLIKELY (out_of_bounds) {
+      return Just<int64_t>(-1);
+    }
+
+    // Prototype has no elements, and not searching for the hole --- limit
+    // search to backing store length.
+    if (typed_array_length < length) {
+      length = typed_array_length;
+    }
 
     ElementType typed_search_value;
 
     ElementType* data_ptr =
         reinterpret_cast<ElementType*>(typed_array.DataPtr());
-    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+
+    if (IsBigIntTypedArrayElementsKind(Kind)) {
       if (!value->IsBigInt()) return Just<int64_t>(-1);
       bool lossless;
       typed_search_value = FromHandle(value, &lossless);
@@ -3423,7 +3439,7 @@ class TypedElementsAccessor
       double search_value = value->Number();
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
-        if (Kind < FLOAT32_ELEMENTS || Kind > FLOAT64_ELEMENTS) {
+        if (!IsFloatTypedArrayElementsKind(Kind)) {
           return Just<int64_t>(-1);
         }
         if (std::isnan(search_value)) {
@@ -3438,12 +3454,6 @@ class TypedElementsAccessor
       if (static_cast<double>(typed_search_value) != search_value) {
         return Just<int64_t>(-1);  // Loss of precision.
       }
-    }
-
-    // Prototype has no elements, and not searching for the hole --- limit
-    // search to backing store length.
-    if (typed_array.length() < length) {
-      length = typed_array.length();
     }
 
     auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
@@ -3461,12 +3471,17 @@ class TypedElementsAccessor
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
     DCHECK(!typed_array.WasDetached());
+#if DEBUG
+    bool out_of_bounds = false;
+    typed_array.GetLengthOrOutOfBounds(out_of_bounds);
+    DCHECK(!out_of_bounds);
+#endif
 
     ElementType typed_search_value;
 
     ElementType* data_ptr =
         reinterpret_cast<ElementType*>(typed_array.DataPtr());
-    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+    if (IsBigIntTypedArrayElementsKind(Kind)) {
       if (!value->IsBigInt()) return Just<int64_t>(-1);
       bool lossless;
       typed_search_value = FromHandle(value, &lossless);
@@ -3493,7 +3508,14 @@ class TypedElementsAccessor
       }
     }
 
-    DCHECK_LT(start_from, typed_array.length());
+    size_t typed_array_length = typed_array.GetLength();
+    if (start_from >= typed_array_length) {
+      // This can happen if the TypedArray got resized when we did ToInteger
+      // on the last parameter of lastIndexOf.
+      DCHECK(typed_array.IsVariableLength());
+      start_from = typed_array_length - 1;
+    }
+
     size_t k = start_from;
     auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
     do {

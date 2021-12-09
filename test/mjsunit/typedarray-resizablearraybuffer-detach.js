@@ -805,3 +805,63 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertFalse(IncludesHelper(fixedLength, 0, evil));
   }
 })();
+
+(function IndexOfParameterConversionDetaches() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertEquals(0, IndexOfHelper(lengthTracking, 0));
+    // The buffer is detached so indexOf returns -1.
+    assertEquals(-1, IndexOfHelper(lengthTracking, 0, evil));
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertEquals(0, IndexOfHelper(lengthTracking, 0));
+    // The buffer is detached so indexOf returns -1, also for undefined).
+    assertEquals(-1, IndexOfHelper(lengthTracking, undefined, evil));
+  }
+})();
+
+(function LastIndexOfParameterConversionDetaches() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 2;
+    }};
+    assertEquals(3, LastIndexOfHelper(lengthTracking, 0));
+    // The buffer is detached so lastIndexOf returns -1.
+    assertEquals(-1, LastIndexOfHelper(lengthTracking, 0, evil));
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 2;
+    }};
+    assertEquals(3, LastIndexOfHelper(lengthTracking, 0));
+    // The buffer is detached so lastIndexOf returns -1, also for undefined).
+    assertEquals(-1, LastIndexOfHelper(lengthTracking, undefined, evil));
+  }
+})();

@@ -22,6 +22,12 @@ const ctors = [
   MyBigInt64Array,
 ];
 
+const floatCtors = [
+  Float32Array,
+  Float64Array,
+  MyFloat32Array
+];
+
 // Each element of the following array is [getter, setter, size, isBigInt].
 const dataViewAccessorsAndSizes = [[DataView.prototype.getUint8,
                                     DataView.prototype.setUint8, 1, false],
@@ -129,6 +135,41 @@ function IncludesHelper(array, n, fromIndex) {
     return array.includes(BigInt(n), fromIndex);
   }
   return array.includes(n, fromIndex);
+}
+
+function IndexOfHelper(array, n, fromIndex) {
+  if (typeof n == 'number' &&
+      (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
+    if (fromIndex == undefined) {
+      // Technically, passing fromIndex here would still result in the correct
+      // behavior, since "undefined" gets converted to 0 which is a good
+      // "default" index.
+      return array.indexOf(BigInt(n));
+    }
+    return array.indexOf(BigInt(n), fromIndex);
+  }
+  if (fromIndex == undefined) {
+    return array.indexOf(n);
+  }
+  return array.indexOf(n, fromIndex);
+}
+
+function LastIndexOfHelper(array, n, fromIndex) {
+  if (typeof n == 'number' &&
+      (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
+    if (fromIndex == undefined) {
+      // Shouldn't pass fromIndex here, since passing "undefined" is not the
+      // same as not passing the parameter at all. "Undefined" will get
+      // converted to 0 which is not a good "default" index, since lastIndexOf
+      // iterates from the index downwards.
+      return array.lastIndexOf(BigInt(n));
+    }
+    return array.lastIndexOf(BigInt(n), fromIndex);
+  }
+  if (fromIndex == undefined) {
+    return array.lastIndexOf(n);
+  }
+  return array.lastIndexOf(n, fromIndex);
 }
 
 function testDataViewMethodsUpToSize(view, bufferSize) {
