@@ -481,13 +481,13 @@ Handle<Object> StackFrameInfo::GetWasmModuleName(Handle<StackFrameInfo> info) {
 // static
 int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
   if (info->flags() & kIsSourcePositionComputed) {
-    return info->offset_or_source_position();
+    return info->code_offset_or_source_position();
   }
   DCHECK(!info->IsPromiseAll());
   DCHECK(!info->IsPromiseAny());
   int source_position =
-      ComputeSourcePosition(info, info->offset_or_source_position());
-  info->set_offset_or_source_position(source_position);
+      ComputeSourcePosition(info, info->code_offset_or_source_position());
+  info->set_code_offset_or_source_position(source_position);
   info->set_flags(info->flags() | kIsSourcePositionComputed);
   return source_position;
 }
@@ -516,7 +516,7 @@ bool StackFrameInfo::ComputeLocation(Handle<StackFrameInfo> info,
     int pos = GetSourcePosition(info);
     *location = MessageLocation(script, pos, pos + 1, shared);
   } else {
-    int code_offset = info->offset_or_source_position();
+    int code_offset = info->code_offset_or_source_position();
     *location = MessageLocation(script, shared, code_offset);
   }
   return true;
@@ -528,15 +528,17 @@ int StackFrameInfo::ComputeSourcePosition(Handle<StackFrameInfo> info,
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
+    auto code_ref = Managed<wasm::GlobalWasmCodeRef>::cast(info->code_object());
+    int byte_offset = code_ref.get()->code()->GetSourcePositionBefore(offset);
     auto module = info->GetWasmInstance().module();
     uint32_t func_index = info->GetWasmFunctionIndex();
-    return wasm::GetSourcePosition(module, func_index, offset,
+    return wasm::GetSourcePosition(module, func_index, byte_offset,
                                    info->IsAsmJsAtNumberConversion());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
-  return shared->abstract_code(isolate).SourcePosition(offset);
+  return AbstractCode::cast(info->code_object()).SourcePosition(offset);
 }
 
 base::Optional<Script> StackFrameInfo::GetScript() const {

@@ -710,6 +710,8 @@ class StackTraceBuilder {
     if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
 
     Handle<Object> receiver(generator_object->receiver(), isolate_);
+    Handle<BytecodeArray> code(function->shared().GetBytecodeArray(isolate_),
+                               isolate_);
     // The stored bytecode offset is relative to a different base than what
     // is used in the source position table, hence the subtraction.
     int offset = Smi::ToInt(generator_object->input_or_debug_pos()) -
@@ -723,7 +725,7 @@ class StackTraceBuilder {
               .internal_formal_parameter_count_without_receiver());
     }
 
-    AppendFrame(receiver, function, offset, flags, parameters);
+    AppendFrame(receiver, function, code, offset, flags, parameters);
   }
 
   void AppendPromiseCombinatorFrame(Handle<JSFunction> element_function,
@@ -734,6 +736,7 @@ class StackTraceBuilder {
 
     Handle<Object> receiver(combinator->native_context().promise_function(),
                             isolate_);
+    Handle<Code> code(combinator->code(), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
@@ -743,7 +746,7 @@ class StackTraceBuilder {
     int promise_index =
         Smi::ToInt(Smi::cast(element_function->GetIdentityHash())) - 1;
 
-    AppendFrame(receiver, combinator, promise_index, flags, parameters);
+    AppendFrame(receiver, combinator, code, promise_index, flags, parameters);
   }
 
   void AppendJavaScriptFrame(
@@ -756,8 +759,8 @@ class StackTraceBuilder {
     if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
     if (summary.is_constructor()) flags |= StackFrameInfo::kIsConstructor;
 
-    AppendFrame(summary.receiver(), function, summary.code_offset(), flags,
-                summary.parameters());
+    AppendFrame(summary.receiver(), function, summary.abstract_code(),
+                summary.code_offset(), flags, summary.parameters());
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -772,10 +775,13 @@ class StackTraceBuilder {
       }
     }
 
-    int offset = summary.code()->GetSourcePositionBefore(summary.code_offset());
+    auto code = Managed<wasm::GlobalWasmCodeRef>::Allocate(
+        isolate_, 0, summary.code(),
+        instance->module_object().shared_native_module());
     AppendFrame(instance,
-                handle(Smi::FromInt(summary.function_index()), isolate_),
-                offset, flags, isolate_->factory()->empty_fixed_array());
+                handle(Smi::FromInt(summary.function_index()), isolate_), code,
+                summary.code_offset(), flags,
+                isolate_->factory()->empty_fixed_array());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -791,8 +797,9 @@ class StackTraceBuilder {
     }
 
     Handle<Object> receiver(exit_frame->receiver(), isolate_);
-    const int offset = exit_frame->LookupCode().GetOffsetFromInstructionStart(
-        isolate_, exit_frame->pc());
+    Handle<Code> code(exit_frame->LookupCode(), isolate_);
+    const int offset =
+        code->GetOffsetFromInstructionStart(isolate_, exit_frame->pc());
 
     int flags = 0;
     if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
@@ -807,7 +814,7 @@ class StackTraceBuilder {
       }
     }
 
-    AppendFrame(receiver, function, offset, flags, parameters);
+    AppendFrame(receiver, function, code, offset, flags, parameters);
   }
 
   bool Full() { return index_ >= limit_; }
@@ -876,15 +883,22 @@ class StackTraceBuilder {
   }
 
   void AppendFrame(Handle<Object> receiver_or_instance, Handle<Object> function,
-                   int offset, int flags, Handle<FixedArray> parameters) {
+                   Handle<HeapObject> code, int offset, int flags,
+                   Handle<FixedArray> parameters) {
+    DCHECK_LE(index_, elements_->length());
+    DCHECK_LE(elements_->length(), limit_);
+    if (index_ == elements_->length()) {
+      elements_ = isolate_->factory()->CopyFixedArrayAndGrow(
+          elements_, std::min(16, limit_ - elements_->length()));
+    }
     if (receiver_or_instance->IsTheHole(isolate_)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();
     }
     auto info = isolate_->factory()->NewStackFrameInfo(
-        receiver_or_instance, function, offset, flags, parameters);
-    elements_ = FixedArray::SetAndGrow(isolate_, elements_, index_++, info);
+        receiver_or_instance, function, code, offset, flags, parameters);
+    elements_->set(index_++, *info);
   }
 
   Isolate* isolate_;
@@ -1056,6 +1070,10 @@ Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
 
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
                      "CaptureStackTrace", "maxFrameCount", options.limit);
+
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCodeRefScope code_ref_scope;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   StackTraceBuilder builder(isolate, options.skip_mode, options.limit, caller,
                             options.filter_mode);
