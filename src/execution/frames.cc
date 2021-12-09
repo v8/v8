@@ -112,7 +112,7 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
 #if V8_ENABLE_WEBASSEMBLY
 StackFrameIterator::StackFrameIterator(Isolate* isolate,
                                        wasm::StackMemory* stack)
-    : StackFrameIterator(isolate) {
+    : StackFrameIteratorBase(isolate, true) {
   Reset(isolate->thread_local_top(), stack);
 }
 #endif
