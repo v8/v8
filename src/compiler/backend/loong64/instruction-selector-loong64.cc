@@ -1671,10 +1671,8 @@ void InstructionSelector::EmitPrepareArguments(
 
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
-    int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
-    int fp_param_count = static_cast<int>(call_descriptor->FPParameterCount());
-    Emit(kArchPrepareCallCFunction | ParamField::encode(gp_param_count) |
-             FPParamField::encode(fp_param_count),
+    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
+                                         call_descriptor->ParameterCount())),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.

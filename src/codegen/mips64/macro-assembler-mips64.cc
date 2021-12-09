@@ -5906,11 +5906,12 @@ static const int kRegisterPassedArguments = 8;
 int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;
-  int num_args = num_reg_arguments + num_double_arguments;
+  num_reg_arguments += 2 * num_double_arguments;
 
-  // Up to eight arguments are passed in FPURegisters and GPRegisters.
-  if (num_args > kRegisterPassedArguments) {
-    stack_passed_words = num_args - kRegisterPassedArguments;
+  // O32: Up to four simple arguments are passed in registers a0..a3.
+  // N64: Up to eight simple arguments are passed in registers a0..a7.
+  if (num_reg_arguments > kRegisterPassedArguments) {
+    stack_passed_words += num_reg_arguments - kRegisterPassedArguments;
   }
   stack_passed_words += kCArgSlotCount;
   return stack_passed_words;
