@@ -704,8 +704,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssemblePrepareTailCall();
       break;
     case kArchCallCFunction: {
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      int const num_parameters = MiscField::decode(instr->opcode());
 #if V8_ENABLE_WEBASSEMBLY
       Label start_call;
       bool isWasmCapiFunction =
@@ -732,10 +731,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(ref, num_parameters);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(func, num_parameters);
       }
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {

@@ -96,9 +96,6 @@ namespace {
 // == mips64 =================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
-#define FP_PARAM_REGISTERS f12, f13, f14, f15, f16, f17, f18, f19
-#define FP_RETURN_REGISTER f0
-
 #define CALLEE_SAVE_REGISTERS                                                  \
   s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
       s7.bit()
@@ -110,8 +107,6 @@ namespace {
 // == loong64 ================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
-#define FP_PARAM_REGISTERS f0, f1, f2, f3, f4, f5, f6, f7
-#define FP_RETURN_REGISTER f0
 #define CALLEE_SAVE_REGISTERS                                                  \
   s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
       s7.bit() | s8.bit() | fp.bit()
@@ -171,15 +166,12 @@ namespace {
 #endif
 }  // namespace
 
-#if (defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)) || \
-    defined(V8_TARGET_ARCH_MIPS64)
+#if defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
 // As defined in
 // https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention?view=vs-2019#parameter-passing,
 // Windows calling convention doesn't differentiate between GP and FP params
 // when counting how many of them should be placed in registers. That's why
 // we use the same counter {i} for both types here.
-// MIPS is the same, as defined in
-// https://techpubs.jurassic.nl/manuals/0630/developer/Mpro_n32_ABI/sgi_html/ch02.html#id52620.
 void BuildParameterLocations(const MachineSignature* msig,
                              size_t kFPParamRegisterCount,
                              size_t kParamRegisterCount,
@@ -211,8 +203,7 @@ void BuildParameterLocations(const MachineSignature* msig,
     }
   }
 }
-#else  // (defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)) ||
-       // defined(V8_TARGET_ARCH_MIPS64)
+#else  // defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
 // As defined in https://www.agner.org/optimize/calling_conventions.pdf,
 // Section 7, Linux and Mac place parameters in consecutive registers,
 // differentiating between GP and FP params. That's why we maintain two
@@ -253,8 +244,7 @@ void BuildParameterLocations(const MachineSignature* msig,
     }
   }
 }
-#endif  // (defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)) ||
-        // defined(V8_TARGET_ARCH_MIPS64)
+#endif  // defined(V8_TARGET_OS_WIN) && defined(V8_TARGET_ARCH_X64)
 
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,

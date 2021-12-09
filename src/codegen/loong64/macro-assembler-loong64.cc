@@ -3892,18 +3892,15 @@ void TurboAssembler::Float64MinOutOfLine(FPURegister dst, FPURegister src1,
 }
 
 static const int kRegisterPassedArguments = 8;
-static const int kFPRegisterPassedArguments = 8;
 
 int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;
+  num_reg_arguments += 2 * num_double_arguments;
 
   // Up to eight simple arguments are passed in registers a0..a7.
   if (num_reg_arguments > kRegisterPassedArguments) {
     stack_passed_words += num_reg_arguments - kRegisterPassedArguments;
-  }
-  if (num_double_arguments > kFPRegisterPassedArguments) {
-    stack_passed_words += num_double_arguments - kFPRegisterPassedArguments;
   }
   return stack_passed_words;
 }
