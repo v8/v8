@@ -5,6 +5,7 @@
 #include "src/heap/mark-compact.h"
 
 #include <unordered_map>
+#include <unordered_set>
 
 #include "src/base/logging.h"
 #include "src/base/optional.h"
@@ -19,6 +20,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
@@ -1165,17 +1167,18 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
         collector_(collector) {}
 
   void VisitPointer(HeapObject host, ObjectSlot p) final {
-    MarkObject(host, p.load(cage_base()));
+    MarkObject(host, p, p.load(cage_base()));
   }
 
   void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
     MaybeObject object = p.load(cage_base());
     HeapObject heap_object;
-    if (object.GetHeapObject(&heap_object)) MarkObject(host, heap_object);
+    if (object.GetHeapObject(&heap_object))
+      MarkObject(host, ObjectSlot(p), heap_object);
   }
 
   void VisitMapPointer(HeapObject host) final {
-    MarkObject(host, host.map(cage_base()));
+    MarkObject(host, host.map_slot(), host.map(cage_base()));
   }
 
   void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final {
@@ -1183,13 +1186,13 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
       // The map slot should be handled in VisitMapPointer.
       DCHECK_NE(host.map_slot(), p);
       DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
-      MarkObject(host, p.load(cage_base()));
+      MarkObject(host, p, p.load(cage_base()));
     }
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    MarkObject(host, slot.load(code_cage_base()));
+    MarkObject(host, ObjectSlot(slot.address()), slot.load(code_cage_base()));
   }
 
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
@@ -1202,19 +1205,27 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
+#if DEBUG
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    MarkObject(host, target);
+    DCHECK(!BasicMemoryChunk::FromHeapObject(target)->InSharedHeap());
+#endif  // DEBUG
   }
+
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    MarkObject(host, rinfo->target_object(cage_base()));
+#if DEBUG
+    HeapObject target = rinfo->target_object(cage_base());
+    DCHECK(!BasicMemoryChunk::FromHeapObject(target)->InSharedHeap());
+#endif  // DEBUG
   }
 
  private:
-  V8_INLINE void MarkObject(HeapObject host, Object object) {
+  V8_INLINE void MarkObject(HeapObject host, ObjectSlot slot, Object object) {
     DCHECK(!BasicMemoryChunk::FromHeapObject(host)->InSharedHeap());
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (!BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap()) return;
+    RememberedSet<CLIENT_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+        MemoryChunk::FromHeapObject(host), slot.address());
     collector_->MarkObject(host, heap_object);
   }
 
@@ -3115,11 +3126,8 @@ static inline SlotCallbackResult UpdateStrongCodeSlot(
 
 }  // namespace
 
-static constexpr bool kClientHeap = true;
-
 // Visitor for updating root pointers and to-space pointers.
 // It does not expect to encounter pointers to dead objects.
-template <bool in_client_heap = false>
 class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
                                       public RootVisitor {
  public:
@@ -3175,34 +3183,14 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
     }
   }
 
-  void VisitMapPointer(HeapObject object) override {
-    if (in_client_heap) {
-      UpdateStrongSlotInternal(cage_base(), object.map_slot());
-    } else {
-      UNREACHABLE();
-    }
-  }
-
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    if (in_client_heap) {
-      Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-      CHECK_WITH_MSG(!target.InSharedHeap(),
-                     "refs into shared heap not yet supported here.");
-    } else {
-      // This visitor nevers visits code objects.
-      UNREACHABLE();
-    }
+    // This visitor nevers visits code objects.
+    UNREACHABLE();
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    if (in_client_heap) {
-      HeapObject target = rinfo->target_object(cage_base());
-      CHECK_WITH_MSG(!target.InSharedHeap(),
-                     "refs into shared heap not yet supported here.");
-    } else {
-      // This visitor nevers visits code objects.
-      UNREACHABLE();
-    }
+    // This visitor nevers visits code objects.
+    UNREACHABLE();
   }
 
  private:
@@ -3231,6 +3219,71 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
     return UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 };
+
+#ifdef VERIFY_HEAP
+// Visitor for updating root pointers and to-space pointers.
+// It does not expect to encounter pointers to dead objects.
+class ClientHeapVerifier final : public ObjectVisitorWithCageBases {
+ public:
+  explicit ClientHeapVerifier(Heap* heap) : ObjectVisitorWithCageBases(heap) {}
+
+  void VisitPointer(HeapObject host, ObjectSlot p) override {
+    VerifySlot(cage_base(), p);
+  }
+
+  void VisitPointer(HeapObject host, MaybeObjectSlot p) override {
+    VerifySlot(cage_base(), p);
+  }
+
+  void VisitPointers(HeapObject host, ObjectSlot start,
+                     ObjectSlot end) override {
+    for (ObjectSlot p = start; p < end; ++p) {
+      VerifySlot(cage_base(), p);
+    }
+  }
+
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) final {
+    for (MaybeObjectSlot p = start; p < end; ++p) {
+      VerifySlot(cage_base(), p);
+    }
+  }
+
+  void VisitMapPointer(HeapObject host) override {
+    VerifySlot(cage_base(), host.map_slot());
+  }
+
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    UNREACHABLE();
+  }
+
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {}
+
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {}
+
+ private:
+  void VerifySlot(PtrComprCageBase cage_base, ObjectSlot slot) {
+    HeapObject heap_object;
+    if (slot.load(cage_base).GetHeapObject(&heap_object)) {
+      VerifyHeapObject(heap_object);
+    }
+  }
+
+  void VerifySlot(PtrComprCageBase cage_base, MaybeObjectSlot slot) {
+    HeapObject heap_object;
+    if (slot.load(cage_base).GetHeapObject(&heap_object)) {
+      VerifyHeapObject(heap_object);
+    }
+  }
+
+  void VerifyHeapObject(HeapObject heap_object) {
+    if (BasicMemoryChunk::FromHeapObject(heap_object)->InReadOnlySpace())
+      return;
+    if (!heap_object.InSharedHeap()) return;
+    CHECK(!heap_object.map_word(kRelaxedLoad).IsForwardingAddress());
+  }
+};
+#endif  // VERIFY_HEAP
 
 static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
                                                         FullObjectSlot p) {
@@ -3306,6 +3359,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
   // Old-to-old slot sets must be empty after evacuation.
   for (Page* p : *heap()->old_space()) {
     DCHECK_NULL((p->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
+    DCHECK_NULL((p->slot_set<CLIENT_TO_SHARED, AccessMode::NON_ATOMIC>()));
     DCHECK_NULL((p->typed_slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
     DCHECK_NULL(p->invalidated_slots<OLD_TO_OLD>());
     DCHECK_NULL(p->invalidated_slots<OLD_TO_NEW>());
@@ -4037,7 +4091,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
   void ProcessVisitAll() {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "ToSpaceUpdatingItem::ProcessVisitAll");
-    PointersUpdatingVisitor<> visitor(heap_);
+    PointersUpdatingVisitor visitor(heap_);
     for (Address cur = start_; cur < end_;) {
       HeapObject object = HeapObject::FromAddress(cur);
       Map map = object.map(visitor.cage_base());
@@ -4052,7 +4106,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
                  "ToSpaceUpdatingItem::ProcessVisitLive");
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
-    PointersUpdatingVisitor<> visitor(heap_);
+    PointersUpdatingVisitor visitor(heap_);
     for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
              chunk_, marking_state_->bitmap(chunk_))) {
       object_and_size.first.IterateBodyFast(visitor.cage_base(), &visitor);
@@ -4380,7 +4434,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS);
     // The external string table is updated at the end.
-    PointersUpdatingVisitor<> updating_visitor(heap());
+    PointersUpdatingVisitor updating_visitor(heap());
     heap_->IterateRootsIncludingClients(
         &updating_visitor,
         base::EnumSet<SkipRoot>{SkipRoot::kExternalStringTable});
@@ -4440,18 +4494,38 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 void MarkCompactCollector::UpdatePointersInClientHeaps() {
   if (!isolate()->is_shared()) return;
 
-  PointersUpdatingVisitor<kClientHeap> visitor(heap());
-
   isolate()->global_safepoint()->IterateClientIsolates(
-      [&visitor](Isolate* client) {
-        Heap* heap = client->heap();
-        HeapObjectIterator iterator(heap, HeapObjectIterator::kNoFiltering);
-        PtrComprCageBase cage_base(client);
-        for (HeapObject obj = iterator.Next(); !obj.is_null();
-             obj = iterator.Next()) {
-          obj.IterateFast(cage_base, &visitor);
-        }
-      });
+      [this](Isolate* client) { UpdatePointersInClientHeap(client); });
+}
+
+void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
+  PtrComprCageBase cage_base(client);
+  MemoryChunkIterator chunk_iterator(client->heap());
+
+  while (chunk_iterator.HasNext()) {
+    MemoryChunk* chunk = chunk_iterator.Next();
+    RememberedSet<CLIENT_TO_SHARED>::Iterate(
+        chunk,
+        [cage_base](MaybeObjectSlot slot) {
+          return UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+        },
+        SlotSet::KEEP_EMPTY_BUCKETS);
+
+    chunk->ReleaseSlotSet<CLIENT_TO_SHARED>();
+  }
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    ClientHeapVerifier verifier_visitor(client->heap());
+
+    HeapObjectIterator iterator(client->heap(),
+                                HeapObjectIterator::kNoFiltering);
+    for (HeapObject obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
+      obj.IterateFast(cage_base, &verifier_visitor);
+    }
+  }
+#endif  // VERIFY_HEAP
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
@@ -4962,7 +5036,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(),
            GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS);
 
-  PointersUpdatingVisitor<> updating_visitor(heap());
+  PointersUpdatingVisitor updating_visitor(heap());
   std::vector<std::unique_ptr<UpdatingItem>> updating_items;
 
   // Create batches of global handles.

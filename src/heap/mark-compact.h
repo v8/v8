@@ -642,6 +642,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Updates pointers to shared objects from client heaps.
   void UpdatePointersInClientHeaps();
+  void UpdatePointersInClientHeap(Isolate* client);
 
   // Marks object reachable from harmony weak maps and wrapper tracing.
   void ProcessEphemeronMarking();

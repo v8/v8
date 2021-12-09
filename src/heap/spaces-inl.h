@@ -175,6 +175,24 @@ bool LocalAllocationBuffer::TryFreeLast(HeapObject object, int object_size) {
   return false;
 }
 
+bool MemoryChunkIterator::HasNext() {
+  if (current_chunk_) return true;
+
+  while (space_iterator_.HasNext()) {
+    Space* space = space_iterator_.Next();
+    current_chunk_ = space->first_page();
+    if (current_chunk_) return true;
+  }
+
+  return false;
+}
+
+MemoryChunk* MemoryChunkIterator::Next() {
+  MemoryChunk* chunk = current_chunk_;
+  current_chunk_ = chunk->list_node().next();
+  return chunk;
+}
+
 }  // namespace internal
 }  // namespace v8
 

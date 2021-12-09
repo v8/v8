@@ -2297,6 +2297,10 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
 
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
     client->heap()->FreeSharedLinearAllocationAreas();
+
+    // As long as we need to iterate the client heap to find references into the
+    // shared heap, all client heaps need to be iterable.
+    client->heap()->MakeHeapIterable();
   });
 
   PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR);

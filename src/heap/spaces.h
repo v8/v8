@@ -170,11 +170,15 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
     return external_backing_store_bytes_[type];
   }
 
-  MemoryChunk* first_page() { return memory_chunk_list_.front(); }
-  MemoryChunk* last_page() { return memory_chunk_list_.back(); }
+  virtual MemoryChunk* first_page() { return memory_chunk_list_.front(); }
+  virtual MemoryChunk* last_page() { return memory_chunk_list_.back(); }
 
-  const MemoryChunk* first_page() const { return memory_chunk_list_.front(); }
-  const MemoryChunk* last_page() const { return memory_chunk_list_.back(); }
+  virtual const MemoryChunk* first_page() const {
+    return memory_chunk_list_.front();
+  }
+  virtual const MemoryChunk* last_page() const {
+    return memory_chunk_list_.back();
+  }
 
   heap::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
 
@@ -488,6 +492,19 @@ class SpaceWithLinearArea : public Space {
 
   size_t allocations_origins_[static_cast<int>(
       AllocationOrigin::kNumberOfAllocationOrigins)] = {0};
+};
+
+// Iterates over all memory chunks in the heap (across all spaces).
+class MemoryChunkIterator {
+ public:
+  explicit MemoryChunkIterator(Heap* heap) : space_iterator_(heap) {}
+
+  V8_INLINE bool HasNext();
+  V8_INLINE MemoryChunk* Next();
+
+ private:
+  SpaceIterator space_iterator_;
+  MemoryChunk* current_chunk_ = nullptr;
 };
 
 }  // namespace internal
