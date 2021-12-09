@@ -410,14 +410,6 @@ class WasmGraphBuilder {
     return effect_and_control;
   }
 
-  Node* GetImportedMutableGlobals();
-
-  void GetGlobalBaseAndOffset(MachineType mem_type, const wasm::WasmGlobal&,
-                              Node** base_node, Node** offset_node);
-
-  void GetBaseAndOffsetForImportedMutableExternRefGlobal(
-      const wasm::WasmGlobal& global, Node** base, Node** offset);
-
   // Utilities to manipulate sets of instance cache nodes.
   void InitInstanceCache(WasmInstanceCacheNodes* instance_cache);
   void PrepareInstanceCacheForLoop(WasmInstanceCacheNodes* instance_cache,
@@ -692,6 +684,9 @@ class WasmGraphBuilder {
   Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
 
   Node* IsNull(Node* object);
+
+  void GetGlobalBaseAndOffset(const wasm::WasmGlobal&, Node** base_node,
+                              Node** offset_node);
 
   using BranchBuilder = std::function<void(Node*, BranchHint)>;
   struct Callbacks {

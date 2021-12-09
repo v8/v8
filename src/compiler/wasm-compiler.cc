@@ -3579,58 +3579,6 @@ void WasmGraphBuilder::SetEffectControl(Node* effect, Node* control) {
   gasm_->InitializeEffectControl(effect, control);
 }
 
-Node* WasmGraphBuilder::GetImportedMutableGlobals() {
-  return LOAD_INSTANCE_FIELD(ImportedMutableGlobals, MachineType::UintPtr());
-}
-
-void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
-                                              const wasm::WasmGlobal& global,
-                                              Node** base_node,
-                                              Node** offset_node) {
-  if (global.mutability && global.imported) {
-    *base_node = gasm_->LoadFromObject(
-        MachineType::UintPtr(), GetImportedMutableGlobals(),
-        Int32Constant(global.index * sizeof(Address)));
-    *offset_node = Int32Constant(0);
-  } else {
-    Node* globals_start =
-        LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::UintPtr());
-    *base_node = globals_start;
-    *offset_node = Int32Constant(global.offset);
-
-    if (mem_type == MachineType::Simd128() && global.offset != 0) {
-      // TODO(titzer,bbudge): code generation for SIMD memory offsets is broken.
-      *base_node = gasm_->IntAdd(*base_node, *offset_node);
-      *offset_node = Int32Constant(0);
-    }
-  }
-}
-
-void WasmGraphBuilder::GetBaseAndOffsetForImportedMutableExternRefGlobal(
-    const wasm::WasmGlobal& global, Node** base, Node** offset) {
-  // Load the base from the ImportedMutableGlobalsBuffer of the instance.
-  Node* buffers = LOAD_INSTANCE_FIELD(ImportedMutableGlobalsBuffers,
-                                      MachineType::TaggedPointer());
-  *base = gasm_->LoadFixedArrayElementAny(buffers, global.index);
-
-  // For the offset we need the index of the global in the buffer, and then
-  // calculate the actual offset from the index. Load the index from the
-  // ImportedMutableGlobals array of the instance.
-  Node* index =
-      gasm_->LoadFromObject(MachineType::UintPtr(), GetImportedMutableGlobals(),
-                            Int32Constant(global.index * sizeof(Address)));
-
-  // From the index, calculate the actual offset in the FixedArray. This
-  // is kHeaderSize + (index * kTaggedSize). kHeaderSize can be acquired with
-  // wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0).
-  Node* index_times_tagged_size = gasm_->IntMul(
-      BuildChangeUint32ToUintPtr(index), Int32Constant(kTaggedSize));
-  *offset = gasm_->IntAdd(
-      index_times_tagged_size,
-      mcgraph()->IntPtrConstant(
-          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
-}
-
 Node* WasmGraphBuilder::MemBuffer(uintptr_t offset) {
   DCHECK_NOT_NULL(instance_cache_);
   Node* mem_start = instance_cache_->mem_start;
@@ -3699,63 +3647,63 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
                                        parameter_count);
 }
 
+void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
+                                              Node** base, Node** offset) {
+  if (global.mutability && global.imported) {
+    Node* base_or_index = gasm_->LoadFromObject(
+        MachineType::UintPtr(),
+        LOAD_INSTANCE_FIELD(ImportedMutableGlobals, MachineType::UintPtr()),
+        Int32Constant(global.index * kSystemPointerSize));
+    if (global.type.is_reference()) {
+      // Load the base from the ImportedMutableGlobalsBuffer of the instance.
+      Node* buffers = LOAD_INSTANCE_FIELD(ImportedMutableGlobalsBuffers,
+                                          MachineType::TaggedPointer());
+      *base = gasm_->LoadFixedArrayElementAny(buffers, global.index);
+
+      // For this case, {base_or_index} gives the index of the global in the
+      // buffer. From the index, calculate the actual offset in the FixedArray.
+      // This is kHeaderSize + (index * kTaggedSize).
+      *offset = gasm_->IntAdd(
+          gasm_->IntMul(base_or_index, gasm_->IntPtrConstant(kTaggedSize)),
+          gasm_->IntPtrConstant(
+              wasm::ObjectAccess::ToTagged(FixedArray::kObjectsOffset)));
+    } else {
+      *base = base_or_index;
+      *offset = gasm_->IntPtrConstant(0);
+    }
+  } else if (global.type.is_reference()) {
+    *base =
+        LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
+    *offset = gasm_->IntPtrConstant(
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global.offset));
+  } else {
+    *base = LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::UintPtr());
+    *offset = gasm_->IntPtrConstant(global.offset);
+  }
+}
+
 Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
-  if (global.type.is_reference()) {
-    if (global.mutability && global.imported) {
-      Node* base = nullptr;
-      Node* offset = nullptr;
-      GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &base, &offset);
-      return gasm_->LoadFromObject(MachineType::AnyTagged(), base, offset);
-    }
-    Node* globals_buffer =
-        LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
-    return gasm_->LoadFixedArrayElementAny(globals_buffer, global.offset);
-  }
-
-  MachineType mem_type = global.type.machine_type();
-  if (mem_type.representation() == MachineRepresentation::kSimd128) {
-    has_simd_ = true;
-  }
+  if (global.type == wasm::kWasmS128) has_simd_ = true;
   Node* base = nullptr;
   Node* offset = nullptr;
-  GetGlobalBaseAndOffset(mem_type, global, &base, &offset);
-  // TODO(manoskouk): Cannot use LoadFromObject here due to
-  // GetGlobalBaseAndOffset pointer arithmetic.
-  return gasm_->Load(mem_type, base, offset);
+  GetGlobalBaseAndOffset(global, &base, &offset);
+  MachineType mem_type = global.type.machine_type();
+  return global.mutability
+             ? gasm_->LoadFromObject(mem_type, base, offset)
+             : gasm_->LoadImmutableFromObject(mem_type, base, offset);
 }
 
 void WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
-  if (global.type.is_reference()) {
-    if (global.mutability && global.imported) {
-      Node* base = nullptr;
-      Node* offset = nullptr;
-      GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &base, &offset);
-
-      gasm_->StoreToObject(
-          ObjectAccess(MachineType::AnyTagged(), kFullWriteBarrier), base,
-          offset, val);
-      return;
-    }
-    Node* globals_buffer =
-        LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
-    gasm_->StoreFixedArrayElementAny(globals_buffer, global.offset, val);
-    return;
-  }
-
-  MachineType mem_type = global.type.machine_type();
-  if (mem_type.representation() == MachineRepresentation::kSimd128) {
-    has_simd_ = true;
-  }
+  if (global.type == wasm::kWasmS128) has_simd_ = true;
   Node* base = nullptr;
   Node* offset = nullptr;
-  GetGlobalBaseAndOffset(mem_type, global, &base, &offset);
-  auto store_rep =
-      StoreRepresentation(mem_type.representation(), kNoWriteBarrier);
-  // TODO(manoskouk): Cannot use StoreToObject here due to
-  // GetGlobalBaseAndOffset pointer arithmetic.
-  gasm_->Store(store_rep, base, offset, val);
+  GetGlobalBaseAndOffset(global, &base, &offset);
+  ObjectAccess access(global.type.machine_type(), global.type.is_reference()
+                                                      ? kFullWriteBarrier
+                                                      : kNoWriteBarrier);
+  gasm_->StoreToObject(access, base, offset, val);
 }
 
 Node* WasmGraphBuilder::TableGet(uint32_t table_index, Node* index,

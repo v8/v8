@@ -78,8 +78,11 @@ struct WasmGlobal {
   bool mutability;    // {true} if mutable.
   WireBytesRef init;  // the initialization expression of the global.
   union {
-    uint32_t index;   // index of imported mutable global.
-    uint32_t offset;  // offset into global memory (if not imported & mutable).
+    // Index of imported mutable global.
+    uint32_t index;
+    // Offset into global memory (if not imported & mutable). Expressed in bytes
+    // for value-typed globals, and in tagged words for reference-typed globals.
+    uint32_t offset;
   };
   bool imported;  // true if imported.
   bool exported;  // true if exported.
