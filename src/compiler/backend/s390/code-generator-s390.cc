@@ -2404,14 +2404,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ ShiftRightU32(value_, value_, Operand(16));
       }
       __ AtomicExchangeU16(r1, value_, output, r0);
+      if (reverse_bytes) {
+        __ lrvr(output, output);
+        __ ShiftRightU32(output, output, Operand(16));
+      }
       if (opcode == kAtomicExchangeInt16) {
         __ lghr(output, output);
       } else {
         __ llghr(output, output);
-      }
-      if (reverse_bytes) {
-        __ lrvr(output, output);
-        __ ShiftRightU32(output, output, Operand(16));
       }
       break;
     }
@@ -2473,11 +2473,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      __ LoadS16(result, result);                                            \
       if (is_wasm_on_be(info()->IsWasm())) {                                 \
         __ lrvr(result, result);                                             \
         __ ShiftRightS32(result, result, Operand(16));                       \
       }                                                                      \
+      __ LoadS16(result, result);                                            \
     });                                                                      \
     break;                                                                   \
   case kAtomic##op##Uint16:                                                  \
