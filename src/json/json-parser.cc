@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
+#include "src/execution/frames-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
@@ -274,6 +275,17 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
   if (isolate()->NeedsSourcePositionsForProfiling()) {
     Script::InitLineEnds(isolate(), script);
   }
+
+  StackTraceFrameIterator it(isolate_);
+  if (!it.done() && it.is_javascript()) {
+    FrameSummary summary = it.GetTopValidFrame();
+    script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
+    if (summary.script()->IsScript()) {
+      script->set_origin_options(
+          Script::cast(*summary.script()).origin_options());
+    }
+  }
+
   // We should sent compile error event because we compile JSON object in
   // separated source file.
   isolate()->debug()->OnCompileError(script);
