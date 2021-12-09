@@ -173,6 +173,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   bool CancelConcurrentMarkingIfNeeded();
 
+  void HandleNotFullyConstructedObjects();
+
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
 

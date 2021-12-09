@@ -248,6 +248,13 @@ void MarkerBase::StartMarking() {
         incremental_marking_allocation_observer_.get());
   }
 }
+void MarkerBase::HandleNotFullyConstructedObjects() {
+  if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
+    mutator_marking_state_.FlushNotFullyConstructedObjects();
+  } else {
+    MarkNotFullyConstructedObjects();
+  }
+}
 
 void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   StatsCollector::EnabledScope top_stats_scope(heap().stats_collector(),
@@ -271,12 +278,7 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   {
     // VisitRoots also resets the LABs.
     VisitRoots(config_.stack_state);
-    if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
-      mutator_marking_state_.FlushNotFullyConstructedObjects();
-      DCHECK(marking_worklists_.not_fully_constructed_worklist()->IsEmpty());
-    } else {
-      MarkNotFullyConstructedObjects();
-    }
+    HandleNotFullyConstructedObjects();
   }
   if (heap().marking_support() ==
       MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
@@ -434,6 +436,10 @@ bool MarkerBase::CancelConcurrentMarkingIfNeeded() {
 
   concurrent_marker_->Cancel();
   concurrent_marking_active_ = false;
+  // Concurrent markers may have pushed some "leftover" in-construction objects
+  // after flushing in EnterAtomicPause.
+  HandleNotFullyConstructedObjects();
+  DCHECK(marking_worklists_.not_fully_constructed_worklist()->IsEmpty());
   return true;
 }
 
