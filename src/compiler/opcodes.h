@@ -426,11 +426,13 @@
   V(FastApiCall)                        \
   V(FindOrderedHashMapEntry)            \
   V(FindOrderedHashMapEntryForInt32Key) \
+  V(InitializeImmutableInObject)        \
   V(LoadDataViewElement)                \
   V(LoadElement)                        \
   V(LoadField)                          \
   V(LoadFieldByIndex)                   \
   V(LoadFromObject)                     \
+  V(LoadImmutableFromObject)            \
   V(LoadMessage)                        \
   V(LoadStackArgument)                  \
   V(LoadTypedElement)                   \

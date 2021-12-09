@@ -84,28 +84,20 @@ MachineType assert_size(int expected_size, MachineType type) {
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstance(), \
       wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
 
-// TODO(11510): Using LoadImmutable for tagged values causes registers to be
-// spilled and added to the safepoint table, resulting in large code size
-// regressions. A possible solution would be to not spill the register at all,
-// but rather reload the value from memory. This will require non-trivial
-// changes in the register allocator and instuction selector.
-#define LOAD_INSTANCE_FIELD(name, type)                          \
-  (CanBeTaggedOrCompressedPointer((type).representation())       \
-       ? LOAD_MUTABLE_INSTANCE_FIELD(name, type)                 \
-       : gasm_->LoadImmutable(                                   \
-             assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), \
-             GetInstance(),                                      \
-             wasm::ObjectAccess::ToTagged(                       \
-                 WasmInstanceObject::k##name##Offset)))
+#define LOAD_INSTANCE_FIELD(name, type)                                  \
+  gasm_->LoadImmutableFromObject(                                        \
+      assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstance(), \
+      wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
 
-#define LOAD_ROOT(root_name, factory_name)                                    \
-  (parameter_mode_ == kNoSpecialParameterMode                                 \
-       ? graph()->NewNode(mcgraph()->common()->HeapConstant(                  \
-             isolate_->factory()->factory_name()))                            \
-       : gasm_->LoadImmutable(/* Root pointers do not get compressed. */      \
-                              MachineType::Pointer(), BuildLoadIsolateRoot(), \
-                              IsolateData::root_slot_offset(                  \
-                                  RootIndex::k##root_name)))
+// Use MachineType::Pointer() over Tagged() to load root pointers because they
+// do not get compressed.
+#define LOAD_ROOT(root_name, factory_name)                   \
+  (parameter_mode_ == kNoSpecialParameterMode                \
+       ? graph()->NewNode(mcgraph()->common()->HeapConstant( \
+             isolate_->factory()->factory_name()))           \
+       : gasm_->LoadImmutableFromObject(                     \
+             MachineType::Pointer(), BuildLoadIsolateRoot(), \
+             IsolateData::root_slot_offset(RootIndex::k##root_name)))
 
 bool ContainsSimd(const wasm::FunctionSig* sig) {
   for (auto type : sig->all()) {
@@ -263,6 +255,16 @@ class WasmGraphAssembler : public GraphAssembler {
     return LoadFromObject(type, base, IntPtrConstant(offset));
   }
 
+  Node* LoadImmutableFromObject(MachineType type, Node* base, Node* offset) {
+    return AddNode(graph()->NewNode(simplified_.LoadImmutableFromObject(
+                                        ObjectAccess(type, kNoWriteBarrier)),
+                                    base, offset, effect(), control()));
+  }
+
+  Node* LoadImmutableFromObject(MachineType type, Node* base, int offset) {
+    return LoadImmutableFromObject(type, base, IntPtrConstant(offset));
+  }
+
   Node* LoadImmutable(LoadRepresentation rep, Node* base, Node* offset) {
     return AddNode(graph()->NewNode(mcgraph()->machine()->LoadImmutable(rep),
                                     base, offset));
@@ -283,6 +285,19 @@ class WasmGraphAssembler : public GraphAssembler {
     return StoreToObject(access, base, IntPtrConstant(offset), value);
   }
 
+  Node* InitializeImmutableInObject(ObjectAccess access, Node* base,
+                                    Node* offset, Node* value) {
+    return AddNode(
+        graph()->NewNode(simplified_.InitializeImmutableInObject(access), base,
+                         offset, value, effect(), control()));
+  }
+
+  Node* InitializeImmutableInObject(ObjectAccess access, Node* base, int offset,
+                                    Node* value) {
+    return InitializeImmutableInObject(access, base, IntPtrConstant(offset),
+                                       value);
+  }
+
   Node* IsI31(Node* object) {
     if (COMPRESS_POINTERS_BOOL) {
       return Word32Equal(Word32And(object, Int32Constant(kSmiTagMask)),
@@ -295,8 +310,9 @@ class WasmGraphAssembler : public GraphAssembler {
 
   // Maps and their contents.
   Node* LoadMap(Node* object) {
-    Node* map_word = LoadFromObject(MachineType::TaggedPointer(), object,
-                                    HeapObject::kMapOffset - kHeapObjectTag);
+    Node* map_word =
+        LoadImmutableFromObject(MachineType::TaggedPointer(), object,
+                                HeapObject::kMapOffset - kHeapObjectTag);
 #ifdef V8_MAP_PACKING
     return UnpackMapWord(map_word);
 #else
@@ -309,23 +325,23 @@ class WasmGraphAssembler : public GraphAssembler {
 #ifdef V8_MAP_PACKING
     map = PackMapWord(TNode<Map>::UncheckedCast(map));
 #endif
-    StoreToObject(access, heap_object, HeapObject::kMapOffset - kHeapObjectTag,
-                  map);
+    InitializeImmutableInObject(access, heap_object,
+                                HeapObject::kMapOffset - kHeapObjectTag, map);
   }
 
   Node* LoadInstanceType(Node* map) {
-    return LoadFromObject(
+    return LoadImmutableFromObject(
         MachineType::Uint16(), map,
         wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset));
   }
   Node* LoadWasmTypeInfo(Node* map) {
     int offset = Map::kConstructorOrBackPointerOrNativeContextOffset;
-    return LoadFromObject(MachineType::TaggedPointer(), map,
-                          wasm::ObjectAccess::ToTagged(offset));
+    return LoadImmutableFromObject(MachineType::TaggedPointer(), map,
+                                   wasm::ObjectAccess::ToTagged(offset));
   }
 
   Node* LoadSupertypes(Node* wasm_type_info) {
-    return LoadFromObject(
+    return LoadImmutableFromObject(
         MachineType::TaggedPointer(), wasm_type_info,
         wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset));
   }
@@ -333,7 +349,7 @@ class WasmGraphAssembler : public GraphAssembler {
   // FixedArrays.
 
   Node* LoadFixedArrayLengthAsSmi(Node* fixed_array) {
-    return LoadFromObject(
+    return LoadImmutableFromObject(
         MachineType::TaggedSigned(), fixed_array,
         wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset));
   }
@@ -344,6 +360,15 @@ class WasmGraphAssembler : public GraphAssembler {
         IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
         IntPtrConstant(wasm::ObjectAccess::ToTagged(FixedArray::kHeaderSize)));
     return LoadFromObject(type, fixed_array, offset);
+  }
+
+  Node* LoadImmutableFixedArrayElement(
+      Node* fixed_array, Node* index_intptr,
+      MachineType type = MachineType::AnyTagged()) {
+    Node* offset = IntAdd(
+        IntMul(index_intptr, IntPtrConstant(kTaggedSize)),
+        IntPtrConstant(wasm::ObjectAccess::ToTagged(FixedArray::kHeaderSize)));
+    return LoadImmutableFromObject(type, fixed_array, offset);
   }
 
   Node* LoadFixedArrayElement(Node* array, int index, MachineType type) {
@@ -404,14 +429,16 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   Node* LoadExportedFunctionIndexAsSmi(Node* exported_function_data) {
-    return LoadFromObject(MachineType::TaggedSigned(), exported_function_data,
-                          wasm::ObjectAccess::ToTagged(
-                              WasmExportedFunctionData::kFunctionIndexOffset));
+    return LoadImmutableFromObject(
+        MachineType::TaggedSigned(), exported_function_data,
+        wasm::ObjectAccess::ToTagged(
+            WasmExportedFunctionData::kFunctionIndexOffset));
   }
   Node* LoadExportedFunctionInstance(Node* exported_function_data) {
-    return LoadFromObject(MachineType::TaggedPointer(), exported_function_data,
-                          wasm::ObjectAccess::ToTagged(
-                              WasmExportedFunctionData::kInstanceOffset));
+    return LoadImmutableFromObject(
+        MachineType::TaggedPointer(), exported_function_data,
+        wasm::ObjectAccess::ToTagged(
+            WasmExportedFunctionData::kInstanceOffset));
   }
 
   // JavaScript objects.
@@ -431,8 +458,13 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* StoreStructField(Node* struct_object, const wasm::StructType* type,
                          uint32_t field_index, Node* value) {
-    return StoreToObject(ObjectAccessForGCStores(type->field(field_index)),
-                         struct_object, FieldOffset(type, field_index), value);
+    ObjectAccess access = ObjectAccessForGCStores(type->field(field_index));
+    return type->mutability(field_index)
+               ? StoreToObject(access, struct_object,
+                               FieldOffset(type, field_index), value)
+               : InitializeImmutableInObject(access, struct_object,
+                                             FieldOffset(type, field_index),
+                                             value);
   }
 
   Node* WasmArrayElementOffset(Node* index, wasm::ValueType element_type) {
@@ -445,7 +477,7 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   Node* LoadWasmArrayLength(Node* array) {
-    return LoadFromObject(
+    return LoadImmutableFromObject(
         MachineType::Uint32(), array,
         wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset));
   }
@@ -3029,7 +3061,7 @@ Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
       func_index_intptr, gasm_->IntPtrConstant(kSystemPointerSize));
   Node* imported_targets =
       LOAD_INSTANCE_FIELD(ImportedFunctionTargets, MachineType::Pointer());
-  Node* target_node = gasm_->LoadFromObject(
+  Node* target_node = gasm_->LoadImmutableFromObject(
       MachineType::Pointer(), imported_targets, func_index_times_pointersize);
   args[0] = target_node;
 
@@ -3229,7 +3261,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
   auto load_target = gasm_->MakeLabel();
   auto end_label = gasm_->MakeLabel(MachineType::PointerRepresentation());
 
-  Node* ref_node = gasm_->LoadFromObject(
+  Node* ref_node = gasm_->LoadImmutableFromObject(
       MachineType::TaggedPointer(), function,
       wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
 
@@ -3244,16 +3276,16 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
   {
     // Compute the call target from the (on-heap) wrapper code. The cached
     // target can only be null for WasmJSFunctions.
-    Node* wrapper_code = gasm_->LoadFromObject(
+    Node* wrapper_code = gasm_->LoadImmutableFromObject(
         MachineType::TaggedPointer(), function,
         wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
     Node* call_target;
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       CHECK(!V8_HEAP_SANDBOX_BOOL);  // Not supported yet.
-      call_target =
-          gasm_->LoadFromObject(MachineType::Pointer(), wrapper_code,
-                                wasm::ObjectAccess::ToTagged(
-                                    CodeDataContainer::kCodeEntryPointOffset));
+      call_target = gasm_->LoadImmutableFromObject(
+          MachineType::Pointer(), wrapper_code,
+          wasm::ObjectAccess::ToTagged(
+              CodeDataContainer::kCodeEntryPointOffset));
 
     } else {
       call_target = gasm_->IntAdd(
@@ -3278,7 +3310,7 @@ void WasmGraphBuilder::CompareToInternalFunctionAtIndex(
     Node** failure_control) {
   // Since we are comparing to a function reference, it is guaranteed that
   // instance->wasm_internal_functions() has been initialized.
-  Node* internal_functions = gasm_->LoadFromObject(
+  Node* internal_functions = gasm_->LoadImmutableFromObject(
       MachineType::TaggedPointer(), GetInstance(),
       wasm::ObjectAccess::ToTagged(
           WasmInstanceObject::kWasmInternalFunctionsOffset));
@@ -5680,7 +5712,7 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
   int size = WasmStruct::Size(type);
   Node* s = gasm_->Allocate(size);
   gasm_->StoreMap(s, rtt);
-  gasm_->StoreToObject(
+  gasm_->InitializeImmutableInObject(
       ObjectAccess(MachineType::TaggedPointer(), kNoWriteBarrier), s,
       wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
       LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
@@ -5765,8 +5797,13 @@ Node* WasmGraphBuilder::ArrayInit(uint32_t array_index,
   for (int i = 0; i < static_cast<int>(elements.size()); i++) {
     Node* offset =
         gasm_->WasmArrayElementOffset(Int32Constant(i), element_type);
-    gasm_->StoreToObject(ObjectAccessForGCStores(element_type), array, offset,
-                         elements[i]);
+    if (type->mutability()) {
+      gasm_->StoreToObject(ObjectAccessForGCStores(element_type), array, offset,
+                           elements[i]);
+    } else {
+      gasm_->InitializeImmutableInObject(ObjectAccessForGCStores(element_type),
+                                         array, offset, elements[i]);
+    }
   }
   return array;
 }
@@ -5774,7 +5811,9 @@ Node* WasmGraphBuilder::ArrayInit(uint32_t array_index,
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
   Node* maps_list =
       LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
-  return gasm_->LoadFixedArrayElementPtr(maps_list, type_index);
+  return gasm_->LoadImmutableFromObject(
+      MachineType::TaggedPointer(), maps_list,
+      wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index));
 }
 
 Node* WasmGraphBuilder::RttSub(uint32_t type_index, Node* parent_rtt,
@@ -5891,7 +5930,7 @@ void WasmGraphBuilder::TypeCheck(
     callbacks.fail_if_not(gasm_->UintLessThan(rtt_depth, supertypes_length),
                           BranchHint::kTrue);
   }
-  Node* maybe_match = gasm_->LoadFixedArrayElement(
+  Node* maybe_match = gasm_->LoadImmutableFixedArrayElement(
       supertypes, rtt_depth, MachineType::TaggedPointer());
 
   callbacks.fail_if_not(gasm_->TaggedEqual(maybe_match, rtt),
@@ -6069,7 +6108,10 @@ Node* WasmGraphBuilder::StructGet(Node* struct_object,
   MachineType machine_type = MachineType::TypeForRepresentation(
       struct_type->field(field_index).machine_representation(), is_signed);
   Node* offset = gasm_->FieldOffset(struct_type, field_index);
-  return gasm_->LoadFromObject(machine_type, struct_object, offset);
+  return struct_type->mutability(field_index)
+             ? gasm_->LoadFromObject(machine_type, struct_object, offset)
+             : gasm_->LoadImmutableFromObject(machine_type, struct_object,
+                                              offset);
 }
 
 void WasmGraphBuilder::StructSet(Node* struct_object,
@@ -6114,7 +6156,10 @@ Node* WasmGraphBuilder::ArrayGet(Node* array_object,
   MachineType machine_type = MachineType::TypeForRepresentation(
       type->element_type().machine_representation(), is_signed);
   Node* offset = gasm_->WasmArrayElementOffset(index, type->element_type());
-  return gasm_->LoadFromObject(machine_type, array_object, offset);
+  return type->mutability()
+             ? gasm_->LoadFromObject(machine_type, array_object, offset)
+             : gasm_->LoadImmutableFromObject(machine_type, array_object,
+                                              offset);
 }
 
 void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,

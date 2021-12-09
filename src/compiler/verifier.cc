@@ -1562,6 +1562,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, ElementAccessOf(node->op()).type));
       break;
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadImmutableFromObject:
       CheckValueInputIs(node, 0, Type::Receiver());
       break;
     case IrOpcode::kLoadTypedElement:
@@ -1584,6 +1585,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kInitializeImmutableInObject:
       // TODO(gsps): Can we check some types here?
       break;
     case IrOpcode::kTransitionAndStoreElement:

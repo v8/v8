@@ -782,6 +782,11 @@ Map HeapObject::map(PtrComprCageBase cage_base) const {
 }
 
 void HeapObject::set_map(Map value) {
+#if V8_ENABLE_WEBASSEMBLY
+  // In {WasmGraphBuilder::SetMap} and {WasmGraphBuilder::LoadMap}, we treat
+  // maps as immutable. Therefore we are not allowed to mutate them here.
+  DCHECK(!value.IsWasmStructMap() && !value.IsWasmArrayMap());
+#endif
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !value.is_null()) {
     GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);

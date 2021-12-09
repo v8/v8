@@ -1068,10 +1068,22 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                                      Type value_type);
 
   // load-from-object [base + offset]
+  // This operator comes in two flavors: LoadImmutableFromObject guarantees that
+  // the underlying object field will be initialized at most once for the
+  // duration of the program. This enables more optimizations in
+  // CsaLoadElimination.
+  // Note: LoadImmutableFromObject is unrelated to LoadImmutable and is lowered
+  // into a regular Load.
   const Operator* LoadFromObject(ObjectAccess const&);
+  const Operator* LoadImmutableFromObject(ObjectAccess const&);
 
   // store-to-object [base + offset], value
+  // This operator comes in two flavors: InitializeImmutableInObject guarantees
+  // that the underlying object field has not and will not be initialized again
+  // for the duration of the program. This enables more optimizations in
+  // CsaLoadElimination.
   const Operator* StoreToObject(ObjectAccess const&);
+  const Operator* InitializeImmutableInObject(ObjectAccess const&);
 
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);

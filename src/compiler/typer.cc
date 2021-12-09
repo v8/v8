@@ -2174,6 +2174,7 @@ Type Typer::Visitor::TypeLoadStackArgument(Node* node) {
 }
 
 Type Typer::Visitor::TypeLoadFromObject(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeLoadImmutableFromObject(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeLoadTypedElement(Node* node) {
   switch (ExternalArrayTypeOf(node->op())) {
@@ -2204,6 +2205,9 @@ Type Typer::Visitor::TypeStoreMessage(Node* node) { UNREACHABLE(); }
 Type Typer::Visitor::TypeStoreElement(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeStoreToObject(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeInitializeImmutableInObject(Node* node) {
+  UNREACHABLE();
+}
 
 Type Typer::Visitor::TypeTransitionAndStoreElement(Node* node) {
   UNREACHABLE();

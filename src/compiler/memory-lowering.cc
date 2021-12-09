@@ -84,12 +84,14 @@ Reduction MemoryLowering::Reduce(Node* node) {
     case IrOpcode::kAllocateRaw:
       return ReduceAllocateRaw(node);
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadImmutableFromObject:
       return ReduceLoadFromObject(node);
     case IrOpcode::kLoadElement:
       return ReduceLoadElement(node);
     case IrOpcode::kLoadField:
       return ReduceLoadField(node);
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kInitializeImmutableInObject:
       return ReduceStoreToObject(node);
     case IrOpcode::kStoreElement:
       return ReduceStoreElement(node);
@@ -372,7 +374,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 }
 
 Reduction MemoryLowering::ReduceLoadFromObject(Node* node) {
-  DCHECK_EQ(IrOpcode::kLoadFromObject, node->opcode());
+  DCHECK(node->opcode() == IrOpcode::kLoadFromObject ||
+         node->opcode() == IrOpcode::kLoadImmutableFromObject);
   ObjectAccess const& access = ObjectAccessOf(node->op());
 
   MachineType machine_type = access.machine_type;
@@ -492,7 +495,8 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
 
 Reduction MemoryLowering::ReduceStoreToObject(Node* node,
                                               AllocationState const* state) {
-  DCHECK_EQ(IrOpcode::kStoreToObject, node->opcode());
+  DCHECK(node->opcode() == IrOpcode::kStoreToObject ||
+         node->opcode() == IrOpcode::kInitializeImmutableInObject);
   ObjectAccess const& access = ObjectAccessOf(node->op());
   Node* object = node->InputAt(0);
   Node* value = node->InputAt(2);

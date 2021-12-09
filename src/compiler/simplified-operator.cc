@@ -160,7 +160,9 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 const ObjectAccess& ObjectAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadFromObject ||
-         op->opcode() == IrOpcode::kStoreToObject);
+         op->opcode() == IrOpcode::kLoadImmutableFromObject ||
+         op->opcode() == IrOpcode::kStoreToObject ||
+         op->opcode() == IrOpcode::kInitializeImmutableInObject);
   return OpParameter<ObjectAccess>(op);
 }
 
@@ -1878,16 +1880,18 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
   UNREACHABLE();
 }
 
-#define ACCESS_OP_LIST(V)                                                \
-  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)                 \
-  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)                 \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)             \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)             \
-  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)    \
-  V(LoadFromObject, ObjectAccess, Operator::kNoWrite, 2, 1, 1)           \
-  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)    \
-  V(StoreToObject, ObjectAccess, Operator::kNoRead, 3, 1, 0)             \
-  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
+#define ACCESS_OP_LIST(V)                                                  \
+  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)                   \
+  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)                   \
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)               \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)               \
+  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)      \
+  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)      \
+  V(LoadFromObject, ObjectAccess, Operator::kNoWrite, 2, 1, 1)             \
+  V(StoreToObject, ObjectAccess, Operator::kNoRead, 3, 1, 0)               \
+  V(LoadImmutableFromObject, ObjectAccess, Operator::kNoWrite, 2, 1, 1)    \
+  V(InitializeImmutableInObject, ObjectAccess, Operator::kNoRead, 3, 1, 0) \
+  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)   \
   V(StoreDataViewElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
