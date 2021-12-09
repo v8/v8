@@ -614,7 +614,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void ByteReverseU16(Register dst, Register val, Register scratch);
   void ByteReverseU32(Register dst, Register val, Register scratch);
-  void ByteReverseU64(Register dst, Register val);
+  void ByteReverseU64(Register dst, Register val, Register = r0);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in

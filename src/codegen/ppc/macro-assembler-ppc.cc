@@ -3605,7 +3605,7 @@ void TurboAssembler::ByteReverseU32(Register dst, Register val,
   ZeroExtWord32(dst, scratch);
 }
 
-void TurboAssembler::ByteReverseU64(Register dst, Register val) {
+void TurboAssembler::ByteReverseU64(Register dst, Register val, Register) {
   if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
     brd(dst, val);
     return;
