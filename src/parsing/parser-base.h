@@ -1238,10 +1238,6 @@ class ParserBase {
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved,
                                 int class_token_pos);
-  ExpressionT DoParseClassLiteral(ClassScope* class_scope, IdentifierT name,
-                                  Scanner::Location class_name_location,
-                                  bool is_anonymous, int class_token_pos);
-
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged);
   ExpressionT ParseSuperExpression();
   ExpressionT ParseImportExpressions();
@@ -2526,6 +2522,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
 
   if (initializer_scope == nullptr) {
     initializer_scope = NewFunctionScope(function_kind);
+    // TODO(gsathya): Make scopes be non contiguous.
+    initializer_scope->set_start_position(beg_pos);
     initializer_scope->SetLanguageMode(LanguageMode::kStrict);
   }
 
@@ -2540,13 +2538,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
     initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
 
+  initializer_scope->set_end_position(end_position());
   if (is_static) {
-    // For the instance initializer, we will save the positions
-    // later with the positions of the class body so that we can reparse
-    // it later.
-    // TODO(joyee): Make scopes be non contiguous.
-    initializer_scope->set_start_position(beg_pos);
-    initializer_scope->set_end_position(end_position());
     class_info->static_elements_scope = initializer_scope;
     class_info->has_static_elements = true;
   } else {
@@ -4688,15 +4681,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   }
 
   ClassScope* class_scope = NewClassScope(scope(), is_anonymous);
-  return DoParseClassLiteral(class_scope, name, class_name_location,
-                             is_anonymous, class_token_pos);
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
-    ClassScope* class_scope, IdentifierT name,
-    Scanner::Location class_name_location, bool is_anonymous,
-    int class_token_pos) {
   BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 
@@ -4783,12 +4767,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
   Expect(Token::RBRACE);
   int end_pos = end_position();
   class_scope->set_end_position(end_pos);
-  if (class_info.instance_members_scope != nullptr) {
-    // Use the positions of the class body for the instance initializer
-    // function so that we can reparse it later.
-    class_info.instance_members_scope->set_start_position(class_token_pos);
-    class_info.instance_members_scope->set_end_position(end_pos);
-  }
 
   VariableProxy* unresolvable = class_scope->ResolvePrivateNamesPartially();
   if (unresolvable != nullptr) {

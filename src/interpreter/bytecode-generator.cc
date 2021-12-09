@@ -2813,7 +2813,6 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
   // Private methods are not initialized in BuildClassProperty.
   DCHECK_IMPLIES(property->is_private(),
                  property->kind() == ClassLiteral::Property::FIELD);
-  builder()->SetExpressionPosition(property->key());
 
   bool is_literal_store = property->key()->IsPropertyName() &&
                           !property->is_computed_name() &&
