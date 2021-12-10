@@ -17,6 +17,7 @@ namespace internal {
 
 class Heap;
 class LocalHeap;
+class PerClientSafepointData;
 class RootVisitor;
 
 // Used to bring all threads with heap access in an isolate to a safepoint such
@@ -24,9 +25,6 @@ class RootVisitor;
 class IsolateSafepoint final {
  public:
   explicit IsolateSafepoint(Heap* heap);
-
-  V8_EXPORT_PRIVATE bool ContainsLocalHeap(LocalHeap* local_heap);
-  V8_EXPORT_PRIVATE bool ContainsAnyLocalHeap();
 
   // Iterate handles in local heaps
   void Iterate(RootVisitor* visitor);
@@ -43,7 +41,7 @@ class IsolateSafepoint final {
 
   void AssertActive() { local_heaps_mutex_.AssertHeld(); }
 
-  void AssertMainThreadIsOnlyThread();
+  V8_EXPORT_PRIVATE void AssertMainThreadIsOnlyThread();
 
  private:
   class Barrier {
@@ -79,11 +77,22 @@ class IsolateSafepoint final {
   // Running thread reached a safepoint by parking itself.
   void NotifyPark();
 
+  // Methods for entering/leaving local safepoint scopes.
   void EnterLocalSafepointScope();
-  void EnterGlobalSafepointScope(Isolate* initiator);
-
   void LeaveLocalSafepointScope();
+
+  // Methods for entering/leaving global safepoint scopes.
+  void TryInitiateGlobalSafepointScope(Isolate* initiator,
+                                       PerClientSafepointData* client_data);
+  void InitiateGlobalSafepointScope(Isolate* initiator,
+                                    PerClientSafepointData* client_data);
+  void InitiateGlobalSafepointScopeRaw(Isolate* initiator,
+                                       PerClientSafepointData* client_data);
   void LeaveGlobalSafepointScope(Isolate* initiator);
+
+  // Blocks until all running threads reached a safepoint.
+  void WaitUntilRunningThreadsInSafepoint(
+      const PerClientSafepointData* client_data);
 
   IncludeMainThread IncludeMainThreadUnlessInitiator(Isolate* initiator);
 
@@ -123,6 +132,9 @@ class IsolateSafepoint final {
       local_heaps_head_ = local_heap->next_;
   }
 
+  Isolate* isolate() const;
+  Isolate* shared_isolate() const;
+
   Barrier barrier_;
   Heap* heap_;
 
@@ -133,11 +145,9 @@ class IsolateSafepoint final {
 
   int active_safepoint_scopes_;
 
-  friend class Heap;
   friend class GlobalSafepoint;
   friend class GlobalSafepointScope;
   friend class LocalHeap;
-  friend class PersistentHandles;
   friend class SafepointScope;
 };
 
@@ -168,6 +178,8 @@ class GlobalSafepoint final {
   }
 
   void AssertNoClients();
+
+  void AssertActive() { clients_mutex_.AssertHeld(); }
 
  private:
   void EnterGlobalSafepointScope(Isolate* initiator);
