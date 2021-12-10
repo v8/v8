@@ -197,7 +197,7 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   // Zone pointer in the AstValueFactory.
   Zone* single_parse_zone() { return &single_parse_zone_; }
 
-  void NotifySingleParseCompleted() { single_parse_zone_.ReleaseMemory(); }
+  void NotifySingleParseCompleted() { single_parse_zone_.Reset(); }
 
   AstValueFactory* ast_value_factory() const {
     return ast_value_factory_.get();

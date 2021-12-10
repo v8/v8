@@ -1631,7 +1631,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
     // Get the zone, while variables_ is still valid
     Zone* zone = this->zone();
     variables_.Invalidate();
-    zone->ReleaseMemory();
+    zone->Reset();
   }
 
   if (aborted) {

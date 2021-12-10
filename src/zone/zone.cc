@@ -70,9 +70,30 @@ void* Zone::AsanNew(size_t size) {
   return reinterpret_cast<void*>(result);
 }
 
-void Zone::ReleaseMemory() {
+void Zone::Reset() {
+  if (!segment_head_) return;
+  Segment* keep = segment_head_;
+  segment_head_ = segment_head_->next();
+  if (segment_head_ != nullptr) {
+    // Reset the position to the end of the new head, and uncommit its
+    // allocation size (which will be re-committed in DeleteAll).
+    position_ = segment_head_->end();
+    allocation_size_ -= segment_head_->end() - segment_head_->start();
+  }
+  keep->set_next(nullptr);
   DeleteAll();
   allocator_->TraceZoneCreation(this);
+
+  // Un-poison the kept segment content so we can zap and re-use it.
+  ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(keep->start()),
+                              keep->capacity());
+  keep->ZapContents();
+
+  segment_head_ = keep;
+  position_ = keep->start();
+  limit_ = keep->end();
+  DCHECK_EQ(allocation_size(), 0);
+  DCHECK_EQ(segment_bytes_allocated_, keep->total_size());
 }
 
 void Zone::DeleteAll() {
