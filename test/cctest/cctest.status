@@ -282,12 +282,7 @@
 
 ##############################################################################
 ['byteorder == big', {
-  # Skip Wasm atomic tests on big-endian machines.
-  # There is no support to emulate atomic Wasm operations on big-endian
-  # platforms, since this would require bit swapping as a part of atomic
-  # operations.
-  'test-run-wasm-atomics/*': [SKIP],
-  'test-run-wasm-atomics64/*': [SKIP],
+  # Peephole optimization not supported on big-endian machines.
   'test-regexp/Peephole*': [SKIP],
 }],  # 'byteorder == big'
 
