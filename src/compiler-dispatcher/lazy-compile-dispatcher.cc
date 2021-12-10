@@ -456,7 +456,7 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
   while (!delegate->ShouldYield()) {
     Job* job = nullptr;
     {
-      base::MutexGuard lock(&job_dispose_mutex_);
+      base::MutexGuard lock(&mutex_);
       if (jobs_to_dispose_.empty()) break;
       job = jobs_to_dispose_.back();
       jobs_to_dispose_.pop_back();
@@ -538,13 +538,8 @@ void LazyCompileDispatcher::DoIdleWork(double deadline_in_seconds) {
 
 void LazyCompileDispatcher::DeleteJob(Job* job) {
   DCHECK(job->state == Job::State::kFinalized);
-#ifdef DEBUG
-  {
-    base::MutexGuard lock(&mutex_);
-    all_jobs_.erase(job);
-  }
-#endif
-  delete job;
+  base::MutexGuard lock(&mutex_);
+  DeleteJob(job, lock);
 }
 
 void LazyCompileDispatcher::DeleteJob(Job* job, const base::MutexGuard&) {
@@ -552,7 +547,6 @@ void LazyCompileDispatcher::DeleteJob(Job* job, const base::MutexGuard&) {
 #ifdef DEBUG
   all_jobs_.erase(job);
 #endif
-  base::MutexGuard lock(&job_dispose_mutex_);
   jobs_to_dispose_.push_back(job);
   if (jobs_to_dispose_.size() == 1) {
     num_jobs_for_background_++;
