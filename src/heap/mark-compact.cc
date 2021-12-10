@@ -3254,7 +3254,7 @@ class ClientHeapVerifier final : public ObjectVisitorWithCageBases {
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    UNREACHABLE();
+    VerifySlot(code_cage_base(), ObjectSlot(slot.address()));
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {}
