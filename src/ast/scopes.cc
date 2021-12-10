@@ -166,17 +166,19 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
 
 ModuleScope::ModuleScope(DeclarationScope* script_scope,
                          AstValueFactory* avfactory)
-    : DeclarationScope(avfactory->zone(), script_scope, MODULE_SCOPE,
-                       FunctionKind::kModule),
-      module_descriptor_(avfactory->zone()->New<SourceTextModuleDescriptor>(
-          avfactory->zone())) {
+    : DeclarationScope(avfactory->single_parse_zone(), script_scope,
+                       MODULE_SCOPE, FunctionKind::kModule),
+      module_descriptor_(
+          avfactory->single_parse_zone()->New<SourceTextModuleDescriptor>(
+              avfactory->single_parse_zone())) {
   set_language_mode(LanguageMode::kStrict);
   DeclareThis(avfactory);
 }
 
 ModuleScope::ModuleScope(Handle<ScopeInfo> scope_info,
                          AstValueFactory* avfactory)
-    : DeclarationScope(avfactory->zone(), MODULE_SCOPE, avfactory, scope_info),
+    : DeclarationScope(avfactory->single_parse_zone(), MODULE_SCOPE, avfactory,
+                       scope_info),
       module_descriptor_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
 }
@@ -1623,7 +1625,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   has_rest_ = false;
   function_ = nullptr;
 
-  DCHECK_NE(zone(), ast_value_factory->zone());
+  DCHECK_NE(zone(), ast_value_factory->single_parse_zone());
   // Make sure this scope and zone aren't used for allocation anymore.
   {
     // Get the zone, while variables_ is still valid
@@ -1634,7 +1636,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 
   if (aborted) {
     // Prepare scope for use in the outer zone.
-    variables_ = VariableMap(ast_value_factory->zone());
+    variables_ = VariableMap(ast_value_factory->single_parse_zone());
     if (!IsArrowFunction(function_kind_)) {
       has_simple_parameters_ = true;
       DeclareDefaultFunctionVariables(ast_value_factory);

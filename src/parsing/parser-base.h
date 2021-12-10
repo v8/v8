@@ -300,7 +300,7 @@ class ParserBase {
   void ResetFunctionLiteralId() { function_literal_id_ = 0; }
 
   // The Zone where the parsing outputs are stored.
-  Zone* main_zone() const { return ast_value_factory()->zone(); }
+  Zone* main_zone() const { return ast_value_factory()->single_parse_zone(); }
 
   // The current Zone, which might be the main zone or a temporary Zone.
   Zone* zone() const { return zone_; }

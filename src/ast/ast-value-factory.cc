@@ -353,16 +353,18 @@ const AstRawString* AstValueFactory::GetString(
 }
 
 AstConsString* AstValueFactory::NewConsString() {
-  return zone()->New<AstConsString>();
+  return single_parse_zone()->New<AstConsString>();
 }
 
 AstConsString* AstValueFactory::NewConsString(const AstRawString* str) {
-  return NewConsString()->AddString(zone(), str);
+  return NewConsString()->AddString(single_parse_zone(), str);
 }
 
 AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
                                               const AstRawString* str2) {
-  return NewConsString()->AddString(zone(), str1)->AddString(zone(), str2);
+  return NewConsString()
+      ->AddString(single_parse_zone(), str1)
+      ->AddString(single_parse_zone(), str2);
 }
 
 template <typename IsolateT>
@@ -395,9 +397,9 @@ const AstRawString* AstValueFactory::GetString(
       [&]() {
         // Copy literal contents for later comparison.
         int length = literal_bytes.length();
-        byte* new_literal_bytes = zone()->NewArray<byte>(length);
+        byte* new_literal_bytes = ast_raw_string_zone()->NewArray<byte>(length);
         memcpy(new_literal_bytes, literal_bytes.begin(), length);
-        AstRawString* new_string = zone()->New<AstRawString>(
+        AstRawString* new_string = ast_raw_string_zone()->New<AstRawString>(
             is_one_byte, base::Vector<const byte>(new_literal_bytes, length),
             raw_hash_field);
         CHECK_NOT_NULL(new_string);
