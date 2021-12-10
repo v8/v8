@@ -524,6 +524,7 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
   __ push(r4);
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
+  __ Trap();  // Unreachable.
 }
 
 namespace {
@@ -2045,6 +2046,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ EnterFrame(StackFrame::INTERNAL);
       __ Push(r6);
       __ CallRuntime(Runtime::kThrowNotConstructor);
+      __ Trap();  // Unreachable.
     }
     __ bind(&new_target_constructor);
   }
@@ -2209,6 +2211,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     FrameAndConstantPoolScope frame(masm, StackFrame::INTERNAL);
     __ push(r4);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
+    __ Trap();  // Unreachable.
   }
 }
 
@@ -2367,6 +2370,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     __ Push(target);
     __ CallRuntime(Runtime::kThrowCalledNonCallable);
+    __ Trap();  // Unreachable.
   }
 
   // 4. The function is a "classConstructor", need to raise an exception.
