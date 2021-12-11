@@ -89,7 +89,7 @@ def _default_args():
     return struct(
         deps = [":define_flags"],
         defines = select({
-            "@config//:is_windows": [
+            "@v8//bazel/config:is_windows": [
                 "UNICODE",
                 "_UNICODE",
                 "_CRT_RAND_S",
@@ -98,7 +98,7 @@ def _default_args():
             "//conditions:default": [],
         }),
         copts = select({
-            "@config//:is_posix": [
+            "@v8//bazel/config:is_posix": [
                 "-fPIC",
                 "-Werror",
                 "-Wextra",
@@ -115,12 +115,12 @@ def _default_args():
         }),
         includes = ["include"],
         linkopts = select({
-            "@config//:is_windows": [
+            "@v8//bazel/config:is_windows": [
                 "Winmm.lib",
                 "DbgHelp.lib",
                 "Advapi32.lib",
             ],
-            "@config//:is_macos": ["-pthread"],
+            "@v8//bazel/config:is_macos": ["-pthread"],
             "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
@@ -313,7 +313,7 @@ def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@config//:v8_target_is_32_bits": ":torque_non_pointer_compression",
+            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
             "//conditions:default": ":torque",
         }),
     )
@@ -324,7 +324,7 @@ def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@config//:v8_target_is_32_bits": ":torque_non_pointer_compression",
+            "@v8//bazel/config:v8_target_is_32_bits": ":torque_non_pointer_compression",
             "//conditions:default": ":torque",
         }),
     )
@@ -343,14 +343,14 @@ def _v8_target_cpu_transition_impl(settings, attr):
         "armeabi-v7a": "arm32",
     }
     v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
-    return {"@config//:v8_target_cpu": v8_target_cpu}
+    return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}
 
 # Set the v8_target_cpu to be the correct architecture given the cpu specified
 # on the command line.
 v8_target_cpu_transition = transition(
     implementation = _v8_target_cpu_transition_impl,
     inputs = ["//command_line_option:cpu"],
-    outputs = ["@config//:v8_target_cpu"],
+    outputs = ["@v8//bazel/config:v8_target_cpu"],
 )
 
 def _mksnapshot(ctx):

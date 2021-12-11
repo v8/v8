@@ -198,7 +198,7 @@ selects.config_setting_group(
     name = "v8_target_x64_default_pointer_compression",
     match_all = [
         ":v8_enable_pointer_compression_is_none",
-        "@config//:v8_target_x64",
+        "@v8//bazel/config:v8_target_x64",
     ],
 )
 
@@ -207,7 +207,7 @@ selects.config_setting_group(
     name = "v8_target_arm64_default_pointer_compression",
     match_all = [
         ":v8_enable_pointer_compression_is_none",
-        "@config//:v8_target_arm64",
+        "@v8//bazel/config:v8_target_arm64",
     ],
 )
 
@@ -252,7 +252,7 @@ selects.config_setting_group(
 selects.config_setting_group(
     name = "should_add_rdynamic",
     match_all = [
-        "@config//:is_linux",
+        "@v8//bazel/config:is_linux",
         ":is_v8_enable_backtrace",
     ],
 )
@@ -297,30 +297,30 @@ v8_config(
         "//conditions:default": [],
     }) + select(
         {
-            "@config//:v8_target_ia32": ["V8_TARGET_ARCH_IA32"],
-            "@config//:v8_target_x64": ["V8_TARGET_ARCH_X64"],
-            "@config//:v8_target_arm": [
+            "@v8//bazel/config:v8_target_ia32": ["V8_TARGET_ARCH_IA32"],
+            "@v8//bazel/config:v8_target_x64": ["V8_TARGET_ARCH_X64"],
+            "@v8//bazel/config:v8_target_arm": [
                 "V8_TARGET_ARCH_ARM",
                 "CAN_USE_ARMV7_INSTRUCTIONS",
                 "CAN_USE_VFP3_INSTRUCTIONS",
             ],
-            "@config//:v8_target_arm64": ["V8_TARGET_ARCH_ARM64"],
+            "@v8//bazel/config:v8_target_arm64": ["V8_TARGET_ARCH_ARM64"],
         },
         no_match_error = "Please specify a target cpu supported by v8",
     ) + select({
-        "@config//:is_android": [
+        "@v8//bazel/config:is_android": [
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_ANDROID",
         ],
-        "@config//:is_linux": [
+        "@v8//bazel/config:is_linux": [
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_LINUX",
         ],
-        "@config//:is_macos": [
+        "@v8//bazel/config:is_macos": [
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_MACOSX",
         ],
-        "@config//:is_windows": [
+        "@v8//bazel/config:is_windows": [
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_WIN",
             "UNICODE",
@@ -622,7 +622,7 @@ filegroup(
         "src/base/vlq-base64.h",
         "src/base/platform/yield-processor.h",
     ] + select({
-        "@config//:is_posix": [
+        "@v8//bazel/config:is_posix": [
             "src/base/platform/platform-posix.cc",
             "src/base/platform/platform-posix.h",
             "src/base/platform/platform-posix-time.cc",
@@ -630,19 +630,19 @@ filegroup(
         ],
         "//conditions:default": [],
     }) + select({
-        "@config//:is_linux": [
+        "@v8//bazel/config:is_linux": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-linux.cc",
         ],
-        "@config//:is_android": [
+        "@v8//bazel/config:is_android": [
             "src/base/debug/stack_trace_android.cc",
             "src/base/platform/platform-linux.cc",
         ],
-        "@config//:is_macos": [
+        "@v8//bazel/config:is_macos": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-macos.cc",
         ],
-        "@config//:is_windows": [
+        "@v8//bazel/config:is_windows": [
             "src/base/win32-headers.h",
             "src/base/debug/stack_trace_win.cc",
             "src/base/platform/platform-win32.cc",
@@ -2072,7 +2072,7 @@ filegroup(
         "src/heap/third-party/heap-api.h",
         "src/heap/third-party/heap-api-stub.cc",
     ] + select({
-        "@config//:v8_target_ia32": [
+        "@v8//bazel/config:v8_target_ia32": [
             "src/baseline/ia32/baseline-assembler-ia32-inl.h",
             "src/baseline/ia32/baseline-compiler-ia32-inl.h",
             "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
@@ -2100,7 +2100,7 @@ filegroup(
             "src/regexp/ia32/regexp-macro-assembler-ia32.h",
             "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
         ],
-        "@config//:v8_target_x64": [
+        "@v8//bazel/config:v8_target_x64": [
             "src/baseline/x64/baseline-assembler-x64-inl.h",
             "src/baseline/x64/baseline-compiler-x64-inl.h",
             "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
@@ -2132,7 +2132,7 @@ filegroup(
             "src/regexp/x64/regexp-macro-assembler-x64.h",
             "src/wasm/baseline/x64/liftoff-assembler-x64.h",
         ],
-        "@config//:v8_target_arm": [
+        "@v8//bazel/config:v8_target_arm": [
             "src/baseline/arm/baseline-assembler-arm-inl.h",
             "src/baseline/arm/baseline-compiler-arm-inl.h",
             "src/codegen/arm/assembler-arm-inl.h",
@@ -2163,7 +2163,7 @@ filegroup(
             "src/regexp/arm/regexp-macro-assembler-arm.h",
             "src/wasm/baseline/arm/liftoff-assembler-arm.h",
         ],
-        "@config//:v8_target_arm64": [
+        "@v8//bazel/config:v8_target_arm64": [
             "src/baseline/arm64/baseline-assembler-arm64-inl.h",
             "src/baseline/arm64/baseline-compiler-arm64-inl.h",
             "src/codegen/arm64/assembler-arm64-inl.h",
@@ -2208,19 +2208,19 @@ filegroup(
         ],
     }) + select({
         # Only for x64 builds and for arm64 with x64 host simulator.
-        "@config//:is_posix_x64": [
+        "@v8//bazel/config:is_posix_x64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
         "//conditions:default": [],
     }) + select({
-        "@config//:v8_arm64_simulator": [
+        "@v8//bazel/config:v8_arm64_simulator": [
             "src/trap-handler/trap-handler-simulator.h",
             "src/trap-handler/handler-outside-simulator.cc",
         ],
         "//conditions:default": [],
     }) + select({
-        "@config//:is_windows": [
+        "@v8//bazel/config:is_windows": [
             "src/trap-handler/handler-inside-win.cc",
             "src/trap-handler/handler-outside-win.cc",
             "src/trap-handler/handler-inside-win.h",
@@ -2230,7 +2230,7 @@ filegroup(
         ],
         "//conditions:default": [],
     }) + select({
-        "@config//:is_windows_64bit": [
+        "@v8//bazel/config:is_windows_64bit": [
             "src/diagnostics/unwinding-info-win64.cc",
             "src/diagnostics/unwinding-info-win64.h",
         ],
@@ -2712,10 +2712,10 @@ filegroup(
         "src/interpreter/interpreter-intrinsics-generator.cc",
         "src/interpreter/interpreter-intrinsics-generator.h",
     ] + select({
-        "@config//:v8_target_ia32": ["src/builtins/ia32/builtins-ia32.cc"],
-        "@config//:v8_target_x64": ["src/builtins/x64/builtins-x64.cc"],
-        "@config//:v8_target_arm": ["src/builtins/arm/builtins-arm.cc"],
-        "@config//:v8_target_arm64": ["src/builtins/arm64/builtins-arm64.cc"],
+        "@v8//bazel/config:v8_target_ia32": ["src/builtins/ia32/builtins-ia32.cc"],
+        "@v8//bazel/config:v8_target_x64": ["src/builtins/x64/builtins-x64.cc"],
+        "@v8//bazel/config:v8_target_arm": ["src/builtins/arm/builtins-arm.cc"],
+        "@v8//bazel/config:v8_target_arm64": ["src/builtins/arm64/builtins-arm64.cc"],
     }) + select({
         ":is_v8_enable_webassembly": [
             "src/builtins/builtins-wasm-gen.cc",
@@ -2832,13 +2832,13 @@ filegroup(
         # Note these cannot be v8_target_is_* selects because these contain
         # inline assembly that runs inside the executable. Since these are
         # linked directly into mksnapshot, they must use the actual target cpu.
-        "@config//:is_inline_asm_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
-        "@config//:is_inline_asm_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
-        "@config//:is_inline_asm_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
-        "@config//:is_inline_asm_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
-        "@config//:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/push_registers_masm.S"],
-        "@config//:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.S"],
-        "@config//:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
+        "@v8//bazel/config:is_inline_asm_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
+        "@v8//bazel/config:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/push_registers_masm.S"],
+        "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.S"],
+        "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
     }),
 )
 
@@ -2992,16 +2992,16 @@ filegroup(
     srcs = [
         "src/init/setup-isolate-deserialize.cc",
     ] + select({
-        "@config//:v8_target_arm": [
+        "@v8//bazel/config:v8_target_arm": [
             "google3/snapshots/arm/noicu/embedded.S",
             "google3/snapshots/arm/noicu/snapshot.cc",
         ],
-        "@config//:v8_target_ia32": [
+        "@v8//bazel/config:v8_target_ia32": [
             "google3/snapshots/ia32/noicu/embedded.S",
             "google3/snapshots/ia32/noicu/snapshot.cc",
         ],
-        "@config//:v8_target_arm64": [":noicu/generated_snapshot_files"],
-        "@config//:v8_target_x64": [":noicu/generated_snapshot_files"],
+        "@v8//bazel/config:v8_target_arm64": [":noicu/generated_snapshot_files"],
+        "@v8//bazel/config:v8_target_x64": [":noicu/generated_snapshot_files"],
     }),
 )
 
@@ -3010,16 +3010,16 @@ filegroup(
     srcs = [
         "src/init/setup-isolate-deserialize.cc",
     ] + select({
-        "@config//:v8_target_arm": [
+        "@v8//bazel/config:v8_target_arm": [
             "google3/snapshots/arm/icu/embedded.S",
             "google3/snapshots/arm/icu/snapshot.cc",
         ],
-        "@config//:v8_target_ia32": [
+        "@v8//bazel/config:v8_target_ia32": [
             "google3/snapshots/ia32/icu/embedded.S",
             "google3/snapshots/ia32/icu/snapshot.cc",
         ],
-        "@config//:v8_target_arm64": [":icu/generated_snapshot_files"],
-        "@config//:v8_target_x64": [":icu/generated_snapshot_files"],
+        "@v8//bazel/config:v8_target_arm64": [":icu/generated_snapshot_files"],
+        "@v8//bazel/config:v8_target_x64": [":icu/generated_snapshot_files"],
     }),
 )
 
@@ -3050,7 +3050,7 @@ v8_torque(
         ":is_v8_annotate_torque_ir": ["-annotate-ir"],
         "//conditions:default": [],
     }) + select({
-        "@config//:v8_target_is_32_bits": ["-m32"],
+        "@v8//bazel/config:v8_target_is_32_bits": ["-m32"],
         "//conditions:default": [],
     }),
     extras = [
@@ -3218,7 +3218,7 @@ cc_library(
         ":torque_base_files",
     ],
     copts = select({
-        "@config//:is_posix": [ "-fexceptions" ],
+        "@v8//bazel/config:is_posix": [ "-fexceptions" ],
         "//conditions:default": [],
     }),
     features = ["-use_header_modules"],
@@ -3325,12 +3325,12 @@ v8_binary(
         ":torque_base_files",
     ],
     copts = select({
-        "@config//:is_posix": [ "-fexceptions" ],
+        "@v8//bazel/config:is_posix": [ "-fexceptions" ],
         "//conditions:default": [],
     }),
     features = ["-use_header_modules"],
     linkopts = select({
-        "@config//:is_android": ["-llog"],
+        "@v8//bazel/config:is_android": ["-llog"],
         "//conditions:default": [],
     }),
     deps = ["v8_libbase"],
@@ -3341,7 +3341,7 @@ v8_binary(
     srcs = [":mksnapshot_files"],
     icu_deps = [":icu/v8_libshared"],
     linkopts = select({
-        "@config//:is_android": ["-llog"],
+        "@v8//bazel/config:is_android": ["-llog"],
         "//conditions:default": [],
     }),
     noicu_deps = [":v8_libshared_noicu"],
