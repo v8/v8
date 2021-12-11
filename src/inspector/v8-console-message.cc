@@ -479,8 +479,10 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     clientLevel = v8::Isolate::kMessageError;
   } else if (type == ConsoleAPIType::kWarning) {
     clientLevel = v8::Isolate::kMessageWarning;
-  } else if (type == ConsoleAPIType::kInfo || type == ConsoleAPIType::kLog) {
+  } else if (type == ConsoleAPIType::kInfo) {
     clientLevel = v8::Isolate::kMessageInfo;
+  } else if (type == ConsoleAPIType::kLog) {
+    clientLevel = v8::Isolate::kMessageLog;
   }
 
   if (type != ConsoleAPIType::kClear) {
