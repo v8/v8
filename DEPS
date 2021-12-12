@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '10669faf854ea95610e3d2c6b891ed04c0f837e4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dda89a8a45269fa264f4aebea9425e1f54e2aeb3',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '075dd7e22837a69189003e4fa84499acf63188cf',
   'buildtools/clang_format/script':
@@ -111,7 +111,7 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '79a2e924d96e2fc1e4b937c42efd08898fa472d7',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'd520ea5884d8b73519d87aa6e61a0e80ed95e850',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '58799ca24f08088ab1db9cdf7d67ee8b1f4bc605',
   'buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd81cd6236cd771e78d7e1a1807404ef3f1d21820',
   'buildtools/win': {
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '70bcf59d8db3665c58b2459222355deb513fb6cb',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '45fc896c3e1c8c9f135ba10ef019d778e6bc2ab7',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '58c7c386e6fa2155db9a6fd66df0064057c8e5b2',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ecc14aa45defda76feaa5651c407cc1315fd4a00',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
