@@ -574,9 +574,9 @@ void MarkCompactCollector::StartMarking() {
   marking_worklists()->CreateContextWorklists(contexts);
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
   local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
-      marking_worklists(), cpp_heap
-                               ? cpp_heap->CreateCppMarkingState()
-                               : MarkingWorklists::Local::kNoCppMarkingState);
+      marking_worklists(),
+      cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
+               : MarkingWorklists::Local::kNoCppMarkingState);
   local_weak_objects_ = std::make_unique<WeakObjects::Local>(weak_objects());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), local_weak_objects_.get(),

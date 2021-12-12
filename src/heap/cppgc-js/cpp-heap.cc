@@ -171,6 +171,14 @@ UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
       heap(), marking_state, unified_heap_marking_state_);
 }
 
+void FatalOutOfMemoryHandlerImpl(const std::string& reason,
+                                 const SourceLocation&, HeapBase* heap) {
+  FatalProcessOutOfMemory(static_cast<v8::internal::CppHeap*>(heap)->isolate(),
+                          reason.c_str());
+}
+
+}  // namespace
+
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
   UnifiedHeapMarker(Heap* v8_heap, cppgc::internal::HeapBase& cpp_heap,
@@ -182,6 +190,10 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
 
   cppgc::internal::MarkingWorklists& GetMarkingWorklists() {
     return marking_worklists_;
+  }
+
+  cppgc::internal::MarkingStateBase& GetMutatorMarkingState() {
+    return marking_visitor_.marking_state_;
   }
 
  protected:
@@ -218,14 +230,6 @@ void UnifiedHeapMarker::AddObject(void* object) {
   mutator_marking_state_.MarkAndPush(
       cppgc::internal::HeapObjectHeader::FromObject(object));
 }
-
-void FatalOutOfMemoryHandlerImpl(const std::string& reason,
-                                 const SourceLocation&, HeapBase* heap) {
-  FatalProcessOutOfMemory(static_cast<v8::internal::CppHeap*>(heap)->isolate(),
-                          reason.c_str());
-}
-
-}  // namespace
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
     const FullCycle& cppgc_event) {
@@ -718,8 +722,18 @@ void CppHeap::FinishSweepingIfRunning() { sweeper_.FinishIfRunning(); }
 std::unique_ptr<CppMarkingState> CppHeap::CreateCppMarkingState() {
   DCHECK(IsMarking());
   return std::make_unique<CppMarkingState>(
-      *this, wrapper_descriptor_,
-      static_cast<UnifiedHeapMarker*>(marker())->GetMarkingWorklists());
+      isolate(), wrapper_descriptor_,
+      std::make_unique<cppgc::internal::MarkingStateBase>(
+          AsBase(),
+          static_cast<UnifiedHeapMarker*>(marker())->GetMarkingWorklists()));
+}
+
+std::unique_ptr<CppMarkingState>
+CppHeap::CreateCppMarkingStateForMutatorThread() {
+  DCHECK(IsMarking());
+  return std::make_unique<CppMarkingState>(
+      isolate(), wrapper_descriptor_,
+      static_cast<UnifiedHeapMarker*>(marker())->GetMutatorMarkingState());
 }
 
 }  // namespace internal

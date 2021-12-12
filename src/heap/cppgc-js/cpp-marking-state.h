@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_CPPGC_JS_CPP_MARKING_STATE_H_
 #define V8_HEAP_CPPGC_JS_CPP_MARKING_STATE_H_
 
+#include <memory>
+
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-worklists.h"
@@ -16,13 +18,20 @@ class JSObject;
 
 class CppMarkingState {
  public:
-  CppMarkingState(CppHeap& cpp_heap,
-                  const WrapperDescriptor& wrapper_descriptor,
-                  cppgc::internal::MarkingWorklists& marking_worklists)
-      : isolate_(reinterpret_cast<Isolate*>(cpp_heap.isolate())),
+  CppMarkingState(Isolate* isolate, const WrapperDescriptor& wrapper_descriptor,
+                  cppgc::internal::MarkingStateBase& main_thread_marking_state)
+      : isolate_(isolate),
         wrapper_descriptor_(wrapper_descriptor),
-        marking_state_(cpp_heap.AsBase(), marking_worklists) {}
+        owned_marking_state_(nullptr),
+        marking_state_(main_thread_marking_state) {}
 
+  CppMarkingState(Isolate* isolate, const WrapperDescriptor& wrapper_descriptor,
+                  std::unique_ptr<cppgc::internal::MarkingStateBase>
+                      concurrent_marking_state)
+      : isolate_(isolate),
+        wrapper_descriptor_(wrapper_descriptor),
+        owned_marking_state_(std::move(concurrent_marking_state)),
+        marking_state_(*owned_marking_state_) {}
   CppMarkingState(const CppMarkingState&) = delete;
   CppMarkingState& operator=(const CppMarkingState&) = delete;
 
@@ -38,7 +47,8 @@ class CppMarkingState {
   Isolate* const isolate_;
   const WrapperDescriptor& wrapper_descriptor_;
 
-  cppgc::internal::MarkingStateBase marking_state_;
+  std::unique_ptr<cppgc::internal::MarkingStateBase> owned_marking_state_;
+  cppgc::internal::MarkingStateBase& marking_state_;
 };
 
 }  // namespace internal

@@ -136,6 +136,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   Isolate* isolate() const { return isolate_; }
 
   std::unique_ptr<CppMarkingState> CreateCppMarkingState();
+  std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();
 
  private:
   void FinalizeIncrementalGarbageCollectionIfNeeded(

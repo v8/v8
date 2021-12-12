@@ -31,6 +31,8 @@ using cppgc::WeakCallback;
 using cppgc::internal::HeapBase;
 using cppgc::internal::MutatorMarkingState;
 
+class UnifiedHeapMarker;
+
 class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
  public:
   UnifiedHeapMarkingVisitorBase(HeapBase&, cppgc::internal::BasicMarkingState&,
@@ -53,6 +55,8 @@ class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
 
   cppgc::internal::BasicMarkingState& marking_state_;
   UnifiedHeapMarkingState& unified_heap_marking_state_;
+
+  friend class UnifiedHeapMarker;
 };
 
 class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor final
