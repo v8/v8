@@ -2247,6 +2247,7 @@ UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, ARRAY_FLOAT, /)
 // between vectors
 #define UTEST_RVV_FMA_VV_FORM_WITH_RES(instr_name, array, expect_res)        \
   TEST(RISCV_UTEST_##instr_name) {                                           \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
     CcTest::InitializeVM();                                                  \
     auto fn = [](MacroAssembler& assm) {                                     \
       __ VU.set(t0, VSew::E32, Vlmul::m1);                                   \
@@ -2271,6 +2272,7 @@ UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, ARRAY_FLOAT, /)
 // between vectors and scalar
 #define UTEST_RVV_FMA_VF_FORM_WITH_RES(instr_name, array, expect_res)        \
   TEST(RISCV_UTEST_##instr_name) {                                           \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
     CcTest::InitializeVM();                                                  \
     auto fn = [](MacroAssembler& assm) {                                     \
       __ VU.set(t0, VSew::E32, Vlmul::m1);                                   \
@@ -2362,6 +2364,7 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
 
 #define UTEST_RVV_VNCLIP_E32M2_E16M1(instr_name, sign)                       \
   TEST(RISCV_UTEST_##instr_name##_E32M2_E16M1) {                             \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
     constexpr RoundingMode vxrm = RNE;                                       \
     CcTest::InitializeVM();                                                  \
     Isolate* isolate = CcTest::i_isolate();                                  \
@@ -2401,6 +2404,7 @@ UTEST_RVV_VNCLIP_E32M2_E16M1(vnclip_vi, )
 #define UTEST_RVV_VI_VIE_FORM_WITH_RES(instr_name, type, width, frac_width, \
                                        array, expect_res)                   \
   TEST(RISCV_UTEST_##instr_name##_##width##_##frac_width) {                 \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                      \
     constexpr uint32_t vlen = 128;                                          \
     constexpr uint32_t n = vlen / width;                                    \
     CcTest::InitializeVM();                                                 \
@@ -2456,6 +2460,7 @@ UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf2, int16_t, 16, 8, ARRAY(int8_t),
 #define UTEST_RVV_VP_VS_VI_FORM_WITH_RES(instr_name, type, width, array, \
                                          expect_res)                     \
   TEST(RISCV_UTEST_##instr_name##_##type) {                              \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                   \
     constexpr uint32_t vlen = 128;                                       \
     constexpr uint32_t n = vlen / width;                                 \
     CcTest::InitializeVM();                                              \
@@ -2496,7 +2501,6 @@ UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint8_t, 8, ARRAY(uint8_t),
 
 #undef UTEST_RVV_VP_VS_VI_FORM_WITH_RES
 #undef ARRAY
-
 #undef __
 
 }  // namespace internal

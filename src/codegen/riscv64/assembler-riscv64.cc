@@ -57,9 +57,9 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   answer |= 1u << FPU;
 #endif  // def CAN_USE_FPU_INSTRUCTIONS
 
-#ifdef CAN_USE_RVV_INSTRUCTIONS
+#if (defined CAN_USE_RVV_INSTRUCTIONS) && (defined USE_SIMULATOR)
   answer |= 1u << RISCV_SIMD;
-#endif  // def CAN_USE_RVV_INSTRUCTIONS
+#endif  // def CAN_USE_RVV_INSTRUCTIONS && USE_SIMULATOR
   return answer;
 }
 
@@ -72,6 +72,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Probe for additional features at runtime.
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
+  if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
   // Set a static value on whether SIMD is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use

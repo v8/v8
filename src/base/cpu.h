@@ -127,6 +127,9 @@ class V8_BASE_EXPORT CPU final {
   bool is_fp64_mode() const { return is_fp64_mode_; }
   bool has_msa() const { return has_msa_; }
 
+  // riscv features
+  bool has_rvv() const { return has_rvv_; }
+
  private:
 #if defined(V8_OS_STARBOARD)
   bool StarboardDetectCPU();
@@ -175,6 +178,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_non_stop_time_stamp_counter_;
   bool is_running_in_vm_;
   bool has_msa_;
+  bool has_rvv_;
 };
 
 }  // namespace base

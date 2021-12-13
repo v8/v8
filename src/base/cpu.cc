@@ -85,7 +85,7 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #endif  // !V8_LIBC_MSVCRT
 
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS || \
-    V8_HOST_ARCH_MIPS64
+    V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
 #if V8_OS_LINUX
 
@@ -354,7 +354,7 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_OS_LINUX
 
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
-        // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+        // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
 #if defined(V8_OS_STARBOARD)
 
@@ -444,7 +444,8 @@ CPU::CPU()
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
-      has_msa_(false) {
+      has_msa_(false),
+      has_rvv_(false) {
   memcpy(vendor_, "Unknown", 8);
 
 #if defined(V8_OS_STARBOARD)
@@ -854,7 +855,19 @@ CPU::CPU()
   }
 #endif  // V8_OS_AIX
 #endif  // !USE_SIMULATOR
-#endif  // V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
+
+#elif V8_HOST_ARCH_RISCV64
+  CPUInfo cpu_info;
+  char* features = cpu_info.ExtractField("isa");
+
+  if (HasListItem(features, "rv64imafdc")) {
+    has_fpu_ = true;
+  }
+  if (HasListItem(features, "rv64imafdcv")) {
+    has_fpu_ = true;
+    has_rvv_ = true;
+  }
+#endif  // V8_HOST_ARCH_RISCV64
 }
 
 }  // namespace base
