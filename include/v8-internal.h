@@ -606,6 +606,10 @@ V8_INLINE void PerformCastCheck(T* data) {
 // how static casts work with std::shared_ptr.
 class BackingStoreBase {};
 
+// The maximum value in enum GarbageCollectionReason, defined in heap.h.
+// This is needed for histograms sampling garbage collection reasons.
+constexpr int kGarbageCollectionReasonMaxValue = 25;
+
 }  // namespace internal
 
 }  // namespace v8

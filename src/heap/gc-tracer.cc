@@ -1452,16 +1452,26 @@ void GCTracer::ReportYoungCycleToRecorder() {
   DCHECK_NOT_NULL(recorder);
   if (!recorder->HasEmbedderRecorder()) return;
   v8::metrics::GarbageCollectionYoungCycle event;
+  // Reason:
+  event.reason = static_cast<int>(current_.gc_reason);
   // Total:
   const double total_wall_clock_duration_in_us =
       (current_.scopes[Scope::SCAVENGER] +
-       current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]) *
+       current_.scopes[Scope::MINOR_MARK_COMPACTOR] +
+       current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
+       current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY] +
+       current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING] +
+       current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]) *
       base::Time::kMicrosecondsPerMillisecond;
+  // TODO(chromium:1154636): Consider adding BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
+  // (both for the case of the scavenger and the minor mark-compactor), and
+  // BACKGROUND_UNMAPPER (for the case of the minor mark-compactor).
   event.total_wall_clock_duration_in_us =
       static_cast<int64_t>(total_wall_clock_duration_in_us);
   // MainThread:
   const double main_thread_wall_clock_duration_in_us =
-      current_.scopes[Scope::SCAVENGER] *
+      (current_.scopes[Scope::SCAVENGER] +
+       current_.scopes[Scope::MINOR_MARK_COMPACTOR]) *
       base::Time::kMicrosecondsPerMillisecond;
   event.main_thread_wall_clock_duration_in_us =
       static_cast<int64_t>(main_thread_wall_clock_duration_in_us);

@@ -73,6 +73,7 @@ struct GarbageCollectionFullMainThreadBatchedIncrementalSweep {
 };
 
 struct GarbageCollectionYoungCycle {
+  int reason = -1;
   int64_t total_wall_clock_duration_in_us = -1;
   int64_t main_thread_wall_clock_duration_in_us = -1;
   double collection_rate_in_percent;

@@ -135,7 +135,10 @@ enum class AllocationOrigin {
   kNumberOfAllocationOrigins = kLastAllocationOrigin + 1
 };
 
-enum class GarbageCollectionReason {
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused. If you add new items here, update
+// src/tools/metrics/histograms/enums.xml in chromium.
+enum class GarbageCollectionReason : int {
   kUnknown = 0,
   kAllocationFailure = 1,
   kAllocationLimit = 2,
@@ -162,10 +165,13 @@ enum class GarbageCollectionReason {
   kGlobalAllocationLimit = 23,
   kMeasureMemory = 24,
   kBackgroundAllocationFailure = 25,
-  // If you add new items here, then update the incremental_marking_reason,
-  // mark_compact_reason, and scavenge_reason counters in counters.h.
-  // Also update src/tools/metrics/histograms/enums.xml in chromium.
+
+  kLastReason = kBackgroundAllocationFailure,
 };
+
+static_assert(kGarbageCollectionReasonMaxValue ==
+                  static_cast<int>(GarbageCollectionReason::kLastReason),
+              "The value of kGarbageCollectionReasonMaxValue is inconsistent.");
 
 enum class YoungGenerationHandling {
   kRegularScavenge = 0,
