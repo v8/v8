@@ -169,7 +169,6 @@
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
-      'V8 Arm64 - builder - perf': 'official_arm64',
       'V8 Android Arm - builder - perf': 'official_android_arm',
       'V8 Android Arm64 - builder - perf': 'official_android_arm64',
       'V8 Linux - builder - perf': 'official_x86',
@@ -470,8 +469,6 @@
     # Official configs for arm
     'official_arm': [
       'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo'],
-    'official_arm64': [
-      'release_bot', 'arm64', 'hard_float', 'official', 'disable_pgo'],
     'official_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs', 'official', 'disable_pgo'],
@@ -720,7 +717,7 @@
 
     'disable_concurrent_marking': {
       # Disable concurrent marking and atomic object field writes in order to
-      # increase the TSAN coverage for background tasks. We need to keep the 
+      # increase the TSAN coverage for background tasks. We need to keep the
       # atomic marking state enabled because that is needed for the concurrent
       # write-barrier used by background compilation.
       'gn_args': 'v8_enable_concurrent_marking=false '
@@ -950,7 +947,7 @@
       'gn_args': 'v8_enable_pointer_compression=false',
     },
     'v8_enable_single_generation': {
-      'gn_args': 'v8_enable_single_generation=true ' 
+      'gn_args': 'v8_enable_single_generation=true '
                  'v8_disable_write_barriers=true',
     },
     'v8_enable_test_features': {
