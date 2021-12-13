@@ -257,9 +257,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 #if V8_ENABLE_WEBASSEMBLY
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  void AssembleArchBinarySearchSwitchRange(Register input, RpoNumber def_block,
-                                           std::pair<int32_t, Label*>* begin,
-                                           std::pair<int32_t, Label*>* end);
+  void AssembleArchBinarySearchSwitchRange(
+      Register input, RpoNumber def_block, std::pair<int32_t, RpoNumber>* begin,
+      std::pair<int32_t, RpoNumber>* end,
+      int32_t min_possible_value = std::numeric_limits<int32_t>::min(),
+      int32_t max_possible_value = std::numeric_limits<int32_t>::max());
   void AssembleArchBinarySearchSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
