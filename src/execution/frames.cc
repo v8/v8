@@ -869,15 +869,23 @@ void ExitFrame::FillState(Address fp, Address sp, State* state) {
   state->constant_pool_address = nullptr;
 }
 
+void BuiltinExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
+  DCHECK(frames->empty());
+  Handle<FixedArray> parameters = GetParameters();
+  DisallowGarbageCollection no_gc;
+  Code code = LookupCode();
+  int code_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
+  FrameSummary::JavaScriptFrameSummary summary(
+      isolate(), receiver(), function(), AbstractCode::cast(code), code_offset,
+      IsConstructor(), *parameters);
+  frames->push_back(summary);
+}
+
 JSFunction BuiltinExitFrame::function() const {
   return JSFunction::cast(target_slot_object());
 }
 
 Object BuiltinExitFrame::receiver() const { return receiver_slot_object(); }
-
-bool BuiltinExitFrame::IsConstructor() const {
-  return !new_target_slot_object().IsUndefined(isolate());
-}
 
 Object BuiltinExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
@@ -894,6 +902,22 @@ int BuiltinExitFrame::ComputeParametersCount() const {
   int argc = Smi::ToInt(argc_slot) - 4;
   DCHECK_GE(argc, 0);
   return argc;
+}
+
+Handle<FixedArray> BuiltinExitFrame::GetParameters() const {
+  if (V8_LIKELY(!FLAG_detailed_error_stack_trace)) {
+    return isolate()->factory()->empty_fixed_array();
+  }
+  int param_count = ComputeParametersCount();
+  auto parameters = isolate()->factory()->NewFixedArray(param_count);
+  for (int i = 0; i < param_count; i++) {
+    parameters->set(i, GetParameter(i));
+  }
+  return parameters;
+}
+
+bool BuiltinExitFrame::IsConstructor() const {
+  return !new_target_slot_object().IsUndefined(isolate());
 }
 
 namespace {

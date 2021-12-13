@@ -785,38 +785,6 @@ class StackTraceBuilder {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  void AppendBuiltinExitFrame(BuiltinExitFrame* exit_frame) {
-    Handle<JSFunction> function(exit_frame->function(), isolate_);
-    if (!IsVisibleInStackTrace(function)) return;
-
-    // TODO(szuend): Remove this check once the flag is enabled
-    //               by default.
-    if (!FLAG_experimental_stack_trace_frames &&
-        function->shared().IsApiFunction()) {
-      return;
-    }
-
-    Handle<Object> receiver(exit_frame->receiver(), isolate_);
-    Handle<Code> code(exit_frame->LookupCode(), isolate_);
-    const int offset =
-        code->GetOffsetFromInstructionStart(isolate_, exit_frame->pc());
-
-    int flags = 0;
-    if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
-    if (exit_frame->IsConstructor()) flags |= StackFrameInfo::kIsConstructor;
-
-    Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
-      int param_count = exit_frame->ComputeParametersCount();
-      parameters = isolate_->factory()->NewFixedArray(param_count);
-      for (int i = 0; i < param_count; i++) {
-        parameters->set(i, exit_frame->GetParameter(i));
-      }
-    }
-
-    AppendFrame(receiver, function, code, offset, flags, parameters);
-  }
-
   bool Full() { return index_ >= limit_; }
 
   Handle<FixedArray> Build() {
@@ -866,6 +834,12 @@ class StackTraceBuilder {
   }
 
   bool IsNotHidden(Handle<JSFunction> function) {
+    // TODO(szuend): Remove this check once the flag is enabled
+    //               by default.
+    if (!FLAG_experimental_stack_trace_frames &&
+        function->shared().IsApiFunction()) {
+      return false;
+    }
     // Functions defined not in user scripts are not visible unless directly
     // exposed, in which case the native flag is set.
     // The --builtins-in-stack-traces command line flag allows including
@@ -1059,7 +1033,6 @@ struct CaptureStackTraceOptions {
   FrameSkipMode skip_mode;
   StackTraceBuilder::FrameFilterMode filter_mode;
 
-  bool capture_builtin_exit_frames;
   bool capture_only_frames_subject_to_debugging;
   bool async_stack_trace;
 };
@@ -1085,6 +1058,7 @@ Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
        it.Advance()) {
     StackFrame* const frame = it.frame();
     switch (frame->type()) {
+      case StackFrame::BUILTIN_EXIT:
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::OPTIMIZED:
@@ -1124,14 +1098,6 @@ Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
         }
         break;
       }
-
-      case StackFrame::BUILTIN_EXIT:
-        if (!options.capture_builtin_exit_frames) continue;
-
-        // BuiltinExitFrames are not standard frames, so they do not have
-        // Summarize(). However, they may have one JS frame worth showing.
-        builder.AppendBuiltinExitFrame(BuiltinExitFrame::cast(frame));
-        break;
 
       default:
         break;
@@ -1221,7 +1187,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   CaptureStackTraceOptions options;
   options.limit = limit;
   options.skip_mode = mode;
-  options.capture_builtin_exit_frames = true;
   options.async_stack_trace = FLAG_async_stack_traces;
   options.filter_mode = StackTraceBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
@@ -1313,7 +1278,6 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
   CaptureStackTraceOptions options;
   options.limit = std::max(frame_limit, 0);  // Ensure no negative values.
   options.skip_mode = SKIP_NONE;
-  options.capture_builtin_exit_frames = false;
   options.async_stack_trace = false;
   options.filter_mode =
       (stack_trace_options & StackTrace::kExposeFramesAcrossSecurityOrigins)
@@ -2230,7 +2194,6 @@ void Isolate::PrintCurrentStackTrace(std::ostream& out) {
   CaptureStackTraceOptions options;
   options.limit = 0;
   options.skip_mode = SKIP_NONE;
-  options.capture_builtin_exit_frames = true;
   options.async_stack_trace = FLAG_async_stack_traces;
   options.filter_mode = StackTraceBuilder::CURRENT_SECURITY_CONTEXT;
   options.capture_only_frames_subject_to_debugging = false;
