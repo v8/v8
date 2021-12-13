@@ -498,7 +498,7 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
       tasm()->JumpIfEqual(input, begin->first, begin->second);
       ++begin;
     }
-    AssembleArchJump(def_block);
+    AssembleArchJumpRegardlessOfAssemblyOrder(def_block);
     return;
   }
   auto middle = begin + (end - begin) / 2;
@@ -507,6 +507,11 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
   AssembleArchBinarySearchSwitchRange(input, def_block, middle, end);
   tasm()->bind(&less_label);
   AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
+}
+
+void CodeGenerator::AssembleArchJump(RpoNumber target) {
+  if (!IsNextInAssemblyOrder(target))
+    AssembleArchJumpRegardlessOfAssemblyOrder(target);
 }
 
 base::OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
