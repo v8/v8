@@ -183,21 +183,6 @@ void DecodeError(Decoder* decoder, const char* str) {
 
 namespace value_type_reader {
 
-V8_INLINE WasmFeature feature_for_heap_type(HeapType heap_type) {
-  switch (heap_type.representation()) {
-    case HeapType::kFunc:
-    case HeapType::kExtern:
-      return WasmFeature::kFeature_reftypes;
-    case HeapType::kEq:
-    case HeapType::kI31:
-    case HeapType::kData:
-    case HeapType::kAny:
-      return WasmFeature::kFeature_gc;
-    case HeapType::kBottom:
-      UNREACHABLE();
-  }
-}
-
 // If {module} is not null, the read index will be checked against the module's
 // type capacity.
 template <Decoder::ValidateFlag validate>
@@ -215,29 +200,26 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
     uint8_t uint_7_mask = 0x7F;
     uint8_t code = static_cast<ValueTypeCode>(heap_index) & uint_7_mask;
     switch (code) {
-      case kFuncRefCode:
       case kEqRefCode:
-      case kExternRefCode:
       case kI31RefCode:
       case kDataRefCode:
-      case kAnyRefCode: {
-        HeapType result = HeapType::from_code(code);
-        if (!VALIDATE(enabled.contains(feature_for_heap_type(result)))) {
+      case kAnyRefCode:
+        if (!VALIDATE(enabled.has_gc())) {
           DecodeError<validate>(
               decoder, pc,
-              "invalid heap type '%s', enable with --experimental-wasm-%s",
-              result.name().c_str(),
-              WasmFeatures::name_for_feature(feature_for_heap_type(result)));
+              "invalid heap type '%s', enable with --experimental-wasm-gc",
+              HeapType::from_code(code).name().c_str());
           return HeapType(HeapType::kBottom);
         }
-        return result;
-      }
+        V8_FALLTHROUGH;
+      case kExternRefCode:
+      case kFuncRefCode:
+        return HeapType::from_code(code);
       default:
         DecodeError<validate>(decoder, pc, "Unknown heap type %" PRId64,
                               heap_index);
         return HeapType(HeapType::kBottom);
     }
-    UNREACHABLE();
   } else {
     if (!VALIDATE(enabled.has_typed_funcref())) {
       DecodeError<validate>(decoder, pc,
@@ -281,26 +263,25 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
   }
   ValueTypeCode code = static_cast<ValueTypeCode>(val);
   switch (code) {
-    case kFuncRefCode:
     case kEqRefCode:
-    case kExternRefCode:
     case kI31RefCode:
     case kDataRefCode:
-    case kAnyRefCode: {
+    case kAnyRefCode:
+      if (!VALIDATE(enabled.has_gc())) {
+        DecodeError<validate>(
+            decoder, pc,
+            "invalid value type '%sref', enable with --experimental-wasm-gc",
+            HeapType::from_code(code).name().c_str());
+        return kWasmBottom;
+      }
+      V8_FALLTHROUGH;
+    case kExternRefCode:
+    case kFuncRefCode: {
       HeapType heap_type = HeapType::from_code(code);
       Nullability nullability = code == kI31RefCode || code == kDataRefCode
                                     ? kNonNullable
                                     : kNullable;
-      ValueType result = ValueType::Ref(heap_type, nullability);
-      if (!VALIDATE(enabled.contains(feature_for_heap_type(heap_type)))) {
-        DecodeError<validate>(
-            decoder, pc,
-            "invalid value type '%s', enable with --experimental-wasm-%s",
-            result.name().c_str(),
-            WasmFeatures::name_for_feature(feature_for_heap_type(heap_type)));
-        return kWasmBottom;
-      }
-      return result;
+      return ValueType::Ref(heap_type, nullability);
     }
     case kI32Code:
       return kWasmI32;
@@ -1354,13 +1335,6 @@ class WasmDecoder : public Decoder {
 
   bool Validate(const byte* pc, CallIndirectImmediate<validate>& imm) {
     if (!ValidateSignature(pc, imm.sig_imm)) return false;
-    // call_indirect is not behind the reftypes feature, so we have to impose
-    // the older format if reftypes is not enabled.
-    if (!VALIDATE((imm.table_imm.index == 0 && imm.table_imm.length == 1) ||
-                  this->enabled_.has_reftypes())) {
-      DecodeError(pc + imm.sig_imm.length, "expected table index 0, found %u",
-                  imm.table_imm.index);
-    }
     if (!ValidateTable(pc + imm.sig_imm.length, imm.table_imm)) {
       return false;
     }
@@ -1538,6 +1512,9 @@ class WasmDecoder : public Decoder {
   // The following Validate* functions all validate an IndexImmediate, albeit
   // differently according to context.
   bool ValidateTable(const byte* pc, IndexImmediate<validate>& imm) {
+    if (imm.index > 0 || imm.length > 1) {
+      this->detected_->Add(kFeature_reftypes);
+    }
     if (!VALIDATE(imm.index < module_->tables.size())) {
       DecodeError(pc, "invalid table index: %u", imm.index);
       return false;
@@ -2941,7 +2918,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   DECODE(SelectWithType) {
-    CHECK_PROTOTYPE_OPCODE(reftypes);
+    this->detected_->Add(kFeature_reftypes);
     SelectTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1,
                                       this->module_);
     if (this->failed()) return 0;
@@ -3075,7 +3052,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   DECODE(RefNull) {
-    CHECK_PROTOTYPE_OPCODE(reftypes);
+    this->detected_->Add(kFeature_reftypes);
     HeapTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1,
                                     this->module_);
     if (!VALIDATE(this->ok())) return 0;
@@ -3087,7 +3064,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   DECODE(RefIsNull) {
-    CHECK_PROTOTYPE_OPCODE(reftypes);
+    this->detected_->Add(kFeature_reftypes);
     Value value = Peek(0, 0);
     Value result = CreateValue(kWasmI32);
     switch (value.type.kind()) {
@@ -3116,7 +3093,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   DECODE(RefFunc) {
-    CHECK_PROTOTYPE_OPCODE(reftypes);
+    this->detected_->Add(kFeature_reftypes);
     IndexImmediate<validate> imm(this, this->pc_ + 1, "function index");
     if (!this->ValidateFunction(this->pc_ + 1, imm)) return 0;
     HeapType heap_type(this->enabled_.has_typed_funcref()
@@ -3221,7 +3198,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   DECODE(TableGet) {
-    CHECK_PROTOTYPE_OPCODE(reftypes);
+    this->detected_->Add(kFeature_reftypes);
     IndexImmediate<validate> imm(this, this->pc_ + 1, "table index");
     if (!this->ValidateTable(this->pc_ + 1, imm)) return 0;
     Value index = Peek(0, 0, kWasmI32);
@@ -3233,7 +3210,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   DECODE(TableSet) {
-    CHECK_PROTOTYPE_OPCODE(reftypes);
+    this->detected_->Add(kFeature_reftypes);
     IndexImmediate<validate> imm(this, this->pc_ + 1, "table index");
     if (!this->ValidateTable(this->pc_ + 1, imm)) return 0;
     Value value = Peek(0, 1, this->module_->tables[imm.index].type);
@@ -3419,7 +3396,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         this->pc_, &opcode_length, "numeric index");
     if (full_opcode == kExprTableGrow || full_opcode == kExprTableSize ||
         full_opcode == kExprTableFill) {
-      CHECK_PROTOTYPE_OPCODE(reftypes);
+      this->detected_->Add(kFeature_reftypes);
     }
     trace_msg->AppendOpcode(full_opcode);
     return DecodeNumericOpcode(full_opcode, opcode_length);

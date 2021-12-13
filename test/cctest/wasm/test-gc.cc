@@ -33,7 +33,6 @@ class WasmGCTester {
   explicit WasmGCTester(
       TestExecutionTier execution_tier = TestExecutionTier::kTurbofan)
       : flag_gc(&v8::internal::FLAG_experimental_wasm_gc, true),
-        flag_reftypes(&v8::internal::FLAG_experimental_wasm_reftypes, true),
         flag_typedfuns(&v8::internal::FLAG_experimental_wasm_typed_funcref,
                        true),
         flag_liftoff(&v8::internal::FLAG_liftoff,
@@ -176,7 +175,6 @@ class WasmGCTester {
 
  private:
   const FlagScope<bool> flag_gc;
-  const FlagScope<bool> flag_reftypes;
   const FlagScope<bool> flag_typedfuns;
   const FlagScope<bool> flag_liftoff;
   const FlagScope<bool> flag_liftoff_only;

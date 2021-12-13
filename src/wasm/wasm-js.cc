@@ -1158,8 +1158,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
       // With the type reflection proposal, "funcref" replaces "anyfunc",
       // and anyfunc just becomes an alias for "funcref".
       type = i::wasm::kWasmFuncRef;
-    } else if (enabled_features.has_reftypes() &&
-               string->StringEquals(v8_str(isolate, "externref"))) {
+    } else if (string->StringEquals(v8_str(isolate, "externref"))) {
       type = i::wasm::kWasmExternRef;
     } else {
       thrower.TypeError(
@@ -1331,16 +1330,14 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
     *type = i::wasm::kWasmI64;
   } else if (string->StringEquals(v8_str(isolate, "f64"))) {
     *type = i::wasm::kWasmF64;
-  } else if (enabled_features.has_reftypes() &&
-             string->StringEquals(v8_str(isolate, "externref"))) {
+  } else if (string->StringEquals(v8_str(isolate, "externref"))) {
     *type = i::wasm::kWasmExternRef;
   } else if (enabled_features.has_type_reflection() &&
              string->StringEquals(v8_str(isolate, "funcref"))) {
     // The type reflection proposal renames "anyfunc" to "funcref", and makes
     // "anyfunc" an alias of "funcref".
     *type = i::wasm::kWasmFuncRef;
-  } else if (enabled_features.has_reftypes() &&
-             string->StringEquals(v8_str(isolate, "anyfunc"))) {
+  } else if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
     // The JS api spec uses 'anyfunc' instead of 'funcref'.
     *type = i::wasm::kWasmFuncRef;
   } else if (enabled_features.has_gc() &&

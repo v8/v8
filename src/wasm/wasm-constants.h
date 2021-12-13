@@ -24,7 +24,7 @@ constexpr uint32_t kWasmVersion = 0x01;
 
 // Binary encoding of value and heap types.
 enum ValueTypeCode : uint8_t {
-  // Current wasm types
+  // Current value types
   kVoidCode = 0x40,
   kI32Code = 0x7f,
   kI64Code = 0x7e,
@@ -32,11 +32,13 @@ enum ValueTypeCode : uint8_t {
   kF64Code = 0x7c,
   // Simd proposal
   kS128Code = 0x7b,
-  // reftypes, typed-funcref, and GC proposals
+  // GC proposal packed types
   kI8Code = 0x7a,
   kI16Code = 0x79,
+  // Current reference types
   kFuncRefCode = 0x70,
   kExternRefCode = 0x6f,
+  // typed-funcref and GC proposal types
   kAnyRefCode = 0x6e,
   kEqRefCode = 0x6d,
   kOptRefCode = 0x6c,

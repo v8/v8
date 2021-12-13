@@ -586,7 +586,7 @@ class LiftoffCompiler {
       case kRttWithDepth:
       case kI8:
       case kI16:
-        bailout_reason = kRefTypes;
+        bailout_reason = kGC;
         break;
       default:
         UNREACHABLE();

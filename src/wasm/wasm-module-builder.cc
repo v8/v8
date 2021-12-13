@@ -785,59 +785,40 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_size(element_segments_.size());
     for (const WasmElemSegment& segment : element_segments_) {
       bool is_active = segment.status == WasmElemSegment::kStatusActive;
-      // If this segment is expressible in the backwards-compatible syntax
-      // (before reftypes proposal), we should emit it in that syntax.
-      // This is the case if the segment is active and all entries are function
-      // references. Note that this is currently the only path that allows
-      // kRelativeToImports function indexing mode.
-      // TODO(manoskouk): Remove this logic once reftypes has shipped.
-      bool backwards_compatible =
-          is_active && segment.table_index == 0 &&
-          std::all_of(
-              segment.entries.begin(), segment.entries.end(), [](auto& entry) {
-                return entry.kind ==
-                       WasmModuleBuilder::WasmElemSegment::Entry::kRefFuncEntry;
-              });
-      if (backwards_compatible) {
-        buffer->write_u8(0);
+      // We pick the most general syntax, i.e., we always explicitly emit the
+      // table index and the type, and use the expressions-as-elements syntax.
+      // The initial byte is one of 0x05, 0x06, and 0x07.
+      uint8_t kind_mask =
+          segment.status == WasmElemSegment::kStatusActive
+              ? 0b10
+              : segment.status == WasmElemSegment::kStatusDeclarative ? 0b11
+                                                                      : 0b01;
+      uint8_t expressions_as_elements_mask = 0b100;
+      buffer->write_u8(kind_mask | expressions_as_elements_mask);
+      if (is_active) {
+        buffer->write_u32v(segment.table_index);
         WriteInitializerExpression(buffer, segment.offset, segment.type);
-        buffer->write_size(segment.entries.size());
-        for (const WasmElemSegment::Entry entry : segment.entries) {
-          buffer->write_u32v(
-              segment.indexing_mode == WasmElemSegment::kRelativeToImports
-                  ? entry.index
-                  : entry.index +
-                        static_cast<uint32_t>(function_imports_.size()));
-        }
-      } else {
-        DCHECK_EQ(segment.indexing_mode, WasmElemSegment::kRelativeToImports);
-        // If we pick the general syntax, we always explicitly emit the table
-        // index and the type, and use the expressions-as-elements syntax. I.e.
-        // the initial byte is one of 0x05, 0x06, and 0x07.
-        uint8_t kind_mask =
-            segment.status == WasmElemSegment::kStatusActive
-                ? 0b10
-                : segment.status == WasmElemSegment::kStatusDeclarative ? 0b11
-                                                                        : 0b01;
-        uint8_t expressions_as_elements_mask = 0b100;
-        buffer->write_u8(kind_mask | expressions_as_elements_mask);
-        if (is_active) {
-          buffer->write_u32v(segment.table_index);
-          WriteInitializerExpression(buffer, segment.offset, segment.type);
-        }
-        WriteValueType(buffer, segment.type);
-        buffer->write_size(segment.entries.size());
-        for (const WasmElemSegment::Entry entry : segment.entries) {
-          uint8_t opcode =
-              entry.kind == WasmElemSegment::Entry::kGlobalGetEntry
-                  ? kExprGlobalGet
-                  : entry.kind == WasmElemSegment::Entry::kRefFuncEntry
-                        ? kExprRefFunc
-                        : kExprRefNull;
-          buffer->write_u8(opcode);
-          buffer->write_u32v(entry.index);
-          buffer->write_u8(kExprEnd);
-        }
+      }
+      WriteValueType(buffer, segment.type);
+      buffer->write_size(segment.entries.size());
+      for (const WasmElemSegment::Entry entry : segment.entries) {
+        uint8_t opcode =
+            entry.kind == WasmElemSegment::Entry::kGlobalGetEntry
+                ? kExprGlobalGet
+                : entry.kind == WasmElemSegment::Entry::kRefFuncEntry
+                      ? kExprRefFunc
+                      : kExprRefNull;
+        bool needs_function_offset =
+            segment.indexing_mode ==
+                WasmElemSegment::kRelativeToDeclaredFunctions &&
+            entry.kind == WasmElemSegment::Entry::kRefFuncEntry;
+        uint32_t index =
+            entry.index + (needs_function_offset
+                               ? static_cast<uint32_t>(function_imports_.size())
+                               : 0);
+        buffer->write_u8(opcode);
+        buffer->write_u32v(index);
+        buffer->write_u8(kExprEnd);
       }
     }
     FixupSection(buffer, start);

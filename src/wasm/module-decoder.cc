@@ -722,7 +722,6 @@ class ModuleDecoderImpl : public Decoder {
         }
         case kExternalTable: {
           // ===== Imported table ==============================================
-          if (!AddTable(module_.get())) break;
           import->index = static_cast<uint32_t>(module_->tables.size());
           module_->num_imported_tables++;
           module_->tables.emplace_back();
@@ -818,14 +817,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeTableSection() {
-    // TODO(ahaas): Set the correct limit to {kV8MaxWasmTables} once the
-    // implementation of ExternRef landed.
-    uint32_t max_count =
-        enabled_features_.has_reftypes() ? 100000 : kV8MaxWasmTables;
-    uint32_t table_count = consume_count("table count", max_count);
+    uint32_t table_count = consume_count("table count", kV8MaxWasmTables);
 
     for (uint32_t i = 0; ok() && i < table_count; i++) {
-      if (!AddTable(module_.get())) break;
       module_->tables.emplace_back();
       WasmTable* table = &module_->tables.back();
       const byte* type_position = pc();
@@ -1536,16 +1530,6 @@ class ModuleDecoderImpl : public Decoder {
     return static_cast<uint32_t>(ptr - start_) + buffer_offset_;
   }
 
-  bool AddTable(WasmModule* module) {
-    if (enabled_features_.has_reftypes()) return true;
-    if (module->tables.size() > 0) {
-      error("At most one table is supported");
-      return false;
-    } else {
-      return true;
-    }
-  }
-
   bool AddMemory(WasmModule* module) {
     if (module->has_memory) {
       error("At most one memory is supported");
@@ -1854,27 +1838,13 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Reads a reference type for tables and element segment headers.
-  // Unless extensions are enabled, only funcref is allowed.
-  // TODO(manoskouk): Replace this with consume_value_type (and checks against
-  //                  the returned type at callsites as needed) once the
-  //                  'reftypes' proposal is standardized.
   ValueType consume_reference_type() {
-    if (!enabled_features_.has_reftypes()) {
-      uint8_t ref_type = consume_u8("reference type");
-      if (ref_type != kFuncRefCode) {
-        error(pc_ - 1,
-              "invalid table type. Consider using experimental flags.");
-        return kWasmBottom;
-      }
-      return kWasmFuncRef;
-    } else {
-      const byte* position = pc();
-      ValueType result = consume_value_type();
-      if (!result.is_reference()) {
-        error(position, "expected reference type");
-      }
-      return result;
+    const byte* position = pc();
+    ValueType result = consume_value_type();
+    if (!result.is_reference()) {
+      error(position, "expected reference type");
     }
+    return result;
   }
 
   const FunctionSig* consume_sig(Zone* zone) {
@@ -1969,12 +1939,6 @@ class ModuleDecoderImpl : public Decoder {
                                       ? WasmElemSegment::kStatusDeclarative
                                       : WasmElemSegment::kStatusPassive
                                 : WasmElemSegment::kStatusActive;
-    if (status == WasmElemSegment::kStatusDeclarative &&
-        !enabled_features_.has_reftypes()) {
-      error(
-          "Declarative element segments require --experimental-wasm-reftypes");
-      return {};
-    }
     const bool is_active = status == WasmElemSegment::kStatusActive;
 
     *expressions_as_elements = flag & kExpressionsAsElementsMask;
@@ -2093,9 +2057,8 @@ class ModuleDecoderImpl : public Decoder {
     return index;
   }
 
-  // TODO(manoskouk): When reftypes lands, consider if we can implement this
-  // with consume_init_expr(). It will require changes in module-instantiate.cc,
-  // in {LoadElemSegmentImpl}.
+  // TODO(manoskouk): Implement this with consume_init_expr(). It will require
+  // changes in module-instantiate.cc, in {LoadElemSegmentImpl}.
   WasmElemSegment::Entry consume_element_expr() {
     uint8_t opcode = consume_u8("element opcode");
     if (failed()) return {};
@@ -2115,13 +2078,6 @@ class ModuleDecoderImpl : public Decoder {
         return {WasmElemSegment::Entry::kRefFuncEntry, index};
       }
       case kExprGlobalGet: {
-        if (!enabled_features_.has_reftypes()) {
-          errorf(
-              "Unexpected opcode 0x%x in element. Enable with "
-              "--experimental-wasm-reftypes",
-              kExprGlobalGet);
-          return {};
-        }
         uint32_t index = this->consume_u32v("global index");
         if (failed()) return {};
         if (index >= module_->globals.size()) {

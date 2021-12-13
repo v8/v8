@@ -2581,7 +2581,6 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   EXPERIMENTAL_FLAG_SCOPE(typed_funcref);
   EXPERIMENTAL_FLAG_SCOPE(gc);
   EXPERIMENTAL_FLAG_SCOPE(simd);

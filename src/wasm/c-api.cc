@@ -392,7 +392,6 @@ void Engine::operator delete(void* p) { ::operator delete(p); }
 
 auto Engine::make(own<Config>&& config) -> own<Engine> {
   i::FLAG_expose_gc = true;
-  i::FLAG_experimental_wasm_reftypes = true;
   auto engine = new (std::nothrow) EngineImpl;
   if (!engine) return own<Engine>();
   engine->platform = v8::platform::NewDefaultPlatform();
@@ -1931,7 +1930,6 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       break;
     case ANYREF:
       // See Engine::make().
-      DCHECK(i::wasm::WasmFeatures::FromFlags().has_reftypes());
       i_type = i::wasm::kWasmExternRef;
       break;
     default:

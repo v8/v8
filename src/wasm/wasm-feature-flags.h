@@ -98,13 +98,6 @@
   /* Shipped in v9.1 * */                                                      \
   V(simd, "SIMD opcodes", true)                                                \
                                                                                \
-  /* Reference Types, a.k.a. reftypes proposal. */                             \
-  /* https://github.com/WebAssembly/reference-types */                         \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8. */                                                        \
-  /* Shipped in v9.6 * */                                                      \
-  V(reftypes, "reference type opcodes", true)                                  \
-                                                                               \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \
   /* NOTE: This is enabled via chromium flag on desktop systems since v7.4, */ \

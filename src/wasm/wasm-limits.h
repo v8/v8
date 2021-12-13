@@ -52,7 +52,7 @@ constexpr size_t kV8MaxWasmFunctionBrTableSize = 65520;
 // Don't use this limit directly, but use the value of FLAG_wasm_max_table_size.
 constexpr size_t kV8MaxWasmTableSize = 10000000;
 constexpr size_t kV8MaxWasmTableInitEntries = 10000000;
-constexpr size_t kV8MaxWasmTables = 1;
+constexpr size_t kV8MaxWasmTables = 100000;
 constexpr size_t kV8MaxWasmMemories = 1;
 
 // GC proposal. These limits are not standardized yet.
