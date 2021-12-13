@@ -822,7 +822,6 @@
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Mac-10.15',
-      'gpu': 'none',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
@@ -833,7 +832,6 @@
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Mac-10.15',
-      'gpu': 'none',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
@@ -844,7 +842,6 @@
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Mac-10.15',
-      'gpu': 'none',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
@@ -1571,7 +1568,6 @@
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Mac-10.15',
-      'gpu': 'none',
     },
     'swarming_task_attrs': {
       'expiration': 14400,
@@ -1587,7 +1583,6 @@
     'swarming_dimensions' : {
       'cpu': 'x86-64',
       'os': 'Mac-10.15',
-      'gpu': 'none',
     },
     'swarming_task_attrs': {
       'expiration': 14400,
