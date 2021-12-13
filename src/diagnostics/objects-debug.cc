@@ -1013,6 +1013,12 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(next_code_link().IsCodeT() || next_code_link().IsUndefined(isolate));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     if (raw_code() != Smi::zero()) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+      // kind and builtin_id() getters are not available on CodeDataContainer
+      // when external code space is not enabled.
+      CHECK_EQ(code().kind(), kind());
+      CHECK_EQ(code().builtin_id(), builtin_id());
+#endif  // V8_EXTERNAL_CODE_SPACE
       CHECK_EQ(code().InstructionStart(), code_entry_point());
       CHECK_EQ(code().code_data_container(kAcquireLoad), *this);
     }

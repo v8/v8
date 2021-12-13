@@ -540,19 +540,11 @@ void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
 }
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
-  // Check for kNoBuiltinId first to abort early when the current Code object
-  // is not a builtin.
-  return builtin_id() != Builtin::kNoBuiltinId &&
-         (builtin_id() == Builtin::kInterpreterEntryTrampoline ||
-          builtin_id() == Builtin::kInterpreterEnterAtBytecode ||
-          builtin_id() == Builtin::kInterpreterEnterAtNextBytecode);
+  return IsInterpreterTrampolineBuiltin(builtin_id());
 }
 
 inline bool Code::is_baseline_trampoline_builtin() const {
-  return builtin_id() != Builtin::kNoBuiltinId &&
-         (builtin_id() == Builtin::kBaselineOutOfLinePrologue ||
-          builtin_id() == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
-          builtin_id() == Builtin::kBaselineOrInterpreterEnterAtNextBytecode);
+  return IsBaselineTrampolineBuiltin(builtin_id());
 }
 
 inline bool Code::is_baseline_leave_frame_builtin() const {
@@ -972,7 +964,45 @@ void CodeDataContainer::clear_padding() {
          kSize - kUnalignedSize);
 }
 
+INT_ACCESSORS(CodeDataContainer, flags, kFlagsOffset)
+
+// Ensure builtin_id field fits into int16_t, so that we can rely on sign
+// extension to convert int16_t{-1} to kNoBuiltinId.
+// If the asserts fail, update the code that use kBuiltinIdOffset below.
+STATIC_ASSERT(static_cast<int>(Builtin::kNoBuiltinId) == -1);
+STATIC_ASSERT(Builtins::kBuiltinCount < std::numeric_limits<int16_t>::max());
+
+void CodeDataContainer::initialize_flags(CodeKind kind, Builtin builtin_id) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  int value = KindField::encode(kind);
+  set_flags(value);
+
+  WriteField<int16_t>(kBuiltinIdOffset, static_cast<int16_t>(builtin_id));
+}
+
 #ifdef V8_EXTERNAL_CODE_SPACE
+
+CodeKind CodeDataContainer::kind() const { return KindField::decode(flags()); }
+
+Builtin CodeDataContainer::builtin_id() const {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // Rely on sign-extension when converting int16_t to int to preserve
+  // kNoBuiltinId value.
+  STATIC_ASSERT(static_cast<int>(static_cast<int16_t>(Builtin::kNoBuiltinId)) ==
+                static_cast<int>(Builtin::kNoBuiltinId));
+  int value = ReadField<int16_t>(kBuiltinIdOffset);
+  return static_cast<Builtin>(value);
+}
+
+bool CodeDataContainer::is_builtin() const {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  return builtin_id() != Builtin::kNoBuiltinId;
+}
+
+inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {
+  return IsInterpreterTrampolineBuiltin(builtin_id());
+}
+
 //
 // A collection of getters and predicates that forward queries to associated
 // Code object.
@@ -985,11 +1015,6 @@ void CodeDataContainer::clear_padding() {
   DEF_GETTER(CodeDataContainer, name, type) { \
     return FromCodeT(*this).name(cage_base);  \
   }
-
-DEF_PRIMITIVE_FORWARDING_CDC_GETTER(kind, CodeKind)
-DEF_PRIMITIVE_FORWARDING_CDC_GETTER(builtin_id, Builtin)
-DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_builtin, bool)
-DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_interpreter_trampoline_builtin, bool)
 
 DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray)
 DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject)

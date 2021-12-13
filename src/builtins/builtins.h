@@ -347,6 +347,24 @@ class Builtins {
   friend class SetupIsolateDelegate;
 };
 
+V8_INLINE constexpr bool IsInterpreterTrampolineBuiltin(Builtin builtin_id) {
+  // Check for kNoBuiltinId first to abort early when the current Code object
+  // is not a builtin.
+  return builtin_id != Builtin::kNoBuiltinId &&
+         (builtin_id == Builtin::kInterpreterEntryTrampoline ||
+          builtin_id == Builtin::kInterpreterEnterAtBytecode ||
+          builtin_id == Builtin::kInterpreterEnterAtNextBytecode);
+}
+
+V8_INLINE constexpr bool IsBaselineTrampolineBuiltin(Builtin builtin_id) {
+  // Check for kNoBuiltinId first to abort early when the current Code object
+  // is not a builtin.
+  return builtin_id != Builtin::kNoBuiltinId &&
+         (builtin_id == Builtin::kBaselineOutOfLinePrologue ||
+          builtin_id == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
+          builtin_id == Builtin::kBaselineOrInterpreterEnterAtNextBytecode);
+}
+
 Builtin ExampleBuiltinForTorqueFunctionPointerType(
     size_t function_pointer_type_id);
 

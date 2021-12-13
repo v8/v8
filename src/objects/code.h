@@ -82,6 +82,11 @@ class CodeDataContainer : public HeapObject {
 
   inline void AllocateExternalPointerEntries(Isolate* isolate);
 
+  // Initializes internal flags field which stores cached values of some
+  // properties of the respective Code object.
+  // Available only when V8_EXTERNAL_CODE_SPACE is enabled.
+  inline void initialize_flags(CodeKind kind, Builtin builtin_id);
+
   // Alias for code_entry_point to make it API compatible with Code.
   inline Address InstructionStart() const;
 
@@ -110,23 +115,25 @@ class CodeDataContainer : public HeapObject {
   DECL_VERIFIER(CodeDataContainer)
 
 // Layout description.
-#define CODE_DATA_FIELDS(V)                                     \
-  /* Strong pointer fields. */                                  \
-  V(kPointerFieldsStrongEndOffset, 0)                           \
-  /* Weak pointer fields. */                                    \
-  V(kNextCodeLinkOffset, kTaggedSize)                           \
-  V(kPointerFieldsWeakEndOffset, 0)                             \
-  /* Strong Code pointer fields. */                             \
-  V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0) \
-  V(kCodePointerFieldsStrongEndOffset, 0)                       \
-  /* Raw data fields. */                                        \
-  V(kCodeCageBaseUpper32BitsOffset,                             \
-    V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)              \
-  V(kCodeEntryPointOffset,                                      \
-    V8_EXTERNAL_CODE_SPACE_BOOL ? kExternalPointerSize : 0)     \
-  V(kKindSpecificFlagsOffset, kInt32Size)                       \
-  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))     \
-  /* Total size. */                                             \
+#define CODE_DATA_FIELDS(V)                                         \
+  /* Strong pointer fields. */                                      \
+  V(kPointerFieldsStrongEndOffset, 0)                               \
+  /* Weak pointer fields. */                                        \
+  V(kNextCodeLinkOffset, kTaggedSize)                               \
+  V(kPointerFieldsWeakEndOffset, 0)                                 \
+  /* Strong Code pointer fields. */                                 \
+  V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)     \
+  V(kCodePointerFieldsStrongEndOffset, 0)                           \
+  /* Raw data fields. */                                            \
+  V(kCodeCageBaseUpper32BitsOffset,                                 \
+    V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0)                  \
+  V(kCodeEntryPointOffset,                                          \
+    V8_EXTERNAL_CODE_SPACE_BOOL ? kExternalPointerSize : 0)         \
+  V(kFlagsOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kUInt16Size : 0)    \
+  V(kBuiltinIdOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kInt16Size : 0) \
+  V(kKindSpecificFlagsOffset, kInt32Size)                           \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))         \
+  /* Total size. */                                                 \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
@@ -134,10 +141,26 @@ class CodeDataContainer : public HeapObject {
 
   class BodyDescriptor;
 
+  // Flags layout.
+#define FLAGS_BIT_FIELDS(V, _) \
+  V(KindField, CodeKind, 4, _) \
+  /* The other 12 bits are still free. */
+
+  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
+#undef FLAGS_BIT_FIELDS
+  STATIC_ASSERT(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
+  STATIC_ASSERT(!V8_EXTERNAL_CODE_SPACE_BOOL ||
+                (FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+                 FIELD_SIZE(CodeDataContainer::kFlagsOffset) * kBitsPerByte));
+
  private:
   DECL_ACCESSORS(raw_code, Object)
   DECL_RELAXED_GETTER(raw_code, Object)
   inline void set_code_entry_point(Isolate* isolate, Address value);
+
+  // When V8_EXTERNAL_CODE_SPACE is enabled the flags field contains cached
+  // values of some flags of the from the respective Code object.
+  DECL_INT_ACCESSORS(flags)
 
   friend Factory;
   friend FactoryBase<Factory>;
