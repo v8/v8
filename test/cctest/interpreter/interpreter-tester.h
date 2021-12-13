@@ -149,7 +149,7 @@ class InterpreterTester {
       source += "){})";
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source.c_str()))));
-      function->set_code(*BUILTIN_CODE(isolate_, InterpreterEntryTrampoline));
+      function->set_code(*BUILTIN_CODET(isolate_, InterpreterEntryTrampoline));
       is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     }
 

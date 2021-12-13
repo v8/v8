@@ -36,6 +36,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakArrayList)
 OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
+NEVER_READ_ONLY_SPACE_IMPL(CodeDataContainer)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
@@ -551,6 +552,19 @@ inline bool Code::is_baseline_leave_frame_builtin() const {
   return builtin_id() == Builtin::kBaselineLeaveFrame;
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+// Note, must be in sync with Code::checks_optimization_marker().
+inline bool CodeDataContainer::checks_optimization_marker() const {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  bool checks_marker = (builtin_id() == Builtin::kCompileLazy ||
+                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+                        CodeKindCanTierUp(kind()));
+  return checks_marker ||
+         (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
+
+// Note, must be in sync with CodeDataContainer::checks_optimization_marker().
 inline bool Code::checks_optimization_marker() const {
   bool checks_marker = (builtin_id() == Builtin::kCompileLazy ||
                         builtin_id() == Builtin::kInterpreterEntryTrampoline ||
@@ -661,20 +675,35 @@ int Code::stack_slots() const {
   return StackSlotsField::decode(flags);
 }
 
+bool CodeDataContainer::marked_for_deoptimization() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // kind field is not available on CodeDataContainer when external code space
+  // is not enabled.
+  DCHECK(CodeKindCanDeoptimize(kind()));
+#endif  // V8_EXTERNAL_CODE_SPACE
+  int32_t flags = kind_specific_flags(kRelaxedLoad);
+  return Code::MarkedForDeoptimizationField::decode(flags);
+}
+
 bool Code::marked_for_deoptimization() const {
   DCHECK(CodeKindCanDeoptimize(kind()));
-  int32_t flags =
-      code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad);
-  return MarkedForDeoptimizationField::decode(flags);
+  return code_data_container(kAcquireLoad).marked_for_deoptimization();
+}
+
+void CodeDataContainer::set_marked_for_deoptimization(bool flag) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // kind field is not available on CodeDataContainer when external code space
+  // is not enabled.
+  DCHECK(CodeKindCanDeoptimize(kind()));
+#endif  // V8_EXTERNAL_CODE_SPACE
+  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
+  int32_t previous = kind_specific_flags(kRelaxedLoad);
+  int32_t updated = Code::MarkedForDeoptimizationField::update(previous, flag);
+  set_kind_specific_flags(updated, kRelaxedStore);
 }
 
 void Code::set_marked_for_deoptimization(bool flag) {
-  DCHECK(CodeKindCanDeoptimize(kind()));
-  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  CodeDataContainer container = code_data_container(kAcquireLoad);
-  int32_t previous = container.kind_specific_flags(kRelaxedLoad);
-  int32_t updated = MarkedForDeoptimizationField::update(previous, flag);
-  container.set_kind_specific_flags(updated, kRelaxedStore);
+  code_data_container(kAcquireLoad).set_marked_for_deoptimization(flag);
 }
 
 int Code::deoptimization_count() const {
@@ -1015,6 +1044,8 @@ inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {
   DEF_GETTER(CodeDataContainer, name, type) { \
     return FromCodeT(*this).name(cage_base);  \
   }
+
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_turbofanned, bool)
 
 DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray)
 DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject)

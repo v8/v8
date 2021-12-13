@@ -1912,7 +1912,7 @@ EnumerateCompiledFunctions(Heap* heap) {
           Script::cast(function.shared().script()).HasValidSource()) {
         compiled_funcs.emplace_back(
             handle(function.shared(), isolate),
-            handle(AbstractCode::cast(function.code()), isolate));
+            handle(AbstractCode::cast(FromCodeT(function.code())), isolate));
       }
     }
   }

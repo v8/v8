@@ -84,14 +84,12 @@ class JSFunction
   // optimized code object, or when reading from the background thread.
   // Storing a builtin doesn't require release semantics because these objects
   // are fully initialized.
-  DECL_ACCESSORS(code, Code)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
+  DECL_ACCESSORS(code, CodeT)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(code, CodeT)
 #ifdef V8_EXTERNAL_CODE_SPACE
   // Convenient overloads to avoid unnecessary Code <-> CodeT conversions.
   // TODO(v8:11880): remove once |code| accessors are migrated to CodeT.
-  inline void set_code(CodeT code,
-                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_code(CodeT code, ReleaseStoreTag,
+  inline void set_code(Code code, ReleaseStoreTag,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 #endif
 
@@ -317,9 +315,6 @@ class JSFunction
   class BodyDescriptor;
 
  private:
-  DECL_ACCESSORS(raw_code, CodeT)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, CodeT)
-
   // JSFunction doesn't have a fixed header size:
   // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
   static const int kHeaderSize;

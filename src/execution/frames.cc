@@ -1282,7 +1282,7 @@ bool JavaScriptFrame::HasInlinedFrames() const {
 }
 
 Code CommonFrameWithJSLinkage::unchecked_code() const {
-  return function().code();
+  return FromCodeT(function().code());
 }
 
 int OptimizedFrame::ComputeParametersCount() const {
@@ -1807,7 +1807,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   DCHECK(is_optimized());
 
   JSFunction opt_function = function();
-  Code code = opt_function.code();
+  Code code = FromCodeT(opt_function.code());
 
   // The code object may have been replaced by lazy deoptimization. Fall
   // back to a slow search in this case to find the original optimized

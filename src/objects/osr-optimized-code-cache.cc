@@ -147,6 +147,7 @@ Code OSROptimizedCodeCache::GetCodeFromEntry(int index) {
   Get(index + OSRCodeCacheConstants::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
   if (code_entry.is_null()) return Code();
+  // TODO(v8:11880): avoid roundtrips between cdc and code.
   return FromCodeT(CodeT::cast(code_entry));
 }
 
@@ -194,6 +195,7 @@ void OSROptimizedCodeCache::InitializeEntry(int entry,
                                             BytecodeOffset osr_offset) {
   Set(entry + OSRCodeCacheConstants::kSharedOffset,
       HeapObjectReference::Weak(shared));
+  // TODO(v8:11880): avoid roundtrips between cdc and code.
   HeapObjectReference weak_code_entry =
       HeapObjectReference::Weak(ToCodeT(code));
   Set(entry + OSRCodeCacheConstants::kCachedCodeOffset, weak_code_entry);

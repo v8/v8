@@ -1821,8 +1821,9 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       Handle<WasmInternalFunction>::cast(result_cast_reference)->external(),
       tester.isolate()));
 
-  CHECK_EQ(cast_function->code().raw_instruction_start(),
-           cast_function_reference->code().raw_instruction_start());
+  // TODO(v8:11880): avoid roundtrips between cdc and code.
+  CHECK_EQ(FromCodeT(cast_function->code()).raw_instruction_start(),
+           FromCodeT(cast_function_reference->code()).raw_instruction_start());
 
   tester.CheckResult(test, 1);
   tester.CheckResult(test_fail_1, 0);

@@ -50,7 +50,7 @@ TEST_F(TestWithNativeContext, AddCodeToEmptyCache) {
   Isolate* isolate = function->GetIsolate();
   Handle<NativeContext> native_context(function->native_context(), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<Code> code(function->code(), isolate);
+  Handle<Code> code(FromCodeT(function->code()), isolate);
   BytecodeOffset bailout_id(1);
   OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
                                           bailout_id);
@@ -83,7 +83,7 @@ TEST_F(TestWithNativeContext, GrowCodeCache) {
   Isolate* isolate = function->GetIsolate();
   Handle<NativeContext> native_context(function->native_context(), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<Code> code(function->code(), isolate);
+  Handle<Code> code(FromCodeT(function->code()), isolate);
 
   int bailout_id = 0;
   for (bailout_id = 0; bailout_id < kInitialEntries; bailout_id++) {
@@ -126,7 +126,7 @@ TEST_F(TestWithNativeContext, FindCachedEntry) {
   Isolate* isolate = function->GetIsolate();
   Handle<NativeContext> native_context(function->native_context(), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<Code> code(function->code(), isolate);
+  Handle<Code> code(FromCodeT(function->code()), isolate);
 
   int bailout_id = 0;
   for (bailout_id = 0; bailout_id < kInitialEntries; bailout_id++) {
@@ -138,7 +138,7 @@ TEST_F(TestWithNativeContext, FindCachedEntry) {
   GetSource(&source1, 1);
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
-  Handle<Code> code1(function1->code(), isolate);
+  Handle<Code> code1(FromCodeT(function1->code()), isolate);
   OSROptimizedCodeCache::AddOptimizedCode(native_context, shared1, code1,
                                           BytecodeOffset(bailout_id));
 
@@ -172,7 +172,7 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   Isolate* isolate = function->GetIsolate();
   Handle<NativeContext> native_context(function->native_context(), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<Code> code(function->code(), isolate);
+  Handle<Code> code(FromCodeT(function->code()), isolate);
 
   int bailout_id = 0;
   // Add max_capacity - 1 entries.
@@ -189,7 +189,7 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   GetSource(&source1, 1);
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
-  Handle<Code> code1(function1->code(), isolate);
+  Handle<Code> code1(FromCodeT(function1->code()), isolate);
   OSROptimizedCodeCache::AddOptimizedCode(native_context, shared1, code1,
                                           BytecodeOffset(bailout_id));
   osr_cache = Handle<OSROptimizedCodeCache>(
@@ -213,7 +213,7 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   GetSource(&source2, 2);
   Handle<JSFunction> function2 = RunJS<JSFunction>(source2.begin());
   Handle<SharedFunctionInfo> shared2(function2->shared(), isolate);
-  Handle<Code> code2(function2->code(), isolate);
+  Handle<Code> code2(FromCodeT(function2->code()), isolate);
   bailout_id++;
   OSROptimizedCodeCache::AddOptimizedCode(native_context, shared2, code2,
                                           BytecodeOffset(bailout_id));
@@ -243,7 +243,7 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   Isolate* isolate = function->GetIsolate();
   Handle<NativeContext> native_context(function->native_context(), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<Code> code(function->code(), isolate);
+  Handle<Code> code(FromCodeT(function->code()), isolate);
 
   int num_entries = kInitialEntries * 2;
   int expected_length = kInitialLength * 2;
@@ -267,7 +267,7 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   GetSource(&source1, 1);
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
-  Handle<Code> code1(function1->code(), isolate);
+  Handle<Code> code1(FromCodeT(function1->code()), isolate);
   OSROptimizedCodeCache::AddOptimizedCode(native_context, shared1, code1,
                                           BytecodeOffset(bailout_id));
   osr_cache = Handle<OSROptimizedCodeCache>(
@@ -290,7 +290,7 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   GetSource(&source2, 2);
   Handle<JSFunction> function2 = RunJS<JSFunction>(source2.begin());
   Handle<SharedFunctionInfo> shared2(function2->shared(), isolate);
-  Handle<Code> code2(function2->code(), isolate);
+  Handle<Code> code2(FromCodeT(function2->code()), isolate);
   bailout_id++;
   OSROptimizedCodeCache::AddOptimizedCode(native_context, shared2, code2,
                                           BytecodeOffset(bailout_id));
@@ -320,13 +320,13 @@ TEST_F(TestWithNativeContext, EvictDeoptedEntriesNoCompact) {
   Isolate* isolate = function->GetIsolate();
   Handle<NativeContext> native_context(function->native_context(), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<Code> code(function->code(), isolate);
+  Handle<Code> code(FromCodeT(function->code()), isolate);
 
   base::ScopedVector<char> source1(1024);
   GetSource(&source1, 1);
   Handle<JSFunction> deopt_function = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> deopt_shared(deopt_function->shared(), isolate);
-  Handle<Code> deopt_code(deopt_function->code(), isolate);
+  Handle<Code> deopt_code(FromCodeT(deopt_function->code()), isolate);
 
   int num_entries = kInitialEntries * 2;
   int expected_length = kInitialLength * 2;
@@ -379,13 +379,13 @@ TEST_F(TestWithNativeContext, EvictDeoptedEntriesCompact) {
   Isolate* isolate = function->GetIsolate();
   Handle<NativeContext> native_context(function->native_context(), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<Code> code(function->code(), isolate);
+  Handle<Code> code(FromCodeT(function->code()), isolate);
 
   base::ScopedVector<char> source1(1024);
   GetSource(&source1, 1);
   Handle<JSFunction> deopt_function = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> deopt_shared(deopt_function->shared(), isolate);
-  Handle<Code> deopt_code(deopt_function->code(), isolate);
+  Handle<Code> deopt_code(FromCodeT(deopt_function->code()), isolate);
 
   int num_entries = kInitialEntries + 1;
   int expected_length = kInitialLength * 2;

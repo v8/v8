@@ -431,7 +431,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   function.ResetIfCodeFlushed();
-  if (code.is_null()) code = function.code();
+  if (code.is_null()) code = FromCodeT(function.code());
 
   if (CodeKindCanDeoptimize(code.kind())) {
     // Mark the code for deoptimization and unlink any functions that also

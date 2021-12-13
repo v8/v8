@@ -853,8 +853,8 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK(context(isolate, kRelaxedLoad).IsContext());
   VerifyPointer(isolate, raw_feedback_cell(isolate));
   CHECK(raw_feedback_cell(isolate).IsFeedbackCell());
-  VerifyPointer(isolate, raw_code(isolate));
-  CHECK(raw_code(isolate).IsCodeT());
+  VerifyPointer(isolate, code(isolate));
+  CHECK(code(isolate).IsCodeT());
   CHECK(map(isolate).is_callable());
   Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),

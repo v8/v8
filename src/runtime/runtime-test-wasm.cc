@@ -268,7 +268,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  Code code = function.code();
+  CodeT code = function.code();
   bool is_js_to_wasm = code.kind() == CodeKind::JS_TO_WASM_FUNCTION ||
                        (code.builtin_id() == Builtin::kGenericJSToWasmWrapper);
   return isolate->heap()->ToBoolean(is_js_to_wasm);

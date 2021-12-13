@@ -1020,9 +1020,11 @@ Handle<Code> ContinuationForConcurrentOptimization(
       // into the feedback vector.
       STATIC_ASSERT(
           FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
-      function->set_code(function->feedback_vector().optimized_code());
+      // TODO(v8:11880): avoid roundtrips between cdc and code.
+      function->set_code(ToCodeT(function->feedback_vector().optimized_code()));
     }
-    return handle(function->code(), isolate);
+    // TODO(v8:11880): avoid roundtrips between cdc and code.
+    return handle(FromCodeT(function->code()), isolate);
   } else if (function->shared().HasBaselineCode()) {
     CodeT baseline_code = function->shared().baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
@@ -3304,17 +3306,19 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
       function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
           function->raw_feedback_cell(), *shared,
           "new function from shared function info");
+      // TODO(v8:11880): avoid roundtrips between cdc and code.
       Code code = function->feedback_vector().optimized_code();
       if (!code.is_null()) {
+        CodeT codet = ToCodeT(code);
         // Caching of optimized code enabled and optimized code found.
-        DCHECK(!code.marked_for_deoptimization());
+        DCHECK(!codet.marked_for_deoptimization());
         DCHECK(function->shared().is_compiled());
 
         // We don't need a release store because the optimized code was
         // stored with release semantics into the vector
         STATIC_ASSERT(
             FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
-        function->set_code(code);
+        function->set_code(codet);
       }
     }
 

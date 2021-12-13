@@ -300,7 +300,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
     // Also, clear out feedback vectors and recompilable code.
     if (fun.CanDiscardCompiled()) {
-      fun.set_code(*BUILTIN_CODE(isolate, CompileLazy));
+      fun.set_code(*BUILTIN_CODET(isolate, CompileLazy));
     }
     if (!fun.raw_feedback_cell(cage_base).value(cage_base).IsUndefined()) {
       fun.raw_feedback_cell(cage_base).set_value(
