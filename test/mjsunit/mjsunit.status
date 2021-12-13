@@ -1503,6 +1503,7 @@
   'compiler/test-literal-map-migration': [SKIP],
   'compiler/deopt-pretenure': [SKIP],
   'compiler/fast-api-sequences-x64': [SKIP],
+  'compiler/regress-store-store-elim': [SKIP],
 
   # TODO(v8:12031): Reimplement elements kinds transitions when concurrent
   # inlining.
