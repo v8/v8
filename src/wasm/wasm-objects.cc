@@ -1920,7 +1920,9 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   const wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
   Address call_target = instance->GetCallTarget(func_index);
   Handle<Map> rtt;
-  if (FLAG_experimental_wasm_gc) {
+  bool has_gc =
+      instance->module_object().native_module()->enabled_features().has_gc();
+  if (has_gc) {
     int sig_index = instance->module()->functions[func_index].sig_index;
     // TODO(7748): Create funcref RTTs lazily?
     rtt = handle(Map::cast(instance->managed_object_maps().get(sig_index)),
