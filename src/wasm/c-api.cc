@@ -391,7 +391,6 @@ Engine::~Engine() { impl(this)->~EngineImpl(); }
 void Engine::operator delete(void* p) { ::operator delete(p); }
 
 auto Engine::make(own<Config>&& config) -> own<Engine> {
-  i::FLAG_expose_gc = true;
   auto engine = new (std::nothrow) EngineImpl;
   if (!engine) return own<Engine>();
   engine->platform = v8::platform::NewDefaultPlatform();
@@ -402,6 +401,16 @@ auto Engine::make(own<Config>&& config) -> own<Engine> {
   }
 #endif
   v8::V8::Initialize();
+  // The commandline flags get loaded in V8::Initialize(), so we can override
+  // the flag values only afterwards.
+  i::FLAG_expose_gc = true;
+  // We disable dynamic tiering because it interferes with serialization. We
+  // only serialize optimized code, but with dynamic tiering not all code gets
+  // optimized. It is then unclear what we should serialize in the first place.
+  i::FLAG_wasm_dynamic_tiering = false;
+  // We disable speculative inlining, because speculative inlining depends on
+  // dynamic tiering.
+  i::FLAG_wasm_speculative_inlining = false;
   return make_own(seal<Engine>(engine));
 }
 
