@@ -210,8 +210,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
 
   // Extract stack trace from the exception.
   Handle<FixedArray> stack_trace_object =
-      isolate->GetDetailedStackTrace(Handle<JSObject>::cast(exception));
-  CHECK(!stack_trace_object.is_null());
+      isolate->GetSimpleStackTrace(Handle<JSReceiver>::cast(exception));
+  CHECK_NE(0, stack_trace_object->length());
   Handle<CallSiteInfo> stack_frame(
       CallSiteInfo::cast(stack_trace_object->get(0)), isolate);
 

@@ -1200,7 +1200,7 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
   if (capture_stack_trace_for_uncaught_exceptions_) {
     // Capture stack trace for a detailed exception message.
     Handle<Name> key = factory()->detailed_stack_trace_symbol();
-    Handle<FixedArray> stack_trace = CaptureCurrentStackTrace(
+    Handle<FixedArray> stack_trace = CaptureDetailedStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
     RETURN_ON_EXCEPTION(
@@ -1229,12 +1229,19 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
 }
 
 Handle<FixedArray> Isolate::GetDetailedStackTrace(
-    Handle<JSObject> error_object) {
-  Handle<Name> key_detailed = factory()->detailed_stack_trace_symbol();
-  Handle<Object> stack_trace =
-      JSReceiver::GetDataProperty(error_object, key_detailed);
-  if (stack_trace->IsFixedArray()) return Handle<FixedArray>::cast(stack_trace);
+    Handle<JSReceiver> error_object) {
+  Handle<Name> key = factory()->detailed_stack_trace_symbol();
+  Handle<Object> result = JSReceiver::GetDataProperty(error_object, key);
+  if (result->IsFixedArray()) return Handle<FixedArray>::cast(result);
   return Handle<FixedArray>();
+}
+
+Handle<FixedArray> Isolate::GetSimpleStackTrace(
+    Handle<JSReceiver> error_object) {
+  Handle<Name> key = factory()->stack_trace_symbol();
+  Handle<Object> result = JSReceiver::GetDataProperty(error_object, key);
+  if (result->IsFixedArray()) return Handle<FixedArray>::cast(result);
+  return factory()->empty_fixed_array();
 }
 
 Address Isolate::GetAbstractPC(int* line, int* column) {
@@ -1274,10 +1281,10 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   return frame->pc();
 }
 
-Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
-    int frame_limit, StackTrace::StackTraceOptions stack_trace_options) {
+Handle<FixedArray> Isolate::CaptureDetailedStackTrace(
+    int limit, StackTrace::StackTraceOptions stack_trace_options) {
   CaptureStackTraceOptions options;
-  options.limit = std::max(frame_limit, 0);  // Ensure no negative values.
+  options.limit = std::max(limit, 0);  // Ensure no negative values.
   options.skip_mode = SKIP_NONE;
   options.async_stack_trace = false;
   options.filter_mode =
@@ -2297,7 +2304,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
     }
     if (stack_trace_object.is_null()) {
       // Not an error object, we capture stack and location at throw site.
-      stack_trace_object = CaptureCurrentStackTrace(
+      stack_trace_object = CaptureDetailedStackTrace(
           stack_trace_for_uncaught_exceptions_frame_limit_,
           stack_trace_for_uncaught_exceptions_options_);
     }

@@ -1057,10 +1057,8 @@ own<Frame> Trap::origin() const {
   i::Isolate* isolate = impl(this)->isolate();
   i::HandleScope handle_scope(isolate);
 
-  i::Handle<i::JSMessageObject> message =
-      isolate->CreateMessage(impl(this)->v8_object(), nullptr);
-  i::Handle<i::FixedArray> frames(i::FixedArray::cast(message->stack_frames()),
-                                  isolate);
+  i::Handle<i::FixedArray> frames =
+      isolate->GetSimpleStackTrace(impl(this)->v8_object());
   if (frames->length() == 0) {
     return own<Frame>();
   }
@@ -1071,10 +1069,8 @@ ownvec<Frame> Trap::trace() const {
   i::Isolate* isolate = impl(this)->isolate();
   i::HandleScope handle_scope(isolate);
 
-  i::Handle<i::JSMessageObject> message =
-      isolate->CreateMessage(impl(this)->v8_object(), nullptr);
-  i::Handle<i::FixedArray> frames(i::FixedArray::cast(message->stack_frames()),
-                                  isolate);
+  i::Handle<i::FixedArray> frames =
+      isolate->GetSimpleStackTrace(impl(this)->v8_object());
   int num_frames = frames->length();
   // {num_frames} can be 0; the code below can handle that case.
   ownvec<Frame> result = ownvec<Frame>::make_uninitialized(num_frames);

@@ -3244,7 +3244,7 @@ Local<StackTrace> StackTrace::CurrentStackTrace(Isolate* isolate,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::FixedArray> stackTrace =
-      i_isolate->CaptureCurrentStackTrace(frame_limit, options);
+      i_isolate->CaptureDetailedStackTrace(frame_limit, options);
   return Utils::StackTraceToLocal(stackTrace);
 }
 

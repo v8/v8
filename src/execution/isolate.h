@@ -37,6 +37,7 @@
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/js-objects.h"
 #include "src/runtime/runtime.h"
 #include "src/security/external-pointer-table.h"
 #include "src/security/vm-cage.h"
@@ -895,8 +896,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Similar to the above but without collecting the stack trace.
   V8_NOINLINE void PushParamsAndDie(void* ptr1 = nullptr, void* ptr2 = nullptr,
                                     void* ptr3 = nullptr, void* ptr4 = nullptr);
-  Handle<FixedArray> CaptureCurrentStackTrace(
-      int frame_limit, StackTrace::StackTraceOptions options);
+  Handle<FixedArray> CaptureDetailedStackTrace(
+      int limit, StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                          FrameSkipMode mode,
                                          Handle<Object> caller);
@@ -905,7 +906,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   MaybeHandle<JSReceiver> CaptureAndSetSimpleStackTrace(
       Handle<JSReceiver> error_object, FrameSkipMode mode,
       Handle<Object> caller);
-  Handle<FixedArray> GetDetailedStackTrace(Handle<JSObject> error_object);
+  Handle<FixedArray> GetDetailedStackTrace(Handle<JSReceiver> error_object);
+  Handle<FixedArray> GetSimpleStackTrace(Handle<JSReceiver> error_object);
 
   Address GetAbstractPC(int* line, int* column);
 
