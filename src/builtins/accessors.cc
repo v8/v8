@@ -12,6 +12,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/heap/factory.h"
+#include "src/logging/counters-scopes.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/contexts.h"
@@ -166,6 +167,8 @@ void Accessors::ArrayLengthSetter(
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kArrayLengthSetter);
+  i::LongTaskNestedTimedHistogramScope timer_scope(
+      isolate->counters()->execute());
   HandleScope scope(isolate);
 
   DCHECK(Utils::OpenHandle(*name)->SameValue(
