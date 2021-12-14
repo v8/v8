@@ -333,7 +333,7 @@ declare_args() {
   v8_enable_map_packing = false
 
   # Allow for JS promise hooks (instead of just C++).
-  v8_allow_javascript_in_promise_hooks = false
+  v8_enable_javascript_promise_hooks = false
 
   # Enable allocation folding globally (sets -dV8_ALLOCATION_FOLDING).
   # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
@@ -945,8 +945,8 @@ config("features") {
   if (v8_dict_property_const_tracking) {
     defines += [ "V8_DICT_PROPERTY_CONST_TRACKING" ]
   }
-  if (v8_allow_javascript_in_promise_hooks) {
-    defines += [ "V8_ALLOW_JAVASCRIPT_IN_PROMISE_HOOKS" ]
+  if (v8_enable_javascript_promise_hooks) {
+    defines += [ "V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS" ]
   }
   if (v8_enable_allocation_folding) {
     defines += [ "V8_ALLOCATION_FOLDING" ]

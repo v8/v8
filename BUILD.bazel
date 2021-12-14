@@ -84,7 +84,7 @@ config_setting(
 # v8_generate_external_defines_header
 # v8_dict_property_const_tracking
 # v8_enable_map_packing
-# v8_allow_javascript_in_promise_hooks
+# v8_enable_javascript_promise_hooks
 # v8_enable_allocation_folding
 # v8_allocation_site_tracking
 

@@ -14381,10 +14381,12 @@ TNode<BoolT> CodeStubAssembler::IsAnyPromiseHookEnabled(TNode<Uint32T> flags) {
   return IsSetWord32(flags, mask);
 }
 
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 TNode<BoolT> CodeStubAssembler::IsContextPromiseHookEnabled(
     TNode<Uint32T> flags) {
   return IsSetWord32<Isolate::PromiseHookFields::HasContextPromiseHook>(flags);
 }
+#endif
 
 TNode<BoolT> CodeStubAssembler::
     IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(TNode<Uint32T> flags) {

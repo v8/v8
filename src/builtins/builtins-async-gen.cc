@@ -183,6 +183,7 @@ void AsyncBuiltinsAssembler::InitAwaitPromise(
   Goto(&do_nothing);
   BIND(&not_debugging);
 
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   // This call to NewJSPromise is to keep behaviour parity with what happens
   // in Runtime::kAwaitPromisesInit above if native hooks are set. It will
   // create a throwaway promise that will trigger an init event and will get
@@ -191,6 +192,7 @@ void AsyncBuiltinsAssembler::InitAwaitPromise(
          &do_nothing);
   BIND(&if_promise_hook);
   *var_throwaway = NewJSPromise(context, promise);
+#endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   Goto(&do_nothing);
   BIND(&do_nothing);
 }

@@ -485,9 +485,6 @@ const kWasmArrayHeaderSize:
 const kHeapObjectHeaderSize:
     constexpr int32 generates 'HeapObject::kHeaderSize';
 
-const kDictModePrototypes:
-    constexpr bool generates 'V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL';
-
 type TheHole extends Oddball;
 type Null extends Oddball;
 type Undefined extends Oddball;

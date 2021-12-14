@@ -3660,10 +3660,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Promise helpers
   TNode<Uint32T> PromiseHookFlags();
   TNode<BoolT> HasAsyncEventDelegate();
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   TNode<BoolT> IsContextPromiseHookEnabled(TNode<Uint32T> flags);
-  TNode<BoolT> IsContextPromiseHookEnabled() {
-    return IsContextPromiseHookEnabled(PromiseHookFlags());
-  }
+#endif
   TNode<BoolT> IsAnyPromiseHookEnabled(TNode<Uint32T> flags);
   TNode<BoolT> IsAnyPromiseHookEnabled() {
     return IsAnyPromiseHookEnabled(PromiseHookFlags());

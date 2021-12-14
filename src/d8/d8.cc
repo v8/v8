@@ -2164,6 +2164,7 @@ void Shell::SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args) {
         "--correctness-fuzzer-suppressions");
     return;
   }
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   Local<Context> context = isolate->GetCurrentContext();
   HandleScope handle_scope(isolate);
 
@@ -2174,6 +2175,11 @@ void Shell::SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args) {
     args[3]->IsFunction() ? args[3].As<Function>() : Local<Function>());
 
   args.GetReturnValue().Set(v8::Undefined(isolate));
+#else   // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+  isolate->ThrowError(
+      "d8.promise.setHooks is disabled due to missing build flag "
+      "v8_enabale_javascript_in_promise_hooks");
+#endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 }
 
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {

@@ -78,10 +78,11 @@ macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
   let properties: EmptyFixedArray|NameDictionary|SwissNameDictionary =
       kEmptyFixedArray;
   if (IsDictionaryMap(map)) {
-    if (kDictModePrototypes) {
+    @if(V8_ENABLE_SWISS_NAME_DICTIONARY) {
       properties =
           AllocateSwissNameDictionary(kSwissNameDictionaryInitialCapacity);
-    } else {
+    }
+    @ifnot(V8_ENABLE_SWISS_NAME_DICTIONARY) {
       properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
     }
   }

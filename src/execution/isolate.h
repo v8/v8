@@ -1569,11 +1569,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 #endif
 
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   void SetHasContextPromiseHooks(bool context_promise_hook) {
     promise_hook_flags_ = PromiseHookFields::HasContextPromiseHook::update(
         promise_hook_flags_, context_promise_hook);
     PromiseHookStateUpdated();
   }
+#endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 
   bool HasContextPromiseHooks() const {
     return PromiseHookFields::HasContextPromiseHook::decode(

@@ -6602,6 +6602,7 @@ void v8::Context::SetPromiseHooks(Local<Function> init_hook,
                                   Local<Function> before_hook,
                                   Local<Function> after_hook,
                                   Local<Function> resolve_hook) {
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* isolate = context->GetIsolate();
 
@@ -6635,6 +6636,10 @@ void v8::Context::SetPromiseHooks(Local<Function> init_hook,
   context->native_context().set_promise_hook_before_function(*before);
   context->native_context().set_promise_hook_after_function(*after);
   context->native_context().set_promise_hook_resolve_function(*resolve);
+#else   // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+  Utils::ApiCheck(false, "v8::Context::SetPromiseHook",
+                  "V8 was compiled without JavaScript Promise hooks");
+#endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 }
 
 MaybeLocal<Context> metrics::Recorder::GetContext(
