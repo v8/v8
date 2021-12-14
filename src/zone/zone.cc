@@ -90,9 +90,9 @@ void Zone::Reset() {
   keep->ZapContents();
 
   segment_head_ = keep;
-  position_ = keep->start();
+  position_ = RoundUp(keep->start(), kAlignmentInBytes);
   limit_ = keep->end();
-  DCHECK_EQ(allocation_size(), 0);
+  DCHECK_LT(allocation_size(), kAlignmentInBytes);
   DCHECK_EQ(segment_bytes_allocated_, keep->total_size());
 }
 
