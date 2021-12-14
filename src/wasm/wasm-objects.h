@@ -597,7 +597,7 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
       Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
-      int arity, Handle<Code> export_wrapper);
+      int arity, Handle<CodeT> export_wrapper);
 
   Address GetWasmCallTarget();
 
@@ -693,7 +693,6 @@ class WasmFunctionData
     : public TorqueGeneratedWasmFunctionData<WasmFunctionData, HeapObject> {
  public:
   DECL_ACCESSORS(internal, WasmInternalFunction)
-  DECL_ACCESSORS(wrapper_code, Code)
 
   DECL_PRINTER(WasmFunctionData)
 
@@ -736,8 +735,6 @@ class WasmInternalFunction
     : public TorqueGeneratedWasmInternalFunction<WasmInternalFunction,
                                                  Foreign> {
  public:
-  DECL_ACCESSORS(code, Code)
-
   // Returns a handle to the corresponding WasmInternalFunction if {external} is
   // a WasmExternalFunction, or an empty handle otherwise.
   static MaybeHandle<WasmInternalFunction> FromExternal(Handle<Object> external,
@@ -749,9 +746,6 @@ class WasmInternalFunction
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
-
- private:
-  DECL_ACCESSORS(raw_code, CodeT)
 };
 
 // Information for a WasmJSFunction which is referenced as the function data of
@@ -761,7 +755,7 @@ class WasmJSFunctionData
     : public TorqueGeneratedWasmJSFunctionData<WasmJSFunctionData,
                                                WasmFunctionData> {
  public:
-  DECL_ACCESSORS(wasm_to_js_wrapper_code, Code)
+  DECL_ACCESSORS(wasm_to_js_wrapper_code, CodeT)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)

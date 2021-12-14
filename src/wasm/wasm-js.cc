@@ -2571,8 +2571,8 @@ void WebAssemblySuspenderReturnPromiseOnSuspend(
   int index = data.function_index();
   i::Handle<i::WasmInstanceObject> instance(
       i::WasmInstanceObject::cast(data.internal().ref()), i_isolate);
-  i::Handle<i::Code> wrapper = i_isolate->builtins()->code_handle(
-      i::Builtin::kWasmReturnPromiseOnSuspend);
+  i::Handle<i::CodeT> wrapper =
+      BUILTIN_CODET(i_isolate, WasmReturnPromiseOnSuspend);
   i::Handle<i::JSObject> result =
       i::Handle<i::WasmExternalFunction>::cast(i::WasmExportedFunction::New(
           i_isolate, instance, index,

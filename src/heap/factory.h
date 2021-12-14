@@ -589,10 +589,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                                        Handle<Map> rtt);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, Handle<Foreign> embedder_data,
-      Handle<Code> wrapper_code, Handle<Map> rtt,
+      Handle<CodeT> wrapper_code, Handle<Map> rtt,
       Handle<PodArray<wasm::ValueType>> serialized_sig);
   Handle<WasmExportedFunctionData> NewWasmExportedFunctionData(
-      Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
+      Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
       Address call_target, Handle<Object> ref, int func_index,
       Address sig_address, int wrapper_budget, Handle<Map> rtt);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(Handle<JSReceiver> callable);
@@ -601,7 +601,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
       Address opt_call_target, Handle<JSReceiver> callable, int return_count,
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-      Handle<Code> wrapper_code, Handle<Map> rtt);
+      Handle<CodeT> wrapper_code, Handle<Map> rtt);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
   Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type,

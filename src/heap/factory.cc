@@ -1535,7 +1535,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   result.set_foreign_address(isolate(), opt_call_target);
   result.set_ref(*ref);
   // Default values, will be overwritten by the caller.
-  result.set_code(isolate()->builtins()->code(Builtin::kAbort));
+  result.set_code(*BUILTIN_CODET(isolate(), Abort));
   result.set_external(*undefined_value());
   return handle(result, isolate());
 }
@@ -1543,7 +1543,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-    Handle<Code> wrapper_code, Handle<Map> rtt) {
+    Handle<CodeT> wrapper_code, Handle<Map> rtt) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(callable);
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(opt_call_target, ref, rtt);
@@ -1561,7 +1561,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
 }
 
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
-    Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
+    Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
     Address call_target, Handle<Object> ref, int func_index,
     Address sig_address, int wrapper_budget, Handle<Map> rtt) {
   Handle<Foreign> sig_foreign = NewForeign(sig_address);
@@ -1587,7 +1587,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 
 Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, Handle<Foreign> embedder_data,
-    Handle<Code> wrapper_code, Handle<Map> rtt,
+    Handle<CodeT> wrapper_code, Handle<Map> rtt,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(Handle<JSReceiver>());
   Handle<WasmInternalFunction> internal =

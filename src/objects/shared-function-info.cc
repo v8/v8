@@ -100,13 +100,13 @@ CodeT SharedFunctionInfo::GetCode() const {
   if (data.IsWasmExportedFunctionData()) {
     // Having a WasmExportedFunctionData means the code is in there.
     DCHECK(HasWasmExportedFunctionData());
-    return ToCodeT(wasm_exported_function_data().wrapper_code());
+    return wasm_exported_function_data().wrapper_code();
   }
   if (data.IsWasmJSFunctionData()) {
-    return ToCodeT(wasm_js_function_data().wrapper_code());
+    return wasm_js_function_data().wrapper_code();
   }
   if (data.IsWasmCapiFunctionData()) {
-    return ToCodeT(wasm_capi_function_data().wrapper_code());
+    return wasm_capi_function_data().wrapper_code();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (data.IsUncompiledData()) {
@@ -122,7 +122,7 @@ CodeT SharedFunctionInfo::GetCode() const {
   if (data.IsInterpreterData()) {
     CodeT code = InterpreterTrampoline();
     DCHECK(code.IsCodeT());
-    DCHECK(FromCodeT(code).is_interpreter_trampoline_builtin());
+    DCHECK(code.is_interpreter_trampoline_builtin());
     return code;
   }
   UNREACHABLE();

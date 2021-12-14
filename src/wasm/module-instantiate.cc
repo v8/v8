@@ -787,9 +787,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     auto& function = module_->functions[start_index];
-    Handle<Code> wrapper_code =
-        JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate_, function.sig, module_, function.imported);
+    Handle<CodeT> wrapper_code =
+        ToCodeT(JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+                    isolate_, function.sig, module_, function.imported),
+                isolate_);
     // TODO(clemensb): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(

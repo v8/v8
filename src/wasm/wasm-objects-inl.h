@@ -287,13 +287,6 @@ CAST_ACCESSOR(WasmExportedFunction)
 // WasmFunctionData
 ACCESSORS(WasmFunctionData, internal, WasmInternalFunction, kInternalOffset)
 
-DEF_GETTER(WasmFunctionData, wrapper_code, Code) {
-  return FromCodeT(TorqueGeneratedClass::wrapper_code(cage_base));
-}
-void WasmFunctionData::set_wrapper_code(Code code, WriteBarrierMode mode) {
-  TorqueGeneratedClass::set_wrapper_code(ToCodeT(code), mode);
-}
-
 wasm::FunctionSig* WasmExportedFunctionData::sig() const {
   return reinterpret_cast<wasm::FunctionSig*>(signature().foreign_address());
 }
@@ -306,16 +299,6 @@ CAST_ACCESSOR(WasmJSFunction)
 
 // WasmJSFunctionData
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData)
-
-// WasmInternalFunction
-ACCESSORS(WasmInternalFunction, raw_code, CodeT, kCodeOffset)
-
-DEF_GETTER(WasmInternalFunction, code, Code) {
-  return FromCodeT(raw_code(cage_base));
-}
-void WasmInternalFunction::set_code(Code code, WriteBarrierMode mode) {
-  set_raw_code(ToCodeT(code), mode);
-}
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {

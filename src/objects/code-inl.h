@@ -996,6 +996,10 @@ Address CodeDataContainer::InstructionStart() const {
   return code_entry_point();
 }
 
+Address CodeDataContainer::raw_instruction_start() {
+  return code_entry_point();
+}
+
 void CodeDataContainer::clear_padding() {
   memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
          kSize - kUnalignedSize);

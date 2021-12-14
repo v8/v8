@@ -102,6 +102,9 @@ class CodeDataContainer : public HeapObject {
   // Alias for code_entry_point to make it API compatible with Code.
   inline Address InstructionStart() const;
 
+  // Alias for code_entry_point to make it API compatible with Code.
+  inline Address raw_instruction_start();
+
 #ifdef V8_EXTERNAL_CODE_SPACE
   //
   // A collection of getters and predicates that forward queries to associated

@@ -231,7 +231,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
 namespace {
 void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                    int function_index, Handle<Code> wrapper_code) {
+                    int function_index, Handle<CodeT> wrapper_code) {
   Handle<WasmInternalFunction> internal =
       WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                   function_index)
@@ -269,9 +269,10 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  Handle<Code> wrapper_code =
+  Handle<CodeT> wrapper_code = ToCodeT(
       wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
-          isolate, sig, module);
+          isolate, sig, module),
+      isolate);
 
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to verify that the wrapper is replaced, even if the function

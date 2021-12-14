@@ -1527,9 +1527,7 @@ void PrepareFunctionData(i::Isolate* isolate,
                          const i::wasm::FunctionSig* sig,
                          const i::wasm::WasmModule* module) {
   // If the data is already populated, return immediately.
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  if (function_data->c_wrapper_code() !=
-      ToCodeT(*BUILTIN_CODE(isolate, Illegal))) {
+  if (function_data->c_wrapper_code() != *BUILTIN_CODET(isolate, Illegal)) {
     return;
   }
   // Compile wrapper code.
@@ -1671,9 +1669,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   const i::wasm::FunctionSig* sig =
       instance->module()->functions[function_index].sig;
   PrepareFunctionData(isolate, function_data, sig, instance->module());
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  i::Handle<i::CodeT> wrapper_code = i::Handle<i::CodeT>(
-      i::CodeT::cast(function_data->c_wrapper_code()), isolate);
+  i::Handle<i::CodeT> wrapper_code(function_data->c_wrapper_code(), isolate);
   i::Address call_target = function_data->internal().foreign_address();
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
