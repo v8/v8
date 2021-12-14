@@ -266,6 +266,14 @@ inline CodeT ToCodeT(Code code) {
 #endif
 }
 
+inline Handle<CodeT> ToCodeT(Handle<Code> code, Isolate* isolate) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  return handle(code->code_data_container(kAcquireLoad), isolate);
+#else
+  return code;
+#endif
+}
+
 inline Code FromCodeT(CodeT code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
   return code.code();
@@ -1026,6 +1034,10 @@ Builtin CodeDataContainer::builtin_id() const {
 bool CodeDataContainer::is_builtin() const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   return builtin_id() != Builtin::kNoBuiltinId;
+}
+
+bool CodeDataContainer::is_optimized_code() const {
+  return CodeKindIsOptimizedJSFunction(kind());
 }
 
 inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {

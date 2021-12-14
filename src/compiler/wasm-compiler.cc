@@ -8060,7 +8060,7 @@ Handle<CodeT> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
   CHECK_NE(job->FinalizeJob(isolate), CompilationJob::FAILED);
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-  return handle(ToCodeT(*job->compilation_info()->code()), isolate);
+  return ToCodeT(job->compilation_info()->code(), isolate);
 #else
   return job->compilation_info()->code();
 #endif

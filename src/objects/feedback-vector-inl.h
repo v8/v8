@@ -124,13 +124,13 @@ void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
 }
 
-Code FeedbackVector::optimized_code() const {
+CodeT FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
-  Code code;
+  CodeT code;
   if (slot->GetHeapObject(&heap_object)) {
-    code = FromCodeT(CodeT::cast(heap_object));
+    code = CodeT::cast(heap_object);
   }
   // It is possible that the maybe_optimized_code slot is cleared but the
   // optimization tier hasn't been updated yet. We update the tier when we

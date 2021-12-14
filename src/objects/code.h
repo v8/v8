@@ -753,6 +753,7 @@ class Code::OptimizedCodeIterator {
 // Helper functions for converting Code objects to CodeDataContainer and back
 // when V8_EXTERNAL_CODE_SPACE is enabled.
 inline CodeT ToCodeT(Code code);
+inline Handle<CodeT> ToCodeT(Handle<Code> code, Isolate* isolate);
 inline Code FromCodeT(CodeT code);
 inline Code FromCodeT(CodeT code, RelaxedLoadTag);
 inline Code FromCodeT(CodeT code, AcquireLoadTag);

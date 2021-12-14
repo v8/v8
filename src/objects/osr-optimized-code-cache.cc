@@ -17,7 +17,7 @@ const int OSROptimizedCodeCache::kMaxLength;
 
 void OSROptimizedCodeCache::AddOptimizedCode(
     Handle<NativeContext> native_context, Handle<SharedFunctionInfo> shared,
-    Handle<Code> code, BytecodeOffset osr_offset) {
+    Handle<CodeT> code, BytecodeOffset osr_offset) {
   DCHECK(!osr_offset.IsNone());
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   STATIC_ASSERT(kEntryLength == 3);
@@ -90,16 +90,16 @@ void OSROptimizedCodeCache::Compact(Handle<NativeContext> native_context) {
   native_context->set_osr_code_cache(*new_osr_cache);
 }
 
-Code OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
-                                             BytecodeOffset osr_offset,
-                                             Isolate* isolate) {
+CodeT OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
+                                              BytecodeOffset osr_offset,
+                                              Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   int index = FindEntry(shared, osr_offset);
-  if (index == -1) return Code();
-  Code code = GetCodeFromEntry(index);
+  if (index == -1) return CodeT();
+  CodeT code = GetCodeFromEntry(index);
   if (code.is_null()) {
     ClearEntry(index, isolate);
-    return code;
+    return CodeT();
   }
   DCHECK(code.is_optimized_code() && !code.marked_for_deoptimization());
   return code;
@@ -114,8 +114,7 @@ void OSROptimizedCodeCache::EvictMarkedCode(Isolate* isolate) {
     HeapObject heap_object;
     if (!code_entry->GetHeapObject(&heap_object)) continue;
 
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
-    Code code = FromCodeT(CodeT::cast(heap_object));
+    CodeT code = CodeT::cast(heap_object);
     DCHECK(code.is_optimized_code());
     if (!code.marked_for_deoptimization()) continue;
 
@@ -140,15 +139,14 @@ int OSROptimizedCodeCache::GrowOSRCache(
   return old_length;
 }
 
-Code OSROptimizedCodeCache::GetCodeFromEntry(int index) {
+CodeT OSROptimizedCodeCache::GetCodeFromEntry(int index) {
   DCHECK_LE(index + OSRCodeCacheConstants::kEntryLength, length());
   DCHECK_EQ(index % kEntryLength, 0);
   HeapObject code_entry;
   Get(index + OSRCodeCacheConstants::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
-  if (code_entry.is_null()) return Code();
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  return FromCodeT(CodeT::cast(code_entry));
+  if (code_entry.is_null()) return CodeT();
+  return CodeT::cast(code_entry);
 }
 
 SharedFunctionInfo OSROptimizedCodeCache::GetSFIFromEntry(int index) {
@@ -191,13 +189,11 @@ void OSROptimizedCodeCache::ClearEntry(int index, Isolate* isolate) {
 
 void OSROptimizedCodeCache::InitializeEntry(int entry,
                                             SharedFunctionInfo shared,
-                                            Code code,
+                                            CodeT code,
                                             BytecodeOffset osr_offset) {
   Set(entry + OSRCodeCacheConstants::kSharedOffset,
       HeapObjectReference::Weak(shared));
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  HeapObjectReference weak_code_entry =
-      HeapObjectReference::Weak(ToCodeT(code));
+  HeapObjectReference weak_code_entry = HeapObjectReference::Weak(code);
   Set(entry + OSRCodeCacheConstants::kCachedCodeOffset, weak_code_entry);
   Set(entry + OSRCodeCacheConstants::kOsrIdOffset,
       MaybeObject::FromSmi(Smi::FromInt(osr_offset.ToInt())));

@@ -236,7 +236,7 @@ class FeedbackVector
   DECL_RELAXED_INT32_ACCESSORS(invocation_count)
   inline void clear_invocation_count(RelaxedStoreTag tag);
 
-  inline Code optimized_code() const;
+  inline CodeT optimized_code() const;
   inline bool has_optimized_code() const;
   inline bool has_optimization_marker() const;
   inline OptimizationMarker optimization_marker() const;
@@ -245,8 +245,8 @@ class FeedbackVector
   void EvictOptimizedCodeMarkedForDeoptimization(FeedbackCell feedback_cell,
                                                  SharedFunctionInfo shared,
                                                  const char* reason);
-  static void SetOptimizedCode(Handle<FeedbackVector> vector, Handle<Code> code,
-                               FeedbackCell feedback_cell);
+  static void SetOptimizedCode(Handle<FeedbackVector> vector,
+                               Handle<CodeT> code, FeedbackCell feedback_cell);
   void SetOptimizationMarker(OptimizationMarker marker);
   void ClearOptimizationTier(FeedbackCell feedback_cell);
   void InitializeOptimizationState();

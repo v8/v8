@@ -390,7 +390,7 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
 
 // static
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
-                                      Handle<Code> code,
+                                      Handle<CodeT> code,
                                       FeedbackCell feedback_cell) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   // We should set optimized code only when there is no valid optimized code or
@@ -405,7 +405,7 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // kCompileOptimized or kCompileOptimizedConcurrent.
-  vector->set_maybe_optimized_code(HeapObjectReference::Weak(ToCodeT(*code)),
+  vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code),
                                    kReleaseStore);
   int32_t state = vector->flags();
   state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
