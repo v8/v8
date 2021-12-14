@@ -16,6 +16,7 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
@@ -69,7 +70,6 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module-inl.h"
@@ -1784,8 +1784,8 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
   }
 }
 
-void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
+void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::CallSiteInfoVerify(*this, isolate);
 #if V8_ENABLE_WEBASSEMBLY
   CHECK_IMPLIES(IsAsmJsWasm(), IsWasm());
   CHECK_IMPLIES(IsWasm(), receiver_or_instance().IsWasmInstanceObject());

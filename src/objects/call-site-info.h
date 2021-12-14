@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OBJECTS_STACK_FRAME_INFO_H_
-#define V8_OBJECTS_STACK_FRAME_INFO_H_
+#ifndef V8_OBJECTS_CALL_SITE_INFO_H_
+#define V8_OBJECTS_CALL_SITE_INFO_H_
 
 #include "src/objects/struct.h"
 #include "torque-generated/bit-fields.h"
@@ -18,12 +18,12 @@ class MessageLocation;
 class WasmInstanceObject;
 class StructBodyDescriptor;
 
-#include "torque-generated/src/objects/stack-frame-info-tq.inc"
+#include "torque-generated/src/objects/call-site-info-tq.inc"
 
-class StackFrameInfo
-    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
+class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
+  DEFINE_TORQUE_GENERATED_CALL_SITE_INFO_FLAGS()
 
 #if V8_ENABLE_WEBASSEMBLY
   inline bool IsWasm() const;
@@ -45,16 +45,16 @@ class StackFrameInfo
   DECL_ACCESSORS(code_object, HeapObject)
 
   // Dispatched behavior.
-  DECL_VERIFIER(StackFrameInfo)
+  DECL_VERIFIER(CallSiteInfo)
 
   // Used to signal that the requested field is unknown.
   static constexpr int kUnknown = kNoSourcePosition;
 
-  V8_EXPORT_PRIVATE static int GetLineNumber(Handle<StackFrameInfo> info);
-  V8_EXPORT_PRIVATE static int GetColumnNumber(Handle<StackFrameInfo> info);
+  V8_EXPORT_PRIVATE static int GetLineNumber(Handle<CallSiteInfo> info);
+  V8_EXPORT_PRIVATE static int GetColumnNumber(Handle<CallSiteInfo> info);
 
-  static int GetEnclosingLineNumber(Handle<StackFrameInfo> info);
-  static int GetEnclosingColumnNumber(Handle<StackFrameInfo> info);
+  static int GetEnclosingLineNumber(Handle<CallSiteInfo> info);
+  static int GetEnclosingColumnNumber(Handle<CallSiteInfo> info);
 
   // Returns the script ID if one is attached,
   // Message::kNoScriptIdInfo otherwise.
@@ -64,58 +64,54 @@ class StackFrameInfo
   Object GetScriptSource() const;
   Object GetScriptSourceMappingURL() const;
 
-  static Handle<PrimitiveHeapObject> GetEvalOrigin(Handle<StackFrameInfo> info);
+  static Handle<PrimitiveHeapObject> GetEvalOrigin(Handle<CallSiteInfo> info);
   V8_EXPORT_PRIVATE static Handle<Object> GetFunctionName(
-      Handle<StackFrameInfo> info);
-  static Handle<Object> GetMethodName(Handle<StackFrameInfo> info);
-  static Handle<Object> GetTypeName(Handle<StackFrameInfo> info);
+      Handle<CallSiteInfo> info);
+  static Handle<Object> GetMethodName(Handle<CallSiteInfo> info);
+  static Handle<Object> GetTypeName(Handle<CallSiteInfo> info);
 
 #if V8_ENABLE_WEBASSEMBLY
   // These methods are only valid for Wasm and asm.js Wasm frames.
   uint32_t GetWasmFunctionIndex() const;
   WasmInstanceObject GetWasmInstance() const;
-  static Handle<Object> GetWasmModuleName(Handle<StackFrameInfo> info);
+  static Handle<Object> GetWasmModuleName(Handle<CallSiteInfo> info);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Returns the 0-based source position, which is the offset into the
   // Script in case of JavaScript and Asm.js, and the bytecode offset
   // in the module in case of actual Wasm. In case of async promise
   // combinator frames, this returns the index of the promise.
-  static int GetSourcePosition(Handle<StackFrameInfo> info);
+  static int GetSourcePosition(Handle<CallSiteInfo> info);
 
   // Attempts to fill the |location| based on the |info|, and avoids
   // triggering source position table building for JavaScript frames.
-  static bool ComputeLocation(Handle<StackFrameInfo> info,
+  static bool ComputeLocation(Handle<CallSiteInfo> info,
                               MessageLocation* location);
 
   using BodyDescriptor = StructBodyDescriptor;
 
  private:
-  // Bit position in the flag, from least significant bit position.
-  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
-  friend class StackTraceBuilder;
-
-  static int ComputeSourcePosition(Handle<StackFrameInfo> info, int offset);
+  static int ComputeSourcePosition(Handle<CallSiteInfo> info, int offset);
 
   base::Optional<Script> GetScript() const;
   SharedFunctionInfo GetSharedFunctionInfo() const;
 
   static MaybeHandle<Script> GetScript(Isolate* isolate,
-                                       Handle<StackFrameInfo> info);
+                                       Handle<CallSiteInfo> info);
 
-  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
+  TQ_OBJECT_CONSTRUCTORS(CallSiteInfo)
 };
 
 class IncrementalStringBuilder;
-void SerializeStackFrameInfo(Isolate* isolate, Handle<StackFrameInfo> frame,
-                             IncrementalStringBuilder* builder);
+void SerializeCallSiteInfo(Isolate* isolate, Handle<CallSiteInfo> frame,
+                           IncrementalStringBuilder* builder);
 V8_EXPORT_PRIVATE
-MaybeHandle<String> SerializeStackFrameInfo(Isolate* isolate,
-                                            Handle<StackFrameInfo> frame);
+MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
+                                          Handle<CallSiteInfo> frame);
 
 }  // namespace internal
 }  // namespace v8
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_OBJECTS_STACK_FRAME_INFO_H_
+#endif  // V8_OBJECTS_CALL_SITE_INFO_H_

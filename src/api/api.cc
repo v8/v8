@@ -78,6 +78,7 @@
 #include "src/logging/tracing-flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/contexts.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
@@ -100,7 +101,6 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/templates.h"
 #include "src/objects/value-serializer.h"
@@ -3229,8 +3229,8 @@ void Message::PrintCurrentStackTrace(Isolate* isolate, std::ostream& out) {
 Local<StackFrame> StackTrace::GetFrame(Isolate* v8_isolate,
                                        uint32_t index) const {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Handle<i::StackFrameInfo> frame(
-      i::StackFrameInfo::cast(Utils::OpenHandle(this)->get(index)), isolate);
+  i::Handle<i::CallSiteInfo> frame(
+      i::CallSiteInfo::cast(Utils::OpenHandle(this)->get(index)), isolate);
   return Utils::StackFrameToLocal(frame);
 }
 
@@ -3251,11 +3251,11 @@ Local<StackTrace> StackTrace::CurrentStackTrace(Isolate* isolate,
 // --- S t a c k F r a m e ---
 
 int StackFrame::GetLineNumber() const {
-  return i::StackFrameInfo::GetLineNumber(Utils::OpenHandle(this));
+  return i::CallSiteInfo::GetLineNumber(Utils::OpenHandle(this));
 }
 
 int StackFrame::GetColumn() const {
-  return i::StackFrameInfo::GetColumnNumber(Utils::OpenHandle(this));
+  return i::CallSiteInfo::GetColumnNumber(Utils::OpenHandle(this));
 }
 
 int StackFrame::GetScriptId() const {
@@ -3306,7 +3306,7 @@ Local<String> StackFrame::GetFunctionName() const {
         i::GetWasmFunctionDebugName(isolate, instance, func_index));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  auto name = i::StackFrameInfo::GetFunctionName(self);
+  auto name = i::CallSiteInfo::GetFunctionName(self);
   if (!name->IsString()) return {};
   return Local<String>::Cast(Utils::ToLocal(name));
 }

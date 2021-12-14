@@ -73,6 +73,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/hash-table-inl.h"
@@ -87,7 +88,6 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/source-text-module-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
@@ -706,8 +706,8 @@ class StackTraceBuilder {
   void AppendAsyncFrame(Handle<JSGeneratorObject> generator_object) {
     Handle<JSFunction> function(generator_object->function(), isolate_);
     if (!IsVisibleInStackTrace(function)) return;
-    int flags = StackFrameInfo::kIsAsync;
-    if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
+    int flags = CallSiteInfo::kIsAsync;
+    if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
 
     Handle<Object> receiver(generator_object->receiver(), isolate_);
     Handle<BytecodeArray> code(function->shared().GetBytecodeArray(isolate_),
@@ -732,7 +732,7 @@ class StackTraceBuilder {
                                     Handle<JSFunction> combinator) {
     if (!IsVisibleInStackTrace(combinator)) return;
     int flags =
-        StackFrameInfo::kIsAsync | StackFrameInfo::kIsSourcePositionComputed;
+        CallSiteInfo::kIsAsync | CallSiteInfo::kIsSourcePositionComputed;
 
     Handle<Object> receiver(combinator->native_context().promise_function(),
                             isolate_);
@@ -756,8 +756,8 @@ class StackTraceBuilder {
 
     int flags = 0;
     Handle<JSFunction> function = summary.function();
-    if (IsStrictFrame(function)) flags |= StackFrameInfo::kIsStrict;
-    if (summary.is_constructor()) flags |= StackFrameInfo::kIsConstructor;
+    if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
+    if (summary.is_constructor()) flags |= CallSiteInfo::kIsConstructor;
 
     AppendFrame(summary.receiver(), function, summary.abstract_code(),
                 summary.code_offset(), flags, summary.parameters());
@@ -767,11 +767,11 @@ class StackTraceBuilder {
   void AppendWasmFrame(FrameSummary::WasmFrameSummary const& summary) {
     if (summary.code()->kind() != wasm::WasmCode::kWasmFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
-    int flags = StackFrameInfo::kIsWasm;
+    int flags = CallSiteInfo::kIsWasm;
     if (instance->module_object().is_asm_js()) {
-      flags |= StackFrameInfo::kIsAsmJsWasm;
+      flags |= CallSiteInfo::kIsAsmJsWasm;
       if (summary.at_to_number_conversion()) {
-        flags |= StackFrameInfo::kIsAsmJsAtNumberConversion;
+        flags |= CallSiteInfo::kIsAsmJsAtNumberConversion;
       }
     }
 
@@ -870,7 +870,7 @@ class StackTraceBuilder {
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();
     }
-    auto info = isolate_->factory()->NewStackFrameInfo(
+    auto info = isolate_->factory()->NewCallSiteInfo(
         receiver_or_instance, function, code, offset, flags, parameters);
     elements_->set(index_++, *info);
   }
@@ -2203,8 +2203,8 @@ void Isolate::PrintCurrentStackTrace(std::ostream& out) {
 
   IncrementalStringBuilder builder(this);
   for (int i = 0; i < frames->length(); ++i) {
-    Handle<StackFrameInfo> frame(StackFrameInfo::cast(frames->get(i)), this);
-    SerializeStackFrameInfo(this, frame, &builder);
+    Handle<CallSiteInfo> frame(CallSiteInfo::cast(frames->get(i)), this);
+    SerializeCallSiteInfo(this, frame, &builder);
   }
 
   Handle<String> stack_trace = builder.Finish().ToHandleChecked();
@@ -2276,8 +2276,8 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   if (!property->IsFixedArray()) return false;
   Handle<FixedArray> stack = Handle<FixedArray>::cast(property);
   for (int i = 0; i < stack->length(); i++) {
-    Handle<StackFrameInfo> frame(StackFrameInfo::cast(stack->get(i)), this);
-    if (StackFrameInfo::ComputeLocation(frame, target)) return true;
+    Handle<CallSiteInfo> frame(CallSiteInfo::cast(stack->get(i)), this);
+    if (CallSiteInfo::ComputeLocation(frame, target)) return true;
   }
   return false;
 }

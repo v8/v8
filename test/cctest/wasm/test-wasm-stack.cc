@@ -5,7 +5,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
+#include "src/objects/call-site-info-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -212,11 +212,11 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   Handle<FixedArray> stack_trace_object =
       isolate->GetDetailedStackTrace(Handle<JSObject>::cast(exception));
   CHECK(!stack_trace_object.is_null());
-  Handle<StackFrameInfo> stack_frame(
-      StackFrameInfo::cast(stack_trace_object->get(0)), isolate);
+  Handle<CallSiteInfo> stack_frame(
+      CallSiteInfo::cast(stack_trace_object->get(0)), isolate);
 
   MaybeHandle<String> maybe_stack_trace_str =
-      SerializeStackFrameInfo(isolate, stack_frame);
+      SerializeCallSiteInfo(isolate, stack_frame);
   CHECK(!maybe_stack_trace_str.is_null());
   Handle<String> stack_trace_str = maybe_stack_trace_str.ToHandleChecked();
 

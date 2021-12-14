@@ -36,6 +36,7 @@ class BreakPointInfo;
 class CallableTask;
 class CallbackTask;
 class CallHandlerInfo;
+class CallSiteInfo;
 class Expression;
 class EmbedderDataArray;
 class ArrayBoilerplateDescription;
@@ -62,7 +63,6 @@ class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
 class SourceTextModule;
-class StackFrameInfo;
 class StringSet;
 class StoreHandler;
 class SyntheticModule;
@@ -395,12 +395,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
 
-  Handle<StackFrameInfo> NewStackFrameInfo(Handle<Object> receiver_or_instance,
-                                           Handle<Object> function,
-                                           Handle<HeapObject> code_object,
-                                           int code_offset_or_source_position,
-                                           int flags,
-                                           Handle<FixedArray> parameters);
+  Handle<CallSiteInfo> NewCallSiteInfo(Handle<Object> receiver_or_instance,
+                                       Handle<Object> function,
+                                       Handle<HeapObject> code_object,
+                                       int code_offset_or_source_position,
+                                       int flags,
+                                       Handle<FixedArray> parameters);
 
   // Allocate various microtasks.
   Handle<CallableTask> NewCallableTask(Handle<JSReceiver> callable,

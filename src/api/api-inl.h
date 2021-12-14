@@ -12,10 +12,10 @@
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/objects/call-site-info.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/stack-frame-info.h"
 
 namespace v8 {
 
@@ -101,7 +101,7 @@ MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
 MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
 MAKE_TO_LOCAL(StackTraceToLocal, FixedArray, StackTrace)
-MAKE_TO_LOCAL(StackFrameToLocal, StackFrameInfo, StackFrame)
+MAKE_TO_LOCAL(StackFrameToLocal, CallSiteInfo, StackFrame)
 MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)

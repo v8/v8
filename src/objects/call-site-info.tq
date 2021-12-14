@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-bitfield struct StackFrameInfoFlags extends uint31 {
+bitfield struct CallSiteInfoFlags extends uint31 {
   is_wasm: bool: 1 bit;
   is_asm_js_wasm: bool: 1 bit;  // Implies that is_wasm bit is set.
   is_strict: bool: 1 bit;
@@ -14,11 +14,11 @@ bitfield struct StackFrameInfoFlags extends uint31 {
   is_source_position_computed: bool: 1 bit;
 }
 
-extern class StackFrameInfo extends Struct {
+extern class CallSiteInfo extends Struct {
   receiver_or_instance: JSAny;
   function: JSFunction|Smi;
   code_object: HeapObject;
   code_offset_or_source_position: Smi;
-  flags: SmiTagged<StackFrameInfoFlags>;
+  flags: SmiTagged<CallSiteInfoFlags>;
   parameters: FixedArray;
 }

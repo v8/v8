@@ -38,6 +38,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -59,7 +60,6 @@
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/scope-info.h"
-#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/synthetic-module-inl.h"
@@ -3341,12 +3341,12 @@ Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
   return handle(new_break_point, isolate());
 }
 
-Handle<StackFrameInfo> Factory::NewStackFrameInfo(
+Handle<CallSiteInfo> Factory::NewCallSiteInfo(
     Handle<Object> receiver_or_instance, Handle<Object> function,
     Handle<HeapObject> code_object, int code_offset_or_source_position,
     int flags, Handle<FixedArray> parameters) {
-  auto info = NewStructInternal<StackFrameInfo>(STACK_FRAME_INFO_TYPE,
-                                                AllocationType::kYoung);
+  auto info = NewStructInternal<CallSiteInfo>(CALL_SITE_INFO_TYPE,
+                                              AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   info.set_receiver_or_instance(*receiver_or_instance, SKIP_WRITE_BARRIER);
   info.set_function(*function, SKIP_WRITE_BARRIER);

@@ -2,63 +2,63 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/objects/stack-frame-info.h"
+#include "src/objects/call-site-info.h"
 
 #include "src/base/strings.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/stack-frame-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
 
-bool StackFrameInfo::IsPromiseAll() const {
+bool CallSiteInfo::IsPromiseAll() const {
   if (!IsAsync()) return false;
   JSFunction fun = JSFunction::cast(function());
   return fun == fun.native_context().promise_all();
 }
 
-bool StackFrameInfo::IsPromiseAny() const {
+bool CallSiteInfo::IsPromiseAny() const {
   if (!IsAsync()) return false;
   JSFunction fun = JSFunction::cast(function());
   return fun == fun.native_context().promise_any();
 }
 
-bool StackFrameInfo::IsNative() const {
+bool CallSiteInfo::IsNative() const {
   if (auto script = GetScript()) {
     return script->type() == Script::TYPE_NATIVE;
   }
   return false;
 }
 
-bool StackFrameInfo::IsEval() const {
+bool CallSiteInfo::IsEval() const {
   if (auto script = GetScript()) {
     return script->compilation_type() == Script::COMPILATION_TYPE_EVAL;
   }
   return false;
 }
 
-bool StackFrameInfo::IsUserJavaScript() const {
+bool CallSiteInfo::IsUserJavaScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return GetSharedFunctionInfo().IsUserJavaScript();
 }
 
-bool StackFrameInfo::IsMethodCall() const {
+bool CallSiteInfo::IsMethodCall() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
   return !IsToplevel() && !IsConstructor();
 }
 
-bool StackFrameInfo::IsToplevel() const {
+bool CallSiteInfo::IsToplevel() const {
   return receiver_or_instance().IsJSGlobalProxy() ||
          receiver_or_instance().IsNullOrUndefined();
 }
 
 // static
-int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
+int CallSiteInfo::GetLineNumber(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
@@ -78,7 +78,7 @@ int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
 }
 
 // static
-int StackFrameInfo::GetColumnNumber(Handle<StackFrameInfo> info) {
+int CallSiteInfo::GetColumnNumber(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   int position = GetSourcePosition(info);
 #if V8_ENABLE_WEBASSEMBLY
@@ -100,7 +100,7 @@ int StackFrameInfo::GetColumnNumber(Handle<StackFrameInfo> info) {
 }
 
 // static
-int StackFrameInfo::GetEnclosingLineNumber(Handle<StackFrameInfo> info) {
+int CallSiteInfo::GetEnclosingLineNumber(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
@@ -125,7 +125,7 @@ int StackFrameInfo::GetEnclosingLineNumber(Handle<StackFrameInfo> info) {
 }
 
 // static
-int StackFrameInfo::GetEnclosingColumnNumber(Handle<StackFrameInfo> info) {
+int CallSiteInfo::GetEnclosingColumnNumber(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm() && !info->IsAsmJsWasm()) {
@@ -151,28 +151,28 @@ int StackFrameInfo::GetEnclosingColumnNumber(Handle<StackFrameInfo> info) {
   return Script::GetColumnNumber(script, position) + 1;
 }
 
-int StackFrameInfo::GetScriptId() const {
+int CallSiteInfo::GetScriptId() const {
   if (auto script = GetScript()) {
     return script->id();
   }
   return Message::kNoScriptIdInfo;
 }
 
-Object StackFrameInfo::GetScriptName() const {
+Object CallSiteInfo::GetScriptName() const {
   if (auto script = GetScript()) {
     return script->name();
   }
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
-Object StackFrameInfo::GetScriptNameOrSourceURL() const {
+Object CallSiteInfo::GetScriptNameOrSourceURL() const {
   if (auto script = GetScript()) {
     return script->GetNameOrSourceURL();
   }
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
-Object StackFrameInfo::GetScriptSource() const {
+Object CallSiteInfo::GetScriptSource() const {
   if (auto script = GetScript()) {
     if (script->HasValidSource()) {
       return script->source();
@@ -181,7 +181,7 @@ Object StackFrameInfo::GetScriptSource() const {
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
-Object StackFrameInfo::GetScriptSourceMappingURL() const {
+Object CallSiteInfo::GetScriptSourceMappingURL() const {
   if (auto script = GetScript()) {
     return script->source_mapping_url();
   }
@@ -242,8 +242,8 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
 }  // namespace
 
 // static
-Handle<PrimitiveHeapObject> StackFrameInfo::GetEvalOrigin(
-    Handle<StackFrameInfo> info) {
+Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
+    Handle<CallSiteInfo> info) {
   auto isolate = info->GetIsolate();
   Handle<Script> script;
   if (!GetScript(isolate, info).ToHandle(&script) ||
@@ -254,7 +254,7 @@ Handle<PrimitiveHeapObject> StackFrameInfo::GetEvalOrigin(
 }
 
 // static
-Handle<Object> StackFrameInfo::GetFunctionName(Handle<StackFrameInfo> info) {
+Handle<Object> CallSiteInfo::GetFunctionName(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
@@ -370,7 +370,7 @@ PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
 }  // namespace
 
 // static
-Handle<Object> StackFrameInfo::GetMethodName(Handle<StackFrameInfo> info) {
+Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   Handle<Object> receiver_or_instance(info->receiver_or_instance(), isolate);
 #if V8_ENABLE_WEBASSEMBLY
@@ -436,7 +436,7 @@ Handle<Object> StackFrameInfo::GetMethodName(Handle<StackFrameInfo> info) {
 }
 
 // static
-Handle<Object> StackFrameInfo::GetTypeName(Handle<StackFrameInfo> info) {
+Handle<Object> CallSiteInfo::GetTypeName(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   if (!info->IsMethodCall()) {
     return isolate->factory()->null_value();
@@ -452,18 +452,18 @@ Handle<Object> StackFrameInfo::GetTypeName(Handle<StackFrameInfo> info) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-uint32_t StackFrameInfo::GetWasmFunctionIndex() const {
+uint32_t CallSiteInfo::GetWasmFunctionIndex() const {
   DCHECK(IsWasm());
   return Smi::ToInt(Smi::cast(function()));
 }
 
-WasmInstanceObject StackFrameInfo::GetWasmInstance() const {
+WasmInstanceObject CallSiteInfo::GetWasmInstance() const {
   DCHECK(IsWasm());
   return WasmInstanceObject::cast(receiver_or_instance());
 }
 
 // static
-Handle<Object> StackFrameInfo::GetWasmModuleName(Handle<StackFrameInfo> info) {
+Handle<Object> CallSiteInfo::GetWasmModuleName(Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
   if (info->IsWasm()) {
     Handle<String> name;
@@ -479,7 +479,7 @@ Handle<Object> StackFrameInfo::GetWasmModuleName(Handle<StackFrameInfo> info) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // static
-int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
+int CallSiteInfo::GetSourcePosition(Handle<CallSiteInfo> info) {
   if (info->flags() & kIsSourcePositionComputed) {
     return info->code_offset_or_source_position();
   }
@@ -493,8 +493,8 @@ int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
 }
 
 // static
-bool StackFrameInfo::ComputeLocation(Handle<StackFrameInfo> info,
-                                     MessageLocation* location) {
+bool CallSiteInfo::ComputeLocation(Handle<CallSiteInfo> info,
+                                   MessageLocation* location) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
@@ -523,8 +523,7 @@ bool StackFrameInfo::ComputeLocation(Handle<StackFrameInfo> info,
 }
 
 // static
-int StackFrameInfo::ComputeSourcePosition(Handle<StackFrameInfo> info,
-                                          int offset) {
+int CallSiteInfo::ComputeSourcePosition(Handle<CallSiteInfo> info, int offset) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {
@@ -541,7 +540,7 @@ int StackFrameInfo::ComputeSourcePosition(Handle<StackFrameInfo> info,
   return AbstractCode::cast(info->code_object()).SourcePosition(offset);
 }
 
-base::Optional<Script> StackFrameInfo::GetScript() const {
+base::Optional<Script> CallSiteInfo::GetScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
     return GetWasmInstance().module_object().script();
@@ -552,7 +551,7 @@ base::Optional<Script> StackFrameInfo::GetScript() const {
   return base::nullopt;
 }
 
-SharedFunctionInfo StackFrameInfo::GetSharedFunctionInfo() const {
+SharedFunctionInfo CallSiteInfo::GetSharedFunctionInfo() const {
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK(!IsWasm());
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -560,8 +559,8 @@ SharedFunctionInfo StackFrameInfo::GetSharedFunctionInfo() const {
 }
 
 // static
-MaybeHandle<Script> StackFrameInfo::GetScript(Isolate* isolate,
-                                              Handle<StackFrameInfo> info) {
+MaybeHandle<Script> CallSiteInfo::GetScript(Isolate* isolate,
+                                            Handle<CallSiteInfo> info) {
   if (auto script = info->GetScript()) {
     return handle(*script, isolate);
   }
@@ -574,13 +573,13 @@ bool IsNonEmptyString(Handle<Object> object) {
   return (object->IsString() && String::cast(*object).length() > 0);
 }
 
-void AppendFileLocation(Isolate* isolate, Handle<StackFrameInfo> frame,
+void AppendFileLocation(Isolate* isolate, Handle<CallSiteInfo> frame,
                         IncrementalStringBuilder* builder) {
   Handle<Object> script_name_or_source_url(frame->GetScriptNameOrSourceURL(),
                                            isolate);
   if (!script_name_or_source_url->IsString() && frame->IsEval()) {
     builder->AppendString(
-        Handle<String>::cast(StackFrameInfo::GetEvalOrigin(frame)));
+        Handle<String>::cast(CallSiteInfo::GetEvalOrigin(frame)));
     // Expecting source position to follow.
     builder->AppendCStringLiteral(", ");
   }
@@ -594,12 +593,12 @@ void AppendFileLocation(Isolate* isolate, Handle<StackFrameInfo> frame,
     builder->AppendCStringLiteral("<anonymous>");
   }
 
-  int line_number = StackFrameInfo::GetLineNumber(frame);
+  int line_number = CallSiteInfo::GetLineNumber(frame);
   if (line_number != Message::kNoLineNumberInfo) {
     builder->AppendCharacter(':');
     builder->AppendInt(line_number);
 
-    int column_number = StackFrameInfo::GetColumnNumber(frame);
+    int column_number = CallSiteInfo::GetColumnNumber(frame);
     if (column_number != Message::kNoColumnInfo) {
       builder->AppendCharacter(':');
       builder->AppendInt(column_number);
@@ -644,11 +643,11 @@ bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
   return true;
 }
 
-void AppendMethodCall(Isolate* isolate, Handle<StackFrameInfo> frame,
+void AppendMethodCall(Isolate* isolate, Handle<CallSiteInfo> frame,
                       IncrementalStringBuilder* builder) {
-  Handle<Object> type_name = StackFrameInfo::GetTypeName(frame);
-  Handle<Object> method_name = StackFrameInfo::GetMethodName(frame);
-  Handle<Object> function_name = StackFrameInfo::GetFunctionName(frame);
+  Handle<Object> type_name = CallSiteInfo::GetTypeName(frame);
+  Handle<Object> method_name = CallSiteInfo::GetMethodName(frame);
+  Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
 
   if (IsNonEmptyString(function_name)) {
     Handle<String> function_string = Handle<String>::cast(function_name);
@@ -684,16 +683,16 @@ void AppendMethodCall(Isolate* isolate, Handle<StackFrameInfo> frame,
   }
 }
 
-void SerializeJSStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
+void SerializeJSStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder) {
-  Handle<Object> function_name = StackFrameInfo::GetFunctionName(frame);
+  Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
   if (frame->IsAsync()) {
     builder->AppendCStringLiteral("async ");
     if (frame->IsPromiseAll() || frame->IsPromiseAny()) {
       builder->AppendCStringLiteral("Promise.");
       builder->AppendString(Handle<String>::cast(function_name));
       builder->AppendCStringLiteral(" (index ");
-      builder->AppendInt(StackFrameInfo::GetSourcePosition(frame));
+      builder->AppendInt(CallSiteInfo::GetSourcePosition(frame));
       builder->AppendCharacter(')');
       return;
     }
@@ -719,10 +718,10 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
+void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
                              IncrementalStringBuilder* builder) {
-  Handle<Object> module_name = StackFrameInfo::GetWasmModuleName(frame);
-  Handle<Object> function_name = StackFrameInfo::GetFunctionName(frame);
+  Handle<Object> module_name = CallSiteInfo::GetWasmModuleName(frame);
+  Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
   const bool has_name = !module_name->IsNull() || !function_name->IsNull();
   if (has_name) {
     if (module_name->IsNull()) {
@@ -752,7 +751,7 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
 
   char buffer[16];
   SNPrintF(base::ArrayVector(buffer), "0x%x",
-           StackFrameInfo::GetColumnNumber(frame) - 1);
+           CallSiteInfo::GetColumnNumber(frame) - 1);
   builder->AppendCString(buffer);
 
   if (has_name) builder->AppendCharacter(')');
@@ -761,8 +760,8 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
 
 }  // namespace
 
-void SerializeStackFrameInfo(Isolate* isolate, Handle<StackFrameInfo> frame,
-                             IncrementalStringBuilder* builder) {
+void SerializeCallSiteInfo(Isolate* isolate, Handle<CallSiteInfo> frame,
+                           IncrementalStringBuilder* builder) {
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->IsWasm() && !frame->IsAsmJsWasm()) {
     SerializeWasmStackFrame(isolate, frame, builder);
@@ -772,10 +771,10 @@ void SerializeStackFrameInfo(Isolate* isolate, Handle<StackFrameInfo> frame,
   SerializeJSStackFrame(isolate, frame, builder);
 }
 
-MaybeHandle<String> SerializeStackFrameInfo(Isolate* isolate,
-                                            Handle<StackFrameInfo> frame) {
+MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
+                                          Handle<CallSiteInfo> frame) {
   IncrementalStringBuilder builder(isolate);
-  SerializeStackFrameInfo(isolate, frame, &builder);
+  SerializeCallSiteInfo(isolate, frame, &builder);
   return builder.Finish();
 }
 

@@ -175,7 +175,7 @@
 //       - BreakPoint
 //       - BreakPointInfo
 //       - CachedTemplateObject
-//       - StackFrameInfo
+//       - CallSiteInfo
 //       - CodeCache
 //       - PropertyDescriptorObject
 //       - PrototypeInfo

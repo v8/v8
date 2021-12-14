@@ -31,9 +31,9 @@
 #include "src/base/platform/wrappers.h"
 #include "src/builtins/builtins.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-arguments.h"
@@ -1040,11 +1040,11 @@ own<Instance> GetInstance(StoreImpl* store,
 
 own<Frame> CreateFrameFromInternal(i::Handle<i::FixedArray> frames, int index,
                                    i::Isolate* isolate, StoreImpl* store) {
-  i::Handle<i::StackFrameInfo> frame(
-      i::StackFrameInfo::cast(frames->get(index)), isolate);
+  i::Handle<i::CallSiteInfo> frame(i::CallSiteInfo::cast(frames->get(index)),
+                                   isolate);
   i::Handle<i::WasmInstanceObject> instance(frame->GetWasmInstance(), isolate);
   uint32_t func_index = frame->GetWasmFunctionIndex();
-  size_t module_offset = i::StackFrameInfo::GetSourcePosition(frame);
+  size_t module_offset = i::CallSiteInfo::GetSourcePosition(frame);
   size_t func_offset = module_offset - i::wasm::GetWasmFunctionOffset(
                                            instance->module(), func_index);
   return own<Frame>(seal<Frame>(new (std::nothrow) FrameImpl(
