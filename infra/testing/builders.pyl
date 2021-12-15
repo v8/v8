@@ -1575,8 +1575,8 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'future', 'shards': 2},
+      {'name': 'v8testing', 'shards': 14},
+      {'name': 'v8testing', 'variant': 'future', 'shards': 4},
     ],
   },
   'V8 Mac - arm64 - sim - release': {
