@@ -1579,7 +1579,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result.set_function_index(func_index);
   result.set_signature(*sig_foreign);
   result.set_wrapper_budget(wrapper_budget);
-  result.set_c_wrapper_code(ToCodeT(*BUILTIN_CODE(isolate(), Illegal)),
+  result.set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),
                             SKIP_WRITE_BARRIER);
   result.set_packed_args_size(0);
   return handle(result, isolate());

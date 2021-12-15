@@ -4390,7 +4390,7 @@ void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
 void Assembler::near_call(HeapObjectRequest request) {
   BlockPoolsScope no_pool_before_bl_instr(this);
   RequestHeapObject(request);
-  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<Code>());
+  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<CodeT>());
   RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
   DCHECK(is_int32(index));
   bl(static_cast<int>(index));

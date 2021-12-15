@@ -18,6 +18,8 @@
 #include "src/compiler/schedule.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
+#include "src/execution/isolate-utils-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -551,9 +553,11 @@ Handle<HeapObject> Constant::ToHeapObject() const {
   return value;
 }
 
-Handle<Code> Constant::ToCode() const {
+Handle<CodeT> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  Handle<CodeT> value(
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  DCHECK(value->IsCodeT(GetPtrComprCageBaseSlow(*value)));
   return value;
 }
 

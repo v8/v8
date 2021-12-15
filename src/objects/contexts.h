@@ -752,7 +752,7 @@ class NativeContext : public Context {
 
   // The native context stores a list of all optimized code and a list of all
   // deoptimized code, which are needed by the deoptimizer.
-  V8_EXPORT_PRIVATE void AddOptimizedCode(Code code);
+  V8_EXPORT_PRIVATE void AddOptimizedCode(CodeT code);
   inline void SetOptimizedCodeListHead(Object head);
   inline Object OptimizedCodeListHead();
   inline void SetDeoptimizedCodeListHead(Object head);

@@ -225,8 +225,7 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&call_handler);
   {
-    // TODO(v8:11880): call CodeT directly.
-    TNode<Code> code_handler = FromCodeT(CAST(handler));
+    TNode<CodeT> code_handler = CAST(handler);
     exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, code_handler,
                                p->context(), p->lookup_start_object(),
                                p->name(), p->slot(), p->vector());
@@ -1335,8 +1334,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     // |handler| is a heap object. Must be code, call it.
     BIND(&call_handler);
     {
-      // TODO(v8:11880): call CodeT directly.
-      TNode<Code> code_handler = FromCodeT(CAST(strong_handler));
+      TNode<CodeT> code_handler = CAST(strong_handler);
       TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                    p->receiver(), p->name(), p->value(), p->slot(),
                    p->vector());
@@ -1712,10 +1710,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
              &if_transitioning_element_store);
       BIND(&if_element_store);
       {
-        // TODO(v8:11880): call CodeT directly.
-        TailCallStub(StoreWithVectorDescriptor{}, FromCodeT(code_handler),
-                     p->context(), p->receiver(), p->name(), p->value(),
-                     p->slot(), p->vector());
+        TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
+                     p->receiver(), p->name(), p->value(), p->slot(),
+                     p->vector());
       }
 
       BIND(&if_transitioning_element_store);
@@ -1727,10 +1724,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
         GotoIf(IsDeprecatedMap(transition_map), miss);
 
-        // TODO(v8:11880): call CodeT directly.
-        TailCallStub(StoreTransitionDescriptor{}, FromCodeT(code_handler),
-                     p->context(), p->receiver(), p->name(), transition_map,
-                     p->value(), p->slot(), p->vector());
+        TailCallStub(StoreTransitionDescriptor{}, code_handler, p->context(),
+                     p->receiver(), p->name(), transition_map, p->value(),
+                     p->slot(), p->vector());
       }
     };
   }
@@ -2950,7 +2946,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
 
     // Call into the stub that implements the non-inlined parts of LoadIC.
     Callable ic = Builtins::CallableFor(isolate(), Builtin::kLoadIC_Noninlined);
-    TNode<Code> code_target = HeapConstant(ic.code());
+    TNode<CodeT> code_target = HeapConstant(ic.code());
     exit_point->ReturnCallStub(ic.descriptor(), code_target, p->context(),
                                p->receiver_and_lookup_start_object(), p->name(),
                                p->slot(), p->vector());
@@ -3977,8 +3973,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
 
       {
         // Call the handler.
-        // TODO(v8:11880): call CodeT directly.
-        TNode<Code> code_handler = FromCodeT(CAST(handler));
+        TNode<CodeT> code_handler = CAST(handler);
         TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                      p->receiver(), p->name(), p->value(), p->slot(),
                      p->vector());
@@ -3991,9 +3986,8 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<Map> transition_map =
             CAST(GetHeapObjectAssumeWeak(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
-        // TODO(v8:11880): call CodeT directly.
-        TNode<Code> code = FromCodeT(
-            CAST(LoadObjectField(handler, StoreHandler::kSmiHandlerOffset)));
+        TNode<CodeT> code =
+            CAST(LoadObjectField(handler, StoreHandler::kSmiHandlerOffset));
         TailCallStub(StoreTransitionDescriptor{}, code, p->context(),
                      p->receiver(), p->name(), transition_map, p->value(),
                      p->slot(), p->vector());

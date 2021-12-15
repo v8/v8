@@ -21,12 +21,7 @@ namespace v8 {
 namespace internal {
 
 inline Handle<Object> MakeCodeHandler(Isolate* isolate, Builtin builtin) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Code code = isolate->builtins()->code(builtin);
-    return handle(code.code_data_container(kAcquireLoad), isolate);
-  } else {
-    return isolate->builtins()->code_handle(builtin);
-  }
+  return isolate->builtins()->codet_handle(builtin);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)

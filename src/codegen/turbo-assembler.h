@@ -80,7 +80,6 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
 
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
   static int32_t RootRegisterOffsetForBuiltin(Builtin builtin);
-  static int32_t RootRegisterOffsetForBuiltinCodeDataContainer(Builtin builtin);
 
   // Returns the root-relative offset to reference.address().
   static intptr_t RootRegisterOffsetForExternalReference(

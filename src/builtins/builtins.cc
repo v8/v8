@@ -119,48 +119,48 @@ const char* Builtins::Lookup(Address pc) {
   return nullptr;
 }
 
-Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
+Handle<CodeT> Builtins::CallFunction(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
-      return code_handle(Builtin::kCallFunction_ReceiverIsNullOrUndefined);
+      return codet_handle(Builtin::kCallFunction_ReceiverIsNullOrUndefined);
     case ConvertReceiverMode::kNotNullOrUndefined:
-      return code_handle(Builtin::kCallFunction_ReceiverIsNotNullOrUndefined);
+      return codet_handle(Builtin::kCallFunction_ReceiverIsNotNullOrUndefined);
     case ConvertReceiverMode::kAny:
-      return code_handle(Builtin::kCallFunction_ReceiverIsAny);
+      return codet_handle(Builtin::kCallFunction_ReceiverIsAny);
   }
   UNREACHABLE();
 }
 
-Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
+Handle<CodeT> Builtins::Call(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
-      return code_handle(Builtin::kCall_ReceiverIsNullOrUndefined);
+      return codet_handle(Builtin::kCall_ReceiverIsNullOrUndefined);
     case ConvertReceiverMode::kNotNullOrUndefined:
-      return code_handle(Builtin::kCall_ReceiverIsNotNullOrUndefined);
+      return codet_handle(Builtin::kCall_ReceiverIsNotNullOrUndefined);
     case ConvertReceiverMode::kAny:
-      return code_handle(Builtin::kCall_ReceiverIsAny);
+      return codet_handle(Builtin::kCall_ReceiverIsAny);
   }
   UNREACHABLE();
 }
 
-Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
+Handle<CodeT> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:
-      return code_handle(Builtin::kNonPrimitiveToPrimitive_Default);
+      return codet_handle(Builtin::kNonPrimitiveToPrimitive_Default);
     case ToPrimitiveHint::kNumber:
-      return code_handle(Builtin::kNonPrimitiveToPrimitive_Number);
+      return codet_handle(Builtin::kNonPrimitiveToPrimitive_Number);
     case ToPrimitiveHint::kString:
-      return code_handle(Builtin::kNonPrimitiveToPrimitive_String);
+      return codet_handle(Builtin::kNonPrimitiveToPrimitive_String);
   }
   UNREACHABLE();
 }
 
-Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
+Handle<CodeT> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
   switch (hint) {
     case OrdinaryToPrimitiveHint::kNumber:
-      return code_handle(Builtin::kOrdinaryToPrimitive_Number);
+      return codet_handle(Builtin::kOrdinaryToPrimitive_Number);
     case OrdinaryToPrimitiveHint::kString:
-      return code_handle(Builtin::kOrdinaryToPrimitive_String);
+      return codet_handle(Builtin::kOrdinaryToPrimitive_String);
   }
   UNREACHABLE();
 }
@@ -260,7 +260,7 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
 
 // static
 Callable Builtins::CallableFor(Isolate* isolate, Builtin builtin) {
-  Handle<Code> code = isolate->builtins()->code_handle(builtin);
+  Handle<CodeT> code = isolate->builtins()->codet_handle(builtin);
   return Callable{code, CallInterfaceDescriptorFor(builtin)};
 }
 
@@ -321,18 +321,9 @@ bool Builtins::IsBuiltin(const Code code) {
 bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
                                Builtin* builtin) const {
   Address* handle_location = maybe_code.location();
-  Address* builtins_table = isolate_->builtin_table();
-  if (handle_location < builtins_table) return false;
-  Address* builtins_table_end = &builtins_table[Builtins::kBuiltinCount];
-  if (handle_location >= builtins_table_end) return false;
-  *builtin = FromInt(static_cast<int>(handle_location - builtins_table));
-  return true;
-}
-
-bool Builtins::IsBuiltinCodeDataContainerHandle(Handle<HeapObject> maybe_code,
-                                                Builtin* builtin) const {
-  Address* handle_location = maybe_code.location();
-  Address* builtins_table = isolate_->builtin_code_data_container_table();
+  Address* builtins_table = V8_EXTERNAL_CODE_SPACE_BOOL
+                                ? isolate_->builtin_code_data_container_table()
+                                : isolate_->builtin_table();
   if (handle_location < builtins_table) return false;
   Address* builtins_table_end = &builtins_table[Builtins::kBuiltinCount];
   if (handle_location >= builtins_table_end) return false;

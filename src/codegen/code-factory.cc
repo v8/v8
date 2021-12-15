@@ -14,17 +14,17 @@ namespace v8 {
 namespace internal {
 
 // static
-Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
+Handle<CodeT> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
   return CodeFactory::CEntry(isolate, result_size);
 }
 
 #define CENTRY_CODE(RS, SD, AM, BE) \
-  BUILTIN_CODE(isolate, CEntry_##RS##_##SD##_##AM##_##BE)
+  BUILTIN_CODET(isolate, CEntry_##RS##_##SD##_##AM##_##BE)
 
 // static
-Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
-                                 SaveFPRegsMode save_doubles,
-                                 ArgvMode argv_mode, bool builtin_exit_frame) {
+Handle<CodeT> CodeFactory::CEntry(Isolate* isolate, int result_size,
+                                  SaveFPRegsMode save_doubles,
+                                  ArgvMode argv_mode, bool builtin_exit_frame) {
   // Aliases for readability below.
   const int rs = result_size;
   const SaveFPRegsMode sd = save_doubles;
@@ -281,7 +281,7 @@ Callable CodeFactory::InterpreterPushArgsThenConstruct(
 Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
   // Note: If we ever use fpregs in the interpreter then we will need to
   // save fpregs too.
-  Handle<Code> code = CodeFactory::CEntry(
+  Handle<CodeT> code = CodeFactory::CEntry(
       isolate, result_size, SaveFPRegsMode::kIgnore, ArgvMode::kRegister);
   if (result_size == 1) {
     return Callable(code, InterpreterCEntry1Descriptor{});

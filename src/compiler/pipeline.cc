@@ -1262,7 +1262,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
 
   compilation_info()->SetCode(code);
   Handle<NativeContext> context(compilation_info()->native_context(), isolate);
-  if (CodeKindCanDeoptimize(code->kind())) context->AddOptimizedCode(*code);
+  if (CodeKindCanDeoptimize(code->kind())) {
+    context->AddOptimizedCode(ToCodeT(*code));
+  }
   RegisterWeakObjectsInOptimizedCode(isolate, context, code);
   return SUCCEEDED;
 }

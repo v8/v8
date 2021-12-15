@@ -1170,7 +1170,7 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   Handle<HeapObject> ToHeapObject() const;
-  Handle<Code> ToCode() const;
+  Handle<CodeT> ToCode() const;
   const StringConstantBase* ToDelayedStringConstant() const;
 
  private:

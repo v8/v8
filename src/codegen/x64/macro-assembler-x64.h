@@ -365,7 +365,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   void Call(Register reg) { call(reg); }
   void Call(Operand op);
-  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
+  void Call(Handle<CodeT> code_object, RelocInfo::Mode rmode);
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
@@ -396,6 +396,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   // Helper functions that dispatch either to Call/JumpCodeObject or to
   // Call/JumpCodeDataContainerObject.
+  // TODO(v8:11880): remove since CodeT targets are now default.
   void LoadCodeTEntry(Register destination, Register code);
   void CallCodeTObject(Register code);
   void JumpCodeTObject(Register code, JumpMode jump_mode = JumpMode::kJump);
@@ -403,7 +404,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(const ExternalReference& reference);
   void Jump(Operand op);
-  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
+  void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode,
             Condition cc = always);
 
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,

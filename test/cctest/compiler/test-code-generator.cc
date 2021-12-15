@@ -88,8 +88,8 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   std::vector<Node*> params;
   // The first parameter is always the callee.
   params.push_back(__ Parameter<Object>(1));
-  params.push_back(__ HeapConstant(
-      BuildTeardownFunction(isolate, call_descriptor, parameters)));
+  params.push_back(__ HeapConstant(ToCodeT(
+      BuildTeardownFunction(isolate, call_descriptor, parameters), isolate)));
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
   // FixedArrays representing Simd128 values.
@@ -696,7 +696,8 @@ class TestEnvironment : public HandleAndZoneScope {
       // return value will be freed along with it. Copy the result into
       // state_out.
       FunctionTester ft(setup, 2);
-      Handle<FixedArray> result = ft.CallChecked<FixedArray>(test, state_in);
+      Handle<FixedArray> result =
+          ft.CallChecked<FixedArray>(ToCodeT(test, main_isolate()), state_in);
       CHECK_EQ(result->length(), state_in->length());
       result->CopyTo(0, *state_out, 0, result->length());
     }

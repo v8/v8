@@ -1626,7 +1626,7 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 
     // Patch {node} to an indirect call via the {function}s construct stub.
     bool use_builtin_construct_stub = function.shared().construct_as_builtin();
-    CodeRef code = MakeRef(
+    CodeTRef code = MakeRef(
         broker(), use_builtin_construct_stub
                       ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
                       : BUILTIN_CODE(isolate(), JSConstructStubGeneric));

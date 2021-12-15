@@ -33,15 +33,16 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 }
 
 // Convenience macro to avoid generating named accessors for all builtins.
-#define BUILTIN_CODE(isolate, name) \
-  (isolate)->builtins()->code_handle(i::Builtin::k##name)
-
 #ifdef V8_EXTERNAL_CODE_SPACE
-#define BUILTIN_CODET(isolate, name) \
+#define BUILTIN_CODE(isolate, name) \
   (isolate)->builtins()->codet_handle(i::Builtin::k##name)
 #else
-#define BUILTIN_CODET(isolate, name) BUILTIN_CODE(isolate, name)
+#define BUILTIN_CODE(isolate, name) \
+  (isolate)->builtins()->code_handle(i::Builtin::k##name)
 #endif  // V8_EXTERNAL_CODE_SPACE
+
+// TODO(v8:11880): remove this alias
+#define BUILTIN_CODET(isolate, name) BUILTIN_CODE(isolate, name)
 
 enum class Builtin : int32_t {
   kNoBuiltinId = -1,
@@ -156,12 +157,12 @@ class Builtins {
   }
 
   // Convenience wrappers.
-  Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<Code> NonPrimitiveToPrimitive(
+  Handle<CodeT> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  Handle<CodeT> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  Handle<CodeT> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
-  Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<Code> JSConstructStubGeneric();
+  Handle<CodeT> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
+  Handle<CodeT> JSConstructStubGeneric();
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_code(Builtin builtin, Code code);
@@ -202,11 +203,6 @@ class Builtins {
   // As above, but safe to access off the main thread since the check is done
   // by handle location. Similar to Heap::IsRootHandle.
   bool IsBuiltinHandle(Handle<HeapObject> maybe_code, Builtin* index) const;
-
-  // Similar to IsBuiltinHandle but for respective CodeDataContainer handle.
-  // Can be used only when external code space is enabled.
-  bool IsBuiltinCodeDataContainerHandle(Handle<HeapObject> maybe_code,
-                                        Builtin* index) const;
 
   // True, iff the given code object is a builtin with off-heap embedded code.
   static bool IsIsolateIndependentBuiltin(const Code code);
@@ -309,10 +305,10 @@ class Builtins {
 
   enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                              Handle<Code> code);
+                                              Handle<CodeT> code);
   static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                      CallOrConstructMode mode,
-                                                     Handle<Code> code);
+                                                     Handle<CodeT> code);
 
   static void Generate_InterpreterPushArgsThenCallImpl(
       MacroAssembler* masm, ConvertReceiverMode receiver_mode,
@@ -323,7 +319,7 @@ class Builtins {
 
   template <class Descriptor>
   static void Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm,
-                                                  Handle<Code> builtin_target);
+                                                  Handle<CodeT> builtin_target);
 
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);

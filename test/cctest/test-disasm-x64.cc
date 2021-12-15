@@ -63,7 +63,7 @@ TEST(DisasmX64) {
   __ bind(&L2);
   __ call(rcx);
   __ nop();
-  Handle<Code> ic = BUILTIN_CODE(isolate, ArrayFrom);
+  Handle<CodeT> ic = BUILTIN_CODE(isolate, ArrayFrom);
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
 

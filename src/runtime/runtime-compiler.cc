@@ -310,7 +310,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   BytecodeOffset osr_offset = DetermineEntryAndDisarmOSRForUnoptimized(frame);
   DCHECK(!osr_offset.IsNone());
 
-  MaybeHandle<Code> maybe_result;
+  MaybeHandle<CodeT> maybe_result;
   Handle<JSFunction> function(frame->function(), isolate);
   if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
@@ -324,7 +324,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   }
 
   // Check whether we ended up with usable optimized code.
-  Handle<Code> result;
+  Handle<CodeT> result;
   if (maybe_result.ToHandle(&result) &&
       CodeKindIsOptimizedJSFunction(result->kind())) {
     DeoptimizationData data =

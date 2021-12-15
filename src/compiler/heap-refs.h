@@ -1028,8 +1028,8 @@ class CodeRef : public HeapObjectRef {
   unsigned GetInlinedBytecodeSize() const;
 };
 
-// CodeDataContainerRef doesn't appear to be used, but it is used via CodeT when
-// V8_EXTERNAL_CODE_SPACE is defined.
+// CodeDataContainerRef doesn't appear to be used directly, but it is used via
+// CodeTRef when V8_EXTERNAL_CODE_SPACE is enabled.
 class CodeDataContainerRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)

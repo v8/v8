@@ -2738,8 +2738,10 @@ void Isolate::ReleaseSharedPtrs() {
 
 bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
   FullObjectSlot location(handle_location);
-  FullObjectSlot first_root(builtin_table());
-  FullObjectSlot last_root(builtin_table() + Builtins::kBuiltinCount);
+  FullObjectSlot first_root(V8_EXTERNAL_CODE_SPACE_BOOL
+                                ? builtin_code_data_container_table()
+                                : builtin_table());
+  FullObjectSlot last_root(first_root + Builtins::kBuiltinCount);
   if (location >= last_root) return false;
   if (location < first_root) return false;
   return true;

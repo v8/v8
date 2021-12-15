@@ -217,7 +217,11 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
                                       Handle<AbstractCode> abstract_code,
                                       CodeKind kind, double time_taken_ms) {
   DCHECK(!abstract_code.is_null());
-  DCHECK(!abstract_code.is_identical_to(BUILTIN_CODE(isolate, CompileLazy)));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    DCHECK_NE(*abstract_code, FromCodeT(*BUILTIN_CODET(isolate, CompileLazy)));
+  } else {
+    DCHECK(!abstract_code.is_identical_to(BUILTIN_CODE(isolate, CompileLazy)));
+  }
 
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
@@ -359,7 +363,7 @@ void RecordUnoptimizedFunctionCompilation(
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(shared->HasAsmWasmData());
     abstract_code =
-        Handle<AbstractCode>::cast(BUILTIN_CODE(isolate, InstantiateAsmJs));
+        ToAbstractCode(BUILTIN_CODE(isolate, InstantiateAsmJs), isolate);
 #else
     UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -831,7 +835,7 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
   return true;
 }
 
-V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
+V8_WARN_UNUSED_RESULT MaybeHandle<CodeT> GetCodeFromOptimizedCodeCache(
     Handle<JSFunction> function, BytecodeOffset osr_offset,
     CodeKind code_kind) {
   Isolate* isolate = function->GetIsolate();
@@ -858,10 +862,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
     DCHECK(function->shared().is_compiled());
     DCHECK(CodeKindIsStoredInOptimizedCodeCache(code.kind()));
     DCHECK_IMPLIES(!osr_offset.IsNone(), CodeKindCanOSR(code.kind()));
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
-    return Handle<Code>(FromCodeT(code), isolate);
+    return Handle<CodeT>(code, isolate);
   }
-  return MaybeHandle<Code>();
+  return MaybeHandle<CodeT>();
 }
 
 void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
@@ -1006,7 +1009,7 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
 
 // Returns the code object at which execution continues after a concurrent
 // optimization job has been started (but not finished).
-Handle<Code> ContinuationForConcurrentOptimization(
+Handle<CodeT> ContinuationForConcurrentOptimization(
     Isolate* isolate, Handle<JSFunction> function) {
   Handle<Code> cached_code;
   if (FLAG_turboprop && function->HasAvailableOptimizedCode()) {
@@ -1024,15 +1027,14 @@ Handle<Code> ContinuationForConcurrentOptimization(
           FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
       function->set_code(function->feedback_vector().optimized_code());
     }
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
-    return handle(FromCodeT(function->code()), isolate);
+    return handle(function->code(), isolate);
   } else if (function->shared().HasBaselineCode()) {
     CodeT baseline_code = function->shared().baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
-    return handle(FromCodeT(baseline_code), isolate);
+    return handle(baseline_code, isolate);
   }
   DCHECK(function->ActiveTierIsIgnition());
-  return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+  return BUILTIN_CODET(isolate, InterpreterEntryTrampoline);
 }
 
 enum class GetOptimizedCodeResultHandling {
@@ -1042,7 +1044,7 @@ enum class GetOptimizedCodeResultHandling {
   kDiscardForTesting,
 };
 
-MaybeHandle<Code> GetOptimizedCode(
+MaybeHandle<CodeT> GetOptimizedCode(
     Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
     JavaScriptFrame* osr_frame = nullptr,
@@ -1079,7 +1081,7 @@ MaybeHandle<Code> GetOptimizedCode(
 
   // Check the optimized code cache (stored on the SharedFunctionInfo).
   if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
-    Handle<Code> cached_code;
+    Handle<CodeT> cached_code;
     if (GetCodeFromOptimizedCodeCache(function, osr_offset, code_kind)
             .ToHandle(&cached_code)) {
       CompilerTracer::TraceOptimizedCodeCacheHit(isolate, function, osr_offset,
@@ -1121,7 +1123,7 @@ MaybeHandle<Code> GetOptimizedCode(
   } else {
     DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
     if (GetOptimizedCodeNow(job.get(), isolate, compilation_info)) {
-      return compilation_info->code();
+      return ToCodeT(compilation_info->code(), isolate);
     }
   }
 
@@ -1948,7 +1950,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   DCHECK(is_compiled_scope->is_compiled());
-  Handle<Code> code = handle(FromCodeT(shared_info->GetCode()), isolate);
+  Handle<CodeT> code = handle(shared_info->GetCode(), isolate);
 
   // Initialize the feedback cell for this JSFunction and reset the interrupt
   // budget for feedback vector allocation even if there is a closure feedback
@@ -1978,7 +1980,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
                                                   concurrency_mode, code_kind);
     }
 
-    Handle<Code> maybe_code;
+    Handle<CodeT> maybe_code;
     if (GetOptimizedCode(isolate, function, concurrency_mode, code_kind)
             .ToHandle(&maybe_code)) {
       code = maybe_code;
@@ -2112,7 +2114,7 @@ bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                                 code_kind);
   }
 
-  Handle<Code> code;
+  Handle<CodeT> code;
   if (!GetOptimizedCode(isolate, function, mode, code_kind).ToHandle(&code)) {
     // Optimization failed, get the existing code. We could have optimized code
     // from a lower tier here. Unoptimized code must exist already if we are
@@ -3218,10 +3220,9 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static
-MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Isolate* isolate,
-                                                   Handle<JSFunction> function,
-                                                   BytecodeOffset osr_offset,
-                                                   JavaScriptFrame* osr_frame) {
+MaybeHandle<CodeT> Compiler::GetOptimizedCodeForOSR(
+    Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
+    JavaScriptFrame* osr_frame) {
   DCHECK(!osr_offset.IsNone());
   DCHECK_NOT_NULL(osr_frame);
   return GetOptimizedCode(isolate, function, ConcurrencyMode::kNotConcurrent,

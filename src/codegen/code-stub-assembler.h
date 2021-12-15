@@ -803,6 +803,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return IsCodeTMap(LoadMap(object));
   }
 
+  // TODO(v8:11880): remove once Code::bytecode_or_interpreter_data field
+  // is cached in or moved to CodeT.
   TNode<Code> FromCodeT(TNode<CodeT> code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
 #if V8_TARGET_BIG_ENDIAN

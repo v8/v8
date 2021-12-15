@@ -575,7 +575,7 @@ class ExitPoint {
 
   template <class... TArgs>
   void ReturnCallStub(const CallInterfaceDescriptor& descriptor,
-                      TNode<Code> target, TNode<Context> context,
+                      TNode<CodeT> target, TNode<Context> context,
                       TArgs... args) {
     if (IsDirect()) {
       asm_->TailCallStub(descriptor, target, context, args...);

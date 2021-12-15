@@ -85,12 +85,12 @@ static v8::CodeEventType GetCodeEventTypeForTag(
 
 static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
   CodeKind kind = code.kind();
-  // We record interpreter trampoline builting copies as having the
+  // We record interpreter trampoline builtin copies as having the
   // "interpreted" marker.
   if (FLAG_interpreted_frames_native_stack && kind == CodeKind::BUILTIN &&
       code.GetCode().is_interpreter_trampoline_builtin() &&
-      code.GetCode() !=
-          *BUILTIN_CODE(shared.GetIsolate(), InterpreterEntryTrampoline)) {
+      ToCodeT(code.GetCode()) !=
+          *BUILTIN_CODET(shared.GetIsolate(), InterpreterEntryTrampoline)) {
     kind = CodeKind::INTERPRETED_FUNCTION;
   }
   if (shared.optimization_disabled() &&
@@ -2182,8 +2182,8 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       break;
     case CodeKind::BUILTIN:
       if (Code::cast(object).is_interpreter_trampoline_builtin() &&
-          Code::cast(object) !=
-              *BUILTIN_CODE(isolate_, InterpreterEntryTrampoline)) {
+          ToCodeT(Code::cast(object)) !=
+              *BUILTIN_CODET(isolate_, InterpreterEntryTrampoline)) {
         return;
       }
       description =

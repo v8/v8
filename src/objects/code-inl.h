@@ -268,7 +268,7 @@ inline CodeT ToCodeT(Code code) {
 
 inline Handle<CodeT> ToCodeT(Handle<Code> code, Isolate* isolate) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  return handle(code->code_data_container(kAcquireLoad), isolate);
+  return handle(ToCodeT(*code), isolate);
 #else
   return code;
 #endif
@@ -288,6 +288,19 @@ inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
 #else
   return code;
 #endif
+}
+
+inline Handle<Code> FromCodeT(Handle<CodeT> code, Isolate* isolate) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  return handle(FromCodeT(*code), isolate);
+#else
+  return code;
+#endif
+}
+
+inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
+                                           Isolate* isolate) {
+  return Handle<AbstractCode>::cast(FromCodeT(code, isolate));
 }
 
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
@@ -1000,6 +1013,8 @@ Address CodeDataContainer::raw_instruction_start() {
   return code_entry_point();
 }
 
+Address CodeDataContainer::entry() const { return code_entry_point(); }
+
 void CodeDataContainer::clear_padding() {
   memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
          kSize - kUnalignedSize);
@@ -1062,6 +1077,7 @@ inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {
   }
 
 DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_turbofanned, bool)
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_off_heap_trampoline, bool)
 
 DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray)
 DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject)
