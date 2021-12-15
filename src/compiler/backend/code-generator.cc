@@ -491,23 +491,11 @@ void CodeGenerator::AssembleCode() {
 }
 
 void CodeGenerator::AssembleArchBinarySearchSwitchRange(
-    Register input, RpoNumber def_block, std::pair<int32_t, RpoNumber>* begin,
-    std::pair<int32_t, RpoNumber>* end, int32_t min_possible_value,
-    int32_t max_possible_value) {
+    Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
+    std::pair<int32_t, Label*>* end) {
   if (end - begin < kBinarySearchSwitchMinimalCases) {
     while (begin != end) {
-      if (min_possible_value == begin->first) {
-        if (max_possible_value == begin->first) {
-          // Only one value is possible, so we can jump to it unconditionally.
-          DCHECK_EQ(begin + 1, end);
-          def_block = begin->second;
-          break;
-        }
-        // After emitting the branch for this case, the minimum possible value
-        // is increased.
-        ++min_possible_value;
-      }
-      tasm()->JumpIfEqual(input, begin->first, GetLabel(begin->second));
+      tasm()->JumpIfEqual(input, begin->first, begin->second);
       ++begin;
     }
     AssembleArchJumpRegardlessOfAssemblyOrder(def_block);
@@ -516,11 +504,9 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
   auto middle = begin + (end - begin) / 2;
   Label less_label;
   tasm()->JumpIfLessThan(input, middle->first, &less_label);
-  AssembleArchBinarySearchSwitchRange(input, def_block, middle, end,
-                                      middle->first, max_possible_value);
+  AssembleArchBinarySearchSwitchRange(input, def_block, middle, end);
   tasm()->bind(&less_label);
-  AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle,
-                                      min_possible_value, middle->first - 1);
+  AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
 }
 
 void CodeGenerator::AssembleArchJump(RpoNumber target) {

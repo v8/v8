@@ -2960,9 +2960,9 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
   Register input = i.InputRegister32(0);
-  std::vector<std::pair<int32_t, RpoNumber>> cases;
+  std::vector<std::pair<int32_t, Label*>> cases;
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    cases.push_back({i.InputInt32(index + 0), i.InputRpo(index + 1)});
+    cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
   }
   AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
