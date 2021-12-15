@@ -2098,6 +2098,10 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterToSpill(
   for (RegisterIndex reg : *register_state()) {
     // Skip if register is in use, or not valid for representation.
     if (!IsValidForRep(reg, rep) || in_use.Contains(reg, rep)) continue;
+    // With non-simple FP aliasing, a SIMD register might block more than one FP
+    // register.
+    DCHECK_IMPLIES(kSimpleFPAliasing, register_state()->IsAllocated(reg));
+    if (!kSimpleFPAliasing && !register_state()->IsAllocated(reg)) continue;
 
     VirtualRegisterData& vreg_data =
         VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
