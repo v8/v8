@@ -85,7 +85,7 @@ MachineType assert_size(int expected_size, MachineType type) {
       wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
 
 #define LOAD_INSTANCE_FIELD(name, type)                                  \
-  gasm_->LoadImmutableFromObject(                                        \
+  gasm_->LoadImmutable(                                                  \
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstance(), \
       wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
 
@@ -95,7 +95,7 @@ MachineType assert_size(int expected_size, MachineType type) {
   (parameter_mode_ == kNoSpecialParameterMode                \
        ? graph()->NewNode(mcgraph()->common()->HeapConstant( \
              isolate_->factory()->factory_name()))           \
-       : gasm_->LoadImmutableFromObject(                     \
+       : gasm_->LoadImmutable(                               \
              MachineType::Pointer(), BuildLoadIsolateRoot(), \
              IsolateData::root_slot_offset(RootIndex::k##root_name)))
 
@@ -3314,7 +3314,7 @@ void WasmGraphBuilder::CompareToInternalFunctionAtIndex(
     Node** failure_control) {
   // Since we are comparing to a function reference, it is guaranteed that
   // instance->wasm_internal_functions() has been initialized.
-  Node* internal_functions = gasm_->LoadImmutableFromObject(
+  Node* internal_functions = gasm_->LoadImmutable(
       MachineType::TaggedPointer(), GetInstance(),
       wasm::ObjectAccess::ToTagged(
           WasmInstanceObject::kWasmInternalFunctionsOffset));
@@ -3693,9 +3693,8 @@ Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
   Node* offset = nullptr;
   GetGlobalBaseAndOffset(global, &base, &offset);
   MachineType mem_type = global.type.machine_type();
-  return global.mutability
-             ? gasm_->LoadFromObject(mem_type, base, offset)
-             : gasm_->LoadImmutableFromObject(mem_type, base, offset);
+  return global.mutability ? gasm_->LoadFromObject(mem_type, base, offset)
+                           : gasm_->LoadImmutable(mem_type, base, offset);
 }
 
 void WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
@@ -5765,7 +5764,7 @@ Node* WasmGraphBuilder::ArrayInit(uint32_t array_index,
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
   Node* maps_list =
       LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
-  return gasm_->LoadImmutableFromObject(
+  return gasm_->LoadImmutable(
       MachineType::TaggedPointer(), maps_list,
       wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index));
 }
