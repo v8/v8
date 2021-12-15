@@ -2451,3 +2451,146 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
     assertEquals(-1, lengthTracking.lastIndexOf(NaN));
   }
 })();
+
+(function JoinToLocaleString() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    assertEquals('0,2,4,6', fixedLength.join());
+    assertEquals('0,2,4,6', fixedLength.toLocaleString());
+    assertEquals('4,6', fixedLengthWithOffset.join());
+    assertEquals('4,6', fixedLengthWithOffset.toLocaleString());
+    assertEquals('0,2,4,6', lengthTracking.join());
+    assertEquals('0,2,4,6', lengthTracking.toLocaleString());
+    assertEquals('4,6', lengthTrackingWithOffset.join());
+    assertEquals('4,6', lengthTrackingWithOffset.toLocaleString());
+
+    // Grow.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    assertEquals('0,2,4,6', fixedLength.join());
+    assertEquals('0,2,4,6', fixedLength.toLocaleString());
+    assertEquals('4,6', fixedLengthWithOffset.join());
+    assertEquals('4,6', fixedLengthWithOffset.toLocaleString());
+    assertEquals('0,2,4,6,8,10', lengthTracking.join());
+    assertEquals('0,2,4,6,8,10', lengthTracking.toLocaleString());
+    assertEquals('4,6,8,10', lengthTrackingWithOffset.join());
+    assertEquals('4,6,8,10', lengthTrackingWithOffset.toLocaleString());
+ }
+})();
+
+(function JoinParameterConversionGrows() {
+  // Growing + fixed-length TA.
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+
+    let evil = { toString: () => {
+      gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+      return '.';
+    }};
+    assertEquals('0.0.0.0', fixedLength.join(evil));
+  }
+
+  // Growing + length-tracking TA.
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab);
+
+    let evil = { toString: () => {
+      gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+      return '.';
+    }};
+    // We iterate 4 elements, since it was the starting length.
+    assertEquals('0.0.0.0', lengthTracking.join(evil));
+  }
+})();
+
+(function ToLocaleStringNumberPrototypeToLocaleStringGrows() {
+  const oldNumberPrototypeToLocaleString = Number.prototype.toLocaleString;
+  const oldBigIntPrototypeToLocaleString = BigInt.prototype.toLocaleString;
+
+  // Growing + fixed-length TA.
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+
+    let growAfter = 2;
+    Number.prototype.toLocaleString = function() {
+      --growAfter;
+      if (growAfter == 0) {
+        gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+      }
+      return oldNumberPrototypeToLocaleString.call(this);
+    }
+    BigInt.prototype.toLocaleString = function() {
+      --growAfter;
+      if (growAfter == 0) {
+        gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+      }
+      return oldBigIntPrototypeToLocaleString.call(this);
+    }
+
+    // We iterate 4 elements since it was the starting length. Resizing doesn't
+    // affect the TA.
+    assertEquals('0,0,0,0', fixedLength.toLocaleString());
+  }
+
+  // Growing + length-tracking TA.
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab);
+
+    let growAfter = 2;
+    Number.prototype.toLocaleString = function() {
+      --growAfter;
+      if (growAfter == 0) {
+        gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+      }
+      return oldNumberPrototypeToLocaleString.call(this);
+    }
+    BigInt.prototype.toLocaleString = function() {
+      --growAfter;
+      if (growAfter == 0) {
+        gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+      }
+      return oldBigIntPrototypeToLocaleString.call(this);
+    }
+
+    // We iterate 4 elements since it was the starting length.
+    assertEquals('0,0,0,0', lengthTracking.toLocaleString());
+  }
+
+  Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
+  BigInt.prototype.toLocaleString = oldBigIntPrototypeToLocaleString;
+})();

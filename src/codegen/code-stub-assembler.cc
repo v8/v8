@@ -14024,21 +14024,23 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
 }
 
 void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
-    TNode<JSArrayBufferView> array, Label* detached_or_oob,
+    TNode<JSArrayBufferView> array_buffer_view, Label* detached_or_oob,
     Label* not_detached_nor_oob) {
-  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array_buffer_view);
 
   GotoIf(IsDetachedBuffer(buffer), detached_or_oob);
-  GotoIfNot(IsVariableLengthJSArrayBufferView(array), not_detached_nor_oob);
+  GotoIfNot(IsVariableLengthJSArrayBufferView(array_buffer_view),
+            not_detached_nor_oob);
   GotoIf(IsSharedArrayBuffer(buffer), not_detached_nor_oob);
 
   {
     TNode<UintPtrT> buffer_byte_length = LoadJSArrayBufferByteLength(buffer);
-    TNode<UintPtrT> array_byte_offset = LoadJSArrayBufferViewByteOffset(array);
+    TNode<UintPtrT> array_byte_offset =
+        LoadJSArrayBufferViewByteOffset(array_buffer_view);
 
     Label length_tracking(this), not_length_tracking(this);
-    Branch(IsLengthTrackingJSArrayBufferView(array), &length_tracking,
-           &not_length_tracking);
+    Branch(IsLengthTrackingJSArrayBufferView(array_buffer_view),
+           &length_tracking, &not_length_tracking);
 
     BIND(&length_tracking);
     {
@@ -14053,13 +14055,36 @@ void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
       // Check if the backing RAB has shrunk so that the buffer is out of
       // bounds.
       TNode<UintPtrT> array_byte_length =
-          LoadJSArrayBufferViewByteLength(array);
+          LoadJSArrayBufferViewByteLength(array_buffer_view);
       Branch(UintPtrGreaterThanOrEqual(
                  buffer_byte_length,
                  UintPtrAdd(array_byte_offset, array_byte_length)),
              not_detached_nor_oob, detached_or_oob);
     }
   }
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
+    TNode<JSArrayBufferView> array_buffer_view) {
+  Label is_detached_or_out_of_bounds(this),
+      not_detached_nor_out_of_bounds(this), end(this);
+  TVARIABLE(BoolT, result);
+
+  IsJSArrayBufferViewDetachedOrOutOfBounds(array_buffer_view,
+                                           &is_detached_or_out_of_bounds,
+                                           &not_detached_nor_out_of_bounds);
+  BIND(&is_detached_or_out_of_bounds);
+  {
+    result = BoolConstant(true);
+    Goto(&end);
+  }
+  BIND(&not_detached_nor_out_of_bounds);
+  {
+    result = BoolConstant(false);
+    Goto(&end);
+  }
+  BIND(&end);
+  return result.value();
 }
 
 // ES #sec-integerindexedobjectbytelength

@@ -865,3 +865,121 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals(-1, LastIndexOfHelper(lengthTracking, undefined, evil));
   }
 })();
+
+(function JoinToLocaleString() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    %ArrayBufferDetach(rab);
+
+    assertThrows(() => { fixedLength.join(); });
+    assertThrows(() => { fixedLength.toLocaleString(); });
+    assertThrows(() => { fixedLengthWithOffset.join(); });
+    assertThrows(() => { fixedLengthWithOffset.toLocaleString(); });
+    assertThrows(() => { lengthTracking.join(); });
+    assertThrows(() => { lengthTracking.toLocaleString(); });
+    assertThrows(() => { lengthTrackingWithOffset.join(); });
+    assertThrows(() => { lengthTrackingWithOffset.toLocaleString(); });
+ }
+})();
+
+(function JoinParameterConversionDetaches() {
+  // Detaching + fixed-length TA.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { toString: () => {
+      %ArrayBufferDetach(rab);
+      return '.';
+    }};
+    // We iterate 4 elements, since it was the starting length, but the TA is
+    // OOB right after parameter conversion, so all elements are converted to
+    // the empty string.
+    assertEquals('...', fixedLength.join(evil));
+  }
+
+  // Detaching + length-tracking TA.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { toString: () => {
+      %ArrayBufferDetach(rab);
+      return '.';
+    }};
+    // We iterate 4 elements, since it was the starting length, but the TA is
+    // OOB right after parameter conversion, so all elements are converted to
+    // the empty string.
+    assertEquals('...', lengthTracking.join(evil));
+  }
+})();
+
+(function ToLocaleStringNumberPrototypeToLocaleStringDetaches() {
+  const oldNumberPrototypeToLocaleString = Number.prototype.toLocaleString;
+  const oldBigIntPrototypeToLocaleString = BigInt.prototype.toLocaleString;
+
+  // Detaching + fixed-length TA.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let detachAfter = 2;
+    Number.prototype.toLocaleString = function() {
+      --detachAfter;
+      if (detachAfter == 0) {
+        %ArrayBufferDetach(rab);
+      }
+      return oldNumberPrototypeToLocaleString.call(this);
+    }
+    BigInt.prototype.toLocaleString = function() {
+      --detachAfter;
+      if (detachAfter == 0) {
+        %ArrayBufferDetach(rab);
+      }
+      return oldBigIntPrototypeToLocaleString.call(this);
+    }
+
+    // We iterate 4 elements, since it was the starting length. The TA goes
+    // OOB after 2 elements.
+    assertEquals('0,0,,', fixedLength.toLocaleString());
+  }
+
+  // Detaching + length-tracking TA.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let detachAfter = 2;
+    Number.prototype.toLocaleString = function() {
+      --detachAfter;
+      if (detachAfter == 0) {
+        %ArrayBufferDetach(rab);
+      }
+      return oldNumberPrototypeToLocaleString.call(this);
+    }
+    BigInt.prototype.toLocaleString = function() {
+      --detachAfter;
+      if (detachAfter == 0) {
+        %ArrayBufferDetach(rab);
+      }
+      return oldBigIntPrototypeToLocaleString.call(this);
+    }
+
+    // We iterate 4 elements, since it was the starting length. The TA goes
+    // OOB after 2 elements.
+    assertEquals('0,0,,', lengthTracking.toLocaleString());
+  }
+
+  Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
+  BigInt.prototype.toLocaleString = oldBigIntPrototypeToLocaleString;
+})();

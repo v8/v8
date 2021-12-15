@@ -3620,9 +3620,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<JSArrayBufferView> array, TNode<JSArrayBuffer> buffer,
       Label* detached_or_out_of_bounds);
 
-  void IsJSArrayBufferViewDetachedOrOutOfBounds(TNode<JSArrayBufferView> array,
-                                                Label* detached_or_oob,
-                                                Label* not_detached_nor_oob);
+  void IsJSArrayBufferViewDetachedOrOutOfBounds(
+      TNode<JSArrayBufferView> array_buffer_view, Label* detached_or_oob,
+      Label* not_detached_nor_oob);
+
+  TNode<BoolT> IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
+      TNode<JSArrayBufferView> array_buffer_view);
 
   TNode<IntPtrT> RabGsabElementsKindToElementByteSize(
       TNode<Int32T> elementsKind);
