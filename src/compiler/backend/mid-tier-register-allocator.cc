@@ -1280,6 +1280,10 @@ class RegisterBitVector {
  public:
   RegisterBitVector() : bits_(0) {}
 
+  bool operator==(const RegisterBitVector& other) const {
+    return bits_ == other.bits_;
+  }
+
   bool Contains(RegisterIndex reg, MachineRepresentation rep) const {
     return bits_ & reg.ToBit(rep);
   }
@@ -1649,6 +1653,11 @@ void SinglePassRegisterAllocator::EndInstruction() {
   in_use_at_instr_end_bits_.Reset();
   in_use_at_instr_start_bits_.Reset();
   same_input_output_registers_bits_.Reset();
+
+  // Validity check.
+  DCHECK_EQ(allocated_registers_bits_,
+            register_state_ ? GetAllocatedRegBitVector(register_state_)
+                            : RegisterBitVector{});
 }
 
 void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
