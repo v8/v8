@@ -38,6 +38,9 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/date/date.h"
 #include "src/debug/debug-frames.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/materialized-object-store.h"
@@ -690,16 +693,13 @@ namespace {
 
 class CallSiteBuilder {
  public:
-  enum FrameFilterMode { ALL, CURRENT_SECURITY_CONTEXT };
-
   CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
-                  Handle<Object> caller, FrameFilterMode filter_mode)
+                  Handle<Object> caller)
       : isolate_(isolate),
         mode_(mode),
         limit_(limit),
         caller_(caller),
-        skip_next_frame_(mode != SKIP_NONE),
-        check_security_context_(filter_mode == CURRENT_SECURITY_CONTEXT) {
+        skip_next_frame_(mode != SKIP_NONE) {
     DCHECK_IMPLIES(mode_ == SKIP_UNTIL_SEEN, caller_->IsJSFunction());
     // Modern web applications are usually built with multiple layers of
     // framework and library code, and stack depth tends to be more than
@@ -825,8 +825,7 @@ class CallSiteBuilder {
   // Determines whether the given stack frame should be displayed in a stack
   // trace.
   bool IsVisibleInStackTrace(Handle<JSFunction> function) {
-    return ShouldIncludeFrame(function) && IsNotHidden(function) &&
-           IsInSameSecurityContext(function);
+    return ShouldIncludeFrame(function) && IsNotHidden(function);
   }
 
   // This mechanism excludes a number of uninteresting frames from the stack
@@ -869,20 +868,9 @@ class CallSiteBuilder {
     return true;
   }
 
-  bool IsInSameSecurityContext(Handle<JSFunction> function) {
-    if (!check_security_context_) return true;
-    return isolate_->context().HasSameSecurityTokenAs(function->context());
-  }
-
   void AppendFrame(Handle<Object> receiver_or_instance, Handle<Object> function,
                    Handle<HeapObject> code, int offset, int flags,
                    Handle<FixedArray> parameters) {
-    DCHECK_LE(index_, elements_->length());
-    DCHECK_LE(elements_->length(), limit_);
-    if (index_ == elements_->length()) {
-      elements_ = isolate_->factory()->CopyFixedArrayAndGrow(
-          elements_, std::min(16, limit_ - elements_->length()));
-    }
     if (receiver_or_instance->IsTheHole(isolate_)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
@@ -890,7 +878,7 @@ class CallSiteBuilder {
     }
     auto info = isolate_->factory()->NewCallSiteInfo(
         receiver_or_instance, function, code, offset, flags, parameters);
-    elements_->set(index_++, *info);
+    elements_ = FixedArray::SetAndGrow(isolate_, elements_, index_++, info);
   }
 
   Isolate* isolate_;
@@ -900,7 +888,6 @@ class CallSiteBuilder {
   const Handle<Object> caller_;
   bool skip_next_frame_;
   bool encountered_strict_function_ = false;
-  const bool check_security_context_;
   Handle<FixedArray> elements_;
 };
 
@@ -1098,8 +1085,9 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
   }
 }
 
-template <typename Visitor, typename Options>
-void VisitStack(Isolate* isolate, Visitor* visitor, Options const& options) {
+template <typename Visitor>
+void VisitStack(Isolate* isolate, Visitor* visitor,
+                StackTrace::StackTraceOptions options = StackTrace::kDetailed) {
   DisallowJavascriptExecution no_js(isolate);
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
@@ -1121,8 +1109,10 @@ void VisitStack(Isolate* isolate, Visitor* visitor, Options const& options) {
         CommonFrame::cast(frame)->Summarize(&summaries);
         for (auto rit = summaries.rbegin(); rit != summaries.rend(); ++rit) {
           FrameSummary& summary = *rit;
-          if (options.capture_only_frames_subject_to_debugging &&
-              !summary.is_subject_to_debugging()) {
+          // Skip frames from other origins when asked to do so.
+          if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
+              !summary.native_context()->HasSameSecurityTokenAs(
+                  isolate->context())) {
             continue;
           }
           if (!visitor->Visit(summary)) return;
@@ -1136,65 +1126,32 @@ void VisitStack(Isolate* isolate, Visitor* visitor, Options const& options) {
   }
 }
 
-struct CaptureStackTraceOptions {
-  int limit;
-  // 'filter_mode' and 'skip_mode' are somewhat orthogonal. 'filter_mode'
-  // specifies whether to capture all frames, or just frames in the same
-  // security context. While 'skip_mode' allows skipping the first frame.
-  FrameSkipMode skip_mode;
-  CallSiteBuilder::FrameFilterMode filter_mode;
+}  // namespace
 
-  bool capture_only_frames_subject_to_debugging;
-  bool async_stack_trace;
-};
-
-Handle<FixedArray> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
-                                     CaptureStackTraceOptions options) {
-  DisallowJavascriptExecution no_js(isolate);
-
-  TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
-                     "CaptureStackTrace", "maxFrameCount", options.limit);
+Handle<FixedArray> Isolate::CaptureSimpleStackTrace(int limit,
+                                                    FrameSkipMode mode,
+                                                    Handle<Object> caller) {
+  TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
+                     "maxFrameCount", limit);
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope code_ref_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  CallSiteBuilder builder(isolate, options.skip_mode, options.limit, caller,
-                          options.filter_mode);
-  VisitStack(isolate, &builder, options);
+  CallSiteBuilder builder(this, mode, limit, caller);
+  VisitStack(this, &builder);
 
   // If --async-stack-traces are enabled and the "current microtask" is a
   // PromiseReactionJobTask, we try to enrich the stack trace with async
   // frames.
-  if (options.async_stack_trace) {
-    CaptureAsyncStackTrace(isolate, &builder);
+  if (FLAG_async_stack_traces) {
+    CaptureAsyncStackTrace(this, &builder);
   }
 
   Handle<FixedArray> stack_trace = builder.Build();
-  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
-                   "CaptureStackTrace", "frameCount", stack_trace->length());
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
+                   "frameCount", stack_trace->length());
   return stack_trace;
-}
-
-}  // namespace
-
-Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
-                                                FrameSkipMode mode,
-                                                Handle<Object> caller) {
-  int limit;
-  if (FLAG_correctness_fuzzer_suppressions ||
-      !GetStackTraceLimit(this, &limit)) {
-    return factory()->undefined_value();
-  }
-
-  CaptureStackTraceOptions options;
-  options.limit = limit;
-  options.skip_mode = mode;
-  options.async_stack_trace = FLAG_async_stack_traces;
-  options.filter_mode = CallSiteBuilder::CURRENT_SECURITY_CONTEXT;
-  options.capture_only_frames_subject_to_debugging = false;
-
-  return CaptureStackTrace(this, caller, options);
 }
 
 MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
@@ -1220,8 +1177,12 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
     Handle<Object> caller) {
   // Capture stack trace for simple stack trace string formatting.
   Handle<Name> key = factory()->stack_trace_symbol();
-  Handle<Object> stack_trace =
-      CaptureSimpleStackTrace(error_object, mode, caller);
+  Handle<Object> stack_trace = factory()->undefined_value();
+  int limit;
+  if (!FLAG_correctness_fuzzer_suppressions &&
+      GetStackTraceLimit(this, &limit)) {
+    stack_trace = CaptureSimpleStackTrace(limit, mode, caller);
+  }
   RETURN_ON_EXCEPTION(this,
                       Object::SetProperty(this, error_object, key, stack_trace,
                                           StoreOrigin::kMaybeKeyed,
@@ -1283,19 +1244,52 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   return frame->pc();
 }
 
-Handle<FixedArray> Isolate::CaptureDetailedStackTrace(
-    int limit, StackTrace::StackTraceOptions stack_trace_options) {
-  CaptureStackTraceOptions options;
-  options.limit = std::max(limit, 0);  // Ensure no negative values.
-  options.skip_mode = SKIP_NONE;
-  options.async_stack_trace = false;
-  options.filter_mode =
-      (stack_trace_options & StackTrace::kExposeFramesAcrossSecurityOrigins)
-          ? CallSiteBuilder::ALL
-          : CallSiteBuilder::CURRENT_SECURITY_CONTEXT;
-  options.capture_only_frames_subject_to_debugging = true;
+namespace {
 
-  return CaptureStackTrace(this, factory()->undefined_value(), options);
+class StackFrameBuilder {
+ public:
+  StackFrameBuilder(Isolate* isolate, int limit)
+      : isolate_(isolate),
+        frames_(isolate_->factory()->empty_fixed_array()),
+        index_(0),
+        limit_(limit) {}
+
+  bool Visit(FrameSummary& summary) {
+    // Check if we have enough capacity left.
+    if (index_ >= limit_) return false;
+    // Skip frames that aren't subject to debugging.
+    if (!summary.is_subject_to_debugging()) return true;
+    summary.EnsureSourcePositionsAvailable();
+    Handle<StackFrameInfo> frame = isolate_->factory()->NewStackFrameInfo(
+        Handle<Script>::cast(summary.script()), summary.SourcePosition(),
+        summary.FunctionName(), summary.is_constructor());
+    frames_ = FixedArray::SetAndGrow(isolate_, frames_, index_++, frame);
+    return true;
+  }
+
+  Handle<FixedArray> Build() {
+    return FixedArray::ShrinkOrEmpty(isolate_, frames_, index_);
+  }
+
+ private:
+  Isolate* isolate_;
+  Handle<FixedArray> frames_;
+  int index_;
+  int limit_;
+};
+
+}  // namespace
+
+Handle<FixedArray> Isolate::CaptureDetailedStackTrace(
+    int limit, StackTrace::StackTraceOptions options) {
+  TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
+                     "maxFrameCount", limit);
+  StackFrameBuilder builder(this, limit);
+  VisitStack(this, &builder, options);
+  Handle<FixedArray> stack_trace = builder.Build();
+  TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
+                   "frameCount", stack_trace->length());
+  return stack_trace;
 }
 
 void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
@@ -2201,15 +2195,8 @@ Object Isolate::PromoteScheduledException() {
 }
 
 void Isolate::PrintCurrentStackTrace(std::ostream& out) {
-  CaptureStackTraceOptions options;
-  options.limit = 0;
-  options.skip_mode = SKIP_NONE;
-  options.async_stack_trace = FLAG_async_stack_traces;
-  options.filter_mode = CallSiteBuilder::CURRENT_SECURITY_CONTEXT;
-  options.capture_only_frames_subject_to_debugging = false;
-
-  Handle<FixedArray> frames =
-      CaptureStackTrace(this, this->factory()->undefined_value(), options);
+  Handle<FixedArray> frames = CaptureSimpleStackTrace(
+      FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
 
   IncrementalStringBuilder builder(this);
   for (int i = 0; i < frames->length(); ++i) {

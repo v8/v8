@@ -1802,6 +1802,10 @@ void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
         c_function_overloads().IsUndefined(isolate));
 }
 
+void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
+}
+
 // Helper class for verifying the string table.
 class StringTableVerifier : public RootVisitor {
  public:

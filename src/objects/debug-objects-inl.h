@@ -52,6 +52,14 @@ BytecodeArray DebugInfo::DebugBytecodeArray() {
   return BytecodeArray::cast(debug_bytecode_array(kAcquireLoad));
 }
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
+NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
+
+BIT_FIELD_ACCESSORS(StackFrameInfo, flags, source_position,
+                    StackFrameInfo::SourcePositionBits)
+BIT_FIELD_ACCESSORS(StackFrameInfo, flags, is_constructor,
+                    StackFrameInfo::IsConstructorBit)
+
 }  // namespace internal
 }  // namespace v8
 

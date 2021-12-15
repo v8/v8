@@ -160,6 +160,7 @@ namespace internal {
   V(_, SCRIPT_OR_MODULE_TYPE, ScriptOrModule, script_or_module)                \
   V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,          \
     module_info_entry)                                                         \
+  V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)                \
   V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,            \
     template_object_description)                                               \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                            \

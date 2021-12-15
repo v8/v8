@@ -67,3 +67,14 @@ extern class CoverageInfo extends HeapObject {
   const slot_count: int32;
   slots[slot_count]: CoverageInfoSlot;
 }
+
+bitfield struct StackFrameInfoFlags extends uint31 {
+  is_constructor: bool: 1 bit;
+  source_position: int32: 30 bit;
+}
+
+extern class StackFrameInfo extends Struct {
+  script: Script;
+  function_name: String|Null;
+  flags: SmiTagged<StackFrameInfoFlags>;
+}

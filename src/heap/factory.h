@@ -63,6 +63,7 @@ class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
 class SourceTextModule;
+class StackFrameInfo;
 class StringSet;
 class StoreHandler;
 class SyntheticModule;
@@ -401,6 +402,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                        int code_offset_or_source_position,
                                        int flags,
                                        Handle<FixedArray> parameters);
+  Handle<StackFrameInfo> NewStackFrameInfo(
+      Handle<Script> script, int source_position,
+      Handle<PrimitiveHeapObject> function_name, bool is_constructor);
 
   // Allocate various microtasks.
   Handle<CallableTask> NewCallableTask(Handle<JSReceiver> callable,

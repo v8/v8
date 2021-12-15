@@ -3357,6 +3357,20 @@ Handle<CallSiteInfo> Factory::NewCallSiteInfo(
   return handle(info, isolate());
 }
 
+Handle<StackFrameInfo> Factory::NewStackFrameInfo(
+    Handle<Script> script, int source_position,
+    Handle<PrimitiveHeapObject> function_name, bool is_constructor) {
+  StackFrameInfo info = NewStructInternal<StackFrameInfo>(
+      STACK_FRAME_INFO_TYPE, AllocationType::kYoung);
+  DisallowGarbageCollection no_gc;
+  info.set_flags(0);
+  info.set_script(*script, SKIP_WRITE_BARRIER);
+  info.set_source_position(source_position);
+  info.set_function_name(*function_name, SKIP_WRITE_BARRIER);
+  info.set_is_constructor(is_constructor);
+  return handle(info, isolate());
+}
+
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
   bool strict_mode_callee = is_strict(callee->shared().language_mode()) ||

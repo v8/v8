@@ -203,6 +203,29 @@ class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
   TQ_OBJECT_CONSTRUCTORS(BreakPoint)
 };
 
+class StackFrameInfo
+    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  // The source position for the stack frame.
+  DECL_INT_ACCESSORS(source_position)
+
+  // Indicates that the frame corresponds to a 'new' invocation.
+  DECL_BOOLEAN_ACCESSORS(is_constructor)
+
+  // Dispatched behavior.
+  DECL_VERIFIER(StackFrameInfo)
+
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
+};
+
 }  // namespace internal
 }  // namespace v8
 

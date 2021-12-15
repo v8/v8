@@ -898,9 +898,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                     void* ptr3 = nullptr, void* ptr4 = nullptr);
   Handle<FixedArray> CaptureDetailedStackTrace(
       int limit, StackTrace::StackTraceOptions options);
-  Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
-                                         FrameSkipMode mode,
-                                         Handle<Object> caller);
+  Handle<FixedArray> CaptureSimpleStackTrace(int limit, FrameSkipMode mode,
+                                             Handle<Object> caller);
   MaybeHandle<JSReceiver> CaptureAndSetDetailedStackTrace(
       Handle<JSReceiver> error_object);
   MaybeHandle<JSReceiver> CaptureAndSetSimpleStackTrace(

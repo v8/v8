@@ -15,7 +15,6 @@
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/objects/call-site-info-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-builder-inl.h"

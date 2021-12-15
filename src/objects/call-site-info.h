@@ -58,6 +58,8 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
 
   // Returns the script ID if one is attached,
   // Message::kNoScriptIdInfo otherwise.
+  static MaybeHandle<Script> GetScript(Isolate* isolate,
+                                       Handle<CallSiteInfo> info);
   int GetScriptId() const;
   Object GetScriptName() const;
   Object GetScriptNameOrSourceURL() const;
@@ -65,7 +67,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   Object GetScriptSourceMappingURL() const;
 
   static Handle<PrimitiveHeapObject> GetEvalOrigin(Handle<CallSiteInfo> info);
-  V8_EXPORT_PRIVATE static Handle<Object> GetFunctionName(
+  V8_EXPORT_PRIVATE static Handle<PrimitiveHeapObject> GetFunctionName(
       Handle<CallSiteInfo> info);
   static Handle<Object> GetMethodName(Handle<CallSiteInfo> info);
   static Handle<Object> GetTypeName(Handle<CallSiteInfo> info);
@@ -95,9 +97,6 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
 
   base::Optional<Script> GetScript() const;
   SharedFunctionInfo GetSharedFunctionInfo() const;
-
-  static MaybeHandle<Script> GetScript(Isolate* isolate,
-                                       Handle<CallSiteInfo> info);
 
   TQ_OBJECT_CONSTRUCTORS(CallSiteInfo)
 };

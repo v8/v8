@@ -254,7 +254,8 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetEvalOrigin(
 }
 
 // static
-Handle<Object> CallSiteInfo::GetFunctionName(Handle<CallSiteInfo> info) {
+Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
+    Handle<CallSiteInfo> info) {
   Isolate* isolate = info->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) {

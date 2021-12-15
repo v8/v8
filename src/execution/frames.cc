@@ -28,6 +28,7 @@
 #include "src/zone/zone-containers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -1592,6 +1593,19 @@ Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
   return handle(function_->context().native_context(), isolate());
 }
 
+Handle<PrimitiveHeapObject> FrameSummary::JavaScriptFrameSummary::FunctionName()
+    const {
+  Handle<JSFunction> func = function();
+  Handle<String> name = JSFunction::GetDebugName(func);
+  if (name->length() != 0) return name;
+  if (func->shared().script().IsScript() &&
+      Script::cast(func->shared().script()).compilation_type() ==
+          Script::COMPILATION_TYPE_EVAL) {
+    return isolate()->factory()->eval_string();
+  }
+  return isolate()->factory()->null_value();
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 FrameSummary::WasmFrameSummary::WasmFrameSummary(
     Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::WasmCode* code,
@@ -1627,6 +1641,10 @@ Handle<Script> FrameSummary::WasmFrameSummary::script() const {
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
   return handle(wasm_instance()->native_context(), isolate());
+}
+
+Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
+  return GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1697,6 +1715,7 @@ FRAME_SUMMARY_DISPATCH(Handle<Object>, script)
 FRAME_SUMMARY_DISPATCH(int, SourcePosition)
 FRAME_SUMMARY_DISPATCH(int, SourceStatementPosition)
 FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
+FRAME_SUMMARY_DISPATCH(Handle<PrimitiveHeapObject>, FunctionName)
 
 #undef FRAME_SUMMARY_DISPATCH
 

@@ -190,6 +190,7 @@
 //         - SourceTextModule
 //         - SyntheticModule
 //       - SourceTextModuleInfoEntry
+//       - StackFrameInfo
 //     - FeedbackCell
 //     - FeedbackVector
 //     - PreparseData

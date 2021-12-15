@@ -44,6 +44,7 @@
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/date/date.h"
+#include "src/objects/primitive-heap-object.h"
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -78,7 +79,6 @@
 #include "src/logging/tracing-flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/objects/call-site-info-inl.h"
 #include "src/objects/contexts.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
@@ -3229,9 +3229,9 @@ void Message::PrintCurrentStackTrace(Isolate* isolate, std::ostream& out) {
 Local<StackFrame> StackTrace::GetFrame(Isolate* v8_isolate,
                                        uint32_t index) const {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Handle<i::CallSiteInfo> frame(
-      i::CallSiteInfo::cast(Utils::OpenHandle(this)->get(index)), isolate);
-  return Utils::StackFrameToLocal(frame);
+  i::Handle<i::StackFrameInfo> info(
+      i::StackFrameInfo::cast(Utils::OpenHandle(this)->get(index)), isolate);
+  return Utils::StackFrameToLocal(info);
 }
 
 int StackTrace::GetFrameCount() const {
@@ -3251,82 +3251,89 @@ Local<StackTrace> StackTrace::CurrentStackTrace(Isolate* isolate,
 // --- S t a c k F r a m e ---
 
 int StackFrame::GetLineNumber() const {
-  return i::CallSiteInfo::GetLineNumber(Utils::OpenHandle(this));
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Handle<i::Script> script(self->script(), self->GetIsolate());
+  int position = self->source_position();
+  int line_number = i::Script::GetLineNumber(script, position) + 1;
+  if (script->HasSourceURLComment()) {
+    line_number -= script->line_offset();
+  }
+  return line_number;
 }
 
 int StackFrame::GetColumn() const {
-  return i::CallSiteInfo::GetColumnNumber(Utils::OpenHandle(this));
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Handle<i::Script> script(self->script(), self->GetIsolate());
+  int position = self->source_position();
+  int column_number = i::Script::GetColumnNumber(script, position) + 1;
+  if (script->HasSourceURLComment()) {
+    if (i::Script::GetLineNumber(script, position) == script->line_offset()) {
+      column_number -= script->column_offset();
+    }
+  }
+  return column_number;
 }
 
 int StackFrame::GetScriptId() const {
-  return Utils::OpenHandle(this)->GetScriptId();
+  return Utils::OpenHandle(this)->script().id();
 }
 
 Local<String> StackFrame::GetScriptName() const {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  i::Handle<i::Object> name(self->GetScriptName(), isolate);
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  i::Handle<i::Object> name(self->script().name(), isolate);
   if (!name->IsString()) return {};
-  return Local<String>::Cast(Utils::ToLocal(name));
+  return Utils::ToLocal(i::Handle<i::String>::cast(name));
 }
 
 Local<String> StackFrame::GetScriptNameOrSourceURL() const {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  i::Handle<i::Object> name_or_url(self->GetScriptNameOrSourceURL(), isolate);
-  if (!name_or_url->IsString()) return {};
-  return Local<String>::Cast(Utils::ToLocal(name_or_url));
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  i::Handle<i::Object> name_or_source_url(self->script().GetNameOrSourceURL(),
+                                          isolate);
+  if (!name_or_source_url->IsString()) return {};
+  return Utils::ToLocal(i::Handle<i::String>::cast(name_or_source_url));
 }
 
 Local<String> StackFrame::GetScriptSource() const {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  i::Handle<i::Object> source(self->GetScriptSource(), isolate);
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  if (!self->script().HasValidSource()) return {};
+  i::Handle<i::PrimitiveHeapObject> source(self->script().source(), isolate);
   if (!source->IsString()) return {};
-  return Local<String>::Cast(Utils::ToLocal(source));
+  return Utils::ToLocal(i::Handle<i::String>::cast(source));
 }
 
 Local<String> StackFrame::GetScriptSourceMappingURL() const {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  i::Handle<i::Object> sourceMappingURL(self->GetScriptSourceMappingURL(),
-                                        isolate);
-  if (!sourceMappingURL->IsString()) return {};
-  return Local<String>::Cast(Utils::ToLocal(sourceMappingURL));
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  i::Handle<i::Object> source_mapping_url(self->script().source_mapping_url(),
+                                          isolate);
+  if (!source_mapping_url->IsString()) return {};
+  return Utils::ToLocal(i::Handle<i::String>::cast(source_mapping_url));
 }
 
 Local<String> StackFrame::GetFunctionName() const {
-  auto self = Utils::OpenHandle(this);
-#if V8_ENABLE_WEBASSEMBLY
-  if (self->IsWasm()) {
-    auto isolate = self->GetIsolate();
-    auto instance = handle(self->GetWasmInstance(), isolate);
-    auto func_index = self->GetWasmFunctionIndex();
-    return Utils::ToLocal(
-        i::GetWasmFunctionDebugName(isolate, instance, func_index));
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  auto name = i::CallSiteInfo::GetFunctionName(self);
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  i::Handle<i::PrimitiveHeapObject> name(self->function_name(), isolate);
   if (!name->IsString()) return {};
-  return Local<String>::Cast(Utils::ToLocal(name));
+  return Utils::ToLocal(i::Handle<i::String>::cast(name));
 }
 
-bool StackFrame::IsEval() const { return Utils::OpenHandle(this)->IsEval(); }
+bool StackFrame::IsEval() const {
+  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
+  return self->script().compilation_type() == i::Script::COMPILATION_TYPE_EVAL;
+}
 
 bool StackFrame::IsConstructor() const {
-  return Utils::OpenHandle(this)->IsConstructor();
+  return Utils::OpenHandle(this)->is_constructor();
 }
 
-bool StackFrame::IsWasm() const {
-#if V8_ENABLE_WEBASSEMBLY
-  return Utils::OpenHandle(this)->IsWasm();
-#else
-  return false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
+bool StackFrame::IsWasm() const { return !IsUserJavaScript(); }
 
 bool StackFrame::IsUserJavaScript() const {
-  return Utils::OpenHandle(this)->IsUserJavaScript();
+  return Utils::OpenHandle(this)->script().IsUserJavaScript();
 }
 
 // --- J S O N ---
