@@ -343,11 +343,12 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   EnqueueUses(node, state);
 
   // Node can be replaced under two cases:
-  //   1. V8_HEAP_SANDBOX_BOOL is enabled and loading an external pointer value.
+  //   1. V8_SANDBOXED_EXTERNAL_POINTERS_BOOL is enabled and loading an external
+  //   pointer value.
   //   2. V8_MAP_PACKING_BOOL is enabled.
-  DCHECK_IMPLIES(!V8_HEAP_SANDBOX_BOOL && !V8_MAP_PACKING_BOOL,
+  DCHECK_IMPLIES(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && !V8_MAP_PACKING_BOOL,
                  reduction.replacement() == node);
-  if ((V8_HEAP_SANDBOX_BOOL || V8_MAP_PACKING_BOOL) &&
+  if ((V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || V8_MAP_PACKING_BOOL) &&
       reduction.replacement() != node) {
     ReplaceUsesAndKillNode(node, reduction.replacement());
   }

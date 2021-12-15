@@ -115,8 +115,8 @@
 #include "src/profiler/tick-sample.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime.h"
-#include "src/security/external-pointer.h"
-#include "src/security/vm-cage.h"
+#include "src/sandbox/external-pointer.h"
+#include "src/sandbox/sandbox.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
@@ -389,11 +389,11 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 
 namespace {
 
-#ifdef V8_HEAP_SANDBOX
-// ArrayBufferAllocator to use when the heap sandbox is enabled, in which case
-// all ArrayBuffer backing stores need to be allocated inside the virtual
-// memory cage. Note, the current implementation is extremely inefficient as it
-// uses the BoundedPageAllocator. In the future, we'll need a proper allocator
+#ifdef V8_SANDBOXED_POINTERS
+// ArrayBufferAllocator to use when sandboxed pointers are used in which case
+// all ArrayBuffer backing stores need to be allocated inside the sandbox.
+// Note, the current implementation is extremely inefficient as it uses the
+// BoundedPageAllocator. In the future, we'll need a proper allocator
 // implementation.
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
@@ -461,7 +461,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     return new_data;
   }
 };
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_POINTERS
 
 struct SnapshotCreatorData {
   explicit SnapshotCreatorData(Isolate* isolate)
@@ -5850,7 +5850,7 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   }
 
   if (i::StringShape(str).IsExternalTwoByte()) {
-    internal::Isolate* isolate = I::GetIsolateForHeapSandbox(str.ptr());
+    internal::Isolate* isolate = I::GetIsolateForSandbox(str.ptr());
     internal::Address value = I::ReadExternalPointerField(
         isolate, str.ptr(), I::kStringResourceOffset,
         internal::kExternalStringResourceTag);
@@ -5894,7 +5894,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
-    internal::Isolate* isolate = I::GetIsolateForHeapSandbox(string);
+    internal::Isolate* isolate = I::GetIsolateForSandbox(string);
     internal::Address value =
         I::ReadExternalPointerField(isolate, string, I::kStringResourceOffset,
                                     internal::kExternalStringResourceTag);
@@ -6083,10 +6083,8 @@ void v8::V8::InitializePlatform(Platform* platform) {
   i::V8::InitializePlatform(platform);
 }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-bool v8::V8::InitializeVirtualMemoryCage() {
-  return i::V8::InitializeVirtualMemoryCage();
-}
+#ifdef V8_SANDBOX
+bool v8::V8::InitializeSandbox() { return i::V8::InitializeSandbox(); }
 #endif
 
 void v8::V8::DisposePlatform() { i::V8::DisposePlatform(); }
@@ -6110,23 +6108,24 @@ bool v8::V8::Initialize(const int build_config) {
         kEmbedderSmiValueSize, internal::kSmiValueSize);
   }
 
-  const bool kEmbedderHeapSandbox = (build_config & kHeapSandbox) != 0;
-  if (kEmbedderHeapSandbox != V8_HEAP_SANDBOX_BOOL) {
+  const bool kEmbedderSandboxedExternalPointers =
+      (build_config & kSandboxedExternalPointers) != 0;
+  if (kEmbedderSandboxedExternalPointers !=
+      V8_SANDBOXED_EXTERNAL_POINTERS_BOOL) {
     FATAL(
         "Embedder-vs-V8 build configuration mismatch. On embedder side "
-        "heap sandbox is %s while on V8 side it's %s.",
-        kEmbedderHeapSandbox ? "ENABLED" : "DISABLED",
-        V8_HEAP_SANDBOX_BOOL ? "ENABLED" : "DISABLED");
+        "sandboxed external pointers is %s while on V8 side it's %s.",
+        kEmbedderSandboxedExternalPointers ? "ENABLED" : "DISABLED",
+        V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ? "ENABLED" : "DISABLED");
   }
 
-  const bool kEmbedderVirtualMemoryCage =
-      (build_config & kVirtualMemoryCage) != 0;
-  if (kEmbedderVirtualMemoryCage != V8_VIRTUAL_MEMORY_CAGE_BOOL) {
+  const bool kEmbedderSandbox = (build_config & kSandbox) != 0;
+  if (kEmbedderSandbox != V8_SANDBOX_BOOL) {
     FATAL(
         "Embedder-vs-V8 build configuration mismatch. On embedder side "
-        "virtual memory cage is %s while on V8 side it's %s.",
-        kEmbedderVirtualMemoryCage ? "ENABLED" : "DISABLED",
-        V8_VIRTUAL_MEMORY_CAGE_BOOL ? "ENABLED" : "DISABLED");
+        "sandbox is %s while on V8 side it's %s.",
+        kEmbedderSandbox ? "ENABLED" : "DISABLED",
+        V8_SANDBOX_BOOL ? "ENABLED" : "DISABLED");
   }
 
   i::V8::Initialize();
@@ -6246,31 +6245,38 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-PageAllocator* v8::V8::GetVirtualMemoryCagePageAllocator() {
-  Utils::ApiCheck(i::GetProcessWideVirtualMemoryCage()->is_initialized(),
-                  "v8::V8::GetVirtualMemoryCagePageAllocator",
-                  "The virtual memory cage must be initialized first.");
-  return i::GetProcessWideVirtualMemoryCage()->page_allocator();
+#ifdef V8_SANDBOX
+VirtualAddressSpace* v8::V8::GetSandboxAddressSpace() {
+  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+                  "v8::V8::GetSandboxAddressSpace",
+                  "The sandbox must be initialized first.");
+  return i::GetProcessWideSandbox()->address_space();
 }
 
-size_t v8::V8::GetVirtualMemoryCageSizeInBytes() {
-  if (!i::GetProcessWideVirtualMemoryCage()->is_initialized()) {
+PageAllocator* v8::V8::GetVirtualMemoryCagePageAllocator() {
+  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+                  "v8::V8::GetVirtualMemoryCagePageAllocator",
+                  "The sandbox must be initialized first.");
+  return i::GetProcessWideSandbox()->page_allocator();
+}
+
+size_t v8::V8::GetSandboxSizeInBytes() {
+  if (!i::GetProcessWideSandbox()->is_initialized()) {
     return 0;
   } else {
-    return i::GetProcessWideVirtualMemoryCage()->size();
+    return i::GetProcessWideSandbox()->size();
   }
 }
 
-bool v8::V8::IsUsingSecureVirtualMemoryCage() {
-  Utils::ApiCheck(i::GetProcessWideVirtualMemoryCage()->is_initialized(),
-                  "v8::V8::IsUsingSecureVirtualMemoryCage",
-                  "The virtual memory cage must be initialized first.");
-  // TODO(saelo) For now, we only treat a fake cage as insecure. Once we use
-  // caged pointers that assume that the cage has a constant size, we'll also
-  // treat cages smaller than the default size as insecure because caged
-  // pointers can then access memory outside of them.
-  return !i::GetProcessWideVirtualMemoryCage()->is_fake_cage();
+bool v8::V8::IsSandboxConfiguredSecurely() {
+  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+                  "v8::V8::IsSandoxConfiguredSecurely",
+                  "The sandbox must be initialized first.");
+  // TODO(saelo) For now, we only treat a partially reserved sandbox as
+  // insecure. Once we use sandboxed pointers, which assume that the sandbox
+  // has a fixed size, we'll also treat sandboxes with a smaller size as
+  // insecure because these pointers can then access memory outside of them.
+  return !i::GetProcessWideSandbox()->is_partially_reserved();
 }
 #endif
 

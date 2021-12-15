@@ -600,7 +600,7 @@ static void JSObjectPrintBody(std::ostream& os, JSObject obj,
   }
   int embedder_fields = obj.GetEmbedderFieldCount();
   if (embedder_fields > 0) {
-    Isolate* isolate = GetIsolateForHeapSandbox(obj);
+    Isolate* isolate = GetIsolateForSandbox(obj);
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
@@ -788,7 +788,7 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
 }
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  Isolate* isolate = GetIsolateForSandbox(*this);
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
   EmbedderDataSlot start(*this, 0);

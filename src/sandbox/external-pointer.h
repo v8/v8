@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SECURITY_EXTERNAL_POINTER_H_
-#define V8_SECURITY_EXTERNAL_POINTER_H_
+#ifndef V8_SANDBOX_EXTERNAL_POINTER_H_
+#define V8_SANDBOX_EXTERNAL_POINTER_H_
 
 #include "src/common/globals.h"
 
@@ -45,4 +45,4 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SECURITY_EXTERNAL_POINTER_H_
+#endif  // V8_SANDBOX_EXTERNAL_POINTER_H_

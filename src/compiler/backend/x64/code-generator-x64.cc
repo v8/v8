@@ -344,8 +344,8 @@ void EmitStore(TurboAssembler* tasm, Operand operand, Register value,
       case MachineRepresentation::kTagged:
         tasm->StoreTaggedField(operand, value);
         break;
-      case MachineRepresentation::kCagedPointer:
-        tasm->StoreCagedPointerField(operand, value);
+      case MachineRepresentation::kSandboxedPointer:
+        tasm->StoreSandboxedPointerField(operand, value);
         break;
       default:
         UNREACHABLE();
@@ -514,11 +514,11 @@ template <std::memory_order order>
 Register GetTSANValueRegister(TurboAssembler* tasm, Register value,
                               X64OperandConverter& i,
                               MachineRepresentation rep) {
-  if (rep == MachineRepresentation::kCagedPointer) {
-    // CagedPointers need to be encoded.
+  if (rep == MachineRepresentation::kSandboxedPointer) {
+    // SandboxedPointers need to be encoded.
     Register value_reg = i.TempRegister(1);
     tasm->movq(value_reg, value);
-    tasm->EncodeCagedPointer(value_reg);
+    tasm->EncodeSandboxedPointer(value_reg);
     return value_reg;
   }
   return value;
@@ -535,9 +535,9 @@ Register GetTSANValueRegister<std::memory_order_relaxed>(
     MachineRepresentation rep) {
   Register value_reg = i.TempRegister(1);
   tasm->movq(value_reg, value);
-  if (rep == MachineRepresentation::kCagedPointer) {
-    // CagedPointers need to be encoded.
-    tasm->EncodeCagedPointer(value_reg);
+  if (rep == MachineRepresentation::kSandboxedPointer) {
+    // SandboxedPointers need to be encoded.
+    tasm->EncodeSandboxedPointer(value_reg);
   }
   return value_reg;
 }
@@ -2386,18 +2386,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64MovqDecodeCagedPointer: {
+    case kX64MovqDecodeSandboxedPointer: {
       CHECK(instr->HasOutput());
       Operand address(i.MemoryOperand());
       Register dst = i.OutputRegister();
       __ movq(dst, address);
-      __ DecodeCagedPointer(dst);
+      __ DecodeSandboxedPointer(dst);
       EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, tasm(), address, i,
                                      DetermineStubCallMode(),
                                      kSystemPointerSize);
       break;
     }
-    case kX64MovqEncodeCagedPointer: {
+    case kX64MovqEncodeSandboxedPointer: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2405,7 +2405,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value(i.InputRegister(index));
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, tasm(), operand, value, i, DetermineStubCallMode(),
-          MachineRepresentation::kCagedPointer);
+          MachineRepresentation::kSandboxedPointer);
       break;
     }
     case kX64Movq:

@@ -710,14 +710,15 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   }
 
   //
-  // CagedPointer_t field accessors.
+  // SandboxedPointer_t field accessors.
   //
-  inline Address ReadCagedPointerField(size_t offset,
-                                       PtrComprCageBase cage_base) const;
-  inline void WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
-                                     Address value);
-  inline void WriteCagedPointerField(size_t offset, Isolate* isolate,
-                                     Address value);
+  inline Address ReadSandboxedPointerField(size_t offset,
+                                           PtrComprCageBase cage_base) const;
+  inline void WriteSandboxedPointerField(size_t offset,
+                                         PtrComprCageBase cage_base,
+                                         Address value);
+  inline void WriteSandboxedPointerField(size_t offset, Isolate* isolate,
+                                         Address value);
 
   //
   // ExternalPointer_t field accessors.

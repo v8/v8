@@ -24,7 +24,7 @@
 #include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/security/vm-cage.h"
+#include "src/sandbox/sandbox.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
 
@@ -73,12 +73,12 @@ void V8::Dispose() {
 void V8::InitializeOncePerProcess() {
   CHECK(platform_);
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!GetProcessWideVirtualMemoryCage()->is_initialized()) {
+#ifdef V8_SANDBOX
+  if (!GetProcessWideSandbox()->is_initialized()) {
     // For now, we still allow the cage to be disabled even if V8 was compiled
-    // with V8_VIRTUAL_MEMORY_CAGE. This will eventually be forbidden.
-    CHECK(kAllowBackingStoresOutsideCage);
-    GetProcessWideVirtualMemoryCage()->Disable();
+    // with V8_SANDBOX. This will eventually be forbidden.
+    CHECK(kAllowBackingStoresOutsideSandbox);
+    GetProcessWideSandbox()->Disable();
   }
 #endif
 
@@ -217,12 +217,12 @@ void V8::InitializePlatform(v8::Platform* platform) {
 #endif
 }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-bool V8::InitializeVirtualMemoryCage() {
+#ifdef V8_SANDBOX
+bool V8::InitializeSandbox() {
   // Platform must have been initialized already.
   CHECK(platform_);
   v8::VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  return GetProcessWideVirtualMemoryCage()->Initialize(vas);
+  return GetProcessWideSandbox()->Initialize(vas);
 }
 #endif
 
@@ -236,10 +236,10 @@ void V8::DisposePlatform() {
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
+#ifdef V8_SANDBOX
   // TODO(chromium:1218005) alternatively, this could move to its own
-  // public TearDownVirtualMemoryCage function.
-  GetProcessWideVirtualMemoryCage()->TearDown();
+  // public TearDownSandbox function.
+  GetProcessWideSandbox()->TearDown();
 #endif
 
   platform_ = nullptr;

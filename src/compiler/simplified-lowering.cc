@@ -160,7 +160,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       return UseInfo::Bool();
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kNone:
       break;
@@ -1075,7 +1075,7 @@ class RepresentationSelector {
       return MachineRepresentation::kWord64;
     } else if (type.Is(Type::ExternalPointer()) ||
                type.Is(Type::SandboxedExternalPointer()) ||
-               type.Is(Type::CagedPointer())) {
+               type.Is(Type::SandboxedPointer())) {
       return MachineType::PointerRepresentation();
     }
     return MachineRepresentation::kTagged;

@@ -553,7 +553,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCagedPointer:
+      case MachineRepresentation::kSandboxedPointer:
         return true;
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:

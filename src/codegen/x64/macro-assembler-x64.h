@@ -593,22 +593,22 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void DecompressAnyTagged(Register destination, Operand field_operand);
 
   // ---------------------------------------------------------------------------
-  // V8 Heap sandbox support
+  // V8 Sandbox support
 
-  // Transform a CagedPointer from/to its encoded form, which is used when the
-  // pointer is stored on the heap and ensures that the pointer will always
-  // point into the virtual memory cage.
-  void EncodeCagedPointer(Register value);
-  void DecodeCagedPointer(Register value);
+  // Transform a SandboxedPointer from/to its encoded form, which is used when
+  // the pointer is stored on the heap and ensures that the pointer will always
+  // point into the sandbox.
+  void EncodeSandboxedPointer(Register value);
+  void DecodeSandboxedPointer(Register value);
 
-  // Load and decode a CagedPointer from the heap.
-  void LoadCagedPointerField(Register destination, Operand field_operand);
-  // Encode and store a CagedPointer to the heap.
-  void StoreCagedPointerField(Operand dst_field_operand, Register value);
+  // Load and decode a SandboxedPointer from the heap.
+  void LoadSandboxedPointerField(Register destination, Operand field_operand);
+  // Encode and store a SandboxedPointer to the heap.
+  void StoreSandboxedPointerField(Operand dst_field_operand, Register value);
 
   enum class IsolateRootLocation { kInScratchRegister, kInRootRegister };
   // Loads a field containing off-heap pointer and does necessary decoding
-  // if V8 heap sandbox is enabled.
+  // if sandboxed external pointers are enabled.
   void LoadExternalPointerField(Register destination, Operand field_operand,
                                 ExternalPointerTag tag, Register scratch,
                                 IsolateRootLocation isolateRootLocation =

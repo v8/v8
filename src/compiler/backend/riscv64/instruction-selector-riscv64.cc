@@ -542,7 +542,7 @@ void InstructionSelector::VisitLoad(Node* node) {
 #else
                                                  // Fall through.
 #endif
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -622,7 +622,7 @@ void InstructionSelector::VisitStore(Node* node) {
 #else
         UNREACHABLE();
 #endif
-      case MachineRepresentation::kCagedPointer:
+      case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -1731,7 +1731,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -1786,7 +1786,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();

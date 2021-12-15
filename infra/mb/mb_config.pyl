@@ -578,9 +578,9 @@
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_heap_sandbox': [
-      'debug_bot', 'x64', 'v8_enable_heap_sandbox'],
+      'debug_bot', 'x64', 'v8_enable_sandbox_future'],
     'debug_x64_heap_sandbox_arm64_sim': [
-      'debug_bot', 'simulate_arm64', 'v8_enable_heap_sandbox'],
+      'debug_bot', 'simulate_arm64', 'v8_enable_sandbox_future'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_non_default_cppgc': [
@@ -922,8 +922,8 @@
       'gn_args': 'v8_enable_runtime_call_stats=false',
     },
 
-    'v8_enable_heap_sandbox': {
-      'gn_args': 'v8_enable_heap_sandbox=true',
+    'v8_enable_sandbox_future': {
+      'gn_args': 'v8_enable_sandbox_future=true',
     },
 
     'v8_enable_lite_mode': {

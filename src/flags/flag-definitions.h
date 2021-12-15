@@ -169,21 +169,21 @@ struct MaybeBoolFlag {
 #define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL false
 #endif
 
-#ifdef V8_HEAP_SANDBOX
-#define V8_HEAP_SANDBOX_BOOL true
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#define V8_SANDBOXED_EXTERNAL_POINTERS_BOOL true
 #else
-#define V8_HEAP_SANDBOX_BOOL false
+#define V8_SANDBOXED_EXTERNAL_POINTERS_BOOL false
 #endif
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-#define V8_VIRTUAL_MEMORY_CAGE_BOOL true
+#ifdef V8_SANDBOX
+#define V8_SANDBOX_BOOL true
 #else
-#define V8_VIRTUAL_MEMORY_CAGE_BOOL false
+#define V8_SANDBOX_BOOL false
 #endif
 
-// D8's MultiMappedAllocator is only available on Linux, and only if the virtual
-// memory cage is not enabled.
-#if V8_OS_LINUX && !V8_VIRTUAL_MEMORY_CAGE_BOOL
+// D8's MultiMappedAllocator is only available on Linux, and only if the sandbox
+// is not enabled.
+#if V8_OS_LINUX && !V8_SANDBOX_BOOL
 #define MULTI_MAPPED_ALLOCATOR_AVAILABLE true
 #else
 #define MULTI_MAPPED_ALLOCATOR_AVAILABLE false

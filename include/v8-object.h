@@ -744,10 +744,10 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   auto instance_type = I::GetInstanceType(obj);
   if (v8::internal::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     offset += I::kEmbedderDataSlotRawPayloadOffset;
 #endif
-    internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
+    internal::Isolate* isolate = I::GetIsolateForSandbox(obj);
     A value = I::ReadExternalPointerField(
         isolate, obj, offset, internal::kEmbedderDataSlotPayloadTag);
     return reinterpret_cast<void*>(value);

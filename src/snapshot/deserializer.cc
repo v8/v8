@@ -32,7 +32,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/references.h"
 #include "src/snapshot/serializer-deserializer.h"
@@ -996,11 +996,12 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     case kSandboxedExternalReference:
     case kExternalReference: {
       Address address = ReadExternalReferenceCase();
-      if (V8_HEAP_SANDBOX_BOOL && data == kSandboxedExternalReference) {
+      if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
+          data == kSandboxedExternalReference) {
         return WriteExternalPointer(slot_accessor.slot(), address,
                                     kForeignForeignAddressTag);
       } else {
-        DCHECK(!V8_HEAP_SANDBOX_BOOL);
+        DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
         return WriteAddress(slot_accessor.slot(), address);
       }
     }
@@ -1159,11 +1160,12 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       } else {
         address = reinterpret_cast<Address>(NoExternalReferencesCallback);
       }
-      if (V8_HEAP_SANDBOX_BOOL && data == kSandboxedApiReference) {
+      if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
+          data == kSandboxedApiReference) {
         return WriteExternalPointer(slot_accessor.slot(), address,
                                     kForeignForeignAddressTag);
       } else {
-        DCHECK(!V8_HEAP_SANDBOX_BOOL);
+        DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
         return WriteAddress(slot_accessor.slot(), address);
       }
     }

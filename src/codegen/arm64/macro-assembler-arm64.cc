@@ -3072,40 +3072,40 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   Bind(&done);
 }
 
-void TurboAssembler::EncodeCagedPointer(const Register& value) {
+void TurboAssembler::EncodeSandboxedPointer(const Register& value) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_CAGED_POINTERS
+#ifdef V8_SANDBOXED_POINTERS
   Sub(value, value, kPtrComprCageBaseRegister);
-  Mov(value, Operand(value, LSL, kCagedPointerShift));
+  Mov(value, Operand(value, LSL, kSandboxedPointerShift));
 #else
   UNREACHABLE();
 #endif
 }
 
-void TurboAssembler::DecodeCagedPointer(const Register& value) {
+void TurboAssembler::DecodeSandboxedPointer(const Register& value) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_CAGED_POINTERS
+#ifdef V8_SANDBOXED_POINTERS
   Add(value, kPtrComprCageBaseRegister,
-      Operand(value, LSR, kCagedPointerShift));
+      Operand(value, LSR, kSandboxedPointerShift));
 #else
   UNREACHABLE();
 #endif
 }
 
-void TurboAssembler::LoadCagedPointerField(const Register& destination,
-                                           const MemOperand& field_operand) {
+void TurboAssembler::LoadSandboxedPointerField(
+    const Register& destination, const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
   Ldr(destination, field_operand);
-  DecodeCagedPointer(destination);
+  DecodeSandboxedPointer(destination);
 }
 
-void TurboAssembler::StoreCagedPointerField(
+void TurboAssembler::StoreSandboxedPointerField(
     const Register& value, const MemOperand& dst_field_operand) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
   Register scratch = temps.AcquireX();
   Mov(scratch, value);
-  EncodeCagedPointer(scratch);
+  EncodeSandboxedPointer(scratch);
   Str(scratch, dst_field_operand);
 }
 
@@ -3115,7 +3115,7 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
                                               Register isolate_root) {
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   UseScratchRegisterScope temps(this);
   Register external_table = temps.AcquireX();
   if (isolate_root == no_reg) {
@@ -3134,7 +3134,7 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
   }
 #else
   Ldr(destination, field_operand);
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {

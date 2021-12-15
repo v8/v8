@@ -71,14 +71,13 @@ config_setting(
 # v8_verify_torque_generation_invariance
 # v8_enable_snapshot_compression
 # v8_control_flow_integrity
-# v8_enable_virtual_memory_cage
+# v8_enable_sandbox
 # cppgc_enable_caged_heap
 # cppgc_enable_check_assignments_in_prefinalizers
 # cppgc_enable_object_names
 # cppgc_enable_verify_heap
 # cppgc_enable_young_generation
 # v8_enable_zone_compression
-# v8_enable_heap_sandbox
 # v8_enable_precise_zone_stats
 # v8_enable_swiss_name_dictionary
 # v8_generate_external_defines_header
@@ -1918,14 +1917,14 @@ filegroup(
         "src/runtime/runtime-weak-refs.cc",
         "src/runtime/runtime.cc",
         "src/runtime/runtime.h",
-        "src/security/external-pointer-table.cc",
-        "src/security/vm-cage.cc",
-        "src/security/caged-pointer-inl.h",
-        "src/security/caged-pointer.h",
-        "src/security/external-pointer-inl.h",
-        "src/security/external-pointer-table.h",
-        "src/security/external-pointer.h",
-        "src/security/vm-cage.h",
+        "src/sandbox/external-pointer-inl.h",
+        "src/sandbox/external-pointer.h",
+        "src/sandbox/external-pointer-table.cc",
+        "src/sandbox/external-pointer-table.h",
+        "src/sandbox/sandbox.cc",
+        "src/sandbox/sandbox.h",
+        "src/sandbox/sandboxed-pointer-inl.h",
+        "src/sandbox/sandboxed-pointer.h",
         "src/base/sanitizer/asan.h",
         "src/base/sanitizer/lsan-page-allocator.cc",
         "src/base/sanitizer/lsan-page-allocator.h",

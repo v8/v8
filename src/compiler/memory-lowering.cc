@@ -13,7 +13,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/roots/roots-inl.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -408,8 +408,8 @@ Reduction MemoryLowering::ReduceLoadElement(Node* node) {
 
 Node* MemoryLowering::DecodeExternalPointer(
     Node* node, ExternalPointerTag external_pointer_tag) {
-#ifdef V8_HEAP_SANDBOX
-  DCHECK(V8_HEAP_SANDBOX_BOOL);
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  DCHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
   DCHECK(node->opcode() == IrOpcode::kLoad);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -440,7 +440,7 @@ Node* MemoryLowering::DecodeExternalPointer(
   return decoded_ptr;
 #else
   return node;
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 Reduction MemoryLowering::ReduceLoadMap(Node* node) {
@@ -465,7 +465,7 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
   Node* offset = __ IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph_zone(), 1, offset);
   MachineType type = access.machine_type;
-  if (V8_HEAP_SANDBOX_BOOL &&
+  if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
       access.type.Is(Type::SandboxedExternalPointer())) {
     // External pointer table indices are 32bit numbers
     type = MachineType::Uint32();
@@ -478,9 +478,9 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
 
   NodeProperties::ChangeOp(node, machine()->Load(type));
 
-  if (V8_HEAP_SANDBOX_BOOL &&
+  if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
       access.type.Is(Type::SandboxedExternalPointer())) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     ExternalPointerTag tag = access.external_pointer_tag;
 #else
     ExternalPointerTag tag = kExternalPointerNullTag;
@@ -535,11 +535,11 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
   DCHECK_EQ(IrOpcode::kStoreField, node->opcode());
   FieldAccess const& access = FieldAccessOf(node->op());
   // External pointer must never be stored by optimized code.
-  DCHECK_IMPLIES(V8_HEAP_SANDBOX_BOOL,
+  DCHECK_IMPLIES(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL,
                  !access.type.Is(Type::ExternalPointer()) &&
                      !access.type.Is(Type::SandboxedExternalPointer()));
-  // CagedPointers are not currently stored by optimized code.
-  DCHECK(!access.type.Is(Type::CagedPointer()));
+  // SandboxedPointers are not currently stored by optimized code.
+  DCHECK(!access.type.Is(Type::SandboxedPointer()));
   MachineType machine_type = access.machine_type;
   Node* object = node->InputAt(0);
   Node* value = node->InputAt(1);

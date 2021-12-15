@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SECURITY_EXTERNAL_POINTER_TABLE_H_
-#define V8_SECURITY_EXTERNAL_POINTER_TABLE_H_
+#ifndef V8_SANDBOX_EXTERNAL_POINTER_TABLE_H_
+#define V8_SANDBOX_EXTERNAL_POINTER_TABLE_H_
 
 #include "src/base/platform/wrappers.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -71,4 +71,4 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SECURITY_EXTERNAL_POINTER_TABLE_H_
+#endif  // V8_SANDBOX_EXTERNAL_POINTER_TABLE_H_

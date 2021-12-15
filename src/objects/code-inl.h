@@ -921,7 +921,7 @@ ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 PtrComprCageBase CodeDataContainer::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  CHECK(!V8_HEAP_SANDBOX_BOOL);
+  CHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
   Address code_cage_base_hi =
       ReadField<Tagged_t>(kCodeCageBaseUpper32BitsOffset);
   return PtrComprCageBase(code_cage_base_hi << 32);
@@ -932,7 +932,7 @@ PtrComprCageBase CodeDataContainer::code_cage_base() const {
 
 void CodeDataContainer::set_code_cage_base(Address code_cage_base) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  CHECK(!V8_HEAP_SANDBOX_BOOL);
+  CHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
   Tagged_t code_cage_base_hi = static_cast<Tagged_t>(code_cage_base >> 32);
   WriteField<Tagged_t>(kCodeCageBaseUpper32BitsOffset, code_cage_base_hi);
 #else
@@ -967,7 +967,7 @@ Code CodeDataContainer::code(PtrComprCageBase cage_base,
 
 DEF_GETTER(CodeDataContainer, code_entry_point, Address) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  Isolate* isolate = GetIsolateForSandbox(*this);
   return ReadExternalPointerField(kCodeEntryPointOffset, isolate,
                                   kCodeEntryPointTag);
 }

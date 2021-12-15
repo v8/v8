@@ -242,7 +242,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return node;
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
@@ -1247,8 +1247,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
           unreachable);
     }
-  } else if (output_rep == MachineRepresentation::kCagedPointer) {
-    if (output_type.Is(Type::CagedPointer())) {
+  } else if (output_rep == MachineRepresentation::kSandboxedPointer) {
+    if (output_type.Is(Type::SandboxedPointer())) {
       return node;
     } else {
       return TypeError(node, output_rep, output_type,

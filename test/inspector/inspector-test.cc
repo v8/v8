@@ -750,9 +750,9 @@ int InspectorTestMain(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<Platform> platform(platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!v8::V8::InitializeVirtualMemoryCage()) {
-    FATAL("Could not initialize the virtual memory cage");
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    FATAL("Could not initialize the sandbox");
   }
 #endif
   FLAG_abort_on_contradictory_flags = true;

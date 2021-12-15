@@ -24,7 +24,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/roots/roots.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816

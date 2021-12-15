@@ -453,7 +453,7 @@ def build_config_content(cpu, icu):
         ("v8_enable_webassembly", "false"),
         ("v8_control_flow_integrity", "false"),
         ("v8_enable_single_generation", "false"),
-        ("v8_enable_virtual_memory_cage", "false"),
+        ("v8_enable_sandbox", "false"),
         ("v8_target_cpu", cpu),
     ])
 

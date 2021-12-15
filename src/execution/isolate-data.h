@@ -12,7 +12,7 @@
 #include "src/execution/thread-local-top.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/roots/roots.h"
-#include "src/security/external-pointer-table.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -65,12 +65,12 @@ class Isolate;
 #define ISOLATE_DATA_FIELDS_EXTERNAL_CODE_SPACE(V)
 #endif  // V8_EXTERNAL_CODE_SPACE
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 #define ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V) \
   V(kExternalPointerTableOffset, kSystemPointerSize * 3, external_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V)
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 // This class contains a collection of data accessible from both C++ runtime
 // and compiled code (including builtins, interpreter bytecode handlers and
@@ -241,7 +241,7 @@ class IsolateData final {
 #endif
 
   // Table containing pointers to external objects.
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointerTable external_pointer_table_;
 #endif
 

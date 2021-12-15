@@ -15,8 +15,8 @@
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
 #include "src/objects/string.h"
-#include "src/security/external-pointer-inl.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/strings/string-hasher-inl.h"
 #include "src/utils/utils.h"
 
@@ -1052,7 +1052,7 @@ void ExternalString::AllocateExternalPointerEntries(Isolate* isolate) {
 }
 
 DEF_GETTER(ExternalString, resource_as_address, Address) {
-  Isolate* isolate = GetIsolateForHeapSandbox(*this);
+  Isolate* isolate = GetIsolateForSandbox(*this);
   return ReadExternalPointerField(kResourceOffset, isolate,
                                   kExternalStringResourceTag);
 }

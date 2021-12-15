@@ -6086,7 +6086,7 @@ class LiftoffCompiler {
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset),
           pinned);
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
       LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
       __ LoadExternalPointer(target.gp(), func_ref.gp(),
                              WasmInternalFunction::kForeignAddressOffset,

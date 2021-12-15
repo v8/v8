@@ -121,8 +121,8 @@ constexpr bool PointerCompressionIsEnabled() {
   return kApiTaggedSize != kApiSystemPointerSize;
 }
 
-constexpr bool HeapSandboxIsEnabled() {
-#ifdef V8_HEAP_SANDBOX
+constexpr bool SandboxedExternalPointersAreEnabled() {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   return true;
 #else
   return false;
@@ -131,14 +131,14 @@ constexpr bool HeapSandboxIsEnabled() {
 
 using ExternalPointer_t = Address;
 
-// If the heap sandbox is enabled, these tag values will be ORed with the
-// external pointers in the external pointer table to prevent use of pointers of
-// the wrong type. When a pointer is loaded, it is ANDed with the inverse of the
-// expected type's tag. The tags are constructed in a way that guarantees that a
-// failed type check will result in one or more of the top bits of the pointer
-// to be set, rendering the pointer inacessible. This construction allows
-// performing the type check and removing GC marking bits from the pointer at
-// the same time.
+// If sandboxed external pointers are enabled, these tag values will be ORed
+// with the external pointers in the external pointer table to prevent use of
+// pointers of the wrong type. When a pointer is loaded, it is ANDed with the
+// inverse of the expected type's tag. The tags are constructed in a way that
+// guarantees that a failed type check will result in one or more of the top
+// bits of the pointer to be set, rendering the pointer inacessible. This
+// construction allows performing the type check and removing GC marking bits
+// from the pointer at the same time.
 enum ExternalPointerTag : uint64_t {
   kExternalPointerNullTag = 0x0000000000000000,
   kExternalStringResourceTag = 0x00ff000000000000,       // 0b000000011111111
@@ -214,7 +214,7 @@ class Internals {
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = kApiSystemPointerSize;
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   static const int kEmbedderDataSlotRawPayloadOffset = kApiTaggedSize;
 #endif
   static const int kNativeContextEmbedderDataOffset = 6 * kApiTaggedSize;
@@ -432,9 +432,9 @@ class Internals {
 #endif
   }
 
-  V8_INLINE static internal::Isolate* GetIsolateForHeapSandbox(
+  V8_INLINE static internal::Isolate* GetIsolateForSandbox(
       internal::Address obj) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     return internal::IsolateFromNeverReadOnlySpaceObject(obj);
 #else
     // Not used in non-sandbox mode.
@@ -445,7 +445,7 @@ class Internals {
   V8_INLINE static Address DecodeExternalPointer(
       const Isolate* isolate, ExternalPointer_t encoded_pointer,
       ExternalPointerTag tag) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     return internal::DecodeExternalPointerImpl(isolate, encoded_pointer, tag);
 #else
     return encoded_pointer;
@@ -455,7 +455,7 @@ class Internals {
   V8_INLINE static internal::Address ReadExternalPointerField(
       internal::Isolate* isolate, internal::Address heap_object_ptr, int offset,
       ExternalPointerTag tag) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     internal::ExternalPointer_t encoded_value =
         ReadRawField<uint32_t>(heap_object_ptr, offset);
     // We currently have to treat zero as nullptr in embedder slots.
@@ -486,99 +486,97 @@ class Internals {
 #endif  // V8_COMPRESS_POINTERS
 };
 
-constexpr bool VirtualMemoryCageIsEnabled() {
-#ifdef V8_VIRTUAL_MEMORY_CAGE
+constexpr bool SandboxIsEnabled() {
+#ifdef V8_SANDBOX
   return true;
 #else
   return false;
 #endif
 }
 
-// CagedPointers are guaranteed to point into the virtual memory cage. This is
-// achieved for example by storing them as offset from the cage base rather
-// than as raw pointers.
-using CagedPointer_t = Address;
+// SandboxedPointers are guaranteed to point into the sandbox. This is achieved
+// for example by storing them as offset rather than as raw pointers.
+using SandboxedPointer_t = Address;
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
+#ifdef V8_SANDBOX_IS_AVAILABLE
 
 #define GB (1ULL << 30)
 #define TB (1ULL << 40)
 
-// Size of the virtual memory cage, excluding the guard regions surrounding it.
-constexpr size_t kVirtualMemoryCageSizeLog2 = 40;  // 1 TB
-constexpr size_t kVirtualMemoryCageSize = 1ULL << kVirtualMemoryCageSizeLog2;
+// Size of the sandbox, excluding the guard regions surrounding it.
+constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
+constexpr size_t kSandboxSize = 1ULL << kSandboxSizeLog2;
 
-// Required alignment of the virtual memory cage. For simplicity, we require the
+// Required alignment of the sandbox. For simplicity, we require the
 // size of the guard regions to be a multiple of this, so that this specifies
-// the alignment of the cage including and excluding surrounding guard regions.
-// The alignment requirement is due to the pointer compression cage being
-// located at the start of the virtual memory cage.
-constexpr size_t kVirtualMemoryCageAlignment =
-    Internals::kPtrComprCageBaseAlignment;
+// the alignment of the sandbox including and excluding surrounding guard
+// regions. The alignment requirement is due to the pointer compression cage
+// being located at the start of the sandbox.
+constexpr size_t kSandboxAlignment = Internals::kPtrComprCageBaseAlignment;
 
-// Caged pointers are stored inside the heap as offset from the cage base
-// shifted to the left. This way, it is guaranteed that the offset is smaller
-// than the cage size after shifting it to the right again. This constant
-// specifies the shift amount.
-constexpr uint64_t kCagedPointerShift = 64 - kVirtualMemoryCageSizeLog2;
+// Sandboxed pointers are stored inside the heap as offset from the sandbox
+// base shifted to the left. This way, it is guaranteed that the offset is
+// smaller than the sandbox size after shifting it to the right again. This
+// constant specifies the shift amount.
+constexpr uint64_t kSandboxedPointerShift = 64 - kSandboxSizeLog2;
 
-// Size of the guard regions surrounding the virtual memory cage. This assumes a
-// worst-case scenario of a 32-bit unsigned index being used to access an array
-// of 64-bit values.
-constexpr size_t kVirtualMemoryCageGuardRegionSize = 32ULL * GB;
+// Size of the guard regions surrounding the sandbox. This assumes a worst-case
+// scenario of a 32-bit unsigned index used to access an array of 64-bit
+// values.
+constexpr size_t kSandboxGuardRegionSize = 32ULL * GB;
 
-static_assert((kVirtualMemoryCageGuardRegionSize %
-               kVirtualMemoryCageAlignment) == 0,
-              "The size of the virtual memory cage guard region must be a "
+static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
+              "The size of the guard regions around the sandbox must be a "
               "multiple of its required alignment.");
 
-// Minimum size of the virtual memory cage, excluding the guard regions
-// surrounding it. If the cage reservation fails, its size is currently halved
-// until either the reservation succeeds or the minimum size is reached. A
-// minimum of 32GB allows the 4GB pointer compression region as well as the
-// ArrayBuffer partition and two 10GB WASM memory cages to fit into the cage.
-// 32GB should also be the minimum possible size of the userspace address space
-// as there are some machine configurations with only 36 virtual address bits.
-constexpr size_t kVirtualMemoryCageMinimumSize = 32ULL * GB;
+// Minimum size of the sandbox, excluding the guard regions surrounding it. If
+// the virtual memory reservation for the sandbox fails, its size is currently
+// halved until either the reservation succeeds or the minimum size is reached.
+// A minimum of 32GB allows the 4GB pointer compression region as well as the
+// ArrayBuffer partition and two 10GB WASM memory cages to fit into the
+// sandbox. 32GB should also be the minimum possible size of the userspace
+// address space as there are some machine configurations with only 36 virtual
+// address bits.
+constexpr size_t kSandboxMinimumSize = 32ULL * GB;
 
-static_assert(kVirtualMemoryCageMinimumSize <= kVirtualMemoryCageSize,
-              "The minimal size of the virtual memory cage must be smaller or "
-              "equal to the regular size.");
+static_assert(kSandboxMinimumSize <= kSandboxSize,
+              "The minimal size of the sandbox must be smaller or equal to the "
+              "regular size.");
 
-// On OSes where reservation virtual memory is too expensive to create a real
-// cage, notably Windows pre 8.1, we create a fake cage that doesn't actually
-// reserve most of the memory, and so doesn't have the desired security
-// properties, but still ensures that objects that should be located inside the
-// cage are allocated within kVirtualMemoryCageSize bytes from the start of the
-// cage, and so appear to be inside the cage. The minimum size of the virtual
-// memory range that is actually reserved for a fake cage is specified by this
-// constant and should be big enough to contain the pointer compression region
-// as well as the ArrayBuffer partition.
-constexpr size_t kFakeVirtualMemoryCageMinReservationSize = 8ULL * GB;
+// On OSes where reserving virtual memory is too expensive to reserve the
+// entire address space backing the sandbox, notably Windows pre 8.1, we create
+// a partially reserved sandbox that doesn't actually reserve most of the
+// memory, and so doesn't have the desired security properties as unrelated
+// memory allocations could end up inside of it, but which still ensures that
+// objects that should be located inside the sandbox are allocated within
+// kSandboxSize bytes from the start of the sandbox. The minimum size of the
+// region that is actually reserved for such a sandbox is specified by this
+// constant and should be big enough to contain the pointer compression cage as
+// well as the ArrayBuffer partition.
+constexpr size_t kSandboxMinimumReservationSize = 8ULL * GB;
 
-static_assert(kVirtualMemoryCageMinimumSize >
+static_assert(kSandboxMinimumSize > Internals::kPtrComprCageReservationSize,
+              "The sandbox must be larger than the pointer compression cage "
+              "contained within it.");
+static_assert(kSandboxMinimumReservationSize >
                   Internals::kPtrComprCageReservationSize,
-              "The virtual memory cage must be larger than the pointer "
-              "compression cage contained within it.");
-static_assert(kFakeVirtualMemoryCageMinReservationSize >
-                  Internals::kPtrComprCageReservationSize,
-              "The reservation for a fake virtual memory cage must be larger "
-              "than the pointer compression cage contained within it.");
+              "The minimum reservation size for a sandbox must be larger than "
+              "the pointer compression cage contained within it.");
 
-// For now, even if the virtual memory cage is enabled, we still allow backing
-// stores to be allocated outside of it as fallback. This will simplify the
-// initial rollout. However, if the heap sandbox is also enabled, we already use
-// the "enforcing mode" of the virtual memory cage. This is useful for testing.
-#ifdef V8_HEAP_SANDBOX
-constexpr bool kAllowBackingStoresOutsideCage = false;
+// For now, even if the sandbox is enabled, we still allow backing stores to be
+// allocated outside of it as fallback. This will simplify the initial rollout.
+// However, if sandboxed pointers are also enabled, we must always place
+// backing stores inside the sandbox as they will be referenced though them.
+#ifdef V8_SANDBOXED_POINTERS
+constexpr bool kAllowBackingStoresOutsideSandbox = false;
 #else
-constexpr bool kAllowBackingStoresOutsideCage = true;
-#endif  // V8_HEAP_SANDBOX
+constexpr bool kAllowBackingStoresOutsideSandbox = true;
+#endif  // V8_SANDBOXED_POINTERS
 
 #undef GB
 #undef TB
 
-#endif  // V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
+#endif  // V8_SANDBOX_IS_AVAILABLE
 
 // Only perform cast check for types derived from v8::Data since
 // other types do not implement the Cast method.

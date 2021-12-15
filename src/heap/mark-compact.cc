@@ -3117,7 +3117,7 @@ static inline SlotCallbackResult UpdateStrongCodeSlot(
         CodeDataContainer::cast(HeapObject::FromAddress(
             slot.address() - CodeDataContainer::kCodeOffset));
     Code code = code_data_container.code(code_cage_base);
-    Isolate* isolate_for_sandbox = GetIsolateForHeapSandbox(host);
+    Isolate* isolate_for_sandbox = GetIsolateForSandbox(host);
     code_data_container.UpdateCodeEntryPoint(isolate_for_sandbox, code);
     return result;
   }

@@ -559,13 +559,13 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {
     DCHECK(reference.is_from_api());
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     uint32_t external_pointer_entry =
         string->GetResourceRefForDeserialization();
 #endif
     string->SetResourceRefForSerialization(reference.index());
     SerializeObject();
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     string->SetResourceRefForSerialization(external_pointer_entry);
 #else
     string->set_address_as_resource(isolate(), resource);
@@ -946,14 +946,14 @@ void Serializer::ObjectSerializer::OutputExternalReference(Address target,
     sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
     sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
   } else if (encoded_reference.is_from_api()) {
-    if (V8_HEAP_SANDBOX_BOOL && sandboxify) {
+    if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
       sink_->Put(kSandboxedApiReference, "SandboxedApiRef");
     } else {
       sink_->Put(kApiReference, "ApiRef");
     }
     sink_->PutInt(encoded_reference.index(), "reference index");
   } else {
-    if (V8_HEAP_SANDBOX_BOOL && sandboxify) {
+    if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
       sink_->Put(kSandboxedExternalReference, "SandboxedExternalRef");
     } else {
       sink_->Put(kExternalReference, "ExternalRef");

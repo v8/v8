@@ -106,19 +106,19 @@ V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
 // pointer.
 V8_EXPORT_PRIVATE v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace();
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-// Returns the virtual memory cage page allocator instance for allocating pages
-// inside the virtual memory cage. Guaranteed to be a valid pointer.
-V8_EXPORT_PRIVATE v8::PageAllocator* GetVirtualMemoryCagePageAllocator();
+#ifdef V8_SANDBOX
+// Returns the page allocator instance for allocating pages inside the sandbox.
+// Guaranteed to be a valid pointer.
+V8_EXPORT_PRIVATE v8::PageAllocator* GetSandboxPageAllocator();
 #endif
 
-// Returns the appropriate page allocator to use for ArrayBuffer backing stores.
-// If the virtual memory cage is enabled, these must be allocated inside the
-// cage and so this will be the CagePageAllocator. Otherwise it will be the
-// PlatformPageAllocator.
+// Returns the appropriate page allocator to use for ArrayBuffer backing
+// stores. If the sandbox is enabled, these must be allocated inside the
+// sandbox and so this will be the SandboxPageAllocator. Otherwise it will be
+// the PlatformPageAllocator.
 inline v8::PageAllocator* GetArrayBufferPageAllocator() {
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  return GetVirtualMemoryCagePageAllocator();
+#ifdef V8_SANDBOX
+  return GetSandboxPageAllocator();
 #else
   return GetPlatformPageAllocator();
 #endif
@@ -334,9 +334,6 @@ class VirtualMemory final {
 //   and the base bias size must be AllocatePageSize-aligned.
 // - The base alignment may be kAnyBaseAlignment to denote any alignment is
 //   acceptable. In this case the base bias size does not need to be aligned.
-//
-// TODO(chromium:1218005) can we either combine this class and
-// v8::VirtualMemoryCage in v8-platform.h or rename one of the two?
 class VirtualMemoryCage {
  public:
   VirtualMemoryCage();

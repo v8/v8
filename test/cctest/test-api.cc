@@ -3065,7 +3065,7 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   CheckAlignedPointerInInternalField(obj, stack_allocated);
 
   // The aligned pointer must have the top bits be zero on 64-bit machines (at
-  // least if the heap sandbox is enabled).
+  // least if the sandboxed external pointers are enabled).
   void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInInternalField(obj, huge);
 
@@ -3143,7 +3143,7 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
 
   // The aligned pointer must have the top bits be zero on 64-bit machines (at
-  // least if the heap sandbox is enabled).
+  // least if the sandboxed external pointers are enabled).
   void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInEmbedderData(&env, 3, huge);
   CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());

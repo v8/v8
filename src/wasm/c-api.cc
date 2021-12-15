@@ -395,9 +395,9 @@ auto Engine::make(own<Config>&& config) -> own<Engine> {
   if (!engine) return own<Engine>();
   engine->platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(engine->platform.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!v8::V8::InitializeVirtualMemoryCage()) {
-    FATAL("Could not initialize the virtual memory cage");
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    FATAL("Could not initialize the sandbox");
   }
 #endif
   v8::V8::Initialize();

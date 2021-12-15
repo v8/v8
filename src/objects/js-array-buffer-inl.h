@@ -36,14 +36,14 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 DEF_GETTER(JSArrayBuffer, backing_store, void*) {
-  Address value = ReadCagedPointerField(kBackingStoreOffset, cage_base);
+  Address value = ReadSandboxedPointerField(kBackingStoreOffset, cage_base);
   return reinterpret_cast<void*>(value);
 }
 
 void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
   DCHECK(IsValidBackingStorePointer(value));
   Address addr = reinterpret_cast<Address>(value);
-  WriteCagedPointerField(kBackingStoreOffset, isolate, addr);
+  WriteSandboxedPointerField(kBackingStoreOffset, isolate, addr);
 }
 
 std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
@@ -251,12 +251,12 @@ void JSTypedArray::set_length(size_t value) {
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
-  return ReadCagedPointerField(kExternalPointerOffset, cage_base);
+  return ReadSandboxedPointerField(kExternalPointerOffset, cage_base);
 }
 
 void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
   DCHECK(IsValidBackingStorePointer(reinterpret_cast<void*>(value)));
-  WriteCagedPointerField(kExternalPointerOffset, isolate, value);
+  WriteSandboxedPointerField(kExternalPointerOffset, isolate, value);
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
@@ -366,14 +366,14 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 }
 
 DEF_GETTER(JSDataView, data_pointer, void*) {
-  Address value = ReadCagedPointerField(kDataPointerOffset, cage_base);
+  Address value = ReadSandboxedPointerField(kDataPointerOffset, cage_base);
   return reinterpret_cast<void*>(value);
 }
 
 void JSDataView::set_data_pointer(Isolate* isolate, void* ptr) {
   DCHECK(IsValidBackingStorePointer(ptr));
   Address value = reinterpret_cast<Address>(ptr);
-  WriteCagedPointerField(kDataPointerOffset, isolate, value);
+  WriteSandboxedPointerField(kDataPointerOffset, isolate, value);
 }
 
 }  // namespace internal

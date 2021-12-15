@@ -1540,48 +1540,48 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
   }
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadCagedPointerFromObject(
+TNode<RawPtrT> CodeStubAssembler::LoadSandboxedPointerFromObject(
     TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
-#ifdef V8_CAGED_POINTERS
+#ifdef V8_SANDBOXED_POINTERS
   return ReinterpretCast<RawPtrT>(
-      LoadObjectField<CagedPtrT>(object, field_offset));
+      LoadObjectField<SandboxedPtrT>(object, field_offset));
 #else
   return LoadObjectField<RawPtrT>(object, field_offset);
-#endif  // V8_CAGED_POINTERS
+#endif  // V8_SANDBOXED_POINTERS
 }
 
-void CodeStubAssembler::StoreCagedPointerToObject(TNode<HeapObject> object,
-                                                  TNode<IntPtrT> offset,
-                                                  TNode<RawPtrT> pointer) {
-#ifdef V8_CAGED_POINTERS
-  TNode<CagedPtrT> caged_pointer = ReinterpretCast<CagedPtrT>(pointer);
+void CodeStubAssembler::StoreSandboxedPointerToObject(TNode<HeapObject> object,
+                                                      TNode<IntPtrT> offset,
+                                                      TNode<RawPtrT> pointer) {
+#ifdef V8_SANDBOXED_POINTERS
+  TNode<SandboxedPtrT> sbx_ptr = ReinterpretCast<SandboxedPtrT>(pointer);
 #ifdef DEBUG
-  // Verify pointer points into the cage.
-  TNode<ExternalReference> cage_base_address =
-      ExternalConstant(ExternalReference::virtual_memory_cage_base_address());
-  TNode<ExternalReference> cage_end_address =
-      ExternalConstant(ExternalReference::virtual_memory_cage_end_address());
-  TNode<UintPtrT> cage_base = Load<UintPtrT>(cage_base_address);
-  TNode<UintPtrT> cage_end = Load<UintPtrT>(cage_end_address);
-  CSA_DCHECK(this, UintPtrGreaterThanOrEqual(caged_pointer, cage_base));
-  CSA_DCHECK(this, UintPtrLessThan(caged_pointer, cage_end));
+  // Verify pointer points into the sandbox.
+  TNode<ExternalReference> sandbox_base_address =
+      ExternalConstant(ExternalReference::sandbox_base_address());
+  TNode<ExternalReference> sandbox_end_address =
+      ExternalConstant(ExternalReference::sandbox_end_address());
+  TNode<UintPtrT> sandbox_base = Load<UintPtrT>(sandbox_base_address);
+  TNode<UintPtrT> sandbox_end = Load<UintPtrT>(sandbox_end_address);
+  CSA_DCHECK(this, UintPtrGreaterThanOrEqual(sbx_ptr, sandbox_base));
+  CSA_DCHECK(this, UintPtrLessThan(sbx_ptr, sandbox_end));
 #endif  // DEBUG
-  StoreObjectFieldNoWriteBarrier<CagedPtrT>(object, offset, caged_pointer);
+  StoreObjectFieldNoWriteBarrier<SandboxedPtrT>(object, offset, sbx_ptr);
 #else
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
-#endif  // V8_CAGED_POINTERS
+#endif  // V8_SANDBOXED_POINTERS
 }
 
 TNode<RawPtrT> CodeStubAssembler::EmptyBackingStoreBufferConstant() {
-#ifdef V8_CAGED_POINTERS
-  // TODO(chromium:1218005) consider creating a LoadCagedPointerConstant() if
-  // more of these constants are required later on.
+#ifdef V8_SANDBOXED_POINTERS
+  // TODO(chromium:1218005) consider creating a LoadSandboxedPointerConstant()
+  // if more of these constants are required later on.
   TNode<ExternalReference> empty_backing_store_buffer =
       ExternalConstant(ExternalReference::empty_backing_store_buffer());
   return Load<RawPtrT>(empty_backing_store_buffer);
 #else
   return ReinterpretCast<RawPtrT>(IntPtrConstant(0));
-#endif  // V8_CAGED_POINTERS
+#endif  // V8_SANDBOXED_POINTERS
 }
 
 TNode<ExternalPointerT> CodeStubAssembler::ChangeUint32ToExternalPointer(
@@ -1598,7 +1598,7 @@ TNode<Uint32T> CodeStubAssembler::ChangeExternalPointerToUint32(
 
 void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
                                                        TNode<IntPtrT> offset) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
       ExternalReference::external_pointer_table_address(isolate()));
   TNode<Uint32T> table_length = UncheckedCast<Uint32T>(
@@ -1639,7 +1639,7 @@ void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
 TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
     TNode<HeapObject> object, TNode<IntPtrT> offset,
     ExternalPointerTag external_pointer_tag) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
       ExternalReference::external_pointer_table_address(isolate()));
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
@@ -1661,13 +1661,13 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
   return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
 #else
   return LoadObjectField<RawPtrT>(object, offset);
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 void CodeStubAssembler::StoreExternalPointerToObject(
     TNode<HeapObject> object, TNode<IntPtrT> offset, TNode<RawPtrT> pointer,
     ExternalPointerTag external_pointer_tag) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
       ExternalReference::external_pointer_table_address(isolate()));
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
@@ -1690,7 +1690,7 @@ void CodeStubAssembler::StoreExternalPointerToObject(
                       value);
 #else
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
@@ -13893,8 +13893,8 @@ void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
 
 TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStorePtr(
     TNode<JSArrayBuffer> array_buffer) {
-  return LoadCagedPointerFromObject(array_buffer,
-                                    JSArrayBuffer::kBackingStoreOffset);
+  return LoadSandboxedPointerFromObject(array_buffer,
+                                        JSArrayBuffer::kBackingStoreOffset);
 }
 
 TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(

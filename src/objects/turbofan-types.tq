@@ -44,7 +44,7 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   negative_big_int_63: bool: 1 bit;
   other_big_int: bool: 1 bit;
   sandboxed_external_pointer: bool: 1 bit;
-  caged_pointer: bool: 1 bit;
+  sandboxed_pointer: bool: 1 bit;
 }
 
 bitfield struct TurbofanTypeHighBits extends uint32 {

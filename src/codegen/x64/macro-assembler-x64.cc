@@ -27,7 +27,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/snapshot/snapshot.h"
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
@@ -376,40 +376,40 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 }
 
-void TurboAssembler::EncodeCagedPointer(Register value) {
+void TurboAssembler::EncodeSandboxedPointer(Register value) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_CAGED_POINTERS
+#ifdef V8_SANDBOXED_POINTERS
   subq(value, kPtrComprCageBaseRegister);
-  shlq(value, Immediate(kCagedPointerShift));
+  shlq(value, Immediate(kSandboxedPointerShift));
 #else
   UNREACHABLE();
 #endif
 }
 
-void TurboAssembler::DecodeCagedPointer(Register value) {
+void TurboAssembler::DecodeSandboxedPointer(Register value) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_CAGED_POINTERS
-  shrq(value, Immediate(kCagedPointerShift));
+#ifdef V8_SANDBOXED_POINTERS
+  shrq(value, Immediate(kSandboxedPointerShift));
   addq(value, kPtrComprCageBaseRegister);
 #else
   UNREACHABLE();
 #endif
 }
 
-void TurboAssembler::LoadCagedPointerField(Register destination,
-                                           Operand field_operand) {
+void TurboAssembler::LoadSandboxedPointerField(Register destination,
+                                               Operand field_operand) {
   ASM_CODE_COMMENT(this);
   movq(destination, field_operand);
-  DecodeCagedPointer(destination);
+  DecodeSandboxedPointer(destination);
 }
 
-void TurboAssembler::StoreCagedPointerField(Operand dst_field_operand,
-                                            Register value) {
+void TurboAssembler::StoreSandboxedPointerField(Operand dst_field_operand,
+                                                Register value) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(value, kScratchRegister));
   DCHECK(!dst_field_operand.AddressUsesRegister(kScratchRegister));
   movq(kScratchRegister, value);
-  EncodeCagedPointer(kScratchRegister);
+  EncodeSandboxedPointer(kScratchRegister);
   movq(dst_field_operand, kScratchRegister);
 }
 
@@ -417,7 +417,7 @@ void TurboAssembler::LoadExternalPointerField(
     Register destination, Operand field_operand, ExternalPointerTag tag,
     Register scratch, IsolateRootLocation isolateRootLocation) {
   DCHECK(!AreAliased(destination, scratch));
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   DCHECK(!field_operand.AddressUsesRegister(scratch));
   if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
     DCHECK(root_array_available_);
@@ -438,7 +438,7 @@ void TurboAssembler::LoadExternalPointerField(
   }
 #else
   movq(destination, field_operand);
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {

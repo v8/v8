@@ -694,9 +694,9 @@ Node* WasmGraphBuilder::BuildLoadIsolateRoot() {
       // that the generated code is Isolate independent.
       return LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
     case kWasmApiFunctionRefMode:
-      // Note: Even if V8_HEAP_SANDBOX, the pointer to the isolate root is not
-      // encoded, much like the case above. TODO(manoskouk): Decode the pointer
-      // here if that changes.
+      // Note: Even if V8_SANDBOXED_EXTERNAL_POINTERS, the pointer to the
+      // isolate root is not encoded, much like the case above. TODO(manoskouk):
+      // Decode the pointer here if that changes.
       return gasm_->Load(
           MachineType::Pointer(), Param(0),
           wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kIsolateRootOffset));
@@ -3222,7 +3222,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(
 }
 
 Node* WasmGraphBuilder::BuildUnsandboxExternalPointer(Node* external_pointer) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   Node* isolate_root = BuildLoadIsolateRoot();
   Node* table =
       gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
@@ -3285,7 +3285,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
         wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
     Node* call_target;
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      CHECK(!V8_HEAP_SANDBOX_BOOL);  // Not supported yet.
+      CHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);  // Not supported yet.
       call_target = gasm_->LoadImmutableFromObject(
           MachineType::Pointer(), wrapper_code,
           wasm::ObjectAccess::ToTagged(

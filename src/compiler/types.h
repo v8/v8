@@ -130,7 +130,7 @@ namespace compiler {
   /* TODO(v8:10391): Remove this type once all ExternalPointer usages are */ \
   /* sandbox-ready. */                     \
   V(SandboxedExternalPointer, uint64_t{1} << 30)  \
-  V(CagedPointer,             uint64_t{1} << 31)
+  V(SandboxedPointer,         uint64_t{1} << 31)
 
 // We split the macro list into two parts because the Torque equivalent in
 // turbofan-types.tq uses two 32bit bitfield structs.
@@ -208,8 +208,8 @@ namespace compiler {
   V(Unique,                       kBoolean | kUniqueName | kNull | \
                                   kUndefined | kHole | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | \
-                                  kSandboxedExternalPointer | kCagedPointer | \
-                                  kOtherInternal) \
+                                  kSandboxedExternalPointer | \
+                                  kSandboxedPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
   V(NonNumber,                    kBigInt | kUnique | kString | kInternal) \

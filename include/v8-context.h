@@ -387,10 +387,10 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
       I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   value_offset += I::kEmbedderDataSlotRawPayloadOffset;
 #endif
-  internal::Isolate* isolate = I::GetIsolateForHeapSandbox(ctx);
+  internal::Isolate* isolate = I::GetIsolateForSandbox(ctx);
   return reinterpret_cast<void*>(
       I::ReadExternalPointerField(isolate, embedder_data, value_offset,
                                   internal::kEmbedderDataSlotPayloadTag));

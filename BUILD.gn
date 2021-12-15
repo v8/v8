@@ -302,14 +302,20 @@ declare_args() {
   # Sets -DV8_COMPRESS_ZONES.
   v8_enable_zone_compression = ""
 
-  # Enable V8 heap sandbox experimental feature.
-  # Sets -DV8_HEAP_SANDBOX.
-  v8_enable_heap_sandbox = ""
+  # Enable the experimental V8 sandbox.
+  # Sets -DV8_SANDBOX.
+  v8_enable_sandbox = false
 
-  # Enable the Virtual Memory Cage, which contains the pointer compression cage
-  # as well as ArrayBuffer BackingStores and WASM memory cages.
-  # Sets -DV8_VIRTUAL_MEMORY_CAGE.
-  v8_enable_virtual_memory_cage = ""
+  # Enable external pointer sandboxing. Requires v8_enable_sandbox.
+  # Sets -DV8_SANDBOXED_EXTERNAL_POINRTERS.
+  v8_enable_sandboxed_external_pointers = false
+
+  # Enable sandboxed pointers. Requires v8_enable_sandbox.
+  # Sets -DV8_SANDBOXED_POINTERS.
+  v8_enable_sandboxed_pointers = false
+
+  # Enable all available sandbox features. Implies v8_enable_sandbox.
+  v8_enable_sandbox_future = false
 
   # Experimental feature for collecting per-class zone memory stats.
   # Requires use_rtti = true
@@ -403,12 +409,6 @@ if (v8_enable_fast_torque == "") {
 if (v8_enable_zone_compression == "") {
   v8_enable_zone_compression = false
 }
-if (v8_enable_heap_sandbox == "") {
-  v8_enable_heap_sandbox = false
-}
-if (v8_enable_virtual_memory_cage == "") {
-  v8_enable_virtual_memory_cage = v8_enable_heap_sandbox
-}
 if (v8_enable_short_builtin_calls == "") {
   v8_enable_short_builtin_calls =
       v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64")
@@ -473,9 +473,16 @@ if (build_with_chromium && v8_current_cpu == "arm64" &&
   v8_control_flow_integrity = true
 }
 
-# Enable the virtual memory cage on 64-bit Chromium builds.
+# Enable the v8 sandbox on 64-bit Chromium builds.
 if (build_with_chromium && v8_enable_pointer_compression_shared_cage) {
-  v8_enable_virtual_memory_cage = true
+  v8_enable_sandbox = true
+}
+
+# Enable all available sandbox features if sandbox future is enabled.
+if (v8_enable_sandbox_future) {
+  v8_enable_sandboxed_pointers = true
+  v8_enable_sandboxed_external_pointers = true
+  v8_enable_sandbox = true
 }
 
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
@@ -500,18 +507,18 @@ assert(!v8_enable_map_packing || v8_current_cpu == "x64",
 assert(!v8_enable_external_code_space || v8_enable_pointer_compression,
        "External code space feature requires pointer compression")
 
-assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
-       "V8 Heap Sandbox requires pointer compression")
+assert(!v8_enable_sandbox || v8_enable_pointer_compression_shared_cage,
+       "Sandbox requires the shared pointer compression cage")
 
-assert(!v8_enable_heap_sandbox || !v8_enable_external_code_space,
-       "V8 Heap Sandbox is not compatible with external code space YET")
+assert(!v8_enable_sandboxed_pointers || v8_enable_sandbox,
+       "Sandboxed pointers require the sandbox")
 
-assert(!v8_enable_heap_sandbox || v8_enable_virtual_memory_cage,
-       "The Heap Sandbox requires the virtual memory cage")
+assert(!v8_enable_sandboxed_external_pointers || v8_enable_sandbox,
+       "Sandboxed external pointers require the sandbox")
 
 assert(
-    !v8_enable_virtual_memory_cage || v8_enable_pointer_compression_shared_cage,
-    "V8 VirtualMemoryCage requires the shared pointer compression cage")
+    !v8_enable_sandboxed_external_pointers || !v8_enable_external_code_space,
+    "Sandboxed external pointers are not compatible with external code space YET")
 
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,
@@ -673,8 +680,9 @@ external_v8_defines = [
   "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE",
   "V8_31BIT_SMIS_ON_64BIT_ARCH",
   "V8_COMPRESS_ZONES",
-  "V8_HEAP_SANDBOX",
-  "V8_VIRTUAL_MEMORY_CAGE",
+  "V8_SANDBOX",
+  "V8_SANDBOXED_POINTERS",
+  "V8_SANDBOXED_EXTERNAL_POINTERS",
   "V8_DEPRECATION_WARNINGS",
   "V8_IMMINENT_DEPRECATION_WARNINGS",
   "V8_NO_ARGUMENTS_ADAPTOR",
@@ -702,11 +710,14 @@ if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
 if (v8_enable_zone_compression) {
   enabled_external_v8_defines += [ "V8_COMPRESS_ZONES" ]
 }
-if (v8_enable_heap_sandbox) {
-  enabled_external_v8_defines += [ "V8_HEAP_SANDBOX" ]
+if (v8_enable_sandbox) {
+  enabled_external_v8_defines += [ "V8_SANDBOX" ]
 }
-if (v8_enable_virtual_memory_cage) {
-  enabled_external_v8_defines += [ "V8_VIRTUAL_MEMORY_CAGE" ]
+if (v8_enable_sandboxed_pointers) {
+  enabled_external_v8_defines += [ "V8_SANDBOXED_POINTERS" ]
+}
+if (v8_enable_sandboxed_external_pointers) {
+  enabled_external_v8_defines += [ "V8_SANDBOXED_EXTERNAL_POINTERS" ]
 }
 if (v8_deprecation_warnings) {
   enabled_external_v8_defines += [ "V8_DEPRECATION_WARNINGS" ]
@@ -2197,7 +2208,7 @@ action("v8_dump_build_config") {
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
     "v8_enable_pointer_compression_shared_cage=" +
         "$v8_enable_pointer_compression_shared_cage",
-    "v8_enable_virtual_memory_cage=$v8_enable_virtual_memory_cage",
+    "v8_enable_sandbox=$v8_enable_sandbox",
     "v8_enable_third_party_heap=$v8_enable_third_party_heap",
     "v8_enable_webassembly=$v8_enable_webassembly",
     "v8_dict_property_const_tracking=$v8_dict_property_const_tracking",
@@ -3315,12 +3326,12 @@ v8_header_set("v8_internal_headers") {
     "src/roots/roots.h",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime.h",
-    "src/security/caged-pointer-inl.h",
-    "src/security/caged-pointer.h",
-    "src/security/external-pointer-inl.h",
-    "src/security/external-pointer-table.h",
-    "src/security/external-pointer.h",
-    "src/security/vm-cage.h",
+    "src/sandbox/external-pointer-inl.h",
+    "src/sandbox/external-pointer-table.h",
+    "src/sandbox/external-pointer.h",
+    "src/sandbox/sandbox.h",
+    "src/sandbox/sandboxed-pointer-inl.h",
+    "src/sandbox/sandboxed-pointer.h",
     "src/snapshot/code-serializer.h",
     "src/snapshot/context-deserializer.h",
     "src/snapshot/context-serializer.h",
@@ -4340,8 +4351,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-typedarray.cc",
     "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
-    "src/security/external-pointer-table.cc",
-    "src/security/vm-cage.cc",
+    "src/sandbox/external-pointer-table.cc",
+    "src/sandbox/sandbox.cc",
     "src/snapshot/code-serializer.cc",
     "src/snapshot/context-deserializer.cc",
     "src/snapshot/context-serializer.cc",

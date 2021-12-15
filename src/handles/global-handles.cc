@@ -385,7 +385,7 @@ namespace {
 
 void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
   int field_count = jsobject.GetEmbedderFieldCount();
-  Isolate* isolate = GetIsolateForHeapSandbox(jsobject);
+  Isolate* isolate = GetIsolateForSandbox(jsobject);
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;

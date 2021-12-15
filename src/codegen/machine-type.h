@@ -41,8 +41,8 @@ enum class MachineRepresentation : uint8_t {
   kCompressedPointer,  // (compressed) HeapObject
   kCompressed,         // (compressed) Object (Smi or HeapObject)
   // A 64-bit pointer encoded in a way (e.g. as offset) that guarantees it will
-  // point into the virtual memory cage.
-  kCagedPointer,
+  // point into the sandbox.
+  kSandboxedPointer,
   // FP and SIMD representations must be last, and in order of increasing size.
   kFloat32,
   kFloat64,
@@ -225,8 +225,8 @@ class MachineType {
     return MachineType(MachineRepresentation::kCompressed,
                        MachineSemantic::kAny);
   }
-  constexpr static MachineType CagedPointer() {
-    return MachineType(MachineRepresentation::kCagedPointer,
+  constexpr static MachineType SandboxedPointer() {
+    return MachineType(MachineRepresentation::kSandboxedPointer,
                        MachineSemantic::kNone);
   }
   constexpr static MachineType Bool() {
@@ -267,8 +267,8 @@ class MachineType {
         return MachineType::AnyCompressed();
       case MachineRepresentation::kCompressedPointer:
         return MachineType::CompressedPointer();
-      case MachineRepresentation::kCagedPointer:
-        return MachineType::CagedPointer();
+      case MachineRepresentation::kSandboxedPointer:
+        return MachineType::SandboxedPointer();
       default:
         UNREACHABLE();
     }
@@ -362,7 +362,7 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
       return kTaggedSizeLog2;
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
       return kSystemPointerSizeLog2;
     default:
       UNREACHABLE();

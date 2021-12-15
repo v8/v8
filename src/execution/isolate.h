@@ -39,8 +39,8 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-objects.h"
 #include "src/runtime/runtime.h"
-#include "src/security/external-pointer-table.h"
-#include "src/security/vm-cage.h"
+#include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/sandbox.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 
@@ -1860,7 +1860,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   LocalHeap* main_thread_local_heap();
   LocalHeap* CurrentLocalHeap();
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointerTable& external_pointer_table() {
     return isolate_data_.external_pointer_table_;
   }

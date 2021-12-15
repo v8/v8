@@ -375,7 +375,7 @@ v8_source_set("unittests_sources") {
     "regress/regress-crbug-938251-unittest.cc",
     "run-all-unittests.cc",
     "runtime/runtime-debug-unittest.cc",
-    "security/virtual-memory-cage-unittest.cc",
+    "sandbox/sandbox-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",

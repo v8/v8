@@ -3127,7 +3127,7 @@ void Isolate::CheckIsolateLayout() {
   STATIC_ASSERT(Internals::kBuiltinTier0EntryTableSize ==
                 Builtins::kBuiltinTier0Count * kSystemPointerSize);
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, buffer_)),
            Internals::kExternalPointerTableBufferOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, length_)),

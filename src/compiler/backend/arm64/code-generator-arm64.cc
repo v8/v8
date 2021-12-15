@@ -1894,8 +1894,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicDecompressAnyTagged(i.OutputRegister(), i.InputRegister(0),
                                    i.InputRegister(1), i.TempRegister(0));
       break;
-    case kArm64LdrDecodeCagedPointer:
-      __ LoadCagedPointerField(i.OutputRegister(), i.MemoryOperand());
+    case kArm64LdrDecodeSandboxedPointer:
+      __ LoadSandboxedPointerField(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64Str:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -1910,8 +1910,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicStoreTaggedField(i.InputRegister(2), i.InputRegister(0),
                                 i.InputRegister(1), i.TempRegister(0));
       break;
-    case kArm64StrEncodeCagedPointer:
-      __ StoreCagedPointerField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
+    case kArm64StrEncodeSandboxedPointer:
+      __ StoreSandboxedPointerField(i.InputOrZeroRegister64(0),
+                                    i.MemoryOperand(1));
       break;
     case kArm64LdrS:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());

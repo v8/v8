@@ -626,7 +626,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kCagedPointer:       // Fall through.
+    case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
@@ -664,7 +664,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
       return kArmVst1S128;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kCagedPointer:       // Fall through.
+    case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:

@@ -1439,23 +1439,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I64x2AllTrue(Register dst, VRegister src);
 
   // ---------------------------------------------------------------------------
-  // V8 Heap sandbox support
+  // V8 Sandbox support
 
-  // Transform a CagedPointer from/to its encoded form, which is used when the
-  // pointer is stored on the heap and ensures that the pointer will always
-  // point into the virtual memory cage.
-  void EncodeCagedPointer(const Register& value);
-  void DecodeCagedPointer(const Register& value);
+  // Transform a SandboxedPointer from/to its encoded form, which is used when
+  // the pointer is stored on the heap and ensures that the pointer will always
+  // point into the sandbox.
+  void EncodeSandboxedPointer(const Register& value);
+  void DecodeSandboxedPointer(const Register& value);
 
-  // Load and decode a CagedPointer from the heap.
-  void LoadCagedPointerField(const Register& destination,
-                             const MemOperand& field_operand);
-  // Encode and store a CagedPointer to the heap.
-  void StoreCagedPointerField(const Register& value,
-                              const MemOperand& dst_field_operand);
+  // Load and decode a SandboxedPointer from the heap.
+  void LoadSandboxedPointerField(const Register& destination,
+                                 const MemOperand& field_operand);
+  // Encode and store a SandboxedPointer to the heap.
+  void StoreSandboxedPointerField(const Register& value,
+                                  const MemOperand& dst_field_operand);
 
   // Loads a field containing off-heap pointer and does necessary decoding
-  // if V8 heap sandbox is enabled.
+  // if sandboxed external pointers are enabled.
   void LoadExternalPointerField(Register destination, MemOperand field_operand,
                                 ExternalPointerTag tag,
                                 Register isolate_root = Register::no_reg());

@@ -19,7 +19,7 @@
 #include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
-#include "src/security/vm-cage.h"
+#include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
 
 #if V8_LIBC_BIONIC
@@ -96,15 +96,15 @@ v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
   return vas.get();
 }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-v8::PageAllocator* GetVirtualMemoryCagePageAllocator() {
+#ifdef V8_SANDBOX
+v8::PageAllocator* GetSandboxPageAllocator() {
   // TODO(chromium:1218005) remove this code once the cage is no longer
   // optional.
-  if (GetProcessWideVirtualMemoryCage()->is_disabled()) {
+  if (GetProcessWideSandbox()->is_disabled()) {
     return GetPlatformPageAllocator();
   } else {
-    CHECK(GetProcessWideVirtualMemoryCage()->is_initialized());
-    return GetProcessWideVirtualMemoryCage()->page_allocator();
+    CHECK(GetProcessWideSandbox()->is_initialized());
+    return GetProcessWideSandbox()->page_allocator();
   }
 }
 #endif

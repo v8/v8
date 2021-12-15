@@ -421,9 +421,9 @@ FieldAccess AccessBuilder::ForJSTypedArrayExternalPointer() {
       JSTypedArray::kExternalPointerOffset,
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
-#ifdef V8_CAGED_POINTERS
-      Type::CagedPointer(),
-      MachineType::CagedPointer(),
+#ifdef V8_SANDBOXED_POINTERS
+      Type::SandboxedPointer(),
+      MachineType::SandboxedPointer(),
 #else
       Type::ExternalPointer(),
       MachineType::Pointer(),
@@ -442,9 +442,9 @@ FieldAccess AccessBuilder::ForJSDataViewDataPointer() {
       JSDataView::kDataPointerOffset,
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
-#ifdef V8_CAGED_POINTERS
-      Type::CagedPointer(),
-      MachineType::CagedPointer(),
+#ifdef V8_SANDBOXED_POINTERS
+      Type::SandboxedPointer(),
+      MachineType::SandboxedPointer(),
 #else
       Type::ExternalPointer(),
       MachineType::Pointer(),
@@ -753,13 +753,13 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
       ExternalString::kResourceDataOffset,
       Handle<Name>(),
       MaybeHandle<Map>(),
-      V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
-                           : Type::ExternalPointer(),
+      V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ? Type::SandboxedExternalPointer()
+                                          : Type::ExternalPointer(),
       MachineType::Pointer(),
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
       kExternalStringResourceDataTag,
 #endif
   };

@@ -10,7 +10,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
-#include "src/security/vm-cage.h"
+#include "src/sandbox/sandbox.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -55,13 +55,15 @@ enum class AllocationStatus {
   kOtherFailure  // Failed for an unknown reason
 };
 
-// Attempts to allocate memory inside the virtual memory cage currently fall
-// back to allocating memory outside of the cage if necessary. Once this
-// fallback is no longer allowed/possible, these cases will become allocation
-// failures instead. To track the frequency of such events, the outcome of
-// memory allocation attempts inside the cage is reported to UMA.
+// Attempts to allocate memory inside the sandbox currently fall back to
+// allocating memory outside of the sandbox if necessary. Once this fallback is
+// no longer allowed/possible, these cases will become allocation failures
+// instead. To track the frequency of such events, the outcome of memory
+// allocation attempts inside the sandbox is reported to UMA.
 //
 // See caged_memory_allocation_outcome in counters-definitions.h
+// This class and the entry in counters-definitions.h use the term "cage"
+// instead of "sandbox" for historical reasons.
 enum class CagedMemoryAllocationOutcome {
   kSuccess,      // Allocation succeeded inside the cage
   kOutsideCage,  // Allocation failed inside the cage but succeeded outside
@@ -107,18 +109,17 @@ void RecordStatus(Isolate* isolate, AllocationStatus status) {
       static_cast<int>(status));
 }
 
-// When the virtual memory cage is active, this function records the outcome of
-// attempts to allocate memory inside the cage which fall back to allocating
-// memory outside of the cage. Passing a value of nullptr for the result
-// indicates that the memory could not be allocated at all.
-void RecordCagedMemoryAllocationResult(Isolate* isolate, void* result) {
-  // This metric is only meaningful when the virtual memory cage is active.
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (GetProcessWideVirtualMemoryCage()->is_initialized()) {
+// When the sandbox is active, this function records the outcome of attempts to
+// allocate memory inside the sandbox which fall back to allocating memory
+// outside of the sandbox. Passing a value of nullptr for the result indicates
+// that the memory could not be allocated at all.
+void RecordSandboxMemoryAllocationResult(Isolate* isolate, void* result) {
+  // This metric is only meaningful when the sandbox is active.
+#ifdef V8_SANDBOX
+  if (GetProcessWideSandbox()->is_initialized()) {
     CagedMemoryAllocationOutcome outcome;
     if (result) {
-      bool allocation_in_cage =
-          GetProcessWideVirtualMemoryCage()->Contains(result);
+      bool allocation_in_cage = GetProcessWideSandbox()->Contains(result);
       outcome = allocation_in_cage ? CagedMemoryAllocationOutcome::kSuccess
                                    : CagedMemoryAllocationOutcome::kOutsideCage;
     } else {
@@ -210,11 +211,11 @@ BackingStore::~BackingStore() {
   // TODO(saelo) here and elsewhere in this file, replace with
   // GetArrayBufferPageAllocator once the fallback to the platform page
   // allocator is no longer allowed.
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (GetProcessWideVirtualMemoryCage()->Contains(buffer_start_)) {
-    page_allocator = GetVirtualMemoryCagePageAllocator();
+#ifdef V8_SANDBOX
+  if (GetProcessWideSandbox()->Contains(buffer_start_)) {
+    page_allocator = GetSandboxPageAllocator();
   } else {
-    DCHECK(kAllowBackingStoresOutsideCage);
+    DCHECK(kAllowBackingStoresOutsideSandbox);
   }
 #endif
 
@@ -428,18 +429,18 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   void* allocation_base = nullptr;
   PageAllocator* page_allocator = GetPlatformPageAllocator();
   auto allocate_pages = [&] {
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    page_allocator = GetVirtualMemoryCagePageAllocator();
+#ifdef V8_SANDBOX
+    page_allocator = GetSandboxPageAllocator();
     allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
                                     page_size, PageAllocator::kNoAccess);
     if (allocation_base) return true;
     // We currently still allow falling back to the platform page allocator if
-    // the cage page allocator fails. This will eventually be removed.
+    // the sandbox page allocator fails. This will eventually be removed.
     // TODO(chromium:1218005) once we forbid the fallback, we should have a
     // single API, e.g. GetArrayBufferPageAllocator(), that returns the correct
-    // page allocator to use here depending on whether the virtual memory cage
-    // is enabled or not.
-    if (!kAllowBackingStoresOutsideCage) return false;
+    // page allocator to use here depending on whether the sandbox is enabled
+    // or not.
+    if (!kAllowBackingStoresOutsideSandbox) return false;
     page_allocator = GetPlatformPageAllocator();
 #endif
     allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
@@ -449,7 +450,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   if (!gc_retry(allocate_pages)) {
     // Page allocator could not reserve enough pages.
     RecordStatus(isolate, AllocationStatus::kOtherFailure);
-    RecordCagedMemoryAllocationResult(isolate, nullptr);
+    RecordSandboxMemoryAllocationResult(isolate, nullptr);
     TRACE_BS("BSw:try   failed to allocate pages\n");
     return {};
   }
@@ -486,7 +487,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   RecordStatus(isolate, did_retry ? AllocationStatus::kSuccessAfterRetry
                                   : AllocationStatus::kSuccess);
-  RecordCagedMemoryAllocationResult(isolate, allocation_base);
+  RecordSandboxMemoryAllocationResult(isolate, allocation_base);
 
   ResizableFlag resizable =
       is_wasm_memory ? ResizableFlag::kNotResizable : ResizableFlag::kResizable;

@@ -42,8 +42,8 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
-#include "src/security/caged-pointer-inl.h"
-#include "src/security/external-pointer-inl.h"
+#include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/sandboxed-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -644,20 +644,21 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
-Address Object::ReadCagedPointerField(size_t offset,
-                                      PtrComprCageBase cage_base) const {
-  return i::ReadCagedPointerField(field_address(offset), cage_base);
+Address Object::ReadSandboxedPointerField(size_t offset,
+                                          PtrComprCageBase cage_base) const {
+  return i::ReadSandboxedPointerField(field_address(offset), cage_base);
 }
 
-void Object::WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
-                                    Address value) {
-  i::WriteCagedPointerField(field_address(offset), cage_base, value);
+void Object::WriteSandboxedPointerField(size_t offset,
+                                        PtrComprCageBase cage_base,
+                                        Address value) {
+  i::WriteSandboxedPointerField(field_address(offset), cage_base, value);
 }
 
-void Object::WriteCagedPointerField(size_t offset, Isolate* isolate,
-                                    Address value) {
-  i::WriteCagedPointerField(field_address(offset), PtrComprCageBase(isolate),
-                            value);
+void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
+                                        Address value) {
+  i::WriteSandboxedPointerField(field_address(offset),
+                                PtrComprCageBase(isolate), value);
 }
 
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {

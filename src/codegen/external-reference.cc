@@ -226,28 +226,28 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
-#ifdef V8_CAGED_POINTERS
-ExternalReference ExternalReference::virtual_memory_cage_base_address() {
-  return ExternalReference(GetProcessWideVirtualMemoryCage()->base_address());
+#ifdef V8_SANDBOXED_POINTERS
+ExternalReference ExternalReference::sandbox_base_address() {
+  return ExternalReference(GetProcessWideSandbox()->base_address());
 }
 
-ExternalReference ExternalReference::virtual_memory_cage_end_address() {
-  return ExternalReference(GetProcessWideVirtualMemoryCage()->end_address());
+ExternalReference ExternalReference::sandbox_end_address() {
+  return ExternalReference(GetProcessWideSandbox()->end_address());
 }
 
 ExternalReference ExternalReference::empty_backing_store_buffer() {
-  return ExternalReference(GetProcessWideVirtualMemoryCage()
+  return ExternalReference(GetProcessWideSandbox()
                                ->constants()
                                .empty_backing_store_buffer_address());
 }
-#endif  // V8_CAGED_POINTERS
+#endif  // V8_SANDBOXED_POINTERS
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 ExternalReference ExternalReference::external_pointer_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->external_pointer_table_address());
 }
-#endif
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
@@ -1377,7 +1377,7 @@ FUNCTION_REFERENCE(
     js_finalization_registry_remove_cell_from_unregister_token_map,
     JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
 
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 FUNCTION_REFERENCE(external_pointer_table_grow_table_function,
                    ExternalPointerTable::GrowTable)
 #endif

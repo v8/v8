@@ -27,7 +27,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 #include "torque-generated/exported-macros-assembler.h"
 
 namespace v8 {
@@ -1048,22 +1048,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //
 
   // Load a caged pointer value from an object.
-  TNode<RawPtrT> LoadCagedPointerFromObject(TNode<HeapObject> object,
-                                            int offset) {
-    return LoadCagedPointerFromObject(object, IntPtrConstant(offset));
+  TNode<RawPtrT> LoadSandboxedPointerFromObject(TNode<HeapObject> object,
+                                                int offset) {
+    return LoadSandboxedPointerFromObject(object, IntPtrConstant(offset));
   }
 
-  TNode<RawPtrT> LoadCagedPointerFromObject(TNode<HeapObject> object,
-                                            TNode<IntPtrT> offset);
+  TNode<RawPtrT> LoadSandboxedPointerFromObject(TNode<HeapObject> object,
+                                                TNode<IntPtrT> offset);
 
   // Stored a caged pointer value to an object.
-  void StoreCagedPointerToObject(TNode<HeapObject> object, int offset,
-                                 TNode<RawPtrT> pointer) {
-    StoreCagedPointerToObject(object, IntPtrConstant(offset), pointer);
+  void StoreSandboxedPointerToObject(TNode<HeapObject> object, int offset,
+                                     TNode<RawPtrT> pointer) {
+    StoreSandboxedPointerToObject(object, IntPtrConstant(offset), pointer);
   }
 
-  void StoreCagedPointerToObject(TNode<HeapObject> object,
-                                 TNode<IntPtrT> offset, TNode<RawPtrT> pointer);
+  void StoreSandboxedPointerToObject(TNode<HeapObject> object,
+                                     TNode<IntPtrT> offset,
+                                     TNode<RawPtrT> pointer);
 
   TNode<RawPtrT> EmptyBackingStoreBufferConstant();
 
@@ -1145,14 +1146,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
       TNode<JSTypedArray> holder) {
-    return LoadCagedPointerFromObject(holder,
-                                      JSTypedArray::kExternalPointerOffset);
+    return LoadSandboxedPointerFromObject(holder,
+                                          JSTypedArray::kExternalPointerOffset);
   }
 
   void StoreJSTypedArrayExternalPointerPtr(TNode<JSTypedArray> holder,
                                            TNode<RawPtrT> value) {
-    StoreCagedPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
-                              value);
+    StoreSandboxedPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
+                                  value);
   }
 
   // Load value from current parent frame by given offset in bytes.

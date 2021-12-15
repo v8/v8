@@ -787,7 +787,7 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
 
   ExternalStringResource* result;
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
-    internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
+    internal::Isolate* isolate = I::GetIsolateForSandbox(obj);
     A value =
         I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset,
                                     internal::kExternalStringResourceTag);
@@ -811,7 +811,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
   ExternalStringResourceBase* resource;
   if (type == I::kExternalOneByteRepresentationTag ||
       type == I::kExternalTwoByteRepresentationTag) {
-    internal::Isolate* isolate = I::GetIsolateForHeapSandbox(obj);
+    internal::Isolate* isolate = I::GetIsolateForSandbox(obj);
     A value =
         I::ReadExternalPointerField(isolate, obj, I::kStringResourceOffset,
                                     internal::kExternalStringResourceTag);

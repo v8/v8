@@ -996,7 +996,7 @@ class MachineRepresentationChecker {
         // happens in dead code.
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCagedPointer:
+      case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:

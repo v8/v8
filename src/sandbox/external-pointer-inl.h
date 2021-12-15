@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SECURITY_EXTERNAL_POINTER_INL_H_
-#define V8_SECURITY_EXTERNAL_POINTER_INL_H_
+#ifndef V8_SANDBOX_EXTERNAL_POINTER_INL_H_
+#define V8_SANDBOX_EXTERNAL_POINTER_INL_H_
 
 #include "include/v8-internal.h"
 #include "src/execution/isolate.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 
 namespace v8 {
 namespace internal {
@@ -16,7 +16,7 @@ V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
                                         ExternalPointer_t encoded_pointer,
                                         ExternalPointerTag tag) {
   STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   uint32_t index = static_cast<uint32_t>(encoded_pointer);
   return isolate->external_pointer_table().get(index) & ~tag;
 #else
@@ -26,7 +26,7 @@ V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
 
 V8_INLINE void InitExternalPointerField(Address field_address,
                                         Isolate* isolate) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   static_assert(kExternalPointerSize == kSystemPointerSize,
                 "Review the code below, once kExternalPointerSize is 4-byte "
                 "the address of the field will always be aligned");
@@ -34,12 +34,12 @@ V8_INLINE void InitExternalPointerField(Address field_address,
   base::WriteUnalignedValue<ExternalPointer_t>(field_address, index);
 #else
   // Nothing to do.
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
                                         Address value, ExternalPointerTag tag) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   DCHECK_EQ(value & kExternalPointerTagMask, 0);
   ExternalPointer_t index = isolate->external_pointer_table().allocate();
   isolate->external_pointer_table().set(static_cast<uint32_t>(index),
@@ -58,7 +58,7 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
   } else {
     base::Memory<ExternalPointer_t>(field_address) = encoded_value;
   }
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 V8_INLINE Address ReadExternalPointerField(Address field_address,
@@ -79,7 +79,7 @@ V8_INLINE Address ReadExternalPointerField(Address field_address,
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          Isolate* isolate, Address value,
                                          ExternalPointerTag tag) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   static_assert(kExternalPointerSize == kSystemPointerSize,
                 "Review the code below, once kExternalPointerSize is 4-byte "
                 "the address of the field will always be aligned");
@@ -99,10 +99,10 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
   } else {
     base::Memory<ExternalPointer_t>(field_address) = encoded_value;
   }
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SECURITY_EXTERNAL_POINTER_INL_H_
+#endif  // V8_SANDBOX_EXTERNAL_POINTER_INL_H_

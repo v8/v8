@@ -5175,9 +5175,9 @@ int Shell::Main(int argc, char* argv[]) {
     V8::SetFlagsFromString("--redirect-code-traces-to=code.asm");
   }
   v8::V8::InitializePlatform(g_platform.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!v8::V8::InitializeVirtualMemoryCage()) {
-    FATAL("Could not initialize the virtual memory cage");
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    FATAL("Could not initialize the sandbox");
   }
 #endif
   v8::V8::Initialize();
