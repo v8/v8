@@ -211,11 +211,10 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   enum class State {
     kReady,
+    kPrepareRunning,
     kRunning,
     kTerminating,
     kTerminated,
-    kTerminatingAndJoining,
-    kTerminatedAndJoined
   };
   bool is_running() const;
 
@@ -242,6 +241,7 @@ class Worker : public std::enable_shared_from_this<Worker> {
   base::Thread* thread_ = nullptr;
   char* script_;
   std::atomic<State> state_;
+  bool is_joined_ = false;
   // For signalling that the worker has started.
   base::Semaphore started_semaphore_{0};
 
