@@ -2772,13 +2772,20 @@ TEST(CheckCodeNames) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
-                                 "::(KeyedLoadIC_PolymorphicName builtin)"};
+  const char* builtin_path1[] = {
+      "::(GC roots)", "::(Builtins)",
+#ifdef V8_EXTERNAL_CODE_SPACE
+      "KeyedLoadIC_PolymorphicName::system / CodeDataContainer",
+#endif
+      "::(KeyedLoadIC_PolymorphicName builtin)"};
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);
 
   const char* builtin_path2[] = {"::(GC roots)", "::(Builtins)",
+#ifdef V8_EXTERNAL_CODE_SPACE
+                                 "CompileLazy::system / CodeDataContainer",
+#endif
                                  "::(CompileLazy builtin)"};
   node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));

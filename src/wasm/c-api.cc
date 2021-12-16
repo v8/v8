@@ -1527,7 +1527,7 @@ void PrepareFunctionData(i::Isolate* isolate,
                          const i::wasm::FunctionSig* sig,
                          const i::wasm::WasmModule* module) {
   // If the data is already populated, return immediately.
-  if (function_data->c_wrapper_code() != *BUILTIN_CODET(isolate, Illegal)) {
+  if (function_data->c_wrapper_code() != *BUILTIN_CODE(isolate, Illegal)) {
     return;
   }
   // Compile wrapper code.

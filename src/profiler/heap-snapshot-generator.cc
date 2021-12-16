@@ -1237,9 +1237,8 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
                    WeakCell::kUnregisterTokenOffset);
 }
 
-void V8HeapExplorer::TagBuiltinCodeObject(Object code, const char* name) {
-  DCHECK(code.IsCode() || (V8_EXTERNAL_CODE_SPACE_BOOL && code.IsCodeT()));
-  TagObject(code, names_->GetFormatted("(%s builtin)", name));
+void V8HeapExplorer::TagBuiltinCodeObject(CodeT code, const char* name) {
+  TagObject(FromCodeT(code), names_->GetFormatted("(%s builtin)", name));
 }
 
 void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
@@ -1599,7 +1598,7 @@ class RootsReferencesExtractor : public RootVisitor {
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot object) override {
     if (root == Root::kBuiltins) {
-      explorer_->TagBuiltinCodeObject(*object, description);
+      explorer_->TagBuiltinCodeObject(CodeT::cast(*object), description);
     }
     explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
                                      *object);

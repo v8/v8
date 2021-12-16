@@ -79,15 +79,7 @@ class StatsCounter;
   V(thread_in_wasm_flag_address_address,                                       \
     "Isolate::thread_in_wasm_flag_address_address")                            \
   V(javascript_execution_assert, "javascript_execution_assert")                \
-  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_EXTERNAL_CODE_SPACE(V)                  \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOXED_EXTERNAL_POINTERS(V)
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_EXTERNAL_CODE_SPACE(V) \
-  V(builtins_code_data_container_table, "builtins_code_data_container_table")
-#else
-#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_EXTERNAL_CODE_SPACE(V)
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOXED_EXTERNAL_POINTERS(V) \

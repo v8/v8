@@ -19,7 +19,7 @@ Handle<CodeT> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
 }
 
 #define CENTRY_CODE(RS, SD, AM, BE) \
-  BUILTIN_CODET(isolate, CEntry_##RS##_##SD##_##AM##_##BE)
+  BUILTIN_CODE(isolate, CEntry_##RS##_##SD##_##AM##_##BE)
 
 // static
 Handle<CodeT> CodeFactory::CEntry(Isolate* isolate, int result_size,

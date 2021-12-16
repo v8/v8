@@ -4983,10 +4983,6 @@ void Heap::IterateBuiltins(RootVisitor* v) {
        ++builtin) {
     const char* name = Builtins::name(builtin);
     v->VisitRootPointer(Root::kBuiltins, name, builtins->builtin_slot(builtin));
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      v->VisitRootPointer(Root::kBuiltins, name,
-                          builtins->builtin_code_data_container_slot(builtin));
-    }
   }
 
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLastTier0;
@@ -7137,7 +7133,7 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
-    return isolate()->builtins()->code(maybe_builtin);
+    return FromCodeT(isolate()->builtins()->code(maybe_builtin));
   }
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {

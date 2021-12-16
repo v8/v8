@@ -485,7 +485,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
   Handle<CodeT> trampoline_code =
-      masm->isolate()->builtins()->codet_handle(entry_trampoline);
+      masm->isolate()->builtins()->code_handle(entry_trampoline);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
@@ -4702,7 +4702,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     Builtin builtin_id = next_bytecode
                              ? Builtin::kInterpreterEnterAtNextBytecode
                              : Builtin::kInterpreterEnterAtBytecode;
-    __ Jump(masm->isolate()->builtins()->codet_handle(builtin_id),
+    __ Jump(masm->isolate()->builtins()->code_handle(builtin_id),
             RelocInfo::CODE_TARGET);
 
     // Start with baseline code.
@@ -4896,14 +4896,14 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(
   }
   __ MaybeRestoreRegisters(registers);
   __ LeaveFrame(StackFrame::INTERNAL);
-  Handle<CodeT> deopt_eager = masm->isolate()->builtins()->codet_handle(
+  Handle<CodeT> deopt_eager = masm->isolate()->builtins()->code_handle(
       Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kEager));
   __ Jump(deopt_eager, RelocInfo::CODE_TARGET);
 
   __ bind(&bailout);
   __ MaybeRestoreRegisters(registers);
   __ LeaveFrame(StackFrame::INTERNAL);
-  Handle<CodeT> deopt_bailout = masm->isolate()->builtins()->codet_handle(
+  Handle<CodeT> deopt_bailout = masm->isolate()->builtins()->code_handle(
       Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kBailout));
   __ Jump(deopt_bailout, RelocInfo::CODE_TARGET);
 }

@@ -1063,7 +1063,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
       !goto_catch_handler;
   const bool is_baseline = shared.HasBaselineCode();
   Code dispatch_builtin =
-      builtins->code(DispatchBuiltinFor(is_baseline, advance_bc));
+      FromCodeT(builtins->code(DispatchBuiltinFor(is_baseline, advance_bc)));
 
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(), "  translating %s frame ",
@@ -1306,7 +1306,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
     // Set the continuation for the topmost frame.
-    Code continuation = builtins->code(Builtin::kNotifyDeoptimized);
+    CodeT continuation = builtins->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation.InstructionStart()));
   }
@@ -1387,7 +1387,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK(!is_topmost || deopt_kind_ == DeoptimizeKind::kLazy);
 
   Builtins* builtins = isolate_->builtins();
-  Code construct_stub = builtins->code(Builtin::kJSConstructStubGeneric);
+  Code construct_stub =
+      FromCodeT(builtins->code(Builtin::kJSConstructStubGeneric));
   BytecodeOffset bytecode_offset = translated_frame->bytecode_offset();
 
   const int parameters_count = translated_frame->height();
@@ -1541,7 +1542,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // Set the continuation for the topmost frame.
   if (is_topmost) {
     DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
-    Code continuation = builtins->code(Builtin::kNotifyDeoptimized);
+    CodeT continuation = builtins->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation.InstructionStart()));
   }
@@ -1965,7 +1966,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // For JSToWasmBuiltinContinuations use ContinueToCodeStubBuiltin, and not
   // ContinueToCodeStubBuiltinWithResult because we don't want to overwrite the
   // return value that we have already set.
-  Code continue_to_builtin =
+  CodeT continue_to_builtin =
       isolate()->builtins()->code(TrampolineForBuiltinContinuation(
           mode, frame_info.frame_has_result_stack_slot() &&
                     !is_js_to_wasm_builtin_continuation));
@@ -1981,7 +1982,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
         static_cast<intptr_t>(continue_to_builtin.InstructionStart()));
   }
 
-  Code continuation = isolate()->builtins()->code(Builtin::kNotifyDeoptimized);
+  CodeT continuation = isolate()->builtins()->code(Builtin::kNotifyDeoptimized);
   output_frame->SetContinuation(
       static_cast<intptr_t>(continuation.InstructionStart()));
 }

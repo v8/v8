@@ -413,7 +413,7 @@ void ProfilerCodeObserver::LogBuiltins() {
        ++builtin) {
     CodeEventsContainer evt_rec(CodeEventRecord::Type::kReportBuiltin);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
-    Code code = builtins->code(builtin);
+    Code code = FromCodeT(builtins->code(builtin));
     rec->instruction_start = code.InstructionStart();
     rec->instruction_size = code.InstructionSize();
     rec->builtin = builtin;

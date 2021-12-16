@@ -757,7 +757,7 @@ void NativeFrame::ComputeCallerState(State* state) const {
 }
 
 Code EntryFrame::unchecked_code() const {
-  return isolate()->builtins()->code(Builtin::kJSEntry);
+  return FromCodeT(isolate()->builtins()->code(Builtin::kJSEntry));
 }
 
 void EntryFrame::ComputeCallerState(State* state) const {
@@ -779,7 +779,7 @@ StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Code ConstructEntryFrame::unchecked_code() const {
-  return isolate()->builtins()->code(Builtin::kJSConstructEntry);
+  return FromCodeT(isolate()->builtins()->code(Builtin::kJSConstructEntry));
 }
 
 void ExitFrame::ComputeCallerState(State* state) const {
@@ -1774,9 +1774,9 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
           it->kind() ==
               TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
         code_offset = 0;
-        abstract_code = handle(
-            AbstractCode::cast(isolate()->builtins()->code(
-                Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset()))),
+        abstract_code = ToAbstractCode(
+            isolate()->builtins()->code_handle(
+                Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())),
             isolate());
       } else {
         DCHECK_EQ(it->kind(), TranslatedFrame::kUnoptimizedFunction);

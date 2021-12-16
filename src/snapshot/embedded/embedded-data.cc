@@ -207,7 +207,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = isolate->builtins()->code(builtin);
+    Code code = FromCodeT(isolate->builtins()->code(builtin));
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
@@ -261,7 +261,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    Code code = FromCodeT(builtins->code(builtin));
 
     // Sanity-check that the given builtin is isolate-independent and does not
     // use the trampoline register in its calling convention.
@@ -329,7 +329,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    Code code = FromCodeT(builtins->code(builtin));
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].metadata_offset;
     uint8_t* dst = raw_metadata_start + offset;
@@ -344,7 +344,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
+    Code code = FromCodeT(builtins->code(builtin));
     uint32_t offset =
         layout_descriptions[static_cast<int>(builtin)].instruction_offset;
     uint8_t* dst = raw_code_start + offset;

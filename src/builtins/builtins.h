@@ -33,16 +33,8 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 }
 
 // Convenience macro to avoid generating named accessors for all builtins.
-#ifdef V8_EXTERNAL_CODE_SPACE
-#define BUILTIN_CODE(isolate, name) \
-  (isolate)->builtins()->codet_handle(i::Builtin::k##name)
-#else
 #define BUILTIN_CODE(isolate, name) \
   (isolate)->builtins()->code_handle(i::Builtin::k##name)
-#endif  // V8_EXTERNAL_CODE_SPACE
-
-// TODO(v8:11880): remove this alias
-#define BUILTIN_CODET(isolate, name) BUILTIN_CODE(isolate, name)
 
 enum class Builtin : int32_t {
   kNoBuiltinId = -1,
@@ -165,14 +157,10 @@ class Builtins {
   Handle<CodeT> JSConstructStubGeneric();
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
-  void set_code(Builtin builtin, Code code);
-  void set_codet(Builtin builtin, CodeT code);
+  void set_code(Builtin builtin, CodeT code);
 
-  V8_EXPORT_PRIVATE Code code(Builtin builtin);
-  V8_EXPORT_PRIVATE Handle<Code> code_handle(Builtin builtin);
-
-  V8_EXPORT_PRIVATE CodeT codet(Builtin builtin);
-  V8_EXPORT_PRIVATE Handle<CodeT> codet_handle(Builtin builtin);
+  V8_EXPORT_PRIVATE CodeT code(Builtin builtin);
+  V8_EXPORT_PRIVATE Handle<CodeT> code_handle(Builtin builtin);
 
   static CallInterfaceDescriptor CallInterfaceDescriptorFor(Builtin builtin);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate,
@@ -292,8 +280,6 @@ class Builtins {
   FullObjectSlot builtin_slot(Builtin builtin);
   // Returns given builtin's slot in the tier0 builtin table.
   FullObjectSlot builtin_tier0_slot(Builtin builtin);
-  // Returns given builtin's slot in the builtin code data container table.
-  FullObjectSlot builtin_code_data_container_slot(Builtin builtin);
 
  private:
   static void Generate_CallFunction(MacroAssembler* masm,

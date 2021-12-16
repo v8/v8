@@ -1535,7 +1535,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   result.set_foreign_address(isolate(), opt_call_target);
   result.set_ref(*ref);
   // Default values, will be overwritten by the caller.
-  result.set_code(*BUILTIN_CODET(isolate(), Abort));
+  result.set_code(*BUILTIN_CODE(isolate(), Abort));
   result.set_external(*undefined_value());
   return handle(result, isolate());
 }

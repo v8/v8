@@ -21,7 +21,7 @@ namespace v8 {
 namespace internal {
 
 inline Handle<Object> MakeCodeHandler(Isolate* isolate, Builtin builtin) {
-  return isolate->builtins()->codet_handle(builtin);
+  return isolate->builtins()->code_handle(builtin);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)

@@ -1884,7 +1884,7 @@ Handle<WasmCapiFunction> WasmCapiFunction::New(
   Handle<Map> rtt = isolate->factory()->wasm_internal_function_map();
   Handle<WasmCapiFunctionData> fun_data =
       isolate->factory()->NewWasmCapiFunctionData(
-          call_target, embedder_data, BUILTIN_CODET(isolate, Illegal), rtt,
+          call_target, embedder_data, BUILTIN_CODE(isolate, Illegal), rtt,
           serialized_signature);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmCapiFunction(fun_data);

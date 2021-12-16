@@ -98,9 +98,7 @@ int32_t TurboAssemblerBase::RootRegisterOffsetForRootIndex(
 
 // static
 int32_t TurboAssemblerBase::RootRegisterOffsetForBuiltin(Builtin builtin) {
-  return V8_EXTERNAL_CODE_SPACE_BOOL
-             ? IsolateData::BuiltinCodeDataContainerSlotOffset(builtin)
-             : IsolateData::BuiltinSlotOffset(builtin);
+  return IsolateData::BuiltinSlotOffset(builtin);
 }
 
 // static

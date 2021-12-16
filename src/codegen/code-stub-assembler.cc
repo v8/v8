@@ -13597,7 +13597,7 @@ TNode<Oddball> CodeStubAssembler::InstanceOf(TNode<Object> object,
             &if_otherhandler);
   {
     // Call to Function.prototype[@@hasInstance] directly.
-    Callable builtin(BUILTIN_CODET(isolate(), FunctionPrototypeHasInstance),
+    Callable builtin(BUILTIN_CODE(isolate(), FunctionPrototypeHasInstance),
                      CallTrampolineDescriptor{});
     var_result =
         CAST(CallJS(builtin, context, inst_of_handler, callable, object));
@@ -14442,13 +14442,8 @@ TNode<CodeT> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(SmiToBInt(builtin_id), SYSTEM_POINTER_ELEMENTS);
 
-  TNode<ExternalReference> table = ExternalConstant(
-#ifdef V8_EXTERNAL_CODE_SPACE
-      ExternalReference::builtins_code_data_container_table(isolate())
-#else
-      ExternalReference::builtins_table(isolate())
-#endif  // V8_EXTERNAL_CODE_SPACE
-  );    // NOLINT(whitespace/parens)
+  TNode<ExternalReference> table =
+      ExternalConstant(ExternalReference::builtins_table(isolate()));
 
   return CAST(BitcastWordToTagged(Load<RawPtrT>(table, offset)));
 }
@@ -14526,7 +14521,7 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsBytecodeArray: Interpret bytecode
   BIND(&check_is_bytecode_array);
-  sfi_code = HeapConstant(BUILTIN_CODET(isolate(), InterpreterEntryTrampoline));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
   Goto(&done);
 
   // IsBaselineData: Execute baseline code
@@ -14540,12 +14535,12 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
   // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
   // Compile lazy
   BIND(&check_is_uncompiled_data);
-  sfi_code = HeapConstant(BUILTIN_CODET(isolate(), CompileLazy));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
   Goto(if_compile_lazy ? if_compile_lazy : &done);
 
   // IsFunctionTemplateInfo: API call
   BIND(&check_is_function_template_info);
-  sfi_code = HeapConstant(BUILTIN_CODET(isolate(), HandleApiCall));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), HandleApiCall));
   Goto(&done);
 
   // IsInterpreterData: Interpret bytecode
@@ -14569,7 +14564,7 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsAsmWasmData: Instantiate using AsmWasmData
   BIND(&check_is_asm_wasm_data);
-  sfi_code = HeapConstant(BUILTIN_CODET(isolate(), InstantiateAsmJs));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
   Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -322,7 +322,7 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   // function has.
   if (!function->is_compiled()) {
     DCHECK(function->shared().IsInterpreted());
-    function->set_code(*BUILTIN_CODET(isolate, InterpreterEntryTrampoline));
+    function->set_code(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 
   JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);

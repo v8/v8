@@ -423,7 +423,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   // Hash data sections of builtin code objects.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins()->code(builtin);
+    Code code = FromCodeT(builtins()->code(builtin));
 
     DCHECK(Internals::HasHeapObjectTag(code.ptr()));
     uint8_t* const code_ptr =
@@ -912,7 +912,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
 bool IsBuiltinFunction(Isolate* isolate, HeapObject object, Builtin builtin) {
   if (!object.IsJSFunction()) return false;
   JSFunction const function = JSFunction::cast(object);
-  return function.code() == isolate->builtins()->codet(builtin);
+  return function.code() == isolate->builtins()->code(builtin);
 }
 
 void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
@@ -1975,7 +1975,8 @@ Object Isolate::UnwindAndFindHandler() {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));
 
-          Code code = builtins()->code(Builtin::kInterpreterEnterAtBytecode);
+          Code code =
+              FromCodeT(builtins()->code(Builtin::kInterpreterEnterAtBytecode));
           return FoundHandler(context, code.InstructionStart(), 0,
                               code.constant_pool(), return_sp, frame->fp());
         }
@@ -2738,9 +2739,7 @@ void Isolate::ReleaseSharedPtrs() {
 
 bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
   FullObjectSlot location(handle_location);
-  FullObjectSlot first_root(V8_EXTERNAL_CODE_SPACE_BOOL
-                                ? builtin_code_data_container_table()
-                                : builtin_table());
+  FullObjectSlot first_root(builtin_table());
   FullObjectSlot last_root(first_root + Builtins::kBuiltinCount);
   if (location >= last_root) return false;
   if (location < first_root) return false;
@@ -3465,15 +3464,13 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Address instruction_start = d.InstructionStartOfBuiltin(builtin);
+    // TODO(v8:11880): avoid roundtrips between cdc and code.
     Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
-        builtins->code_handle(builtin), instruction_start);
+        FromCodeT(builtins->code_handle(builtin), isolate), instruction_start);
 
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.
-    builtins->set_code(builtin, *trampoline);
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      builtins->set_codet(builtin, ToCodeT(*trampoline));
-    }
+    builtins->set_code(builtin, ToCodeT(*trampoline));
   }
 }
 
@@ -3856,7 +3853,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // this at mksnapshot-time, but not at runtime.
     // See also: https://crbug.com/v8/8713.
     heap_.SetInterpreterEntryTrampolineForProfiling(
-        builtins()->code(Builtin::kInterpreterEntryTrampoline));
+        FromCodeT(builtins()->code(Builtin::kInterpreterEntryTrampoline)));
 #endif
 
     builtins_constants_table_builder_->Finalize();

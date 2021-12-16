@@ -115,8 +115,8 @@ Builtin BuiltinIndexFromBytecode(Bytecode bytecode,
 
 }  // namespace
 
-Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
-                                     OperandScale operand_scale) {
+CodeT Interpreter::GetBytecodeHandler(Bytecode bytecode,
+                                      OperandScale operand_scale) {
   Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
   return isolate_->builtins()->code(builtin);
 }
@@ -354,7 +354,7 @@ void Interpreter::Initialize() {
   // Initialize the dispatch table.
   ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
     Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
-    CodeT handler = builtins->codet(builtin);
+    CodeT handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
 #ifdef DEBUG
       std::string builtin_name(Builtins::name(builtin));

@@ -3173,7 +3173,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
                     WriteBarrierDescriptor::SlotAddressRegister(), object,
                     offset);
 
-  Call(isolate()->builtins()->codet_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -3218,7 +3218,7 @@ void TurboAssembler::CallRecordWriteStub(
     if (options().inline_offheap_trampolines) {
       CallBuiltin(builtin);
     } else {
-      Handle<CodeT> code_target = isolate()->builtins()->codet_handle(builtin);
+      Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }

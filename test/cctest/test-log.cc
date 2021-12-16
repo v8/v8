@@ -1193,8 +1193,10 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     logger.LogCompiledFunctions();
     logger.StopLogging();
 
-    i::Handle<i::Code> builtin = logger.i_isolate()->builtins()->code_handle(
-        i::Builtin::kBooleanConstructor);
+    i::Isolate* i_isolate = logger.i_isolate();
+    i::Handle<i::Code> builtin = FromCodeT(
+        i_isolate->builtins()->code_handle(i::Builtin::kBooleanConstructor),
+        i_isolate);
     v8::base::EmbeddedVector<char, 100> buffer;
 
     // Should only be logged as "Builtin" with a name, never as "LazyCompile".

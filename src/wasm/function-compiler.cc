@@ -220,7 +220,9 @@ void JSToWasmWrapperCompilationUnit::Execute() {
 
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   if (use_generic_wrapper_) {
-    return isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper);
+    return FromCodeT(
+        isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper),
+        isolate_);
   }
 
   CompilationJob::Status status = job_->FinalizeJob(isolate_);

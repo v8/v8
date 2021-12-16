@@ -90,7 +90,7 @@ static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
   if (FLAG_interpreted_frames_native_stack && kind == CodeKind::BUILTIN &&
       code.GetCode().is_interpreter_trampoline_builtin() &&
       ToCodeT(code.GetCode()) !=
-          *BUILTIN_CODET(shared.GetIsolate(), InterpreterEntryTrampoline)) {
+          *BUILTIN_CODE(shared.GetIsolate(), InterpreterEntryTrampoline)) {
     kind = CodeKind::INTERPRETED_FUNCTION;
   }
   if (shared.optimization_disabled() &&
@@ -2183,7 +2183,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
     case CodeKind::BUILTIN:
       if (Code::cast(object).is_interpreter_trampoline_builtin() &&
           ToCodeT(Code::cast(object)) !=
-              *BUILTIN_CODET(isolate_, InterpreterEntryTrampoline)) {
+              *BUILTIN_CODE(isolate_, InterpreterEntryTrampoline)) {
         return;
       }
       description =

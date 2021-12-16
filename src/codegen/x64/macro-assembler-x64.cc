@@ -475,7 +475,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
       WriteBarrierDescriptor::SlotAddressRegister();
   MovePair(slot_address_parameter, slot_address, object_parameter, object);
 
-  Call(isolate()->builtins()->codet_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -524,7 +524,7 @@ void TurboAssembler::CallRecordWriteStub(
     if (options().inline_offheap_trampolines) {
       CallBuiltin(builtin);
     } else {
-      Handle<CodeT> code_target = isolate()->builtins()->codet_handle(builtin);
+      Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }
@@ -552,7 +552,7 @@ void TurboAssembler::CallTSANStoreStub(Register address, Register value,
 
   if (isolate()) {
     Builtin builtin = CodeFactory::GetTSANStoreStub(fp_mode, size, order);
-    Handle<CodeT> code_target = isolate()->builtins()->codet_handle(builtin);
+    Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -593,7 +593,7 @@ void TurboAssembler::CallTSANRelaxedLoadStub(Register address,
 
   if (isolate()) {
     Builtin builtin = CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size);
-    Handle<CodeT> code_target = isolate()->builtins()->codet_handle(builtin);
+    Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 #if V8_ENABLE_WEBASSEMBLY

@@ -3620,10 +3620,7 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
   DCHECK_EQ(1, fun->result_size);
   auto centry_id =
       Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
-  int builtin_slot_offset =
-      V8_EXTERNAL_CODE_SPACE_BOOL
-          ? IsolateData::BuiltinCodeDataContainerSlotOffset(centry_id)
-          : IsolateData::BuiltinSlotOffset(centry_id);
+  int builtin_slot_offset = IsolateData::BuiltinSlotOffset(centry_id);
   Node* centry_stub = gasm_->LoadFromObject(MachineType::Pointer(),
                                             isolate_root, builtin_slot_offset);
   // TODO(titzer): allow arbitrary number of runtime arguments

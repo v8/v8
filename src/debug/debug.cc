@@ -1361,7 +1361,7 @@ void Debug::DiscardBaselineCode(SharedFunctionInfo shared) {
   isolate->thread_manager()->IterateArchivedThreads(&visitor);
   // TODO(v8:11429): Avoid this heap walk somehow.
   HeapObjectIterator iterator(isolate->heap());
-  auto trampoline = BUILTIN_CODET(isolate, InterpreterEntryTrampoline);
+  auto trampoline = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
   shared.FlushBaselineCode();
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
@@ -1379,7 +1379,7 @@ void Debug::DiscardAllBaselineCode() {
   DiscardBaselineCodeVisitor visitor;
   visitor.VisitThread(isolate_, isolate_->thread_local_top());
   HeapObjectIterator iterator(isolate_->heap());
-  auto trampoline = BUILTIN_CODET(isolate_, InterpreterEntryTrampoline);
+  auto trampoline = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   isolate_->thread_manager()->IterateArchivedThreads(&visitor);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
@@ -1490,7 +1490,7 @@ void Debug::InstallDebugBreakTrampoline() {
 
   if (!needs_to_use_trampoline) return;
 
-  Handle<CodeT> trampoline = BUILTIN_CODET(isolate_, DebugBreakTrampoline);
+  Handle<CodeT> trampoline = BUILTIN_CODE(isolate_, DebugBreakTrampoline);
   std::vector<Handle<JSFunction>> needs_compile;
   {
     HeapObjectIterator iterator(isolate_->heap());

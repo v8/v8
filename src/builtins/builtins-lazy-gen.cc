@@ -144,7 +144,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // optimized Code object (we'd have tail-called it above). A usual case would
   // be the InterpreterEntryTrampoline to start executing existing bytecode.
   BIND(&maybe_use_sfi_code);
-  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODET(
+  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
                                                 isolate(), CompileLazy))));
   StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
 
@@ -186,7 +186,7 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
 TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
 
-  TNode<CodeT> code = HeapConstant(BUILTIN_CODET(isolate(), CompileLazy));
+  TNode<CodeT> code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
   // Set the code slot inside the JSFunction to CompileLazy.
   StoreObjectField(function, JSFunction::kCodeOffset, code);
   GenerateTailCallToJSCode(code, function);

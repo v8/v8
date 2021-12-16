@@ -62,8 +62,8 @@ class Interpreter {
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.
-  V8_EXPORT_PRIVATE Code GetBytecodeHandler(Bytecode bytecode,
-                                            OperandScale operand_scale);
+  V8_EXPORT_PRIVATE CodeT GetBytecodeHandler(Bytecode bytecode,
+                                             OperandScale operand_scale);
 
   // Set the bytecode handler for |bytecode| and |operand_scale|.
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
