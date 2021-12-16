@@ -8093,8 +8093,23 @@ bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
   return true;
 }
 
-base::Vector<const char> GetDebugName(Zone* zone, int index) {
-  // TODO(herhut): Use name from module if available.
+base::Vector<const char> GetDebugName(Zone* zone,
+                                      const wasm::WasmModule* module,
+                                      const wasm::WireBytesStorage* wire_bytes,
+                                      int index) {
+  base::Optional<wasm::ModuleWireBytes> module_bytes =
+      wire_bytes->GetModuleBytes();
+  if (module_bytes.has_value() &&
+      (FLAG_trace_turbo || FLAG_trace_turbo_scheduled ||
+       FLAG_trace_turbo_graph || FLAG_print_wasm_code)) {
+    wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
+        module_bytes.value(), index);
+    int name_len = name.length();
+    char* index_name = zone->NewArray<char>(name_len);
+    memcpy(index_name, module_bytes->start() + name.offset(), name.length());
+    return base::Vector<const char>(index_name, name_len);
+  }
+
   constexpr int kBufferLength = 24;
 
   base::EmbeddedVector<char, kBufferLength> name_vector;
@@ -8109,7 +8124,7 @@ base::Vector<const char> GetDebugName(Zone* zone, int index) {
 }  // namespace
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
-    wasm::CompilationEnv* env, const wasm::WireBytesStorage* wire_bytes_storage,
+    wasm::CompilationEnv* env, const wasm::WireBytesStorage* wire_byte_storage,
     const wasm::FunctionBody& func_body, int func_index, Counters* counters,
     wasm::WasmFeatures* detected) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
@@ -8123,8 +8138,9 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements()));
 
-  OptimizedCompilationInfo info(GetDebugName(&zone, func_index), &zone,
-                                CodeKind::WASM_FUNCTION);
+  OptimizedCompilationInfo info(
+      GetDebugName(&zone, env->module, wire_byte_storage, func_index), &zone,
+      CodeKind::WASM_FUNCTION);
   if (env->runtime_exception_support) {
     info.set_wasm_runtime_exception_support();
   }
@@ -8166,10 +8182,9 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     return wasm::WasmCompilationResult{};
   }
 
-  Pipeline::GenerateCodeForWasmFunction(&info, env, wire_bytes_storage, mcgraph,
-                                        call_descriptor, source_positions,
-                                        node_origins, func_body, env->module,
-                                        func_index, &loop_infos);
+  Pipeline::GenerateCodeForWasmFunction(
+      &info, env, wire_byte_storage, mcgraph, call_descriptor, source_positions,
+      node_origins, func_body, env->module, func_index, &loop_infos);
 
   if (counters) {
     int zone_bytes =

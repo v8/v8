@@ -103,6 +103,9 @@ class WireBytesStorage {
  public:
   virtual ~WireBytesStorage() = default;
   virtual base::Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
+  // Returns the ModuleWireBytes corresponding to the underlying module if
+  // available. Not supported if the wire bytes are owned by a StreamingDecoder.
+  virtual base::Optional<ModuleWireBytes> GetModuleBytes() const = 0;
 };
 
 // Callbacks will receive either {kFailedCompilation} or both

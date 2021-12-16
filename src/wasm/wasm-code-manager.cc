@@ -1653,6 +1653,11 @@ class NativeModuleWireBytesStorage final : public WireBytesStorage {
         .SubVector(ref.offset(), ref.end_offset());
   }
 
+  base::Optional<ModuleWireBytes> GetModuleBytes() const final {
+    return base::Optional<ModuleWireBytes>(
+        std::atomic_load(&wire_bytes_)->as_vector());
+  }
+
  private:
   const std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes_;
 };
