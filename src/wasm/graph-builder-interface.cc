@@ -1354,17 +1354,18 @@ class WasmGraphBuildingInterface {
     builder_->set_instance_cache(&env->instance_cache);
   }
 
-  V8_INLINE TFNode* CheckForException(FullDecoder* decoder, TFNode* node) {
-    if (node == nullptr) return nullptr;
+  TFNode* CheckForException(FullDecoder* decoder, TFNode* node) {
+    DCHECK_NOT_NULL(node);
 
+    // We need to emit IfSuccess/IfException nodes if this node throws and has
+    // an exception handler. An exception handler can either be a try-scope
+    // around this node, or if this function is being inlined, the IfException
+    // output of the inlined Call node.
     const bool inside_try_scope = decoder->current_catch() != -1;
-    if (!inside_try_scope) return node;
+    if (inlined_status_ != kInlinedHandledCall && !inside_try_scope) {
+      return node;
+    }
 
-    return CheckForExceptionImpl(decoder, node);
-  }
-
-  V8_NOINLINE TFNode* CheckForExceptionImpl(FullDecoder* decoder,
-                                            TFNode* node) {
     TFNode* if_success = nullptr;
     TFNode* if_exception = nullptr;
     if (!builder_->ThrowsException(node, &if_success, &if_exception)) {
@@ -1378,21 +1379,33 @@ class WasmGraphBuildingInterface {
     exception_env->control = if_exception;
     exception_env->effect = if_exception;
     SetEnv(exception_env);
-    TryInfo* try_info = current_try_info(decoder);
+
     if (emit_loop_exits()) {
       ValueVector values;
-      BuildNestedLoopExits(decoder, decoder->control_depth_of_current_catch(),
+      BuildNestedLoopExits(decoder,
+                           inside_try_scope
+                               ? decoder->control_depth_of_current_catch()
+                               : decoder->control_depth() - 1,
                            true, values, &if_exception);
     }
-    Goto(decoder, try_info->catch_env);
-    if (try_info->exception == nullptr) {
-      DCHECK_EQ(SsaEnv::kReached, try_info->catch_env->state);
-      try_info->exception = if_exception;
+    if (inside_try_scope) {
+      TryInfo* try_info = current_try_info(decoder);
+      Goto(decoder, try_info->catch_env);
+      if (try_info->exception == nullptr) {
+        DCHECK_EQ(SsaEnv::kReached, try_info->catch_env->state);
+        try_info->exception = if_exception;
+      } else {
+        DCHECK_EQ(SsaEnv::kMerged, try_info->catch_env->state);
+        try_info->exception = builder_->CreateOrMergeIntoPhi(
+            MachineRepresentation::kTaggedPointer, try_info->catch_env->control,
+            try_info->exception, if_exception);
+      }
     } else {
-      DCHECK_EQ(SsaEnv::kMerged, try_info->catch_env->state);
-      try_info->exception = builder_->CreateOrMergeIntoPhi(
-          MachineRepresentation::kTaggedPointer, try_info->catch_env->control,
-          try_info->exception, if_exception);
+      DCHECK_EQ(inlined_status_, kInlinedHandledCall);
+      // Leave the IfException/LoopExit node dangling. We will connect it during
+      // inlining to the handler of the inlined call.
+      // Note: We have to generate the handler now since we have no way of
+      // generating a LoopExit if needed in the inlining code.
     }
 
     SetEnv(success_env);
@@ -1725,23 +1738,17 @@ class WasmGraphBuildingInterface {
 
     switch (call_info.call_mode()) {
       case CallInfo::kCallIndirect:
-        CheckForException(
-            decoder,
-            builder_->ReturnCallIndirect(
-                call_info.table_index(), call_info.sig_index(), real_sig,
-                base::VectorOf(arg_nodes), decoder->position()));
+        builder_->ReturnCallIndirect(
+            call_info.table_index(), call_info.sig_index(), real_sig,
+            base::VectorOf(arg_nodes), decoder->position());
         break;
       case CallInfo::kCallDirect:
-        CheckForException(
-            decoder, builder_->ReturnCall(call_info.callee_index(), real_sig,
-                                          base::VectorOf(arg_nodes),
-                                          decoder->position()));
+        builder_->ReturnCall(call_info.callee_index(), real_sig,
+                             base::VectorOf(arg_nodes), decoder->position());
         break;
       case CallInfo::kCallRef:
-        CheckForException(decoder,
-                          builder_->ReturnCallRef(
-                              real_sig, base::VectorOf(arg_nodes),
-                              call_info.null_check(), decoder->position()));
+        builder_->ReturnCallRef(real_sig, base::VectorOf(arg_nodes),
+                                call_info.null_check(), decoder->position());
         break;
     }
   }
@@ -1847,9 +1854,8 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
   if (node_origins) {
     builder->RemoveBytecodePositionDecorator();
   }
-  if (FLAG_wasm_loop_unrolling && inlined_status == kRegularFunction) {
-    *loop_infos = decoder.interface().loop_infos();
-  }
+  *loop_infos = decoder.interface().loop_infos();
+
   return decoder.toResult(nullptr);
 }
 
