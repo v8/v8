@@ -151,20 +151,20 @@ void WasmInliner::Finalize() {
     wasm::WasmFeatures detected;
     WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
                              source_positions_);
-    std::vector<WasmLoopInfo> infos;
+    std::vector<WasmLoopInfo> inlinee_loop_infos;
 
     size_t subgraph_min_node_id = graph()->NodeCount();
     Node* inlinee_start;
     Node* inlinee_end;
     {
       Graph::SubgraphScope scope(graph());
-      wasm::DecodeResult result =
-          wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features,
-                             module(), &builder, &detected, inlinee_body,
-                             &infos, node_origins_, candidate.inlinee_index,
-                             NodeProperties::IsExceptionalCall(call)
-                                 ? wasm::kInlinedHandledCall
-                                 : wasm::kInlinedNonHandledCall);
+      wasm::DecodeResult result = wasm::BuildTFGraph(
+          zone()->allocator(), env_->enabled_features, module(), &builder,
+          &detected, inlinee_body, &inlinee_loop_infos, node_origins_,
+          candidate.inlinee_index,
+          NodeProperties::IsExceptionalCall(call)
+              ? wasm::kInlinedHandledCall
+              : wasm::kInlinedNonHandledCall);
       if (result.failed()) {
         // This can happen if the inlinee has never been compiled before and is
         // invalid. Return, as there is no point to keep optimizing.
@@ -196,6 +196,8 @@ void WasmInliner::Finalize() {
       InlineTailCall(call, inlinee_start, inlinee_end);
     }
     call->Kill();
+    loop_infos_->insert(loop_infos_->end(), inlinee_loop_infos.begin(),
+                        inlinee_loop_infos.end());
     // Returning after only one inlining has been tried and found worse.
   }
 }

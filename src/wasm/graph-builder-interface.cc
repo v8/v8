@@ -212,14 +212,14 @@ class WasmGraphBuildingInterface {
           nesting_depth++;
         }
       }
-      // If this loop is nested, the parent loop's is_innermost field needs to
-      // be false. If the last loop in loop_infos_ has less depth, it has to be
-      // the parent loop. If it does not, it means another loop has been found
-      // within the parent loop, and that loop will have set the parent's
-      // is_innermost to false, so we do not need to do anything.
+      // If this loop is nested, the parent loop's can_be_innermost field needs
+      // to be false. If the last loop in loop_infos_ has less depth, it has to
+      // be the parent loop. If it does not, it means another loop has been
+      // found within the parent loop, and that loop will have set the parent's
+      // can_be_innermost to false, so we do not need to do anything.
       if (nesting_depth > 0 &&
           loop_infos_.back().nesting_depth < nesting_depth) {
-        loop_infos_.back().is_innermost = false;
+        loop_infos_.back().can_be_innermost = false;
       }
       loop_infos_.emplace_back(loop_node, nesting_depth, true);
     }
@@ -442,11 +442,6 @@ class WasmGraphBuildingInterface {
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
-    ValueVector values;
-    if (emit_loop_exits()) {
-      BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
-                           values);
-    }
     builder_->Trap(reason, decoder->position());
   }
 
@@ -845,7 +840,7 @@ class WasmGraphBuildingInterface {
     CheckForException(decoder,
                       builder_->Throw(imm.index, imm.tag, base::VectorOf(args),
                                       decoder->position()));
-    TerminateThrow(decoder);
+    builder_->TerminateThrow(effect(), control());
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
@@ -853,7 +848,7 @@ class WasmGraphBuildingInterface {
     TFNode* exception = block->try_info->exception;
     DCHECK_NOT_NULL(exception);
     CheckForException(decoder, builder_->Rethrow(exception));
-    TerminateThrow(decoder);
+    builder_->TerminateThrow(effect(), control());
   }
 
   void CatchException(FullDecoder* decoder,
@@ -910,7 +905,7 @@ class WasmGraphBuildingInterface {
         // We just throw to the caller here, so no need to generate IfSuccess
         // and IfFailure nodes.
         builder_->Rethrow(block->try_info->exception);
-        TerminateThrow(decoder);
+        builder_->TerminateThrow(effect(), control());
         return;
       }
       DCHECK(decoder->control_at(depth)->is_try());
@@ -1064,7 +1059,7 @@ class WasmGraphBuildingInterface {
                                              rtt.node, decoder->position());
     // array.new_with_rtt introduces a loop. Therefore, we have to mark the
     // immediately nesting loop (if any) as non-innermost.
-    if (!loop_infos_.empty()) loop_infos_.back().is_innermost = false;
+    if (!loop_infos_.empty()) loop_infos_.back().can_be_innermost = false;
   }
 
   void ArrayNewDefault(FullDecoder* decoder,
@@ -1304,13 +1299,18 @@ class WasmGraphBuildingInterface {
         ->try_info;
   }
 
-  // Loop exits are only used during loop unrolling and are then removed, as
-  // they cannot be handled by later optimization stages. Since unrolling comes
-  // before inlining in the compilation pipeline, we should not emit loop exits
-  // in inlined functions. Also, we should not do so when unrolling is disabled.
-  bool emit_loop_exits() {
-    return FLAG_wasm_loop_unrolling && inlined_status_ == kRegularFunction;
-  }
+  // If {emit_loop_exits()} returns true, we need to emit LoopExit,
+  // LoopExitEffect, and LoopExit nodes whenever a control resp. effect resp.
+  // value escapes a loop. We emit loop exits in the following cases:
+  // - When popping the control of a loop.
+  // - At some nodes which connect to the graph's end. We do not always need to
+  //   emit loop exits for such nodes, since the wasm loop analysis algorithm
+  //   can handle a loop body which connects directly to the graph's end.
+  //   However, we need to emit them anyway for nodes that may be rewired to
+  //   different nodes during inlining. These are Return and TailCall nodes.
+  // - After IfFailure nodes.
+  // - When exiting a loop through Delegate.
+  bool emit_loop_exits() { return FLAG_wasm_loop_unrolling; }
 
   void GetNodes(TFNode** nodes, Value* values, size_t count) {
     for (size_t i = 0; i < count; ++i) {
@@ -1808,21 +1808,6 @@ class WasmGraphBuildingInterface {
       if (wrap_exit_values) {
         WrapLocalsAtLoopExit(decoder, control);
       }
-    }
-  }
-
-  void TerminateThrow(FullDecoder* decoder) {
-    if (emit_loop_exits()) {
-      SsaEnv* internal_env = ssa_env_;
-      SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
-      SetEnv(exit_env);
-      ValueVector stack_values;
-      BuildNestedLoopExits(decoder, decoder->control_depth(), false,
-                           stack_values);
-      builder_->TerminateThrow(effect(), control());
-      SetEnv(internal_env);
-    } else {
-      builder_->TerminateThrow(effect(), control());
     }
   }
 

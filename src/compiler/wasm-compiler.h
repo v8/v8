@@ -183,12 +183,14 @@ struct WasmInstanceCacheNodes {
 struct WasmLoopInfo {
   Node* header;
   uint32_t nesting_depth;
-  bool is_innermost;
+  // This loop has, to our best knowledge, no other loops nested within it. A
+  // loop can obtain inner loops despite this after inlining.
+  bool can_be_innermost;
 
-  WasmLoopInfo(Node* header, uint32_t nesting_depth, bool is_innermost)
+  WasmLoopInfo(Node* header, uint32_t nesting_depth, bool can_be_innermost)
       : header(header),
         nesting_depth(nesting_depth),
-        is_innermost(is_innermost) {}
+        can_be_innermost(can_be_innermost) {}
 };
 
 // Abstracts details of building TurboFan graph nodes for wasm to separate

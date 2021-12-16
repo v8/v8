@@ -1657,19 +1657,43 @@ struct LoopPeelingPhase {
 };
 
 #if V8_ENABLE_WEBASSEMBLY
+struct WasmInliningPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
+
+  void Run(PipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
+           uint32_t function_index, const wasm::WireBytesStorage* wire_bytes,
+           std::vector<compiler::WasmLoopInfo>* loop_info) {
+    if (WasmInliner::any_inlining_impossible(data->graph()->NodeCount())) {
+      return;
+    }
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
+    DeadCodeElimination dead(&graph_reducer, data->graph(), data->common(),
+                             temp_zone);
+    WasmInliner inliner(&graph_reducer, env, function_index,
+                        data->source_positions(), data->node_origins(),
+                        data->mcgraph(), wire_bytes, loop_info);
+    AddReducer(data, &graph_reducer, &dead);
+    AddReducer(data, &graph_reducer, &inliner);
+    graph_reducer.ReduceGraph();
+  }
+};
+
 struct WasmLoopUnrollingPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmLoopUnrolling)
 
   void Run(PipelineData* data, Zone* temp_zone,
            std::vector<compiler::WasmLoopInfo>* loop_infos) {
     for (WasmLoopInfo& loop_info : *loop_infos) {
-      if (loop_info.is_innermost) {
+      if (loop_info.can_be_innermost) {
         ZoneUnorderedSet<Node*>* loop =
-            LoopFinder::FindSmallUnnestedLoopFromHeader(
+            LoopFinder::FindSmallInnermostLoopFromHeader(
                 loop_info.header, temp_zone,
                 // Only discover the loop until its size is the maximum unrolled
                 // size for its depth.
                 maximum_unrollable_size(loop_info.nesting_depth));
+        if (loop == nullptr) continue;
         UnrollLoop(loop_info.header, loop, loop_info.nesting_depth,
                    data->graph(), data->common(), temp_zone,
                    data->source_positions(), data->node_origins());
@@ -1994,9 +2018,7 @@ struct ScheduledEffectControlLinearizationPhase {
 struct WasmOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
 
-  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan,
-           wasm::CompilationEnv* env, uint32_t function_index,
-           const wasm::WireBytesStorage* wire_bytes) {
+  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan) {
     // Run optimizations in two rounds: First one around load elimination and
     // then one around branch elimination. This is because those two
     // optimizations sometimes display quadratic complexity when run together.
@@ -2016,9 +2038,6 @@ struct WasmOptimizationPhase {
       ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
       CsaLoadElimination load_elimination(&graph_reducer, data->jsgraph(),
                                           temp_zone);
-      WasmInliner inliner(&graph_reducer, env, function_index,
-                          data->source_positions(), data->node_origins(),
-                          data->mcgraph(), wire_bytes);
       WasmEscapeAnalysis escape(&graph_reducer, data->mcgraph());
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
@@ -2027,10 +2046,6 @@ struct WasmOptimizationPhase {
       if (FLAG_experimental_wasm_gc) {
         AddReducer(data, &graph_reducer, &load_elimination);
         AddReducer(data, &graph_reducer, &escape);
-      }
-      if (FLAG_wasm_inlining &&
-          !WasmInliner::any_inlining_impossible(data->graph()->NodeCount())) {
-        AddReducer(data, &graph_reducer, &inliner);
       }
       graph_reducer.ReduceGraph();
     }
@@ -3229,6 +3244,11 @@ void Pipeline::GenerateCodeForWasmFunction(
   pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
 
   data.BeginPhaseKind("V8.WasmOptimization");
+  if (FLAG_wasm_inlining) {
+    pipeline.Run<WasmInliningPhase>(env, function_index, wire_bytes_storage,
+                                    loop_info);
+    pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
+  }
   if (FLAG_wasm_loop_unrolling) {
     pipeline.Run<WasmLoopUnrollingPhase>(loop_info);
     pipeline.RunPrintAndVerify(WasmLoopUnrollingPhase::phase_name(), true);
@@ -3236,8 +3256,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   const bool is_asm_js = is_asmjs_module(module);
 
   if (FLAG_wasm_opt || is_asm_js) {
-    pipeline.Run<WasmOptimizationPhase>(is_asm_js, env, function_index,
-                                        wire_bytes_storage);
+    pipeline.Run<WasmOptimizationPhase>(is_asm_js);
     pipeline.RunPrintAndVerify(WasmOptimizationPhase::phase_name(), true);
   } else {
     pipeline.Run<WasmBaseOptimizationPhase>();

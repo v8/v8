@@ -1084,9 +1084,9 @@ DEFINE_BOOL(
     wasm_inlining, false,
     "enable inlining of wasm functions into wasm functions (experimental)")
 DEFINE_SIZE_T(
-    wasm_inlining_budget_factor, 100000,
+    wasm_inlining_budget_factor, 75000,
     "maximum allowed size to inline a function is given by {n / caller size}")
-DEFINE_SIZE_T(wasm_inlining_max_size, 1250,
+DEFINE_SIZE_T(wasm_inlining_max_size, 1000,
               "maximum size of a function that can be inlined, in TF nodes")
 DEFINE_BOOL(wasm_speculative_inlining, false,
             "enable speculative inlining of call_ref targets (experimental)")
