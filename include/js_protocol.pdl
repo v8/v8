@@ -104,7 +104,9 @@ domain Debugger
       # Location in the source code.
       Location location
       # JavaScript script name or url.
-      string url
+      # Deprecated in favor of using the `location.scriptId` to resolve the URL via a previously
+      # sent `Debugger.scriptParsed` event.
+      deprecated string url
       # Scope chain for this call frame.
       array of Scope scopeChain
       # `this` object for this call frame.
