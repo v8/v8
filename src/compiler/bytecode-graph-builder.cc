@@ -724,7 +724,7 @@ BytecodeGraphBuilder::Environment::Environment(
 int BytecodeGraphBuilder::Environment::RegisterToValuesIndex(
     interpreter::Register the_register) const {
   if (the_register.is_parameter()) {
-    return the_register.ToParameterIndex(parameter_count());
+    return the_register.ToParameterIndex();
   } else {
     return the_register.index() + register_base();
   }

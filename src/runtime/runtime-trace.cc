@@ -46,9 +46,7 @@ void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
        reg_index++) {
     Object reg_object = frame->ReadInterpreterRegister(reg_index);
     os << "      [ " << std::setw(reg_field_width)
-       << interpreter::Register(reg_index).ToString(
-              bytecode_iterator.bytecode_array()->parameter_count())
-       << arrow_direction;
+       << interpreter::Register(reg_index).ToString() << arrow_direction;
     reg_object.ShortPrint(os);
     os << " ]" << std::endl;
   }
@@ -146,8 +144,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
     }
     os << static_cast<const void*>(bytecode_address) << " @ " << std::setw(4)
        << offset << " : ";
-    interpreter::BytecodeDecoder::Decode(os, bytecode_address,
-                                         bytecode_array->parameter_count());
+    interpreter::BytecodeDecoder::Decode(os, bytecode_address);
     os << std::endl;
     // Print all input registers and accumulator.
     PrintRegisters(frame, os, true, bytecode_iterator, accumulator);

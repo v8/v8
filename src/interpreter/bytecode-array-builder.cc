@@ -69,11 +69,11 @@ Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
   // The parameter indices are shifted by 1 (receiver is the
   // first entry).
-  return Register::FromParameterIndex(parameter_index + 1, parameter_count());
+  return Register::FromParameterIndex(parameter_index + 1);
 }
 
 Register BytecodeArrayBuilder::Receiver() const {
-  return Register::FromParameterIndex(0, parameter_count());
+  return Register::FromParameterIndex(0);
 }
 
 Register BytecodeArrayBuilder::Local(int index) const {
@@ -1576,7 +1576,7 @@ bool BytecodeArrayBuilder::RegisterIsValid(Register reg) const {
   if (reg.is_current_context() || reg.is_function_closure()) {
     return true;
   } else if (reg.is_parameter()) {
-    int parameter_index = reg.ToParameterIndex(parameter_count());
+    int parameter_index = reg.ToParameterIndex();
     return parameter_index >= 0 && parameter_index < parameter_count();
   } else if (reg.index() < fixed_register_count()) {
     return true;

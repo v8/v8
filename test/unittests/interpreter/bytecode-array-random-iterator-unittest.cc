@@ -38,7 +38,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
 
@@ -90,7 +90,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
 
@@ -142,7 +142,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
 
@@ -199,7 +199,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
   Register reg_1(1);
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
 
@@ -256,7 +256,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   Register reg_16(16);  // Something not eligible for short Star.
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
@@ -434,7 +434,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   Register reg_16(16);  // Something not eligible for short Star.
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
@@ -687,7 +687,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   Register reg_16(16);  // Something not eligible for short Star.
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
   uint32_t feedback_slot = feedback_spec.AddLoadICSlot().ToInt();

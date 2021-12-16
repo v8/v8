@@ -38,7 +38,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Register reg_16(16);  // Something not eligible for short Star.
   RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
   RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
-  Register param = Register::FromParameterIndex(2, builder.parameter_count());
+  Register param = Register::FromParameterIndex(2);
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
   uint32_t load_feedback_slot = feedback_spec.AddLoadICSlot().ToInt();

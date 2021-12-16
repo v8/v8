@@ -1462,7 +1462,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
     Label loop(this, &var_index), done_loop(this);
 
     TNode<IntPtrT> reg_base =
-        IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() + 1);
+        IntPtrConstant(Register::FromParameterIndex(0).ToOperand() + 1);
 
     Goto(&loop);
     BIND(&loop);

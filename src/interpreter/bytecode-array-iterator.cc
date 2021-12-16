@@ -130,15 +130,14 @@ FeedbackSlot BytecodeArrayIterator::GetSlotOperand(int operand_index) const {
 }
 
 Register BytecodeArrayIterator::GetReceiver() const {
-  return Register::FromParameterIndex(0, bytecode_array()->parameter_count());
+  return Register::FromParameterIndex(0);
 }
 
 Register BytecodeArrayIterator::GetParameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
   // The parameter indices are shifted by 1 (receiver is the
   // first entry).
-  return Register::FromParameterIndex(parameter_index + 1,
-                                      bytecode_array()->parameter_count());
+  return Register::FromParameterIndex(parameter_index + 1);
 }
 
 Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
@@ -275,8 +274,7 @@ int BytecodeArrayIterator::GetAbsoluteOffset(int relative_offset) const {
 }
 
 std::ostream& BytecodeArrayIterator::PrintTo(std::ostream& os) const {
-  return BytecodeDecoder::Decode(os, cursor_ - prefix_size_,
-                                 bytecode_array()->parameter_count());
+  return BytecodeDecoder::Decode(os, cursor_ - prefix_size_);
 }
 
 void BytecodeArrayIterator::UpdatePointers() {

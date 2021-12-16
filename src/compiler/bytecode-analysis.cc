@@ -25,7 +25,7 @@ BytecodeLoopAssignments::BytecodeLoopAssignments(int parameter_count,
 
 void BytecodeLoopAssignments::Add(interpreter::Register r) {
   if (r.is_parameter()) {
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_));
+    bit_vector_->Add(r.ToParameterIndex());
   } else {
     bit_vector_->Add(parameter_count_ + r.index());
   }
@@ -35,7 +35,7 @@ void BytecodeLoopAssignments::AddList(interpreter::Register r, uint32_t count) {
   if (r.is_parameter()) {
     for (uint32_t i = 0; i < count; i++) {
       DCHECK(interpreter::Register(r.index() + i).is_parameter());
-      bit_vector_->Add(r.ToParameterIndex(parameter_count_) + i);
+      bit_vector_->Add(r.ToParameterIndex() + i);
     }
   } else {
     for (uint32_t i = 0; i < count; i++) {
