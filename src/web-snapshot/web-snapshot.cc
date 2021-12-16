@@ -411,9 +411,13 @@ void WebSnapshotSerializer::SerializeString(Handle<String> string,
 }
 
 // Format (serialized shape):
+// - PropertyAttributesType
+// - 0 if the __proto__ is Object.prototype, 1 + object id for the __proto__
+//   otherwise
 // - Property count
 // - For each property
 //   - String id (name)
+//   - If the PropertyAttributesType is CUSTOM: attributes
 void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
   if (InsertIntoIndexMap(map_ids_, map, id)) {
     return;
@@ -453,6 +457,20 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
   map_serializer_.WriteUint32(first_custom_index == -1
                                   ? PropertyAttributesType::DEFAULT
                                   : PropertyAttributesType::CUSTOM);
+
+  if (map->prototype() == isolate_->context().initial_object_prototype()) {
+    map_serializer_.WriteUint32(0);
+  } else {
+    // TODO(v8:11525): Support non-JSObject prototypes, at least null. Recognize
+    // well-known objects to that we don't end up encoding them in the snapshot.
+    if (!map->prototype().IsJSObject()) {
+      Throw("Non-JSObject __proto__s not supported");
+      return;
+    }
+    uint32_t prototype_id = GetObjectId(JSObject::cast(map->prototype()));
+    map_serializer_.WriteUint32(prototype_id + 1);
+  }
+
   map_serializer_.WriteUint32(static_cast<uint32_t>(string_ids.size()));
 
   uint32_t default_flags = GetDefaultAttributeFlags();
@@ -676,6 +694,13 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   JSObject::MigrateSlowToFast(object, 0, "Web snapshot");
 
   Handle<Map> map(object->map(), isolate_);
+
+  // Discover __proto__.
+  if (map->prototype() != isolate_->context().initial_object_prototype()) {
+    discovery_queue_.push(handle(map->prototype(), isolate_));
+  }
+
+  // Discover property values.
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details =
         map->instance_descriptors(kRelaxedLoad).GetDetails(i);
@@ -1185,6 +1210,13 @@ void WebSnapshotDeserializer::DeserializeMaps() {
         return;
     }
 
+    uint32_t prototype_id;
+    if (!deserializer_->ReadUint32(&prototype_id) ||
+        prototype_id > kMaxItemCount) {
+      Throw("Malformed shape");
+      return;
+    }
+
     uint32_t property_count;
     if (!deserializer_->ReadUint32(&property_count)) {
       Throw("Malformed shape");
@@ -1232,8 +1264,22 @@ void WebSnapshotDeserializer::DeserializeMaps() {
         JS_OBJECT_TYPE, JSObject::kHeaderSize * kTaggedSize, HOLEY_ELEMENTS, 0);
     map->InitializeDescriptors(isolate_, *descriptors);
     // TODO(v8:11525): Set 'constructor'.
-    // TODO(v8:11525): Set the correct prototype.
 
+    if (prototype_id == 0) {
+      // Use Object.prototype as the prototype.
+      map->set_prototype(isolate_->context().initial_object_prototype(),
+                         UPDATE_WRITE_BARRIER);
+    } else {
+      // TODO(v8::11525): Implement stricter checks, e.g., disallow cycles.
+      --prototype_id;
+      if (prototype_id < current_object_count_) {
+        map->set_prototype(HeapObject::cast(objects_->get(prototype_id)),
+                           UPDATE_WRITE_BARRIER);
+      } else {
+        // The object hasn't been deserialized yet.
+        AddDeferredReference(map, 0, OBJECT_ID, prototype_id);
+      }
+    }
     maps_->set(i, *map);
   }
 }
@@ -1882,7 +1928,8 @@ void WebSnapshotDeserializer::AddDeferredReference(Handle<Object> container,
                                                    ValueType target_type,
                                                    uint32_t target_index) {
   DCHECK(container->IsPropertyArray() || container->IsContext() ||
-         container->IsFixedArray() || container->IsJSFunction());
+         container->IsFixedArray() || container->IsJSFunction() ||
+         container->IsMap());
   deferred_references_ = ArrayList::Add(
       isolate_, deferred_references_, container, Smi::FromInt(index),
       Smi::FromInt(target_type), Smi::FromInt(target_index));
@@ -1966,6 +2013,12 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
         Throw("Can't reuse function prototype");
         return;
       }
+    } else if (container.IsMap()) {
+      // The only deferred reference allowed for a Map is the __proto__.
+      DCHECK_EQ(index, 0);
+      DCHECK(target.IsJSReceiver());
+      Map::cast(container).set_prototype(HeapObject::cast(target),
+                                         UPDATE_WRITE_BARRIER);
     } else {
       UNREACHABLE();
     }

@@ -35,12 +35,55 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   assertEquals(42, foo.n);
 })();
 
+(function TestDefaultObjectProto() {
+  function createObjects() {
+    globalThis.foo = {
+      str: 'hello',
+      n: 42,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(Object.prototype, Object.getPrototypeOf(foo));
+})();
+
 (function TestEmptyObject() {
   function createObjects() {
     globalThis.foo = {};
   }
   const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
   assertEquals([], Object.keys(foo));
+})();
+
+(function TestEmptyObjectProto() {
+  function createObjects() {
+    globalThis.foo = {};
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(Object.prototype, Object.getPrototypeOf(foo));
+})();
+
+(function TestObjectProto() {
+  function createObjects() {
+    globalThis.foo = {
+      __proto__ : {x : 10},
+      y: 11
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(10, Object.getPrototypeOf(foo).x);
+})();
+
+(function TestObjectProtoInSnapshot() {
+  function createObjects() {
+    globalThis.o1 = { x: 10};
+    globalThis.o2 = {
+      __proto__ : o1,
+      y: 11
+    };
+  }
+  const { o1, o2 } = takeAndUseWebSnapshot(createObjects, ['o1', 'o2']);
+  assertEquals(o1, Object.getPrototypeOf(o2));
+  assertEquals(Object.prototype, Object.getPrototypeOf(o1));
 })();
 
 (function TestNumbers() {
@@ -412,4 +455,51 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   const o = new F(1, 2);
   assertEquals(3, o.x);
   assertEquals(10, o.m(3, 4));
+})();
+
+(function TestFunctionPrototypeBecomesProto() {
+  function createObjects() {
+    globalThis.F = function() {}
+    globalThis.F.prototype.x = 100;
+  }
+  const { F } = takeAndUseWebSnapshot(createObjects, ['F']);
+  const o = new F();
+  assertEquals(100, Object.getPrototypeOf(o).x);
+})();
+
+(function TestFunctionCtorCallsFunctionInPrototype() {
+  function createObjects() {
+    globalThis.F = function() {
+      this.fooCalled = false;
+      this.foo();
+    }
+    globalThis.F.prototype.foo = function() { this.fooCalled = true; };
+  }
+  const { F } = takeAndUseWebSnapshot(createObjects, ['F']);
+  const o = new F();
+  assertTrue(o.fooCalled);
+})();
+
+(function TestFunctionPrototypeConnectedToObjectPrototype() {
+  function createObjects() {
+    globalThis.F = function() {}
+  }
+  const { F } = takeAndUseWebSnapshot(createObjects, ['F']);
+  const o = new F();
+  assertEquals(Object.prototype,
+               Object.getPrototypeOf(Object.getPrototypeOf(o)));
+})();
+
+(function TestFunctionInheritance() {
+  function createObjects() {
+    globalThis.Super = function() {}
+    globalThis.Super.prototype.superfunc = function() { return 'superfunc'; };
+    globalThis.Sub = function() {}
+    globalThis.Sub.prototype = Object.create(Super.prototype);
+    globalThis.Sub.prototype.subfunc = function() { return 'subfunc'; };
+  }
+  const { Sub } = takeAndUseWebSnapshot(createObjects, ['Sub']);
+  const o = new Sub();
+  assertEquals('superfunc', o.superfunc());
+  assertEquals('subfunc', o.subfunc());
 })();
