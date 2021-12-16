@@ -83,9 +83,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '568d3162ed030040fdaf65403abba6fb7845d1a1',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '539f2b4e1ca1187842ebedd65852940f698a06b5',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '075dd7e22837a69189003e4fa84499acf63188cf',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd7bdd6f0386aaf20cd00a01d499e8ce1cbf6063e',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'e435ad79c17b1888b34df88d6a30a094936e3836',
   'buildtools/linux64': {
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '563885e399ba18672cd7d009a0c0f0a996d71f6b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '58f3a92099a02ccc517ce7bce93b75da0766b451',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9e5809e98f33a5f9f9d3b69a5bd826ce8a7a5a81',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '168ca4d812a03fc41408c8eb8fdca34083a7a135',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
@@ -226,7 +226,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '3b3de69400164013199ea448f051d94d7fc7d81f',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '054a986a8513149e8374fc669a5fe40117ca6b41',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '97a467571a0f615a4d96e79e4399c43221ca1232',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'fbc6faf1c2c429cd27fabe615a89f0b217aa4213',
   'third_party/instrumented_libraries':
