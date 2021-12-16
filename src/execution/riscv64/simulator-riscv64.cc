@@ -2413,14 +2413,14 @@ T Simulator::ReadMem(int64_t addr, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-#ifndef V8_COMPRESS_POINTERS  // TODO(RISCV): v8:11812
-  // // check for natural alignment
-  // if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
-  //   PrintF("Unaligned read at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n",
-  //   addr,
-  //          reinterpret_cast<intptr_t>(instr));
-  //   DieOrDebug();
-  // }
+#if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
+  // check for natural alignment
+  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+    PrintF("Unaligned read at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n",
+    addr,
+           reinterpret_cast<intptr_t>(instr));
+    DieOrDebug();
+  }
 #endif
   T* ptr = reinterpret_cast<T*>(addr);
   T value = *ptr;
@@ -2436,7 +2436,7 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-#ifndef V8_COMPRESS_POINTERS  // TODO(RISCV): v8:11812
+#if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
   if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,

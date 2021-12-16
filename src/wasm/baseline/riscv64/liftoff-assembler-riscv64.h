@@ -123,19 +123,19 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
   MemOperand dst(base, offset);
   switch (kind) {
     case kI32:
-      assm->Usw(src.gp(), dst);
+      assm->Sw(src.gp(), dst);
       break;
     case kI64:
     case kOptRef:
     case kRef:
     case kRtt:
-      assm->Usd(src.gp(), dst);
+      assm->Sd(src.gp(), dst);
       break;
     case kF32:
-      assm->UStoreFloat(src.fp(), dst, kScratchReg);
+      assm->StoreFloat(src.fp(), dst);
       break;
     case kF64:
-      assm->UStoreDouble(src.fp(), dst, kScratchReg);
+      assm->StoreDouble(src.fp(), dst);
       break;
     default:
       UNREACHABLE();
@@ -539,27 +539,27 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kI32Load16U:
     case LoadType::kI64Load16U:
-      TurboAssembler::Ulhu(dst.gp(), src_op);
+      TurboAssembler::Lhu(dst.gp(), src_op);
       break;
     case LoadType::kI32Load16S:
     case LoadType::kI64Load16S:
-      TurboAssembler::Ulh(dst.gp(), src_op);
+      TurboAssembler::Lh(dst.gp(), src_op);
       break;
     case LoadType::kI64Load32U:
-      TurboAssembler::Ulwu(dst.gp(), src_op);
+      TurboAssembler::Lwu(dst.gp(), src_op);
       break;
     case LoadType::kI32Load:
     case LoadType::kI64Load32S:
-      TurboAssembler::Ulw(dst.gp(), src_op);
+      TurboAssembler::Lw(dst.gp(), src_op);
       break;
     case LoadType::kI64Load:
-      TurboAssembler::Uld(dst.gp(), src_op);
+      TurboAssembler::Ld(dst.gp(), src_op);
       break;
     case LoadType::kF32Load:
-      TurboAssembler::ULoadFloat(dst.fp(), src_op, kScratchReg);
+      TurboAssembler::LoadFloat(dst.fp(), src_op);
       break;
     case LoadType::kF64Load:
-      TurboAssembler::ULoadDouble(dst.fp(), src_op, kScratchReg);
+      TurboAssembler::LoadDouble(dst.fp(), src_op);
       break;
     case LoadType::kS128Load: {
       VU.set(kScratchReg, E8, m1);
@@ -610,20 +610,20 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI32Store16:
     case StoreType::kI64Store16:
-      TurboAssembler::Ush(src.gp(), dst_op);
+      TurboAssembler::Sh(src.gp(), dst_op);
       break;
     case StoreType::kI32Store:
     case StoreType::kI64Store32:
-      TurboAssembler::Usw(src.gp(), dst_op);
+      TurboAssembler::Sw(src.gp(), dst_op);
       break;
     case StoreType::kI64Store:
-      TurboAssembler::Usd(src.gp(), dst_op);
+      TurboAssembler::Sd(src.gp(), dst_op);
       break;
     case StoreType::kF32Store:
-      TurboAssembler::UStoreFloat(src.fp(), dst_op, kScratchReg);
+      TurboAssembler::StoreFloat(src.fp(), dst_op);
       break;
     case StoreType::kF64Store:
-      TurboAssembler::UStoreDouble(src.fp(), dst_op, kScratchReg);
+      TurboAssembler::StoreDouble(src.fp(), dst_op);
       break;
     case StoreType::kS128Store: {
       VU.set(kScratchReg, E8, m1);
@@ -3575,7 +3575,7 @@ void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
-  TurboAssembler::Uld(limit_address, MemOperand(limit_address));
+  TurboAssembler::Ld(limit_address, MemOperand(limit_address));
   TurboAssembler::Branch(ool_code, ule, sp, Operand(limit_address));
 }
 

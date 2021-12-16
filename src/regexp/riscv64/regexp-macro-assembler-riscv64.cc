@@ -1144,9 +1144,9 @@ void RegExpMacroAssemblerRISCV::ClearRegisters(int reg_from, int reg_to) {
     __ Sd(a0, register_location(reg));
   }
 }
-
+#ifdef RISCV_HAS_NO_UNALIGNED
 bool RegExpMacroAssemblerRISCV::CanReadUnaligned() const { return false; }
-
+#endif
 // Private methods:
 
 void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch) {
@@ -1328,20 +1328,40 @@ void RegExpMacroAssemblerRISCV::CheckStackLimit() {
 void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,
                                                               int characters) {
   Register offset = current_input_offset();
-  if (cp_offset != 0) {
-    // s3 is not being used to store the capture start index at this point.
-    __ Add64(s3, current_input_offset(), Operand(cp_offset * char_size()));
-    offset = s3;
+
+  // If unaligned load/stores are not supported then this function must only
+  // be used to load a single character at a time.
+  if (!CanReadUnaligned()) {
+    DCHECK_EQ(1, characters);
   }
-  // We assume that we cannot do unaligned loads on RISC-V, so this function
-  // must only be used to load a single character at a time.
-  DCHECK_EQ(1, characters);
-  __ Add64(t1, end_of_input_address(), Operand(offset));
+  if (cp_offset != 0) {
+    // t3 is not being used to store the capture start index at this point.
+    __ Add64(t3, current_input_offset(), Operand(cp_offset * char_size()));
+    offset = t3;
+  }
+
   if (mode_ == LATIN1) {
-    __ Lbu(current_character(), MemOperand(t1, 0));
+    if (characters == 4) {
+      __ Add64(kScratchReg, end_of_input_address(), offset);
+      __ Lwu(current_character(), MemOperand(kScratchReg));
+    } else if (characters == 2) {
+      __ Add64(kScratchReg, end_of_input_address(), offset);
+      __ Lhu(current_character(), MemOperand(kScratchReg));
+    } else {
+  DCHECK_EQ(1, characters);
+      __ Add64(kScratchReg, end_of_input_address(), offset);
+      __ Lbu(current_character(), MemOperand(kScratchReg));
+    }
   } else {
     DCHECK(mode_ == UC16);
-    __ Lhu(current_character(), MemOperand(t1, 0));
+    if (characters == 2) {
+      __ Add64(kScratchReg, end_of_input_address(), offset);
+      __ Lwu(current_character(), MemOperand(kScratchReg));
+    } else {
+      DCHECK_EQ(1, characters);
+      __ Add64(kScratchReg, end_of_input_address(), offset);
+      __ Lhu(current_character(), MemOperand(kScratchReg));
+    }
   }
 }
 
