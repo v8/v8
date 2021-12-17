@@ -154,8 +154,8 @@
 #error Target architecture ia32 is only supported on ia32 host
 #endif
 #if (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT && \
-     !(V8_HOST_ARCH_X64 && V8_HOST_ARCH_64_BIT))
-#error Target architecture x64 is only supported on x64 host
+     !((V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64) && V8_HOST_ARCH_64_BIT))
+#error Target architecture x64 is only supported on x64 and arm64 host
 #endif
 #if (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT && \
      !(V8_HOST_ARCH_X64 && V8_HOST_ARCH_32_BIT))
