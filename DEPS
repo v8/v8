@@ -40,7 +40,7 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:2e56c317bd8e2bf152cfa2ead6ac5fa476fe28b4',
+  'gn_version': 'git_revision:18df6af86191edab1e47c84d56e608da414d446b',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:e897e118887a2e6c50a82212b660cb2a7c58d910',
@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '539f2b4e1ca1187842ebedd65852940f698a06b5',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1a7d92e5e8eba18adb7e67c9e991e58a9d30e5b0',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd7bdd6f0386aaf20cd00a01d499e8ce1cbf6063e',
   'buildtools/clang_format/script':
@@ -113,7 +113,7 @@ deps = {
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '603d9d1067d178ee2dbd1ba8028413baa876a771',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd81cd6236cd771e78d7e1a1807404ef3f1d21820',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '4ead61094cab5ac7a90198fbe182596c4775183e',
   'buildtools/win': {
     'packages': [
       {
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '58f3a92099a02ccc517ce7bce93b75da0766b451',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '22e558b5843a77389ca3883d0950f0f34e6f690c',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -276,7 +276,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'efd9399ae01364926be2a38946127fdf463480db',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'dc7eff95e13cd297af9c0a28a2f43bd0c975c54b',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '4424dce4fe0daa6654a9052dc95ce3bd263018f0',
   'tools/clang/dsymutil': {
     'packages': [
       {
