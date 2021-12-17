@@ -21,6 +21,7 @@ group("v8_mjsunit") {
     "../../tools/consarray.mjs",
     "../../tools/csvparser.mjs",
     "../../tools/dumpcpp.mjs",
+    "../../tools/js/helper.mjs",
     "../../tools/logreader.mjs",
     "../../tools/profile.mjs",
     "../../tools/profile_view.mjs",

@@ -441,7 +441,7 @@ class JSLintProcessor(CacheableSourceFileProcessor):
     return name.endswith('.js') or name.endswith('.mjs')
 
   def GetPathsToSearch(self):
-    return ['tools/system-analyzer']
+    return ['tools/system-analyzer', 'tools/heap-layout', 'tools/js']
 
   def GetProcessorWorker(self):
     return JSLintWorker
