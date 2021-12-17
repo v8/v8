@@ -3248,16 +3248,21 @@ v8_library(
 v8_library(
     name = "v8",
     srcs = [":v8_inspector_files"],
+    hdrs = [":public_header_files"],
     icu_deps = [":icu/v8_libshared"],
     icu_srcs = [":icu/snapshot_files"],
     noicu_deps = [":noicu/v8_libshared"],
     noicu_srcs = [":noicu/snapshot_files"],
+    visibility = ["//visibility:public"],
 )
 
 # TODO(victorgomes): Check if v8_enable_webassembly is true.
 v8_library(
     name = "wee8",
     srcs = [":wee8_files"],
+    hdrs = [":public_wasm_c_api_header_files"],
+    strip_include_prefix = "third_party",
+    visibility = ["//visibility:public"],
     deps = [":noicu/v8"],
 )
 
