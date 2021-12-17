@@ -284,7 +284,7 @@ std::ostream& operator<<(std::ostream& os, const MoveOperands& mo) {
   if (!mo.source().Equals(mo.destination())) {
     os << " = " << mo.source();
   }
-  return os << ";";
+  return os;
 }
 
 bool ParallelMove::IsRedundant() const {
@@ -373,11 +373,11 @@ bool Instruction::AreMovesRedundant() const {
 void Instruction::Print() const { StdoutStream{} << *this << std::endl; }
 
 std::ostream& operator<<(std::ostream& os, const ParallelMove& pm) {
-  const char* space = "";
+  const char* delimiter = "";
   for (MoveOperands* move : pm) {
     if (move->IsEliminated()) continue;
-    os << space << *move;
-    space = " ";
+    os << delimiter << *move;
+    delimiter = "; ";
   }
   return os;
 }
