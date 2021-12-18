@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1a7d92e5e8eba18adb7e67c9e991e58a9d30e5b0',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '480295fc945f140c6e9330ec97cdd12c4a6b9817',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd7bdd6f0386aaf20cd00a01d499e8ce1cbf6063e',
   'buildtools/clang_format/script':
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '22e558b5843a77389ca3883d0950f0f34e6f690c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a25500bfae56d9a4774abe8c1b4efa3c08d20965',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
