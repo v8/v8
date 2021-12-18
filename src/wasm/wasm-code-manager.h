@@ -1058,10 +1058,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // Can only be called if {HasMemoryProtectionKeySupport()} is {true}.
   bool MemoryProtectionKeyWritable() const;
 
-  // This allocates a memory protection key (if none was allocated before),
-  // independent of the --wasm-memory-protection-keys flag.
-  void InitializeMemoryProtectionKeyForTesting();
-
  private:
   friend class WasmCodeAllocator;
   friend class WasmEngine;
