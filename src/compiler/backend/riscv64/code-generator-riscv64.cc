@@ -126,6 +126,8 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
       case kMode_MRI:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
+      case kMode_Root:
+        return MemOperand(kRootRegister, InputInt32(index));
       case kMode_MRR:
         // TODO(plind): r6 address mode, to be implemented ...
         UNREACHABLE();

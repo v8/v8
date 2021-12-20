@@ -374,6 +374,24 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
+  ExternalReferenceMatcher m(base);
+  if (m.HasResolvedValue() && g.IsIntegerConstant(index) &&
+      selector->CanAddressRelativeToRootsRegister(m.ResolvedValue())) {
+    ptrdiff_t const delta =
+        g.GetIntegerConstantValue(index) +
+        TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+            selector->isolate(), m.ResolvedValue());
+    // Check that the delta is a 32-bit integer due to the limitations of
+    // immediate operands.
+    if (is_int32(delta)) {
+      opcode |= AddressingModeField::encode(kMode_Root);
+      selector->Emit(opcode,
+                     g.DefineAsRegister(output == nullptr ? node : output),
+                     g.UseImmediate(static_cast<int32_t>(delta)));
+      return;
+    }
+  }
+
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                    g.DefineAsRegister(output == nullptr ? node : output),
