@@ -1017,6 +1017,12 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
 
+  // The isolate might access existing (cached) code without ever compiling any.
+  // In that case, the current thread might still have the default permissions
+  // for the memory protection key (== no access). Thus initialize the
+  // permissions now.
+  GetWasmCodeManager()->InitializeMemoryProtectionKeyPermissionsIfSupported();
+
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
   // bias samples towards apps with high memory pressure. We should switch to
