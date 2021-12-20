@@ -346,7 +346,6 @@ namespace {
 
 void BytecodeBudgetInterruptFromBytecode(Isolate* isolate,
                                          Handle<JSFunction> function) {
-  function->SetInterruptBudget();
   bool should_mark_for_optimization = function->has_feedback_vector();
   if (!function->has_feedback_vector()) {
     IsCompiledScope is_compiled_scope(
@@ -357,6 +356,8 @@ void BytecodeBudgetInterruptFromBytecode(Isolate* isolate,
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.
     function->feedback_vector().set_invocation_count(1, kRelaxedStore);
+  } else {
+    function->SetInterruptBudget();
   }
   if (CanCompileWithBaseline(isolate, function->shared()) &&
       !function->ActiveTierIsBaseline()) {
