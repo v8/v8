@@ -1999,11 +1999,14 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterFor(
              pos != UsePosition::kStart) {
     // If we are trying to allocate a register that was used as a
     // same_input_output operand, then we can't use it for an input that expands
-    // past UsePosition::kStart. This should only happen for REGISTER_OR_SLOT
-    // operands that are used for the deopt state, so we can just use a spill
-    // slot.
-    CHECK(!must_use_register);
-    return RegisterIndex::Invalid();
+    // past UsePosition::kStart.
+    if (must_use_register) {
+      // Use a new register instead.
+      reg = ChooseRegisterFor(rep, pos, must_use_register);
+    } else {
+      // Use a spill slot.
+      reg = RegisterIndex::Invalid();
+    }
   }
   return reg;
 }
@@ -2304,18 +2307,27 @@ void SinglePassRegisterAllocator::AllocateInput(
     RegisterIndex reg = ChooseRegisterFor(virtual_register, instr_index, pos,
                                           must_use_register);
 
-    if (reg.is_valid()) {
-      if (must_use_register) {
-        AllocateUse(reg, virtual_register, operand, instr_index, pos);
-      } else {
-        AllocatePendingUse(reg, virtual_register, operand,
-                           operand->HasRegisterOrSlotOrConstantPolicy(),
-                           instr_index);
-      }
-    } else {
+    if (!reg.is_valid()) {
+      // The register will have been spilled at this use.
       virtual_register.SpillOperand(
           operand, instr_index, operand->HasRegisterOrSlotOrConstantPolicy(),
           data());
+    } else if (!must_use_register) {
+      // We might later dedice to spill this register; allocate a pending use.
+      AllocatePendingUse(reg, virtual_register, operand,
+                         operand->HasRegisterOrSlotOrConstantPolicy(),
+                         instr_index);
+    } else if (VirtualRegisterIsUnallocatedOrInReg(virtual_register.vreg(),
+                                                   reg)) {
+      // The register is directly usable.
+      AllocateUse(reg, virtual_register, operand, instr_index, pos);
+    } else {
+      // We assigned another register to the vreg before. {ChooseRegisterFor}
+      // chose a different one (e.g. to fulfill a "unique register" constraint
+      // for a vreg that was previously used for the input corresponding to the
+      // "same as input" output), so add a gap move to copy the input value to
+      // that new register.
+      AllocateUseWithMove(reg, virtual_register, operand, instr_index, pos);
     }
   }
 }
