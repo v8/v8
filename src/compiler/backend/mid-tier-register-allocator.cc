@@ -1459,6 +1459,8 @@ class SinglePassRegisterAllocator final {
                       MachineRepresentation rep, InstructionOperand* operand,
                       UsePosition pos);
   void SpillRegister(RegisterIndex reg);
+  void SpillRegisterAndPotentialSimdSibling(RegisterIndex reg,
+                                            MachineRepresentation rep);
   void SpillRegisterForVirtualRegister(int virtual_register);
 
   // Pre-emptively spill the register at the exit of deferred blocks such that
@@ -2017,7 +2019,7 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterFor(
   RegisterIndex reg = ChooseFreeRegister(rep, pos);
   if (!reg.is_valid() && must_use_register) {
     reg = ChooseRegisterToSpill(rep, pos);
-    SpillRegister(reg);
+    SpillRegisterAndPotentialSimdSibling(reg, rep);
   }
   return reg;
 }
@@ -2147,6 +2149,18 @@ void SinglePassRegisterAllocator::SpillRegister(RegisterIndex reg) {
   AllocatedOperand allocated = AllocatedOperandForReg(reg, rep);
   register_state()->Spill(reg, allocated, current_block(), data());
   FreeRegister(reg, virtual_register, rep);
+}
+
+void SinglePassRegisterAllocator::SpillRegisterAndPotentialSimdSibling(
+    RegisterIndex reg, MachineRepresentation rep) {
+  SpillRegister(reg);
+
+  if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
+    // Two FP registers {2N, 2N+1} alias the same SIMD register. We compute {2N}
+    // from {2N+1} and vice versa in a single computation.
+    RegisterIndex siblingSimdReg{reg.ToInt() + 1 - 2 * (reg.ToInt() & 1)};
+    SpillRegister(siblingSimdReg);
+  }
 }
 
 void SinglePassRegisterAllocator::SpillAllRegisters() {
@@ -2533,7 +2547,7 @@ void SinglePassRegisterAllocator::ReserveFixedRegister(
     // If register is in-use by a different virtual register, spill it now.
     // TODO(rmcilroy): Consider moving to a unconstrained register instead of
     // spilling.
-    SpillRegister(reg);
+    SpillRegisterAndPotentialSimdSibling(reg, rep);
   }
   MarkRegisterUse(reg, rep, pos);
 }
