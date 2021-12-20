@@ -125,7 +125,7 @@ def _check_test(error_msg, test):
 
   # Limit shards to 14 to avoid erroneous resource exhaustion.
   errors += _check_int_range(
-      error_msg, test, 'shards', lower_bound=1, upper_bound=14)
+      error_msg, test, 'shards', lower_bound=1, upper_bound=20)
 
   variant = test.get('variant', 'default')
   if not variant or not isinstance(variant, basestring):

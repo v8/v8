@@ -1575,7 +1575,7 @@
       'priority': 35,
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 14},
+      {'name': 'v8testing', 'shards': 20},
       {'name': 'v8testing', 'variant': 'future', 'shards': 4},
     ],
   },
