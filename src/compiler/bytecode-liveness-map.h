@@ -23,6 +23,9 @@ class BytecodeLivenessState : public ZoneObject {
   BytecodeLivenessState(const BytecodeLivenessState&) = delete;
   BytecodeLivenessState& operator=(const BytecodeLivenessState&) = delete;
 
+  BytecodeLivenessState(const BytecodeLivenessState& other, Zone* zone)
+      : bit_vector_(other.bit_vector_, zone) {}
+
   const BitVector& bit_vector() const { return bit_vector_; }
 
   BitVector& bit_vector() { return bit_vector_; }
@@ -78,16 +81,13 @@ class BytecodeLivenessState : public ZoneObject {
 struct BytecodeLiveness {
   BytecodeLivenessState* in;
   BytecodeLivenessState* out;
-
-  BytecodeLiveness(int register_count, Zone* zone);
 };
 
 class V8_EXPORT_PRIVATE BytecodeLivenessMap {
  public:
   BytecodeLivenessMap(int size, Zone* zone);
 
-  BytecodeLiveness& InitializeLiveness(int offset, int register_count,
-                                       Zone* zone);
+  BytecodeLiveness& InsertNewLiveness(int offset);
 
   BytecodeLiveness& GetLiveness(int offset);
   const BytecodeLiveness& GetLiveness(int offset) const;

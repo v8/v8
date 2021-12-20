@@ -8,10 +8,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-BytecodeLiveness::BytecodeLiveness(int register_count, Zone* zone)
-    : in(zone->New<BytecodeLivenessState>(register_count, zone)),
-      out(zone->New<BytecodeLivenessState>(register_count, zone)) {}
-
 BytecodeLivenessMap::BytecodeLivenessMap(int bytecode_size, Zone* zone)
     : liveness_map_(base::bits::RoundUpToPowerOfTwo32(bytecode_size / 4 + 1),
                     base::KeyEqualityMatcher<int>(),
@@ -19,13 +15,8 @@ BytecodeLivenessMap::BytecodeLivenessMap(int bytecode_size, Zone* zone)
 
 uint32_t OffsetHash(int offset) { return offset; }
 
-BytecodeLiveness& BytecodeLivenessMap::InitializeLiveness(int offset,
-                                                          int register_count,
-                                                          Zone* zone) {
-  return liveness_map_
-      .LookupOrInsert(offset, OffsetHash(offset),
-                      [&]() { return BytecodeLiveness(register_count, zone); })
-      ->value;
+BytecodeLiveness& BytecodeLivenessMap::InsertNewLiveness(int offset) {
+  return liveness_map_.LookupOrInsert(offset, OffsetHash(offset))->value;
 }
 
 BytecodeLiveness& BytecodeLivenessMap::GetLiveness(int offset) {

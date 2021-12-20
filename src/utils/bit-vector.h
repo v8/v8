@@ -18,7 +18,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     uintptr_t* ptr_;    // valid if data_length_ > 1
     uintptr_t inline_;  // valid if data_length_ == 1
 
-    DataStorage(uintptr_t value) : inline_(value) {}
+    explicit DataStorage(uintptr_t value) : inline_(value) {}
   };
 
   // Iterator for the elements of this BitVector.
@@ -111,8 +111,15 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   }
 
   void CopyFrom(const BitVector& other) {
-    DCHECK_LE(other.length(), length());
-    CopyFrom(other.data_, other.data_length_);
+    DCHECK_EQ(other.length(), length());
+    if (is_inline()) {
+      DCHECK(other.is_inline());
+      data_.inline_ = other.data_.inline_;
+    } else {
+      for (int i = 0; i < data_length_; i++) {
+        data_.ptr_[i] = other.data_.ptr_[i];
+      }
+    }
   }
 
   void Resize(int new_length, Zone* zone) {
@@ -126,7 +133,19 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
       DCHECK_GT(new_data_length, kDataLengthForInline);
       data_.ptr_ = zone->NewArray<uintptr_t>(new_data_length);
       data_length_ = new_data_length;
-      CopyFrom(old_data, old_data_length);
+
+      // Copy over the data.
+      if (old_data_length == kDataLengthForInline) {
+        data_.ptr_[0] = old_data.inline_;
+      } else {
+        for (int i = 0; i < old_data_length; i++) {
+          data_.ptr_[i] = old_data.ptr_[i];
+        }
+      }
+      // Zero out the rest of the data.
+      for (int i = old_data_length; i < data_length_; i++) {
+        data_.ptr_[i] = 0;
+      }
     }
     length_ = new_length;
   }
@@ -288,27 +307,6 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   DataStorage data_;
 
   bool is_inline() const { return data_length_ == kDataLengthForInline; }
-
-  void CopyFrom(DataStorage other_data, int other_data_length) {
-    DCHECK_LE(other_data_length, data_length_);
-
-    if (is_inline()) {
-      DCHECK_EQ(other_data_length, kDataLengthForInline);
-      data_.inline_ = other_data.inline_;
-    } else if (other_data_length == kDataLengthForInline) {
-      data_.ptr_[0] = other_data.inline_;
-      for (int i = 1; i < data_length_; i++) {
-        data_.ptr_[i] = 0;
-      }
-    } else {
-      for (int i = 0; i < other_data_length; i++) {
-        data_.ptr_[i] = other_data.ptr_[i];
-      }
-      for (int i = other_data_length; i < data_length_; i++) {
-        data_.ptr_[i] = 0;
-      }
-    }
-  }
 };
 
 class GrowableBitVector {

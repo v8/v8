@@ -4,6 +4,7 @@
 
 #include "src/compiler/bytecode-analysis.h"
 
+#include "src/compiler/bytecode-liveness-map.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-array-random-iterator.h"
 #include "src/objects/objects-inl.h"
@@ -210,37 +211,83 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState* in_liveness,
   }
 }
 
-void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState* out_liveness,
+template <bool IsFirstUpdate = false>
+void EnsureOutLivenessIsNotAlias(
+    BytecodeLiveness& liveness,
+    BytecodeLivenessState* next_bytecode_in_liveness, Zone* zone) {
+  if (!IsFirstUpdate) {
+    // We should have copied the next bytecode's in liveness already in the
+    // first pass, so on subsequent passes this should already not be an alias.
+    DCHECK_NE(liveness.out, next_bytecode_in_liveness);
+    return;
+  }
+  if (liveness.out == next_bytecode_in_liveness) {
+    // If the out-liveness is aliasing the next bytecode's in-liveness,
+    // reallocate it and copy the data to the newly allocated state.
+    liveness.out =
+        zone->New<BytecodeLivenessState>(*next_bytecode_in_liveness, zone);
+  }
+}
+
+template <bool IsFirstUpdate = false>
+void UpdateOutLiveness(Bytecode bytecode, BytecodeLiveness& liveness,
                        BytecodeLivenessState* next_bytecode_in_liveness,
                        const interpreter::BytecodeArrayIterator& iterator,
                        Handle<BytecodeArray> bytecode_array,
-                       const BytecodeLivenessMap& liveness_map) {
-  int current_offset = iterator.current_offset();
+                       const BytecodeLivenessMap& liveness_map, Zone* zone) {
+  // On subsequent updates, only update out-liveness manually if it isn't
+  // already aliasing the next bytecode's in-liveness.
+  if (!IsFirstUpdate && liveness.out == next_bytecode_in_liveness) return;
 
   // Special case Suspend and Resume to just pass through liveness.
   if (bytecode == Bytecode::kSuspendGenerator ||
       bytecode == Bytecode::kResumeGenerator) {
-    out_liveness->Union(*next_bytecode_in_liveness);
-    return;
-  }
-
-  // Update from jump target (if any). Skip loops, we update these manually in
-  // the liveness iterations.
-  if (Bytecodes::IsForwardJump(bytecode)) {
-    int target_offset = iterator.GetJumpTargetOffset();
-    out_liveness->Union(*liveness_map.GetInLiveness(target_offset));
-  } else if (Bytecodes::IsSwitch(bytecode)) {
-    for (interpreter::JumpTableTargetOffset entry :
-         iterator.GetJumpTableTargetOffsets()) {
-      out_liveness->Union(*liveness_map.GetInLiveness(entry.target_offset));
+    DCHECK_NOT_NULL(next_bytecode_in_liveness);
+    if (IsFirstUpdate) {
+      liveness.out = next_bytecode_in_liveness;
+    } else {
+      liveness.out->Union(*next_bytecode_in_liveness);
     }
+    return;
   }
 
   // Update from next bytecode (unless there isn't one or this is an
   // unconditional jump).
   if (next_bytecode_in_liveness != nullptr &&
       !Bytecodes::IsUnconditionalJump(bytecode)) {
-    out_liveness->Union(*next_bytecode_in_liveness);
+    if (IsFirstUpdate) {
+      // On first update, we can assume that this out-liveness is the same as
+      // the next liveness, and can directly alias it -- we'll allocate a new
+      // one using EnsureOutLivenessIsNotAlias if it needs to be mutated.
+      DCHECK_NULL(liveness.out);
+      liveness.out = next_bytecode_in_liveness;
+    } else {
+      liveness.out->Union(*next_bytecode_in_liveness);
+    }
+  } else if (IsFirstUpdate) {
+    // Otherwise, on the first allocation we need to make sure that there is an
+    // allocated out liveness.
+    DCHECK_NULL(liveness.out);
+    liveness.out = zone->New<BytecodeLivenessState>(
+        bytecode_array->register_count(), zone);
+  }
+
+  DCHECK_NOT_NULL(liveness.out);
+
+  // Update from jump target (if any). Skip loops, we update these manually in
+  // the liveness iterations.
+  if (Bytecodes::IsForwardJump(bytecode)) {
+    int target_offset = iterator.GetJumpTargetOffset();
+    EnsureOutLivenessIsNotAlias<IsFirstUpdate>(liveness,
+                                               next_bytecode_in_liveness, zone);
+    liveness.out->Union(*liveness_map.GetInLiveness(target_offset));
+  } else if (Bytecodes::IsSwitch(bytecode)) {
+    EnsureOutLivenessIsNotAlias<IsFirstUpdate>(liveness,
+                                               next_bytecode_in_liveness, zone);
+    for (interpreter::JumpTableTargetOffset entry :
+         iterator.GetJumpTableTargetOffsets()) {
+      liveness.out->Union(*liveness_map.GetInLiveness(entry.target_offset));
+    }
   }
 
   // Update from exception handler (if any).
@@ -249,18 +296,20 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState* out_liveness,
     // TODO(leszeks): We should look up this range only once per entry.
     HandlerTable table(*bytecode_array);
     int handler_offset =
-        table.LookupRange(current_offset, &handler_context, nullptr);
+        table.LookupRange(iterator.current_offset(), &handler_context, nullptr);
 
     if (handler_offset != -1) {
-      bool was_accumulator_live = out_liveness->AccumulatorIsLive();
-      out_liveness->Union(*liveness_map.GetInLiveness(handler_offset));
-      out_liveness->MarkRegisterLive(handler_context);
+      EnsureOutLivenessIsNotAlias<IsFirstUpdate>(
+          liveness, next_bytecode_in_liveness, zone);
+      bool was_accumulator_live = liveness.out->AccumulatorIsLive();
+      liveness.out->Union(*liveness_map.GetInLiveness(handler_offset));
+      liveness.out->MarkRegisterLive(handler_context);
       if (!was_accumulator_live) {
         // The accumulator is reset to the exception on entry into a handler,
         // and so shouldn't be considered live coming out of this bytecode just
         // because it's live coming into the handler. So, kill the accumulator
         // if the handler is the only thing that made it live.
-        out_liveness->MarkAccumulatorDead();
+        liveness.out->MarkAccumulatorDead();
 
         // TODO(leszeks): Ideally the accumulator wouldn't be considered live at
         // the start of the handler, but looking up if the current bytecode is
@@ -271,14 +320,26 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState* out_liveness,
   }
 }
 
-void UpdateLiveness(Bytecode bytecode, BytecodeLiveness const& liveness,
+template <bool IsFirstUpdate = false>
+void UpdateLiveness(Bytecode bytecode, BytecodeLiveness& liveness,
                     BytecodeLivenessState** next_bytecode_in_liveness,
                     const interpreter::BytecodeArrayIterator& iterator,
                     Handle<BytecodeArray> bytecode_array,
-                    const BytecodeLivenessMap& liveness_map) {
-  UpdateOutLiveness(bytecode, liveness.out, *next_bytecode_in_liveness,
-                    iterator, bytecode_array, liveness_map);
-  liveness.in->CopyFrom(*liveness.out);
+                    const BytecodeLivenessMap& liveness_map, Zone* zone) {
+  UpdateOutLiveness<IsFirstUpdate>(bytecode, liveness,
+                                   *next_bytecode_in_liveness, iterator,
+                                   bytecode_array, liveness_map, zone);
+  if (IsFirstUpdate) {
+    // On the first update, allocate the in-liveness as a copy of the
+    // out-liveness.
+    DCHECK_NULL(liveness.in);
+    liveness.in = zone->New<BytecodeLivenessState>(*liveness.out, zone);
+  } else {
+    // On subsequent updates, copy liveness from the out vector.
+    // TODO(leszeks): If this copy doesn't change liveness, we could
+    // opportunistically terminate early.
+    liveness.in->CopyFrom(*liveness.out);
+  }
   UpdateInLiveness(bytecode, liveness.in, iterator);
 
   *next_bytecode_in_liveness = liveness.in;
@@ -443,10 +504,10 @@ void BytecodeAnalysis::Analyze() {
     }
 
     if (analyze_liveness_) {
-      BytecodeLiveness const& liveness = liveness_map().InitializeLiveness(
-          current_offset, bytecode_array()->register_count(), zone());
-      UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
-                     bytecode_array(), liveness_map());
+      BytecodeLiveness& liveness =
+          liveness_map().InsertNewLiveness(current_offset);
+      UpdateLiveness<true>(bytecode, liveness, &next_bytecode_in_liveness,
+                           iterator, bytecode_array(), liveness_map(), zone());
     }
   }
 
@@ -506,16 +567,15 @@ void BytecodeAnalysis::Analyze() {
     for (; iterator.current_offset() > header_offset; --iterator) {
       Bytecode bytecode = iterator.current_bytecode();
       int current_offset = iterator.current_offset();
-      BytecodeLiveness const& liveness =
-          liveness_map().GetLiveness(current_offset);
+      BytecodeLiveness& liveness = liveness_map().GetLiveness(current_offset);
       UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
-                     bytecode_array(), liveness_map());
+                     bytecode_array(), liveness_map(), zone());
     }
     // Now we are at the loop header. Since the in-liveness of the header
     // can't change, we need only to update the out-liveness.
-    UpdateOutLiveness(iterator.current_bytecode(), header_liveness.out,
+    UpdateOutLiveness(iterator.current_bytecode(), header_liveness,
                       next_bytecode_in_liveness, iterator, bytecode_array(),
-                      liveness_map());
+                      liveness_map(), zone());
   }
 
   // Process the generator switch statement separately, once the loops are done.
@@ -548,14 +608,14 @@ void BytecodeAnalysis::Analyze() {
       next_bytecode_in_liveness = switch_liveness.in;
       for (--iterator; iterator.IsValid(); --iterator) {
         Bytecode bytecode = iterator.current_bytecode();
-        BytecodeLiveness const& liveness =
+        BytecodeLiveness& liveness =
             liveness_map().GetLiveness(iterator.current_offset());
 
         // There shouldn't be any more loops.
         DCHECK_NE(bytecode, Bytecode::kJumpLoop);
 
         UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
-                       bytecode_array(), liveness_map());
+                       bytecode_array(), liveness_map(), zone());
       }
     }
   }
@@ -827,6 +887,8 @@ bool BytecodeAnalysis::LivenessIsValid() {
 
   int invalid_offset = -1;
   int which_invalid = -1;
+  BytecodeLivenessState invalid_liveness(bytecode_array()->register_count(),
+                                         zone());
 
   BytecodeLivenessState* next_bytecode_in_liveness = nullptr;
 
@@ -840,8 +902,8 @@ bool BytecodeAnalysis::LivenessIsValid() {
 
     previous_liveness.CopyFrom(*liveness.out);
 
-    UpdateOutLiveness(bytecode, liveness.out, next_bytecode_in_liveness,
-                      iterator, bytecode_array(), liveness_map());
+    UpdateOutLiveness(bytecode, liveness, next_bytecode_in_liveness, iterator,
+                      bytecode_array(), liveness_map(), zone());
     // UpdateOutLiveness skips kJumpLoop, so we update it manually.
     if (bytecode == Bytecode::kJumpLoop) {
       int target_offset = iterator.GetJumpTargetOffset();
@@ -849,6 +911,7 @@ bool BytecodeAnalysis::LivenessIsValid() {
     }
 
     if (!liveness.out->Equals(previous_liveness)) {
+      invalid_liveness.CopyFrom(*liveness.out);
       // Reset the invalid liveness.
       liveness.out->CopyFrom(previous_liveness);
       invalid_offset = current_offset;
@@ -862,6 +925,7 @@ bool BytecodeAnalysis::LivenessIsValid() {
     UpdateInLiveness(bytecode, liveness.in, iterator);
 
     if (!liveness.in->Equals(previous_liveness)) {
+      invalid_liveness.CopyFrom(*liveness.in);
       // Reset the invalid liveness.
       liveness.in->CopyFrom(previous_liveness);
       invalid_offset = current_offset;
@@ -965,6 +1029,31 @@ bool BytecodeAnalysis::LivenessIsValid() {
           }
           for (int i = 0; i < out_liveness.length(); ++i) {
             of << '^';
+          }
+        }
+
+        // Make sure to draw the loop indentation marks on this additional line.
+        of << " : " << current_offset << " : ";
+        for (int i = 0; i < loop_indent; ++i) {
+          of << "| ";
+        }
+
+        of << std::endl;
+
+        // Print the invalid liveness.
+        if (which_invalid == 0) {
+          for (int i = 0; i < in_liveness.length(); ++i) {
+            of << (invalid_liveness.bit_vector().Contains(i) ? 'L' : '.');
+          }
+          for (int i = 0; i < out_liveness.length() + 3; ++i) {
+            of << ' ';
+          }
+        } else {
+          for (int i = 0; i < in_liveness.length() + 3; ++i) {
+            of << ' ';
+          }
+          for (int i = 0; i < out_liveness.length(); ++i) {
+            of << (invalid_liveness.bit_vector().Contains(i) ? 'L' : '.');
           }
         }
 
