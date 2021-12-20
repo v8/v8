@@ -2572,8 +2572,6 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     builder.SetMaxMemorySize(32);
-    // We enable shared memory to be able to test atomics.
-    builder.SetHasSharedMemory();
     builder.WriteTo(buffer);
     return true;
   }
