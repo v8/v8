@@ -431,8 +431,9 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
-    MapRef receiver_map, MapRef map, base::Optional<JSObjectRef> holder,
-    InternalIndex descriptor, AccessMode access_mode) const {
+    MapRef receiver_map, MapRef map, NameRef name,
+    base::Optional<JSObjectRef> holder, InternalIndex descriptor,
+    AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
   // TODO(jgruber,v8:7790): Use DescriptorArrayRef instead.
   Handle<DescriptorArray> descriptors = map.instance_descriptors().object();
@@ -449,7 +450,10 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   }
   FieldIndex field_index = FieldIndex::ForPropertyIndex(*map.object(), index,
                                                         details_representation);
-  Type field_type = Type::NonInternal();
+  // Private brands are used when loading private methods, which are stored in a
+  // BlockContext, an internal object.
+  Type field_type = name.object()->IsPrivateBrand() ? Type::OtherInternal()
+                                                    : Type::NonInternal();
   base::Optional<MapRef> field_map;
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
@@ -842,8 +846,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       }
       if (details.location() == PropertyLocation::kField) {
         if (details.kind() == PropertyKind::kData) {
-          return ComputeDataFieldAccessInfo(receiver_map, map, holder, index,
-                                            access_mode);
+          return ComputeDataFieldAccessInfo(receiver_map, map, name, holder,
+                                            index, access_mode);
         } else {
           DCHECK_EQ(PropertyKind::kAccessor, details.kind());
           // TODO(turbofan): Add support for general accessors?
