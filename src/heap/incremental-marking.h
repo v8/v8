@@ -114,8 +114,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   inline bool IsMarking() const { return state() >= MARKING; }
 
-  inline bool IsMarkingIncomplete() const { return state() == MARKING; }
-
   inline bool IsComplete() const { return state() == COMPLETE; }
 
   inline bool IsReadyToOverApproximateWeakClosure() const {
