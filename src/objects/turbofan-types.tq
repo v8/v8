@@ -33,7 +33,8 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   other_undetectable: bool: 1 bit;
   callable_proxy: bool: 1 bit;
   other_proxy: bool: 1 bit;
-  function: bool: 1 bit;
+  callable_function: bool: 1 bit;
+  class_constructor: bool: 1 bit;
   bound_function: bool: 1 bit;
   hole: bool: 1 bit;
   other_internal: bool: 1 bit;
@@ -43,12 +44,12 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   other_unsigned_big_int_64: bool: 1 bit;
   negative_big_int_63: bool: 1 bit;
   other_big_int: bool: 1 bit;
-  sandboxed_external_pointer: bool: 1 bit;
-  sandboxed_pointer: bool: 1 bit;
+  wasm_object: bool: 1 bit;
 }
 
 bitfield struct TurbofanTypeHighBits extends uint32 {
-  wasm_object: bool: 1 bit;
+  sandboxed_external_pointer: bool: 1 bit;
+  sandboxed_pointer: bool: 1 bit;
 }
 
 @export
@@ -138,8 +139,12 @@ macro TestTurbofanBitsetType(
       return Is<Callable>(proxy) ? bitsetLow.callable_proxy :
                                    bitsetLow.other_proxy;
     }
-    case (JSFunction): {
-      return bitsetLow.function;
+    case (fun: JSFunction): {
+      if (fun.shared_function_info.flags.is_class_constructor) {
+        return bitsetLow.class_constructor;
+      } else {
+        return bitsetLow.callable_function;
+      }
     }
     case (JSBoundFunction): {
       return bitsetLow.bound_function;
@@ -167,7 +172,7 @@ macro TestTurbofanBitsetType(
     }
     @if(V8_ENABLE_WEBASSEMBLY)
     case (WasmObject): {
-      return bitsetHigh.wasm_object;
+      return bitsetLow.wasm_object;
     }
     case (Object): {
       return false;

@@ -243,9 +243,12 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
 
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectFunction() {
-  FieldAccess access = {kTaggedBase,         JSGeneratorObject::kFunctionOffset,
-                        Handle<Name>(),      MaybeHandle<Map>(),
-                        Type::Function(),    MachineType::TaggedPointer(),
+  FieldAccess access = {kTaggedBase,
+                        JSGeneratorObject::kFunctionOffset,
+                        Handle<Name>(),
+                        MaybeHandle<Map>(),
+                        Type::CallableFunction(),
+                        MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
   return access;
 }

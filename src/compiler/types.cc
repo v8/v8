@@ -286,7 +286,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       DCHECK(!map.is_undetectable());
       return kBoundFunction;
     case JS_FUNCTION_TYPE:
-    case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:
@@ -295,7 +294,9 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
       TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
 #undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
       DCHECK(!map.is_undetectable());
-      return kFunction;
+      return kCallableFunction;
+    case JS_CLASS_CONSTRUCTOR_TYPE:
+      return kClassConstructor;
     case JS_PROXY_TYPE:
       DCHECK(!map.is_undetectable());
       if (map.is_callable()) return kCallableProxy;
