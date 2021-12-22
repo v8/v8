@@ -2751,13 +2751,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int64_t imm1 = make_uint64(i.InputInt32(3), i.InputInt32(2));
       int64_t imm2 = make_uint64(i.InputInt32(5), i.InputInt32(4));
       __ VU.set(kScratchReg, VSew::E64, Vlmul::m1);
-      __ li(kScratchReg, 1);
-      __ vmv_vx(v0, kScratchReg);
-      __ li(kScratchReg, imm1);
-      __ vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
       __ li(kScratchReg, imm2);
-      __ vsll_vi(v0, v0, 1);
-      __ vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
+      __ vmv_sx(kSimd128ScratchReg2, kScratchReg);
+      __ vslideup_vi(kSimd128ScratchReg, kSimd128ScratchReg2, 1);
+      __ li(kScratchReg, imm1);
+      __ vmv_sx(kSimd128ScratchReg, kScratchReg);
 
       __ VU.set(kScratchReg, E8, m1);
       if (dst == src0) {

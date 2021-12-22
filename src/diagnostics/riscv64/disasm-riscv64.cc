@@ -2068,6 +2068,9 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
     case RO_V_VSLIDEDOWN_VI:
       Format(instr, "vslidedown.vi 'vd, 'vs2, 'uimm5'vm");
       break;
+    case RO_V_VSLIDEUP_VI:
+      Format(instr, "vslideup.vi   'vd, 'vs2, 'uimm5'vm");
+      break;
     case RO_V_VSRL_VI:
       Format(instr, "vsrl.vi   'vd, 'vs2, 'uimm5'vm");
       break;

@@ -59,7 +59,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 #if (defined CAN_USE_RVV_INSTRUCTIONS) || (defined USE_SIMULATOR)
   answer |= 1u << RISCV_SIMD;
-#endif  // def CAN_USE_RVV_INSTRUCTIONS && USE_SIMULATOR
+#endif  // def CAN_USE_RVV_INSTRUCTIONS || USE_SIMULATOR
   return answer;
 }
 

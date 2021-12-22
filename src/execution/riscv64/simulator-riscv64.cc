@@ -5216,6 +5216,34 @@ void Simulator::DecodeRvvIVI() {
       RVV_VI_LOOP_END
       rvv_trace_vd();
     } break;
+    case RO_V_VSLIDEUP_VI: {
+      RVV_VI_CHECK_SLIDE(true);
+
+      const uint8_t offset = instr_.RvvUimm5();
+      RVV_VI_GENERAL_LOOP_BASE
+      if (rvv_vstart() < offset && i < offset) continue;
+
+      switch (rvv_vsew()) {
+        case E8: {
+          VI_XI_SLIDEUP_PARAMS(8, offset);
+          vd = vs2;
+        } break;
+        case E16: {
+          VI_XI_SLIDEUP_PARAMS(16, offset);
+          vd = vs2;
+        } break;
+        case E32: {
+          VI_XI_SLIDEUP_PARAMS(32, offset);
+          vd = vs2;
+        } break;
+        default: {
+          VI_XI_SLIDEUP_PARAMS(64, offset);
+          vd = vs2;
+        } break;
+      }
+      RVV_VI_LOOP_END
+      rvv_trace_vd();
+    } break;
     case RO_V_VSRL_VI:
       RVV_VI_VI_ULOOP({ vd = vs2 >> uimm5; })
       break;

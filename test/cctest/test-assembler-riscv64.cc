@@ -2435,8 +2435,7 @@ UTEST_RVV_VNCLIP_E32M2_E16M1(vnclip_vi, )
                                        array, expect_res)                   \
   TEST(RISCV_UTEST_##instr_name##_##width##_##frac_width) {                 \
     if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                      \
-    constexpr uint32_t vlen = 128;                                          \
-    constexpr uint32_t n = vlen / width;                                    \
+    constexpr uint32_t n = kRvvVLEN / width;                                \
     CcTest::InitializeVM();                                                 \
     for (int##frac_width##_t x : array) {                                   \
       int##frac_width##_t src[n] = {0};                                     \
@@ -2491,8 +2490,7 @@ UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf2, int16_t, 16, 8, ARRAY(int8_t),
                                          expect_res)                     \
   TEST(RISCV_UTEST_##instr_name##_##type) {                              \
     if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                   \
-    constexpr uint32_t vlen = 128;                                       \
-    constexpr uint32_t n = vlen / width;                                 \
+    constexpr uint32_t n = kRvvVLEN / width;                             \
     CcTest::InitializeVM();                                              \
     for (type x : array) {                                               \
       for (uint32_t offset = 0; offset < n; offset++) {                  \
@@ -2528,6 +2526,22 @@ UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint16_t, 16, ARRAY(uint16_t),
                                  (i + offset) < n ? src[i + offset] : 0)
 UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint8_t, 8, ARRAY(uint8_t),
                                  (i + offset) < n ? src[i + offset] : 0)
+
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, int64_t, 64, ARRAY(int64_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, int32_t, 32, ARRAY(int32_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, int16_t, 16, ARRAY(int16_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, int8_t, 8, ARRAY(int8_t),
+                                 i < offset ? dst[i] : src[i - offset])
+
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, uint32_t, 32, ARRAY(uint32_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, uint16_t, 16, ARRAY(uint16_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, uint8_t, 8, ARRAY(uint8_t),
+                                 i < offset ? dst[i] : src[i - offset])
 
 #undef UTEST_RVV_VP_VS_VI_FORM_WITH_RES
 #undef ARRAY

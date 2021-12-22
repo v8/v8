@@ -1734,16 +1734,12 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
     if (memtype == MachineType::Int32()) {
       VU.set(kScratchReg, E32, m1);
       Lwu(scratch, src_op);
-      li(kScratchReg, 0x1 << 0);
-      vmv_sx(v0, kScratchReg);
-      vmerge_vx(dst_v, scratch, dst_v);
+      vmv_sx(dst_v, scratch);
     } else {
       DCHECK_EQ(MachineType::Int64(), memtype);
       VU.set(kScratchReg, E64, m1);
       Ld(scratch, src_op);
-      li(kScratchReg, 0x1 << 0);
-      vmv_sx(v0, kScratchReg);
-      vmerge_vx(dst_v, scratch, dst_v);
+      vmv_sx(dst_v, scratch);
     }
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
@@ -1849,13 +1845,11 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   uint64_t imm1 = *(reinterpret_cast<const uint64_t*>(shuffle));
   uint64_t imm2 = *((reinterpret_cast<const uint64_t*>(shuffle)) + 1);
   VU.set(kScratchReg, VSew::E64, Vlmul::m1);
-  li(kScratchReg, 1);
-  vmv_vx(v0, kScratchReg);
-  li(kScratchReg, imm1);
-  vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
   li(kScratchReg, imm2);
-  vsll_vi(v0, v0, 1);
-  vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
+  vmv_sx(kSimd128ScratchReg2, kScratchReg);
+  vslideup_vi(kSimd128ScratchReg, kSimd128ScratchReg2, 1);
+  li(kScratchReg, imm1);
+  vmv_sx(kSimd128ScratchReg, kScratchReg);
 
   VU.set(kScratchReg, E8, m1);
   VRegister temp =
