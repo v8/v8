@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4edcc0aed52773037ea29c5e1bb6973ea610c31b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '773059e83990e73a81be473aa30d7373928cd6bf',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd7bdd6f0386aaf20cd00a01d499e8ce1cbf6063e',
   'buildtools/clang_format/script':
@@ -111,7 +111,7 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '79a2e924d96e2fc1e4b937c42efd08898fa472d7',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '603d9d1067d178ee2dbd1ba8028413baa876a771',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '2715a6c0de8dac4c7674934a6b3d30ba0c685271',
   'buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '4ead61094cab5ac7a90198fbe182596c4775183e',
   'buildtools/win': {
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '97da6b1e1c9db574e28d63e89fe83b23bbb22cef',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '76c77ba0be42ad1bb71e001722132d2ecbc5b729',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -226,7 +226,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '3b3de69400164013199ea448f051d94d7fc7d81f',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '97a467571a0f615a4d96e79e4399c43221ca1232',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9a32aee22d771387c494be2d8519fbdf46a713b2',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'fbc6faf1c2c429cd27fabe615a89f0b217aa4213',
   'third_party/instrumented_libraries':
