@@ -325,6 +325,8 @@ enum ContextLookupFlags {
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)                \
   V(AGGREGATE_ERROR_FUNCTION_INDEX, JSFunction, aggregate_error_function)      \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
+  V(GLOBAL_PARSE_FLOAT_FUN_INDEX, JSFunction, global_parse_float_fun)          \
+  V(GLOBAL_PARSE_INT_FUN_INDEX, JSFunction, global_parse_int_fun)              \
   V(GLOBAL_PROXY_FUNCTION_INDEX, JSFunction, global_proxy_function)            \
   V(MAP_DELETE_INDEX, JSFunction, map_delete)                                  \
   V(MAP_GET_INDEX, JSFunction, map_get)                                        \

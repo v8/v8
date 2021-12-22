@@ -1901,12 +1901,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                               Builtin::kNumberParseFloat, 1, true);
     JSObject::AddProperty(isolate_, global_object, "parseFloat",
                           parse_float_fun, DONT_ENUM);
+    native_context()->set_global_parse_float_fun(*parse_float_fun);
 
     // Install Number.parseInt and Global.parseInt.
     Handle<JSFunction> parse_int_fun = SimpleInstallFunction(
         isolate_, number_fun, "parseInt", Builtin::kNumberParseInt, 2, true);
     JSObject::AddProperty(isolate_, global_object, "parseInt", parse_int_fun,
                           DONT_ENUM);
+    native_context()->set_global_parse_int_fun(*parse_int_fun);
 
     // Install Number constants
     const double kMaxValue = 1.7976931348623157e+308;
