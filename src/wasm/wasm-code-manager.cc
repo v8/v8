@@ -2119,12 +2119,25 @@ bool WasmCodeManager::MemoryProtectionKeysEnabled() const {
 }
 
 bool WasmCodeManager::MemoryProtectionKeyWritable() const {
-  return wasm::MemoryProtectionKeyWritable(memory_protection_key_);
+  return GetMemoryProtectionKeyPermission(memory_protection_key_) ==
+         MemoryProtectionKeyPermission::kNoRestrictions;
 }
 
 void WasmCodeManager::InitializeMemoryProtectionKeyForTesting() {
   if (memory_protection_key_ == kNoMemoryProtectionKey) {
     memory_protection_key_ = AllocateMemoryProtectionKey();
+  }
+}
+
+void WasmCodeManager::InitializeMemoryProtectionKeyPermissionsIfSupported()
+    const {
+  if (!HasMemoryProtectionKeySupport()) return;
+  // The default permission is {kDisableAccess}. Switch from that to
+  // {kDisableWrite}. Leave other permissions untouched, as the thread did
+  // already use the memory protection key in that case.
+  if (GetMemoryProtectionKeyPermission(memory_protection_key_) ==
+      kDisableAccess) {
+    SetPermissionsForMemoryProtectionKey(memory_protection_key_, kDisableWrite);
   }
 }
 

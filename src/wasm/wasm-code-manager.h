@@ -1062,6 +1062,10 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // independent of the --wasm-memory-protection-keys flag.
   void InitializeMemoryProtectionKeyForTesting();
 
+  // Initialize the current thread's permissions for the memory protection key,
+  // if we have support.
+  void InitializeMemoryProtectionKeyPermissionsIfSupported() const;
+
  private:
   friend class WasmCodeAllocator;
   friend class WasmEngine;
