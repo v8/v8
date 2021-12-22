@@ -895,7 +895,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                         void* ptr4 = nullptr);
   // Similar to the above but without collecting the stack trace.
   V8_NOINLINE void PushParamsAndDie(void* ptr1 = nullptr, void* ptr2 = nullptr,
-                                    void* ptr3 = nullptr, void* ptr4 = nullptr);
+                                    void* ptr3 = nullptr, void* ptr4 = nullptr,
+                                    void* ptr5 = nullptr, void* ptr6 = nullptr);
   Handle<FixedArray> CaptureDetailedStackTrace(
       int limit, StackTrace::StackTraceOptions options);
   Handle<FixedArray> CaptureSimpleStackTrace(int limit, FrameSkipMode mode,
@@ -2503,7 +2504,8 @@ class StackTraceFailureMessage {
 
   explicit StackTraceFailureMessage(Isolate* isolate, StackTraceMode mode,
                                     void* ptr1 = nullptr, void* ptr2 = nullptr,
-                                    void* ptr3 = nullptr, void* ptr4 = nullptr);
+                                    void* ptr3 = nullptr, void* ptr4 = nullptr,
+                                    void* ptr5 = nullptr, void* ptr6 = nullptr);
 
   V8_NOINLINE void Print() volatile;
 
@@ -2517,6 +2519,8 @@ class StackTraceFailureMessage {
   void* ptr2_;
   void* ptr3_;
   void* ptr4_;
+  void* ptr5_;
+  void* ptr6_;
   void* code_objects_[4];
   char js_stack_trace_[kStacktraceBufferSize];
   uintptr_t end_marker_ = kEndMarker;

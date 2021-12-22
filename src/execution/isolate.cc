@@ -642,10 +642,11 @@ void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
   base::OS::Abort();
 }
 
-void Isolate::PushParamsAndDie(void* ptr1, void* ptr2, void* ptr3, void* ptr4) {
+void Isolate::PushParamsAndDie(void* ptr1, void* ptr2, void* ptr3, void* ptr4,
+                               void* ptr5, void* ptr6) {
   StackTraceFailureMessage message(
       this, StackTraceFailureMessage::kDontIncludeStackTrace, ptr1, ptr2, ptr3,
-      ptr4);
+      ptr4, ptr5, ptr6);
   message.Print();
   base::OS::Abort();
 }
@@ -655,18 +656,20 @@ void StackTraceFailureMessage::Print() volatile {
   // to force stack allocation.
   base::OS::PrintError(
       "Stacktrace:\n    ptr1=%p\n    ptr2=%p\n    ptr3=%p\n    ptr4=%p\n    "
-      "failure_message_object=%p\n%s",
-      ptr1_, ptr2_, ptr3_, ptr4_, this, &js_stack_trace_[0]);
+      "ptr5=%p\n    ptr6=%p\n    failure_message_object=%p\n%s",
+      ptr1_, ptr2_, ptr3_, ptr4_, ptr5_, ptr6_, this, &js_stack_trace_[0]);
 }
 
 StackTraceFailureMessage::StackTraceFailureMessage(
     Isolate* isolate, StackTraceFailureMessage::StackTraceMode mode, void* ptr1,
-    void* ptr2, void* ptr3, void* ptr4) {
+    void* ptr2, void* ptr3, void* ptr4, void* ptr5, void* ptr6) {
   isolate_ = isolate;
   ptr1_ = ptr1;
   ptr2_ = ptr2;
   ptr3_ = ptr3;
   ptr4_ = ptr4;
+  ptr5_ = ptr5;
+  ptr6_ = ptr6;
   // Write a stracktrace into the {js_stack_trace_} buffer.
   const size_t buffer_length = arraysize(js_stack_trace_);
   memset(&js_stack_trace_, 0, buffer_length);

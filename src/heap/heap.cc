@@ -7178,11 +7178,20 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
     }
   }
   // TODO(1241665): Remove once the issue is solved.
+  std::shared_ptr<CodeRange> code_range = CodeRange::GetProcessWideCodeRange();
+  void* code_range_embedded_blob_code_copy =
+      code_range ? code_range->embedded_blob_code_copy() : nullptr;
+  Address flags = (isolate()->is_short_builtin_calls_enabled() ? 1 : 0) |
+                  (code_range ? 2 : 0) |
+                  static_cast<Address>(max_old_generation_size());
+
   isolate()->PushParamsAndDie(
       reinterpret_cast<void*>(inner_pointer),
       const_cast<uint8_t*>(isolate()->embedded_blob_code()),
       const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobCode()),
-      reinterpret_cast<void*>(Isolate::CurrentEmbeddedBlobCodeSize()));
+      code_range_embedded_blob_code_copy,
+      reinterpret_cast<void*>(Isolate::CurrentEmbeddedBlobCodeSize()),
+      reinterpret_cast<void*>(flags));
 
   UNREACHABLE();
 }
