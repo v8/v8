@@ -3,6 +3,8 @@ mslekova@chromium.org
 mvstanton@chromium.org
 nicohartmann@chromium.org
 sigurds@chromium.org
+tebbi@chromium.org
+thibaudm@chromium.org
 
 per-file wasm-*=ahaas@chromium.org
 per-file wasm-*=bbudge@chromium.org
@@ -10,7 +12,6 @@ per-file wasm-*=clemensb@chromium.org
 per-file wasm-*=gdeepti@chromium.org
 per-file wasm-*=jkummerow@chromium.org
 per-file wasm-*=manoskouk@chromium.org
-per-file wasm-*=thibaudm@chromium.org
 
 per-file int64-lowering.*=ahaas@chromium.org
 
