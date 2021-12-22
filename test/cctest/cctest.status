@@ -282,6 +282,9 @@
 
 ##############################################################################
 ['byteorder == big', {
+  # BUG(v8:12505). Tests which share Wasm memory buffer with Js Typed arrays.
+  'test-api/WasmI32AtomicWaitCallback': [SKIP],
+  'test-api/WasmI64AtomicWaitCallback': [SKIP],
   # Peephole optimization not supported on big-endian machines.
   'test-regexp/Peephole*': [SKIP],
 }],  # 'byteorder == big'
