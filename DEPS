@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '773059e83990e73a81be473aa30d7373928cd6bf',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6c6a973c3445ffa683a3c21d346ce06de69e0d79',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd7bdd6f0386aaf20cd00a01d499e8ce1cbf6063e',
   'buildtools/clang_format/script':
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'db41eed6b7442273b54bac9695567d97b60718de',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '54c265ea2b2fc90ae29fc87366cffc0a5e57f7c4',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
@@ -226,7 +226,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '3b3de69400164013199ea448f051d94d7fc7d81f',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9a32aee22d771387c494be2d8519fbdf46a713b2',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '71d4e2f7423274d178b446e94b88082559f2fa7a',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'fbc6faf1c2c429cd27fabe615a89f0b217aa4213',
   'third_party/instrumented_libraries':
@@ -276,7 +276,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'efd9399ae01364926be2a38946127fdf463480db',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a08f55296ba9347547944fe7657d71d35e343c3f',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '8b7330592cb85ba09505a6be7bacabd0ad6160a3',
   'tools/clang/dsymutil': {
     'packages': [
       {
