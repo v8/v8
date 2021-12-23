@@ -3729,6 +3729,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ Move(arg_reg_2, kInterpreterBytecodeOffsetRegister);
     __ Move(arg_reg_3, kInterpreterBytecodeArrayRegister);
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ PrepareCallCFunction(3, 0, a4);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
   __ Add_d(code_obj, code_obj, kReturnRegister0);
