@@ -962,11 +962,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kLoong64Div_w:
       __ Div_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ masknez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kLoong64Div_wu:
       __ Div_wu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ masknez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kLoong64Mod_w:
       __ Mod_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -979,11 +979,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kLoong64Div_d:
       __ Div_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ masknez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kLoong64Div_du:
       __ Div_du(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      __ masknez(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      __ maskeqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
     case kLoong64Mod_d:
       __ Mod_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));

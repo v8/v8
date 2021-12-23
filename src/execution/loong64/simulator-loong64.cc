@@ -3484,13 +3484,13 @@ void Simulator::DecodeTypeOp17() {
       printf_instr("MASKEQZ\t %s: %016lx, %s, %016lx, %s, %016lx\n",
                    Registers::Name(rd_reg()), rd(), Registers::Name(rj_reg()),
                    rj(), Registers::Name(rk_reg()), rk());
-      SetResult(rd_reg(), rk() == 0 ? rj() : 0);
+      SetResult(rd_reg(), rk() == 0 ? 0 : rj());
       break;
     case MASKNEZ:
       printf_instr("MASKNEZ\t %s: %016lx, %s, %016lx, %s, %016lx\n",
                    Registers::Name(rd_reg()), rd(), Registers::Name(rj_reg()),
                    rj(), Registers::Name(rk_reg()), rk());
-      SetResult(rd_reg(), rk() != 0 ? rj() : 0);
+      SetResult(rd_reg(), rk() != 0 ? 0 : rj());
       break;
     case NOR:
       printf_instr("NOR\t %s: %016lx, %s, %016lx, %s, %016lx\n",

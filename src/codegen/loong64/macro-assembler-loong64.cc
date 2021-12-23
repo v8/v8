@@ -1938,16 +1938,16 @@ void TurboAssembler::Move(FPURegister dst, uint64_t src) {
 void TurboAssembler::Movz(Register rd, Register rj, Register rk) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  maskeqz(scratch, rj, rk);
-  masknez(rd, rd, rk);
+  masknez(scratch, rj, rk);
+  maskeqz(rd, rd, rk);
   or_(rd, rd, scratch);
 }
 
 void TurboAssembler::Movn(Register rd, Register rj, Register rk) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  masknez(scratch, rj, rk);
-  maskeqz(rd, rd, rk);
+  maskeqz(scratch, rj, rk);
+  masknez(rd, rd, rk);
   or_(rd, rd, scratch);
 }
 
@@ -2037,12 +2037,12 @@ void TurboAssembler::LoadZeroOnCondition(Register rd, Register rj,
 
 void TurboAssembler::LoadZeroIfConditionNotZero(Register dest,
                                                 Register condition) {
-  maskeqz(dest, dest, condition);
+  masknez(dest, dest, condition);
 }
 
 void TurboAssembler::LoadZeroIfConditionZero(Register dest,
                                              Register condition) {
-  masknez(dest, dest, condition);
+  maskeqz(dest, dest, condition);
 }
 
 void TurboAssembler::LoadZeroIfFPUCondition(Register dest, CFRegister cc) {
