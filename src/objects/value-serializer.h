@@ -6,7 +6,6 @@
 #define V8_OBJECTS_VALUE_SERIALIZER_H_
 
 #include <cstdint>
-#include <vector>
 
 #include "include/v8-value-serializer.h"
 #include "src/base/compiler-specific.h"

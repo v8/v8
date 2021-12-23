@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_EFFECT_CONTROL_LINEARIZER_H_
 #define V8_COMPILER_EFFECT_CONTROL_LINEARIZER_H_
 
-#include <vector>
-
 #include "src/handles/handles.h"
 
 namespace v8 {

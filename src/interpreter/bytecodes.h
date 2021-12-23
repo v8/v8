@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <iosfwd>
 #include <string>
-#include <vector>
 
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-operands.h"

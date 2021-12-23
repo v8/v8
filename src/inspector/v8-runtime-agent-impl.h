@@ -32,11 +32,9 @@
 #define V8_INSPECTOR_V8_RUNTIME_AGENT_IMPL_H_
 
 #include <memory>
-#include <set>
 #include <unordered_map>
 
 #include "include/v8-persistent-handle.h"
-// #include "include/v8-function-callback.h"
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"

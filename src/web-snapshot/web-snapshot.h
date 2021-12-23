@@ -6,7 +6,6 @@
 #define V8_WEB_SNAPSHOT_WEB_SNAPSHOT_H_
 
 #include <queue>
-#include <vector>
 
 #include "src/handles/handles.h"
 #include "src/objects/value-serializer.h"

@@ -9,8 +9,6 @@
 #ifndef V8_CODEGEN_ARM64_MACRO_ASSEMBLER_ARM64_H_
 #define V8_CODEGEN_ARM64_MACRO_ASSEMBLER_ARM64_H_
 
-#include <vector>
-
 #include "src/base/bits.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/bailout-reason.h"

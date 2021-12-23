@@ -5,10 +5,8 @@
 #ifndef V8_COMPILER_BACKEND_INSTRUCTION_H_
 #define V8_COMPILER_BACKEND_INSTRUCTION_H_
 
-#include <deque>
 #include <iosfwd>
 #include <map>
-#include <set>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/numbers/double.h"

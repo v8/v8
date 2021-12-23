@@ -11,10 +11,8 @@
 
 #include <atomic>
 #include <memory>
-#include <string>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "v8-internal.h"            // NOLINT(build/include_directory)
 #include "v8-local-handle.h"        // NOLINT(build/include_directory)

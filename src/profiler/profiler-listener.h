@@ -6,7 +6,6 @@
 #define V8_PROFILER_PROFILER_LISTENER_H_
 
 #include <memory>
-#include <vector>
 
 #include "include/v8-profiler.h"
 #include "src/logging/code-events.h"

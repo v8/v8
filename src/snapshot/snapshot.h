@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_H_
 #define V8_SNAPSHOT_SNAPSHOT_H_
 
+#include <vector>
+
 #include "include/v8-snapshot.h"  // For StartupData.
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"

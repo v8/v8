@@ -6,10 +6,8 @@
 #define V8_CODEGEN_ARM64_ASSEMBLER_ARM64_H_
 
 #include <deque>
-#include <list>
 #include <map>
 #include <memory>
-#include <vector>
 
 #include "src/base/optional.h"
 #include "src/codegen/arm64/constants-arm64.h"

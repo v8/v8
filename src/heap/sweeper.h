@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_SWEEPER_H_
 #define V8_HEAP_SWEEPER_H_
 
-#include <deque>
 #include <map>
 #include <vector>
 

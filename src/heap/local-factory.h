@@ -5,9 +5,6 @@
 #ifndef V8_HEAP_LOCAL_FACTORY_H_
 #define V8_HEAP_LOCAL_FACTORY_H_
 
-#include <map>
-#include <vector>
-
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"

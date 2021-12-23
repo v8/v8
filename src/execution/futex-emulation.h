@@ -7,8 +7,6 @@
 
 #include <stdint.h>
 
-#include <map>
-
 #include "include/v8-persistent-handle.h"
 #include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"

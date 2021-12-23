@@ -7,7 +7,6 @@
 
 #include <atomic>
 #include <memory>
-#include <vector>
 
 #include "src/base/iterator.h"
 #include "src/base/macros.h"

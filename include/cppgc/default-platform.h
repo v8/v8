@@ -6,7 +6,6 @@
 #define INCLUDE_CPPGC_DEFAULT_PLATFORM_H_
 
 #include <memory>
-#include <vector>
 
 #include "cppgc/platform.h"
 #include "libplatform/libplatform.h"

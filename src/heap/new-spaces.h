@@ -6,7 +6,6 @@
 #define V8_HEAP_NEW_SPACES_H_
 
 #include <atomic>
-#include <map>
 #include <memory>
 
 #include "src/base/macros.h"

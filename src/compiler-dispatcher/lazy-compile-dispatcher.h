@@ -6,7 +6,6 @@
 #define V8_COMPILER_DISPATCHER_LAZY_COMPILE_DISPATCHER_H_
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <unordered_set>
 #include <utility>

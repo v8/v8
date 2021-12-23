@@ -5,8 +5,6 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_H_
 
-#include <map>
-
 #include "src/codegen/external-reference-encoder.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"

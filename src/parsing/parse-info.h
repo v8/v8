@@ -5,9 +5,7 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
-#include <map>
 #include <memory>
-#include <vector>
 
 #include "src/base/bit-field.h"
 #include "src/base/export-template.h"
