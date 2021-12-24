@@ -4,7 +4,7 @@
 import {DOM, FileReader} from './helper.mjs';
 
 DOM.defineCustomElement(
-    '../../js/log-file-reader',
+    '../js/log-file-reader',
     (templateText) => class LogFileReader extends FileReader {
       constructor() {
         super(templateText);
