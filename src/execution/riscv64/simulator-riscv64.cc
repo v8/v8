@@ -5568,7 +5568,32 @@ void Simulator::DecodeRvvMVV() {
             UNREACHABLE();
         }
         set_rvv_vstart(0);
-        SNPrintF(trace_buf_, "%lx", get_register(rd_reg()));
+        rvv_trace_vd();
+      } else if (rvv_vs1_reg() == 0b10000) {
+        uint64_t cnt = 0;
+        RVV_VI_GENERAL_LOOP_BASE
+        RVV_VI_LOOP_MASK_SKIP()
+        const uint8_t idx = i / 64;
+        const uint8_t pos = i % 64;
+        bool mask = (Rvvelt<uint64_t>(rvv_vs2_reg(), idx) >> pos) & 0x1;
+        if (mask) cnt++;
+        RVV_VI_LOOP_END
+        set_register(rd_reg(), cnt);
+        rvv_trace_vd();
+      } else if (rvv_vs1_reg() == 0b10001) {
+        int64_t index = -1;
+        RVV_VI_GENERAL_LOOP_BASE
+        RVV_VI_LOOP_MASK_SKIP()
+        const uint8_t idx = i / 64;
+        const uint8_t pos = i % 64;
+        bool mask = (Rvvelt<uint64_t>(rvv_vs2_reg(), idx) >> pos) & 0x1;
+        if (mask) {
+          index = i;
+          break;
+        }
+        RVV_VI_LOOP_END
+        set_register(rd_reg(), index);
+        rvv_trace_vd();
       } else {
         v8::base::EmbeddedVector<char, 256> buffer;
         disasm::NameConverter converter;

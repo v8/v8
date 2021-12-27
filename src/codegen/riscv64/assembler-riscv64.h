@@ -998,6 +998,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vfabs_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
     vfsngjx_vv(dst, src, src, mask);
   }
+  void vfirst_m(Register rd, VRegister vs2, MaskType mask = NoMask);
+
+  void vcpop_m(Register rd, VRegister vs2, MaskType mask = NoMask);
+
   // Privileged
   void uret();
   void sret();
@@ -1645,7 +1649,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrV(Opcode opcode, uint8_t width, VRegister vd, Register rs1,
                  VRegister vs2, MaskType mask, uint8_t IsMop, bool IsMew,
                  uint8_t Nf);
-
+  // vmv_xs vcpop_m vfirst_m
+  void GenInstrV(uint8_t funct6, Opcode opcode, Register rd, uint8_t vs1,
+                 VRegister vs2, MaskType mask);
   // Labels.
   void print(const Label* L);
   void bind_to(Label* L, int pos);

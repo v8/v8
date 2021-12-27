@@ -1270,6 +1270,16 @@ void Assembler::GenInstrV(Opcode opcode, uint8_t width, VRegister vd,
                 ((Nf << kRvvNfShift) & kRvvNfMask);
   emit(instr);
 }
+// vmv_xs vcpop_m vfirst_m
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, Register rd,
+                          uint8_t vs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_MVV);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((rd.code() & 0x1F) << kRvvVdShift) |
+                ((vs1 & 0x1F) << kRvvVs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
 // ----- Instruction class templates match those in the compiler
 
 void Assembler::GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,
@@ -2496,7 +2506,7 @@ void Assembler::vmv_vi(VRegister vd, uint8_t simm5) {
 }
 
 void Assembler::vmv_xs(Register rd, VRegister vs2) {
-  GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, v0, vs2, NoMask);
+  GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, 0b00000, vs2, NoMask);
 }
 
 void Assembler::vmv_sx(VRegister vd, Register rs1) {
@@ -3114,6 +3124,14 @@ void Assembler::vsxseg8(VRegister vd, Register rs1, VRegister rs2, VSew vsew,
                         MaskType mask) {
   uint8_t width = vsew_switch(vsew);
   GenInstrV(STORE_FP, width, vd, rs1, rs2, mask, 0b11, 0, 0b111);
+}
+
+void Assembler::vfirst_m(Register rd, VRegister vs2, MaskType mask) {
+  GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, 0b10001, vs2, mask);
+}
+
+void Assembler::vcpop_m(Register rd, VRegister vs2, MaskType mask) {
+  GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, 0b10000, vs2, mask);
 }
 
 // Privileged

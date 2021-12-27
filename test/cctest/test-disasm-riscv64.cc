@@ -623,6 +623,10 @@ TEST(RVV) {
   COMPARE(vzext_vf2(v17, v14), "4ae328d7       vzext.vf2 v17, v14");
   COMPARE(vsext_vf2(v17, v14), "4ae3a8d7       vsext.vf2 v17, v14");
 
+  // Vector Mask Instructions
+  COMPARE(vfirst_m(a5, v17), "4318a7d7       vfirst.m  a5, v17");
+  COMPARE(vcpop_m(a5, v17), "431827d7       vcpop.m   a5, v17");
+
   VERIFY_RUN();
 }
 

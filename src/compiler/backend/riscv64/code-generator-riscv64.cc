@@ -2771,6 +2771,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vor_vv(dst, dst, kSimd128ScratchReg3);
       break;
     }
+    case kRiscvI8x16Popcnt: {
+      VRegister dst = i.OutputSimd128Register(),
+                src = i.InputSimd128Register(0);
+      Label t;
+
+      __ VU.set(kScratchReg, E8, m1);
+      __ vmv_vv(kSimd128ScratchReg, src);
+      __ vmv_vv(dst, kSimd128RegZero);
+
+      __ bind(&t);
+      __ vmsne_vv(v0, kSimd128ScratchReg, kSimd128RegZero);
+      __ vadd_vi(dst, dst, 1, Mask);
+      __ vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, Mask);
+      __ vand_vv(kSimd128ScratchReg, kSimd128ScratchReg, kSimd128ScratchReg2);
+      // kScratchReg = -1 if kSimd128ScratchReg == 0 i.e. no active element
+      __ vfirst_m(kScratchReg, kSimd128ScratchReg);
+      __ bgez(kScratchReg, &t);
+      break;
+    }
     case kRiscvF64x2NearestInt: {
       __ Round_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  kScratchReg, kSimd128ScratchReg);

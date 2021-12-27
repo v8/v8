@@ -1871,7 +1871,22 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
-  bailout(kSimd, "emit_i8x16_popcnt");
+  VRegister src_v = src.fp().toV();
+  VRegister dst_v = dst.fp().toV();
+  Label t;
+
+  VU.set(kScratchReg, E8, m1);
+  vmv_vv(kSimd128ScratchReg, src_v);
+  vmv_vv(dst_v, kSimd128RegZero);
+
+  bind(&t);
+  vmsne_vv(v0, kSimd128ScratchReg, kSimd128RegZero);
+  vadd_vi(dst_v, dst_v, 1, Mask);
+  vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, Mask);
+  vand_vv(kSimd128ScratchReg, kSimd128ScratchReg, kSimd128ScratchReg2);
+  // kScratchReg = -1 if kSimd128ScratchReg == 0 i.e. no active element
+  vfirst_m(kScratchReg, kSimd128ScratchReg);
+  bgez(kScratchReg, &t);
 }
 
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,

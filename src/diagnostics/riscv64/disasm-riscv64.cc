@@ -2237,6 +2237,10 @@ void Decoder::DecodeRvvMVV(Instruction* instr) {
     case RO_V_VWXUNARY0:
       if (instr->Vs1Value() == 0x0) {
         Format(instr, "vmv.x.s   'rd, 'vs2");
+      } else if (instr->Vs1Value() == 0b10001) {
+        Format(instr, "vfirst.m  'rd, 'vs2");
+      } else if (instr->Vs1Value() == 0b10000) {
+        Format(instr, "vcpop.m   'rd, 'vs2");
       } else {
         UNSUPPORTED_RISCV();
       }

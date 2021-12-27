@@ -2545,6 +2545,59 @@ UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, uint8_t, 8, ARRAY(uint8_t),
 
 #undef UTEST_RVV_VP_VS_VI_FORM_WITH_RES
 #undef ARRAY
+
+#define UTEST_VFIRST_M_WITH_WIDTH(width)                            \
+  TEST(RISCV_UTEST_vfirst_m_##width) {                              \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;              \
+    constexpr uint32_t vlen = 128;                                  \
+    constexpr uint32_t n = vlen / width;                            \
+    CcTest::InitializeVM();                                         \
+    for (uint32_t i = 0; i <= n; i++) {                             \
+      uint64_t src[2] = {0};                                        \
+      src[0] = 1 << i;                                              \
+      auto fn = [](MacroAssembler& assm) {                          \
+        __ VU.set(t0, VSew::E##width, Vlmul::m1);                   \
+        __ vl(v2, a0, 0, VSew::E##width);                           \
+        __ vfirst_m(a0, v2);                                        \
+      };                                                            \
+      auto res = GenAndRunTest<int64_t, int64_t>((int64_t)src, fn); \
+      CHECK_EQ(i < n ? i : (int64_t)-1, res);                       \
+    }                                                               \
+  }
+
+UTEST_VFIRST_M_WITH_WIDTH(64)
+UTEST_VFIRST_M_WITH_WIDTH(32)
+UTEST_VFIRST_M_WITH_WIDTH(16)
+UTEST_VFIRST_M_WITH_WIDTH(8)
+
+#undef UTEST_VFIRST_M_WITH_WIDTH
+
+#define UTEST_VCPOP_M_WITH_WIDTH(width)                               \
+  TEST(RISCV_UTEST_vcpop_m_##width) {                                 \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                \
+    uint32_t vlen = 128;                                              \
+    uint32_t n = vlen / width;                                        \
+    CcTest::InitializeVM();                                           \
+    for (uint16_t x : compiler::ValueHelper::GetVector<uint16_t>()) { \
+      uint64_t src[2] = {0};                                          \
+      src[0] = x >> (16 - n);                                         \
+      auto fn = [](MacroAssembler& assm) {                            \
+        __ VU.set(t0, VSew::E##width, Vlmul::m1);                     \
+        __ vl(v2, a0, 0, VSew::E##width);                             \
+        __ vcpop_m(a0, v2);                                           \
+      };                                                              \
+      auto res = GenAndRunTest<int64_t, int64_t>((int64_t)src, fn);   \
+      CHECK_EQ(std::__popcount(src[0]), res);                         \
+    }                                                                 \
+  }
+
+UTEST_VCPOP_M_WITH_WIDTH(64)
+UTEST_VCPOP_M_WITH_WIDTH(32)
+UTEST_VCPOP_M_WITH_WIDTH(16)
+UTEST_VCPOP_M_WITH_WIDTH(8)
+
+#undef UTEST_VCPOP_M_WITH_WIDTH
+
 #undef __
 
 }  // namespace internal
