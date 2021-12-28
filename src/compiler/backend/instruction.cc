@@ -178,7 +178,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
       }
     }
     case InstructionOperand::CONSTANT:
-      return os << "[constant:" << ConstantOperand::cast(op).virtual_register()
+      return os << "[constant:v" << ConstantOperand::cast(op).virtual_register()
                 << "]";
     case InstructionOperand::IMMEDIATE: {
       ImmediateOperand imm = ImmediateOperand::cast(op);
