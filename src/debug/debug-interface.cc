@@ -505,6 +505,10 @@ Location Script::GetSourceLocation(int offset) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Script::PositionInfo info;
   i::Script::GetPositionInfo(script, offset, &info, i::Script::WITH_OFFSET);
+  if (script->HasSourceURLComment()) {
+    info.line -= script->line_offset();
+    if (info.line == 0) info.column -= script->column_offset();
+  }
   return Location(info.line, info.column);
 }
 
