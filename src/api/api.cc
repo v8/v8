@@ -3255,8 +3255,9 @@ Location StackFrame::GetLocation() const {
   i::Isolate* isolate = self->GetIsolate();
   i::Handle<i::Script> script(self->script(), isolate);
   i::Script::PositionInfo info;
-  CHECK(i::Script::GetPositionInfo(script, self->source_position(), &info,
-                                   i::Script::WITH_OFFSET));
+  CHECK(i::Script::GetPositionInfo(script,
+                                   i::StackFrameInfo::GetSourcePosition(self),
+                                   &info, i::Script::WITH_OFFSET));
   if (script->HasSourceURLComment()) {
     info.line -= script->line_offset();
     if (info.line == 0) {
@@ -3308,9 +3309,9 @@ Local<String> StackFrame::GetScriptSourceMappingURL() const {
 Local<String> StackFrame::GetFunctionName() const {
   i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  i::Handle<i::PrimitiveHeapObject> name(self->function_name(), isolate);
-  if (!name->IsString()) return {};
-  return Utils::ToLocal(i::Handle<i::String>::cast(name));
+  i::Handle<i::String> name(self->function_name(), isolate);
+  if (name->length() == 0) return {};
+  return Utils::ToLocal(name);
 }
 
 bool StackFrame::IsEval() const {

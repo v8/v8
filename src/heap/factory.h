@@ -403,8 +403,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                        int flags,
                                        Handle<FixedArray> parameters);
   Handle<StackFrameInfo> NewStackFrameInfo(
-      Handle<Script> script, int source_position,
-      Handle<PrimitiveHeapObject> function_name, bool is_constructor);
+      Handle<HeapObject> shared_or_script,
+      int bytecode_offset_or_source_position, Handle<String> function_name,
+      bool is_constructor);
 
   // Allocate various microtasks.
   Handle<CallableTask> NewCallableTask(Handle<JSReceiver> callable,

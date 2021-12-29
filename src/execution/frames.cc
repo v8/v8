@@ -1593,17 +1593,29 @@ Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
   return handle(function_->context().native_context(), isolate());
 }
 
-Handle<PrimitiveHeapObject> FrameSummary::JavaScriptFrameSummary::FunctionName()
+Handle<StackFrameInfo> FrameSummary::JavaScriptFrameSummary::StackFrameInfo()
     const {
-  Handle<JSFunction> func = function();
-  Handle<String> name = JSFunction::GetDebugName(func);
-  if (name->length() != 0) return name;
-  if (func->shared().script().IsScript() &&
-      Script::cast(func->shared().script()).compilation_type() ==
-          Script::COMPILATION_TYPE_EVAL) {
-    return isolate()->factory()->eval_string();
+  Handle<SharedFunctionInfo> shared(function_->shared(), isolate());
+  Handle<Script> script(Script::cast(shared->script()), isolate());
+  Handle<String> function_name = JSFunction::GetDebugName(function_);
+  if (function_name->length() == 0 &&
+      script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
+    function_name = isolate()->factory()->eval_string();
   }
-  return isolate()->factory()->null_value();
+  int bytecode_offset = code_offset();
+  if (bytecode_offset == kFunctionEntryBytecodeOffset) {
+    // For the special function entry bytecode offset (-1), which signals
+    // that the stack trace was captured while the function entry was
+    // executing (i.e. during the interrupt check), we cannot store this
+    // sentinel in the bit field, so we just eagerly lookup the source
+    // position within the script.
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
+    int source_position = abstract_code()->SourcePosition(bytecode_offset);
+    return isolate()->factory()->NewStackFrameInfo(
+        script, source_position, function_name, is_constructor());
+  }
+  return isolate()->factory()->NewStackFrameInfo(
+      shared, bytecode_offset, function_name, is_constructor());
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1643,8 +1655,11 @@ Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
   return handle(wasm_instance()->native_context(), isolate());
 }
 
-Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
-  return GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
+Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::StackFrameInfo() const {
+  Handle<String> function_name =
+      GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
+  return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
+                                                 function_name, false);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1715,7 +1730,7 @@ FRAME_SUMMARY_DISPATCH(Handle<Object>, script)
 FRAME_SUMMARY_DISPATCH(int, SourcePosition)
 FRAME_SUMMARY_DISPATCH(int, SourceStatementPosition)
 FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
-FRAME_SUMMARY_DISPATCH(Handle<PrimitiveHeapObject>, FunctionName)
+FRAME_SUMMARY_DISPATCH(Handle<StackFrameInfo>, StackFrameInfo)
 
 #undef FRAME_SUMMARY_DISPATCH
 

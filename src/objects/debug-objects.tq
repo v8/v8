@@ -70,11 +70,17 @@ extern class CoverageInfo extends HeapObject {
 
 bitfield struct StackFrameInfoFlags extends uint31 {
   is_constructor: bool: 1 bit;
-  source_position: int32: 30 bit;
+  bytecode_offset_or_source_position: int32: 30 bit;
 }
 
 extern class StackFrameInfo extends Struct {
-  script: Script;
-  function_name: String|Null;
+  // In case this field holds a SharedFunctionInfo, the
+  // |bytecode_offset_or_source_position| part of the
+  // |flags| bit field below contains the bytecode offset
+  // within that SharedFunctionInfo. Otherwise if this
+  // is a Script, the |bytecode_offset_or_source_position|
+  // holds the source position within the Script.
+  shared_or_script: SharedFunctionInfo|Script;
+  function_name: String;
   flags: SmiTagged<StackFrameInfoFlags>;
 }

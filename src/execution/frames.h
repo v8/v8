@@ -52,7 +52,6 @@ struct JumpBuffer;
 class StackMemory;
 }  // namespace wasm
 
-// Forward declarations.
 class AbstractCode;
 class Debug;
 class ExternalCallbackScope;
@@ -61,6 +60,7 @@ class Isolate;
 class ObjectVisitor;
 class Register;
 class RootVisitor;
+class StackFrameInfo;
 class StackFrameIteratorBase;
 class StringStream;
 class ThreadLocalTop;
@@ -394,7 +394,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourceStatementPosition() const;
     Handle<Object> script() const;
     Handle<Context> native_context() const;
-    Handle<PrimitiveHeapObject> FunctionName() const;
+    Handle<StackFrameInfo> StackFrameInfo() const;
 
    private:
     Handle<Object> receiver_;
@@ -424,7 +424,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
     Handle<Context> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
-    Handle<String> FunctionName() const;
+    Handle<StackFrameInfo> StackFrameInfo() const;
 
    private:
     Handle<WasmInstanceObject> wasm_instance_;
@@ -458,7 +458,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
   int SourcePosition() const;
   int SourceStatementPosition() const;
   Handle<Context> native_context() const;
-  Handle<PrimitiveHeapObject> FunctionName() const;
+  Handle<StackFrameInfo> StackFrameInfo() const;
 
 #define FRAME_SUMMARY_CAST(kind_, type, field, desc)      \
   bool Is##desc() const { return base_.kind() == kind_; } \

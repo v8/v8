@@ -208,8 +208,13 @@ class StackFrameInfo
  public:
   NEVER_READ_ONLY_SPACE
 
-  // The source position for the stack frame.
-  DECL_INT_ACCESSORS(source_position)
+  static int GetSourcePosition(Handle<StackFrameInfo> info);
+
+  // The script for the stack frame.
+  inline Script script() const;
+
+  // The bytecode offset or source position for the stack frame.
+  DECL_INT_ACCESSORS(bytecode_offset_or_source_position)
 
   // Indicates that the frame corresponds to a 'new' invocation.
   DECL_BOOLEAN_ACCESSORS(is_constructor)

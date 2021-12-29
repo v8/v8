@@ -3358,14 +3358,16 @@ Handle<CallSiteInfo> Factory::NewCallSiteInfo(
 }
 
 Handle<StackFrameInfo> Factory::NewStackFrameInfo(
-    Handle<Script> script, int source_position,
-    Handle<PrimitiveHeapObject> function_name, bool is_constructor) {
+    Handle<HeapObject> shared_or_script, int bytecode_offset_or_source_position,
+    Handle<String> function_name, bool is_constructor) {
+  DCHECK_GE(bytecode_offset_or_source_position, 0);
   StackFrameInfo info = NewStructInternal<StackFrameInfo>(
       STACK_FRAME_INFO_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   info.set_flags(0);
-  info.set_script(*script, SKIP_WRITE_BARRIER);
-  info.set_source_position(source_position);
+  info.set_shared_or_script(*shared_or_script, SKIP_WRITE_BARRIER);
+  info.set_bytecode_offset_or_source_position(
+      bytecode_offset_or_source_position);
   info.set_function_name(*function_name, SKIP_WRITE_BARRIER);
   info.set_is_constructor(is_constructor);
   return handle(info, isolate());

@@ -55,8 +55,16 @@ BytecodeArray DebugInfo::DebugBytecodeArray() {
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
-BIT_FIELD_ACCESSORS(StackFrameInfo, flags, source_position,
-                    StackFrameInfo::SourcePositionBits)
+Script StackFrameInfo::script() const {
+  HeapObject object = shared_or_script();
+  if (object.IsSharedFunctionInfo()) {
+    object = SharedFunctionInfo::cast(object).script();
+  }
+  return Script::cast(object);
+}
+
+BIT_FIELD_ACCESSORS(StackFrameInfo, flags, bytecode_offset_or_source_position,
+                    StackFrameInfo::BytecodeOffsetOrSourcePositionBits)
 BIT_FIELD_ACCESSORS(StackFrameInfo, flags, is_constructor,
                     StackFrameInfo::IsConstructorBit)
 
