@@ -3250,28 +3250,20 @@ Local<StackTrace> StackTrace::CurrentStackTrace(Isolate* isolate,
 
 // --- S t a c k F r a m e ---
 
-int StackFrame::GetLineNumber() const {
+Location StackFrame::GetLocation() const {
   i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
-  i::Handle<i::Script> script(self->script(), self->GetIsolate());
-  int position = self->source_position();
-  int line_number = i::Script::GetLineNumber(script, position) + 1;
+  i::Isolate* isolate = self->GetIsolate();
+  i::Handle<i::Script> script(self->script(), isolate);
+  i::Script::PositionInfo info;
+  CHECK(i::Script::GetPositionInfo(script, self->source_position(), &info,
+                                   i::Script::WITH_OFFSET));
   if (script->HasSourceURLComment()) {
-    line_number -= script->line_offset();
-  }
-  return line_number;
-}
-
-int StackFrame::GetColumn() const {
-  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
-  i::Handle<i::Script> script(self->script(), self->GetIsolate());
-  int position = self->source_position();
-  int column_number = i::Script::GetColumnNumber(script, position) + 1;
-  if (script->HasSourceURLComment()) {
-    if (i::Script::GetLineNumber(script, position) == script->line_offset()) {
-      column_number -= script->column_offset();
+    info.line -= script->line_offset();
+    if (info.line == 0) {
+      info.column -= script->column_offset();
     }
   }
-  return column_number;
+  return {info.line, info.column};
 }
 
 int StackFrame::GetScriptId() const {

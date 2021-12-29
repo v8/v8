@@ -1091,8 +1091,9 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
 std::shared_ptr<StackFrame> V8Debugger::symbolize(
     v8::Local<v8::StackFrame> v8Frame) {
   int scriptId = v8Frame->GetScriptId();
-  int lineNumber = v8Frame->GetLineNumber() - 1;
-  int columnNumber = v8Frame->GetColumn() - 1;
+  auto location = v8Frame->GetLocation();
+  int lineNumber = location.GetLineNumber();
+  int columnNumber = location.GetColumnNumber();
   CachedStackFrameKey key{scriptId, lineNumber, columnNumber};
   auto functionName = toProtocolString(isolate(), v8Frame->GetFunctionName());
   auto it = m_cachedStackFrames.find(key);

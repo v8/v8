@@ -7,8 +7,8 @@
 
 #include <stdint.h>
 
-#include "v8-local-handle.h"  // NOLINT(build/include_directory)
-#include "v8config.h"         // NOLINT(build/include_directory)
+#include "v8-script.h"  // NOLINT(build/include_directory)
+#include "v8config.h"   // NOLINT(build/include_directory)
 
 namespace v8 {
 
@@ -21,12 +21,17 @@ class String;
 class V8_EXPORT StackFrame {
  public:
   /**
+   * Returns the source location, 0-based, for the associated function call.
+   */
+  Location GetLocation() const;
+
+  /**
    * Returns the number, 1-based, of the line for the associate function call.
    * This method will return Message::kNoLineNumberInfo if it is unable to
    * retrieve the line number, or if kLineNumber was not passed as an option
    * when capturing the StackTrace.
    */
-  int GetLineNumber() const;
+  int GetLineNumber() const { return GetLocation().GetLineNumber() + 1; }
 
   /**
    * Returns the 1-based column offset on the line for the associated function
@@ -35,7 +40,7 @@ class V8_EXPORT StackFrame {
    * the column number, or if kColumnOffset was not passed as an option when
    * capturing the StackTrace.
    */
-  int GetColumn() const;
+  int GetColumn() const { return GetLocation().GetColumnNumber() + 1; }
 
   /**
    * Returns the id of the script for the function for this StackFrame.
