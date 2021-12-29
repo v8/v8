@@ -92,6 +92,18 @@ CAST_ACCESSOR(WasmInstanceObject)
     }                                                                         \
   }
 
+#define SANDBOXED_POINTER_ACCESSORS(holder, name, type, offset)      \
+  type holder::name() const {                                        \
+    PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);      \
+    Address value = ReadSandboxedPointerField(offset, sandbox_base); \
+    return reinterpret_cast<type>(value);                            \
+  }                                                                  \
+  void holder::set_##name(type value) {                              \
+    PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);      \
+    Address addr = reinterpret_cast<Address>(value);                 \
+    WriteSandboxedPointerField(offset, sandbox_base, addr);          \
+  }
+
 // WasmModuleObject
 wasm::NativeModule* WasmModuleObject::native_module() const {
   return managed_native_module().raw();
@@ -188,7 +200,8 @@ bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
 }
 
 // WasmInstanceObject
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_start, byte*, kMemoryStartOffset)
+SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, memory_start, byte*,
+                            kMemoryStartOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, size_t, kMemorySizeOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, isolate_root, Address,
                     kIsolateRootOffset)

@@ -840,6 +840,9 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
         target.cached_mem_start, instance,
         ObjectAccess::ToTagged(WasmInstanceObject::kMemoryStartOffset),
         sizeof(size_t));
+#ifdef V8_SANDBOXED_POINTERS
+    DecodeSandboxedPointer(target.cached_mem_start);
+#endif
   }
 }
 

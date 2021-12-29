@@ -3480,8 +3480,13 @@ void WasmGraphBuilder::InitInstanceCache(
     WasmInstanceCacheNodes* instance_cache) {
 
   // Load the memory start.
+#ifdef V8_SANDBOXED_POINTERS
+  instance_cache->mem_start =
+      LOAD_MUTABLE_INSTANCE_FIELD(MemoryStart, MachineType::SandboxedPointer());
+#else
   instance_cache->mem_start =
       LOAD_MUTABLE_INSTANCE_FIELD(MemoryStart, MachineType::UintPtr());
+#endif
 
   // Load the memory size.
   instance_cache->mem_size =
