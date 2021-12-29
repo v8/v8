@@ -72,7 +72,7 @@ class SnapshotImpl : public AllStatic {
   // [0] number of contexts N
   // [1] rehashability
   // [2] checksum
-  // [3] (128 bytes) version string
+  // [3] (64 bytes) version string
   // [4] offset to readonly
   // [5] offset to shared heap
   // [6] offset to context 0
