@@ -244,9 +244,9 @@ void V8ConsoleMessage::reportToFrontend(
           .setLevel(level)
           .setText(m_message)
           .build();
-  result->setLine(static_cast<int>(m_lineNumber));
-  result->setColumn(static_cast<int>(m_columnNumber));
-  result->setUrl(m_url);
+  if (m_lineNumber) result->setLine(m_lineNumber);
+  if (m_columnNumber) result->setColumn(m_columnNumber);
+  if (!m_url.isEmpty()) result->setUrl(m_url);
   frontend->messageAdded(std::move(result));
 }
 
