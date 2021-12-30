@@ -64,6 +64,8 @@ class V8_EXPORT_PRIVATE CppHeap final
         cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
     ExtractLastIncrementalMarkEvent();
 
+    void ClearCachedEvents();
+
    private:
     Isolate* GetIsolate() const;
 

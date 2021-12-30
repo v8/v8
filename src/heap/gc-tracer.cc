@@ -1381,7 +1381,16 @@ void GCTracer::ReportFullCycleToRecorder() {
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
-  if (!recorder->HasEmbedderRecorder()) return;
+  metrics_report_pending_ = false;
+  if (!recorder->HasEmbedderRecorder()) {
+    incremental_mark_batched_events_.events.clear();
+    if (heap_->cpp_heap()) {
+      v8::internal::CppHeap::From(heap_->cpp_heap())
+          ->GetMetricRecorder()
+          ->ClearCachedEvents();
+    }
+    return;
+  }
   if (!incremental_mark_batched_events_.events.empty()) {
     FlushBatchedIncrementalEvents(incremental_mark_batched_events_,
                                   heap_->isolate());
@@ -1416,7 +1425,6 @@ void GCTracer::ReportFullCycleToRecorder() {
   }
   // TODO(chromium:1154636): Populate v8 metrics.
   recorder->AddMainThreadEvent(event, GetContextId(heap_->isolate()));
-  metrics_report_pending_ = false;
 }
 
 void GCTracer::ReportIncrementalMarkingStepToRecorder() {

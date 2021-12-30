@@ -233,6 +233,7 @@ void UnifiedHeapMarker::AddObject(void* object) {
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
     const FullCycle& cppgc_event) {
+  DCHECK(!last_full_gc_event_.has_value());
   last_full_gc_event_ = cppgc_event;
   GetIsolate()->heap()->tracer()->NotifyGCCompleted();
 }
@@ -309,6 +310,13 @@ CppHeap::MetricRecorderAdapter::ExtractLastFullGcEvent() {
 const base::Optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
 CppHeap::MetricRecorderAdapter::ExtractLastIncrementalMarkEvent() {
   return std::move(last_incremental_mark_event_);
+}
+
+void CppHeap::MetricRecorderAdapter::ClearCachedEvents() {
+  incremental_mark_batched_events_.events.clear();
+  incremental_sweep_batched_events_.events.clear();
+  last_incremental_mark_event_.reset();
+  last_full_gc_event_.reset();
 }
 
 Isolate* CppHeap::MetricRecorderAdapter::GetIsolate() const {
