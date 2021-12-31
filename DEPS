@@ -83,9 +83,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4e188b4ae840ef7765f86d21378a36bacb8d6ac6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '97d5e5fa8cbd4011f94a21d75eb5d7b14f96b134',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'd7bdd6f0386aaf20cd00a01d499e8ce1cbf6063e',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f78b4b9f33bd8ef9944d5ce643daff1c31880189',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'e435ad79c17b1888b34df88d6a30a094936e3836',
   'buildtools/linux64': {
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f57af59eeda216ebe3e9dc3d695b02d4a3dfe486',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1227b26f3260494ce81f0d0180b2b084ba211f6d',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
