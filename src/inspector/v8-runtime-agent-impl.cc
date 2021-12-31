@@ -57,6 +57,7 @@ namespace v8_inspector {
 namespace V8RuntimeAgentImplState {
 static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
+static const char maxCallStackSizeToCapture[] = "maxCallStackSizeToCapture";
 static const char runtimeEnabled[] = "runtimeEnabled";
 static const char bindings[] = "bindings";
 static const char globalBindingsKey[] = "";
@@ -499,7 +500,9 @@ Response V8RuntimeAgentImpl::setMaxCallStackSizeToCapture(int size) {
     return Response::ServerError(
         "maxCallStackSizeToCapture should be non-negative");
   }
-  V8StackTraceImpl::maxCallStackSizeToCapture = size;
+  if (!m_enabled) return Response::ServerError("Runtime agent is not enabled");
+  m_state->setInteger(V8RuntimeAgentImplState::maxCallStackSizeToCapture, size);
+  m_inspector->debugger()->setMaxCallStackSizeToCapture(this, size);
   return Response::Success();
 }
 
@@ -839,6 +842,11 @@ void V8RuntimeAgentImpl::restore() {
           V8RuntimeAgentImplState::customObjectFormatterEnabled, false))
     m_session->setCustomObjectFormatterEnabled(true);
 
+  int size;
+  if (m_state->getInteger(V8RuntimeAgentImplState::maxCallStackSizeToCapture,
+                          &size))
+    m_inspector->debugger()->setMaxCallStackSizeToCapture(this, size);
+
   m_inspector->forEachContext(
       m_session->contextGroupId(),
       [this](InspectedContext* context) { addBindings(context); });
@@ -850,7 +858,8 @@ Response V8RuntimeAgentImpl::enable() {
       m_session->contextGroupId());
   m_enabled = true;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, true);
-  m_inspector->enableStackCapturingIfNeeded();
+  m_inspector->debugger()->setMaxCallStackSizeToCapture(
+      this, V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture);
   m_session->reportAllContexts(this);
   V8ConsoleMessageStorage* storage =
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
@@ -865,7 +874,7 @@ Response V8RuntimeAgentImpl::disable() {
   m_enabled = false;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
   m_state->remove(V8RuntimeAgentImplState::bindings);
-  m_inspector->disableStackCapturingIfNeeded();
+  m_inspector->debugger()->setMaxCallStackSizeToCapture(this, -1);
   m_session->setCustomObjectFormatterEnabled(false);
   reset();
   m_inspector->client()->endEnsureAllContextsInGroup(

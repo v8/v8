@@ -62,7 +62,6 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
     : m_isolate(isolate),
       m_client(client),
       m_debugger(new V8Debugger(isolate, this)),
-      m_capturingStackTracesCount(0),
       m_lastExceptionId(0),
       m_lastContextId(0),
       m_isolateId(generateUniqueId()) {
@@ -110,19 +109,6 @@ v8::MaybeLocal<v8::Script> V8InspectorImpl::compileScript(
   v8::ScriptCompiler::Source source(toV8String(m_isolate, code), origin);
   return v8::ScriptCompiler::Compile(context, &source,
                                      v8::ScriptCompiler::kNoCompileOptions);
-}
-
-void V8InspectorImpl::enableStackCapturingIfNeeded() {
-  if (!m_capturingStackTracesCount)
-    V8StackTraceImpl::setCaptureStackTraceForUncaughtExceptions(m_isolate,
-                                                                true);
-  ++m_capturingStackTracesCount;
-}
-
-void V8InspectorImpl::disableStackCapturingIfNeeded() {
-  if (!(--m_capturingStackTracesCount))
-    V8StackTraceImpl::setCaptureStackTraceForUncaughtExceptions(m_isolate,
-                                                                false);
 }
 
 void V8InspectorImpl::muteExceptions(int contextGroupId) {

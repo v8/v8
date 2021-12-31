@@ -77,6 +77,8 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_continueToLocationBreakpointId(kNoBreakpointId),
       m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
       m_maxAsyncCallStackDepth(0),
+      m_maxCallStackSizeToCapture(
+          V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture),
       m_pauseOnExceptionsState(v8::debug::NoBreakOnException) {}
 
 V8Debugger::~V8Debugger() {
@@ -817,8 +819,8 @@ v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::createStackTrace(
     v8::Local<v8::StackTrace> v8StackTrace) {
-  return V8StackTraceImpl::create(this, v8StackTrace,
-                                  V8StackTraceImpl::maxCallStackSizeToCapture);
+  return V8StackTraceImpl::create(
+      this, v8StackTrace, V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture);
 }
 
 void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
@@ -843,6 +845,45 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
                                    maxAsyncCallStackDepth ? this : nullptr);
 }
 
+void V8Debugger::setMaxCallStackSizeToCapture(V8RuntimeAgentImpl* agent,
+                                              int size) {
+  if (size < 0) {
+    m_maxCallStackSizeToCaptureMap.erase(agent);
+  } else {
+    m_maxCallStackSizeToCaptureMap[agent] = size;
+  }
+
+  // The following logic is a bit complicated to decipher because we
+  // want to retain backwards compatible semantics:
+  //
+  // (a) When no `Runtime` domain is enabled, we stick to the default
+  //     maximum call stack size, but don't let V8 collect stack traces
+  //     for uncaught exceptions.
+  // (b) When `Runtime` is enabled for at least one front-end, we compute
+  //     the maximum of the requested maximum call stack sizes of all the
+  //     front-ends whose `Runtime` domains are enabled (which might be 0),
+  //     and ask V8 to collect stack traces for uncaught exceptions.
+  //
+  // The latter allows performance test automation infrastructure to drive
+  // browser via `Runtime` domain while still minimizing the performance
+  // overhead of having the inspector attached - see the relevant design
+  // document https://bit.ly/v8-cheaper-inspector-stack-traces for more
+  // information
+  if (m_maxCallStackSizeToCaptureMap.empty()) {
+    m_maxAsyncCallStackDepth =
+        V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture;
+    m_isolate->SetCaptureStackTraceForUncaughtExceptions(false, 0);
+  } else {
+    m_maxCallStackSizeToCapture = 0;
+    for (auto const& pair : m_maxCallStackSizeToCaptureMap) {
+      if (m_maxCallStackSizeToCapture < pair.second)
+        m_maxCallStackSizeToCapture = pair.second;
+    }
+    m_isolate->SetCaptureStackTraceForUncaughtExceptions(
+        m_maxCallStackSizeToCapture > 0, m_maxCallStackSizeToCapture);
+  }
+}
+
 std::shared_ptr<AsyncStackTrace> V8Debugger::stackTraceFor(
     int contextGroupId, const V8StackTraceId& id) {
   if (debuggerIdFor(contextGroupId).pair() != id.debugger_id) return nullptr;
@@ -860,8 +901,7 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
   if (!contextGroupId) return V8StackTraceId();
 
   std::shared_ptr<AsyncStackTrace> asyncStack =
-      AsyncStackTrace::capture(this, toString16(description),
-                               V8StackTraceImpl::maxCallStackSizeToCapture);
+      AsyncStackTrace::capture(this, toString16(description));
   if (!asyncStack) return V8StackTraceId();
 
   uintptr_t id = AsyncStackTrace::store(this, asyncStack);
@@ -938,9 +978,8 @@ void V8Debugger::asyncTaskScheduledForStack(const StringView& taskName,
                                             bool skipTopFrame) {
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
-  std::shared_ptr<AsyncStackTrace> asyncStack = AsyncStackTrace::capture(
-      this, toString16(taskName), V8StackTraceImpl::maxCallStackSizeToCapture,
-      skipTopFrame);
+  std::shared_ptr<AsyncStackTrace> asyncStack =
+      AsyncStackTrace::capture(this, toString16(taskName), skipTopFrame);
   if (asyncStack) {
     m_asyncTaskStacks[task] = asyncStack;
     if (recurring) m_recurringTasks.insert(task);
@@ -1044,20 +1083,17 @@ void V8Debugger::unmuteScriptParsedEvents() {
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
     bool fullStack) {
-  if (!m_isolate->InContext()) return nullptr;
-
-  v8::HandleScope handles(m_isolate);
   int contextGroupId = currentContextGroupId();
   if (!contextGroupId) return nullptr;
 
   int stackSize = 1;
   if (fullStack) {
-    stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
+    stackSize = V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture;
   } else {
     m_inspector->forEachSession(
         contextGroupId, [&stackSize](V8InspectorSessionImpl* session) {
           if (session->runtimeAgent()->enabled())
-            stackSize = V8StackTraceImpl::maxCallStackSizeToCapture;
+            stackSize = V8StackTraceImpl::kDefaultMaxCallStackSizeToCapture;
         });
   }
   return V8StackTraceImpl::capture(this, stackSize);
