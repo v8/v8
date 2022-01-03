@@ -223,7 +223,11 @@ void WasmInliner::RewireFunctionEntry(Node* call, Node* callee_start) {
         if (NodeProperties::IsEffectEdge(edge)) {
           edge.UpdateTo(effect);
         } else if (NodeProperties::IsControlEdge(edge)) {
-          edge.UpdateTo(control);
+          // Projections pointing to the inlinee start are floating control.
+          // They should point to the graph's start.
+          edge.UpdateTo(use->opcode() == IrOpcode::kProjection
+                            ? graph()->start()
+                            : control);
         } else {
           UNREACHABLE();
         }
