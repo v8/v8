@@ -2287,6 +2287,23 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
   }
 }
 
+void TurboAssembler::IncsspqIfSupported(Register number_of_words,
+                                        Register scratch) {
+  // Optimized code can validate at runtime whether the cpu supports the
+  // incsspq instruction, so it shouldn't use this method.
+  CHECK(isolate()->IsGeneratingEmbeddedBuiltins());
+  DCHECK_NE(number_of_words, scratch);
+  Label not_supported;
+  ExternalReference supports_cetss =
+      ExternalReference::supports_cetss_address();
+  Operand supports_cetss_operand =
+      ExternalReferenceAsOperand(supports_cetss, scratch);
+  cmpb(supports_cetss_operand, Immediate(0));
+  j(equal, &not_supported, Label::kNear);
+  incsspq(number_of_words);
+  bind(&not_supported);
+}
+
 void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
                                    Register map) {
   LoadMap(map, heap_object);

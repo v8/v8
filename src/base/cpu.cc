@@ -499,6 +499,9 @@ CPU::CPU()
     has_avx_ = (cpu_info[2] & 0x10000000) != 0;
     has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
+    // CET shadow stack feature flag. See
+    // https://en.wikipedia.org/wiki/CPUID#EAX=7,_ECX=0:_Extended_Features
+    has_cetss_ = (cpu_info7[2] & 0x00000080) != 0;
     // "Hypervisor Present Bit: Bit 31 of ECX of CPUID leaf 0x1."
     // See https://lwn.net/Articles/301888/
     // This is checking for any hypervisor. Hypervisors may choose not to

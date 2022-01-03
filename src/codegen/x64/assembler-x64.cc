@@ -131,7 +131,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
   CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
-#endif  // V8_HOST_ARCH_X64
+
+  if (cpu.has_cetss()) SetSupported(CETSS);
+  // The static variable is used for codegen of certain CETSS instructions.
+  CpuFeatures::supports_cetss_ = IsSupported(CETSS);
+#endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 }
 
 void CpuFeatures::PrintTarget() {}
@@ -2112,6 +2116,15 @@ void Assembler::pushq_imm32(int32_t imm32) {
 void Assembler::pushfq() {
   EnsureSpace ensure_space(this);
   emit(0x9C);
+}
+
+void Assembler::incsspq(Register number_of_words) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_rex_64(number_of_words);
+  emit(0x0F);
+  emit(0xAE);
+  emit(0xE8 | number_of_words.low_bits());
 }
 
 void Assembler::ret(int imm16) {

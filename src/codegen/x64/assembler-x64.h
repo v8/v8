@@ -544,6 +544,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void popq(Register dst);
   void popq(Operand dst);
 
+  void incsspq(Register number_of_words);
+
   void leave();
 
   // Moves

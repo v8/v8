@@ -660,6 +660,11 @@ ExternalReference ExternalReference::address_of_wasm_int32_overflow_as_float() {
       reinterpret_cast<Address>(&wasm_int32_overflow_as_float));
 }
 
+ExternalReference ExternalReference::supports_cetss_address() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&CpuFeatures::supports_cetss_));
+}
+
 ExternalReference
 ExternalReference::address_of_enable_experimental_regexp_engine() {
   return ExternalReference(&FLAG_enable_experimental_regexp_engine);

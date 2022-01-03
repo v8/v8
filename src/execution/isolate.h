@@ -745,6 +745,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_constant_pool)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_fp)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_sp)
+  THREAD_LOCAL_TOP_ADDRESS(uintptr_t, num_frames_above_pending_handler)
 
   THREAD_LOCAL_TOP_ACCESSOR(bool, external_caught_exception)
 

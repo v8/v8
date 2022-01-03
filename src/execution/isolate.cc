@@ -1772,7 +1772,7 @@ Object Isolate::UnwindAndFindHandler() {
   auto FoundHandler = [&](Context context, Address instruction_start,
                           intptr_t handler_offset,
                           Address constant_pool_address, Address handler_sp,
-                          Address handler_fp) {
+                          Address handler_fp, int num_frames_above_handler) {
     // Store information to be consumed by the CEntry.
     thread_local_top()->pending_handler_context_ = context;
     thread_local_top()->pending_handler_entrypoint_ =
@@ -1780,6 +1780,8 @@ Object Isolate::UnwindAndFindHandler() {
     thread_local_top()->pending_handler_constant_pool_ = constant_pool_address;
     thread_local_top()->pending_handler_fp_ = handler_fp;
     thread_local_top()->pending_handler_sp_ = handler_sp;
+    thread_local_top()->num_frames_above_pending_handler_ =
+        num_frames_above_handler;
 
     // Return and clear pending exception. The contract is that:
     // (1) the pending exception is stored in one place (no duplication), and
@@ -1794,10 +1796,11 @@ Object Isolate::UnwindAndFindHandler() {
   // Special handling of termination exceptions, uncatchable by JavaScript and
   // Wasm code, we unwind the handlers until the top ENTRY handler is found.
   bool catchable_by_js = is_catchable_by_javascript(exception);
+  int visited_frames = 0;
 
   // Compute handler and stack unwinding information by performing a full walk
   // over the stack and dispatching according to the frame type.
-  for (StackFrameIterator iter(this);; iter.Advance()) {
+  for (StackFrameIterator iter(this);; iter.Advance(), visited_frames++) {
     // Handler must exist.
     DCHECK(!iter.done());
 
@@ -1818,7 +1821,7 @@ Object Isolate::UnwindAndFindHandler() {
         return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
                             table.LookupReturn(0), code.constant_pool(),
                             handler->address() + StackHandlerConstants::kSize,
-                            0);
+                            0, visited_frames);
       }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1837,7 +1840,8 @@ Object Isolate::UnwindAndFindHandler() {
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             code.stack_slots() * kSystemPointerSize;
         return FoundHandler(Context(), instruction_start, handler_offset,
-                            code.constant_pool(), return_sp, frame->fp());
+                            code.constant_pool(), return_sp, frame->fp(),
+                            visited_frames);
       }
 
       case StackFrame::WASM: {
@@ -1865,7 +1869,8 @@ Object Isolate::UnwindAndFindHandler() {
         // destructors have been executed.
         set_thread_in_wasm_flag_scope.Enable();
         return FoundHandler(Context(), wasm_code->instruction_start(), offset,
-                            wasm_code->constant_pool(), return_sp, frame->fp());
+                            wasm_code->constant_pool(), return_sp, frame->fp(),
+                            visited_frames);
       }
 
       case StackFrame::WASM_COMPILE_LAZY: {
@@ -1902,7 +1907,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
                             offset, code.constant_pool(), return_sp,
-                            frame->fp());
+                            frame->fp(), visited_frames);
       }
 
       case StackFrame::STUB: {
@@ -1930,7 +1935,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
                             offset, code.constant_pool(), return_sp,
-                            frame->fp());
+                            frame->fp(), visited_frames);
       }
 
       case StackFrame::INTERPRETED:
@@ -1970,15 +1975,24 @@ Object Isolate::UnwindAndFindHandler() {
           sp_frame->PatchContext(context);
           return FoundHandler(
               Context(), code.InstructionStart(this, sp_frame->sp()), pc_offset,
-              code.constant_pool(), return_sp, sp_frame->fp());
+              code.constant_pool(), return_sp, sp_frame->fp(), visited_frames);
         } else {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));
 
           Code code =
               FromCodeT(builtins()->code(Builtin::kInterpreterEnterAtBytecode));
+          // We subtract a frame from visited_frames because otherwise the
+          // shadow stack will drop the underlying interpreter entry trampoline
+          // in which the handler runs.
+          //
+          // An interpreted frame cannot be the first frame we look at
+          // because at a minimum, an exit frame into C++ has to separate
+          // it and the context in which this C++ code runs.
+          CHECK_GE(visited_frames, 1);
           return FoundHandler(context, code.InstructionStart(), 0,
-                              code.constant_pool(), return_sp, frame->fp());
+                              code.constant_pool(), return_sp, frame->fp(),
+                              visited_frames - 1);
         }
       }
 
@@ -2001,7 +2015,8 @@ Object Isolate::UnwindAndFindHandler() {
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
         Code code = js_frame->LookupCode();
         return FoundHandler(Context(), code.InstructionStart(), 0,
-                            code.constant_pool(), return_sp, frame->fp());
+                            code.constant_pool(), return_sp, frame->fp(),
+                            visited_frames);
       }
 
       default:
