@@ -1,6 +1,4 @@
 Checks Runtime.setMaxCallStackSizeToCapture.
-
-Running test: testConsoleTrace
 Test with max size 0.
 {
     args : [
@@ -25,9 +23,9 @@ Test with max size 1.
     stackTrace : {
         callFrames : [
             [0] : {
-                columnNumber : 12
+                columnNumber : 10
                 functionName : bar
-                lineNumber : 3
+                lineNumber : 2
                 scriptId : <scriptId>
                 url : test.js
             }
@@ -35,9 +33,9 @@ Test with max size 1.
         parent : {
             callFrames : [
                 [0] : {
-                    columnNumber : 4
-                    functionName : executor
-                    lineNumber : 12
+                    columnNumber : 2
+                    functionName : test
+                    lineNumber : 10
                     scriptId : <scriptId>
                     url : test.js
                 }
@@ -60,16 +58,16 @@ Test with max size 2.
     stackTrace : {
         callFrames : [
             [0] : {
-                columnNumber : 12
+                columnNumber : 10
                 functionName : bar
-                lineNumber : 3
+                lineNumber : 2
                 scriptId : <scriptId>
                 url : test.js
             }
             [1] : {
-                columnNumber : 4
+                columnNumber : 2
                 functionName : foo
-                lineNumber : 8
+                lineNumber : 6
                 scriptId : <scriptId>
                 url : test.js
             }
@@ -77,18 +75,18 @@ Test with max size 2.
         parent : {
             callFrames : [
                 [0] : {
-                    columnNumber : 4
-                    functionName : executor
-                    lineNumber : 12
+                    columnNumber : 2
+                    functionName : test
+                    lineNumber : 10
                     scriptId : <scriptId>
                     url : test.js
                 }
                 [1] : {
-                    columnNumber : 9
-                    functionName : testConsoleTrace
-                    lineNumber : 11
+                    columnNumber : 0
+                    functionName :
+                    lineNumber : 0
                     scriptId : <scriptId>
-                    url : test.js
+                    url : expr.js
                 }
             ]
             description : setTimeout
@@ -96,173 +94,4 @@ Test with max size 2.
     }
     timestamp : <timestamp>
     type : trace
-}
-
-Running test: testException
-{
-    args : [
-        [0] : {
-            type : string
-            value : Nested call.
-        }
-    ]
-    executionContextId : <executionContextId>
-    timestamp : <timestamp>
-    type : trace
-}
-{
-    args : [
-        [0] : {
-            type : string
-            value : Nested call.
-        }
-    ]
-    executionContextId : <executionContextId>
-    stackTrace : {
-        callFrames : [
-            [0] : {
-                columnNumber : 12
-                functionName : bar
-                lineNumber : 3
-                scriptId : <scriptId>
-                url : test.js
-            }
-        ]
-        parent : {
-            callFrames : [
-                [0] : {
-                    columnNumber : 4
-                    functionName : executor
-                    lineNumber : 12
-                    scriptId : <scriptId>
-                    url : test.js
-                }
-            ]
-            description : setTimeout
-        }
-    }
-    timestamp : <timestamp>
-    type : trace
-}
-{
-    args : [
-        [0] : {
-            type : string
-            value : Nested call.
-        }
-    ]
-    executionContextId : <executionContextId>
-    stackTrace : {
-        callFrames : [
-            [0] : {
-                columnNumber : 12
-                functionName : bar
-                lineNumber : 3
-                scriptId : <scriptId>
-                url : test.js
-            }
-            [1] : {
-                columnNumber : 4
-                functionName : foo
-                lineNumber : 8
-                scriptId : <scriptId>
-                url : test.js
-            }
-        ]
-        parent : {
-            callFrames : [
-                [0] : {
-                    columnNumber : 4
-                    functionName : executor
-                    lineNumber : 12
-                    scriptId : <scriptId>
-                    url : test.js
-                }
-                [1] : {
-                    columnNumber : 9
-                    functionName : testConsoleTrace
-                    lineNumber : 11
-                    scriptId : <scriptId>
-                    url : test.js
-                }
-            ]
-            description : setTimeout
-        }
-    }
-    timestamp : <timestamp>
-    type : trace
-}
-Test with max size 0.
-{
-    columnNumber : 4
-    exception : {
-        className : Error
-        description : Error     at bar (test.js:19:11)     at foo (test.js:23:5)     at testThrow (test.js:26:3)     at <anonymous>:1:1
-        objectId : <objectId>
-        subtype : error
-        type : object
-    }
-    exceptionId : <exceptionId>
-    lineNumber : 18
-    scriptId : <scriptId>
-    text : Uncaught
-}
-Test with max size 1.
-{
-    columnNumber : 4
-    exception : {
-        className : Error
-        description : Error     at bar (test.js:19:11)     at foo (test.js:23:5)     at testThrow (test.js:26:3)     at <anonymous>:1:1
-        objectId : <objectId>
-        subtype : error
-        type : object
-    }
-    exceptionId : <exceptionId>
-    lineNumber : 18
-    scriptId : <scriptId>
-    stackTrace : {
-        callFrames : [
-            [0] : {
-                columnNumber : 10
-                functionName : bar
-                lineNumber : 18
-                scriptId : <scriptId>
-                url : test.js
-            }
-        ]
-    }
-    text : Uncaught
-}
-Test with max size 2.
-{
-    columnNumber : 4
-    exception : {
-        className : Error
-        description : Error     at bar (test.js:19:11)     at foo (test.js:23:5)     at testThrow (test.js:26:3)     at <anonymous>:1:1
-        objectId : <objectId>
-        subtype : error
-        type : object
-    }
-    exceptionId : <exceptionId>
-    lineNumber : 18
-    scriptId : <scriptId>
-    stackTrace : {
-        callFrames : [
-            [0] : {
-                columnNumber : 10
-                functionName : bar
-                lineNumber : 18
-                scriptId : <scriptId>
-                url : test.js
-            }
-            [1] : {
-                columnNumber : 4
-                functionName : foo
-                lineNumber : 22
-                scriptId : <scriptId>
-                url : test.js
-            }
-        ]
-    }
-    text : Uncaught
 }

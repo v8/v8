@@ -27,7 +27,6 @@ class StackFrame;
 class V8Debugger;
 class V8DebuggerAgentImpl;
 class V8InspectorImpl;
-class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
 struct V8StackTraceId;
 
@@ -85,9 +84,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }
   void setAsyncCallStackDepth(V8DebuggerAgentImpl*, int);
-
-  int maxCallStackSizeToCapture() const { return m_maxCallStackSizeToCapture; }
-  void setMaxCallStackSizeToCapture(V8RuntimeAgentImpl*, int);
 
   std::shared_ptr<AsyncStackTrace> currentAsyncParent();
   V8StackTraceId currentExternalParent();
@@ -252,7 +248,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   size_t m_maxAsyncCallStacks;
   int m_maxAsyncCallStackDepth;
-  int m_maxCallStackSizeToCapture;
 
   std::vector<void*> m_currentTasks;
   std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncParent;
@@ -264,7 +259,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
 
   std::unordered_map<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
-  std::unordered_map<V8RuntimeAgentImpl*, int> m_maxCallStackSizeToCaptureMap;
   void* m_taskWithScheduledBreak = nullptr;
 
   // If any of the following three is true, we schedule pause on next JS

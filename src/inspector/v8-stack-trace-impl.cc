@@ -22,6 +22,9 @@ using v8_crdtp::json::ConvertCBORToJSON;
 using v8_crdtp::json::ConvertJSONToCBOR;
 
 namespace v8_inspector {
+
+int V8StackTraceImpl::maxCallStackSizeToCapture = 200;
+
 namespace {
 
 static const char kId[] = "id";
@@ -219,6 +222,13 @@ bool StackFrame::isEqual(StackFrame* frame) const {
 }
 
 // static
+void V8StackTraceImpl::setCaptureStackTraceForUncaughtExceptions(
+    v8::Isolate* isolate, bool capture) {
+  isolate->SetCaptureStackTraceForUncaughtExceptions(
+      capture, V8StackTraceImpl::maxCallStackSizeToCapture);
+}
+
+// static
 std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(
     V8Debugger* debugger, v8::Local<v8::StackTrace> v8StackTrace,
     int maxStackSize) {
@@ -388,10 +398,10 @@ StackFrame* V8StackTraceImpl::StackFrameIterator::frame() {
 
 // static
 std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
-    V8Debugger* debugger, const String16& description, bool skipTopFrame) {
+    V8Debugger* debugger, const String16& description, int maxStackSize,
+    bool skipTopFrame) {
   DCHECK(debugger);
 
-  int maxStackSize = debugger->maxCallStackSizeToCapture();
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"),
                "AsyncStackTrace::capture", "maxFrameCount", maxStackSize);
 

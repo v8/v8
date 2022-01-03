@@ -100,15 +100,12 @@ class ConsoleHelper {
   void reportCall(ConsoleAPIType type,
                   const std::vector<v8::Local<v8::Value>>& arguments) {
     if (!m_groupId) return;
-    auto stackTrace = V8StackTraceImpl::capture(
-        m_inspector->debugger(),
-        m_inspector->debugger()->maxCallStackSizeToCapture());
     std::unique_ptr<V8ConsoleMessage> message =
         V8ConsoleMessage::createForConsoleAPI(
             m_context, m_contextId, m_groupId, m_inspector,
             m_inspector->client()->currentTimeMS(), type, arguments,
             consoleContextToString(m_isolate, m_consoleContext),
-            std::move(stackTrace));
+            m_inspector->debugger()->captureStackTrace(false));
     consoleMessageStorage()->addMessage(std::move(message));
   }
 
