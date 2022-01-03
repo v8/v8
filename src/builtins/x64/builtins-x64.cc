@@ -4232,8 +4232,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   } else {
     DCHECK_EQ(stack_space, 0);
     __ PopReturnAddressTo(rcx);
+    // {stack_space_operand} was loaded into {rbx} above.
     __ addq(rsp, rbx);
-    __ jmp(rcx);
+    // Push and ret (instead of jmp) to keep the RSB and the CET shadow stack
+    // balanced.
+    __ PushReturnAddressFrom(rcx);
+    __ ret(0);
   }
 
   // Re-throw by promoting a scheduled exception.
