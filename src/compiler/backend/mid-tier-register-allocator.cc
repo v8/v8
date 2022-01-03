@@ -1655,11 +1655,6 @@ void SinglePassRegisterAllocator::EndInstruction() {
   in_use_at_instr_end_bits_.Reset();
   in_use_at_instr_start_bits_.Reset();
   same_input_output_registers_bits_.Reset();
-
-  // Validity check.
-  DCHECK_EQ(allocated_registers_bits_,
-            register_state_ ? GetAllocatedRegBitVector(register_state_)
-                            : RegisterBitVector{});
 }
 
 void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
@@ -1870,21 +1865,27 @@ void SinglePassRegisterAllocator::CheckConsistency() {
        virtual_register < data()->code()->VirtualRegisterCount();
        virtual_register++) {
     RegisterIndex reg = RegisterForVirtualRegister(virtual_register);
-    if (reg.is_valid()) {
-      CHECK_EQ(virtual_register, VirtualRegisterForRegister(reg));
-      CHECK(allocated_registers_bits_.Contains(
-          reg, VirtualRegisterDataFor(virtual_register).rep()));
-    }
+    if (!reg.is_valid()) continue;
+    CHECK(HasRegisterState());
+    // The register must be set to allocated.
+    CHECK(register_state()->IsAllocated(reg));
+    // reg <-> vreg linking is consistent.
+    CHECK_EQ(virtual_register, VirtualRegisterForRegister(reg));
   }
 
+  RegisterBitVector used_registers;
   for (RegisterIndex reg : *register_state()) {
+    if (!register_state()->IsAllocated(reg)) continue;
     int virtual_register = VirtualRegisterForRegister(reg);
-    if (virtual_register != InstructionOperand::kInvalidVirtualRegister) {
-      CHECK_EQ(reg, RegisterForVirtualRegister(virtual_register));
-      CHECK(allocated_registers_bits_.Contains(
-          reg, VirtualRegisterDataFor(virtual_register).rep()));
-    }
+    // reg <-> vreg linking is consistent.
+    CHECK_EQ(reg, RegisterForVirtualRegister(virtual_register));
+    MachineRepresentation rep = VirtualRegisterDataFor(virtual_register).rep();
+    // Allocated registers do not overlap.
+    CHECK(!used_registers.Contains(reg, rep));
+    used_registers.Add(reg, rep);
   }
+  // The {allocated_registers_bits_} bitvector is accurate.
+  CHECK_EQ(used_registers, allocated_registers_bits_);
 #endif
 }
 
