@@ -334,6 +334,7 @@ def _v8_target_cpu_transition_impl(settings, attr):
         "haswell": "x64",
         "k8": "x64",
         "x86_64": "x64",
+        "darwin": "x64",
         "darwin_x86_64": "x64",
         "x86": "ia32",
         "ppc": "ppc64",
