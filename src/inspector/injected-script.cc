@@ -271,7 +271,7 @@ class InjectedScript::ProtocolPromiseHandler {
                            result->ToDetailString(isolate->GetCurrentContext())
                                .ToLocalChecked());
       v8::Local<v8::StackTrace> stackTrace =
-          v8::debug::GetDetailedStackTrace(isolate, result.As<v8::Object>());
+          v8::Exception::GetStackTrace(result);
       if (!stackTrace.IsEmpty()) {
         stack = m_inspector->debugger()->createStackTrace(stackTrace);
       }
