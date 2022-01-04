@@ -1593,8 +1593,8 @@ Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
   return handle(function_->context().native_context(), isolate());
 }
 
-Handle<StackFrameInfo> FrameSummary::JavaScriptFrameSummary::StackFrameInfo()
-    const {
+Handle<StackFrameInfo>
+FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   Handle<SharedFunctionInfo> shared(function_->shared(), isolate());
   Handle<Script> script(Script::cast(shared->script()), isolate());
   Handle<String> function_name = JSFunction::GetDebugName(function_);
@@ -1655,7 +1655,8 @@ Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
   return handle(wasm_instance()->native_context(), isolate());
 }
 
-Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::StackFrameInfo() const {
+Handle<StackFrameInfo> FrameSummary::WasmFrameSummary::CreateStackFrameInfo()
+    const {
   Handle<String> function_name =
       GetWasmFunctionDebugName(isolate(), wasm_instance(), function_index());
   return isolate()->factory()->NewStackFrameInfo(script(), SourcePosition(),
@@ -1730,7 +1731,7 @@ FRAME_SUMMARY_DISPATCH(Handle<Object>, script)
 FRAME_SUMMARY_DISPATCH(int, SourcePosition)
 FRAME_SUMMARY_DISPATCH(int, SourceStatementPosition)
 FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
-FRAME_SUMMARY_DISPATCH(Handle<StackFrameInfo>, StackFrameInfo)
+FRAME_SUMMARY_DISPATCH(Handle<StackFrameInfo>, CreateStackFrameInfo)
 
 #undef FRAME_SUMMARY_DISPATCH
 

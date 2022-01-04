@@ -1262,7 +1262,7 @@ class StackFrameBuilder {
     if (index_ >= limit_) return false;
     // Skip frames that aren't subject to debugging.
     if (!summary.is_subject_to_debugging()) return true;
-    Handle<StackFrameInfo> frame = summary.StackFrameInfo();
+    Handle<StackFrameInfo> frame = summary.CreateStackFrameInfo();
     frames_ = FixedArray::SetAndGrow(isolate_, frames_, index_++, frame);
     return true;
   }
