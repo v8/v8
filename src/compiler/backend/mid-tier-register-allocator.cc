@@ -186,6 +186,13 @@ class RegisterIndex final {
     }
   }
 
+  RegisterIndex simdSibling() const {
+    CHECK(!kSimpleFPAliasing);  // Statically evaluated.
+    // Two FP registers {2N, 2N+1} alias the same SIMD register. We compute {2N}
+    // from {2N+1} and vice versa by just flipping the LSB.
+    return RegisterIndex{index_ ^ 1};
+  }
+
   bool operator==(const RegisterIndex& rhs) const {
     return index_ == rhs.index_;
   }
@@ -1759,34 +1766,11 @@ void SinglePassRegisterAllocator::MergeStateFrom(
         if (processed_regs.Contains(reg, rep)) continue;
         processed_regs.Add(reg, rep);
 
-        if (register_state()->IsAllocated(reg)) {
-          if (successor_registers->Equals(reg, register_state())) {
-            // Both match, keep the merged register data.
-            register_state()->CommitAtMerge(reg);
-          } else {
-            // Try to find a new register for this successor register in the
-            // merge block, and add a gap move on entry of the successor block.
-            RegisterIndex new_reg =
-                RegisterForVirtualRegister(virtual_register);
-            if (!new_reg.is_valid()) {
-              new_reg = ChooseFreeRegister(
-                  allocated_registers_bits_.Union(succ_allocated_regs), rep);
-            } else if (new_reg != reg) {
-              // Spill the |new_reg| in the successor block to be able to use it
-              // for this gap move. It would be spilled anyway since it contains
-              // a different virtual register than the merge block.
-              SpillRegisterAtMerge(successor_registers, new_reg);
-            }
+        bool reg_in_use = register_state()->IsAllocated(reg) ||
+                          (!kSimpleFPAliasing &&
+                           register_state()->IsAllocated(reg.simdSibling()));
 
-            if (new_reg.is_valid()) {
-              MoveRegisterOnMerge(new_reg, reg, vreg_data, successor,
-                                  successor_registers);
-              processed_regs.Add(new_reg, rep);
-            } else {
-              SpillRegisterAtMerge(successor_registers, reg);
-            }
-          }
-        } else {
+        if (!reg_in_use) {
           DCHECK(successor_registers->IsAllocated(reg));
           if (RegisterForVirtualRegister(virtual_register).is_valid()) {
             // If we already hold the virtual register in a different register
@@ -1794,12 +1778,40 @@ void SinglePassRegisterAllocator::MergeStateFrom(
             // invalidating the 1:1 vreg<->reg mapping.
             // TODO(rmcilroy): Add a gap move to avoid spilling.
             SpillRegisterAtMerge(successor_registers, reg);
-          } else {
-            // Register is free in our current register state, so merge the
-            // successor block's register details into it.
-            register_state()->CopyFrom(reg, successor_registers);
-            AssignRegister(reg, virtual_register, rep, UsePosition::kNone);
+            continue;
           }
+          // Register is free in our current register state, so merge the
+          // successor block's register details into it.
+          register_state()->CopyFrom(reg, successor_registers);
+          AssignRegister(reg, virtual_register, rep, UsePosition::kNone);
+          continue;
+        }
+
+        // Register is in use in the current register state.
+        if (successor_registers->Equals(reg, register_state())) {
+          // Both match, keep the merged register data.
+          register_state()->CommitAtMerge(reg);
+          continue;
+        }
+        // Try to find a new register for this successor register in the
+        // merge block, and add a gap move on entry of the successor block.
+        RegisterIndex new_reg = RegisterForVirtualRegister(virtual_register);
+        if (!new_reg.is_valid()) {
+          new_reg = ChooseFreeRegister(
+              allocated_registers_bits_.Union(succ_allocated_regs), rep);
+        } else if (new_reg != reg) {
+          // Spill the |new_reg| in the successor block to be able to use it
+          // for this gap move. It would be spilled anyway since it contains
+          // a different virtual register than the merge block.
+          SpillRegisterAtMerge(successor_registers, new_reg);
+        }
+
+        if (new_reg.is_valid()) {
+          MoveRegisterOnMerge(new_reg, reg, vreg_data, successor,
+                              successor_registers);
+          processed_regs.Add(new_reg, rep);
+        } else {
+          SpillRegisterAtMerge(successor_registers, reg);
         }
       }
     }
@@ -2157,10 +2169,7 @@ void SinglePassRegisterAllocator::SpillRegisterAndPotentialSimdSibling(
   SpillRegister(reg);
 
   if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
-    // Two FP registers {2N, 2N+1} alias the same SIMD register. We compute {2N}
-    // from {2N+1} and vice versa in a single computation.
-    RegisterIndex siblingSimdReg{reg.ToInt() + 1 - 2 * (reg.ToInt() & 1)};
-    SpillRegister(siblingSimdReg);
+    SpillRegister(reg.simdSibling());
   }
 }
 
