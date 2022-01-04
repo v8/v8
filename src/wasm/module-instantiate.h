@@ -23,6 +23,7 @@ class JSReceiver;
 class WasmInitExpr;
 class WasmModuleObject;
 class WasmInstanceObject;
+class Zone;
 
 template <typename T>
 class Handle;

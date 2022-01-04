@@ -52,14 +52,20 @@ void InitExprInterface::RefNull(FullDecoder* decoder, ValueType type,
 
 void InitExprInterface::RefFunc(FullDecoder* decoder, uint32_t function_index,
                                 Value* result) {
-  if (isolate_ != nullptr) {
-    auto internal = WasmInstanceObject::GetOrCreateWasmInternalFunction(
-        isolate_, instance_, function_index);
-    result->runtime_value = WasmValue(
-        internal, ValueType::Ref(module_->functions[function_index].sig_index,
-                                 kNonNullable));
-  } else {
+  if (isolate_ == nullptr) {
     outer_module_->functions[function_index].declared = true;
+    return;
+  }
+  ValueType type = ValueType::Ref(module_->functions[function_index].sig_index,
+                                  kNonNullable);
+  if (function_strictness_ == kStrictFunctions) {
+    Handle<WasmInternalFunction> internal =
+        WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate_, instance_,
+                                                            function_index);
+    result->runtime_value = WasmValue(internal, type);
+  } else {
+    result->runtime_value =
+        WasmValue(handle(Smi::FromInt(function_index), isolate_), type);
   }
 }
 
@@ -67,11 +73,18 @@ void InitExprInterface::GlobalGet(FullDecoder* decoder, Value* result,
                                   const GlobalIndexImmediate<validate>& imm) {
   if (isolate_ == nullptr) return;
   const WasmGlobal& global = module_->globals[imm.index];
+  DCHECK(!global.mutability);
   result->runtime_value =
       global.type.is_numeric()
-          ? WasmValue(GetRawUntaggedGlobalPtr(global), global.type)
-          : WasmValue(handle(tagged_globals_->get(global.offset), isolate_),
-                      global.type);
+          ? WasmValue(
+                reinterpret_cast<byte*>(
+                    instance_->untagged_globals_buffer().backing_store()) +
+                    global.offset,
+                global.type)
+          : WasmValue(
+                handle(instance_->tagged_globals_buffer().get(global.offset),
+                       isolate_),
+                global.type);
 }
 
 void InitExprInterface::StructNewWithRtt(
@@ -173,11 +186,6 @@ void InitExprInterface::DoReturn(FullDecoder* decoder,
   // End decoding on "end".
   decoder->set_end(decoder->pc() + 1);
   if (isolate_ != nullptr) result_ = decoder->stack_value(1)->runtime_value;
-}
-
-byte* InitExprInterface::GetRawUntaggedGlobalPtr(const WasmGlobal& global) {
-  return reinterpret_cast<byte*>(untagged_globals_->backing_store()) +
-         global.offset;
 }
 
 }  // namespace wasm

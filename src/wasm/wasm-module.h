@@ -116,45 +116,53 @@ struct WasmDataSegment {
 
 // Static representation of wasm element segment (table initializer).
 struct WasmElemSegment {
-  // Construct an active segment.
-  WasmElemSegment(ValueType type, uint32_t table_index, WireBytesRef offset)
-      : type(type),
-        table_index(table_index),
-        offset(std::move(offset)),
-        status(kStatusActive) {}
-
-  // Construct a passive or declarative segment, which has no table index or
-  // offset.
-  WasmElemSegment(ValueType type, bool declarative)
-      : type(type),
-        table_index(0),
-        status(declarative ? kStatusDeclarative : kStatusPassive) {}
-
-  // Construct a passive or declarative segment, which has no table index or
-  // offset.
-  WasmElemSegment()
-      : type(kWasmBottom), table_index(0), status(kStatusActive) {}
-
-  WasmElemSegment(const WasmElemSegment&) = delete;
-  WasmElemSegment(WasmElemSegment&&) V8_NOEXCEPT = default;
-  WasmElemSegment& operator=(const WasmElemSegment&) = delete;
-  WasmElemSegment& operator=(WasmElemSegment&&) V8_NOEXCEPT = default;
-
-  ValueType type;
-  uint32_t table_index;
-  WireBytesRef offset;
+  enum Status {
+    kStatusActive,      // copied automatically during instantiation.
+    kStatusPassive,     // copied explicitly after instantiation.
+    kStatusDeclarative  // purely declarative and never copied.
+  };
   struct Entry {
     enum Kind { kGlobalGetEntry, kRefFuncEntry, kRefNullEntry } kind;
     uint32_t index;
     Entry(Kind kind, uint32_t index) : kind(kind), index(index) {}
     Entry() : kind(kRefNullEntry), index(0) {}
   };
+  enum ElementType { kFunctionIndexElements, kExpressionElements };
+
+  // Construct an active segment.
+  WasmElemSegment(ValueType type, uint32_t table_index, WireBytesRef offset,
+                  ElementType element_type)
+      : status(kStatusActive),
+        type(type),
+        table_index(table_index),
+        offset(std::move(offset)),
+        element_type(element_type) {}
+
+  // Construct a passive or declarative segment, which has no table index or
+  // offset.
+  WasmElemSegment(ValueType type, Status status, ElementType element_type)
+      : status(status), type(type), table_index(0), element_type(element_type) {
+    DCHECK_NE(status, kStatusActive);
+  }
+
+  // Default constructor. Constucts an invalid segment.
+  WasmElemSegment()
+      : status(kStatusActive),
+        type(kWasmBottom),
+        table_index(0),
+        element_type(kFunctionIndexElements) {}
+
+  WasmElemSegment(const WasmElemSegment&) = delete;
+  WasmElemSegment(WasmElemSegment&&) V8_NOEXCEPT = default;
+  WasmElemSegment& operator=(const WasmElemSegment&) = delete;
+  WasmElemSegment& operator=(WasmElemSegment&&) V8_NOEXCEPT = default;
+
+  Status status;
+  ValueType type;
+  uint32_t table_index;
+  WireBytesRef offset;
+  ElementType element_type;
   std::vector<Entry> entries;
-  enum Status {
-    kStatusActive,      // copied automatically during instantiation.
-    kStatusPassive,     // copied explicitly after instantiation.
-    kStatusDeclarative  // purely declarative and never copied.
-  } status;
 };
 
 // Static representation of a wasm import.

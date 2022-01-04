@@ -326,7 +326,9 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
   uint32_t index = static_cast<uint32_t>(test_module_->elem_segments.size());
   DCHECK_EQ(index, dropped_elem_segments_.size());
 
-  test_module_->elem_segments.emplace_back(kWasmFuncRef, false);
+  test_module_->elem_segments.emplace_back(
+      kWasmFuncRef, WasmElemSegment::kStatusPassive,
+      WasmElemSegment::kFunctionIndexElements);
   auto& elem_segment = test_module_->elem_segments.back();
   for (uint32_t entry : entries) {
     elem_segment.entries.push_back(

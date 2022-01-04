@@ -990,9 +990,7 @@ class ModuleDecoderImpl : public Decoder {
         consume_count("element count", FLAG_wasm_max_table_size);
 
     for (uint32_t i = 0; i < element_count; ++i) {
-      bool expressions_as_elements;
-      WasmElemSegment segment =
-          consume_element_segment_header(&expressions_as_elements);
+      WasmElemSegment segment = consume_element_segment_header();
       if (failed()) return;
       DCHECK_NE(segment.type, kWasmBottom);
 
@@ -1001,7 +999,7 @@ class ModuleDecoderImpl : public Decoder {
 
       for (uint32_t j = 0; j < num_elem; j++) {
         WasmElemSegment::Entry init =
-            expressions_as_elements
+            segment.element_type == WasmElemSegment::kExpressionElements
                 ? consume_element_expr()
                 : WasmElemSegment::Entry(WasmElemSegment::Entry::kRefFuncEntry,
                                          consume_element_func_index());
@@ -1910,8 +1908,7 @@ class ModuleDecoderImpl : public Decoder {
     return attribute;
   }
 
-  WasmElemSegment consume_element_segment_header(
-      bool* expressions_as_elements) {
+  WasmElemSegment consume_element_segment_header() {
     const byte* pos = pc();
 
     // The mask for the bit in the flag which indicates if the segment is
@@ -1941,7 +1938,10 @@ class ModuleDecoderImpl : public Decoder {
                                 : WasmElemSegment::kStatusActive;
     const bool is_active = status == WasmElemSegment::kStatusActive;
 
-    *expressions_as_elements = flag & kExpressionsAsElementsMask;
+    WasmElemSegment::ElementType element_type =
+        flag & kExpressionsAsElementsMask
+            ? WasmElemSegment::kExpressionElements
+            : WasmElemSegment::kFunctionIndexElements;
 
     const bool has_table_index =
         is_active && (flag & kHasTableIndexOrIsDeclarativeMask);
@@ -1965,7 +1965,7 @@ class ModuleDecoderImpl : public Decoder {
     const bool backwards_compatible_mode =
         is_active && !(flag & kHasTableIndexOrIsDeclarativeMask);
     ValueType type;
-    if (*expressions_as_elements) {
+    if (element_type == WasmElemSegment::kExpressionElements) {
       type =
           backwards_compatible_mode ? kWasmFuncRef : consume_reference_type();
       if (is_active && !IsSubtypeOf(type, table_type, this->module_.get())) {
@@ -2008,9 +2008,9 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     if (is_active) {
-      return {type, table_index, std::move(offset)};
+      return {type, table_index, std::move(offset), element_type};
     } else {
-      return {type, status == WasmElemSegment::kStatusDeclarative};
+      return {type, status, element_type};
     }
   }
 

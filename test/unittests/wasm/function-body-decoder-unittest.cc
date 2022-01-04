@@ -159,20 +159,15 @@ class TestModuleBuilder {
   }
 
   byte AddPassiveElementSegment(wasm::ValueType type) {
-    mod.elem_segments.emplace_back(type, false);
-    auto& init = mod.elem_segments.back();
-    // Add 5 empty elements.
-    for (uint32_t j = 0; j < 5; j++) {
-      init.entries.push_back(WasmElemSegment::Entry(
-          WasmElemSegment::Entry::kRefNullEntry, type.heap_representation()));
-    }
+    mod.elem_segments.emplace_back(type, WasmElemSegment::kStatusPassive,
+                                   WasmElemSegment::kExpressionElements);
     return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 
   byte AddDeclarativeElementSegment() {
-    mod.elem_segments.emplace_back(kWasmFuncRef, true);
-    mod.elem_segments.back().entries.push_back(WasmElemSegment::Entry(
-        WasmElemSegment::Entry::kRefNullEntry, HeapType::kFunc));
+    mod.elem_segments.emplace_back(kWasmFuncRef,
+                                   WasmElemSegment::kStatusDeclarative,
+                                   WasmElemSegment::kExpressionElements);
     return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 

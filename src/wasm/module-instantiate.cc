@@ -349,6 +349,9 @@ class InstanceBuilder {
   std::vector<Handle<WasmTagObject>> tags_wrappers_;
   Handle<WasmExportedFunction> start_function_;
   std::vector<SanitizedImport> sanitized_imports_;
+  // We pass this {Zone} to the temporary {WasmFullDecoder} we allocate during
+  // each call to {EvaluateInitExpression}. This has been found to improve
+  // performance a bit over allocating a new {Zone} each time.
   Zone init_expr_zone_;
 
 // Helper routines to print out errors with imports.
@@ -447,9 +450,6 @@ class InstanceBuilder {
 
   // Process initialization of globals.
   void InitGlobals(Handle<WasmInstanceObject> instance);
-
-  WasmValue EvaluateInitExpression(WireBytesRef init, ValueType expected,
-                                   Handle<WasmInstanceObject> instance);
 
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.
@@ -914,6 +914,28 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   // Just a default function, which will convert to "Nan". Accept this.
   return true;
 }
+
+WasmValue EvaluateInitExpression(
+    Zone* zone, WireBytesRef init, ValueType expected, Isolate* isolate,
+    Handle<WasmInstanceObject> instance,
+    InitExprInterface::FunctionStrictness function_strictness =
+        InitExprInterface::kStrictFunctions) {
+  base::Vector<const byte> module_bytes =
+      instance->module_object().native_module()->wire_bytes();
+  FunctionBody body(FunctionSig::Build(zone, {expected}, {}), init.offset(),
+                    module_bytes.begin() + init.offset(),
+                    module_bytes.begin() + init.end_offset());
+  WasmFeatures detected;
+  // We use kFullValidation so we do not have to create another instance of
+  // WasmFullDecoder, which would cost us >50Kb binary code size.
+  WasmFullDecoder<Decoder::kFullValidation, InitExprInterface, kInitExpression>
+      decoder(zone, instance->module(), WasmFeatures::All(), &detected, body,
+              instance->module(), isolate, instance, function_strictness);
+
+  decoder.DecodeFunctionBody();
+
+  return decoder.interface().result();
+}
 }  // namespace
 
 // Look up an import value in the {ffi_} object specifically for linking an
@@ -975,7 +997,8 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     size_t dest_offset;
     if (module_->is_memory64) {
       uint64_t dest_offset_64 =
-          EvaluateInitExpression(segment.dest_addr, kWasmI64, instance)
+          EvaluateInitExpression(&init_expr_zone_, segment.dest_addr, kWasmI64,
+                                 isolate_, instance)
               .to_u64();
       // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
       // invalid offset.
@@ -983,9 +1006,9 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       dest_offset = static_cast<size_t>(std::min(
           dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
-      dest_offset =
-          EvaluateInitExpression(segment.dest_addr, kWasmI32, instance)
-              .to_u32();
+      dest_offset = EvaluateInitExpression(&init_expr_zone_, segment.dest_addr,
+                                           kWasmI32, isolate_, instance)
+                        .to_u32();
     }
 
     if (!base::IsInBounds<size_t>(dest_offset, size, instance->memory_size())) {
@@ -1651,26 +1674,6 @@ T* InstanceBuilder::GetRawUntaggedGlobalPtr(const WasmGlobal& global) {
   return reinterpret_cast<T*>(raw_buffer_ptr(untagged_globals_, global.offset));
 }
 
-WasmValue InstanceBuilder::EvaluateInitExpression(
-    WireBytesRef init, ValueType expected,
-    Handle<WasmInstanceObject> instance) {
-  base::Vector<const byte> module_bytes =
-      instance->module_object().native_module()->wire_bytes();
-  FunctionBody body(FunctionSig::Build(&init_expr_zone_, {expected}, {}),
-                    init.offset(), module_bytes.begin() + init.offset(),
-                    module_bytes.begin() + init.end_offset());
-  WasmFeatures detected;
-  // We use kFullValidation so we do not have to create another instance of
-  // WasmFullDecoder, which would cost us >50Kb binary code size.
-  WasmFullDecoder<Decoder::kFullValidation, InitExprInterface, kInitExpression>
-      decoder(&init_expr_zone_, module_, WasmFeatures::All(), &detected, body,
-              module_, isolate_, instance, tagged_globals_, untagged_globals_);
-
-  decoder.DecodeFunctionBody();
-
-  return decoder.interface().result();
-}
-
 // Process initialization of globals.
 void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
   for (const WasmGlobal& global : module_->globals) {
@@ -1678,8 +1681,8 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
     // Happens with imported globals.
     if (!global.init.is_set()) continue;
 
-    WasmValue value =
-        EvaluateInitExpression(global.init, global.type, instance);
+    WasmValue value = EvaluateInitExpression(&init_expr_zone_, global.init,
+                                             global.type, isolate_, instance);
 
     if (global.type.is_reference()) {
       tagged_globals_->set(global.offset, *value.to_ref());
@@ -1960,7 +1963,8 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
       auto table_object = handle(
           WasmTableObject::cast(instance->tables().get(table_index)), isolate_);
       Handle<Object> value =
-          EvaluateInitExpression(table.initial_value, table.type, instance)
+          EvaluateInitExpression(&init_expr_zone_, table.initial_value,
+                                 table.type, isolate_, instance)
               .to_ref();
       if (value.is_null()) {
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
@@ -1994,7 +1998,9 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
   }
 }
 
-bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
+namespace {
+bool LoadElemSegmentImpl(Zone* zone, Isolate* isolate,
+                         Handle<WasmInstanceObject> instance,
                          Handle<WasmTableObject> table_object,
                          uint32_t table_index, uint32_t segment_index,
                          uint32_t dst, uint32_t src, size_t count) {
@@ -2049,6 +2055,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
   }
   return true;
 }
+}  // namespace
 
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   for (uint32_t segment_index = 0;
@@ -2058,14 +2065,14 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
     uint32_t table_index = elem_segment.table_index;
-    uint32_t dst =
-        EvaluateInitExpression(elem_segment.offset, kWasmI32, instance)
-            .to_u32();
+    uint32_t dst = EvaluateInitExpression(&init_expr_zone_, elem_segment.offset,
+                                          kWasmI32, isolate_, instance)
+                       .to_u32();
     uint32_t src = 0;
     size_t count = elem_segment.entries.size();
 
     bool success = LoadElemSegmentImpl(
-        isolate_, instance,
+        &init_expr_zone_, isolate_, instance,
         handle(WasmTableObject::cast(
                    instance->tables().get(elem_segment.table_index)),
                isolate_),
@@ -2108,8 +2115,13 @@ void InstanceBuilder::InitializeTags(Handle<WasmInstanceObject> instance) {
 bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
                      uint32_t table_index, uint32_t segment_index, uint32_t dst,
                      uint32_t src, uint32_t count) {
+  AccountingAllocator allocator;
+  // This {Zone} will be used only by the temporary WasmFullDecoder allocated
+  // down the line from this call. Therefore it is safe to stack-allocate it
+  // here.
+  Zone zone(&allocator, "LoadElemSegment");
   return LoadElemSegmentImpl(
-      isolate, instance,
+      &zone, isolate, instance,
       handle(WasmTableObject::cast(instance->tables().get(table_index)),
              isolate),
       table_index, segment_index, dst, src, count);
