@@ -100,16 +100,46 @@ def _default_args():
         copts = select({
             "@v8//bazel/config:is_posix": [
                 "-fPIC",
+                "-fno-strict-aliasing",
                 "-Werror",
                 "-Wextra",
+                "-Wno-unknown-warning-option",
                 "-Wno-bitwise-instead-of-logical",
                 "-Wno-builtin-assume-aligned-alignment",
                 "-Wno-unused-parameter",
                 "-Wno-implicit-int-float-conversion",
                 "-Wno-deprecated-copy",
                 "-Wno-non-virtual-dtor",
-                "-std=c++17",
                 "-isystem .",
+            ],
+            "//conditions:default": [],
+        }) + select({
+            "@v8//bazel/config:is_clang": [
+                "-Wno-invalid-offsetof",
+                "-std=c++17",
+            ],
+            "@v8//bazel/config:is_gcc": [
+                "-Wno-extra",
+                "-Wno-comments",
+                "-Wno-deprecated-declarations",
+                "-Wno-implicit-fallthrough",
+                "-Wno-maybe-uninitialized",
+                "-Wno-mismatched-new-delete",
+                "-Wno-redundant-move",
+                "-Wno-return-type",
+                # Use GNU dialect, because GCC doesn't allow using
+                # ##__VA_ARGS__ when in standards-conforming mode.
+                "-std=gnu++17",
+            ],
+            "@v8//bazel/config:is_windows": [
+                "/std:c++17",
+            ],
+            "//conditions:default": [],
+        }) + select({
+            "@v8//bazel/config:is_gcc_fastbuild": [
+                # Non-debug builds without optimizations fail because
+                # of recursive inlining of "always_inline" functions.
+                "-O1",
             ],
             "//conditions:default": [],
         }),

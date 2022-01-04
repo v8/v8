@@ -2,11 +2,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# V8 bazel port only supports clang
-build --action_env=BAZEL_COMPILER=clang
-build --action_env=CC=clang
-build --action_env=CXX=clang++
+# Pass CC, CXX and PATH from the environment
+build --action_env=CC
+build --action_env=CXX
 build --action_env=PATH
+
+# Use Clang compiler
+build:clang --action_env=BAZEL_COMPILER=clang
+build:clang --action_env=CC=clang
+build:clang --action_env=CXX=clang++
 
 # V8 debug config
 build:debug --compilation_mode=dbg

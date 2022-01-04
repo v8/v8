@@ -18,13 +18,6 @@ load(
 )
 load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression")
 
-config_setting(
-    name = "is_debug",
-    values = {
-        "compilation_mode": "dbg",
-    },
-)
-
 # =================================================
 # Flags
 # =================================================
@@ -290,7 +283,7 @@ v8_config(
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_CONCURRENT_MARKING",
     ] + select({
-        ":is_debug": [
+        "@v8//bazel/config:is_debug": [
             "DEBUG",
             "V8_ENABLE_CHECKS",
         ],
