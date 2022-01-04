@@ -145,15 +145,14 @@ std::unique_ptr<protocol::Profiler::Profile> createCPUProfile(
 
 std::unique_ptr<protocol::Debugger::Location> currentDebugLocation(
     V8InspectorImpl* inspector) {
-  std::unique_ptr<V8StackTraceImpl> callStack =
-      inspector->debugger()->captureStackTrace(false /* fullStack */);
-  auto location =
-      protocol::Debugger::Location::create()
-          .setScriptId(String16::fromInteger(callStack->topScriptId()))
-          .setLineNumber(callStack->topLineNumber())
-          .build();
-  location->setColumnNumber(callStack->topColumnNumber());
-  return location;
+  auto stackTrace = V8StackTraceImpl::capture(inspector->debugger(), 1);
+  CHECK(stackTrace);
+  CHECK(!stackTrace->isEmpty());
+  return protocol::Debugger::Location::create()
+      .setScriptId(String16::fromInteger(stackTrace->topScriptId()))
+      .setLineNumber(stackTrace->topLineNumber())
+      .setColumnNumber(stackTrace->topColumnNumber())
+      .build();
 }
 
 volatile int s_lastProfileId = 0;
@@ -213,10 +212,9 @@ void V8ProfilerAgentImpl::consoleProfileEnd(const String16& title) {
   std::unique_ptr<protocol::Profiler::Profile> profile =
       stopProfiling(id, true);
   if (!profile) return;
-  std::unique_ptr<protocol::Debugger::Location> location =
-      currentDebugLocation(m_session->inspector());
-  m_frontend.consoleProfileFinished(id, std::move(location), std::move(profile),
-                                    resolvedTitle);
+  m_frontend.consoleProfileFinished(
+      id, currentDebugLocation(m_session->inspector()), std::move(profile),
+      resolvedTitle);
 }
 
 Response V8ProfilerAgentImpl::enable() {

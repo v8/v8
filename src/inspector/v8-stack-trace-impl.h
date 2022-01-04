@@ -51,9 +51,8 @@ class StackFrame {
 
 class V8StackTraceImpl : public V8StackTrace {
  public:
-  static void setCaptureStackTraceForUncaughtExceptions(v8::Isolate*,
-                                                        bool capture);
-  static int maxCallStackSizeToCapture;
+  static constexpr int kDefaultMaxCallStackSizeToCapture = 200;
+
   static std::unique_ptr<V8StackTraceImpl> create(V8Debugger*,
                                                   v8::Local<v8::StackTrace>,
                                                   int maxStackSize);
@@ -117,7 +116,6 @@ class AsyncStackTrace {
   AsyncStackTrace& operator=(const AsyncStackTrace&) = delete;
   static std::shared_ptr<AsyncStackTrace> capture(V8Debugger*,
                                                   const String16& description,
-                                                  int maxStackSize,
                                                   bool skipTopFrame = false);
   static uintptr_t store(V8Debugger* debugger,
                          std::shared_ptr<AsyncStackTrace> stack);
