@@ -5,7 +5,7 @@
 _RECIPE_NAME_PREFIX = "recipe:"
 
 def _recipe_for_package(cipd_package):
-    def recipe(*, name, cipd_version = "refs/heads/main", recipe = None):
+    def recipe(*, name, cipd_version = "refs/heads/main", recipe = None, use_python3 = False):
         # Force the caller to put the recipe prefix rather than adding it
         # programatically to make the string greppable
         if not name.startswith(_RECIPE_NAME_PREFIX):
@@ -19,6 +19,7 @@ def _recipe_for_package(cipd_package):
             cipd_version = cipd_version,
             recipe = recipe,
             use_bbagent = True,
+            use_python3 = use_python3,
         )
 
     return recipe
@@ -28,7 +29,6 @@ def define_all_recipes():
         "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
     )
     build_recipes = [
-        "chromium",
         "chromium_integration",
         "chromium_trybot",
         "run_presubmit",
@@ -44,5 +44,11 @@ def define_all_recipes():
     ]
     for recipe in build_recipes:
         build_recipe(name = "recipe:" + recipe)
+
+    py3_build_recipes = [
+        "chromium",
+    ]
+    for recipe in py3_build_recipes:
+        build_recipe(name = "recipe:" + recipe, use_python3 = True)
 
 define_all_recipes()
