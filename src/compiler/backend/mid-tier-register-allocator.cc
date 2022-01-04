@@ -2557,7 +2557,15 @@ void SinglePassRegisterAllocator::ReserveFixedRegister(
     // If register is in-use by a different virtual register, spill it now.
     // TODO(rmcilroy): Consider moving to a unconstrained register instead of
     // spilling.
-    SpillRegisterAndPotentialSimdSibling(reg, rep);
+    SpillRegister(reg);
+  }
+  // Also potentially spill the "sibling SIMD register" on architectures where a
+  // SIMD register aliases two FP registers.
+  if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
+    if (!IsFreeOrSameVirtualRegister(reg.simdSibling(), virtual_register) &&
+        !DefinedAfter(virtual_register, instr_index, pos)) {
+      SpillRegister(reg.simdSibling());
+    }
   }
   MarkRegisterUse(reg, rep, pos);
 }
