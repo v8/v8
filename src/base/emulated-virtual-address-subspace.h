@@ -53,6 +53,10 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
   bool SetPagePermissions(Address address, size_t size,
                           PagePermissions permissions) override;
 
+  bool AllocateGuardRegion(Address address, size_t size) override;
+
+  bool FreeGuardRegion(Address address, size_t size) override;
+
   bool CanAllocateSubspaces() override;
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(

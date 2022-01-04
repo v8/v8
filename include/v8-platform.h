@@ -598,6 +598,7 @@ class VirtualAddressSpace {
    * given address first. If that fails, the allocation is attempted to be
    * placed elsewhere, possibly nearby, but that is not guaranteed. Specifying
    * zero for the hint always causes this function to choose a random address.
+   * The hint, if specified, must be aligned to the specified alignment.
    *
    * \param size The size of the allocation in bytes. Must be a multiple of the
    * allocation_granularity().
@@ -644,6 +645,40 @@ class VirtualAddressSpace {
    */
   virtual V8_WARN_UNUSED_RESULT bool SetPagePermissions(
       Address address, size_t size, PagePermissions permissions) = 0;
+
+  /**
+   * Creates a guard region at the specified address.
+   *
+   * Guard regions are guaranteed to cause a fault when accessed and generally
+   * do not count towards any memory consumption limits. Further, allocating
+   * guard regions can usually not fail in subspaces if the region does not
+   * overlap with another region, subspace, or page allocation.
+   *
+   * \param address The start address of the guard region. Must be aligned to
+   * the allocation_granularity().
+   *
+   * \param size The size of the guard region in bytes. Must be a multiple of
+   * the allocation_granularity().
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual V8_WARN_UNUSED_RESULT bool AllocateGuardRegion(Address address,
+                                                         size_t size) = 0;
+
+  /**
+   * Frees an existing guard region.
+   *
+   * \param address The start address of the guard region to free. This address
+   * must have previously been used as address parameter in a successful
+   * invocation of AllocateGuardRegion.
+   *
+   * \param size The size in bytes of the guard region to free. This must match
+   * the size passed to AllocateGuardRegion when the region was created.
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual V8_WARN_UNUSED_RESULT bool FreeGuardRegion(Address address,
+                                                     size_t size) = 0;
 
   /**
    * Whether this instance can allocate subspaces or not.

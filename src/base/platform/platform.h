@@ -383,6 +383,10 @@ inline void EnsureConsoleOutput() {
 //
 // This class provides the same memory management functions as OS but operates
 // inside a previously reserved contiguous region of virtual address space.
+//
+// Reserved address space in which no pages have been allocated is guaranteed
+// to be inaccessible and cause a fault on access. As such, creating guard
+// regions requires no further action.
 class V8_BASE_EXPORT AddressSpaceReservation {
  public:
   using Address = uintptr_t;

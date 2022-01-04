@@ -40,6 +40,14 @@ class V8_BASE_EXPORT LsanVirtualAddressSpace final
     return vas_->SetPagePermissions(address, size, permissions);
   }
 
+  bool AllocateGuardRegion(Address address, size_t size) override {
+    return vas_->AllocateGuardRegion(address, size);
+  }
+
+  bool FreeGuardRegion(Address address, size_t size) override {
+    return vas_->FreeGuardRegion(address, size);
+  }
+
   bool CanAllocateSubspaces() override { return vas_->CanAllocateSubspaces(); }
 
   std::unique_ptr<VirtualAddressSpace> AllocateSubspace(

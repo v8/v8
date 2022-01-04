@@ -110,6 +110,26 @@ bool EmulatedVirtualAddressSubspace::SetPagePermissions(
   return parent_space_->SetPagePermissions(address, size, permissions);
 }
 
+bool EmulatedVirtualAddressSubspace::AllocateGuardRegion(Address address,
+                                                         size_t size) {
+  if (MappedRegionContains(address, size)) {
+    MutexGuard guard(&mutex_);
+    return region_allocator_.AllocateRegionAt(address, size);
+  }
+  if (!UnmappedRegionContains(address, size)) return false;
+  return parent_space_->AllocateGuardRegion(address, size);
+}
+
+bool EmulatedVirtualAddressSubspace::FreeGuardRegion(Address address,
+                                                     size_t size) {
+  if (MappedRegionContains(address, size)) {
+    MutexGuard guard(&mutex_);
+    return region_allocator_.FreeRegion(address) == size;
+  }
+  if (!UnmappedRegionContains(address, size)) return false;
+  return parent_space_->FreeGuardRegion(address, size);
+}
+
 bool EmulatedVirtualAddressSubspace::CanAllocateSubspaces() {
   // This is not supported, mostly because it's not (yet) needed in practice.
   return false;

@@ -77,6 +77,26 @@ bool VirtualAddressSpace::SetPagePermissions(Address address, size_t size,
                             static_cast<OS::MemoryPermission>(permissions));
 }
 
+bool VirtualAddressSpace::AllocateGuardRegion(Address address, size_t size) {
+  DCHECK(IsAligned(address, allocation_granularity()));
+  DCHECK(IsAligned(size, allocation_granularity()));
+
+  void* hint = reinterpret_cast<void*>(address);
+  void* result = OS::Allocate(hint, size, allocation_granularity(),
+                              OS::MemoryPermission::kNoAccess);
+  if (result && result != hint) {
+    CHECK(OS::Free(result, size));
+  }
+  return result == hint;
+}
+
+bool VirtualAddressSpace::FreeGuardRegion(Address address, size_t size) {
+  DCHECK(IsAligned(address, allocation_granularity()));
+  DCHECK(IsAligned(size, allocation_granularity()));
+
+  return OS::Free(reinterpret_cast<void*>(address), size);
+}
+
 bool VirtualAddressSpace::CanAllocateSubspaces() {
   return OS::CanReserveAddressSpace();
 }
@@ -202,6 +222,26 @@ bool VirtualAddressSubspace::SetPagePermissions(Address address, size_t size,
   return reservation_.SetPermissions(
       reinterpret_cast<void*>(address), size,
       static_cast<OS::MemoryPermission>(permissions));
+}
+
+bool VirtualAddressSubspace::AllocateGuardRegion(Address address, size_t size) {
+  DCHECK(IsAligned(address, allocation_granularity()));
+  DCHECK(IsAligned(size, allocation_granularity()));
+
+  MutexGuard guard(&mutex_);
+
+  // It is guaranteed that reserved address space is inaccessible, so we just
+  // need to mark the region as in-use in the region allocator.
+  return region_allocator_.AllocateRegionAt(address, size);
+}
+
+bool VirtualAddressSubspace::FreeGuardRegion(Address address, size_t size) {
+  DCHECK(IsAligned(address, allocation_granularity()));
+  DCHECK(IsAligned(size, allocation_granularity()));
+
+  MutexGuard guard(&mutex_);
+
+  return region_allocator_.FreeRegion(address) == size;
 }
 
 std::unique_ptr<v8::VirtualAddressSpace>

@@ -197,14 +197,11 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   reservation_size_ = reservation_size;
 
   if (use_guard_regions) {
+    Address front = reservation_base_;
+    Address back = end_;
     // These must succeed since nothing was allocated in the subspace yet.
-    CHECK_EQ(reservation_base_,
-             address_space_->AllocatePages(
-                 reservation_base_, kSandboxGuardRegionSize,
-                 vas->allocation_granularity(), PagePermissions::kNoAccess));
-    CHECK_EQ(end_, address_space_->AllocatePages(end_, kSandboxGuardRegionSize,
-                                                 vas->allocation_granularity(),
-                                                 PagePermissions::kNoAccess));
+    CHECK(address_space_->AllocateGuardRegion(front, kSandboxGuardRegionSize));
+    CHECK(address_space_->AllocateGuardRegion(back, kSandboxGuardRegionSize));
   }
 
   sandbox_page_allocator_ =
