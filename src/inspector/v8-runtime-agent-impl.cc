@@ -499,6 +499,10 @@ Response V8RuntimeAgentImpl::setMaxCallStackSizeToCapture(int size) {
     return Response::ServerError(
         "maxCallStackSizeToCapture should be non-negative");
   }
+  TRACE_EVENT_WITH_FLOW1(
+      TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+      "V8RuntimeAgentImpl::setMaxCallStackSizeToCapture", this,
+      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "size", size);
   V8StackTraceImpl::maxCallStackSizeToCapture = size;
   return Response::Success();
 }
@@ -846,6 +850,9 @@ void V8RuntimeAgentImpl::restore() {
 
 Response V8RuntimeAgentImpl::enable() {
   if (m_enabled) return Response::Success();
+  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                         "V8RuntimeAgentImpl::enable", this,
+                         TRACE_EVENT_FLAG_FLOW_OUT);
   m_inspector->client()->beginEnsureAllContextsInGroup(
       m_session->contextGroupId());
   m_enabled = true;
@@ -862,6 +869,9 @@ Response V8RuntimeAgentImpl::enable() {
 
 Response V8RuntimeAgentImpl::disable() {
   if (!m_enabled) return Response::Success();
+  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+                         "V8RuntimeAgentImpl::disable", this,
+                         TRACE_EVENT_FLAG_FLOW_IN);
   m_enabled = false;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
   m_state->remove(V8RuntimeAgentImplState::bindings);
