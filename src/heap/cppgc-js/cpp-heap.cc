@@ -304,12 +304,16 @@ bool CppHeap::MetricRecorderAdapter::MetricsReportPending() const {
 
 const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
 CppHeap::MetricRecorderAdapter::ExtractLastFullGcEvent() {
-  return std::move(last_full_gc_event_);
+  auto res = std::move(last_full_gc_event_);
+  last_full_gc_event_.reset();
+  return res;
 }
 
 const base::Optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
 CppHeap::MetricRecorderAdapter::ExtractLastIncrementalMarkEvent() {
-  return std::move(last_incremental_mark_event_);
+  auto res = std::move(last_incremental_mark_event_);
+  last_incremental_mark_event_.reset();
+  return res;
 }
 
 void CppHeap::MetricRecorderAdapter::ClearCachedEvents() {
@@ -426,6 +430,10 @@ bool ShouldReduceMemory(CppHeap::GarbageCollectionFlags flags) {
 
 void CppHeap::InitializeTracing(GarbageCollectionFlags gc_flags) {
   CHECK(!sweeper_.IsSweepingInProgress());
+
+  // Check that previous cycle metrics have been reported.
+  DCHECK_IMPLIES(GetMetricRecorder(),
+                 !GetMetricRecorder()->MetricsReportPending());
 
 #if defined(CPPGC_YOUNG_GENERATION)
   cppgc::internal::SequentialUnmarker unmarker(raw_heap());

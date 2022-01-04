@@ -1403,6 +1403,7 @@ void GCTracer::ReportFullCycleToRecorder() {
         optional_cppgc_event =
             cpp_heap->GetMetricRecorder()->ExtractLastFullGcEvent();
     DCHECK(optional_cppgc_event.has_value());
+    DCHECK(!cpp_heap->GetMetricRecorder()->MetricsReportPending());
     const cppgc::internal::MetricRecorder::FullCycle& cppgc_event =
         optional_cppgc_event.value();
     CopyTimeMetrics(event.total_cpp, cppgc_event.total);
