@@ -331,8 +331,7 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
       WasmElemSegment::kFunctionIndexElements);
   auto& elem_segment = test_module_->elem_segments.back();
   for (uint32_t entry : entries) {
-    elem_segment.entries.push_back(
-        WasmElemSegment::Entry(WasmElemSegment::Entry::kRefFuncEntry, entry));
+    elem_segment.entries.emplace_back(entry);
   }
 
   // The vector pointers may have moved, so update the instance object.

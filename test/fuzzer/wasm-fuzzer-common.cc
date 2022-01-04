@@ -298,22 +298,6 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
   return os.write(name.name.begin(), name.name.size());
 }
 
-std::ostream& operator<<(std::ostream& os, WasmElemSegment::Entry entry) {
-  os << "WasmInitExpr.";
-  switch (entry.kind) {
-    case WasmElemSegment::Entry::kGlobalGetEntry:
-      os << "GlobalGet(" << entry.index;
-      break;
-    case WasmElemSegment::Entry::kRefFuncEntry:
-      os << "RefFunc(" << entry.index;
-      break;
-    case WasmElemSegment::Entry::kRefNullEntry:
-      os << "RefNull(" << HeapType(entry.index).name().c_str();
-      break;
-  }
-  return os << ")";
-}
-
 // An interface for WasmFullDecoder used to decode initializer expressions. As
 // opposed to the one in src/wasm/, this emits {WasmInitExpr} as opposed to a
 // {WasmValue}.
@@ -664,10 +648,19 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     }
     os << "[";
     for (uint32_t i = 0; i < elem_segment.entries.size(); i++) {
-      os << elem_segment.entries[i];
+      if (elem_segment.element_type == WasmElemSegment::kExpressionElements) {
+        DecodeAndAppendInitExpr(os, &zone, module, wire_bytes,
+                                elem_segment.entries[i].ref, elem_segment.type);
+      } else {
+        os << elem_segment.entries[i].index;
+      }
       if (i < elem_segment.entries.size() - 1) os << ", ";
     }
-    os << "], " << ValueTypeToConstantName(elem_segment.type) << ");\n";
+    os << "], "
+       << (elem_segment.element_type == WasmElemSegment::kExpressionElements
+               ? ValueTypeToConstantName(elem_segment.type)
+               : "undefined")
+       << ");\n";
   }
 
   for (const WasmTag& tag : module->tags) {

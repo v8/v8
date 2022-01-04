@@ -998,20 +998,13 @@ class ModuleDecoderImpl : public Decoder {
           consume_count("number of elements", max_table_init_entries());
 
       for (uint32_t j = 0; j < num_elem; j++) {
-        WasmElemSegment::Entry init =
+        using Entry = WasmElemSegment::Entry;
+        Entry entry =
             segment.element_type == WasmElemSegment::kExpressionElements
-                ? consume_element_expr()
-                : WasmElemSegment::Entry(WasmElemSegment::Entry::kRefFuncEntry,
-                                         consume_element_func_index());
+                ? Entry(consume_init_expr(module_.get(), segment.type))
+                : Entry(consume_element_func_index(segment.type));
         if (failed()) return;
-        if (!IsSubtypeOf(TypeOf(init), segment.type, module_.get())) {
-          errorf(pc_,
-                 "Invalid type in the init expression. The expected type is "
-                 "'%s', but the actual type is '%s'.",
-                 segment.type.name().c_str(), TypeOf(init).name().c_str());
-          return;
-        }
-        segment.entries.push_back(init);
+        segment.entries.push_back(entry);
       }
       module_->elem_segments.push_back(std::move(segment));
     }
@@ -1503,18 +1496,6 @@ class ModuleDecoderImpl : public Decoder {
   ModuleOrigin origin_;
   AccountingAllocator allocator_;
   Zone init_expr_zone_{&allocator_, "initializer expression zone"};
-
-  ValueType TypeOf(WasmElemSegment::Entry entry) {
-    switch (entry.kind) {
-      case WasmElemSegment::Entry::kGlobalGetEntry:
-        return module_->globals[entry.index].type;
-      case WasmElemSegment::Entry::kRefFuncEntry:
-        return ValueType::Ref(module_->functions[entry.index].sig_index,
-                              kNonNullable);
-      case WasmElemSegment::Entry::kRefNullEntry:
-        return ValueType::Ref(entry.index, kNullable);
-    }
-  }
 
   bool has_seen_unordered_section(SectionCode section_code) {
     return seen_unordered_sections_ & (1 << section_code);
@@ -2046,51 +2027,23 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  uint32_t consume_element_func_index() {
+  uint32_t consume_element_func_index(ValueType expected) {
     WasmFunction* func = nullptr;
+    const byte* initial_pc = pc();
     uint32_t index =
         consume_func_index(module_.get(), &func, "element function index");
     if (failed()) return index;
-    func->declared = true;
-    DCHECK_NE(func, nullptr);
+    DCHECK_NOT_NULL(func);
     DCHECK_EQ(index, func->func_index);
-    return index;
-  }
-
-  // TODO(manoskouk): Implement this with consume_init_expr(). It will require
-  // changes in module-instantiate.cc, in {LoadElemSegmentImpl}.
-  WasmElemSegment::Entry consume_element_expr() {
-    uint8_t opcode = consume_u8("element opcode");
-    if (failed()) return {};
-    switch (opcode) {
-      case kExprRefNull: {
-        HeapTypeImmediate<kFullValidation> imm(WasmFeatures::All(), this,
-                                               this->pc(), module_.get());
-        consume_bytes(imm.length, "ref.null immediate");
-        expect_u8("end opcode", kExprEnd);
-        return {WasmElemSegment::Entry::kRefNullEntry,
-                static_cast<uint32_t>(imm.type.representation())};
-      }
-      case kExprRefFunc: {
-        uint32_t index = consume_element_func_index();
-        if (failed()) return {};
-        expect_u8("end opcode", kExprEnd);
-        return {WasmElemSegment::Entry::kRefFuncEntry, index};
-      }
-      case kExprGlobalGet: {
-        uint32_t index = this->consume_u32v("global index");
-        if (failed()) return {};
-        if (index >= module_->globals.size()) {
-          errorf("Out-of-bounds global index %d", index);
-          return {};
-        }
-        expect_u8("end opcode", kExprEnd);
-        return {WasmElemSegment::Entry::kGlobalGetEntry, index};
-      }
-      default:
-        error("invalid opcode in element");
-        return {};
+    ValueType entry_type = ValueType::Ref(func->sig_index, kNonNullable);
+    if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module_.get()))) {
+      errorf(initial_pc,
+             "Invalid type in element entry: expected %s, got %s instead.",
+             expected.name().c_str(), entry_type.name().c_str());
+      return index;
     }
+    func->declared = true;
+    return index;
   }
 };
 

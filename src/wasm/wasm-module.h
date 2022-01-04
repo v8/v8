@@ -121,13 +121,17 @@ struct WasmElemSegment {
     kStatusPassive,     // copied explicitly after instantiation.
     kStatusDeclarative  // purely declarative and never copied.
   };
-  struct Entry {
-    enum Kind { kGlobalGetEntry, kRefFuncEntry, kRefNullEntry } kind;
-    uint32_t index;
-    Entry(Kind kind, uint32_t index) : kind(kind), index(index) {}
-    Entry() : kind(kRefNullEntry), index(0) {}
-  };
   enum ElementType { kFunctionIndexElements, kExpressionElements };
+  // An element segment entry. If {element_type == kExpressionElements}, it
+  // refers to an initializer expression (via a {WireBytesRef}); otherwise, it
+  // represents a function index.
+  union Entry {
+    WireBytesRef ref;
+    uint32_t index;
+
+    explicit Entry(uint32_t index) : index(index) {}
+    explicit Entry(WireBytesRef ref) : ref(ref) {}
+  };
 
   // Construct an active segment.
   WasmElemSegment(ValueType type, uint32_t table_index, WireBytesRef offset,

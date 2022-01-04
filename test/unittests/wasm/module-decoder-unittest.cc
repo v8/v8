@@ -2210,8 +2210,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithExternRefNull) {
 
   EXPECT_FAILURE_WITH_MSG(
       data,
-      "Invalid type in the init expression. The expected "
-      "type is 'funcref', but the actual type is 'externref'.");
+      "type error in init. expression[0] (expected funcref, got externref)");
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
@@ -2265,7 +2264,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionGlobalGetOutOfBounds) {
               kFuncRefCode,    // type
               ENTRY_COUNT(1),  // element count
               kExprGlobalGet, 0x00, kExprEnd)};  // init. expression
-  EXPECT_FAILURE_WITH_MSG(data, "Out-of-bounds global index 0");
+  EXPECT_FAILURE_WITH_MSG(data, "Invalid global index: 0");
 }
 
 TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {

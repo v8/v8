@@ -455,7 +455,7 @@ class InstanceBuilder {
   // and globals.
   void ProcessExports(Handle<WasmInstanceObject> instance);
 
-  void InitializeIndirectFunctionTables(Handle<WasmInstanceObject> instance);
+  void InitializeNonDefaultableTables(Handle<WasmInstanceObject> instance);
 
   void LoadTableSegments(Handle<WasmInstanceObject> instance);
 
@@ -668,7 +668,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     for (int i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
       // Initialize tables with null for now. We will initialize non-defaultable
-      // tables later, in {InitializeIndirectFunctionTables}.
+      // tables later, in {InitializeNonDefaultableTables}.
       Handle<WasmTableObject> table_obj = WasmTableObject::New(
           isolate_, instance, table.type, table.initial_size,
           table.has_maximum_size, table.maximum_size, nullptr,
@@ -745,11 +745,31 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   InitGlobals(instance);
 
   //--------------------------------------------------------------------------
-  // Initialize the indirect tables.
+  // Initialize the indirect function tables and dispatch tables. We do this
+  // before initializing non-defaultable tables and loading element segments, so
+  // that indirect function tables in this module are included in the updates
+  // when we do so.
   //--------------------------------------------------------------------------
-  if (table_count > 0) {
-    InitializeIndirectFunctionTables(instance);
-    if (thrower_->error()) return {};
+  for (int table_index = 0;
+       table_index < static_cast<int>(module_->tables.size()); ++table_index) {
+    const WasmTable& table = module_->tables[table_index];
+
+    if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
+      WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
+          instance, table_index, table.initial_size);
+      if (thrower_->error()) return {};
+      auto table_object = handle(
+          WasmTableObject::cast(instance->tables().get(table_index)), isolate_);
+      WasmTableObject::AddDispatchTable(isolate_, table_object, instance,
+                                        table_index);
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // Initialize non-defaultable tables.
+  //--------------------------------------------------------------------------
+  if (FLAG_experimental_wasm_typed_funcref) {
+    InitializeNonDefaultableTables(instance);
   }
 
   //--------------------------------------------------------------------------
@@ -766,7 +786,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (thrower_->error()) return {};
 
   //--------------------------------------------------------------------------
-  // Initialize the indirect function tables.
+  // Load element segments into tables.
   //--------------------------------------------------------------------------
   if (table_count > 0) {
     LoadTableSegments(instance);
@@ -1891,108 +1911,61 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   }
 }
 
-void SetNullTableEntry(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                       Handle<WasmTableObject> table_object,
-                       uint32_t table_index, uint32_t entry_index) {
+namespace {
+void SetTableEntry(Isolate* isolate, Handle<WasmInstanceObject> instance,
+                   Handle<WasmTableObject> table_object, uint32_t table_index,
+                   uint32_t entry_index, Handle<Object> entry) {
   const WasmModule* module = instance->module();
-  if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
-    instance->GetIndirectFunctionTable(isolate, table_index)
-        ->Clear(entry_index);
-  }
-  WasmTableObject::Set(isolate, table_object, entry_index,
-                       isolate->factory()->null_value());
-}
+  if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module) &&
+      entry->IsSmi()) {
+    // We might get a Smi entry for a function table, representing the
+    // function's index. In this case, we need to initialize the table with a
+    // placeholder if the function has not been initialized.
+    const uint32_t func_index = entry->ToSmi().value();
+    const WasmFunction* function = &module->functions[func_index];
 
-void SetFunctionTableEntry(Isolate* isolate,
-                           Handle<WasmInstanceObject> instance,
-                           Handle<WasmTableObject> table_object,
-                           uint32_t table_index, uint32_t entry_index,
-                           uint32_t func_index) {
-  const WasmModule* module = instance->module();
-  const WasmFunction* function = &module->functions[func_index];
-
-  // For externref tables, we have to generate the WasmExternalFunction eagerly.
-  // Later we cannot know if an entry is a placeholder or not.
-  if (table_object->type().is_reference_to(HeapType::kExtern)) {
-    Handle<WasmInternalFunction> wasm_internal_function =
-        WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
-                                                            func_index);
-    WasmTableObject::Set(isolate, table_object, entry_index,
-                         wasm_internal_function);
-  } else {
-    DCHECK(IsSubtypeOf(table_object->type(), kWasmFuncRef, module));
-
-    // Update the local dispatch table first if necessary.
-    uint32_t sig_id = module->canonicalized_type_ids[function->sig_index];
-    FunctionTargetAndRef entry(instance, func_index);
-    instance->GetIndirectFunctionTable(isolate, table_index)
-        ->Set(entry_index, sig_id, entry.call_target(), *entry.ref());
-
-    // Update the table object's other dispatch tables.
     MaybeHandle<WasmInternalFunction> wasm_internal_function =
         WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                     func_index);
     if (wasm_internal_function.is_null()) {
-      // No JSFunction entry yet exists for this function. Create a
-      // {Tuple2} holding the information to lazily allocate one.
+      // No JSFunction entry yet exists for this function. Create a {Tuple2}
+      // holding the information to lazily allocate one.
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate, table_object, entry_index, instance, func_index);
     } else {
       table_object->entries().set(entry_index,
                                   *wasm_internal_function.ToHandleChecked());
     }
-    // UpdateDispatchTables() updates all other dispatch tables, since
-    // we have not yet added the dispatch table we are currently building.
+
     WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
                                           function->sig, instance, func_index);
+  } else {
+    // In all other cases, simply call {WasmTableObject::Set}.
+    WasmTableObject::Set(isolate, table_object, entry_index, entry);
   }
 }
+}  // namespace
 
-void InstanceBuilder::InitializeIndirectFunctionTables(
+void InstanceBuilder::InitializeNonDefaultableTables(
     Handle<WasmInstanceObject> instance) {
   for (int table_index = 0;
        table_index < static_cast<int>(module_->tables.size()); ++table_index) {
     const WasmTable& table = module_->tables[table_index];
-
-    if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
-      WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
-          instance, table_index, table.initial_size);
-    }
-
     if (!table.type.is_defaultable()) {
       auto table_object = handle(
           WasmTableObject::cast(instance->tables().get(table_index)), isolate_);
       Handle<Object> value =
           EvaluateInitExpression(&init_expr_zone_, table.initial_value,
-                                 table.type, isolate_, instance)
+                                 table.type, isolate_, instance,
+                                 IsSubtypeOf(table_object->type(), kWasmFuncRef,
+                                             instance->module())
+                                     ? InitExprInterface::kLazyFunctions
+                                     : InitExprInterface::kStrictFunctions)
               .to_ref();
-      if (value.is_null()) {
-        for (uint32_t entry_index = 0; entry_index < table.initial_size;
-             entry_index++) {
-          SetNullTableEntry(isolate_, instance, table_object, table_index,
-                            entry_index);
-        }
-      } else if (value->IsWasmInternalFunction()) {
-        Handle<Object> external = handle(
-            Handle<WasmInternalFunction>::cast(value)->external(), isolate_);
-        // TODO(manoskouk): Support WasmJSFunction/WasmCapiFunction.
-        if (!WasmExportedFunction::IsWasmExportedFunction(*external)) {
-          thrower_->TypeError(
-              "Initializing a table with a Webassembly.Function object is not "
-              "supported yet");
-        }
-        uint32_t function_index =
-            Handle<WasmExportedFunction>::cast(external)->function_index();
-        for (uint32_t entry_index = 0; entry_index < table.initial_size;
-             entry_index++) {
-          SetFunctionTableEntry(isolate_, instance, table_object, table_index,
-                                entry_index, function_index);
-        }
-      } else {
-        for (uint32_t entry_index = 0; entry_index < table.initial_size;
-             entry_index++) {
-          WasmTableObject::Set(isolate_, table_object, entry_index, value);
-        }
+      for (uint32_t entry_index = 0; entry_index < table.initial_size;
+           entry_index++) {
+        SetTableEntry(isolate_, instance, table_object, table_index,
+                      entry_index, value);
       }
     }
   }
@@ -2018,40 +1991,22 @@ bool LoadElemSegmentImpl(Zone* zone, Isolate* isolate,
     return false;
   }
 
+  bool is_function_table =
+      IsSubtypeOf(table_object->type(), kWasmFuncRef, instance->module());
+
   for (size_t i = 0; i < count; ++i) {
-    WasmElemSegment::Entry init = elem_segment.entries[src + i];
+    WasmElemSegment::Entry entry = elem_segment.entries[src + i];
     int entry_index = static_cast<int>(dst + i);
-    switch (init.kind) {
-      case WasmElemSegment::Entry::kRefNullEntry:
-        SetNullTableEntry(isolate, instance, table_object, table_index,
-                          entry_index);
-        break;
-      case WasmElemSegment::Entry::kRefFuncEntry:
-        SetFunctionTableEntry(isolate, instance, table_object, table_index,
-                              entry_index, init.index);
-        break;
-      case WasmElemSegment::Entry::kGlobalGetEntry: {
-        Handle<Object> value =
-            WasmInstanceObject::GetGlobalValue(
-                instance, instance->module()->globals[init.index])
-                .to_ref();
-        if (value.is_null()) {
-          SetNullTableEntry(isolate, instance, table_object, table_index,
-                            entry_index);
-        } else if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
-          uint32_t function_index =
-              Handle<WasmExportedFunction>::cast(value)->function_index();
-          SetFunctionTableEntry(isolate, instance, table_object, table_index,
-                                entry_index, function_index);
-        } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
-          // TODO(manoskouk): Support WasmJSFunction.
-          return false;
-        } else {
-          WasmTableObject::Set(isolate, table_object, entry_index, value);
-        }
-        break;
-      }
-    }
+    Handle<Object> value =
+        elem_segment.element_type == WasmElemSegment::kExpressionElements
+            ? EvaluateInitExpression(
+                  zone, entry.ref, elem_segment.type, isolate, instance,
+                  is_function_table ? InitExprInterface::kLazyFunctions
+                                    : InitExprInterface::kStrictFunctions)
+                  .to_ref()
+            : handle(Smi::FromInt(entry.index), isolate);
+    SetTableEntry(isolate, instance, table_object, table_index, entry_index,
+                  value);
   }
   return true;
 }
@@ -2087,18 +2042,6 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
       // initialize any further element segments, but still need to add
       // dispatch tables below.
       break;
-    }
-  }
-
-  int table_count = static_cast<int>(module_->tables.size());
-  for (int index = 0; index < table_count; ++index) {
-    if (IsSubtypeOf(module_->tables[index].type, kWasmFuncRef, module_)) {
-      auto table_object = handle(
-          WasmTableObject::cast(instance->tables().get(index)), isolate_);
-
-      // Add the new dispatch table at the end to avoid redundant lookups.
-      WasmTableObject::AddDispatchTable(isolate_, table_object, instance,
-                                        index);
     }
   }
 }
