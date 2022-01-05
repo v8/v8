@@ -278,8 +278,10 @@ def v8_library(
         )
 
 def _torque_impl(ctx):
-    v8root = "."
-    prefix = ctx.attr.prefix
+    if ctx.workspace_name == "v8":
+        v8root = "."
+    else:
+        v8root = "external/v8"
 
     # Arguments
     args = []
@@ -331,7 +333,6 @@ _v8_torque = rule(
             cfg = "exec",
         ),
         "args": attr.string_list(),
-        "v8root": attr.label(default = ":v8_root"),
     },
 )
 

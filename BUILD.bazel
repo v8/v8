@@ -80,11 +80,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_allocation_folding
 # v8_allocation_site_tracking
 
-v8_string(
-    name = "v8_root",
-    default = "third_party/v8/HEAD",
-)
-
 v8_flag(name = "v8_android_log_stdout")
 
 v8_flag(name = "v8_annotate_torque_ir")
