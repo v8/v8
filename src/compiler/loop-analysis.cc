@@ -551,7 +551,7 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
 #if V8_ENABLE_WEBASSEMBLY
 // static
 ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
-    Node* loop_header, Zone* zone, size_t max_size) {
+    Node* loop_header, Zone* zone, size_t max_size, bool calls_are_large) {
   auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
   std::vector<Node*> queue;
 
@@ -594,13 +594,19 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
         }
         // All uses are outside the loop, do nothing.
         break;
+      // If {calls_are_large}, call nodes are considered to have unbounded size,
+      // i.e. >max_size, with the exception of certain wasm builtins.
       case IrOpcode::kTailCall:
       case IrOpcode::kJSWasmCall:
       case IrOpcode::kJSCall:
-        // Call nodes are considered to have unbounded size, i.e. >max_size,
-        // with the exception of certain wasm builtins.
-        return nullptr;
+        if (calls_are_large) return nullptr;
+        ENQUEUE_USES(use, true)
+        break;
       case IrOpcode::kCall: {
+        if (!calls_are_large) {
+          ENQUEUE_USES(use, true);
+          break;
+        }
         Node* callee = node->InputAt(0);
         if (callee->opcode() != IrOpcode::kRelocatableInt32Constant &&
             callee->opcode() != IrOpcode::kRelocatableInt64Constant) {

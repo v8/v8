@@ -1310,7 +1310,9 @@ class WasmGraphBuildingInterface {
   //   different nodes during inlining. These are Return and TailCall nodes.
   // - After IfFailure nodes.
   // - When exiting a loop through Delegate.
-  bool emit_loop_exits() { return FLAG_wasm_loop_unrolling; }
+  bool emit_loop_exits() {
+    return FLAG_wasm_loop_unrolling || FLAG_wasm_loop_peeling;
+  }
 
   void GetNodes(TFNode** nodes, Value* values, size_t count) {
     for (size_t i = 0; i < count; ++i) {

@@ -186,11 +186,11 @@ class V8_EXPORT_PRIVATE LoopFinder {
   // marked with LoopExit, LoopExitEffect, LoopExitValue, or End nodes.
   // Returns {nullptr} if
   // 1) the loop size (in graph nodes) exceeds {max_size},
-  // 2) a function call is found in the loop, excluding calls to a set of wasm
-  //    builtins,
+  // 2) {calls_are_large} and a function call is found in the loop, excluding
+  //    calls to a set of wasm builtins,
   // 3) a nested loop is found in the loop.
   static ZoneUnorderedSet<Node*>* FindSmallInnermostLoopFromHeader(
-      Node* loop_header, Zone* zone, size_t max_size);
+      Node* loop_header, Zone* zone, size_t max_size, bool calls_are_large);
 #endif
 };
 
@@ -198,7 +198,7 @@ class V8_EXPORT_PRIVATE LoopFinder {
 class NodeCopier {
  public:
   // {max}: The maximum number of nodes that this copier will track, including
-  //        The original nodes and all copies.
+  //        the original nodes and all copies.
   // {p}: A vector that holds the original nodes and all copies.
   // {copy_count}: How many times the nodes should be copied.
   NodeCopier(Graph* graph, uint32_t max, NodeVector* p, uint32_t copy_count)

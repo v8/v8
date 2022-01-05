@@ -62,6 +62,49 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(10, instance.exports.main(10));
 })();
 
+(function LoopInLoopTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let fact = builder.addFunction("fact", kSig_i_i)
+    .addLocals(kWasmI32, 1)
+    .addBody([// result = 1;
+              kExprI32Const, 1, kExprLocalSet, 1,
+              kExprLoop, kWasmVoid,
+                kExprLocalGet, 1,
+                // if input == 1 return result;
+                kExprLocalGet, 0, kExprI32Const, 1, kExprI32Eq, kExprBrIf, 1,
+                // result *= input;
+                kExprLocalGet, 0, kExprI32Mul, kExprLocalSet, 1,
+                // input -= 1;
+                kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
+                kExprLocalSet, 0,
+                kExprBr, 0,
+              kExprEnd,
+              kExprUnreachable]);
+
+  builder.addFunction("main", kSig_i_i)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 1,
+        // if input == 0 return sum;
+        kExprLocalGet, 0, kExprI32Const, 0, kExprI32Eq, kExprBrIf, 1,
+        // sum += fact(input);
+        kExprLocalGet, 0, kExprCallFunction, fact.index,
+        kExprI32Add, kExprLocalSet, 1,
+        // input -= 1;
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
+        kExprLocalSet, 0,
+        kExprBr, 0,
+      kExprEnd,
+      kExprUnreachable])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(33, instance.exports.main(4));
+})();
+
 (function InfiniteLoopTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

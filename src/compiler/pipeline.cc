@@ -99,6 +99,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
 #include "src/compiler/wasm-inlining.h"
+#include "src/compiler/wasm-loop-peeling.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
@@ -1680,6 +1681,24 @@ struct WasmInliningPhase {
   }
 };
 
+namespace {
+void EliminateLoopExits(std::vector<compiler::WasmLoopInfo>* loop_infos) {
+  for (WasmLoopInfo& loop_info : *loop_infos) {
+    std::unordered_set<Node*> loop_exits;
+    // We collect exits into a set first because we are not allowed to mutate
+    // them while iterating uses().
+    for (Node* use : loop_info.header->uses()) {
+      if (use->opcode() == IrOpcode::kLoopExit) {
+        loop_exits.insert(use);
+      }
+    }
+    for (Node* use : loop_exits) {
+      LoopPeeler::EliminateLoopExit(use);
+    }
+  }
+}
+}  // namespace
+
 struct WasmLoopUnrollingPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmLoopUnrolling)
 
@@ -1692,7 +1711,7 @@ struct WasmLoopUnrollingPhase {
                 loop_info.header, temp_zone,
                 // Only discover the loop until its size is the maximum unrolled
                 // size for its depth.
-                maximum_unrollable_size(loop_info.nesting_depth));
+                maximum_unrollable_size(loop_info.nesting_depth), true);
         if (loop == nullptr) continue;
         UnrollLoop(loop_info.header, loop, loop_info.nesting_depth,
                    data->graph(), data->common(), temp_zone,
@@ -1700,19 +1719,28 @@ struct WasmLoopUnrollingPhase {
       }
     }
 
+    EliminateLoopExits(loop_infos);
+  }
+};
+
+struct WasmLoopPeelingPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmLoopPeeling)
+
+  void Run(PipelineData* data, Zone* temp_zone,
+           std::vector<compiler::WasmLoopInfo>* loop_infos) {
     for (WasmLoopInfo& loop_info : *loop_infos) {
-      std::unordered_set<Node*> loop_exits;
-      // We collect exits into a set first because we are not allowed to mutate
-      // them while iterating uses().
-      for (Node* use : loop_info.header->uses()) {
-        if (use->opcode() == IrOpcode::kLoopExit) {
-          loop_exits.insert(use);
-        }
-      }
-      for (Node* use : loop_exits) {
-        LoopPeeler::EliminateLoopExit(use);
+      if (loop_info.can_be_innermost) {
+        ZoneUnorderedSet<Node*>* loop =
+            LoopFinder::FindSmallInnermostLoopFromHeader(
+                loop_info.header, temp_zone, std::numeric_limits<size_t>::max(),
+                false);
+        if (loop == nullptr) continue;
+        PeelWasmLoop(loop_info.header, loop, data->graph(), data->common(),
+                     temp_zone, data->source_positions(), data->node_origins());
       }
     }
+    // If we are going to unroll later, keep loop exits.
+    if (!FLAG_wasm_loop_unrolling) EliminateLoopExits(loop_infos);
   }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3248,6 +3276,10 @@ void Pipeline::GenerateCodeForWasmFunction(
     pipeline.Run<WasmInliningPhase>(env, function_index, wire_bytes_storage,
                                     loop_info);
     pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
+  }
+  if (FLAG_wasm_loop_peeling) {
+    pipeline.Run<WasmLoopPeelingPhase>(loop_info);
+    pipeline.RunPrintAndVerify(WasmLoopPeelingPhase::phase_name(), true);
   }
   if (FLAG_wasm_loop_unrolling) {
     pipeline.Run<WasmLoopUnrollingPhase>(loop_info);

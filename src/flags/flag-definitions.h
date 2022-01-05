@@ -1104,6 +1104,7 @@ DEFINE_NEG_IMPLICATION(liftoff_only, wasm_speculative_inlining)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
+DEFINE_BOOL(wasm_loop_peeling, false, "enable loop peeling for wasm functions")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
             "generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
