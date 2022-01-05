@@ -359,6 +359,10 @@ declare_args() {
   # TODO(v8:11112): Remove once all architectures support the flag and it is
   # enabled unconditionally.
   v8_include_receiver_in_argc = true
+
+  # Change code emission and runtime features to be CET shadow-stack compliant
+  # (incomplete and experimental).
+  v8_enable_cet_shadow_stack = false
 }
 
 # Derived defaults.
@@ -925,6 +929,9 @@ config("features") {
   }
   if (v8_control_flow_integrity) {
     defines += [ "V8_ENABLE_CONTROL_FLOW_INTEGRITY" ]
+  }
+  if (v8_enable_cet_shadow_stack) {
+    defines += [ "V8_ENABLE_CET_SHADOW_STACK" ]
   }
   if (v8_enable_wasm_gdb_remote_debugging) {
     defines += [ "V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING" ]
@@ -2214,6 +2221,7 @@ action("v8_dump_build_config") {
     "v8_dict_property_const_tracking=$v8_dict_property_const_tracking",
     "v8_control_flow_integrity=$v8_control_flow_integrity",
     "v8_target_cpu=\"$v8_target_cpu\"",
+    "v8_enable_cet_shadow_stack=$v8_enable_cet_shadow_stack",
   ]
 
   if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
