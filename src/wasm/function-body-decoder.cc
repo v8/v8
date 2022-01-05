@@ -20,6 +20,17 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace value_type_reader {
+HeapType consume_heap_type(Decoder* decoder, const WasmModule* module,
+                           const WasmFeatures& enabled) {
+  uint32_t length;
+  HeapType result = value_type_reader::read_heap_type<Decoder::kFullValidation>(
+      decoder, decoder->pc(), &length, module, enabled);
+  decoder->consume_bytes(length, "heap type");
+  return result;
+}
+}  // namespace value_type_reader
+
 bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
                       const WasmModule* module, const byte* start,
                       const byte* end) {

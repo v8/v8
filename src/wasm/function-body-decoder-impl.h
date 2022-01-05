@@ -246,6 +246,9 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
   }
 }
 
+HeapType consume_heap_type(Decoder* decoder, const WasmModule* module,
+                           const WasmFeatures& enabled);
+
 // Read a value type starting at address {pc} using {decoder}.
 // No bytes are consumed.
 // The length of the read value type is written in {length}.
