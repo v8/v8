@@ -449,6 +449,9 @@
 
   # Temporal intl tests won't work in no_i18n
   'temporal/function-exist': [FAIL],
+
+  # Non-BMP characters currently aren't considered identifiers in no_i18n
+  'harmony/private-name-surrogate-pair': [PASS,FAIL],
 }],  # 'no_i18n'
 
 ##############################################################################
