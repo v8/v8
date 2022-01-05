@@ -1793,12 +1793,8 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   HeapType consume_super_type() {
-    uint32_t type_length;
-    HeapType result = value_type_reader::read_heap_type<kFullValidation>(
-        this, this->pc(), &type_length, module_.get(),
-        origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
-    consume_bytes(type_length, "supertype");
-    return result;
+    return value_type_reader::consume_heap_type(this, module_.get(),
+                                                enabled_features_);
   }
 
   ValueType consume_storage_type() {

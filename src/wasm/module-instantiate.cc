@@ -942,12 +942,68 @@ WasmValue EvaluateInitExpression(
         InitExprInterface::kStrictFunctions) {
   base::Vector<const byte> module_bytes =
       instance->module_object().native_module()->wire_bytes();
-  FunctionBody body(FunctionSig::Build(zone, {expected}, {}), init.offset(),
-                    module_bytes.begin() + init.offset(),
-                    module_bytes.begin() + init.end_offset());
+
+  const byte* start = module_bytes.begin() + init.offset();
+  const byte* end = module_bytes.begin() + init.end_offset();
+
+  // We implement a fast path for the most common expressions, so we do not have
+  // to allocate a WasmFullDecoder. It is possible that the first expression we
+  // encounter is only an operand of a more complex expression. Therefore we
+  // have to check we reached the end of the expression in each case.
+  switch (static_cast<WasmOpcode>(*start)) {
+    case kExprI32Const: {
+      Decoder decoder(start + 1, end);
+      int32_t value = decoder.consume_i32v();
+      if (*decoder.pc() == kExprEnd) return WasmValue(value);
+      break;
+    }
+    case kExprI64Const: {
+      Decoder decoder(start + 1, end);
+      int64_t value = decoder.consume_i64v();
+      if (*decoder.pc() == kExprEnd) return WasmValue(value);
+      break;
+    }
+    case kExprGlobalGet: {
+      Decoder decoder(start + 1, end);
+      uint32_t index = decoder.consume_u32v();
+      if (*decoder.pc() == kExprEnd) {
+        return WasmInstanceObject::GetGlobalValue(
+            instance, instance->module()->globals[index]);
+      }
+      break;
+    }
+    case kExprRefFunc: {
+      Decoder decoder(start + 1, end);
+      uint32_t index = decoder.consume_u32v();
+      if (*decoder.pc() == kExprEnd) {
+        Handle<Object> value =
+            function_strictness == InitExprInterface::kLazyFunctions
+                ? Handle<Object>(Smi::FromInt(index), isolate)
+                : Handle<Object>::cast(
+                      WasmInstanceObject::GetOrCreateWasmInternalFunction(
+                          isolate, instance, index));
+        return WasmValue(value, expected);
+      }
+      break;
+    }
+    case kExprRefNull: {
+      Decoder decoder(start + 1, end);
+      value_type_reader::consume_heap_type(&decoder, instance->module(),
+                                           WasmFeatures::All());
+      if (*decoder.pc() == kExprEnd) {
+        return WasmValue(isolate->factory()->null_value(), expected);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  auto sig = FixedSizeSignature<ValueType>::Returns(expected);
+  FunctionBody body(&sig, init.offset(), start, end);
   WasmFeatures detected;
-  // We use kFullValidation so we do not have to create another instance of
-  // WasmFullDecoder, which would cost us >50Kb binary code size.
+  // We use kFullValidation so we do not have to create another template
+  // instance of WasmFullDecoder, which would cost us >50Kb binary code size.
   WasmFullDecoder<Decoder::kFullValidation, InitExprInterface, kInitExpression>
       decoder(zone, instance->module(), WasmFeatures::All(), &detected, body,
               instance->module(), isolate, instance, function_strictness);
