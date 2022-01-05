@@ -1523,7 +1523,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
 }
 
 Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
-    Handle<JSReceiver> callable) {
+    Handle<JSReceiver> callable, Handle<HeapObject> suspender) {
   Map map = *wasm_api_function_ref_map();
   auto result = WasmApiFunctionRef::cast(AllocateRawWithImmortalMap(
       map.instance_size(), AllocationType::kOld, map));
@@ -1534,6 +1534,11 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
     result.set_callable(*callable);
   } else {
     result.set_callable(*undefined_value());
+  }
+  if (!suspender.is_null()) {
+    result.set_suspender(*suspender);
+  } else {
+    result.set_suspender(*undefined_value());
   }
   return handle(result, isolate());
 }
@@ -1556,8 +1561,8 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-    Handle<CodeT> wrapper_code, Handle<Map> rtt) {
-  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(callable);
+    Handle<CodeT> wrapper_code, Handle<Map> rtt, Handle<HeapObject> suspender) {
+  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(callable, suspender);
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(opt_call_target, ref, rtt);
   Map map = *wasm_js_function_data_map();
@@ -1602,7 +1607,8 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, Handle<Foreign> embedder_data,
     Handle<CodeT> wrapper_code, Handle<Map> rtt,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
-  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(Handle<JSReceiver>());
+  Handle<WasmApiFunctionRef> ref =
+      NewWasmApiFunctionRef(Handle<JSReceiver>(), Handle<HeapObject>());
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, ref, rtt);
   Map map = *wasm_capi_function_data_map();

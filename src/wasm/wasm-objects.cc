@@ -1076,7 +1076,7 @@ FunctionTargetAndRef::FunctionTargetAndRef(
 
 void ImportedFunctionEntry::SetWasmToJs(
     Isolate* isolate, Handle<JSReceiver> callable,
-    const wasm::WasmCode* wasm_to_js_wrapper) {
+    const wasm::WasmCode* wasm_to_js_wrapper, Handle<HeapObject> suspender) {
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=%p}\n",
             instance_->ptr(), index_, callable->ptr(),
@@ -1084,7 +1084,7 @@ void ImportedFunctionEntry::SetWasmToJs(
   DCHECK(wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
   Handle<WasmApiFunctionRef> ref =
-      isolate->factory()->NewWasmApiFunctionRef(callable);
+      isolate->factory()->NewWasmApiFunctionRef(callable, suspender);
   instance_->imported_function_refs().set(index_, *ref);
   instance_->imported_function_targets()[index_] =
       wasm_to_js_wrapper->instruction_start();
@@ -1448,8 +1448,8 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     const wasm::WasmFeatures enabled = native_module->enabled_features();
     auto resolved = compiler::ResolveWasmImportCall(
         callable, sig, instance->module(), enabled);
-    compiler::WasmImportCallKind kind = resolved.first;
-    callable = resolved.second;  // Update to ultimate target.
+    compiler::WasmImportCallKind kind = resolved.kind;
+    callable = resolved.callable;  // Update to ultimate target.
     DCHECK_NE(compiler::WasmImportCallKind::kLinkError, kind);
     wasm::CompilationEnv env = native_module->CreateCompilationEnv();
     // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
@@ -1479,8 +1479,9 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   }
 
   // Update the dispatch table.
+  Handle<HeapObject> suspender = handle(js_function->GetSuspender(), isolate);
   Handle<WasmApiFunctionRef> ref =
-      isolate->factory()->NewWasmApiFunctionRef(callable);
+      isolate->factory()->NewWasmApiFunctionRef(callable, suspender);
   WasmIndirectFunctionTable::cast(
       instance->indirect_function_tables().get(table_index))
       .Set(entry_index, sig_id, call_target, *ref);
@@ -2031,7 +2032,8 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
 
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                            const wasm::FunctionSig* sig,
-                                           Handle<JSReceiver> callable) {
+                                           Handle<JSReceiver> callable,
+                                           Handle<HeapObject> suspender) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
   int return_count = static_cast<int>(sig->return_count());
@@ -2061,7 +2063,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<Map> rtt = factory->wasm_internal_function_map();
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
       call_target, callable, return_count, parameter_count, serialized_sig,
-      wrapper_code, rtt);
+      wrapper_code, rtt, suspender);
 
   if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
     using CK = compiler::WasmImportCallKind;
@@ -2106,6 +2108,12 @@ JSReceiver WasmJSFunction::GetCallable() const {
   return JSReceiver::cast(WasmApiFunctionRef::cast(
                               shared().wasm_js_function_data().internal().ref())
                               .callable());
+}
+
+HeapObject WasmJSFunction::GetSuspender() const {
+  return WasmApiFunctionRef::cast(
+             shared().wasm_js_function_data().internal().ref())
+      .suspender();
 }
 
 const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {

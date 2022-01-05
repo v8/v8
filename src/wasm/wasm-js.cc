@@ -25,9 +25,11 @@
 #include "src/init/v8.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-function.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
 #include "src/tasks/task-utils.h"
@@ -1894,8 +1896,10 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
+  i::Handle<i::HeapObject> suspender =
+      handle(i::ReadOnlyRoots(i_isolate).undefined_value(), i_isolate);
   i::Handle<i::JSFunction> result =
-      i::WasmJSFunction::New(i_isolate, sig, callable);
+      i::WasmJSFunction::New(i_isolate, sig, callable, suspender);
   args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -1925,6 +1929,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
 constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";
 constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
 constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
+constexpr const char* kName_WasmSuspenderObject = "WebAssembly.Suspender";
 constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
 constexpr const char* kName_WasmTagObject = "WebAssembly.Tag";
 constexpr const char* kName_WasmExceptionPackage = "WebAssembly.Exception";
@@ -2580,6 +2585,38 @@ void WebAssemblySuspenderReturnPromiseOnSuspend(
   args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
+// WebAssembly.Suspender.suspendOnReturnedPromise(Function) -> Function
+void WebAssemblySuspenderSuspendOnReturnedPromise(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+  ScheduledErrorThrower thrower(
+      i_isolate, "WebAssembly.Suspender.suspendOnReturnedPromise()");
+  if (!args[0]->IsObject()) {
+    thrower.TypeError("Argument 0 must be a WebAssembly.Function");
+    return;
+  }
+  i::Zone zone(i_isolate->allocator(), ZONE_NAME);
+  const i::wasm::FunctionSig* sig;
+  i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
+
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*arg0)) {
+    // TODO(thibaudm): Suspend on wrapped wasm-to-wasm calls too.
+    UNIMPLEMENTED();
+  } else if (!i::WasmJSFunction::IsWasmJSFunction(*arg0)) {
+    thrower.TypeError("Argument 0 must be a WebAssembly.Function");
+    return;
+  }
+  sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
+
+  auto callable = handle(
+      i::Handle<i::WasmJSFunction>::cast(arg0)->GetCallable(), i_isolate);
+  EXTRACT_THIS(suspender, WasmSuspenderObject);
+  i::Handle<i::JSFunction> result =
+      i::WasmJSFunction::New(i_isolate, sig, callable, suspender);
+  args.GetReturnValue().Set(Utils::ToLocal(result));
+}
 }  // namespace
 
 // TODO(titzer): we use the API to create the function template because the
@@ -2876,6 +2913,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
         WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
     InstallFunc(isolate, suspender_proto, "returnPromiseOnSuspend",
                 WebAssemblySuspenderReturnPromiseOnSuspend, 1);
+    InstallFunc(isolate, suspender_proto, "suspendOnReturnedPromise",
+                WebAssemblySuspenderSuspendOnReturnedPromise, 1);
   }
 
   // Setup Function

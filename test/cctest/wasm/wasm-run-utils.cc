@@ -73,8 +73,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     auto resolved = compiler::ResolveWasmImportCall(
         maybe_import->js_function, maybe_import->sig,
         instance_object_->module(), enabled_features_);
-    compiler::WasmImportCallKind kind = resolved.first;
-    Handle<JSReceiver> callable = resolved.second;
+    compiler::WasmImportCallKind kind = resolved.kind;
+    Handle<JSReceiver> callable = resolved.callable;
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
     WasmImportWrapperCache::CacheKey key(
@@ -89,7 +89,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .SetWasmToJs(isolate_, callable, import_wrapper);
+        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspender);
   }
 
   if (tier == TestExecutionTier::kInterpreter) {

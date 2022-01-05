@@ -107,14 +107,19 @@ enum class WasmImportCallKind : uint8_t {
 constexpr WasmImportCallKind kDefaultImportCallKind =
     WasmImportCallKind::kJSFunctionArityMatch;
 
+struct WasmImportData {
+  WasmImportCallKind kind;
+  Handle<JSReceiver> callable;
+  Handle<HeapObject> suspender;
+};
 // Resolves which import call wrapper is required for the given JS callable.
-// Returns the kind of wrapper need and the ultimate target callable. Note that
-// some callables (e.g. a {WasmExportedFunction} or {WasmJSFunction}) just wrap
-// another target, which is why the ultimate target is returned as well.
-V8_EXPORT_PRIVATE std::pair<WasmImportCallKind, Handle<JSReceiver>>
-ResolveWasmImportCall(Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
-                      const wasm::WasmModule* module,
-                      const wasm::WasmFeatures& enabled_features);
+// Returns the kind of wrapper needed, the ultimate target callable, and the
+// suspender object if applicable. Note that some callables (e.g. a
+// {WasmExportedFunction} or {WasmJSFunction}) just wrap another target, which
+// is why the ultimate target is returned as well.
+V8_EXPORT_PRIVATE WasmImportData ResolveWasmImportCall(
+    Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
+    const wasm::WasmModule* module, const wasm::WasmFeatures& enabled_features);
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(

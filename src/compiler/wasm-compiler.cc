@@ -7579,46 +7579,48 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
       std::move(debug_name), WasmAssemblerOptions());
 }
 
-std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
+WasmImportData ResolveWasmImportCall(
     Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
     const wasm::WasmModule* module,
     const wasm::WasmFeatures& enabled_features) {
+  Isolate* isolate = callable->GetIsolate();
+  Handle<HeapObject> no_suspender;
   if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable);
     if (!imported_function->MatchesSignature(module, expected_sig)) {
-      return std::make_pair(WasmImportCallKind::kLinkError, callable);
+      return {WasmImportCallKind::kLinkError, callable, no_suspender};
     }
     uint32_t func_index =
         static_cast<uint32_t>(imported_function->function_index());
     if (func_index >=
         imported_function->instance().module()->num_imported_functions) {
-      return std::make_pair(WasmImportCallKind::kWasmToWasm, callable);
+      return {WasmImportCallKind::kWasmToWasm, callable, no_suspender};
     }
-    Isolate* isolate = callable->GetIsolate();
     // Resolve the shortcut to the underlying callable and continue.
     Handle<WasmInstanceObject> instance(imported_function->instance(), isolate);
     ImportedFunctionEntry entry(instance, func_index);
     callable = handle(entry.callable(), isolate);
   }
+  Handle<HeapObject> suspender = isolate->factory()->undefined_value();
   if (WasmJSFunction::IsWasmJSFunction(*callable)) {
     auto js_function = Handle<WasmJSFunction>::cast(callable);
     if (!js_function->MatchesSignature(expected_sig)) {
-      return std::make_pair(WasmImportCallKind::kLinkError, callable);
+      return {WasmImportCallKind::kLinkError, callable, no_suspender};
     }
-    Isolate* isolate = callable->GetIsolate();
+    suspender = handle(js_function->GetSuspender(), isolate);
     // Resolve the short-cut to the underlying callable and continue.
     callable = handle(js_function->GetCallable(), isolate);
   }
   if (WasmCapiFunction::IsWasmCapiFunction(*callable)) {
     auto capi_function = Handle<WasmCapiFunction>::cast(callable);
     if (!capi_function->MatchesSignature(expected_sig)) {
-      return std::make_pair(WasmImportCallKind::kLinkError, callable);
+      return {WasmImportCallKind::kLinkError, callable, no_suspender};
     }
-    return std::make_pair(WasmImportCallKind::kWasmToCapi, callable);
+    return {WasmImportCallKind::kWasmToCapi, callable, no_suspender};
   }
   // Assuming we are calling to JS, check whether this would be a runtime error.
   if (!wasm::IsJSCompatibleSignature(expected_sig, module, enabled_features)) {
-    return std::make_pair(WasmImportCallKind::kRuntimeTypeError, callable);
+    return {WasmImportCallKind::kRuntimeTypeError, callable, no_suspender};
   }
   // For JavaScript calls, determine whether the target has an arity match.
   if (callable->IsJSFunction()) {
@@ -7634,7 +7636,7 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     if (!sig) sig = wasm::WasmOpcodes::AsmjsSignature(wasm::kExpr##name); \
     DCHECK_NOT_NULL(sig);                                                 \
     if (*expected_sig == *sig) {                                          \
-      return std::make_pair(WasmImportCallKind::k##name, callable);       \
+      return {WasmImportCallKind::k##name, callable, no_suspender};       \
     }                                                                     \
   }
 #define COMPARE_SIG_FOR_BUILTIN_F64(name) \
@@ -7679,13 +7681,12 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
 
     if (IsClassConstructor(shared->kind())) {
       // Class constructor will throw anyway.
-      return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
+      return {WasmImportCallKind::kUseCallBuiltin, callable, suspender};
     }
 
     if (shared->internal_formal_parameter_count_without_receiver() ==
         expected_sig->parameter_count()) {
-      return std::make_pair(WasmImportCallKind::kJSFunctionArityMatch,
-                            callable);
+      return {WasmImportCallKind::kJSFunctionArityMatch, callable, suspender};
     }
 
     // If function isn't compiled, compile it now.
@@ -7696,11 +7697,10 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
                         &is_compiled_scope);
     }
 
-    return std::make_pair(WasmImportCallKind::kJSFunctionArityMismatch,
-                          callable);
+    return {WasmImportCallKind::kJSFunctionArityMismatch, callable, suspender};
   }
   // Unknown case. Use the call builtin.
-  return std::make_pair(WasmImportCallKind::kUseCallBuiltin, callable);
+  return {WasmImportCallKind::kUseCallBuiltin, callable, suspender};
 }
 
 namespace {

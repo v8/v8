@@ -1181,8 +1181,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   const FunctionSig* expected_sig = module_->functions[func_index].sig;
   auto resolved = compiler::ResolveWasmImportCall(js_receiver, expected_sig,
                                                   module_, enabled_);
-  compiler::WasmImportCallKind kind = resolved.first;
-  js_receiver = resolved.second;
+  compiler::WasmImportCallKind kind = resolved.kind;
+  js_receiver = resolved.callable;
   switch (kind) {
     case compiler::WasmImportCallKind::kLinkError:
       ReportLinkError("imported function does not match the expected type",
@@ -1224,7 +1224,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       ImportedFunctionEntry entry(instance, func_index);
       // We re-use the SetWasmToJs infrastructure because it passes the
       // callable to the wrapper, which we need to get the function data.
-      entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
+      entry.SetWasmToJs(isolate_, js_receiver, wasm_code,
+                        isolate_->factory()->undefined_value());
       break;
     }
     default: {
@@ -1245,7 +1246,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
         // Wasm to JS wrappers are treated specially in the import table.
-        entry.SetWasmToJs(isolate_, js_receiver, wasm_code);
+        entry.SetWasmToJs(isolate_, js_receiver, wasm_code, resolved.suspender);
       } else {
         // Wasm math intrinsics are compiled as regular Wasm functions.
         DCHECK(kind >= compiler::WasmImportCallKind::kFirstMathIntrinsic &&
@@ -1634,7 +1635,7 @@ void InstanceBuilder::CompileImportWrappers(
     const FunctionSig* sig = module_->functions[func_index].sig;
     auto resolved =
         compiler::ResolveWasmImportCall(js_receiver, sig, module_, enabled_);
-    compiler::WasmImportCallKind kind = resolved.first;
+    compiler::WasmImportCallKind kind = resolved.kind;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
         kind == compiler::WasmImportCallKind::kLinkError ||
         kind == compiler::WasmImportCallKind::kWasmToCapi) {
@@ -1642,9 +1643,9 @@ void InstanceBuilder::CompileImportWrappers(
     }
 
     int expected_arity = static_cast<int>(sig->parameter_count());
-    if (resolved.first ==
+    if (resolved.kind ==
         compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
-      Handle<JSFunction> function = Handle<JSFunction>::cast(resolved.second);
+      Handle<JSFunction> function = Handle<JSFunction>::cast(resolved.callable);
       SharedFunctionInfo shared = function->shared();
       expected_arity =
           shared.internal_formal_parameter_count_without_receiver();

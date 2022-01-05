@@ -604,13 +604,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
       Address call_target, Handle<Object> ref, int func_index,
       Address sig_address, int wrapper_budget, Handle<Map> rtt);
-  Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(Handle<JSReceiver> callable);
+  Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
+      Handle<JSReceiver> callable, Handle<HeapObject> suspender);
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
       Address opt_call_target, Handle<JSReceiver> callable, int return_count,
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-      Handle<CodeT> wrapper_code, Handle<Map> rtt);
+      Handle<CodeT> wrapper_code, Handle<Map> rtt,
+      Handle<HeapObject> suspender);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
   Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type,
