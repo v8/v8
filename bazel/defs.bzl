@@ -120,13 +120,17 @@ def _default_args():
             ],
             "@v8//bazel/config:is_gcc": [
                 "-Wno-extra",
+                "-Wno-array-bounds",
+                "-Wno-class-memaccess",
                 "-Wno-comments",
                 "-Wno-deprecated-declarations",
                 "-Wno-implicit-fallthrough",
+                "-Wno-int-in-bool-context",
                 "-Wno-maybe-uninitialized",
                 "-Wno-mismatched-new-delete",
                 "-Wno-redundant-move",
                 "-Wno-return-type",
+                "-Wno-stringop-overflow",
                 # Use GNU dialect, because GCC doesn't allow using
                 # ##__VA_ARGS__ when in standards-conforming mode.
                 "-std=gnu++17",
