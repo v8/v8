@@ -367,6 +367,7 @@ def _v8_target_cpu_transition_impl(settings, attr):
         "x86_64": "x64",
         "darwin": "x64",
         "darwin_x86_64": "x64",
+        "x64_windows": "x64",
         "x86": "ia32",
         "ppc": "ppc64",
         "arm64-v8a": "arm64",
