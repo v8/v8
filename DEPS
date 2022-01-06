@@ -40,10 +40,10 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:281ba2c91861b10fec7407c4b6172ec3d4661243',
+  'gn_version': 'git_revision:19bf826e6e5d05100cb3568e90e48bd3c97d4f22',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:e897e118887a2e6c50a82212b660cb2a7c58d910',
+  'luci_go': 'git_revision:89429843eb2dedb599a6c7c7754343b97d95943d',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ccc9811f5a0727853036d494203e364af929c696',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f29e3b62592db10a752c83fad3282ea86dd5bab9',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f78b4b9f33bd8ef9944d5ce643daff1c31880189',
   'buildtools/clang_format/script':
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ec88714291e603916469e9baca8ee24188a0c1bd',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'aa0e8d05643953c9f7f84bdd7ee3ca4ee3772d41',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '02d65eaf797636ff57994a203fa8ea61fe2e9b5e',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e9714986c0fae9d639baaf2478d2f3d3f70dc1a9',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
@@ -276,7 +276,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'efd9399ae01364926be2a38946127fdf463480db',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2d102292f5abb47b5c9ce75d0cf0ca5ed5bae97a',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '24c11001dddddde285bc780eaea1c8c59b5af98b',
   'tools/clang/dsymutil': {
     'packages': [
       {
