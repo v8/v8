@@ -4587,6 +4587,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     Handle<JSObject> now = factory()->NewJSObject(isolate_->object_function(),
                                                   AllocationType::kOld);
     JSObject::AddProperty(isolate_, temporal, "Now", now, DONT_ENUM);
+    InstallToStringTag(isolate_, now, "Temporal.Now");
 
     // Note: There are NO Temporal.Now.plainTime
     // See https://github.com/tc39/proposal-temporal/issues/1540
@@ -5195,6 +5196,17 @@ void Genesis::InitializeGlobal_harmony_temporal() {
   }
 #undef INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE
 #undef INSTALL_TEMPORAL_FUNC
+
+  // The TemporalInsantFixedArrayFromIterable functions is created but not
+  // exposed, as it is used internally by GetPossibleInstantsFor.
+  {
+    Handle<JSFunction> func = SimpleCreateFunction(
+        isolate_,
+        factory()->InternalizeUtf8String(
+            "TemporalInstantFixedArrayFromIterable"),
+        Builtin::kTemporalInstantFixedArrayFromIterable, 1, false);
+    native_context()->set_temporal_instant_fixed_array_from_iterable(*func);
+  }
 }
 
 #ifdef V8_INTL_SUPPORT

@@ -168,6 +168,7 @@
   V(_, computed_string, "<computed>")                                 \
   V(_, configurable_string, "configurable")                           \
   V(_, conjunction_string, "conjunction")                             \
+  V(_, constrain_string, "constrain")                                 \
   V(_, construct_string, "construct")                                 \
   V(_, constructor_string, "constructor")                             \
   V(_, current_string, "current")                                     \
@@ -229,6 +230,7 @@
   V(_, get_string, "get")                                             \
   V(_, getOffsetNanosecondsFor_string, "getOffsetNanosecondsFor")     \
   V(_, getOwnPropertyDescriptor_string, "getOwnPropertyDescriptor")   \
+  V(_, getPossibleInstantsFor_string, "getPossibleInstantsFor")       \
   V(_, getPrototypeOf_string, "getPrototypeOf")                       \
   V(_, global_string, "global")                                       \
   V(_, globalThis_string, "globalThis")                               \
@@ -326,6 +328,8 @@
   V(_, overflow_string, "overflow")                                   \
   V(_, ownKeys_string, "ownKeys")                                     \
   V(_, percent_string, "percent")                                     \
+  V(_, plainDate_string, "plainDate")                                 \
+  V(_, plainTime_string, "plainTime")                                 \
   V(_, position_string, "position")                                   \
   V(_, preventExtensions_string, "preventExtensions")                 \
   V(_, private_constructor_string, "#constructor")                    \
@@ -343,11 +347,13 @@
   V(_, RegExp_string, "RegExp")                                       \
   V(_, regexp_to_string, "[object RegExp]")                           \
   V(_, reject_string, "reject")                                       \
+  V(_, relativeTo_string, "relativeTo")                               \
   V(_, resizable_string, "resizable")                                 \
   V(_, ResizableArrayBuffer_string, "ResizableArrayBuffer")           \
   V(_, resolve_string, "resolve")                                     \
   V(_, return_string, "return")                                       \
   V(_, revoke_string, "revoke")                                       \
+  V(_, roundingIncrement_string, "roundingIncrement")                 \
   V(_, RuntimeError_string, "RuntimeError")                           \
   V(_, WebAssemblyException_string, "WebAssembly.Exception")          \
   V(_, Script_string, "Script")                                       \

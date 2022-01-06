@@ -15,6 +15,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
+#include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/global-handles.h"
@@ -2758,6 +2759,101 @@ std::set<std::string> Intl::SanctionedSimpleUnits() {
                                 "second",     "stone",      "terabit",
                                 "terabyte",   "week",       "yard",
                                 "year"});
+}
+
+// ecma-402/#sec-isvalidtimezonename
+
+namespace {
+bool IsUnicodeStringValidTimeZoneName(const icu::UnicodeString& id) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString canonical;
+  icu::TimeZone::getCanonicalID(id, canonical, status);
+  return U_SUCCESS(status) &&
+         canonical != icu::UnicodeString("Etc/Unknown", -1, US_INV);
+}
+}  // namespace
+
+MaybeHandle<String> Intl::CanonicalizeTimeZoneName(Isolate* isolate,
+                                                   Handle<String> identifier) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::string time_zone =
+      JSDateTimeFormat::CanonicalizeTimeZoneID(identifier->ToCString().get());
+  icu::UnicodeString time_zone_ustring =
+      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
+  icu::UnicodeString canonical;
+  icu::TimeZone::getCanonicalID(time_zone_ustring, canonical, status);
+  CHECK(U_SUCCESS(status));
+  if (canonical == UNICODE_STRING_SIMPLE("Etc/UTC") ||
+      canonical == UNICODE_STRING_SIMPLE("Etc/GMT")) {
+    return isolate->factory()->UTC_string();
+  }
+  return Intl::ToString(isolate, canonical);
+}
+
+bool Intl::IsValidTimeZoneName(Isolate* isolate, Handle<String> id) {
+  std::string time_zone =
+      JSDateTimeFormat::CanonicalizeTimeZoneID(id->ToCString().get());
+  icu::UnicodeString time_zone_ustring =
+      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
+  return IsUnicodeStringValidTimeZoneName(time_zone_ustring);
+}
+
+bool Intl::IsValidTimeZoneName(const icu::TimeZone& tz) {
+  icu::UnicodeString id;
+  tz.getID(id);
+  return IsUnicodeStringValidTimeZoneName(id);
+}
+
+// Function to support Temporal
+std::string Intl::TimeZoneIdFromIndex(int32_t index) {
+  if (index == 0) return "UTC";
+  std::unique_ptr<icu::StringEnumeration> enumeration(
+      icu::TimeZone::createEnumeration());
+  int32_t curr = 0;
+  const char* id;
+
+  UErrorCode status = U_ZERO_ERROR;
+  while (U_SUCCESS(status) && curr < index &&
+         ((id = enumeration->next(nullptr, status)) != nullptr)) {
+    CHECK(U_SUCCESS(status));
+    curr++;
+  }
+  CHECK(U_SUCCESS(status));
+  CHECK(id != nullptr);
+  return id;
+}
+
+Maybe<bool> Intl::GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier,
+                                   int32_t* index) {
+  if (identifier->Equals(*isolate->factory()->UTC_string())) {
+    *index = 0;
+    return Just(true);
+  }
+
+  std::string identifier_str(identifier->ToCString().get());
+  std::unique_ptr<icu::TimeZone> tz(
+      icu::TimeZone::createTimeZone(identifier_str.c_str()));
+  if (!IsValidTimeZoneName(*tz)) {
+    return Just(false);
+  }
+
+  std::unique_ptr<icu::StringEnumeration> enumeration(
+      icu::TimeZone::createEnumeration());
+  int32_t curr = 0;
+  const char* id;
+
+  UErrorCode status = U_ZERO_ERROR;
+  while (U_SUCCESS(status) &&
+         (id = enumeration->next(nullptr, status)) != nullptr) {
+    if (identifier_str == id) {
+      *index = curr + 1;
+      return Just(true);
+    }
+    curr++;
+  }
+  CHECK(U_SUCCESS(status));
+  // We should not reach here, the !IsValidTimeZoneName should return earlier
+  UNREACHABLE();
 }
 
 }  // namespace internal

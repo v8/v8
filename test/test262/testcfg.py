@@ -59,6 +59,7 @@ FEATURE_FLAGS = {
   'Object.hasOwn': '--harmony-object-has-own',
   'class-static-block': '--harmony-class-static-blocks',
   'resizable-arraybuffer': '--harmony-rab-gsab',
+  'Temporal': '--harmony-temporal',
   'array-find-from-last': '--harmony_array_find_last',
 }
 

@@ -1637,7 +1637,10 @@ namespace internal {
   /* Temporal #sec-temporal.calendar.prototype.tostring */                     \
   CPP(TemporalCalendarPrototypeToString)                                       \
   /* Temporal #sec-temporal.calendar.prototype.tojson */                       \
-  CPP(TemporalCalendarPrototypeToJSON)
+  CPP(TemporalCalendarPrototypeToJSON)                                         \
+                                                                               \
+  /* "Private" (created but not exposed) Bulitins needed by Temporal */        \
+  TFJ(TemporalInstantFixedArrayFromIterable, kJSArgcReceiverSlots, kIterable)
 
 #define BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM) \
   BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM) \

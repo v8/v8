@@ -6384,6 +6384,11 @@ TNode<BoolT> CodeStubAssembler::IsStringInstanceType(
   return Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE));
 }
 
+TNode<BoolT> CodeStubAssembler::IsTemporalInstantInstanceType(
+    TNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, JS_TEMPORAL_INSTANT_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsOneByteStringInstanceType(
     TNode<Int32T> instance_type) {
   CSA_DCHECK(this, IsStringInstanceType(instance_type));
