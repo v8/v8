@@ -957,7 +957,7 @@ enum Opcode : uint32_t {
 
   VFCLASS_V = 0b10000,
   VFSQRT_V = 0b00000,
-  VFSQRT7_V = 0b00100,
+  VFRSQRT7_V = 0b00100,
   VFREC7_V = 0b00101,
 
   VFADD_FUNCT6 = 0b000000,

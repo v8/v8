@@ -2981,6 +2981,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kRiscvF64x2Qfma: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vfmadd_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   i.InputSimd128Register(0));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvF64x2Qfms: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vfnmsub_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
+                    i.InputSimd128Register(0));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kRiscvF32x4ExtractLane: {
       __ VU.set(kScratchReg, E32, m1);
       __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0),
@@ -3153,6 +3167,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfmin_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
                   i.InputSimd128Register(0), Mask);
       __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvF32x4RecipApprox: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfrec7_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kRiscvF32x4RecipSqrtApprox: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfrsqrt7_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kRiscvF32x4Qfma: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfmadd_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   i.InputSimd128Register(0));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvF32x4Qfms: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfnmsub_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
+                    i.InputSimd128Register(0));
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kRiscvI64x2SConvertI32x4Low: {

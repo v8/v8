@@ -51,6 +51,7 @@
 #include <stdlib.h>
 
 #include "src/base/bits.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -6056,6 +6057,30 @@ void Simulator::DecodeRvvFVV() {
                                vd = std::sqrt(vs2);
                                USE(fs1);
                              })
+          break;
+        case VFRSQRT7_V:
+          RVV_VI_VFP_VF_LOOP(
+              {},
+              {
+                vd = base::RecipSqrt(vs2);
+                USE(fs1);
+              },
+              {
+                vd = base::RecipSqrt(vs2);
+                USE(fs1);
+              })
+          break;
+        case VFREC7_V:
+          RVV_VI_VFP_VF_LOOP(
+              {},
+              {
+                vd = base::Recip(vs2);
+                USE(fs1);
+              },
+              {
+                vd = base::Recip(vs2);
+                USE(fs1);
+              })
           break;
         default:
           break;

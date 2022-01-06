@@ -2404,6 +2404,12 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
         case VFSQRT_V:
           Format(instr, "vfsqrt.v  'vd, 'vs2'vm");
           break;
+        case VFRSQRT7_V:
+          Format(instr, "vfrsqrt7.v 'vd, 'vs2'vm");
+          break;
+        case VFREC7_V:
+          Format(instr, "vfrec7.v  'vd, 'vs2'vm");
+          break;
         default:
           break;
       }

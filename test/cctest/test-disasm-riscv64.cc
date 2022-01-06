@@ -627,6 +627,11 @@ TEST(RVV) {
   COMPARE(vfirst_m(a5, v17), "4318a7d7       vfirst.m  a5, v17");
   COMPARE(vcpop_m(a5, v17), "431827d7       vcpop.m   a5, v17");
 
+  COMPARE(vfsqrt_v(v17, v28), "4fc018d7       vfsqrt.v  v17, v28")
+  COMPARE(vfrsqrt7_v(v17, v28), "4fc218d7       vfrsqrt7.v v17, v28")
+  COMPARE(vfrec7_v(v17, v28), "4fc298d7       vfrec7.v  v17, v28")
+  COMPARE(vfclass_v(v17, v28), "4fc818d7       vfclass.v  v17, v28")
+
   VERIFY_RUN();
 }
 

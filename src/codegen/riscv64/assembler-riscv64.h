@@ -982,6 +982,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   DEFINE_VFUNARY(vfclass_v, VFUNARY1_FUNCT6, VFCLASS_V)
   DEFINE_VFUNARY(vfsqrt_v, VFUNARY1_FUNCT6, VFSQRT_V)
+  DEFINE_VFUNARY(vfrsqrt7_v, VFUNARY1_FUNCT6, VFRSQRT7_V)
+  DEFINE_VFUNARY(vfrec7_v, VFUNARY1_FUNCT6, VFREC7_V)
 #undef DEFINE_VFUNARY
 
   void vnot_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
