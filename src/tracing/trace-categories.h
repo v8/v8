@@ -42,6 +42,7 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats")),
+    perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.inspector")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime")),
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats")),
