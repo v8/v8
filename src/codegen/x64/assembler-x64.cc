@@ -3761,6 +3761,16 @@ void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1,
   emit(imm8);
 }
 
+void Assembler::vps(byte op, YMMRegister dst, YMMRegister src1,
+                    YMMRegister src2, byte imm8) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL256, kNoPrefix, k0F, kWIG);
+  emit(op);
+  emit_sse_operand(dst, src2);
+  emit(imm8);
+}
+
 #define VPD(SIMDRegister, length)                                   \
   void Assembler::vpd(byte op, SIMDRegister dst, SIMDRegister src1, \
                       SIMDRegister src2) {                          \
