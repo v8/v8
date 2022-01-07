@@ -1101,6 +1101,9 @@ class ObjectStatsVisitor {
 namespace {
 
 void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
+  // We don't perform a GC while collecting object stats but need this scope for
+  // the nested SafepointScope inside CombinedHeapObjectIterator.
+  AllowGarbageCollection allow_gc;
   CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
