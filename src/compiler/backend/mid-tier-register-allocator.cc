@@ -4,6 +4,8 @@
 
 #include "src/compiler/backend/mid-tier-register-allocator.h"
 
+#include <ostream>
+
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -1324,12 +1326,17 @@ class RegisterBitVector {
   bool IsEmpty() const { return bits_ == 0; }
 
  private:
+  friend std::ostream& operator<<(std::ostream&, RegisterBitVector);
   explicit RegisterBitVector(uintptr_t bits) : bits_(bits) {}
 
   static_assert(RegisterConfiguration::kMaxRegisters <= sizeof(uintptr_t) * 8,
                 "Maximum registers must fit in uintptr_t bitmap");
   uintptr_t bits_;
 };
+
+std::ostream& operator<<(std::ostream& os, RegisterBitVector register_bits) {
+  return os << std::hex << register_bits.bits_ << std::dec;
+}
 
 // A SinglePassRegisterAllocator is a fast register allocator that does a single
 // pass through the instruction stream without performing any live-range
