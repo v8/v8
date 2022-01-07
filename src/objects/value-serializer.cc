@@ -938,7 +938,11 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   WriteVarint(static_cast<uint8_t>(tag));
   WriteVarint(static_cast<uint32_t>(view.byte_offset()));
   WriteVarint(static_cast<uint32_t>(view.byte_length()));
-  WriteVarint(static_cast<uint32_t>(view.bit_field()));
+  // TODO(crbug.com/v8/12532): Re-enable the flags serialization logic below.
+  // Bump the serialization format version number when doing so, and preserve
+  // logic and tests for reading from the old format.
+  //
+  // WriteVarint(static_cast<uint32_t>(view.bit_field()));
   return ThrowIfOutOfMemory();
 }
 
@@ -1864,10 +1868,12 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   uint32_t byte_offset = 0;
   uint32_t byte_length = 0;
   uint32_t flags = 0;
+  // TODO(crbug.com/v8/12532): Read `flags` from the serialized value, when we
+  // restore the logic for serializing them.
   if (!ReadVarint<uint8_t>().To(&tag) ||
       !ReadVarint<uint32_t>().To(&byte_offset) ||
       !ReadVarint<uint32_t>().To(&byte_length) ||
-      !ReadVarint<uint32_t>().To(&flags) || byte_offset > buffer_byte_length ||
+      byte_offset > buffer_byte_length ||
       byte_length > buffer_byte_length - byte_offset) {
     return MaybeHandle<JSArrayBufferView>();
   }
