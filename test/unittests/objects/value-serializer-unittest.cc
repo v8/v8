@@ -1996,7 +1996,7 @@ TEST_F(ValueSerializerTest, RoundTripDataView) {
 TEST_F(ValueSerializerTest, DecodeDataView) {
   Local<Value> value =
       DecodeTest({0xFF, 0x09, 0x3F, 0x00, 0x3F, 0x00, 0x42, 0x04, 0x00, 0x00,
-                  0x00, 0x00, 0x56, 0x3F, 0x01, 0x02, 0x00});
+                  0x00, 0x00, 0x56, 0x3F, 0x01, 0x02});
   ASSERT_TRUE(value->IsDataView());
   EXPECT_EQ(1u, DataView::Cast(*value)->ByteOffset());
   EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
