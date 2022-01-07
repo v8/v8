@@ -3358,6 +3358,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   MemOperand operand = i.MemoryOperand(&mode);       \
   DCHECK_EQ(mode, kMode_MRR);                        \
   __ load_instr(scratch, operand);
+#if V8_TARGET_BIG_ENDIAN
+#define MAYBE_REVERSE_BYTES(reg, instr) __ instr(reg, reg);
+#else
+#define MAYBE_REVERSE_BYTES(reg, instr)
+#endif
     case kPPC_S128Load8Splat: {
       Simd128Register dst = i.OutputSimd128Register();
       ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsibzx)
@@ -3367,12 +3372,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_S128Load16Splat: {
       Simd128Register dst = i.OutputSimd128Register();
       ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsihzx)
+      MAYBE_REVERSE_BYTES(kScratchSimd128Reg, xxbrh)
       __ vsplth(dst, kScratchSimd128Reg, Operand(3));
       break;
     }
     case kPPC_S128Load32Splat: {
       Simd128Register dst = i.OutputSimd128Register();
       ASSEMBLE_LOAD_TRANSFORM(kScratchSimd128Reg, lxsiwzx)
+      MAYBE_REVERSE_BYTES(kScratchSimd128Reg, xxbrw)
       __ vspltw(dst, kScratchSimd128Reg, Operand(1));
       break;
     }
@@ -3380,6 +3387,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       constexpr int lane_width_in_bytes = 8;
       Simd128Register dst = i.OutputSimd128Register();
       ASSEMBLE_LOAD_TRANSFORM(dst, lxsdx)
+      MAYBE_REVERSE_BYTES(dst, xxbrd)
       __ vinsertd(dst, dst, Operand(1 * lane_width_in_bytes));
       break;
     }
@@ -3453,6 +3461,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vinsertd(dst, kScratchSimd128Reg, Operand(1 * lane_width_in_bytes));
       break;
     }
+#undef MAYBE_REVERSE_BYTES
 #undef ASSEMBLE_LOAD_TRANSFORM
     case kPPC_S128Load8Lane: {
       Simd128Register dst = i.OutputSimd128Register();
