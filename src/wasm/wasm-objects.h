@@ -1012,6 +1012,7 @@ class WasmContinuationObject
 class WasmSuspenderObject
     : public TorqueGeneratedWasmSuspenderObject<WasmSuspenderObject, JSObject> {
  public:
+  enum State : int { Inactive = 0, Active, Suspended };
   static Handle<WasmSuspenderObject> New(Isolate* isolate);
   // TODO(thibaudm): returnPromiseOnSuspend & suspendOnReturnedPromise.
   DECL_PRINTER(WasmSuspenderObject)

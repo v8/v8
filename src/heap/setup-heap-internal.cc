@@ -811,6 +811,7 @@ void Heap::CreateInitialObjects() {
   set_shared_wasm_memories(roots.empty_weak_array_list());
 #ifdef V8_ENABLE_WEBASSEMBLY
   set_active_continuation(roots.undefined_value());
+  set_active_suspender(roots.undefined_value());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   set_script_list(roots.empty_weak_array_list());

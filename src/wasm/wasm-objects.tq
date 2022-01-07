@@ -67,6 +67,9 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
   packed_args_size: Smi;
+  // Functions returned by suspender.returnPromiseOnSuspend() have this field
+  // set to the host suspender object.
+  suspender: WasmSuspenderObject|Undefined;
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {
@@ -98,6 +101,8 @@ extern class WasmContinuationObject extends Struct {
 
 extern class WasmSuspenderObject extends JSObject {
   continuation: WasmContinuationObject|Undefined;
+  parent: WasmSuspenderObject|Undefined;
+  state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
 }
 
 extern class WasmExceptionTag extends Struct {

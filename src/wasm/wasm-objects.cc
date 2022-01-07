@@ -1790,6 +1790,8 @@ Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
   auto suspender = Handle<WasmSuspenderObject>::cast(
       isolate->factory()->NewJSObject(suspender_cons, AllocationType::kOld));
   suspender->set_continuation(ReadOnlyRoots(isolate).undefined_value());
+  suspender->set_parent(ReadOnlyRoots(isolate).undefined_value());
+  suspender->set_state(Inactive);
   return suspender;
 }
 
