@@ -1540,12 +1540,11 @@ class SinglePassRegisterAllocator final {
   void CheckConsistency();
 
   VirtualRegisterData& VirtualRegisterDataFor(int virtual_register) const {
-    return data()->VirtualRegisterDataFor(virtual_register);
+    return data_->VirtualRegisterDataFor(virtual_register);
   }
 
   int num_allocatable_registers() const { return num_allocatable_registers_; }
   const InstructionBlock* current_block() const { return current_block_; }
-  MidTierRegisterAllocationData* data() const { return data_; }
 
   // Virtual register to register mapping.
   ZoneVector<RegisterIndex> virtual_register_to_reg_;
@@ -1704,7 +1703,7 @@ void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
                                    1);
   }
 
-  BlockState& block_state = data()->block_state(block->rpo_number());
+  BlockState& block_state = data_->block_state(block->rpo_number());
   block_state.set_register_in_state(register_state_, kind());
 
   // Remove virtual register to register mappings and clear register state.
@@ -1712,7 +1711,7 @@ void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
   while (!allocated_registers_bits_.IsEmpty()) {
     RegisterIndex reg = allocated_registers_bits_.GetFirstSet();
     VirtualRegisterData& vreg_data =
-        data()->VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
+        data_->VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
     FreeRegister(reg, vreg_data.vreg(), vreg_data.rep());
   }
   current_block_ = nullptr;
@@ -1720,10 +1719,10 @@ void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
 }
 
 void SinglePassRegisterAllocator::CloneStateFrom(RpoNumber successor) {
-  BlockState& block_state = data()->block_state(successor);
+  BlockState& block_state = data_->block_state(successor);
   RegisterState* successor_registers = block_state.register_in_state(kind());
   if (successor_registers != nullptr) {
-    if (data()->GetBlock(successor)->PredecessorCount() == 1) {
+    if (data_->GetBlock(successor)->PredecessorCount() == 1) {
       // Avoids cloning for successors where we are the only predecessor.
       register_state_ = successor_registers;
     } else {
@@ -1736,7 +1735,7 @@ void SinglePassRegisterAllocator::CloneStateFrom(RpoNumber successor) {
 void SinglePassRegisterAllocator::MergeStateFrom(
     const InstructionBlock::Successors& successors) {
   for (RpoNumber successor : successors) {
-    BlockState& block_state = data()->block_state(successor);
+    BlockState& block_state = data_->block_state(successor);
     RegisterState* successor_registers = block_state.register_in_state(kind());
     if (successor_registers == nullptr) {
       continue;
@@ -1838,20 +1837,20 @@ void SinglePassRegisterAllocator::SpillRegisterAtMerge(RegisterState* reg_state,
   if (reg_state->IsAllocated(reg)) {
     int virtual_register = reg_state->VirtualRegisterForRegister(reg);
     VirtualRegisterData& vreg_data =
-        data()->VirtualRegisterDataFor(virtual_register);
+        data_->VirtualRegisterDataFor(virtual_register);
     AllocatedOperand allocated = AllocatedOperandForReg(reg, vreg_data.rep());
-    reg_state->Spill(reg, allocated, current_block(), data());
+    reg_state->Spill(reg, allocated, current_block(), data_);
   }
 }
 
 void SinglePassRegisterAllocator::MoveRegisterOnMerge(
     RegisterIndex from, RegisterIndex to, VirtualRegisterData& virtual_register,
     RpoNumber successor, RegisterState* succ_state) {
-  int instr_index = data()->GetBlock(successor)->first_instruction_index();
+  int instr_index = data_->GetBlock(successor)->first_instruction_index();
   MoveOperands* move =
-      data()->AddPendingOperandGapMove(instr_index, Instruction::START);
+      data_->AddPendingOperandGapMove(instr_index, Instruction::START);
   succ_state->Commit(to, AllocatedOperandForReg(to, virtual_register.rep()),
-                     &move->destination(), data());
+                     &move->destination(), data_);
   AllocatePendingUse(from, virtual_register, &move->source(), true,
                      instr_index);
 }
@@ -1865,7 +1864,7 @@ void SinglePassRegisterAllocator::UpdateVirtualRegisterState() {
     int virtual_register = VirtualRegisterForRegister(reg);
     if (virtual_register != InstructionOperand::kInvalidVirtualRegister) {
       MachineRepresentation rep =
-          data()->VirtualRegisterDataFor(virtual_register).rep();
+          data_->VirtualRegisterDataFor(virtual_register).rep();
       AssignRegister(reg, virtual_register, rep, UsePosition::kNone);
     }
   }
@@ -1875,7 +1874,7 @@ void SinglePassRegisterAllocator::UpdateVirtualRegisterState() {
 void SinglePassRegisterAllocator::CheckConsistency() {
 #ifdef DEBUG
   for (int virtual_register = 0;
-       virtual_register < data()->code()->VirtualRegisterCount();
+       virtual_register < data_->code()->VirtualRegisterCount();
        virtual_register++) {
     RegisterIndex reg = RegisterForVirtualRegister(virtual_register);
     if (!reg.is_valid()) continue;
@@ -1950,17 +1949,17 @@ void SinglePassRegisterAllocator::EmitGapMoveFromOutput(InstructionOperand from,
   DCHECK(from.IsAllocated());
   DCHECK(to.IsAllocated());
   const InstructionBlock* block = current_block();
-  DCHECK_EQ(data()->GetBlock(instr_index), block);
+  DCHECK_EQ(data_->GetBlock(instr_index), block);
   if (instr_index == block->last_instruction_index()) {
     // Add gap move to the first instruction of every successor block.
     for (const RpoNumber succ : block->successors()) {
-      const InstructionBlock* successor = data()->GetBlock(succ);
+      const InstructionBlock* successor = data_->GetBlock(succ);
       DCHECK_EQ(1, successor->PredecessorCount());
-      data()->AddGapMove(successor->first_instruction_index(),
-                         Instruction::START, from, to);
+      data_->AddGapMove(successor->first_instruction_index(),
+                        Instruction::START, from, to);
     }
   } else {
-    data()->AddGapMove(instr_index + 1, Instruction::START, from, to);
+    data_->AddGapMove(instr_index + 1, Instruction::START, from, to);
   }
 }
 
@@ -2008,7 +2007,7 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterFor(
   // If we don't need a register, only try to allocate one if the virtual
   // register hasn't yet been spilled, to try to avoid spilling it.
   if (!reg.is_valid() && (must_use_register ||
-                          !virtual_register.IsSpilledAt(instr_index, data()))) {
+                          !virtual_register.IsSpilledAt(instr_index, data_))) {
     reg = ChooseRegisterFor(rep, pos, must_use_register);
   } else if (reg.is_valid() &&
              same_input_output_registers_bits_.Contains(reg, rep) &&
@@ -2148,7 +2147,7 @@ void SinglePassRegisterAllocator::CommitRegister(RegisterIndex reg,
   // Committing the output operation, and mark the register use in this
   // instruction, then mark it as free going forward.
   AllocatedOperand allocated = AllocatedOperandForReg(reg, rep);
-  register_state_->Commit(reg, allocated, operand, data());
+  register_state_->Commit(reg, allocated, operand, data_);
   MarkRegisterUse(reg, rep, pos);
   FreeRegister(reg, virtual_register, rep);
   CheckConsistency();
@@ -2161,7 +2160,7 @@ void SinglePassRegisterAllocator::SpillRegister(RegisterIndex reg) {
   int virtual_register = VirtualRegisterForRegister(reg);
   MachineRepresentation rep = VirtualRegisterDataFor(virtual_register).rep();
   AllocatedOperand allocated = AllocatedOperandForReg(reg, rep);
-  register_state_->Spill(reg, allocated, current_block(), data());
+  register_state_->Spill(reg, allocated, current_block(), data_);
   FreeRegister(reg, virtual_register, rep);
 }
 
@@ -2197,10 +2196,10 @@ void SinglePassRegisterAllocator::SpillRegisterForDeferred(RegisterIndex reg,
   // instruction, then mark it as free going forward.
   if (register_state_->IsAllocated(reg) && register_state_->IsShared(reg)) {
     VirtualRegisterData& virtual_register =
-        data()->VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
+        data_->VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
     AllocatedOperand allocated =
         AllocatedOperandForReg(reg, virtual_register.rep());
-    register_state_->SpillForDeferred(reg, allocated, instr_index, data());
+    register_state_->SpillForDeferred(reg, allocated, instr_index, data_);
     FreeRegister(reg, virtual_register.vreg(), virtual_register.rep());
   }
   CheckConsistency();
@@ -2209,7 +2208,7 @@ void SinglePassRegisterAllocator::SpillRegisterForDeferred(RegisterIndex reg,
 void SinglePassRegisterAllocator::AllocateDeferredBlockSpillOutput(
     int instr_index, RpoNumber deferred_block,
     VirtualRegisterData& virtual_register) {
-  DCHECK(data()->GetBlock(deferred_block)->IsDeferred());
+  DCHECK(data_->GetBlock(deferred_block)->IsDeferred());
   DCHECK(virtual_register.HasSpillRange());
   if (!virtual_register.NeedsSpillAtOutput() &&
       !DefinedAfter(virtual_register.vreg(), instr_index, UsePosition::kEnd)) {
@@ -2222,9 +2221,9 @@ void SinglePassRegisterAllocator::AllocateDeferredBlockSpillOutput(
     RegisterIndex reg = RegisterForVirtualRegister(virtual_register.vreg());
     if (reg.is_valid()) {
       int deferred_block_start =
-          data()->GetBlock(deferred_block)->first_instruction_index();
+          data_->GetBlock(deferred_block)->first_instruction_index();
       register_state_->MoveToSpillSlotOnDeferred(reg, virtual_register.vreg(),
-                                                 deferred_block_start, data());
+                                                 deferred_block_start, data_);
       return;
     } else {
       virtual_register.MarkAsNeedsSpillAtOutput();
@@ -2244,9 +2243,9 @@ void SinglePassRegisterAllocator::AllocateUse(
 
   AllocatedOperand allocated =
       AllocatedOperandForReg(reg, virtual_register.rep());
-  register_state_->Commit(reg, allocated, operand, data());
+  register_state_->Commit(reg, allocated, operand, data_);
   register_state_->AllocateUse(reg, virtual_register.vreg(), operand,
-                               instr_index, data());
+                               instr_index, data_);
   AssignRegister(reg, virtual_register.vreg(), virtual_register.rep(), pos);
   CheckConsistency();
 }
@@ -2273,7 +2272,7 @@ void SinglePassRegisterAllocator::AllocateUseWithMove(
   UnallocatedOperand from =
       UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
                          virtual_register.vreg());
-  data()->AddGapMove(instr_index, Instruction::END, from, to);
+  data_->AddGapMove(instr_index, Instruction::END, from, to);
   InstructionOperand::ReplaceWith(operand, &to);
   MarkRegisterUse(reg, virtual_register.rep(), pos);
   CheckConsistency();
@@ -2302,12 +2301,11 @@ void SinglePassRegisterAllocator::AllocateInput(
                          operand->fixed_slot_index());
     InstructionOperand::ReplaceWith(operand, &allocated);
     MoveOperands* move_op =
-        data()->AddGapMove(instr_index, Instruction::END, input_copy, *operand);
-    virtual_register.SpillOperand(&move_op->source(), instr_index, true,
-                                  data());
+        data_->AddGapMove(instr_index, Instruction::END, input_copy, *operand);
+    virtual_register.SpillOperand(&move_op->source(), instr_index, true, data_);
     return;
   } else if (operand->HasSlotPolicy()) {
-    virtual_register.SpillOperand(operand, instr_index, false, data());
+    virtual_register.SpillOperand(operand, instr_index, false, data_);
     return;
   }
 
@@ -2336,7 +2334,7 @@ void SinglePassRegisterAllocator::AllocateInput(
       // The register will have been spilled at this use.
       virtual_register.SpillOperand(
           operand, instr_index, operand->HasRegisterOrSlotOrConstantPolicy(),
-          data());
+          data_);
     } else if (!must_use_register) {
       // We might later dedice to spill this register; allocate a pending use.
       AllocatePendingUse(reg, virtual_register, operand,
@@ -2368,7 +2366,7 @@ void SinglePassRegisterAllocator::AllocateGapMoveInput(
   if (reg.is_valid()) {
     AllocatePendingUse(reg, vreg_data, operand, true, instr_index);
   } else {
-    vreg_data.SpillOperand(operand, instr_index, true, data());
+    vreg_data.SpillOperand(operand, instr_index, true, data_);
   }
 }
 
@@ -2380,7 +2378,7 @@ void SinglePassRegisterAllocator::AllocateConstantOutput(
   SpillRegisterForVirtualRegister(vreg_data.vreg());
   if (vreg_data.NeedsSpillAtOutput()) {
     vreg_data.EmitGapMoveFromOutputToSpillSlot(*operand, current_block(),
-                                               instr_index, data());
+                                               instr_index, data_);
   }
 }
 
@@ -2411,7 +2409,7 @@ RegisterIndex SinglePassRegisterAllocator::AllocateOutput(
 
   // TODO(rmcilroy): support secondary storage.
   if (!reg.is_valid()) {
-    vreg_data.SpillOperand(operand, instr_index, false, data());
+    vreg_data.SpillOperand(operand, instr_index, false, data_);
   } else {
     InstructionOperand move_output_to;
     if (!VirtualRegisterIsUnallocatedOrInReg(virtual_register, reg)) {
@@ -2433,9 +2431,9 @@ RegisterIndex SinglePassRegisterAllocator::AllocateOutput(
     if (vreg_data.NeedsSpillAtOutput()) {
       vreg_data.EmitGapMoveFromOutputToSpillSlot(
           *AllocatedOperand::cast(operand), current_block(), instr_index,
-          data());
+          data_);
     } else if (vreg_data.NeedsSpillAtDeferredBlocks()) {
-      vreg_data.EmitDeferredSpillOutputs(data());
+      vreg_data.EmitDeferredSpillOutputs(data_);
     }
   }
 
@@ -2474,15 +2472,15 @@ void SinglePassRegisterAllocator::AllocateSameInputOutput(
     // register's spill slot. As such, spill this input operand using the output
     // virtual register's spill slot, then add a gap-move to move the input
     // value into this spill slot.
-    output_vreg_data.SpillOperand(input, instr_index, false, data());
+    output_vreg_data.SpillOperand(input, instr_index, false, data_);
 
     // Add an unconstrained gap move for the input virtual register.
     UnallocatedOperand unconstrained_input(
         UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT, input_vreg);
-    MoveOperands* move_ops = data()->AddGapMove(
+    MoveOperands* move_ops = data_->AddGapMove(
         instr_index, Instruction::END, unconstrained_input, PendingOperand());
     output_vreg_data.SpillOperand(&move_ops->destination(), instr_index, true,
-                                  data());
+                                  data_);
   }
 }
 
@@ -2510,8 +2508,7 @@ void SinglePassRegisterAllocator::AllocateTemp(UnallocatedOperand* operand,
   } else {
     VirtualRegisterData& vreg_data = VirtualRegisterDataFor(virtual_register);
     vreg_data.SpillOperand(operand, instr_index,
-                           operand->HasRegisterOrSlotOrConstantPolicy(),
-                           data());
+                           operand->HasRegisterOrSlotOrConstantPolicy(), data_);
   }
 }
 
@@ -2609,7 +2606,7 @@ void SinglePassRegisterAllocator::AllocatePhiGapMove(
   } else {
     // Otherwise add a gap move.
     MoveOperands* move =
-        data()->AddPendingOperandGapMove(instr_index, Instruction::END);
+        data_->AddPendingOperandGapMove(instr_index, Instruction::END);
     PendingOperand* to_operand = PendingOperand::cast(&move->destination());
     PendingOperand* from_operand = PendingOperand::cast(&move->source());
 
@@ -2618,7 +2615,7 @@ void SinglePassRegisterAllocator::AllocatePhiGapMove(
       CommitRegister(to_register, to_vreg.vreg(), to_vreg.rep(), to_operand,
                      UsePosition::kAll);
     } else {
-      to_vreg.SpillOperand(to_operand, instr_index, true, data());
+      to_vreg.SpillOperand(to_operand, instr_index, true, data_);
     }
 
     // The from side is unconstrained.
@@ -2648,7 +2645,7 @@ void SinglePassRegisterAllocator::AllocatePhi(
 void SinglePassRegisterAllocator::EnsureRegisterState() {
   if (V8_UNLIKELY(!register_state_)) {
     register_state_ = RegisterState::New(kind(), num_allocatable_registers_,
-                                         data()->allocation_zone());
+                                         data_->allocation_zone());
   }
 }
 
@@ -2663,7 +2660,7 @@ class MidTierOutputProcessor final {
   void PopulateDeferredBlockRegion(RpoNumber initial_block);
 
   VirtualRegisterData& VirtualRegisterDataFor(int virtual_register) const {
-    return data()->VirtualRegisterDataFor(virtual_register);
+    return data_->VirtualRegisterDataFor(virtual_register);
   }
   MachineRepresentation RepresentationFor(int virtual_register) const {
     DCHECK_NE(virtual_register, InstructionOperand::kInvalidVirtualRegister);
@@ -2672,12 +2669,11 @@ class MidTierOutputProcessor final {
   }
 
   bool IsDeferredBlockBoundary(const ZoneVector<RpoNumber>& blocks) {
-    return blocks.size() == 1 && !data()->GetBlock(blocks[0])->IsDeferred();
+    return blocks.size() == 1 && !data_->GetBlock(blocks[0])->IsDeferred();
   }
 
-  MidTierRegisterAllocationData* data() const { return data_; }
-  InstructionSequence* code() const { return data()->code(); }
-  Zone* zone() const { return data()->allocation_zone(); }
+  InstructionSequence* code() const { return data_->code(); }
+  Zone* zone() const { return data_->allocation_zone(); }
 
   MidTierRegisterAllocationData* const data_;
   ZoneQueue<RpoNumber> deferred_blocks_worklist_;
@@ -2701,14 +2697,13 @@ void MidTierOutputProcessor::PopulateDeferredBlockRegion(
   while (!deferred_blocks_worklist_.empty()) {
     RpoNumber current = deferred_blocks_worklist_.front();
     deferred_blocks_worklist_.pop();
-    deferred_blocks_region->AddBlock(current, data());
+    deferred_blocks_region->AddBlock(current, data_);
 
-    const InstructionBlock* curr_block = data()->GetBlock(current);
+    const InstructionBlock* curr_block = data_->GetBlock(current);
     // Check for whether the predecessor blocks are still deferred.
     if (IsDeferredBlockBoundary(curr_block->predecessors())) {
       // If not, mark the predecessor as having a deferred successor.
-      data()
-          ->block_state(curr_block->predecessors()[0])
+      data_->block_state(curr_block->predecessors()[0])
           .MarkAsDeferredBlockBoundary();
     } else {
       // Otherwise process predecessors.
@@ -2724,7 +2719,7 @@ void MidTierOutputProcessor::PopulateDeferredBlockRegion(
     // Process any unprocessed successors if we aren't at a boundary.
     if (IsDeferredBlockBoundary(curr_block->successors())) {
       // If not, mark the predecessor as having a deferred successor.
-      data()->block_state(current).MarkAsDeferredBlockBoundary();
+      data_->block_state(current).MarkAsDeferredBlockBoundary();
     } else {
       // Otherwise process successors.
       for (RpoNumber succ : curr_block->successors()) {
@@ -2743,11 +2738,11 @@ void MidTierOutputProcessor::InitializeBlockState(
   // phis.
   if (block->phis().size()) {
     for (int i = 0; i < static_cast<int>(block->PredecessorCount()); ++i) {
-      data()->block_state(block->predecessors()[i]).set_successors_phi_index(i);
+      data_->block_state(block->predecessors()[i]).set_successors_phi_index(i);
     }
   }
 
-  BlockState& block_state = data()->block_state(block->rpo_number());
+  BlockState& block_state = data_->block_state(block->rpo_number());
 
   if (block->IsDeferred() && !block_state.deferred_blocks_region()) {
     PopulateDeferredBlockRegion(block->rpo_number());
@@ -2758,7 +2753,7 @@ void MidTierOutputProcessor::InitializeBlockState(
 
   if (block->dominator().IsValid()) {
     // Add all the blocks this block dominates to its dominator.
-    BlockState& dominator_block_state = data()->block_state(block->dominator());
+    BlockState& dominator_block_state = data_->block_state(block->dominator());
     dominator_block_state.dominated_blocks()->Union(
         *block_state.dominated_blocks());
   } else {
@@ -2816,7 +2811,7 @@ void MidTierOutputProcessor::DefineOutputs(const InstructionBlock* block) {
     // Mark any instructions that require reference maps for later reference map
     // processing.
     if (instr->HasReferenceMap()) {
-      data()->reference_map_instructions().push_back(index);
+      data_->reference_map_instructions().push_back(index);
     }
   }
 
@@ -2868,11 +2863,10 @@ class MidTierRegisterAllocator final {
   SinglePassRegisterAllocator& AllocatorFor(MachineRepresentation rep);
 
   VirtualRegisterData& VirtualRegisterDataFor(int virtual_register) const {
-    return data()->VirtualRegisterDataFor(virtual_register);
+    return data_->VirtualRegisterDataFor(virtual_register);
   }
-  MidTierRegisterAllocationData* data() const { return data_; }
-  InstructionSequence* code() const { return data()->code(); }
-  Zone* allocation_zone() const { return data()->allocation_zone(); }
+  InstructionSequence* code() const { return data_->code(); }
+  Zone* allocation_zone() const { return data_->allocation_zone(); }
 
   MidTierRegisterAllocationData* const data_;
   SinglePassRegisterAllocator general_reg_allocator_;
@@ -2889,7 +2883,7 @@ void MidTierRegisterAllocator::AllocateRegisters(
     const InstructionBlock* block) {
   RpoNumber block_rpo = block->rpo_number();
   bool is_deferred_block_boundary =
-      data()->block_state(block_rpo).is_deferred_block_boundary();
+      data_->block_state(block_rpo).is_deferred_block_boundary();
 
   general_reg_allocator().StartBlock(block);
   double_reg_allocator().StartBlock(block);
@@ -2900,10 +2894,10 @@ void MidTierRegisterAllocator::AllocateRegisters(
   // them at their output in non-deferred blocks.
   if (is_deferred_block_boundary && !block->IsDeferred()) {
     for (RpoNumber successor : block->successors()) {
-      if (!data()->GetBlock(successor)->IsDeferred()) continue;
+      if (!data_->GetBlock(successor)->IsDeferred()) continue;
       DCHECK_GT(successor, block_rpo);
       DeferredBlocksRegion* deferred_region =
-          data()->block_state(successor).deferred_blocks_region();
+          data_->block_state(successor).deferred_blocks_region();
       // Freeze the deferred spills on the region to ensure no more are added to
       // this region after the spills for this entry point have already been
       // emitted.
@@ -3118,7 +3112,7 @@ void MidTierRegisterAllocator::ReserveFixedRegisters(int instr_index) {
 void MidTierRegisterAllocator::AllocatePhiGapMoves(
     const InstructionBlock* block) {
   int successors_phi_index =
-      data()->block_state(block->rpo_number()).successors_phi_index();
+      data_->block_state(block->rpo_number()).successors_phi_index();
 
   // If successors_phi_index is -1 there are no phi's in the successor.
   if (successors_phi_index == -1) return;
@@ -3131,7 +3125,7 @@ void MidTierRegisterAllocator::AllocatePhiGapMoves(
 
   // If there are phis, we only have a single successor due to edge-split form.
   DCHECK_EQ(block->SuccessorCount(), 1);
-  const InstructionBlock* successor = data()->GetBlock(block->successors()[0]);
+  const InstructionBlock* successor = data_->GetBlock(block->successors()[0]);
 
   for (PhiInstruction* phi : successor->phis()) {
     VirtualRegisterData& to_vreg =
@@ -3160,10 +3154,10 @@ void MidTierRegisterAllocator::UpdateSpillRangesForLoops() {
       RpoNumber last_loop_block =
           RpoNumber::FromInt(block->loop_end().ToInt() - 1);
       int last_loop_instr =
-          data()->GetBlock(last_loop_block)->last_instruction_index();
+          data_->GetBlock(last_loop_block)->last_instruction_index();
       // Extend spill range for all spilled values that are live on entry to the
       // loop header.
-      BitVector::Iterator iterator(&data()->spilled_virtual_registers());
+      BitVector::Iterator iterator(&data_->spilled_virtual_registers());
       for (; !iterator.Done(); iterator.Advance()) {
         const VirtualRegisterData& vreg_data =
             VirtualRegisterDataFor(iterator.Current());
@@ -3209,10 +3203,9 @@ class MidTierSpillSlotAllocator final {
   void AdvanceTo(int instr_index);
   SpillSlot* GetFreeSpillSlot(int byte_width);
 
-  MidTierRegisterAllocationData* data() const { return data_; }
-  InstructionSequence* code() const { return data()->code(); }
-  Frame* frame() const { return data()->frame(); }
-  Zone* zone() const { return data()->allocation_zone(); }
+  InstructionSequence* code() const { return data_->code(); }
+  Frame* frame() const { return data_->frame(); }
+  Zone* zone() const { return data_->allocation_zone(); }
 
   struct OrderByLastUse {
     bool operator()(const SpillSlot* a, const SpillSlot* b) const;
@@ -3344,8 +3337,7 @@ class MidTierReferenceMapPopulator final {
   void RecordReferences(const VirtualRegisterData& virtual_register);
 
  private:
-  MidTierRegisterAllocationData* data() const { return data_; }
-  InstructionSequence* code() const { return data()->code(); }
+  InstructionSequence* code() const { return data_->code(); }
 
   MidTierRegisterAllocationData* const data_;
 };
@@ -3363,10 +3355,10 @@ void MidTierReferenceMapPopulator::RecordReferences(
   Range& live_range = spill_range->live_range();
   AllocatedOperand allocated =
       *AllocatedOperand::cast(virtual_register.spill_operand());
-  for (int instr_index : data()->reference_map_instructions()) {
+  for (int instr_index : data_->reference_map_instructions()) {
     if (instr_index > live_range.end() || instr_index < live_range.start())
       continue;
-    Instruction* instr = data()->code()->InstructionAt(instr_index);
+    Instruction* instr = data_->code()->InstructionAt(instr_index);
     DCHECK(instr->HasReferenceMap());
 
     if (spill_range->IsLiveAt(instr_index, instr->block())) {
