@@ -668,7 +668,7 @@ class BaseTestRunner(object):
 
     no_simd_hardware = any(
         i in options.extra_flags for i in ['--noenable-sse3',
-                                           '--no-enable-sse3'
+                                           '--no-enable-sse3',
                                            '--noenable-ssse3',
                                            '--no-enable-ssse3',
                                            '--noenable-sse4-1',
