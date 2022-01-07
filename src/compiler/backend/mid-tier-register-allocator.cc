@@ -1439,7 +1439,7 @@ class SinglePassRegisterAllocator final {
                            VirtualRegisterData& virtual_register,
                            RpoNumber successor, RegisterState* succ_state);
 
-  // Update the virtual register data with the data in register_state()
+  // Update the virtual register data with the data in register_state_.
   void UpdateVirtualRegisterState();
 
   // Returns true if |virtual_register| is defined after use position |pos| at
@@ -1538,12 +1538,6 @@ class SinglePassRegisterAllocator final {
 
   // Check the consistency of reg->vreg and vreg->reg mappings if a debug build.
   void CheckConsistency();
-
-  bool HasRegisterState() const { return register_state_; }
-  RegisterState* register_state() const {
-    DCHECK(HasRegisterState());
-    return register_state_;
-  }
 
   VirtualRegisterData& VirtualRegisterDataFor(int virtual_register) const {
     return data()->VirtualRegisterDataFor(virtual_register);
@@ -1649,7 +1643,7 @@ SinglePassRegisterAllocator::SinglePassRegisterAllocator(
 }
 
 int SinglePassRegisterAllocator::VirtualRegisterForRegister(RegisterIndex reg) {
-  return register_state()->VirtualRegisterForRegister(reg);
+  return register_state_->VirtualRegisterForRegister(reg);
 }
 
 RegisterIndex SinglePassRegisterAllocator::RegisterForVirtualRegister(
@@ -1659,8 +1653,8 @@ RegisterIndex SinglePassRegisterAllocator::RegisterForVirtualRegister(
 }
 
 void SinglePassRegisterAllocator::UpdateForDeferredBlock(int instr_index) {
-  if (!HasRegisterState()) return;
-  for (RegisterIndex reg : *register_state()) {
+  if (!register_state_) return;
+  for (RegisterIndex reg : *register_state_) {
     SpillRegisterForDeferred(reg, instr_index);
   }
 }
@@ -1672,7 +1666,7 @@ void SinglePassRegisterAllocator::EndInstruction() {
 }
 
 void SinglePassRegisterAllocator::StartBlock(const InstructionBlock* block) {
-  DCHECK(!HasRegisterState());
+  DCHECK_NULL(register_state_);
   DCHECK_NULL(current_block_);
   DCHECK(in_use_at_instr_start_bits_.IsEmpty());
   DCHECK(in_use_at_instr_end_bits_.IsEmpty());
@@ -1700,18 +1694,18 @@ void SinglePassRegisterAllocator::EndBlock(const InstructionBlock* block) {
 
   // If we didn't allocate any registers of this kind, or we have reached the
   // start, nothing to do here.
-  if (!HasRegisterState() || block->PredecessorCount() == 0) {
+  if (!register_state_ || block->PredecessorCount() == 0) {
     current_block_ = nullptr;
     return;
   }
 
   if (block->PredecessorCount() > 1) {
-    register_state()->AddSharedUses(
-        static_cast<int>(block->PredecessorCount()) - 1);
+    register_state_->AddSharedUses(static_cast<int>(block->PredecessorCount()) -
+                                   1);
   }
 
   BlockState& block_state = data()->block_state(block->rpo_number());
-  block_state.set_register_in_state(register_state(), kind());
+  block_state.set_register_in_state(register_state_, kind());
 
   // Remove virtual register to register mappings and clear register state.
   // We will update the register state when starting the next block.
@@ -1773,9 +1767,9 @@ void SinglePassRegisterAllocator::MergeStateFrom(
         if (processed_regs.Contains(reg, rep)) continue;
         processed_regs.Add(reg, rep);
 
-        bool reg_in_use = register_state()->IsAllocated(reg) ||
+        bool reg_in_use = register_state_->IsAllocated(reg) ||
                           (!kSimpleFPAliasing &&
-                           register_state()->IsAllocated(reg.simdSibling()));
+                           register_state_->IsAllocated(reg.simdSibling()));
 
         if (!reg_in_use) {
           DCHECK(successor_registers->IsAllocated(reg));
@@ -1789,15 +1783,15 @@ void SinglePassRegisterAllocator::MergeStateFrom(
           }
           // Register is free in our current register state, so merge the
           // successor block's register details into it.
-          register_state()->CopyFrom(reg, successor_registers);
+          register_state_->CopyFrom(reg, successor_registers);
           AssignRegister(reg, virtual_register, rep, UsePosition::kNone);
           continue;
         }
 
         // Register is in use in the current register state.
-        if (successor_registers->Equals(reg, register_state())) {
+        if (successor_registers->Equals(reg, register_state_)) {
           // Both match, keep the merged register data.
-          register_state()->CommitAtMerge(reg);
+          register_state_->CommitAtMerge(reg);
           continue;
         }
         // Try to find a new register for this successor register in the
@@ -1840,7 +1834,7 @@ RegisterBitVector SinglePassRegisterAllocator::GetAllocatedRegBitVector(
 
 void SinglePassRegisterAllocator::SpillRegisterAtMerge(RegisterState* reg_state,
                                                        RegisterIndex reg) {
-  DCHECK_NE(reg_state, register_state());
+  DCHECK_NE(reg_state, register_state_);
   if (reg_state->IsAllocated(reg)) {
     int virtual_register = reg_state->VirtualRegisterForRegister(reg);
     VirtualRegisterData& vreg_data =
@@ -1865,9 +1859,9 @@ void SinglePassRegisterAllocator::MoveRegisterOnMerge(
 void SinglePassRegisterAllocator::UpdateVirtualRegisterState() {
   // Update to the new register state and update vreg_to_register map and
   // resetting any shared registers that were spilled by another block.
-  DCHECK(HasRegisterState());
-  for (RegisterIndex reg : *register_state()) {
-    register_state()->ResetIfSpilledWhileShared(reg);
+  DCHECK_NOT_NULL(register_state_);
+  for (RegisterIndex reg : *register_state_) {
+    register_state_->ResetIfSpilledWhileShared(reg);
     int virtual_register = VirtualRegisterForRegister(reg);
     if (virtual_register != InstructionOperand::kInvalidVirtualRegister) {
       MachineRepresentation rep =
@@ -1885,16 +1879,16 @@ void SinglePassRegisterAllocator::CheckConsistency() {
        virtual_register++) {
     RegisterIndex reg = RegisterForVirtualRegister(virtual_register);
     if (!reg.is_valid()) continue;
-    CHECK(HasRegisterState());
+    CHECK_NOT_NULL(register_state_);
     // The register must be set to allocated.
-    CHECK(register_state()->IsAllocated(reg));
+    CHECK(register_state_->IsAllocated(reg));
     // reg <-> vreg linking is consistent.
     CHECK_EQ(virtual_register, VirtualRegisterForRegister(reg));
   }
 
   RegisterBitVector used_registers;
-  for (RegisterIndex reg : *register_state()) {
-    if (!register_state()->IsAllocated(reg)) continue;
+  for (RegisterIndex reg : *register_state_) {
+    if (!register_state_->IsAllocated(reg)) continue;
     int virtual_register = VirtualRegisterForRegister(reg);
     // reg <-> vreg linking is consistent.
     CHECK_EQ(reg, RegisterForVirtualRegister(virtual_register));
@@ -2092,7 +2086,7 @@ RegisterIndex SinglePassRegisterAllocator::ChooseFreeRegister(
   } else {
     // If we don't have simple fp aliasing, we need to check each register
     // individually to get one with the required representation.
-    for (RegisterIndex reg : *register_state()) {
+    for (RegisterIndex reg : *register_state_) {
       if (IsValidForRep(reg, rep) && !allocated_regs.Contains(reg, rep)) {
         chosen_reg = reg;
         break;
@@ -2120,22 +2114,22 @@ RegisterIndex SinglePassRegisterAllocator::ChooseRegisterToSpill(
   int earliest_definition = kMaxInt;
   bool pending_only_use = false;
   bool already_spilled = false;
-  for (RegisterIndex reg : *register_state()) {
+  for (RegisterIndex reg : *register_state_) {
     // Skip if register is in use, or not valid for representation.
     if (!IsValidForRep(reg, rep) || in_use.Contains(reg, rep)) continue;
     // With non-simple FP aliasing, a SIMD register might block more than one FP
     // register.
-    DCHECK_IMPLIES(kSimpleFPAliasing, register_state()->IsAllocated(reg));
-    if (!kSimpleFPAliasing && !register_state()->IsAllocated(reg)) continue;
+    DCHECK_IMPLIES(kSimpleFPAliasing, register_state_->IsAllocated(reg));
+    if (!kSimpleFPAliasing && !register_state_->IsAllocated(reg)) continue;
 
     VirtualRegisterData& vreg_data =
         VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
-    if ((!pending_only_use && register_state()->HasPendingUsesOnly(reg)) ||
+    if ((!pending_only_use && register_state_->HasPendingUsesOnly(reg)) ||
         (!already_spilled && vreg_data.HasSpillOperand()) ||
         vreg_data.output_instr_index() < earliest_definition) {
       chosen_reg = reg;
       earliest_definition = vreg_data.output_instr_index();
-      pending_only_use = register_state()->HasPendingUsesOnly(reg);
+      pending_only_use = register_state_->HasPendingUsesOnly(reg);
       already_spilled = vreg_data.HasSpillOperand();
     }
   }
@@ -2154,20 +2148,20 @@ void SinglePassRegisterAllocator::CommitRegister(RegisterIndex reg,
   // Committing the output operation, and mark the register use in this
   // instruction, then mark it as free going forward.
   AllocatedOperand allocated = AllocatedOperandForReg(reg, rep);
-  register_state()->Commit(reg, allocated, operand, data());
+  register_state_->Commit(reg, allocated, operand, data());
   MarkRegisterUse(reg, rep, pos);
   FreeRegister(reg, virtual_register, rep);
   CheckConsistency();
 }
 
 void SinglePassRegisterAllocator::SpillRegister(RegisterIndex reg) {
-  if (!register_state()->IsAllocated(reg)) return;
+  if (!register_state_->IsAllocated(reg)) return;
 
   // Spill the register and free register.
   int virtual_register = VirtualRegisterForRegister(reg);
   MachineRepresentation rep = VirtualRegisterDataFor(virtual_register).rep();
   AllocatedOperand allocated = AllocatedOperandForReg(reg, rep);
-  register_state()->Spill(reg, allocated, current_block(), data());
+  register_state_->Spill(reg, allocated, current_block(), data());
   FreeRegister(reg, virtual_register, rep);
 }
 
@@ -2181,9 +2175,9 @@ void SinglePassRegisterAllocator::SpillRegisterAndPotentialSimdSibling(
 }
 
 void SinglePassRegisterAllocator::SpillAllRegisters() {
-  if (!HasRegisterState()) return;
+  if (!register_state_) return;
 
-  for (RegisterIndex reg : *register_state()) {
+  for (RegisterIndex reg : *register_state_) {
     SpillRegister(reg);
   }
 }
@@ -2201,12 +2195,12 @@ void SinglePassRegisterAllocator::SpillRegisterForDeferred(RegisterIndex reg,
                                                            int instr_index) {
   // Committing the output operation, and mark the register use in this
   // instruction, then mark it as free going forward.
-  if (register_state()->IsAllocated(reg) && register_state()->IsShared(reg)) {
+  if (register_state_->IsAllocated(reg) && register_state_->IsShared(reg)) {
     VirtualRegisterData& virtual_register =
         data()->VirtualRegisterDataFor(VirtualRegisterForRegister(reg));
     AllocatedOperand allocated =
         AllocatedOperandForReg(reg, virtual_register.rep());
-    register_state()->SpillForDeferred(reg, allocated, instr_index, data());
+    register_state_->SpillForDeferred(reg, allocated, instr_index, data());
     FreeRegister(reg, virtual_register.vreg(), virtual_register.rep());
   }
   CheckConsistency();
@@ -2229,8 +2223,8 @@ void SinglePassRegisterAllocator::AllocateDeferredBlockSpillOutput(
     if (reg.is_valid()) {
       int deferred_block_start =
           data()->GetBlock(deferred_block)->first_instruction_index();
-      register_state()->MoveToSpillSlotOnDeferred(reg, virtual_register.vreg(),
-                                                  deferred_block_start, data());
+      register_state_->MoveToSpillSlotOnDeferred(reg, virtual_register.vreg(),
+                                                 deferred_block_start, data());
       return;
     } else {
       virtual_register.MarkAsNeedsSpillAtOutput();
@@ -2250,9 +2244,9 @@ void SinglePassRegisterAllocator::AllocateUse(
 
   AllocatedOperand allocated =
       AllocatedOperandForReg(reg, virtual_register.rep());
-  register_state()->Commit(reg, allocated, operand, data());
-  register_state()->AllocateUse(reg, virtual_register.vreg(), operand,
-                                instr_index, data());
+  register_state_->Commit(reg, allocated, operand, data());
+  register_state_->AllocateUse(reg, virtual_register.vreg(), operand,
+                               instr_index, data());
   AssignRegister(reg, virtual_register.vreg(), virtual_register.rep(), pos);
   CheckConsistency();
 }
@@ -2262,8 +2256,8 @@ void SinglePassRegisterAllocator::AllocatePendingUse(
     InstructionOperand* operand, bool can_be_constant, int instr_index) {
   DCHECK(IsFreeOrSameVirtualRegister(reg, virtual_register.vreg()));
 
-  register_state()->AllocatePendingUse(reg, virtual_register.vreg(), operand,
-                                       can_be_constant, instr_index);
+  register_state_->AllocatePendingUse(reg, virtual_register.vreg(), operand,
+                                      can_be_constant, instr_index);
   // Since this is a pending use and the operand doesn't need to use a register,
   // allocate with UsePosition::kNone to avoid blocking it's use by other
   // operands in this instruction.
@@ -2569,7 +2563,7 @@ void SinglePassRegisterAllocator::ReserveFixedRegister(
   // Also potentially spill the "sibling SIMD register" on architectures where a
   // SIMD register aliases two FP registers.
   if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
-    if (register_state()->IsAllocated(reg.simdSibling()) &&
+    if (register_state_->IsAllocated(reg.simdSibling()) &&
         !DefinedAfter(virtual_register, instr_index, pos)) {
       SpillRegister(reg.simdSibling());
     }
@@ -2599,7 +2593,7 @@ void SinglePassRegisterAllocator::AllocatePhiGapMove(
   RegisterIndex to_register = RegisterForVirtualRegister(to_vreg.vreg());
 
   // If to_register isn't marked as a phi gap move, we can't use it as such.
-  if (to_register.is_valid() && !register_state()->IsPhiGapMove(to_register)) {
+  if (to_register.is_valid() && !register_state_->IsPhiGapMove(to_register)) {
     to_register = RegisterIndex::Invalid();
   }
 
@@ -2646,13 +2640,13 @@ void SinglePassRegisterAllocator::AllocatePhi(
       // If the register is valid, assign it as a phi gap move to be processed
       // at the successor blocks. If no register or spill slot was used then
       // the virtual register was never used.
-      register_state()->UseForPhiGapMove(reg);
+      register_state_->UseForPhiGapMove(reg);
     }
   }
 }
 
 void SinglePassRegisterAllocator::EnsureRegisterState() {
-  if (!HasRegisterState()) {
+  if (V8_UNLIKELY(!register_state_)) {
     register_state_ = RegisterState::New(kind(), num_allocatable_registers_,
                                          data()->allocation_zone());
   }
