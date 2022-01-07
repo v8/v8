@@ -1543,9 +1543,6 @@ class SinglePassRegisterAllocator final {
     return data_->VirtualRegisterDataFor(virtual_register);
   }
 
-  int num_allocatable_registers() const { return num_allocatable_registers_; }
-  const InstructionBlock* current_block() const { return current_block_; }
-
   // Virtual register to register mapping.
   ZoneVector<RegisterIndex> virtual_register_to_reg_;
 
@@ -1839,7 +1836,7 @@ void SinglePassRegisterAllocator::SpillRegisterAtMerge(RegisterState* reg_state,
     VirtualRegisterData& vreg_data =
         data_->VirtualRegisterDataFor(virtual_register);
     AllocatedOperand allocated = AllocatedOperandForReg(reg, vreg_data.rep());
-    reg_state->Spill(reg, allocated, current_block(), data_);
+    reg_state->Spill(reg, allocated, current_block_, data_);
   }
 }
 
@@ -1948,7 +1945,7 @@ void SinglePassRegisterAllocator::EmitGapMoveFromOutput(InstructionOperand from,
                                                         int instr_index) {
   DCHECK(from.IsAllocated());
   DCHECK(to.IsAllocated());
-  const InstructionBlock* block = current_block();
+  const InstructionBlock* block = current_block_;
   DCHECK_EQ(data_->GetBlock(instr_index), block);
   if (instr_index == block->last_instruction_index()) {
     // Add gap move to the first instruction of every successor block.
@@ -2081,7 +2078,7 @@ RegisterIndex SinglePassRegisterAllocator::ChooseFreeRegister(
     const RegisterBitVector& allocated_regs, MachineRepresentation rep) {
   RegisterIndex chosen_reg = RegisterIndex::Invalid();
   if (kSimpleFPAliasing || kind() == RegisterKind::kGeneral) {
-    chosen_reg = allocated_regs.GetFirstCleared(num_allocatable_registers());
+    chosen_reg = allocated_regs.GetFirstCleared(num_allocatable_registers_);
   } else {
     // If we don't have simple fp aliasing, we need to check each register
     // individually to get one with the required representation.
@@ -2160,7 +2157,7 @@ void SinglePassRegisterAllocator::SpillRegister(RegisterIndex reg) {
   int virtual_register = VirtualRegisterForRegister(reg);
   MachineRepresentation rep = VirtualRegisterDataFor(virtual_register).rep();
   AllocatedOperand allocated = AllocatedOperandForReg(reg, rep);
-  register_state_->Spill(reg, allocated, current_block(), data_);
+  register_state_->Spill(reg, allocated, current_block_, data_);
   FreeRegister(reg, virtual_register, rep);
 }
 
@@ -2377,7 +2374,7 @@ void SinglePassRegisterAllocator::AllocateConstantOutput(
   // necessary gap moves from the constant operand to the register.
   SpillRegisterForVirtualRegister(vreg_data.vreg());
   if (vreg_data.NeedsSpillAtOutput()) {
-    vreg_data.EmitGapMoveFromOutputToSpillSlot(*operand, current_block(),
+    vreg_data.EmitGapMoveFromOutputToSpillSlot(*operand, current_block_,
                                                instr_index, data_);
   }
 }
@@ -2430,8 +2427,7 @@ RegisterIndex SinglePassRegisterAllocator::AllocateOutput(
     }
     if (vreg_data.NeedsSpillAtOutput()) {
       vreg_data.EmitGapMoveFromOutputToSpillSlot(
-          *AllocatedOperand::cast(operand), current_block(), instr_index,
-          data_);
+          *AllocatedOperand::cast(operand), current_block_, instr_index, data_);
     } else if (vreg_data.NeedsSpillAtDeferredBlocks()) {
       vreg_data.EmitDeferredSpillOutputs(data_);
     }
