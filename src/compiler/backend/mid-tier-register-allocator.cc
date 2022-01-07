@@ -2569,7 +2569,21 @@ void SinglePassRegisterAllocator::ReserveFixedRegister(
   // Also potentially spill the "sibling SIMD register" on architectures where a
   // SIMD register aliases two FP registers.
   if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
-    if (!IsFreeOrSameVirtualRegister(reg.simdSibling(), virtual_register) &&
+    if (register_state()->IsAllocated(reg.simdSibling()) &&
+        !DefinedAfter(virtual_register, instr_index, pos)) {
+      SpillRegister(reg.simdSibling());
+    }
+  }
+  // Similarly (but the other way around), spill a SIMD register that (partly)
+  // overlaps with a fixed FP register. If {reg} is the lower half (i.e. an even
+  // register index), this is already checked above, so we only check if {reg}
+  // is the upper half.
+  if (!kSimpleFPAliasing && (reg.ToInt() & 1)) {
+    DCHECK_NE(MachineRepresentation::kSimd128, rep);
+    int allocated_vreg = VirtualRegisterForRegister(reg.simdSibling());
+    if (allocated_vreg != InstructionOperand::kInvalidVirtualRegister &&
+        VirtualRegisterDataFor(allocated_vreg).rep() ==
+            MachineRepresentation::kSimd128 &&
         !DefinedAfter(virtual_register, instr_index, pos)) {
       SpillRegister(reg.simdSibling());
     }
