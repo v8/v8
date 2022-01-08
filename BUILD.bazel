@@ -3,6 +3,8 @@
 # found in the LICENSE file.
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@v8_python_deps//:requirements.bzl", "requirement")
 load(
     "@v8//:bazel/defs.bzl",
     "v8_binary",
@@ -3179,9 +3181,39 @@ v8_torque(
     noicu_srcs = [":noicu/torque_files"],
 )
 
+py_binary(
+    name = "code_generator",
+    srcs = [
+        "third_party/inspector_protocol/code_generator.py",
+        "third_party/inspector_protocol/pdl.py",
+    ],
+    data = [
+        "third_party/inspector_protocol/lib/Forward_h.template",
+        "third_party/inspector_protocol/lib/Object_cpp.template",
+        "third_party/inspector_protocol/lib/Object_h.template",
+        "third_party/inspector_protocol/lib/Protocol_cpp.template",
+        "third_party/inspector_protocol/lib/ValueConversions_cpp.template",
+        "third_party/inspector_protocol/lib/ValueConversions_h.template",
+        "third_party/inspector_protocol/lib/Values_cpp.template",
+        "third_party/inspector_protocol/lib/Values_h.template",
+        "third_party/inspector_protocol/lib/base_string_adapter_cc.template",
+        "third_party/inspector_protocol/lib/base_string_adapter_h.template",
+        "third_party/inspector_protocol/templates/Exported_h.template",
+        "third_party/inspector_protocol/templates/Imported_h.template",
+        "third_party/inspector_protocol/templates/TypeBuilder_cpp.template",
+        "third_party/inspector_protocol/templates/TypeBuilder_h.template",
+    ],
+    deps = [
+        requirement("jinja2"),
+    ],
+)
+
 genrule(
     name = "generated_inspector_files",
-    srcs = ["include/js_protocol.pdl"],
+    srcs = [
+        "include/js_protocol.pdl",
+        "src/inspector/inspector_protocol_config.json",
+    ],
     outs = [
         "include/inspector/Debugger.h",
         "include/inspector/Runtime.h",
@@ -3202,10 +3234,15 @@ genrule(
         "src/inspector/protocol/Schema.cpp",
         "src/inspector/protocol/Schema.h",
     ],
-    cmd = "bazel/generate-inspector-files.sh $(@D)",
-    cmd_bat = "bazel\\generate-inspector-files.cmd $(@D)",
-    local = 1,
+    cmd = "$(location :code_generator) --jinja_dir . \
+           --inspector_protocol_dir third_party/inspector_protocol \
+           --config $(location :src/inspector/inspector_protocol_config.json) \
+           --config_value protocol.path=$(location :include/js_protocol.pdl) \
+           --output_base $(@D)/src/inspector",
     message = "Generating inspector files",
+    tools = [
+        ":code_generator",
+    ],
 )
 
 filegroup(
