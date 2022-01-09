@@ -146,6 +146,11 @@ def _default_args():
                 "-O1",
             ],
             "//conditions:default": [],
+        }) + select({
+            "@v8//bazel/config:is_clang_s390x": [
+                "-fno-integrated-as",
+            ],
+            "//conditions:default": [],
         }),
         includes = ["include"],
         linkopts = select({
@@ -378,6 +383,7 @@ def _v8_target_cpu_transition_impl(settings, attr):
         "arm64-v8a": "arm64",
         "arm": "arm64",
         "armeabi-v7a": "arm32",
+        "s390x": "s390x",
     }
     v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
     return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}

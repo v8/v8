@@ -49,6 +49,11 @@ config_setting(
     constraint_values = ["@platforms//cpu:arm"],
 )
 
+config_setting(
+    name = "platform_cpu_s390x",
+    constraint_values = ["@platforms//cpu:s390x"],
+)
+
 v8_target_cpu(
     name = "v8_target_cpu",
     build_setting_default = "none",
@@ -79,6 +84,11 @@ v8_configure_target_cpu(
 v8_configure_target_cpu(
     name = "arm",
     matching_configs = [":platform_cpu_arm"],
+)
+
+v8_configure_target_cpu(
+    name = "s390x",
+    matching_configs = [":platform_cpu_s390x"],
 )
 
 selects.config_setting_group(
@@ -124,6 +134,7 @@ selects.config_setting_group(
         ":v8_target_arm64",
         ":is_x64",
         ":is_arm64",
+        ":is_s390x",
     ],
 )
 
@@ -170,6 +181,11 @@ selects.config_setting_group(
 selects.config_setting_group(
     name = "is_inline_asm_arm",
     match_all = [":is_posix", ":is_arm"],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_s390x",
+    match_all = [":is_posix", ":is_s390x"],
 )
 
 selects.config_setting_group(
@@ -222,6 +238,14 @@ selects.config_setting_group(
     match_any = [
         ":is_compiler_default_on_macos",
         ":is_compiler_clang",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_clang_s390x",
+    match_all = [
+        ":is_clang",
+        ":is_s390x",
     ],
 )
 
