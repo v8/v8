@@ -556,7 +556,8 @@ class CompilationStateImpl {
   // Initialize the compilation progress after deserialization. This is needed
   // for recompilation (e.g. for tier down) to work later.
   void InitializeCompilationProgressAfterDeserialization(
-      base::Vector<const int> missing_functions);
+      base::Vector<const int> lazy_functions,
+      base::Vector<const int> liftoff_functions);
 
   // Initializes compilation units based on the information encoded in the
   // {compilation_progress_}.
@@ -666,7 +667,7 @@ class CompilationStateImpl {
 
  private:
   uint8_t SetupCompilationProgressForFunction(
-      bool lazy_module, NativeModule* module,
+      bool lazy_function, NativeModule* module,
       const WasmFeatures& enabled_features, int func_index);
 
   // Returns the potentially-updated {function_progress}.
@@ -849,9 +850,10 @@ void CompilationState::WaitForTopTierFinished() {
 void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
 
 void CompilationState::InitializeAfterDeserialization(
-    base::Vector<const int> missing_functions) {
+    base::Vector<const int> lazy_functions,
+    base::Vector<const int> liftoff_functions) {
   Impl(this)->InitializeCompilationProgressAfterDeserialization(
-      missing_functions);
+      lazy_functions, liftoff_functions);
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
@@ -3031,12 +3033,12 @@ bool CompilationStateImpl::cancelled() const {
 }
 
 uint8_t CompilationStateImpl::SetupCompilationProgressForFunction(
-    bool lazy_module, NativeModule* native_module,
+    bool lazy_function, NativeModule* native_module,
     const WasmFeatures& enabled_features, int func_index) {
   ExecutionTierPair requested_tiers =
       GetRequestedExecutionTiers(native_module, enabled_features, func_index);
   CompileStrategy strategy = GetCompileStrategy(
-      native_module->module(), enabled_features, func_index, lazy_module);
+      native_module->module(), enabled_features, func_index, lazy_function);
 
   bool required_for_baseline = strategy == CompileStrategy::kEager;
   bool required_for_top_tier = strategy != CompileStrategy::kLazy;
@@ -3200,9 +3202,11 @@ void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
 }
 
 void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
-    base::Vector<const int> missing_functions) {
-  TRACE_EVENT1("v8.wasm", "wasm.CompilationAfterDeserialization",
-               "num_missing_functions", missing_functions.size());
+    base::Vector<const int> lazy_functions,
+    base::Vector<const int> liftoff_functions) {
+  TRACE_EVENT2("v8.wasm", "wasm.CompilationAfterDeserialization",
+               "num_lazy_functions", lazy_functions.size(),
+               "num_liftoff_functions", liftoff_functions.size());
   TimedHistogramScope lazy_compile_time_scope(
       counters()->wasm_compile_after_deserialize());
 
@@ -3212,21 +3216,35 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   {
     base::MutexGuard guard(&callbacks_mutex_);
     DCHECK(compilation_progress_.empty());
-    constexpr uint8_t kProgressAfterDeserialization =
+    constexpr uint8_t kProgressAfterTurbofanDeserialization =
         RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
         RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
     finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
-    if (missing_functions.empty() || FLAG_wasm_lazy_compilation) {
+    if (liftoff_functions.empty() || lazy_module) {
+      // We have to trigger the compilation events to finish compilation.
+      // Typically the events get triggered when a CompilationUnit finishes, but
+      // with lazy compilation there are no compilation units.
       finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
-      finished_events_.Add(CompilationEvent::kFinishedTopTierCompilation);
     }
     compilation_progress_.assign(module->num_declared_functions,
-                                 kProgressAfterDeserialization);
-    for (auto func_index : missing_functions) {
-      if (FLAG_wasm_lazy_compilation) {
+                                 kProgressAfterTurbofanDeserialization);
+    for (auto func_index : lazy_functions) {
+      native_module_->UseLazyStub(func_index);
+
+      compilation_progress_[declared_function_index(module, func_index)] =
+          SetupCompilationProgressForFunction(/*lazy_function =*/true,
+                                              native_module_, enabled_features,
+                                              func_index);
+    }
+    for (auto func_index : liftoff_functions) {
+      if (lazy_module) {
         native_module_->UseLazyStub(func_index);
       }
+      // Check that {func_index} is not contained in {lazy_functions}.
+      DCHECK_EQ(
+          compilation_progress_[declared_function_index(module, func_index)],
+          kProgressAfterTurbofanDeserialization);
       compilation_progress_[declared_function_index(module, func_index)] =
           SetupCompilationProgressForFunction(lazy_module, native_module_,
                                               enabled_features, func_index);
