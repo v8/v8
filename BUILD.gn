@@ -3733,8 +3733,8 @@ v8_header_set("v8_internal_headers") {
     ]
   } else if (v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc64) ###
-      "src/baseline/s390/baseline-assembler-s390-inl.h",
-      "src/baseline/s390/baseline-compiler-s390-inl.h",
+      "src/baseline/ppc/baseline-assembler-ppc-inl.h",
+      "src/baseline/ppc/baseline-compiler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.h",
       "src/codegen/ppc/constants-ppc.h",
