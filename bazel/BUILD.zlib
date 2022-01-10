@@ -36,12 +36,9 @@ cc_library(
         "zlib.h",
         "zutil.c",
         "zutil.h",
-        "google/compression_utils_portable.h",
-        "google/compression_utils_portable.cc",
-        ],
+    ],
     hdrs = [
         "zlib.h",
-        "google/compression_utils_portable.h",
     ],
     include_prefix = "third_party/zlib",
     defines = [
@@ -54,4 +51,19 @@ cc_library(
         ],
     }),
     visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "zlib_compression_utils",
+    srcs = [
+        "google/compression_utils_portable.cc",
+    ],
+    hdrs = [
+        "google/compression_utils_portable.h",
+    ],
+    include_prefix = "third_party/zlib",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":zlib",
+    ],
 )

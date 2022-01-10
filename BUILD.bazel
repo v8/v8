@@ -3383,6 +3383,7 @@ v8_library(
         ":v8_libbase",
         "@com_googlesource_chromium_base_trace_event_common//:trace_event_common",
         "@com_googlesource_chromium_zlib//:zlib",
+        "@com_googlesource_chromium_zlib//:zlib_compression_utils",
     ],
 )
 
