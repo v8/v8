@@ -608,7 +608,6 @@ namespace internal {
   F(GetWasmRecoveredTrapCount, 0, 1)       \
   F(IsAsmWasmCode, 1, 1)                   \
   F(IsLiftoffFunction, 1, 1)               \
-  F(IsTurboFanFunction, 1, 1)              \
   F(IsThreadInWasm, 0, 1)                  \
   F(IsWasmCode, 1, 1)                      \
   F(IsWasmTrapHandlerEnabled, 0, 1)        \

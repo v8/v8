@@ -292,11 +292,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   uint32_t raw_tagged_parameter_slots_for_serialization() const {
     return tagged_parameter_slots_;
   }
-
   bool is_liftoff() const { return tier() == ExecutionTier::kLiftoff; }
-
-  bool is_turbofan() const { return tier() == ExecutionTier::kTurbofan; }
-
   bool contains(Address pc) const {
     return reinterpret_cast<Address>(instructions_) <= pc &&
            pc < reinterpret_cast<Address>(instructions_ + instructions_size_);
