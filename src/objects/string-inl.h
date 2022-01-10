@@ -707,7 +707,10 @@ String::FlatContent String::GetFlatContent(
   {
     Isolate* isolate;
     // We don't have to check read only strings as those won't move.
-    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate),
+    //
+    // TODO(v8:12007): Currently character data is never overwritten for
+    // shared strings.
+    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate) && !IsShared(),
                    ThreadId::Current() == isolate->thread_id());
   }
 #endif

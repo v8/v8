@@ -308,11 +308,12 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   Map initial_map = this->map(kAcquireLoad);
   StringShape initial_shape(initial_map);
 
-  // Another thread may have already migrated the string.
-  if (initial_shape.IsThin()) {
-    DCHECK(initial_shape.IsShared());
-    return;
-  }
+  // TODO(v8:12007): Support shared ThinStrings.
+  //
+  // Currently in-place migrations to ThinStrings are disabled for shared
+  // strings to unblock prototyping.
+  if (initial_shape.IsShared()) return;
+  DCHECK(!initial_shape.IsThin());
 
   bool has_pointers = initial_shape.IsIndirect();
   int old_size = this->SizeFromMap(initial_map);
@@ -336,7 +337,9 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
       break;
     case StringMigrationResult::kAnotherThreadMigrated:
       // Nothing to do.
-      return;
+      //
+      // TODO(v8:12007): Support shared ThinStrings.
+      UNREACHABLE();
   }
 
   ThinString thin = ThinString::cast(*this);

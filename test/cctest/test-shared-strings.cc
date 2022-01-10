@@ -264,21 +264,22 @@ class ConcurrentInternalizationThread final : public v8::base::Thread {
 
     HandleScope scope(i_isolate);
 
-    Handle<String> manual_thin_actual =
-        factory->InternalizeString(factory->NewStringFromAsciiChecked("TODO"));
-
     for (int i = 0; i < shared_strings_->length(); i++) {
       Handle<String> input_string(String::cast(shared_strings_->get(i)),
                                   i_isolate);
       CHECK(input_string->IsShared());
+      Handle<String> interned = factory->InternalizeString(input_string);
+      CHECK(interned->IsShared());
       if (hit_or_miss_ == kTestMiss) {
-        Handle<String> interned = factory->InternalizeString(input_string);
         CHECK_EQ(*input_string, *interned);
       } else {
-        // TODO(v8:12007): Make this branch also test InternalizeString. But
-        // LookupString needs to be made threadsafe first and restart-aware.
-        input_string->MakeThin(i_isolate, *manual_thin_actual);
-        CHECK(input_string->IsThinString());
+        // TODO(v8:12007): In-place internalization currently do not migrate
+        // shared strings to ThinStrings. This is triviailly threadsafe for
+        // character access but bad for performance, as run-time
+        // internalizations do not speed up comparisons for shared strings.
+        CHECK(!input_string->IsThinString());
+        CHECK_NE(*input_string, *interned);
+        CHECK(String::Equals(i_isolate, input_string, interned));
       }
     }
 
