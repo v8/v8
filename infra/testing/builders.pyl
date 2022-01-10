@@ -879,7 +879,7 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'shards': 2},
-      {'name': 'test262', 'variant': 'extra'},
+      {'name': 'test262', 'variant': 'extra', 'shards': 2},
       {'name': 'v8initializers'},
       {'name': 'v8testing'},
       {'name': 'v8testing', 'suffix': 'isolates', 'test_args': ['--isolates']},
