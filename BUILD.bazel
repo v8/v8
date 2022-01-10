@@ -3348,7 +3348,7 @@ cc_library(
         ":torque_base_files",
     ],
     copts = select({
-        "@v8//bazel/config:is_posix": [ "-fexceptions" ],
+        "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
     features = ["-use_header_modules"],
@@ -3462,7 +3462,7 @@ v8_binary(
         ":torque_base_files",
     ],
     copts = select({
-        "@v8//bazel/config:is_posix": [ "-fexceptions" ],
+        "@v8//bazel/config:is_posix": ["-fexceptions"],
         "//conditions:default": [],
     }),
     features = ["-use_header_modules"],

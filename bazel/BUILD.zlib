@@ -40,7 +40,6 @@ cc_library(
     hdrs = [
         "zlib.h",
     ],
-    include_prefix = "third_party/zlib",
     defines = [
         "CHROMIUM_ZLIB_NO_CHROMECONF",
         "CPU_NO_SIMD",
@@ -50,6 +49,7 @@ cc_library(
             "HAVE_HIDDEN",
         ],
     }),
+    include_prefix = "third_party/zlib",
     visibility = ["//visibility:public"],
 )
 

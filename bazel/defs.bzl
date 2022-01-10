@@ -93,7 +93,7 @@ def _default_args():
                 "UNICODE",
                 "_UNICODE",
                 "_CRT_RAND_S",
-                "_WIN32_WINNT=0x0602", # Override bazel default to Windows 8
+                "_WIN32_WINNT=0x0602",  # Override bazel default to Windows 8
             ],
             "//conditions:default": [],
         }),
@@ -248,6 +248,7 @@ def v8_library(
             linkstatic = 1,
             **kwargs
         )
+
         # Alias target used because of cc_library bug in bazel on windows
         # https://github.com/bazelbuild/bazel/issues/14237
         # TODO(victorgomes): Remove alias once bug is fixed
@@ -266,6 +267,7 @@ def v8_library(
             linkstatic = 1,
             **kwargs
         )
+
         # Alias target used because of cc_library bug in bazel on windows
         # https://github.com/bazelbuild/bazel/issues/14237
         # TODO(victorgomes): Remove alias once bug is fixed
