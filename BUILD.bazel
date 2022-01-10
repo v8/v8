@@ -658,7 +658,6 @@ filegroup(
 filegroup(
     name = "v8_libplatform_files",
     srcs = [
-        "base/trace_event/common/trace_event_common.h",
         "include/libplatform/libplatform.h",
         "include/libplatform/libplatform-export.h",
         "include/libplatform/v8-tracing.h",
@@ -986,7 +985,6 @@ filegroup(
         ":v8_cppgc_shared_files",
         ":v8_bigint",
         ":generated_bytecode_builtins_list",
-        "base/trace_event/common/trace_event_common.h",
         "include/cppgc/common.h",
         "include/v8-inspector-protocol.h",
         "include/v8-inspector.h",
@@ -1971,8 +1969,6 @@ filegroup(
         "src/snapshot/shared-heap-serializer.cc",
         "src/snapshot/snapshot-compression.cc",
         "src/snapshot/snapshot-compression.h",
-        "third_party/zlib/google/compression_utils_portable.h",
-        "third_party/zlib/google/compression_utils_portable.cc",
         "src/snapshot/snapshot-data.cc",
         "src/snapshot/snapshot-data.h",
         "src/snapshot/snapshot-source-sink.cc",
@@ -2319,9 +2315,6 @@ filegroup(
             "src/trap-handler/handler-inside-win.cc",
             "src/trap-handler/handler-outside-win.cc",
             "src/trap-handler/handler-inside-win.h",
-            # Needed on windows to work around https://github.com/bazelbuild/bazel/issues/6337
-            "third_party/zlib/zlib.h",
-            "third_party/zlib/zconf.h",
         ],
         "//conditions:default": [],
     }) + select({
@@ -3373,7 +3366,7 @@ v8_library(
     ],
     icu_deps = [
         ":icu/generated_torque_headers",
-        "@icu",
+        "@com_googlesource_chromium_icu//:icu",
     ],
     icu_srcs = [
         ":generated_regexp_special_case",
@@ -3388,7 +3381,8 @@ v8_library(
     ],
     deps = [
         ":v8_libbase",
-        "@zlib",
+        "@com_googlesource_chromium_base_trace_event_common//:trace_event_common",
+        "@com_googlesource_chromium_zlib//:zlib",
     ],
 )
 
@@ -3456,7 +3450,7 @@ v8_binary(
         "UNISTR_FROM_CHAR_EXPLICIT=",
     ],
     deps = [
-        "@icu",
+        "@com_googlesource_chromium_icu//:icu",
     ],
 )
 

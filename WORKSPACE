@@ -32,13 +32,19 @@ pip_install(
 )
 
 new_local_repository(
-    name = "zlib",
+    name = "com_googlesource_chromium_zlib",
     path = "third_party/zlib",
     build_file = "bazel/BUILD.zlib",
 )
 
 new_local_repository(
-    name = "icu",
+    name = "com_googlesource_chromium_icu",
     path = "third_party/icu",
     build_file = "bazel/BUILD.icu",
+)
+
+new_local_repository(
+    name = "com_googlesource_chromium_base_trace_event_common",
+    path = "base/trace_event/common",
+    build_file = "bazel/BUILD.trace_event_common",
 )
