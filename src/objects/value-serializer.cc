@@ -1978,20 +1978,15 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
     }
   }
 
-  Handle<Object> error;
+  Handle<JSObject> error;
   if (!ErrorUtils::Construct(isolate_, constructor, constructor, message,
                              options, SKIP_NONE, no_caller,
-                             ErrorUtils::StackTraceCollection::kNone)
+                             ErrorUtils::StackTraceCollection::kDisabled)
            .ToHandle(&error)) {
     return MaybeHandle<Object>();
   }
 
-  if (Object::SetProperty(
-          isolate_, error, isolate_->factory()->stack_trace_symbol(), stack,
-          StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
-          .is_null()) {
-    return MaybeHandle<Object>();
-  }
+  ErrorUtils::SetFormattedStack(isolate_, error, stack);
   return error;
 }
 

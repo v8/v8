@@ -231,6 +231,26 @@ class StackFrameInfo
   TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
 };
 
+class ErrorStackData
+    : public TorqueGeneratedErrorStackData<ErrorStackData, Struct> {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  inline bool HasFormattedStack() const;
+  DECL_ACCESSORS(formatted_stack, Object)
+  inline bool HasCallSiteInfos() const;
+  DECL_ACCESSORS(call_site_infos, FixedArray)
+
+  static void EnsureStackFrameInfos(Isolate* isolate,
+                                    Handle<ErrorStackData> error_stack);
+
+  DECL_VERIFIER(ErrorStackData)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(ErrorStackData)
+};
+
 }  // namespace internal
 }  // namespace v8
 

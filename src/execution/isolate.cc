@@ -895,7 +895,7 @@ class CallSiteBuilder {
 };
 
 bool GetStackTraceLimit(Isolate* isolate, int* result) {
-  DCHECK(!FLAG_correctness_fuzzer_suppressions);
+  if (FLAG_correctness_fuzzer_suppressions) return false;
   Handle<JSObject> error = isolate->error_function();
 
   Handle<String> key = isolate->factory()->stackTraceLimit_string();
@@ -1129,11 +1129,9 @@ void VisitStack(Isolate* isolate, Visitor* visitor,
   }
 }
 
-}  // namespace
-
-Handle<FixedArray> Isolate::CaptureSimpleStackTrace(int limit,
-                                                    FrameSkipMode mode,
-                                                    Handle<Object> caller) {
+Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
+                                           FrameSkipMode mode,
+                                           Handle<Object> caller) {
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
                      "maxFrameCount", limit);
 
@@ -1141,14 +1139,14 @@ Handle<FixedArray> Isolate::CaptureSimpleStackTrace(int limit,
   wasm::WasmCodeRefScope code_ref_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  CallSiteBuilder builder(this, mode, limit, caller);
-  VisitStack(this, &builder);
+  CallSiteBuilder builder(isolate, mode, limit, caller);
+  VisitStack(isolate, &builder);
 
   // If --async-stack-traces are enabled and the "current microtask" is a
   // PromiseReactionJobTask, we try to enrich the stack trace with async
   // frames.
   if (FLAG_async_stack_traces) {
-    CaptureAsyncStackTrace(this, &builder);
+    CaptureAsyncStackTrace(isolate, &builder);
   }
 
   Handle<FixedArray> stack_trace = builder.Build();
@@ -1157,57 +1155,105 @@ Handle<FixedArray> Isolate::CaptureSimpleStackTrace(int limit,
   return stack_trace;
 }
 
-MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
-    Handle<JSReceiver> error_object) {
-  if (capture_stack_trace_for_uncaught_exceptions_) {
-    // Capture stack trace for a detailed exception message.
-    Handle<Name> key = factory()->detailed_stack_trace_symbol();
-    Handle<FixedArray> stack_trace = CaptureDetailedStackTrace(
-        stack_trace_for_uncaught_exceptions_frame_limit_,
-        stack_trace_for_uncaught_exceptions_options_);
-    RETURN_ON_EXCEPTION(
-        this,
-        Object::SetProperty(this, error_object, key, stack_trace,
-                            StoreOrigin::kMaybeKeyed,
-                            Just(ShouldThrow::kThrowOnError)),
-        JSReceiver);
-  }
-  return error_object;
-}
+}  // namespace
 
-MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
-    Handle<JSReceiver> error_object, FrameSkipMode mode,
-    Handle<Object> caller) {
-  // Capture stack trace for simple stack trace string formatting.
-  Handle<Name> key = factory()->stack_trace_symbol();
-  Handle<Object> stack_trace = factory()->undefined_value();
-  int limit;
-  if (!FLAG_correctness_fuzzer_suppressions &&
-      GetStackTraceLimit(this, &limit)) {
-    stack_trace = CaptureSimpleStackTrace(limit, mode, caller);
+MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
+    Handle<JSObject> error_object, FrameSkipMode mode, Handle<Object> caller) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+  Handle<Object> error_stack = factory()->undefined_value();
+
+  // Capture the "simple stack trace" for the error.stack property,
+  // which can be disabled by setting Error.stackTraceLimit to a non
+  // number value or simply deleting the property. If the inspector
+  // is active, and requests more stack frames than the JavaScript
+  // program itself, we collect up to the maximum.
+  int stack_trace_limit = 0;
+  if (GetStackTraceLimit(this, &stack_trace_limit)) {
+    int limit = stack_trace_limit;
+    if (capture_stack_trace_for_uncaught_exceptions_ &&
+        !(stack_trace_for_uncaught_exceptions_options_ &
+          StackTrace::kExposeFramesAcrossSecurityOrigins)) {
+      // Collect up to the maximum of what the JavaScript program and
+      // the inspector want. There's a special case here where the API
+      // can ask the stack traces to also include cross-origin frames,
+      // in which case we collect a separate trace below. Note that
+      // the inspector doesn't use this option, so we could as well
+      // just deprecate this in the future.
+      if (limit < stack_trace_for_uncaught_exceptions_frame_limit_) {
+        limit = stack_trace_for_uncaught_exceptions_frame_limit_;
+      }
+    }
+    error_stack = CaptureSimpleStackTrace(this, limit, mode, caller);
   }
-  RETURN_ON_EXCEPTION(this,
-                      Object::SetProperty(this, error_object, key, stack_trace,
-                                          StoreOrigin::kMaybeKeyed,
-                                          Just(ShouldThrow::kThrowOnError)),
-                      JSReceiver);
+
+  // Next is the inspector part: Depending on whether we got a "simple
+  // stack trace" above and whether that's usable (meaning the API
+  // didn't request to include cross-origin frames), we remember the
+  // cap for the stack trace (either a positive limit indicating that
+  // the Error.stackTraceLimit value was below what was requested via
+  // the API, or a negative limit to indicate the opposite), or we
+  // collect a "detailed stack trace" eagerly and stash that away.
+  if (capture_stack_trace_for_uncaught_exceptions_) {
+    Handle<Object> limit_or_stack_frame_infos;
+    if (error_stack->IsUndefined(this) ||
+        (stack_trace_for_uncaught_exceptions_options_ &
+         StackTrace::kExposeFramesAcrossSecurityOrigins)) {
+      limit_or_stack_frame_infos = CaptureDetailedStackTrace(
+          stack_trace_for_uncaught_exceptions_frame_limit_,
+          stack_trace_for_uncaught_exceptions_options_);
+    } else {
+      int limit =
+          stack_trace_limit > stack_trace_for_uncaught_exceptions_frame_limit_
+              ? -stack_trace_for_uncaught_exceptions_frame_limit_
+              : stack_trace_limit;
+      limit_or_stack_frame_infos = handle(Smi::FromInt(limit), this);
+    }
+    error_stack =
+        factory()->NewErrorStackData(error_stack, limit_or_stack_frame_infos);
+  }
+
+  RETURN_ON_EXCEPTION(
+      this,
+      JSObject::SetProperty(this, error_object, factory()->error_stack_symbol(),
+                            error_stack, StoreOrigin::kMaybeKeyed,
+                            Just(ShouldThrow::kThrowOnError)),
+      JSObject);
   return error_object;
 }
 
 Handle<FixedArray> Isolate::GetDetailedStackTrace(
     Handle<JSReceiver> error_object) {
-  Handle<Name> key = factory()->detailed_stack_trace_symbol();
-  Handle<Object> result = JSReceiver::GetDataProperty(error_object, key);
-  if (result->IsFixedArray()) return Handle<FixedArray>::cast(result);
-  return Handle<FixedArray>();
+  Handle<Object> error_stack = JSReceiver::GetDataProperty(
+      error_object, factory()->error_stack_symbol());
+  if (!error_stack->IsErrorStackData()) {
+    return Handle<FixedArray>();
+  }
+  Handle<ErrorStackData> error_stack_data =
+      Handle<ErrorStackData>::cast(error_stack);
+  ErrorStackData::EnsureStackFrameInfos(this, error_stack_data);
+  if (!error_stack_data->limit_or_stack_frame_infos().IsFixedArray()) {
+    return Handle<FixedArray>();
+  }
+  return handle(
+      FixedArray::cast(error_stack_data->limit_or_stack_frame_infos()), this);
 }
 
 Handle<FixedArray> Isolate::GetSimpleStackTrace(
     Handle<JSReceiver> error_object) {
-  Handle<Name> key = factory()->stack_trace_symbol();
-  Handle<Object> result = JSReceiver::GetDataProperty(error_object, key);
-  if (result->IsFixedArray()) return Handle<FixedArray>::cast(result);
-  return factory()->empty_fixed_array();
+  Handle<Object> error_stack = JSReceiver::GetDataProperty(
+      error_object, factory()->error_stack_symbol());
+  if (error_stack->IsFixedArray()) {
+    return Handle<FixedArray>::cast(error_stack);
+  }
+  if (!error_stack->IsErrorStackData()) {
+    return factory()->empty_fixed_array();
+  }
+  Handle<ErrorStackData> error_stack_data =
+      Handle<ErrorStackData>::cast(error_stack);
+  if (!error_stack_data->HasCallSiteInfos()) {
+    return factory()->empty_fixed_array();
+  }
+  return handle(error_stack_data->call_site_infos(), this);
 }
 
 Address Isolate::GetAbstractPC(int* line, int* column) {
@@ -1457,7 +1503,7 @@ Object Isolate::StackOverflow() {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       this, exception,
       ErrorUtils::Construct(this, fun, fun, msg, options, SKIP_NONE, no_caller,
-                            ErrorUtils::StackTraceCollection::kSimple));
+                            ErrorUtils::StackTraceCollection::kEnabled));
   JSObject::AddProperty(this, exception, factory()->wasm_uncatchable_symbol(),
                         factory()->true_value(), NONE);
 
@@ -2212,7 +2258,7 @@ Object Isolate::PromoteScheduledException() {
 
 void Isolate::PrintCurrentStackTrace(std::ostream& out) {
   Handle<FixedArray> frames = CaptureSimpleStackTrace(
-      FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
+      this, FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
 
   IncrementalStringBuilder builder(this);
   for (int i = 0; i < frames->length(); ++i) {
@@ -2282,15 +2328,17 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
 
 bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
                                             Handle<Object> exception) {
-  if (!exception->IsJSObject()) return false;
-  Handle<Name> key = factory()->stack_trace_symbol();
-  Handle<Object> property =
-      JSReceiver::GetDataProperty(Handle<JSObject>::cast(exception), key);
-  if (!property->IsFixedArray()) return false;
-  Handle<FixedArray> stack = Handle<FixedArray>::cast(property);
-  for (int i = 0; i < stack->length(); i++) {
-    Handle<CallSiteInfo> frame(CallSiteInfo::cast(stack->get(i)), this);
-    if (CallSiteInfo::ComputeLocation(frame, target)) return true;
+  if (!exception->IsJSReceiver()) {
+    return false;
+  }
+  Handle<FixedArray> call_site_infos =
+      GetSimpleStackTrace(Handle<JSReceiver>::cast(exception));
+  for (int i = 0; i < call_site_infos->length(); ++i) {
+    Handle<CallSiteInfo> call_site_info(
+        CallSiteInfo::cast(call_site_infos->get(i)), this);
+    if (CallSiteInfo::ComputeLocation(call_site_info, target)) {
+      return true;
+    }
   }
   return false;
 }

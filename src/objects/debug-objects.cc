@@ -7,6 +7,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/handles/handles-inl.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/utils/ostreams.h"
 
@@ -409,6 +410,51 @@ int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
   info->set_shared_or_script(shared->script());
   info->set_bytecode_offset_or_source_position(source_position);
   return source_position;
+}
+
+// static
+void ErrorStackData::EnsureStackFrameInfos(Isolate* isolate,
+                                           Handle<ErrorStackData> error_stack) {
+  if (!error_stack->limit_or_stack_frame_infos().IsSmi()) {
+    return;
+  }
+  int limit = Smi::cast(error_stack->limit_or_stack_frame_infos()).value();
+  Handle<FixedArray> call_site_infos(error_stack->call_site_infos(), isolate);
+  Handle<FixedArray> stack_frame_infos =
+      isolate->factory()->NewFixedArray(call_site_infos->length());
+  int index = 0;
+  for (int i = 0; i < call_site_infos->length(); ++i) {
+    Handle<CallSiteInfo> call_site_info(
+        CallSiteInfo::cast(call_site_infos->get(i)), isolate);
+    if (call_site_info->IsAsync()) {
+      break;
+    }
+    Handle<Script> script;
+    if (!CallSiteInfo::GetScript(isolate, call_site_info).ToHandle(&script) ||
+        !script->IsSubjectToDebugging()) {
+      continue;
+    }
+    Handle<StackFrameInfo> stack_frame_info =
+        isolate->factory()->NewStackFrameInfo(
+            script, CallSiteInfo::GetSourcePosition(call_site_info),
+            CallSiteInfo::GetFunctionDebugName(call_site_info),
+            call_site_info->IsConstructor());
+    stack_frame_infos->set(index++, *stack_frame_info);
+  }
+  stack_frame_infos =
+      FixedArray::ShrinkOrEmpty(isolate, stack_frame_infos, index);
+  if (limit < 0 && -limit < index) {
+    // Negative limit encodes cap to be applied to |stack_frame_infos|.
+    stack_frame_infos =
+        FixedArray::ShrinkOrEmpty(isolate, stack_frame_infos, -limit);
+  } else if (limit >= 0 && limit < call_site_infos->length()) {
+    // Positive limit means we need to cap the |call_site_infos|
+    // to that number before exposing them to the world.
+    call_site_infos =
+        FixedArray::ShrinkOrEmpty(isolate, call_site_infos, limit);
+    error_stack->set_call_site_infos(*call_site_infos);
+  }
+  error_stack->set_limit_or_stack_frame_infos(*stack_frame_infos);
 }
 
 }  // namespace internal

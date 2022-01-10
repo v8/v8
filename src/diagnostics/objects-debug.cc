@@ -1806,6 +1806,12 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
 }
 
+void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::ErrorStackDataVerify(*this, isolate);
+  CHECK_IMPLIES(!call_site_infos_or_formatted_stack().IsFixedArray(),
+                limit_or_stack_frame_infos().IsFixedArray());
+}
+
 // Helper class for verifying the string table.
 class StringTableVerifier : public RootVisitor {
  public:

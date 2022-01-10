@@ -144,6 +144,7 @@ namespace internal {
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                  \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                 \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                 \
+  V(_, ERROR_STACK_DATA_TYPE, ErrorStackData, error_stack_data)                \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,             \
     function_template_rare_data)                                               \
   V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)               \

@@ -426,10 +426,10 @@
   V(_, console_context_name_symbol)            \
   V(_, class_fields_symbol)                    \
   V(_, class_positions_symbol)                 \
-  V(_, detailed_stack_trace_symbol)            \
   V(_, elements_transition_symbol)             \
   V(_, error_end_pos_symbol)                   \
   V(_, error_script_symbol)                    \
+  V(_, error_stack_symbol)                     \
   V(_, error_start_pos_symbol)                 \
   V(_, frozen_symbol)                          \
   V(_, interpreter_trampoline_symbol)          \
@@ -446,7 +446,6 @@
   V(_, regexp_result_regexp_input_symbol)      \
   V(_, regexp_result_regexp_last_index_symbol) \
   V(_, sealed_symbol)                          \
-  V(_, stack_trace_symbol)                     \
   V(_, strict_function_transition_symbol)      \
   V(_, wasm_exception_tag_symbol)              \
   V(_, wasm_exception_values_symbol)           \

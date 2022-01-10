@@ -391,6 +391,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<AccessorInfo> NewAccessorInfo();
 
+  Handle<ErrorStackData> NewErrorStackData(
+      Handle<Object> call_site_infos_or_formatted_stack,
+      Handle<Object> limit_or_stack_frame_infos);
+
   Handle<Script> CloneScript(Handle<Script> script);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);

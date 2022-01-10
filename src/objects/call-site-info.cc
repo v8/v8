@@ -9,6 +9,10 @@
 #include "src/objects/shared-function-info.h"
 #include "src/strings/string-builder-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/debug/debug-wasm-objects.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -276,6 +280,24 @@ Handle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
   if (name->length() != 0) return name;
   if (info->IsEval()) return isolate->factory()->eval_string();
   return isolate->factory()->null_value();
+}
+
+// static
+Handle<String> CallSiteInfo::GetFunctionDebugName(Handle<CallSiteInfo> info) {
+  Isolate* isolate = info->GetIsolate();
+#if V8_ENABLE_WEBASSEMBLY
+  if (info->IsWasm()) {
+    return GetWasmFunctionDebugName(isolate,
+                                    handle(info->GetWasmInstance(), isolate),
+                                    info->GetWasmFunctionIndex());
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  Handle<JSFunction> function(JSFunction::cast(info->function()), isolate);
+  Handle<String> name = JSFunction::GetDebugName(function);
+  if (name->length() == 0 && info->IsEval()) {
+    name = isolate->factory()->eval_string();
+  }
+  return name;
 }
 
 namespace {

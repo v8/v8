@@ -427,7 +427,7 @@ namespace {
 
 bool IsErrorObject(Isolate* isolate, Handle<Object> object) {
   if (!object->IsJSReceiver()) return false;
-  Handle<Symbol> symbol = isolate->factory()->stack_trace_symbol();
+  Handle<Symbol> symbol = isolate->factory()->error_stack_symbol();
   return JSReceiver::HasOwnProperty(Handle<JSReceiver>::cast(object), symbol)
       .FromMaybe(false);
 }
@@ -4810,6 +4810,17 @@ bool Script::GetPositionInfo(Handle<Script> script, int position,
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (init_line_ends) InitLineEnds(script->GetIsolate(), script);
   return script->GetPositionInfo(position, info, offset_flag);
+}
+
+bool Script::IsSubjectToDebugging() const {
+  switch (type()) {
+    case TYPE_NORMAL:
+#if V8_ENABLE_WEBASSEMBLY
+    case TYPE_WASM:
+#endif  // V8_ENABLE_WEBASSEMBLY
+      return true;
+  }
+  return false;
 }
 
 bool Script::IsUserJavaScript() const { return type() == Script::TYPE_NORMAL; }

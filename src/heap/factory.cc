@@ -1367,6 +1367,19 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
   return handle(info, isolate());
 }
 
+Handle<ErrorStackData> Factory::NewErrorStackData(
+    Handle<Object> call_site_infos_or_formatted_stack,
+    Handle<Object> limit_or_stack_frame_infos) {
+  ErrorStackData error_stack_data = NewStructInternal<ErrorStackData>(
+      ERROR_STACK_DATA_TYPE, AllocationType::kYoung);
+  DisallowGarbageCollection no_gc;
+  error_stack_data.set_call_site_infos_or_formatted_stack(
+      *call_site_infos_or_formatted_stack, SKIP_WRITE_BARRIER);
+  error_stack_data.set_limit_or_stack_frame_infos(*limit_or_stack_frame_infos,
+                                                  SKIP_WRITE_BARRIER);
+  return handle(error_stack_data, isolate());
+}
+
 void Factory::AddToScriptList(Handle<Script> script) {
   Handle<WeakArrayList> scripts = script_list();
   scripts = WeakArrayList::Append(isolate(), scripts,
@@ -2139,7 +2152,7 @@ Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
   Handle<Object> no_caller;
   return ErrorUtils::Construct(isolate(), constructor, constructor, message,
                                undefined_value(), SKIP_NONE, no_caller,
-                               ErrorUtils::StackTraceCollection::kDetailed)
+                               ErrorUtils::StackTraceCollection::kEnabled)
       .ToHandleChecked();
 }
 

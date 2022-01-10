@@ -36,6 +36,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   inline bool IsAsync() const;
   bool IsEval() const;
   bool IsUserJavaScript() const;
+  bool IsSubjectToDebugging() const;
   bool IsMethodCall() const;
   bool IsToplevel() const;
   bool IsPromiseAll() const;
@@ -69,6 +70,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   static Handle<PrimitiveHeapObject> GetEvalOrigin(Handle<CallSiteInfo> info);
   V8_EXPORT_PRIVATE static Handle<PrimitiveHeapObject> GetFunctionName(
       Handle<CallSiteInfo> info);
+  static Handle<String> GetFunctionDebugName(Handle<CallSiteInfo> info);
   static Handle<Object> GetMethodName(Handle<CallSiteInfo> info);
   static Handle<Object> GetTypeName(Handle<CallSiteInfo> info);
 

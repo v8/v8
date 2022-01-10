@@ -48,8 +48,7 @@ void CheckExceptionInfos(v8::internal::Isolate* isolate, Handle<Object> exc,
 
   exc->Print();
   // Extract stack frame from the exception.
-  auto stack = Handle<FixedArray>::cast(JSReceiver::GetDataProperty(
-      Handle<JSObject>::cast(exc), isolate->factory()->stack_trace_symbol()));
+  auto stack = isolate->GetSimpleStackTrace(Handle<JSObject>::cast(exc));
   CHECK_EQ(N, stack->length());
 
   for (int i = 0; i < N; ++i) {
