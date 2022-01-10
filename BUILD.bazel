@@ -3366,7 +3366,7 @@ v8_library(
     ],
     icu_deps = [
         ":icu/generated_torque_headers",
-        "@com_googlesource_chromium_icu//:icu",
+        "//external:icu",
     ],
     icu_srcs = [
         ":generated_regexp_special_case",
@@ -3381,9 +3381,9 @@ v8_library(
     ],
     deps = [
         ":v8_libbase",
-        "@com_googlesource_chromium_base_trace_event_common//:trace_event_common",
-        "@com_googlesource_chromium_zlib//:zlib",
-        "@com_googlesource_chromium_zlib//:zlib_compression_utils",
+        "//external:base_trace_event_common",
+        "//external:zlib",
+        "//external:zlib_compression_utils",
     ],
 )
 
@@ -3451,7 +3451,7 @@ v8_binary(
         "UNISTR_FROM_CHAR_EXPLICIT=",
     ],
     deps = [
-        "@com_googlesource_chromium_icu//:icu",
+        "//external:icu",
     ],
 )
 

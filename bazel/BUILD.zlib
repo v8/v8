@@ -64,6 +64,6 @@ cc_library(
     include_prefix = "third_party/zlib",
     visibility = ["//visibility:public"],
     deps = [
-        ":zlib",
+        "//external:zlib",
     ],
 )
