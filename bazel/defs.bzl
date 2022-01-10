@@ -378,13 +378,13 @@ def _v8_target_cpu_transition_impl(settings, attr):
         "darwin_x86_64": "x64",
         "x64_windows": "x64",
         "x86": "ia32",
-        "ppc": "ppc64",
         "aarch64": "arm64",
         "arm64-v8a": "arm64",
         "arm": "arm64",
         "armeabi-v7a": "arm32",
         "s390x": "s390x",
         "riscv64": "riscv64",
+        "ppc": "ppc64le",
     }
     v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
     return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}

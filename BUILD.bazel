@@ -302,6 +302,11 @@ v8_config(
                 "V8_TARGET_ARCH_RISCV64",
                 "CAN_USE_FPU_INSTRUCTIONS",
             ],
+            "@v8//bazel/config:v8_target_ppc64le": [
+                # NOTE: Bazel rules for ppc64le weren't tested on a real system.
+                "V8_TARGET_ARCH_PPC64",
+                "V8_TARGET_ARCH_PPC_LE",
+            ],
         },
         no_match_error = "Please specify a target cpu supported by v8",
     ) + select({
@@ -2263,6 +2268,37 @@ filegroup(
             "src/regexp/riscv64/regexp-macro-assembler-riscv64.h",
             "src/wasm/baseline/riscv64/liftoff-assembler-riscv64.h",
         ],
+        "@v8//bazel/config:v8_target_ppc64le": [
+            "src/baseline/ppc/baseline-assembler-ppc-inl.h",
+            "src/baseline/ppc/baseline-compiler-ppc-inl.h",
+            "src/codegen/ppc/assembler-ppc.cc",
+            "src/codegen/ppc/assembler-ppc.h",
+            "src/codegen/ppc/assembler-ppc-inl.h",
+            "src/codegen/ppc/constants-ppc.cc",
+            "src/codegen/ppc/constants-ppc.h",
+            "src/codegen/ppc/cpu-ppc.cc",
+            "src/codegen/ppc/interface-descriptors-ppc-inl.h",
+            "src/codegen/ppc/macro-assembler-ppc.cc",
+            "src/codegen/ppc/macro-assembler-ppc.h",
+            "src/codegen/ppc/register-ppc.h",
+            "src/compiler/backend/ppc/code-generator-ppc.cc",
+            "src/compiler/backend/ppc/instruction-codes-ppc.h",
+            "src/compiler/backend/ppc/instruction-scheduler-ppc.cc",
+            "src/compiler/backend/ppc/instruction-selector-ppc.cc",
+            "src/compiler/backend/ppc/unwinding-info-writer-ppc.cc",
+            "src/compiler/backend/ppc/unwinding-info-writer-ppc.h",
+            "src/deoptimizer/ppc/deoptimizer-ppc.cc",
+            "src/diagnostics/ppc/disasm-ppc.cc",
+            "src/diagnostics/ppc/eh-frame-ppc.cc",
+            "src/diagnostics/ppc/unwinder-ppc.cc",
+            "src/execution/ppc/frame-constants-ppc.cc",
+            "src/execution/ppc/frame-constants-ppc.h",
+            "src/execution/ppc/simulator-ppc.cc",
+            "src/execution/ppc/simulator-ppc.h",
+            "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
+            "src/regexp/ppc/regexp-macro-assembler-ppc.h",
+            "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
+        ],
     }) + select({
         # Only for x64 builds and for arm64 with x64 host simulator.
         "@v8//bazel/config:is_posix_x64": [
@@ -2778,6 +2814,7 @@ filegroup(
         "@v8//bazel/config:v8_target_arm64": ["src/builtins/arm64/builtins-arm64.cc"],
         "@v8//bazel/config:v8_target_s390x": ["src/builtins/s390/builtins-s390.cc"],
         "@v8//bazel/config:v8_target_riscv64": ["src/builtins/riscv64/builtins-riscv64.cc"],
+        "@v8//bazel/config:v8_target_ppc64le": ["src/builtins/ppc/builtins-ppc.cc"],
     }) + select({
         ":is_v8_enable_webassembly": [
             "src/builtins/builtins-wasm-gen.cc",
@@ -2900,6 +2937,7 @@ filegroup(
         "@v8//bazel/config:is_inline_asm_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
         "@v8//bazel/config:is_inline_asm_s390x": ["src/heap/base/asm/s390/push_registers_asm.cc"],
         "@v8//bazel/config:is_inline_asm_riscv64": ["src/heap/base/asm/riscv64/push_registers_asm.cc"],
+        "@v8//bazel/config:is_inline_asm_ppc64le": ["src/heap/base/asm/ppc/push_registers_asm.cc"],
         "@v8//bazel/config:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/push_registers_masm.S"],
         "@v8//bazel/config:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.S"],
         "@v8//bazel/config:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
