@@ -49,6 +49,7 @@
 ['variant in [jitless, nooptimization, stress]', {
   # Slow tests.
   'kraken/ai-astar': [PASS, SLOW],
+  'kraken/audio-beat-detection': [SLOW],
   'kraken/imaging-darkroom': [PASS, SLOW],
   'kraken/imaging-desaturate': [PASS, SLOW],
   'octane/code-load': [PASS, SLOW],
