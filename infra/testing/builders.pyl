@@ -1836,7 +1836,8 @@
         'name': 'test262',
         'suffix': 'novfp3',
         'variant': 'default',
-        'test_args': ['--novfp3']
+        'test_args': ['--novfp3'],
+        'shards': 2
       },
       {
         'name': 'v8testing',
