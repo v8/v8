@@ -54,6 +54,11 @@ config_setting(
     constraint_values = ["@platforms//cpu:s390x"],
 )
 
+config_setting(
+    name = "platform_cpu_riscv64",
+    constraint_values = ["@platforms//cpu:riscv64"],
+)
+
 v8_target_cpu(
     name = "v8_target_cpu",
     build_setting_default = "none",
@@ -89,6 +94,11 @@ v8_configure_target_cpu(
 v8_configure_target_cpu(
     name = "s390x",
     matching_configs = [":platform_cpu_s390x"],
+)
+
+v8_configure_target_cpu(
+    name = "riscv64",
+    matching_configs = [":platform_cpu_riscv64"],
 )
 
 selects.config_setting_group(
@@ -135,6 +145,7 @@ selects.config_setting_group(
         ":is_x64",
         ":is_arm64",
         ":is_s390x",
+        ":is_riscv64",
     ],
 )
 
@@ -186,6 +197,11 @@ selects.config_setting_group(
 selects.config_setting_group(
     name = "is_inline_asm_s390x",
     match_all = [":is_posix", ":is_s390x"],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_riscv64",
+    match_all = [":is_posix", ":is_riscv64"],
 )
 
 selects.config_setting_group(
