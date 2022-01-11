@@ -53,6 +53,11 @@ Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
         CHECK(IsAligned(result, alignment));
         return result;
       }
+      // The empty memory_ranges means that GetFreeMemoryRangesWithin() API
+      // is not supported, so use the lowest address from the preferred region
+      // as a hint because it'll be at least as good as the fallback hint but
+      // with a higher chances to point to the free address space range.
+      return RoundUp(preferred_region.begin(), alignment);
     }
     return RoundUp(FUNCTION_ADDR(&FunctionInStaticBinaryForAddressHint),
                    alignment);
@@ -124,16 +129,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
           : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
   params.base_bias_size = RoundUp(reserved_area, allocate_page_size);
   params.page_size = MemoryChunk::kPageSize;
-  // V8_EXTERNAL_CODE_SPACE imposes additional alignment requirement for the
-  // base address, so make sure the hint calculation function takes that into
-  // account. Otherwise the allocated reservation might be outside of the
-  // preferred region (see Isolate::GetShortBuiltinsCallRegion()).
-  const size_t hint_alignment =
-      V8_EXTERNAL_CODE_SPACE_BOOL
-          ? RoundUp(params.base_alignment, allocate_page_size)
-          : allocate_page_size;
   params.requested_start_hint =
-      GetCodeRangeAddressHint()->GetAddressHint(requested, hint_alignment);
+      GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 
