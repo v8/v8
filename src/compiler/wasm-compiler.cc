@@ -3987,96 +3987,6 @@ MemoryAccessKind GetMemoryAccessKind(
 }
 }  // namespace
 
-// S390 simulator does not execute BE code, hence needs to also check if we are
-// running on a LE simulator.
-// TODO(miladfar): Remove SIM once V8_TARGET_BIG_ENDIAN includes the Sim.
-#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
-Node* WasmGraphBuilder::LoadTransformBigEndian(
-    wasm::ValueType type, MachineType memtype,
-    wasm::LoadTransformationKind transform, Node* index, uint64_t offset,
-    uint32_t alignment, wasm::WasmCodePosition position) {
-#define LOAD_EXTEND(num_lanes, bytes_per_load, replace_lane)                   \
-  result = graph()->NewNode(mcgraph()->machine()->S128Zero());                 \
-  Node* values[num_lanes];                                                     \
-  for (int i = 0; i < num_lanes; i++) {                                        \
-    values[i] = LoadMem(type, memtype, index, offset + i * bytes_per_load,     \
-                        alignment, position);                                  \
-    if (memtype.IsSigned()) {                                                  \
-      /* sign extend */                                                        \
-      values[i] = graph()->NewNode(mcgraph()->machine()->ChangeInt32ToInt64(), \
-                                   values[i]);                                 \
-    } else {                                                                   \
-      /* zero extend */                                                        \
-      values[i] = graph()->NewNode(                                            \
-          mcgraph()->machine()->ChangeUint32ToUint64(), values[i]);            \
-    }                                                                          \
-  }                                                                            \
-  for (int lane = 0; lane < num_lanes; lane++) {                               \
-    result = graph()->NewNode(mcgraph()->machine()->replace_lane(lane),        \
-                              result, values[lane]);                           \
-  }
-  Node* result;
-  LoadTransformation transformation = GetLoadTransformation(memtype, transform);
-
-  switch (transformation) {
-    case LoadTransformation::kS128Load8Splat: {
-      result = LoadMem(type, memtype, index, offset, alignment, position);
-      result = graph()->NewNode(mcgraph()->machine()->I8x16Splat(), result);
-      break;
-    }
-    case LoadTransformation::kS128Load8x8S:
-    case LoadTransformation::kS128Load8x8U: {
-      LOAD_EXTEND(8, 1, I16x8ReplaceLane)
-      break;
-    }
-    case LoadTransformation::kS128Load16Splat: {
-      result = LoadMem(type, memtype, index, offset, alignment, position);
-      result = graph()->NewNode(mcgraph()->machine()->I16x8Splat(), result);
-      break;
-    }
-    case LoadTransformation::kS128Load16x4S:
-    case LoadTransformation::kS128Load16x4U: {
-      LOAD_EXTEND(4, 2, I32x4ReplaceLane)
-      break;
-    }
-    case LoadTransformation::kS128Load32Splat: {
-      result = LoadMem(type, memtype, index, offset, alignment, position);
-      result = graph()->NewNode(mcgraph()->machine()->I32x4Splat(), result);
-      break;
-    }
-    case LoadTransformation::kS128Load32x2S:
-    case LoadTransformation::kS128Load32x2U: {
-      LOAD_EXTEND(2, 4, I64x2ReplaceLane)
-      break;
-    }
-    case LoadTransformation::kS128Load64Splat: {
-      result = LoadMem(type, memtype, index, offset, alignment, position);
-      result = graph()->NewNode(mcgraph()->machine()->I64x2Splat(), result);
-      break;
-    }
-    case LoadTransformation::kS128Load32Zero: {
-      result = graph()->NewNode(mcgraph()->machine()->S128Zero());
-      result = graph()->NewNode(
-          mcgraph()->machine()->I32x4ReplaceLane(0), result,
-          LoadMem(type, memtype, index, offset, alignment, position));
-      break;
-    }
-    case LoadTransformation::kS128Load64Zero: {
-      result = graph()->NewNode(mcgraph()->machine()->S128Zero());
-      result = graph()->NewNode(
-          mcgraph()->machine()->I64x2ReplaceLane(0), result,
-          LoadMem(type, memtype, index, offset, alignment, position));
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-
-  return result;
-#undef LOAD_EXTEND
-}
-#endif
-
 Node* WasmGraphBuilder::LoadLane(wasm::ValueType type, MachineType memtype,
                                  Node* value, Node* index, uint64_t offset,
                                  uint32_t alignment, uint8_t laneidx,
@@ -4090,24 +4000,6 @@ Node* WasmGraphBuilder::LoadLane(wasm::ValueType type, MachineType memtype,
 
   // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
   uintptr_t capped_offset = static_cast<uintptr_t>(offset);
-#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
-  load = LoadMem(type, memtype, index, offset, alignment, position);
-  if (memtype == MachineType::Int8()) {
-    load = graph()->NewNode(mcgraph()->machine()->I8x16ReplaceLane(laneidx),
-                            value, load);
-  } else if (memtype == MachineType::Int16()) {
-    load = graph()->NewNode(mcgraph()->machine()->I16x8ReplaceLane(laneidx),
-                            value, load);
-  } else if (memtype == MachineType::Int32()) {
-    load = graph()->NewNode(mcgraph()->machine()->I32x4ReplaceLane(laneidx),
-                            value, load);
-  } else if (memtype == MachineType::Int64()) {
-    load = graph()->NewNode(mcgraph()->machine()->I64x2ReplaceLane(laneidx),
-                            value, load);
-  } else {
-    UNREACHABLE();
-  }
-#else
   MemoryAccessKind load_kind = GetMemoryAccessKind(
       mcgraph_, memtype.representation(), bounds_check_result);
 
@@ -4118,7 +4010,6 @@ Node* WasmGraphBuilder::LoadLane(wasm::ValueType type, MachineType memtype,
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
   }
-#endif
   if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
                          position);
@@ -4138,14 +4029,6 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
   // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
   uintptr_t capped_offset = static_cast<uintptr_t>(offset);
 
-#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
-  // LoadTransform cannot efficiently be executed on BE machines as a
-  // single operation since loaded bytes need to be reversed first,
-  // therefore we divide them into separate "load" and "operation" nodes.
-  load = LoadTransformBigEndian(type, memtype, transform, index, offset,
-                                alignment, position);
-  USE(GetMemoryAccessKind);
-#else
   // Wasm semantics throw on OOB. Introduce explicit bounds check and
   // conditioning when not using the trap handler.
 
@@ -4168,7 +4051,6 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
   }
-#endif
 
   if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
@@ -4243,25 +4125,6 @@ void WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
 
   // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
   uintptr_t capped_offset = static_cast<uintptr_t>(offset);
-#if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
-  Node* output;
-  if (mem_rep == MachineRepresentation::kWord8) {
-    output =
-        graph()->NewNode(mcgraph()->machine()->I8x16ExtractLaneS(laneidx), val);
-  } else if (mem_rep == MachineRepresentation::kWord16) {
-    output =
-        graph()->NewNode(mcgraph()->machine()->I16x8ExtractLaneS(laneidx), val);
-  } else if (mem_rep == MachineRepresentation::kWord32) {
-    output =
-        graph()->NewNode(mcgraph()->machine()->I32x4ExtractLane(laneidx), val);
-  } else if (mem_rep == MachineRepresentation::kWord64) {
-    output =
-        graph()->NewNode(mcgraph()->machine()->I64x2ExtractLane(laneidx), val);
-  } else {
-    UNREACHABLE();
-  }
-  StoreMem(mem_rep, index, offset, alignment, output, position, type);
-#else
   MemoryAccessKind load_kind =
       GetMemoryAccessKind(mcgraph_, mem_rep, bounds_check_result);
 
@@ -4272,7 +4135,6 @@ void WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(store, position);
   }
-#endif
   if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(true, mem_rep, index, capped_offset, position);
   }
