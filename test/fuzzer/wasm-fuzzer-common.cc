@@ -519,18 +519,36 @@ void AppendInitExpr(std::ostream& os, const WasmInitExpr& expr) {
 
 void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
                              const WasmModule* module,
-                             ModuleWireBytes module_bytes, WireBytesRef init,
-                             ValueType expected) {
-  FunctionBody body(FunctionSig::Build(zone, {expected}, {}), init.offset(),
-                    module_bytes.start() + init.offset(),
-                    module_bytes.start() + init.end_offset());
-  WasmFeatures detected;
-  WasmFullDecoder<Decoder::kFullValidation, InitExprInterface, kInitExpression>
-      decoder(zone, module, WasmFeatures::All(), &detected, body, zone);
+                             ModuleWireBytes module_bytes,
+                             ConstantExpression init, ValueType expected) {
+  switch (init.kind()) {
+    case ConstantExpression::kEmpty:
+      UNREACHABLE();
+    case ConstantExpression::kI32Const:
+      AppendInitExpr(os, WasmInitExpr(init.i32_value()));
+      break;
+    case ConstantExpression::kRefNull:
+      AppendInitExpr(os, WasmInitExpr::RefNullConst(init.repr()));
+      break;
+    case ConstantExpression::kRefFunc:
+      AppendInitExpr(os, WasmInitExpr::RefFuncConst(init.index()));
+      break;
+    case ConstantExpression::kWireBytesRef: {
+      WireBytesRef ref = init.wire_bytes_ref();
+      auto sig = FixedSizeSignature<ValueType>::Returns(expected);
+      FunctionBody body(&sig, ref.offset(), module_bytes.start() + ref.offset(),
+                        module_bytes.start() + ref.end_offset());
+      WasmFeatures detected;
+      WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
+                      kInitExpression>
+          decoder(zone, module, WasmFeatures::All(), &detected, body, zone);
 
-  decoder.DecodeFunctionBody();
+      decoder.DecodeFunctionBody();
 
-  AppendInitExpr(os, decoder.interface().result());
+      AppendInitExpr(os, decoder.interface().result());
+      break;
+    }
+  }
 }
 }  // namespace
 
@@ -656,9 +674,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     for (uint32_t i = 0; i < elem_segment.entries.size(); i++) {
       if (elem_segment.element_type == WasmElemSegment::kExpressionElements) {
         DecodeAndAppendInitExpr(os, &zone, module, wire_bytes,
-                                elem_segment.entries[i].ref, elem_segment.type);
+                                elem_segment.entries[i], elem_segment.type);
       } else {
-        os << elem_segment.entries[i].index;
+        os << elem_segment.entries[i].index();
       }
       if (i < elem_segment.entries.size() - 1) os << ", ";
     }

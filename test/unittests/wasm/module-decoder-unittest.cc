@@ -495,8 +495,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               kI32Code,        // type
               1)               // mutable
   };
-  EXPECT_FAILURE_WITH_MSG(no_initializer_no_end,
-                          "Initializer expression is missing 'end'");
+  EXPECT_FAILURE_WITH_MSG(no_initializer_no_end, "Beyond end of code");
 
   static const byte no_initializer[] = {
       SECTION(Global,          //--

@@ -937,81 +937,54 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
 }
 
 WasmValue EvaluateInitExpression(
-    Zone* zone, WireBytesRef init, ValueType expected, Isolate* isolate,
+    Zone* zone, ConstantExpression expr, ValueType expected, Isolate* isolate,
     Handle<WasmInstanceObject> instance,
     InitExprInterface::FunctionStrictness function_strictness =
         InitExprInterface::kStrictFunctions) {
-  base::Vector<const byte> module_bytes =
-      instance->module_object().native_module()->wire_bytes();
+  switch (expr.kind()) {
+    case ConstantExpression::kEmpty:
+      UNREACHABLE();
+    case ConstantExpression::kI32Const:
+      return WasmValue(expr.i32_value());
+    case ConstantExpression::kRefNull:
+      return WasmValue(isolate->factory()->null_value(),
+                       ValueType::Ref(expr.repr(), kNullable));
+    case ConstantExpression::kRefFunc: {
+      uint32_t index = expr.index();
+      Handle<Object> value =
+          function_strictness == InitExprInterface::kLazyFunctions
+              ? Handle<Object>(Smi::FromInt(index), isolate)
+              : Handle<Object>::cast(
+                    WasmInstanceObject::GetOrCreateWasmInternalFunction(
+                        isolate, instance, index));
+      return WasmValue(value, expected);
+    }
+    case ConstantExpression::kWireBytesRef: {
+      WireBytesRef ref = expr.wire_bytes_ref();
 
-  const byte* start = module_bytes.begin() + init.offset();
-  const byte* end = module_bytes.begin() + init.end_offset();
+      base::Vector<const byte> module_bytes =
+          instance->module_object().native_module()->wire_bytes();
 
-  // We implement a fast path for the most common expressions, so we do not have
-  // to allocate a WasmFullDecoder. It is possible that the first expression we
-  // encounter is only an operand of a more complex expression. Therefore we
-  // have to check we reached the end of the expression in each case.
-  switch (static_cast<WasmOpcode>(*start)) {
-    case kExprI32Const: {
-      Decoder decoder(start + 1, end);
-      int32_t value = decoder.consume_i32v();
-      if (*decoder.pc() == kExprEnd) return WasmValue(value);
-      break;
+      const byte* start = module_bytes.begin() + ref.offset();
+      const byte* end = module_bytes.begin() + ref.end_offset();
+
+      auto sig = FixedSizeSignature<ValueType>::Returns(expected);
+      FunctionBody body(&sig, ref.offset(), start, end);
+      WasmFeatures detected;
+      // We use kFullValidation so we do not have to create another template
+      // instance of WasmFullDecoder, which would cost us >50Kb binary code
+      // size.
+      WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
+                      kInitExpression>
+          decoder(zone, instance->module(), WasmFeatures::All(), &detected,
+                  body, instance->module(), isolate, instance,
+                  function_strictness);
+
+      decoder.DecodeFunctionBody();
+
+      return decoder.interface().result();
     }
-    case kExprI64Const: {
-      Decoder decoder(start + 1, end);
-      int64_t value = decoder.consume_i64v();
-      if (*decoder.pc() == kExprEnd) return WasmValue(value);
-      break;
-    }
-    case kExprGlobalGet: {
-      Decoder decoder(start + 1, end);
-      uint32_t index = decoder.consume_u32v();
-      if (*decoder.pc() == kExprEnd) {
-        return WasmInstanceObject::GetGlobalValue(
-            instance, instance->module()->globals[index]);
-      }
-      break;
-    }
-    case kExprRefFunc: {
-      Decoder decoder(start + 1, end);
-      uint32_t index = decoder.consume_u32v();
-      if (*decoder.pc() == kExprEnd) {
-        Handle<Object> value =
-            function_strictness == InitExprInterface::kLazyFunctions
-                ? Handle<Object>(Smi::FromInt(index), isolate)
-                : Handle<Object>::cast(
-                      WasmInstanceObject::GetOrCreateWasmInternalFunction(
-                          isolate, instance, index));
-        return WasmValue(value, expected);
-      }
-      break;
-    }
-    case kExprRefNull: {
-      Decoder decoder(start + 1, end);
-      value_type_reader::consume_heap_type(&decoder, instance->module(),
-                                           WasmFeatures::All());
-      if (*decoder.pc() == kExprEnd) {
-        return WasmValue(isolate->factory()->null_value(), expected);
-      }
-      break;
-    }
-    default:
-      break;
   }
-
-  auto sig = FixedSizeSignature<ValueType>::Returns(expected);
-  FunctionBody body(&sig, init.offset(), start, end);
-  WasmFeatures detected;
-  // We use kFullValidation so we do not have to create another template
-  // instance of WasmFullDecoder, which would cost us >50Kb binary code size.
-  WasmFullDecoder<Decoder::kFullValidation, InitExprInterface, kInitExpression>
-      decoder(zone, instance->module(), WasmFeatures::All(), &detected, body,
-              instance->module(), isolate, instance, function_strictness);
-
-  decoder.DecodeFunctionBody();
-
-  return decoder.interface().result();
 }
 }  // namespace
 
@@ -2053,16 +2026,14 @@ bool LoadElemSegmentImpl(Zone* zone, Isolate* isolate,
       IsSubtypeOf(table_object->type(), kWasmFuncRef, instance->module());
 
   for (size_t i = 0; i < count; ++i) {
-    WasmElemSegment::Entry entry = elem_segment.entries[src + i];
+    ConstantExpression entry = elem_segment.entries[src + i];
     int entry_index = static_cast<int>(dst + i);
     Handle<Object> value =
-        elem_segment.element_type == WasmElemSegment::kExpressionElements
-            ? EvaluateInitExpression(
-                  zone, entry.ref, elem_segment.type, isolate, instance,
-                  is_function_table ? InitExprInterface::kLazyFunctions
-                                    : InitExprInterface::kStrictFunctions)
-                  .to_ref()
-            : handle(Smi::FromInt(entry.index), isolate);
+        EvaluateInitExpression(
+            zone, entry, elem_segment.type, isolate, instance,
+            is_function_table ? InitExprInterface::kLazyFunctions
+                              : InitExprInterface::kStrictFunctions)
+            .to_ref();
     SetTableEntry(isolate, instance, table_object, table_index, entry_index,
                   value);
   }
