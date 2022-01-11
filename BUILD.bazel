@@ -3224,6 +3224,7 @@ genrule(
         "src/inspector/protocol/Schema.cpp",
         "src/inspector/protocol/Schema.h",
     ],
+    local = 1,
     cmd = "$(location :code_generator) --jinja_dir . \
            --inspector_protocol_dir third_party/inspector_protocol \
            --config $(location :src/inspector/inspector_protocol_config.json) \
