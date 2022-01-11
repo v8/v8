@@ -2034,7 +2034,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   }
 
   Handle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages);
+      WasmMemoryObject::New(isolate_, buffer, maximum_pages).ToHandleChecked();
 
   AddObjectWithID(id, result);
   return result;

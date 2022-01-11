@@ -562,7 +562,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         static_cast<int>(RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
                          wasm::kWasmPageSize);
     memory_object_ =
-        WasmMemoryObject::New(isolate_, memory_buffer_, maximum_pages);
+        WasmMemoryObject::New(isolate_, memory_buffer_, maximum_pages)
+            .ToHandleChecked();
   } else {
     // Actual wasm module must have either imported or created memory.
     CHECK(memory_buffer_.is_null());

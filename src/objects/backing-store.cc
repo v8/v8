@@ -479,8 +479,10 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   if (!gc_retry(commit_memory)) {
     TRACE_BS("BSw:try   failed to set permissions (%p, %zu)\n", buffer_start,
              committed_byte_length);
+    CHECK(FreePages(page_allocator, allocation_base, reservation_size));
     // SetPermissions put us over the process memory limit.
-    V8::FatalProcessOutOfMemory(nullptr, "BackingStore::AllocateMemory()");
+    // We return an empty result so that the caller can throw an exception.
+    return {};
   }
 
   DebugCheckZero(buffer_start, byte_length);  // touch the bytes.

@@ -799,13 +799,14 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
 }
 }  // namespace
 
-Handle<WasmMemoryObject> WasmMemoryObject::New(
+MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer, int maximum) {
   Handle<JSArrayBuffer> buffer;
   if (!maybe_buffer.ToHandle(&buffer)) {
     // If no buffer was provided, create a zero-length one.
     auto backing_store =
         BackingStore::AllocateWasmMemory(isolate, 0, 0, SharedFlag::kNotShared);
+    if (!backing_store) return {};
     buffer = isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
   }
 
