@@ -104,10 +104,7 @@ v8_flag(name = "v8_enable_debug_code")
 
 v8_flag(name = "v8_enable_disassembler")
 
-v8_flag(
-    name = "v8_enable_handle_zapping",
-    default = True,
-)
+v8_flag(name = "v8_enable_handle_zapping")
 
 v8_flag(name = "v8_enable_hugepage")
 
