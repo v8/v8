@@ -148,12 +148,6 @@ class Logger : public CodeEventListener {
   void NewEvent(const char* name, void* object, size_t size);
   void DeleteEvent(const char* name, void* object);
 
-  // Emits an event with a tag, and some resource usage information.
-  // -> (name, tag, <rusage information>).
-  // Currently, the resource usage information is a process time stamp
-  // and a real time timestamp.
-  void ResourceEvent(const char* name, const char* tag);
-
   // Emits an event that an undefined property was read from an
   // object.
   void SuspectReadEvent(Name name, Object obj);

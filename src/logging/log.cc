@@ -1613,20 +1613,6 @@ void Logger::MoveEventInternal(LogEventsAndTags event, Address from,
   msg.WriteToLogFile();
 }
 
-void Logger::ResourceEvent(const char* name, const char* tag) {
-  if (!FLAG_log) return;
-  MSG_BUILDER();
-  msg << name << kNext << tag << kNext;
-
-  uint32_t sec, usec;
-  if (base::OS::GetUserTime(&sec, &usec) != -1) {
-    msg << sec << kNext << usec << kNext;
-  }
-  msg.AppendFormatString("%.0f",
-                         V8::GetCurrentPlatform()->CurrentClockTimeMillis());
-  msg.WriteToLogFile();
-}
-
 void Logger::SuspectReadEvent(Name name, Object obj) {
   if (!FLAG_log_suspect) return;
   MSG_BUILDER();

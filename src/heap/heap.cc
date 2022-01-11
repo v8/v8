@@ -2452,8 +2452,6 @@ void Heap::MarkCompact() {
 
   SetGCState(MARK_COMPACT);
 
-  LOG(isolate_, ResourceEvent("markcompact", "begin"));
-
   CodeSpaceMemoryModificationScope code_modifcation(this);
 
   // Disable soft allocation limits in the shared heap, if one exists, as
@@ -2473,8 +2471,6 @@ void Heap::MarkCompact() {
   MarkCompactPrologue();
 
   mark_compact_collector()->CollectGarbage();
-
-  LOG(isolate_, ResourceEvent("markcompact", "end"));
 
   MarkCompactEpilogue();
 
@@ -2498,7 +2494,6 @@ void Heap::MinorMarkCompact() {
 
   PauseAllocationObserversScope pause_observers(this);
   SetGCState(MINOR_MARK_COMPACT);
-  LOG(isolate_, ResourceEvent("MinorMarkCompact", "begin"));
 
   TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
   AlwaysAllocateScope always_allocate(this);
@@ -2513,7 +2508,6 @@ void Heap::MinorMarkCompact() {
 
   minor_mark_compact_collector()->CollectGarbage();
 
-  LOG(isolate_, ResourceEvent("MinorMarkCompact", "end"));
   SetGCState(NOT_IN_GC);
 #else
   UNREACHABLE();
@@ -2564,9 +2558,6 @@ void Heap::EvacuateYoungGeneration() {
 
   mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
 
-  SetGCState(SCAVENGE);
-  LOG(isolate_, ResourceEvent("scavenge", "begin"));
-
   // Move pages from new->old generation.
   PageRange range(new_space()->first_allocatable_address(), new_space()->top());
   for (auto it = range.begin(); it != range.end();) {
@@ -2600,9 +2591,6 @@ void Heap::EvacuateYoungGeneration() {
   IncrementYoungSurvivorsCounter(promoted);
   IncrementPromotedObjectsSize(promoted);
   IncrementSemiSpaceCopiedObjectSize(0);
-
-  LOG(isolate_, ResourceEvent("scavenge", "end"));
-  SetGCState(NOT_IN_GC);
 }
 
 void Heap::Scavenge() {
@@ -2652,11 +2640,7 @@ void Heap::Scavenge() {
   new_lo_space()->ResetPendingObject();
 
   // Implements Cheney's copying algorithm
-  LOG(isolate_, ResourceEvent("scavenge", "begin"));
-
   scavenger_collector_->CollectGarbage();
-
-  LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   SetGCState(NOT_IN_GC);
 }
