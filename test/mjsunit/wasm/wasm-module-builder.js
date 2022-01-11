@@ -121,6 +121,7 @@ let kWasmAnyRef = -0x12;
 let kWasmEqRef = -0x13;
 let kWasmI31Ref = -0x16;
 let kWasmDataRef = -0x19;
+let kWasmArrayRef = -0x20;
 
 // Use the positive-byte versions inside function bodies.
 let kLeb128Mask = 0x7f;
@@ -129,8 +130,9 @@ let kAnyFuncCode = kFuncRefCode;  // Alias named as in the JS API spec
 let kExternRefCode = kWasmExternRef & kLeb128Mask;
 let kAnyRefCode = kWasmAnyRef & kLeb128Mask;
 let kEqRefCode = kWasmEqRef & kLeb128Mask;
-let kI31RefCode = kWasmI31Ref  & kLeb128Mask;
-let kDataRefCode = kWasmDataRef  & kLeb128Mask;
+let kI31RefCode = kWasmI31Ref & kLeb128Mask;
+let kDataRefCode = kWasmDataRef & kLeb128Mask;
+let kArrayRefCode = kWasmArrayRef & kLeb128Mask;
 
 let kWasmOptRef = 0x6c;
 let kWasmRef = 0x6b;

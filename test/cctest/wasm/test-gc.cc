@@ -935,12 +935,12 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
        kExprEnd});
 
   // Reads and returns an array's length.
-  const byte kGetLength = tester.DefineFunction(
-      tester.sigs.i_v(), {},
-      {WASM_ARRAY_LEN(type_index, WASM_ARRAY_NEW_WITH_RTT(
-                                      type_index, WASM_I32V(0), WASM_I32V(42),
-                                      WASM_RTT_CANON(type_index))),
-       kExprEnd});
+  const byte kGetLength =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_ARRAY_LEN(WASM_ARRAY_NEW_WITH_RTT(
+                                 type_index, WASM_I32V(0), WASM_I32V(42),
+                                 WASM_RTT_CANON(type_index))),
+                             kExprEnd});
 
   // Create an array of length 2, initialized to [42, 42].
   const byte kAllocate = tester.DefineFunction(

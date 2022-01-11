@@ -6453,8 +6453,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                       WasmInternalFunction::kExternalOffset));
             }
           }
-          case wasm::HeapType::kData:
           case wasm::HeapType::kEq:
+          case wasm::HeapType::kData:
+          case wasm::HeapType::kArray:
           case wasm::HeapType::kI31:
             // TODO(7748): Update this when JS interop is settled.
             if (type.kind() == wasm::kOptRef) {
@@ -6644,6 +6645,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             BuildCheckValidRefValue(input, js_context, type);
             return BuildUnpackObjectWrapper(input);
           case wasm::HeapType::kData:
+          case wasm::HeapType::kArray:
           case wasm::HeapType::kEq:
           case wasm::HeapType::kI31:
             // TODO(7748): Update this when JS interop has settled.

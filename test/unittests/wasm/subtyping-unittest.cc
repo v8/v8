@@ -14,8 +14,12 @@ namespace subtyping_unittest {
 class WasmSubtypingTest : public ::testing::Test {};
 using FieldInit = std::pair<ValueType, bool>;
 
-ValueType ref(uint32_t index) { return ValueType::Ref(index, kNonNullable); }
-ValueType optRef(uint32_t index) { return ValueType::Ref(index, kNullable); }
+constexpr ValueType ref(uint32_t index) {
+  return ValueType::Ref(index, kNonNullable);
+}
+constexpr ValueType optRef(uint32_t index) {
+  return ValueType::Ref(index, kNullable);
+}
 
 FieldInit mut(ValueType type) { return FieldInit(type, true); }
 FieldInit immut(ValueType type) { return FieldInit(type, false); }
@@ -73,12 +77,12 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     /* 16 */ DefineSignature(module, {ref(0)}, {ref(0)});
   }
 
-  ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
-                               kWasmS128};
-  ValueType ref_types[] = {kWasmExternRef, kWasmFuncRef, kWasmEqRef,
-                           kWasmI31Ref,    kWasmDataRef, kWasmAnyRef,
-                           optRef(0),      ref(0),       optRef(2),
-                           ref(2),         optRef(11),   ref(11)};
+  constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
+                                         kWasmS128};
+  constexpr ValueType ref_types[] = {
+      kWasmExternRef, kWasmFuncRef, kWasmEqRef, kWasmI31Ref, kWasmDataRef,
+      kWasmArrayRef,  kWasmAnyRef,  optRef(0),  ref(0),      optRef(2),
+      ref(2),         optRef(11),   ref(11)};
 
 #define SUBTYPE(type1, type2) \
   EXPECT_TRUE(IsSubtypeOf(type1, type2, module1, module))
@@ -112,9 +116,12 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                       ref_type != kWasmAnyRef && ref_type != optRef(11) &&
                       ref_type != ref(11));
       // Non-nullable struct/array types are subtypes of dataref.
-      SUBTYPE_IFF(
-          ref_type, kWasmDataRef,
-          ref_type == kWasmDataRef || ref_type == ref(0) || ref_type == ref(2));
+      SUBTYPE_IFF(ref_type, kWasmDataRef,
+                  ref_type == kWasmDataRef || ref_type == kWasmArrayRef ||
+                      ref_type == ref(0) || ref_type == ref(2));
+      // Non-nullable array types are subtypes of arrayref.
+      SUBTYPE_IFF(ref_type, kWasmArrayRef,
+                  ref_type == kWasmArrayRef || ref_type == ref(2));
       // Functions are subtypes of funcref.
       SUBTYPE_IFF(ref_type, kWasmFuncRef,
                   ref_type == kWasmFuncRef || ref_type == optRef(11) ||
@@ -128,8 +135,10 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     }
 
     // The rest of ref. types are unrelated.
-    for (ValueType type_1 : {kWasmExternRef, kWasmFuncRef, kWasmI31Ref}) {
-      for (ValueType type_2 : {kWasmExternRef, kWasmFuncRef, kWasmI31Ref}) {
+    for (ValueType type_1 :
+         {kWasmExternRef, kWasmFuncRef, kWasmI31Ref, kWasmArrayRef}) {
+      for (ValueType type_2 :
+           {kWasmExternRef, kWasmFuncRef, kWasmI31Ref, kWasmArrayRef}) {
         SUBTYPE_IFF(type_1, type_2, type_1 == type_2);
       }
     }

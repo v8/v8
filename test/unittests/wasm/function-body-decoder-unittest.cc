@@ -4071,6 +4071,9 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   ValueType reps_c_r[] = {kWasmFuncRef, array_type};
   ValueType reps_f_r[] = {kWasmF32, array_type};
   ValueType reps_i_r[] = {kWasmI32, array_type};
+  ValueType reps_i_a[] = {kWasmI32, kWasmArrayRef};
+  ValueType reps_i_s[] = {kWasmI32,
+                          ValueType::Ref(struct_type_index, kNonNullable)};
   const FunctionSig sig_c_r(1, 1, reps_c_r);
   const FunctionSig sig_v_r(0, 1, &array_type);
   const FunctionSig sig_v_r2(0, 1, &immutable_array_type);
@@ -4078,6 +4081,8 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   const FunctionSig sig_f_r(1, 1, reps_f_r);
   const FunctionSig sig_v_cr(0, 2, reps_c_r);
   const FunctionSig sig_i_r(1, 1, reps_i_r);
+  const FunctionSig sig_i_a(1, 1, reps_i_a);
+  const FunctionSig sig_i_s(1, 1, reps_i_s);
 
   /** array.new_with_rtt **/
   ExpectValidates(&sig_r_v,
@@ -4186,16 +4191,16 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       "array.set[2] expected type funcref, found i64.const of type i64");
 
   /** array.len **/
-  ExpectValidates(&sig_i_r,
-                  {WASM_ARRAY_LEN(array_type_index, WASM_LOCAL_GET(0))});
+  // Works both with conrete array types and arrayref.
+  ExpectValidates(&sig_i_r, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))});
+  ExpectValidates(&sig_i_a, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))});
   // Wrong return type.
-  ExpectFailure(&sig_f_r, {WASM_ARRAY_LEN(array_type_index, WASM_LOCAL_GET(0))},
-                kAppendEnd,
+  ExpectFailure(&sig_f_r, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))}, kAppendEnd,
                 "type error in fallthru[0] (expected f32, got i32)");
-  // Non-array type index.
-  ExpectFailure(&sig_i_r,
-                {WASM_ARRAY_LEN(struct_type_index, WASM_LOCAL_GET(0))},
-                kAppendEnd, "invalid array index: 1");
+  // Non-array argument.
+  ExpectFailure(&sig_i_s, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))}, kAppendEnd,
+                "array.len[0] expected type (ref null array), found local.get "
+                "of type (ref 1)");
 
   // Immutable array.
   // Allocating and reading is OK:

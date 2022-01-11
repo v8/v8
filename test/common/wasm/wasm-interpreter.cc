@@ -3170,6 +3170,7 @@ class WasmInterpreterInternals {
             case HeapType::kFunc:
             case HeapType::kEq:
             case HeapType::kData:
+            case HeapType::kArray:
             case HeapType::kI31:
             case HeapType::kAny: {
               Handle<Object> ref = value.to_ref();
@@ -3275,6 +3276,7 @@ class WasmInterpreterInternals {
             case HeapType::kFunc:
             case HeapType::kEq:
             case HeapType::kData:
+            case HeapType::kArray:
             case HeapType::kI31:
             case HeapType::kAny: {
               Handle<Object> ref(encoded_values->get(encoded_index++),

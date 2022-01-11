@@ -796,6 +796,9 @@ Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
       case wasm::HeapType::kData:
         generic_name = "data";
         break;
+      case wasm::HeapType::kArray:
+        generic_name = "array";
+        break;
       case wasm::HeapType::kAny:
         generic_name = "any";
         break;

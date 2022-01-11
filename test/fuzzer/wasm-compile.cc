@@ -2138,6 +2138,20 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       }
       return;
     }
+    case HeapType::kArray: {
+      DCHECK(liftoff_as_reference_);
+      constexpr uint8_t fallback_to_dataref = 1;
+      uint8_t random =
+          data->get<uint8_t>() % (num_arrays_ + fallback_to_dataref);
+      // Try generating one of the alternatives and continue to the rest of the
+      // methods in case it fails.
+      if (random >= num_arrays_) {
+        if (GenerateOneOf(alternatives_other, type, data, nullability)) return;
+        random = data->get<uint8_t>() % num_arrays_;
+      }
+      GenerateRef(HeapType(random), data, nullability);
+      return;
+    }
     case HeapType::kData: {
       DCHECK(liftoff_as_reference_);
       constexpr uint8_t fallback_to_dataref = 2;

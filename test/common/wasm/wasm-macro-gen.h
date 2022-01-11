@@ -564,8 +564,8 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   array, index, WASM_GC_OP(kExprArrayGetS), static_cast<byte>(typeidx)
 #define WASM_ARRAY_SET(typeidx, array, index, value) \
   array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
-#define WASM_ARRAY_LEN(typeidx, array) \
-  array, WASM_GC_OP(kExprArrayLen), static_cast<byte>(typeidx)
+#define WASM_ARRAY_LEN(array) \
+  array, WASM_GC_OP(kExprArrayLen), /* dummy index */ 0
 #define WASM_ARRAY_COPY(dst_idx, src_idx, dst_array, dst_index, src_array, \
                         src_index, length)                                 \
   dst_array, dst_index, src_array, src_index, length,                      \

@@ -231,6 +231,8 @@ std::string ValueTypeToConstantName(ValueType type) {
           return "kWasmAnyRef";
         case HeapType::kData:
           return "wasmOptRefType(kWasmDataRef)";
+        case HeapType::kArray:
+          return "wasmOptRefType(kWasmArrayRef)";
         case HeapType::kI31:
           return "wasmOptRefType(kWasmI31Ref)";
         case HeapType::kBottom:
@@ -249,6 +251,8 @@ std::string ValueTypeToConstantName(ValueType type) {
           return "wasmRefType(kWasmAnyRef)";
         case HeapType::kData:
           return "wasmRefType(kWasmDataRef)";
+        case HeapType::kArray:
+          return "wasmRefType(kWasmArrayRef)";
         case HeapType::kI31:
           return "wasmRefType(kWasmI31Ref)";
         case HeapType::kBottom:
@@ -272,6 +276,8 @@ std::string HeapTypeToConstantName(HeapType heap_type) {
       return "kWasmI31Ref";
     case HeapType::kData:
       return "kWasmDataRef";
+    case HeapType::kArray:
+      return "kWasmArrayRef";
     case HeapType::kAny:
       return "kWasmAnyRef";
     case HeapType::kBottom:

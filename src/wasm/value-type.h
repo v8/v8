@@ -66,6 +66,7 @@ class HeapType {
     kEq,                      // shorthand: q
     kI31,                     // shorthand: j
     kData,                    // shorthand: o
+    kArray,                   // shorthand: g
     kAny,                     // shorthand: a
     // This value is used to represent failures in the parsing of heap types and
     // does not correspond to a wasm heap type.
@@ -90,6 +91,8 @@ class HeapType {
         return HeapType(kAny);
       case ValueTypeCode::kDataRefCode:
         return HeapType(kData);
+      case ValueTypeCode::kArrayRefCode:
+        return HeapType(kArray);
       default:
         return HeapType(kBottom);
     }
@@ -142,6 +145,8 @@ class HeapType {
         return std::string("i31");
       case kData:
         return std::string("data");
+      case kArray:
+        return std::string("array");
       case kAny:
         return std::string("any");
       default:
@@ -165,6 +170,8 @@ class HeapType {
         return mask | kI31RefCode;
       case kData:
         return mask | kDataRefCode;
+      case kArray:
+        return mask | kArrayRefCode;
       case kAny:
         return mask | kAnyRefCode;
       default:
@@ -470,6 +477,8 @@ class ValueType {
             return kI31RefCode;
           case HeapType::kData:
             return kDataRefCode;
+          case HeapType::kArray:
+            return kArrayRefCode;
           default:
             return kRefCode;
         }
@@ -493,11 +502,19 @@ class ValueType {
   // Returns true iff the heap type is needed to encode this type in the wasm
   // binary format, taking into account available type shorthands.
   constexpr bool encoding_needs_heap_type() const {
-    return (kind() == kRef && heap_representation() != HeapType::kI31 &&
-            heap_representation() != HeapType::kData) ||
-           (kind() == kOptRef && (heap_type().is_index() ||
-                                  heap_representation() == HeapType::kI31 ||
-                                  heap_representation() == HeapType::kData));
+    switch (kind()) {
+      case kRef:
+        return heap_representation() != HeapType::kI31 &&
+               heap_representation() != HeapType::kArray &&
+               heap_representation() != HeapType::kData;
+      case kOptRef:
+        return heap_representation() != HeapType::kFunc &&
+               heap_representation() != HeapType::kExtern &&
+               heap_representation() != HeapType::kEq &&
+               heap_representation() != HeapType::kAny;
+      default:
+        return false;
+    }
   }
 
   static constexpr int kLastUsedBit = 30;
@@ -588,6 +605,8 @@ constexpr ValueType kWasmEqRef = ValueType::Ref(HeapType::kEq, kNullable);
 constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31, kNonNullable);
 constexpr ValueType kWasmDataRef =
     ValueType::Ref(HeapType::kData, kNonNullable);
+constexpr ValueType kWasmArrayRef =
+    ValueType::Ref(HeapType::kArray, kNonNullable);
 constexpr ValueType kWasmAnyRef = ValueType::Ref(HeapType::kAny, kNullable);
 
 // This is used in wasm.tq.

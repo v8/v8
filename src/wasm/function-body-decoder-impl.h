@@ -203,6 +203,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
       case kEqRefCode:
       case kI31RefCode:
       case kDataRefCode:
+      case kArrayRefCode:
       case kAnyRefCode:
         if (!VALIDATE(enabled.has_gc())) {
           DecodeError<validate>(
@@ -269,6 +270,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kEqRefCode:
     case kI31RefCode:
     case kDataRefCode:
+    case kArrayRefCode:
     case kAnyRefCode:
       if (!VALIDATE(enabled.has_gc())) {
         DecodeError<validate>(
@@ -281,9 +283,10 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kExternRefCode:
     case kFuncRefCode: {
       HeapType heap_type = HeapType::from_code(code);
-      Nullability nullability = code == kI31RefCode || code == kDataRefCode
-                                    ? kNonNullable
-                                    : kNullable;
+      Nullability nullability =
+          code == kI31RefCode || code == kDataRefCode || code == kArrayRefCode
+              ? kNonNullable
+              : kNullable;
       return ValueType::Ref(heap_type, nullability);
     }
     case kI32Code:
@@ -4312,9 +4315,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       case kExprArrayLen: {
         NON_CONST_ONLY
+        // Read but ignore an immediate array type index.
+        // TODO(7748): Remove this once we are ready to make breaking changes.
         ArrayIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
-        if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        Value array_obj = Peek(0, 0, ValueType::Ref(imm.index, kNullable));
+        Value array_obj =
+            Peek(0, 0, ValueType::Ref(HeapType::kArray, kNullable));
         Value value = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayLen, array_obj, &value);
         Drop(array_obj);

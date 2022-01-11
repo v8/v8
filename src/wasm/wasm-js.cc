@@ -1528,6 +1528,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
         case i::wasm::HeapType::kEq:
         case internal::wasm::HeapType::kI31:
         case internal::wasm::HeapType::kData:
+        case internal::wasm::HeapType::kArray:
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();
@@ -1719,6 +1720,7 @@ void EncodeExceptionValues(v8::Isolate* isolate,
           case i::wasm::HeapType::kEq:
           case i::wasm::HeapType::kI31:
           case i::wasm::HeapType::kData:
+          case i::wasm::HeapType::kArray:
             values_out->set(index++, *Utils::OpenHandle(*value));
             break;
           case internal::wasm::HeapType::kBottom:
@@ -2272,6 +2274,7 @@ void WebAssemblyExceptionGetArg(
           case i::wasm::HeapType::kEq:
           case i::wasm::HeapType::kI31:
           case i::wasm::HeapType::kData:
+          case i::wasm::HeapType::kArray:
             decode_index++;
             break;
           case i::wasm::HeapType::kBottom:
@@ -2330,6 +2333,7 @@ void WebAssemblyExceptionGetArg(
         case i::wasm::HeapType::kAny:
         case i::wasm::HeapType::kEq:
         case i::wasm::HeapType::kI31:
+        case i::wasm::HeapType::kArray:
         case i::wasm::HeapType::kData: {
           auto obj = values->get(decode_index);
           result = Utils::ToLocal(i::Handle<i::Object>(obj, i_isolate));
@@ -2410,10 +2414,10 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kOptRef:
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kExtern:
+        case i::wasm::HeapType::kAny:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
-        case i::wasm::HeapType::kFunc:
-        case i::wasm::HeapType::kAny: {
+        case i::wasm::HeapType::kFunc: {
           i::Handle<i::Object> result = receiver->GetRef();
           if (result->IsWasmInternalFunction()) {
             result = handle(
@@ -2423,10 +2427,11 @@ void WebAssemblyGlobalGetValueCommon(
           return_value.Set(Utils::ToLocal(result));
           break;
         }
-        case internal::wasm::HeapType::kBottom:
+        case i::wasm::HeapType::kBottom:
           UNREACHABLE();
-        case internal::wasm::HeapType::kI31:
-        case internal::wasm::HeapType::kData:
+        case i::wasm::HeapType::kI31:
+        case i::wasm::HeapType::kData:
+        case i::wasm::HeapType::kArray:
         case i::wasm::HeapType::kEq:
         default:
           // TODO(7748): Implement these.
@@ -2517,10 +2522,11 @@ void WebAssemblyGlobalSetValue(
           }
           break;
         }
-        case internal::wasm::HeapType::kBottom:
+        case i::wasm::HeapType::kBottom:
           UNREACHABLE();
-        case internal::wasm::HeapType::kI31:
-        case internal::wasm::HeapType::kData:
+        case i::wasm::HeapType::kI31:
+        case i::wasm::HeapType::kData:
+        case i::wasm::HeapType::kArray:
         case i::wasm::HeapType::kEq:
         default:
           // TODO(7748): Implement these.
