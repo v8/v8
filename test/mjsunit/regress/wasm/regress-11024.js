@@ -5,7 +5,6 @@
 // The test needs --no-liftoff because we can't serialize and deserialize
 // Liftoff code.
 // Flags: --expose-wasm --allow-natives-syntax --expose-gc --no-liftoff
-// Flags: --no-wasm-dynamic-tiering
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

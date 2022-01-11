@@ -1084,6 +1084,11 @@
   # in the module, that can be modified by all instances.
   'wasm/wasm-dynamic-tiering': [SKIP],
 
+  # The test relies on precise switching of code kinds of wasm functions. With
+  # multiple isolates that share the wasm functions, the precise switching is
+  # not possible.
+  'wasm/serialization-with-compilation-hints': [SKIP],
+
   # waitAsync tests modify the global state (across Isolates)
   'harmony/atomics-waitasync': [SKIP],
   'harmony/atomics-waitasync-1thread-2timeout': [SKIP],
