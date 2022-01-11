@@ -18,6 +18,7 @@ namespace internal {
   T(DebuggerLoading, "Error loading debugger")                                 \
   T(DefaultOptionsMissing, "Internal % error. Default options are missing.")   \
   T(DeletePrivateField, "Private fields can not be deleted")                   \
+  T(PlaceholderOnly, "%")                                                      \
   T(UncaughtException, "Uncaught %")                                           \
   T(Unsupported, "Not supported")                                              \
   T(WrongServiceType, "Internal error, wrong service type: %")                 \

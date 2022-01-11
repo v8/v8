@@ -284,6 +284,9 @@ Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
                                           ConsoleDelegate* delegate);
 
+V8_EXPORT_PRIVATE v8::Local<v8::Message> CreateMessageFromException(
+    Isolate* isolate, v8::Local<v8::Value> error);
+
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.
  */

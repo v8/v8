@@ -992,13 +992,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool ComputeLocation(MessageLocation* target);
   bool ComputeLocationFromException(MessageLocation* target,
                                     Handle<Object> exception);
-  bool ComputeLocationFromStackTrace(MessageLocation* target,
-                                     Handle<Object> exception);
+  bool ComputeLocationFromSimpleStackTrace(MessageLocation* target,
+                                           Handle<Object> exception);
+  bool ComputeLocationFromDetailedStackTrace(MessageLocation* target,
+                                             Handle<Object> exception);
 
   Handle<JSMessageObject> CreateMessage(Handle<Object> exception,
                                         MessageLocation* location);
   Handle<JSMessageObject> CreateMessageOrAbort(Handle<Object> exception,
                                                MessageLocation* location);
+  // Similar to Isolate::CreateMessage but DOESN'T inspect the JS stack and
+  // only looks at the "detailed stack trace" as the "simple stack trace" might
+  // have already been stringified.
+  Handle<JSMessageObject> CreateMessageFromException(Handle<Object> exception);
 
   // Out of resource exception helpers.
   Object StackOverflow();

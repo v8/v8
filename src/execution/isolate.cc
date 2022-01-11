@@ -2326,8 +2326,8 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
   return true;
 }
 
-bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
-                                            Handle<Object> exception) {
+bool Isolate::ComputeLocationFromSimpleStackTrace(MessageLocation* target,
+                                                  Handle<Object> exception) {
   if (!exception->IsJSReceiver()) {
     return false;
   }
@@ -2341,6 +2341,23 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
     }
   }
   return false;
+}
+
+bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
+                                                    Handle<Object> exception) {
+  if (!exception->IsJSReceiver()) return false;
+
+  Handle<FixedArray> stack_frame_infos =
+      GetDetailedStackTrace(Handle<JSReceiver>::cast(exception));
+  if (stack_frame_infos.is_null() || stack_frame_infos->length() == 0) {
+    return false;
+  }
+
+  Handle<StackFrameInfo> info(StackFrameInfo::cast(stack_frame_infos->get(0)),
+                              this);
+  const int pos = StackFrameInfo::GetSourcePosition(info);
+  *target = MessageLocation(handle(info->script(), this), pos, pos + 1);
+  return true;
 }
 
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
@@ -2365,13 +2382,33 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
   MessageLocation computed_location;
   if (location == nullptr &&
       (ComputeLocationFromException(&computed_location, exception) ||
-       ComputeLocationFromStackTrace(&computed_location, exception) ||
+       ComputeLocationFromSimpleStackTrace(&computed_location, exception) ||
        ComputeLocation(&computed_location))) {
     location = &computed_location;
   }
 
   return MessageHandler::MakeMessageObject(
       this, MessageTemplate::kUncaughtException, location, exception,
+      stack_trace_object);
+}
+
+Handle<JSMessageObject> Isolate::CreateMessageFromException(
+    Handle<Object> exception) {
+  Handle<FixedArray> stack_trace_object;
+  if (exception->IsJSError()) {
+    stack_trace_object =
+        GetDetailedStackTrace(Handle<JSObject>::cast(exception));
+  }
+
+  MessageLocation* location = nullptr;
+  MessageLocation computed_location;
+  if (ComputeLocationFromException(&computed_location, exception) ||
+      ComputeLocationFromDetailedStackTrace(&computed_location, exception)) {
+    location = &computed_location;
+  }
+
+  return MessageHandler::MakeMessageObject(
+      this, MessageTemplate::kPlaceholderOnly, location, exception,
       stack_trace_object);
 }
 

@@ -91,7 +91,7 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
                           const ExceptionInfo& topLocation,
                           const v8::Local<v8::StackFrame> stackFrame) {
   MessageLocation loc;
-  CHECK(i_isolate->ComputeLocationFromStackTrace(&loc, exc));
+  CHECK(i_isolate->ComputeLocationFromSimpleStackTrace(&loc, exc));
   printf("loc start: %d, end: %d\n", loc.start_pos(), loc.end_pos());
   Handle<JSMessageObject> message = i_isolate->CreateMessage(exc, nullptr);
   printf("msg start: %d, end: %d, line: %d, col: %d\n",
