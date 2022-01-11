@@ -43,8 +43,6 @@ TO_BE_IMPLEMENTED(TemporalNowPlainTimeISO)
 TO_BE_IMPLEMENTED(TemporalPlainDateFrom)
 /* Temporal #sec-temporal.plaindate.compare */
 TO_BE_IMPLEMENTED(TemporalPlainDateCompare)
-/* Temporal #sec-get-temporal.plaindate.prototype.calendar */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeCalendar)
 /* Temporal #sec-get-temporal.plaindate.prototype.year */
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeYear)
 /* Temporal #sec-get-temporal.plaindate.prototype.month */
@@ -101,8 +99,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToJSON)
 TO_BE_IMPLEMENTED(TemporalPlainTimeFrom)
 /* Temporal #sec-temporal.plaintime.compare */
 TO_BE_IMPLEMENTED(TemporalPlainTimeCompare)
-/* Temporal #sec-get-temporal.plaintime.prototype.calendar */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeCalendar)
 /* Temporal #sec-get-temporal.plaintime.prototype.hour */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeHour)
 /* Temporal #sec-get-temporal.plaintime.prototype.minute */
@@ -143,8 +139,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToJSON)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimeFrom)
 /* Temporal #sec-temporal.plaindatetime.compare */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimeCompare)
-/* Temporal #sec-get-temporal.plaindatetime.prototype.calendar */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeCalendar)
 /* Temporal #sec-get-temporal.plaindatetime.prototype.year */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeYear)
 /* Temporal #sec-get-temporal.plaindatetime.prototype.month */
@@ -221,10 +215,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToPlainTime)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimeFrom)
 /* Temporal #sec-temporal.zoneddatetime.compare */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimeCompare)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.calendar */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeCalendar)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.timezone */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeTimeZone)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.year */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeYear)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.month */
@@ -251,8 +241,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEpochSeconds)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEpochMilliseconds)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.epochmicroseconds */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEpochMicroseconds)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.epochnanoseconds */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEpochNanoseconds)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofweek */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDayOfWeek)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofyear */
@@ -359,8 +347,6 @@ TO_BE_IMPLEMENTED(TemporalInstantPrototypeEpochSeconds)
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeEpochMilliseconds)
 /* Temporal #sec-get-temporal.instant.prototype.epochmicroseconds */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeEpochMicroseconds)
-/* Temporal #sec-get-temporal.instant.prototype.epochnanoseconds */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeEpochNanoseconds)
 /* Temporal #sec-temporal.instant.prototype.add */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeAdd)
 /* Temporal #sec-temporal.instant.prototype.subtract */
@@ -387,8 +373,6 @@ TO_BE_IMPLEMENTED(TemporalInstantPrototypeToZonedDateTimeISO)
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthFrom)
 /* Temporal #sec-temporal.plainyearmonth.compare */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthCompare)
-/* Temporal #sec-get-temporal.plainyearmonth.prototype.calendar */
-TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeCalendar)
 /* Temporal #sec-get-temporal.plainyearmonth.prototype.year */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeYear)
 /* Temporal #sec-get-temporal.plainyearmonth.prototype.month */
@@ -429,8 +413,6 @@ TO_BE_IMPLEMENTED(TemporalPlainMonthDayFrom)
 /* There is no compare for PlainMonthDay. See
  * https://github.com/tc39/proposal-temporal/issues/1547 */
 
-/* Temporal #sec-get-temporal.plainmonthday.prototype.calendar */
-TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeCalendar)
 /* Temporal #sec-get-temporal.plainmonthday.prototype.monthcode */
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeMonthCode)
 /* Temporal #sec-get-temporal.plainmonthday.prototype.day */
@@ -621,6 +603,15 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
     return obj->field();                                          \
   }
 
+#define TEMPORAL_GET_NO_NEG_ZERO(T, METHOD, field)                \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                       \
+    HandleScope scope(isolate);                                   \
+    const char* method = "get Temporal." #T ".prototype." #field; \
+    CHECK_RECEIVER(JSTemporal##T, obj, method);                   \
+    if (obj->field().IsMinusZero()) return Smi::zero();           \
+    return obj->field();                                          \
+  }
+
 // PlainDate
 BUILTIN(TemporalPlainDateConstructor) {
   HandleScope scope(isolate);
@@ -632,6 +623,7 @@ BUILTIN(TemporalPlainDateConstructor) {
                    args.atOrUndefined(isolate, 3),    // iso_day
                    args.atOrUndefined(isolate, 4)));  // calendar_like
 }
+TEMPORAL_GET(PlainDate, Calendar, calendar)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainDate)
 
@@ -648,6 +640,7 @@ BUILTIN(TemporalPlainTimeConstructor) {
                                args.atOrUndefined(isolate, 5),    // microsecond
                                args.atOrUndefined(isolate, 6)));  // nanosecond
 }
+TEMPORAL_GET(PlainTime, Calendar, calendar)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainTime)
 
@@ -668,6 +661,7 @@ BUILTIN(TemporalPlainDateTimeConstructor) {
                    args.atOrUndefined(isolate, 9),     // nanosecond
                    args.atOrUndefined(isolate, 10)));  // calendar_like
 }
+TEMPORAL_GET(PlainDateTime, Calendar, calendar)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainDateTime)
 
@@ -682,6 +676,7 @@ BUILTIN(TemporalPlainYearMonthConstructor) {
                    args.atOrUndefined(isolate, 3),    // calendar_like
                    args.atOrUndefined(isolate, 4)));  // reference_iso_day
 }
+TEMPORAL_GET(PlainYearMonth, Calendar, calendar)
 TEMPORAL_PROTOTYPE_METHOD0(PlainYearMonth, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainYearMonth)
 
@@ -696,6 +691,7 @@ BUILTIN(TemporalPlainMonthDayConstructor) {
                    args.atOrUndefined(isolate, 3),    // calendar_like
                    args.atOrUndefined(isolate, 4)));  // reference_iso_year
 }
+TEMPORAL_GET(PlainMonthDay, Calendar, calendar)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainMonthDay)
 
@@ -710,6 +706,9 @@ BUILTIN(TemporalZonedDateTimeConstructor) {
                    args.atOrUndefined(isolate, 2),    // time_zone_like
                    args.atOrUndefined(isolate, 3)));  // calendar_like
 }
+TEMPORAL_GET(ZonedDateTime, Calendar, calendar)
+TEMPORAL_GET(ZonedDateTime, TimeZone, time_zone)
+TEMPORAL_GET(ZonedDateTime, EpochNanoseconds, nanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(ZonedDateTime)
 
@@ -730,16 +729,16 @@ BUILTIN(TemporalDurationConstructor) {
                    args.atOrUndefined(isolate, 9),     // microseconds
                    args.atOrUndefined(isolate, 10)));  // nanoseconds
 }
-TEMPORAL_GET(Duration, Years, years)
-TEMPORAL_GET(Duration, Months, months)
-TEMPORAL_GET(Duration, Weeks, weeks)
-TEMPORAL_GET(Duration, Days, days)
-TEMPORAL_GET(Duration, Hours, hours)
-TEMPORAL_GET(Duration, Minutes, minutes)
-TEMPORAL_GET(Duration, Seconds, seconds)
-TEMPORAL_GET(Duration, Milliseconds, milliseconds)
-TEMPORAL_GET(Duration, Microseconds, microseconds)
-TEMPORAL_GET(Duration, Nanoseconds, nanoseconds)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Years, years)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Months, months)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Weeks, weeks)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Days, days)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Hours, hours)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Minutes, minutes)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Seconds, seconds)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Milliseconds, milliseconds)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Microseconds, microseconds)
+TEMPORAL_GET_NO_NEG_ZERO(Duration, Nanoseconds, nanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Sign, sign)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Blank, blank)
 TEMPORAL_VALUE_OF(Duration)
@@ -747,6 +746,7 @@ TEMPORAL_VALUE_OF(Duration)
 // Instant
 TEMPORAL_CONSTRUCTOR1(Instant)
 TEMPORAL_VALUE_OF(Instant)
+TEMPORAL_GET(Instant, EpochNanoseconds, nanoseconds)
 
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
