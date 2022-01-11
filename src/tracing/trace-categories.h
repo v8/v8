@@ -54,7 +54,9 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats")),
     perfetto::Category::Group("v8,devtools.timeline"),
     perfetto::Category::Group(TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","
-                              TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan")));
+                              TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan")),
+    perfetto::Category::Group(TRACE_DISABLED_BY_DEFAULT("v8.inspector") ","
+                              TRACE_DISABLED_BY_DEFAULT("v8.stack_trace")));
 // clang-format on
 
 #endif  // defined(V8_USE_PERFETTO)
