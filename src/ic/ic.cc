@@ -3016,7 +3016,8 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
     StoreOwnElement(isolate, Handle<JSArray>::cast(object), key, value);
     return *value;
   } else {
-    DCHECK(IsKeyedStoreICKind(kind) || IsStoreICKind(kind));
+    DCHECK(IsKeyedStoreICKind(kind) || IsStoreICKind(kind) ||
+           IsKeyedDefineOwnICKind(kind));
     RETURN_RESULT_OR_FAILURE(
         isolate, Runtime::SetObjectProperty(isolate, object, key, value,
                                             StoreOrigin::kMaybeKeyed));
