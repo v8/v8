@@ -68,7 +68,6 @@
   'temporal/duration-from': [FAIL],
   'temporal/duration-negated': [FAIL],
   'temporal/duration-to-json': [FAIL],
-  'temporal/duration-valueOf': [FAIL],
   'temporal/duration-with': [FAIL],
   'temporal/instant-add': [FAIL],
   'temporal/instant-compare': [FAIL],

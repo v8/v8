@@ -85,6 +85,7 @@ namespace internal {
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property %, object is not extensible")    \
   T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
+  T(DoNotUse, "Do not use %; %")                                               \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueNotConstructor,                                                \
     "Class extends value % is not a constructor or null")                      \
