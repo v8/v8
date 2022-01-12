@@ -1106,6 +1106,21 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
                         Register src2, uint8_t imm_lane_idx);
 
+#define SIMD_UNOP_LIST(V) \
+  V(F64x2Abs)             \
+  V(F64x2Neg)             \
+  V(F64x2Sqrt)            \
+  V(F64x2Ceil)            \
+  V(F64x2Floor)           \
+  V(F64x2Trunc)           \
+  V(F64x2NearestInt)
+
+#define PROTOTYPE_SIMD_UNOP(name) \
+  void name(Simd128Register dst, Simd128Register src);
+  SIMD_UNOP_LIST(PROTOTYPE_SIMD_UNOP)
+#undef PROTOTYPE_SIMD_UNOP
+#undef SIMD_UNOP_LIST
+
 #define SIMD_BINOP_LIST(V)      \
   V(F64x2Add, Simd128Register)  \
   V(F64x2Sub, Simd128Register)  \

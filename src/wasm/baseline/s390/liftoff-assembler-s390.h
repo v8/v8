@@ -2376,18 +2376,26 @@ SIMD_BINOP_RI_LIST(EMIT_SIMD_BINOP_RI)
 #undef EMIT_SIMD_BINOP_RI
 #undef SIMD_BINOP_RI_LIST
 
-#define SIMD_UNOP_LIST(V)            \
-  V(f64x2_splat, F64x2Splat, fp, fp) \
-  V(f32x4_splat, F32x4Splat, fp, fp) \
-  V(i64x2_splat, I64x2Splat, fp, gp) \
-  V(i32x4_splat, I32x4Splat, fp, gp) \
-  V(i16x8_splat, I16x8Splat, fp, gp) \
-  V(i8x16_splat, I8x16Splat, fp, gp)
+#define SIMD_UNOP_LIST(V)                        \
+  V(f64x2_splat, F64x2Splat, fp, fp, , void)     \
+  V(f32x4_splat, F32x4Splat, fp, fp, , void)     \
+  V(i64x2_splat, I64x2Splat, fp, gp, , void)     \
+  V(i32x4_splat, I32x4Splat, fp, gp, , void)     \
+  V(i16x8_splat, I16x8Splat, fp, gp, , void)     \
+  V(i8x16_splat, I8x16Splat, fp, gp, , void)     \
+  V(f64x2_abs, F64x2Abs, fp, fp, , void)         \
+  V(f64x2_neg, F64x2Neg, fp, fp, , void)         \
+  V(f64x2_sqrt, F64x2Sqrt, fp, fp, , void)       \
+  V(f64x2_ceil, F64x2Ceil, fp, fp, true, bool)   \
+  V(f64x2_floor, F64x2Floor, fp, fp, true, bool) \
+  V(f64x2_trunc, F64x2Trunc, fp, fp, true, bool) \
+  V(f64x2_nearest_int, F64x2NearestInt, fp, fp, true, bool)
 
-#define EMIT_SIMD_UNOP(name, op, dtype, stype)              \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst,   \
-                                     LiftoffRegister src) { \
-    op(dst.dtype(), src.stype());                           \
+#define EMIT_SIMD_UNOP(name, op, dtype, stype, return_val, return_type) \
+  return_type LiftoffAssembler::emit_##name(LiftoffRegister dst,        \
+                                            LiftoffRegister src) {      \
+    op(dst.dtype(), src.stype());                                       \
+    return return_val;                                                  \
   }
 SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
 #undef EMIT_SIMD_UNOP
@@ -2456,45 +2464,6 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                                           LiftoffRegister lhs,
                                           LiftoffRegister rhs) {
   bailout(kUnsupportedArchitecture, "emit_i8x16_swizzle");
-}
-
-void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_f64x2_abs");
-}
-
-void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_f64x2neg");
-}
-
-void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,
-                                       LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_f64x2sqrt");
-}
-
-bool LiftoffAssembler::emit_f64x2_ceil(LiftoffRegister dst,
-                                       LiftoffRegister src) {
-  bailout(kSimd, "f64x2.ceil");
-  return true;
-}
-
-bool LiftoffAssembler::emit_f64x2_floor(LiftoffRegister dst,
-                                        LiftoffRegister src) {
-  bailout(kSimd, "f64x2.floor");
-  return true;
-}
-
-bool LiftoffAssembler::emit_f64x2_trunc(LiftoffRegister dst,
-                                        LiftoffRegister src) {
-  bailout(kSimd, "f64x2.trunc");
-  return true;
-}
-
-bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
-                                              LiftoffRegister src) {
-  bailout(kSimd, "f64x2.nearest_int");
-  return true;
 }
 
 void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
