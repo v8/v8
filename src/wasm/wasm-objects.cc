@@ -106,7 +106,6 @@ size_t EstimateNativeAllocationsSize(const WasmModule* module) {
 enum DispatchTableElements : int {
   kDispatchTableInstanceOffset,
   kDispatchTableIndexOffset,
-  kDispatchTableFunctionTableOffset,
   // Marker:
   kDispatchTableNumElements
 };

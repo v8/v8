@@ -44,20 +44,12 @@ class InitExprInterface {
   using FullDecoder =
       WasmFullDecoder<validate, InitExprInterface, decoding_mode>;
 
-  // Controls how function references are computed. {kLazyFunctions} means that
-  // only the index of the function will be computed, as a Smi.
-  // {kStrictFunctions} means we fully compute the function reference through
-  // {WasmInstanceObject::GetOrCreateWasmInternalFunction}.
-  enum FunctionStrictness { kLazyFunctions, kStrictFunctions };
-
   InitExprInterface(const WasmModule* module, Isolate* isolate,
-                    Handle<WasmInstanceObject> instance,
-                    FunctionStrictness function_strictness)
+                    Handle<WasmInstanceObject> instance)
       : module_(module),
         outer_module_(nullptr),
         isolate_(isolate),
-        instance_(instance),
-        function_strictness_(function_strictness) {
+        instance_(instance) {
     DCHECK_NOT_NULL(isolate);
   }
 
@@ -91,7 +83,6 @@ class InitExprInterface {
   WasmModule* outer_module_;
   Isolate* isolate_;
   Handle<WasmInstanceObject> instance_;
-  FunctionStrictness function_strictness_;
 };
 
 }  // namespace wasm

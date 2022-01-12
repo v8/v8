@@ -58,15 +58,10 @@ void InitExprInterface::RefFunc(FullDecoder* decoder, uint32_t function_index,
   }
   ValueType type = ValueType::Ref(module_->functions[function_index].sig_index,
                                   kNonNullable);
-  if (function_strictness_ == kStrictFunctions) {
-    Handle<WasmInternalFunction> internal =
-        WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate_, instance_,
-                                                            function_index);
-    result->runtime_value = WasmValue(internal, type);
-  } else {
-    result->runtime_value =
-        WasmValue(handle(Smi::FromInt(function_index), isolate_), type);
-  }
+  Handle<WasmInternalFunction> internal =
+      WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate_, instance_,
+                                                          function_index);
+  result->runtime_value = WasmValue(internal, type);
 }
 
 void InitExprInterface::GlobalGet(FullDecoder* decoder, Value* result,

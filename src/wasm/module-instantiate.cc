@@ -936,11 +936,9 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   return true;
 }
 
-WasmValue EvaluateInitExpression(
-    Zone* zone, ConstantExpression expr, ValueType expected, Isolate* isolate,
-    Handle<WasmInstanceObject> instance,
-    InitExprInterface::FunctionStrictness function_strictness =
-        InitExprInterface::kStrictFunctions) {
+V8_INLINE WasmValue
+EvaluateInitExpression(Zone* zone, ConstantExpression expr, ValueType expected,
+                       Isolate* isolate, Handle<WasmInstanceObject> instance) {
   switch (expr.kind()) {
     case ConstantExpression::kEmpty:
       UNREACHABLE();
@@ -952,11 +950,8 @@ WasmValue EvaluateInitExpression(
     case ConstantExpression::kRefFunc: {
       uint32_t index = expr.index();
       Handle<Object> value =
-          function_strictness == InitExprInterface::kLazyFunctions
-              ? Handle<Object>(Smi::FromInt(index), isolate)
-              : Handle<Object>::cast(
-                    WasmInstanceObject::GetOrCreateWasmInternalFunction(
-                        isolate, instance, index));
+          WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
+                                                              index);
       return WasmValue(value, expected);
     }
     case ConstantExpression::kWireBytesRef: {
@@ -977,8 +972,7 @@ WasmValue EvaluateInitExpression(
       WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
                       kInitExpression>
           decoder(zone, instance->module(), WasmFeatures::All(), &detected,
-                  body, instance->module(), isolate, instance,
-                  function_strictness);
+                  body, instance->module(), isolate, instance);
 
       decoder.DecodeFunctionBody();
 
@@ -1943,37 +1937,34 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
 }
 
 namespace {
-void SetTableEntry(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                   Handle<WasmTableObject> table_object, uint32_t table_index,
-                   uint32_t entry_index, Handle<Object> entry) {
+V8_INLINE void SetFunctionTablePlaceholder(Isolate* isolate,
+                                           Handle<WasmInstanceObject> instance,
+                                           Handle<WasmTableObject> table_object,
+                                           uint32_t entry_index,
+                                           uint32_t func_index) {
   const WasmModule* module = instance->module();
-  if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module) &&
-      entry->IsSmi()) {
-    // We might get a Smi entry for a function table, representing the
-    // function's index. In this case, we need to initialize the table with a
-    // placeholder if the function has not been initialized.
-    const uint32_t func_index = entry->ToSmi().value();
-    const WasmFunction* function = &module->functions[func_index];
-
-    MaybeHandle<WasmInternalFunction> wasm_internal_function =
-        WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
-                                                    func_index);
-    if (wasm_internal_function.is_null()) {
-      // No JSFunction entry yet exists for this function. Create a {Tuple2}
-      // holding the information to lazily allocate one.
-      WasmTableObject::SetFunctionTablePlaceholder(
-          isolate, table_object, entry_index, instance, func_index);
-    } else {
-      table_object->entries().set(entry_index,
-                                  *wasm_internal_function.ToHandleChecked());
-    }
-
-    WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
-                                          function->sig, instance, func_index);
+  const WasmFunction* function = &module->functions[func_index];
+  MaybeHandle<WasmInternalFunction> wasm_internal_function =
+      WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
+                                                  func_index);
+  if (wasm_internal_function.is_null()) {
+    // No JSFunction entry yet exists for this function. Create a {Tuple2}
+    // holding the information to lazily allocate one.
+    WasmTableObject::SetFunctionTablePlaceholder(
+        isolate, table_object, entry_index, instance, func_index);
   } else {
-    // In all other cases, simply call {WasmTableObject::Set}.
-    WasmTableObject::Set(isolate, table_object, entry_index, entry);
+    table_object->entries().set(entry_index,
+                                *wasm_internal_function.ToHandleChecked());
   }
+  WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
+                                        function->sig, instance, func_index);
+}
+
+V8_INLINE void SetFunctionTableNullEntry(Isolate* isolate,
+                                         Handle<WasmTableObject> table_object,
+                                         uint32_t entry_index) {
+  table_object->entries().set(entry_index, *isolate->factory()->null_value());
+  WasmTableObject::ClearDispatchTables(isolate, table_object, entry_index);
 }
 }  // namespace
 
@@ -1985,21 +1976,32 @@ void InstanceBuilder::InitializeNonDefaultableTables(
     if (!table.type.is_defaultable()) {
       auto table_object = handle(
           WasmTableObject::cast(instance->tables().get(table_index)), isolate_);
-      Handle<Object> value =
-          EvaluateInitExpression(&init_expr_zone_, table.initial_value,
-                                 table.type, isolate_, instance,
-                                 IsSubtypeOf(table_object->type(), kWasmFuncRef,
-                                             instance->module())
-                                     ? InitExprInterface::kLazyFunctions
-                                     : InitExprInterface::kStrictFunctions)
-              .to_ref();
-      for (uint32_t entry_index = 0; entry_index < table.initial_size;
-           entry_index++) {
-        SetTableEntry(isolate_, instance, table_object, table_index,
-                      entry_index, value);
+      bool is_function_table = IsSubtypeOf(table.type, kWasmFuncRef, module_);
+      if (is_function_table &&
+          table.initial_value.kind() == ConstantExpression::kRefFunc) {
+        for (uint32_t entry_index = 0; entry_index < table.initial_size;
+             entry_index++) {
+          SetFunctionTablePlaceholder(isolate_, instance, table_object,
+                                      entry_index, table.initial_value.index());
+        }
+      } else if (is_function_table &&
+                 table.initial_value.kind() == ConstantExpression::kRefNull) {
+        for (uint32_t entry_index = 0; entry_index < table.initial_size;
+             entry_index++) {
+          SetFunctionTableNullEntry(isolate_, table_object, entry_index);
+        }
+      } else {
+        Handle<Object> value =
+            EvaluateInitExpression(&init_expr_zone_, table.initial_value,
+                                   table.type, isolate_, instance)
+                .to_ref();
+        for (uint32_t entry_index = 0; entry_index < table.initial_size;
+             entry_index++) {
+          WasmTableObject::Set(isolate_, table_object, entry_index, value);
+        }
       }
-    }
   }
+}
 }
 
 namespace {
@@ -2028,14 +2030,19 @@ bool LoadElemSegmentImpl(Zone* zone, Isolate* isolate,
   for (size_t i = 0; i < count; ++i) {
     ConstantExpression entry = elem_segment.entries[src + i];
     int entry_index = static_cast<int>(dst + i);
-    Handle<Object> value =
-        EvaluateInitExpression(
-            zone, entry, elem_segment.type, isolate, instance,
-            is_function_table ? InitExprInterface::kLazyFunctions
-                              : InitExprInterface::kStrictFunctions)
-            .to_ref();
-    SetTableEntry(isolate, instance, table_object, table_index, entry_index,
-                  value);
+    if (is_function_table && entry.kind() == ConstantExpression::kRefFunc) {
+      SetFunctionTablePlaceholder(isolate, instance, table_object, entry_index,
+                                  entry.index());
+    } else if (is_function_table &&
+               entry.kind() == ConstantExpression::kRefNull) {
+      SetFunctionTableNullEntry(isolate, table_object, entry_index);
+    } else {
+      Handle<Object> value =
+          EvaluateInitExpression(zone, entry, elem_segment.type, isolate,
+                                 instance)
+              .to_ref();
+      WasmTableObject::Set(isolate, table_object, entry_index, value);
+    }
   }
   return true;
 }
