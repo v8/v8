@@ -72,7 +72,9 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
 #ifdef V8_RUNTIME_CALL_STATS
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   if (thread_kind_ == ThreadKind::kMain) {
-    DCHECK_EQ(tracer_->heap_->isolate()->thread_id(), ThreadId::Current());
+#if DEBUG
+    AssertMainThread();
+#endif  // DEBUG
     runtime_stats_ =
         tracer_->heap_->isolate()->counters()->runtime_call_stats();
     runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
@@ -89,7 +91,10 @@ GCTracer::Scope::~Scope() {
   double duration_ms = tracer_->MonotonicallyIncreasingTimeInMs() - start_time_;
 
   if (thread_kind_ == ThreadKind::kMain) {
-    DCHECK_EQ(tracer_->heap_->isolate()->thread_id(), ThreadId::Current());
+#if DEBUG
+    AssertMainThread();
+#endif  // DEBUG
+
     tracer_->AddScopeSample(scope_, duration_ms);
     if (scope_ == ScopeId::MC_INCREMENTAL ||
         scope_ == ScopeId::MC_INCREMENTAL_START ||
@@ -109,6 +114,19 @@ GCTracer::Scope::~Scope() {
   runtime_stats_->Leave(&timer_);
 #endif  // defined(V8_RUNTIME_CALL_STATS)
 }
+
+#if DEBUG
+void GCTracer::Scope::AssertMainThread() {
+  Isolate* isolate = tracer_->heap_->isolate();
+  Isolate* shared_isolate = isolate->shared_isolate();
+  ThreadId thread_id = ThreadId::Current();
+
+  // Either run on isolate's main thread or on the current main thread of the
+  // shared isolate during shared GCs.
+  DCHECK(isolate->thread_id() == thread_id ||
+         (shared_isolate && shared_isolate->thread_id() == thread_id));
+}
+#endif  // DEBUG
 
 const char* GCTracer::Scope::Name(ScopeId id) {
 #define CASE(scope)  \

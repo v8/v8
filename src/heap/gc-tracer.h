@@ -112,6 +112,10 @@ class V8_EXPORT_PRIVATE GCTracer {
     static bool NeedsYoungEpoch(ScopeId id);
 
    private:
+#if DEBUG
+    void AssertMainThread();
+#endif  // DEBUG
+
     GCTracer* tracer_;
     ScopeId scope_;
     ThreadKind thread_kind_;
