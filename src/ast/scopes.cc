@@ -1437,7 +1437,7 @@ bool Scope::NeedsScopeInfo() const {
   DCHECK(!already_resolved_);
   DCHECK(GetClosureScope()->ShouldEagerCompile());
   // The debugger expects all functions to have scope infos.
-  // TODO(jochen|yangguo): Remove this requirement.
+  // TODO(yangguo): Remove this requirement.
   if (is_function_scope()) return true;
   return NeedsContext();
 }
@@ -2645,7 +2645,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, IsolateT* isolate) {
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure
   // it has one, even if it doesn't need a scope info.
-  // TODO(jochen|yangguo): Remove this requirement.
+  // TODO(yangguo): Remove this requirement.
   if (scope->scope_info_.is_null()) {
     scope->scope_info_ =
         ScopeInfo::Create(isolate, scope->zone(), scope, outer_scope);
