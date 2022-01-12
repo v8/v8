@@ -515,6 +515,11 @@ let kExprRefAsArray = 0x5b;
 let kExprBrOnFunc = 0x60;
 let kExprBrOnData = 0x61;
 let kExprBrOnI31 = 0x62;
+let kExprBrOnArray = 0x66;
+let kExprBrOnNonFunc = 0x63;
+let kExprBrOnNonData = 0x64;
+let kExprBrOnNonI31 = 0x65;
+let kExprBrOnNonArray = 0x67;
 
 // Numeric opcodes.
 let kExprI32SConvertSatF32 = 0x00;

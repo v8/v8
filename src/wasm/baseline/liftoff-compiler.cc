@@ -5773,6 +5773,12 @@ class LiftoffCompiler {
                                                         br_depth);
   }
 
+  void BrOnArray(FullDecoder* decoder, const Value& object,
+                 Value* /* value_on_branch */, uint32_t br_depth) {
+    return BrOnAbstractType<&LiftoffCompiler::ArrayCheck>(object, decoder,
+                                                          br_depth);
+  }
+
   void BrOnNonData(FullDecoder* decoder, const Value& object,
                    Value* /* value_on_branch */, uint32_t br_depth) {
     return BrOnNonAbstractType<&LiftoffCompiler::DataCheck>(object, decoder,
@@ -5789,6 +5795,12 @@ class LiftoffCompiler {
                   Value* /* value_on_branch */, uint32_t br_depth) {
     return BrOnNonAbstractType<&LiftoffCompiler::I31Check>(object, decoder,
                                                            br_depth);
+  }
+
+  void BrOnNonArray(FullDecoder* decoder, const Value& object,
+                    Value* /* value_on_branch */, uint32_t br_depth) {
+    return BrOnNonAbstractType<&LiftoffCompiler::ArrayCheck>(object, decoder,
+                                                             br_depth);
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {

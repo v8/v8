@@ -5914,6 +5914,19 @@ Node* WasmGraphBuilder::RefAsArray(Node* object, bool object_can_be_null,
   return object;
 }
 
+void WasmGraphBuilder::BrOnArray(Node* object, Node* /*rtt*/,
+                                 ObjectReferenceKnowledge config,
+                                 Node** match_control, Node** match_effect,
+                                 Node** no_match_control,
+                                 Node** no_match_effect) {
+  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
+              [=](Callbacks callbacks) -> void {
+                return ManagedObjectInstanceCheck(object,
+                                                  config.object_can_be_null,
+                                                  WASM_ARRAY_TYPE, callbacks);
+              });
+}
+
 Node* WasmGraphBuilder::RefIsI31(Node* object) { return gasm_->IsI31(object); }
 
 Node* WasmGraphBuilder::RefAsI31(Node* object,

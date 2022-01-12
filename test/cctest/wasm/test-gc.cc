@@ -2000,6 +2000,11 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   byte kBrOnDataNotTaken = BR_ON(DATA, Data, WASM_REF_FUNC(function_index));
   byte kBrOnFuncTaken = BR_ON(FUNC, Func, WASM_REF_FUNC(function_index));
   byte kBrOnFuncNotTaken = BR_ON(FUNC, Func, WASM_I31_NEW(WASM_I32V(42)));
+  byte kBrOnArrayTaken =
+      BR_ON(ARRAY, Array,
+            WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                            WASM_RTT_CANON(array_index)));
+  byte kBrOnArrayNotTaken = BR_ON(ARRAY, Array, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnI31Taken = BR_ON(I31, I31, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnI31NotTaken =
       BR_ON(I31, I31,
@@ -2026,6 +2031,12 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   byte kBrOnNonFuncNotTaken =
       BR_ON_NON(FUNC, Func, WASM_REF_FUNC(function_index));
   byte kBrOnNonFuncTaken = BR_ON_NON(FUNC, Func, WASM_I31_NEW(WASM_I32V(42)));
+  byte kBrOnNonArrayNotTaken =
+      BR_ON_NON(ARRAY, Array,
+                WASM_ARRAY_NEW_DEFAULT_WITH_RTT(array_index, WASM_I32V(10),
+                                                WASM_RTT_CANON(array_index)));
+  byte kBrOnNonArrayTaken =
+      BR_ON_NON(ARRAY, Array, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnNonI31NotTaken = BR_ON_NON(I31, I31, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnNonI31Taken =
       BR_ON_NON(I31, I31,
@@ -2069,6 +2080,8 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   tester.CheckResult(kBrOnDataNotTaken, 0);
   tester.CheckResult(kBrOnFuncTaken, 1);
   tester.CheckResult(kBrOnFuncNotTaken, 0);
+  tester.CheckResult(kBrOnArrayTaken, 1);
+  tester.CheckResult(kBrOnArrayNotTaken, 0);
   tester.CheckResult(kBrOnI31Taken, 1);
   tester.CheckResult(kBrOnI31NotTaken, 0);
 
@@ -2076,6 +2089,8 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   tester.CheckResult(kBrOnNonDataNotTaken, 1);
   tester.CheckResult(kBrOnNonFuncTaken, 0);
   tester.CheckResult(kBrOnNonFuncNotTaken, 1);
+  tester.CheckResult(kBrOnNonArrayTaken, 0);
+  tester.CheckResult(kBrOnNonArrayNotTaken, 1);
   tester.CheckResult(kBrOnNonI31Taken, 0);
   tester.CheckResult(kBrOnNonI31NotTaken, 1);
 }

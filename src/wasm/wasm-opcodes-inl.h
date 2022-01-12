@@ -439,9 +439,11 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(BrOnFunc, "br_on_func")
     CASE_OP(BrOnData, "br_on_data")
     CASE_OP(BrOnI31, "br_on_i31")
+    CASE_OP(BrOnArray, "br_on_array")
     CASE_OP(BrOnNonFunc, "br_on_non_func")
     CASE_OP(BrOnNonData, "br_on_non_data")
     CASE_OP(BrOnNonI31, "br_on_non_i31")
+    CASE_OP(BrOnNonArray, "br_on_non_array")
 
     case kNumericPrefix:
     case kSimdPrefix:

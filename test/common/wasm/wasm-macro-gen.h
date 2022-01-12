@@ -539,11 +539,15 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_REF_AS_I31(ref) ref, WASM_GC_OP(kExprRefAsI31)
 #define WASM_BR_ON_FUNC(depth) \
   WASM_GC_OP(kExprBrOnFunc), static_cast<byte>(depth)
+#define WASM_BR_ON_ARRAY(depth) \
+  WASM_GC_OP(kExprBrOnArray), static_cast<byte>(depth)
 #define WASM_BR_ON_DATA(depth) \
   WASM_GC_OP(kExprBrOnData), static_cast<byte>(depth)
 #define WASM_BR_ON_I31(depth) WASM_GC_OP(kExprBrOnI31), static_cast<byte>(depth)
 #define WASM_BR_ON_NON_FUNC(depth) \
   WASM_GC_OP(kExprBrOnNonFunc), static_cast<byte>(depth)
+#define WASM_BR_ON_NON_ARRAY(depth) \
+  WASM_GC_OP(kExprBrOnNonArray), static_cast<byte>(depth)
 #define WASM_BR_ON_NON_DATA(depth) \
   WASM_GC_OP(kExprBrOnNonData), static_cast<byte>(depth)
 #define WASM_BR_ON_NON_I31(depth) \
