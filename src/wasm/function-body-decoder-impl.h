@@ -1072,9 +1072,11 @@ struct ControlBase : public PcForErrors<validate> {
   F(RefIsFunc, const Value& object, Value* result)                            \
   F(RefIsData, const Value& object, Value* result)                            \
   F(RefIsI31, const Value& object, Value* result)                             \
+  F(RefIsArray, const Value& object, Value* result)                           \
   F(RefAsFunc, const Value& object, Value* result)                            \
   F(RefAsData, const Value& object, Value* result)                            \
   F(RefAsI31, const Value& object, Value* result)                             \
+  F(RefAsArray, const Value& object, Value* result)                           \
   F(BrOnFunc, const Value& object, Value* value_on_branch, uint32_t br_depth) \
   F(BrOnData, const Value& object, Value* value_on_branch, uint32_t br_depth) \
   F(BrOnI31, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
@@ -4772,6 +4774,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ABSTRACT_TYPE_CHECK(Data)
         ABSTRACT_TYPE_CHECK(Func)
         ABSTRACT_TYPE_CHECK(I31)
+        ABSTRACT_TYPE_CHECK(Array)
 #undef ABSTRACT_TYPE_CHECK
 
 #define ABSTRACT_TYPE_CAST(heap_type)                                      \
@@ -4789,6 +4792,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ABSTRACT_TYPE_CAST(Data)
         ABSTRACT_TYPE_CAST(Func)
         ABSTRACT_TYPE_CAST(I31)
+        ABSTRACT_TYPE_CAST(Array)
 #undef ABSTRACT_TYPE_CAST
 
       case kExprBrOnData:

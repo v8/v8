@@ -5599,58 +5599,35 @@ class LiftoffCompiler {
   // through to match.
   LiftoffRegister DataCheck(const Value& obj, Label* no_match,
                             LiftoffRegList pinned, Register opt_scratch) {
-    LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
+    TypeCheckRegisters registers =
+        TypeCheckPrelude(obj, no_match, pinned, opt_scratch);
+    EmitDataRefCheck(registers.map_reg.gp(), no_match, registers.tmp_reg,
+                     pinned);
+    return registers.obj_reg;
+  }
 
-    // Reserve all temporary registers up front, so that the cache state
-    // tracking doesn't get confused by the following conditional jumps.
-    LiftoffRegister tmp1 =
-        opt_scratch != no_reg
-            ? LiftoffRegister(opt_scratch)
-            : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-
-    if (obj.type.is_nullable()) {
-      LoadNullValue(tmp1.gp(), pinned);
-      __ emit_cond_jump(kEqual, no_match, kOptRef, obj_reg.gp(), tmp1.gp());
-    }
-
-    __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
-
-    // Load the object's map and check if it is a struct/array map.
-    __ LoadMap(tmp1.gp(), obj_reg.gp());
-    EmitDataRefCheck(tmp1.gp(), no_match, tmp2, pinned);
-
-    return obj_reg;
+  LiftoffRegister ArrayCheck(const Value& obj, Label* no_match,
+                             LiftoffRegList pinned, Register opt_scratch) {
+    TypeCheckRegisters registers =
+        TypeCheckPrelude(obj, no_match, pinned, opt_scratch);
+    __ Load(registers.map_reg, registers.map_reg.gp(), no_reg,
+            wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
+            LoadType::kI32Load16U, pinned);
+    __ emit_i32_cond_jumpi(kUnequal, no_match, registers.map_reg.gp(),
+                           WASM_ARRAY_TYPE);
+    return registers.obj_reg;
   }
 
   LiftoffRegister FuncCheck(const Value& obj, Label* no_match,
                             LiftoffRegList pinned, Register opt_scratch) {
-    LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
-
-    // Reserve all temporary registers up front, so that the cache state
-    // tracking doesn't get confused by the following conditional jumps.
-    LiftoffRegister tmp1 =
-        opt_scratch != no_reg
-            ? LiftoffRegister(opt_scratch)
-            : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-
-    if (obj.type.is_nullable()) {
-      LoadNullValue(tmp1.gp(), pinned);
-      __ emit_cond_jump(kEqual, no_match, kOptRef, obj_reg.gp(), tmp1.gp());
-    }
-
-    __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
-
-    // Load the object's map and check if its InstaceType field is that of a
-    // function.
-    __ LoadMap(tmp1.gp(), obj_reg.gp());
-    __ Load(tmp1, tmp1.gp(), no_reg,
+    TypeCheckRegisters registers =
+        TypeCheckPrelude(obj, no_match, pinned, opt_scratch);
+    __ Load(registers.map_reg, registers.map_reg.gp(), no_reg,
             wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
             LoadType::kI32Load16U, pinned);
-    __ emit_i32_cond_jumpi(kUnequal, no_match, tmp1.gp(),
+    __ emit_i32_cond_jumpi(kUnequal, no_match, registers.map_reg.gp(),
                            WASM_INTERNAL_FUNCTION_TYPE);
-
-    return obj_reg;
+    return registers.obj_reg;
   }
 
   LiftoffRegister I31Check(const Value& object, Label* no_match,
@@ -5695,6 +5672,11 @@ class LiftoffCompiler {
     return AbstractTypeCheck<&LiftoffCompiler::FuncCheck>(object);
   }
 
+  void RefIsArray(FullDecoder* /* decoder */, const Value& object,
+                  Value* /* result_val */) {
+    return AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(object);
+  }
+
   void RefIsI31(FullDecoder* decoder, const Value& object,
                 Value* /* result */) {
     return AbstractTypeCheck<&LiftoffCompiler::I31Check>(object);
@@ -5724,6 +5706,11 @@ class LiftoffCompiler {
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
     return AbstractTypeCast<&LiftoffCompiler::I31Check>(object, decoder, kRef);
+  }
+
+  void RefAsArray(FullDecoder* decoder, const Value& object, Value* result) {
+    return AbstractTypeCast<&LiftoffCompiler::ArrayCheck>(object, decoder,
+                                                          kRef);
   }
 
   template <TypeChecker type_checker>
@@ -6240,6 +6227,35 @@ class LiftoffCompiler {
       case kRef:
         UNREACHABLE();
     }
+  }
+
+  struct TypeCheckRegisters {
+    LiftoffRegister obj_reg, map_reg, tmp_reg;
+  };
+
+  TypeCheckRegisters TypeCheckPrelude(const Value& obj, Label* no_match,
+                                      LiftoffRegList pinned,
+                                      Register opt_scratch) {
+    LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
+
+    // Reserve all temporary registers up front, so that the cache state
+    // tracking doesn't get confused by the following conditional jumps.
+    LiftoffRegister map_reg =
+        opt_scratch != no_reg
+            ? LiftoffRegister(opt_scratch)
+            : pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister tmp_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+    if (obj.type.is_nullable()) {
+      LoadNullValue(map_reg.gp(), pinned);
+      __ emit_cond_jump(kEqual, no_match, kOptRef, obj_reg.gp(), map_reg.gp());
+    }
+
+    __ emit_smi_check(obj_reg.gp(), no_match, LiftoffAssembler::kJumpOnSmi);
+
+    __ LoadMap(map_reg.gp(), obj_reg.gp());
+
+    return {obj_reg, map_reg, tmp_reg};
   }
 
   void EmitDataRefCheck(Register map, Label* not_data_ref, LiftoffRegister tmp,

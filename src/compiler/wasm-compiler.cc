@@ -5762,15 +5762,16 @@ void WasmGraphBuilder::DataCheck(Node* object, bool object_can_be_null,
   callbacks.fail_if_not(gasm_->IsDataRefMap(map), BranchHint::kTrue);
 }
 
-void WasmGraphBuilder::FuncCheck(Node* object, bool object_can_be_null,
-                                 Callbacks callbacks) {
+void WasmGraphBuilder::ManagedObjectInstanceCheck(Node* object,
+                                                  bool object_can_be_null,
+                                                  InstanceType instance_type,
+                                                  Callbacks callbacks) {
   if (object_can_be_null) {
     callbacks.fail_if(IsNull(object), BranchHint::kFalse);
   }
   callbacks.fail_if(gasm_->IsI31(object), BranchHint::kFalse);
-  callbacks.fail_if_not(
-      gasm_->HasInstanceType(object, WASM_INTERNAL_FUNCTION_TYPE),
-      BranchHint::kTrue);
+  callbacks.fail_if_not(gasm_->HasInstanceType(object, instance_type),
+                        BranchHint::kTrue);
 }
 
 void WasmGraphBuilder::BrOnCastAbs(
@@ -5863,7 +5864,8 @@ void WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
 
 Node* WasmGraphBuilder::RefIsFunc(Node* object, bool object_can_be_null) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  FuncCheck(object, object_can_be_null, TestCallbacks(&done));
+  ManagedObjectInstanceCheck(object, object_can_be_null,
+                             WASM_INTERNAL_FUNCTION_TYPE, TestCallbacks(&done));
   gasm_->Goto(&done, Int32Constant(1));
   gasm_->Bind(&done);
   return done.PhiAt(0);
@@ -5872,7 +5874,9 @@ Node* WasmGraphBuilder::RefIsFunc(Node* object, bool object_can_be_null) {
 Node* WasmGraphBuilder::RefAsFunc(Node* object, bool object_can_be_null,
                                   wasm::WasmCodePosition position) {
   auto done = gasm_->MakeLabel();
-  FuncCheck(object, object_can_be_null, CastCallbacks(&done, position));
+  ManagedObjectInstanceCheck(object, object_can_be_null,
+                             WASM_INTERNAL_FUNCTION_TYPE,
+                             CastCallbacks(&done, position));
   gasm_->Goto(&done);
   gasm_->Bind(&done);
   return object;
@@ -5885,8 +5889,29 @@ void WasmGraphBuilder::BrOnFunc(Node* object, Node* /*rtt*/,
                                 Node** no_match_effect) {
   BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
               [=](Callbacks callbacks) -> void {
-                return FuncCheck(object, config.object_can_be_null, callbacks);
+                return ManagedObjectInstanceCheck(
+                    object, config.object_can_be_null,
+                    WASM_INTERNAL_FUNCTION_TYPE, callbacks);
               });
+}
+
+Node* WasmGraphBuilder::RefIsArray(Node* object, bool object_can_be_null) {
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  ManagedObjectInstanceCheck(object, object_can_be_null, WASM_ARRAY_TYPE,
+                             TestCallbacks(&done));
+  gasm_->Goto(&done, Int32Constant(1));
+  gasm_->Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* WasmGraphBuilder::RefAsArray(Node* object, bool object_can_be_null,
+                                   wasm::WasmCodePosition position) {
+  auto done = gasm_->MakeLabel();
+  ManagedObjectInstanceCheck(object, object_can_be_null, WASM_ARRAY_TYPE,
+                             CastCallbacks(&done, position));
+  gasm_->Goto(&done);
+  gasm_->Bind(&done);
+  return object;
 }
 
 Node* WasmGraphBuilder::RefIsI31(Node* object) { return gasm_->IsI31(object); }

@@ -1248,6 +1248,15 @@ class WasmGraphBuildingInterface {
         br_depth, false);
   }
 
+  void RefIsArray(FullDecoder* decoder, const Value& object, Value* result) {
+    result->node = builder_->RefIsArray(object.node, object.type.is_nullable());
+  }
+
+  void RefAsArray(FullDecoder* decoder, const Value& object, Value* result) {
+    result->node = builder_->RefAsArray(object.node, object.type.is_nullable(),
+                                        decoder->position());
+  }
+
   void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
     result->node = builder_->RefIsI31(object.node);
   }
