@@ -2654,7 +2654,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- x0 : the number of arguments
   //  -- x1 : the function to call (checked to be a JSFunction)
   // -----------------------------------
-  __ AssertFunction(x1);
+  __ AssertCallableFunction(x1);
 
   Label class_constructor;
   __ LoadTaggedPointerField(

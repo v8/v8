@@ -2372,7 +2372,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
 
   StackArgumentsAccessor args(rax);
-  __ AssertFunction(rdi);
+  __ AssertCallableFunction(rdi);
 
   Label class_constructor;
   __ LoadTaggedPointerField(

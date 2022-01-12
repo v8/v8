@@ -2283,7 +2283,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- r0 : the number of arguments
   //  -- r1 : the function to call (checked to be a JSFunction)
   // -----------------------------------
-  __ AssertFunction(r1);
+  __ AssertCallableFunction(r1);
 
   Label class_constructor;
   __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
