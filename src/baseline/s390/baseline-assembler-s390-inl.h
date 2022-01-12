@@ -289,28 +289,28 @@ void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 }
 
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
-  UNIMPLEMENTED();
+  Move(RegisterFrameOperand(output), source);
 }
 void BaselineAssembler::Move(Register output, TaggedIndex value) {
-  UNIMPLEMENTED();
+  __ mov(output, Operand(value.ptr()));
 }
 void BaselineAssembler::Move(MemOperand output, Register source) {
-  UNIMPLEMENTED();
+  __ StoreU64(source, output);
 }
 void BaselineAssembler::Move(Register output, ExternalReference reference) {
-  UNIMPLEMENTED();
+  __ Move(output, reference);
 }
 void BaselineAssembler::Move(Register output, Handle<HeapObject> value) {
-  UNIMPLEMENTED();
+  __ Move(output, value);
 }
 void BaselineAssembler::Move(Register output, int32_t value) {
-  UNIMPLEMENTED();
+  __ mov(output, Operand(value));
 }
 void BaselineAssembler::MoveMaybeSmi(Register output, Register source) {
-  UNIMPLEMENTED();
+  __ mov(output, source);
 }
 void BaselineAssembler::MoveSmi(Register output, Register source) {
-  UNIMPLEMENTED();
+  __ mov(output, source);
 }
 
 namespace detail {
