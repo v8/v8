@@ -149,6 +149,18 @@ class V8_EXPORT StackTrace {
    */
   static Local<StackTrace> CurrentStackTrace(
       Isolate* isolate, int frame_limit, StackTraceOptions options = kDetailed);
+
+  /**
+   * Returns the first valid script name or source URL starting at the top of
+   * the JS stack. The returned string is either an empty handle if no script
+   * name/url was found or a non-zero-length string.
+   *
+   * This method is equivalent to calling StackTrace::CurrentStackTrace and
+   * walking the resulting frames from the beginning until a non-empty script
+   * name/url is found. The difference is that this method won't allocate
+   * a stack trace.
+   */
+  static Local<String> CurrentScriptNameOrSourceURL(Isolate* isolate);
 };
 
 }  // namespace v8

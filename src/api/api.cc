@@ -3248,6 +3248,14 @@ Local<StackTrace> StackTrace::CurrentStackTrace(Isolate* isolate,
   return Utils::StackTraceToLocal(stackTrace);
 }
 
+Local<String> StackTrace::CurrentScriptNameOrSourceURL(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  i::Handle<i::String> name_or_source_url =
+      isolate->CurrentScriptNameOrSourceURL();
+  return Utils::ToLocal(name_or_source_url);
+}
+
 // --- S t a c k F r a m e ---
 
 Location StackFrame::GetLocation() const {

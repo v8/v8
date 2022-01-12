@@ -1338,6 +1338,47 @@ Handle<FixedArray> Isolate::CaptureDetailedStackTrace(
   return stack_trace;
 }
 
+namespace {
+
+class CurrentScriptNameStackVisitor {
+ public:
+  explicit CurrentScriptNameStackVisitor(Isolate* isolate)
+      : isolate_(isolate) {}
+
+  bool Visit(FrameSummary& summary) {
+    // Skip frames that aren't subject to debugging. Keep this in sync with
+    // StackFrameBuilder::Visit so both visitors visit the same frames.
+    if (!summary.is_subject_to_debugging()) return true;
+
+    // Frames that are subject to debugging always have a valid script object.
+    Handle<Script> script = Handle<Script>::cast(summary.script());
+    Handle<Object> name_or_url_obj =
+        handle(script->GetNameOrSourceURL(), isolate_);
+    if (!name_or_url_obj->IsString()) return true;
+
+    Handle<String> name_or_url = Handle<String>::cast(name_or_url_obj);
+    if (!name_or_url->length()) return true;
+
+    name_or_url_ = name_or_url;
+    return false;
+  }
+
+  Handle<String> CurrentScriptNameOrSourceURL() const { return name_or_url_; }
+
+ private:
+  Isolate* const isolate_;
+  Handle<String> name_or_url_;
+};
+
+}  // namespace
+
+Handle<String> Isolate::CurrentScriptNameOrSourceURL() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+  CurrentScriptNameStackVisitor visitor(this);
+  VisitStack(this, &visitor);
+  return visitor.CurrentScriptNameOrSourceURL();
+}
+
 void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
   if (stack_trace_nesting_level_ == 0) {
     stack_trace_nesting_level_++;

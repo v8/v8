@@ -905,6 +905,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                                 Handle<Object> caller);
   Handle<FixedArray> GetDetailedStackTrace(Handle<JSReceiver> error_object);
   Handle<FixedArray> GetSimpleStackTrace(Handle<JSReceiver> error_object);
+  // Walks the JS stack to find the first frame with a script name or
+  // source URL. The inspected frames are the same as for the detailed stack
+  // trace.
+  Handle<String> CurrentScriptNameOrSourceURL();
 
   Address GetAbstractPC(int* line, int* column);
 
