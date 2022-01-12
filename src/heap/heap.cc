@@ -5414,8 +5414,10 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
           max_marking_limit_reached_ =
               std::max<double>(max_marking_limit_reached_, current_percent);
         }
-      } else if (current_percent >= stress_marking_percentage_) {
-        stress_marking_percentage_ = NextStressMarkingLimit();
+      } else if (current_percent >=
+                 stress_marking_percentage_.load(std::memory_order_relaxed)) {
+        stress_marking_percentage_.store(NextStressMarkingLimit(),
+                                         std::memory_order_relaxed);
         return IncrementalMarkingLimit::kHardLimit;
       }
     }
