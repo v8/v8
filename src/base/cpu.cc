@@ -50,6 +50,8 @@
 #include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"
 #if V8_OS_WIN
+#include <windows.h>
+
 #include "src/base/win32-headers.h"
 #endif
 
@@ -761,6 +763,13 @@ CPU::CPU()
   // Windows makes high-resolution thread timing information available in
   // user-space.
   has_non_stop_time_stamp_counter_ = true;
+
+  // Defined in winnt.h, but in a newer version of the Windows SDK than the one
+  // that V8 requires, so we must copy the value here.
+  constexpr int PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE = 44;
+
+  has_jscvt_ =
+      IsProcessorFeaturePresent(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE);
 
 #elif V8_OS_LINUX
   // Try to extract the list of CPU features from ELF hwcaps.
