@@ -103,7 +103,7 @@ void PagedSpace::TearDown() {
   while (!memory_chunk_list_.Empty()) {
     MemoryChunk* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
-    heap()->memory_allocator()->Free<MemoryAllocator::kFull>(chunk);
+    heap()->memory_allocator()->Free(MemoryAllocator::kImmediately, chunk);
   }
   accounting_stats_.Clear();
 }
@@ -319,8 +319,8 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
 }
 
 Page* PagedSpace::AllocatePage() {
-  return heap()->memory_allocator()->AllocatePage(AreaSize(), this,
-                                                  executable());
+  return heap()->memory_allocator()->AllocatePage(
+      MemoryAllocator::kRegular, AreaSize(), this, executable());
 }
 
 Page* PagedSpace::Expand() {
@@ -493,7 +493,7 @@ void PagedSpace::ReleasePage(Page* page) {
 
   AccountUncommitted(page->size());
   accounting_stats_.DecreaseCapacity(page->area_size());
-  heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
+  heap()->memory_allocator()->Free(MemoryAllocator::kConcurrently, page);
 }
 
 void PagedSpace::SetReadable() {

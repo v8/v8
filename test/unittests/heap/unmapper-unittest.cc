@@ -312,6 +312,7 @@ bool SequentialUnmapperTest::old_flag_;
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
   if (FLAG_enable_third_party_heap) return;
   Page* page = allocator()->AllocatePage(
+      MemoryAllocator::kRegular,
       MemoryChunkLayout::AllocatableMemoryInDataPage(),
       static_cast<PagedSpace*>(heap()->old_space()),
       Executability::NOT_EXECUTABLE);
@@ -319,7 +320,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
   const size_t page_size = tracking_page_allocator()->AllocatePageSize();
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
-  allocator()->Free<MemoryAllocator::kPooledAndQueue>(page);
+  allocator()->Free(MemoryAllocator::kConcurrentlyAndPool, page);
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
   unmapper()->FreeQueuedChunks();
@@ -341,6 +342,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
 TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   if (FLAG_enable_third_party_heap) return;
   Page* page = allocator()->AllocatePage(
+      MemoryAllocator::kRegular,
       MemoryChunkLayout::AllocatableMemoryInDataPage(),
       static_cast<PagedSpace*>(heap()->old_space()),
       Executability::NOT_EXECUTABLE);
@@ -349,7 +351,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
 
-  allocator()->Free<MemoryAllocator::kPooledAndQueue>(page);
+  allocator()->Free(MemoryAllocator::kConcurrentlyAndPool, page);
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
   unmapper()->TearDown();

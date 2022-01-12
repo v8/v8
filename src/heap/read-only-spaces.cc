@@ -397,7 +397,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
     DetachFromHeap();
     for (ReadOnlyPage* p : pages_) {
       if (ro_mode == SealMode::kDetachFromHeapAndUnregisterMemory) {
-        memory_allocator->UnregisterMemory(p);
+        memory_allocator->UnregisterReadOnlyPage(p);
       }
       if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
         p->MakeHeaderRelocatable();

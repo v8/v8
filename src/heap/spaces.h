@@ -182,6 +182,11 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   heap::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
 
+  virtual Page* InitializePage(MemoryChunk* chunk) {
+    UNREACHABLE();
+    return nullptr;
+  }
+
   FreeList* free_list() { return free_list_.get(); }
 
   Address FirstPageAddress() const { return first_page()->address(); }

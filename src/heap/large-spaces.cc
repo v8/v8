@@ -107,7 +107,7 @@ void LargeObjectSpace::TearDown() {
         DeleteEvent("LargeObjectChunk",
                     reinterpret_cast<void*>(page->address())));
     memory_chunk_list_.Remove(page);
-    heap()->memory_allocator()->Free<MemoryAllocator::kFull>(page);
+    heap()->memory_allocator()->Free(MemoryAllocator::kImmediately, page);
   }
 }
 
@@ -324,8 +324,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
     } else {
       RemovePage(current, size);
-      heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(
-          current);
+      heap()->memory_allocator()->Free(MemoryAllocator::kConcurrently, current);
     }
     current = next_current;
   }
@@ -531,7 +530,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
     if (is_dead(object)) {
       freed_pages = true;
       RemovePage(page, size);
-      heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
+      heap()->memory_allocator()->Free(MemoryAllocator::kConcurrently, page);
       if (FLAG_concurrent_marking && is_marking) {
         heap()->concurrent_marking()->ClearMemoryChunkData(page);
       }

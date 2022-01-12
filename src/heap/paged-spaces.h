@@ -216,7 +216,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   void RefineAllocatedBytesAfterSweeping(Page* page);
 
-  Page* InitializePage(MemoryChunk* chunk);
+  Page* InitializePage(MemoryChunk* chunk) override;
 
   void ReleasePage(Page* page);
 

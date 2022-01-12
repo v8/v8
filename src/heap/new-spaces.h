@@ -107,7 +107,7 @@ class SemiSpace : public Space {
   void PrependPage(Page* page);
   void MovePageToTheEnd(Page* page);
 
-  Page* InitializePage(MemoryChunk* chunk);
+  Page* InitializePage(MemoryChunk* chunk) override;
 
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
