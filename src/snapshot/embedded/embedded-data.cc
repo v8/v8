@@ -95,6 +95,20 @@ Builtin OffHeapInstructionStream::TryLookupCode(Isolate* isolate,
       !Builtins::IsBuiltinId(builtin)) {
     builtin = i::TryLookupCode(EmbeddedData::FromBlob(), address);
   }
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  if (V8_SHORT_BUILTIN_CALLS_BOOL && !Builtins::IsBuiltinId(builtin)) {
+    // When shared pointer compression cage is enabled and it has the embedded
+    // code blob copy then it could have been used regardless of whether the
+    // isolate uses it or knows about it or not (see
+    // Code::OffHeapInstructionStart()).
+    // So, this blob has to be checked too.
+    CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+    if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+      builtin = i::TryLookupCode(EmbeddedData::FromBlob(code_range), address);
+    }
+  }
+#endif
   return builtin;
 }
 
