@@ -331,7 +331,6 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
       DCHECK(IsAligned(size, kTaggedSize));
       HeapObject obj = HeapObject::FromAddress(*top);
       *top += size;
-      heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
       MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size);
       return obj;
     }

@@ -597,7 +597,6 @@ void IncrementalMarking::Hurry() {
   }
 }
 
-
 void IncrementalMarking::Stop() {
   if (IsStopped()) return;
   if (FLAG_trace_incremental_marking) {
@@ -612,8 +611,7 @@ void IncrementalMarking::Stop() {
         std::max(0, old_generation_size_mb - old_generation_limit_mb));
   }
 
-  SpaceIterator it(heap_);
-  while (it.HasNext()) {
+  for (SpaceIterator it(heap_); it.HasNext();) {
     Space* space = it.Next();
     if (space == heap_->new_space()) {
       space->RemoveAllocationObserver(&new_generation_observer_);
@@ -640,12 +638,10 @@ void IncrementalMarking::Stop() {
   background_live_bytes_.clear();
 }
 
-
 void IncrementalMarking::Finalize() {
   Hurry();
   Stop();
 }
-
 
 void IncrementalMarking::FinalizeMarking(CompletionAction action) {
   DCHECK(!finalize_marking_completed_);

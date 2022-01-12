@@ -1423,32 +1423,31 @@ TimedHistogram* Heap::GCTypePriorityTimer(GarbageCollector collector) {
       return isolate_->counters()->gc_scavenger_background();
     }
     return isolate_->counters()->gc_scavenger_foreground();
-  } else {
-    if (!incremental_marking()->IsStopped()) {
-      if (ShouldReduceMemory()) {
-        if (isolate_->IsIsolateInBackground()) {
-          return isolate_->counters()->gc_finalize_reduce_memory_background();
-        }
-        return isolate_->counters()->gc_finalize_reduce_memory_foreground();
-      } else {
-        if (isolate_->IsIsolateInBackground()) {
-          return isolate_->counters()->gc_finalize_background();
-        }
-        return isolate_->counters()->gc_finalize_foreground();
-      }
-    } else {
-      if (isolate_->IsIsolateInBackground()) {
-        return isolate_->counters()->gc_compactor_background();
-      }
-      return isolate_->counters()->gc_compactor_foreground();
-    }
   }
+  DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
+  if (incremental_marking()->IsStopped()) {
+    if (isolate_->IsIsolateInBackground()) {
+      return isolate_->counters()->gc_compactor_background();
+    }
+    return isolate_->counters()->gc_compactor_foreground();
+  }
+  if (ShouldReduceMemory()) {
+    if (isolate_->IsIsolateInBackground()) {
+      return isolate_->counters()->gc_finalize_reduce_memory_background();
+    }
+    return isolate_->counters()->gc_finalize_reduce_memory_foreground();
+  }
+  if (isolate_->IsIsolateInBackground()) {
+    return isolate_->counters()->gc_finalize_background();
+  }
+  return isolate_->counters()->gc_finalize_foreground();
 }
 
 TimedHistogram* Heap::GCTypeTimer(GarbageCollector collector) {
   if (IsYoungGenerationCollector(collector)) {
     return isolate_->counters()->gc_scavenger();
   }
+  DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
   if (incremental_marking()->IsStopped()) {
     return isolate_->counters()->gc_compactor();
   }
@@ -1924,9 +1923,6 @@ void Heap::StartIncrementalMarking(int gc_flags,
   // Sweeping needs to be completed such that markbits are all cleared before
   // starting marking again.
   CompleteSweepingFull();
-  if (cpp_heap()) {
-    CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
-  }
 
   base::Optional<SafepointScope> safepoint_scope;
 
@@ -1953,6 +1949,9 @@ void Heap::CompleteSweepingFull() {
   array_buffer_sweeper()->EnsureFinished();
   mark_compact_collector()->EnsureSweepingCompleted();
   DCHECK(!mark_compact_collector()->sweeping_in_progress());
+  if (cpp_heap()) {
+    CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
+  }
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
@@ -2156,9 +2155,6 @@ size_t Heap::PerformGarbageCollection(
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
-    if (cpp_heap()) {
-      CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
-    }
   }
 
   // The last GC cycle is done after completing sweeping. Start the next GC
@@ -6370,20 +6366,9 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
 }
 
 PagedSpace* PagedSpaceIterator::Next() {
-  int space = counter_++;
-  switch (space) {
-    case RO_SPACE:
-      UNREACHABLE();
-    case OLD_SPACE:
-      return heap_->old_space();
-    case CODE_SPACE:
-      return heap_->code_space();
-    case MAP_SPACE:
-      return heap_->map_space();
-    default:
-      DCHECK_GT(space, LAST_GROWABLE_PAGED_SPACE);
-      return nullptr;
-  }
+  DCHECK_GE(counter_, FIRST_GROWABLE_PAGED_SPACE);
+  if (counter_ > LAST_GROWABLE_PAGED_SPACE) return nullptr;
+  return heap_->paged_space(counter_++);
 }
 
 SpaceIterator::SpaceIterator(Heap* heap)
@@ -6403,7 +6388,7 @@ bool SpaceIterator::HasNext() {
 }
 
 Space* SpaceIterator::Next() {
-  DCHECK(HasNext());
+  DCHECK_LE(current_space_, LAST_MUTABLE_SPACE);
   Space* space = heap_->space(current_space_++);
   DCHECK_NOT_NULL(space);
   return space;
@@ -6561,6 +6546,8 @@ HeapObjectIterator::HeapObjectIterator(
     default:
       break;
   }
+  // By not calling |space_iterator_->HasNext()|, we assume that the old
+  // space is first returned and that it has been set up.
   object_iterator_ = space_iterator_->Next()->GetObjectIterator(heap_);
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) heap_->tp_heap_->ResetIterator();
 }
