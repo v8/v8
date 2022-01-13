@@ -30,7 +30,6 @@ def define_all_recipes():
     )
     build_recipes = [
         "chromium_integration",
-        "chromium_trybot",
         "run_presubmit",
         "v8",
         "v8/archive",
@@ -47,6 +46,7 @@ def define_all_recipes():
 
     py3_build_recipes = [
         "chromium",
+        "chromium_trybot",
     ]
     for recipe in py3_build_recipes:
         build_recipe(name = "recipe:" + recipe, use_python3 = True)
