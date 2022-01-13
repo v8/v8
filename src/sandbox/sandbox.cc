@@ -141,10 +141,20 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
     return InitializeAsPartiallyReservedSandbox(vas, sandbox_size,
                                                 size_to_reserve);
   } else {
-    // TODO(saelo) if this fails, we could still fall back to creating a
-    // partially reserved sandbox. Decide if that would make sense.
     const bool use_guard_regions = true;
-    return Initialize(vas, sandbox_size, use_guard_regions);
+    bool success = Initialize(vas, sandbox_size, use_guard_regions);
+#ifdef V8_SANDBOXED_POINTERS
+    // If sandboxed pointers are enabled, we need the sandbox to be initialized,
+    // so fall back to creating a partially reserved sandbox.
+    if (!success) {
+      // Instead of going for the minimum reservation size directly, we could
+      // also first try a couple of larger reservation sizes if that is deemed
+      // sensible in the future.
+      success = InitializeAsPartiallyReservedSandbox(
+          vas, sandbox_size, kSandboxMinimumReservationSize);
+    }
+#endif  // V8_SANDBOXED_POINTERS
+    return success;
   }
 }
 

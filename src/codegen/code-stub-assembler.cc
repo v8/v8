@@ -1555,17 +1555,17 @@ void CodeStubAssembler::StoreSandboxedPointerToObject(TNode<HeapObject> object,
                                                       TNode<RawPtrT> pointer) {
 #ifdef V8_SANDBOXED_POINTERS
   TNode<SandboxedPtrT> sbx_ptr = ReinterpretCast<SandboxedPtrT>(pointer);
-#ifdef DEBUG
-  // Verify pointer points into the sandbox.
+
+  // Ensure pointer points into the sandbox.
   TNode<ExternalReference> sandbox_base_address =
       ExternalConstant(ExternalReference::sandbox_base_address());
   TNode<ExternalReference> sandbox_end_address =
       ExternalConstant(ExternalReference::sandbox_end_address());
   TNode<UintPtrT> sandbox_base = Load<UintPtrT>(sandbox_base_address);
   TNode<UintPtrT> sandbox_end = Load<UintPtrT>(sandbox_end_address);
-  CSA_DCHECK(this, UintPtrGreaterThanOrEqual(sbx_ptr, sandbox_base));
-  CSA_DCHECK(this, UintPtrLessThan(sbx_ptr, sandbox_end));
-#endif  // DEBUG
+  CSA_CHECK(this, UintPtrGreaterThanOrEqual(sbx_ptr, sandbox_base));
+  CSA_CHECK(this, UintPtrLessThan(sbx_ptr, sandbox_end));
+
   StoreObjectFieldNoWriteBarrier<SandboxedPtrT>(object, offset, sbx_ptr);
 #else
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);

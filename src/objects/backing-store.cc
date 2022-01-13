@@ -328,7 +328,6 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
     }
   }
 
-  DCHECK(IsValidBackingStorePointer(buffer_start));
   auto result = new BackingStore(buffer_start,                  // start
                                  byte_length,                   // length
                                  byte_length,                   // max length
@@ -454,8 +453,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     TRACE_BS("BSw:try   failed to allocate pages\n");
     return {};
   }
-
-  DCHECK(IsValidBackingStorePointer(allocation_base));
 
   // Get a pointer to the start of the buffer, skipping negative guard region
   // if necessary.
@@ -755,7 +752,6 @@ BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
 std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     Isolate* isolate, void* allocation_base, size_t allocation_length,
     SharedFlag shared, bool free_on_destruct) {
-  DCHECK(IsValidBackingStorePointer(allocation_base));
   auto result = new BackingStore(allocation_base,               // start
                                  allocation_length,             // length
                                  allocation_length,             // max length
@@ -777,7 +773,6 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     void* allocation_base, size_t allocation_length,
     v8::BackingStore::DeleterCallback deleter, void* deleter_data,
     SharedFlag shared) {
-  DCHECK(IsValidBackingStorePointer(allocation_base));
   bool is_empty_deleter = (deleter == v8::BackingStore::EmptyDeleter);
   auto result = new BackingStore(allocation_base,               // start
                                  allocation_length,             // length

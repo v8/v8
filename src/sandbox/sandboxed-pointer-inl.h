@@ -31,7 +31,7 @@ V8_INLINE void WriteSandboxedPointerField(Address field_address,
                                           Address pointer) {
 #ifdef V8_SANDBOXED_POINTERS
   // The pointer must point into the sandbox.
-  DCHECK(GetProcessWideSandbox()->Contains(pointer));
+  CHECK(GetProcessWideSandbox()->Contains(pointer));
 
   Address offset = pointer - cage_base.address();
   SandboxedPointer_t sandboxed_pointer = offset << kSandboxedPointerShift;

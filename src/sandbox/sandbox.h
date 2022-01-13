@@ -179,16 +179,6 @@ class V8_EXPORT_PRIVATE Sandbox {
 V8_EXPORT_PRIVATE Sandbox* GetProcessWideSandbox();
 #endif
 
-V8_INLINE bool IsValidBackingStorePointer(void* ptr) {
-#ifdef V8_SANDBOX
-  Address addr = reinterpret_cast<Address>(ptr);
-  return kAllowBackingStoresOutsideSandbox || addr == kNullAddress ||
-         GetProcessWideSandbox()->Contains(addr);
-#else
-  return true;
-#endif
-}
-
 V8_INLINE void* EmptyBackingStoreBuffer() {
 #ifdef V8_SANDBOXED_POINTERS
   return reinterpret_cast<void*>(
