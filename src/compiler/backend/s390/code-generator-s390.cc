@@ -2643,20 +2643,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
-#define SIMD_UNOP_LIST(V)                         \
-  V(F64x2Splat, Simd128Register, DoubleRegister)  \
-  V(F32x4Splat, Simd128Register, DoubleRegister)  \
-  V(I64x2Splat, Simd128Register, Register)        \
-  V(I32x4Splat, Simd128Register, Register)        \
-  V(I16x8Splat, Simd128Register, Register)        \
-  V(I8x16Splat, Simd128Register, Register)        \
-  V(F64x2Abs, Simd128Register, Simd128Register)   \
-  V(F64x2Neg, Simd128Register, Simd128Register)   \
-  V(F64x2Sqrt, Simd128Register, Simd128Register)  \
-  V(F64x2Ceil, Simd128Register, Simd128Register)  \
-  V(F64x2Floor, Simd128Register, Simd128Register) \
-  V(F64x2Trunc, Simd128Register, Simd128Register) \
-  V(F64x2NearestInt, Simd128Register, Simd128Register)
+#define SIMD_UNOP_LIST(V)                              \
+  V(F64x2Splat, Simd128Register, DoubleRegister)       \
+  V(F32x4Splat, Simd128Register, DoubleRegister)       \
+  V(I64x2Splat, Simd128Register, Register)             \
+  V(I32x4Splat, Simd128Register, Register)             \
+  V(I16x8Splat, Simd128Register, Register)             \
+  V(I8x16Splat, Simd128Register, Register)             \
+  V(F64x2Abs, Simd128Register, Simd128Register)        \
+  V(F64x2Neg, Simd128Register, Simd128Register)        \
+  V(F64x2Sqrt, Simd128Register, Simd128Register)       \
+  V(F64x2Ceil, Simd128Register, Simd128Register)       \
+  V(F64x2Floor, Simd128Register, Simd128Register)      \
+  V(F64x2Trunc, Simd128Register, Simd128Register)      \
+  V(F64x2NearestInt, Simd128Register, Simd128Register) \
+  V(F32x4Abs, Simd128Register, Simd128Register)        \
+  V(F32x4Neg, Simd128Register, Simd128Register)        \
+  V(F32x4Sqrt, Simd128Register, Simd128Register)       \
+  V(F32x4Ceil, Simd128Register, Simd128Register)       \
+  V(F32x4Floor, Simd128Register, Simd128Register)      \
+  V(F32x4Trunc, Simd128Register, Simd128Register)      \
+  V(F32x4NearestInt, Simd128Register, Simd128Register)
 
 #define EMIT_SIMD_UNOP(name, dtype, stype)         \
   case kS390_##name: {                             \
@@ -2749,16 +2756,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector unary ops
-    case kS390_F32x4Abs: {
-      __ vfpso(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               Condition(2), Condition(0), Condition(2));
-      break;
-    }
-    case kS390_F32x4Neg: {
-      __ vfpso(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               Condition(0), Condition(0), Condition(2));
-      break;
-    }
     case kS390_I64x2Neg: {
       __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
              Condition(0), Condition(3));
@@ -2797,11 +2794,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
       __ vfd(dst, kScratchDoubleReg, dst, Condition(0), Condition(0),
              Condition(2));
-      break;
-    }
-    case kS390_F32x4Sqrt: {
-      __ vfsq(i.OutputSimd128Register(), i.InputSimd128Register(0),
-              Condition(0), Condition(0), Condition(2));
       break;
     }
     case kS390_S128Not: {
@@ -3264,26 +3256,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1), Condition(3), Condition(0),
                Condition(3));
-      break;
-    }
-    case kS390_F32x4Ceil: {
-      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(6),
-             Condition(0), Condition(2));
-      break;
-    }
-    case kS390_F32x4Floor: {
-      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(7),
-             Condition(0), Condition(2));
-      break;
-    }
-    case kS390_F32x4Trunc: {
-      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(5),
-             Condition(0), Condition(2));
-      break;
-    }
-    case kS390_F32x4NearestInt: {
-      __ vfi(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(4),
-             Condition(0), Condition(2));
       break;
     }
     case kS390_I32x4DotI16x8S: {

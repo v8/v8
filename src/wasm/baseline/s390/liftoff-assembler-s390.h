@@ -2376,20 +2376,27 @@ SIMD_BINOP_RI_LIST(EMIT_SIMD_BINOP_RI)
 #undef EMIT_SIMD_BINOP_RI
 #undef SIMD_BINOP_RI_LIST
 
-#define SIMD_UNOP_LIST(V)                        \
-  V(f64x2_splat, F64x2Splat, fp, fp, , void)     \
-  V(f32x4_splat, F32x4Splat, fp, fp, , void)     \
-  V(i64x2_splat, I64x2Splat, fp, gp, , void)     \
-  V(i32x4_splat, I32x4Splat, fp, gp, , void)     \
-  V(i16x8_splat, I16x8Splat, fp, gp, , void)     \
-  V(i8x16_splat, I8x16Splat, fp, gp, , void)     \
-  V(f64x2_abs, F64x2Abs, fp, fp, , void)         \
-  V(f64x2_neg, F64x2Neg, fp, fp, , void)         \
-  V(f64x2_sqrt, F64x2Sqrt, fp, fp, , void)       \
-  V(f64x2_ceil, F64x2Ceil, fp, fp, true, bool)   \
-  V(f64x2_floor, F64x2Floor, fp, fp, true, bool) \
-  V(f64x2_trunc, F64x2Trunc, fp, fp, true, bool) \
-  V(f64x2_nearest_int, F64x2NearestInt, fp, fp, true, bool)
+#define SIMD_UNOP_LIST(V)                                   \
+  V(f64x2_splat, F64x2Splat, fp, fp, , void)                \
+  V(f32x4_splat, F32x4Splat, fp, fp, , void)                \
+  V(i64x2_splat, I64x2Splat, fp, gp, , void)                \
+  V(i32x4_splat, I32x4Splat, fp, gp, , void)                \
+  V(i16x8_splat, I16x8Splat, fp, gp, , void)                \
+  V(i8x16_splat, I8x16Splat, fp, gp, , void)                \
+  V(f64x2_abs, F64x2Abs, fp, fp, , void)                    \
+  V(f64x2_neg, F64x2Neg, fp, fp, , void)                    \
+  V(f64x2_sqrt, F64x2Sqrt, fp, fp, , void)                  \
+  V(f64x2_ceil, F64x2Ceil, fp, fp, true, bool)              \
+  V(f64x2_floor, F64x2Floor, fp, fp, true, bool)            \
+  V(f64x2_trunc, F64x2Trunc, fp, fp, true, bool)            \
+  V(f64x2_nearest_int, F64x2NearestInt, fp, fp, true, bool) \
+  V(f32x4_abs, F32x4Abs, fp, fp, , void)                    \
+  V(f32x4_neg, F32x4Neg, fp, fp, , void)                    \
+  V(f32x4_sqrt, F32x4Sqrt, fp, fp, , void)                  \
+  V(f32x4_ceil, F32x4Ceil, fp, fp, true, bool)              \
+  V(f32x4_floor, F32x4Floor, fp, fp, true, bool)            \
+  V(f32x4_trunc, F32x4Trunc, fp, fp, true, bool)            \
+  V(f32x4_nearest_int, F32x4NearestInt, fp, fp, true, bool)
 
 #define EMIT_SIMD_UNOP(name, op, dtype, stype, return_val, return_type) \
   return_type LiftoffAssembler::emit_##name(LiftoffRegister dst,        \
@@ -2489,45 +2496,6 @@ void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
                                                     LiftoffRegister src) {
   bailout(kSimd, "f64x2.promote_low_f32x4");
-}
-
-void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_f32x4_abs");
-}
-
-void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
-                                      LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_f32x4neg");
-}
-
-void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
-                                       LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_f32x4sqrt");
-}
-
-bool LiftoffAssembler::emit_f32x4_ceil(LiftoffRegister dst,
-                                       LiftoffRegister src) {
-  bailout(kSimd, "f32x4.ceil");
-  return true;
-}
-
-bool LiftoffAssembler::emit_f32x4_floor(LiftoffRegister dst,
-                                        LiftoffRegister src) {
-  bailout(kSimd, "f32x4.floor");
-  return true;
-}
-
-bool LiftoffAssembler::emit_f32x4_trunc(LiftoffRegister dst,
-                                        LiftoffRegister src) {
-  bailout(kSimd, "f32x4.trunc");
-  return true;
-}
-
-bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
-                                              LiftoffRegister src) {
-  bailout(kSimd, "f32x4.nearest_int");
-  return true;
 }
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
