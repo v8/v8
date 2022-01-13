@@ -876,10 +876,6 @@ Handle<String> Factory::NewInternalizedStringImpl(Handle<String> string,
   return AllocateInternalizedStringImpl<false>(string, chars, hash_field);
 }
 
-namespace {
-
-}  // namespace
-
 StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
     Handle<String> string, MaybeHandle<Map>* internalized_map) {
   // Do not internalize young strings in-place: This allows us to ignore both

@@ -280,15 +280,15 @@ class StringTableInsertionKey final : public StringTableKey {
   template <typename IsolateT>
   bool IsMatch(IsolateT* isolate, String string);
 
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) {
+  void PrepareForInsertion(Isolate* isolate) {
     // When sharing the string table, all string table lookups during snapshot
     // deserialization are hits.
     DCHECK(isolate->OwnsStringTable() ||
            deserializing_user_code_ ==
                DeserializingUserCodeOption::kIsDeserializingUserCode);
-    return string_;
   }
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate) {
+  void PrepareForInsertion(LocalIsolate* isolate) {}
+  V8_WARN_UNUSED_RESULT Handle<String> GetHandleForInsertion() {
     return string_;
   }
 

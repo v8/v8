@@ -190,9 +190,12 @@ bool StringShape::CanMigrateInParallel() const {
       // Shared ThinStrings do not migrate.
       return false;
     default:
+      // TODO(v8:12007): Set is_shared to true on internalized string when
+      // FLAG_shared_string_table is removed.
+      //
       // If you crashed here, you probably added a new shared string
       // type. Explicitly handle all shared string cases above.
-      DCHECK(!IsShared());
+      DCHECK((FLAG_shared_string_table && IsInternalized()) || !IsShared());
       return false;
   }
 }
@@ -372,27 +375,26 @@ class SequentialStringKey final : public StringTableKey {
     return s.IsEqualTo<String::EqualityType::kNoLengthCheck>(chars_, isolate);
   }
 
-  Handle<String> AsHandle(Isolate* isolate) {
+  template <typename IsolateT>
+  void PrepareForInsertion(IsolateT* isolate) {
     if (sizeof(Char) == 1) {
-      return isolate->factory()->NewOneByteInternalizedString(
+      internalized_string_ = isolate->factory()->NewOneByteInternalizedString(
           base::Vector<const uint8_t>::cast(chars_), raw_hash_field());
+    } else {
+      internalized_string_ = isolate->factory()->NewTwoByteInternalizedString(
+          base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
     }
-    return isolate->factory()->NewTwoByteInternalizedString(
-        base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
   }
 
-  Handle<String> AsHandle(LocalIsolate* isolate) {
-    if (sizeof(Char) == 1) {
-      return isolate->factory()->NewOneByteInternalizedString(
-          base::Vector<const uint8_t>::cast(chars_), raw_hash_field());
-    }
-    return isolate->factory()->NewTwoByteInternalizedString(
-        base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
+  Handle<String> GetHandleForInsertion() {
+    DCHECK(!internalized_string_.is_null());
+    return internalized_string_;
   }
 
  private:
   base::Vector<const Char> chars_;
   bool convert_;
+  Handle<String> internalized_string_;
 };
 
 using OneByteStringKey = SequentialStringKey<uint8_t>;
@@ -440,7 +442,7 @@ class SeqSubStringKey final : public StringTableKey {
         isolate);
   }
 
-  Handle<String> AsHandle(Isolate* isolate) {
+  void PrepareForInsertion(Isolate* isolate) {
     if (sizeof(Char) == 1 || (sizeof(Char) == 2 && convert_)) {
       Handle<SeqOneByteString> result =
           isolate->factory()->AllocateRawOneByteInternalizedString(
@@ -448,7 +450,7 @@ class SeqSubStringKey final : public StringTableKey {
       DisallowGarbageCollection no_gc;
       CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
                 length());
-      return result;
+      internalized_string_ = result;
     }
     Handle<SeqTwoByteString> result =
         isolate->factory()->AllocateRawTwoByteInternalizedString(
@@ -456,13 +458,19 @@ class SeqSubStringKey final : public StringTableKey {
     DisallowGarbageCollection no_gc;
     CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
               length());
-    return result;
+    internalized_string_ = result;
+  }
+
+  Handle<String> GetHandleForInsertion() {
+    DCHECK(!internalized_string_.is_null());
+    return internalized_string_;
   }
 
  private:
   Handle<typename CharTraits<Char>::String> string_;
   int from_;
   bool convert_;
+  Handle<String> internalized_string_;
 };
 
 using SeqOneByteSubStringKey = SeqSubStringKey<SeqOneByteString>;
@@ -633,6 +641,7 @@ const Char* String::GetChars(
                                                               access_guard);
 }
 
+// static
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   DisallowGarbageCollection no_gc;  // Unhandlified code.
@@ -662,6 +671,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
   return handle(s, isolate);
 }
 
+// static
 Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   // We should never pass non-flat strings to String::Flatten when off-thread.
