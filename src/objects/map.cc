@@ -2156,28 +2156,6 @@ int Map::ComputeMinObjectSlack(Isolate* isolate) {
   return slack;
 }
 
-void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  // Has to be an initial map.
-  DCHECK(GetBackPointer().IsUndefined(isolate));
-
-  int slack = ComputeMinObjectSlack(isolate);
-  TransitionsAccessor transitions(isolate, *this, &no_gc);
-  TransitionsAccessor::TraverseCallback callback;
-  if (slack != 0) {
-    // Resize the initial map and all maps in its transition tree.
-    callback = [&](Map map) {
-      MapUpdater::ShrinkInstanceSize(isolate->map_updater_access(), map, slack);
-    };
-  } else {
-    callback = [](Map map) {
-      // Stop slack tracking for this map.
-      map.set_construction_counter(Map::kNoSlackTracking);
-    };
-  }
-  transitions.TraverseTransitionTree(callback);
-}
-
 void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
                                  int number_of_own_descriptors) {
   set_instance_descriptors(descriptors, kReleaseStore);

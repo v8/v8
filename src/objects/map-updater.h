@@ -86,8 +86,9 @@ class V8_EXPORT_PRIVATE MapUpdater {
                               Representation new_representation,
                               Handle<FieldType> new_field_type);
 
-  static void ShrinkInstanceSize(base::SharedMutex* map_updater_access, Map map,
-                                 int slack);
+  // Completes inobject slack tracking for the transition tree starting at the
+  // initial map.
+  static void CompleteInobjectSlackTracking(Isolate* isolate, Map initial_map);
 
  private:
   enum State {

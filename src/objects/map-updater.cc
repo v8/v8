@@ -420,21 +420,50 @@ MapUpdater::State MapUpdater::Normalize(const char* reason) {
   return state_;  // Done.
 }
 
-void MapUpdater::ShrinkInstanceSize(base::SharedMutex* map_updater_access,
-                                    Map map, int slack) {
+// static
+void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
+                                               Map initial_map) {
+  DisallowGarbageCollection no_gc;
+  // Has to be an initial map.
+  DCHECK(initial_map.GetBackPointer().IsUndefined(isolate));
+
+  const int slack = initial_map.ComputeMinObjectSlack(isolate);
   DCHECK_GE(slack, 0);
+
+  TransitionsAccessor transitions(isolate, initial_map, &no_gc);
+  TransitionsAccessor::TraverseCallback callback;
+  if (slack != 0) {
+    // Resize the initial map and all maps in its transition tree.
+    callback = [slack](Map map) {
 #ifdef DEBUG
-  int old_visitor_id = Map::GetVisitorId(map);
-  int new_unused = map.UnusedPropertyFields() - slack;
+      int old_visitor_id = Map::GetVisitorId(map);
+      int new_unused = map.UnusedPropertyFields() - slack;
 #endif
+      map.set_instance_size(map.InstanceSizeFromSlack(slack));
+      map.set_construction_counter(Map::kNoSlackTracking);
+      DCHECK_EQ(old_visitor_id, Map::GetVisitorId(map));
+      DCHECK_EQ(new_unused, map.UnusedPropertyFields());
+    };
+  } else {
+    // Stop slack tracking for this map.
+    callback = [](Map map) {
+      map.set_construction_counter(Map::kNoSlackTracking);
+    };
+  }
 
   {
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(map_updater_access);
-    map.set_instance_size(map.InstanceSizeFromSlack(slack));
+    // The map_updater_access lock is taken here to guarantee atomicity of all
+    // related map changes (instead of guaranteeing only atomicity of each
+    // single map change). This is needed e.g. by InstancesNeedsRewriting,
+    // which expects certain relations between maps to hold.
+    //
+    // Note: Avoid locking the full_transition_array_access lock inside this
+    // call to TraverseTransitionTree to prevent dependencies between the two
+    // locks.
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(
+        isolate->map_updater_access());
+    transitions.TraverseTransitionTree(callback);
   }
-  map.set_construction_counter(Map::kNoSlackTracking);
-  DCHECK_EQ(old_visitor_id, Map::GetVisitorId(map));
-  DCHECK_EQ(new_unused, map.UnusedPropertyFields());
 }
 
 MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
