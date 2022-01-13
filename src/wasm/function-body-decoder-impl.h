@@ -4602,12 +4602,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                             control_.size())) {
           return 0;
         }
+        uint32_t pc_offset = opcode_length + branch_depth.length;
         Value rtt = Peek(0, 1);  // This is safe for the ...Static instruction.
         if (opcode == kExprBrOnCastStatic) {
-          IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
+          IndexImmediate<validate> imm(this, this->pc_ + pc_offset,
                                        "type index");
           if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
-          opcode_length += imm.length;
+          pc_offset += imm.length;
           rtt = CreateValue(ValueType::Rtt(
               imm.index, GetSubtypingDepth(this->module_, imm.index)));
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
@@ -4672,7 +4673,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
         Drop(result_on_branch);
         Push(obj);  // Restore stack state on fallthrough.
-        return opcode_length + branch_depth.length;
+        return pc_offset;
       }
       case kExprBrOnCastFail:
       case kExprBrOnCastStaticFail: {
@@ -4683,12 +4684,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                             control_.size())) {
           return 0;
         }
+        uint32_t pc_offset = opcode_length + branch_depth.length;
         Value rtt = Peek(0, 1);  // This is safe for the ...Static instruction.
         if (opcode == kExprBrOnCastStaticFail) {
-          IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
+          IndexImmediate<validate> imm(this, this->pc_ + pc_offset,
                                        "type index");
           if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
-          opcode_length += imm.length;
+          pc_offset += imm.length;
           rtt = CreateValue(ValueType::Rtt(
               imm.index, GetSubtypingDepth(this->module_, imm.index)));
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
@@ -4761,7 +4763,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // Make sure the correct value is on the stack state on fallthrough.
         Drop(obj);
         Push(result_on_fallthrough);
-        return opcode_length + branch_depth.length;
+        return pc_offset;
       }
 #define ABSTRACT_TYPE_CHECK(heap_type)                                  \
   case kExprRefIs##heap_type: {                                         \
