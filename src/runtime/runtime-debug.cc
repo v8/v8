@@ -826,6 +826,46 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionEntered) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
+  DCHECK_EQ(4, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject_handler, 2);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_predicted_as_caught, 3);
+
+  // Allocate the throwaway promise and fire the appropriate init
+  // hook for the throwaway promise (passing the {promise} as its
+  // parent).
+  Handle<JSPromise> throwaway = isolate->factory()->NewJSPromiseWithoutHook();
+  isolate->OnAsyncFunctionSuspended(throwaway, promise);
+
+  // The Promise will be thrown away and not handled, but it
+  // shouldn't trigger unhandled reject events as its work is done
+  throwaway->set_has_handler(true);
+
+  // Enable proper debug support for promises.
+  if (isolate->debug()->is_active()) {
+    Object::SetProperty(isolate, reject_handler,
+                        isolate->factory()->promise_forwarding_handler_symbol(),
+                        isolate->factory()->true_value(),
+                        StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
+        .Check();
+    promise->set_handled_hint(is_predicted_as_caught);
+
+    // Mark the dependency to {outer_promise} in case the {throwaway}
+    // Promise is found on the Promise stack
+    Object::SetProperty(isolate, throwaway,
+                        isolate->factory()->promise_handled_by_symbol(),
+                        outer_promise, StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
+        .Check();
+  }
+
+  return *throwaway;
+}
+
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionResumed) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
@@ -836,7 +876,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionResumed) {
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
   DCHECK_EQ(1, args.length());
-  HandleScope shs(isolate);
+  HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   isolate->OnAsyncFunctionFinished(promise);
   return *promise;

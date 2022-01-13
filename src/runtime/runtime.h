@@ -124,6 +124,7 @@ namespace internal {
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
   F(DebugAsyncFunctionEntered, 1, 1)            \
+  F(DebugAsyncFunctionSuspended, 4, 1)          \
   F(DebugAsyncFunctionResumed, 1, 1)            \
   F(DebugAsyncFunctionFinished, 2, 1)           \
   F(DebugBreakAtEntry, 1, 1)                    \
@@ -374,8 +375,6 @@ namespace internal {
   F(PromiseHookAfter, 1, 1)              \
   F(PromiseHookBefore, 1, 1)             \
   F(PromiseHookInit, 2, 1)               \
-  F(AwaitPromisesInit, 5, 1)             \
-  F(AwaitPromisesInitOld, 5, 1)          \
   F(PromiseRejectEventFromStack, 2, 1)   \
   F(PromiseRevokeReject, 1, 1)           \
   F(PromiseStatus, 1, 1)                 \
