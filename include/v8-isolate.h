@@ -225,6 +225,7 @@ class V8_EXPORT Isolate {
 
     /**
      * Explicitly specify a startup snapshot blob. The embedder owns the blob.
+     * The embedder *must* ensure that the snapshot is from a trusted source.
      */
     StartupData* snapshot_blob = nullptr;
 

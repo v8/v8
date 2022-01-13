@@ -407,6 +407,7 @@ class V8_EXPORT ScriptCompiler {
   class Source {
    public:
     // Source takes ownership of both CachedData and CodeCacheConsumeTask.
+    // The caller *must* ensure that the cached data is from a trusted source.
     V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
                      CachedData* cached_data = nullptr,
                      ConsumeCodeCacheTask* consume_cache_task = nullptr);
