@@ -175,7 +175,6 @@ TF_BUILTIN(AsyncFunctionReject, AsyncFunctionBuiltinsAssembler) {
   auto async_function_object =
       Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
   auto reason = Parameter<Object>(Descriptor::kReason);
-  auto can_suspend = Parameter<Oddball>(Descriptor::kCanSuspend);
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<JSPromise> promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
@@ -187,20 +186,17 @@ TF_BUILTIN(AsyncFunctionReject, AsyncFunctionBuiltinsAssembler) {
               FalseConstant());
 
   Label if_debugging(this, Label::kDeferred);
-  GotoIf(HasAsyncEventDelegate(), &if_debugging);
   GotoIf(IsDebugActive(), &if_debugging);
   Return(promise);
 
   BIND(&if_debugging);
-  TailCallRuntime(Runtime::kDebugAsyncFunctionFinished, context, can_suspend,
-                  promise);
+  TailCallRuntime(Runtime::kDebugAsyncFunctionFinished, context, promise);
 }
 
 TF_BUILTIN(AsyncFunctionResolve, AsyncFunctionBuiltinsAssembler) {
   auto async_function_object =
       Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
   auto value = Parameter<Object>(Descriptor::kValue);
-  auto can_suspend = Parameter<Oddball>(Descriptor::kCanSuspend);
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<JSPromise> promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
@@ -208,13 +204,11 @@ TF_BUILTIN(AsyncFunctionResolve, AsyncFunctionBuiltinsAssembler) {
   CallBuiltin(Builtin::kResolvePromise, context, promise, value);
 
   Label if_debugging(this, Label::kDeferred);
-  GotoIf(HasAsyncEventDelegate(), &if_debugging);
   GotoIf(IsDebugActive(), &if_debugging);
   Return(promise);
 
   BIND(&if_debugging);
-  TailCallRuntime(Runtime::kDebugAsyncFunctionFinished, context, can_suspend,
-                  promise);
+  TailCallRuntime(Runtime::kDebugAsyncFunctionFinished, context, promise);
 }
 
 // AsyncFunctionReject and AsyncFunctionResolve are both required to return
@@ -260,29 +254,18 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
-      async_function_object, JSAsyncFunctionObject::kPromiseOffset);
-
-  Label after_debug_hook(this), call_debug_hook(this, Label::kDeferred);
-  GotoIf(HasAsyncEventDelegate(), &call_debug_hook);
-  GotoIf(IsDebugActive(), &call_debug_hook);
-  Goto(&after_debug_hook);
-  BIND(&after_debug_hook);
-
   TNode<SharedFunctionInfo> on_resolve_sfi =
       AsyncFunctionAwaitResolveSharedFunConstant();
   TNode<SharedFunctionInfo> on_reject_sfi =
       AsyncFunctionAwaitRejectSharedFunConstant();
+  TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
+      async_function_object, JSAsyncFunctionObject::kPromiseOffset);
   Await(context, async_function_object, value, outer_promise, on_resolve_sfi,
         on_reject_sfi, is_predicted_as_caught);
 
   // Return outer promise to avoid adding an load of the outer promise before
   // suspending in BytecodeGenerator.
   Return(outer_promise);
-
-  BIND(&call_debug_hook);
-  CallRuntime(Runtime::kDebugAsyncFunctionSuspended, context, outer_promise);
-  Goto(&after_debug_hook);
 }
 
 // Called by the parser from the desugaring of 'await' when catch

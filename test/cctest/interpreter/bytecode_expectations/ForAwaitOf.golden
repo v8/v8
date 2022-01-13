@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 272
+bytecode array length: 268
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -123,10 +123,8 @@ bytecodes: [
                 B(ReThrow),
                 B(LdaUndefined),
                 B(Star6),
-                B(LdaTrue),
-                B(Star7),
                 B(Mov), R(0), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(2),
   /*   57 S> */ B(Return),
                 B(Star5),
                 B(CreateCatchContext), R(5), U8(9),
@@ -137,10 +135,8 @@ bytecodes: [
                 B(PushContext), R(5),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star7),
-                B(LdaTrue),
-                B(Star8),
                 B(Mov), R(0), R(6),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -156,7 +152,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 248, 248],
+  [18, 246, 246],
   [66, 139, 145],
   [158, 214, 216],
 ]
@@ -170,7 +166,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 292
+bytecode array length: 285
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -274,21 +270,17 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(8),
                 B(SwitchOnSmiNoFeedback), U8(9), U8(2), I8(0),
-                B(Jump), U8(19),
+                B(Jump), U8(16),
                 B(Ldar), R(9),
                 B(ReThrow),
-                B(LdaTrue),
-                B(Star), R(16),
                 B(Mov), R(0), R(14),
                 B(Mov), R(9), R(15),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(14), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(14), U8(2),
                 B(Return),
                 B(LdaUndefined),
                 B(Star6),
-                B(LdaTrue),
-                B(Star7),
                 B(Mov), R(0), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(2),
   /*   68 S> */ B(Return),
                 B(Star5),
                 B(CreateCatchContext), R(5), U8(11),
@@ -299,10 +291,8 @@ bytecodes: [
                 B(PushContext), R(5),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star7),
-                B(LdaTrue),
-                B(Star8),
                 B(Mov), R(0), R(6),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -320,7 +310,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 268, 268],
+  [18, 263, 263],
   [66, 142, 148],
   [161, 217, 219],
 ]
@@ -337,7 +327,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 288
+bytecode array length: 284
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -451,10 +441,8 @@ bytecodes: [
                 B(ReThrow),
                 B(LdaUndefined),
                 B(Star6),
-                B(LdaTrue),
-                B(Star7),
                 B(Mov), R(0), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(2),
   /*  114 S> */ B(Return),
                 B(Star5),
                 B(CreateCatchContext), R(5), U8(9),
@@ -465,10 +453,8 @@ bytecodes: [
                 B(PushContext), R(5),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star7),
-                B(LdaTrue),
-                B(Star8),
                 B(Mov), R(0), R(6),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -484,7 +470,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 264, 264],
+  [18, 262, 262],
   [66, 155, 161],
   [174, 230, 232],
 ]
@@ -499,7 +485,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 204
+bytecode array length: 198
 bytecodes: [
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
@@ -570,21 +556,17 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(6),
                 B(SwitchOnSmiNoFeedback), U8(7), U8(2), I8(0),
-                B(Jump), U8(18),
+                B(Jump), U8(16),
                 B(Ldar), R(7),
                 B(ReThrow),
-                B(LdaFalse),
-                B(Star13),
                 B(Mov), R(0), R(11),
                 B(Mov), R(7), R(12),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(11), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(11), U8(2),
                 B(Return),
                 B(LdaUndefined),
                 B(Star4),
-                B(LdaFalse),
-                B(Star5),
                 B(Mov), R(0), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(2),
   /*   96 S> */ B(Return),
                 B(Star3),
                 B(CreateCatchContext), R(3), U8(9),
@@ -595,10 +577,8 @@ bytecodes: [
                 B(PushContext), R(3),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star5),
-                B(LdaFalse),
-                B(Star6),
                 B(Mov), R(0), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -614,7 +594,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [14, 180, 180],
+  [14, 176, 176],
   [46, 92, 98],
   [111, 130, 132],
 ]

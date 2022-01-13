@@ -124,7 +124,6 @@ namespace internal {
   F(ClearStepping, 0, 1)                        \
   F(CollectGarbage, 1, 1)                       \
   F(DebugAsyncFunctionEntered, 1, 1)            \
-  F(DebugAsyncFunctionSuspended, 1, 1)          \
   F(DebugAsyncFunctionResumed, 1, 1)            \
   F(DebugAsyncFunctionFinished, 2, 1)           \
   F(DebugBreakAtEntry, 1, 1)                    \
@@ -184,8 +183,8 @@ namespace internal {
   I(AsyncFunctionAwaitCaught, 2, 1)           \
   I(AsyncFunctionAwaitUncaught, 2, 1)         \
   I(AsyncFunctionEnter, 2, 1)                 \
-  I(AsyncFunctionReject, 3, 1)                \
-  I(AsyncFunctionResolve, 3, 1)               \
+  I(AsyncFunctionReject, 2, 1)                \
+  I(AsyncFunctionResolve, 2, 1)               \
   I(AsyncGeneratorAwaitCaught, 2, 1)          \
   I(AsyncGeneratorAwaitUncaught, 2, 1)        \
   F(AsyncGeneratorHasCatchHandlerForPC, 1, 1) \

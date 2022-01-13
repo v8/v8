@@ -46,13 +46,12 @@ class V8_EXPORT_PRIVATE Location {
 };
 
 enum DebugAsyncActionType {
+  kDebugAwait,
   kDebugPromiseThen,
   kDebugPromiseCatch,
   kDebugPromiseFinally,
   kDebugWillHandle,
-  kDebugDidHandle,
-  kAsyncFunctionSuspended,
-  kAsyncFunctionFinished
+  kDebugDidHandle
 };
 
 enum BreakLocationType {

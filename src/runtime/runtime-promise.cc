@@ -133,14 +133,7 @@ Handle<JSPromise> AwaitPromisesInitCommon(Isolate* isolate,
   // hook for the throwaway promise (passing the {promise} as its
   // parent).
   Handle<JSPromise> throwaway = isolate->factory()->NewJSPromiseWithoutHook();
-  isolate->RunAllPromiseHooks(PromiseHookType::kInit, throwaway, promise);
-
-  // On inspector side we capture async stack trace and store it by
-  // outer_promise->async_task_id when async function is suspended first time.
-  // To use captured stack trace later throwaway promise should have the same
-  // async_task_id as outer_promise since we generate WillHandle and DidHandle
-  // events using throwaway promise.
-  throwaway->set_async_task_id(outer_promise->async_task_id());
+  isolate->OnAsyncFunctionSuspended(throwaway, promise);
 
   // The Promise will be thrown away and not handled, but it
   // shouldn't trigger unhandled reject events as its work is done

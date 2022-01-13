@@ -4871,9 +4871,8 @@ void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
             // We should not report PromiseThen and PromiseCatch which is called
             // indirectly, e.g. Promise.all calls Promise.then internally.
             if (last_frame_was_promise_builtin) {
-              if (!promise->async_task_id()) {
-                promise->set_async_task_id(++async_task_count_);
-              }
+              DCHECK_EQ(0, promise->async_task_id());
+              promise->set_async_task_id(++async_task_count_);
               async_event_delegate_->AsyncEventOccurred(
                   action_type, promise->async_task_id(),
                   debug()->IsBlackboxed(info));
@@ -4900,14 +4899,49 @@ void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
   }
 }
 
-void Isolate::OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
-                                          debug::DebugAsyncActionType event) {
-  if (!async_event_delegate_) return;
-  if (!promise->async_task_id()) {
-    promise->set_async_task_id(++async_task_count_);
+void Isolate::OnAsyncFunctionEntered(Handle<JSPromise> promise) {
+  if (HasIsolatePromiseHooks()) {
+    DCHECK_NE(nullptr, promise_hook_);
+    promise_hook_(PromiseHookType::kInit, v8::Utils::PromiseToLocal(promise),
+                  v8::Utils::ToLocal(factory()->undefined_value()));
   }
-  async_event_delegate_->AsyncEventOccurred(event, promise->async_task_id(),
-                                            false);
+  OnAsyncFunctionResumed(promise);
+}
+
+void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
+                                       Handle<JSPromise> parent) {
+  DCHECK_EQ(0, promise->async_task_id());
+  if (HasIsolatePromiseHooks()) {
+    DCHECK_NE(nullptr, promise_hook_);
+    promise_hook_(PromiseHookType::kInit, v8::Utils::PromiseToLocal(promise),
+                  v8::Utils::PromiseToLocal(parent));
+  }
+  if (HasAsyncEventDelegate()) {
+    DCHECK_NE(nullptr, async_event_delegate_);
+    promise->set_async_task_id(++async_task_count_);
+    async_event_delegate_->AsyncEventOccurred(debug::kDebugAwait,
+                                              promise->async_task_id(), false);
+  }
+  if (debug()->is_active()) {
+    // We are about to suspend execution of the current async function,
+    // so pop the outer promise from the isolate's promise stack.
+    PopPromise();
+  }
+}
+
+void Isolate::OnAsyncFunctionResumed(Handle<JSPromise> promise) {
+  if (debug()->is_active()) {
+    // While we are executing an async function, we need to
+    // have the implicit promise on the stack to get the catch
+    // prediction right.
+    PushPromise(promise);
+  }
+}
+
+void Isolate::OnAsyncFunctionFinished(Handle<JSPromise> promise) {
+  if (debug()->is_active()) {
+    PopPromise();
+  }
 }
 
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {

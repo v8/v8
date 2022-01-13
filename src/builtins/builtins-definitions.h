@@ -423,8 +423,8 @@ namespace internal {
                                                                                \
   /* AsyncFunction */                                                          \
   TFS(AsyncFunctionEnter, kClosure, kReceiver)                                 \
-  TFS(AsyncFunctionReject, kAsyncFunctionObject, kReason, kCanSuspend)         \
-  TFS(AsyncFunctionResolve, kAsyncFunctionObject, kValue, kCanSuspend)         \
+  TFS(AsyncFunctionReject, kAsyncFunctionObject, kReason)                      \
+  TFS(AsyncFunctionResolve, kAsyncFunctionObject, kValue)                      \
   TFC(AsyncFunctionLazyDeoptContinuation, AsyncFunctionStackParameter)         \
   TFS(AsyncFunctionAwaitCaught, kAsyncFunctionObject, kValue)                  \
   TFS(AsyncFunctionAwaitUncaught, kAsyncFunctionObject, kValue)                \

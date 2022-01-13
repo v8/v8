@@ -822,18 +822,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionEntered) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->RunPromiseHook(PromiseHookType::kInit, promise,
-                          isolate->factory()->undefined_value());
-  if (isolate->debug()->is_active()) isolate->PushPromise(promise);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->PopPromise();
-  isolate->OnAsyncFunctionStateChanged(promise, debug::kAsyncFunctionSuspended);
+  isolate->OnAsyncFunctionEntered(promise);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -841,20 +830,15 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionResumed) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->PushPromise(promise);
+  isolate->OnAsyncFunctionResumed(promise);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
-  DCHECK_EQ(2, args.length());
-  HandleScope scope(isolate);
-  CONVERT_BOOLEAN_ARG_CHECKED(has_suspend, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 1);
-  isolate->PopPromise();
-  if (has_suspend) {
-    isolate->OnAsyncFunctionStateChanged(promise,
-                                         debug::kAsyncFunctionFinished);
-  }
+  DCHECK_EQ(1, args.length());
+  HandleScope shs(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  isolate->OnAsyncFunctionFinished(promise);
   return *promise;
 }
 

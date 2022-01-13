@@ -754,8 +754,8 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                  \
   V(ForInEnumerate, Operator::kNoProperties, 1, 1)                       \
   V(AsyncFunctionEnter, Operator::kNoProperties, 2, 1)                   \
-  V(AsyncFunctionReject, Operator::kNoDeopt | Operator::kNoThrow, 3, 1)  \
-  V(AsyncFunctionResolve, Operator::kNoDeopt | Operator::kNoThrow, 3, 1) \
+  V(AsyncFunctionReject, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)  \
+  V(AsyncFunctionResolve, Operator::kNoDeopt | Operator::kNoThrow, 2, 1) \
   V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1)          \
   V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0)          \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)              \

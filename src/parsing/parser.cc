@@ -2873,8 +2873,6 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block,
     args.Add(factory()->NewVariableProxy(
         function_state_->scope()->generator_object_var()));
     args.Add(factory()->NewVariableProxy(catch_scope->catch_variable()));
-    args.Add(factory()->NewBooleanLiteral(function_state_->CanSuspend(),
-                                          kNoSourcePosition));
     reject_promise = factory()->NewCallRuntime(
         Runtime::kInlineAsyncFunctionReject, args, kNoSourcePosition);
   }

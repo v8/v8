@@ -617,10 +617,8 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
       asyncTaskFinishedForStack(task);
       asyncTaskFinishedForStepping(task);
       break;
-    case v8::debug::kAsyncFunctionSuspended: {
-      if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) {
-        asyncTaskScheduledForStack(toStringView("await"), task, true, true);
-      }
+    case v8::debug::kDebugAwait: {
+      asyncTaskScheduledForStack(toStringView("await"), task, false, true);
       auto stackIt = m_asyncTaskStacks.find(task);
       if (stackIt != m_asyncTaskStacks.end() && !stackIt->second.expired()) {
         std::shared_ptr<AsyncStackTrace> stack(stackIt->second);
@@ -628,9 +626,6 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
       }
       break;
     }
-    case v8::debug::kAsyncFunctionFinished:
-      asyncTaskCanceledForStack(task);
-      break;
   }
 }
 

@@ -948,8 +948,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     async_event_delegate_ = delegate;
     PromiseHookStateUpdated();
   }
-  void OnAsyncFunctionStateChanged(Handle<JSPromise> promise,
-                                   debug::DebugAsyncActionType);
+
+  // Async function instrumentation support.
+  void OnAsyncFunctionEntered(Handle<JSPromise> promise);
+  void OnAsyncFunctionSuspended(Handle<JSPromise> promise,
+                                Handle<JSPromise> parent);
+  void OnAsyncFunctionResumed(Handle<JSPromise> promise);
+  void OnAsyncFunctionFinished(Handle<JSPromise> promise);
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.

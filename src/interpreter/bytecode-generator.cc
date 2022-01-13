@@ -3626,12 +3626,10 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
   } else {
     DCHECK(IsAsyncFunction(info()->literal()->kind()) ||
            IsAsyncModule(info()->literal()->kind()));
-    RegisterList args = register_allocator()->NewRegisterList(3);
+    RegisterList args = register_allocator()->NewRegisterList(2);
     builder()
         ->MoveRegister(generator_object(), args[0])  // generator
         .StoreAccumulatorInRegister(args[1])         // value
-        .LoadBoolean(info()->literal()->CanSuspend())
-        .StoreAccumulatorInRegister(args[2])  // can_suspend
         .CallRuntime(Runtime::kInlineAsyncFunctionResolve, args);
   }
 
