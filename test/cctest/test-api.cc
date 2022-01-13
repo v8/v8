@@ -71,6 +71,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/lookup.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
@@ -2981,9 +2982,9 @@ TEST(InternalFieldsSubclassing) {
         CHECK_LE(i_value->map().GetInObjectProperties(), kMaxNofProperties);
       }
 
-      // Make Sure we get the precise property count.
-      i_value->map().FindRootMap(i_isolate).CompleteInobjectSlackTracking(
-          i_isolate);
+      // Make sure we get the precise property count.
+      i::MapUpdater::CompleteInobjectSlackTracking(
+          i_isolate, i_value->map().FindRootMap(i_isolate));
       // TODO(cbruni): fix accounting to make this condition true.
       // CHECK_EQ(0, i_value->map()->UnusedPropertyFields());
       if (in_object_only) {

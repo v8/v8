@@ -1390,7 +1390,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  object->map().CompleteInobjectSlackTracking(isolate);
+  MapUpdater::CompleteInobjectSlackTracking(isolate, object->map());
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
