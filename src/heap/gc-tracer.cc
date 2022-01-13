@@ -1348,6 +1348,9 @@ void CopyTimeMetrics(
   metrics.mark_wall_clock_duration_in_us = cppgc_metrics.mark_duration_us;
   DCHECK_NE(-1, cppgc_metrics.sweep_duration_us);
   metrics.sweep_wall_clock_duration_in_us = cppgc_metrics.sweep_duration_us;
+  metrics.total_wall_clock_duration_in_us =
+      metrics.mark_wall_clock_duration_in_us +
+      metrics.sweep_wall_clock_duration_in_us;
 }
 
 void CopyTimeMetrics(
@@ -1361,6 +1364,11 @@ void CopyTimeMetrics(
   metrics.sweep_wall_clock_duration_in_us = cppgc_metrics.sweep_duration_us;
   DCHECK_NE(-1, cppgc_metrics.weak_duration_us);
   metrics.weak_wall_clock_duration_in_us = cppgc_metrics.weak_duration_us;
+  metrics.total_wall_clock_duration_in_us =
+      metrics.compact_wall_clock_duration_in_us +
+      metrics.mark_wall_clock_duration_in_us +
+      metrics.sweep_wall_clock_duration_in_us +
+      metrics.weak_wall_clock_duration_in_us;
 }
 
 void CopySizeMetrics(

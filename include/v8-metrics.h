@@ -21,6 +21,7 @@ class Isolate;
 namespace metrics {
 
 struct GarbageCollectionPhases {
+  int64_t total_wall_clock_duration_in_us = -1;
   int64_t compact_wall_clock_duration_in_us = -1;
   int64_t mark_wall_clock_duration_in_us = -1;
   int64_t sweep_wall_clock_duration_in_us = -1;
