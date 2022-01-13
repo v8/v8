@@ -11,6 +11,7 @@
 #include "include/v8-internal.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/embedder-data-snapshot.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
@@ -23,6 +24,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class EmbedderDataSnapshot;
 class EvacuationJobTraits;
 class HeapObjectVisitor;
 class ItemParallelJob;
@@ -390,14 +392,15 @@ class MainMarkingVisitor final
 
   MainMarkingVisitor(MarkingState* marking_state,
                      MarkingWorklists::Local* local_marking_worklists,
-                     WeakObjects::Local* local_weak_objects, Heap* heap,
+                     WeakObjects::Local* local_weak_objects,
+                     EmbedderDataSnapshot* embedder_data_snapshot, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool embedder_tracing_enabled,
                      bool should_keep_ages_unchanged)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
-            local_marking_worklists, local_weak_objects, heap,
-            mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
+            local_marking_worklists, local_weak_objects, embedder_data_snapshot,
+            heap, mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
             should_keep_ages_unchanged),
         marking_state_(marking_state),
         revisiting_object_(false) {}
@@ -788,6 +791,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   std::unique_ptr<MarkingVisitor> marking_visitor_;
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
   std::unique_ptr<WeakObjects::Local> local_weak_objects_;
+  std::unique_ptr<EmbedderDataSnapshot> embedder_data_snapshot_;
   NativeContextInferrer native_context_inferrer_;
   NativeContextStats native_context_stats_;
 

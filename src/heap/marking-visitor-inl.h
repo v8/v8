@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MARKING_VISITOR_INL_H_
 #define V8_HEAP_MARKING_VISITOR_INL_H_
 
+#include "src/heap/embedder-data-snapshot-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
@@ -264,11 +265,20 @@ int MarkingVisitorBase<ConcreteVisitor,
                        MarkingState>::VisitEmbedderTracingSubclass(Map map,
                                                                    T object) {
   DCHECK(object.IsApiWrapper());
+  const bool valid_snapshot_data =
+      is_embedder_tracing_enabled_ && embedder_data_snapshot_ &&
+      embedder_data_snapshot_->Populate(map, object);
   int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
   if (size && is_embedder_tracing_enabled_) {
-    // Success: The object needs to be processed for embedder references on
-    // the main thread.
-    local_marking_worklists_->PushWrapper(object);
+    // Success: The object needs to be processed for embedder references.
+    if (valid_snapshot_data) {
+      // Push extracted snapshot.
+      const auto pair = embedder_data_snapshot_->ExtractWrapperSlots();
+      local_marking_worklists_->PushExtractedWrapper(pair.first, pair.second);
+    } else if (!embedder_data_snapshot_) {
+      // Fallback for main thread processing.
+      local_marking_worklists_->PushWrapper(object);
+    }
   }
   return size;
 }

@@ -63,9 +63,10 @@ TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
   uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
-  v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
-      context, &wrappable_type,
-      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle()));
+  auto* wrappable_object =
+      cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
+  v8::Local<v8::Object> api_object =
+      WrapperHelper::CreateWrapper(context, &wrappable_type, wrappable_object);
   Wrappable::destructor_callcount = 0;
   EXPECT_FALSE(api_object.IsEmpty());
   EXPECT_EQ(0u, Wrappable::destructor_callcount);

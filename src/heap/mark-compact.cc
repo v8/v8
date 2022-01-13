@@ -22,6 +22,8 @@
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
+#include "src/heap/embedder-data-snapshot-inl.h"
+#include "src/heap/embedder-data-snapshot.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
@@ -578,9 +580,12 @@ void MarkCompactCollector::StartMarking() {
       cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
                : MarkingWorklists::Local::kNoCppMarkingState);
   local_weak_objects_ = std::make_unique<WeakObjects::Local>(weak_objects());
+  embedder_data_snapshot_ = cpp_heap ? std::make_unique<EmbedderDataSnapshot>(
+                                           cpp_heap->wrapper_descriptor())
+                                     : nullptr;
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), local_weak_objects_.get(),
-      heap_, epoch(), code_flush_mode(),
+      embedder_data_snapshot_.get(), heap_, epoch(), code_flush_mode(),
       heap_->local_embedder_heap_tracer()->InUse(),
       heap_->ShouldCurrentGCKeepAgesUnchanged());
 // Marking bits are cleared by the sweeper.
@@ -998,6 +1003,7 @@ void MarkCompactCollector::Finish() {
 
   marking_visitor_.reset();
   local_marking_worklists_.reset();
+  embedder_data_snapshot_.reset();
   marking_worklists_.ReleaseContextWorklists();
   native_context_stats_.Clear();
 

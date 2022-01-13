@@ -5,11 +5,10 @@
 #ifndef V8_OBJECTS_EMBEDDER_DATA_SLOT_INL_H_
 #define V8_OBJECTS_EMBEDDER_DATA_SLOT_INL_H_
 
-#include "src/objects/embedder-data-slot.h"
-
 #include "src/base/memory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/embedder-data-array.h"
+#include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -26,6 +25,9 @@ EmbedderDataSlot::EmbedderDataSlot(EmbedderDataArray array, int entry_index)
 EmbedderDataSlot::EmbedderDataSlot(JSObject object, int embedder_field_index)
     : SlotBase(FIELD_ADDR(
           object, object.GetEmbedderFieldOffset(embedder_field_index))) {}
+
+EmbedderDataSlot::EmbedderDataSlot(Address raw_address)
+    : SlotBase(raw_address) {}
 
 void EmbedderDataSlot::AllocateExternalPointerEntry(Isolate* isolate) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
