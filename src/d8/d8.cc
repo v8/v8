@@ -1365,11 +1365,15 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   // isolate->ReportPendingMessages().
   TryCatch try_catch(isolate);
 
+  ModuleEmbedderData* d = GetModuleDataFromContext(realm);
   Local<Module> root_module;
-
-  if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
-                       ModuleType::kJavaScript)
-           .ToLocal(&root_module)) {
+  auto module_it = d->module_map.find(
+      std::make_pair(absolute_path, ModuleType::kJavaScript));
+  if (module_it != d->module_map.end()) {
+    root_module = module_it->second.Get(isolate);
+  } else if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
+                              ModuleType::kJavaScript)
+                  .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
     ReportException(isolate, &try_catch);
     return false;
