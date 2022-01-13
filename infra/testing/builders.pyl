@@ -361,7 +361,6 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
-      {'name': 'v8testing', 'variant': 'no_concurrent_inlining'},
     ],
   },
   'v8_linux64_dict_tracking_dbg_ng_triggered': {
@@ -474,7 +473,6 @@
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
-      {'name': 'v8testing', 'variant': 'no_concurrent_inlining'},
     ],
   },
   'v8_linux64_perfetto_dbg_ng_triggered': {
@@ -520,7 +518,6 @@
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
-      {'name': 'v8testing', 'variant': 'no_concurrent_inlining'},
     ],
   },
   'v8_linux64_tsan_rel_ng_triggered': {
@@ -1153,7 +1150,6 @@
       {'name': 'v8testing', 'variant': 'minor_mc'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
-      {'name': 'v8testing', 'variant': 'no_concurrent_inlining'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -1215,7 +1211,6 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
-      {'name': 'v8testing', 'variant': 'no_concurrent_inlining'},
       # Noavx.
       {
         'name': 'mozilla',

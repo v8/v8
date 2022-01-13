@@ -17,8 +17,6 @@ ALL_VARIANT_FLAGS = {
   "sparkplug": [["--sparkplug"]],
   "always_sparkplug": [[ "--always-sparkplug", "--sparkplug"]],
   "minor_mc": [["--minor-mc"]],
-  "no_concurrent_inlining":  [["--no-concurrent-inlining",
-                               "--no-stress-concurrent-inlining"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see
@@ -31,8 +29,7 @@ ALL_VARIANT_FLAGS = {
   "stress": [["--stress-opt", "--no-liftoff", "--stress-lazy-source-positions",
               "--no-wasm-generic-wrapper"]],
   "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
-  "stress_concurrent_inlining": [["--stress-concurrent-inlining",
-                                  "--concurrent-inlining"]],
+  "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],
   "stress_js_bg_compile_wasm_code_gc": [["--stress-background-compile",
                                          "--stress-wasm-code-gc"]],
   "stress_incremental_marking": [["--stress-incremental-marking"]],
@@ -62,7 +59,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "stress_concurrent_inlining": ["--single-threaded", "--predictable",
                                  "--turboprop", "--lazy-feedback-allocation",
-                                 "--assert-types"],
+                                 "--assert-types",
+                                 "--no-concurrent-recompilation"],
   "turboprop": ["--stress_concurrent_inlining"],
   # The fast API tests initialize an embedder object that never needs to be
   # serialized to the snapshot, so we don't have a
@@ -82,7 +80,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   # There is a negative implication: --perf-prof disables
   # --wasm-write-protect-code-memory.
   "wasm_write_protect_code": ["--perf-prof"],
-  "assert_types": ["--concurrent-recompilation", "--concurrent-inlining", "--stress_concurrent_inlining", "--no-assert-types"],
+  "assert_types": ["--concurrent-recompilation", "--stress_concurrent_inlining", "--no-assert-types"],
 }
 
 # Flags that lead to a contradiction under certain build variables.
@@ -100,7 +98,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
                   "--stress-concurrent-allocation",
                   "--stress-concurrent-inlining"],
   "dict_property_const_tracking": [
-                  "--concurrent-inlining",
                   "--turboprop",
                   "--stress-concurrent-inlining"],
 }

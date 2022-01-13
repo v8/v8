@@ -49,7 +49,6 @@
 #include "src/compiler/js-create-lowering.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-native-context-specialization.h"
@@ -157,9 +156,9 @@ class PipelineData {
         instruction_zone_(instruction_zone_scope_.zone()),
         codegen_zone_scope_(zone_stats_, kCodegenZoneName),
         codegen_zone_(codegen_zone_scope_.zone()),
-        broker_(new JSHeapBroker(
-            isolate_, info_->zone(), info_->trace_heap_broker(),
-            info_->concurrent_inlining(), info->code_kind())),
+        broker_(new JSHeapBroker(isolate_, info_->zone(),
+                                 info_->trace_heap_broker(),
+                                 info->code_kind())),
         register_allocation_zone_scope_(zone_stats_,
                                         kRegisterAllocationZoneName),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
@@ -1200,17 +1199,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
   pipeline_.InitializeHeapBroker();
 
-  if (!data_.broker()->is_concurrent_inlining()) {
-    if (!pipeline_.CreateGraph()) {
-      CHECK(!isolate->has_pending_exception());
-      return AbortOptimization(BailoutReason::kGraphBuildingFailed);
-    }
-  }
-
-  if (compilation_info()->concurrent_inlining()) {
-    // Serialization may have allocated.
-    isolate->heap()->PublishPendingAllocations();
-  }
+  // Serialization may have allocated.
+  isolate->heap()->PublishPendingAllocations();
 
   return SUCCEEDED;
 }
@@ -1223,10 +1213,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
   LocalIsolateScope local_isolate_scope(data_.broker(), data_.info(),
                                         local_isolate);
 
-  if (data_.broker()->is_concurrent_inlining()) {
-    if (!pipeline_.CreateGraph()) {
-      return AbortOptimization(BailoutReason::kGraphBuildingFailed);
-    }
+  if (!pipeline_.CreateGraph()) {
+    return AbortOptimization(BailoutReason::kGraphBuildingFailed);
   }
 
   // We selectively Unpark inside OptimizeGraph*.
@@ -1511,24 +1499,6 @@ struct HeapBrokerInitializationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     data->broker()->InitializeAndStartSerializing();
-  }
-};
-
-struct CopyMetadataForConcurrentCompilePhase {
-  DECL_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS(SerializeMetadata)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    JSHeapCopyReducer heap_copy_reducer(data->broker());
-    AddReducer(data, &graph_reducer, &heap_copy_reducer);
-    graph_reducer.ReduceGraph();
-
-    // Some nodes that are no longer in the graph might still be in the cache.
-    NodeVector cached_nodes(temp_zone);
-    data->jsgraph()->GetCachedNodes(&cached_nodes);
-    for (Node* const node : cached_nodes) graph_reducer.ReduceNode(node);
   }
 };
 
@@ -2693,10 +2663,8 @@ void PipelineImpl::InitializeHeapBroker() {
   }
 
   data->broker()->SetTargetNativeContextRef(data->native_context());
-  if (data->broker()->is_concurrent_inlining()) {
-    Run<HeapBrokerInitializationPhase>();
-    data->broker()->StopSerializing();
-  }
+  Run<HeapBrokerInitializationPhase>();
+  data->broker()->StopSerializing();
   data->EndPhaseKind();
 }
 
@@ -2725,15 +2693,6 @@ bool PipelineImpl::CreateGraph() {
     if (IsClassConstructor(shared_info.kind())) {
       // Class constructors cannot be [[Call]]ed.
       data->AddTyperFlag(Typer::kNewTargetIsReceiver);
-    }
-  }
-
-  // Run the type-sensitive lowerings and optimizations on the graph.
-  {
-    if (!data->broker()->is_concurrent_inlining()) {
-      Run<HeapBrokerInitializationPhase>();
-      Run<CopyMetadataForConcurrentCompilePhase>();
-      data->broker()->StopSerializing();
     }
   }
 
@@ -3391,20 +3350,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     CanonicalHandleScope canonical(isolate, info);
     info->ReopenHandlesInNewHandleScope(isolate);
     pipeline.InitializeHeapBroker();
-    // Emulating the proper pipeline, we call CreateGraph on different places
-    // (i.e before or after creating a LocalIsolateScope) depending on
-    // is_concurrent_inlining.
-    if (!data.broker()->is_concurrent_inlining()) {
-      if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
-    }
   }
 
   {
     LocalIsolateScope local_isolate_scope(data.broker(), info,
                                           isolate->main_thread_local_isolate());
-    if (data.broker()->is_concurrent_inlining()) {
-      if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
-    }
+    if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
     // We selectively Unpark inside OptimizeGraph.
     if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
 

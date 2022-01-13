@@ -2600,8 +2600,6 @@ filegroup(
         "src/compiler/js-graph.h",
         "src/compiler/js-heap-broker.cc",
         "src/compiler/js-heap-broker.h",
-        "src/compiler/js-heap-copy-reducer.cc",
-        "src/compiler/js-heap-copy-reducer.h",
         "src/compiler/js-inlining.cc",
         "src/compiler/js-inlining.h",
         "src/compiler/js-inlining-heuristic.cc",

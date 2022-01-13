@@ -66,10 +66,6 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 void OptimizedCompilationInfo::ConfigureFlags() {
   if (FLAG_turbo_inline_js_wasm_calls) set_inline_js_wasm_calls();
 
-  if (IsTurboprop() || FLAG_concurrent_inlining) {
-    set_concurrent_inlining();
-  }
-
   switch (code_kind_) {
     case CodeKind::TURBOFAN:
       if (FLAG_function_context_specialization) {

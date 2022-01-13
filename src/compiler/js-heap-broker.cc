@@ -43,8 +43,7 @@ void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 void JSHeapBroker::DecrementTracingIndentation() { --trace_indentation_; }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
-                           bool tracing_enabled, bool is_concurrent_inlining,
-                           CodeKind code_kind)
+                           bool tracing_enabled, CodeKind code_kind)
     : isolate_(isolate),
 #if V8_COMPRESS_POINTERS
       cage_base_(isolate),
@@ -55,7 +54,6 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       root_index_map_(isolate),
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
-      is_concurrent_inlining_(is_concurrent_inlining),
       code_kind_(code_kind),
       feedback_(zone()),
       property_access_infos_(zone()),
@@ -710,9 +708,6 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
 
   AllocationSiteRef site =
       MakeRefAssumeMemoryFence(this, AllocationSite::cast(object));
-  if (!is_concurrent_inlining() && site.PointsToLiteral()) {
-    site.SerializeRecursive(NotConcurrentInliningTag{this});
-  }
   return *zone()->New<LiteralFeedback>(site, nexus.kind());
 }
 
@@ -728,9 +723,6 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
 
   RegExpBoilerplateDescriptionRef boilerplate = MakeRefAssumeMemoryFence(
       this, RegExpBoilerplateDescription::cast(object));
-  if (!is_concurrent_inlining()) {
-    boilerplate.Serialize(NotConcurrentInliningTag{this});
-  }
   return *zone()->New<RegExpLiteralFeedback>(boilerplate, nexus.kind());
 }
 
@@ -971,12 +963,10 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   AccessInfoFactory factory(this, dependencies, zone());
   PropertyAccessInfo access_info =
       factory.ComputePropertyAccessInfo(map, name, access_mode);
-  if (is_concurrent_inlining_) {
-    TRACE(this, "Storing PropertyAccessInfo for "
-                    << access_mode << " of property " << name << " on map "
-                    << map);
-    property_access_infos_.insert({target, access_info});
-  }
+  TRACE(this, "Storing PropertyAccessInfo for "
+                  << access_mode << " of property " << name << " on map "
+                  << map);
+  property_access_infos_.insert({target, access_info});
   return access_info;
 }
 
@@ -989,16 +979,16 @@ MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   AccessInfoFactory factory(this, nullptr, zone());
   MinimorphicLoadPropertyAccessInfo access_info =
       factory.ComputePropertyAccessInfo(feedback);
-  if (is_concurrent_inlining_) {
-    // We can assume a memory fence on {source.vector} because in production,
-    // the vector has already passed the gc predicate. Unit tests create
-    // FeedbackSource objects directly from handles, but they run on
-    // the main thread.
-    TRACE(this, "Storing MinimorphicLoadPropertyAccessInfo for "
-                    << source.index() << "  "
-                    << MakeRefAssumeMemoryFence<Object>(this, source.vector));
-    minimorphic_property_access_infos_.insert({source, access_info});
-  }
+
+  // We can assume a memory fence on {source.vector} because in production,
+  // the vector has already passed the gc predicate. Unit tests create
+  // FeedbackSource objects directly from handles, but they run on
+  // the main thread.
+  TRACE(this, "Storing MinimorphicLoadPropertyAccessInfo for "
+                  << source.index() << "  "
+                  << MakeRefAssumeMemoryFence<Object>(this, source.vector));
+  minimorphic_property_access_infos_.insert({source, access_info});
+
   return access_info;
 }
 
