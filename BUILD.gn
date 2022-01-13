@@ -2954,8 +2954,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/cppgc-js/unified-heap-marking-state.h",
     "src/heap/cppgc-js/unified-heap-marking-verifier.h",
     "src/heap/cppgc-js/unified-heap-marking-visitor.h",
-    "src/heap/embedder-data-snapshot-inl.h",
-    "src/heap/embedder-data-snapshot.h",
     "src/heap/embedder-tracing-inl.h",
     "src/heap/embedder-tracing.h",
     "src/heap/factory-base-inl.h",

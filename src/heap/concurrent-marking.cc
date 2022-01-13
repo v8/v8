@@ -10,7 +10,6 @@
 #include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/heap/embedder-data-snapshot.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -87,16 +86,15 @@ class ConcurrentMarkingVisitor final
  public:
   ConcurrentMarkingVisitor(int task_id,
                            MarkingWorklists::Local* local_marking_worklists,
-                           WeakObjects::Local* local_weak_objects,
-                           EmbedderDataSnapshot* embedder_data_snapshot,
-                           Heap* heap, unsigned mark_compact_epoch,
+                           WeakObjects::Local* local_weak_objects, Heap* heap,
+                           unsigned mark_compact_epoch,
                            base::EnumSet<CodeFlushMode> code_flush_mode,
                            bool embedder_tracing_enabled,
                            bool should_keep_ages_unchanged,
                            MemoryChunkDataMap* memory_chunk_data)
-      : MarkingVisitorBase(local_marking_worklists, local_weak_objects,
-                           embedder_data_snapshot, heap, mark_compact_epoch,
-                           code_flush_mode, embedder_tracing_enabled,
+      : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
+                           mark_compact_epoch, code_flush_mode,
+                           embedder_tracing_enabled,
                            should_keep_ages_unchanged),
         marking_state_(heap->isolate(), memory_chunk_data),
         memory_chunk_data_(memory_chunk_data) {}
@@ -459,16 +457,11 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
                               ? cpp_heap->CreateCppMarkingState()
                               : MarkingWorklists::Local::kNoCppMarkingState);
   WeakObjects::Local local_weak_objects(weak_objects_);
-  EmbedderDataSnapshot embedder_data_snapshot(
-      cpp_heap ? cpp_heap->wrapper_descriptor()
-               // Without CppHeap the snapshot will not be used and any
-               // descriptor will do.
-               : v8::WrapperDescriptor(0, 0, 0));
   ConcurrentMarkingVisitor visitor(
-      task_id, &local_marking_worklists, &local_weak_objects,
-      cpp_heap ? &embedder_data_snapshot : nullptr, heap_, mark_compact_epoch,
-      code_flush_mode, heap_->local_embedder_heap_tracer()->InUse(),
-      should_keep_ages_unchanged, &task_state->memory_chunk_data);
+      task_id, &local_marking_worklists, &local_weak_objects, heap_,
+      mark_compact_epoch, code_flush_mode,
+      heap_->local_embedder_heap_tracer()->InUse(), should_keep_ages_unchanged,
+      &task_state->memory_chunk_data);
   NativeContextInferrer& native_context_inferrer =
       task_state->native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;

@@ -49,9 +49,11 @@ void WriteBarrier::MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value) {
 
 // static
 void WriteBarrier::MarkingSlowFromInternalFields(Heap* heap, JSObject host) {
+  // We are not checking the mark bits of host here as (a) there's no
+  // synchronization with the marker and (b) we are writing into a live object
+  // (independent of the mark bits).
   auto* local_embedder_heap_tracer = heap->local_embedder_heap_tracer();
   if (!local_embedder_heap_tracer->InUse()) return;
-
   local_embedder_heap_tracer->EmbedderWriteBarrier(heap, host);
 }
 

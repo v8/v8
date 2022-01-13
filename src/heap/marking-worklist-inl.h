@@ -10,7 +10,6 @@
 #include "src/heap/cppgc-js/cpp-marking-state-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/objects/js-objects-inl.h"
-#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -48,19 +47,16 @@ bool MarkingWorklists::Local::PopOnHold(HeapObject* object) {
   return on_hold_.Pop(object);
 }
 
-void MarkingWorklists::Local::PushExtractedWrapper(
-    const EmbedderDataSlot& type_slot, const EmbedderDataSlot& instance_slot) {
-  DCHECK_NOT_NULL(cpp_marking_state_);
-  cpp_marking_state_->MarkAndPush(type_slot, instance_slot);
-}
-
 void MarkingWorklists::Local::PushWrapper(HeapObject object) {
-  DCHECK_NULL(cpp_marking_state_);
-  wrapper_.Push(object);
+  if (cpp_marking_state_) {
+    cpp_marking_state_->MarkAndPush(JSObject::cast(object));
+  } else {
+    wrapper_.Push(object);
+  }
 }
 
 bool MarkingWorklists::Local::PopWrapper(HeapObject* object) {
-  DCHECK_NULL(cpp_marking_state_);
+  DCHECK(!cpp_marking_state_);
   return wrapper_.Pop(object);
 }
 

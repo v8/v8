@@ -7841,12 +7841,6 @@ void CheckInternalFields(
 }
 
 void InternalFieldCallback(bool global_gc) {
-  // Manual GC scope as --stress-incremental-marking starts marking early and
-  // setting internal pointer fields mark the object for a heap layout change,
-  // which prevents it from being reclaimed and the callbacks from being
-  // executed.
-  ManualGCScope manual_gc_scope;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);

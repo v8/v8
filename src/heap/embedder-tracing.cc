@@ -197,13 +197,8 @@ void LocalEmbedderHeapTracer::EmbedderWriteBarrier(Heap* heap,
   DCHECK(js_object.IsApiWrapper());
   if (cpp_heap_) {
     DCHECK_NOT_NULL(heap->mark_compact_collector());
-    const EmbedderDataSlot type_slot(js_object,
-                                     wrapper_descriptor_.wrappable_type_index);
-    const EmbedderDataSlot instance_slot(
-        js_object, wrapper_descriptor_.wrappable_instance_index);
-    heap->mark_compact_collector()
-        ->local_marking_worklists()
-        ->PushExtractedWrapper(type_slot, instance_slot);
+    heap->mark_compact_collector()->local_marking_worklists()->PushWrapper(
+        js_object);
     return;
   }
   LocalEmbedderHeapTracer::ProcessingScope scope(this);

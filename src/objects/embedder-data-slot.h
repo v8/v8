@@ -35,7 +35,6 @@ class EmbedderDataSlot
   EmbedderDataSlot() : SlotBase(kNullAddress) {}
   V8_INLINE EmbedderDataSlot(EmbedderDataArray array, int entry_index);
   V8_INLINE EmbedderDataSlot(JSObject object, int embedder_field_index);
-  V8_INLINE explicit EmbedderDataSlot(Address raw_address);
 
 #if defined(V8_TARGET_BIG_ENDIAN) && defined(V8_COMPRESS_POINTERS)
   static constexpr int kTaggedPayloadOffset = kTaggedSize;

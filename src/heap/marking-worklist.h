@@ -19,7 +19,6 @@ namespace internal {
 
 class CppMarkingState;
 class JSObject;
-class EmbedderDataSlot;
 
 // The index of the main thread task used by concurrent/parallel GC.
 const int kMainThreadTask = 0;
@@ -158,8 +157,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local {
   inline void PushOnHold(HeapObject object);
   inline bool PopOnHold(HeapObject* object);
 
-  inline void PushExtractedWrapper(const EmbedderDataSlot& type_slot,
-                                   const EmbedderDataSlot& instance_slot);
   inline void PushWrapper(HeapObject object);
   inline bool PopWrapper(HeapObject* object);
 

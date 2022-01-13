@@ -77,9 +77,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   static V8_INLINE bool ExtractWrappableInfo(Isolate*, JSObject,
                                              const WrapperDescriptor&,
                                              WrapperInfo*);
-  static V8_INLINE bool ExtractWrappableInfo(
-      Isolate*, const WrapperDescriptor&, const EmbedderDataSlot& type_slot,
-      const EmbedderDataSlot& instance_slot, WrapperInfo*);
 
   explicit LocalEmbedderHeapTracer(Isolate* isolate) : isolate_(isolate) {}
 

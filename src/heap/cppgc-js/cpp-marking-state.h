@@ -15,7 +15,6 @@ namespace v8 {
 namespace internal {
 
 class JSObject;
-class EmbedderDataSlot;
 
 class CppMarkingState {
  public:
@@ -38,8 +37,7 @@ class CppMarkingState {
 
   void Publish() { marking_state_.Publish(); }
 
-  inline void MarkAndPush(const EmbedderDataSlot& type_slot,
-                          const EmbedderDataSlot& instance_slot);
+  inline void MarkAndPush(const JSObject& js_object);
 
   bool IsLocalEmpty() {
     return marking_state_.marking_worklist().IsLocalEmpty();
