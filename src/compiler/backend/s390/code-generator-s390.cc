@@ -2663,7 +2663,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(F32x4Ceil, Simd128Register, Simd128Register)       \
   V(F32x4Floor, Simd128Register, Simd128Register)      \
   V(F32x4Trunc, Simd128Register, Simd128Register)      \
-  V(F32x4NearestInt, Simd128Register, Simd128Register)
+  V(F32x4NearestInt, Simd128Register, Simd128Register) \
+  V(I64x2Abs, Simd128Register, Simd128Register)        \
+  V(I32x4Abs, Simd128Register, Simd128Register)        \
+  V(I16x8Abs, Simd128Register, Simd128Register)        \
+  V(I8x16Abs, Simd128Register, Simd128Register)        \
+  V(I64x2Neg, Simd128Register, Simd128Register)        \
+  V(I32x4Neg, Simd128Register, Simd128Register)        \
+  V(I16x8Neg, Simd128Register, Simd128Register)        \
+  V(I8x16Neg, Simd128Register, Simd128Register)
 
 #define EMIT_SIMD_UNOP(name, dtype, stype)         \
   case kS390_##name: {                             \
@@ -2756,26 +2764,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     // vector unary ops
-    case kS390_I64x2Neg: {
-      __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
-             Condition(0), Condition(3));
-      break;
-    }
-    case kS390_I32x4Neg: {
-      __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
-             Condition(0), Condition(2));
-      break;
-    }
-    case kS390_I16x8Neg: {
-      __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
-             Condition(0), Condition(1));
-      break;
-    }
-    case kS390_I8x16Neg: {
-      __ vlc(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
-             Condition(0), Condition(0));
-      break;
-    }
     case kS390_F32x4RecipApprox: {
       __ mov(kScratchReg, Operand(1));
       __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
@@ -2800,26 +2788,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
       __ vno(dst, src, src, Condition(0), Condition(0), Condition(0));
-      break;
-    }
-    case kS390_I8x16Abs: {
-      __ vlp(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
-             Condition(0), Condition(0));
-      break;
-    }
-    case kS390_I16x8Abs: {
-      __ vlp(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
-             Condition(0), Condition(1));
-      break;
-    }
-    case kS390_I32x4Abs: {
-      __ vlp(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
-             Condition(0), Condition(2));
-      break;
-    }
-    case kS390_I64x2Abs: {
-      __ vlp(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0),
-             Condition(0), Condition(3));
       break;
     }
     // vector boolean unops
