@@ -206,11 +206,10 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
 
   // If the class variable is context-allocated and its index is
   // saved for deserialization, deserialize it.
-  if (scope_info->HasSavedClassVariableIndex()) {
-    int index = scope_info->SavedClassVariableContextLocalIndex();
-    DCHECK_GE(index, 0);
-    DCHECK_LT(index, scope_info->ContextLocalCount());
-    String name = scope_info->ContextLocalName(index);
+  if (scope_info->HasSavedClassVariable()) {
+    String name;
+    int index;
+    std::tie(name, index) = scope_info->SavedClassVariable();
     DCHECK_EQ(scope_info->ContextLocalMode(index), VariableMode::kConst);
     DCHECK_EQ(scope_info->ContextLocalInitFlag(index),
               InitializationFlag::kNeedsInitialization);

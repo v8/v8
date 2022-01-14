@@ -54,7 +54,7 @@ bitfield struct ScopeFlags extends uint31 {
   declaration_scope: bool: 1 bit;
   receiver_variable: VariableAllocationInfo: 2 bit;
   has_class_brand: bool: 1 bit;
-  has_saved_class_variable_index: bool: 1 bit;
+  has_saved_class_variable: bool: 1 bit;
   has_new_target: bool: 1 bit;
   // TODO(cbruni): Combine with function variable field when only storing the
   // function name.
@@ -119,8 +119,9 @@ extern class ScopeInfo extends HeapObject {
 
   // If the scope is a class scope and it has static private methods that
   // may be accessed directly or through eval, one slot is reserved to hold
-  // the context slot index for the class variable.
-  saved_class_variable_info?[flags.has_saved_class_variable_index]: Smi;
+  // the offset in the field storage of the hash table (or the slot index if
+  // local names are inlined) for the class variable.
+  saved_class_variable_info?[flags.has_saved_class_variable]: Smi;
 
   // If the scope belongs to a named function expression this part contains
   // information about the function variable. It always occupies two array

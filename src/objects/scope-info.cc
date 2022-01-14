@@ -204,8 +204,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         DeclarationScopeBit::encode(scope->is_declaration_scope()) |
         ReceiverVariableBits::encode(receiver_info) |
         HasClassBrandBit::encode(has_brand) |
-        HasSavedClassVariableIndexBit::encode(
-            should_save_class_variable_index) |
+        HasSavedClassVariableBit::encode(should_save_class_variable_index) |
         HasNewTargetBit::encode(has_new_target) |
         FunctionVariableBits::encode(function_name_info) |
         HasInferredFunctionNameBit::encode(has_inferred_function_name) |
@@ -397,8 +396,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       DeclarationScopeBit::encode(false) |
       ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
       HasClassBrandBit::encode(false) |
-      HasSavedClassVariableIndexBit::encode(false) |
-      HasNewTargetBit::encode(false) |
+      HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
       IsAsmModuleBit::encode(false) | HasSimpleParametersBit::encode(true) |
       FunctionKindBits::encode(FunctionKind::kNormalFunction) |
@@ -471,8 +469,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       ReceiverVariableBits::encode(is_script ? VariableAllocationInfo::CONTEXT
                                              : VariableAllocationInfo::UNUSED) |
       HasClassBrandBit::encode(false) |
-      HasSavedClassVariableIndexBit::encode(false) |
-      HasNewTargetBit::encode(false) |
+      HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(is_empty_function
                                        ? VariableAllocationInfo::UNUSED
                                        : VariableAllocationInfo::NONE) |
@@ -685,8 +682,8 @@ bool ScopeInfo::HasClassBrand() const {
   return HasClassBrandBit::decode(Flags());
 }
 
-bool ScopeInfo::HasSavedClassVariableIndex() const {
-  return HasSavedClassVariableIndexBit::decode(Flags());
+bool ScopeInfo::HasSavedClassVariable() const {
+  return HasSavedClassVariableBit::decode(Flags());
 }
 
 bool ScopeInfo::HasNewTarget() const {
@@ -919,12 +916,21 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
   return -1;
 }
 
-int ScopeInfo::SavedClassVariableContextLocalIndex() const {
-  if (HasSavedClassVariableIndexBit::decode(Flags())) {
-    int index = saved_class_variable_info();
-    return index - Context::MIN_CONTEXT_SLOTS;
+std::pair<String, int> ScopeInfo::SavedClassVariable() const {
+  DCHECK(HasSavedClassVariableBit::decode(Flags()));
+  if (HasInlinedLocalNames()) {
+    // The saved class variable info corresponds to the context slot index.
+    int index = saved_class_variable_info() - Context::MIN_CONTEXT_SLOTS;
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, ContextLocalCount());
+    String name = ContextLocalName(index);
+    return std::make_pair(name, index);
+  } else {
+    // The saved class variable info corresponds to the offset in the hash
+    // table storage.
+    // TODO(victorgomes, v8:12315): Implement this once we have a hash table.
+    UNREACHABLE();
   }
-  return -1;
 }
 
 int ScopeInfo::ReceiverContextSlotIndex() const {

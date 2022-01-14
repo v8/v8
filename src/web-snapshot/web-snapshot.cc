@@ -1346,7 +1346,7 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
       ScopeInfo::DeclarationScopeBit::encode(false) |
       ScopeInfo::ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
       ScopeInfo::HasClassBrandBit::encode(false) |
-      ScopeInfo::HasSavedClassVariableIndexBit::encode(false) |
+      ScopeInfo::HasSavedClassVariableBit::encode(false) |
       ScopeInfo::HasNewTargetBit::encode(false) |
       ScopeInfo::FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
       ScopeInfo::HasInferredFunctionNameBit::encode(false) |

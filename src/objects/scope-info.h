@@ -91,9 +91,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Does this scope has class brand (for private methods)?
   bool HasClassBrand() const;
 
-  // Does this scope contain a saved class variable context local slot index
-  // for checking receivers of static private methods?
-  bool HasSavedClassVariableIndex() const;
+  // Does this scope contain a saved class variable for checking receivers of
+  // static private methods?
+  bool HasSavedClassVariable() const;
 
   // Does this scope declare a "new.target" binding?
   bool HasNewTarget() const;
@@ -139,6 +139,12 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   void SetPositionInfo(int start, int end);
 
   SourceTextModuleInfo ModuleDescriptorInfo() const;
+
+  // Return true if the local names are inlined in the scope info object.
+  bool HasInlinedLocalNames() const {
+    // TODO(victorgomes, v8:12315): Currently, local names are always inlined.
+    return true;
+  }
 
   // Return the name of the given context local.
   String ContextLocalName(int var) const;
@@ -193,11 +199,10 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Returns the first parameter context slot index.
   int ParametersStartIndex() const;
 
-  // Lookup support for serialized scope info.  Returns the index of the
-  // saved class variable in context local slots if scope is a class scope
+  // Lookup support for serialized scope info.  Returns the name and index of
+  // the saved class variable in context local slots if scope is a class scope
   // and it contains static private methods that may be accessed.
-  // Otherwise returns a value < 0.
-  int SavedClassVariableContextLocalIndex() const;
+  std::pair<String, int> SavedClassVariable() const;
 
   FunctionKind function_kind() const;
 
