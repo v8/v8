@@ -580,12 +580,14 @@ void WasmTableObject::UpdateDispatchTables(
         instance->module_object().native_module();
     wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
     auto kind = compiler::WasmImportCallKind::kWasmToCapi;
-    wasm::WasmCode* wasm_code = cache->MaybeGet(kind, &sig, param_count);
+    wasm::WasmCode* wasm_code =
+        cache->MaybeGet(kind, &sig, param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
       wasm::WasmCodeRefScope code_ref_scope;
       wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
       wasm_code = compiler::CompileWasmCapiCallWrapper(native_module, &sig);
-      wasm::WasmImportWrapperCache::CacheKey key(kind, &sig, param_count);
+      wasm::WasmImportWrapperCache::CacheKey key(kind, &sig, param_count,
+                                                 wasm::kNoSuspend);
       cache_scope[key] = wasm_code;
       wasm_code->IncRef();
       isolate->counters()->wasm_generated_code_size()->Increment(
@@ -1461,9 +1463,13 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
                            ->shared()
                            .internal_formal_parameter_count_without_receiver();
     }
+    wasm::Suspend suspend =
+        resolved.suspender.is_null() || resolved.suspender->IsUndefined()
+            ? wasm::kNoSuspend
+            : wasm::kSuspend;
     // TODO(manoskouk): Reuse js_function->wasm_to_js_wrapper_code().
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        &env, kind, sig, false, expected_arity);
+        &env, kind, sig, false, expected_arity, suspend);
     wasm::CodeSpaceWriteScope write_scope(native_module);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
@@ -2083,10 +2089,14 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     }
     // TODO(wasm): Think about caching and sharing the wasm-to-JS wrappers per
     // signature instead of compiling a new one for every instantiation.
-    Handle<CodeT> wasm_to_js_wrapper_code = ToCodeT(
-        compiler::CompileWasmToJSWrapper(isolate, sig, kind, expected_arity)
-            .ToHandleChecked(),
-        isolate);
+    wasm::Suspend suspend =
+        suspender.is_null() ? wasm::kNoSuspend : wasm::kSuspend;
+    DCHECK_IMPLIES(!suspender.is_null(), !suspender->IsUndefined());
+    Handle<CodeT> wasm_to_js_wrapper_code =
+        ToCodeT(compiler::CompileWasmToJSWrapper(isolate, sig, kind,
+                                                 expected_arity, suspend)
+                    .ToHandleChecked(),
+                isolate);
     function_data->internal().set_code(*wasm_to_js_wrapper_code);
   }
 

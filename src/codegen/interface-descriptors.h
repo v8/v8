@@ -124,6 +124,7 @@ namespace internal {
   V(WasmFloat64ToNumber)                 \
   V(WasmI32AtomicWait32)                 \
   V(WasmI64AtomicWait32)                 \
+  V(WasmSuspend)                         \
   V(WriteBarrier)                        \
   BUILTIN_LIST_TFS(V)                    \
   TORQUE_BUILTIN_LIST_TFC(V)
@@ -1785,6 +1786,14 @@ class WasmFloat64ToNumberDescriptor final
   // We need a custom descriptor on ia32 to avoid using xmm0.
   static constexpr inline auto registers();
 #endif
+};
+
+class WasmSuspendDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmSuspendDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kArg)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged())  // value
+  DECLARE_DESCRIPTOR(WasmSuspendDescriptor)
 };
 
 class V8_EXPORT_PRIVATE I64ToBigIntDescriptor final

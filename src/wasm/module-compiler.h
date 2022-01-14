@@ -70,7 +70,8 @@ V8_EXPORT_PRIVATE
 WasmCode* CompileImportWrapper(
     NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
-    int expected_arity, WasmImportWrapperCache::ModificationScope* cache_scope);
+    int expected_arity, Suspend suspend,
+    WasmImportWrapperCache::ModificationScope* cache_scope);
 
 // Triggered by the WasmCompileLazy builtin. The return value indicates whether
 // compilation was successful. Lazy compilation can fail only if validation is

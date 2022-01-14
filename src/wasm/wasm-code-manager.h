@@ -124,7 +124,8 @@ struct WasmModule;
   V(WasmAllocateFreshRtt)                 \
   V(WasmAllocateStructWithRtt)            \
   V(WasmSubtypeCheck)                     \
-  V(WasmOnStackReplace)
+  V(WasmOnStackReplace)                   \
+  V(WasmSuspend)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),

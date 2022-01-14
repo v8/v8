@@ -3665,7 +3665,7 @@ void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf) {
 
 void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Set up the stackframe.
-  __ EnterFrame(StackFrame::RETURN_PROMISE_ON_SUSPEND);
+  __ EnterFrame(StackFrame::STACK_SWITCH);
 
   // Parameters.
   Register closure = kJSFunctionRegister;                  // rdi
@@ -3869,9 +3869,16 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   __ movq(
       param_count,
       MemOperand(rbp, ReturnPromiseOnSuspendFrameConstants::kParamCountOffset));
-  __ LeaveFrame(StackFrame::RETURN_PROMISE_ON_SUSPEND);
+  __ LeaveFrame(StackFrame::STACK_SWITCH);
   __ DropArguments(param_count, r8, TurboAssembler::kCountIsInteger,
                    TurboAssembler::kCountExcludesReceiver);
+  __ ret(0);
+}
+
+void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
+  // Set up the stackframe.
+  __ EnterFrame(StackFrame::STACK_SWITCH);
+  __ LeaveFrame(StackFrame::STACK_SWITCH);
   __ ret(0);
 }
 

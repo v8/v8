@@ -1601,7 +1601,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
     }
     WasmImportWrapperCache::CacheKey key(
         compiler::kDefaultImportCallKind, sig,
-        static_cast<int>(sig->parameter_count()));
+        static_cast<int>(sig->parameter_count()), kNoSuspend);
     auto it = keys.insert(key);
     if (it.second) {
       // Ensure that all keys exist in the cache, so that we can populate the
@@ -3653,7 +3653,7 @@ void CompilationStateImpl::PublishCompilationResults(
           native_module_->module()->functions[func_index].sig;
       WasmImportWrapperCache::CacheKey key(
           compiler::kDefaultImportCallKind, sig,
-          static_cast<int>(sig->parameter_count()));
+          static_cast<int>(sig->parameter_count()), kNoSuspend);
       // If two imported functions have the same key, only one of them should
       // have been added as a compilation unit. So it is always the first time
       // we compile a wrapper for this key here.
@@ -3893,19 +3893,19 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 WasmCode* CompileImportWrapper(
     NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
-    int expected_arity,
+    int expected_arity, Suspend suspend,
     WasmImportWrapperCache::ModificationScope* cache_scope) {
   // Entry should exist, so that we don't insert a new one and invalidate
   // other threads' iterators/references, but it should not have been compiled
   // yet.
-  WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity);
+  WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity, suspend);
   DCHECK_NULL((*cache_scope)[key]);
   bool source_positions = is_asmjs_module(native_module->module());
   // Keep the {WasmCode} alive until we explicitly call {IncRef}.
   WasmCodeRefScope code_ref_scope;
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      &env, kind, sig, source_positions, expected_arity);
+      &env, kind, sig, source_positions, expected_arity, suspend);
   WasmCode* published_code;
   {
     CodeSpaceWriteScope code_space_write_scope(native_module);

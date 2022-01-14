@@ -79,13 +79,14 @@ TestingModuleBuilder::TestingModuleBuilder(
         native_module_->import_wrapper_cache());
     WasmImportWrapperCache::CacheKey key(
         kind, maybe_import->sig,
-        static_cast<int>(maybe_import->sig->parameter_count()));
+        static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend);
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
       CodeSpaceWriteScope write_scope(native_module_);
       import_wrapper = CompileImportWrapper(
           native_module_, isolate_->counters(), kind, maybe_import->sig,
-          static_cast<int>(maybe_import->sig->parameter_count()), &cache_scope);
+          static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend,
+          &cache_scope);
     }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)

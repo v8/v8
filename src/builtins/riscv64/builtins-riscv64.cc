@@ -3151,6 +3151,11 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   __ Trap();
 }
 
+void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
+  // TODO(v8:12191): Implement for this platform.
+  __ Trap();
+}
+
 void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
   // Only needed on x64.
   __ Trap();

@@ -167,9 +167,9 @@ void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
     return;
   }
   StackFrame::State state;
-  ReturnPromiseOnSuspendFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
+  StackSwitchFrame::GetStateForJumpBuffer(stack->jmpbuf(), &state);
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
-  frame_ = SingletonFor(StackFrame::RETURN_PROMISE_ON_SUSPEND, &state);
+  frame_ = SingletonFor(StackFrame::STACK_SWITCH, &state);
 }
 #endif
 
@@ -718,7 +718,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
     case JS_TO_WASM:
-    case RETURN_PROMISE_ON_SUSPEND:
+    case STACK_SWITCH:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return candidate;
     case OPTIMIZED:
@@ -832,7 +832,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
     case BUILTIN_EXIT:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
-    case RETURN_PROMISE_ON_SUSPEND:
+    case STACK_SWITCH:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return frame_type;
     default:
@@ -1107,7 +1107,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
       case CONSTRUCT:
 #if V8_ENABLE_WEBASSEMBLY
       case JS_TO_WASM:
-      case RETURN_PROMISE_ON_SUSPEND:
+      case STACK_SWITCH:
       case C_WASM_ENTRY:
       case WASM_DEBUG_BREAK:
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2201,7 +2201,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
                        spill_slot_limit);
 }
 
-void ReturnPromiseOnSuspendFrame::Iterate(RootVisitor* v) const {
+void StackSwitchFrame::Iterate(RootVisitor* v) const {
   //  See JsToWasmFrame layout.
   //  We cannot DCHECK that the pc matches the expected builtin code here,
   //  because the return address is on a different stack.
@@ -2218,10 +2218,10 @@ void ReturnPromiseOnSuspendFrame::Iterate(RootVisitor* v) const {
 }
 
 // static
-void ReturnPromiseOnSuspendFrame::GetStateForJumpBuffer(
-    wasm::JumpBuffer* jmpbuf, State* state) {
+void StackSwitchFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
+                                             State* state) {
   DCHECK_NE(jmpbuf->fp, kNullAddress);
-  DCHECK_EQ(ComputeFrameType(jmpbuf->fp), RETURN_PROMISE_ON_SUSPEND);
+  DCHECK_EQ(ComputeFrameType(jmpbuf->fp), STACK_SWITCH);
   FillState(jmpbuf->fp, jmpbuf->sp, state);
   DCHECK_NE(*state->pc_address, kNullAddress);
 }

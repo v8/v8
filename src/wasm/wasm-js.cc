@@ -1898,10 +1898,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::HeapObject> suspender =
-      handle(i::ReadOnlyRoots(i_isolate).undefined_value(), i_isolate);
-  i::Handle<i::JSFunction> result =
-      i::WasmJSFunction::New(i_isolate, sig, callable, suspender);
+  i::Handle<i::JSFunction> result = i::WasmJSFunction::New(
+      i_isolate, sig, callable, i::Handle<i::HeapObject>());
   args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
