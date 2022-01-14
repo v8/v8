@@ -188,13 +188,6 @@ class RegisterIndex final {
     }
   }
 
-  RegisterIndex simdSibling() const {
-    CHECK(!kSimpleFPAliasing);  // Statically evaluated.
-    // Two FP registers {2N, 2N+1} alias the same SIMD register. We compute {2N}
-    // from {2N+1} and vice versa by just flipping the LSB.
-    return RegisterIndex{index_ ^ 1};
-  }
-
   bool operator==(const RegisterIndex& rhs) const {
     return index_ == rhs.index_;
   }
@@ -1532,6 +1525,28 @@ class SinglePassRegisterAllocator final {
   bool VirtualRegisterIsUnallocatedOrInReg(int virtual_register,
                                            RegisterIndex reg);
 
+  // If {!kSimpleFPAliasing}, two FP registers alias one SIMD register. This
+  // returns the index of the higher aliasing FP register from the SIMD register
+  // index (which is the same as the lower register index).
+  RegisterIndex simdSibling(RegisterIndex reg) const {
+    CHECK(!kSimpleFPAliasing);  // Statically evaluated.
+    RegisterIndex sibling = RegisterIndex{reg.ToInt() + 1};
+#ifdef DEBUG
+    // Check that {reg} is indeed the lower SIMD half and {sibling} is the
+    // upper half.
+    int double_reg_base_code;
+    DCHECK_EQ(2, data_->config()->GetAliases(
+                     MachineRepresentation::kSimd128,
+                     ToRegCode(reg, MachineRepresentation::kSimd128),
+                     MachineRepresentation::kFloat64, &double_reg_base_code));
+    DCHECK_EQ(reg, FromRegCode(double_reg_base_code,
+                               MachineRepresentation::kFloat64));
+    DCHECK_EQ(sibling, FromRegCode(double_reg_base_code + 1,
+                                   MachineRepresentation::kFloat64));
+#endif  // DEBUG
+    return sibling;
+  }
+
   // Returns a RegisterBitVector representing the allocated registers in
   // reg_state.
   RegisterBitVector GetAllocatedRegBitVector(RegisterState* reg_state);
@@ -1631,7 +1646,11 @@ SinglePassRegisterAllocator::SinglePassRegisterAllocator(
       CHECK_EQ(2, config->GetAliases(MachineRepresentation::kSimd128, reg_code,
                                      MachineRepresentation::kFloat64,
                                      &double_reg_base_code));
-      RegisterIndex double_reg(reg_code_to_index_[double_reg_base_code]);
+      RegisterIndex double_reg{reg_code_to_index_[double_reg_base_code]};
+      // We later rely on the fact that the two aliasing double registers are at
+      // consecutive indexes.
+      DCHECK_EQ(double_reg.ToInt() + 1,
+                reg_code_to_index_[double_reg_base_code + 1].ToInt());
       simd128_reg_code_to_index_->at(reg_code) = double_reg;
       index_to_simd128_reg_code_->at(double_reg.ToInt()) = reg_code;
     }
@@ -1766,7 +1785,7 @@ void SinglePassRegisterAllocator::MergeStateFrom(
         bool reg_in_use =
             register_state_->IsAllocated(reg) ||
             (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128 &&
-             register_state_->IsAllocated(reg.simdSibling()));
+             register_state_->IsAllocated(simdSibling(reg)));
 
         if (!reg_in_use) {
           DCHECK(successor_registers->IsAllocated(reg));
@@ -2167,7 +2186,7 @@ void SinglePassRegisterAllocator::SpillRegisterAndPotentialSimdSibling(
   SpillRegister(reg);
 
   if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
-    SpillRegister(reg.simdSibling());
+    SpillRegister(simdSibling(reg));
   }
 }
 
@@ -2546,7 +2565,8 @@ void SinglePassRegisterAllocator::ReserveFixedRegister(
     const UnallocatedOperand* operand, int virtual_register,
     MachineRepresentation rep, int instr_index, UsePosition pos) {
   EnsureRegisterState();
-  RegisterIndex reg = FromRegCode(operand->fixed_register_index(), rep);
+  int reg_code = operand->fixed_register_index();
+  RegisterIndex reg = FromRegCode(reg_code, rep);
   if (!IsFreeOrSameVirtualRegister(reg, virtual_register) &&
       !DefinedAfter(virtual_register, instr_index, pos)) {
     // If register is in-use by a different virtual register, spill it now.
@@ -2557,25 +2577,35 @@ void SinglePassRegisterAllocator::ReserveFixedRegister(
   // Also potentially spill the "sibling SIMD register" on architectures where a
   // SIMD register aliases two FP registers.
   if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
-    if (register_state_->IsAllocated(reg.simdSibling()) &&
+    if (register_state_->IsAllocated(simdSibling(reg)) &&
         !DefinedAfter(virtual_register, instr_index, pos)) {
-      SpillRegister(reg.simdSibling());
+      SpillRegister(simdSibling(reg));
     }
   }
   // Similarly (but the other way around), spill a SIMD register that (partly)
-  // overlaps with a fixed FP register. If {reg} is the lower half (i.e. an even
-  // register index), this is already checked above, so we only check if {reg}
-  // is the upper half.
-  if (!kSimpleFPAliasing && (reg.ToInt() & 1)) {
-    DCHECK_NE(MachineRepresentation::kSimd128, rep);
-    int allocated_vreg = VirtualRegisterForRegister(reg.simdSibling());
-    if (allocated_vreg != InstructionOperand::kInvalidVirtualRegister &&
+  // overlaps with a fixed FP register.
+  if (!kSimpleFPAliasing && (rep == MachineRepresentation::kFloat64 ||
+                             rep == MachineRepresentation::kFloat32)) {
+    int simd_reg_code;
+    CHECK_EQ(
+        1, data_->config()->GetAliases(
+               rep, reg_code, MachineRepresentation::kSimd128, &simd_reg_code));
+    // Sanity check: The SIMD register code should be the shifted {reg_code}.
+    DCHECK_EQ(simd_reg_code,
+              reg_code >> (rep == MachineRepresentation::kFloat64 ? 1 : 2));
+    RegisterIndex simd_reg =
+        FromRegCode(simd_reg_code, MachineRepresentation::kSimd128);
+    DCHECK(simd_reg == reg || simdSibling(simd_reg) == reg);
+    int allocated_vreg = VirtualRegisterForRegister(simd_reg);
+    if (simd_reg != reg &&
+        allocated_vreg != InstructionOperand::kInvalidVirtualRegister &&
         VirtualRegisterDataFor(allocated_vreg).rep() ==
             MachineRepresentation::kSimd128 &&
         !DefinedAfter(virtual_register, instr_index, pos)) {
-      SpillRegister(reg.simdSibling());
+      SpillRegister(simd_reg);
     }
   }
+
   MarkRegisterUse(reg, rep, pos);
 }
 
