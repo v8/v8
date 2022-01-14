@@ -46,7 +46,7 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
   {
     TNode<JSPromise> promise = LoadObjectField<JSPromise>(
         async_function_object, JSAsyncFunctionObject::kPromiseOffset);
-    CallRuntime(Runtime::kDebugAsyncFunctionResumed, context, promise);
+    CallRuntime(Runtime::kDebugPushPromise, context, promise);
     Goto(&if_instrumentation_done);
   }
   BIND(&if_instrumentation_done);
@@ -103,21 +103,10 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
                           RootIndex::kUndefinedValue);
 
   // Allocate and initialize the promise.
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<JSFunction> promise_function =
-      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  TNode<Map> promise_map = LoadObjectField<Map>(
-      promise_function, JSFunction::kPrototypeOrInitialMapOffset);
-  TNode<JSPromise> promise = UncheckedCast<JSPromise>(
-      AllocateInNewSpace(JSPromise::kSizeWithEmbedderFields));
-  StoreMapNoWriteBarrier(promise, promise_map);
-  StoreObjectFieldRoot(promise, JSPromise::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(promise, JSPromise::kElementsOffset,
-                       RootIndex::kEmptyFixedArray);
-  PromiseInit(promise);
+  TNode<JSPromise> promise = NewJSPromise(context);
 
   // Allocate and initialize the async function object.
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> async_function_object_map = CAST(LoadContextElement(
       native_context, Context::ASYNC_FUNCTION_OBJECT_MAP_INDEX));
   TNode<JSAsyncFunctionObject> async_function_object =
@@ -152,22 +141,15 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset, promise);
 
-  RunContextPromiseHookInit(context, promise, UndefinedConstant());
+  // While we are executing an async function, we need to have the implicit
+  // promise on the stack to get the catch prediction right, even before we
+  // awaited for the first time.
+  Label if_debugging(this);
+  GotoIf(IsDebugActive(), &if_debugging);
+  Return(async_function_object);
 
-  // Fire promise hooks if enabled and push the Promise under construction
-  // in an async function on the catch prediction stack to handle exceptions
-  // thrown before the first await.
-  Label if_instrumentation(this, Label::kDeferred),
-      if_instrumentation_done(this);
-  Branch(IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
-         &if_instrumentation, &if_instrumentation_done);
-  BIND(&if_instrumentation);
-  {
-    CallRuntime(Runtime::kDebugAsyncFunctionEntered, context, promise);
-    Goto(&if_instrumentation_done);
-  }
-  BIND(&if_instrumentation_done);
-
+  BIND(&if_debugging);
+  CallRuntime(Runtime::kDebugPushPromise, context, promise);
   Return(async_function_object);
 }
 
@@ -185,12 +167,13 @@ TF_BUILTIN(AsyncFunctionReject, AsyncFunctionBuiltinsAssembler) {
   CallBuiltin(Builtin::kRejectPromise, context, promise, reason,
               FalseConstant());
 
-  Label if_debugging(this, Label::kDeferred);
+  Label if_debugging(this);
   GotoIf(IsDebugActive(), &if_debugging);
   Return(promise);
 
   BIND(&if_debugging);
-  TailCallRuntime(Runtime::kDebugAsyncFunctionFinished, context, promise);
+  CallRuntime(Runtime::kDebugPopPromise, context);
+  Return(promise);
 }
 
 TF_BUILTIN(AsyncFunctionResolve, AsyncFunctionBuiltinsAssembler) {
@@ -203,12 +186,13 @@ TF_BUILTIN(AsyncFunctionResolve, AsyncFunctionBuiltinsAssembler) {
 
   CallBuiltin(Builtin::kResolvePromise, context, promise, value);
 
-  Label if_debugging(this, Label::kDeferred);
+  Label if_debugging(this);
   GotoIf(IsDebugActive(), &if_debugging);
   Return(promise);
 
   BIND(&if_debugging);
-  TailCallRuntime(Runtime::kDebugAsyncFunctionFinished, context, promise);
+  CallRuntime(Runtime::kDebugPopPromise, context);
+  Return(promise);
 }
 
 // AsyncFunctionReject and AsyncFunctionResolve are both required to return

@@ -4899,15 +4899,6 @@ void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
   }
 }
 
-void Isolate::OnAsyncFunctionEntered(Handle<JSPromise> promise) {
-  if (HasIsolatePromiseHooks()) {
-    DCHECK_NE(nullptr, promise_hook_);
-    promise_hook_(PromiseHookType::kInit, v8::Utils::PromiseToLocal(promise),
-                  v8::Utils::ToLocal(factory()->undefined_value()));
-  }
-  OnAsyncFunctionResumed(promise);
-}
-
 void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
                                        Handle<JSPromise> parent) {
   DCHECK_EQ(0, promise->async_task_id());
@@ -4925,21 +4916,6 @@ void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
   if (debug()->is_active()) {
     // We are about to suspend execution of the current async function,
     // so pop the outer promise from the isolate's promise stack.
-    PopPromise();
-  }
-}
-
-void Isolate::OnAsyncFunctionResumed(Handle<JSPromise> promise) {
-  if (debug()->is_active()) {
-    // While we are executing an async function, we need to
-    // have the implicit promise on the stack to get the catch
-    // prediction right.
-    PushPromise(promise);
-  }
-}
-
-void Isolate::OnAsyncFunctionFinished(Handle<JSPromise> promise) {
-  if (debug()->is_active()) {
     PopPromise();
   }
 }

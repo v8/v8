@@ -818,14 +818,6 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
   UNREACHABLE();  // Never called. See the IncBlockCounter builtin instead.
 }
 
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionEntered) {
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->OnAsyncFunctionEntered(promise);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
@@ -864,22 +856,6 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   }
 
   return *throwaway;
-}
-
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionResumed) {
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->OnAsyncFunctionResumed(promise);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
-  DCHECK_EQ(1, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  isolate->OnAsyncFunctionFinished(promise);
-  return *promise;
 }
 
 RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
