@@ -101,6 +101,22 @@ class EmbeddedData final {
       // the un-embedded one.
       if (global_d.IsInCodeRange(maybe_builtin_pc)) return global_d;
     }
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    if (V8_SHORT_BUILTIN_CALLS_BOOL && !d.IsInCodeRange(maybe_builtin_pc)) {
+      // When shared pointer compression cage is enabled and it has the embedded
+      // code blob copy then it could have been used regardless of whether the
+      // isolate uses it or knows about it or not (see
+      // Code::OffHeapInstructionStart()).
+      // So, this blob has to be checked too.
+      CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+      if (code_range && code_range->embedded_blob_code_copy() != nullptr) {
+        EmbeddedData remapped_d = EmbeddedData::FromBlob(code_range);
+        // If the pc does not belong to the embedded code blob we should be
+        // using the un-embedded one.
+        if (remapped_d.IsInCodeRange(maybe_builtin_pc)) return remapped_d;
+      }
+    }
+#endif
     return d;
   }
 
