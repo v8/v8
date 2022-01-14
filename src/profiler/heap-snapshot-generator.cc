@@ -1043,9 +1043,11 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
   if (!context.IsNativeContext() && context.is_declaration_context()) {
     ScopeInfo scope_info = context.scope_info();
     // Add context allocated locals.
-    for (auto it : scope_info) {
-      int idx = scope_info.ContextHeaderLength() + it->index();
-      SetContextReference(entry, it->name(), context.get(idx),
+    int context_locals = scope_info.ContextLocalCount();
+    for (int i = 0; i < context_locals; ++i) {
+      String local_name = scope_info.ContextLocalName(i);
+      int idx = scope_info.ContextHeaderLength() + i;
+      SetContextReference(entry, local_name, context.get(idx),
                           Context::OffsetOfElementAt(idx));
     }
     if (scope_info.HasContextAllocatedFunctionName()) {

@@ -207,9 +207,9 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
       native_context->script_context_table(), isolate);
 
   // Find name clashes.
-  for (auto it : *scope_info) {
-    Handle<String> name(it->name(), isolate);
-    VariableMode mode = scope_info->ContextLocalMode(it->index());
+  for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
+    Handle<String> name(scope_info->ContextLocalName(var), isolate);
+    VariableMode mode = scope_info->ContextLocalMode(var);
     VariableLookupResult lookup;
     if (ScriptContextTable::Lookup(isolate, *script_context, *name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {

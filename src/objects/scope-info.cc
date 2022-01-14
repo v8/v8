@@ -814,8 +814,7 @@ SourceTextModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
   return SourceTextModuleInfo::cast(module_info());
 }
 
-String ScopeInfo::ContextInlinedLocalName(int var) const {
-  DCHECK(HasInlinedLocalNames());
+String ScopeInfo::ContextLocalName(int var) const {
   return context_local_names(var);
 }
 
@@ -924,7 +923,7 @@ std::pair<String, int> ScopeInfo::SavedClassVariable() const {
     int index = saved_class_variable_info() - Context::MIN_CONTEXT_SLOTS;
     DCHECK_GE(index, 0);
     DCHECK_LT(index, ContextLocalCount());
-    String name = ContextInlinedLocalName(index);
+    String name = ContextLocalName(index);
     return std::make_pair(name, index);
   } else {
     // The saved class variable info corresponds to the offset in the hash

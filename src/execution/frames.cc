@@ -2342,12 +2342,12 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   if (heap_locals_count > 0) {
     accumulator->Add("  // heap-allocated locals\n");
   }
-  for (auto it : scope_info) {
+  for (int i = 0; i < heap_locals_count; i++) {
     accumulator->Add("  var ");
-    accumulator->PrintName(it->name());
+    accumulator->PrintName(scope_info.ContextLocalName(i));
     accumulator->Add(" = ");
     if (!context.is_null()) {
-      int slot_index = Context::MIN_CONTEXT_SLOTS + it->index();
+      int slot_index = Context::MIN_CONTEXT_SLOTS + i;
       if (slot_index < context.length()) {
         accumulator->Add("%o", context.get(slot_index));
       } else {
