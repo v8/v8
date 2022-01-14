@@ -235,12 +235,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMillisecond)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMicrosecond)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.nanosecond */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeNanosecond)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.epochsecond */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEpochSeconds)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.epochmilliseconds */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEpochMilliseconds)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.epochmicroseconds */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEpochMicroseconds)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofweek */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDayOfWeek)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofyear */
@@ -341,12 +335,6 @@ TO_BE_IMPLEMENTED(TemporalInstantFromEpochMicroseconds)
 TO_BE_IMPLEMENTED(TemporalInstantFromEpochNanoseconds)
 /* Temporal #sec-temporal.instant.compare */
 TO_BE_IMPLEMENTED(TemporalInstantCompare)
-/* Temporal #sec-get-temporal.instant.prototype.epochseconds */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeEpochSeconds)
-/* Temporal #sec-get-temporal.instant.prototype.epochmilliseconds */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeEpochMilliseconds)
-/* Temporal #sec-get-temporal.instant.prototype.epochmicroseconds */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeEpochMicroseconds)
 /* Temporal #sec-temporal.instant.prototype.add */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeAdd)
 /* Temporal #sec-temporal.instant.prototype.subtract */
@@ -603,6 +591,34 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
     return obj->field();                                          \
   }
 
+#define TEMPORAL_GET_NUMBER_AFTER_DIVID(T, M, field, scale, name)         \
+  BUILTIN(Temporal##T##Prototype##M) {                                    \
+    HandleScope scope(isolate);                                           \
+    const char* method = "get Temporal." #T ".prototype." #name;          \
+    CHECK_RECEIVER(JSTemporal##T, handle, method);                        \
+    Handle<BigInt> value;                                                 \
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                   \
+        isolate, value,                                                   \
+        BigInt::Divide(isolate, Handle<BigInt>(handle->field(), isolate), \
+                       BigInt::FromUint64(isolate, scale)));              \
+    Handle<Object> number = BigInt::ToNumber(isolate, value);             \
+    DCHECK(std::isfinite(number->Number()));                              \
+    return *number;                                                       \
+  }
+
+#define TEMPORAL_GET_BIGINT_AFTER_DIVID(T, M, field, scale, name)         \
+  BUILTIN(Temporal##T##Prototype##M) {                                    \
+    HandleScope scope(isolate);                                           \
+    const char* method = "get Temporal." #T ".prototype." #name;          \
+    CHECK_RECEIVER(JSTemporal##T, handle, method);                        \
+    Handle<BigInt> value;                                                 \
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                   \
+        isolate, value,                                                   \
+        BigInt::Divide(isolate, Handle<BigInt>(handle->field(), isolate), \
+                       BigInt::FromUint64(isolate, scale)));              \
+    return *value;                                                        \
+  }
+
 // PlainDate
 BUILTIN(TemporalPlainDateConstructor) {
   HandleScope scope(isolate);
@@ -700,6 +716,12 @@ BUILTIN(TemporalZonedDateTimeConstructor) {
 TEMPORAL_GET(ZonedDateTime, Calendar, calendar)
 TEMPORAL_GET(ZonedDateTime, TimeZone, time_zone)
 TEMPORAL_GET(ZonedDateTime, EpochNanoseconds, nanoseconds)
+TEMPORAL_GET_NUMBER_AFTER_DIVID(ZonedDateTime, EpochSeconds, nanoseconds,
+                                1000000000, epochSeconds)
+TEMPORAL_GET_NUMBER_AFTER_DIVID(ZonedDateTime, EpochMilliseconds, nanoseconds,
+                                1000000, epochMilliseconds)
+TEMPORAL_GET_BIGINT_AFTER_DIVID(ZonedDateTime, EpochMicroseconds, nanoseconds,
+                                1000, epochMicroseconds)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(ZonedDateTime)
 
@@ -738,6 +760,12 @@ TEMPORAL_VALUE_OF(Duration)
 TEMPORAL_CONSTRUCTOR1(Instant)
 TEMPORAL_VALUE_OF(Instant)
 TEMPORAL_GET(Instant, EpochNanoseconds, nanoseconds)
+TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochSeconds, nanoseconds, 1000000000,
+                                epochSeconds)
+TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochMilliseconds, nanoseconds,
+                                1000000, epochMilliseconds)
+TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
+                                epochMicroseconds)
 
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
