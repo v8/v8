@@ -6,7 +6,6 @@
 
 #include <functional>
 
-#include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
 #include "src/base/small-vector.h"
 #include "src/builtins/builtins-promise.h"
@@ -19,6 +18,7 @@
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
@@ -3518,42 +3518,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-namespace {
-bool HasFPParamsInSignature(const CFunctionInfo* c_signature) {
-  if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
-      c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64) {
-    return true;
-  }
-  for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
-    if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
-        c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
-      return true;
-    }
-  }
-  return false;
-}
-}  // namespace
-#endif
-
-#ifndef V8_TARGET_ARCH_64_BIT
-namespace {
-bool Has64BitIntegerParamsInSignature(const CFunctionInfo* c_signature) {
-  if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kInt64 ||
-      c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kUint64) {
-    return true;
-  }
-  for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
-    if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kInt64 ||
-        c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kUint64) {
-      return true;
-    }
-  }
-  return false;
-}
-}  // namespace
-#endif
-
 // Given a FunctionTemplateInfo, checks whether the fast API call can be
 // optimized, applying the initial step of the overload resolution algorithm:
 // Given an overload set function_template_info.c_signatures, and a list of
@@ -3598,16 +3562,9 @@ FastApiCallFunctionVector CanOptimizeFastCall(
     const size_t len = c_signature->ArgumentCount() - kReceiver;
     bool optimize_to_fast_call = (len == arg_count);
 
-#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     optimize_to_fast_call =
-        optimize_to_fast_call && !HasFPParamsInSignature(c_signature);
-#else
-    USE(c_signature);
-#endif
-#ifndef V8_TARGET_ARCH_64_BIT
-    optimize_to_fast_call =
-        optimize_to_fast_call && !Has64BitIntegerParamsInSignature(c_signature);
-#endif
+        optimize_to_fast_call &&
+        fast_api_call::CanOptimizeFastSignature(c_signature);
 
     if (optimize_to_fast_call) {
       result.push_back({functions[i], c_signature});

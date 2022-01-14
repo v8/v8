@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/api/api-inl.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
@@ -25,6 +26,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/graph.h"
@@ -37,6 +39,7 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/zone-stats.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -7262,6 +7265,110 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (ContainsInt64(sig_)) LowerInt64(kCalledFromWasm);
   }
 
+  void BuildJSFastApiCallWrapper(Handle<JSFunction> target) {
+    // Here 'callable_node' must be equal to 'target' but we cannot pass a
+    // HeapConstant(target) because WasmCode::Validate() fails with
+    // Unexpected mode: FULL_EMBEDDED_OBJECT.
+    Node* callable_node = gasm_->Load(
+        MachineType::TaggedPointer(), Param(0),
+        wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kCallableOffset));
+    Node* native_context = gasm_->Load(
+        MachineType::TaggedPointer(), Param(0),
+        wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
+    Node* undefined_node = UndefinedValue();
+    Node* receiver_node =
+        BuildReceiverNode(callable_node, native_context, undefined_node);
+
+    SharedFunctionInfo shared = target->shared();
+    FunctionTemplateInfo api_func_data = shared.get_api_func_data();
+    const Address c_address = api_func_data.GetCFunction(0);
+    const v8::CFunctionInfo* c_signature = api_func_data.GetCSignature(0);
+    int c_arg_count = c_signature->ArgumentCount();
+
+    BuildModifyThreadInWasmFlag(false);
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    Address c_functions[] = {c_address};
+    const v8::CFunctionInfo* const c_signatures[] = {c_signature};
+    target->GetIsolate()->simulator_data()->RegisterFunctionsAndSignatures(
+        c_functions, c_signatures, 1);
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+    MachineSignature::Builder builder(graph()->zone(), 1, c_arg_count);
+    builder.AddReturn(MachineType::TypeForCType(c_signature->ReturnInfo()));
+    for (int i = 0; i < c_arg_count; i += 1) {
+      builder.AddParam(MachineType::TypeForCType(c_signature->ArgumentInfo(i)));
+    }
+
+    base::SmallVector<Node*, 16> args(c_arg_count + 3);
+    int pos = 0;
+
+    args[pos++] = mcgraph()->ExternalConstant(
+        ExternalReference::Create(c_address, ExternalReference::FAST_C_CALL));
+
+    auto store_stack = [this](Node* node) -> Node* {
+      constexpr int kAlign = alignof(uintptr_t);
+      constexpr int kSize = sizeof(uintptr_t);
+      Node* stack_slot = gasm_->StackSlot(kSize, kAlign);
+
+      gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                       kNoWriteBarrier),
+                   stack_slot, 0, node);
+      return stack_slot;
+    };
+
+    // Set receiver.
+    args[pos++] = store_stack(receiver_node);
+
+    for (int i = 1; i < c_arg_count; i += 1) {
+      switch (c_signature->ArgumentInfo(i).GetType()) {
+        case CTypeInfo::Type::kV8Value:
+          args[pos++] = store_stack(Param(i));
+          break;
+        default:
+          args[pos++] = Param(i);
+          break;
+      }
+    }
+    DCHECK(!c_signature->HasOptions());
+    args[pos++] = effect();
+    args[pos++] = control();
+
+    auto call_descriptor =
+        Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
+
+    // CPU profiler support.
+    Node* target_address = gasm_->ExternalConstant(
+        ExternalReference::fast_api_call_target_address(target->GetIsolate()));
+    gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                     kNoWriteBarrier),
+                 target_address, 0, gasm_->IntPtrConstant(c_address));
+
+    // Disable JS execution.
+    Node* javascript_execution_assert = gasm_->ExternalConstant(
+        ExternalReference::javascript_execution_assert(target->GetIsolate()));
+    gasm_->Store(
+        StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
+        javascript_execution_assert, 0, gasm_->Int32Constant(0));
+
+    // Execute the fast call API.
+    Node* call = gasm_->Call(call_descriptor, pos, args.begin());
+
+    // Reenable JS execution.
+    gasm_->Store(
+        StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
+        javascript_execution_assert, 0, gasm_->Int32Constant(1));
+
+    // Reset the CPU profiler target address.
+    gasm_->Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                     kNoWriteBarrier),
+                 target_address, 0, gasm_->IntPtrConstant(0));
+
+    BuildModifyThreadInWasmFlag(true);
+
+    Return(call);
+  }
+
   void BuildJSToJSWrapper() {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
@@ -7492,6 +7599,98 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
       std::move(debug_name), WasmAssemblerOptions());
 }
 
+static MachineRepresentation NormalizeFastApiRepresentation(
+    const CTypeInfo& info) {
+  MachineType t = MachineType::TypeForCType(info);
+  // Wasm representation of bool is i32 instead of i1.
+  if (t.semantic() == MachineSemantic::kBool) {
+    return MachineRepresentation::kWord32;
+  }
+  return t.representation();
+}
+
+static bool IsSupportedWasmFastApiFunction(
+    const wasm::FunctionSig* expected_sig, Handle<SharedFunctionInfo> shared) {
+  if (!shared->IsApiFunction()) {
+    return false;
+  }
+  if (shared->get_api_func_data().GetCFunctionsCount() == 0) {
+    return false;
+  }
+  if (!shared->get_api_func_data().accept_any_receiver()) {
+    return false;
+  }
+  if (!shared->get_api_func_data().signature().IsUndefined()) {
+    // TODO(wasm): CFunctionInfo* signature check.
+    return false;
+  }
+  const CFunctionInfo* info = shared->get_api_func_data().GetCSignature(0);
+  if (!fast_api_call::CanOptimizeFastSignature(info)) {
+    return false;
+  }
+  // Options are not supported yet.
+  if (info->HasOptions()) {
+    return false;
+  }
+
+  const auto log_imported_function_mismatch = [&shared]() {
+    if (FLAG_trace_opt) {
+      CodeTracer::Scope scope(shared->GetIsolate()->GetCodeTracer());
+      PrintF(scope.file(), "[disabled optimization for ");
+      shared->ShortPrint(scope.file());
+      PrintF(scope.file(),
+             ", reason: the signature of the imported function in the Wasm "
+             "module doesn't match that of the Fast API function]\n");
+    }
+  };
+
+  // C functions only have one return value.
+  if (expected_sig->return_count() > 1) {
+    // Here and below, we log when the function we call is declared as an Api
+    // function but we cannot optimize the call, which might be unxepected. In
+    // that case we use the "slow" path making a normal Wasm->JS call and
+    // calling the "slow" callback specified in FunctionTemplate::New().
+    log_imported_function_mismatch();
+    return false;
+  }
+  CTypeInfo return_info = info->ReturnInfo();
+  // Unsupported if return type doesn't match.
+  if (expected_sig->return_count() == 0 &&
+      return_info.GetType() != CTypeInfo::Type::kVoid) {
+    log_imported_function_mismatch();
+    return false;
+  }
+  // Unsupported if return type doesn't match.
+  if (expected_sig->return_count() == 1) {
+    if (return_info.GetType() == CTypeInfo::Type::kVoid) {
+      log_imported_function_mismatch();
+      return false;
+    }
+    if (NormalizeFastApiRepresentation(return_info) !=
+        expected_sig->GetReturn(0).machine_type().representation()) {
+      log_imported_function_mismatch();
+      return false;
+    }
+  }
+  // Unsupported if arity doesn't match.
+  if (expected_sig->parameter_count() != info->ArgumentCount() - 1) {
+    log_imported_function_mismatch();
+    return false;
+  }
+  // Unsupported if any argument types don't match.
+  for (unsigned int i = 0; i < expected_sig->parameter_count(); i += 1) {
+    // Arg 0 is the receiver, skip over it since wasm doesn't
+    // have a concept of receivers.
+    CTypeInfo arg = info->ArgumentInfo(i + 1);
+    if (NormalizeFastApiRepresentation(arg) !=
+        expected_sig->GetParam(i).machine_type().representation()) {
+      log_imported_function_mismatch();
+      return false;
+    }
+  }
+  return true;
+}
+
 WasmImportData ResolveWasmImportCall(
     Handle<JSReceiver> callable, const wasm::FunctionSig* expected_sig,
     const wasm::WasmModule* module,
@@ -7534,6 +7733,35 @@ WasmImportData ResolveWasmImportCall(
   // Assuming we are calling to JS, check whether this would be a runtime error.
   if (!wasm::IsJSCompatibleSignature(expected_sig, module, enabled_features)) {
     return {WasmImportCallKind::kRuntimeTypeError, callable, no_suspender};
+  }
+  // Check if this can be a JS fast API call.
+  if (FLAG_turbo_fast_api_calls &&
+      (callable->IsJSFunction() || callable->IsJSBoundFunction())) {
+    Handle<JSFunction> target;
+    if (callable->IsJSBoundFunction()) {
+      Handle<JSBoundFunction> bound_target =
+          Handle<JSBoundFunction>::cast(callable);
+      // Nested bound functions and arguments not supported yet.
+      if (bound_target->bound_arguments().length() == 0 &&
+          !bound_target->bound_target_function().IsJSBoundFunction()) {
+        Handle<JSReceiver> bound_target_function = handle(
+            bound_target->bound_target_function(), callable->GetIsolate());
+        if (bound_target_function->IsJSFunction()) {
+          target = Handle<JSFunction>::cast(bound_target_function);
+        }
+      }
+    } else {
+      DCHECK(callable->IsJSFunction());
+      target = Handle<JSFunction>::cast(callable);
+    }
+
+    if (!target.is_null()) {
+      Handle<SharedFunctionInfo> shared(target->shared(), target->GetIsolate());
+
+      if (IsSupportedWasmFastApiFunction(expected_sig, shared)) {
+        return {WasmImportCallKind::kWasmToJSFastApi, target, no_suspender};
+      }
+    }
   }
   // For JavaScript calls, determine whether the target has an arity match.
   if (callable->IsJSFunction()) {
@@ -7723,6 +7951,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     wasm::Suspend suspend) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
+  DCHECK_NE(WasmImportCallKind::kWasmToJSFastApi, kind);
 
   // Check for math intrinsics first.
   if (FLAG_wasm_math_intrinsics &&
@@ -7819,6 +8048,58 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
     published_code = native_module->PublishCode(std::move(wasm_code));
   }
   return published_code;
+}
+
+wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule* native_module,
+                                             const wasm::FunctionSig* sig,
+                                             Handle<JSFunction> target) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+               "wasm.CompileWasmJSFastCallWrapper");
+
+  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
+
+  // TODO(jkummerow): Extract common code into helper method.
+  SourcePositionTable* source_positions = nullptr;
+  MachineGraph* mcgraph = zone.New<MachineGraph>(
+      zone.New<Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
+      zone.New<MachineOperatorBuilder>(
+          &zone, MachineType::PointerRepresentation(),
+          InstructionSelector::SupportedMachineOperatorFlags(),
+          InstructionSelector::AlignmentRequirements()));
+
+  WasmWrapperGraphBuilder builder(
+      &zone, mcgraph, sig, native_module->module(),
+      WasmGraphBuilder::kWasmApiFunctionRefMode, nullptr, source_positions,
+      StubCallMode::kCallWasmRuntimeStub, native_module->enabled_features());
+
+  // Set up the graph start.
+  int param_count = static_cast<int>(sig->parameter_count()) +
+                    1 /* offset for first parameter index being -1 */ +
+                    1 /* Wasm instance */ + 1 /* kExtraCallableParam */;
+  builder.Start(param_count);
+  builder.BuildJSFastApiCallWrapper(target);
+
+  // Run the compiler pipeline to generate machine code.
+  CallDescriptor* call_descriptor =
+      GetWasmCallDescriptor(&zone, sig, WasmCallKind::kWasmImportWrapper);
+  if (mcgraph->machine()->Is32()) {
+    call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
+  }
+
+  const char* debug_name = "WasmJSFastApiCall";
+  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
+      call_descriptor, mcgraph, CodeKind::WASM_TO_JS_FUNCTION, debug_name,
+      WasmStubAssemblerOptions(), source_positions);
+  {
+    wasm::CodeSpaceWriteScope code_space_write_scope(native_module);
+    std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
+        wasm::kAnonymousFuncIndex, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), wasm::WasmCode::kWasmToJsWrapper,
+        wasm::ExecutionTier::kNone, wasm::kNoDebugging);
+    return native_module->PublishCode(std::move(wasm_code));
+  }
 }
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,

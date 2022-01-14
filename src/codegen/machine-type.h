@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 
+#include "include/v8-fast-api-calls.h"
 #include "src/base/bits.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -271,6 +272,35 @@ class MachineType {
         return MachineType::SandboxedPointer();
       default:
         UNREACHABLE();
+    }
+  }
+
+  static MachineType TypeForCType(const CTypeInfo& type) {
+    switch (type.GetType()) {
+      case CTypeInfo::Type::kVoid:
+        return MachineType::AnyTagged();
+      case CTypeInfo::Type::kBool:
+        return MachineType::Bool();
+      case CTypeInfo::Type::kInt32:
+        return MachineType::Int32();
+      case CTypeInfo::Type::kUint32:
+        return MachineType::Uint32();
+      case CTypeInfo::Type::kInt64:
+        return MachineType::Int64();
+      case CTypeInfo::Type::kAny:
+        static_assert(
+            sizeof(AnyCType) == kInt64Size,
+            "CTypeInfo::Type::kAny is assumed to be of size 64 bits.");
+        return MachineType::Int64();
+      case CTypeInfo::Type::kUint64:
+        return MachineType::Uint64();
+      case CTypeInfo::Type::kFloat32:
+        return MachineType::Float32();
+      case CTypeInfo::Type::kFloat64:
+        return MachineType::Float64();
+      case CTypeInfo::Type::kV8Value:
+      case CTypeInfo::Type::kApiObject:
+        return MachineType::AnyTagged();
     }
   }
 
