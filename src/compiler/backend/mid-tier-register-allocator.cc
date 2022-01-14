@@ -1782,10 +1782,31 @@ void SinglePassRegisterAllocator::MergeStateFrom(
         if (processed_regs.Contains(reg, rep)) continue;
         processed_regs.Add(reg, rep);
 
-        bool reg_in_use =
-            register_state_->IsAllocated(reg) ||
-            (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128 &&
-             register_state_->IsAllocated(simdSibling(reg)));
+        bool reg_in_use = register_state_->IsAllocated(reg);
+        // For non-simple FP aliasing, the register is also "in use" if the
+        // FP register for the upper half is allocated.
+        if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
+          reg_in_use |= register_state_->IsAllocated(simdSibling(reg));
+        }
+        // Similarly (but the other way around), the register might be the upper
+        // half of a SIMD register that is allocated.
+        if (!kSimpleFPAliasing && (rep == MachineRepresentation::kFloat64 ||
+                                   rep == MachineRepresentation::kFloat32)) {
+          int simd_reg_code;
+          CHECK_EQ(1, data_->config()->GetAliases(
+                          rep, ToRegCode(reg, rep),
+                          MachineRepresentation::kSimd128, &simd_reg_code));
+          // Sanity check: The SIMD reg code should be the shifted FP reg code.
+          DCHECK_EQ(simd_reg_code,
+                    ToRegCode(reg, rep) >>
+                        (rep == MachineRepresentation::kFloat64 ? 1 : 2));
+          RegisterIndex simd_reg =
+              FromRegCode(simd_reg_code, MachineRepresentation::kSimd128);
+          reg_in_use |=
+              simd_reg.is_valid() && register_state_->IsAllocated(simd_reg) &&
+              VirtualRegisterDataFor(VirtualRegisterForRegister(simd_reg))
+                      .rep() == MachineRepresentation::kSimd128;
+        }
 
         if (!reg_in_use) {
           DCHECK(successor_registers->IsAllocated(reg));
