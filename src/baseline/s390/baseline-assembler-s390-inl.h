@@ -440,17 +440,26 @@ void BaselineAssembler::LoadByteField(Register output, Register source,
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
                                                Smi value) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm_);
+  ScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireScratch();
+  __ LoadSmiLiteral(tmp, value);
+  __ StoreTaggedField(tmp, FieldMemOperand(target, offset), r0);
 }
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          int offset,
                                                          Register value) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm_);
+  Register scratch = WriteBarrierDescriptor::SlotAddressRegister();
+  DCHECK(!AreAliased(target, value, scratch));
+  __ StoreTaggedField(value, FieldMemOperand(target, offset), r0);
+  __ RecordWriteField(target, offset, value, scratch, kLRHasNotBeenSaved,
+                      SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,
                                                        Register value) {
-  UNIMPLEMENTED();
+  __ StoreTaggedField(value, FieldMemOperand(target, offset), r0);
 }
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
