@@ -2933,8 +2933,8 @@ void MidTierRegisterAllocator::AllocateRegisters(
   bool is_deferred_block_boundary =
       data_->block_state(block_rpo).is_deferred_block_boundary();
 
-  general_reg_allocator().StartBlock(block);
-  double_reg_allocator().StartBlock(block);
+  general_reg_allocator_.StartBlock(block);
+  double_reg_allocator_.StartBlock(block);
 
   // If the block is not deferred but has deferred successors, then try to
   // output spill slots for virtual_registers that are only spilled in the
@@ -3008,10 +3008,10 @@ void MidTierRegisterAllocator::AllocateRegisters(
     }
 
     if (instr->ClobbersRegisters()) {
-      general_reg_allocator().SpillAllRegisters();
+      general_reg_allocator_.SpillAllRegisters();
     }
     if (instr->ClobbersDoubleRegisters()) {
-      double_reg_allocator().SpillAllRegisters();
+      double_reg_allocator_.SpillAllRegisters();
     }
 
     // Allocate temporaries.
@@ -3055,8 +3055,8 @@ void MidTierRegisterAllocator::AllocateRegisters(
       // If this block is deferred but it's successor isn't, update the state to
       // limit spills to the deferred blocks where possible.
       if (is_deferred_block_boundary && block->IsDeferred()) {
-        general_reg_allocator().UpdateForDeferredBlock(instr_index);
-        double_reg_allocator().UpdateForDeferredBlock(instr_index);
+        general_reg_allocator_.UpdateForDeferredBlock(instr_index);
+        double_reg_allocator_.UpdateForDeferredBlock(instr_index);
       }
     }
 
@@ -3076,30 +3076,26 @@ void MidTierRegisterAllocator::AllocateRegisters(
       }
     }
 
-    general_reg_allocator().EndInstruction();
-    double_reg_allocator().EndInstruction();
+    general_reg_allocator_.EndInstruction();
+    double_reg_allocator_.EndInstruction();
   }
 
   // For now we spill all registers at a loop header.
   // TODO(rmcilroy): Add support for register allocations across loops.
   if (block->IsLoopHeader()) {
-    general_reg_allocator().SpillAllRegisters();
-    double_reg_allocator().SpillAllRegisters();
+    general_reg_allocator_.SpillAllRegisters();
+    double_reg_allocator_.SpillAllRegisters();
   }
 
   AllocatePhis(block);
 
-  general_reg_allocator().EndBlock(block);
-  double_reg_allocator().EndBlock(block);
+  general_reg_allocator_.EndBlock(block);
+  double_reg_allocator_.EndBlock(block);
 }
 
 SinglePassRegisterAllocator& MidTierRegisterAllocator::AllocatorFor(
     MachineRepresentation rep) {
-  if (IsFloatingPoint(rep)) {
-    return double_reg_allocator();
-  } else {
-    return general_reg_allocator();
-  }
+  return IsFloatingPoint(rep) ? double_reg_allocator_ : general_reg_allocator_;
 }
 
 bool MidTierRegisterAllocator::IsFixedRegisterPolicy(
