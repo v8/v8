@@ -1672,6 +1672,10 @@ bool Heap::CollectGarbage(AllocationSpace space,
     CHECK(always_allocate());
     FatalProcessOutOfMemory("GC during deserialization");
   }
+
+  // Ensure that all pending phantom callbacks are invoked.
+  isolate()->global_handles()->InvokeSecondPassPhantomCallbacks();
+
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced ||
@@ -1689,9 +1693,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
   isolate()
       ->global_handles()
       ->CleanupOnStackReferencesBelowCurrentStackPosition();
-
-  // Ensure that all pending phantom callbacks are invoked.
-  isolate()->global_handles()->InvokeSecondPassPhantomCallbacks();
 
   // The VM is in the GC state until exiting this function.
   VMState<GC> state(isolate());
