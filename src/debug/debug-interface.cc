@@ -111,17 +111,15 @@ void CollectPrivateMethodsAndAccessorsFromContext(
     i::IsStaticFlag is_static_flag, std::vector<Local<Value>>* names_out,
     std::vector<Local<Value>>* values_out) {
   i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
-  int local_count = scope_info->ContextLocalCount();
-  for (int j = 0; j < local_count; ++j) {
-    i::VariableMode mode = scope_info->ContextLocalMode(j);
-    i::IsStaticFlag flag = scope_info->ContextLocalIsStaticFlag(j);
+  for (auto it : *scope_info) {
+    i::Handle<i::String> name(it->name(), isolate);
+    i::VariableMode mode = scope_info->ContextLocalMode(it->index());
+    i::IsStaticFlag flag = scope_info->ContextLocalIsStaticFlag(it->index());
     if (!i::IsPrivateMethodOrAccessorVariableMode(mode) ||
         flag != is_static_flag) {
       continue;
     }
-
-    i::Handle<i::String> name(scope_info->ContextLocalName(j), isolate);
-    int context_index = scope_info->ContextHeaderLength() + j;
+    int context_index = scope_info->ContextHeaderLength() + it->index();
     i::Handle<i::Object> slot_value(context->get(context_index), isolate);
     DCHECK_IMPLIES(mode == i::VariableMode::kPrivateMethod,
                    slot_value->IsJSFunction());
@@ -1001,11 +999,9 @@ void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
         i::ScriptContextTable::GetContext(isolate, table, i);
     DCHECK(script_context->IsScriptContext());
     i::Handle<i::ScopeInfo> scope_info(script_context->scope_info(), isolate);
-    int local_count = scope_info->ContextLocalCount();
-    for (int j = 0; j < local_count; ++j) {
-      i::String name = scope_info->ContextLocalName(j);
-      if (i::ScopeInfo::VariableIsSynthetic(name)) continue;
-      names->Append(Utils::ToLocal(handle(name, isolate)));
+    for (auto it : *scope_info) {
+      if (i::ScopeInfo::VariableIsSynthetic(it->name())) continue;
+      names->Append(Utils::ToLocal(handle(it->name(), isolate)));
     }
   }
 }
