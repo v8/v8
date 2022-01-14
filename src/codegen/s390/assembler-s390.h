@@ -49,7 +49,6 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-#include <vector>
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/external-reference.h"

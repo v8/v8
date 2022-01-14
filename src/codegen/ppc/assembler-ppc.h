@@ -43,7 +43,6 @@
 #include <stdio.h>
 
 #include <memory>
-#include <vector>
 
 #include "src/base/numbers/double.h"
 #include "src/codegen/assembler.h"
