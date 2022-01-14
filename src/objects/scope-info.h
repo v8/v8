@@ -141,10 +141,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   SourceTextModuleInfo ModuleDescriptorInfo() const;
 
   // Return true if the local names are inlined in the scope info object.
-  bool HasInlinedLocalNames() const {
-    // TODO(victorgomes, v8:12315): Currently, local names are always inlined.
-    return true;
-  }
+  inline bool HasInlinedLocalNames() const;
 
   // Return the name of the given context local.
   String ContextLocalName(int var) const;

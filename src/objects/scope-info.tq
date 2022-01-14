@@ -97,6 +97,9 @@ struct ModuleVariable {
   properties: SmiTagged<VariableProperties>;
 }
 
+const kMaxInlinedLocalNamesSize:
+    constexpr int32 generates 'kScopeInfoMaxInlinedLocalNamesSize';
+
 @generateBodyDescriptor
 extern class ScopeInfo extends HeapObject {
   const flags: SmiTagged<ScopeFlags>;
@@ -108,10 +111,11 @@ extern class ScopeInfo extends HeapObject {
   // context.
   const context_local_count: Smi;
 
-  // Contains the names of local variables and parameters that are allocated
-  // in the context. They are stored in increasing order of the context slot
-  // index starting with Context::MIN_CONTEXT_SLOTS.
-  context_local_names[context_local_count]: String;
+  // Contains the names of inlined local variables and parameters that are
+  // allocated in the context. They are stored in increasing order of the
+  // context slot index starting with Context::MIN_CONTEXT_SLOTS.
+  context_local_names[Convert<intptr>(context_local_count) < kMaxInlinedLocalNamesSize ? context_local_count : 0]:
+      String;
 
   // Contains the variable modes and initialization flags corresponding to
   // the context locals in ContextLocalNames.

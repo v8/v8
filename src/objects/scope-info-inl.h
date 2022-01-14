@@ -32,6 +32,10 @@ int ScopeInfo::ContextLocalCount() const { return context_local_count(); }
 
 ObjectSlot ScopeInfo::data_start() { return RawField(OffsetOfElementAt(0)); }
 
+bool ScopeInfo::HasInlinedLocalNames() const {
+  return ContextLocalCount() < kScopeInfoMaxInlinedLocalNamesSize;
+}
+
 }  // namespace internal
 }  // namespace v8
 
