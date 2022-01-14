@@ -172,6 +172,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov"},
         use_goma = GOMA.NO,
+        execution_timeout = 10800,
         to_notify = [
             "v8-waterfall-sheriff@grotations.appspotmail.com",
             "mtv-sf-v8-sheriff@grotations.appspotmail.com",
