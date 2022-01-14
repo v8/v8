@@ -18,11 +18,20 @@ bool LocalEmbedderHeapTracer::ExtractWrappableInfo(
   DCHECK(js_object.IsApiWrapper());
   if (js_object.GetEmbedderFieldCount() < 2) return false;
 
-  if (EmbedderDataSlot(js_object, wrapper_descriptor.wrappable_type_index)
-          .ToAlignedPointerSafe(isolate, &info->first) &&
-      info->first &&
-      EmbedderDataSlot(js_object, wrapper_descriptor.wrappable_instance_index)
-          .ToAlignedPointerSafe(isolate, &info->second) &&
+  return ExtractWrappableInfo(
+      isolate, wrapper_descriptor,
+      EmbedderDataSlot(js_object, wrapper_descriptor.wrappable_type_index),
+      EmbedderDataSlot(js_object, wrapper_descriptor.wrappable_instance_index),
+      info);
+}
+
+// static
+bool LocalEmbedderHeapTracer::ExtractWrappableInfo(
+    Isolate* isolate, const WrapperDescriptor& wrapper_descriptor,
+    const EmbedderDataSlot& type_slot, const EmbedderDataSlot& instance_slot,
+    WrapperInfo* info) {
+  if (type_slot.ToAlignedPointerSafe(isolate, &info->first) && info->first &&
+      instance_slot.ToAlignedPointerSafe(isolate, &info->second) &&
       info->second) {
     return (wrapper_descriptor.embedder_id_for_garbage_collected ==
             WrapperDescriptor::kUnknownEmbedderId) ||

@@ -5,11 +5,11 @@
 #ifndef V8_OBJECTS_EMBEDDER_DATA_SLOT_INL_H_
 #define V8_OBJECTS_EMBEDDER_DATA_SLOT_INL_H_
 
-#include "src/objects/embedder-data-slot.h"
-
 #include "src/base/memory.h"
+#include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/embedder-data-array.h"
+#include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -26,6 +26,9 @@ EmbedderDataSlot::EmbedderDataSlot(EmbedderDataArray array, int entry_index)
 EmbedderDataSlot::EmbedderDataSlot(JSObject object, int embedder_field_index)
     : SlotBase(FIELD_ADDR(
           object, object.GetEmbedderFieldOffset(embedder_field_index))) {}
+
+EmbedderDataSlot::EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot)
+    : SlotBase(reinterpret_cast<Address>(&snapshot)) {}
 
 void EmbedderDataSlot::AllocateExternalPointerEntry(Isolate* isolate) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
@@ -188,6 +191,30 @@ void EmbedderDataSlot::gc_safe_store(Isolate* isolate, Address value) {
 #else
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(value));
 #endif
+}
+
+// static
+void EmbedderDataSlot::PopulateEmbedderDataSnapshot(
+    Map map, JSObject js_object, int entry_index,
+    EmbedderDataSlotSnapshot& snapshot) {
+#ifdef V8_COMPRESS_POINTERS
+  STATIC_ASSERT(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t) * 2);
+#else   // !V8_COMPRESS_POINTERS
+  STATIC_ASSERT(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t));
+#endif  // !V8_COMPRESS_POINTERS
+  STATIC_ASSERT(sizeof(EmbedderDataSlotSnapshot) == kEmbedderDataSlotSize);
+
+  const Address field_base =
+      FIELD_ADDR(js_object, js_object.GetEmbedderFieldOffset(entry_index));
+
+  reinterpret_cast<AtomicTagged_t*>(&snapshot)[0] =
+      AsAtomicTagged::Relaxed_Load(
+          reinterpret_cast<AtomicTagged_t*>(field_base + kTaggedPayloadOffset));
+#ifdef V8_COMPRESS_POINTERS
+  reinterpret_cast<AtomicTagged_t*>(&snapshot)[1] =
+      AsAtomicTagged::Relaxed_Load(
+          reinterpret_cast<AtomicTagged_t*>(field_base + kRawPayloadOffset));
+#endif  // V8_COMPRESS_POINTERS
 }
 
 }  // namespace internal

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/heap/base/worklist.h"
+#include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/heap/marking.h"
 #include "src/objects/heap-object.h"
 
@@ -157,6 +158,11 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local {
   inline void PushOnHold(HeapObject object);
   inline bool PopOnHold(HeapObject* object);
 
+  using WrapperSnapshot = CppMarkingState::EmbedderDataSnapshot;
+  inline bool ExtractWrapper(Map map, JSObject object,
+                             WrapperSnapshot& snapshot);
+  inline void PushExtractedWrapper(const WrapperSnapshot& snapshot);
+  inline bool SupportsExtractWrapper();
   inline void PushWrapper(HeapObject object);
   inline bool PopWrapper(HeapObject* object);
 
@@ -179,6 +185,10 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local {
   inline Address SwitchToContext(Address context);
   inline Address SwitchToShared();
   bool IsPerContextMode() const { return is_per_context_mode_; }
+
+  CppMarkingState* cpp_marking_state() const {
+    return cpp_marking_state_.get();
+  }
 
  private:
   bool PopContext(HeapObject* object);

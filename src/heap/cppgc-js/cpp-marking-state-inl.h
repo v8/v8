@@ -7,16 +7,35 @@
 
 #include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/heap/embedder-tracing-inl.h"
+#include "src/objects/embedder-data-slot.h"
 #include "src/objects/js-objects.h"
 
 namespace v8 {
 namespace internal {
 
-void CppMarkingState::MarkAndPush(const JSObject& js_object) {
-  DCHECK(js_object.IsApiWrapper());
+bool CppMarkingState::ExtractEmbedderDataSnapshot(
+    Map map, JSObject object, EmbedderDataSnapshot& snapshot) {
+  if (JSObject::GetEmbedderFieldCount(map) < 2) return false;
+
+  EmbedderDataSlot::PopulateEmbedderDataSnapshot(
+      map, object, wrapper_descriptor_.wrappable_type_index, snapshot.first);
+  EmbedderDataSlot::PopulateEmbedderDataSnapshot(
+      map, object, wrapper_descriptor_.wrappable_instance_index,
+      snapshot.second);
+  return true;
+}
+
+void CppMarkingState::MarkAndPush(const EmbedderDataSnapshot& snapshot) {
+  const EmbedderDataSlot type_slot(snapshot.first);
+  const EmbedderDataSlot instance_slot(snapshot.second);
+  MarkAndPush(type_slot, instance_slot);
+}
+
+void CppMarkingState::MarkAndPush(const EmbedderDataSlot type_slot,
+                                  const EmbedderDataSlot instance_slot) {
   LocalEmbedderHeapTracer::WrapperInfo info;
   if (LocalEmbedderHeapTracer::ExtractWrappableInfo(
-          isolate_, js_object, wrapper_descriptor_, &info)) {
+          isolate_, wrapper_descriptor_, type_slot, instance_slot, &info)) {
     marking_state_.MarkAndPush(
         cppgc::internal::HeapObjectHeader::FromObject(info.second));
   }

@@ -6,6 +6,7 @@
 #define V8_HEAP_MARKING_VISITOR_INL_H_
 
 #include "src/heap/marking-visitor.h"
+#include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/progress-bar.h"
@@ -260,17 +261,45 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedDoubleArray(
 
 template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
+inline int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitEmbedderTracingSubClassNoEmbedderTracing(Map map, T object) {
+  return concrete_visitor()->VisitJSObjectSubclass(map, object);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+template <typename T>
+inline int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object) {
+  const bool requires_snapshot =
+      local_marking_worklists_->SupportsExtractWrapper();
+  MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
+  const bool valid_snapshot =
+      requires_snapshot &&
+      local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot);
+  const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
+  if (size) {
+    if (valid_snapshot) {
+      // Success: The object needs to be processed for embedder references.
+      local_marking_worklists_->PushExtractedWrapper(wrapper_snapshot);
+    } else if (!requires_snapshot) {
+      // Snapshot not supported. Just fall back to pushing the wrapper itself
+      // instead which will be processed on the main thread.
+      local_marking_worklists_->PushWrapper(object);
+    }
+  }
+  return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+template <typename T>
 int MarkingVisitorBase<ConcreteVisitor,
                        MarkingState>::VisitEmbedderTracingSubclass(Map map,
                                                                    T object) {
   DCHECK(object.IsApiWrapper());
-  int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
-  if (size && is_embedder_tracing_enabled_) {
-    // Success: The object needs to be processed for embedder references on
-    // the main thread.
-    local_marking_worklists_->PushWrapper(object);
+  if (V8_LIKELY(is_embedder_tracing_enabled_)) {
+    return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
   }
-  return size;
+  return VisitEmbedderTracingSubClassNoEmbedderTracing(map, object);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>

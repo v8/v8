@@ -32,9 +32,16 @@ class Object;
 class EmbedderDataSlot
     : public SlotBase<EmbedderDataSlot, Address, kTaggedSize> {
  public:
+  using EmbedderDataSlotSnapshot = Address;
+  V8_INLINE static void PopulateEmbedderDataSnapshot(Map map,
+                                                     JSObject js_object,
+                                                     int entry_index,
+                                                     EmbedderDataSlotSnapshot&);
+
   EmbedderDataSlot() : SlotBase(kNullAddress) {}
   V8_INLINE EmbedderDataSlot(EmbedderDataArray array, int entry_index);
   V8_INLINE EmbedderDataSlot(JSObject object, int embedder_field_index);
+  V8_INLINE explicit EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot);
 
 #if defined(V8_TARGET_BIG_ENDIAN) && defined(V8_COMPRESS_POINTERS)
   static constexpr int kTaggedPayloadOffset = kTaggedSize;
