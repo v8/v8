@@ -199,18 +199,21 @@ class CcTest {
   static void TearDown();
 
  private:
-  friend int main(int argc, char** argv);
+  static CcTest* last_;
+  static v8::ArrayBuffer::Allocator* allocator_;
+  static v8::Isolate* isolate_;
+  static bool initialize_called_;
+  static v8::base::Atomic32 isolate_used_;
+
   TestFunction* callback_;
   const char* file_;
   const char* name_;
   bool enabled_;
   bool initialize_;
   CcTest* prev_;
-  static CcTest* last_;
-  static v8::ArrayBuffer::Allocator* allocator_;
-  static v8::Isolate* isolate_;
-  static bool initialize_called_;
-  static v8::base::Atomic32 isolate_used_;
+
+  friend int main(int argc, char** argv);
+  friend class ManualGCScope;
 };
 
 // Switches between all the Api tests using the threading support.
@@ -676,42 +679,25 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
   const char* data_;
 };
 
+// ManualGCScope allows for disabling GC heuristics. This is useful for tests
+// that want to check specific corner cases around GC.
+//
+// The scope will finalize any ongoing GC on the provided Isolate. If no Isolate
+// is manually provided, it is assumed that a CcTest setup (e.g.
+// CcTest::InitializeVM()) is used.
 class V8_NODISCARD ManualGCScope {
  public:
-  ManualGCScope()
-      : flag_concurrent_marking_(i::FLAG_concurrent_marking),
-        flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
-        flag_stress_concurrent_allocation_(
-            i::FLAG_stress_concurrent_allocation),
-        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
-        flag_parallel_marking_(i::FLAG_parallel_marking),
-        flag_detect_ineffective_gcs_near_heap_limit_(
-            i::FLAG_detect_ineffective_gcs_near_heap_limit) {
-    i::FLAG_concurrent_marking = false;
-    i::FLAG_concurrent_sweeping = false;
-    i::FLAG_stress_incremental_marking = false;
-    i::FLAG_stress_concurrent_allocation = false;
-    // Parallel marking has a dependency on concurrent marking.
-    i::FLAG_parallel_marking = false;
-    i::FLAG_detect_ineffective_gcs_near_heap_limit = false;
-  }
-  ~ManualGCScope() {
-    i::FLAG_concurrent_marking = flag_concurrent_marking_;
-    i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
-    i::FLAG_stress_concurrent_allocation = flag_stress_concurrent_allocation_;
-    i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
-    i::FLAG_parallel_marking = flag_parallel_marking_;
-    i::FLAG_detect_ineffective_gcs_near_heap_limit =
-        flag_detect_ineffective_gcs_near_heap_limit_;
-  }
+  explicit ManualGCScope(
+      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(CcTest::isolate_));
+  ~ManualGCScope();
 
  private:
-  bool flag_concurrent_marking_;
-  bool flag_concurrent_sweeping_;
-  bool flag_stress_concurrent_allocation_;
-  bool flag_stress_incremental_marking_;
-  bool flag_parallel_marking_;
-  bool flag_detect_ineffective_gcs_near_heap_limit_;
+  const bool flag_concurrent_marking_;
+  const bool flag_concurrent_sweeping_;
+  const bool flag_stress_concurrent_allocation_;
+  const bool flag_stress_incremental_marking_;
+  const bool flag_parallel_marking_;
+  const bool flag_detect_ineffective_gcs_near_heap_limit_;
 };
 
 // This is an abstract base class that can be overridden to implement a test

@@ -127,9 +127,8 @@ template <typename ConcreteVisitor, typename MarkingState>
 class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
  public:
   MarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
-                     WeakObjects::Local* local_weak_objects,
-                     //  WeakObjects* weak_objects,
-                     Heap* heap, unsigned mark_compact_epoch,
+                     WeakObjects::Local* local_weak_objects, Heap* heap,
+                     unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool is_embedder_tracing_enabled,
                      bool should_keep_ages_unchanged)
