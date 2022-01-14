@@ -525,6 +525,8 @@ namespace internal {
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(IsDictPropertyConstTrackingEnabled, 0, 1) \
   F(IsMidTierTurboprop, 0, 1)                 \
+  F(IsSameHeapObject, 2, 1)                   \
+  F(IsSharedString, 1, 1)                     \
   F(IsTopTierTurboprop, 0, 1)                 \
   F(MapIteratorProtector, 0, 1)               \
   F(NeverOptimizeFunction, 1, 1)              \

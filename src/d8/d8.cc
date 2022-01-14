@@ -4843,6 +4843,22 @@ class Serializer : public ValueSerializer::Delegate {
 
   void FreeBufferMemory(void* buffer) override { base::Free(buffer); }
 
+  Maybe<uint32_t> GetSharedValueId(Isolate* isolate,
+                                   Local<Value> shared_value) override {
+    DCHECK_NOT_NULL(data_);
+    for (size_t index = 0; index < data_->shared_values_.size(); ++index) {
+      if (data_->shared_values_[index] == shared_value) {
+        return Just<uint32_t>(static_cast<uint32_t>(index));
+      }
+    }
+
+    size_t index = data_->shared_values_.size();
+    // Note: the shared value is kept alive by the sender Isolate's
+    // GlobalHandles, so there's no race.
+    data_->shared_values_.emplace_back(isolate_, shared_value);
+    return Just<uint32_t>(static_cast<uint32_t>(index));
+  }
+
  private:
   Maybe<bool> PrepareTransfer(Local<Context> context, Local<Value> transfer) {
     if (transfer->IsArray()) {
@@ -4953,6 +4969,15 @@ class Deserializer : public ValueDeserializer::Delegate {
     if (transfer_id >= data_->compiled_wasm_modules().size()) return {};
     return WasmModuleObject::FromCompiledModule(
         isolate_, data_->compiled_wasm_modules().at(transfer_id));
+  }
+
+  MaybeLocal<Value> GetSharedValueFromId(Isolate* isolate,
+                                         uint32_t id) override {
+    DCHECK_NOT_NULL(data_);
+    if (id < data_->shared_values().size()) {
+      return data_->shared_values().at(id).Get(isolate);
+    }
+    return MaybeLocal<Value>();
   }
 
  private:

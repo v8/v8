@@ -153,6 +153,8 @@ enum class SerializationTag : uint8_t {
   kArrayBufferView = 'V',
   // Shared array buffer. transferID:uint32_t
   kSharedArrayBuffer = 'u',
+  // A HeapObject shared across Isolates. sharedValueID:uint32_t
+  kSharedObject = 'p',
   // A wasm module object transfer. next value is its index.
   kWasmModuleTransfer = 'w',
   // The delegate is responsible for processing all following data.
@@ -443,7 +445,11 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
     }
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
-        WriteString(Handle<String>::cast(object));
+        auto string = Handle<String>::cast(object);
+        if (FLAG_shared_string_table) {
+          return WriteSharedObject(String::Share(isolate_, string));
+        }
+        WriteString(string);
         return ThrowIfOutOfMemory();
       } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
         return WriteJSReceiver(Handle<JSReceiver>::cast(object));
@@ -1053,6 +1059,26 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
+  // Currently only strings are shareable.
+  DCHECK(String::cast(*object).IsShared());
+
+  if (!delegate_) {
+    isolate_->Throw(*isolate_->factory()->NewError(
+        isolate_->error_function(), MessageTemplate::kDataCloneError, object));
+    return Nothing<bool>();
+  }
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  Maybe<uint32_t> index =
+      delegate_->GetSharedValueId(v8_isolate, Utils::ToLocal(object));
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+
+  WriteTag(SerializationTag::kSharedObject);
+  WriteVarint(index.FromJust());
+  return ThrowIfOutOfMemory();
+}
+
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
   WriteTag(SerializationTag::kHostObject);
   if (!delegate_) {
@@ -1395,6 +1421,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kWasmMemoryTransfer:
       return ReadWasmMemory();
 #endif  // V8_ENABLE_WEBASSEMBLY
+    case SerializationTag::kSharedObject:
+      return ReadSharedObject();
     case SerializationTag::kHostObject:
       return ReadHostObject();
     default:
@@ -2040,6 +2068,25 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   return result;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
+  if (!delegate_) return MaybeHandle<HeapObject>();
+  STACK_CHECK(isolate_, MaybeHandle<HeapObject>());
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  uint32_t shared_value_id;
+  Local<Value> shared_value;
+  if (!ReadVarint<uint32_t>().To(&shared_value_id) ||
+      !delegate_->GetSharedValueFromId(v8_isolate, shared_value_id)
+           .ToLocal(&shared_value)) {
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, HeapObject);
+    return MaybeHandle<HeapObject>();
+  }
+  Handle<HeapObject> shared_object =
+      Handle<HeapObject>::cast(Utils::OpenHandle(*shared_value));
+  // Currently only strings are shareable.
+  DCHECK(String::cast(*shared_object).IsShared());
+  return shared_object;
+}
 
 MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
   if (!delegate_) return MaybeHandle<JSObject>();
