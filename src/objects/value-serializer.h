@@ -137,8 +137,6 @@ class ValueSerializer {
   Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)
       V8_WARN_UNUSED_RESULT;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Maybe<bool> WriteSharedObject(Handle<HeapObject> object)
-      V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteHostObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
 
   /*
@@ -288,7 +286,6 @@ class ValueDeserializer {
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
   MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  MaybeHandle<HeapObject> ReadSharedObject() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
 
   /*
