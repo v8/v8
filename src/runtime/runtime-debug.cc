@@ -858,6 +858,16 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   return *throwaway;
 }
 
+RUNTIME_FUNCTION(Runtime_DebugPromiseThen) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, promise, 0);
+  if (promise->IsJSPromise()) {
+    isolate->OnPromiseThen(Handle<JSPromise>::cast(promise));
+  }
+  return *promise;
+}
+
 RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

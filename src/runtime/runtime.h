@@ -130,6 +130,7 @@ namespace internal {
   F(DebugOnFunctionCall, 2, 1)                  \
   F(DebugPopPromise, 0, 1)                      \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
+  F(DebugPromiseThen, 1, 1)                     \
   F(DebugPushPromise, 1, 1)                     \
   F(DebugToggleBlockCoverage, 1, 1)             \
   F(DebugTogglePreciseCoverage, 1, 1)           \

@@ -4834,79 +4834,16 @@ void Isolate::RunAllPromiseHooks(PromiseHookType type,
 
 void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                              Handle<Object> parent) {
-  RunPromiseHookForAsyncEventDelegate(type, promise);
   if (!HasIsolatePromiseHooks()) return;
   DCHECK(promise_hook_ != nullptr);
   promise_hook_(type, v8::Utils::PromiseToLocal(promise),
                 v8::Utils::ToLocal(parent));
 }
 
-void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
-                                                  Handle<JSPromise> promise) {
-  if (!HasAsyncEventDelegate()) return;
-  DCHECK(async_event_delegate_ != nullptr);
-  switch (type) {
-    case PromiseHookType::kResolve:
-      return;
-    case PromiseHookType::kBefore:
-      if (!promise->async_task_id()) return;
-      async_event_delegate_->AsyncEventOccurred(
-          debug::kDebugWillHandle, promise->async_task_id(), false);
-      break;
-    case PromiseHookType::kAfter:
-      if (!promise->async_task_id()) return;
-      async_event_delegate_->AsyncEventOccurred(
-          debug::kDebugDidHandle, promise->async_task_id(), false);
-      break;
-    case PromiseHookType::kInit:
-      debug::DebugAsyncActionType action_type = debug::kDebugPromiseThen;
-      bool last_frame_was_promise_builtin = false;
-      JavaScriptFrameIterator it(this);
-      while (!it.done()) {
-        std::vector<Handle<SharedFunctionInfo>> infos;
-        it.frame()->GetFunctions(&infos);
-        for (size_t i = 1; i <= infos.size(); ++i) {
-          Handle<SharedFunctionInfo> info = infos[infos.size() - i];
-          if (info->IsUserJavaScript()) {
-            // We should not report PromiseThen and PromiseCatch which is called
-            // indirectly, e.g. Promise.all calls Promise.then internally.
-            if (last_frame_was_promise_builtin) {
-              DCHECK_EQ(0, promise->async_task_id());
-              promise->set_async_task_id(++async_task_count_);
-              async_event_delegate_->AsyncEventOccurred(
-                  action_type, promise->async_task_id(),
-                  debug()->IsBlackboxed(info));
-            }
-            return;
-          }
-          last_frame_was_promise_builtin = false;
-          if (info->HasBuiltinId()) {
-            if (info->builtin_id() == Builtin::kPromisePrototypeThen) {
-              action_type = debug::kDebugPromiseThen;
-              last_frame_was_promise_builtin = true;
-            } else if (info->builtin_id() == Builtin::kPromisePrototypeCatch) {
-              action_type = debug::kDebugPromiseCatch;
-              last_frame_was_promise_builtin = true;
-            } else if (info->builtin_id() ==
-                       Builtin::kPromisePrototypeFinally) {
-              action_type = debug::kDebugPromiseFinally;
-              last_frame_was_promise_builtin = true;
-            }
-          }
-        }
-        it.Advance();
-      }
-  }
-}
-
 void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
                                        Handle<JSPromise> parent) {
   DCHECK_EQ(0, promise->async_task_id());
-  if (HasIsolatePromiseHooks()) {
-    DCHECK_NE(nullptr, promise_hook_);
-    promise_hook_(PromiseHookType::kInit, v8::Utils::PromiseToLocal(promise),
-                  v8::Utils::PromiseToLocal(parent));
-  }
+  RunPromiseHook(PromiseHookType::kInit, promise, parent);
   if (HasAsyncEventDelegate()) {
     DCHECK_NE(nullptr, async_event_delegate_);
     promise->set_async_task_id(++async_task_count_);
@@ -4918,6 +4855,68 @@ void Isolate::OnAsyncFunctionSuspended(Handle<JSPromise> promise,
     // so pop the outer promise from the isolate's promise stack.
     PopPromise();
   }
+}
+
+void Isolate::OnPromiseThen(Handle<JSPromise> promise) {
+  if (!HasAsyncEventDelegate()) return;
+  Maybe<debug::DebugAsyncActionType> action_type =
+      Nothing<debug::DebugAsyncActionType>();
+  for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
+    std::vector<Handle<SharedFunctionInfo>> infos;
+    it.frame()->GetFunctions(&infos);
+    for (auto it = infos.rbegin(); it != infos.rend(); ++it) {
+      Handle<SharedFunctionInfo> info = *it;
+      if (info->HasBuiltinId()) {
+        // We should not report PromiseThen and PromiseCatch which is called
+        // indirectly, e.g. Promise.all calls Promise.then internally.
+        switch (info->builtin_id()) {
+          case Builtin::kPromisePrototypeCatch:
+            action_type = Just(debug::kDebugPromiseCatch);
+            continue;
+          case Builtin::kPromisePrototypeFinally:
+            action_type = Just(debug::kDebugPromiseFinally);
+            continue;
+          case Builtin::kPromisePrototypeThen:
+            action_type = Just(debug::kDebugPromiseThen);
+            continue;
+          default:
+            return;
+        }
+      }
+      if (info->IsUserJavaScript() && action_type.IsJust()) {
+        DCHECK_EQ(0, promise->async_task_id());
+        promise->set_async_task_id(++async_task_count_);
+        async_event_delegate_->AsyncEventOccurred(action_type.FromJust(),
+                                                  promise->async_task_id(),
+                                                  debug()->IsBlackboxed(info));
+      }
+      return;
+    }
+  }
+}
+
+void Isolate::OnPromiseBefore(Handle<JSPromise> promise) {
+  RunPromiseHook(PromiseHookType::kBefore, promise,
+                 factory()->undefined_value());
+  if (HasAsyncEventDelegate()) {
+    if (promise->async_task_id()) {
+      async_event_delegate_->AsyncEventOccurred(
+          debug::kDebugWillHandle, promise->async_task_id(), false);
+    }
+  }
+  if (debug()->is_active()) PushPromise(promise);
+}
+
+void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
+  RunPromiseHook(PromiseHookType::kAfter, promise,
+                 factory()->undefined_value());
+  if (HasAsyncEventDelegate()) {
+    if (promise->async_task_id()) {
+      async_event_delegate_->AsyncEventOccurred(
+          debug::kDebugDidHandle, promise->async_task_id(), false);
+    }
+  }
+  if (debug()->is_active()) PopPromise();
 }
 
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {

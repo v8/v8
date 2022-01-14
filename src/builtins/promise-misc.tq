@@ -24,6 +24,9 @@ extern macro
 PromiseBuiltinsAssembler::IsContextPromiseHookEnabled(uint32): bool;
 
 extern macro
+PromiseBuiltinsAssembler::IsIsolatePromiseHookEnabled(uint32): bool;
+
+extern macro
 PromiseBuiltinsAssembler::PromiseHookFlags(): uint32;
 
 namespace promise {
@@ -222,7 +225,7 @@ transitioning macro RunAnyPromiseHookInit(implicit context: Context)(
       RunContextPromiseHookInit(promise, parent);
     }
   }
-  if (IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(promiseHookFlags)) {
+  if (IsIsolatePromiseHookEnabled(promiseHookFlags)) {
     runtime::PromiseHookInit(promise, parent);
   }
 }

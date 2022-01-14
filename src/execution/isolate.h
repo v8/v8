@@ -949,9 +949,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     PromiseHookStateUpdated();
   }
 
-  // Async function instrumentation support.
+  // Async function and promise instrumentation support.
   void OnAsyncFunctionSuspended(Handle<JSPromise> promise,
                                 Handle<JSPromise> parent);
+  void OnPromiseThen(Handle<JSPromise> promise);
+  void OnPromiseBefore(Handle<JSPromise> promise);
+  void OnPromiseAfter(Handle<JSPromise> promise);
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
@@ -1997,9 +2000,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // then return true.
   bool PropagatePendingExceptionToExternalTryCatch(
       ExceptionHandlerType top_handler);
-
-  void RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
-                                           Handle<JSPromise> promise);
 
   bool HasIsolatePromiseHooks() const {
     return PromiseHookFields::HasIsolatePromiseHook::decode(

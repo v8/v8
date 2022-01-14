@@ -3670,6 +3670,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   TNode<BoolT> IsContextPromiseHookEnabled(TNode<Uint32T> flags);
 #endif
+  TNode<BoolT> IsIsolatePromiseHookEnabled(TNode<Uint32T> flags);
   TNode<BoolT> IsAnyPromiseHookEnabled(TNode<Uint32T> flags);
   TNode<BoolT> IsAnyPromiseHookEnabled() {
     return IsAnyPromiseHookEnabled(PromiseHookFlags());
