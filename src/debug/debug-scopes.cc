@@ -780,10 +780,10 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
                                        Handle<Context> context,
                                        ScopeType scope_type) const {
   // Fill all context locals to the context extension.
-  for (int i = 0; i < scope_info->ContextLocalCount(); ++i) {
-    Handle<String> name(scope_info->ContextLocalName(i), isolate_);
+  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
+    Handle<String> name(it->name(), isolate_);
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
-    int context_index = scope_info->ContextHeaderLength() + i;
+    int context_index = scope_info->ContextHeaderLength() + it->index();
     Handle<Object> value(context->get(context_index), isolate_);
     if (visitor(name, value, scope_type)) return true;
   }
