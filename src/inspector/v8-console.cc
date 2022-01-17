@@ -513,7 +513,11 @@ v8::Maybe<int64_t> V8Console::ValidateAndGetTaskId(
 
 void V8Console::scheduleAsyncTask(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  if (info.Length() != 1) {
+  if (info.Length() != 1 && info.Length() != 2) {
+    info.GetIsolate()->ThrowError("Unexpected arguments");
+    return;
+  }
+  if (info.Length() == 2 && !info[1]->IsBoolean()) {
     info.GetIsolate()->ThrowError("Unexpected arguments");
     return;
   }
@@ -521,6 +525,8 @@ void V8Console::scheduleAsyncTask(
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, v8::debug::ConsoleContext(), m_inspector);
   String16 argName = helper.firstArgToString(String16());
+  bool recurring =
+      info.Length() == 2 ? info[1].As<v8::Boolean>()->Value() : false;
 
   int64_t id = m_taskIdCounter++;
   auto it = m_asyncTaskIds.find(id);
@@ -529,11 +535,13 @@ void V8Console::scheduleAsyncTask(
     return;
   }
 
-  int* taskPtr = new int();
-  m_asyncTaskIds.emplace(id, taskPtr);
+  AsyncTaskInfo taskInfo;
+  taskInfo.ptr = new int();
+  taskInfo.recurring = recurring;
+  m_asyncTaskIds.emplace(id, taskInfo);
 
   StringView taskName = StringView(argName.characters16(), argName.length());
-  m_inspector->asyncTaskScheduled(taskName, taskPtr, false);
+  m_inspector->asyncTaskScheduled(taskName, taskInfo.ptr, recurring);
 
   info.GetReturnValue().Set(v8::Number::New(info.GetIsolate(), id));
 }
@@ -544,8 +552,8 @@ void V8Console::startAsyncTask(
   if (maybeArgId.IsNothing()) return;
 
   int64_t taskId = maybeArgId.FromJust();
-  int* taskPtr = m_asyncTaskIds[taskId];
-  m_inspector->asyncTaskStarted(taskPtr);
+  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
+  m_inspector->asyncTaskStarted(taskInfo.ptr);
 }
 
 void V8Console::finishAsyncTask(
@@ -554,10 +562,14 @@ void V8Console::finishAsyncTask(
   if (maybeArgId.IsNothing()) return;
 
   int64_t taskId = maybeArgId.FromJust();
-  int* taskPtr = m_asyncTaskIds[taskId];
-  m_inspector->asyncTaskFinished(taskPtr);
+  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
+  m_inspector->asyncTaskFinished(taskInfo.ptr);
 
-  delete taskPtr;
+  if (taskInfo.recurring) {
+    return;
+  }
+
+  delete taskInfo.ptr;
   m_asyncTaskIds.erase(taskId);
 }
 
@@ -567,10 +579,10 @@ void V8Console::cancelAsyncTask(
   if (maybeArgId.IsNothing()) return;
 
   int64_t taskId = maybeArgId.FromJust();
-  int* taskPtr = m_asyncTaskIds[taskId];
-  m_inspector->asyncTaskCanceled(taskPtr);
+  AsyncTaskInfo taskInfo = m_asyncTaskIds[taskId];
+  m_inspector->asyncTaskCanceled(taskInfo.ptr);
 
-  delete taskPtr;
+  delete taskInfo.ptr;
   m_asyncTaskIds.erase(taskId);
 }
 
