@@ -13,6 +13,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -753,7 +754,7 @@ class GlobalHandles::OnStackTracedNodeSpace final {
 
   void SetStackStart(void* stack_start) {
     CHECK(on_stack_nodes_.empty());
-    stack_start_ = base::Stack::GetRealStackAddressForSlot(stack_start);
+    stack_.SetStackStart(base::Stack::GetRealStackAddressForSlot(stack_start));
   }
 
   V8_INLINE bool IsOnStack(uintptr_t slot) const;
@@ -789,28 +790,17 @@ class GlobalHandles::OnStackTracedNodeSpace final {
   std::map<uintptr_t, NodeEntry> on_stack_nodes_;
 #endif  // !V8_USE_ADDRESS_SANITIZER
 
-  uintptr_t stack_start_ = 0;
+  ::heap::base::Stack stack_;
   GlobalHandles* global_handles_ = nullptr;
   size_t acquire_count_ = 0;
 };
 
 bool GlobalHandles::OnStackTracedNodeSpace::IsOnStack(uintptr_t slot) const {
-#ifdef V8_USE_ADDRESS_SANITIZER
-  if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(),
-                                   reinterpret_cast<void*>(slot), nullptr,
-                                   nullptr)) {
-    return true;
-  }
-#endif  // V8_USE_ADDRESS_SANITIZER
-#if defined(__has_feature)
-#if __has_feature(safe_stack)
-  if (reinterpret_cast<uintptr_t>(__builtin___get_unsafe_stack_top()) >= slot &&
-      slot > reinterpret_cast<uintptr_t>(__builtin___get_unsafe_stack_ptr())) {
-    return true;
-  }
-#endif  // __has_feature(safe_stack)
-#endif  // defined(__has_feature)
-  return stack_start_ >= slot && slot > base::Stack::GetCurrentStackPosition();
+  // By the time this function is called, the stack start may not be set (i.e.
+  // SetStackStart() was not called). In that case, assume the slot is not on
+  // stack.
+  if (!stack_.stack_start()) return false;
+  return stack_.IsOnStack(reinterpret_cast<void*>(slot));
 }
 
 void GlobalHandles::OnStackTracedNodeSpace::NotifyEmptyEmbedderStack() {
@@ -877,8 +867,9 @@ GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
 
 void GlobalHandles::OnStackTracedNodeSpace::CleanupBelowCurrentStackPosition() {
   if (on_stack_nodes_.empty()) return;
-  const auto it =
-      on_stack_nodes_.upper_bound(base::Stack::GetCurrentStackPosition());
+  const uintptr_t stack_ptr = reinterpret_cast<uintptr_t>(
+      ::heap::base::Stack::GetCurrentStackPointerForLocalVariables());
+  const auto it = on_stack_nodes_.upper_bound(stack_ptr);
   on_stack_nodes_.erase(on_stack_nodes_.begin(), it);
 }
 
