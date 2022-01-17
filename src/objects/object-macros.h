@@ -484,6 +484,8 @@
         WriteBarrier::Marking(object, (object).RawField(offset), value); \
       }                                                                  \
       GenerationalBarrier(object, (object).RawField(offset), value);     \
+    } else {                                                             \
+      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));             \
     }                                                                    \
   } while (false)
 #endif
@@ -504,6 +506,8 @@
                               value);                                         \
       }                                                                       \
       GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
+    } else {                                                                  \
+      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                  \
     }                                                                         \
   } while (false)
 #endif
@@ -522,6 +526,8 @@
       }                                                                      \
       GenerationalEphemeronKeyBarrier(table, (object).RawField(offset),      \
                                       value);                                \
+    } else {                                                                 \
+      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                 \
     }                                                                        \
   } while (false)
 #endif

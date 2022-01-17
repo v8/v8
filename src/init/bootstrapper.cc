@@ -5671,9 +5671,9 @@ void Genesis::InitializeMapCaches() {
     DisallowGarbageCollection no_gc;
     native_context()->set_map_cache(*cache);
     Map initial = native_context()->object_function().initial_map();
-    cache->Set(0, HeapObjectReference::Weak(initial), SKIP_WRITE_BARRIER);
+    cache->Set(0, HeapObjectReference::Weak(initial));
     cache->Set(initial.GetInObjectProperties(),
-               HeapObjectReference::Weak(initial), SKIP_WRITE_BARRIER);
+               HeapObjectReference::Weak(initial));
   }
 }
 

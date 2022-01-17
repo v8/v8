@@ -1009,8 +1009,9 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
   uint32_t count = static_cast<uint32_t>(Smi::ToInt(call_count));
   count = SpeculationModeField::update(count, mode);
   MaybeObject feedback = GetFeedback();
-  // We can skip the write barrier for {feedback} because it's not changing.
-  SetFeedback(feedback, SKIP_WRITE_BARRIER, Smi::FromInt(count),
+  // We could've skipped WB here (since we set the slot to the same value again)
+  // but we don't to make WB verification happy.
+  SetFeedback(feedback, UPDATE_WRITE_BARRIER, Smi::FromInt(count),
               SKIP_WRITE_BARRIER);
 }
 
