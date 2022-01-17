@@ -96,6 +96,7 @@ class Symbol;
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
+  V(Map, name_to_index_hash_table_map, NameToIndexHashTableMap)                \
   V(Map, ordered_name_dictionary_map, OrderedNameDictionaryMap)                \
   V(Map, preparse_data_map, PreparseDataMap)                                   \
   V(Map, property_array_map, PropertyArrayMap)                                 \

@@ -1036,6 +1036,7 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return CALL_APPLY(FixedArray);
     case EPHEMERON_HASH_TABLE_TYPE:

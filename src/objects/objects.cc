@@ -2326,6 +2326,7 @@ bool HeapObject::NeedsRehashing(InstanceType instance_type) const {
     case ORDERED_HASH_SET_TYPE:
       return false;  // We'll rehash from the JSMap or JSSet referencing them.
     case NAME_DICTIONARY_TYPE:
+    case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
@@ -2354,6 +2355,7 @@ bool HeapObject::CanBeRehashed(PtrComprCageBase cage_base) const {
     case ORDERED_NAME_DICTIONARY_TYPE:
       return false;
     case NAME_DICTIONARY_TYPE:
+    case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
@@ -2382,6 +2384,9 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
       UNREACHABLE();
     case NAME_DICTIONARY_TYPE:
       NameDictionary::cast(*this).Rehash(isolate);
+      break;
+    case NAME_TO_INDEX_HASH_TABLE_TYPE:
+      NameToIndexHashTable::cast(*this).Rehash(isolate);
       break;
     case SWISS_NAME_DICTIONARY_TYPE:
       SwissNameDictionary::cast(*this).Rehash(isolate);
@@ -6235,6 +6240,33 @@ Object ObjectHashTableBase<Derived, Shape>::Lookup(PtrComprCageBase cage_base,
   return this->get(Derived::EntryToIndex(entry) + 1);
 }
 
+int32_t NameToIndexHashTable::Lookup(Handle<Name> key) {
+  DisallowGarbageCollection no_gc;
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
+
+  InternalIndex entry = this->FindEntry(cage_base, roots, key, key->hash());
+  if (entry.is_not_found()) return -1;
+  return Smi::cast(this->get(EntryToValueIndex(entry))).value();
+}
+
+Handle<NameToIndexHashTable> NameToIndexHashTable::Add(
+    Isolate* isolate, Handle<NameToIndexHashTable> table, Handle<Name> key,
+    int32_t index) {
+  DCHECK_GE(index, 0);
+  // Validate that the key is absent.
+  SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
+  // Check whether the dictionary should be extended.
+  table = EnsureCapacity(isolate, table);
+
+  // Compute the key object.
+  InternalIndex entry = table->FindInsertionEntry(isolate, key->hash());
+  table->set(EntryToIndex(entry), *key);
+  table->set(EntryToValueIndex(entry), Smi::FromInt(index));
+  table->ElementAdded();
+  return table;
+}
+
 template <typename Derived, typename Shape>
 Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
   DisallowGarbageCollection no_gc;
@@ -6259,6 +6291,10 @@ Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key,
 
 template <typename Derived, typename Shape>
 Object ObjectHashTableBase<Derived, Shape>::ValueAt(InternalIndex entry) {
+  return this->get(EntryToValueIndex(entry));
+}
+
+Object NameToIndexHashTable::ValueAt(InternalIndex entry) {
   return this->get(EntryToValueIndex(entry));
 }
 
@@ -6836,6 +6872,7 @@ Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
 EXTERN_DEFINE_HASH_TABLE(StringSet, StringSetShape)
 EXTERN_DEFINE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 EXTERN_DEFINE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
+EXTERN_DEFINE_HASH_TABLE(NameToIndexHashTable, NameToIndexShape)
 
 EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
 EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)

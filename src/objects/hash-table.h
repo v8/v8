@@ -437,6 +437,42 @@ class V8_EXPORT_PRIVATE ObjectHashSet
                       HashTable<ObjectHashSet, ObjectHashSetShape>);
 };
 
+class NameToIndexShape : public BaseShape<Handle<Name>> {
+ public:
+  static inline bool IsMatch(Handle<Name> key, Object other);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Name> key);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+  static inline Handle<Object> AsHandle(Handle<Name> key);
+  static const int kPrefixSize = 0;
+  static const int kEntryValueIndex = 1;
+  static const int kEntrySize = 2;
+  static const bool kMatchNeedsHoleCheck = false;
+};
+
+class V8_EXPORT_PRIVATE NameToIndexHashTable
+    : public HashTable<NameToIndexHashTable, NameToIndexShape> {
+ public:
+  inline static Handle<Map> GetMap(ReadOnlyRoots roots);
+  int32_t Lookup(Handle<Name> key);
+  // Returns the value at entry.
+  Object ValueAt(InternalIndex entry);
+
+  V8_WARN_UNUSED_RESULT static Handle<NameToIndexHashTable> Add(
+      Isolate* isolate, Handle<NameToIndexHashTable> table, Handle<Name> key,
+      int32_t value);
+
+  DECL_CAST(NameToIndexHashTable)
+  DECL_PRINTER(NameToIndexHashTable)
+
+  OBJECT_CONSTRUCTORS(NameToIndexHashTable,
+                      HashTable<NameToIndexHashTable, NameToIndexShape>);
+
+ private:
+  static inline int EntryToValueIndex(InternalIndex entry) {
+    return EntryToIndex(entry) + NameToIndexShape::kEntryValueIndex;
+  }
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -129,6 +129,7 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitEmbedderDataArray;
 
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
+    case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:

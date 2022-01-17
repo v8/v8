@@ -202,6 +202,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
     case ORDERED_NAME_DICTIONARY_TYPE:
+    case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
