@@ -1097,14 +1097,14 @@ base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
 bool MapRef::HasOnlyStablePrototypesWithFastElements(
     ZoneVector<MapRef>* prototype_maps) {
   DCHECK_NOT_NULL(prototype_maps);
-  MapRef prototype_map = prototype().value().map();
+  MapRef prototype_map = prototype().map();
   while (prototype_map.oddball_type() != OddballType::kNull) {
     if (!prototype_map.IsJSObjectMap() || !prototype_map.is_stable() ||
         !IsFastElementsKind(prototype_map.elements_kind())) {
       return false;
     }
     prototype_maps->push_back(prototype_map);
-    prototype_map = prototype_map.prototype().value().map();
+    prototype_map = prototype_map.prototype().map();
   }
   return true;
 }
@@ -1530,13 +1530,13 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
     if (!receiver_map.IsJSGlobalProxyMap()) return not_found;
   }
 
-  base::Optional<HeapObjectRef> prototype = receiver_map.prototype();
-  if (!prototype.has_value() || prototype->IsNull()) return not_found;
-  if (!expected_receiver_type->IsTemplateFor(prototype->object()->map())) {
+  HeapObjectRef prototype = receiver_map.prototype();
+  if (prototype.IsNull()) return not_found;
+  if (!expected_receiver_type->IsTemplateFor(prototype.object()->map())) {
     return not_found;
   }
   return HolderLookupResult(CallOptimization::kHolderFound,
-                            prototype->AsJSObject());
+                            prototype.AsJSObject());
 }
 
 ObjectRef CallHandlerInfoRef::data() const {
@@ -1595,9 +1595,9 @@ DescriptorArrayRef MapRef::instance_descriptors() const {
       object()->instance_descriptors(broker()->isolate(), kAcquireLoad));
 }
 
-base::Optional<HeapObjectRef> MapRef::prototype() const {
-  return TryMakeRef(broker(), HeapObject::cast(object()->prototype()),
-                    kAssumeMemoryFence);
+HeapObjectRef MapRef::prototype() const {
+  return MakeRefAssumeMemoryFence(broker(),
+                                  HeapObject::cast(object()->prototype()));
 }
 
 MapRef MapRef::FindRootMap() const {
@@ -2223,9 +2223,8 @@ bool PropertyCellRef::Cache() const {
 }
 
 bool NativeContextRef::GlobalIsDetached() const {
-  base::Optional<ObjectRef> proxy_proto =
-      global_proxy_object().map().prototype();
-  return !proxy_proto.has_value() || !proxy_proto->equals(global_object());
+  ObjectRef proxy_proto = global_proxy_object().map().prototype();
+  return !proxy_proto.equals(global_object());
 }
 
 base::Optional<PropertyCellRef> JSGlobalObjectRef::GetPropertyCell(

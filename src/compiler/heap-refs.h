@@ -710,7 +710,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   HeapObjectRef GetBackPointer() const;
 
-  base::Optional<HeapObjectRef> prototype() const;
+  HeapObjectRef prototype() const;
 
   bool HasOnlyStablePrototypesWithFastElements(
       ZoneVector<MapRef>* prototype_maps);

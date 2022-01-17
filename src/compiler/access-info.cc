@@ -910,18 +910,17 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     // Walk up the prototype chain.
     // Load the map's prototype's map to guarantee that every time we use it,
     // we use the same Map.
-    base::Optional<HeapObjectRef> prototype = map.prototype();
-    if (!prototype.has_value()) return Invalid();
+    HeapObjectRef prototype = map.prototype();
 
-    MapRef map_prototype_map = prototype->map();
+    MapRef map_prototype_map = prototype.map();
     if (!map_prototype_map.object()->IsJSObjectMap()) {
       // Don't allow proxies on the prototype chain.
-      if (!prototype->IsNull()) {
-        DCHECK(prototype->object()->IsJSProxy());
+      if (!prototype.IsNull()) {
+        DCHECK(prototype.object()->IsJSProxy());
         return Invalid();
       }
 
-      DCHECK(prototype->IsNull());
+      DCHECK(prototype.IsNull());
 
       if (dictionary_prototype_on_chain) {
         // TODO(v8:11248) See earlier comment about
@@ -945,7 +944,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       return PropertyAccessInfo::NotFound(zone(), receiver_map, holder);
     }
 
-    holder = prototype->AsJSObject();
+    holder = prototype.AsJSObject();
     map = map_prototype_map;
 
     if (!CanInlinePropertyAccess(map, access_mode)) {

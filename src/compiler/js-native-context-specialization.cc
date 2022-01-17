@@ -365,15 +365,14 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   }
   JSFunctionRef function = m.Ref(broker()).AsJSFunction();
   MapRef function_map = function.map();
-  base::Optional<HeapObjectRef> function_prototype = function_map.prototype();
-  if (!function_prototype.has_value()) return NoChange();
+  HeapObjectRef function_prototype = function_map.prototype();
 
   // We can constant-fold the super constructor access if the
   // {function}s map is stable, i.e. we can use a code dependency
   // to guard against [[Prototype]] changes of {function}.
   if (function_map.is_stable()) {
     dependencies()->DependOnStableMap(function_map);
-    Node* value = jsgraph()->Constant(*function_prototype);
+    Node* value = jsgraph()->Constant(function_prototype);
     ReplaceWithValue(node, value);
     return Replace(value);
   }
@@ -540,13 +539,12 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         all = false;
         break;
       }
-      base::Optional<HeapObjectRef> map_prototype = map.prototype();
-      if (!map_prototype.has_value()) return kMayBeInPrototypeChain;
-      if (map_prototype->equals(prototype)) {
+      HeapObjectRef map_prototype = map.prototype();
+      if (map_prototype.equals(prototype)) {
         none = false;
         break;
       }
-      map = map_prototype->map();
+      map = map_prototype.map();
       // TODO(v8:11457) Support dictionary mode protoypes here.
       if (!map.is_stable() || map.is_dictionary_map()) {
         return kMayBeInPrototypeChain;
@@ -3411,7 +3409,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
   for (MapRef receiver_map : receiver_maps) {
-    ObjectRef receiver_prototype = receiver_map.prototype().value();
+    ObjectRef receiver_prototype = receiver_map.prototype();
     if (!receiver_prototype.IsJSObject() ||
         !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
       return false;

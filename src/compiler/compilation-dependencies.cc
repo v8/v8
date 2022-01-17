@@ -1232,7 +1232,7 @@ namespace {
 void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
                                   base::Optional<JSObjectRef> last_prototype) {
   while (true) {
-    HeapObjectRef proto = map.prototype().value();
+    HeapObjectRef proto = map.prototype();
     if (!proto.IsJSObject()) {
       CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
       break;
