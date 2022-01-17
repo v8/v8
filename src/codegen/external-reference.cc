@@ -5,7 +5,7 @@
 #include "src/codegen/external-reference.h"
 
 #include "include/v8-fast-api-calls.h"
-#include "src/api/api.h"
+#include "src/api/api-inl.h"
 #include "src/base/ieee754.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"

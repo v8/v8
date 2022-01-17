@@ -4,7 +4,7 @@
 
 #include "src/wasm/module-instantiate.h"
 
-#include "src/api/api.h"
+#include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/wrappers.h"
@@ -858,7 +858,7 @@ bool InstanceBuilder::ExecuteStartFunction() {
   // v8::Context::Enter() and must happen in addition to the function call
   // sequence doing the compiled version of "isolate->set_context(...)".
   HandleScopeImplementer* hsi = isolate_->handle_scope_implementer();
-  hsi->EnterContext(start_function_->context());
+  hsi->EnterContext(start_function_->context().native_context());
 
   // Call the JS function.
   Handle<Object> undefined = isolate_->factory()->undefined_value();
