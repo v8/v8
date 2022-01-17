@@ -240,65 +240,80 @@ ValueType optref(uint32_t type_index) {
 WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
   WasmGCTester tester(execution_tier);
 
-  const byte type_index =
+  const byte kStructIndex =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
-  const byte empty_struct_index = tester.DefineStruct({});
-  ValueType kRefType = ref(type_index);
-  ValueType kEmptyStructType = ref(empty_struct_index);
-  ValueType kOptRefType = optref(type_index);
-  FunctionSig sig_q_v(1, 0, &kRefType);
-  FunctionSig sig_qe_v(1, 0, &kEmptyStructType);
+  const byte kEmptyStructIndex = tester.DefineStruct({});
+  const byte kComplexStructIndex = tester.DefineStruct(
+      {F(kWasmI32, false), F(optref(kStructIndex), false), F(kWasmS128, false),
+       F(ValueType::Rtt(kStructIndex), false)});
+  auto sig_n_v = FixedSizeSignature<ValueType>::Returns(optref(kStructIndex));
+  auto sig_r_v = FixedSizeSignature<ValueType>::Returns(ref(kEmptyStructIndex));
+  auto sig_r_v_2 =
+      FixedSizeSignature<ValueType>::Returns(ref(kComplexStructIndex));
 
   // Test struct.new and struct.get.
   const byte kGet1 = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_STRUCT_GET(
-           type_index, 0,
-           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(64),
-                                    WASM_RTT_CANON(type_index))),
+           kStructIndex, 0,
+           WASM_STRUCT_NEW_WITH_RTT(kStructIndex, WASM_I32V(42), WASM_I32V(64),
+                                    WASM_RTT_CANON(kStructIndex))),
        kExprEnd});
 
   // Test struct.new and struct.get.
   const byte kGet2 = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_STRUCT_GET(
-           type_index, 1,
-           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(64),
-                                    WASM_RTT_CANON(type_index))),
+           kStructIndex, 1,
+           WASM_STRUCT_NEW_WITH_RTT(kStructIndex, WASM_I32V(42), WASM_I32V(64),
+                                    WASM_RTT_CANON(kStructIndex))),
        kExprEnd});
 
   // Test struct.new, returning struct reference.
   const byte kGetStruct = tester.DefineFunction(
-      &sig_q_v, {},
-      {WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(64),
-                                WASM_RTT_CANON(type_index)),
+      &sig_n_v, {},
+      {WASM_STRUCT_NEW_WITH_RTT(kStructIndex, WASM_I32V(42), WASM_I32V(64),
+                                WASM_RTT_CANON(kStructIndex)),
        kExprEnd});
 
   const byte kGetStructNominal = tester.DefineFunction(
-      &sig_q_v, {},
-      {WASM_STRUCT_NEW_DEFAULT(type_index), WASM_DROP,
-       WASM_STRUCT_NEW(type_index, WASM_I32V(42), WASM_I32V(64)), kExprEnd});
+      &sig_n_v, {},
+      {WASM_STRUCT_NEW_DEFAULT(kStructIndex), WASM_DROP,
+       WASM_STRUCT_NEW(kStructIndex, WASM_I32V(42), WASM_I32V(64)), kExprEnd});
 
   // Test struct.new, returning reference to an empty struct.
   const byte kGetEmptyStruct = tester.DefineFunction(
-      &sig_qe_v, {},
-      {WASM_STRUCT_NEW_WITH_RTT(empty_struct_index,
-                                WASM_RTT_CANON(empty_struct_index)),
+      &sig_r_v, {},
+      {WASM_STRUCT_NEW_WITH_RTT(kEmptyStructIndex,
+                                WASM_RTT_CANON(kEmptyStructIndex)),
        kExprEnd});
 
   // Test struct.set, struct refs types in locals.
   const byte j_local_index = 0;
   const byte j_field_index = 0;
   const byte kSet = tester.DefineFunction(
-      tester.sigs.i_v(), {kOptRefType},
+      tester.sigs.i_v(), {optref(kStructIndex)},
       {WASM_LOCAL_SET(
            j_local_index,
-           WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(42), WASM_I32V(64),
-                                    WASM_RTT_CANON(type_index))),
-       WASM_STRUCT_SET(type_index, j_field_index, WASM_LOCAL_GET(j_local_index),
-                       WASM_I32V(-99)),
-       WASM_STRUCT_GET(type_index, j_field_index,
+           WASM_STRUCT_NEW_WITH_RTT(kStructIndex, WASM_I32V(42), WASM_I32V(64),
+                                    WASM_RTT_CANON(kStructIndex))),
+       WASM_STRUCT_SET(kStructIndex, j_field_index,
+                       WASM_LOCAL_GET(j_local_index), WASM_I32V(-99)),
+       WASM_STRUCT_GET(kStructIndex, j_field_index,
                        WASM_LOCAL_GET(j_local_index)),
+       kExprEnd});
+
+  const byte kSimdConstant[16] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                  8, 9, 10, 11, 12, 13, 14, 15};
+
+  const byte kComplexStructProducer = tester.DefineFunction(
+      &sig_r_v_2, {},
+      {WASM_STRUCT_NEW_WITH_RTT(kComplexStructIndex, WASM_I32V(42),
+                                WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                                    kStructIndex, WASM_RTT_CANON(kStructIndex)),
+                                WASM_SIMD_CONSTANT(kSimdConstant),
+                                WASM_RTT_CANON(kStructIndex),
+                                WASM_RTT_CANON(kComplexStructIndex)),
        kExprEnd});
 
   tester.CompileModule();
@@ -313,6 +328,9 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
             .ToHandleChecked()
             ->IsWasmStruct());
   tester.CheckResult(kSet, -99);
+  CHECK(tester.GetResultObject(kComplexStructProducer)
+            .ToHandleChecked()
+            ->IsWasmStruct());
 }
 
 // Test struct.get, ref.as_non_null and ref-typed globals.
