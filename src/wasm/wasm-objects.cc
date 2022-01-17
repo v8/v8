@@ -502,21 +502,29 @@ void WasmTableObject::UpdateDispatchTables(
   // this table.
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
+  FunctionTargetAndRef entry(target_instance, target_func_index);
 
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
     int table_index =
         Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    Handle<WasmInstanceObject> instance(
-        WasmInstanceObject::cast(
-            dispatch_tables->get(i + kDispatchTableInstanceOffset)),
-        isolate);
-    // Note that {SignatureMap::Find} may return {-1} if the signature is
-    // not found; it will simply never match any check.
-    auto sig_id = instance->module()->signature_map.Find(*sig);
-    FunctionTargetAndRef entry(target_instance, target_func_index);
-    instance->GetIndirectFunctionTable(isolate, table_index)
-        ->Set(entry_index, sig_id, entry.call_target(), *entry.ref());
+    if (*target_instance ==
+        dispatch_tables->get(i + kDispatchTableInstanceOffset)) {
+      // Skip creating a handle if the IFT belongs to the {target_instance}.
+      auto sig_id = target_instance->module()->signature_map.Find(*sig);
+      target_instance->GetIndirectFunctionTable(isolate, table_index)
+          ->Set(entry_index, sig_id, entry.call_target(), *entry.ref());
+    } else {
+      Handle<WasmInstanceObject> instance =
+          handle(WasmInstanceObject::cast(
+                     dispatch_tables->get(i + kDispatchTableInstanceOffset)),
+                 isolate);
+      // Note that {SignatureMap::Find} may return {-1} if the signature is
+      // not found; it will simply never match any check.
+      auto sig_id = instance->module()->signature_map.Find(*sig);
+      instance->GetIndirectFunctionTable(isolate, table_index)
+          ->Set(entry_index, sig_id, entry.call_target(), *entry.ref());
+    }
   }
 }
 
