@@ -1001,6 +1001,7 @@ bool WebSnapshotDeserializer::UseWebSnapshot(
     Handle<Script> snapshot_as_script) {
   Handle<String> source =
       handle(String::cast(snapshot_as_script->source()), isolate_);
+  script_name_ = handle(snapshot_as_script->name(), isolate_);
   if (source->IsExternalOneByteString()) {
     const v8::String::ExternalOneByteStringResource* resource =
         ExternalOneByteString::cast(*source).resource();
@@ -1121,9 +1122,7 @@ bool WebSnapshotDeserializer::DeserializeScript() {
             NewStringType::kNormal, static_cast<int>(remaining_bytes))
             .ToLocalChecked();
 
-    ScriptOrigin origin(v8_isolate, v8::String::NewFromUtf8Literal(
-                                        v8_isolate, "(web snapshot)",
-                                        NewStringType::kInternalized));
+    ScriptOrigin origin(v8_isolate, Utils::ToLocal(script_name_));
 
     ScriptCompiler::Source script_source(source, origin);
     Local<UnboundScript> script;

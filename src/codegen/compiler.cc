@@ -2858,7 +2858,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       }
     }
     if (magic_matches) {
-      return Compiler::GetSharedFunctionInfoForWebSnapshot(isolate, source);
+      return Compiler::GetSharedFunctionInfoForWebSnapshot(
+          isolate, source, script_details.name_obj);
     }
   }
 
@@ -3153,7 +3154,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
 
 // static
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForWebSnapshot(
-    Isolate* isolate, Handle<String> source) {
+    Isolate* isolate, Handle<String> source,
+    MaybeHandle<Object> maybe_script_name) {
   // This script won't hold the functions created from the web snapshot;
   // reserving space only for the top-level SharedFunctionInfo is enough.
   Handle<WeakFixedArray> shared_function_infos =
@@ -3161,6 +3163,12 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForWebSnapshot(
   Handle<Script> script = isolate->factory()->NewScript(source);
   script->set_type(Script::TYPE_WEB_SNAPSHOT);
   script->set_shared_function_infos(*shared_function_infos);
+  Handle<Object> script_name;
+  if (maybe_script_name.ToHandle(&script_name) && script_name->IsString()) {
+    script->set_name(String::cast(*script_name));
+  } else {
+    script->set_name(*isolate->factory()->empty_string());
+  }
 
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWebSnapshot();
