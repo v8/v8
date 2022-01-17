@@ -809,6 +809,34 @@ Response V8RuntimeAgentImpl::removeBinding(const String16& name) {
   return Response::Success();
 }
 
+Response V8RuntimeAgentImpl::getExceptionDetails(
+    const String16& errorObjectId,
+    Maybe<protocol::Runtime::ExceptionDetails>* out_exceptionDetails) {
+  InjectedScript::ObjectScope scope(m_session, errorObjectId);
+  Response response = scope.initialize();
+  if (!response.IsSuccess()) return response;
+
+  const v8::Local<v8::Value> error = scope.object();
+  if (!error->IsNativeError())
+    return Response::InvalidParams("errorObjectId is not a JS error object");
+
+  const v8::Local<v8::Message> message =
+      v8::debug::CreateMessageFromException(m_inspector->isolate(), error);
+
+  response = scope.injectedScript()->createExceptionDetails(
+      message, error, scope.objectGroupName(), out_exceptionDetails);
+  if (!response.IsSuccess()) return response;
+
+  CHECK(out_exceptionDetails->isJust());
+
+  // When an exception object is present, `createExceptionDetails` assumes
+  // the exception is uncaught and will overwrite the text field to "Uncaught".
+  // Lets use the normal message text instead.
+  out_exceptionDetails->fromJust()->setText(
+      toProtocolString(m_inspector->isolate(), message->Get()));
+  return Response::Success();
+}
+
 void V8RuntimeAgentImpl::bindingCalled(const String16& name,
                                        const String16& payload,
                                        int executionContextId) {

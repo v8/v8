@@ -128,6 +128,9 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                       Maybe<String16> executionContextName) override;
   Response removeBinding(const String16& name) override;
   void addBindings(InspectedContext* context);
+  Response getExceptionDetails(const String16& errorObjectId,
+                               Maybe<protocol::Runtime::ExceptionDetails>*
+                                   out_exceptionDetails) override;
 
   void reset();
   void reportExecutionContextCreated(InspectedContext*);

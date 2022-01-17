@@ -1552,6 +1552,18 @@ domain Runtime
     parameters
       string name
 
+  # This method tries to lookup and populate exception details for a
+  # JavaScript Error object.
+  # Note that the stackTrace portion of the resulting exceptionDetails will
+  # only be populated if the Runtime domain was enabled at the time when the
+  # Error was thrown.
+  experimental command getExceptionDetails
+    parameters
+      # The error object for which to resolve the exception details.
+      RemoteObjectId errorObjectId
+    returns
+      optional ExceptionDetails exceptionDetails
+
   # Notification is issued every time when binding is called.
   experimental event bindingCalled
     parameters
