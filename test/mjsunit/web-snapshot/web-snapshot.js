@@ -20,7 +20,10 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   const r2 = Realm.create();
   const success = Realm.useWebSnapshot(r2, snapshot);
   assertTrue(success);
-  return Realm.eval(r2, use, { type: 'function', arguments: [exports] });
+  const result =
+      Realm.eval(r2, use, { type: 'function', arguments: [exports] });
+  %HeapObjectVerify(result);
+  return result;
 }
 
 (function TestMinimal() {
