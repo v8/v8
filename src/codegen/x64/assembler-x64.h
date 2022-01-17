@@ -1629,7 +1629,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vps(0xC2, dst, src1, src2);
     emit(cmp);
   }
+  void vcmpps(YMMRegister dst, YMMRegister src1, YMMRegister src2, int8_t cmp) {
+    vps(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
   void vcmpps(XMMRegister dst, XMMRegister src1, Operand src2, int8_t cmp) {
+    vps(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+  void vcmpps(YMMRegister dst, YMMRegister src1, Operand src2, int8_t cmp) {
     vps(0xC2, dst, src1, src2);
     emit(cmp);
   }
@@ -1637,33 +1645,48 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vpd(0xC2, dst, src1, src2);
     emit(cmp);
   }
+  void vcmppd(YMMRegister dst, YMMRegister src1, YMMRegister src2, int8_t cmp) {
+    vpd(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
   void vcmppd(XMMRegister dst, XMMRegister src1, Operand src2, int8_t cmp) {
     vpd(0xC2, dst, src1, src2);
     emit(cmp);
   }
-
-#define AVX_CMP_P(instr, imm8)                                          \
-  void instr##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
-    vcmpps(dst, src1, src2, imm8);                                      \
-  }                                                                     \
-  void instr##ps(XMMRegister dst, XMMRegister src1, Operand src2) {     \
-    vcmpps(dst, src1, src2, imm8);                                      \
-  }                                                                     \
-  void instr##pd(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
-    vcmppd(dst, src1, src2, imm8);                                      \
-  }                                                                     \
-  void instr##pd(XMMRegister dst, XMMRegister src1, Operand src2) {     \
-    vcmppd(dst, src1, src2, imm8);                                      \
+  void vcmppd(YMMRegister dst, YMMRegister src1, Operand src2, int8_t cmp) {
+    vpd(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+#define AVX_CMP_P(instr, imm8, SIMDRegister)                               \
+  void instr##ps(SIMDRegister dst, SIMDRegister src1, SIMDRegister src2) { \
+    vcmpps(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##ps(SIMDRegister dst, SIMDRegister src1, Operand src2) {      \
+    vcmpps(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##pd(SIMDRegister dst, SIMDRegister src1, SIMDRegister src2) { \
+    vcmppd(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##pd(SIMDRegister dst, SIMDRegister src1, Operand src2) {      \
+    vcmppd(dst, src1, src2, imm8);                                         \
   }
 
-  AVX_CMP_P(vcmpeq, 0x0)
-  AVX_CMP_P(vcmplt, 0x1)
-  AVX_CMP_P(vcmple, 0x2)
-  AVX_CMP_P(vcmpunord, 0x3)
-  AVX_CMP_P(vcmpneq, 0x4)
-  AVX_CMP_P(vcmpnlt, 0x5)
-  AVX_CMP_P(vcmpnle, 0x6)
-  AVX_CMP_P(vcmpge, 0xd)
+  AVX_CMP_P(vcmpeq, 0x0, XMMRegister)
+  AVX_CMP_P(vcmpeq, 0x0, YMMRegister)
+  AVX_CMP_P(vcmplt, 0x1, XMMRegister)
+  AVX_CMP_P(vcmplt, 0x1, YMMRegister)
+  AVX_CMP_P(vcmple, 0x2, XMMRegister)
+  AVX_CMP_P(vcmple, 0x2, YMMRegister)
+  AVX_CMP_P(vcmpunord, 0x3, XMMRegister)
+  AVX_CMP_P(vcmpunord, 0x3, YMMRegister)
+  AVX_CMP_P(vcmpneq, 0x4, XMMRegister)
+  AVX_CMP_P(vcmpneq, 0x4, YMMRegister)
+  AVX_CMP_P(vcmpnlt, 0x5, XMMRegister)
+  AVX_CMP_P(vcmpnlt, 0x5, YMMRegister)
+  AVX_CMP_P(vcmpnle, 0x6, XMMRegister)
+  AVX_CMP_P(vcmpnle, 0x6, YMMRegister)
+  AVX_CMP_P(vcmpge, 0xd, XMMRegister)
+  AVX_CMP_P(vcmpge, 0xd, YMMRegister)
 
 #undef AVX_CMP_P
 
