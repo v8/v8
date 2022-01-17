@@ -4215,25 +4215,14 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // max(argc_reg, parameter_slots-1), and the receiver is added in
     // DropArguments().
     if (parameter_slots > 1) {
-      if (kJSArgcIncludesReceiver) {
-        Label skip;
-        __ CmpS64(argc_reg, Operand(parameter_slots), r0);
-        __ bgt(&skip);
-        __ mov(argc_reg, Operand(parameter_slots));
-        __ bind(&skip);
-      } else {
-        const int parameter_slots_without_receiver = parameter_slots - 1;
-        Label skip;
-        __ CmpS64(argc_reg, Operand(parameter_slots_without_receiver), r0);
-        __ bgt(&skip);
-        __ mov(argc_reg, Operand(parameter_slots_without_receiver));
-        __ bind(&skip);
-      }
+      Label skip;
+      __ CmpS64(argc_reg, Operand(parameter_slots), r0);
+      __ bgt(&skip);
+      __ mov(argc_reg, Operand(parameter_slots));
+      __ bind(&skip);
     }
     __ DropArguments(argc_reg, TurboAssembler::kCountIsInteger,
-                     kJSArgcIncludesReceiver
-                         ? TurboAssembler::kCountIncludesReceiver
-                         : TurboAssembler::kCountExcludesReceiver);
+                     TurboAssembler::kCountIncludesReceiver);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);

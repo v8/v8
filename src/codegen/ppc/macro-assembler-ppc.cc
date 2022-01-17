@@ -1500,13 +1500,9 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     sub(sp, sp, r0);
     // Update stack pointer.
     addi(dest, sp, Operand(-kSystemPointerSize));
-    if (!kJSArgcIncludesReceiver) {
-      addi(r0, actual_parameter_count, Operand(1));
-    } else {
-      mr(r0, actual_parameter_count);
-      cmpi(r0, Operand::Zero());
-      ble(&skip);
-    }
+    mr(r0, actual_parameter_count);
+    cmpi(r0, Operand::Zero());
+    ble(&skip);
     mtctr(r0);
 
     bind(&copy);

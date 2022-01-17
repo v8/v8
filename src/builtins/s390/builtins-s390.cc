@@ -329,11 +329,7 @@ void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
   Register counter = scratch;
   Register value = ip;
   Label loop, entry;
-  if (kJSArgcIncludesReceiver) {
-    __ SubS64(counter, argc, Operand(kJSArgcReceiverSlots));
-  } else {
-    __ mov(counter, argc);
-  }
+  __ SubS64(counter, argc, Operand(kJSArgcReceiverSlots));
   __ b(&entry);
   __ bind(&loop);
   __ ShiftLeftU64(value, counter, Operand(kSystemPointerSizeLog2));
@@ -403,9 +399,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
   // Remove caller arguments from the stack and return.
   __ DropArguments(scratch, TurboAssembler::kCountIsSmi,
-                   kJSArgcIncludesReceiver
-                       ? TurboAssembler::kCountIncludesReceiver
-                       : TurboAssembler::kCountExcludesReceiver);
+                   TurboAssembler::kCountIncludesReceiver);
   __ Ret();
 
   __ bind(&stack_overflow);
@@ -563,9 +557,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Remove caller arguments from the stack and return.
   __ DropArguments(r3, TurboAssembler::kCountIsSmi,
-                   kJSArgcIncludesReceiver
-                       ? TurboAssembler::kCountIncludesReceiver
-                       : TurboAssembler::kCountExcludesReceiver);
+                   TurboAssembler::kCountIncludesReceiver);
   __ Ret();
 
   __ bind(&check_receiver);
@@ -661,9 +653,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
   __ LoadU16(
       r5, FieldMemOperand(r5, SharedFunctionInfo::kFormalParameterCountOffset));
-  if (kJSArgcIncludesReceiver) {
-    __ SubS64(r5, r5, Operand(kJSArgcReceiverSlots));
-  }
+  __ SubS64(r5, r5, Operand(kJSArgcReceiverSlots));
   __ LoadTaggedPointerField(
       r4,
       FieldMemOperand(r3, JSGeneratorObject::kParametersAndRegistersOffset));
@@ -1031,11 +1021,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Check if we have enough stack space to push all arguments.
     Label enough_stack_space, stack_overflow;
-    if (kJSArgcIncludesReceiver) {
-      __ mov(r7, r2);
-    } else {
-      __ AddS64(r7, r2, Operand(1));
-    }
+    __ mov(r7, r2);
     __ StackOverflowCheck(r7, r1, &stack_overflow);
     __ b(&enough_stack_space);
     __ bind(&stack_overflow);
@@ -1142,10 +1128,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
              MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ ShiftLeftU64(actual_params_size, actual_params_size,
                   Operand(kSystemPointerSizeLog2));
-  if (!kJSArgcIncludesReceiver) {
-    __ AddS64(actual_params_size, actual_params_size,
-              Operand(kSystemPointerSize));
-  }
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
@@ -1816,12 +1798,8 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     __ SubS64(r2, r2, Operand(1));
   }
 
-  const bool skip_receiver =
-      receiver_mode == ConvertReceiverMode::kNullOrUndefined;
-  if (kJSArgcIncludesReceiver && skip_receiver) {
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     __ SubS64(r5, r2, Operand(kJSArgcReceiverSlots));
-  } else if (!kJSArgcIncludesReceiver && !skip_receiver) {
-    __ AddS64(r5, r2, Operand(1));
   } else {
     __ mov(r5, r2);
   }
@@ -1877,11 +1855,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     __ SubS64(r2, r2, Operand(1));
   }
 
-  Register argc_without_receiver = r2;
-  if (kJSArgcIncludesReceiver) {
-    argc_without_receiver = ip;
-    __ SubS64(argc_without_receiver, r2, Operand(kJSArgcReceiverSlots));
-  }
+  Register argc_without_receiver = ip;
+  __ SubS64(argc_without_receiver, r2, Operand(kJSArgcReceiverSlots));
   // Push the arguments. r4 and r5 will be modified.
   GenerateInterpreterPushArgs(masm, argc_without_receiver, r6, r7);
 
@@ -2167,10 +2142,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ LoadU64(r4, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
 
     __ bind(&done);
-    __ DropArgumentsAndPushNewReceiver(
-        r2, r7, TurboAssembler::kCountIsInteger,
-        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
-                                : TurboAssembler::kCountExcludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(r2, r7, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2254,10 +2227,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ LoadU64(r4, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
 
     __ bind(&done);
-    __ DropArgumentsAndPushNewReceiver(
-        r2, r7, TurboAssembler::kCountIsInteger,
-        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
-                                : TurboAssembler::kCountExcludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(r2, r7, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2306,10 +2277,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ blt(&done);
     __ LoadU64(r5, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
     __ bind(&done);
-    __ DropArgumentsAndPushNewReceiver(
-        r2, r6, TurboAssembler::kCountIsInteger,
-        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
-                                : TurboAssembler::kCountExcludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(r2, r6, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2358,11 +2327,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
   Label loop, done;
   __ bind(&loop);
   __ CmpS64(old_sp, end);
-  if (kJSArgcIncludesReceiver) {
-    __ bge(&done);
-  } else {
-    __ bgt(&done);
-  }
+  __ bge(&done);
   __ LoadU64(value, MemOperand(old_sp));
   __ lay(old_sp, MemOperand(old_sp, kSystemPointerSize));
   __ StoreU64(value, MemOperand(dest));
@@ -2484,9 +2449,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   Label stack_done, stack_overflow;
   __ LoadU64(r7, MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  if (kJSArgcIncludesReceiver) {
-    __ SubS64(r7, r7, Operand(kJSArgcReceiverSlots));
-  }
+  __ SubS64(r7, r7, Operand(kJSArgcReceiverSlots));
   __ SubS64(r7, r7, r4);
   __ ble(&stack_done);
   {
