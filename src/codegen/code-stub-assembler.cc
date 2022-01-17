@@ -14233,19 +14233,12 @@ TNode<Object> CodeStubArguments::AtIndex(int index) const {
 }
 
 TNode<IntPtrT> CodeStubArguments::GetLengthWithoutReceiver() const {
-  TNode<IntPtrT> argc = argc_;
-  if (kJSArgcIncludesReceiver) {
-    argc = assembler_->IntPtrSub(argc, assembler_->IntPtrConstant(1));
-  }
-  return argc;
+  return assembler_->IntPtrSub(
+      argc_, assembler_->IntPtrConstant(kJSArgcReceiverSlots));
 }
 
 TNode<IntPtrT> CodeStubArguments::GetLengthWithReceiver() const {
-  TNode<IntPtrT> argc = argc_;
-  if (!kJSArgcIncludesReceiver) {
-    argc = assembler_->IntPtrAdd(argc, assembler_->IntPtrConstant(1));
-  }
-  return argc;
+  return argc_;
 }
 
 TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
@@ -14732,12 +14725,8 @@ TNode<Object> CodeStubAssembler::GetArgumentValue(TorqueStructArguments args,
 TorqueStructArguments CodeStubAssembler::GetFrameArguments(
     TNode<RawPtrT> frame, TNode<IntPtrT> argc,
     FrameArgumentsArgcType argc_type) {
-  if (kJSArgcIncludesReceiver &&
-      argc_type == FrameArgumentsArgcType::kCountExcludesReceiver) {
+  if (argc_type == FrameArgumentsArgcType::kCountExcludesReceiver) {
     argc = IntPtrAdd(argc, IntPtrConstant(kJSArgcReceiverSlots));
-  } else if (!kJSArgcIncludesReceiver &&
-             argc_type == FrameArgumentsArgcType::kCountIncludesReceiver) {
-    argc = IntPtrSub(argc, IntPtrConstant(1));
   }
   return CodeStubArguments(this, argc, frame).GetTorqueArguments();
 }

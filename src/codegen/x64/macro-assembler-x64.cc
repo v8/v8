@@ -2648,11 +2648,9 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
       leaq(kScratchRegister,
            Operand(expected_parameter_count, times_system_pointer_size, 0));
       AllocateStackSpace(kScratchRegister);
-      // Extra words are the receiver (if not already included in argc) and the
-      // return address (if a jump).
+      // Extra words are for the return address (if a jump).
       int extra_words =
           type == InvokeType::kCall ? 0 : kReturnAddressStackSlotCount;
-      if (!kJSArgcIncludesReceiver) extra_words++;
 
       leaq(num, Operand(rax, extra_words));  // Number of words to copy.
       Move(current, 0);

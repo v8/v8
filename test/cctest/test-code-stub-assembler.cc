@@ -2129,9 +2129,6 @@ TEST(PopAndReturnConstant) {
     CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
 
     int pop_count = kNumParams;
-    if (!kJSArgcIncludesReceiver) {
-      pop_count += 1;  // Include receiver.
-    }
     m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
@@ -2166,9 +2163,6 @@ TEST(PopAndReturnVariable) {
     CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
 
     int pop_count = kNumParams;
-    if (!kJSArgcIncludesReceiver) {
-      pop_count += 1;  // Include receiver.
-    }
     m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 

@@ -1092,14 +1092,11 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
     }
   }
 
-  // Note: parameters_count includes the receiver.
-  // TODO(v8:11112): Simplify once the receiver is always included in argc.
   if (verbose_tracing_enabled() && is_bottommost &&
-      actual_argument_count_ - kJSArgcReceiverSlots > parameters_count - 1) {
-    PrintF(
-        trace_scope_->file(),
-        "    -- %d extra argument(s) already in the stack --\n",
-        actual_argument_count_ - kJSArgcReceiverSlots - parameters_count + 1);
+      actual_argument_count_ > parameters_count) {
+    PrintF(trace_scope_->file(),
+           "    -- %d extra argument(s) already in the stack --\n",
+           actual_argument_count_ - parameters_count);
   }
   frame_writer.PushStackJSArguments(value_iterator, parameters_count);
 
@@ -1180,7 +1177,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
         (translated_state_.frames()[frame_index - 1]).kind();
     argc = previous_frame_kind == TranslatedFrame::kArgumentsAdaptor
                ? output_[frame_index - 1]->parameter_count()
-               : parameters_count - (kJSArgcIncludesReceiver ? 0 : 1);
+               : parameters_count;
   }
   frame_writer.PushRawValue(argc, "actual argument count\n");
 
@@ -1467,7 +1464,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   frame_writer.PushTranslatedValue(value_iterator++, "context");
 
   // Number of incoming arguments.
-  const uint32_t argc = parameters_count - (kJSArgcIncludesReceiver ? 0 : 1);
+  const uint32_t argc = parameters_count;
   frame_writer.PushRawObject(Smi::FromInt(argc), "argc\n");
 
   // The constructor function was mentioned explicitly in the

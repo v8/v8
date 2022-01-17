@@ -112,12 +112,10 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ SmiTag(x11, argc);
     __ Push(x11, padreg);
 
-    // Add a slot for the receiver (if not already included), and round up to
-    // maintain alignment.
+    // Round up to maintain alignment.
     Register slot_count = x2;
     Register slot_count_without_rounding = x12;
-    constexpr int additional_slots = kJSArgcIncludesReceiver ? 1 : 2;
-    __ Add(slot_count_without_rounding, argc, additional_slots);
+    __ Add(slot_count_without_rounding, argc, 1);
     __ Bic(slot_count, slot_count_without_rounding, 1);
     __ Claim(slot_count);
 
@@ -130,8 +128,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
     // Store padding, if needed.
     __ Tbnz(slot_count_without_rounding, 0, &already_aligned);
-    __ Str(padreg,
-           MemOperand(x2, kJSArgcIncludesReceiver ? 0 : kSystemPointerSize));
+    __ Str(padreg, MemOperand(x2));
     __ Bind(&already_aligned);
 
     // TODO(victorgomes): When the arguments adaptor is completely removed, we
@@ -151,11 +148,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
       __ Add(src, fp,
              StandardFrameConstants::kCallerSPOffset +
                  kSystemPointerSize);  // Skip receiver.
-      if (kJSArgcIncludesReceiver) {
-        __ Sub(count, argc, kJSArgcReceiverSlots);
-      } else {
-        __ Mov(count, argc);
-      }
+      __ Sub(count, argc, kJSArgcReceiverSlots);
       __ CopyDoubleWords(dst, src, count);
     }
 
@@ -197,9 +190,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ DropArguments(x1, kJSArgcIncludesReceiver
-                           ? TurboAssembler::kCountIncludesReceiver
-                           : TurboAssembler::kCountExcludesReceiver);
+  __ DropArguments(x1, TurboAssembler::kCountIncludesReceiver);
   __ Ret();
 
   __ Bind(&stack_overflow);
@@ -322,11 +313,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Round the number of arguments down to the next even number, and claim
   // slots for the arguments. If the number of arguments was odd, the last
   // argument will overwrite one of the receivers pushed above.
-  Register argc_without_receiver = x12;
-  if (kJSArgcIncludesReceiver) {
-    argc_without_receiver = x11;
-    __ Sub(argc_without_receiver, x12, kJSArgcReceiverSlots);
-  }
+  Register argc_without_receiver = x11;
+  __ Sub(argc_without_receiver, x12, kJSArgcReceiverSlots);
   __ Bic(x10, x12, 1);
 
   // Check if we have enough stack space to push all arguments.
@@ -390,9 +378,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Leave construct frame.
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
-  __ DropArguments(x1, kJSArgcIncludesReceiver
-                           ? TurboAssembler::kCountIncludesReceiver
-                           : TurboAssembler::kCountExcludesReceiver);
+  __ DropArguments(x1, TurboAssembler::kCountIncludesReceiver);
   __ Ret();
 
   // Otherwise we do a smi check and fall through to check if the return value
@@ -526,9 +512,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Ldrh(w10, FieldMemOperand(
                    x10, SharedFunctionInfo::kFormalParameterCountOffset));
 
-  if (kJSArgcIncludesReceiver) {
-    __ Sub(x10, x10, kJSArgcReceiverSlots);
-  }
+  __ Sub(x10, x10, kJSArgcReceiverSlots);
   // Claim slots for arguments and receiver (rounded up to a multiple of two).
   __ Add(x11, x10, 2);
   __ Bic(x11, x11, 1);
@@ -899,10 +883,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                               masm->isolate()));
     __ Ldr(cp, MemOperand(scratch));
 
-    // Claim enough space for the arguments, the function and the receiver (if
-    // it is not included in argc already), including an optional slot of
-    // padding.
-    constexpr int additional_slots = kJSArgcIncludesReceiver ? 2 : 3;
+    // Claim enough space for the arguments and the function, including an
+    // optional slot of padding.
+    constexpr int additional_slots = 2;
     __ Add(slots_to_claim, argc, additional_slots);
     __ Bic(slots_to_claim, slots_to_claim, 1);
 
@@ -926,9 +909,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Poke(receiver, 0);
     // Store function on the stack.
     __ SlotAddress(scratch, argc);
-    __ Str(
-        function,
-        MemOperand(scratch, kJSArgcIncludesReceiver ? 0 : kSystemPointerSize));
+    __ Str(function, MemOperand(scratch));
 
     // Copy arguments to the stack in a loop, in reverse order.
     // x4: argc.
@@ -936,12 +917,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     Label loop, done;
 
     // Skip the argument set up if we have no arguments.
-    if (kJSArgcIncludesReceiver) {
-      __ Cmp(argc, JSParameterCount(0));
-      __ B(eq, &done);
-    } else {
-      __ Cbz(argc, &done);
-    }
+    __ Cmp(argc, JSParameterCount(0));
+    __ B(eq, &done);
 
     // scratch has been set to point to the location of the function, which
     // marks the end of the argument copy.
@@ -955,11 +932,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Str(x11, MemOperand(x0, kSystemPointerSize, PostIndex));
     // Loop if we've not reached the end of copy marker.
     __ Cmp(x0, scratch);
-    if (kJSArgcIncludesReceiver) {
-      __ B(lt, &loop);
-    } else {
-      __ B(le, &loop);
-    }
+    __ B(lt, &loop);
 
     __ Bind(&done);
 
@@ -1049,9 +1022,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ Ldr(actual_params_size,
          MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ lsl(actual_params_size, actual_params_size, kSystemPointerSizeLog2);
-  if (!kJSArgcIncludesReceiver) {
-    __ Add(actual_params_size, actual_params_size, Operand(kSystemPointerSize));
-  }
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
@@ -1714,10 +1684,8 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
     __ Sub(num_args, num_args, 1);
   }
 
-  // Add receiver (if not already included in argc) and round up to an even
-  // number of slots.
-  constexpr int additional_slots = kJSArgcIncludesReceiver ? 1 : 2;
-  __ Add(slots_to_claim, num_args, additional_slots);
+  // Round up to an even number of slots.
+  __ Add(slots_to_claim, num_args, 1);
   __ Bic(slots_to_claim, slots_to_claim, 1);
 
   // Add a stack check before pushing arguments.
@@ -1741,10 +1709,8 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
 
   const bool skip_receiver =
       receiver_mode == ConvertReceiverMode::kNullOrUndefined;
-  if (kJSArgcIncludesReceiver && skip_receiver) {
+  if (skip_receiver) {
     __ Sub(slots_to_copy, num_args, kJSArgcReceiverSlots);
-  } else if (!kJSArgcIncludesReceiver && !skip_receiver) {
-    __ Add(slots_to_copy, num_args, 1);
   } else {
     __ Mov(slots_to_copy, num_args);
   }
@@ -2209,9 +2175,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ Peek(arg_array, 2 * kSystemPointerSize);
     __ bind(&done);
   }
-  __ DropArguments(argc, kJSArgcIncludesReceiver
-                             ? TurboAssembler::kCountIncludesReceiver
-                             : TurboAssembler::kCountExcludesReceiver);
+  __ DropArguments(argc, TurboAssembler::kCountIncludesReceiver);
   __ PushArgument(this_arg);
 
   // ----------- S t a t e -------------
@@ -2258,12 +2222,8 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   {
     Label non_zero;
     Register scratch = x10;
-    if (kJSArgcIncludesReceiver) {
-      __ Cmp(argc, JSParameterCount(0));
-      __ B(gt, &non_zero);
-    } else {
-      __ Cbnz(argc, &non_zero);
-    }
+    __ Cmp(argc, JSParameterCount(0));
+    __ B(gt, &non_zero);
     __ LoadRoot(scratch, RootIndex::kUndefinedValue);
     // Overwrite receiver with undefined, which will be the new receiver.
     // We do not need to overwrite the padding slot above it with anything.
@@ -2282,11 +2242,9 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     Register copy_to = x11;
     Register count = x12;
     UseScratchRegisterScope temps(masm);
-    Register argc_without_receiver = argc;
-    if (kJSArgcIncludesReceiver) {
-      argc_without_receiver = temps.AcquireX();
-      __ Sub(argc_without_receiver, argc, kJSArgcReceiverSlots);
-    }
+    Register argc_without_receiver = temps.AcquireX();
+    __ Sub(argc_without_receiver, argc, kJSArgcReceiverSlots);
+
     // CopyDoubleWords changes the count argument.
     __ Mov(count, argc_without_receiver);
     __ Tbz(argc_without_receiver, 0, &even);
@@ -2354,9 +2312,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ Peek(arguments_list, 3 * kSystemPointerSize);
     __ bind(&done);
   }
-  __ DropArguments(argc, kJSArgcIncludesReceiver
-                             ? TurboAssembler::kCountIncludesReceiver
-                             : TurboAssembler::kCountExcludesReceiver);
+  __ DropArguments(argc, TurboAssembler::kCountIncludesReceiver);
   __ PushArgument(this_argument);
 
   // ----------- S t a t e -------------
@@ -2414,9 +2370,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  __ DropArguments(argc, kJSArgcIncludesReceiver
-                             ? TurboAssembler::kCountIncludesReceiver
-                             : TurboAssembler::kCountExcludesReceiver);
+  __ DropArguments(argc, TurboAssembler::kCountIncludesReceiver);
 
   // Push receiver (undefined).
   __ PushArgument(undefined_value);
@@ -2452,11 +2406,7 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
   Register slots_to_copy = x10;
   Register slots_to_claim = x12;
 
-  if (kJSArgcIncludesReceiver) {
-    __ Mov(slots_to_copy, argc);
-  } else {
-    __ Add(slots_to_copy, argc, 1);  // Copy with receiver.
-  }
+  __ Mov(slots_to_copy, argc);
   __ Mov(slots_to_claim, len);
   __ Tbz(slots_to_claim, 0, &even);
 
@@ -2468,9 +2418,6 @@ void Generate_PrepareForCopyingVarargs(MacroAssembler* masm, Register argc,
     Register scratch = x11;
     __ Add(slots_to_claim, len, 1);
     __ And(scratch, argc, 1);
-    if (!kJSArgcIncludesReceiver) {
-      __ Eor(scratch, scratch, 1);
-    }
     __ Sub(slots_to_claim, slots_to_claim, Operand(scratch, LSL, 1));
   }
 
@@ -2548,12 +2495,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     // scenes and we want to avoid that in a loop.
     // TODO(all): Consider using Ldp and Stp.
     Register dst = x16;
-    if (kJSArgcIncludesReceiver) {
-      __ SlotAddress(dst, argc);
-    } else {
-      __ Add(dst, argc, Immediate(1));  // Consider the receiver as well.
-      __ SlotAddress(dst, dst);
-    }
+    __ SlotAddress(dst, argc);
     __ Add(argc, argc, len);  // Update new argc.
     __ Bind(&loop);
     __ Sub(len, len, 1);
@@ -2607,9 +2549,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   Register len = x6;
   Label stack_done, stack_overflow;
   __ Ldr(len, MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  if (kJSArgcIncludesReceiver) {
-    __ Subs(len, len, kJSArgcReceiverSlots);
-  }
+  __ Subs(len, len, kJSArgcReceiverSlots);
   __ Subs(len, len, start_index);
   __ B(le, &stack_done);
   // Check for stack overflow.
@@ -2627,12 +2567,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ lsl(start_index, start_index, kSystemPointerSizeLog2);
     __ Add(args_fp, args_fp, start_index);
     // Point to the position to copy to.
-    if (kJSArgcIncludesReceiver) {
-      __ SlotAddress(dst, argc);
-    } else {
-      __ Add(x10, argc, 1);
-      __ SlotAddress(dst, x10);
-    }
+    __ SlotAddress(dst, argc);
     // Update total number of arguments.
     __ Add(argc, argc, len);
     __ CopyDoubleWords(dst, args_fp, len);
@@ -2801,9 +2736,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     Register scratch = x10;
     Register receiver = x14;
 
-    if (kJSArgcIncludesReceiver) {
-      __ Sub(argc, argc, kJSArgcReceiverSlots);
-    }
+    __ Sub(argc, argc, kJSArgcReceiverSlots);
     __ Add(total_argc, argc, bound_argc);
     __ Peek(receiver, 0);
 
@@ -2872,11 +2805,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ Cbnz(counter, &loop);
     }
     // Update argc.
-    if (kJSArgcIncludesReceiver) {
-      __ Add(argc, total_argc, kJSArgcReceiverSlots);
-    } else {
-      __ Mov(argc, total_argc);
-    }
+    __ Add(argc, total_argc, kJSArgcReceiverSlots);
   }
   __ Bind(&no_bound_arguments);
 }

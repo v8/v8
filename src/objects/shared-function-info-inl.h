@@ -122,8 +122,7 @@ DEF_ACQUIRE_GETTER(SharedFunctionInfo,
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
     const {
   const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
-  if (param_count == kDontAdaptArgumentsSentinel) return param_count;
-  return param_count + (kJSArgcIncludesReceiver ? 0 : 1);
+  return param_count;
 }
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()

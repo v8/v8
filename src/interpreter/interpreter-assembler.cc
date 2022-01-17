@@ -713,15 +713,9 @@ void InterpreterAssembler::CallJSAndDispatch(
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
 
   TNode<Word32T> args_count = args.reg_count();
-  const bool receiver_included =
-      receiver_mode != ConvertReceiverMode::kNullOrUndefined;
-  if (kJSArgcIncludesReceiver && !receiver_included) {
-    // Add receiver if we want to include it in argc and it isn't already.
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    // Add receiver. It is not included in args as it is implicit.
     args_count = Int32Add(args_count, Int32Constant(kJSArgcReceiverSlots));
-  } else if (!kJSArgcIncludesReceiver && receiver_included) {
-    // Subtract receiver if we don't want to include it, but it is included.
-    TNode<Int32T> receiver_count = Int32Constant(1);
-    args_count = Int32Sub(args_count, receiver_count);
   }
 
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
@@ -795,10 +789,6 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
   TNode<CodeT> code_target = HeapConstant(callable.code());
 
   TNode<Word32T> args_count = args.reg_count();
-  if (!kJSArgcIncludesReceiver) {
-    TNode<Int32T> receiver_count = Int32Constant(1);
-    args_count = Int32Sub(args_count, receiver_count);
-  }
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
                                    args_count, args.base_reg_location(),
                                    function);

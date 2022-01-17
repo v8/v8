@@ -3715,17 +3715,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       FrameArgumentsArgcType argc_type =
           FrameArgumentsArgcType::kCountExcludesReceiver);
 
-  inline TNode<Int32T> JSParameterCount(TNode<Int32T> argc_without_receiver) {
-    return kJSArgcIncludesReceiver
-               ? Int32Add(argc_without_receiver,
-                          Int32Constant(kJSArgcReceiverSlots))
-               : argc_without_receiver;
+  inline TNode<Int32T> JSParameterCount(int argc_without_receiver) {
+    return Int32Constant(argc_without_receiver + kJSArgcReceiverSlots);
   }
   inline TNode<Word32T> JSParameterCount(TNode<Word32T> argc_without_receiver) {
-    return kJSArgcIncludesReceiver
-               ? Int32Add(argc_without_receiver,
-                          Int32Constant(kJSArgcReceiverSlots))
-               : argc_without_receiver;
+    return Int32Add(argc_without_receiver, Int32Constant(kJSArgcReceiverSlots));
   }
 
   // Support for printf-style debugging

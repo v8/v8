@@ -1303,7 +1303,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     // Extra words are the receiver (if not already included in argc) and the
     // return address (if a jump).
     int extra_words = type == InvokeType::kCall ? 0 : 1;
-    if (!kJSArgcIncludesReceiver) extra_words++;
     lea(num, Operand(eax, extra_words));  // Number of words to copy.
     Move(current, 0);
     // Fall-through to the loop body because there are non-zero words to copy.

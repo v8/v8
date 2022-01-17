@@ -156,11 +156,8 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, Builtin builtin,
   CanonicalHandleScope canonical(isolate);
 
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-  const int argc_with_recv = (argc == kDontAdaptArgumentsSentinel)
-                                 ? 0
-                                 : argc + (kJSArgcIncludesReceiver ? 0 : 1);
-  compiler::CodeAssemblerState state(isolate, &zone, argc_with_recv,
-                                     CodeKind::BUILTIN, name, builtin);
+  compiler::CodeAssemblerState state(isolate, &zone, argc, CodeKind::BUILTIN,
+                                     name, builtin);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),

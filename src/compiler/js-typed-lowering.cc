@@ -1757,9 +1757,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
     int formal_count =
         shared->internal_formal_parameter_count_without_receiver();
-    // TODO(v8:11112): Once the sentinel is always 0, the check against
-    // IsDontAdaptArguments() can be removed.
-    if (!shared->IsDontAdaptArguments() && formal_count > arity) {
+    if (formal_count > arity) {
       node->RemoveInput(n.FeedbackVectorIndex());
       // Underapplication. Massage the arguments to match the expected number of
       // arguments.
