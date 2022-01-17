@@ -173,7 +173,7 @@ Address VirtualAddressSubspace::RandomPageAddress() {
   MutexGuard guard(&mutex_);
   // Note: the random numbers generated here aren't uniformly distributed if the
   // size isn't a power of two.
-  Address addr = base() + (rng_.NextInt64() % size());
+  Address addr = base() + (static_cast<uint64_t>(rng_.NextInt64()) % size());
   return RoundDown(addr, allocation_granularity());
 }
 

@@ -815,43 +815,31 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   UNREACHABLE();
 }
 
-void* VirtualAllocWrapper(void* hint, size_t size, DWORD flags, DWORD protect) {
+void* VirtualAllocWrapper(void* address, size_t size, DWORD flags,
+                          DWORD protect) {
   if (VirtualAlloc2) {
-    return VirtualAlloc2(nullptr, hint, size, flags, protect, NULL, 0);
+    return VirtualAlloc2(nullptr, address, size, flags, protect, NULL, 0);
   } else {
-    return VirtualAlloc(hint, size, flags, protect);
+    return VirtualAlloc(address, size, flags, protect);
   }
 }
 
-uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
-                                void* hint) {
-  LPVOID base = nullptr;
-  static BOOL use_aslr = -1;
-#ifdef V8_HOST_ARCH_32_BIT
-  // Don't bother randomizing on 32-bit hosts, because they lack the room and
-  // don't have viable ASLR anyway.
-  if (use_aslr == -1 && !IsWow64Process(GetCurrentProcess(), &use_aslr))
-    use_aslr = FALSE;
-#else
-  use_aslr = TRUE;
-#endif
-
-  if (use_aslr && protect != PAGE_READWRITE) {
-    // For executable or reserved pages try to randomize the allocation address.
-    base = VirtualAllocWrapper(hint, size, flags, protect);
-  }
+uint8_t* VirtualAllocWithHint(size_t size, DWORD flags, DWORD protect,
+                              void* hint) {
+  LPVOID base = VirtualAllocWrapper(hint, size, flags, protect);
 
   // On failure, let the OS find an address to use.
-  if (base == nullptr) {
+  if (hint && base == nullptr) {
     base = VirtualAllocWrapper(nullptr, size, flags, protect);
   }
+
   return reinterpret_cast<uint8_t*>(base);
 }
 
 void* AllocateInternal(void* hint, size_t size, size_t alignment,
                        size_t page_size, DWORD flags, DWORD protect) {
   // First, try an exact size aligned allocation.
-  uint8_t* base = RandomizedVirtualAlloc(size, flags, protect, hint);
+  uint8_t* base = VirtualAllocWithHint(size, flags, protect, hint);
   if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
   // If address is suitably aligned, we're done.
@@ -871,7 +859,7 @@ void* AllocateInternal(void* hint, size_t size, size_t alignment,
   const int kMaxAttempts = 3;
   aligned_base = nullptr;
   for (int i = 0; i < kMaxAttempts; ++i) {
-    base = RandomizedVirtualAlloc(padded_size, flags, protect, hint);
+    base = VirtualAllocWithHint(padded_size, flags, protect, hint);
     if (base == nullptr) return nullptr;  // Can't allocate, we're OOM.
 
     // Try to trim the allocation by freeing the padded allocation and then
