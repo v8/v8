@@ -594,7 +594,7 @@ class V8_EXPORT Object : public Value {
   /**
    * Returns the context in which the object was created.
    */
-  V8_DEPRECATE_SOON("Use MaybeLocal<Context> GetCreationContext()")
+  V8_DEPRECATED("Use MaybeLocal<Context> GetCreationContext()")
   Local<Context> CreationContext();
   MaybeLocal<Context> GetCreationContext();
 
