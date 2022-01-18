@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler/code-assembler.h"
+#include "src/numbers/integer-literal.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
 #include "src/objects/cell.h"
@@ -3743,6 +3744,45 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   bool ConstexprBoolNot(bool value) { return !value; }
+  int31_t ConstexprIntegerLiteralToInt31(const IntegerLiteral& i) {
+    return int31_t(i.To<int32_t>());
+  }
+  int32_t ConstexprIntegerLiteralToInt32(const IntegerLiteral& i) {
+    return i.To<int32_t>();
+  }
+  uint32_t ConstexprIntegerLiteralToUint32(const IntegerLiteral& i) {
+    return i.To<uint32_t>();
+  }
+  int8_t ConstexprIntegerLiteralToInt8(const IntegerLiteral& i) {
+    return i.To<int8_t>();
+  }
+  uint8_t ConstexprIntegerLiteralToUint8(const IntegerLiteral& i) {
+    return i.To<uint8_t>();
+  }
+  uint64_t ConstexprIntegerLiteralToUint64(const IntegerLiteral& i) {
+    return i.To<uint64_t>();
+  }
+  intptr_t ConstexprIntegerLiteralToIntptr(const IntegerLiteral& i) {
+    return i.To<intptr_t>();
+  }
+  uintptr_t ConstexprIntegerLiteralToUintptr(const IntegerLiteral& i) {
+    return i.To<uintptr_t>();
+  }
+  double ConstexprIntegerLiteralToFloat64(const IntegerLiteral& i) {
+    int64_t i_value = i.To<int64_t>();
+    double d_value = static_cast<double>(i_value);
+    CHECK_EQ(i_value, static_cast<int64_t>(d_value));
+    return d_value;
+  }
+  bool ConstexprIntegerLiteralEqual(IntegerLiteral lhs, IntegerLiteral rhs) {
+    return lhs == rhs;
+  }
+  IntegerLiteral ConstexprIntegerLiteralAdd(const IntegerLiteral& lhs,
+                                            const IntegerLiteral& rhs);
+  IntegerLiteral ConstexprIntegerLiteralLeftShift(const IntegerLiteral& lhs,
+                                                  const IntegerLiteral& rhs);
+  IntegerLiteral ConstexprIntegerLiteralBitwiseOr(const IntegerLiteral& lhs,
+                                                  const IntegerLiteral& rhs);
 
   bool ConstexprInt31Equal(int31_t a, int31_t b) { return a == b; }
   bool ConstexprInt31NotEqual(int31_t a, int31_t b) { return a != b; }

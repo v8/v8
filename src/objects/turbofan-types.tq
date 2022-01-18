@@ -81,7 +81,7 @@ class TurbofanOtherNumberConstantType extends TurbofanType {
 }
 
 macro IsMinusZero(x: float64): bool {
-  return x == 0 && 1 / x < 0;
+  return x == 0 && 1.0 / x < 0;
 }
 
 macro TestTurbofanBitsetType(
@@ -95,17 +95,17 @@ macro TestTurbofanBitsetType(
       if (IsInteger(value)) {
         if (IsMinusZero(valueF)) {
           return bitsetLow.minus_zero;
-        } else if (valueF < Convert<float64>(-0x80000000)) {
+        } else if (valueF < 0 - Convert<float64>(0x80000000)) {
           return bitsetLow.other_number;
-        } else if (valueF < -0x40000000) {
+        } else if (valueF < 0 - Convert<float64>(0x40000000)) {
           return bitsetLow.other_signed32;
         } else if (valueF < 0) {
           return bitsetLow.negative31;
         } else if (valueF < Convert<float64>(0x40000000)) {
           return bitsetLow.unsigned30;
-        } else if (valueF < 0x80000000) {
+        } else if (valueF < Convert<float64>(0x80000000)) {
           return bitsetLow.other_unsigned31;
-        } else if (valueF <= 0xffffffff) {
+        } else if (valueF <= Convert<float64>(0xffffffff)) {
           return bitsetLow.other_unsigned32;
         } else {
           return bitsetLow.other_number;
