@@ -69,9 +69,13 @@ class HeapType {
     kArray,                   // shorthand: g
     kAny,                     // shorthand: a
     // This value is used to represent failures in the parsing of heap types and
-    // does not correspond to a wasm heap type. It has to be last in this list.
+    // does not correspond to a wasm heap type.
     kBottom
   };
+  // Internal use only; defined in the public section to make it easy to
+  // check that they are defined correctly:
+  static constexpr Representation kFirstSentinel = kFunc;
+  static constexpr Representation kLastSentinel = kAny;
 
   static constexpr HeapType from_code(uint8_t code) {
     switch (code) {
@@ -177,14 +181,8 @@ class HeapType {
 
  private:
   friend class ValueType;
-
-  constexpr bool is_valid() const { return representation_ <= kLastSentinel; }
-
-  static constexpr Representation kFirstSentinel =
-      static_cast<Representation>(kV8MaxWasmTypes);
-  static constexpr Representation kLastSentinel =
-      static_cast<Representation>(kBottom - 1);
   Representation representation_;
+  constexpr bool is_valid() const { return representation_ <= kLastSentinel; }
 };
 
 enum Nullability : bool { kNonNullable, kNullable };

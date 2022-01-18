@@ -661,10 +661,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I64AtomicCompareExchange16U, 0xfe4d, l_ill) \
   V(I64AtomicCompareExchange32U, 0xfe4e, l_ill)
 
-#define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
-  /* AtomicFence does not target a particular linear memory. */ \
-  V(AtomicFence, 0xfe03, v_v)
-
 #define FOREACH_GC_OPCODE(V)                                         \
   V(StructNewWithRtt, 0xfb01, _)                                     \
   V(StructNewDefaultWithRtt, 0xfb02, _)                              \
@@ -716,6 +712,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(BrOnNonData, 0xfb64, _)                                          \
   V(BrOnNonI31, 0xfb65, _)                                           \
   V(BrOnNonArray, 0xfb67, _) /* not standardized - V8 experimental */
+
+#define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
+  /* AtomicFence does not target a particular linear memory. */ \
+  V(AtomicFence, 0xfe03, v_v)
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \

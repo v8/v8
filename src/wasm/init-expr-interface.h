@@ -63,7 +63,7 @@ class InitExprInterface {
 #define UNREACHABLE_INTERFACE_FUNCTION(name, ...) \
   V8_INLINE void name(FullDecoder* decoder, ##__VA_ARGS__) { UNREACHABLE(); }
   INTERFACE_NON_CONSTANT_FUNCTIONS(UNREACHABLE_INTERFACE_FUNCTION)
-#undef UNREACHABLE_INTERFACE_FUNCTION
+#undef EMPTY_INTERFACE_FUNCTION
 
 #define DECLARE_INTERFACE_FUNCTION(name, ...) \
   void name(FullDecoder* decoder, ##__VA_ARGS__);

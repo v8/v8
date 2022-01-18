@@ -1440,7 +1440,7 @@ class WasmInterpreterInternals {
           val = WasmValue(isolate_->factory()->null_value(), p);
           break;
         }
-        case kRef:
+        case kRef:  // TODO(7748): Implement.
         case kRtt:
         case kRttWithDepth:
         case kVoid:
@@ -3164,11 +3164,29 @@ class WasmInterpreterInternals {
           break;
         }
         case kRef:
-        case kOptRef:
-        case kRtt:
-        case kRttWithDepth:
-          encoded_values->set(encoded_index++, *value.to_ref());
+        case kOptRef: {
+          switch (sig->GetParam(i).heap_representation()) {
+            case HeapType::kExtern:
+            case HeapType::kFunc:
+            case HeapType::kEq:
+            case HeapType::kData:
+            case HeapType::kArray:
+            case HeapType::kI31:
+            case HeapType::kAny: {
+              Handle<Object> ref = value.to_ref();
+              encoded_values->set(encoded_index++, *ref);
+              break;
+            }
+            case HeapType::kBottom:
+              UNREACHABLE();
+            default:
+              // TODO(7748): Implement these.
+              UNIMPLEMENTED();
+          }
           break;
+        }
+        case kRtt:  // TODO(7748): Implement.
+        case kRttWithDepth:
         case kI8:
         case kI16:
         case kVoid:
@@ -3252,13 +3270,28 @@ class WasmInterpreterInternals {
           break;
         }
         case kRef:
-        case kOptRef:
-        case kRtt:
-        case kRttWithDepth: {
-          Handle<Object> ref(encoded_values->get(encoded_index++), isolate_);
-          value = WasmValue(ref, sig->GetParam(i));
+        case kOptRef: {
+          switch (sig->GetParam(i).heap_representation()) {
+            case HeapType::kExtern:
+            case HeapType::kFunc:
+            case HeapType::kEq:
+            case HeapType::kData:
+            case HeapType::kArray:
+            case HeapType::kI31:
+            case HeapType::kAny: {
+              Handle<Object> ref(encoded_values->get(encoded_index++),
+                                 isolate_);
+              value = WasmValue(ref, sig->GetParam(i));
+              break;
+            }
+            default:
+              // TODO(7748): Implement these.
+              UNIMPLEMENTED();
+          }
           break;
         }
+        case kRtt:  // TODO(7748): Implement.
+        case kRttWithDepth:
         case kI8:
         case kI16:
         case kVoid:
@@ -3629,9 +3662,7 @@ class WasmInterpreterInternals {
             FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
             case kRef:
-            case kOptRef:
-            case kRtt:
-            case kRttWithDepth: {
+            case kOptRef: {
               // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
@@ -3643,6 +3674,8 @@ class WasmInterpreterInternals {
               global_buffer->set(global_index, *ref);
               break;
             }
+            case kRtt:  // TODO(7748): Implement.
+            case kRttWithDepth:
             case kI8:
             case kI16:
             case kVoid:
@@ -4040,18 +4073,25 @@ class WasmInterpreterInternals {
         case kVoid:
           PrintF("void");
           break;
-        case kOptRef:
-          if (val.to_ref()->IsNull()) {
-            PrintF("ref:null");
-            break;
-          }
-          V8_FALLTHROUGH;
         case kRef:
-          PrintF("ref:0x%" V8PRIxPTR, val.to_ref()->ptr());
+        case kOptRef: {
+          if (val.type().is_reference_to(HeapType::kExtern)) {
+            Handle<Object> ref = val.to_ref();
+            if (ref->IsNull()) {
+              PrintF("ref:null");
+            } else {
+              PrintF("ref:0x%" V8PRIxPTR, ref->ptr());
+            }
+          } else {
+            // TODO(7748): Implement this properly.
+            PrintF("ref/ref null");
+          }
           break;
+        }
         case kRtt:
         case kRttWithDepth:
-          PrintF("rtt:0x%" V8PRIxPTR, val.to_ref()->ptr());
+          // TODO(7748): Implement properly.
+          PrintF("rtt");
           break;
         case kI8:
         case kI16:

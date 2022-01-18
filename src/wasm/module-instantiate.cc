@@ -2077,12 +2077,16 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
                    instance->tables().get(elem_segment.table_index)),
                isolate_),
         table_index, segment_index, dst, src, count);
-    // Set the active segments to being already dropped, since table.init on
-    // a dropped passive segment and an active segment have the same behavior.
+    // Set the active segments to being already dropped, since memory.init on
+    // a dropped passive segment and an active segment have the same
+    // behavior.
     instance->dropped_elem_segments()[segment_index] = 1;
     if (!success) {
       thrower_->RuntimeError("table initializer is out of bounds");
-      return;
+      // Break out instead of returning; we don't want to continue to
+      // initialize any further element segments, but still need to add
+      // dispatch tables below.
+      break;
     }
   }
 }

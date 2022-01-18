@@ -859,8 +859,6 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeGlobalSection() {
     uint32_t globals_count = consume_count("globals count", kV8MaxWasmGlobals);
     uint32_t imported_globals = static_cast<uint32_t>(module_->globals.size());
-    // It is important to not resize the globals vector from the beginning,
-    // because we use its current size when decoding the initializer.
     module_->globals.reserve(imported_globals + globals_count);
     for (uint32_t i = 0; ok() && i < globals_count; ++i) {
       TRACE("DecodeGlobal[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
@@ -1930,8 +1928,10 @@ class ModuleDecoderImpl : public Decoder {
     ValueType* fields = zone->NewArray<ValueType>(field_count);
     bool* mutabilities = zone->NewArray<bool>(field_count);
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
-      fields[i] = consume_storage_type();
-      mutabilities[i] = consume_mutability();
+      ValueType field = consume_storage_type();
+      fields[i] = field;
+      bool mutability = consume_mutability();
+      mutabilities[i] = mutability;
     }
     if (failed()) return nullptr;
     uint32_t* offsets = zone->NewArray<uint32_t>(field_count);
@@ -1939,10 +1939,10 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   const ArrayType* consume_array(Zone* zone) {
-    ValueType element_type = consume_storage_type();
-    bool mutability = consume_mutability();
+    ValueType field = consume_storage_type();
     if (failed()) return nullptr;
-    return zone->New<ArrayType>(element_type, mutability);
+    bool mutability = consume_mutability();
+    return zone->New<ArrayType>(field, mutability);
   }
 
   // Consume the attribute field of an exception.
