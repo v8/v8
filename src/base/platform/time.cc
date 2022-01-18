@@ -111,23 +111,37 @@ V8_INLINE int64_t ClockNow(clockid_t clk_id) {
 #endif
 }
 
+V8_INLINE int64_t NanosecondsNow() {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return int64_t{ts.tv_sec} * v8::base::Time::kNanosecondsPerSecond +
+         ts.tv_nsec;
+}
+
 V8_INLINE bool IsHighResolutionTimer(clockid_t clk_id) {
-  // Limit duration of timer resolution measurement to 100 ms. If we cannot
-  // measure timer resoltuion within this time, we assume a low resolution
-  // timer.
-  int64_t end =
-      ClockNow(clk_id) + 100 * v8::base::Time::kMicrosecondsPerMillisecond;
-  int64_t start, delta;
-  do {
-    start = ClockNow(clk_id);
-    // Loop until we can detect that the clock has changed. Non-HighRes timers
-    // will increment in chunks, i.e. 15ms. By spinning until we see a clock
-    // change, we detect the minimum time between measurements.
-    do {
-      delta = ClockNow(clk_id) - start;
-    } while (delta == 0);
-  } while (delta > 1 && start < end);
-  return delta <= 1;
+  // Currently this is only needed for CLOCK_MONOTONIC. If other clocks need
+  // to be checked, care must be taken to support all platforms correctly;
+  // see ClockNow() above for precedent.
+  DCHECK_EQ(clk_id, CLOCK_MONOTONIC);
+  int64_t previous = NanosecondsNow();
+  // There should be enough attempts to make the loop run for more than one
+  // microsecond if the early return is not taken -- the elapsed time can't
+  // be measured in that situation, so we have to estimate it offline.
+  constexpr int kAttempts = 100;
+  for (int i = 0; i < kAttempts; i++) {
+    int64_t next = NanosecondsNow();
+    int64_t delta = next - previous;
+    if (delta == 0) continue;
+    // We expect most systems to take this branch on the first iteration.
+    if (delta <= v8::base::Time::kNanosecondsPerMicrosecond) {
+      return true;
+    }
+    previous = next;
+  }
+  // As of 2022, we expect that the loop above has taken at least 2 μs (on
+  // a fast desktop). If we still haven't seen a non-zero clock increment
+  // in sub-microsecond range, assume a low resolution timer.
+  return false;
 }
 
 #elif V8_OS_WIN
