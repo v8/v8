@@ -778,6 +778,8 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
 
 RegExpNode* RegExpDisjunction::ToNode(RegExpCompiler* compiler,
                                       RegExpNode* on_success) {
+  compiler->ToNodeMaybeCheckForStackOverflow();
+
   ZoneList<RegExpTree*>* alternatives = this->alternatives();
 
   if (alternatives->length() > 2) {
@@ -1089,6 +1091,8 @@ class AssertionSequenceRewriter final {
 
 RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
                                       RegExpNode* on_success) {
+  compiler->ToNodeMaybeCheckForStackOverflow();
+
   ZoneList<RegExpTree*>* children = nodes();
 
   AssertionSequenceRewriter::MaybeRewrite(children, compiler->zone());

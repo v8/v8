@@ -3950,5 +3950,9 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
   return node;
 }
 
+void RegExpCompiler::ToNodeCheckForStackOverflow() {
+  CHECK(!StackLimitCheck{isolate()}.HasOverflowed());
+}
+
 }  // namespace internal
 }  // namespace v8
