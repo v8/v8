@@ -8,12 +8,14 @@
   # This test can only be executed in the browser
   'wpt/idlharness': [SKIP],
   # Failing WPT tests
+  'wpt/exception/getArg.tentative': [FAIL],
   'wpt/exception/toString.tentative': [FAIL],
   'wpt/exception/type.tentative': [FAIL],
   'wpt/function/constructor.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
   'wpt/global/type.tentative': [FAIL],
+  'wpt/interface': [FAIL],
   'wpt/table/type.tentative': [FAIL],
 
   # Outdated proposal tests.
