@@ -137,11 +137,6 @@ namespace internal {
   /* Time for lazily compiling Wasm functions. */                             \
   HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,   \
      MICROSECOND)                                                             \
-  /* Total time to decompress isolate snapshot. */                            \
-  HT(snapshot_decompress, V8.SnapshotDecompress, 10000000, MICROSECOND)       \
-  /* Time to decompress context snapshot. */                                  \
-  HT(context_snapshot_decompress, V8.ContextSnapshotDecompress, 10000000,     \
-     MICROSECOND)                                                             \
   HT(wasm_compile_after_deserialize,                                          \
      V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)
 
