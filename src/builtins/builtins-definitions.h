@@ -867,6 +867,11 @@ namespace internal {
   TFJ(SetIteratorPrototypeNext, kJSArgcReceiverSlots, kReceiver)               \
   TFS(SetOrSetIteratorToList, kSource)                                         \
                                                                                \
+  /* ShadowRealm */                                                            \
+  CPP(ShadowRealmConstructor)                                                  \
+  CPP(ShadowRealmPrototypeEvaluate)                                            \
+  CPP(ShadowRealmPrototypeImportValue)                                         \
+                                                                               \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
   CPP(SharedArrayBufferPrototypeSlice)                                         \

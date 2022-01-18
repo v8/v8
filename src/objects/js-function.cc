@@ -570,6 +570,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_PROMISE_TYPE:
     case JS_REG_EXP_TYPE:
     case JS_SET_TYPE:
+    case JS_SHADOW_REALM_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_PRIMITIVE_WRAPPER_TYPE:

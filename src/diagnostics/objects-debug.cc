@@ -54,6 +54,7 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
+#include "src/objects/js-shadow-realms-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
@@ -1133,6 +1134,8 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
   CHECK(table().IsOrderedHashMap());
   CHECK(index().IsSmi());
 }
+
+USE_TORQUE_VERIFIER(JSShadowRealm)
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell());

@@ -4771,6 +4771,32 @@ void Isolate::SetHostInitializeImportMetaObjectCallback(
   host_initialize_import_meta_object_callback_ = callback;
 }
 
+void Isolate::SetHostCreateShadowRealmContextCallback(
+    HostCreateShadowRealmContextCallback callback) {
+  host_create_shadow_realm_context_callback_ = callback;
+}
+
+MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
+  if (host_create_shadow_realm_context_callback_ == nullptr) {
+    Handle<Object> exception =
+        factory()->NewError(error_function(), MessageTemplate::kUnsupported);
+    Throw(*exception);
+    return kNullMaybeHandle;
+  }
+
+  v8::Local<v8::Context> api_context =
+      v8::Utils::ToLocal(Handle<Context>(native_context()));
+  v8::Local<v8::Context> shadow_realm_context;
+  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+      this, shadow_realm_context,
+      host_create_shadow_realm_context_callback_(api_context),
+      MaybeHandle<NativeContext>());
+  Handle<Context> shadow_realm_context_handle =
+      v8::Utils::OpenHandle(*shadow_realm_context);
+  DCHECK(shadow_realm_context_handle->IsNativeContext());
+  return Handle<NativeContext>::cast(shadow_realm_context_handle);
+}
+
 MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
     Handle<Context> context, Handle<JSObject> error, Handle<JSArray> sites) {
   v8::Local<v8::Context> api_context = Utils::ToLocal(context);

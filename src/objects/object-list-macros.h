@@ -158,6 +158,7 @@ class ZoneForwardList;
   V(JSRegExpStringIterator)                    \
   V(JSSet)                                     \
   V(JSSetIterator)                             \
+  V(JSShadowRealm)                             \
   V(JSSpecialObject)                           \
   V(JSStringIterator)                          \
   V(JSTemporalCalendar)                        \

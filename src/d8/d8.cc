@@ -1265,6 +1265,11 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
   meta->CreateDataProperty(context, url_key, url).ToChecked();
 }
 
+MaybeLocal<Context> Shell::HostCreateShadowRealmContext(
+    Local<Context> initiator_context) {
+  return v8::Context::New(initiator_context->GetIsolate());
+}
+
 void Shell::DoHostImportModuleDynamically(void* import_data) {
   DynamicImportData* import_data_ =
       static_cast<DynamicImportData*>(import_data);
@@ -3190,6 +3195,8 @@ void Shell::Initialize(Isolate* isolate, D8Console* console,
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
       Shell::HostInitializeImportMetaObject);
+  isolate->SetHostCreateShadowRealmContextCallback(
+      Shell::HostCreateShadowRealmContext);
 
 #ifdef V8_FUZZILLI
   // Let the parent process (Fuzzilli) know we are ready.

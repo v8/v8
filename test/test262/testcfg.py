@@ -61,6 +61,7 @@ FEATURE_FLAGS = {
   'resizable-arraybuffer': '--harmony-rab-gsab',
   'Temporal': '--harmony-temporal',
   'array-find-from-last': '--harmony_array_find_last',
+  'ShadowRealm': '--harmony-shadow-realm',
 }
 
 SKIPPED_FEATURES = set([])

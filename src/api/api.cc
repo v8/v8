@@ -8816,6 +8816,12 @@ void Isolate::SetHostInitializeImportMetaObjectCallback(
   isolate->SetHostInitializeImportMetaObjectCallback(callback);
 }
 
+void Isolate::SetHostCreateShadowRealmContextCallback(
+    HostCreateShadowRealmContextCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetHostCreateShadowRealmContextCallback(callback);
+}
+
 void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->SetPrepareStackTraceCallback(callback);

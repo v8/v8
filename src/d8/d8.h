@@ -636,6 +636,8 @@ class Shell : public i::AllStatic {
   static void HostInitializeImportMetaObject(Local<Context> context,
                                              Local<Module> module,
                                              Local<Object> meta);
+  static MaybeLocal<Context> HostCreateShadowRealmContext(
+      Local<Context> initiator_context);
 
 #ifdef V8_FUZZILLI
   static void Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& args);

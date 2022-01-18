@@ -64,6 +64,7 @@
 //         - JSMessageObject
 //         - JSRegExp
 //         - JSSetIterator
+//         - JSShadowRealm
 //         - JSStringIterator
 //         - JSTemporalCalendar
 //         - JSTemporalDuration

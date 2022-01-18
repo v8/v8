@@ -26600,6 +26600,90 @@ TEST(ImportMetaThrowHandled) {
   CHECK(!try_catch.HasCaught());
 }
 
+v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackStatic(
+    v8::Local<v8::Context> initiator_context) {
+  CHECK(!initiator_context.IsEmpty());
+  return v8::Context::New(initiator_context->GetIsolate());
+}
+
+TEST(CreateShadowRealmContextHostNotSupported) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  v8::TryCatch try_catch(isolate);
+  v8::MaybeLocal<v8::Value> result = script->Run(context.local());
+  CHECK(try_catch.HasCaught());
+  CHECK(result.IsEmpty());
+  CHECK(v8_str("Error: Not supported")
+            ->Equals(isolate->GetCurrentContext(),
+                     try_catch.Exception()
+                         ->ToString(isolate->GetCurrentContext())
+                         .ToLocalChecked())
+            .FromJust());
+}
+
+TEST(CreateShadowRealmContext) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetHostCreateShadowRealmContextCallback(
+      HostCreateShadowRealmContextCallbackStatic);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  Local<Value> result = script->Run(context.local()).ToLocalChecked();
+  CHECK(result->IsObject());
+  i::Handle<i::Object> object = v8::Utils::OpenHandle(*result);
+  CHECK(object->IsJSShadowRealm());
+}
+
+v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackThrow(
+    v8::Local<v8::Context> initiator_context) {
+  CcTest::isolate()->ThrowException(v8_num(42));
+  return v8::MaybeLocal<v8::Context>();
+}
+
+TEST(CreateShadowRealmContextThrow) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetHostCreateShadowRealmContextCallback(
+      HostCreateShadowRealmContextCallbackThrow);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  v8::TryCatch try_catch(isolate);
+  CHECK(script->Run(context.local()).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.Exception()->StrictEquals(v8_num(42)));
+}
+
 TEST(GetModuleNamespace) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();

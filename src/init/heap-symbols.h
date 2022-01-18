@@ -367,6 +367,7 @@
   V(_, set_string, "set")                                             \
   V(_, SetIterator_string, "Set Iterator")                            \
   V(_, setPrototypeOf_string, "setPrototypeOf")                       \
+  V(_, ShadowRealm_string, "ShadowRealm")                             \
   V(_, SharedArrayBuffer_string, "SharedArrayBuffer")                 \
   V(_, sign_string, "sign")                                           \
   V(_, smallestUnit_string, "smallestUnit")                           \

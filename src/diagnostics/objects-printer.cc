@@ -1399,6 +1399,12 @@ void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void JSShadowRealm::JSShadowRealmPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSShadowRealm");
+  os << "\n - native_context: " << Brief(native_context());
+  JSObjectPrintBody(os, *this);
+}
+
 void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSFinalizationRegistry");
   os << "\n - native_context: " << Brief(native_context());

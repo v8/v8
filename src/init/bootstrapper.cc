@@ -52,6 +52,7 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
+#include "src/objects/js-shadow-realms.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segment-iterator.h"
@@ -4406,6 +4407,30 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
+
+void Genesis::InitializeGlobal_harmony_shadow_realm() {
+  if (!FLAG_harmony_shadow_realm) return;
+  // -- S h a d o w R e a l m
+  // #sec-shadowrealm-objects
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+  Handle<JSFunction> shadow_realm_fun = InstallFunction(
+      isolate_, global, "ShadowRealm", JS_SHADOW_REALM_TYPE,
+      JSShadowRealm::kHeaderSize, 0, factory()->the_hole_value(),
+      Builtin::kShadowRealmConstructor);
+  shadow_realm_fun->shared().set_length(0);
+  shadow_realm_fun->shared().DontAdaptArguments();
+
+  // Setup %ShadowRealmPrototype%.
+  Handle<JSObject> prototype(
+      JSObject::cast(shadow_realm_fun->instance_prototype()), isolate());
+
+  InstallToStringTag(isolate_, prototype, factory()->ShadowRealm_string());
+
+  SimpleInstallFunction(isolate_, prototype, "evaluate",
+                        Builtin::kShadowRealmPrototypeEvaluate, 1, true);
+  SimpleInstallFunction(isolate_, prototype, "importValue",
+                        Builtin::kShadowRealmPrototypeImportValue, 2, true);
+}
 
 void Genesis::InitializeGlobal_harmony_array_find_last() {
   if (!FLAG_harmony_array_find_last) return;

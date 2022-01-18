@@ -642,6 +642,13 @@ class V8_EXPORT Isolate {
       HostInitializeImportMetaObjectCallback callback);
 
   /**
+   * This specifies the callback called by the upcoming ShadowRealm
+   * construction language feature to retrieve host created globals.
+   */
+  void SetHostCreateShadowRealmContextCallback(
+      HostCreateShadowRealmContextCallback callback);
+
+  /**
    * This specifies the callback called when the stack property of Error
    * is accessed.
    */
