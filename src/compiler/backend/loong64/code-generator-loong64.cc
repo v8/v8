@@ -2383,9 +2383,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_count).
-    if (!kJSArgcIncludesReceiver) {
-      __ Add_d(t0, t0, Operand(1));  // Also pop the receiver.
-    }
     if (parameter_slots > 1) {
       __ li(t1, parameter_slots);
       __ slt(t2, t0, t1);

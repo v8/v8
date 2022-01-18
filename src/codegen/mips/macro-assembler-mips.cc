@@ -4424,11 +4424,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     Subu(t0, t0, Operand(1));
     Addu(src, src, Operand(kSystemPointerSize));
     Addu(dest, dest, Operand(kSystemPointerSize));
-    if (kJSArgcIncludesReceiver) {
-      Branch(&copy, gt, t0, Operand(zero_reg));
-    } else {
-      Branch(&copy, ge, t0, Operand(zero_reg));
-    }
+    Branch(&copy, gt, t0, Operand(zero_reg));
   }
 
   // Fill remaining expected arguments with undefined values.
