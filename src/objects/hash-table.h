@@ -227,7 +227,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // has the given hash value.
   InternalIndex FindInsertionEntry(PtrComprCageBase cage_base,
                                    ReadOnlyRoots roots, uint32_t hash);
-  InternalIndex FindInsertionEntry(Isolate* isolate, uint32_t hash);
+  template <typename IsolateT>
+  InternalIndex FindInsertionEntry(IsolateT* isolate, uint32_t hash);
 
   // Computes the capacity a table with the given capacity would need to have
   // room for the given number of elements, also allowing it to shrink.
@@ -457,9 +458,10 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   // Returns the value at entry.
   Object ValueAt(InternalIndex entry);
 
-  V8_WARN_UNUSED_RESULT static Handle<NameToIndexHashTable> Add(
-      Isolate* isolate, Handle<NameToIndexHashTable> table, Handle<Name> key,
-      int32_t value);
+  template <typename IsolateT>
+  static Handle<NameToIndexHashTable> Add(IsolateT* isolate,
+                                          Handle<NameToIndexHashTable> table,
+                                          Handle<Name> key, int32_t value);
 
   DECL_CAST(NameToIndexHashTable)
   DECL_PRINTER(NameToIndexHashTable)

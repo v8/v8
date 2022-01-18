@@ -5886,12 +5886,6 @@ InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(
   }
 }
 
-template <typename Derived, typename Shape>
-InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(Isolate* isolate,
-                                                            uint32_t hash) {
-  return FindInsertionEntry(isolate, ReadOnlyRoots(isolate), hash);
-}
-
 base::Optional<PropertyCell>
 GlobalDictionary::TryFindPropertyCellForConcurrentLookupIterator(
     Isolate* isolate, Handle<Name> name, RelaxedLoadTag tag) {
@@ -6240,23 +6234,6 @@ int32_t NameToIndexHashTable::Lookup(Handle<Name> key) {
   InternalIndex entry = this->FindEntry(cage_base, roots, key, key->hash());
   if (entry.is_not_found()) return -1;
   return Smi::cast(this->get(EntryToValueIndex(entry))).value();
-}
-
-Handle<NameToIndexHashTable> NameToIndexHashTable::Add(
-    Isolate* isolate, Handle<NameToIndexHashTable> table, Handle<Name> key,
-    int32_t index) {
-  DCHECK_GE(index, 0);
-  // Validate that the key is absent.
-  SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
-  // Check whether the dictionary should be extended.
-  table = EnsureCapacity(isolate, table);
-
-  // Compute the key object.
-  InternalIndex entry = table->FindInsertionEntry(isolate, key->hash());
-  table->set(EntryToIndex(entry), *key);
-  table->set(EntryToValueIndex(entry), Smi::FromInt(index));
-  table->ElementAdded();
-  return table;
 }
 
 template <typename Derived, typename Shape>
