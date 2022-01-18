@@ -193,37 +193,6 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
   return origin;
 }
 
-ScriptOrigin::ScriptOrigin(
-    Local<Value> resource_name, Local<Integer> line_offset,
-    Local<Integer> column_offset, Local<Boolean> is_shared_cross_origin,
-    Local<Integer> script_id, Local<Value> source_map_url,
-    Local<Boolean> is_opaque, Local<Boolean> is_wasm, Local<Boolean> is_module,
-    Local<Data> host_defined_options)
-    : ScriptOrigin(
-          Isolate::GetCurrent(), resource_name,
-          line_offset.IsEmpty() ? 0 : static_cast<int>(line_offset->Value()),
-          column_offset.IsEmpty() ? 0
-                                  : static_cast<int>(column_offset->Value()),
-          !is_shared_cross_origin.IsEmpty() && is_shared_cross_origin->IsTrue(),
-          static_cast<int>(script_id.IsEmpty() ? -1 : script_id->Value()),
-          source_map_url, !is_opaque.IsEmpty() && is_opaque->IsTrue(),
-          !is_wasm.IsEmpty() && is_wasm->IsTrue(),
-          !is_module.IsEmpty() && is_module->IsTrue(), host_defined_options) {}
-
-ScriptOrigin::ScriptOrigin(Local<Value> resource_name, int line_offset,
-                           int column_offset, bool is_shared_cross_origin,
-                           int script_id, Local<Value> source_map_url,
-                           bool is_opaque, bool is_wasm, bool is_module,
-                           Local<Data> host_defined_options)
-    : isolate_(Isolate::GetCurrent()),
-      resource_name_(resource_name),
-      resource_line_offset_(line_offset),
-      resource_column_offset_(column_offset),
-      options_(is_shared_cross_origin, is_opaque, is_wasm, is_module),
-      script_id_(script_id),
-      source_map_url_(source_map_url),
-      host_defined_options_(host_defined_options) {}
-
 Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
   // TODO(cbruni, chromium:1244145): remove once migrated to the context.
   Utils::ApiCheck(!host_defined_options_->IsFixedArray(),
@@ -2292,56 +2261,6 @@ Local<Value> Module::GetException() const {
   return ToApiHandle<Value>(i::handle(self->GetException(), isolate));
 }
 
-int Module::GetModuleRequestsLength() const {
-  i::Module self = *Utils::OpenHandle(this);
-  if (self.IsSyntheticModule()) return 0;
-  ASSERT_NO_SCRIPT_NO_EXCEPTION(self.GetIsolate());
-  return i::SourceTextModule::cast(self).info().module_requests().length();
-}
-
-Local<String> Module::GetModuleRequest(int i) const {
-  Utils::ApiCheck(i >= 0, "v8::Module::GetModuleRequest",
-                  "index must be positive");
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
-  Utils::ApiCheck(self->IsSourceTextModule(), "v8::Module::GetModuleRequest",
-                  "Expected SourceTextModule");
-  i::Isolate* isolate = self->GetIsolate();
-  ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::Handle<i::FixedArray> module_requests(
-      i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
-      isolate);
-  Utils::ApiCheck(i < module_requests->length(), "v8::Module::GetModuleRequest",
-                  "index is out of bounds");
-  i::Handle<i::ModuleRequest> module_request(
-      i::ModuleRequest::cast(module_requests->get(i)), isolate);
-  return ToApiHandle<String>(i::handle(module_request->specifier(), isolate));
-}
-
-Location Module::GetModuleRequestLocation(int i) const {
-  Utils::ApiCheck(i >= 0, "v8::Module::GetModuleRequest",
-                  "index must be positive");
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
-  ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::HandleScope scope(isolate);
-  Utils::ApiCheck(self->IsSourceTextModule(),
-                  "Module::GetModuleRequestLocation",
-                  "Expected SourceTextModule");
-  i::Handle<i::FixedArray> module_requests(
-      i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
-      isolate);
-  Utils::ApiCheck(i < module_requests->length(), "v8::Module::GetModuleRequest",
-                  "index is out of bounds");
-  i::Handle<i::ModuleRequest> module_request(
-      i::ModuleRequest::cast(module_requests->get(i)), isolate);
-  int position = module_request->position();
-  i::Handle<i::Script> script(
-      i::Handle<i::SourceTextModule>::cast(self)->GetScript(), isolate);
-  i::Script::PositionInfo info;
-  i::Script::GetPositionInfo(script, position, &info, i::Script::WITH_OFFSET);
-  return v8::Location(info.line, info.column);
-}
-
 Local<FixedArray> Module::GetModuleRequests() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   if (self->IsSyntheticModule()) {
@@ -2424,19 +2343,6 @@ bool Module::IsSyntheticModule() const {
 }
 
 int Module::GetIdentityHash() const { return Utils::OpenHandle(this)->hash(); }
-
-Maybe<bool> Module::InstantiateModule(Local<Context> context,
-                                      Module::ResolveCallback callback) {
-  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Module, InstantiateModule, Nothing<bool>(),
-           i::HandleScope);
-  ResolveModuleCallback callback_with_import_assertions = nullptr;
-  has_pending_exception =
-      !i::Module::Instantiate(isolate, Utils::OpenHandle(this), context,
-                              callback_with_import_assertions, callback);
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(true);
-}
 
 Maybe<bool> Module::InstantiateModule(Local<Context> context,
                                       Module::ResolveModuleCallback callback) {
@@ -3064,6 +2970,7 @@ ScriptOrigin Message::GetScriptOrigin() const {
 void ScriptOrigin::VerifyHostDefinedOptions() const {
   // TODO(cbruni, chromium:1244145): Remove checks once we allow arbitrary
   // host-defined options.
+  USE(isolate_);
   if (host_defined_options_.IsEmpty()) return;
   Utils::ApiCheck(host_defined_options_->IsFixedArray(), "ScriptOrigin()",
                   "Host-defined options has to be a PrimitiveArray");
@@ -5917,28 +5824,6 @@ v8::String::GetExternalOneByteStringResource() const {
     }
   }
   return nullptr;
-}
-
-Local<Value> Symbol::Description() const {
-  i::Handle<i::Symbol> sym = Utils::OpenHandle(this);
-
-  i::Isolate* isolate;
-  if (!i::GetIsolateFromHeapObject(*sym, &isolate)) {
-    // Symbol is in RO_SPACE, which means that its description is also in
-    // RO_SPACE. Since RO_SPACE objects are immovable we can use the
-    // Handle(Address*) constructor with the address of the description
-    // field in the Symbol object without needing an isolate.
-    DCHECK(!COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL);
-#ifndef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-    i::Handle<i::HeapObject> ro_description(reinterpret_cast<i::Address*>(
-        sym->GetFieldAddress(i::Symbol::kDescriptionOffset)));
-    return Utils::ToLocal(ro_description);
-#else
-    isolate = reinterpret_cast<i::Isolate*>(Isolate::GetCurrent());
-#endif
-  }
-
-  return Description(reinterpret_cast<Isolate*>(isolate));
 }
 
 Local<Value> Symbol::Description(Isolate* isolate) const {
@@ -10317,14 +10202,6 @@ void EmbedderHeapTracer::SetStackStart(void* stack_start) {
   CHECK(isolate_);
   reinterpret_cast<i::Isolate*>(isolate_)->global_handles()->SetStackStart(
       stack_start);
-}
-
-void EmbedderHeapTracer::NotifyEmptyEmbedderStack() {
-  CHECK(isolate_);
-  reinterpret_cast<i::Isolate*>(isolate_)
-      ->heap()
-      ->local_embedder_heap_tracer()
-      ->NotifyEmptyEmbedderStack();
 }
 
 void EmbedderHeapTracer::FinalizeTracing() {

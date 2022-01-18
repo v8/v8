@@ -313,17 +313,6 @@ class V8_EXPORT Context : public Data {
     explicit BackupIncumbentScope(Local<Context> backup_incumbent_context);
     ~BackupIncumbentScope();
 
-    /**
-     * Returns address that is comparable with JS stack address.  Note that JS
-     * stack may be allocated separately from the native stack.  See also
-     * |TryCatch::JSStackComparableAddressPrivate| for details.
-     */
-    V8_DEPRECATED(
-        "This is private V8 information that should not be exposed in the API.")
-    uintptr_t JSStackComparableAddress() const {
-      return JSStackComparableAddressPrivate();
-    }
-
    private:
     friend class internal::Isolate;
 
