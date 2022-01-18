@@ -1273,6 +1273,8 @@ class WasmDecoder : public Decoder {
   }
 
   bool Validate(const byte* pc, GlobalIndexImmediate<validate>& imm) {
+    // We compare with the current size of the globals vector. This is important
+    // if we are decoding a constant expression in the global section.
     if (!VALIDATE(imm.index < module_->globals.size())) {
       DecodeError(pc, "Invalid global index: %u", imm.index);
       return false;
@@ -2506,9 +2508,16 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             Append("T");
             break;
           case kControlIfElse:
+            Append("E");
+            break;
           case kControlTryCatch:
+            Append("C");
+            break;
           case kControlTryCatchAll:
-          case kControlLet:  // TODO(7748): Implement
+            Append("A");
+            break;
+          case kControlLet:
+            Append("D");
             break;
         }
         if (c.start_merge.arity) Append("%u-", c.start_merge.arity);

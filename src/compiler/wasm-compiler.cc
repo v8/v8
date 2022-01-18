@@ -3065,7 +3065,7 @@ Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
       func_index_intptr, gasm_->IntPtrConstant(kSystemPointerSize));
   Node* imported_targets =
       LOAD_INSTANCE_FIELD(ImportedFunctionTargets, MachineType::Pointer());
-  Node* target_node = gasm_->LoadImmutableFromObject(
+  Node* target_node = gasm_->LoadImmutable(
       MachineType::Pointer(), imported_targets, func_index_times_pointersize);
   args[0] = target_node;
 

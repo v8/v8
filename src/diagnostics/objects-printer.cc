@@ -1805,9 +1805,16 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
       case wasm::kRef:
       case wasm::kOptRef:
       case wasm::kRtt:
-      case wasm::kRttWithDepth:
-        os << Brief(base::ReadUnalignedValue<Object>(field_address));
+      case wasm::kRttWithDepth: {
+        Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(field_address);
+#if V8_COMPRESS_POINTERS
+        Address obj = DecompressTaggedPointer(address(), raw);
+#else
+        Address obj = raw;
+#endif
+        os << Brief(Object(obj));
         break;
+      }
       case wasm::kS128:
         os << "UNIMPLEMENTED";  // TODO(7748): Implement.
         break;
@@ -1844,17 +1851,24 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
                               true);
       break;
     case wasm::kI8:
+      PrintTypedArrayElements(os, reinterpret_cast<int8_t*>(data_ptr), len,
+                              true);
+      break;
     case wasm::kI16:
+      PrintTypedArrayElements(os, reinterpret_cast<int16_t*>(data_ptr), len,
+                              true);
+      break;
     case wasm::kS128:
     case wasm::kRef:
     case wasm::kOptRef:
     case wasm::kRtt:
     case wasm::kRttWithDepth:
-    case wasm::kBottom:
-    case wasm::kVoid:
       os << "\n   Printing elements of this type is unimplemented, sorry";
       // TODO(7748): Implement.
       break;
+    case wasm::kBottom:
+    case wasm::kVoid:
+      UNREACHABLE();
   }
   os << "\n";
 }
