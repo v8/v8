@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1af42f8fc19c9651569571a64c940e7e34d8b392',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '79e39b38cca14e621b25e1fd82bb29e7cfab697d',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f78b4b9f33bd8ef9944d5ce643daff1c31880189',
   'buildtools/clang_format/script':
@@ -226,7 +226,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '6cf20f1e0219078371161af83319d10f72f0832e',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '4e9fe30884414b58d219d0170d39cbad96e5758a',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'c9643a2e45ed0cb18b8409c62994be7c6e66dc1b',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'b9f6d0a5c5375dc4643f35360d257dba37c1d3e1',
   'third_party/instrumented_libraries':
