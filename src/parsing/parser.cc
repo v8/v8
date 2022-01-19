@@ -283,7 +283,8 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
   return factory()->NewThrow(call_constructor, pos);
 }
 
-Expression* Parser::NewSuperPropertyReference(int pos) {
+Expression* Parser::NewSuperPropertyReference(Scope* home_object_scope,
+                                              int pos) {
   const AstRawString* home_object_name;
   if (IsStatic(scope()->GetReceiverScope()->function_kind())) {
     home_object_name = ast_value_factory_->dot_static_home_object_string();
@@ -291,7 +292,9 @@ Expression* Parser::NewSuperPropertyReference(int pos) {
     home_object_name = ast_value_factory_->dot_home_object_string();
   }
   return factory()->NewSuperPropertyReference(
-      NewUnresolved(home_object_name, pos), pos);
+      home_object_scope->NewHomeObjectVariableProxy(factory(), home_object_name,
+                                                    pos),
+      pos);
 }
 
 Expression* Parser::NewSuperCallReference(int pos) {

@@ -2673,6 +2673,49 @@ int Scope::ContextLocalCount() const {
          (is_function_var_in_context ? 1 : 0);
 }
 
+VariableProxy* Scope::NewHomeObjectVariableProxy(AstNodeFactory* factory,
+                                                 const AstRawString* name,
+                                                 int start_pos) {
+  // VariableProxies of the home object cannot be resolved like a normal
+  // variable. Consider the case of a super.property usage in heritage position:
+  //
+  //   class C extends super.foo { m() { super.bar(); } }
+  //
+  // The super.foo property access is logically nested under C's class scope,
+  // which also has a home object due to its own method m's usage of
+  // super.bar(). However, super.foo must resolve super in C's outer scope.
+  //
+  // Because of the above, home object VariableProxies are always made directly
+  // on the Scope that needs the home object instead of the innermost scope.
+  DCHECK(needs_home_object());
+  if (!scope_info_.is_null()) {
+    // This is a lazy compile, so the home object's context slot is already
+    // known.
+    Variable* home_object = variables_.Lookup(name);
+    if (home_object == nullptr) {
+      VariableLookupResult lookup_result;
+      int index = ScopeInfo::ContextSlotIndex(*scope_info_, *name->string(),
+                                              &lookup_result);
+      DCHECK_GE(index, 0);
+      bool was_added;
+      home_object = variables_.Declare(zone(), this, name, lookup_result.mode,
+                                       NORMAL_VARIABLE, lookup_result.init_flag,
+                                       lookup_result.maybe_assigned_flag,
+                                       IsStaticFlag::kNotStatic, &was_added);
+      DCHECK(was_added);
+      home_object->AllocateTo(VariableLocation::CONTEXT, index);
+    }
+    return factory->NewVariableProxy(home_object, start_pos);
+  }
+  // This is not a lazy compile. Add the unresolved home object VariableProxy to
+  // the unresolved list of the home object scope, which is not necessarily the
+  // innermost scope.
+  VariableProxy* proxy =
+      factory->NewVariableProxy(name, NORMAL_VARIABLE, start_pos);
+  AddUnresolved(proxy);
+  return proxy;
+}
+
 bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   switch (a) {
     case VariableMode::kPrivateGetterOnly:

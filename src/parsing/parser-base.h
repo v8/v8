@@ -3769,9 +3769,9 @@ ParserBase<Impl>::ParseSuperExpression() {
         impl()->ReportMessage(MessageTemplate::kOptionalChainingNoSuper);
         return impl()->FailureExpression();
       }
-      scope->RecordSuperPropertyUsage();
+      Scope* home_object_scope = scope->RecordSuperPropertyUsage();
       UseThis();
-      return impl()->NewSuperPropertyReference(pos);
+      return impl()->NewSuperPropertyReference(home_object_scope, pos);
     }
     // super() is only allowed in derived constructor. new super() is never
     // allowed; it's reported as an error by
