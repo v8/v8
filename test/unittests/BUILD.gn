@@ -523,6 +523,7 @@ v8_source_set("unittests_sources") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:v8_shared_internal_headers",
+    "../..:v8_version",
     "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",
     "//testing/gmock",

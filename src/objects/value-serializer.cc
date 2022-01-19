@@ -49,6 +49,7 @@ namespace internal {
 // Version 12: regexp and string objects share normal string encoding
 // Version 13: host objects have an explicit tag (rather than handling all
 //             unknown tags)
+// Version 14: flags for JSArrayBufferViews
 //
 // WARNING: Increasing this value is a change which cannot safely be rolled
 // back without breaking compatibility with data stored on disk. It is
@@ -57,7 +58,7 @@ namespace internal {
 //
 // Recent changes are routinely reverted in preparation for branch, and this
 // has been the cause of at least one bug in the past.
-static const uint32_t kLatestVersion = 13;
+static const uint32_t kLatestVersion = 14;
 static_assert(kLatestVersion == v8::CurrentValueSerializerFormatVersion(),
               "Exported format version must match latest version.");
 
@@ -938,11 +939,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   WriteVarint(static_cast<uint8_t>(tag));
   WriteVarint(static_cast<uint32_t>(view.byte_offset()));
   WriteVarint(static_cast<uint32_t>(view.byte_length()));
-  // TODO(crbug.com/v8/12532): Re-enable the flags serialization logic below.
-  // Bump the serialization format version number when doing so, and preserve
-  // logic and tests for reading from the old format.
-  //
-  // WriteVarint(static_cast<uint32_t>(view.bit_field()));
+  WriteVarint(static_cast<uint32_t>(view.bit_field()));
   return ThrowIfOutOfMemory();
 }
 
@@ -1868,13 +1865,14 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   uint32_t byte_offset = 0;
   uint32_t byte_length = 0;
   uint32_t flags = 0;
-  // TODO(crbug.com/v8/12532): Read `flags` from the serialized value, when we
-  // restore the logic for serializing them.
   if (!ReadVarint<uint8_t>().To(&tag) ||
       !ReadVarint<uint32_t>().To(&byte_offset) ||
       !ReadVarint<uint32_t>().To(&byte_length) ||
       byte_offset > buffer_byte_length ||
       byte_length > buffer_byte_length - byte_offset) {
+    return MaybeHandle<JSArrayBufferView>();
+  }
+  if (version_ >= 14 && !ReadVarint<uint32_t>().To(&flags)) {
     return MaybeHandle<JSArrayBufferView>();
   }
   uint32_t id = next_id_++;
