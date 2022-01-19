@@ -505,9 +505,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
   // Drop receiver + arguments.
   __ masm()->DropArguments(params_size, MacroAssembler::kCountIsInteger,
-                           kJSArgcIncludesReceiver
-                               ? MacroAssembler::kCountIncludesReceiver
-                               : MacroAssembler::kCountExcludesReceiver);
+                           MacroAssembler::kCountIncludesReceiver);
   __ masm()->Ret();
 }
 
