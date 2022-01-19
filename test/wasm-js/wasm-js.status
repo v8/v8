@@ -15,8 +15,10 @@
   'wpt/function/table.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
   'wpt/global/type.tentative': [FAIL],
-  'wpt/interface': [FAIL],
   'wpt/table/type.tentative': [FAIL],
+
+  # This test is out-dated in the spec repository
+  'interface': [FAIL],
 
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],

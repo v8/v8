@@ -2851,9 +2851,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   context->set_wasm_table_constructor(*table_constructor);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
+  InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1, false, NONE,
               SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
   if (enabled_features.has_type_reflection()) {
     InstallFunc(isolate, table_proto, "type", WebAssemblyTableType, 0, false,
                 NONE, SideEffectType::kHasNoSideEffect);
