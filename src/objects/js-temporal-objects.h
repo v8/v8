@@ -284,9 +284,24 @@ class JSTemporalZonedDateTime
 
 namespace temporal {
 
+// #sec-temporal-createtemporalinstant
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
+    Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
+    Handle<BigInt> epoch_nanoseconds);
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
+    Isolate* isolate, Handle<BigInt> epoch_nanoseconds);
+
 // #sec-temporal-getiso8601calendar
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalCalendar> GetISO8601Calendar(
     Isolate* isolate);
+
+// #sec-temporal-builtintimezonegetplaindatetimefor
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDateTime>
+BuiltinTimeZoneGetPlainDateTimeFor(Isolate* isolate,
+                                   Handle<JSReceiver> time_zone,
+                                   Handle<JSTemporalInstant> instant,
+                                   Handle<JSReceiver> calendar,
+                                   const char* method);
 
 }  // namespace temporal
 }  // namespace internal

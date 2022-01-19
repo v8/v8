@@ -223,18 +223,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMonth)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMonthCode)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.day */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDay)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.hour */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeHour)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.minute */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMinute)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.second */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeSecond)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.millisecond */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMillisecond)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.microsecond */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMicrosecond)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.nanosecond */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeNanosecond)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofweek */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDayOfWeek)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofyear */
@@ -704,6 +692,41 @@ TEMPORAL_VALUE_OF(PlainMonthDay)
 
 // ZonedDateTime
 
+#define TEMPORAL_ZONED_DATE_TIME_GET_PREPARE(M)                               \
+  HandleScope scope(isolate);                                                 \
+  const char* method = "get Temporal.ZonedDateTime.prototype." #M;            \
+  /* 1. Let zonedDateTime be the this value. */                               \
+  /* 2. Perform ? RequireInternalSlot(zonedDateTime, */                       \
+  /* [[InitializedTemporalZonedDateTime]]). */                                \
+  CHECK_RECEIVER(JSTemporalZonedDateTime, zoned_date_time, method);           \
+  /* 3. Let timeZone be zonedDateTime.[[TimeZone]]. */                        \
+  Handle<JSReceiver> time_zone =                                              \
+      handle(zoned_date_time->time_zone(), isolate);                          \
+  /* 4. Let instant be ?                                   */                 \
+  /* CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]). */                 \
+  Handle<JSTemporalInstant> instant;                                          \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
+      isolate, instant,                                                       \
+      temporal::CreateTemporalInstant(                                        \
+          isolate, Handle<BigInt>(zoned_date_time->nanoseconds(), isolate))); \
+  /* 5. Let calendar be zonedDateTime.[[Calendar]]. */                        \
+  Handle<JSReceiver> calendar = handle(zoned_date_time->calendar(), isolate); \
+  /* 6. Let temporalDateTime be ?                 */                          \
+  /* BuiltinTimeZoneGetPlainDateTimeFor(timeZone, */                          \
+  /* instant, calendar). */                                                   \
+  Handle<JSTemporalPlainDateTime> temporal_date_time;                         \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
+      isolate, temporal_date_time,                                            \
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(                           \
+          isolate, time_zone, instant, calendar, method));
+
+#define TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(M, field) \
+  BUILTIN(TemporalZonedDateTimePrototype##M) {                          \
+    TEMPORAL_ZONED_DATE_TIME_GET_PREPARE(M)                             \
+    /* 7. Return 𝔽(temporalDateTime.[[ #field ]]). */                \
+    return Smi::FromInt(temporal_date_time->field());                   \
+  }
+
 BUILTIN(TemporalZonedDateTimeConstructor) {
   HandleScope scope(isolate);
   RETURN_RESULT_OR_FAILURE(
@@ -722,6 +745,15 @@ TEMPORAL_GET_NUMBER_AFTER_DIVID(ZonedDateTime, EpochMilliseconds, nanoseconds,
                                 1000000, epochMilliseconds)
 TEMPORAL_GET_BIGINT_AFTER_DIVID(ZonedDateTime, EpochMicroseconds, nanoseconds,
                                 1000, epochMicroseconds)
+TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Hour, iso_hour)
+TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Minute, iso_minute)
+TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Second, iso_second)
+TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Millisecond,
+                                                      iso_millisecond)
+TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Microsecond,
+                                                      iso_microsecond)
+TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Nanosecond,
+                                                      iso_nanosecond)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(ZonedDateTime)
 

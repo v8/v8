@@ -743,6 +743,10 @@ MaybeHandle<JSTemporalDuration> CreateTemporalDuration(
                                 microseconds, nanoseconds);
 }
 
+}  // namespace
+
+namespace temporal {
+
 // #sec-temporal-createtemporalinstant
 MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
@@ -768,6 +772,10 @@ MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
   return CreateTemporalInstant(isolate, CONSTRUCTOR(instant),
                                CONSTRUCTOR(instant), epoch_nanoseconds);
 }
+
+}  // namespace temporal
+
+namespace {
 
 MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZoneFromIndex(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
@@ -968,6 +976,9 @@ DateTimeRecordCommon BalanceISODateTime(Isolate* isolate, int32_t year,
           balanced_time.nanosecond};
 }
 
+}  // namespace
+
+namespace temporal {
 MaybeHandle<JSTemporalPlainDateTime> BuiltinTimeZoneGetPlainDateTimeFor(
     Isolate* isolate, Handle<JSReceiver> time_zone,
     Handle<JSTemporalInstant> instant, Handle<JSReceiver> calendar,
@@ -1002,6 +1013,9 @@ MaybeHandle<JSTemporalPlainDateTime> BuiltinTimeZoneGetPlainDateTimeFor(
       result.nanosecond, calendar);
 }
 
+}  // namespace temporal
+
+namespace {
 // #sec-temporal-getpossibleinstantsfor
 MaybeHandle<FixedArray> GetPossibleInstantsFor(Isolate* isolate,
                                                Handle<JSReceiver> time_zone,
@@ -1123,9 +1137,10 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
       BigInt::Subtract(isolate, epoch_nanoseconds, one_day_in_ns),
       JSTemporalInstant);
   Handle<JSTemporalInstant> day_before;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, day_before,
-                             CreateTemporalInstant(isolate, day_before_ns),
-                             JSTemporalInstant);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, day_before,
+      temporal::CreateTemporalInstant(isolate, day_before_ns),
+      JSTemporalInstant);
   // 9. Let dayAfter be ! CreateTemporalInstant(epochNanoseconds + 8.64 ×
   // 10^13).
   Handle<BigInt> day_after_ns;
@@ -1134,9 +1149,10 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
       BigInt::Add(isolate, epoch_nanoseconds, one_day_in_ns),
       JSTemporalInstant);
   Handle<JSTemporalInstant> day_after;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, day_after,
-                             CreateTemporalInstant(isolate, day_after_ns),
-                             JSTemporalInstant);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, day_after,
+      temporal::CreateTemporalInstant(isolate, day_after_ns),
+      JSTemporalInstant);
   // 10. Let offsetBefore be ? GetOffsetNanosecondsFor(timeZone, dayBefore).
   Maybe<int64_t> maybe_offset_before =
       GetOffsetNanosecondsFor(isolate, time_zone, day_before, method);
@@ -2425,15 +2441,15 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
   }
   // 3. Let instant be ! CreateTemporalInstant(epochNanoseconds).
   Handle<JSTemporalInstant> instant;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, instant,
-                             CreateTemporalInstant(isolate, epoch_nanoseconds),
-                             BigInt);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      temporal::CreateTemporalInstant(isolate, epoch_nanoseconds), BigInt);
 
   // 4. Let temporalDateTime be ?
   // BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant, calendar).
   Handle<JSTemporalPlainDateTime> temporal_date_time;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, temporal_date_time,
-                             BuiltinTimeZoneGetPlainDateTimeFor(
+                             temporal::BuiltinTimeZoneGetPlainDateTimeFor(
                                  isolate, time_zone, instant, calendar, method),
                              BigInt);
   // 5. Let datePart be ? CreateTemporalDate(temporalDateTime.[[ISOYear]],
@@ -2559,7 +2575,7 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
   Handle<JSTemporalInstant> start_instant;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, start_instant,
-      CreateTemporalInstant(
+      temporal::CreateTemporalInstant(
           isolate, Handle<BigInt>(relative_to->nanoseconds(), isolate)),
       Nothing<bool>());
 
@@ -2573,8 +2589,8 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
   Handle<JSTemporalPlainDateTime> start_date_time;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, start_date_time,
-      BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, start_instant,
-                                         calendar, method),
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(
+          isolate, time_zone, start_instant, calendar, method),
       Nothing<bool>());
 
   // 10. Let endNs be startNs + nanoseconds.
@@ -2585,17 +2601,17 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
 
   // 11. Let endInstant be ! CreateTemporalInstant(ℤ(endNs)).
   Handle<JSTemporalInstant> end_instant;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, end_instant,
-                                   CreateTemporalInstant(isolate, end_ns),
-                                   Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, end_instant, temporal::CreateTemporalInstant(isolate, end_ns),
+      Nothing<bool>());
   // 12. Let endDateTime be ?
   // BuiltinTimeZoneGetPlainDateTimeFor(relativeTo.[[TimeZone]],
   // endInstant, relativeTo.[[Calendar]]).
   Handle<JSTemporalPlainDateTime> end_date_time;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, end_date_time,
-      BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, end_instant,
-                                         calendar, method),
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(
+          isolate, time_zone, end_instant, calendar, method),
       Nothing<bool>());
 
   // 13. Let dateDifference be ?
@@ -4019,7 +4035,7 @@ MaybeHandle<JSReceiver> JSTemporalZonedDateTime::GetISOFields(
   Handle<JSTemporalInstant> instant;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, instant,
-      CreateTemporalInstant(
+      temporal::CreateTemporalInstant(
           isolate, Handle<BigInt>(zoned_date_time->nanoseconds(), isolate)),
       JSReceiver);
 
@@ -4030,7 +4046,7 @@ MaybeHandle<JSReceiver> JSTemporalZonedDateTime::GetISOFields(
   // instant, calendar).
   Handle<JSTemporalPlainDateTime> date_time;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, date_time,
-                             BuiltinTimeZoneGetPlainDateTimeFor(
+                             temporal::BuiltinTimeZoneGetPlainDateTimeFor(
                                  isolate, time_zone, instant, calendar, method),
                              JSReceiver);
   // 8. Let offset be ? BuiltinTimeZoneGetOffsetStringFor(timeZone, instant).
@@ -4109,7 +4125,8 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
                     JSTemporalInstant);
   }
   // 4. Return ? CreateTemporalInstant(epochNanoseconds, NewTarget).
-  return CreateTemporalInstant(isolate, target, new_target, epoch_nanoseconds);
+  return temporal::CreateTemporalInstant(isolate, target, new_target,
+                                         epoch_nanoseconds);
 }
 
 }  // namespace internal
