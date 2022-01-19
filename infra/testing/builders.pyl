@@ -1201,7 +1201,7 @@
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
-      {'name': 'test262', 'shards': 5},
+      {'name': 'test262', 'shards': 7},
       {'name': 'test262', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
