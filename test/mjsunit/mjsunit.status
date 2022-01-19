@@ -449,6 +449,8 @@
 
   # Tests tracing when generating wasm in TurboFan.
   'tools/compiler-trace-flags-wasm': [SKIP],
+
+  'compiler/fast-api-calls-wasm': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################

@@ -4977,36 +4977,6 @@ void EffectControlLinearizer::LowerStoreMessage(Node* node) {
   __ StoreField(AccessBuilder::ForExternalIntPtr(), offset, object_pattern);
 }
 
-namespace {
-MachineType MachineTypeFor(CTypeInfo::Type type) {
-  switch (type) {
-    case CTypeInfo::Type::kVoid:
-      return MachineType::AnyTagged();
-    case CTypeInfo::Type::kBool:
-      return MachineType::Bool();
-    case CTypeInfo::Type::kInt32:
-      return MachineType::Int32();
-    case CTypeInfo::Type::kUint32:
-      return MachineType::Uint32();
-    case CTypeInfo::Type::kInt64:
-      return MachineType::Int64();
-    case CTypeInfo::Type::kAny:
-      static_assert(sizeof(AnyCType) == 8,
-                    "CTypeInfo::Type::kAny is assumed to be of size 64 bits.");
-      return MachineType::Int64();
-    case CTypeInfo::Type::kUint64:
-      return MachineType::Uint64();
-    case CTypeInfo::Type::kFloat32:
-      return MachineType::Float32();
-    case CTypeInfo::Type::kFloat64:
-      return MachineType::Float64();
-    case CTypeInfo::Type::kV8Value:
-    case CTypeInfo::Type::kApiObject:
-      return MachineType::AnyTagged();
-  }
-}
-}  // namespace
-
 Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
     Node* node, ElementsKind expected_elements_kind,
     GraphAssemblerLabel<0>* bailout) {
@@ -5348,13 +5318,14 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
 
   MachineSignature::Builder builder(
       graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
-  MachineType return_type = MachineTypeFor(c_signature->ReturnInfo().GetType());
+  MachineType return_type =
+      MachineType::TypeForCType(c_signature->ReturnInfo());
   builder.AddReturn(return_type);
   for (int i = 0; i < c_arg_count; ++i) {
     CTypeInfo type = c_signature->ArgumentInfo(i);
     MachineType machine_type =
         type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
-            ? MachineTypeFor(type.GetType())
+            ? MachineType::TypeForCType(type)
             : MachineType::AnyTagged();
     builder.AddParam(machine_type);
   }
