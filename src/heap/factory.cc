@@ -1814,6 +1814,14 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
                            ElementsKind elements_kind,
                            int inobject_properties) {
   DisallowGarbageCollection no_gc;
+  map.set_bit_field(0);
+  map.set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
+  int bit_field3 =
+      Map::Bits3::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
+      Map::Bits3::OwnsDescriptorsBit::encode(true) |
+      Map::Bits3::ConstructionCounterBits::encode(Map::kNoSlackTracking) |
+      Map::Bits3::IsExtensibleBit::encode(true);
+  map.set_bit_field3(bit_field3);
   map.set_instance_type(type);
   HeapObject raw_null_value = *null_value();
   map.set_prototype(raw_null_value, SKIP_WRITE_BARRIER);
@@ -1840,14 +1848,6 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map.SetInstanceDescriptors(isolate(), *empty_descriptor_array(), 0);
   // Must be called only after |instance_type| and |instance_size| are set.
   map.set_visitor_id(Map::GetVisitorId(map));
-  map.set_bit_field(0);
-  map.set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
-  int bit_field3 =
-      Map::Bits3::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
-      Map::Bits3::OwnsDescriptorsBit::encode(true) |
-      Map::Bits3::ConstructionCounterBits::encode(Map::kNoSlackTracking) |
-      Map::Bits3::IsExtensibleBit::encode(true);
-  map.set_bit_field3(bit_field3);
   DCHECK(!map.is_in_retained_map_list());
   map.clear_padding();
   map.set_elements_kind(elements_kind);
