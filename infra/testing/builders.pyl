@@ -1383,7 +1383,7 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'test262', 'shards': 5},
+      {'name': 'test262', 'shards': 7},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
