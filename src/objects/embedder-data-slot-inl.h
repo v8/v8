@@ -207,11 +207,17 @@ void EmbedderDataSlot::PopulateEmbedderDataSnapshot(
   const Address field_base =
       FIELD_ADDR(js_object, js_object.GetEmbedderFieldOffset(entry_index));
 
-  reinterpret_cast<AtomicTagged_t*>(&snapshot)[0] =
+#if defined(V8_TARGET_BIG_ENDIAN) && defined(V8_COMPRESS_POINTERS)
+  const int index = 1;
+#else
+  const int index = 0;
+#endif
+
+  reinterpret_cast<AtomicTagged_t*>(&snapshot)[index] =
       AsAtomicTagged::Relaxed_Load(
           reinterpret_cast<AtomicTagged_t*>(field_base + kTaggedPayloadOffset));
 #ifdef V8_COMPRESS_POINTERS
-  reinterpret_cast<AtomicTagged_t*>(&snapshot)[1] =
+  reinterpret_cast<AtomicTagged_t*>(&snapshot)[1 - index] =
       AsAtomicTagged::Relaxed_Load(
           reinterpret_cast<AtomicTagged_t*>(field_base + kRawPayloadOffset));
 #endif  // V8_COMPRESS_POINTERS
