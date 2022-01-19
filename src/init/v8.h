@@ -19,7 +19,6 @@ class Isolate;
 class V8 : public AllStatic {
  public:
   // Global actions.
-
   static void Initialize();
   static void Dispose();
 
@@ -43,10 +42,6 @@ class V8 : public AllStatic {
   static void SetSnapshotBlob(StartupData* snapshot_blob);
 
  private:
-  static void InitializeOncePerProcessImpl();
-  static void InitializeOncePerProcess();
-
-  // v8::Platform to use.
   static v8::Platform* platform_;
 };
 

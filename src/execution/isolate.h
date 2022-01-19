@@ -579,6 +579,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   };
 
   static void InitializeOncePerProcess();
+  static void DisposeOncePerProcess();
 
   // Creates Isolate object. Must be used instead of constructing Isolate with
   // new operator.
@@ -1982,10 +1983,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
-
-#ifdef DEBUG
   static std::atomic<bool> isolate_key_created_;
-#endif
 
   void Deinit();
 

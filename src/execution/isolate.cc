@@ -460,9 +460,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
 
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-#if DEBUG
 std::atomic<bool> Isolate::isolate_key_created_{false};
-#endif
 
 namespace {
 // A global counter for all generated Isolates, might overflow.
@@ -519,12 +517,16 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 
 void Isolate::InitializeOncePerProcess() {
   isolate_key_ = base::Thread::CreateThreadLocalKey();
-#if DEBUG
   bool expected = false;
-  DCHECK_EQ(true, isolate_key_created_.compare_exchange_strong(
-                      expected, true, std::memory_order_relaxed));
-#endif
+  CHECK(isolate_key_created_.compare_exchange_strong(
+      expected, true, std::memory_order_relaxed));
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
+}
+
+void Isolate::DisposeOncePerProcess() {
+  bool expected = true;
+  CHECK(isolate_key_created_.compare_exchange_strong(
+      expected, false, std::memory_order_relaxed));
 }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
