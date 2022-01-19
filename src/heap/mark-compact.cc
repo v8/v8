@@ -2950,13 +2950,14 @@ bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
 MarkCompactCollector::RecordRelocSlotInfo
 MarkCompactCollector::PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
                                              HeapObject target) {
+  DCHECK_EQ(host, rinfo->host());
+
   RecordRelocSlotInfo result;
   result.should_record = false;
   Page* target_page = Page::FromHeapObject(target);
   Page* source_page = Page::FromHeapObject(host);
   if (target_page->IsEvacuationCandidate() &&
-      (rinfo->host().is_null() ||
-       !source_page->ShouldSkipEvacuationSlotRecording())) {
+      !source_page->ShouldSkipEvacuationSlotRecording()) {
     RelocInfo::Mode rmode = rinfo->rmode();
     Address addr = rinfo->pc();
     SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
