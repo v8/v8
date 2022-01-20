@@ -14,6 +14,7 @@
 #include "src/objects/call-site-info.h"
 #include "src/objects/cell.h"
 #include "src/objects/data-handler.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
@@ -106,6 +107,11 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
   STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
 #endif
   IteratePointers(obj, start_offset, end_offset, v);
+
+  JSObject js_obj = JSObject::cast(obj);
+  for (int i = 0; i < js_obj.GetEmbedderFieldCount(); i++) {
+    v->VisitEmbedderDataSlot(obj, EmbedderDataSlot(js_obj, i));
+  }
 }
 
 template <typename ObjectVisitor>
@@ -635,6 +641,8 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
     v->VisitExternalReference(
         Foreign::cast(obj), reinterpret_cast<Address*>(
                                 obj.RawField(kForeignAddressOffset).address()));
+    v->VisitExternalPointer(obj,
+                            obj.RawExternalPointerField(kForeignAddressOffset));
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
@@ -783,7 +791,14 @@ class ExternalOneByteString::BodyDescriptor final : public BodyDescriptorBase {
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {}
+                                 ObjectVisitor* v) {
+    ExternalString string = ExternalString::cast(obj);
+    v->VisitExternalPointer(obj,
+                            string.RawExternalPointerField(kResourceOffset));
+    if (string.is_uncached()) return;
+    v->VisitExternalPointer(
+        obj, string.RawExternalPointerField(kResourceDataOffset));
+  }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
@@ -794,7 +809,14 @@ class ExternalTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {}
+                                 ObjectVisitor* v) {
+    ExternalString string = ExternalString::cast(obj);
+    v->VisitExternalPointer(obj,
+                            string.RawExternalPointerField(kResourceOffset));
+    if (string.is_uncached()) return;
+    v->VisitExternalPointer(
+        obj, string.RawExternalPointerField(kResourceDataOffset));
+  }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
@@ -916,6 +938,8 @@ class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
                     NativeContext::kEndOfStrongFieldsOffset, v);
     IterateCustomWeakPointers(obj, NativeContext::kStartOfWeakFieldsOffset,
                               NativeContext::kEndOfWeakFieldsOffset, v);
+    v->VisitExternalPointer(obj,
+                            obj.RawExternalPointerField(kMicrotaskQueueOffset));
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -941,6 +965,7 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       v->VisitCodePointer(obj, obj.RawCodeField(kCodeOffset));
+      v->VisitExternalPointer(obj, obj.RawExternalPointerField(kCodeOffset));
     }
   }
 
@@ -984,6 +1009,13 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
     STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
     IteratePointers(obj, EmbedderDataArray::kHeaderSize, object_size, v);
 #endif
+
+    EmbedderDataArray array = EmbedderDataArray::cast(obj);
+    EmbedderDataSlot start(array, 0);
+    EmbedderDataSlot end(array, array.length());
+    for (EmbedderDataSlot slot = start; slot < end; ++slot) {
+      v->VisitEmbedderDataSlot(obj, slot);
+    }
   }
 
   static inline int SizeOf(Map map, HeapObject object) {

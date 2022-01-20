@@ -18,11 +18,10 @@ V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
 
 constexpr ExternalPointer_t kNullExternalPointer = 0;
 
-// Creates uninitialized entry in external pointer table and writes the entry id
-// to the field.
-// When sandbox is not enabled, it's a no-op.
-V8_INLINE void InitExternalPointerField(Address field_address,
-                                        Isolate* isolate);
+// Creates zero-initialized entry in external pointer table and writes the entry
+// id to the field. When sandbox is not enabled, it's a no-op.
+V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
+                                        ExternalPointerTag tag);
 
 // Creates and initializes entry in external pointer table and writes the entry
 // id to the field.
@@ -30,6 +29,9 @@ V8_INLINE void InitExternalPointerField(Address field_address,
 // WriteExternalPointerField().
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
                                         Address value, ExternalPointerTag tag);
+
+// Reads and returns a raw external pointer value.
+V8_INLINE ExternalPointer_t ReadRawExternalPointerField(Address field_address);
 
 // Reads external pointer for the field, and decodes it if the sandbox is
 // enabled.

@@ -34,7 +34,7 @@ void EmbedderDataSlot::AllocateExternalPointerEntry(Isolate* isolate) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   // TODO(v8:10391, saelo): Use InitExternalPointerField() once
   // ExternalPointer_t is 4-bytes.
-  uint32_t index = isolate->external_pointer_table().allocate();
+  uint32_t index = isolate->external_pointer_table().Allocate();
   // Object slots don't support storing raw values, so we just "reinterpret
   // cast" the index value to Object.
   Object index_as_object(index);
@@ -77,8 +77,7 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
       .Relaxed_Store(value);
   WRITE_BARRIER(object, slot_offset + kTaggedPayloadOffset, value);
 #ifdef V8_COMPRESS_POINTERS
-  // See gc_safe_store() for the reasons behind two stores and why the second is
-  // only done if !V8_SANDBOXED_EXTERNAL_POINTERS_BOOL
+  // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(object, slot_offset + kRawPayloadOffset))
       .Relaxed_Store(Smi::zero());
 #endif
@@ -93,8 +92,8 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
   Address raw_value;
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
-  raw_value = isolate->external_pointer_table().get(index) &
-              ~kEmbedderDataSlotPayloadTag;
+  raw_value =
+      isolate->external_pointer_table().Get(index, kEmbedderDataSlotPayloadTag);
 #else
   if (COMPRESS_POINTERS_BOOL) {
     // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
@@ -115,9 +114,9 @@ bool EmbedderDataSlot::ToAlignedPointerSafe(Isolate* isolate,
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
   Address raw_value;
-  if (isolate->external_pointer_table().is_valid_index(index)) {
-    raw_value = isolate->external_pointer_table().get(index) &
-                ~kEmbedderDataSlotPayloadTag;
+  if (isolate->external_pointer_table().IsValidIndex(index)) {
+    raw_value = isolate->external_pointer_table().Get(
+        index, kEmbedderDataSlotPayloadTag);
     *out_pointer = reinterpret_cast<void*>(raw_value);
     return true;
   }
@@ -132,14 +131,16 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
   if (!HAS_SMI_TAG(value)) return false;
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL) {
+    DCHECK_EQ(0, value & kExternalPointerTagMask);
     AllocateExternalPointerEntry(isolate);
     // Raw payload contains the table index. Object slots don't support loading
     // of raw values, so we just "reinterpret cast" Object value to index.
     Object index_as_object =
         ObjectSlot(address() + kRawPayloadOffset).Relaxed_Load();
     uint32_t index = static_cast<uint32_t>(index_as_object.ptr());
-    isolate->external_pointer_table().set(index,
-                                          value | kEmbedderDataSlotPayloadTag);
+    // This also mark the entry as alive until the next GC.
+    isolate->external_pointer_table().Set(index, value,
+                                          kEmbedderDataSlotPayloadTag);
     return true;
   }
 #endif

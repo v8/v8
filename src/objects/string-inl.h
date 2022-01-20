@@ -1059,9 +1059,11 @@ bool ExternalString::is_uncached() const {
 }
 
 void ExternalString::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kResourceOffset, isolate);
+  InitExternalPointerField(kResourceOffset, isolate,
+                           kExternalStringResourceTag);
   if (is_uncached()) return;
-  InitExternalPointerField(kResourceDataOffset, isolate);
+  InitExternalPointerField(kResourceDataOffset, isolate,
+                           kExternalStringResourceDataTag);
 }
 
 DEF_GETTER(ExternalString, resource_as_address, Address) {

@@ -1376,8 +1376,8 @@ FUNCTION_REFERENCE(
     JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-FUNCTION_REFERENCE(external_pointer_table_grow_table_function,
-                   ExternalPointerTable::GrowTable)
+FUNCTION_REFERENCE(external_pointer_table_allocate_entry,
+                   ExternalPointerTable::AllocateEntry)
 #endif
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {

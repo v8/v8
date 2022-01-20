@@ -723,7 +723,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // ExternalPointer_t field accessors.
   //
-  inline void InitExternalPointerField(size_t offset, Isolate* isolate);
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
+                                       ExternalPointerTag tag);
   inline void InitExternalPointerField(size_t offset, Isolate* isolate,
                                        Address value, ExternalPointerTag tag);
   inline Address ReadExternalPointerField(size_t offset, Isolate* isolate,

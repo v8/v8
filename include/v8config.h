@@ -585,6 +585,10 @@ V8 shared library set USING_V8_SHARED.
 #define V8_SANDBOX_IS_AVAILABLE
 #endif
 
+#if defined(V8_SANDBOX) && !defined(V8_SANDBOX_IS_AVAILABLE)
+#error Inconsistent configuration: sandbox is enabled but not available
+#endif
+
 // From C++17 onwards, static constexpr member variables are defined to be
 // "inline", and adding a separate definition for them can trigger deprecation
 // warnings. For C++14 and below, however, these definitions are required.

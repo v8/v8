@@ -34,7 +34,8 @@ DEF_GETTER(Foreign, foreign_address, Address) {
 }
 
 void Foreign::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kForeignAddressOffset, isolate);
+  InitExternalPointerField(kForeignAddressOffset, isolate,
+                           kForeignForeignAddressTag);
 }
 
 void Foreign::set_foreign_address(Isolate* isolate, Address value) {

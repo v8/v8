@@ -661,8 +661,9 @@ void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
                                 PtrComprCageBase(isolate), value);
 }
 
-void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
-  i::InitExternalPointerField(field_address(offset), isolate);
+void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
+                                      ExternalPointerTag tag) {
+  i::InitExternalPointerField(field_address(offset), isolate, tag);
 }
 
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
@@ -690,6 +691,10 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
 
 CodeObjectSlot HeapObject::RawCodeField(int byte_offset) const {
   return CodeObjectSlot(field_address(byte_offset));
+}
+
+ExternalPointer_t HeapObject::RawExternalPointerField(int byte_offset) const {
+  return ReadRawExternalPointerField(field_address(byte_offset));
 }
 
 MapWord MapWord::FromMap(const Map map) {

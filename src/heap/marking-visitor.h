@@ -140,7 +140,13 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
         code_flush_mode_(code_flush_mode),
         is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
-        is_shared_heap_(heap->IsShared()) {}
+        is_shared_heap_(heap->IsShared())
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+        ,
+        external_pointer_table_(&heap->isolate()->external_pointer_table())
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+  {
+  }
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
   V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
@@ -188,6 +194,26 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
                                ObjectSlot end) final {
     // Weak list pointers should be ignored during marking. The lists are
     // reconstructed after GC.
+  }
+
+  V8_INLINE void VisitExternalPointer(HeapObject host,
+                                      ExternalPointer_t ptr) final {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+    external_pointer_table_->Mark(static_cast<uint32_t>(ptr));
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+  }
+
+  V8_INLINE void VisitEmbedderDataSlot(HeapObject host,
+                                       EmbedderDataSlot slot) final {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+    // When sandboxed external pointers are enabled, EmbedderDataSlots may
+    // contain an external pointer, which must be marked as alive.
+    uint32_t maybe_index = base::Relaxed_Load(reinterpret_cast<base::Atomic32*>(
+        slot.address() + EmbedderDataSlot::kRawPayloadOffset));
+    if (external_pointer_table_->IsValidIndex(maybe_index)) {
+      external_pointer_table_->Mark(maybe_index);
+    }
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   }
 
  protected:
@@ -240,6 +266,9 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   const bool is_embedder_tracing_enabled_;
   const bool should_keep_ages_unchanged_;
   const bool is_shared_heap_;
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  ExternalPointerTable* const external_pointer_table_;
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 };
 
 }  // namespace internal

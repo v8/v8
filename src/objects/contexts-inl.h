@@ -277,7 +277,8 @@ DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
 }
 
 void NativeContext::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField(kMicrotaskQueueOffset, isolate);
+  InitExternalPointerField(kMicrotaskQueueOffset, isolate,
+                           kNativeContextMicrotaskQueueTag);
 }
 
 void NativeContext::set_microtask_queue(Isolate* isolate,

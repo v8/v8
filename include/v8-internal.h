@@ -29,6 +29,13 @@ class Isolate;
 typedef uintptr_t Address;
 static const Address kNullAddress = 0;
 
+constexpr int KB = 1024;
+constexpr int MB = KB * 1024;
+constexpr int GB = MB * 1024;
+#ifdef V8_TARGET_ARCH_X64
+constexpr size_t TB = size_t{GB} * 1024;
+#endif
+
 /**
  * Configuration of tagging scheme.
  */
@@ -109,6 +116,11 @@ struct SmiTagging<8> {
 };
 
 #ifdef V8_COMPRESS_POINTERS
+// See v8:7703 or src/common/ptr-compr-inl.h for details about pointer
+// compression.
+constexpr size_t kPtrComprCageReservationSize = size_t{1} << 32;
+constexpr size_t kPtrComprCageBaseAlignment = size_t{1} << 32;
+
 static_assert(
     kApiSystemPointerSize == kApiInt64Size,
     "Pointer compression can be enabled only for 64-bit architectures");
@@ -120,36 +132,6 @@ const int kApiTaggedSize = kApiSystemPointerSize;
 constexpr bool PointerCompressionIsEnabled() {
   return kApiTaggedSize != kApiSystemPointerSize;
 }
-
-constexpr bool SandboxedExternalPointersAreEnabled() {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  return true;
-#else
-  return false;
-#endif
-}
-
-using ExternalPointer_t = Address;
-
-// If sandboxed external pointers are enabled, these tag values will be ORed
-// with the external pointers in the external pointer table to prevent use of
-// pointers of the wrong type. When a pointer is loaded, it is ANDed with the
-// inverse of the expected type's tag. The tags are constructed in a way that
-// guarantees that a failed type check will result in one or more of the top
-// bits of the pointer to be set, rendering the pointer inacessible. This
-// construction allows performing the type check and removing GC marking bits
-// from the pointer at the same time.
-enum ExternalPointerTag : uint64_t {
-  kExternalPointerNullTag = 0x0000000000000000,
-  kExternalStringResourceTag = 0x00ff000000000000,       // 0b000000011111111
-  kExternalStringResourceDataTag = 0x017f000000000000,   // 0b000000101111111
-  kForeignForeignAddressTag = 0x01bf000000000000,        // 0b000000110111111
-  kNativeContextMicrotaskQueueTag = 0x01df000000000000,  // 0b000000111011111
-  kEmbedderDataSlotPayloadTag = 0x01ef000000000000,      // 0b000000111101111
-  kCodeEntryPointTag = 0x01f7000000000000,               // 0b000000111110111
-};
-
-constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;
 
 #ifdef V8_31BIT_SMIS_ON_64BIT_ARCH
 using PlatformSmiTagging = SmiTagging<kApiInt32Size>;
@@ -170,6 +152,148 @@ V8_INLINE static constexpr internal::Address IntToSmi(int value) {
   return (static_cast<Address>(value) << (kSmiTagSize + kSmiShiftSize)) |
          kSmiTag;
 }
+
+/*
+ * Sandbox related types, constants, and functions.
+ */
+constexpr bool SandboxIsEnabled() {
+#ifdef V8_SANDBOX
+  return true;
+#else
+  return false;
+#endif
+}
+
+constexpr bool SandboxedExternalPointersAreEnabled() {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  return true;
+#else
+  return false;
+#endif
+}
+
+// SandboxedPointers are guaranteed to point into the sandbox. This is achieved
+// for example by storing them as offset rather than as raw pointers.
+using SandboxedPointer_t = Address;
+
+// ExternalPointers point to objects located outside the sandbox. When sandboxed
+// external pointers are enabled, these are stored in an external pointer table
+// and referenced from HeapObjects through indices.
+using ExternalPointer_t = Address;
+
+#ifdef V8_SANDBOX_IS_AVAILABLE
+
+// Size of the sandbox, excluding the guard regions surrounding it.
+constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
+constexpr size_t kSandboxSize = 1ULL << kSandboxSizeLog2;
+
+// Required alignment of the sandbox. For simplicity, we require the
+// size of the guard regions to be a multiple of this, so that this specifies
+// the alignment of the sandbox including and excluding surrounding guard
+// regions. The alignment requirement is due to the pointer compression cage
+// being located at the start of the sandbox.
+constexpr size_t kSandboxAlignment = kPtrComprCageBaseAlignment;
+
+// Sandboxed pointers are stored inside the heap as offset from the sandbox
+// base shifted to the left. This way, it is guaranteed that the offset is
+// smaller than the sandbox size after shifting it to the right again. This
+// constant specifies the shift amount.
+constexpr uint64_t kSandboxedPointerShift = 64 - kSandboxSizeLog2;
+
+// Size of the guard regions surrounding the sandbox. This assumes a worst-case
+// scenario of a 32-bit unsigned index used to access an array of 64-bit
+// values.
+constexpr size_t kSandboxGuardRegionSize = 32ULL * GB;
+
+static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
+              "The size of the guard regions around the sandbox must be a "
+              "multiple of its required alignment.");
+
+// Minimum size of the sandbox, excluding the guard regions surrounding it. If
+// the virtual memory reservation for the sandbox fails, its size is currently
+// halved until either the reservation succeeds or the minimum size is reached.
+// A minimum of 32GB allows the 4GB pointer compression region as well as the
+// ArrayBuffer partition and two 10GB WASM memory cages to fit into the
+// sandbox. 32GB should also be the minimum possible size of the userspace
+// address space as there are some machine configurations with only 36 virtual
+// address bits.
+constexpr size_t kSandboxMinimumSize = 32ULL * GB;
+
+static_assert(kSandboxMinimumSize <= kSandboxSize,
+              "The minimal size of the sandbox must be smaller or equal to the "
+              "regular size.");
+
+// On OSes where reserving virtual memory is too expensive to reserve the
+// entire address space backing the sandbox, notably Windows pre 8.1, we create
+// a partially reserved sandbox that doesn't actually reserve most of the
+// memory, and so doesn't have the desired security properties as unrelated
+// memory allocations could end up inside of it, but which still ensures that
+// objects that should be located inside the sandbox are allocated within
+// kSandboxSize bytes from the start of the sandbox. The minimum size of the
+// region that is actually reserved for such a sandbox is specified by this
+// constant and should be big enough to contain the pointer compression cage as
+// well as the ArrayBuffer partition.
+constexpr size_t kSandboxMinimumReservationSize = 8ULL * GB;
+
+static_assert(kSandboxMinimumSize > kPtrComprCageReservationSize,
+              "The sandbox must be larger than the pointer compression cage "
+              "contained within it.");
+static_assert(kSandboxMinimumReservationSize > kPtrComprCageReservationSize,
+              "The minimum reservation size for a sandbox must be larger than "
+              "the pointer compression cage contained within it.");
+
+// For now, even if the sandbox is enabled, we still allow backing stores to be
+// allocated outside of it as fallback. This will simplify the initial rollout.
+// However, if sandboxed pointers are also enabled, we must always place
+// backing stores inside the sandbox as they will be referenced though them.
+#ifdef V8_SANDBOXED_POINTERS
+constexpr bool kAllowBackingStoresOutsideSandbox = false;
+#else
+constexpr bool kAllowBackingStoresOutsideSandbox = true;
+#endif  // V8_SANDBOXED_POINTERS
+
+#endif  // V8_SANDBOX_IS_AVAILABLE
+
+// If sandboxed external pointers are enabled, these tag values will be ORed
+// with the external pointers in the external pointer table to prevent use of
+// pointers of the wrong type. When a pointer is loaded, it is ANDed with the
+// inverse of the expected type's tag. The tags are constructed in a way that
+// guarantees that a failed type check will result in one or more of the top
+// bits of the pointer to be set, rendering the pointer inacessible. Besides
+// the type tag bits (48 through 62), the tags also have the GC mark bit (63)
+// set, so that the mark bit is automatically set when a pointer is written
+// into the external pointer table (in which case it is clearly alive) and is
+// cleared when the pointer is loaded. The exception to this is the free entry
+// tag, which doesn't have the mark bit set, as the entry is not alive. This
+// construction allows performing the type check and removing GC marking bits
+// (the MSB) from the pointer at the same time.
+// Note: this scheme assumes a 48-bit address space and will likely break if
+// more virtual address bits are used.
+// clang-format off
+enum ExternalPointerTag : uint64_t {
+  kExternalPointerNullTag =         0b0000000000000000ULL << 48,
+  kExternalPointerFreeEntryTag =    0b0111111110000000ULL << 48,
+  kExternalStringResourceTag =      0b1000000011111111ULL << 48,
+  kExternalStringResourceDataTag =  0b1000000101111111ULL << 48,
+  kForeignForeignAddressTag =       0b1000000110111111ULL << 48,
+  kNativeContextMicrotaskQueueTag = 0b1000000111011111ULL << 48,
+  kEmbedderDataSlotPayloadTag =     0b1000000111101111ULL << 48,
+  kCodeEntryPointTag =              0b1000000111110111ULL << 48,
+};
+// clang-format on
+
+constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;
+
+// The size of the virtual memory reservation for an external pointer table.
+// This determines the maximum number of entries in a table. Using a maximum
+// size allows omitting bounds checks on table accesses if the indices are
+// guaranteed (e.g. through shifting) to be below the maximum index. This
+// value must be a power of two.
+static const size_t kExternalPointerTableReservationSize = 128 * MB;
+
+// The maximum number of entries in an external pointer table.
+static const size_t kMaxSandboxedExternalPointers =
+    kExternalPointerTableReservationSize / kApiSystemPointerSize;
 
 // Converts encoded external pointer to address.
 V8_EXPORT Address DecodeExternalPointerImpl(const Isolate* isolate,
@@ -250,10 +374,10 @@ class Internals {
       kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
 
   static const int kExternalPointerTableBufferOffset = 0;
-  static const int kExternalPointerTableLengthOffset =
-      kExternalPointerTableBufferOffset + kApiSystemPointerSize;
   static const int kExternalPointerTableCapacityOffset =
-      kExternalPointerTableLengthOffset + kApiInt32Size;
+      kExternalPointerTableBufferOffset + kApiSystemPointerSize;
+  static const int kExternalPointerTableFreelistHeadOffset =
+      kExternalPointerTableCapacityOffset + kApiInt32Size;
 
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
@@ -467,10 +591,6 @@ class Internals {
   }
 
 #ifdef V8_COMPRESS_POINTERS
-  // See v8:7703 or src/ptr-compr.* for details about pointer compression.
-  static constexpr size_t kPtrComprCageReservationSize = size_t{1} << 32;
-  static constexpr size_t kPtrComprCageBaseAlignment = size_t{1} << 32;
-
   V8_INLINE static internal::Address GetPtrComprCageBaseFromOnHeapAddress(
       internal::Address addr) {
     return addr & -static_cast<intptr_t>(kPtrComprCageBaseAlignment);
@@ -485,98 +605,6 @@ class Internals {
 
 #endif  // V8_COMPRESS_POINTERS
 };
-
-constexpr bool SandboxIsEnabled() {
-#ifdef V8_SANDBOX
-  return true;
-#else
-  return false;
-#endif
-}
-
-// SandboxedPointers are guaranteed to point into the sandbox. This is achieved
-// for example by storing them as offset rather than as raw pointers.
-using SandboxedPointer_t = Address;
-
-#ifdef V8_SANDBOX_IS_AVAILABLE
-
-#define GB (1ULL << 30)
-#define TB (1ULL << 40)
-
-// Size of the sandbox, excluding the guard regions surrounding it.
-constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
-constexpr size_t kSandboxSize = 1ULL << kSandboxSizeLog2;
-
-// Required alignment of the sandbox. For simplicity, we require the
-// size of the guard regions to be a multiple of this, so that this specifies
-// the alignment of the sandbox including and excluding surrounding guard
-// regions. The alignment requirement is due to the pointer compression cage
-// being located at the start of the sandbox.
-constexpr size_t kSandboxAlignment = Internals::kPtrComprCageBaseAlignment;
-
-// Sandboxed pointers are stored inside the heap as offset from the sandbox
-// base shifted to the left. This way, it is guaranteed that the offset is
-// smaller than the sandbox size after shifting it to the right again. This
-// constant specifies the shift amount.
-constexpr uint64_t kSandboxedPointerShift = 64 - kSandboxSizeLog2;
-
-// Size of the guard regions surrounding the sandbox. This assumes a worst-case
-// scenario of a 32-bit unsigned index used to access an array of 64-bit
-// values.
-constexpr size_t kSandboxGuardRegionSize = 32ULL * GB;
-
-static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
-              "The size of the guard regions around the sandbox must be a "
-              "multiple of its required alignment.");
-
-// Minimum size of the sandbox, excluding the guard regions surrounding it. If
-// the virtual memory reservation for the sandbox fails, its size is currently
-// halved until either the reservation succeeds or the minimum size is reached.
-// A minimum of 32GB allows the 4GB pointer compression region as well as the
-// ArrayBuffer partition and two 10GB WASM memory cages to fit into the
-// sandbox. 32GB should also be the minimum possible size of the userspace
-// address space as there are some machine configurations with only 36 virtual
-// address bits.
-constexpr size_t kSandboxMinimumSize = 32ULL * GB;
-
-static_assert(kSandboxMinimumSize <= kSandboxSize,
-              "The minimal size of the sandbox must be smaller or equal to the "
-              "regular size.");
-
-// On OSes where reserving virtual memory is too expensive to reserve the
-// entire address space backing the sandbox, notably Windows pre 8.1, we create
-// a partially reserved sandbox that doesn't actually reserve most of the
-// memory, and so doesn't have the desired security properties as unrelated
-// memory allocations could end up inside of it, but which still ensures that
-// objects that should be located inside the sandbox are allocated within
-// kSandboxSize bytes from the start of the sandbox. The minimum size of the
-// region that is actually reserved for such a sandbox is specified by this
-// constant and should be big enough to contain the pointer compression cage as
-// well as the ArrayBuffer partition.
-constexpr size_t kSandboxMinimumReservationSize = 8ULL * GB;
-
-static_assert(kSandboxMinimumSize > Internals::kPtrComprCageReservationSize,
-              "The sandbox must be larger than the pointer compression cage "
-              "contained within it.");
-static_assert(kSandboxMinimumReservationSize >
-                  Internals::kPtrComprCageReservationSize,
-              "The minimum reservation size for a sandbox must be larger than "
-              "the pointer compression cage contained within it.");
-
-// For now, even if the sandbox is enabled, we still allow backing stores to be
-// allocated outside of it as fallback. This will simplify the initial rollout.
-// However, if sandboxed pointers are also enabled, we must always place
-// backing stores inside the sandbox as they will be referenced though them.
-#ifdef V8_SANDBOXED_POINTERS
-constexpr bool kAllowBackingStoresOutsideSandbox = false;
-#else
-constexpr bool kAllowBackingStoresOutsideSandbox = true;
-#endif  // V8_SANDBOXED_POINTERS
-
-#undef GB
-#undef TB
-
-#endif  // V8_SANDBOX_IS_AVAILABLE
 
 // Only perform cast check for types derived from v8::Data since
 // other types do not implement the Cast method.

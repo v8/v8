@@ -2434,6 +2434,14 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   MarkDependentCodeForDeoptimization();
 
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_SWEEP_EXTERNAL_POINTER_TABLE);
+    isolate()->external_pointer_table().Sweep(isolate());
+  }
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+
   DCHECK(weak_objects_.transition_arrays.IsEmpty());
   DCHECK(weak_objects_.weak_references.IsEmpty());
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());

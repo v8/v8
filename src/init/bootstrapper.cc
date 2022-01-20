@@ -6173,14 +6173,6 @@ Genesis::Genesis(
     }
   }
 
-  // TODO(v8:10391): The reason is that the NativeContext::microtask_queue
-  // serialization is not actually supported, and therefore the field is
-  // serialized as raw data instead of being serialized as ExternalReference.
-  // As a result, when sandboxed external pointers are enabled, the external
-  // pointer entry is not allocated for microtask queue field during
-  // deserialization, so we allocate it manually here.
-  native_context()->AllocateExternalPointerEntries(isolate);
-
   native_context()->set_microtask_queue(
       isolate, microtask_queue ? static_cast<MicrotaskQueue*>(microtask_queue)
                                : isolate->default_microtask_queue());

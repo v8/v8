@@ -935,7 +935,7 @@ void CodeDataContainer::set_code_cage_base(Address code_cage_base) {
 
 void CodeDataContainer::AllocateExternalPointerEntries(Isolate* isolate) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  InitExternalPointerField(kCodeEntryPointOffset, isolate);
+  InitExternalPointerField(kCodeEntryPointOffset, isolate, kCodeEntryPointTag);
 }
 
 Code CodeDataContainer::code() const {

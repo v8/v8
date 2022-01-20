@@ -52,14 +52,14 @@ class Isolate;
   /* Linear allocation areas for the heap's new and old space */              \
   V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
   V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
-  ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V)                                         \
+  ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)                          \
   V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-#define ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V) \
-  V(kExternalPointerTableOffset, kSystemPointerSize * 3, external_pointer_table)
+#define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V) \
+  V(kExternalPointerTableOffset, kSystemPointerSize * 2, external_pointer_table)
 #else
-#define ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V)
+#define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 // This class contains a collection of data accessible from both C++ runtime
@@ -250,7 +250,7 @@ void IsolateData::AssertPredictableLayout() {
   STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);
 }
 
-#undef ISOLATE_DATA_FIELDS_HEAP_SANDBOX
+#undef ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS
 #undef ISOLATE_DATA_FIELDS
 
 }  // namespace internal

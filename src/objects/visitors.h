@@ -180,6 +180,12 @@ class ObjectVisitor {
 
   // Visits the object's map pointer, decoding as necessary
   virtual void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
+
+  // Visits an external pointer.
+  virtual void VisitExternalPointer(HeapObject host, ExternalPointer_t ptr) {}
+
+  // Visits an EmbedderDataslot.
+  virtual void VisitEmbedderDataSlot(HeapObject host, EmbedderDataSlot slot) {}
 };
 
 // Helper version of ObjectVisitor that also takes care of caching base values

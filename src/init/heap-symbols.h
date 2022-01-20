@@ -521,6 +521,7 @@
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
   F(MC_CLEAR_WEAK_REFERENCES)                        \
+  F(MC_SWEEP_EXTERNAL_POINTER_TABLE)                 \
   F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)                 \
   F(MC_COMPLETE_SWEEPING)                            \
   F(MC_EVACUATE_CANDIDATES)                          \

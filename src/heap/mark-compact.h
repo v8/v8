@@ -625,6 +625,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Free unmarked ArrayBufferExtensions.
   void SweepArrayBufferExtensions();
 
+  // Free unmarked entries in the ExternalPointerTable.
+  void SweepExternalPointerTable();
+
   void MarkLiveObjects() override;
 
   // Marks the object grey and adds it to the marking work list.

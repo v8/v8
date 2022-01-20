@@ -7,6 +7,7 @@
 
 #include "include/v8-internal.h"
 #include "include/v8-platform.h"
+#include "include/v8config.h"
 #include "src/common/globals.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 

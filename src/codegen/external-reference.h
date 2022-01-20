@@ -322,8 +322,8 @@ class StatsCounter;
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 #define EXTERNAL_REFERENCE_LIST_SANDBOXED_EXTERNAL_POINTERS(V) \
-  V(external_pointer_table_grow_table_function,                \
-    "ExternalPointerTable::GrowTable")
+  V(external_pointer_table_allocate_entry,                     \
+    "ExternalPointerTable::AllocateEntry")
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOXED_EXTERNAL_POINTERS(V)
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS

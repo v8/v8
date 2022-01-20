@@ -3274,10 +3274,10 @@ void Isolate::CheckIsolateLayout() {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, buffer_)),
            Internals::kExternalPointerTableBufferOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, length_)),
-           Internals::kExternalPointerTableLengthOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, capacity_)),
            Internals::kExternalPointerTableCapacityOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, freelist_head_)),
+           Internals::kExternalPointerTableFreelistHeadOffset);
 #endif
 }
 
@@ -3433,6 +3433,10 @@ void Isolate::Deinit() {
   SetCodePages(nullptr);
 
   ClearSerializerData();
+
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  external_pointer_table().TearDown();
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -3952,6 +3956,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // V8_EXTERNAL_CODE_SPACE
 
   isolate_data_.external_reference_table()->Init(this);
+
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  external_pointer_table().Init(this);
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);

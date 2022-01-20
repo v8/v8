@@ -110,7 +110,11 @@ namespace internal {
   HR(caged_memory_allocation_outcome, V8.CagedMemoryAllocationOutcome, 0, 2,   \
      3)                                                                        \
   /* number of times a cache event is triggered for a wasm module */           \
-  HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)
+  HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
+  /* Number of in-use external pointers in the external pointer table */       \
+  /* Counted after sweeping the table at the end of mark-compact GC */         \
+  HR(sandboxed_external_pointers_count, V8.SandboxedExternalPointersCount, 0,  \
+     kMaxSandboxedExternalPointers, 101)
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */       \

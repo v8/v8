@@ -30,11 +30,6 @@ class RecursiveMutex;
 
 namespace internal {
 
-constexpr int KB = 1024;
-constexpr int MB = KB * 1024;
-constexpr int GB = MB * 1024;
-constexpr int64_t TB = static_cast<int64_t>(GB) * 1024;
-
 // Determine whether we are running in a simulated environment.
 // Setting USE_SIMULATOR explicitly from the build script will force
 // the use of a simulated environment.

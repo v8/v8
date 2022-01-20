@@ -430,7 +430,7 @@ Node* MemoryLowering::DecodeExternalPointer(
   Node* table = __ Load(MachineType::Pointer(), external_pointer_table_address,
                         Internals::kExternalPointerTableBufferOffset);
   // TODO(v8:10391, saelo): bounds check if table is not caged
-  Node* offset = __ Int32Mul(index, __ Int32Constant(8));
+  Node* offset = __ Int32Mul(index, __ Int32Constant(sizeof(Address)));
   Node* decoded_ptr =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
   if (external_pointer_tag != 0) {
