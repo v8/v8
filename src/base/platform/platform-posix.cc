@@ -237,10 +237,16 @@ bool OS::ArmUsingHardFloat() {
 #endif  // def __arm__
 #endif
 
-void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
+void PosixInitializeCommon(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   g_gc_fake_mmap = gc_fake_mmap;
 }
+
+#if !V8_OS_FUCHSIA
+void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
+  PosixInitializeCommon(hard_abort, gc_fake_mmap);
+}
+#endif  // !V8_OS_FUCHSIA
 
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
