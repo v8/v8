@@ -5,6 +5,8 @@
 #ifndef V8_LOGGING_RUNTIME_CALL_STATS_H_
 #define V8_LOGGING_RUNTIME_CALL_STATS_H_
 
+#include "src/base/macros.h"
+
 #ifdef V8_RUNTIME_CALL_STATS
 
 #include "src/base/atomic-utils.h"
