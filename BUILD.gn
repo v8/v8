@@ -1004,7 +1004,7 @@ config("toolchain") {
       ]
     }
 
-    # TODO(jochen): Add support for arm_test_noprobe.
+    # TODO(infra): Add support for arm_test_noprobe.
 
     if (current_cpu != "arm") {
       # These defines ares used for the ARM simulator.
@@ -1072,7 +1072,7 @@ config("toolchain") {
       defines += [ "FPU_MODE_FP32" ]
     }
 
-    # TODO(jochen): Add support for mips_arch_variant rx and loongson.
+    # TODO(infra): Add support for mips_arch_variant rx and loongson.
   }
 
   if (v8_current_cpu == "mips64el" || v8_current_cpu == "mips64") {
@@ -1200,8 +1200,8 @@ config("toolchain") {
     defines += [ "V8_TARGET_OS_WIN" ]
   }
 
-  # TODO(jochen): Support v8_enable_prof on Windows.
-  # TODO(jochen): Add support for compiling with simulators.
+  # TODO(infra): Support v8_enable_prof on Windows.
+  # TODO(infra): Add support for compiling with simulators.
 
   if (v8_enable_debugging_features) {
     if ((is_linux || is_chromeos) && v8_enable_backtrace) {
@@ -5175,7 +5175,7 @@ v8_component("v8_libbase") {
       "src/base/platform/platform-macos.cc",
     ]
   } else if (is_win) {
-    # TODO(jochen): Add support for cygwin.
+    # TODO(infra): Add support for cygwin.
     sources += [
       "src/base/debug/stack_trace_win.cc",
       "src/base/platform/platform-win32.cc",
@@ -5224,7 +5224,7 @@ v8_component("v8_libbase") {
         [ "//build/config/clang:llvm-symbolizer_data($host_toolchain)" ]
   }
 
-  # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
+  # TODO(infra): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
 }
 
 v8_component("v8_libplatform") {

@@ -8705,7 +8705,7 @@ void Isolate::Initialize(Isolate* isolate,
         params.experimental_attach_to_shared_isolate));
   }
 
-  // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
+  // TODO(v8:2487): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(isolate);
   if (i_isolate->snapshot_blob() == nullptr) {
     FATAL(

@@ -4318,7 +4318,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--invoke-weak-callbacks") == 0) {
       options.invoke_weak_callbacks = true;
-      // TODO(jochen) See issue 3351
+      // TODO(v8:3351): Invoking weak callbacks does not always collect all
+      // available garbage.
       options.send_idle_notification = true;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--omit-quit") == 0) {

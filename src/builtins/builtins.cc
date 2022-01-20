@@ -476,7 +476,7 @@ bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
   if (FLAG_allow_unsafe_function_constructor) return true;
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   Handle<Context> responsible_context = impl->LastEnteredOrMicrotaskContext();
-  // TODO(jochen): Remove this.
+  // TODO(verwaest): Remove this.
   if (responsible_context.is_null()) {
     return true;
   }

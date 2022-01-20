@@ -6301,7 +6301,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
   }
 
   // Rehash if more than 33% of the entries are deleted entries.
-  // TODO(jochen): Consider to shrink the fixed array in place.
+  // TODO(verwaest): Consider to shrink the fixed array in place.
   if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
     table->Rehash(isolate);
   }
