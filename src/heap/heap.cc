@@ -4519,25 +4519,25 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Object target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
-      CHECK(
-          InTypedSet(CODE_TARGET_SLOT, rinfo->pc()) ||
-          (rinfo->IsInConstantPool() &&
-           InTypedSet(CODE_ENTRY_SLOT, rinfo->constant_pool_entry_address())));
+      CHECK(InTypedSet(SlotType::kCodeEntry, rinfo->pc()) ||
+            (rinfo->IsInConstantPool() &&
+             InTypedSet(SlotType::kConstPoolCodeEntry,
+                        rinfo->constant_pool_entry_address())));
     }
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     Object target = rinfo->target_object(cage_base());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
-      CHECK(
-          InTypedSet(FULL_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
-          InTypedSet(COMPRESSED_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
-          InTypedSet(DATA_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
-          (rinfo->IsInConstantPool() &&
-           InTypedSet(COMPRESSED_OBJECT_SLOT,
-                      rinfo->constant_pool_entry_address())) ||
-          (rinfo->IsInConstantPool() &&
-           InTypedSet(FULL_OBJECT_SLOT, rinfo->constant_pool_entry_address())));
+      CHECK(InTypedSet(SlotType::kEmbeddedObjectFull, rinfo->pc()) ||
+            InTypedSet(SlotType::kEmbeddedObjectCompressed, rinfo->pc()) ||
+            InTypedSet(SlotType::kEmbeddedObjectData, rinfo->pc()) ||
+            (rinfo->IsInConstantPool() &&
+             InTypedSet(SlotType::kConstPoolEmbeddedObjectCompressed,
+                        rinfo->constant_pool_entry_address())) ||
+            (rinfo->IsInConstantPool() &&
+             InTypedSet(SlotType::kConstPoolEmbeddedObjectFull,
+                        rinfo->constant_pool_entry_address())));
     }
   }
 
@@ -7317,25 +7317,11 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
 void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                           HeapObject object) {
   DCHECK(InYoungGeneration(object));
-  Page* source_page = Page::FromHeapObject(host);
-  RelocInfo::Mode rmode = rinfo->rmode();
-  Address addr = rinfo->pc();
-  SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
-  if (rinfo->IsInConstantPool()) {
-    addr = rinfo->constant_pool_entry_address();
-    if (RelocInfo::IsCodeTargetMode(rmode)) {
-      slot_type = CODE_ENTRY_SLOT;
-    } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
-      slot_type = COMPRESSED_OBJECT_SLOT;
-    } else {
-      DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
-      slot_type = FULL_OBJECT_SLOT;
-    }
-  }
-  uintptr_t offset = addr - source_page->address();
-  DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-  RememberedSet<OLD_TO_NEW>::InsertTyped(source_page, slot_type,
-                                         static_cast<uint32_t>(offset));
+  const MarkCompactCollector::RecordRelocSlotInfo info =
+      MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);
+
+  RememberedSet<OLD_TO_NEW>::InsertTyped(info.memory_chunk, info.slot_type,
+                                         info.offset);
 }
 
 bool Heap::PageFlagsAreConsistent(HeapObject object) {

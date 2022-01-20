@@ -318,15 +318,17 @@ class ConcurrentMarkingVisitor final
   }
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target) {
+    if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target))
+      return;
+
     MarkCompactCollector::RecordRelocSlotInfo info =
-        MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
-    if (info.should_record) {
-      MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
-      if (!data.typed_slots) {
-        data.typed_slots.reset(new TypedSlots());
-      }
-      data.typed_slots->Insert(info.slot_type, info.offset);
+        MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
+
+    MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
+    if (!data.typed_slots) {
+      data.typed_slots.reset(new TypedSlots());
     }
+    data.typed_slots->Insert(info.slot_type, info.offset);
   }
 
   void SynchronizePageAccess(HeapObject heap_object) {

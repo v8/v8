@@ -2947,54 +2947,76 @@ bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
   return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
 }
 
+// static
+bool MarkCompactCollector::ShouldRecordRelocSlot(Code host, RelocInfo* rinfo,
+                                                 HeapObject target) {
+  MemoryChunk* source_chunk = MemoryChunk::FromHeapObject(host);
+  BasicMemoryChunk* target_chunk = BasicMemoryChunk::FromHeapObject(target);
+  return target_chunk->IsEvacuationCandidate() &&
+         !source_chunk->ShouldSkipEvacuationSlotRecording();
+}
+
+// static
 MarkCompactCollector::RecordRelocSlotInfo
-MarkCompactCollector::PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
-                                             HeapObject target) {
+MarkCompactCollector::ProcessRelocInfo(Code host, RelocInfo* rinfo,
+                                       HeapObject target) {
   DCHECK_EQ(host, rinfo->host());
 
   RecordRelocSlotInfo result;
-  result.should_record = false;
-  Page* target_page = Page::FromHeapObject(target);
-  Page* source_page = Page::FromHeapObject(host);
-  if (target_page->IsEvacuationCandidate() &&
-      !source_page->ShouldSkipEvacuationSlotRecording()) {
-    RelocInfo::Mode rmode = rinfo->rmode();
-    Address addr = rinfo->pc();
-    SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
-    if (rinfo->IsInConstantPool()) {
-      addr = rinfo->constant_pool_entry_address();
-      if (RelocInfo::IsCodeTargetMode(rmode)) {
-        slot_type = CODE_ENTRY_SLOT;
-      } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
-        slot_type = COMPRESSED_OBJECT_SLOT;
-      } else {
-        DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
-        slot_type = FULL_OBJECT_SLOT;
-      }
+  const RelocInfo::Mode rmode = rinfo->rmode();
+  Address addr;
+  SlotType slot_type;
+
+  if (rinfo->IsInConstantPool()) {
+    addr = rinfo->constant_pool_entry_address();
+
+    if (RelocInfo::IsCodeTargetMode(rmode)) {
+      slot_type = SlotType::kConstPoolCodeEntry;
+    } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
+      slot_type = SlotType::kConstPoolEmbeddedObjectCompressed;
+    } else {
+      DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
+      slot_type = SlotType::kConstPoolEmbeddedObjectFull;
     }
-    uintptr_t offset = addr - source_page->address();
-    DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-    result.should_record = true;
-    result.memory_chunk = source_page;
-    result.slot_type = slot_type;
-    result.offset = static_cast<uint32_t>(offset);
+  } else {
+    addr = rinfo->pc();
+
+    if (RelocInfo::IsCodeTargetMode(rmode)) {
+      slot_type = SlotType::kCodeEntry;
+    } else if (RelocInfo::IsFullEmbeddedObject(rmode)) {
+      slot_type = SlotType::kEmbeddedObjectFull;
+    } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
+      slot_type = SlotType::kEmbeddedObjectCompressed;
+    } else {
+      DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
+      slot_type = SlotType::kEmbeddedObjectData;
+    }
   }
+
+  MemoryChunk* const source_chunk = MemoryChunk::FromHeapObject(host);
+  const uintptr_t offset = addr - source_chunk->address();
+  DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+  result.memory_chunk = source_chunk;
+  result.slot_type = slot_type;
+  result.offset = static_cast<uint32_t>(offset);
+
   return result;
 }
 
+// static
 void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
                                            HeapObject target) {
-  RecordRelocSlotInfo info = PrepareRecordRelocSlot(host, rinfo, target);
-  if (info.should_record) {
-    // Access to TypeSlots need to be protected, since LocalHeaps might
-    // publish code in the background thread.
-    base::Optional<base::MutexGuard> opt_guard;
-    if (FLAG_concurrent_sparkplug) {
-      opt_guard.emplace(info.memory_chunk->mutex());
-    }
-    RememberedSet<OLD_TO_OLD>::InsertTyped(info.memory_chunk, info.slot_type,
-                                           info.offset);
+  if (!ShouldRecordRelocSlot(host, rinfo, target)) return;
+  RecordRelocSlotInfo info = ProcessRelocInfo(host, rinfo, target);
+
+  // Access to TypeSlots need to be protected, since LocalHeaps might
+  // publish code in the background thread.
+  base::Optional<base::MutexGuard> opt_guard;
+  if (FLAG_concurrent_sparkplug) {
+    opt_guard.emplace(info.memory_chunk->mutex());
   }
+  RememberedSet<OLD_TO_OLD>::InsertTyped(info.memory_chunk, info.slot_type,
+                                         info.offset);
 }
 
 namespace {

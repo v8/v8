@@ -508,11 +508,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   struct RecordRelocSlotInfo {
     MemoryChunk* memory_chunk;
     SlotType slot_type;
-    bool should_record;
     uint32_t offset;
   };
-  static RecordRelocSlotInfo PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
-                                                    HeapObject target);
+
+  static bool ShouldRecordRelocSlot(Code host, RelocInfo* rinfo,
+                                    HeapObject target);
+  static RecordRelocSlotInfo ProcessRelocInfo(Code host, RelocInfo* rinfo,
+                                              HeapObject target);
+
   static void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
   V8_INLINE static void RecordSlot(HeapObject object, ObjectSlot slot,
                                    HeapObject target);
