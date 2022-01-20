@@ -12,15 +12,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T, bool Safe>
-struct Shifter {
-  static constexpr T shift_right(T value, T shift) { return value >> shift; }
-};
-template <typename T>
-struct Shifter<T, false> {
-  static constexpr T shift_right(T value, T shift) { return T(0); }
-};
-
 class IntegerLiteral {
  public:
   using digit_t = bigint::digit_t;
@@ -109,20 +100,19 @@ class IntegerLiteral {
   explicit IntegerLiteral(T value, bool perform_dcheck) : sign_(false) {
     static_assert(std::is_integral<T>::value, "Integral type required");
     if (value == T(0)) return;
-    using unsigned_t = std::make_unsigned_t<T>;
-    auto absolute = static_cast<unsigned_t>(value);
+    auto absolute = static_cast<typename std::make_unsigned<T>::type>(value);
     if (value < T(0)) {
       sign_ = true;
       absolute = (~absolute) + 1;
     }
-    do {
-      digits_.push_back(static_cast<digit_t>(absolute));
-      absolute =
-          Shifter<unsigned_t, (sizeof(absolute) >
-                               sizeof(digit_t))>::shift_right(absolute,
-                                                              sizeof(digit_t) *
-                                                                  kBitsPerByte);
-    } while (absolute != 0);
+    if (sizeof(absolute) <= sizeof(digit_t)) {
+      digits_.push_back(absolute);
+    } else {
+      do {
+        digits_.push_back(static_cast<digit_t>(absolute));
+        absolute >>= sizeof(digit_t) * kBitsPerByte;
+      } while (absolute != 0);
+    }
     if (perform_dcheck) DCHECK_EQ(To<T>(), value);
   }
 
