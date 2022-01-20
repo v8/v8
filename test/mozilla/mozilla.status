@@ -219,9 +219,11 @@
 
   ##################### FLAKY TESTS #####################
 
+  # BUG(v8:12558): These tests time out on Windows and also in debug mode.
+  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS], ['system == windows', NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-06': [PASS, SLOW, ['mode == debug', NO_VARIANTS], ['system == windows', NO_VARIANTS]],
+
   # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-06': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
   'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', NO_VARIANTS]],
 
   'js1_5/Regress/regress-280769-3': [PASS, ['mode == debug', FAIL]],
