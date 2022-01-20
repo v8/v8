@@ -478,7 +478,6 @@ namespace internal {
   F(DeoptimizeFunction, 1, 1)                 \
   F(DisallowCodegenFromStrings, 1, 1)         \
   F(DisassembleFunction, 1, 1)                \
-  F(DynamicCheckMapsEnabled, 0, 1)            \
   F(EnableCodeLoggingForTesting, 0, 1)        \
   F(EnsureFeedbackVectorForFunction, 1, 1)    \
   F(DisableOptimizationFinalization, 0, 1)    \
@@ -522,8 +521,6 @@ namespace internal {
   F(IsConcatSpreadableProtector, 0, 1)        \
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(IsDictPropertyConstTrackingEnabled, 0, 1) \
-  F(IsMidTierTurboprop, 0, 1)                 \
-  F(IsTopTierTurboprop, 0, 1)                 \
   F(MapIteratorProtector, 0, 1)               \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
@@ -551,7 +548,6 @@ namespace internal {
   F(StringIteratorProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
   F(TakeHeapSnapshot, -1, 1)                  \
-  F(TierupFunctionOnNextCall, -1, 1)          \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
   F(TurbofanStaticAssert, 1, 1)               \

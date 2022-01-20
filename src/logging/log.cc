@@ -1540,11 +1540,10 @@ void Logger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
 }
 
 void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                            int fp_to_sp_delta, bool reuse_code) {
+                            int fp_to_sp_delta) {
   if (!is_logging() || !FLAG_log_deopt) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
-  ProcessDeoptEvent(code, info.position,
-                    Deoptimizer::MessageFor(kind, reuse_code),
+  ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
                     DeoptimizeReasonToString(info.deopt_reason));
 }
 
@@ -2154,8 +2153,6 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::TURBOFAN:
     case CodeKind::BASELINE:
-    case CodeKind::TURBOPROP:
-      return;  // We log this later using LogCompiledFunctions.
     case CodeKind::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
     case CodeKind::FOR_TESTING:

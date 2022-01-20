@@ -432,7 +432,6 @@ TEST(VectorCallSpeculationModeAndFeedbackContent) {
   if (!i::FLAG_opt) return;
   if (i::FLAG_always_opt) return;
   if (i::FLAG_jitless) return;
-  if (i::FLAG_turboprop) return;
   FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();

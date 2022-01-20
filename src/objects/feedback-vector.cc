@@ -393,12 +393,9 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
                                       Handle<CodeT> code,
                                       FeedbackCell feedback_cell) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
-  // We should set optimized code only when there is no valid optimized code or
-  // we are tiering up.
+  // We should set optimized code only when there is no valid optimized code.
   DCHECK(!vector->has_optimized_code() ||
          vector->optimized_code().marked_for_deoptimization() ||
-         (vector->optimized_code().kind() == CodeKind::TURBOPROP &&
-          code->kind() == CodeKind::TURBOFAN) ||
          FLAG_stress_concurrent_inlining_attach_code);
   // TODO(mythria): We could see a CompileOptimized marker here either from
   // tests that use %OptimizeFunctionOnNextCall, --always-opt or because we
@@ -411,32 +408,13 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
   state = OptimizationMarkerBits::update(state, OptimizationMarker::kNone);
   vector->set_flags(state);
-  // With FLAG_turboprop, we would have an interrupt budget necessary for
-  // tiering up to Turboprop code. Once we install turboprop code, set it to a
-  // higher value as required for tiering up from Turboprop to TurboFan.
-  if (FLAG_turboprop) {
-    FeedbackVector::SetInterruptBudget(feedback_cell);
-  }
 }
 
 // static
 void FeedbackVector::SetInterruptBudget(FeedbackCell feedback_cell) {
   DCHECK(feedback_cell.value().IsFeedbackVector());
-  FeedbackVector vector = FeedbackVector::cast(feedback_cell.value());
-  // Set the interrupt budget as required for tiering up to next level. Without
-  // Turboprop, this is used only to tier up to TurboFan and hence always set to
-  // FLAG_interrupt_budget. With Turboprop, we use this budget to both tier up
-  // to Turboprop and TurboFan. When there is no optimized code, set it to
-  // FLAG_interrupt_budget required for tiering up to Turboprop. When there is
-  // optimized code, set it to a higher value required for tiering up from
-  // Turboprop to TurboFan.
-  if (FLAG_turboprop && vector.has_optimized_code()) {
-    feedback_cell.set_interrupt_budget(
-        FLAG_interrupt_budget *
-        FLAG_interrupt_budget_scale_factor_for_top_tier);
-  } else {
-    feedback_cell.set_interrupt_budget(FLAG_interrupt_budget);
-  }
+  // Set the interrupt budget as required for tiering up to next level.
+  feedback_cell.set_interrupt_budget(FLAG_interrupt_budget);
 }
 
 void FeedbackVector::ClearOptimizedCode(FeedbackCell feedback_cell) {
@@ -461,11 +439,6 @@ void FeedbackVector::ClearOptimizationTier(FeedbackCell feedback_cell) {
   int32_t state = flags();
   state = OptimizationTierBits::update(state, OptimizationTier::kNone);
   set_flags(state);
-  // We are discarding the optimized code, adjust the interrupt budget
-  // so we have the correct budget required for the tier up.
-  if (FLAG_turboprop) {
-    FeedbackVector::SetInterruptBudget(feedback_cell);
-  }
 }
 
 void FeedbackVector::InitializeOptimizationState() {

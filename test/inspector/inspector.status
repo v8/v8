@@ -515,10 +515,9 @@
 }], # third_party_heap
 
 ##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier or variant == future or (tsan and not concurrent_marking)', {
-
+['tsan and not concurrent_marking', {
   'cpu-profiler/coverage-block': [SKIP],
-}],  # variant == turboprop or variant = turboprop_as_toptier
+}],  # tsan and not concurrent_marking
 
 ##############################################################################
 ['no_i18n == True', {

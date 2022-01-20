@@ -37,8 +37,6 @@ ALL_VARIANT_FLAGS = {
   # Trigger stress sampling allocation profiler with sample interval = 2^14
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
   "no_wasm_traps": [["--no-wasm-trap-handler"]],
-  "turboprop": [["--turboprop"]],
-  "turboprop_as_toptier": [["--turboprop-as-toptier", "--turboprop"]],
   "instruction_scheduling": [["--turbo-instruction-scheduling"]],
   "stress_instruction_scheduling": [["--turbo-stress-instruction-scheduling"]],
   "wasm_write_protect_code": [["--wasm-write-protect-code-memory"]],
@@ -58,10 +56,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "stress_concurrent_inlining": ["--single-threaded", "--predictable",
-                                 "--turboprop", "--lazy-feedback-allocation",
+                                 "--lazy-feedback-allocation",
                                  "--assert-types",
                                  "--no-concurrent-recompilation"],
-  "turboprop": ["--stress_concurrent_inlining"],
   # The fast API tests initialize an embedder object that never needs to be
   # serialized to the snapshot, so we don't have a
   # SerializeInternalFieldsCallback for it, so they are incompatible with
@@ -98,7 +95,6 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
                   "--stress-concurrent-allocation",
                   "--stress-concurrent-inlining"],
   "dict_property_const_tracking": [
-                  "--turboprop",
                   "--stress-concurrent-inlining"],
 }
 

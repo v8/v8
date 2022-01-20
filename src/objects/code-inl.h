@@ -727,26 +727,6 @@ void Code::set_marked_for_deoptimization(bool flag) {
   code_data_container(kAcquireLoad).set_marked_for_deoptimization(flag);
 }
 
-int Code::deoptimization_count() const {
-  DCHECK(CodeKindCanDeoptimize(kind()));
-  int32_t flags =
-      code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad);
-  int count = DeoptCountField::decode(flags);
-  DCHECK_GE(count, 0);
-  return count;
-}
-
-void Code::increment_deoptimization_count() {
-  DCHECK(CodeKindCanDeoptimize(kind()));
-  CodeDataContainer container = code_data_container(kAcquireLoad);
-  int32_t flags = container.kind_specific_flags(kRelaxedLoad);
-  int32_t count = DeoptCountField::decode(flags);
-  DCHECK_GE(count, 0);
-  CHECK_LE(count + 1, DeoptCountField::kMax);
-  int32_t updated = DeoptCountField::update(flags, count + 1);
-  container.set_kind_specific_flags(updated, kRelaxedStore);
-}
-
 bool Code::embedded_objects_cleared() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   int32_t flags =

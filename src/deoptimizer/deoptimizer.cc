@@ -461,13 +461,12 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
 
-const char* Deoptimizer::MessageFor(DeoptimizeKind kind, bool reuse_code) {
-  DCHECK_IMPLIES(reuse_code, kind == DeoptimizeKind::kSoft);
+const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return "deopt-eager";
     case DeoptimizeKind::kSoft:
-      return reuse_code ? "bailout-soft" : "deopt-soft";
+      return "deopt-soft";
     case DeoptimizeKind::kLazy:
       return "deopt-lazy";
     case DeoptimizeKind::kBailout:
@@ -526,9 +525,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   compiled_code_.set_deopt_already_counted(true);
   {
     HandleScope scope(isolate_);
-    PROFILE(isolate_,
-            CodeDeoptEvent(handle(compiled_code_, isolate_), kind, from_,
-                           fp_to_sp_delta_, should_reuse_code()));
+    PROFILE(isolate_, CodeDeoptEvent(handle(compiled_code_, isolate_), kind,
+                                     from_, fp_to_sp_delta_));
   }
   unsigned size = ComputeInputFrameSize();
   const int parameter_count =
@@ -594,14 +592,9 @@ Code Deoptimizer::FindOptimizedCode() {
 Handle<JSFunction> Deoptimizer::function() const {
   return Handle<JSFunction>(function_, isolate());
 }
+
 Handle<Code> Deoptimizer::compiled_code() const {
   return Handle<Code>(compiled_code_, isolate());
-}
-
-bool Deoptimizer::should_reuse_code() const {
-  int count = compiled_code_.deoptimization_count();
-  return deopt_kind_ == DeoptimizeKind::kSoft &&
-         count < FLAG_reuse_opt_code_count;
 }
 
 Deoptimizer::~Deoptimizer() {
@@ -728,8 +721,7 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id,
   Deoptimizer::DeoptInfo info =
       Deoptimizer::GetDeoptInfo(compiled_code_, from_);
   PrintF(file, "[bailout (kind: %s, reason: %s): begin. deoptimizing ",
-         MessageFor(deopt_kind_, should_reuse_code()),
-         DeoptimizeReasonToString(info.deopt_reason));
+         MessageFor(deopt_kind_), DeoptimizeReasonToString(info.deopt_reason));
   if (function_.IsJSFunction()) {
     function_.ShortPrint(file);
   } else {

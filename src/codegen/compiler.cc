@@ -255,9 +255,6 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
     case CodeKind::BASELINE:
       name = "baseline";
       break;
-    case CodeKind::TURBOPROP:
-      name = "turboprop";
-      break;
     case CodeKind::TURBOFAN:
       name = "optimize";
       break;
@@ -1011,24 +1008,7 @@ bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
 // optimization job has been started (but not finished).
 Handle<CodeT> ContinuationForConcurrentOptimization(
     Isolate* isolate, Handle<JSFunction> function) {
-  Handle<Code> cached_code;
-  if (FLAG_turboprop && function->HasAvailableOptimizedCode()) {
-    DCHECK(!FLAG_turboprop_as_toptier);
-    DCHECK(function->NextTier() == CodeKind::TURBOFAN);
-    // It is possible that we have marked a closure for TurboFan optimization
-    // but the marker is processed by another closure that doesn't have
-    // optimized code yet. So heal the closure here and return the optimized
-    // code.
-    if (!function->HasAttachedOptimizedCode()) {
-      DCHECK(function->feedback_vector().has_optimized_code());
-      // Release store isn't required here because it was done on store
-      // into the feedback vector.
-      STATIC_ASSERT(
-          FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
-      function->set_code(function->feedback_vector().optimized_code());
-    }
-    return handle(function->code(), isolate);
-  } else if (function->shared().HasBaselineCode()) {
+  if (function->shared().HasBaselineCode()) {
     CodeT baseline_code = function->shared().baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
     return handle(baseline_code, isolate);

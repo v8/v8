@@ -718,19 +718,6 @@
 }], # variant == jitless
 
 ##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier', {
-  # Require inlining.
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
-  # Turboprop doesn't use call feedback and hence doesn't inline even if
-  # the inlining flag is explicitly set.
-  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
-  'test-calls-with-arraylike-or-spread/*': [SKIP],
-  'test-js-to-wasm/*': [SKIP],
-}],  # variant == turboprop or variant == turboprop_as_toptier
-
-##############################################################################
 ['no_i18n == True', {
   'test-regexp/UnicodePropertyEscapeCodeSize': [SKIP],
 }],  # no_i18n == True

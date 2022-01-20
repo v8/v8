@@ -127,7 +127,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
-  bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
 
   NexusConfig feedback_nexus_config() const {
     return IsMainThread() ? NexusConfig::FromMainThread(isolate())

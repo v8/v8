@@ -65,7 +65,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
             reducer->JSGraphForGraphAssembler(),
             reducer->ZoneForGraphAssembler(),
             [reducer](Node* n) { reducer->RevisitForGraphAssembler(n); },
-            nullptr, kMarkLoopExits),
+            kMarkLoopExits),
         dependencies_(reducer->dependencies()),
         node_(node),
         outermost_catch_scope_(

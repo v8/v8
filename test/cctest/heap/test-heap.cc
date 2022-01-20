@@ -1270,65 +1270,6 @@ UNINITIALIZED_TEST(Regress10843) {
   isolate->Dispose();
 }
 
-// Tests that spill slots from optimized code don't have weak pointers.
-TEST(Regress10774) {
-  if (FLAG_single_generation) return;
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_turboprop = true;
-  i::FLAG_turbo_dynamic_map_checks = true;
-#ifdef VERIFY_HEAP
-  i::FLAG_verify_heap = true;
-#endif
-
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  Isolate* i_isolate = CcTest::i_isolate();
-  Factory* factory = i_isolate->factory();
-  Heap* heap = i_isolate->heap();
-
-  {
-    v8::HandleScope scope(isolate);
-    // We want to generate optimized code with dynamic map check operator that
-    // migrates deprecated maps. To force this, we want the IC state to be
-    // monomorphic and the map in the feedback should be a migration target.
-    const char* source =
-        "function f(o) {"
-        "  return o.b;"
-        "}"
-        "var o = {a:10, b:20};"
-        "var o1 = {a:10, b:20};"
-        "var o2 = {a:10, b:20};"
-        "%PrepareFunctionForOptimization(f);"
-        "f(o);"
-        "o1.b = 10.23;"  // Deprecate O's map.
-        "f(o1);"         // Install new map in IC
-        "f(o);"          // Mark o's map as migration target
-        "%OptimizeFunctionOnNextCall(f);"
-        "f(o);";
-    CompileRun(source);
-
-    Handle<String> foo_name = factory->InternalizeUtf8String("f");
-    Handle<Object> func_value =
-        Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
-            .ToHandleChecked();
-    CHECK(func_value->IsJSFunction());
-    Handle<JSFunction> fun = Handle<JSFunction>::cast(func_value);
-
-    Handle<String> obj_name = factory->InternalizeUtf8String("o2");
-    Handle<Object> obj_value =
-        Object::GetProperty(i_isolate, i_isolate->global_object(), obj_name)
-            .ToHandleChecked();
-
-    heap::SimulateFullSpace(heap->new_space());
-
-    Handle<JSObject> global(i_isolate->context().global_object(), i_isolate);
-    // O2 still has the deprecated map and the optimized code should migrate O2
-    // successfully. This shouldn't crash.
-    Execution::Call(i_isolate, fun, global, 1, &obj_value).ToHandleChecked();
-  }
-}
-
 #ifndef V8_LITE_MODE
 
 TEST(TestOptimizeAfterBytecodeFlushingCandidate) {

@@ -426,6 +426,7 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   return true;
 }
 
+// TODO(v8:12552): Remove.
 MinimorphicLoadPropertyAccessFeedback::MinimorphicLoadPropertyAccessFeedback(
     NameRef const& name, FeedbackSlotKind slot_kind, Handle<Object> handler,
     ZoneVector<MapRef> const& maps, bool has_migration_target_maps)
@@ -482,59 +483,6 @@ bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
       .IsUninitialized();
 }
 
-namespace {
-
-using MapRefAndHandler = std::pair<MapRef, MaybeObjectHandle>;
-MaybeObjectHandle TryGetMinimorphicHandler(
-    ZoneVector<MapRefAndHandler> const& maps_and_handlers,
-    FeedbackSlotKind kind, NativeContextRef const& native_context,
-    bool is_turboprop) {
-  if (!is_turboprop || !FLAG_turbo_dynamic_map_checks || !IsLoadICKind(kind)) {
-    return MaybeObjectHandle();
-  }
-
-  // Don't use dynamic map checks when loading properties from Array.prototype.
-  // Using dynamic map checks prevents constant folding and hence does not
-  // inline the array builtins. We only care about monomorphic cases here. For
-  // polymorphic loads currently we don't inline the builtins even without
-  // dynamic map checks.
-  if (maps_and_handlers.size() == 1 &&
-      maps_and_handlers[0].first.equals(
-          native_context.initial_array_prototype().map())) {
-    return MaybeObjectHandle();
-  }
-
-  MaybeObjectHandle initial_handler;
-  for (const MapRefAndHandler& map_and_handler : maps_and_handlers) {
-    MapRef map = map_and_handler.first;
-    MaybeObjectHandle handler = map_and_handler.second;
-    if (handler.is_null()) return MaybeObjectHandle();
-    DCHECK(!handler->IsCleared());
-    // TODO(mythria): extend this to DataHandlers too
-    if (!handler.object()->IsSmi()) return MaybeObjectHandle();
-    if (LoadHandler::GetHandlerKind(handler.object()->ToSmi()) !=
-        LoadHandler::Kind::kField) {
-      return MaybeObjectHandle();
-    }
-    CHECK(!map.object()->IsJSGlobalProxyMap());
-    if (initial_handler.is_null()) {
-      initial_handler = handler;
-    } else if (!handler.is_identical_to(initial_handler)) {
-      return MaybeObjectHandle();
-    }
-  }
-  return initial_handler;
-}
-
-bool HasMigrationTargets(const ZoneVector<MapRef>& maps) {
-  for (const MapRef& map : maps) {
-    if (map.is_migration_target()) return true;
-  }
-  return false;
-}
-
-}  // namespace
-
 const ProcessedFeedback& JSHeapBroker::NewInsufficientFeedback(
     FeedbackSlotKind kind) const {
   return *zone()->New<InsufficientFeedback>(kind);
@@ -547,7 +495,6 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   FeedbackSlotKind kind = nexus.kind();
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(kind);
 
-  ZoneVector<MapRefAndHandler> maps_and_handlers(zone());
   ZoneVector<MapRef> maps(zone());
   {
     std::vector<MapAndHandler> maps_and_handlers_unfiltered;
@@ -569,20 +516,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
         }
       }
       if (map.is_abandoned_prototype_map()) continue;
-      maps_and_handlers.push_back({map, map_and_handler.second});
       maps.push_back(map);
     }
   }
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
-  MaybeObjectHandle handler = TryGetMinimorphicHandler(
-      maps_and_handlers, kind, target_native_context(), is_turboprop());
-  if (!handler.is_null()) {
-    return *zone()->New<MinimorphicLoadPropertyAccessFeedback>(
-        *name, kind, CanonicalPersistentHandle(handler.object()), maps,
-        HasMigrationTargets(maps));
-  }
 
   // If no maps were found for a non-megamorphic access, then our maps died
   // and we should soft-deopt.
@@ -970,6 +909,7 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   return access_info;
 }
 
+// TODO(v8:12552): Remove.
 MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
     MinimorphicLoadPropertyAccessFeedback const& feedback,
     FeedbackSource const& source) {
@@ -1032,6 +972,7 @@ NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   return *static_cast<NamedAccessFeedback const*>(this);
 }
 
+// TODO(v8:12552): Remove.
 MinimorphicLoadPropertyAccessFeedback const&
 ProcessedFeedback::AsMinimorphicPropertyAccess() const {
   CHECK_EQ(kMinimorphicPropertyAccess, kind());

@@ -460,13 +460,6 @@ class Code : public HeapObject {
   inline bool marked_for_deoptimization() const;
   inline void set_marked_for_deoptimization(bool flag);
 
-  // [deoptimization_count]: If CodeKindCanDeoptimize(kind). In turboprop we
-  // retain the deoptimized code on soft deopts for a certain number of soft
-  // deopts. This field keeps track of the number of deoptimizations we have
-  // seen so far.
-  inline int deoptimization_count() const;
-  inline void increment_deoptimization_count();
-
   // [embedded_objects_cleared]: If CodeKindIsOptimizedJSFunction(kind), tells
   // whether the embedded objects in the code marked for deoptimization were
   // cleared. Note that embedded_objects_cleared() implies
@@ -705,11 +698,10 @@ class Code : public HeapObject {
   V(DeoptAlreadyCountedField, bool, 1, _)         \
   V(CanHaveWeakObjectsField, bool, 1, _)          \
   V(IsPromiseRejectionField, bool, 1, _)          \
-  V(IsExceptionCaughtField, bool, 1, _)           \
-  V(DeoptCountField, int, 4, _)
+  V(IsExceptionCaughtField, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 10);
+  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 6);
   STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) *
                     kBitsPerByte);

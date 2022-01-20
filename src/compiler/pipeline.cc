@@ -119,6 +119,7 @@ static constexpr char kRegisterAllocationZoneName[] =
     "register-allocation-zone";
 static constexpr char kRegisterAllocatorVerifierZoneName[] =
     "register-allocator-verifier-zone";
+
 namespace {
 
 Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
@@ -686,10 +687,6 @@ class PipelineImpl final {
   // Step B. Run the concurrent optimization passes.
   bool OptimizeGraph(Linkage* linkage);
 
-  // Alternative step B. Run minimal concurrent optimization passes for
-  // mid-tier.
-  bool OptimizeGraphForMidTier(Linkage* linkage);
-
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
 
@@ -1174,8 +1171,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   // allow context specialization for OSR code.
   if (compilation_info()->closure()->raw_feedback_cell().map() ==
           ReadOnlyRoots(isolate).one_closure_cell_map() &&
-      !compilation_info()->is_osr() &&
-      !compilation_info()->IsTurboprop()) {
+      !compilation_info()->is_osr()) {
     compilation_info()->set_function_context_specializing();
     data_.ChooseSpecializationContext();
   }
@@ -1217,14 +1213,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
     return AbortOptimization(BailoutReason::kGraphBuildingFailed);
   }
 
-  // We selectively Unpark inside OptimizeGraph*.
-  bool success;
-  if (compilation_info_.code_kind() == CodeKind::TURBOPROP) {
-    success = pipeline_.OptimizeGraphForMidTier(linkage_);
-  } else {
-    success = pipeline_.OptimizeGraph(linkage_);
-  }
-  if (!success) return FAILED;
+  // We selectively Unpark inside OptimizeGraph.
+  if (!pipeline_.OptimizeGraph(linkage_)) return FAILED;
 
   pipeline_.AssembleCode(linkage_);
 
@@ -1383,10 +1373,8 @@ struct InliningPhase {
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
                                            data->broker());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    if (!data->info()->IsTurboprop()) {
-      AddReducer(data, &graph_reducer, &checkpoint_elimination);
-      AddReducer(data, &graph_reducer, &common_reducer);
-    }
+    AddReducer(data, &graph_reducer, &checkpoint_elimination);
+    AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
@@ -1529,9 +1517,7 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
 
     AddReducer(data, &graph_reducer, &create_lowering);
-    if (!data->info()->IsTurboprop()) {
-      AddReducer(data, &graph_reducer, &constant_folding_reducer);
-    }
+    AddReducer(data, &graph_reducer, &constant_folding_reducer);
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &typed_optimization);
     AddReducer(data, &graph_reducer, &simple_reducer);
@@ -1987,28 +1973,6 @@ struct DecompressionOptimizationPhase {
           temp_zone, data->graph(), data->common(), data->machine());
       decompression_optimizer.Reduce();
     }
-  }
-};
-
-struct ScheduledEffectControlLinearizationPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(ScheduledEffectControlLinearization)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    // Post-pass for wiring the control/effects
-    // - connect allocating representation changes into the control&effect
-    //   chains and lower them,
-    // - get rid of the region markers,
-    // - introduce effect phis and rewire effects to get SSA again,
-    // - lower simplified memory and select nodes to machine level nodes.
-    LowerToMachineSchedule(data->jsgraph(), data->schedule(), temp_zone,
-                           data->source_positions(), data->node_origins(),
-                           data->broker());
-
-    // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
-    Scheduler::ComputeSpecialRPO(temp_zone, data->schedule());
-    Scheduler::GenerateDominatorTree(data->schedule());
-    TraceScheduleAndVerify(data->info(), data, data->schedule(),
-                           "effect linearization schedule");
   }
 };
 
@@ -2826,85 +2790,6 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   return SelectInstructions(linkage);
 }
 
-bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
-  PipelineData* data = this->data_;
-
-  data->BeginPhaseKind("V8.TFLowering");
-
-  // Type the graph and keep the Typer running such that new nodes get
-  // automatically typed when they are created.
-  Run<TyperPhase>(data->CreateTyper());
-  RunPrintAndVerify(TyperPhase::phase_name());
-
-  Run<TypedLoweringPhase>();
-  RunPrintAndVerify(TypedLoweringPhase::phase_name());
-
-  // TODO(9684): Consider rolling this into the preceeding phase or not creating
-  // LoopExit nodes at all.
-  Run<LoopExitEliminationPhase>();
-  RunPrintAndVerify(LoopExitEliminationPhase::phase_name(), true);
-
-  data->DeleteTyper();
-
-  if (FLAG_assert_types) {
-    Run<TypeAssertionsPhase>();
-    RunPrintAndVerify(TypeAssertionsPhase::phase_name());
-  }
-
-  // Perform simplified lowering. This has to run w/o the Typer decorator,
-  // because we cannot compute meaningful types anyways, and the computed types
-  // might even conflict with the representation/truncation logic.
-  Run<SimplifiedLoweringPhase>(linkage);
-  RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (data->has_js_wasm_calls()) {
-    DCHECK(data->info()->inline_js_wasm_calls());
-    Run<JSWasmInliningPhase>();
-    RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  // From now on it is invalid to look at types on the nodes, because the types
-  // on the nodes might not make sense after representation selection due to the
-  // way we handle truncations; if we'd want to look at types afterwards we'd
-  // essentially need to re-type (large portions of) the graph.
-
-  // In order to catch bugs related to type access after this point, we now
-  // remove the types from the nodes (currently only in Debug builds).
-#ifdef DEBUG
-  Run<UntyperPhase>();
-  RunPrintAndVerify(UntyperPhase::phase_name(), true);
-#endif
-
-  // Run generic lowering pass.
-  Run<GenericLoweringPhase>();
-  RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
-
-  data->BeginPhaseKind("V8.TFBlockBuilding");
-
-  data->InitializeFrameData(linkage->GetIncomingDescriptor());
-
-  Run<EffectControlLinearizationPhase>();
-  RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
-
-  Run<LateOptimizationPhase>();
-  RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
-
-  // Optimize memory access and allocation operations.
-  Run<MemoryOptimizationPhase>();
-  RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
-
-  data->source_positions()->RemoveDecorator();
-  if (data->info()->trace_turbo_json()) {
-    data->node_origins()->RemoveDecorator();
-  }
-
-  ComputeScheduledGraph();
-
-  return SelectInstructions(linkage);
-}
-
 namespace {
 
 // Compute a hash of the given graph, in a way that should provide the same
@@ -3573,7 +3458,6 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   std::unique_ptr<const RegisterConfiguration> restricted_config;
   bool use_mid_tier_register_allocator =
       FLAG_turbo_force_mid_tier_regalloc ||
-      (FLAG_turboprop_mid_tier_reg_alloc && data->info()->IsTurboprop()) ||
       (FLAG_turbo_use_mid_tier_regalloc_for_huge_functions &&
        data->sequence()->VirtualRegisterCount() >
            kTopTierVirtualRegistersLimit);

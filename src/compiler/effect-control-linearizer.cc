@@ -626,7 +626,7 @@ void EffectControlLinearizer::Run() {
       continue;
     }
 
-    gasm()->Reset(block);
+    gasm()->Reset();
 
     BasicBlock::iterator instr = block->begin();
     BasicBlock::iterator end_instr = block->end();
@@ -764,8 +764,6 @@ void EffectControlLinearizer::Run() {
       Node* node = *instr;
       ProcessNode(node, &frame_state);
     }
-
-    block = gasm()->FinalizeCurrentBlock(block);
 
     switch (block->control()) {
       case BasicBlock::kGoto:
@@ -6853,27 +6851,10 @@ void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
                             JSHeapBroker* broker) {
-  JSGraphAssembler graph_assembler_(graph, temp_zone, base::nullopt, nullptr);
+  JSGraphAssembler graph_assembler_(graph, temp_zone);
   EffectControlLinearizer linearizer(graph, schedule, &graph_assembler_,
                                      temp_zone, source_positions, node_origins,
                                      MaintainSchedule::kDiscard, broker);
-  linearizer.Run();
-}
-
-void LowerToMachineSchedule(JSGraph* js_graph, Schedule* schedule,
-                            Zone* temp_zone,
-                            SourcePositionTable* source_positions,
-                            NodeOriginTable* node_origins,
-                            JSHeapBroker* broker) {
-  JSGraphAssembler graph_assembler(js_graph, temp_zone, base::nullopt,
-                                   schedule);
-  EffectControlLinearizer linearizer(js_graph, schedule, &graph_assembler,
-                                     temp_zone, source_positions, node_origins,
-                                     MaintainSchedule::kMaintain, broker);
-  MemoryLowering memory_lowering(js_graph, temp_zone, &graph_assembler);
-  SelectLowering select_lowering(&graph_assembler, js_graph->graph());
-  graph_assembler.AddInlineReducer(&memory_lowering);
-  graph_assembler.AddInlineReducer(&select_lowering);
   linearizer.Run();
 }
 

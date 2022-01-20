@@ -852,13 +852,6 @@ SimplifiedOperatorBuilder* JSInliningHeuristic::simplified() const {
   return jsgraph()->simplified();
 }
 
-int JSInliningHeuristic::ScaleInliningSize(int value, JSHeapBroker* broker) {
-  if (broker->is_turboprop()) {
-    value = value / FLAG_turboprop_inline_scaling_factor;
-  }
-  return value;
-}
-
 #undef TRACE
 
 }  // namespace compiler

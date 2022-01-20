@@ -223,7 +223,7 @@ class Logger : public CodeEventListener {
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override;
+                      int fp_to_sp_delta) override;
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override;
@@ -452,7 +452,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {}
+                      int fp_to_sp_delta) override {}
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
@@ -521,7 +521,7 @@ class ExternalCodeEventListener : public CodeEventListener {
                            Handle<SharedFunctionInfo> shared) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {}
+                      int fp_to_sp_delta) override {}
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}

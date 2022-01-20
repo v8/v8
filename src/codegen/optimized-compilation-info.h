@@ -153,7 +153,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   bool IsOptimizing() const {
     return CodeKindIsOptimizedJSFunction(code_kind());
   }
-  bool IsTurboprop() const { return code_kind() == CodeKind::TURBOPROP; }
 #if V8_ENABLE_WEBASSEMBLY
   bool IsWasm() const { return code_kind() == CodeKind::WASM_FUNCTION; }
 #endif  // V8_ENABLE_WEBASSEMBLY

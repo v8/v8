@@ -129,8 +129,6 @@ class JSFunction
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsBaseline() const;
-  bool ActiveTierIsMidtierTurboprop() const;
-  bool ActiveTierIsToptierTurboprop() const;
 
   CodeKind NextTier() const;
 

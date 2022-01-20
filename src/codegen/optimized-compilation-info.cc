@@ -73,12 +73,6 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       }
       if (FLAG_turbo_splitting) set_splitting();
       V8_FALLTHROUGH;
-    case CodeKind::TURBOPROP:
-      set_called_with_code_start_register();
-      set_switch_jump_table();
-      // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
-      if (FLAG_analyze_environment_liveness) set_analyze_environment_liveness();
-      break;
     case CodeKind::BYTECODE_HANDLER:
       set_called_with_code_start_register();
       if (FLAG_turbo_splitting) set_splitting();

@@ -519,7 +519,6 @@ DEFINE_WEAK_VALUE_IMPLICATION(future, write_protect_code_memory, false)
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")
-DEFINE_NEG_IMPLICATION(dict_property_const_tracking, turboprop)
 
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
@@ -662,25 +661,6 @@ DEFINE_BOOL(trace_track_allocation_sites, false,
             "trace the tracking of allocation sites")
 DEFINE_BOOL(trace_migration, false, "trace object migration")
 DEFINE_BOOL(trace_generalization, false, "trace map generalization")
-
-// Flags for TurboProp.
-DEFINE_BOOL(turboprop, false, "enable experimental turboprop mid-tier compiler")
-DEFINE_BOOL(turboprop_mid_tier_reg_alloc, true,
-            "enable mid-tier register allocator for turboprop")
-DEFINE_BOOL(
-    turboprop_as_toptier, false,
-    "enable experimental turboprop compiler without further tierup to turbofan")
-DEFINE_IMPLICATION(turboprop_as_toptier, turboprop)
-DEFINE_WEAK_VALUE_IMPLICATION(turboprop, interrupt_budget, 115 * KB)
-DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
-                     "max number of map checks to perform in minimorphic state")
-DEFINE_INT(turboprop_inline_scaling_factor, 4,
-           "scale factor for reduction in bytecode that can be inline for "
-           "TurboProp compared to TurboFan")
-// The scale factor determines the interrupt budget when tiering up from
-// Turboprop to TurboFan.
-DEFINE_INT(interrupt_budget_scale_factor_for_top_tier, 20,
-           "scale factor for profiler ticks when tiering up from midtier")
 
 // Flags for Sparkplug
 #undef FLAG
@@ -913,11 +893,6 @@ DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
 DEFINE_BOOL(turbo_fast_api_calls, false, "enable fast API calls from TurboFan")
-DEFINE_INT(reuse_opt_code_count, 0,
-           "don't discard optimized code for the specified number of deopts.")
-DEFINE_BOOL(turbo_dynamic_map_checks, false,
-            "use dynamic map checks when generating code for property accesses "
-            "if all handlers in an IC are the same for turboprop")
 DEFINE_BOOL(turbo_compress_translation_arrays, false,
             "compress translation arrays (experimental)")
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)

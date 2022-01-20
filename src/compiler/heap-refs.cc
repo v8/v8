@@ -1572,10 +1572,8 @@ BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability()
     const {
   return broker()->IsMainThread()
-             ? object()->GetInlineability(broker()->isolate(),
-                                          broker()->is_turboprop())
-             : object()->GetInlineability(broker()->local_isolate(),
-                                          broker()->is_turboprop());
+             ? object()->GetInlineability(broker()->isolate())
+             : object()->GetInlineability(broker()->local_isolate());
 }
 
 ObjectRef FeedbackCellRef::value() const {

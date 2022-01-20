@@ -404,8 +404,6 @@
   'regress/regress-1122': [SKIP],
   'regress/regress-331444': [SKIP],
   'regress/regress-353551': [SKIP],
-  'regress/regress-1138075': [SKIP],
-  'regress/regress-1138611': [SKIP],
   'regress/regress-crbug-119926': [SKIP],
   'regress/short-circuit': [SKIP],
   'stack-traces-overflow': [SKIP],
@@ -974,10 +972,6 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
-  # https://github.com/v8-riscv/v8/issues/418
-  'regress/regress-1138075': [SKIP],
-  'regress/regress-1138611': [SKIP],
-
   # SIMD not be implemented
   'regress/wasm/regress-1054466': [SKIP],
   'regress/wasm/regress-1065599': [SKIP],
@@ -997,7 +991,6 @@
   'regress/wasm/regress-1199662': [SKIP],
   'regress/wasm/regress-1231950': [SKIP],
   'regress/wasm/regress-1264462': [SKIP],
-  'regress/regress-1172797': [SKIP],
   'regress/wasm/regress-1179025': [SKIP],
   'wasm/multi-value-simd': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],

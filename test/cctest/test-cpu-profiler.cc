@@ -4383,7 +4383,6 @@ TEST(FastApiCPUProfiler) {
 #if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR)
   // None of the following configurations include JSCallReducer.
   if (i::FLAG_jitless) return;
-  if (i::FLAG_turboprop) return;
 
   FLAG_SCOPE(opt);
   FLAG_SCOPE(turbo_fast_api_calls);
