@@ -423,7 +423,7 @@ void BaselineAssembler::Pop(T... registers) {
 
 void BaselineAssembler::LoadTaggedPointerField(Register output, Register source,
                                                int offset) {
-  __ LoadTaggedPointerField(output, FieldMemOperand(source, offset));
+  __ LoadTaggedPointerField(output, FieldMemOperand(source, offset), r0);
 }
 void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
                                               int offset) {
@@ -431,7 +431,7 @@ void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
 }
 void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
-  __ LoadAnyTaggedField(output, FieldMemOperand(source, offset));
+  __ LoadAnyTaggedField(output, FieldMemOperand(source, offset), r0);
 }
 void BaselineAssembler::LoadByteField(Register output, Register source,
                                       int offset) {
