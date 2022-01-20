@@ -76,7 +76,6 @@ inline internal::Condition AsMasmCondition(Condition cond) {
       return eq;
     case Condition::kNotEqual:
       return ne;
-
     case Condition::kLessThan:
       return lt;
     case Condition::kGreaterThan:
@@ -134,10 +133,10 @@ inline bool IsSignedCondition(Condition cond) {
   }
 }
 
-#define __ assm->masm()->
+#define __ assm->
 // s390x helper
-void JumpIfHelper(BaselineAssembler* assm, Condition cc, Register lhs,
-                  Register rhs, Label* target) {
+static void JumpIfHelper(MacroAssembler* assm, Condition cc, Register lhs,
+                         Register rhs, Label* target) {
   if (IsSignedCondition(cc)) {
     __ CmpS64(lhs, rhs);
   } else {
@@ -256,32 +255,32 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
   __ LoadU64(tmp, operand);
-  JumpIfHelper(this, cc, value, tmp, target);
+  JumpIfHelper(masm_, cc, value, tmp, target);
 }
 
 void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
                                   Label* target, Label::Distance) {
   __ AssertSmi(value);
   __ LoadSmiLiteral(r0, smi);
-  JumpIfHelper(this, cc, value, r0, target);
+  JumpIfHelper(masm_, cc, value, r0, target);
 }
 void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
                                   Label* target, Label::Distance) {
   __ AssertSmi(lhs);
   __ AssertSmi(rhs);
-  JumpIfHelper(this, cc, lhs, rhs, target);
+  JumpIfHelper(masm_, cc, lhs, rhs, target);
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {
   __ LoadU64(r0, operand);
-  JumpIfHelper(this, cc, value, r0, target);
+  JumpIfHelper(masm_, cc, value, r0, target);
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance) {
   __ LoadU64(r0, operand);
-  JumpIfHelper(this, cc, r0, value, target);
+  JumpIfHelper(masm_, cc, r0, value, target);
 }
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance) {
