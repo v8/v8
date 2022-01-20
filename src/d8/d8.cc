@@ -1425,6 +1425,8 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
   Context::Scope context_scope(realm);
+  TryCatch try_catch(isolate);
+  bool success = false;
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
@@ -1432,12 +1434,17 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   std::unique_ptr<uint8_t[]> snapshot_data(
       reinterpret_cast<uint8_t*>(ReadChars(absolute_path.c_str(), &length)));
   if (length == 0) {
-    isolate->ThrowError("Error reading the web snapshot");
-    return false;
+    isolate->ThrowError("Could not read the web snapshot file");
+  } else {
+    i::WebSnapshotDeserializer deserializer(isolate);
+    success = deserializer.UseWebSnapshot(snapshot_data.get(),
+                                          static_cast<size_t>(length));
   }
-  i::WebSnapshotDeserializer deserializer(isolate);
-  return deserializer.UseWebSnapshot(snapshot_data.get(),
-                                     static_cast<size_t>(length));
+  if (!success) {
+    CHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+  }
+  return success;
 }
 
 PerIsolateData::PerIsolateData(Isolate* isolate)
