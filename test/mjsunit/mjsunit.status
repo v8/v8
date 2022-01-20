@@ -182,6 +182,7 @@
 
   # crbug.com/v8/12472 Stack overflow during regexp node generation.
   'regress/regress-crbug-595657': [SKIP],
+  'regress/regress-475705': [SKIP],
 
   ##############################################################################
   # Tests where variants make no sense.
