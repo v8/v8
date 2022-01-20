@@ -139,12 +139,6 @@ class V8_EXPORT_PRIVATE Zone final {
   // accounting allocator.
   void Reset();
 
-  // Returns true if more memory has been allocated in zones than
-  // the limit allows.
-  bool excess_allocation() const {
-    return segment_bytes_allocated_ > kExcessLimit;
-  }
-
   size_t segment_bytes_allocated() const { return segment_bytes_allocated_; }
 
   const char* name() const { return name_; }
@@ -202,9 +196,6 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Never allocate segments larger than this size in bytes.
   static const size_t kMaximumSegmentSize = 32 * KB;
-
-  // Report zone excess when allocation exceeds this limit.
-  static const size_t kExcessLimit = 256 * MB;
 
   // The number of bytes allocated in this zone so far.
   size_t allocation_size_ = 0;

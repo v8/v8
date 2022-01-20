@@ -262,7 +262,6 @@
   'regress/regress-500980': [PASS, HEAVY],
   'regress/regress-599414-array-concat-fast-path': [PASS, HEAVY],
   'regress/regress-678917': [PASS, HEAVY],
-  'regress/regress-752764': [PASS, HEAVY],
   'regress/regress-779407': [PASS, HEAVY],
   'regress/regress-852258': [PASS, HEAVY],
   'regress/regress-862433': [PASS, HEAVY],
@@ -307,8 +306,6 @@
 
   # worker creation/shutdown is very slow in debug mode
   'd8/d8-worker-shutdown*': [SLOW],
-  # Allocates a huge string and then flattens it.
-  'regress/regress-752764': [SLOW],
 
   # BUG(v8:11745) The test allocates too much memory, making it slow on debug.
   'compiler/regress-crbug-11564': [SKIP],
@@ -703,7 +700,6 @@
   # BUG(v8:6924). The test uses a lot of memory.
   'regress/wasm/regress-694433': [SKIP],
   'es6/typedarray': [PASS, NO_VARIANTS],
-  'regress/regress-752764': [PASS, SLOW, NO_VARIANTS],
 
   # BUG(v8:9242). Uses a lot of memory.
   'regress/regress-599414-array-concat-fast-path': [PASS, SLOW],
@@ -829,7 +825,6 @@
   'math-floor-of-div-minus-zero': [SKIP],
 
   # Requires too much memory on MIPS.
-  'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
   'harmony/bigint/regressions': [SKIP],
 
@@ -886,7 +881,6 @@
   'math-floor-of-div-minus-zero': [SKIP],
 
   # Requires too much memory on MIPS.
-  'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
@@ -929,7 +923,6 @@
   'math-floor-of-div-minus-zero': [SKIP],
 
   # Requires too much memory on RISC-V.
-  'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
   'harmony/bigint/regressions': [SKIP],
 
@@ -1012,8 +1005,6 @@
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
-  # OOM:
-  'regress/regress-752764': [FAIL],
   # Flaky OOM:
   'regress/regress-748069': [SKIP],
   'regress/regress-779407': [SKIP],
@@ -1309,12 +1300,6 @@
   # in the 'nooptimization' variant.
   'regress/wasm/regress-7785': [SKIP],
 }],  # variant == nooptimization
-
-##############################################################################
-['(arch == arm or arch == arm64)', {
-  # Flaky tests: https://crbug.com/v8/8090
-  'regress/regress-752764': [SKIP],
-}],  # (arch == arm or arch == arm64)
 
 ##############################################################################
 ['gcov_coverage', {
