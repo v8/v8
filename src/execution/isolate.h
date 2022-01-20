@@ -1484,6 +1484,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   int id() const { return id_; }
 
+  bool was_locker_ever_used() const {
+    return was_locker_ever_used_.load(std::memory_order_relaxed);
+  }
+  void set_was_locker_ever_used() {
+    was_locker_ever_used_.store(true, std::memory_order_relaxed);
+  }
+
   CompilationStatistics* GetTurboStatistics();
   CodeTracer* GetCodeTracer();
 
@@ -2056,6 +2063,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;
   int stack_trace_nesting_level_ = 0;
+  std::atomic<bool> was_locker_ever_used_{false};
   StringStream* incomplete_message_ = nullptr;
   Address isolate_addresses_[kIsolateAddressCount + 1] = {};
   Bootstrapper* bootstrapper_ = nullptr;
