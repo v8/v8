@@ -10,7 +10,6 @@
 
 #include "src/base/optional.h"
 #include "src/common/globals.h"
-#include "src/numbers/integer-literal-inl.h"
 #include "src/torque/cc-generator.h"
 #include "src/torque/cfg.h"
 #include "src/torque/constants.h"
@@ -183,7 +182,6 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   header << "#ifndef " << kHeaderDefine << "\n";
   header << "#define " << kHeaderDefine << "\n\n";
   header << "#include \"tools/debug_helper/debug-helper-internal.h\"\n";
-  header << "#include \"src/numbers/integer-literal.h\"\n";
   header << "\n";
 
   header << "namespace v8 {\n"
@@ -945,18 +943,22 @@ VisitResult ImplementationVisitor::Visit(AssignmentExpression* expr) {
   return scope.Yield(assignment_value);
 }
 
-VisitResult ImplementationVisitor::Visit(FloatingPointLiteralExpression* expr) {
+VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
   const Type* result_type = TypeOracle::GetConstFloat64Type();
+  if (expr->number >= std::numeric_limits<int32_t>::min() &&
+      expr->number <= std::numeric_limits<int32_t>::max()) {
+    int32_t i = static_cast<int32_t>(expr->number);
+    if (i == expr->number) {
+      if ((i >> 30) == (i >> 31)) {
+        result_type = TypeOracle::GetConstInt31Type();
+      } else {
+        result_type = TypeOracle::GetConstInt32Type();
+      }
+    }
+  }
   std::stringstream str;
   str << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-      << expr->value;
-  return VisitResult{result_type, str.str()};
-}
-
-VisitResult ImplementationVisitor::Visit(IntegerLiteralExpression* expr) {
-  const Type* result_type = TypeOracle::GetIntegerLiteralType();
-  std::stringstream str;
-  str << "IntegerLiteral(" << expr->value << ")";
+      << expr->number;
   return VisitResult{result_type, str.str()};
 }
 
@@ -2846,9 +2848,7 @@ VisitResult ImplementationVisitor::GenerateCall(
     // If we're currently generating a C++ macro and it's calling another macro,
     // then we need to make sure that we also generate C++ code for the called
     // macro within the same -inl.inc file.
-    if ((output_type_ == OutputType::kCC ||
-         output_type_ == OutputType::kCCDebug) &&
-        !inline_macro) {
+    if (output_type_ == OutputType::kCC && !inline_macro) {
       if (auto* torque_macro = TorqueMacro::DynamicCast(macro)) {
         auto* streams = CurrentFileStreams::Get();
         SourceId file = streams ? streams->file : SourceId::Invalid();
@@ -2862,32 +2862,14 @@ VisitResult ImplementationVisitor::GenerateCall(
       std::stringstream result;
       result << "(";
       bool first = true;
-      switch (output_type_) {
-        case OutputType::kCSA: {
-          if (auto* extern_macro = ExternMacro::DynamicCast(macro)) {
-            result << extern_macro->external_assembler_name() << "(state_)."
-                   << extern_macro->ExternalName() << "(";
-          } else {
-            result << macro->ExternalName() << "(state_";
-            first = false;
-          }
-          break;
-        }
-        case OutputType::kCC: {
-          auto* extern_macro = ExternMacro::DynamicCast(macro);
-          CHECK_NOT_NULL(extern_macro);
-          result << extern_macro->CCName() << "(";
-          break;
-        }
-        case OutputType::kCCDebug: {
-          auto* extern_macro = ExternMacro::DynamicCast(macro);
-          CHECK_NOT_NULL(extern_macro);
-          result << extern_macro->CCDebugName() << "(accessor";
-          first = false;
-          break;
-        }
+      if (auto* extern_macro = ExternMacro::DynamicCast(macro)) {
+        result << extern_macro->external_assembler_name() << "(state_)."
+               << extern_macro->ExternalName() << "(";
+      } else {
+        result << macro->ExternalName() << "(state_";
+        first = false;
       }
-      for (VisitResult arg : converted_arguments) {
+      for (VisitResult arg : arguments.parameters) {
         DCHECK(!arg.IsOnStack());
         if (!first) {
           result << ", ";
