@@ -310,6 +310,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 #if V8_ENABLE_WEBASSEMBLY
     if (IsWasmFunctionCall()) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
+    if (CalleeSavedRegisters() != kNoCalleeSaved) return true;
     return false;
   }
 
