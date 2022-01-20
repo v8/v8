@@ -741,6 +741,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
         .set_state(WasmSuspenderObject::Inactive);
   }
   suspender->set_state(WasmSuspenderObject::State::Active);
+  suspender->set_continuation(*target);
   active_suspender_slot.store(*suspender);
 
   SyncStackLimit(isolate);

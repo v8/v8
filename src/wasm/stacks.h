@@ -21,12 +21,14 @@ namespace wasm {
 struct JumpBuffer {
   Address sp;
   Address fp;
+  Address pc;
   void* stack_limit;
   // TODO(thibaudm/fgm): Add general-purpose registers.
 };
 
 constexpr int kJmpBufSpOffset = offsetof(JumpBuffer, sp);
 constexpr int kJmpBufFpOffset = offsetof(JumpBuffer, fp);
+constexpr int kJmpBufPcOffset = offsetof(JumpBuffer, pc);
 constexpr int kJmpBufStackLimitOffset = offsetof(JumpBuffer, stack_limit);
 
 class StackMemory {

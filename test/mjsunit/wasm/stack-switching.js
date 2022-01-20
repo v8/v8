@@ -41,16 +41,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let suspender = new WebAssembly.Suspender();
   function js_import() {
     // TODO(thibaudm): Return the value as a promise.
-    return 42;
+    return new Promise((resolve) => { resolve(42); });
   };
   let wasm_js_import = new WebAssembly.Function({parameters: [], results: ['i32']}, js_import);
   let suspending_wasm_js_import = suspender.suspendOnReturnedPromise(wasm_js_import);
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
   let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
   let combined_promise = wrapped_export();
-  // TODO(thibaudm): Once we generate the actual wrapper, we expect 0 here
-  // The global will only be set after the promise resolves.
-  assertEquals(42, instance.exports.g.value);
+  assertEquals(0, instance.exports.g.value);
 })();
 
 (function TestStackSwitchGC() {
