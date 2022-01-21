@@ -42,9 +42,6 @@ extern class WasmInternalFunction extends Foreign {
   @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
 }
-// WasmInternalFunction is safely comparable for pointer equality.
-extern operator '==' macro TaggedEqual(WasmInternalFunction, Object): bool;
-extern operator '==' macro TaggedEqual(Object, WasmInternalFunction): bool;
 
 extern class WasmFunctionData extends HeapObject {
   // The wasm-internal representation of this function object.

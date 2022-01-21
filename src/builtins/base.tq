@@ -897,8 +897,12 @@ macro Float64IsNaN(n: float64): bool {
 }
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
-type TaggedWithIdentity =
-    JSReceiver|FixedArrayBase|Oddball|Map|WeakCell|Context|EmptyString;
+@if(V8_ENABLE_WEBASSEMBLY)
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Map |
+    WeakCell | Context | EmptyString | WasmInternalFunction;
+@ifnot(V8_ENABLE_WEBASSEMBLY)
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Map |
+    WeakCell | Context | EmptyString;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
