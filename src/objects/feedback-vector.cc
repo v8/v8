@@ -244,59 +244,57 @@ Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 }
 
 // static
-Handle<FeedbackVector> FeedbackVector::New(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared,
+void FeedbackVector::Init(
+    Isolate* isolate, const DisallowGarbageCollection&,
+    WriteBarrierMode write_barrier_mode, FeedbackVector vector,
+    Handle<SharedFunctionInfo> shared, int length,
     Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
     IsCompiledScope* is_compiled_scope) {
   DCHECK(is_compiled_scope->is_compiled());
-  Factory* factory = isolate->factory();
 
-  Handle<FeedbackMetadata> feedback_metadata(shared->feedback_metadata(),
-                                             isolate);
-  const int slot_count = feedback_metadata->slot_count();
+  vector.set_shared_function_info(*shared, write_barrier_mode);
+  vector.set_maybe_optimized_code(
+      HeapObjectReference::ClearedValue(vector.GetIsolate()), kReleaseStore,
+      write_barrier_mode);
+  vector.set_length(length);
+  vector.set_invocation_count(0);
+  vector.set_profiler_ticks(0);
+  vector.InitializeOptimizationState();
+  vector.set_closure_feedback_cell_array(*closure_feedback_cell_array,
+                                         write_barrier_mode);
 
-  Handle<FeedbackVector> vector =
-      factory->NewFeedbackVector(shared, closure_feedback_cell_array);
-
-  DCHECK_EQ(vector->length(), slot_count);
-
-  DCHECK_EQ(vector->shared_function_info(), *shared);
-  DCHECK_EQ(vector->optimization_marker(),
+  const FeedbackMetadata feedback_metadata = shared->feedback_metadata();
+  DCHECK_EQ(length, feedback_metadata.slot_count());
+  DCHECK_EQ(vector.optimization_marker(),
             FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
                                      : OptimizationMarker::kNone);
-  DCHECK_EQ(vector->optimization_tier(), OptimizationTier::kNone);
-  DCHECK_EQ(vector->invocation_count(), 0);
-  DCHECK_EQ(vector->profiler_ticks(), 0);
-  DCHECK(vector->maybe_optimized_code()->IsCleared());
+  DCHECK_EQ(vector.optimization_tier(), OptimizationTier::kNone);
+  DCHECK(vector.maybe_optimized_code()->IsCleared());
 
-  // Ensure we can skip the write barrier
-  Handle<Symbol> uninitialized_sentinel = UninitializedSentinel(isolate);
-  DCHECK_EQ(ReadOnlyRoots(isolate).uninitialized_symbol(),
-            *uninitialized_sentinel);
-  for (int i = 0; i < slot_count;) {
+  const Symbol uninitialized_sentinel =
+      ReadOnlyRoots(isolate).uninitialized_symbol();
+  for (int i = 0; i < length;) {
     FeedbackSlot slot(i);
-    FeedbackSlotKind kind = feedback_metadata->GetKind(slot);
-    int entry_size = FeedbackMetadata::GetSlotSize(kind);
-
-    MaybeObject extra_value = MaybeObject::FromObject(*uninitialized_sentinel);
+    const FeedbackSlotKind kind = feedback_metadata.GetKind(slot);
+    MaybeObject extra_value = MaybeObject::FromObject(uninitialized_sentinel);
     switch (kind) {
       case FeedbackSlotKind::kLoadGlobalInsideTypeof:
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
-        vector->Set(slot, HeapObjectReference::ClearedValue(isolate),
-                    SKIP_WRITE_BARRIER);
+        vector.Set(slot, HeapObjectReference::ClearedValue(isolate),
+                   SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
-        vector->Set(slot, Smi::zero(), SKIP_WRITE_BARRIER);
+        vector.Set(slot, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kLiteral:
-        vector->Set(slot, Smi::zero(), SKIP_WRITE_BARRIER);
+        vector.Set(slot, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCall:
-        vector->Set(slot, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        vector.Set(slot, uninitialized_sentinel, SKIP_WRITE_BARRIER);
         extra_value = MaybeObject::FromObject(Smi::zero());
         break;
       case FeedbackSlotKind::kCloneObject:
@@ -313,25 +311,27 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile:
       case FeedbackSlotKind::kInstanceOf:
-        vector->Set(slot, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        vector.Set(slot, uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
 
       case FeedbackSlotKind::kInvalid:
       case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
     }
+    const int entry_size = FeedbackMetadata::GetSlotSize(kind);
     for (int j = 1; j < entry_size; j++) {
-      vector->Set(slot.WithOffset(j), extra_value, SKIP_WRITE_BARRIER);
+      vector.Set(slot.WithOffset(j), extra_value, SKIP_WRITE_BARRIER);
     }
     i += entry_size;
   }
+}
 
-  Handle<FeedbackVector> result = Handle<FeedbackVector>::cast(vector);
+// static
+void FeedbackVector::PostInit(Isolate* isolate, Handle<FeedbackVector> vector) {
   if (!isolate->is_best_effort_code_coverage() ||
       isolate->is_collecting_type_profile()) {
-    AddToVectorsForProfilingTools(isolate, result);
+    AddToVectorsForProfilingTools(isolate, vector);
   }
-  return result;
 }
 
 namespace {
@@ -349,8 +349,8 @@ Handle<FeedbackVector> NewFeedbackVectorForTesting(
       ClosureFeedbackCellArray::New(isolate, shared);
 
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
-  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
-                             &is_compiled_scope);
+  return isolate->factory()->NewFeedbackVector(
+      shared, closure_feedback_cell_array, &is_compiled_scope);
 }
 
 }  // namespace

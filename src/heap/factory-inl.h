@@ -85,6 +85,49 @@ Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
   return *this;
 }
 
+// static
+void Factory::VerifyInit(Isolate* isolate, HeapObject heap_object) {
+#ifdef MEMORY_SANITIZER
+  // T::Init() must initialize all memory.
+  __msan_check_mem_is_initialized(reinterpret_cast<void*>(heap_object.ptr()),
+                                  heap_object.Size());
+#endif  // MEMORY_SANITIZER
+#if VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    heap_object.HeapObjectVerify(isolate);
+  }
+#endif  // VERIFY_HEAP
+}
+
+template <typename T, typename... Params>
+// static
+Handle<T> Factory::InitializeAndVerify(
+    Isolate* isolate, WriteBarrierMode write_barrier_mode_for_regular_writes,
+    T raw, Params&&... params) {
+  {
+    DisallowGarbageCollection no_gc;
+    T::Init(isolate, no_gc, write_barrier_mode_for_regular_writes, raw,
+            std::forward<Params>(params)...);
+    VerifyInit(isolate, raw);
+  }
+  Handle<T> result(raw, isolate);
+  T::PostInit(isolate, result);
+  return result;
+}
+
+template <typename... Params>
+V8_INLINE Handle<FeedbackVector> Factory::NewFeedbackVector(
+    Handle<SharedFunctionInfo> shared, Params&&... params) {
+  const int length = shared->feedback_metadata().slot_count();
+  DCHECK_LE(0, length);
+  const int size = FeedbackVector::SizeFor(length);
+  FeedbackVector raw_result = FeedbackVector::cast(AllocateRawWithImmortalMap(
+      size, AllocationType::kOld, *feedback_vector_map()));
+  return InitializeAndVerify(isolate(), WriteBarrierMode::UPDATE_WRITE_BARRIER,
+                             raw_result, shared, length,
+                             std::forward<Params>(params)...);
+}
+
 }  // namespace internal
 }  // namespace v8
 

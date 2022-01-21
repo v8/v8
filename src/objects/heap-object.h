@@ -26,6 +26,9 @@ class PrimitiveHeapObject;
 // objects.
 class HeapObject : public Object {
  public:
+  template <typename T>
+  static void PostInit(Isolate* isolate, Handle<T> object) {}
+
   bool is_null() const {
     return static_cast<Tagged_t>(ptr()) == static_cast<Tagged_t>(kNullAddress);
   }
