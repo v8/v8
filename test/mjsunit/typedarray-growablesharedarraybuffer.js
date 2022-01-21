@@ -2805,3 +2805,57 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
     assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
   }
 })();
+
+(function Reverse() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    const wholeArrayView = new ctor(gsab);
+    function WriteData() {
+      // Write some data into the array.
+      for (let i = 0; i < wholeArrayView.length; ++i) {
+        WriteToTypedArray(wholeArrayView, i, 2 * i);
+      }
+    }
+    WriteData();
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    fixedLength.reverse();
+    assertEquals([6, 4, 2, 0], ToNumbers(wholeArrayView));
+    fixedLengthWithOffset.reverse();
+    assertEquals([6, 4, 0, 2], ToNumbers(wholeArrayView));
+    lengthTracking.reverse();
+    assertEquals([2, 0, 4, 6], ToNumbers(wholeArrayView));
+    lengthTrackingWithOffset.reverse();
+    assertEquals([2, 0, 6, 4], ToNumbers(wholeArrayView));
+
+    // Grow.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    WriteData();
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    fixedLength.reverse();
+    assertEquals([6, 4, 2, 0, 8, 10], ToNumbers(wholeArrayView));
+    fixedLengthWithOffset.reverse();
+    assertEquals([6, 4, 0, 2, 8, 10], ToNumbers(wholeArrayView));
+    lengthTracking.reverse();
+    assertEquals([10, 8, 2, 0, 4, 6], ToNumbers(wholeArrayView));
+    lengthTrackingWithOffset.reverse();
+    assertEquals([10, 8, 6, 4, 0, 2], ToNumbers(wholeArrayView));
+  }
+})();

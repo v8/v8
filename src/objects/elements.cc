@@ -3531,7 +3531,7 @@ class TypedElementsAccessor
 
     DCHECK(!typed_array.WasDetached());
 
-    size_t len = typed_array.length();
+    size_t len = typed_array.GetLength();
     if (len == 0) return;
 
     ElementType* data = static_cast<ElementType*>(typed_array.DataPtr());
