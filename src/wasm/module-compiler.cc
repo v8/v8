@@ -3225,7 +3225,16 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
       // We have to trigger the compilation events to finish compilation.
       // Typically the events get triggered when a CompilationUnit finishes, but
       // with lazy compilation there are no compilation units.
+      // The {kFinishedBaselineCompilation} event is needed for module
+      // compilation to finish.
       finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
+      if (liftoff_functions.empty() && lazy_functions.empty()) {
+        // All functions exist now as TurboFan functions, so we can trigger the
+        // {kFinishedTopTierCompilation} event.
+        // The {kFinishedTopTierCompilation} event is needed for the C-API so
+        // that {serialize()} works after {deserialize()}.
+        finished_events_.Add(CompilationEvent::kFinishedTopTierCompilation);
+      }
     }
     compilation_progress_.assign(module->num_declared_functions,
                                  kProgressAfterTurbofanDeserialization);
