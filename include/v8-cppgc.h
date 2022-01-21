@@ -12,7 +12,6 @@
 #include "cppgc/common.h"
 #include "cppgc/custom-space.h"
 #include "cppgc/heap-statistics.h"
-#include "cppgc/internal/write-barrier.h"
 #include "cppgc/visitor.h"
 #include "v8-internal.h"       // NOLINT(build/include_directory)
 #include "v8-platform.h"       // NOLINT(build/include_directory)
@@ -164,73 +163,6 @@ class JSVisitor : public cppgc::Visitor {
   using cppgc::Visitor::Visit;
 
   virtual void Visit(const TracedReferenceBase& ref) {}
-};
-
-/**
- * **DO NOT USE: Use the appropriate managed types.**
- *
- * Consistency helpers that aid in maintaining a consistent internal state of
- * the garbage collector.
- */
-class V8_EXPORT JSHeapConsistency final {
- public:
-  using WriteBarrierParams = cppgc::internal::WriteBarrier::Params;
-  using WriteBarrierType = cppgc::internal::WriteBarrier::Type;
-
-  /**
-   * Gets the required write barrier type for a specific write.
-   *
-   * Note: Handling for JS to C++ references.
-   *
-   * \param wrapper The wrapper that has been written into.
-   * \param wrapper_index The wrapper index in `wrapper` that has been written
-   *   into.
-   * \param wrappable The value that was written.
-   * \param params Parameters that may be used for actual write barrier calls.
-   *   Only filled if return value indicates that a write barrier is needed. The
-   *   contents of the `params` are an implementation detail.
-   * \param callback Callback returning the corresponding heap handle. The
-   *   callback is only invoked if the heap cannot otherwise be figured out. The
-   *   callback must not allocate.
-   * \returns whether a write barrier is needed and which barrier to invoke.
-   */
-  template <typename HeapHandleCallback>
-  V8_DEPRECATED(
-      "Write barriers automatically emitted when using "
-      "`SetAlignedPointerInInternalFields()`.")
-  static V8_INLINE WriteBarrierType
-      GetWriteBarrierType(v8::Local<v8::Object>& wrapper, int wrapper_index,
-                          const void* wrappable, WriteBarrierParams& params,
-                          HeapHandleCallback callback) {
-#if V8_ENABLE_CHECKS
-    CheckWrapper(wrapper, wrapper_index, wrappable);
-#endif  // V8_ENABLE_CHECKS
-    return cppgc::internal::WriteBarrier::
-        GetWriteBarrierTypeForExternallyReferencedObject(wrappable, params,
-                                                         callback);
-  }
-
-  /**
-   * Conservative Dijkstra-style write barrier that processes an object if it
-   * has not yet been processed.
-   *
-   * \param params The parameters retrieved from `GetWriteBarrierType()`.
-   * \param object The pointer to the object. May be an interior pointer to a
-   *   an interface of the actual object.
-   */
-  V8_DEPRECATED(
-      "Write barriers automatically emitted when using "
-      "`SetAlignedPointerInInternalFields()`.")
-  static V8_INLINE void DijkstraMarkingBarrier(const WriteBarrierParams& params,
-                                               cppgc::HeapHandle& heap_handle,
-                                               const void* object) {
-    cppgc::internal::WriteBarrier::DijkstraMarkingBarrier(params, object);
-  }
-
- private:
-  JSHeapConsistency() = delete;
-
-  static void CheckWrapper(v8::Local<v8::Object>&, int, const void*);
 };
 
 /**

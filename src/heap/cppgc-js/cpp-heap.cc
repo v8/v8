@@ -92,12 +92,6 @@ void CppHeap::CollectGarbageForTesting(cppgc::EmbedderStackState stack_state) {
   return internal::CppHeap::From(this)->CollectGarbageForTesting(stack_state);
 }
 
-void JSHeapConsistency::CheckWrapper(v8::Local<v8::Object>& wrapper,
-                                     int wrapper_index, const void* wrappable) {
-  CHECK_EQ(wrappable,
-           wrapper->GetAlignedPointerFromInternalField(wrapper_index));
-}
-
 namespace internal {
 
 namespace {

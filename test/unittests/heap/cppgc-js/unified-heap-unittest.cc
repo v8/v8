@@ -94,41 +94,6 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
 }
 
-#if !defined(_MSC_VER) || defined(__clang__)
-
-TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReferenceWithExplicitAPI) {
-// TODO(v8:12356): Remove test when fully removing the deprecated API.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  if (!FLAG_incremental_marking) return;
-  v8::HandleScope scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
-  void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object =
-      WrapperHelper::CreateWrapper(context, nullptr, nullptr);
-  Wrappable::destructor_callcount = 0;
-  WrapperHelper::ResetWrappableConnection(api_object);
-  SimulateIncrementalMarking();
-  {
-    // The following snippet shows the embedder code for implementing a GC-safe
-    // setter for JS to C++ references.
-    WrapperHelper::SetWrappableConnection(api_object, wrappable, wrappable);
-    JSHeapConsistency::WriteBarrierParams params;
-    auto barrier_type = JSHeapConsistency::GetWriteBarrierType(
-        api_object, 1, wrappable, params,
-        [this]() -> cppgc::HeapHandle& { return cpp_heap().GetHeapHandle(); });
-    EXPECT_EQ(JSHeapConsistency::WriteBarrierType::kMarking, barrier_type);
-    JSHeapConsistency::DijkstraMarkingBarrier(
-        params, cpp_heap().GetHeapHandle(), wrappable);
-  }
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(0u, Wrappable::destructor_callcount);
-#pragma GCC diagnostic pop
-}
-
-#endif  // !_MSC_VER || __clang__
-
 #if DEBUG
 namespace {
 class Unreferenced : public cppgc::GarbageCollected<Unreferenced> {

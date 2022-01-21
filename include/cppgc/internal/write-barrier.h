@@ -70,10 +70,6 @@ class V8_EXPORT WriteBarrier final {
   // Returns the required write barrier for a given  `value`.
   static V8_INLINE Type GetWriteBarrierType(const void* value, Params& params);
 
-  template <typename HeapHandleCallback>
-  static V8_INLINE Type GetWriteBarrierTypeForExternallyReferencedObject(
-      const void* value, Params& params, HeapHandleCallback callback);
-
   static V8_INLINE void DijkstraMarkingBarrier(const Params& params,
                                                const void* object);
   static V8_INLINE void DijkstraMarkingBarrierRange(
@@ -154,13 +150,6 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
   static V8_INLINE WriteBarrier::Type Get(const void* value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
-    return GetNoSlot(value, params, callback);
-  }
-
-  template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
-      const void* value, WriteBarrier::Params& params,
-      HeapHandleCallback callback) {
     return GetNoSlot(value, params, callback);
   }
 
@@ -292,15 +281,6 @@ class V8_EXPORT WriteBarrierTypeForNonCagedHeapPolicy final {
                                                        callback);
   }
 
-  template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrier::Type GetForExternallyReferenced(
-      const void* value, WriteBarrier::Params& params,
-      HeapHandleCallback callback) {
-    // The slot will never be used in `Get()` below.
-    return Get<WriteBarrier::ValueMode::kValuePresent>(nullptr, value, params,
-                                                       callback);
-  }
-
  private:
   template <WriteBarrier::ValueMode value_mode>
   struct ValueModeDispatch;
@@ -373,15 +353,6 @@ WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
     const void* value, WriteBarrier::Params& params) {
   return WriteBarrierTypePolicy::Get<ValueMode::kValuePresent>(value, params,
                                                                []() {});
-}
-
-// static
-template <typename HeapHandleCallback>
-WriteBarrier::Type
-WriteBarrier::GetWriteBarrierTypeForExternallyReferencedObject(
-    const void* value, Params& params, HeapHandleCallback callback) {
-  return WriteBarrierTypePolicy::GetForExternallyReferenced(value, params,
-                                                            callback);
 }
 
 // static
