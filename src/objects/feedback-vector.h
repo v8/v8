@@ -15,7 +15,6 @@
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/name.h"
-#include "src/objects/objects.h"
 #include "src/objects/type-hints.h"
 #include "src/zone/zone-containers.h"
 
@@ -223,15 +222,6 @@ class FeedbackVector
       OptimizationTierBits::kMask |
       kHasCompileOptimizedOrLogFirstExecutionMarker;
 
-  V8_EXPORT_PRIVATE static void Init(
-      Isolate*, const DisallowGarbageCollection&,
-      WriteBarrierMode write_barrier_mode, FeedbackVector vector,
-      Handle<SharedFunctionInfo> shared, int length,
-      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
-      IsCompiledScope* is_compiled_scope);
-  V8_EXPORT_PRIVATE static void PostInit(Isolate* isolate,
-                                         Handle<FeedbackVector> vector);
-
   inline bool is_empty() const;
 
   inline FeedbackMetadata metadata() const;
@@ -299,6 +289,11 @@ class FeedbackVector
 
   FeedbackSlot GetTypeProfileSlot() const;
 
+  V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared,
+      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+      IsCompiledScope* is_compiled_scope);
+
   V8_EXPORT_PRIVATE static Handle<FeedbackVector>
   NewWithOneBinarySlotForTesting(Zone* zone, Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<FeedbackVector>
@@ -364,7 +359,7 @@ class FeedbackVector
   static void AddToVectorsForProfilingTools(Isolate* isolate,
                                             Handle<FeedbackVector> vector);
 
-  // Private for initializing stores in FeedbackVector::Init().
+  // Private for initializing stores in FeedbackVector::New().
   inline void Set(FeedbackSlot slot, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(FeedbackSlot slot, Object value,

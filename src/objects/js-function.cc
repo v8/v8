@@ -295,9 +295,8 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
   EnsureClosureFeedbackCellArray(function, false);
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       handle(function->closure_feedback_cell_array(), isolate);
-  Handle<FeedbackVector> feedback_vector =
-      isolate->factory()->NewFeedbackVector(shared, closure_feedback_cell_array,
-                                            is_compiled_scope);
+  Handle<HeapObject> feedback_vector = FeedbackVector::New(
+      isolate, shared, closure_feedback_cell_array, is_compiled_scope);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
   // for more details.

@@ -490,6 +490,30 @@ Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
   return feedback_cell_array;
 }
 
+Handle<FeedbackVector> Factory::NewFeedbackVector(
+    Handle<SharedFunctionInfo> shared,
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array) {
+  int length = shared->feedback_metadata().slot_count();
+  DCHECK_LE(0, length);
+  int size = FeedbackVector::SizeFor(length);
+
+  FeedbackVector vector = FeedbackVector::cast(AllocateRawWithImmortalMap(
+      size, AllocationType::kOld, *feedback_vector_map()));
+  DisallowGarbageCollection no_gc;
+  vector.set_shared_function_info(*shared);
+  vector.set_maybe_optimized_code(HeapObjectReference::ClearedValue(isolate()),
+                                  kReleaseStore);
+  vector.set_length(length);
+  vector.set_invocation_count(0);
+  vector.set_profiler_ticks(0);
+  vector.InitializeOptimizationState();
+  vector.set_closure_feedback_cell_array(*closure_feedback_cell_array);
+
+  // TODO(leszeks): Initialize based on the feedback metadata.
+  MemsetTagged(ObjectSlot(vector.slots_start()), *undefined_value(), length);
+  return handle(vector, isolate());
+}
+
 Handle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
   DCHECK_LE(0, length);
   int size = EmbedderDataArray::SizeFor(length);

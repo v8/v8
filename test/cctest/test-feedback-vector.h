@@ -5,7 +5,6 @@
 #ifndef V8_TEST_FEEDBACK_VECTOR_H_
 #define V8_TEST_FEEDBACK_VECTOR_H_
 
-#include "src/execution/isolate.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
@@ -53,8 +52,8 @@ Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       ClosureFeedbackCellArray::New(isolate, shared);
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
-  return isolate->factory()->NewFeedbackVector(
-      shared, closure_feedback_cell_array, &is_compiled_scope);
+  return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
+                             &is_compiled_scope);
 }
 
 template <typename Spec>

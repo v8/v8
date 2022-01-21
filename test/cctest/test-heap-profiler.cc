@@ -4119,10 +4119,8 @@ TEST(WeakReference) {
                                        i_isolate);
   i::Handle<i::ClosureFeedbackCellArray> feedback_cell_array =
       i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
-  v8::internal::IsCompiledScope is_compiled_scope(
-      shared_function->is_compiled_scope(i_isolate));
-  i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(
-      shared_function, feedback_cell_array, &is_compiled_scope);
+  i::Handle<i::FeedbackVector> fv =
+      factory->NewFeedbackVector(shared_function, feedback_cell_array);
 
   // Create a Code.
   i::Assembler assm(i::AssemblerOptions{});

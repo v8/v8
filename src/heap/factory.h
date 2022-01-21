@@ -142,9 +142,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // initialized with undefined values.
   Handle<ClosureFeedbackCellArray> NewClosureFeedbackCellArray(int num_slots);
 
-  template <typename... Params>
-  V8_INLINE Handle<FeedbackVector> NewFeedbackVector(
-      Handle<SharedFunctionInfo> shared, Params&&... params);
+  // Allocates a feedback vector whose slots are initialized with undefined
+  // values.
+  Handle<FeedbackVector> NewFeedbackVector(
+      Handle<SharedFunctionInfo> shared,
+      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array);
 
   // Allocates a clean embedder data array with given capacity.
   Handle<EmbedderDataArray> NewEmbedderDataArray(int length);
@@ -997,13 +999,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
  private:
   friend class FactoryBase<Factory>;
-
-  template <typename T, typename... Params>
-  static V8_INLINE Handle<T> InitializeAndVerify(
-      Isolate* isolate, WriteBarrierMode write_barrier_mode_for_regular_writes,
-      T raw, Params&&... params);
-
-  static V8_INLINE void VerifyInit(Isolate*, HeapObject heap_object);
 
   // ------
   // Customization points for FactoryBase
