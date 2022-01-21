@@ -4939,3 +4939,146 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     assertEquals([4, 6], Helper(lengthTrackingWithOffset));
   }
 })();
+
+(function MapSpeciesCreateShrinks() {
+  let values;
+  let rab;
+  function CollectValues(n, ix, ta) {
+    if (typeof n == 'bigint') {
+      values.push(Number(n));
+    } else {
+      values.push(n);
+    }
+    // We still need to return a valid BigInt / non-BigInt, even if
+    // n is `undefined`.
+    if (IsBigIntTypedArray(ta)) {
+      return 0n;
+    }
+    return 0;
+  }
+
+  function Helper(array) {
+    values = [];
+    array.map(CollectValues);
+    return values;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+        }
+      }
+    };
+
+    const fixedLength = new MyArray(rab, 0, 4);
+    resizeWhenConstructorCalled = true;
+    assertEquals([undefined, undefined, undefined, undefined],
+                 Helper(fixedLength));
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+        }
+      }
+    };
+
+    const lengthTracking = new MyArray(rab);
+    resizeWhenConstructorCalled = true;
+    assertEquals([0, 1, undefined, undefined], Helper(lengthTracking));
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+})();
+
+(function MapSpeciesCreateGrows() {
+  let values;
+  let rab;
+  function CollectValues(n, ix, ta) {
+    if (typeof n == 'bigint') {
+      values.push(Number(n));
+    } else {
+      values.push(n);
+    }
+    // We still need to return a valid BigInt / non-BigInt, even if
+    // n is `undefined`.
+    if (IsBigIntTypedArray(ta)) {
+      return 0n;
+    }
+    return 0;
+  }
+
+  function Helper(array) {
+    values = [];
+    array.map(CollectValues);
+    return values;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+        }
+      }
+    };
+
+    const fixedLength = new MyArray(rab, 0, 4);
+    resizeWhenConstructorCalled = true;
+    assertEquals([0, 1, 2, 3], Helper(fixedLength));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+        }
+      }
+    };
+
+    const lengthTracking = new MyArray(rab);
+    resizeWhenConstructorCalled = true;
+    assertEquals([0, 1, 2, 3], Helper(lengthTracking));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+})();

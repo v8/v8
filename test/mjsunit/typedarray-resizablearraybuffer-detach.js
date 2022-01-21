@@ -1056,3 +1056,72 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
   }
 })();
+
+(function MapSpeciesCreateDetaches() {
+  let values;
+  let rab;
+  function CollectValues(n, ix, ta) {
+    if (typeof n == 'bigint') {
+      values.push(Number(n));
+    } else {
+      values.push(n);
+    }
+    // We still need to return a valid BigInt / non-BigInt, even if
+    // n is `undefined`.
+    if (IsBigIntTypedArray(ta)) {
+      return 0n;
+    }
+    return 0;
+  }
+
+  function Helper(array) {
+    values = [];
+    array.map(CollectValues);
+    return values;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+
+    let detachWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (detachWhenConstructorCalled) {
+          %ArrayBufferDetach(rab);
+        }
+      }
+    };
+
+    const fixedLength = new MyArray(rab, 0, 4);
+    detachWhenConstructorCalled = true;
+    assertEquals([undefined, undefined, undefined, undefined],
+                 Helper(fixedLength));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    let detachWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (detachWhenConstructorCalled) {
+          %ArrayBufferDetach(rab);
+        }
+      }
+    };
+
+    const lengthTracking = new MyArray(rab);
+    detachWhenConstructorCalled = true;
+    assertEquals([undefined, undefined, undefined, undefined],
+                 Helper(lengthTracking));
+  }
+})();

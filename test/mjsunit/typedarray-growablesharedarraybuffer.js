@@ -2732,3 +2732,76 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
     assertEquals([4, 6], Helper(lengthTrackingWithOffset));
   }
 })();
+
+(function MapSpeciesCreateGrows() {
+  let values;
+  let gsab;
+  function CollectValues(n, ix, ta) {
+    if (typeof n == 'bigint') {
+      values.push(Number(n));
+    } else {
+      values.push(n);
+    }
+    // We still need to return a valid BigInt / non-BigInt, even if
+    // n is `undefined`.
+    if (IsBigIntTypedArray(ta)) {
+      return 0n;
+    }
+    return 0;
+  }
+
+  function Helper(array) {
+    values = [];
+    array.map(CollectValues);
+    return values;
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+        }
+      }
+    };
+
+    const fixedLength = new MyArray(gsab, 0, 4);
+    resizeWhenConstructorCalled = true;
+    assertEquals([0, 1, 2, 3], Helper(fixedLength));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
+  }
+
+  for (let ctor of ctors) {
+    gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    let resizeWhenConstructorCalled = false;
+    class MyArray extends ctor {
+      constructor(...params) {
+        super(...params);
+        if (resizeWhenConstructorCalled) {
+          gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+        }
+      }
+    };
+
+    const lengthTracking = new MyArray(gsab);
+    resizeWhenConstructorCalled = true;
+    assertEquals([0, 1, 2, 3], Helper(lengthTracking));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
+  }
+})();
