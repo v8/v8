@@ -1424,7 +1424,8 @@ class SinglePassRegisterAllocator final {
 
   // Spill a register in a previously processed successor block when merging
   // state into the current block.
-  void SpillRegisterAtMerge(RegisterState* reg_state, RegisterIndex reg);
+  void SpillRegisterAtMerge(RegisterState* reg_state, RegisterIndex reg,
+                            MachineRepresentation rep);
 
   // Introduce a gap move to move |virtual_register| from reg |from| to reg |to|
   // on entry to a |successor| block.
@@ -1815,7 +1816,7 @@ void SinglePassRegisterAllocator::MergeStateFrom(
             // then spill this register in the sucessor block to avoid
             // invalidating the 1:1 vreg<->reg mapping.
             // TODO(rmcilroy): Add a gap move to avoid spilling.
-            SpillRegisterAtMerge(successor_registers, reg);
+            SpillRegisterAtMerge(successor_registers, reg, rep);
             continue;
           }
           // Register is free in our current register state, so merge the
@@ -1841,7 +1842,7 @@ void SinglePassRegisterAllocator::MergeStateFrom(
           // Spill the |new_reg| in the successor block to be able to use it
           // for this gap move. It would be spilled anyway since it contains
           // a different virtual register than the merge block.
-          SpillRegisterAtMerge(successor_registers, new_reg);
+          SpillRegisterAtMerge(successor_registers, new_reg, rep);
         }
 
         if (new_reg.is_valid()) {
@@ -1849,7 +1850,7 @@ void SinglePassRegisterAllocator::MergeStateFrom(
                               successor_registers);
           processed_regs.Add(new_reg, rep);
         } else {
-          SpillRegisterAtMerge(successor_registers, reg);
+          SpillRegisterAtMerge(successor_registers, reg, rep);
         }
       }
     }
@@ -1869,8 +1870,8 @@ RegisterBitVector SinglePassRegisterAllocator::GetAllocatedRegBitVector(
   return allocated_regs;
 }
 
-void SinglePassRegisterAllocator::SpillRegisterAtMerge(RegisterState* reg_state,
-                                                       RegisterIndex reg) {
+void SinglePassRegisterAllocator::SpillRegisterAtMerge(
+    RegisterState* reg_state, RegisterIndex reg, MachineRepresentation rep) {
   DCHECK_NE(reg_state, register_state_);
   if (reg_state->IsAllocated(reg)) {
     int virtual_register = reg_state->VirtualRegisterForRegister(reg);
@@ -1878,6 +1879,43 @@ void SinglePassRegisterAllocator::SpillRegisterAtMerge(RegisterState* reg_state,
         data_->VirtualRegisterDataFor(virtual_register);
     AllocatedOperand allocated = AllocatedOperandForReg(reg, vreg_data.rep());
     reg_state->Spill(reg, allocated, current_block_, data_);
+  }
+  // Also spill the "simd sibling" register if we want to use {reg} for SIMD.
+  if (!kSimpleFPAliasing && rep == MachineRepresentation::kSimd128) {
+    RegisterIndex sibling = simdSibling(reg);
+    if (reg_state->IsAllocated(sibling)) {
+      int virtual_register = reg_state->VirtualRegisterForRegister(sibling);
+      VirtualRegisterData& vreg_data =
+          data_->VirtualRegisterDataFor(virtual_register);
+      AllocatedOperand allocated =
+          AllocatedOperandForReg(sibling, vreg_data.rep());
+      reg_state->Spill(sibling, allocated, current_block_, data_);
+    }
+  }
+  // Similarly, spill the whole SIMD register if we want to use a part of it.
+  if (!kSimpleFPAliasing && (rep == MachineRepresentation::kFloat64 ||
+                             rep == MachineRepresentation::kFloat32)) {
+    int simd_reg_code;
+    CHECK_EQ(1, data_->config()->GetAliases(rep, ToRegCode(reg, rep),
+                                            MachineRepresentation::kSimd128,
+                                            &simd_reg_code));
+    // Sanity check: The SIMD register code should be the shifted {reg_code}.
+    DCHECK_EQ(simd_reg_code,
+              ToRegCode(reg, rep) >>
+                  (rep == MachineRepresentation::kFloat64 ? 1 : 2));
+    RegisterIndex simd_reg =
+        FromRegCode(simd_reg_code, MachineRepresentation::kSimd128);
+    DCHECK(simd_reg == reg || simdSibling(simd_reg) == reg);
+    if (reg_state->IsAllocated(simd_reg)) {
+      int virtual_register = reg_state->VirtualRegisterForRegister(simd_reg);
+      VirtualRegisterData& vreg_data =
+          data_->VirtualRegisterDataFor(virtual_register);
+      if (vreg_data.rep() == MachineRepresentation::kSimd128) {
+        AllocatedOperand allocated =
+            AllocatedOperandForReg(simd_reg, vreg_data.rep());
+        reg_state->Spill(simd_reg, allocated, current_block_, data_);
+      }
+    }
   }
 }
 
