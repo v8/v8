@@ -50,47 +50,31 @@ namespace {
 // an instance finalizer is not guaranteed to run upon isolate shutdown,
 // we must use a Managed<WasmInstanceNativeAllocations> to guarantee
 // it is freed.
-// Native allocations are the signature ids and targets for indirect call
-// targets, as well as the call targets for imported functions.
 class WasmInstanceNativeAllocations {
  public:
-// Helper macro to set an internal field and the corresponding field
-// on an instance.
-#define SET(instance, field, value) \
-  instance->set_##field((this->field##_ = value).get());
-
-  // Allocates initial native storage for a given instance.
   WasmInstanceNativeAllocations(Handle<WasmInstanceObject> instance,
                                 size_t num_imported_functions,
                                 size_t num_imported_mutable_globals,
                                 size_t num_data_segments,
-                                size_t num_elem_segments) {
-    SET(instance, imported_function_targets,
-        std::make_unique<Address[]>(num_imported_functions));
-    SET(instance, imported_mutable_globals,
-        std::make_unique<Address[]>(num_imported_mutable_globals));
-    SET(instance, data_segment_starts,
-        std::make_unique<Address[]>(num_data_segments));
-    SET(instance, data_segment_sizes,
-        std::make_unique<uint32_t[]>(num_data_segments));
-    SET(instance, dropped_elem_segments,
-        std::make_unique<uint8_t[]>(num_elem_segments));
+                                size_t num_elem_segments)
+      : imported_function_targets_(new Address[num_imported_functions]),
+        imported_mutable_globals_(new Address[num_imported_mutable_globals]),
+        data_segment_starts_(new Address[num_data_segments]),
+        data_segment_sizes_(new uint32_t[num_data_segments]),
+        dropped_elem_segments_(new uint8_t[num_elem_segments]) {
+    instance->set_imported_function_targets(imported_function_targets_.get());
+    instance->set_imported_mutable_globals(imported_mutable_globals_.get());
+    instance->set_data_segment_starts(data_segment_starts_.get());
+    instance->set_data_segment_sizes(data_segment_sizes_.get());
+    instance->set_dropped_elem_segments(dropped_elem_segments_.get());
   }
 
  private:
-  template <typename T>
-  std::unique_ptr<T[]> grow(T* old_arr, size_t old_size, size_t new_size) {
-    std::unique_ptr<T[]> new_arr = std::make_unique<T[]>(new_size);
-    std::copy_n(old_arr, old_size, new_arr.get());
-    return new_arr;
-  }
-
-  std::unique_ptr<Address[]> imported_function_targets_;
-  std::unique_ptr<Address[]> imported_mutable_globals_;
-  std::unique_ptr<Address[]> data_segment_starts_;
-  std::unique_ptr<uint32_t[]> data_segment_sizes_;
-  std::unique_ptr<uint8_t[]> dropped_elem_segments_;
-#undef SET
+  const std::unique_ptr<Address[]> imported_function_targets_;
+  const std::unique_ptr<Address[]> imported_mutable_globals_;
+  const std::unique_ptr<Address[]> data_segment_starts_;
+  const std::unique_ptr<uint32_t[]> data_segment_sizes_;
+  const std::unique_ptr<uint8_t[]> dropped_elem_segments_;
 };
 
 size_t EstimateNativeAllocationsSize(const WasmModule* module) {
