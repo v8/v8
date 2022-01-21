@@ -790,5 +790,58 @@ TEST(ConcatenationErrors) {
   }
 }
 
+TEST(CompactedSourceCode) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+
+  WebSnapshotData snapshot_data;
+  {
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    const char* snapshot_source =
+        "function foo() { 'foo' }\n"
+        "function bar() { 'bar' }\n"
+        "function baz() { 'baz' }\n"
+        "let e = [foo, bar, baz]";
+    CompileRun(snapshot_source);
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "e").ToLocalChecked();
+    exports->Set(isolate, 0, str);
+    WebSnapshotSerializer serializer(isolate);
+    CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
+    CHECK(!serializer.has_error());
+    CHECK_NOT_NULL(snapshot_data.buffer);
+  }
+
+  {
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    WebSnapshotDeserializer deserializer(isolate);
+    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
+                                      snapshot_data.buffer_size));
+    CHECK(!deserializer.has_error());
+
+    const char* get_function = "e[0]";
+
+    // Verify that the source code got compacted.
+    v8::Local<v8::Function> v8_function =
+        CompileRun(get_function).As<v8::Function>();
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_function));
+    Handle<String> function_script_source =
+        handle(String::cast(Script::cast(function->shared().script()).source()),
+               i_isolate);
+    const char* raw_expected_source = "() { 'foo' }() { 'bar' }() { 'baz' }";
+
+    Handle<String> expected_source = Utils::OpenHandle(
+        *v8::String::NewFromUtf8(isolate, raw_expected_source).ToLocalChecked(),
+        i_isolate);
+    CHECK(function_script_source->Equals(*expected_source));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

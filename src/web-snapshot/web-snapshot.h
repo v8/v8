@@ -160,11 +160,11 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverClass(Handle<JSFunction> function);
   void DiscoverContextAndPrototype(Handle<JSFunction> function);
   void DiscoverContext(Handle<Context> context);
+  void DiscoverSource(Handle<JSFunction> function);
   void DiscoverArray(Handle<JSArray> array);
   void DiscoverObject(Handle<JSObject> object);
 
-  void SerializeSource(ValueSerializer* serializer,
-                       Handle<JSFunction> function);
+  void SerializeSource();
   void SerializeFunctionInfo(ValueSerializer* serializer,
                              Handle<JSFunction> function);
 
@@ -213,6 +213,16 @@ class V8_EXPORT WebSnapshotSerializer
   uint32_t export_count_ = 0;
 
   std::queue<Handle<Object>> discovery_queue_;
+
+  // For constructing the minimal, "compacted", source string to cover all
+  // function bodies.
+  Handle<String> full_source_;
+  uint32_t source_id_;
+  // Ordered set of (start, end) pairs of all functions we've discovered.
+  std::set<std::pair<int, int>> source_intervals_;
+  // Maps function positions in the real source code into the function positions
+  // in the constructed source code (which we'll include in the web snapshot).
+  std::unordered_map<int, int> source_offset_to_compacted_source_offset_;
 };
 
 class V8_EXPORT WebSnapshotDeserializer

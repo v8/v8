@@ -249,6 +249,8 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
     Discovery(export_objects[i]);
   }
 
+  SerializeSource();
+
   for (int i = 0, length = exports->Length(); i < length; ++i) {
     v8::Local<v8::String> str =
         exports->Get(v8_isolate, i)->ToString(context).ToLocalChecked();
@@ -486,21 +488,53 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
   }
 }
 
-void WebSnapshotSerializer::SerializeSource(ValueSerializer* serializer,
-                                            Handle<JSFunction> function) {
-  // TODO(v8:11525): Don't write the full source but instead, a set of minimal
-  // snippets which cover the serialized functions.
-  Handle<String> full_source(
-      String::cast(Script::cast(function->shared().script()).source()),
-      isolate_);
-  uint32_t source_id = 0;
-  SerializeString(full_source, source_id);
-  serializer->WriteUint32(source_id);
+// Construct the minimal source string to be included in the snapshot. Maintain
+// the "inner function is textually inside its outer function" relationship.
+// Example:
+// Input:
+// Full source:       abcdefghijklmnopqrstuvwxyzåäö
+// Functions:            11111111       22222222  3
+// Inner functions:       44  55         666
+// Output:
+// Constructed source:   defghijkstuvwxyzö
+// Functions:            11111111222222223
+// Inner functions        44  55  666
+void WebSnapshotSerializer::SerializeSource() {
+  if (source_intervals_.empty()) {
+    return;
+  }
 
-  int start = function->shared().StartPosition();
-  serializer->WriteUint32(start);
-  int end = function->shared().EndPosition();
-  serializer->WriteUint32(end - start);
+  Factory* factory = isolate_->factory();
+  Handle<String> source_string = factory->empty_string();
+  int current_interval_start = 0;
+  int current_interval_end = 0;
+  for (const auto& interval : source_intervals_) {
+    DCHECK_LE(current_interval_start, interval.first);  // Iterated in order.
+    DCHECK_LE(interval.first, interval.second);
+    if (interval.second <= current_interval_end) {
+      // This interval is fully within the current interval. We don't need to
+      // include any new source code, just record the position conversion.
+      auto offset_within_parent = interval.first - current_interval_start;
+      source_offset_to_compacted_source_offset_[interval.first] =
+          source_offset_to_compacted_source_offset_[current_interval_start] +
+          offset_within_parent;
+      continue;
+    }
+    // Start a new interval.
+    current_interval_start = interval.first;
+    current_interval_end = interval.second;
+    source_offset_to_compacted_source_offset_[current_interval_start] =
+        source_string->length();
+    MaybeHandle<String> new_source_string = factory->NewConsString(
+        source_string,
+        factory->NewSubString(full_source_, current_interval_start,
+                              current_interval_end));
+    if (!new_source_string.ToHandle(&source_string)) {
+      Throw("Cannot construct source string");
+      return;
+    }
+  }
+  SerializeString(source_string, source_id_);
 }
 
 void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
@@ -522,7 +556,13 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
     }
   }
 
-  SerializeSource(serializer, function);
+  DCHECK_EQ(source_id_, 0);
+  serializer->WriteUint32(source_id_);
+  int start = function->shared().StartPosition();
+  int end = function->shared().EndPosition();
+  serializer->WriteUint32(source_offset_to_compacted_source_offset_[start]);
+  serializer->WriteUint32(end - start);
+
   serializer->WriteUint32(
       function->shared().internal_formal_parameter_count_without_receiver());
   serializer->WriteUint32(
@@ -593,6 +633,7 @@ void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
   functions_ = ArrayList::Add(isolate_, functions_, function);
   DiscoverContextAndPrototype(function);
   // TODO(v8:11525): Support properties in functions.
+  DiscoverSource(function);
 }
 
 void WebSnapshotSerializer::DiscoverClass(Handle<JSFunction> function) {
@@ -607,6 +648,7 @@ void WebSnapshotSerializer::DiscoverClass(Handle<JSFunction> function) {
   DiscoverContextAndPrototype(function);
   // TODO(v8:11525): Support properties in classes.
   // TODO(v8:11525): Support class members.
+  DiscoverSource(function);
 }
 
 void WebSnapshotSerializer::DiscoverContextAndPrototype(
@@ -656,6 +698,19 @@ void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
   }
 }
 
+void WebSnapshotSerializer::DiscoverSource(Handle<JSFunction> function) {
+  source_intervals_.emplace(function->shared().StartPosition(),
+                            function->shared().EndPosition());
+  Handle<String> function_script_source =
+      handle(String::cast(Script::cast(function->shared().script()).source()),
+             isolate_);
+  if (full_source_.is_null()) {
+    full_source_ = function_script_source;
+  } else if (!full_source_->Equals(*function_script_source)) {
+    Throw("Cannot include functions from multiple scripts");
+  }
+}
+
 void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
   uint32_t id;
   if (InsertIntoIndexMap(array_ids_, array, id)) {
@@ -692,6 +747,9 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   // TODO(v8:11525): Support objects with so many properties that they can't be
   // in fast mode.
   JSObject::MigrateSlowToFast(object, 0, "Web snapshot");
+  if (!object->HasFastProperties()) {
+    Throw("Dictionary mode objects not supported");
+  }
 
   Handle<Map> map(object->map(), isolate_);
 
