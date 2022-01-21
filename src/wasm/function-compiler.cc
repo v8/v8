@@ -175,10 +175,14 @@ bool UseGenericWrapper(const FunctionSig* sig) {
   if (sig->returns().size() > 1) {
     return false;
   }
-  if (sig->returns().size() == 1 && sig->GetReturn(0).kind() != kI32 &&
-      sig->GetReturn(0).kind() != kI64 && sig->GetReturn(0).kind() != kF32 &&
-      sig->GetReturn(0).kind() != kF64) {
-    return false;
+  if (sig->returns().size() == 1) {
+    ValueType ret = sig->GetReturn(0);
+    if (ret.kind() == kS128) return false;
+    if (ret.is_reference()) {
+      if (ret.heap_representation() != wasm::HeapType::kExtern) {
+        return false;
+      }
+    }
   }
   for (ValueType type : sig->parameters()) {
     if (type.kind() != kI32 && type.kind() != kI64 && type.kind() != kF32 &&

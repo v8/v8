@@ -3544,6 +3544,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &return_kWasmF64);
 
+  // All types that are not SIMD are reference types.
+  __ cmpq(valuetype, Immediate(wasm::kWasmS128.raw_bit_field()));
+  // References can be passed to JavaScript as is.
+  __ j(not_equal, &return_done);
+
   __ int3();
 
   __ bind(&return_kWasmI32);
