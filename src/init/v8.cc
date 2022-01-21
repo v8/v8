@@ -70,14 +70,15 @@ void AdvanceStartupState(V8StartupState expected_next_state) {
     // isolate->Dispose();
     // v8::V8::Dispose();
     // v8::V8::DisposePlatform();
-    FATAL("Wrong intialization order: got %d expected %d!", current_state,
-          next_state);
+    FATAL("Wrong intialization order: got %d expected %d!",
+          static_cast<int>(current_state), static_cast<int>(next_state));
   }
   if (!v8_startup_state_.compare_exchange_strong(current_state, next_state)) {
     FATAL(
         "Multiple threads are initializating V8 in the wrong order: expected "
         "%d got %d!",
-        current_state, v8_startup_state_.load());
+        static_cast<int>(current_state),
+        static_cast<int>(v8_startup_state_.load()));
   }
 }
 
