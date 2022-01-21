@@ -291,6 +291,23 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
     Isolate* isolate, Handle<BigInt> epoch_nanoseconds);
 
+// #sec-temporal-calendaryear
+#define DECLARE_CALENDAR_ABSTRACT_OPERATION(Name)           \
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Calendar##Name( \
+      Isolate* isolate, Handle<JSReceiver> calendar,        \
+      Handle<JSReceiver> date_like);
+DECLARE_CALENDAR_ABSTRACT_OPERATION(Year)
+DECLARE_CALENDAR_ABSTRACT_OPERATION(Month)
+DECLARE_CALENDAR_ABSTRACT_OPERATION(MonthCode)
+DECLARE_CALENDAR_ABSTRACT_OPERATION(Day)
+
+#ifdef V8_INTL_SUPPORT
+DECLARE_CALENDAR_ABSTRACT_OPERATION(Era)
+DECLARE_CALENDAR_ABSTRACT_OPERATION(EraYear)
+#endif  //  V8_INTL_SUPPORT
+
+#undef DECLARE_CALENDAR_ABSTRACT_OPERATION
+
 // #sec-temporal-getiso8601calendar
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalCalendar> GetISO8601Calendar(
     Isolate* isolate);
@@ -302,6 +319,10 @@ BuiltinTimeZoneGetPlainDateTimeFor(Isolate* isolate,
                                    Handle<JSTemporalInstant> instant,
                                    Handle<JSReceiver> calendar,
                                    const char* method);
+
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> InvokeCalendarMethod(
+    Isolate* isolate, Handle<JSReceiver> calendar, Handle<String> name,
+    Handle<JSReceiver> temporal_like);
 
 }  // namespace temporal
 }  // namespace internal

@@ -1041,7 +1041,8 @@ MaybeHandle<FixedArray> GetPossibleInstantsFor(Isolate* isolate,
     Handle<Object> argv[] = {date_time};
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, possible_instants,
-        Execution::Call(isolate, function, time_zone, 1, argv), FixedArray);
+        Execution::Call(isolate, function, time_zone, arraysize(argv), argv),
+        FixedArray);
   }
 
   // Step 4-6 of GetPossibleInstantsFor is implemented inside
@@ -1052,7 +1053,7 @@ MaybeHandle<FixedArray> GetPossibleInstantsFor(Isolate* isolate,
         isolate, possible_instants,
         Execution::CallBuiltin(
             isolate, isolate->temporal_instant_fixed_array_from_iterable(),
-            possible_instants, 1, argv),
+            possible_instants, arraysize(argv), argv),
         FixedArray);
   }
   DCHECK(possible_instants->IsFixedArray());
@@ -1782,7 +1783,7 @@ MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
   Handle<Object> added_date;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, added_date,
-      Execution::Call(isolate, date_add, calendar, 3, argv),
+      Execution::Call(isolate, date_add, calendar, arraysize(argv), argv),
       JSTemporalPlainDate);
   // 4. Perform ? RequireInternalSlot(addedDate, [[InitializedTemporalDate]]).
   if (!added_date->IsJSTemporalPlainDate()) {
@@ -1819,7 +1820,7 @@ MaybeHandle<JSTemporalDuration> CalendarDateUntil(
   Handle<Object> duration;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, duration,
-      Execution::Call(isolate, date_until, calendar, 3, argv),
+      Execution::Call(isolate, date_until, calendar, arraysize(argv), argv),
       JSTemporalDuration);
   // 4. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
@@ -1886,9 +1887,143 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
   return Just(offset_nanoseconds_int);
 }
 
+MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
+                                             Handle<Object> argument);
+
+MaybeHandle<Object> ToPositiveInteger(Isolate* isolate,
+                                      Handle<Object> argument) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Let integer be ? ToInteger(argument).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, argument, ToIntegerThrowOnInfinity(isolate, argument), Object);
+  // 2. If integer ≤ 0, then
+  if (NumberToInt32(*argument) <= 0) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object);
+  }
+  return argument;
+}
+
 }  // namespace
 
 namespace temporal {
+MaybeHandle<Object> InvokeCalendarMethod(Isolate* isolate,
+                                         Handle<JSReceiver> calendar,
+                                         Handle<String> name,
+                                         Handle<JSReceiver> date_like) {
+  Handle<Object> result;
+  /* 1. Assert: Type(calendar) is Object. */
+  DCHECK(calendar->IsObject());
+  /* 2. Let result be ? Invoke(calendar, #name, « dateLike »). */
+  Handle<Object> function;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, function, Object::GetProperty(isolate, calendar, name), Object);
+  if (!function->IsCallable()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCalledNonCallable, name),
+                    Object);
+  }
+  Handle<Object> argv[] = {date_like};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, function, calendar, arraysize(argv), argv),
+      Object);
+  return result;
+}
+
+#define CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Name, name, Action)             \
+  MaybeHandle<Object> Calendar##Name(Isolate* isolate,                         \
+                                     Handle<JSReceiver> calendar,              \
+                                     Handle<JSReceiver> date_like) {           \
+    /* 1. Assert: Type(calendar) is Object.   */                               \
+    /* 2. Let result be ? Invoke(calendar, property, « dateLike »). */       \
+    Handle<Object> result;                                                     \
+    ASSIGN_RETURN_ON_EXCEPTION(                                                \
+        isolate, result,                                                       \
+        InvokeCalendarMethod(isolate, calendar,                                \
+                             isolate->factory()->name##_string(), date_like),  \
+        Object);                                                               \
+    /* 3. If result is undefined, throw a RangeError exception. */             \
+    if (result->IsUndefined()) {                                               \
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object); \
+    }                                                                          \
+    /* 4. Return ? Action(result). */                                          \
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Action(isolate, result),       \
+                               Object);                                        \
+    return Handle<Smi>(Smi::FromInt(result->Number()), isolate);               \
+  }
+
+// #sec-temporal-calendaryear
+CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Year, year, ToIntegerThrowOnInfinity)
+// #sec-temporal-calendarmonth
+CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Month, month, ToPositiveInteger)
+// #sec-temporal-calendarday
+CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Day, day, ToPositiveInteger)
+// #sec-temporal-calendarmonthcode
+MaybeHandle<Object> CalendarMonthCode(Isolate* isolate,
+                                      Handle<JSReceiver> calendar,
+                                      Handle<JSReceiver> date_like) {
+  // 1. Assert: Type(calendar) is Object.
+  // 2. Let result be ? Invoke(calendar, monthCode , « dateLike »).
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      InvokeCalendarMethod(isolate, calendar,
+                           isolate->factory()->monthCode_string(), date_like),
+      Object);
+  /* 3. If result is undefined, throw a RangeError exception. */
+  if (result->IsUndefined()) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object);
+  }
+  // 4. Return ? ToString(result).
+  return Object::ToString(isolate, result);
+}
+
+#ifdef V8_INTL_SUPPORT
+// #sec-temporal-calendarerayear
+MaybeHandle<Object> CalendarEraYear(Isolate* isolate,
+                                    Handle<JSReceiver> calendar,
+                                    Handle<JSReceiver> date_like) {
+  // 1. Assert: Type(calendar) is Object.
+  // 2. Let result be ? Invoke(calendar, eraYear , « dateLike »).
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      InvokeCalendarMethod(isolate, calendar,
+                           isolate->factory()->eraYear_string(), date_like),
+      Object);
+  // 3. If result is not undefined, set result to ? ToIntegerOrInfinity(result).
+  if (!result->IsUndefined()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result, ToIntegerThrowOnInfinity(isolate, result), Object);
+  }
+  // 4. Return result.
+  return result;
+}
+
+// #sec-temporal-calendarera
+MaybeHandle<Object> CalendarEra(Isolate* isolate, Handle<JSReceiver> calendar,
+                                Handle<JSReceiver> date_like) {
+  // 1. Assert: Type(calendar) is Object.
+  // 2. Let result be ? Invoke(calendar, era , « dateLike »).
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      InvokeCalendarMethod(isolate, calendar, isolate->factory()->era_string(),
+                           date_like),
+      Object);
+  // 3. If result is not undefined, set result to ? ToString(result).
+  if (!result->IsUndefined()) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               Object::ToString(isolate, result), Object);
+  }
+  // 4. Return result.
+  return result;
+}
+
+#endif  //  V8_INTL_SUPPORT
+
 // #sec-temporal-getiso8601calendar
 MaybeHandle<JSTemporalCalendar> GetISO8601Calendar(Isolate* isolate) {
   return CreateTemporalCalendar(isolate, isolate->factory()->iso8601_string());
