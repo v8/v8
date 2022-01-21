@@ -1949,10 +1949,9 @@ void SinglePassRegisterAllocator::UpdateVirtualRegisterState() {
 
 void SinglePassRegisterAllocator::CheckConsistency() {
 #ifdef DEBUG
-  for (int virtual_register = 0;
-       virtual_register < data_->code()->VirtualRegisterCount();
-       virtual_register++) {
-    RegisterIndex reg = RegisterForVirtualRegister(virtual_register);
+  int virtual_register = -1;
+  for (RegisterIndex reg : virtual_register_to_reg_) {
+    ++virtual_register;
     if (!reg.is_valid()) continue;
     CHECK_NOT_NULL(register_state_);
     // The register must be set to allocated.
@@ -1960,6 +1959,7 @@ void SinglePassRegisterAllocator::CheckConsistency() {
     // reg <-> vreg linking is consistent.
     CHECK_EQ(virtual_register, VirtualRegisterForRegister(reg));
   }
+  CHECK_EQ(data_->code()->VirtualRegisterCount() - 1, virtual_register);
 
   RegisterBitVector used_registers;
   for (RegisterIndex reg : *register_state_) {
