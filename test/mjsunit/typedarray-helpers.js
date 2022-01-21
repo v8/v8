@@ -56,6 +56,10 @@ function CreateGrowableSharedArrayBuffer(byteLength, maxByteLength) {
   return new SharedArrayBuffer(byteLength, {maxByteLength: maxByteLength});
 }
 
+function IsBigIntTypedArray(ta) {
+  return (ta instanceof BigInt64Array) || (ta instanceof BigUint64Array);
+}
+
 function ReadDataFromBuffer(ab, ctor) {
   let result = [];
   const ta = new ctor(ab, 0, ab.byteLength / ctor.BYTES_PER_ELEMENT);

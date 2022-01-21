@@ -4693,3 +4693,249 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
   BigInt.prototype.toLocaleString = oldBigIntPrototypeToLocaleString;
 })();
+
+(function TestMap() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < taWrite.length; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    function Helper(array) {
+      const values = [];
+      function GatherValues(n, ix) {
+        assertEquals(values.length, ix);
+        values.push(n);
+        if (typeof n == 'bigint') {
+          return n + 1n;
+        }
+        return n + 1;
+      }
+      const newValues = array.map(GatherValues);
+      for (let i = 0; i < values.length; ++i) {
+        if (typeof values[i] == 'bigint') {
+          assertEquals(newValues[i], values[i] + 1n);
+        } else {
+          assertEquals(newValues[i], values[i] + 1);
+        }
+      }
+      return ToNumbers(values);
+    }
+
+    assertEquals([0, 2, 4, 6], Helper(fixedLength));
+    assertEquals([4, 6], Helper(fixedLengthWithOffset));
+    assertEquals([0, 2, 4, 6], Helper(lengthTracking));
+    assertEquals([4, 6], Helper(lengthTrackingWithOffset));
+
+    // Shrink so that fixed length TAs go out of bounds.
+    rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+
+    // Orig. array: [0, 2, 4]
+    //              [0, 2, 4, ...] << lengthTracking
+    //                    [4, ...] << lengthTrackingWithOffset
+
+    assertThrows(() => { Helper(fixedLength); });
+    assertThrows(() => { Helper(fixedLengthWithOffset); });
+
+    assertEquals([0, 2, 4], Helper(lengthTracking));
+    assertEquals([4], Helper(lengthTrackingWithOffset));
+
+    // Shrink so that the TAs with offset go out of bounds.
+    rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { Helper(fixedLength); });
+    assertThrows(() => { Helper(fixedLengthWithOffset); });
+    assertThrows(() => { Helper(lengthTrackingWithOffset); });
+
+    assertEquals([0], Helper(lengthTracking));
+
+    // Shrink to zero.
+    rab.resize(0);
+
+    assertThrows(() => { Helper(fixedLength); });
+    assertThrows(() => { Helper(fixedLengthWithOffset); });
+    assertThrows(() => { Helper(lengthTrackingWithOffset); });
+
+    assertEquals([], Helper(lengthTracking));
+
+    // Grow so that all TAs are back in-bounds.
+    rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    assertEquals([0, 2, 4, 6], Helper(fixedLength));
+    assertEquals([4, 6], Helper(fixedLengthWithOffset));
+    assertEquals([0, 2, 4, 6, 8, 10], Helper(lengthTracking));
+    assertEquals([4, 6, 8, 10], Helper(lengthTrackingWithOffset));
+  }
+})();
+
+(function MapShrinkMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values;
+  let rab;
+  let resizeAfter;
+  let resizeTo;
+  function CollectValuesAndResize(n, ix, ta) {
+    if (typeof n == 'bigint') {
+      values.push(Number(n));
+    } else {
+      values.push(n);
+    }
+    if (values.length == resizeAfter) {
+      rab.resize(resizeTo);
+    }
+    // We still need to return a valid BigInt / non-BigInt, even if
+    // n is `undefined`.
+    if (IsBigIntTypedArray(ta)) {
+      return 0n;
+    }
+    return 0;
+  }
+
+  function Helper(array) {
+    values = [];
+    array.map(CollectValuesAndResize);
+    return values;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    resizeAfter = 2;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertEquals([0, 2, undefined, undefined], Helper(fixedLength));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    resizeAfter = 1;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertEquals([4, undefined], Helper(fixedLengthWithOffset));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    resizeAfter = 2;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertEquals([0, 2, 4, undefined], Helper(lengthTracking));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    resizeAfter = 1;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
+  }
+})();
+
+(function MapGrowMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values;
+  let rab;
+  let resizeAfter;
+  let resizeTo;
+  function CollectValuesAndResize(n) {
+    if (typeof n == 'bigint') {
+      values.push(Number(n));
+    } else {
+      values.push(n);
+    }
+    if (values.length == resizeAfter) {
+      rab.resize(resizeTo);
+    }
+    return n;
+  }
+
+  function Helper(array) {
+    values = [];
+    array.map(CollectValuesAndResize);
+    return values;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    resizeAfter = 2;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertEquals([0, 2, 4, 6], Helper(fixedLength));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    resizeAfter = 1;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertEquals([4, 6], Helper(fixedLengthWithOffset));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    resizeAfter = 2;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertEquals([0, 2, 4, 6], Helper(lengthTracking));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    resizeAfter = 1;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertEquals([4, 6], Helper(lengthTrackingWithOffset));
+  }
+})();

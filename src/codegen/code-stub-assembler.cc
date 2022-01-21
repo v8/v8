@@ -14121,6 +14121,15 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
   return result.value();
 }
 
+void CodeStubAssembler::CheckJSTypedArrayIndex(
+    TNode<UintPtrT> index, TNode<JSTypedArray> typed_array,
+    Label* detached_or_out_of_bounds) {
+  TNode<UintPtrT> len = LoadJSTypedArrayLengthAndCheckDetached(
+      typed_array, detached_or_out_of_bounds);
+
+  GotoIf(UintPtrGreaterThanOrEqual(index, len), detached_or_out_of_bounds);
+}
+
 // ES #sec-integerindexedobjectbytelength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
     TNode<Context> context, TNode<JSTypedArray> array,

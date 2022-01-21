@@ -283,8 +283,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=11111
   'built-ins/ArrayBuffer/prototype/transfer/*': [FAIL],
   'built-ins/ArrayBuffer/prototype/transfer/this-is-sharedarraybuffer': [PASS],
-  'built-ins/TypedArray/prototype/map/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/map/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/reverse/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/reverse/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/set/BigInt/typedarray-arg-target-out-of-bounds': [SKIP],
@@ -294,7 +292,8 @@
   'built-ins/TypedArray/prototype/sort/return-abrupt-from-this-out-of-bounds': [FAIL],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-different-type': [FAIL],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-same-type': [FAIL],
-  'built-ins/TypedArray/prototype/map/callbackfn-resize': [SKIP],
+  # See also https://github.com/tc39/test262/issues/3380
+  'built-ins/TypedArray/prototype/map/callbackfn-resize': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12525
   # regexp-v-flag not yet in Stage 3.

@@ -654,7 +654,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   let values;
   let rab;
   let detachAfter;
-  function CollectValuesAndResize(n) {
+  function CollectValuesAndDetach(n) {
     if (typeof n == 'bigint') {
       values.push(Number(n));
     } else {
@@ -668,19 +668,19 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
   function ForEachHelper(array) {
     values = [];
-    array.forEach(CollectValuesAndResize);
+    array.forEach(CollectValuesAndDetach);
     return values;
   }
 
   function ReduceHelper(array) {
     values = [];
-    array.reduce((acc, n) => { CollectValuesAndResize(n); }, "initial value");
+    array.reduce((acc, n) => { CollectValuesAndDetach(n); }, "initial value");
     return values;
   }
 
   function ReduceRightHelper(array) {
     values = [];
-    array.reduceRight((acc, n) => { CollectValuesAndResize(n); },
+    array.reduceRight((acc, n) => { CollectValuesAndDetach(n); },
                       "initial value");
     return values;
   }
@@ -982,4 +982,77 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
   Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
   BigInt.prototype.toLocaleString = oldBigIntPrototypeToLocaleString;
+})();
+
+(function MapDetachMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values;
+  let rab;
+  let detachAfter;
+  function CollectValuesAndDetach(n, ix, ta) {
+    if (typeof n == 'bigint') {
+      values.push(Number(n));
+    } else {
+      values.push(n);
+    }
+    if (values.length == detachAfter) {
+      %ArrayBufferDetach(rab);
+    }
+    // We still need to return a valid BigInt / non-BigInt, even if
+    // n is `undefined`.
+    if (IsBigIntTypedArray(ta)) {
+      return 0n;
+    } else {
+      return 0;
+    }
+  }
+
+  function Helper(array) {
+    values = [];
+    array.map(CollectValuesAndDetach);
+    return values;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    detachAfter = 2;
+    assertEquals([0, 2, undefined, undefined], Helper(fixedLength));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    detachAfter = 1;
+    assertEquals([4, undefined], Helper(fixedLengthWithOffset));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    detachAfter = 2;
+    assertEquals([0, 2, undefined, undefined], Helper(lengthTracking));
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    detachAfter = 1;
+    assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
+  }
 })();
