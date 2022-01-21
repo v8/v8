@@ -1128,7 +1128,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(I64x2Neg)             \
   V(I32x4Neg)             \
   V(I16x8Neg)             \
-  V(I8x16Neg)
+  V(I8x16Neg)             \
+  V(S128Not)
 
 #define PROTOTYPE_SIMD_UNOP(name) \
   void name(Simd128Register dst, Simd128Register src);
@@ -1225,7 +1226,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(I8x16ShrU, Register)        \
   V(I8x16Shl, const Operand&)   \
   V(I8x16ShrS, const Operand&)  \
-  V(I8x16ShrU, const Operand&)
+  V(I8x16ShrU, const Operand&)  \
+  V(S128And, Simd128Register)   \
+  V(S128Or, Simd128Register)    \
+  V(S128Xor, Simd128Register)   \
+  V(S128AndNot, Simd128Register)
 
 #define PROTOTYPE_SIMD_BINOP(name, stype) \
   void name(Simd128Register dst, Simd128Register src1, stype src2);

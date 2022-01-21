@@ -2631,7 +2631,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I8x16MaxU, Simd128Register) \
   V(I8x16Shl, Register)         \
   V(I8x16ShrS, Register)        \
-  V(I8x16ShrU, Register)
+  V(I8x16ShrU, Register)        \
+  V(S128And, Simd128Register)   \
+  V(S128Or, Simd128Register)    \
+  V(S128Xor, Simd128Register)   \
+  V(S128AndNot, Simd128Register)
 
 #define EMIT_SIMD_BINOP(name, stype)                              \
   case kS390_##name: {                                            \
@@ -2671,7 +2675,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I64x2Neg, Simd128Register, Simd128Register)        \
   V(I32x4Neg, Simd128Register, Simd128Register)        \
   V(I16x8Neg, Simd128Register, Simd128Register)        \
-  V(I8x16Neg, Simd128Register, Simd128Register)
+  V(I8x16Neg, Simd128Register, Simd128Register)        \
+  V(S128Not, Simd128Register, Simd128Register)
 
 #define EMIT_SIMD_UNOP(name, dtype, stype)         \
   case kS390_##name: {                             \
@@ -2784,12 +2789,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              Condition(2));
       break;
     }
-    case kS390_S128Not: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vno(dst, src, src, Condition(0), Condition(0), Condition(0));
-      break;
-    }
     // vector boolean unops
     case kS390_V128AnyTrue: {
       Simd128Register src = i.InputSimd128Register(0);
@@ -2830,27 +2829,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #undef SIMD_ALL_TRUE
     // vector bitwise ops
-    case kS390_S128And: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vn(dst, i.InputSimd128Register(0), src, Condition(0), Condition(0),
-            Condition(0));
-      break;
-    }
-    case kS390_S128Or: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vo(dst, i.InputSimd128Register(0), src, Condition(0), Condition(0),
-            Condition(0));
-      break;
-    }
-    case kS390_S128Xor: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vx(dst, i.InputSimd128Register(0), src, Condition(0), Condition(0),
-            Condition(0));
-      break;
-    }
     case kS390_S128Const: {
       uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
@@ -2875,13 +2853,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register src2 = i.InputSimd128Register(2);
       __ vsel(dst, src1, src2, mask, Condition(0), Condition(0));
-      break;
-    }
-    case kS390_S128AndNot: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src = i.InputSimd128Register(1);
-      __ vnc(dst, i.InputSimd128Register(0), src, Condition(0), Condition(0),
-             Condition(0));
       break;
     }
     // vector conversions

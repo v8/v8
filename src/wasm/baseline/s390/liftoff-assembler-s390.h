@@ -2342,7 +2342,11 @@ void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
   V(i8x16_max_u, I8x16MaxU, fp) \
   V(i8x16_shl, I8x16Shl, gp)    \
   V(i8x16_shr_s, I8x16ShrS, gp) \
-  V(i8x16_shr_u, I8x16ShrU, gp)
+  V(i8x16_shr_u, I8x16ShrU, gp) \
+  V(s128_and, S128And, fp)      \
+  V(s128_or, S128Or, fp)        \
+  V(s128_xor, S128Xor, fp)      \
+  V(s128_and_not, S128AndNot, fp)
 
 #define EMIT_SIMD_BINOP_RR(name, op, stype)                                    \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister lhs, \
@@ -2404,7 +2408,8 @@ SIMD_BINOP_RI_LIST(EMIT_SIMD_BINOP_RI)
   V(i64x2_neg, I64x2Neg, fp, fp, , void)                    \
   V(i32x4_neg, I32x4Neg, fp, fp, , void)                    \
   V(i16x8_neg, I16x8Neg, fp, fp, , void)                    \
-  V(i8x16_neg, I8x16Neg, fp, fp, , void)
+  V(i8x16_neg, I8x16Neg, fp, fp, , void)                    \
+  V(s128_not, S128Not, fp, fp, , void)
 
 #define EMIT_SIMD_UNOP(name, op, dtype, stype, return_val, return_type) \
   return_type LiftoffAssembler::emit_##name(LiftoffRegister dst,        \
@@ -2751,25 +2756,6 @@ void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_s128_const");
 }
 
-void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_s128_not");
-}
-
-void LiftoffAssembler::emit_s128_and(LiftoffRegister dst, LiftoffRegister lhs,
-                                     LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_s128_and");
-}
-
-void LiftoffAssembler::emit_s128_or(LiftoffRegister dst, LiftoffRegister lhs,
-                                    LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_s128_or");
-}
-
-void LiftoffAssembler::emit_s128_xor(LiftoffRegister dst, LiftoffRegister lhs,
-                                     LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_s128_xor");
-}
-
 void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
@@ -2874,12 +2860,6 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
   bailout(kSimd, "i32x4.trunc_sat_f64x2_u_zero");
-}
-
-void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
-                                         LiftoffRegister lhs,
-                                         LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_s128_and_not");
 }
 
 void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,

@@ -5224,6 +5224,10 @@ void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
   vlvg(dst, src2, MemOperand(r0, 15 - imm_lane_idx), Condition(0));
 }
 
+void TurboAssembler::S128Not(Simd128Register dst, Simd128Register src) {
+  vno(dst, src, src, Condition(0), Condition(0), Condition(0));
+}
+
 #define SIMD_UNOP_LIST_VRR_A(V)    \
   V(F64x2Abs, vfpso, 2, 0, 3)      \
   V(F64x2Neg, vfpso, 0, 0, 3)      \
@@ -5314,7 +5318,11 @@ SIMD_BINOP_LIST_VRR_B(EMIT_SIMD_BINOP_VRR_B)
   V(I8x16MinS, vmn, 0, 0, 0)     \
   V(I8x16MinU, vmnl, 0, 0, 0)    \
   V(I8x16MaxS, vmx, 0, 0, 0)     \
-  V(I8x16MaxU, vmxl, 0, 0, 0)
+  V(I8x16MaxU, vmxl, 0, 0, 0)    \
+  V(S128And, vn, 0, 0, 0)        \
+  V(S128Or, vo, 0, 0, 0)         \
+  V(S128Xor, vx, 0, 0, 0)        \
+  V(S128AndNot, vnc, 0, 0, 0)
 
 #define EMIT_SIMD_BINOP_VRR_C(name, op, c1, c2, c3)                    \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
