@@ -6794,7 +6794,7 @@ Node* EffectControlLinearizer::BuildAllocateBigInt(Node* bitfield,
   DCHECK(machine()->Is64());
   DCHECK_EQ(bitfield == nullptr, digit == nullptr);
   static constexpr auto zero_bitfield =
-      BigInt::SignBits::update(BigInt::LengthBits::encode(0), 0);
+      BigInt::SignBits::update(BigInt::LengthBits::encode(0), false);
 
   Node* map = __ HeapConstant(factory()->bigint_map());
 

@@ -27985,7 +27985,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
                            v8::FastApiCallbackOptions& options) {
     v8::Object* receiver_obj = *receiver;
     if (!IsValidUnwrapObject(receiver_obj)) {
-      options.fallback = 1;
+      options.fallback = true;
       return;
     }
     ApiNumberChecker<T>* receiver_ptr =
@@ -27998,7 +27998,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
       // against after loading it from a stack slot, as defined in
       // EffectControlLinearizer::LowerFastApiCall.
       CHECK_EQ(options.fallback, 0);
-      options.fallback = 1;
+      options.fallback = true;
     }
   }
 

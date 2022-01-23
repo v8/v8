@@ -4332,7 +4332,7 @@ struct FastApiReceiver {
     // TODO(mslekova): The fallback is not used by the test. Replace this
     // with a CHECK.
     if (!IsValidUnwrapObject(*receiver)) {
-      options.fallback = 1;
+      options.fallback = true;
       return;
     }
     FastApiReceiver* receiver_ptr =
