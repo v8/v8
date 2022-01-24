@@ -195,6 +195,12 @@
 }],  # arch == arm64 and system == macos and not simulator_run
 
 ##############################################################################
+['arch == arm and not simulator_run', {
+  # Fails on ODROID: https://crbug.com/v8/11634
+  'test-wasm-metrics/*': [SKIP],
+}],  # arch == arm and not simulator_run
+
+##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'test-cpu-profiler/MultipleIsolates': [SKIP],
