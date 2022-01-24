@@ -68,11 +68,16 @@ void OptimizedCompilationInfo::ConfigureFlags() {
 
   switch (code_kind_) {
     case CodeKind::TURBOFAN:
+      set_called_with_code_start_register();
+      set_switch_jump_table();
+      if (FLAG_analyze_environment_liveness) {
+        set_analyze_environment_liveness();
+      }
       if (FLAG_function_context_specialization) {
         set_function_context_specializing();
       }
       if (FLAG_turbo_splitting) set_splitting();
-      V8_FALLTHROUGH;
+      break;
     case CodeKind::BYTECODE_HANDLER:
       set_called_with_code_start_register();
       if (FLAG_turbo_splitting) set_splitting();
