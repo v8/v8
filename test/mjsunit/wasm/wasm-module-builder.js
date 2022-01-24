@@ -867,9 +867,10 @@ let kTrapFloatUnrepresentable = 5;
 let kTrapTableOutOfBounds = 6;
 let kTrapFuncSigMismatch = 7;
 let kTrapUnalignedAccess = 8;
-let kTrapDataSegmentDropped = 9;
+let kTrapDataSegmentOutOfBounds = 9;
 let kTrapElemSegmentDropped = 10;
 let kTrapRethrowNull = 11;
+let kTrapArrayTooLarge = 12;
 
 let kTrapMsgs = [
   'unreachable',                                    // --
@@ -881,9 +882,10 @@ let kTrapMsgs = [
   'table index is out of bounds',                   // --
   'null function or function signature mismatch',   // --
   'operation does not support unaligned accesses',  // --
-  'data segment has been dropped',                  // --
+  'data segment out of bounds',                     // --
   'element segment has been dropped',               // --
-  'rethrowing null value'                           // --
+  'rethrowing null value',                          // --
+  'requested new array is too large'                // --
 ];
 
 // This requires test/mjsunit/mjsunit.js.
@@ -1364,6 +1366,7 @@ class WasmModuleBuilder {
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
     this.num_imported_tags = 0;
+    this.early_data_count_section = false;
     return this;
   }
 
@@ -1768,6 +1771,14 @@ class WasmModuleBuilder {
       });
     }
 
+    // If there are any passive data segments, add the DataCount section.
+    if (this.early_data_count_section &&
+        wasm.data_segments.some(seg => !seg.is_active)) {
+      binary.emit_section(kDataCountSectionCode, section => {
+        section.emit_u32v(wasm.data_segments.length);
+      });
+    }
+
     // Add table section
     if (wasm.tables.length > 0) {
       if (debug) print('emitting tables @ ' + binary.length);
@@ -1930,7 +1941,8 @@ class WasmModuleBuilder {
     }
 
     // If there are any passive data segments, add the DataCount section.
-    if (wasm.data_segments.some(seg => !seg.is_active)) {
+    if (!this.early_data_count_section &&
+        wasm.data_segments.some(seg => !seg.is_active)) {
       binary.emit_section(kDataCountSectionCode, section => {
         section.emit_u32v(wasm.data_segments.length);
       });

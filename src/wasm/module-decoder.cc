@@ -409,15 +409,20 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kDataCountSectionCode:
         if (!CheckUnorderedSection(section_code)) return;
-        if (!CheckSectionOrder(section_code, kElementSectionCode,
-                               kCodeSectionCode))
+        // If wasm-gc is enabled, we allow the data cound section anywhere in
+        // the module.
+        if (!enabled_features_.has_gc() &&
+            !CheckSectionOrder(section_code, kElementSectionCode,
+                               kCodeSectionCode)) {
           return;
+        }
         break;
       case kTagSectionCode:
         if (!CheckUnorderedSection(section_code)) return;
         if (!CheckSectionOrder(section_code, kMemorySectionCode,
-                               kGlobalSectionCode))
+                               kGlobalSectionCode)) {
           return;
+        }
         break;
       case kNameSectionCode:
         // TODO(titzer): report out of place name section as a warning.

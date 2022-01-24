@@ -638,8 +638,8 @@ builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
 }
 
-builtin ThrowWasmTrapDataSegmentDropped(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentDropped));
+builtin ThrowWasmTrapDataSegmentOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentOutOfBounds));
 }
 
 builtin ThrowWasmTrapElemSegmentDropped(): JSAny {

@@ -505,7 +505,7 @@ class WasmGraphBuilder {
   void ArrayCopy(Node* dst_array, Node* dst_index, CheckForNull dst_null_check,
                  Node* src_array, Node* src_index, CheckForNull src_null_check,
                  Node* length, wasm::WasmCodePosition position);
-  Node* ArrayInit(uint32_t array_index, const wasm::ArrayType* type, Node* rtt,
+  Node* ArrayInit(const wasm::ArrayType* type, Node* rtt,
                   base::Vector<Node*> elements);
   Node* I31New(Node* input);
   Node* I31GetS(Node* input);

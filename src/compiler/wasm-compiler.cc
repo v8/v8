@@ -5393,6 +5393,7 @@ void WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
   MachineSignature sig(1, 1, sig_types);
   Node* call = BuildCCall(&sig, function, stack_slot);
+  // TODO(manoskouk): Also throw kDataSegmentOutOfBounds.
   TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
 
@@ -5602,8 +5603,7 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
   return a;
 }
 
-Node* WasmGraphBuilder::ArrayInit(uint32_t array_index,
-                                  const wasm::ArrayType* type, Node* rtt,
+Node* WasmGraphBuilder::ArrayInit(const wasm::ArrayType* type, Node* rtt,
                                   base::Vector<Node*> elements) {
   wasm::ValueType element_type = type->element_type();
   // TODO(7748): Consider using gasm_->Allocate().

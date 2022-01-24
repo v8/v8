@@ -6,7 +6,8 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function() {
+(function TestNominalTypesBasic() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   let struct1 = builder.addStructSubtype([makeField(kWasmI32, true)]);
   let struct2 = builder.addStructSubtype(
@@ -42,13 +43,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.instantiate();
 })();
 
-(function () {
-    let builder = new WasmModuleBuilder();
-    let t0 = builder.addStructSubtype([]);
-    for (let i = 0; i < 32; i++) {
-        builder.addStructSubtype([], i);
-    }
-    assertThrows(
-        () => builder.instantiate(), WebAssembly.CompileError,
-        /subtyping depth is greater than allowed/);
+(function TestSubtypingDepthTooLarge() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addStructSubtype([]);
+  for (let i = 0; i < 32; i++) {
+      builder.addStructSubtype([], i);
+  }
+  assertThrows(
+      () => builder.instantiate(), WebAssembly.CompileError,
+      /subtyping depth is greater than allowed/);
 })();

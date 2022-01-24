@@ -4844,6 +4844,7 @@ class LiftoffCompiler {
     // register for the result.
     LiftoffRegister result(instance);
     GenerateCCall(&result, &sig, kVoid, args, ext_ref);
+    // TODO(manoskouk): Also throw kDataSegmentOutOfBounds.
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp());

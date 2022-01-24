@@ -1761,7 +1761,7 @@ enum IsolateAddressId {
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
   V(TrapFuncSigMismatch)           \
-  V(TrapDataSegmentDropped)        \
+  V(TrapDataSegmentOutOfBounds)    \
   V(TrapElemSegmentDropped)        \
   V(TrapTableOutOfBounds)          \
   V(TrapRethrowNull)               \

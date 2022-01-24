@@ -936,9 +936,10 @@ bool HasDefaultToNumberBehaviour(Isolate* isolate,
   return true;
 }
 
-V8_INLINE WasmValue
-EvaluateInitExpression(Zone* zone, ConstantExpression expr, ValueType expected,
-                       Isolate* isolate, Handle<WasmInstanceObject> instance) {
+V8_INLINE WasmValue EvaluateInitExpression(Zone* zone, ConstantExpression expr,
+                                           ValueType expected, Isolate* isolate,
+                                           Handle<WasmInstanceObject> instance,
+                                           ErrorThrower* thrower) {
   switch (expr.kind()) {
     case ConstantExpression::kEmpty:
       UNREACHABLE();
@@ -975,6 +976,11 @@ EvaluateInitExpression(Zone* zone, ConstantExpression expr, ValueType expected,
                   body, instance->module(), isolate, instance);
 
       decoder.DecodeFunctionBody();
+
+      if (decoder.interface().runtime_error()) {
+        thrower->RuntimeError("%s", decoder.interface().runtime_error_msg());
+        return {};
+      }
 
       return decoder.interface().result();
     }
@@ -1042,17 +1048,20 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     if (module_->is_memory64) {
       uint64_t dest_offset_64 =
           EvaluateInitExpression(&init_expr_zone_, segment.dest_addr, kWasmI64,
-                                 isolate_, instance)
+                                 isolate_, instance, thrower_)
               .to_u64();
+      if (thrower_->error()) return;
       // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
       // invalid offset.
       DCHECK_GT(std::numeric_limits<size_t>::max(), instance->memory_size());
       dest_offset = static_cast<size_t>(std::min(
           dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
-      dest_offset = EvaluateInitExpression(&init_expr_zone_, segment.dest_addr,
-                                           kWasmI32, isolate_, instance)
-                        .to_u32();
+      dest_offset =
+          EvaluateInitExpression(&init_expr_zone_, segment.dest_addr, kWasmI32,
+                                 isolate_, instance, thrower_)
+              .to_u32();
+      if (thrower_->error()) return;
     }
 
     if (!base::IsInBounds<size_t>(dest_offset, size, instance->memory_size())) {
@@ -1749,8 +1758,10 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
     // Happens with imported globals.
     if (!global.init.is_set()) continue;
 
-    WasmValue value = EvaluateInitExpression(&init_expr_zone_, global.init,
-                                             global.type, isolate_, instance);
+    WasmValue value =
+        EvaluateInitExpression(&init_expr_zone_, global.init, global.type,
+                               isolate_, instance, thrower_);
+    if (thrower_->error()) return;
 
     if (global.type.is_reference()) {
       tagged_globals_->set(global.offset, *value.to_ref());
@@ -2014,13 +2025,14 @@ void InstanceBuilder::InitializeNonDefaultableTables(
           SetFunctionTableNullEntry(isolate_, table_object, entry_index);
         }
       } else {
-        Handle<Object> value =
+        WasmValue value =
             EvaluateInitExpression(&init_expr_zone_, table.initial_value,
-                                   table.type, isolate_, instance)
-                .to_ref();
+                                   table.type, isolate_, instance, thrower_);
+        if (thrower_->error()) return;
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
-          WasmTableObject::Set(isolate_, table_object, entry_index, value);
+          WasmTableObject::Set(isolate_, table_object, entry_index,
+                               value.to_ref());
         }
       }
   }
@@ -2050,6 +2062,8 @@ bool LoadElemSegmentImpl(Zone* zone, Isolate* isolate,
   bool is_function_table =
       IsSubtypeOf(table_object->type(), kWasmFuncRef, instance->module());
 
+  ErrorThrower thrower(isolate, "LoadElemSegment");
+
   for (size_t i = 0; i < count; ++i) {
     ConstantExpression entry = elem_segment.entries[src + i];
     int entry_index = static_cast<int>(dst + i);
@@ -2060,11 +2074,10 @@ bool LoadElemSegmentImpl(Zone* zone, Isolate* isolate,
                entry.kind() == ConstantExpression::kRefNull) {
       SetFunctionTableNullEntry(isolate, table_object, entry_index);
     } else {
-      Handle<Object> value =
-          EvaluateInitExpression(zone, entry, elem_segment.type, isolate,
-                                 instance)
-              .to_ref();
-      WasmTableObject::Set(isolate, table_object, entry_index, value);
+      WasmValue value = EvaluateInitExpression(zone, entry, elem_segment.type,
+                                               isolate, instance, &thrower);
+      if (thrower.error()) return false;
+      WasmTableObject::Set(isolate, table_object, entry_index, value.to_ref());
     }
   }
   return true;
@@ -2079,9 +2092,11 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
     uint32_t table_index = elem_segment.table_index;
-    uint32_t dst = EvaluateInitExpression(&init_expr_zone_, elem_segment.offset,
-                                          kWasmI32, isolate_, instance)
-                       .to_u32();
+    uint32_t dst =
+        EvaluateInitExpression(&init_expr_zone_, elem_segment.offset, kWasmI32,
+                               isolate_, instance, thrower_)
+            .to_u32();
+    if (thrower_->error()) return;
     uint32_t src = 0;
     size_t count = elem_segment.entries.size();
 

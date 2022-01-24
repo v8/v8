@@ -615,9 +615,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<HeapObject> suspender);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
-  Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type,
-                                 const std::vector<wasm::WasmValue>& elements,
-                                 Handle<Map> map);
+  Handle<WasmArray> NewWasmArrayFromElements(
+      const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
+      Handle<Map> map);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       Handle<String> name, Handle<WasmExportedFunctionData> data);

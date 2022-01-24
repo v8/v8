@@ -75,9 +75,13 @@ class InitExprInterface {
     return result_;
   }
   bool end_found() { return end_found_; }
+  bool runtime_error() { return error_ != nullptr; }
+  const char* runtime_error_msg() { return error_; }
 
  private:
+  bool generate_result() { return isolate_ != nullptr && !runtime_error(); }
   bool end_found_ = false;
+  const char* error_ = nullptr;
   WasmValue result_;
   const WasmModule* module_;
   WasmModule* outer_module_;
