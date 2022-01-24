@@ -3075,7 +3075,6 @@ filegroup(
         "third_party/inspector_protocol/crdtp/protocol_core.h",
         "third_party/inspector_protocol/crdtp/serializable.cc",
         "third_party/inspector_protocol/crdtp/serializable.h",
-        "third_party/inspector_protocol/crdtp/serializer_traits.h",
         "third_party/inspector_protocol/crdtp/span.cc",
         "third_party/inspector_protocol/crdtp/span.h",
         "third_party/inspector_protocol/crdtp/status.cc",
