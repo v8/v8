@@ -1731,9 +1731,11 @@ class WasmGraphBuildingInterface {
     for (size_t i = 0; i < return_count; ++i) {
       returns[i].node = return_nodes[i];
     }
-    // The invoked function could have used grow_memory, so we need to
-    // reload mem_size and mem_start.
-    LoadContextIntoSsa(ssa_env_);
+    if (decoder->module_->initial_pages != decoder->module_->maximum_pages) {
+      // The invoked function could have used grow_memory, so we need to
+      // reload mem_size and mem_start.
+      LoadContextIntoSsa(ssa_env_);
+    }
   }
 
   void DoReturnCall(FullDecoder* decoder, CallInfo call_info,
