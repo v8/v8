@@ -412,7 +412,9 @@ if (v8_enable_short_builtin_calls == "") {
       v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64")
 }
 if (v8_enable_external_code_space == "") {
-  v8_enable_external_code_space = false
+  v8_enable_external_code_space =
+      v8_enable_pointer_compression &&
+      (v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64"))
 }
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
