@@ -1593,8 +1593,12 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result.set_function_index(func_index);
   result.set_signature(*sig_foreign);
   result.set_wrapper_budget(wrapper_budget);
-  result.set_c_wrapper_code(*BUILTIN_CODE(isolate(), Illegal),
-                            SKIP_WRITE_BARRIER);
+  // We can't skip the write barrier when V8_EXTERNAL_CODE_SPACE is enabled
+  // because in this case the CodeT (CodeDataContainer) objects are not
+  // immovable.
+  result.set_c_wrapper_code(
+      *BUILTIN_CODE(isolate(), Illegal),
+      V8_EXTERNAL_CODE_SPACE_BOOL ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER);
   result.set_packed_args_size(0);
   result.set_suspender(*undefined_value());
   return handle(result, isolate());
