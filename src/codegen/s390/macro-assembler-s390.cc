@@ -5290,6 +5290,8 @@ SIMD_BINOP_LIST_VRR_B(EMIT_SIMD_BINOP_VRR_B)
   V(F64x2Min, vfmin, 1, 0, 3)    \
   V(F64x2Max, vfmax, 1, 0, 3)    \
   V(F64x2Eq, vfce, 0, 0, 3)      \
+  V(F64x2Pmin, vfmin, 3, 0, 3)   \
+  V(F64x2Pmax, vfmax, 3, 0, 3)   \
   V(F32x4Add, vfa, 0, 0, 2)      \
   V(F32x4Sub, vfs, 0, 0, 2)      \
   V(F32x4Mul, vfm, 0, 0, 2)      \
@@ -5297,6 +5299,8 @@ SIMD_BINOP_LIST_VRR_B(EMIT_SIMD_BINOP_VRR_B)
   V(F32x4Min, vfmin, 1, 0, 2)    \
   V(F32x4Max, vfmax, 1, 0, 2)    \
   V(F32x4Eq, vfce, 0, 0, 2)      \
+  V(F32x4Pmin, vfmin, 3, 0, 2)   \
+  V(F32x4Pmax, vfmax, 3, 0, 2)   \
   V(I64x2Add, va, 0, 0, 3)       \
   V(I64x2Sub, vs, 0, 0, 3)       \
   V(I32x4Add, va, 0, 0, 2)       \

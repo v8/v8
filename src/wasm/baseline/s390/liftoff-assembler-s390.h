@@ -2276,6 +2276,8 @@ void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
   V(f64x2_ne, F64x2Ne, fp)      \
   V(f64x2_lt, F64x2Lt, fp)      \
   V(f64x2_le, F64x2Le, fp)      \
+  V(f64x2_pmin, F64x2Pmin, fp)  \
+  V(f64x2_pmax, F64x2Pmax, fp)  \
   V(f32x4_add, F32x4Add, fp)    \
   V(f32x4_sub, F32x4Sub, fp)    \
   V(f32x4_mul, F32x4Mul, fp)    \
@@ -2286,6 +2288,8 @@ void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
   V(f32x4_ne, F32x4Ne, fp)      \
   V(f32x4_lt, F32x4Lt, fp)      \
   V(f32x4_le, F32x4Le, fp)      \
+  V(f32x4_pmin, F32x4Pmin, fp)  \
+  V(f32x4_pmax, F32x4Pmax, fp)  \
   V(i64x2_add, I64x2Add, fp)    \
   V(i64x2_sub, I64x2Sub, fp)    \
   V(i64x2_mul, I64x2Mul, fp)    \
@@ -2486,16 +2490,6 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i8x16_swizzle");
 }
 
-void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  bailout(kSimd, "pmin unimplemented");
-}
-
-void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  bailout(kSimd, "pmax unimplemented");
-}
-
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   bailout(kSimd, "f64x2.convert_low_i32x4_s");
@@ -2509,16 +2503,6 @@ void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
                                                     LiftoffRegister src) {
   bailout(kSimd, "f64x2.promote_low_f32x4");
-}
-
-void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  bailout(kSimd, "pmin unimplemented");
-}
-
-void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
-                                       LiftoffRegister rhs) {
-  bailout(kSimd, "pmax unimplemented");
 }
 
 void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,

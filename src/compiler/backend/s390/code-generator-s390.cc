@@ -2565,6 +2565,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(F64x2Ne, Simd128Register)   \
   V(F64x2Lt, Simd128Register)   \
   V(F64x2Le, Simd128Register)   \
+  V(F64x2Pmin, Simd128Register) \
+  V(F64x2Pmax, Simd128Register) \
   V(F32x4Add, Simd128Register)  \
   V(F32x4Sub, Simd128Register)  \
   V(F32x4Mul, Simd128Register)  \
@@ -2575,6 +2577,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(F32x4Ne, Simd128Register)   \
   V(F32x4Lt, Simd128Register)   \
   V(F32x4Le, Simd128Register)   \
+  V(F32x4Pmin, Simd128Register) \
+  V(F32x4Pmax, Simd128Register) \
   V(I64x2Add, Simd128Register)  \
   V(I64x2Sub, Simd128Register)  \
   V(I64x2Mul, Simd128Register)  \
@@ -3171,30 +3175,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 Condition(0), Condition(0), Condition(0));
       __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 3),
               Condition(1));
-      break;
-    }
-    case kS390_F32x4Pmin: {
-      __ vfmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               i.InputSimd128Register(1), Condition(3), Condition(0),
-               Condition(2));
-      break;
-    }
-    case kS390_F32x4Pmax: {
-      __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               i.InputSimd128Register(1), Condition(3), Condition(0),
-               Condition(2));
-      break;
-    }
-    case kS390_F64x2Pmin: {
-      __ vfmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               i.InputSimd128Register(1), Condition(3), Condition(0),
-               Condition(3));
-      break;
-    }
-    case kS390_F64x2Pmax: {
-      __ vfmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               i.InputSimd128Register(1), Condition(3), Condition(0),
-               Condition(3));
       break;
     }
     case kS390_I32x4DotI16x8S: {

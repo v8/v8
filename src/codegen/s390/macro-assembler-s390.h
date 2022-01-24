@@ -1148,6 +1148,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(F64x2Ne, Simd128Register)   \
   V(F64x2Lt, Simd128Register)   \
   V(F64x2Le, Simd128Register)   \
+  V(F64x2Pmin, Simd128Register) \
+  V(F64x2Pmax, Simd128Register) \
   V(F32x4Add, Simd128Register)  \
   V(F32x4Sub, Simd128Register)  \
   V(F32x4Mul, Simd128Register)  \
@@ -1158,6 +1160,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(F32x4Ne, Simd128Register)   \
   V(F32x4Lt, Simd128Register)   \
   V(F32x4Le, Simd128Register)   \
+  V(F32x4Pmin, Simd128Register) \
+  V(F32x4Pmax, Simd128Register) \
   V(I64x2Add, Simd128Register)  \
   V(I64x2Sub, Simd128Register)  \
   V(I64x2Mul, Simd128Register)  \
