@@ -6,7 +6,11 @@ extern macro EmptyScopeInfoConstant(): ScopeInfo;
 const kEmptyScopeInfo: ScopeInfo = EmptyScopeInfoConstant();
 
 extern enum ScopeType extends uint32 {
-  CLASS_SCOPE,  // Also used for the empty scope (for NativeContext & builtins).
+  // The empty scope info for builtins and NativeContexts is allocated
+  // in a way that it gets the first scope type in line, see
+  // Heap::CreateInitialMaps(). It's always guarded with the IsEmpty
+  // bit, so it doesn't matter what scope type it gets.
+  CLASS_SCOPE,
   EVAL_SCOPE,
   FUNCTION_SCOPE,
   MODULE_SCOPE,
@@ -144,7 +148,9 @@ extern class ScopeInfo extends HeapObject {
       [flags.scope_type == ScopeType::FUNCTION_SCOPE ||
        flags.scope_type == ScopeType::SCRIPT_SCOPE ||
        flags.scope_type == ScopeType::EVAL_SCOPE ||
-       flags.scope_type == ScopeType::MODULE_SCOPE]: PositionInfo;
+       flags.scope_type == ScopeType::MODULE_SCOPE ||
+       (flags.is_empty ? false : flags.scope_type == ScopeType::CLASS_SCOPE)]:
+          PositionInfo;
 
   outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo|TheHole;
 

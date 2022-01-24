@@ -449,7 +449,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Generate BytecodeArray.
   Handle<ScopeInfo> scope_info =
       factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
-  scope_info->set_flags(0);
+  int flags = ScopeInfo::IsEmptyBit::encode(true);
+  scope_info->set_flags(flags);
   scope_info->set_context_local_count(0);
   scope_info->set_parameter_count(0);
   scope.SetScriptScopeInfo(scope_info);

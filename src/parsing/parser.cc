@@ -832,7 +832,30 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   if (shared_info->HasOuterScopeInfo()) {
     maybe_outer_scope_info = handle(shared_info->GetOuterScopeInfo(), isolate);
   }
-  DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
+  int start_position = shared_info->StartPosition();
+  int end_position = shared_info->EndPosition();
+
+  MaybeHandle<ScopeInfo> deserialize_start_scope = maybe_outer_scope_info;
+  // If the function is a class member initializer and there isn't a
+  // scope mismatch, we will only deserialize up to the outer scope of
+  // the class scope, and regenerate the class scope during reparsing.
+  if (flags().function_kind() ==
+          FunctionKind::kClassMembersInitializerFunction &&
+      shared_info->HasOuterScopeInfo() &&
+      maybe_outer_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
+      maybe_outer_scope_info.ToHandleChecked()->StartPosition() ==
+          start_position) {
+    Handle<ScopeInfo> outer_scope_info =
+        maybe_outer_scope_info.ToHandleChecked();
+    if (outer_scope_info->HasOuterScopeInfo()) {
+      deserialize_start_scope =
+          handle(outer_scope_info->OuterScopeInfo(), isolate);
+    } else {
+      deserialize_start_scope = MaybeHandle<ScopeInfo>();
+    }
+  }
+
+  DeserializeScopeChain(isolate, info, deserialize_start_scope,
                         Scope::DeserializationMode::kIncludingVariables);
   DCHECK_EQ(factory()->zone(), info->zone());
 
@@ -841,8 +864,6 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }
 
-  int start_position = shared_info->StartPosition();
-  int end_position = shared_info->EndPosition();
   int function_literal_id = shared_info->function_literal_id();
   if V8_UNLIKELY (script->type() == Script::TYPE_WEB_SNAPSHOT) {
     // Function literal IDs for inner functions haven't been allocated when
@@ -866,11 +887,13 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     // function is in heritage position. Otherwise the function scope's skip bit
     // will be correctly inherited from the outer scope.
     ClassScope::HeritageParsingScope heritage(original_scope_->AsClassScope());
-    result = DoParseFunction(isolate, info, start_position, end_position,
-                             function_literal_id, info->function_name());
+    result = DoParseDeserializedFunction(
+        isolate, maybe_outer_scope_info, info, start_position, end_position,
+        function_literal_id, info->function_name());
   } else {
-    result = DoParseFunction(isolate, info, start_position, end_position,
-                             function_literal_id, info->function_name());
+    result = DoParseDeserializedFunction(
+        isolate, maybe_outer_scope_info, info, start_position, end_position,
+        function_literal_id, info->function_name());
   }
   MaybeProcessSourceRanges(info, result, stack_limit_);
   if (result != nullptr) {
@@ -1031,6 +1054,81 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
+}
+
+FunctionLiteral* Parser::DoParseDeserializedFunction(
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+    ParseInfo* info, int start_position, int end_position,
+    int function_literal_id, const AstRawString* raw_name) {
+  if (flags().function_kind() ==
+      FunctionKind::kClassMembersInitializerFunction) {
+    return ParseClassForInstanceMemberInitialization(
+        isolate, maybe_outer_scope_info, start_position, function_literal_id,
+        end_position);
+  }
+
+  return DoParseFunction(isolate, info, start_position, end_position,
+                         function_literal_id, raw_name);
+}
+
+FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
+    int initializer_pos, int initializer_id, int initializer_end_pos) {
+  // When the function is a kClassMembersInitializerFunction, we record the
+  // source range of the entire class as its positions in its SFI, so at this
+  // point the scanner should be rewound to the position of the class token.
+  int class_token_pos = initializer_pos;
+  DCHECK_EQ(peek_position(), class_token_pos);
+
+  // Insert a FunctionState with the closest outer Declaration scope
+  DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
+  DCHECK_NOT_NULL(nearest_decl_scope);
+  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
+  // We will reindex the function literals later.
+  ResetFunctionLiteralId();
+
+  // We preparse the class members that are not fields with initializers
+  // in order to collect the function literal ids.
+  ParsingModeScope mode(this, PARSE_LAZILY);
+
+  ExpressionParsingScope no_expression_scope(impl());
+
+  // Reparse the class as an expression to build the instance member
+  // initializer function.
+  Expression* expr = ParseClassExpression(original_scope_);
+
+  DCHECK(expr->IsClassLiteral());
+  ClassLiteral* literal = expr->AsClassLiteral();
+  FunctionLiteral* initializer =
+      literal->instance_members_initializer_function();
+
+  // Reindex so that the function literal ids match.
+  AstFunctionLiteralIdReindexer reindexer(
+      stack_limit_, initializer_id - initializer->function_literal_id());
+  reindexer.Reindex(expr);
+
+  no_expression_scope.ValidateExpression();
+
+  // If the class scope was not optimized away, we know that it allocated
+  // some variables and we need to fix up the allocation info for them.
+  bool needs_allocation_fixup =
+      !maybe_class_scope_info.is_null() &&
+      maybe_class_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
+      maybe_class_scope_info.ToHandleChecked()->StartPosition() ==
+          class_token_pos;
+
+  ClassScope* reparsed_scope = literal->scope();
+  reparsed_scope->FinalizeReparsedClassScope(isolate, maybe_class_scope_info,
+                                             ast_value_factory(),
+                                             needs_allocation_fixup);
+  original_scope_ = reparsed_scope;
+
+  DCHECK_EQ(initializer->kind(),
+            FunctionKind::kClassMembersInitializerFunction);
+  DCHECK_EQ(initializer->function_literal_id(), initializer_id);
+  DCHECK_EQ(initializer->end_position(), initializer_end_pos);
+
+  return initializer;
 }
 
 Statement* Parser::ParseModuleItem() {
@@ -3123,7 +3221,9 @@ FunctionLiteral* Parser::CreateInitializerFunction(
       FunctionSyntaxKind::kAccessorOrMethod,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
       GetNextFunctionLiteralId());
-
+#ifdef DEBUG
+  scope->SetScopeName(ast_value_factory()->GetOneByteString(name));
+#endif
   RecordFunctionLiteralSourceRange(result);
 
   return result;

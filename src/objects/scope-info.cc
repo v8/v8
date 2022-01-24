@@ -711,7 +711,7 @@ bool ScopeInfo::HasPositionInfo() const {
 // static
 bool ScopeInfo::NeedsPositionInfo(ScopeType type) {
   return type == FUNCTION_SCOPE || type == SCRIPT_SCOPE || type == EVAL_SCOPE ||
-         type == MODULE_SCOPE;
+         type == MODULE_SCOPE || type == CLASS_SCOPE;
 }
 
 bool ScopeInfo::HasSharedFunctionName() const {

@@ -223,6 +223,10 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
     var->AllocateTo(VariableLocation::CONTEXT,
                     Context::MIN_CONTEXT_SLOTS + index);
   }
+
+  DCHECK(scope_info->HasPositionInfo());
+  set_start_position(scope_info->StartPosition());
+  set_end_position(scope_info->EndPosition());
 }
 template ClassScope::ClassScope(Isolate* isolate, Zone* zone,
                                 AstValueFactory* ast_value_factory,
@@ -523,6 +527,15 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
         DeserializationMode deserialization_mode);
 
+#ifdef DEBUG
+bool Scope::IsReparsedMemberInitializerScope() const {
+  return is_declaration_scope() &&
+         IsClassMembersInitializerFunction(
+             AsDeclarationScope()->function_kind()) &&
+         outer_scope()->AsClassScope()->is_reparsed_class_scope();
+}
+#endif
+
 DeclarationScope* Scope::AsDeclarationScope() {
   DCHECK(is_declaration_scope());
   return static_cast<DeclarationScope*>(this);
@@ -666,8 +679,10 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // We are compiling one of four cases:
   // 1) top-level code,
   // 2) a function/eval/module on the top-level
-  // 3) a function/eval in a scope that was already resolved.
+  // 4) a class member initializer function scope
+  // 3) 4 function/eval in a scope that was already resolved.
   DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
+         scope->IsReparsedMemberInitializerScope() ||
          scope->outer_scope()->already_resolved_);
 
   // The outer scope is never lazy.
@@ -1895,6 +1910,8 @@ void Scope::Print(int n) {
     if (scope->needs_private_name_context_chain_recalc()) {
       Indent(n1, "// needs #-name context chain recalc\n");
     }
+    Indent(n1, "// ");
+    PrintF("%s\n", FunctionKind2String(scope->function_kind()));
   }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
@@ -2725,6 +2742,46 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
     default:
       return false;
   }
+}
+
+void ClassScope::FinalizeReparsedClassScope(
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_scope_info,
+    AstValueFactory* ast_value_factory, bool needs_allocation_fixup) {
+  // Set this bit so that DelcarationScope::Analyze recognizes
+  // the reparsed instance member initializer scope.
+#ifdef DEBUG
+  is_reparsed_class_scope_ = true;
+#endif
+
+  if (!needs_allocation_fixup) {
+    return;
+  }
+
+  // Restore variable allocation results for context-allocated variables in
+  // the class scope from ScopeInfo, so that we don't need to run
+  // resolution and allocation on these variables again when generating
+  // code for the initializer function.
+  DCHECK(!maybe_scope_info.is_null());
+  Handle<ScopeInfo> scope_info = maybe_scope_info.ToHandleChecked();
+  DCHECK_EQ(scope_info->scope_type(), CLASS_SCOPE);
+  DCHECK_EQ(scope_info->StartPosition(), start_position_);
+
+  int context_local_count = scope_info->ContextLocalCount();
+  int context_header_length = scope_info->ContextHeaderLength();
+  DisallowGarbageCollection no_gc;
+  for (int i = 0; i < context_local_count; ++i) {
+    int slot_index = context_header_length + i;
+    DCHECK_LT(slot_index, scope_info->ContextLength());
+
+    String name = scope_info->ContextInlinedLocalName(i);
+    const AstRawString* string = ast_value_factory->GetString(
+        name, SharedStringAccessGuardIfNeeded(isolate));
+    Variable* var = string->IsPrivateName() ? LookupLocalPrivateName(string)
+                                            : LookupLocal(string);
+    DCHECK_NOT_NULL(var);
+    var->AllocateTo(VariableLocation::CONTEXT, slot_index);
+  }
+  scope_info_ = scope_info;
 }
 
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
