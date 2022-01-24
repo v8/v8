@@ -1905,8 +1905,9 @@ void SinglePassRegisterAllocator::SpillRegisterAtMerge(
                   (rep == MachineRepresentation::kFloat64 ? 1 : 2));
     RegisterIndex simd_reg =
         FromRegCode(simd_reg_code, MachineRepresentation::kSimd128);
-    DCHECK(simd_reg == reg || simdSibling(simd_reg) == reg);
-    if (reg_state->IsAllocated(simd_reg)) {
+    DCHECK(!simd_reg.is_valid() || simd_reg == reg ||
+           simdSibling(simd_reg) == reg);
+    if (simd_reg.is_valid() && reg_state->IsAllocated(simd_reg)) {
       int virtual_register = reg_state->VirtualRegisterForRegister(simd_reg);
       VirtualRegisterData& vreg_data =
           data_->VirtualRegisterDataFor(virtual_register);
