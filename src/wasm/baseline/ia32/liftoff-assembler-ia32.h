@@ -1160,17 +1160,15 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
-  if (needs_gp_reg_pair(kind)) {
-    liftoff::MoveStackValue(this,
-                            liftoff::GetHalfStackSlot(src_offset, kLowWord),
-                            liftoff::GetHalfStackSlot(dst_offset, kLowWord));
-    liftoff::MoveStackValue(this,
-                            liftoff::GetHalfStackSlot(src_offset, kHighWord),
-                            liftoff::GetHalfStackSlot(dst_offset, kHighWord));
-  } else {
+  DCHECK_EQ(0, element_size_bytes(kind) % kSystemPointerSize);
+  int words = element_size_bytes(kind) / kSystemPointerSize;
+  DCHECK_LE(1, words);
+  do {
     liftoff::MoveStackValue(this, liftoff::GetStackSlot(src_offset),
                             liftoff::GetStackSlot(dst_offset));
-  }
+    dst_offset -= kSystemPointerSize;
+    src_offset -= kSystemPointerSize;
+  } while (--words);
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
