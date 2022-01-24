@@ -77,6 +77,18 @@ builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
   return AllocateHeapNumberWithValue(Convert<float64>(val));
 }
 
+builtin WasmFuncRefToJS(val: WasmInternalFunction|Null): JSFunction|Null|
+    Undefined {
+  typeswitch (val) {
+    case (Null): {
+      return Null;
+    }
+    case (func: WasmInternalFunction): {
+      return func.external;
+    }
+  }
+}
+
 builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: JSAnyNotSmi):
     int32 {
   return ChangeTaggedNonSmiToInt32(val);

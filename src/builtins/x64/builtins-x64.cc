@@ -3531,6 +3531,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Label return_kWasmI64;
   Label return_kWasmF32;
   Label return_kWasmF64;
+  Label return_kWasmFuncRef;
 
   __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
   __ j(equal, &return_kWasmI32);
@@ -3543,6 +3544,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &return_kWasmF64);
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmFuncRef.raw_bit_field()));
+  __ j(equal, &return_kWasmFuncRef);
 
   // All types that are not SIMD are reference types.
   __ cmpq(valuetype, Immediate(wasm::kWasmS128.raw_bit_field()));
@@ -3591,6 +3595,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // The builtin expects the value to be in xmm0.
   __ Movsd(xmm0, xmm1);
   __ Call(BUILTIN_CODE(masm->isolate(), WasmFloat64ToNumber),
+          RelocInfo::CODE_TARGET);
+  __ jmp(&return_done);
+
+  __ bind(&return_kWasmFuncRef);
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmFuncRefToJS),
           RelocInfo::CODE_TARGET);
   __ jmp(&return_done);
 

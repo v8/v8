@@ -179,7 +179,8 @@ bool UseGenericWrapper(const FunctionSig* sig) {
     ValueType ret = sig->GetReturn(0);
     if (ret.kind() == kS128) return false;
     if (ret.is_reference()) {
-      if (ret.heap_representation() != wasm::HeapType::kExtern) {
+      if (ret.heap_representation() != wasm::HeapType::kExtern &&
+          ret.heap_representation() != wasm::HeapType::kFunc) {
         return false;
       }
     }
