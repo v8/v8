@@ -1508,22 +1508,26 @@ Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
       isolate_->factory()->NewSharedFunctionInfo(
           isolate_->factory()->empty_string(), MaybeHandle<Code>(),
           Builtin::kCompileLazy, kind);
-  if (IsConciseMethod(kind)) {
-    shared->set_syntax_kind(FunctionSyntaxKind::kAccessorOrMethod);
-  }
-  shared->set_script(*script_);
-  shared->set_function_literal_id(shared_function_info_index);
-  shared->set_internal_formal_parameter_count(
-      JSParameterCount(parameter_count));
-  // TODO(v8:11525): Decide how to handle language modes.
-  shared->set_language_mode(LanguageMode::kStrict);
-  shared->set_uncompiled_data(
-      *isolate_->factory()->NewUncompiledDataWithoutPreparseData(
+  Handle<UncompiledData> uncompiled_data =
+      isolate_->factory()->NewUncompiledDataWithoutPreparseData(
           ReadOnlyRoots(isolate_).empty_string_handle(), start_position,
-          start_position + length));
-  shared->set_allows_lazy_compilation(true);
-  shared_function_infos_->Set(shared_function_info_index,
-                              HeapObjectReference::Weak(*shared));
+          start_position + length);
+  {
+    DisallowGarbageCollection no_gc;
+    SharedFunctionInfo raw = *shared;
+    if (IsConciseMethod(kind)) {
+      raw.set_syntax_kind(FunctionSyntaxKind::kAccessorOrMethod);
+    }
+    raw.set_script(*script_);
+    raw.set_function_literal_id(shared_function_info_index);
+    raw.set_internal_formal_parameter_count(JSParameterCount(parameter_count));
+    // TODO(v8:11525): Decide how to handle language modes.
+    raw.set_language_mode(LanguageMode::kStrict);
+    raw.set_uncompiled_data(*uncompiled_data);
+    raw.set_allows_lazy_compilation(true);
+    shared_function_infos_->Set(shared_function_info_index,
+                                HeapObjectReference::Weak(raw));
+  }
   shared_function_info_table_ = ObjectHashTable::Put(
       shared_function_info_table_,
       handle(Smi::FromInt(start_position), isolate_),
@@ -1535,7 +1539,7 @@ Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
   if (context_id > 0) {
     DCHECK_LT(context_id - 1, context_count_);
     // Guards raw pointer "context" below.
-    DisallowHeapAllocation no_heap_access;
+    DisallowGarbageCollection no_gc;
     Context context = Context::cast(contexts_->get(context_id - 1));
     function->set_context(context);
     shared->set_outer_scope_info(context.scope_info());
@@ -1556,13 +1560,16 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
   // Overallocate the array for SharedFunctionInfos; functions which we
   // deserialize soon will create more SharedFunctionInfos when called.
   shared_function_infos_ = isolate_->factory()->NewWeakFixedArray(
-      WeakArrayList::CapacityForLength(function_count_ + 1),
-      AllocationType::kOld);
+      WeakArrayList::CapacityForLength(function_count_ + 1));
   shared_function_info_table_ = ObjectHashTable::New(isolate_, function_count_);
   script_ = isolate_->factory()->NewScript(isolate_->factory()->empty_string());
-  script_->set_type(Script::TYPE_WEB_SNAPSHOT);
-  script_->set_shared_function_infos(*shared_function_infos_);
-  script_->set_shared_function_info_table(*shared_function_info_table_);
+  {
+    DisallowGarbageCollection no_gc;
+    Script raw = *script_;
+    raw.set_type(Script::TYPE_WEB_SNAPSHOT);
+    raw.set_shared_function_infos(*shared_function_infos_);
+    raw.set_shared_function_info_table(*shared_function_info_table_);
+  }
 
   for (; current_function_count_ < function_count_; ++current_function_count_) {
     uint32_t context_id;
@@ -1777,33 +1784,34 @@ void WebSnapshotDeserializer::ReadValue(
     Handle<Object> object_for_deferred_reference,
     uint32_t index_for_deferred_reference) {
   uint32_t value_type;
+  Factory* factory = isolate_->factory();
   // TODO(v8:11525): Consider adding a ReadByte.
   if (!deserializer_->ReadUint32(&value_type)) {
     Throw("Malformed variable");
     // Set "value" here so that the "keep on trucking" error handling won't fail
     // when dereferencing the handle.
-    value = isolate_->factory()->undefined_value();
+    value = factory->undefined_value();
     representation = Representation::None();
     return;
   }
   switch (value_type) {
     case ValueType::FALSE_CONSTANT: {
-      value = handle(ReadOnlyRoots(isolate_).false_value(), isolate_);
+      value = factory->false_value();
       representation = Representation::Tagged();
       break;
     }
     case ValueType::TRUE_CONSTANT: {
-      value = handle(ReadOnlyRoots(isolate_).true_value(), isolate_);
+      value = factory->true_value();
       representation = Representation::Tagged();
       break;
     }
     case ValueType::NULL_CONSTANT: {
-      value = handle(ReadOnlyRoots(isolate_).null_value(), isolate_);
+      value = factory->null_value();
       representation = Representation::Tagged();
       break;
     }
     case ValueType::UNDEFINED_CONSTANT: {
-      value = handle(ReadOnlyRoots(isolate_).undefined_value(), isolate_);
+      value = factory->undefined_value();
       representation = Representation::Tagged();
       break;
     }
@@ -1813,7 +1821,7 @@ void WebSnapshotDeserializer::ReadValue(
         Throw("Malformed integer");
         return;
       }
-      value = isolate_->factory()->NewNumberFromInt(number.FromJust());
+      value = factory->NewNumberFromInt(number.FromJust());
       representation = Representation::Tagged();
       break;
     }
@@ -1823,7 +1831,7 @@ void WebSnapshotDeserializer::ReadValue(
         Throw("Malformed double");
         return;
       }
-      value = isolate_->factory()->NewNumber(number);
+      value = factory->NewNumber(number);
       representation = Representation::Tagged();
       break;
     }
@@ -1842,7 +1850,7 @@ void WebSnapshotDeserializer::ReadValue(
         value = handle(arrays_->get(array_id), isolate_);
       } else {
         // The array hasn't been deserialized yet.
-        value = isolate_->factory()->undefined_value();
+        value = factory->undefined_value();
         if (object_for_deferred_reference.is_null()) {
           Throw("Invalid array reference");
           return;
@@ -1862,7 +1870,7 @@ void WebSnapshotDeserializer::ReadValue(
         value = handle(objects_->get(object_id), isolate_);
       } else {
         // The object hasn't been deserialized yet.
-        value = isolate_->factory()->undefined_value();
+        value = factory->undefined_value();
         if (object_for_deferred_reference.is_null()) {
           Throw("Invalid object reference");
           return;
@@ -1884,7 +1892,7 @@ void WebSnapshotDeserializer::ReadValue(
         value = handle(functions_->get(function_id), isolate_);
       } else {
         // The function hasn't been deserialized yet.
-        value = isolate_->factory()->undefined_value();
+        value = factory->undefined_value();
         if (object_for_deferred_reference.is_null()) {
           Throw("Invalid object reference");
           return;
@@ -1906,7 +1914,7 @@ void WebSnapshotDeserializer::ReadValue(
         value = handle(classes_->get(class_id), isolate_);
       } else {
         // The class hasn't been deserialized yet.
-        value = isolate_->factory()->undefined_value();
+        value = factory->undefined_value();
         if (object_for_deferred_reference.is_null()) {
           Throw("Invalid object reference");
           return;
@@ -1969,6 +1977,7 @@ void WebSnapshotDeserializer::ReadFunctionPrototype(
 
 bool WebSnapshotDeserializer::SetFunctionPrototype(JSFunction function,
                                                    JSReceiver prototype) {
+  DisallowGarbageCollection no_gc;
   // TODO(v8:11525): Enforce the invariant that no two prototypes share a map.
   Map map = prototype.map();
   map.set_is_prototype_map(true);
