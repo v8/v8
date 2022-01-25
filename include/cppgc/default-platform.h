@@ -63,6 +63,8 @@ class V8_EXPORT DefaultPlatform : public Platform {
     return v8_platform_->GetTracingController();
   }
 
+  v8::Platform* GetV8Platform() const { return v8_platform_.get(); }
+
  protected:
   static constexpr v8::Isolate* kNoIsolate = nullptr;
 
