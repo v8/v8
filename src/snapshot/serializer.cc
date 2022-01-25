@@ -965,7 +965,7 @@ void Serializer::ObjectSerializer::OutputExternalReference(Address target,
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
   // "Sandboxify" external reference.
-  OutputExternalReference(host.foreign_address(), kExternalPointerSize, true);
+  OutputExternalReference(host.foreign_address(), kSystemPointerSize, true);
   bytes_processed_so_far_ += kExternalPointerSize;
 }
 

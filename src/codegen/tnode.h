@@ -84,11 +84,16 @@ struct UintPtrT : WordT {
   static constexpr MachineType kMachineType = MachineType::UintPtr();
 };
 
+// An index into the external pointer table.
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+struct ExternalPointerT : Uint32T {
+  static constexpr MachineType kMachineType = MachineType::Uint32();
+};
+#else
 struct ExternalPointerT : UntaggedT {
-  static const MachineRepresentation kMachineRepresentation =
-      MachineType::PointerRepresentation();
   static constexpr MachineType kMachineType = MachineType::Pointer();
 };
+#endif
 
 struct Float32T : UntaggedT {
   static const MachineRepresentation kMachineRepresentation =

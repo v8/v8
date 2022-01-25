@@ -3224,19 +3224,24 @@ Node* WasmGraphBuilder::BuildIndirectCall(
   }
 }
 
-Node* WasmGraphBuilder::BuildUnsandboxExternalPointer(Node* external_pointer) {
+Node* WasmGraphBuilder::BuildLoadExternalPointerFromObject(Node* object,
+                                                           int offset) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  Node* external_pointer = gasm_->LoadFromObject(
+      MachineType::Uint32(), object, wasm::ObjectAccess::ToTagged(offset));
   Node* isolate_root = BuildLoadIsolateRoot();
   Node* table =
       gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
                             IsolateData::external_pointer_table_offset() +
                                 Internals::kExternalPointerTableBufferOffset);
-  Node* offset = gasm_->Int32Mul(external_pointer, gasm_->Int32Constant(8));
-  Node* decoded_ptr = gasm_->Load(MachineType::Pointer(), table, offset);
+  Node* scaled_index = gasm_->Int32Mul(
+      external_pointer, gasm_->Int32Constant(kSystemPointerSize));
+  Node* decoded_ptr = gasm_->Load(MachineType::Pointer(), table, scaled_index);
   Node* tag = gasm_->IntPtrConstant(~kForeignForeignAddressTag);
   return gasm_->WordAnd(decoded_ptr, tag);
 #else
-  return external_pointer;
+  return gasm_->LoadFromObject(MachineType::Pointer(), object,
+                               wasm::ObjectAccess::ToTagged(offset));
 #endif
 }
 
@@ -3245,11 +3250,8 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
   Node* internal = gasm_->LoadFromObject(
       MachineType::TaggedPointer(), function,
       wasm::ObjectAccess::ToTagged(WasmExportedFunctionData::kInternalOffset));
-  Node* external_pointer =
-      gasm_->LoadFromObject(MachineType::Pointer(), internal,
-                            wasm::ObjectAccess::ToTagged(
-                                WasmInternalFunction::kForeignAddressOffset));
-  return BuildUnsandboxExternalPointer(external_pointer);
+  return BuildLoadExternalPointerFromObject(
+      internal, WasmInternalFunction::kForeignAddressOffset);
 }
 
 // TODO(9495): Support CAPI function refs.
@@ -3272,12 +3274,8 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
       MachineType::TaggedPointer(), function,
       wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
 
-  Node* external_target =
-      gasm_->LoadFromObject(MachineType::Pointer(), function,
-                            wasm::ObjectAccess::ToTagged(
-                                WasmInternalFunction::kForeignAddressOffset));
-
-  Node* target = BuildUnsandboxExternalPointer(external_target);
+  Node* target = BuildLoadExternalPointerFromObject(
+      function, WasmInternalFunction::kForeignAddressOffset);
   Node* is_null_target = gasm_->WordEqual(target, gasm_->IntPtrConstant(0));
   gasm_->GotoIfNot(is_null_target, &end_label, target);
   {
@@ -6761,11 +6759,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         Node* internal = gasm_->LoadFromObject(
             MachineType::TaggedPointer(), function_data,
             wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
-        Node* sandboxed_pointer = gasm_->LoadFromObject(
-            MachineType::Pointer(), internal,
-            wasm::ObjectAccess::ToTagged(
-                WasmInternalFunction::kForeignAddressOffset));
-        args[0] = BuildUnsandboxExternalPointer(sandboxed_pointer);
+        args[0] = BuildLoadExternalPointerFromObject(
+            internal, WasmInternalFunction::kForeignAddressOffset);
         Node* instance_node = gasm_->LoadFromObject(
             MachineType::TaggedPointer(), internal,
             wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));

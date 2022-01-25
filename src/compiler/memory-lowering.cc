@@ -411,6 +411,7 @@ Node* MemoryLowering::DecodeExternalPointer(
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   DCHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
   DCHECK(node->opcode() == IrOpcode::kLoad);
+  DCHECK_EQ(kExternalPointerSize, kUInt32Size);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   __ InitializeEffectControl(effect, control);
@@ -424,12 +425,17 @@ Node* MemoryLowering::DecodeExternalPointer(
   // __ DebugBreak();
 
   // Decode loaded external pointer.
-  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
-  Node* external_pointer_table_address = __ ExternalConstant(
+  //
+  // Here we access the external pointer table through an ExternalReference.
+  // Alternatively, we could also hardcode the address of the table since it is
+  // never reallocated. However, in that case we must be able to guarantee that
+  // the generated code is never executed under a different Isolate, as that
+  // would allow access to external objects from different Isolates. It also
+  // would break if the code is serialized/deserialized at some point.
+  Node* table_address = __ ExternalConstant(
       ExternalReference::external_pointer_table_address(isolate()));
-  Node* table = __ Load(MachineType::Pointer(), external_pointer_table_address,
+  Node* table = __ Load(MachineType::Pointer(), table_address,
                         Internals::kExternalPointerTableBufferOffset);
-  // TODO(v8:10391, saelo): bounds check if table is not caged
   Node* offset = __ Int32Mul(index, __ Int32Constant(sizeof(Address)));
   Node* decoded_ptr =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
@@ -467,7 +473,7 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
   MachineType type = access.machine_type;
   if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
       access.type.Is(Type::SandboxedExternalPointer())) {
-    // External pointer table indices are 32bit numbers
+    // External pointer table indices are stored as 32-bit numbers
     type = MachineType::Uint32();
   }
 

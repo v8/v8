@@ -16,11 +16,11 @@ namespace internal {
 V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
                                         ExternalPointer_t encoded_pointer,
                                         ExternalPointerTag tag) {
-  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  uint32_t index = static_cast<uint32_t>(encoded_pointer);
-  return isolate->external_pointer_table().Get(index, tag);
+  STATIC_ASSERT(kExternalPointerSize == kInt32Size);
+  return isolate->external_pointer_table().Get(encoded_pointer, tag);
 #else
+  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
   return encoded_pointer;
 #endif
 }
@@ -34,12 +34,8 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
                                         Address value, ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointer_t index = isolate->external_pointer_table().Allocate();
-  isolate->external_pointer_table().Set(static_cast<uint32_t>(index), value,
-                                        tag);
-  static_assert(kExternalPointerSize == kSystemPointerSize,
-                "Review the code below, once kExternalPointerSize is 4-byte "
-                "the address of the field will always be aligned");
-  base::WriteUnalignedValue<ExternalPointer_t>(field_address, index);
+  isolate->external_pointer_table().Set(index, value, tag);
+  base::Memory<ExternalPointer_t>(field_address) = index;
 #else
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
   constexpr bool v8_pointer_compression_unaligned =
@@ -54,9 +50,6 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 }
 
 V8_INLINE ExternalPointer_t ReadRawExternalPointerField(Address field_address) {
-  static_assert(kExternalPointerSize == kSystemPointerSize,
-                "Review the code below, once kExternalPointerSize is 4-byte "
-                "the address of the field will always be aligned");
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
   constexpr bool v8_pointer_compression_unaligned =
       kExternalPointerSize > kTaggedSize;
@@ -78,13 +71,8 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
                                          Isolate* isolate, Address value,
                                          ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  static_assert(kExternalPointerSize == kSystemPointerSize,
-                "Review the code below, once kExternalPointerSize is 4-byte "
-                "the address of the field will always be aligned");
-  ExternalPointer_t index =
-      base::ReadUnalignedValue<ExternalPointer_t>(field_address);
-  isolate->external_pointer_table().Set(static_cast<uint32_t>(index), value,
-                                        tag);
+  ExternalPointer_t index = base::Memory<ExternalPointer_t>(field_address);
+  isolate->external_pointer_table().Set(index, value, tag);
 #else
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
   constexpr bool v8_pointer_compression_unaligned =

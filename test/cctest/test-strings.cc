@@ -2136,15 +2136,19 @@ TEST(CheckCachedDataInternalExternalUncachedString) {
   // that we indeed cached it.
   Handle<ExternalOneByteString> external_string =
       Handle<ExternalOneByteString>::cast(string);
-  CHECK(external_string->is_uncached());
+  // If sandboxed external pointers are enabled, string objects will always be
+  // cacheable because they are smaller.
+  CHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || external_string->is_uncached());
   CHECK(external_string->resource()->IsCacheable());
-  CHECK_NOT_NULL(external_string->resource()->cached_data());
-  CHECK_EQ(external_string->resource()->cached_data(),
-           external_string->resource()->data());
+  if (!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL) {
+    CHECK_NOT_NULL(external_string->resource()->cached_data());
+    CHECK_EQ(external_string->resource()->cached_data(),
+             external_string->resource()->data());
+  }
 }
 
 // Show that we cache the data pointer for internal, external and uncached
-// strings with cacheable resources through MakeExternal. One byte version.
+// strings with cacheable resources through MakeExternal. Two byte version.
 TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
   CcTest::InitializeVM();
   Factory* factory = CcTest::i_isolate()->factory();
@@ -2175,11 +2179,15 @@ TEST(CheckCachedDataInternalExternalUncachedStringTwoByte) {
   // that we indeed cached it.
   Handle<ExternalTwoByteString> external_string =
       Handle<ExternalTwoByteString>::cast(string);
-  CHECK(external_string->is_uncached());
+  // If sandboxed external pointers are enabled, string objects will always be
+  // cacheable because they are smaller.
+  CHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || external_string->is_uncached());
   CHECK(external_string->resource()->IsCacheable());
-  CHECK_NOT_NULL(external_string->resource()->cached_data());
-  CHECK_EQ(external_string->resource()->cached_data(),
-           external_string->resource()->data());
+  if (!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL) {
+    CHECK_NOT_NULL(external_string->resource()->cached_data());
+    CHECK_EQ(external_string->resource()->cached_data(),
+             external_string->resource()->data());
+  }
 }
 
 }  // namespace test_strings

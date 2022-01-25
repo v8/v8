@@ -14,7 +14,8 @@ bitfield struct JSArrayBufferFlags extends uint32 {
 extern class JSArrayBuffer extends JSObject {
   byte_length: uintptr;
   max_byte_length: uintptr;
-  backing_store: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  backing_store: RawPtr;
   extension: RawPtr;
   bit_field: JSArrayBufferFlags;
   // Pads header size to be a multiple of kTaggedSize.
@@ -74,7 +75,8 @@ macro IsLengthTrackingJSArrayBufferView(array: JSArrayBufferView): bool {
 
 extern class JSTypedArray extends JSArrayBufferView {
   length: uintptr;
-  external_pointer: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  external_pointer: RawPtr;
   base_pointer: ByteArray|Smi;
 }
 
@@ -85,7 +87,8 @@ macro IsOnHeapTypedArray(array: JSTypedArray): bool {
 }
 
 extern class JSDataView extends JSArrayBufferView {
-  data_pointer: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  data_pointer: RawPtr;
 }
 
 @abstract

@@ -3119,7 +3119,7 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
       MemOperand(isolate_root,
                  IsolateData::external_pointer_table_offset() +
                      Internals::kExternalPointerTableBufferOffset));
-  Ldr(destination, field_operand);
+  Ldr(destination.W(), field_operand);
   Ldr(destination,
       MemOperand(external_table, destination, LSL, kSystemPointerSizeLog2));
   if (tag != 0) {

@@ -1347,10 +1347,10 @@ TNode<HeapObject> CodeStubAssembler::AllocateRawDoubleAligned(
                      top_address, limit_address);
 #elif defined(V8_HOST_ARCH_64_BIT)
 #ifdef V8_COMPRESS_POINTERS
-  // TODO(ishell, v8:8875): Consider using aligned allocations once the
-  // allocation alignment inconsistency is fixed. For now we keep using
-  // unaligned access since both x64 and arm64 architectures (where pointer
-  // compression is supported) allow unaligned access to doubles and full words.
+// TODO(ishell, v8:8875): Consider using aligned allocations once the
+// allocation alignment inconsistency is fixed. For now we keep using
+// unaligned access since both x64 and arm64 architectures (where pointer
+// compression is supported) allow unaligned access to doubles and full words.
 #endif  // V8_COMPRESS_POINTERS
   // Allocation on 64 bit machine is naturally double aligned
   return AllocateRaw(size_in_bytes, flags & ~AllocationFlag::kDoubleAlignment,
@@ -1586,14 +1586,14 @@ TNode<RawPtrT> CodeStubAssembler::EmptyBackingStoreBufferConstant() {
 
 TNode<ExternalPointerT> CodeStubAssembler::ChangeUint32ToExternalPointer(
     TNode<Uint32T> value) {
-  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
-  return ReinterpretCast<ExternalPointerT>(ChangeUint32ToWord(value));
+  DCHECK_EQ(kExternalPointerSize, kUInt32Size);
+  return ReinterpretCast<ExternalPointerT>(value);
 }
 
 TNode<Uint32T> CodeStubAssembler::ChangeExternalPointerToUint32(
     TNode<ExternalPointerT> value) {
-  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
-  return Unsigned(TruncateWordToInt32(ReinterpretCast<UintPtrT>(value)));
+  DCHECK_EQ(kExternalPointerSize, kUInt32Size);
+  return ReinterpretCast<Uint32T>(value);
 }
 
 void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
@@ -1675,7 +1675,6 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
   TNode<ExternalPointerT> encoded =
       LoadObjectField<ExternalPointerT>(object, offset);
   TNode<Word32T> index = ChangeExternalPointerToUint32(encoded);
-  // TODO(v8:10391, saelo): bounds check if table is not caged
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 

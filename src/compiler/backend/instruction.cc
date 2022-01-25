@@ -262,7 +262,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           os << "|c";
           break;
         case MachineRepresentation::kSandboxedPointer:
-          os << "|cg";
+          os << "|sb";
           break;
         case MachineRepresentation::kMapWord:
           UNREACHABLE();

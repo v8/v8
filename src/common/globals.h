@@ -352,6 +352,11 @@ STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 // This type defines raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSize = sizeof(ExternalPointer_t);
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+STATIC_ASSERT(kExternalPointerSize == kTaggedSize);
+#else
+STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+#endif
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 

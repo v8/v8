@@ -208,8 +208,8 @@ template <typename TSlot>
 int Deserializer<IsolateT>::WriteExternalPointer(TSlot dest, Address value,
                                                  ExternalPointerTag tag) {
   DCHECK(!next_reference_is_weak_);
+  DCHECK(IsAligned(kExternalPointerSize, TSlot::kSlotDataSize));
   InitExternalPointerField(dest.address(), main_thread_isolate(), value, tag);
-  STATIC_ASSERT(IsAligned(kExternalPointerSize, TSlot::kSlotDataSize));
   return (kExternalPointerSize / TSlot::kSlotDataSize);
 }
 

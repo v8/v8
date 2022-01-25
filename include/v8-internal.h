@@ -179,7 +179,11 @@ using SandboxedPointer_t = Address;
 // ExternalPointers point to objects located outside the sandbox. When sandboxed
 // external pointers are enabled, these are stored in an external pointer table
 // and referenced from HeapObjects through indices.
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+using ExternalPointer_t = uint32_t;
+#else
 using ExternalPointer_t = Address;
+#endif
 
 #ifdef V8_SANDBOX_IS_AVAILABLE
 
