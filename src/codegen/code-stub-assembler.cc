@@ -5558,8 +5558,8 @@ TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(TNode<Context> context,
                                                          TNode<Object> value) {
   TVARIABLE(Word32T, var_result);
   Label done(this);
-  TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(context, value,
-                                                            &done, &var_result);
+  TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(
+      context, value, &done, &var_result, IsKnownTaggedPointer::kNo);
   BIND(&done);
   return var_result.value();
 }
@@ -5571,7 +5571,8 @@ void CodeStubAssembler::TaggedToWord32OrBigInt(
     TVariable<Word32T>* var_word32, Label* if_bigint,
     TVariable<BigInt>* var_maybe_bigint) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, value, if_number, var_word32, if_bigint, var_maybe_bigint);
+      context, value, if_number, var_word32, IsKnownTaggedPointer::kNo,
+      if_bigint, var_maybe_bigint);
 }
 
 // Truncate {value} to word32 and jump to {if_number} if it is a Number,
@@ -5582,14 +5583,27 @@ void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
     TVariable<Word32T>* var_word32, Label* if_bigint,
     TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, value, if_number, var_word32, if_bigint, var_maybe_bigint,
-      var_feedback);
+      context, value, if_number, var_word32, IsKnownTaggedPointer::kNo,
+      if_bigint, var_maybe_bigint, var_feedback);
+}
+
+// Truncate {pointer} to word32 and jump to {if_number} if it is a Number,
+// or find that it is a BigInt and jump to {if_bigint}. In either case,
+// store the type feedback in {var_feedback}.
+void CodeStubAssembler::TaggedPointerToWord32OrBigIntWithFeedback(
+    TNode<Context> context, TNode<HeapObject> pointer, Label* if_number,
+    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
+  TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
+      context, pointer, if_number, var_word32, IsKnownTaggedPointer::kYes,
+      if_bigint, var_maybe_bigint, var_feedback);
 }
 
 template <Object::Conversion conversion>
 void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
     TNode<Context> context, TNode<Object> value, Label* if_number,
-    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Word32T>* var_word32,
+    IsKnownTaggedPointer is_known_tagged_pointer, Label* if_bigint,
     TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   // We might need to loop after conversion.
   TVARIABLE(Object, var_value, value);
@@ -5597,20 +5611,22 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
   VariableList loop_vars({&var_value}, zone());
   if (var_feedback != nullptr) loop_vars.push_back(var_feedback);
   Label loop(this, loop_vars);
-  Goto(&loop);
-  BIND(&loop);
-  {
-    value = var_value.value();
-    Label not_smi(this), is_heap_number(this), is_oddball(this),
-        is_bigint(this);
-    GotoIf(TaggedIsNotSmi(value), &not_smi);
+  if (is_known_tagged_pointer == IsKnownTaggedPointer::kNo) {
+    GotoIf(TaggedIsNotSmi(value), &loop);
 
     // {value} is a Smi.
     *var_word32 = SmiToInt32(CAST(value));
     CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
     Goto(if_number);
+  } else {
+    Goto(&loop);
+  }
+  BIND(&loop);
+  {
+    value = var_value.value();
+    Label not_smi(this), is_heap_number(this), is_oddball(this),
+        is_bigint(this), check_if_smi(this);
 
-    BIND(&not_smi);
     TNode<HeapObject> value_heap_object = CAST(value);
     TNode<Map> map = LoadMap(value_heap_object);
     GotoIf(IsHeapNumberMap(map), &is_heap_number);
@@ -5635,13 +5651,13 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
                          : Builtin::kNonNumberToNumber;
       var_value = CallBuiltin(builtin, context, value);
       OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
-      Goto(&loop);
+      Goto(&check_if_smi);
 
       BIND(&is_oddball);
       var_value = LoadObjectField(value_heap_object, Oddball::kToNumberOffset);
       OverwriteFeedback(var_feedback,
                         BinaryOperationFeedback::kNumberOrOddball);
-      Goto(&loop);
+      Goto(&check_if_smi);
     }
 
     BIND(&is_heap_number);
@@ -5655,6 +5671,15 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
       CombineFeedback(var_feedback, BinaryOperationFeedback::kBigInt);
       Goto(if_bigint);
     }
+
+    BIND(&check_if_smi);
+    value = var_value.value();
+    GotoIf(TaggedIsNotSmi(value), &loop);
+
+    // {value} is a Smi.
+    *var_word32 = SmiToInt32(CAST(value));
+    CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
+    Goto(if_number);
   }
 }
 
@@ -5815,6 +5840,18 @@ TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(TNode<Int32T> value) {
   }
   BIND(&if_join);
   return var_result.value();
+}
+
+TNode<Number> CodeStubAssembler::ChangeInt32ToTaggedNoOverflow(
+    TNode<Int32T> value) {
+  if (SmiValuesAre32Bits()) {
+    return SmiTag(ChangeInt32ToIntPtr(value));
+  }
+  DCHECK(SmiValuesAre31Bits());
+  TNode<Int32T> result_int32 = Int32Add(value, value);
+  TNode<IntPtrT> almost_tagged_value = ChangeInt32ToIntPtr(result_int32);
+  TNode<Smi> result = BitcastWordToTaggedSigned(almost_tagged_value);
+  return result;
 }
 
 TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(TNode<Uint32T> value) {
@@ -13842,6 +13879,36 @@ TNode<Number> CodeStubAssembler::BitwiseOp(TNode<Word32T> left32,
         right32 = Word32And(right32, Int32Constant(0x1F));
       }
       return ChangeUint32ToTagged(Unsigned(Word32Shr(left32, right32)));
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
+
+TNode<Number> CodeStubAssembler::BitwiseSmiOp(TNode<Smi> left, TNode<Smi> right,
+                                              Operation bitwise_op) {
+  switch (bitwise_op) {
+    case Operation::kBitwiseAnd:
+      return SmiAnd(left, right);
+    case Operation::kBitwiseOr:
+      return SmiOr(left, right);
+    case Operation::kBitwiseXor:
+      return SmiXor(left, right);
+    // Smi shift left and logical shift rihgt can have (Heap)Number output, so
+    // perform int32 operation.
+    case Operation::kShiftLeft:
+    case Operation::kShiftRightLogical:
+      return BitwiseOp(SmiToInt32(left), SmiToInt32(right), bitwise_op);
+    // Arithmetic shift right of a Smi can't overflow to the heap number, so
+    // perform int32 operation but don't check for overflow.
+    case Operation::kShiftRight: {
+      TNode<Int32T> left32 = SmiToInt32(left);
+      TNode<Int32T> right32 = SmiToInt32(right);
+      if (!Word32ShiftIsSafe()) {
+        right32 = Word32And(right32, Int32Constant(0x1F));
+      }
+      return ChangeInt32ToTaggedNoOverflow(Word32Sar(left32, right32));
+    }
     default:
       break;
   }

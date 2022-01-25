@@ -165,6 +165,20 @@ class BinaryOpAssembler : public CodeStubAssembler {
   TNode<Object> Generate_BitwiseBinaryOpWithSmiOperandAndOptionalFeedback(
       Operation bitwise_op, TNode<Object> left, TNode<Object> right,
       const LazyNode<Context>& context, TVariable<Smi>* feedback);
+
+  // Check if output is known to be Smi when both operands of bitwise operation
+  // are Smi.
+  bool IsBitwiseOutputKnownSmi(Operation bitwise_op) {
+    switch (bitwise_op) {
+      case Operation::kBitwiseAnd:
+      case Operation::kBitwiseOr:
+      case Operation::kBitwiseXor:
+      case Operation::kShiftRight:
+        return true;
+      default:
+        return false;
+    }
+  }
 };
 
 }  // namespace internal

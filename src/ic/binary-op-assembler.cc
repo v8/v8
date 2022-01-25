@@ -683,27 +683,55 @@ BinaryOpAssembler::Generate_BitwiseBinaryOpWithSmiOperandAndOptionalFeedback(
   TVARIABLE(Smi, var_left_feedback);
   TVARIABLE(Word32T, var_left_word32);
   TVARIABLE(BigInt, var_left_bigint);
-  Label do_smi_op(this), if_bigint_mix(this, Label::kDeferred), done(this);
+  // Check if the {lhs} is a Smi or a HeapObject.
+  Label if_lhsissmi(this), if_lhsisnotsmi(this, Label::kDeferred);
+  Label do_number_op(this), if_bigint_mix(this), done(this);
 
-  TaggedToWord32OrBigIntWithFeedback(context(), left, &do_smi_op,
-                                     &var_left_word32, &if_bigint_mix,
-                                     &var_left_bigint, &var_left_feedback);
-  BIND(&do_smi_op);
-  result =
-      BitwiseOp(var_left_word32.value(), SmiToInt32(right_smi), bitwise_op);
-  if (feedback) {
-    TNode<Smi> result_type = SelectSmiConstant(
-        TaggedIsSmi(result.value()), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumber);
-    *feedback = SmiOr(result_type, var_left_feedback.value());
-  }
-  Goto(&done);
+  Branch(TaggedIsSmi(left), &if_lhsissmi, &if_lhsisnotsmi);
 
-  BIND(&if_bigint_mix);
-  if (feedback) {
-    *feedback = var_left_feedback.value();
+  BIND(&if_lhsissmi);
+  {
+    TNode<Smi> left_smi = CAST(left);
+    result = BitwiseSmiOp(left_smi, right_smi, bitwise_op);
+    if (feedback) {
+      if (IsBitwiseOutputKnownSmi(bitwise_op)) {
+        *feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
+      } else {
+        *feedback = SelectSmiConstant(TaggedIsSmi(result.value()),
+                                      BinaryOperationFeedback::kSignedSmall,
+                                      BinaryOperationFeedback::kNumber);
+      }
+    }
+    Goto(&done);
   }
-  ThrowTypeError(context(), MessageTemplate::kBigIntMixedTypes);
+
+  BIND(&if_lhsisnotsmi);
+  {
+    TNode<HeapObject> left_pointer = CAST(left);
+    TaggedPointerToWord32OrBigIntWithFeedback(
+        context(), left_pointer, &do_number_op, &var_left_word32,
+        &if_bigint_mix, &var_left_bigint, &var_left_feedback);
+    BIND(&do_number_op);
+    {
+      result =
+          BitwiseOp(var_left_word32.value(), SmiToInt32(right_smi), bitwise_op);
+      if (feedback) {
+        TNode<Smi> result_type = SelectSmiConstant(
+            TaggedIsSmi(result.value()), BinaryOperationFeedback::kSignedSmall,
+            BinaryOperationFeedback::kNumber);
+        *feedback = SmiOr(result_type, var_left_feedback.value());
+      }
+      Goto(&done);
+    }
+
+    BIND(&if_bigint_mix);
+    {
+      if (feedback) {
+        *feedback = var_left_feedback.value();
+      }
+      ThrowTypeError(context(), MessageTemplate::kBigIntMixedTypes);
+    }
+  }
 
   BIND(&done);
   return result.value();
