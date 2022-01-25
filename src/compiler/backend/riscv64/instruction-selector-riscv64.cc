@@ -3072,9 +3072,9 @@ VISIT_SIMD_QFMOP(F32x4Qfms, kRiscvF32x4Qfms)
 
 void InstructionSelector::VisitI32x4DotI16x8S(Node* node) {
   RiscvOperandGenerator g(this);
-  InstructionOperand temp = g.TempFpRegister(v14);
-  InstructionOperand temp1 = g.TempFpRegister(v10);
-  InstructionOperand temp2 = g.TempFpRegister(v18);
+  InstructionOperand temp = g.TempFpRegister(v16);
+  InstructionOperand temp1 = g.TempFpRegister(v17);
+  InstructionOperand temp2 = g.TempFpRegister(v30);
   InstructionOperand dst = g.DefineAsRegister(node);
   this->Emit(kRiscvVwmul, temp, g.UseRegister(node->InputAt(0)),
              g.UseRegister(node->InputAt(1)), g.UseImmediate(E16),
@@ -3269,11 +3269,11 @@ void InstructionSelector::VisitF64x2Pmax(Node* node) {
   void InstructionSelector::Visit##OPCODE1##ExtMulHigh##OPCODE2##S(      \
       Node* node) {                                                      \
     RiscvOperandGenerator g(this);                                       \
-    InstructionOperand t1 = g.TempFpRegister(v10);                       \
+    InstructionOperand t1 = g.TempFpRegister(v16);                       \
     Emit(kRiscvVslidedown, t1, g.UseUniqueRegister(node->InputAt(0)),    \
          g.UseImmediate(kRvvVLEN / TYPE / 2), g.UseImmediate(E##TYPE),   \
          g.UseImmediate(m1));                                            \
-    InstructionOperand t2 = g.TempFpRegister(v9);                        \
+    InstructionOperand t2 = g.TempFpRegister(v17);                       \
     Emit(kRiscvVslidedown, t2, g.UseUniqueRegister(node->InputAt(1)),    \
          g.UseImmediate(kRvvVLEN / TYPE / 2), g.UseImmediate(E##TYPE),   \
          g.UseImmediate(m1));                                            \
@@ -3291,11 +3291,11 @@ void InstructionSelector::VisitF64x2Pmax(Node* node) {
   void InstructionSelector::Visit##OPCODE1##ExtMulHigh##OPCODE2##U(      \
       Node* node) {                                                      \
     RiscvOperandGenerator g(this);                                       \
-    InstructionOperand t1 = g.TempFpRegister(v10);                       \
+    InstructionOperand t1 = g.TempFpRegister(v16);                       \
     Emit(kRiscvVslidedown, t1, g.UseUniqueRegister(node->InputAt(0)),    \
          g.UseImmediate(kRvvVLEN / TYPE / 2), g.UseImmediate(E##TYPE),   \
          g.UseImmediate(m1));                                            \
-    InstructionOperand t2 = g.TempFpRegister(v9);                        \
+    InstructionOperand t2 = g.TempFpRegister(v17);                       \
     Emit(kRiscvVslidedown, t2, g.UseUniqueRegister(node->InputAt(1)),    \
          g.UseImmediate(kRvvVLEN / TYPE / 2), g.UseImmediate(E##TYPE),   \
          g.UseImmediate(m1));                                            \
