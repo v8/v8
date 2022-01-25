@@ -450,6 +450,7 @@ if (v8_multi_arch_build &&
     "clang_x64_pointer_compression") {
   v8_enable_pointer_compression = !v8_enable_pointer_compression
   v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression
+  v8_enable_external_code_space = v8_enable_pointer_compression
 }
 
 # Check if it is a Chromium build and activate PAC/BTI if needed.
@@ -515,10 +516,6 @@ assert(!v8_enable_sandboxed_pointers || v8_enable_sandbox,
 
 assert(!v8_enable_sandboxed_external_pointers || v8_enable_sandbox,
        "Sandboxed external pointers require the sandbox")
-
-assert(
-    !v8_enable_sandboxed_external_pointers || !v8_enable_external_code_space,
-    "Sandboxed external pointers are not compatible with external code space YET")
 
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,

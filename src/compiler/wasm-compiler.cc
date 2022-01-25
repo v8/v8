@@ -3224,8 +3224,8 @@ Node* WasmGraphBuilder::BuildIndirectCall(
   }
 }
 
-Node* WasmGraphBuilder::BuildLoadExternalPointerFromObject(Node* object,
-                                                           int offset) {
+Node* WasmGraphBuilder::BuildLoadExternalPointerFromObject(
+    Node* object, int offset, ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   Node* external_pointer = gasm_->LoadFromObject(
       MachineType::Uint32(), object, wasm::ObjectAccess::ToTagged(offset));
@@ -3237,8 +3237,7 @@ Node* WasmGraphBuilder::BuildLoadExternalPointerFromObject(Node* object,
   Node* scaled_index = gasm_->Int32Mul(
       external_pointer, gasm_->Int32Constant(kSystemPointerSize));
   Node* decoded_ptr = gasm_->Load(MachineType::Pointer(), table, scaled_index);
-  Node* tag = gasm_->IntPtrConstant(~kForeignForeignAddressTag);
-  return gasm_->WordAnd(decoded_ptr, tag);
+  return gasm_->WordAnd(decoded_ptr, gasm_->IntPtrConstant(~tag));
 #else
   return gasm_->LoadFromObject(MachineType::Pointer(), object,
                                wasm::ObjectAccess::ToTagged(offset));
@@ -3286,11 +3285,9 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
         wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
     Node* call_target;
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      CHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);  // Not supported yet.
-      call_target = gasm_->LoadImmutableFromObject(
-          MachineType::Pointer(), wrapper_code,
-          wasm::ObjectAccess::ToTagged(
-              CodeDataContainer::kCodeEntryPointOffset));
+      call_target = BuildLoadExternalPointerFromObject(
+          wrapper_code, CodeDataContainer::kCodeEntryPointOffset,
+          kCodeEntryPointTag);
 
     } else {
       call_target = gasm_->IntAdd(

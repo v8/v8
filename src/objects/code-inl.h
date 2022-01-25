@@ -914,7 +914,7 @@ ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 PtrComprCageBase CodeDataContainer::code_cage_base() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  CHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
+  // TODO(v8:10391): consider protecting this value with the sandbox.
   Address code_cage_base_hi =
       ReadField<Tagged_t>(kCodeCageBaseUpper32BitsOffset);
   return PtrComprCageBase(code_cage_base_hi << 32);
@@ -925,7 +925,6 @@ PtrComprCageBase CodeDataContainer::code_cage_base() const {
 
 void CodeDataContainer::set_code_cage_base(Address code_cage_base) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-  CHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
   Tagged_t code_cage_base_hi = static_cast<Tagged_t>(code_cage_base >> 32);
   WriteField<Tagged_t>(kCodeCageBaseUpper32BitsOffset, code_cage_base_hi);
 #else
