@@ -836,6 +836,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   int end_position = shared_info->EndPosition();
 
   MaybeHandle<ScopeInfo> deserialize_start_scope = maybe_outer_scope_info;
+  bool needs_script_scope_finalization = false;
   // If the function is a class member initializer and there isn't a
   // scope mismatch, we will only deserialize up to the outer scope of
   // the class scope, and regenerate the class scope during reparsing.
@@ -851,12 +852,20 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
       deserialize_start_scope =
           handle(outer_scope_info->OuterScopeInfo(), isolate);
     } else {
+      // If the class scope doesn't have an outer scope to deserialize, we need
+      // to finalize the script scope without using
+      // Scope::DeserializeScopeChain().
       deserialize_start_scope = MaybeHandle<ScopeInfo>();
+      needs_script_scope_finalization = true;
     }
   }
 
   DeserializeScopeChain(isolate, info, deserialize_start_scope,
                         Scope::DeserializationMode::kIncludingVariables);
+  if (needs_script_scope_finalization) {
+    DCHECK_EQ(original_scope_, info->script_scope());
+    Scope::SetScriptScopeInfo(isolate, info->script_scope());
+  }
   DCHECK_EQ(factory()->zone(), info->zone());
 
   Handle<Script> script = handle(Script::cast(shared_info->script()), isolate);

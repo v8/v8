@@ -171,6 +171,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                       AstValueFactory* ast_value_factory,
                                       DeserializationMode deserialization_mode);
 
+  template <typename IsolateT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static void SetScriptScopeInfo(IsolateT* isolate,
+                                 DeclarationScope* script_scope);
+
   // Checks if the block scope is redundant, i.e. it does not contain any
   // block scoped declarations. In that case it is removed from the scope
   // tree and its children are reparented.

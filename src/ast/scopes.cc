@@ -505,16 +505,32 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                                 : ScopeInfo();
   }
 
-  if (deserialization_mode == DeserializationMode::kIncludingVariables &&
-      script_scope->scope_info_.is_null()) {
-    script_scope->SetScriptScopeInfo(
-        ReadOnlyRoots(isolate).global_this_binding_scope_info_handle());
+  if (deserialization_mode == DeserializationMode::kIncludingVariables) {
+    SetScriptScopeInfo(isolate, script_scope);
   }
 
   if (innermost_scope == nullptr) return script_scope;
   script_scope->AddInnerScope(current_scope);
   return innermost_scope;
 }
+
+template <typename IsolateT>
+void Scope::SetScriptScopeInfo(IsolateT* isolate,
+                               DeclarationScope* script_scope) {
+  if (script_scope->scope_info_.is_null()) {
+    script_scope->SetScriptScopeInfo(
+        ReadOnlyRoots(isolate).global_this_binding_scope_info_handle());
+  }
+}
+
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void Scope::SetScriptScopeInfo(Isolate* isolate,
+                                                      DeclarationScope*
+                                                          script_scope);
+template EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) void Scope::SetScriptScopeInfo(LocalIsolate* isolate,
+                                                      DeclarationScope*
+                                                          script_scope);
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
