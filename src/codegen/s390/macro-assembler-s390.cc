@@ -5487,6 +5487,40 @@ void TurboAssembler::I8x16GeU(Simd128Register dst, Simd128Register src1,
   vo(dst, dst, kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
 }
 
+void TurboAssembler::I64x2BitMask(Register dst, Simd128Register src,
+                                  Register scratch1, Simd128Register scratch2) {
+  mov(scratch1, Operand(0x8080808080800040));
+  vlvg(scratch2, scratch1, MemOperand(r0, 1), Condition(3));
+  vbperm(scratch2, src, scratch2, Condition(0), Condition(0), Condition(0));
+  vlgv(dst, scratch2, MemOperand(r0, 7), Condition(0));
+}
+
+void TurboAssembler::I32x4BitMask(Register dst, Simd128Register src,
+                                  Register scratch1, Simd128Register scratch2) {
+  mov(scratch1, Operand(0x8080808000204060));
+  vlvg(scratch2, scratch1, MemOperand(r0, 1), Condition(3));
+  vbperm(scratch2, src, scratch2, Condition(0), Condition(0), Condition(0));
+  vlgv(dst, scratch2, MemOperand(r0, 7), Condition(0));
+}
+
+void TurboAssembler::I16x8BitMask(Register dst, Simd128Register src,
+                                  Register scratch1, Simd128Register scratch2) {
+  mov(scratch1, Operand(0x10203040506070));
+  vlvg(scratch2, scratch1, MemOperand(r0, 1), Condition(3));
+  vbperm(scratch2, src, scratch2, Condition(0), Condition(0), Condition(0));
+  vlgv(dst, scratch2, MemOperand(r0, 7), Condition(0));
+}
+
+void TurboAssembler::I8x16BitMask(Register dst, Simd128Register src,
+                                  Register scratch1, Register scratch2,
+                                  Simd128Register scratch3) {
+  mov(scratch1, Operand(0x4048505860687078));
+  mov(scratch2, Operand(0x8101820283038));
+  vlvgp(scratch3, scratch2, scratch1);
+  vbperm(scratch3, src, scratch3, Condition(0), Condition(0), Condition(0));
+  vlgv(dst, scratch3, MemOperand(r0, 3), Condition(1));
+}
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

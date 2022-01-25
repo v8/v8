@@ -1105,6 +1105,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                         Register src2, uint8_t imm_lane_idx);
   void I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
                         Register src2, uint8_t imm_lane_idx);
+  void I64x2BitMask(Register dst, Simd128Register src, Register scratch1,
+                    Simd128Register scratch2);
+  void I32x4BitMask(Register dst, Simd128Register src, Register scratch1,
+                    Simd128Register scratch2);
+  void I16x8BitMask(Register dst, Simd128Register src, Register scratch1,
+                    Simd128Register scratch2);
+  void I8x16BitMask(Register dst, Simd128Register src, Register scratch1,
+                    Register scratch2, Simd128Register scratch3);
 
 #define SIMD_UNOP_LIST(V) \
   V(F64x2Abs)             \

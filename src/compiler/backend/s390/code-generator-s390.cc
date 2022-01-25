@@ -3136,45 +3136,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I64x2BitMask: {
-      __ mov(kScratchReg, Operand(0x80800040));
-      __ iihf(kScratchReg, Operand(0x80808080));  // Zeroing the high bits.
-      __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
-      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
-                Condition(0), Condition(0), Condition(0));
-      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 7),
-              Condition(0));
+      __ I64x2BitMask(i.OutputRegister(), i.InputSimd128Register(0),
+                      kScratchReg, kScratchDoubleReg);
       break;
     }
     case kS390_I32x4BitMask: {
-      __ mov(kScratchReg, Operand(0x204060));
-      __ iihf(kScratchReg, Operand(0x80808080));  // Zeroing the high bits.
-      __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
-      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
-                Condition(0), Condition(0), Condition(0));
-      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 7),
-              Condition(0));
+      __ I32x4BitMask(i.OutputRegister(), i.InputSimd128Register(0),
+                      kScratchReg, kScratchDoubleReg);
       break;
     }
     case kS390_I16x8BitMask: {
-      __ mov(kScratchReg, Operand(0x40506070));
-      __ iihf(kScratchReg, Operand(0x102030));
-      __ vlvg(kScratchDoubleReg, kScratchReg, MemOperand(r0, 1), Condition(3));
-      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
-                Condition(0), Condition(0), Condition(0));
-      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 7),
-              Condition(0));
+      __ I16x8BitMask(i.OutputRegister(), i.InputSimd128Register(0),
+                      kScratchReg, kScratchDoubleReg);
       break;
     }
     case kS390_I8x16BitMask: {
-      __ mov(r0, Operand(0x60687078));
-      __ iihf(r0, Operand(0x40485058));
-      __ mov(ip, Operand(0x20283038));
-      __ iihf(ip, Operand(0x81018));
-      __ vlvgp(kScratchDoubleReg, ip, r0);
-      __ vbperm(kScratchDoubleReg, i.InputSimd128Register(0), kScratchDoubleReg,
-                Condition(0), Condition(0), Condition(0));
-      __ vlgv(i.OutputRegister(), kScratchDoubleReg, MemOperand(r0, 3),
-              Condition(1));
+      __ I8x16BitMask(i.OutputRegister(), i.InputSimd128Register(0), r0, ip,
+                      kScratchDoubleReg);
       break;
     }
     case kS390_I32x4DotI16x8S: {

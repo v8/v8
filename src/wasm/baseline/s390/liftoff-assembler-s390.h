@@ -2530,7 +2530,7 @@ void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "i64x2_bitmask");
+  I64x2BitMask(dst.gp(), src.fp(), r0, kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i64x2_sconvert_i32x4_low(LiftoffRegister dst,
@@ -2566,7 +2566,7 @@ void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "i32x4_bitmask");
+  I32x4BitMask(dst.gp(), src.fp(), r0, kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
@@ -2616,7 +2616,7 @@ void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "i16x8_bitmask");
+  I16x8BitMask(dst.gp(), src.fp(), r0, kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i16x8_add_sat_s(LiftoffRegister dst,
@@ -2708,7 +2708,7 @@ void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
-  bailout(kSimd, "i8x16_bitmask");
+  I8x16BitMask(dst.gp(), src.fp(), r0, ip, kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i8x16_add_sat_s(LiftoffRegister dst,
