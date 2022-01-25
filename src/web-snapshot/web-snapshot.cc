@@ -1295,8 +1295,9 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     }
 
     Handle<DescriptorArray> descriptors =
-        isolate_->factory()->NewDescriptorArray(0, property_count);
-    for (uint32_t p = 0; p < property_count; ++p) {
+        isolate_->factory()->NewDescriptorArray(property_count, 0);
+    // for (uint32_t p = 0; p < property_count; ++p) {
+    for (InternalIndex i : InternalIndex::Range(property_count)) {
       PropertyAttributes attributes = PropertyAttributes::NONE;
       if (has_custom_property_attributes) {
         uint32_t flags;
@@ -1311,11 +1312,12 @@ void WebSnapshotDeserializer::DeserializeMaps() {
 
       // Use the "none" representation until we see the first object having this
       // map. At that point, modify the representation.
-      Descriptor desc =
-          Descriptor::DataField(isolate_, key, static_cast<int>(p), attributes,
-                                Representation::None());
-      descriptors->Append(&desc);
+      Descriptor desc = Descriptor::DataField(
+          isolate_, key, i.as_int(), attributes, Representation::None());
+      descriptors->Set(i, &desc);
     }
+    DCHECK_EQ(descriptors->number_of_descriptors(), property_count);
+    descriptors->Sort();
 
     Handle<Map> map = isolate_->factory()->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize * kTaggedSize, HOLEY_ELEMENTS, 0);
