@@ -28,6 +28,7 @@
 #include "include/v8-initialization.h"
 #include "include/v8-inspector.h"
 #include "include/v8-json.h"
+#include "include/v8-locker.h"
 #include "include/v8-profiler.h"
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
@@ -45,6 +46,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/basic-block-profiler.h"
+#include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/maybe-handles.h"
@@ -2594,11 +2596,18 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
   WaitForRunningWorkers();
-  args->GetIsolate()->Exit();
+  Isolate* isolate = args->GetIsolate();
+  isolate->Exit();
+
   // As we exit the process anyway, we do not dispose the platform and other
-  // global data. Other isolates might still be running, so disposing here can
-  // cause them to crash.
-  OnExit(args->GetIsolate(), false);
+  // global data and manually unlock to quell DCHECKs. Other isolates might
+  // still be running, so disposing here can cause them to crash.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->thread_manager()->IsLockedByCurrentThread()) {
+    i_isolate->thread_manager()->Unlock();
+  }
+
+  OnExit(isolate, false);
   base::OS::ExitProcess(exit_code);
 }
 
@@ -4862,6 +4871,30 @@ class Serializer : public ValueSerializer::Delegate {
 
   void FreeBufferMemory(void* buffer) override { base::Free(buffer); }
 
+  bool SupportsSharedValues() const override { return true; }
+
+  Maybe<uint32_t> GetSharedValueId(Isolate* isolate,
+                                   Local<Value> shared_value) override {
+    DCHECK_NOT_NULL(data_);
+    for (size_t index = 0; index < data_->shared_values_.size(); ++index) {
+      if (data_->shared_values_[index] == shared_value) {
+        return Just<uint32_t>(static_cast<uint32_t>(index));
+      }
+    }
+
+    size_t index = data_->shared_values_.size();
+    // Shared values in transit are kept alive by global handles in the shared
+    // isolate. No code ever runs in the shared Isolate, so locking it does not
+    // contend with long-running tasks.
+    {
+      DCHECK_EQ(reinterpret_cast<i::Isolate*>(isolate)->shared_isolate(),
+                reinterpret_cast<i::Isolate*>(Shell::shared_isolate));
+      v8::Locker locker(Shell::shared_isolate);
+      data_->shared_values_.emplace_back(Shell::shared_isolate, shared_value);
+    }
+    return Just<uint32_t>(static_cast<uint32_t>(index));
+  }
+
  private:
   Maybe<bool> PrepareTransfer(Local<Context> context, Local<Value> transfer) {
     if (transfer->IsArray()) {
@@ -4928,6 +4961,12 @@ class Serializer : public ValueSerializer::Delegate {
   size_t current_memory_usage_;
 };
 
+void SerializationData::ClearSharedValuesUnderLockIfNeeded() {
+  if (shared_values_.empty()) return;
+  v8::Locker locker(Shell::shared_isolate);
+  shared_values_.clear();
+}
+
 class Deserializer : public ValueDeserializer::Delegate {
  public:
   Deserializer(Isolate* isolate, std::unique_ptr<SerializationData> data)
@@ -4935,6 +4974,12 @@ class Deserializer : public ValueDeserializer::Delegate {
         deserializer_(isolate, data->data(), data->size(), this),
         data_(std::move(data)) {
     deserializer_.SetSupportsLegacyWireFormat(true);
+  }
+
+  ~Deserializer() {
+    DCHECK_EQ(reinterpret_cast<i::Isolate*>(isolate_)->shared_isolate(),
+              reinterpret_cast<i::Isolate*>(Shell::shared_isolate));
+    data_->ClearSharedValuesUnderLockIfNeeded();
   }
 
   Deserializer(const Deserializer&) = delete;
@@ -4972,6 +5017,17 @@ class Deserializer : public ValueDeserializer::Delegate {
     if (transfer_id >= data_->compiled_wasm_modules().size()) return {};
     return WasmModuleObject::FromCompiledModule(
         isolate_, data_->compiled_wasm_modules().at(transfer_id));
+  }
+
+  bool SupportsSharedValues() const override { return true; }
+
+  MaybeLocal<Value> GetSharedValueFromId(Isolate* isolate,
+                                         uint32_t id) override {
+    DCHECK_NOT_NULL(data_);
+    if (id < data_->shared_values().size()) {
+      return data_->shared_values().at(id).Get(isolate);
+    }
+    return MaybeLocal<Value>();
   }
 
  private:

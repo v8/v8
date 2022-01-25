@@ -1388,7 +1388,7 @@ class V8_NODISCARD GCCallbacksScope {
 };
 
 void Heap::HandleGCRequest() {
-  if (FLAG_stress_scavenge > 0 && stress_scavenge_observer_->HasRequestedGC()) {
+  if (IsStressingScavenge() && stress_scavenge_observer_->HasRequestedGC()) {
     CollectAllGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
     stress_scavenge_observer_->RequestedGCDone();
   } else if (HighMemoryPressure()) {
@@ -5772,7 +5772,7 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
     AddAllocationObserversToAllSpaces(stress_marking_observer_,
                                       stress_marking_observer_);
   }
-  if (FLAG_stress_scavenge > 0 && new_space()) {
+  if (IsStressingScavenge()) {
     stress_scavenge_observer_ = new StressScavengeObserver(this);
     new_space()->AddAllocationObserver(stress_scavenge_observer_);
   }
@@ -6006,7 +6006,7 @@ void Heap::TearDown() {
     if (FLAG_stress_marking > 0) {
       PrintMaxMarkingLimitReached();
     }
-    if (FLAG_stress_scavenge > 0) {
+    if (IsStressingScavenge()) {
       PrintMaxNewSpaceSizeReached();
     }
   }
@@ -6031,7 +6031,7 @@ void Heap::TearDown() {
     delete stress_marking_observer_;
     stress_marking_observer_ = nullptr;
   }
-  if (FLAG_stress_scavenge > 0 && new_space()) {
+  if (IsStressingScavenge()) {
     new_space()->RemoveAllocationObserver(stress_scavenge_observer_);
     delete stress_scavenge_observer_;
     stress_scavenge_observer_ = nullptr;
@@ -7371,6 +7371,10 @@ void Heap::IncrementObjectCounters() {
   isolate_->counters()->objs_since_last_young()->Increment();
 }
 #endif  // DEBUG
+
+bool Heap::IsStressingScavenge() {
+  return FLAG_stress_scavenge > 0 && new_space();
+}
 
 // StrongRootBlocks are allocated as a block of addresses, prefixed with a
 // StrongRootsEntry pointer:

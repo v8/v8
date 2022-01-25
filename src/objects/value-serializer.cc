@@ -50,6 +50,7 @@ namespace internal {
 // Version 13: host objects have an explicit tag (rather than handling all
 //             unknown tags)
 // Version 14: flags for JSArrayBufferViews
+// Version 15: support for shared objects with an explicit tag
 //
 // WARNING: Increasing this value is a change which cannot safely be rolled
 // back without breaking compatibility with data stored on disk. It is
@@ -58,7 +59,7 @@ namespace internal {
 //
 // Recent changes are routinely reverted in preparation for branch, and this
 // has been the cause of at least one bug in the past.
-static const uint32_t kLatestVersion = 14;
+static const uint32_t kLatestVersion = 15;
 static_assert(kLatestVersion == v8::CurrentValueSerializerFormatVersion(),
               "Exported format version must match latest version.");
 
@@ -154,6 +155,8 @@ enum class SerializationTag : uint8_t {
   kArrayBufferView = 'V',
   // Shared array buffer. transferID:uint32_t
   kSharedArrayBuffer = 'u',
+  // A HeapObject shared across Isolates. sharedValueID:uint32_t
+  kSharedObject = 'p',
   // A wasm module object transfer. next value is its index.
   kWasmModuleTransfer = 'w',
   // The delegate is responsible for processing all following data.
@@ -245,6 +248,7 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
                                  v8::ValueSerializer::Delegate* delegate)
     : isolate_(isolate),
       delegate_(delegate),
+      supports_shared_values_(delegate && delegate->SupportsSharedValues()),
       zone_(isolate->allocator(), ZONE_NAME),
       id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
       array_buffer_transfer_map_(isolate->heap(),
@@ -444,7 +448,11 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
     }
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
-        WriteString(Handle<String>::cast(object));
+        auto string = Handle<String>::cast(object);
+        if (FLAG_shared_string_table && supports_shared_values_) {
+          return WriteSharedObject(String::Share(isolate_, string));
+        }
+        WriteString(string);
         return ThrowIfOutOfMemory();
       } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
         return WriteJSReceiver(Handle<JSReceiver>::cast(object));
@@ -1050,6 +1058,23 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
+  // Currently only strings are shareable.
+  DCHECK(String::cast(*object).IsShared());
+  DCHECK(supports_shared_values_);
+  DCHECK_NOT_NULL(delegate_);
+  DCHECK(delegate_->SupportsSharedValues());
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  Maybe<uint32_t> index =
+      delegate_->GetSharedValueId(v8_isolate, Utils::ToLocal(object));
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+
+  WriteTag(SerializationTag::kSharedObject);
+  WriteVarint(index.FromJust());
+  return ThrowIfOutOfMemory();
+}
+
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
   WriteTag(SerializationTag::kHostObject);
   if (!delegate_) {
@@ -1127,6 +1152,7 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       delegate_(delegate),
       position_(data.begin()),
       end_(data.end()),
+      supports_shared_values_(delegate && delegate->SupportsSharedValues()),
       id_map_(isolate->global_handles()->Create(
           ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
@@ -1136,6 +1162,7 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
       delegate_(nullptr),
       position_(data),
       end_(data + size),
+      supports_shared_values_(false),
       id_map_(isolate->global_handles()->Create(
           ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
@@ -1394,6 +1421,13 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
 #endif  // V8_ENABLE_WEBASSEMBLY
     case SerializationTag::kHostObject:
       return ReadHostObject();
+    case SerializationTag::kSharedObject:
+      if (version_ >= 15 && supports_shared_values_) {
+        return ReadSharedObject();
+      }
+      // If the delegate doesn't support shared values (e.g. older version, or
+      // is for deserializing from storage), treat the tag as unknown.
+      V8_FALLTHROUGH;
     default:
       // Before there was an explicit tag for host objects, all unknown tags
       // were delegated to the host.
@@ -2038,6 +2072,28 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   return result;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
+  STACK_CHECK(isolate_, MaybeHandle<HeapObject>());
+  DCHECK_GE(version_, 15);
+  DCHECK(supports_shared_values_);
+  DCHECK_NOT_NULL(delegate_);
+  DCHECK(delegate_->SupportsSharedValues());
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  uint32_t shared_value_id;
+  Local<Value> shared_value;
+  if (!ReadVarint<uint32_t>().To(&shared_value_id) ||
+      !delegate_->GetSharedValueFromId(v8_isolate, shared_value_id)
+           .ToLocal(&shared_value)) {
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, HeapObject);
+    return MaybeHandle<HeapObject>();
+  }
+  Handle<HeapObject> shared_object =
+      Handle<HeapObject>::cast(Utils::OpenHandle(*shared_value));
+  // Currently only strings are shareable.
+  DCHECK(String::cast(*shared_object).IsShared());
+  return shared_object;
+}
 
 MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
   if (!delegate_) return MaybeHandle<JSObject>();
