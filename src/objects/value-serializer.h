@@ -137,8 +137,6 @@ class ValueSerializer {
   Maybe<bool> WriteWasmMemory(Handle<WasmMemoryObject> object)
       V8_WARN_UNUSED_RESULT;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  Maybe<bool> WriteSharedObject(Handle<HeapObject> object)
-      V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteHostObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
 
   /*
@@ -164,7 +162,6 @@ class ValueSerializer {
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
-  const bool supports_shared_values_;
   bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
@@ -289,7 +286,6 @@ class ValueDeserializer {
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;
   MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  MaybeHandle<HeapObject> ReadSharedObject() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
 
   /*
@@ -309,7 +305,6 @@ class ValueDeserializer {
   v8::ValueDeserializer::Delegate* const delegate_;
   const uint8_t* position_;
   const uint8_t* const end_;
-  const bool supports_shared_values_;
   uint32_t version_ = 0;
   uint32_t next_id_ = 0;
 

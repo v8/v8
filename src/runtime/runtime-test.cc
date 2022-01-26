@@ -1460,21 +1460,5 @@ RUNTIME_FUNCTION(Runtime_BigIntMaxLengthBits) {
   return *isolate->factory()->NewNumber(BigInt::kMaxLengthBits);
 }
 
-RUNTIME_FUNCTION(Runtime_IsSameHeapObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, obj1, 0);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, obj2, 1);
-  return isolate->heap()->ToBoolean(obj1->address() == obj2->address());
-}
-
-RUNTIME_FUNCTION(Runtime_IsSharedString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsString() &&
-                                    Handle<String>::cast(obj)->IsShared());
-}
-
 }  // namespace internal
 }  // namespace v8

@@ -17,7 +17,7 @@
 
 namespace v8 {
 
-constexpr uint32_t CurrentValueSerializerFormatVersion() { return 15; }
+constexpr uint32_t CurrentValueSerializerFormatVersion() { return 14; }
 
 }  // namespace v8
 

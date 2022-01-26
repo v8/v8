@@ -2184,8 +2184,6 @@ class Heap {
     return allocation_type_for_in_place_internalizable_strings_;
   }
 
-  bool IsStressingScavenge();
-
   ExternalMemoryAccounting external_memory_;
 
   // This can be calculated directly from a pointer to the heap; however, it is

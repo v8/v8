@@ -60,7 +60,7 @@ class ThreadVisitor {
 class ThreadManager {
  public:
   void Lock();
-  V8_EXPORT_PRIVATE void Unlock();
+  void Unlock();
 
   void InitThread(const ExecutionAccess&);
   void ArchiveThread();
