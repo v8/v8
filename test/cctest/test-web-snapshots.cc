@@ -47,9 +47,9 @@ void TestWebSnapshotExtensive(
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
     tester(isolate, new_context);
     CHECK_EQ(string_count, deserializer.string_count());
@@ -343,9 +343,9 @@ TEST(SFIDeduplication) {
   {
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_inner = "foo.inner";
@@ -399,9 +399,9 @@ TEST(SFIDeduplicationClasses) {
   {
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_class = "foo.class";
@@ -464,9 +464,9 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_outer = "foo.outer";
@@ -549,9 +549,9 @@ TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_create = "foo.create";
@@ -626,9 +626,9 @@ TEST(SFIDeduplicationOfFunctionsNotInSnapshot) {
   {
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* create_new_inner = "foo.outer()";
@@ -738,8 +738,8 @@ TEST(Concatenation) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(buffer.get(), buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, buffer.get(), buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
     CHECK_EQ(kObjectCount, deserializer.object_count());
 
@@ -785,8 +785,8 @@ TEST(ConcatenationErrors) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(!deserializer.UseWebSnapshot(buffer.get(), buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, buffer.get(), buffer_size);
+    CHECK(!deserializer.Deserialize());
   }
 }
 
@@ -819,9 +819,9 @@ TEST(CompactedSourceCode) {
   {
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_function = "e[0]";

@@ -1443,9 +1443,9 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   if (length == 0) {
     isolate->ThrowError("Could not read the web snapshot file");
   } else {
-    i::WebSnapshotDeserializer deserializer(isolate);
-    success = deserializer.UseWebSnapshot(snapshot_data.get(),
-                                          static_cast<size_t>(length));
+    i::WebSnapshotDeserializer deserializer(isolate, snapshot_data.get(),
+                                            static_cast<size_t>(length));
+    success = deserializer.Deserialize();
   }
   if (!success) {
     CHECK(try_catch.HasCaught());
@@ -2003,9 +2003,10 @@ void Shell::RealmUseWebSnapshot(
   // Deserialize the snapshot in the specified Realm.
   {
     PerIsolateData::ExplicitRealmScope realm_scope(data, index);
-    i::WebSnapshotDeserializer deserializer(isolate);
-    bool success = deserializer.UseWebSnapshot(
-        snapshot_data_shared->buffer, snapshot_data_shared->buffer_size);
+    i::WebSnapshotDeserializer deserializer(isolate,
+                                            snapshot_data_shared->buffer,
+                                            snapshot_data_shared->buffer_size);
+    bool success = deserializer.Deserialize();
     args.GetReturnValue().Set(success);
   }
 }

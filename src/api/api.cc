@@ -2087,8 +2087,10 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
         handle(fun->shared().script(), isolate);
     if (maybe_script->IsScript() &&
         i::Script::cast(*maybe_script).type() == i::Script::TYPE_WEB_SNAPSHOT) {
-      i::WebSnapshotDeserializer deserializer(v8_isolate);
-      deserializer.UseWebSnapshot(i::Handle<i::Script>::cast(maybe_script));
+      i::WebSnapshotDeserializer deserializer(
+          reinterpret_cast<i::Isolate*>(v8_isolate),
+          i::Handle<i::Script>::cast(maybe_script));
+      deserializer.Deserialize();
       RETURN_ON_FAILED_EXECUTION(Value);
       Local<Value> result = v8::Undefined(v8_isolate);
       RETURN_ESCAPED(result);

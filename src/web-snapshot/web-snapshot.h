@@ -228,10 +228,11 @@ class V8_EXPORT WebSnapshotSerializer
 class V8_EXPORT WebSnapshotDeserializer
     : public WebSnapshotSerializerDeserializer {
  public:
-  explicit WebSnapshotDeserializer(v8::Isolate* v8_isolate);
+  WebSnapshotDeserializer(v8::Isolate* v8_isolate, const uint8_t* data,
+                          size_t buffer_size);
+  WebSnapshotDeserializer(Isolate* isolate, Handle<Script> snapshot_as_script);
   ~WebSnapshotDeserializer();
-  bool UseWebSnapshot(const uint8_t* data, size_t buffer_size);
-  bool UseWebSnapshot(Handle<Script> snapshot_as_script);
+  bool Deserialize();
 
   // For inspecting the state after deserializing a snapshot.
   uint32_t string_count() const { return string_count_; }
@@ -243,7 +244,10 @@ class V8_EXPORT WebSnapshotDeserializer
   uint32_t object_count() const { return object_count_; }
 
  private:
-  bool Deserialize();
+  WebSnapshotDeserializer(Isolate* isolate, Handle<Object> script_name,
+                          base::Vector<const uint8_t> buffer);
+  base::Vector<const uint8_t> ExtractScriptBuffer(
+      Isolate* isolate, Handle<Script> snapshot_as_script);
   bool DeserializeSnapshot();
   bool DeserializeScript();
 
@@ -305,7 +309,7 @@ class V8_EXPORT WebSnapshotDeserializer
   uint32_t object_count_ = 0;
   uint32_t current_object_count_ = 0;
 
-  std::unique_ptr<ValueDeserializer> deserializer_;
+  ValueDeserializer deserializer_;
 
   bool deserialized_ = false;
 };
