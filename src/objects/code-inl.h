@@ -879,21 +879,20 @@ static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL,
               "for big endian architectures");
 #endif
 
-DEF_GETTER(CodeDataContainer, raw_code, Object) {
+Object CodeDataContainer::raw_code() const {
+  PtrComprCageBase cage_base = code_cage_base();
+  return CodeDataContainer::raw_code(cage_base);
+}
+
+Object CodeDataContainer::raw_code(PtrComprCageBase cage_base) const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // Given the fields layout we can write the Code reference as a full word
-  // (see the static asserts above).
-  Address* p = reinterpret_cast<Address*>(address() + kCodeOffset);
-  Object value = Object(*p);
+  Object value = TaggedField<Object, kCodeOffset>::load(cage_base, *this);
   return value;
 }
 
 void CodeDataContainer::set_raw_code(Object value, WriteBarrierMode mode) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // Given the fields layout we can write the Code reference as a full word
-  // (see the static asserts above).
-  Address* p = reinterpret_cast<Address*>(address() + kCodeOffset);
-  *p = value.ptr();
+  TaggedField<Object, kCodeOffset>::store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
 }
 
