@@ -1754,6 +1754,16 @@ void WebSnapshotDeserializer::DeserializeExports() {
     Throw("Malformed export table");
     return;
   }
+  // Pre-reserve the space for the properties we're going to add to the global
+  // object.
+  Handle<JSGlobalObject> global = isolate_->global_object();
+  Handle<GlobalDictionary> dictionary(
+      global->global_dictionary(isolate_, kAcquireLoad), isolate_);
+
+  dictionary = GlobalDictionary::EnsureCapacity(isolate_, dictionary, count,
+                                                AllocationType::kYoung);
+  global->set_global_dictionary(*dictionary, kReleaseStore);
+
   for (uint32_t i = 0; i < count; ++i) {
     Handle<String> export_name = ReadString(true);
     Handle<Object> export_value;
@@ -1770,8 +1780,8 @@ void WebSnapshotDeserializer::DeserializeExports() {
       return;
     }
 
-    auto result = Object::SetProperty(isolate_, isolate_->global_object(),
-                                      export_name, export_value);
+    auto result =
+        Object::SetProperty(isolate_, global, export_name, export_value);
     if (result.is_null()) {
       Throw("Setting global property failed");
       return;
