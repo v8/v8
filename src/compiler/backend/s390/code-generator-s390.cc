@@ -3257,17 +3257,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_F64x2ConvertLowI32x4S: {
-      __ vupl(kScratchDoubleReg, i.InputSimd128Register(0), Condition(0),
-              Condition(0), Condition(2));
-      __ vcdg(i.OutputSimd128Register(), kScratchDoubleReg, Condition(4),
-              Condition(0), Condition(3));
+      __ F64x2ConvertLowI32x4S(i.OutputSimd128Register(),
+                               i.InputSimd128Register(0));
       break;
     }
     case kS390_F64x2ConvertLowI32x4U: {
-      __ vupll(kScratchDoubleReg, i.InputSimd128Register(0), Condition(0),
-               Condition(0), Condition(2));
-      __ vcdlg(i.OutputSimd128Register(), kScratchDoubleReg, Condition(4),
-               Condition(0), Condition(3));
+      __ F64x2ConvertLowI32x4U(i.OutputSimd128Register(),
+                               i.InputSimd128Register(0));
       break;
     }
     case kS390_F64x2PromoteLowF32x4: {

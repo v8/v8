@@ -1114,29 +1114,31 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I8x16BitMask(Register dst, Simd128Register src, Register scratch1,
                     Register scratch2, Simd128Register scratch3);
 
-#define SIMD_UNOP_LIST(V) \
-  V(F64x2Abs)             \
-  V(F64x2Neg)             \
-  V(F64x2Sqrt)            \
-  V(F64x2Ceil)            \
-  V(F64x2Floor)           \
-  V(F64x2Trunc)           \
-  V(F64x2NearestInt)      \
-  V(F32x4Abs)             \
-  V(F32x4Neg)             \
-  V(F32x4Sqrt)            \
-  V(F32x4Ceil)            \
-  V(F32x4Floor)           \
-  V(F32x4Trunc)           \
-  V(F32x4NearestInt)      \
-  V(I64x2Abs)             \
-  V(I32x4Abs)             \
-  V(I16x8Abs)             \
-  V(I8x16Abs)             \
-  V(I64x2Neg)             \
-  V(I32x4Neg)             \
-  V(I16x8Neg)             \
-  V(I8x16Neg)             \
+#define SIMD_UNOP_LIST(V)  \
+  V(F64x2Abs)              \
+  V(F64x2Neg)              \
+  V(F64x2Sqrt)             \
+  V(F64x2Ceil)             \
+  V(F64x2Floor)            \
+  V(F64x2Trunc)            \
+  V(F64x2NearestInt)       \
+  V(F64x2ConvertLowI32x4S) \
+  V(F64x2ConvertLowI32x4U) \
+  V(F32x4Abs)              \
+  V(F32x4Neg)              \
+  V(F32x4Sqrt)             \
+  V(F32x4Ceil)             \
+  V(F32x4Floor)            \
+  V(F32x4Trunc)            \
+  V(F32x4NearestInt)       \
+  V(I64x2Abs)              \
+  V(I32x4Abs)              \
+  V(I16x8Abs)              \
+  V(I8x16Abs)              \
+  V(I64x2Neg)              \
+  V(I32x4Neg)              \
+  V(I16x8Neg)              \
+  V(I8x16Neg)              \
   V(S128Not)
 
 #define PROTOTYPE_SIMD_UNOP(name) \

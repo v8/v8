@@ -5537,6 +5537,18 @@ void TurboAssembler::I16x8BitMask(Register dst, Simd128Register src,
   vlgv(dst, scratch2, MemOperand(r0, 7), Condition(0));
 }
 
+void TurboAssembler::F64x2ConvertLowI32x4S(Simd128Register dst,
+                                           Simd128Register src) {
+  vupl(dst, src, Condition(0), Condition(0), Condition(2));
+  vcdg(dst, dst, Condition(4), Condition(0), Condition(3));
+}
+
+void TurboAssembler::F64x2ConvertLowI32x4U(Simd128Register dst,
+                                           Simd128Register src) {
+  vupll(dst, src, Condition(0), Condition(0), Condition(2));
+  vcdlg(dst, dst, Condition(4), Condition(0), Condition(3));
+}
+
 void TurboAssembler::I8x16BitMask(Register dst, Simd128Register src,
                                   Register scratch1, Register scratch2,
                                   Simd128Register scratch3) {
