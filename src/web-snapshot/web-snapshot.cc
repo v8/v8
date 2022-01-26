@@ -1762,8 +1762,9 @@ void WebSnapshotDeserializer::DeserializeExports() {
   Handle<GlobalDictionary> dictionary(
       global->global_dictionary(isolate_, kAcquireLoad), isolate_);
 
-  dictionary = GlobalDictionary::EnsureCapacity(isolate_, dictionary, count,
-                                                AllocationType::kYoung);
+  dictionary = GlobalDictionary::EnsureCapacity(
+      isolate_, dictionary, dictionary->NumberOfElements() + count,
+      AllocationType::kYoung);
   global->set_global_dictionary(*dictionary, kReleaseStore);
 
   for (uint32_t i = 0; i < count; ++i) {
