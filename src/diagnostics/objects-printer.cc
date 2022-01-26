@@ -1972,6 +1972,12 @@ void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmOnFulfilledData::WasmOnFulfilledDataPrint(std::ostream& os) {
+  PrintHeader(os, "WasmOnFulfilledData");
+  os << "\n - suspender: " << Brief(suspender());
+  os << '\n';
+}
+
 void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   PrintHeader(os, "WasmApiFunctionRef");
   os << "\n - isolate_root: " << reinterpret_cast<void*>(isolate_root());

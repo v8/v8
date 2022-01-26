@@ -3768,6 +3768,8 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
       kForeignForeignAddressTag, r8);
   __ Push(wasm_instance);
   __ call(function_entry);
+  // Note: we might be returning to an "OnFulfilled" frame if the stack was
+  // suspended and resumed via the chained promise.
   __ Pop(wasm_instance);
   // Unset thread_in_wasm_flag.
   __ movq(
@@ -3848,6 +3850,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Epilogue.
   // -------------------------------------------
+  param_count = rbx;
   __ movq(
       param_count,
       MemOperand(rbp, ReturnPromiseOnSuspendFrameConstants::kParamCountOffset));
@@ -3951,6 +3954,12 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   LoadJumpBuffer(masm, jmpbuf, true);
   __ Trap();
   __ bind(&resume);
+  __ LeaveFrame(StackFrame::STACK_SWITCH);
+  __ ret(0);
+}
+
+void Builtins::Generate_WasmResume(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::STACK_SWITCH);
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   __ ret(0);
 }

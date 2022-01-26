@@ -782,6 +782,16 @@ class WasmCapiFunctionData
   TQ_OBJECT_CONSTRUCTORS(WasmCapiFunctionData)
 };
 
+class WasmOnFulfilledData
+    : public TorqueGeneratedWasmOnFulfilledData<WasmOnFulfilledData,
+                                                HeapObject> {
+ public:
+  using BodyDescriptor =
+      FlexibleBodyDescriptor<WasmOnFulfilledData::kStartOfStrongFieldsOffset>;
+  DECL_PRINTER(WasmOnFulfilledData)
+  TQ_OBJECT_CONSTRUCTORS(WasmOnFulfilledData)
+};
+
 class WasmScript : public AllStatic {
  public:
   // Position used for storing "on entry" breakpoints (a.k.a. instrumentation

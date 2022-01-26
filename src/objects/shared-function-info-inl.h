@@ -707,6 +707,10 @@ bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data(kAcquireLoad).IsWasmCapiFunctionData();
 }
 
+bool SharedFunctionInfo::HasWasmOnFulfilledData() const {
+  return function_data(kAcquireLoad).IsWasmOnFulfilledData();
+}
+
 AsmWasmData SharedFunctionInfo::asm_wasm_data() const {
   DCHECK(HasAsmWasmData());
   return AsmWasmData::cast(function_data(kAcquireLoad));

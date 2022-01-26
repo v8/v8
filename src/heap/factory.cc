@@ -1574,6 +1574,17 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   return handle(result, isolate());
 }
 
+Handle<WasmOnFulfilledData> Factory::NewWasmOnFulfilledData(
+    Handle<WasmSuspenderObject> suspender) {
+  Map map = *wasm_onfulfilled_data_map();
+  WasmOnFulfilledData result =
+      WasmOnFulfilledData::cast(AllocateRawWithImmortalMap(
+          map.instance_size(), AllocationType::kOld, map));
+  DisallowGarbageCollection no_gc;
+  result.set_suspender(*suspender);
+  return handle(result, isolate());
+}
+
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
     Address call_target, Handle<Object> ref, int func_index,
@@ -1702,6 +1713,11 @@ Factory::NewSharedFunctionInfoForWasmExportedFunction(
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmJSFunction(
     Handle<String> name, Handle<WasmJSFunctionData> data) {
   return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId);
+}
+
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmOnFulfilled(
+    Handle<WasmOnFulfilledData> data) {
+  return NewSharedFunctionInfo({}, data, Builtin::kNoBuiltinId);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmCapiFunction(

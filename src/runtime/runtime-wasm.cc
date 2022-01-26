@@ -57,8 +57,13 @@ class FrameFinder {
   StackFrameIterator frame_iterator_;
 };
 
-WasmInstanceObject GetWasmInstanceOnStackTop(Isolate* isolate) {
-  return FrameFinder<WasmFrame>(isolate).frame()->wasm_instance();
+WasmInstanceObject GetWasmInstanceOnStackTop(
+    Isolate* isolate,
+    std::initializer_list<StackFrame::Type> skipped_frame_types = {
+        StackFrame::EXIT}) {
+  return FrameFinder<WasmFrame>(isolate, skipped_frame_types)
+      .frame()
+      ->wasm_instance();
 }
 
 Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
@@ -784,6 +789,43 @@ RUNTIME_FUNCTION(Runtime_WasmSyncStackLimit) {
   CHECK(FLAG_experimental_wasm_stack_switching);
   SyncStackLimit(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+// Takes a promise and a suspender, and returns promise.then(onFulfilled), where
+// onFulfilled resumes the suspender.
+RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
+  CHECK(FLAG_experimental_wasm_stack_switching);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmSuspenderObject, suspender, 1);
+
+  // Instantiate onFulfilled callback.
+  Handle<WasmOnFulfilledData> function_data =
+      isolate->factory()->NewWasmOnFulfilledData(suspender);
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForWasmOnFulfilled(
+          function_data);
+  Handle<WasmInstanceObject> instance(
+      GetWasmInstanceOnStackTop(isolate,
+                                {StackFrame::EXIT, StackFrame::WASM_TO_JS}),
+      isolate);
+  isolate->set_context(instance->native_context());
+  Handle<Context> context(isolate->native_context());
+  Handle<Map> function_map = isolate->strict_function_map();
+  Handle<JSObject> on_fulfilled =
+      Factory::JSFunctionBuilder{isolate, shared, context}
+          .set_map(function_map)
+          .Build();
+
+  i::Handle<i::Object> argv[] = {on_fulfilled};
+  i::Handle<i::Object> result;
+  bool has_pending_exception =
+      !i::Execution::CallBuiltin(isolate, isolate->promise_then(), promise,
+                                 arraysize(argv), argv)
+           .ToHandle(&result);
+  // TODO(thibaudm): Propagate exception.
+  CHECK(!has_pending_exception);
+  return *result;
 }
 
 }  // namespace internal

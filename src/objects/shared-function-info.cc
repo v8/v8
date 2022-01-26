@@ -108,6 +108,9 @@ CodeT SharedFunctionInfo::GetCode() const {
   if (data.IsWasmCapiFunctionData()) {
     return wasm_capi_function_data().wrapper_code();
   }
+  if (data.IsWasmOnFulfilledData()) {
+    return isolate->builtins()->code(Builtin::kWasmResume);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (data.IsUncompiledData()) {
     // Having uncompiled data (with or without scope) means we need to compile.

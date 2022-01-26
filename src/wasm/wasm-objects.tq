@@ -80,6 +80,10 @@ extern class WasmCapiFunctionData extends WasmFunctionData {
   serialized_signature: PodArrayOfWasmValueType;
 }
 
+extern class WasmOnFulfilledData extends HeapObject {
+  suspender: WasmSuspenderObject;
+}
+
 extern class WasmIndirectFunctionTable extends Struct {
   size: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;

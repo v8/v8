@@ -40,7 +40,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
   function js_import() {
-    // TODO(thibaudm): Return the value as a promise.
     return new Promise((resolve) => { resolve(42); });
   };
   let wasm_js_import = new WebAssembly.Function({parameters: [], results: ['i32']}, js_import);

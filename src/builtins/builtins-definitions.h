@@ -954,6 +954,7 @@ namespace internal {
   IF_WASM(ASM, GenericJSToWasmWrapper, Dummy)                                  \
   IF_WASM(ASM, WasmReturnPromiseOnSuspend, Dummy)                              \
   IF_WASM(ASM, WasmSuspend, WasmSuspend)                                       \
+  IF_WASM(ASM, WasmResume, Dummy)                                              \
   IF_WASM(ASM, WasmCompileLazy, Dummy)                                         \
   IF_WASM(ASM, WasmDebugBreak, Dummy)                                          \
   IF_WASM(ASM, WasmOnStackReplace, Dummy)                                      \

@@ -1111,6 +1111,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmInternalFunction);
     case WASM_JS_FUNCTION_DATA_TYPE:
       return CALL_APPLY(WasmJSFunctionData);
+    case WASM_ON_FULFILLED_DATA_TYPE:
+      return CALL_APPLY(WasmOnFulfilledData);
     case WASM_STRUCT_TYPE:
       return CALL_APPLY(WasmStruct);
     case WASM_TYPE_INFO_TYPE:

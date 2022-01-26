@@ -613,6 +613,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
       Handle<CodeT> wrapper_code, Handle<Map> rtt,
       Handle<HeapObject> suspender);
+  Handle<WasmOnFulfilledData> NewWasmOnFulfilledData(
+      Handle<WasmSuspenderObject> suspender);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
   Handle<WasmArray> NewWasmArrayFromElements(
@@ -625,6 +627,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<String> name, Handle<WasmExportedFunctionData> data);
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmJSFunction(
       Handle<String> name, Handle<WasmJSFunctionData> data);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmOnFulfilled(
+      Handle<WasmOnFulfilledData> data);
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmCapiFunction(
       Handle<WasmCapiFunctionData> data);
 #endif  // V8_ENABLE_WEBASSEMBLY

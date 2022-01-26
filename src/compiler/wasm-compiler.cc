@@ -7008,6 +7008,18 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         global_proxy);
   }
 
+  Node* BuildSuspend(Node* promise, Node* suspender) {
+    auto* call_descriptor = GetBuiltinCallDescriptor(
+        Builtin::kWasmSuspend, zone_, StubCallMode::kCallWasmRuntimeStub);
+    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+        wasm::WasmCode::kWasmSuspend, RelocInfo::WASM_STUB_CALL);
+    Node* args[] = {promise, suspender};
+    Node* chained_promise =
+        BuildCallToRuntime(Runtime::kWasmCreateResumePromise, args, 2);
+    return gasm_->Call(call_descriptor, call_target, chained_promise,
+                       suspender);
+  }
+
   // For wasm-to-js wrappers, parameter 0 is a WasmApiFunctionRef.
   bool BuildWasmToJSWrapper(WasmImportCallKind kind, int expected_arity,
                             wasm::Suspend suspend) {
@@ -7072,16 +7084,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         DCHECK_EQ(pos, args.size());
         call = gasm_->Call(call_descriptor, pos, args.begin());
         if (suspend == wasm::kSuspend) {
-          auto* call_descriptor = GetBuiltinCallDescriptor(
-              Builtin::kWasmSuspend, zone_, StubCallMode::kCallWasmRuntimeStub);
-          Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-              wasm::WasmCode::kWasmSuspend, RelocInfo::WASM_STUB_CALL);
           Node* suspender =
               gasm_->Load(MachineType::TaggedPointer(), Param(0),
                           wasm::ObjectAccess::ToTagged(
                               WasmApiFunctionRef::kSuspenderOffset));
-          // TODO(thibaudm): Create and pass the chained promise.
-          gasm_->Call(call_descriptor, call_target, call, suspender);
+          call = BuildSuspend(call, suspender);
         }
         break;
       }

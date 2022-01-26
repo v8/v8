@@ -1791,8 +1791,9 @@ class WasmFloat64ToNumberDescriptor final
 class WasmSuspendDescriptor final
     : public StaticCallInterfaceDescriptor<WasmSuspendDescriptor> {
  public:
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(0, kArg0, kArg1)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // value
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kArg0, kArg1)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::AnyTagged(),  // value
                                     MachineType::AnyTagged())  // value
   DECLARE_DESCRIPTOR(WasmSuspendDescriptor)
 };
