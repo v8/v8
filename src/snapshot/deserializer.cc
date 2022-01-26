@@ -431,7 +431,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
           isolate()->string_table()->LookupKey(isolate(), &key);
 
       if (*result != *string) {
-        DCHECK(!string->IsShared());
         string->MakeThin(isolate(), *result);
         // Mutate the given object handle so that the backreference entry is
         // also updated.
