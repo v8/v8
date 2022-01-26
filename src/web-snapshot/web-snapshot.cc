@@ -1788,7 +1788,7 @@ void WebSnapshotDeserializer::DeserializeExports() {
 
     PropertyDetails property_details =
         PropertyDetails(PropertyKind::kData, NONE,
-                        PropertyCell::InitialType(isolate_, export_value));
+                        PropertyCell::InitialType(isolate_, *export_value));
     Handle<PropertyCell> transition_cell = isolate_->factory()->NewPropertyCell(
         export_name, property_details, export_value);
 

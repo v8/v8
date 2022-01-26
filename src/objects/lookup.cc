@@ -587,7 +587,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
       // Don't set enumeration index (it will be set during value store).
       property_details_ =
           PropertyDetails(PropertyKind::kData, attributes,
-                          PropertyCell::InitialType(isolate_, value));
+                          PropertyCell::InitialType(isolate_, *value));
       transition_ = isolate_->factory()->NewPropertyCell(
           name(), property_details_, value);
       has_property_ = true;
