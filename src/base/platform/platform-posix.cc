@@ -504,6 +504,8 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
   return ret == 0;
 }
 
+#if !defined(_AIX)
+// See AIX version for details.
 // static
 bool OS::DecommitPages(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
@@ -518,6 +520,7 @@ bool OS::DecommitPages(void* address, size_t size) {
                    MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   return ptr == address;
 }
+#endif  // !defined(_AIX)
 
 // static
 bool OS::CanReserveAddressSpace() { return true; }
