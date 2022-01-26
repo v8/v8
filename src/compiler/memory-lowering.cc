@@ -472,30 +472,27 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
   node->InsertInput(graph_zone(), 1, offset);
   MachineType type = access.machine_type;
   if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
-      access.type.Is(Type::SandboxedExternalPointer())) {
+      access.type.Is(Type::ExternalPointer())) {
     // External pointer table indices are stored as 32-bit numbers
     type = MachineType::Uint32();
   }
 
   if (type.IsMapWord()) {
-    DCHECK(!access.type.Is(Type::SandboxedExternalPointer()));
+    DCHECK(!access.type.Is(Type::ExternalPointer()));
     return ReduceLoadMap(node);
   }
 
   NodeProperties::ChangeOp(node, machine()->Load(type));
 
-  if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
-      access.type.Is(Type::SandboxedExternalPointer())) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  if (access.type.Is(Type::ExternalPointer())) {
     ExternalPointerTag tag = access.external_pointer_tag;
-#else
-    ExternalPointerTag tag = kExternalPointerNullTag;
-#endif
+    DCHECK_NE(kExternalPointerNullTag, tag);
     node = DecodeExternalPointer(node, tag);
     return Replace(node);
-  } else {
-    DCHECK(!access.type.Is(Type::SandboxedExternalPointer()));
   }
+#endif
+
   return Changed(node);
 }
 
@@ -542,8 +539,7 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
   FieldAccess const& access = FieldAccessOf(node->op());
   // External pointer must never be stored by optimized code.
   DCHECK_IMPLIES(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL,
-                 !access.type.Is(Type::ExternalPointer()) &&
-                     !access.type.Is(Type::SandboxedExternalPointer()));
+                 !access.type.Is(Type::ExternalPointer()));
   // SandboxedPointers are not currently stored by optimized code.
   DCHECK(!access.type.Is(Type::SandboxedPointer()));
   MachineType machine_type = access.machine_type;

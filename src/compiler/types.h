@@ -133,10 +133,7 @@ namespace compiler {
 // We split the macro list into two parts because the Torque equivalent in
 // turbofan-types.tq uses two 32bit bitfield structs.
 #define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V) \
-  /* TODO(v8:10391): Remove this type once all ExternalPointer usages are */ \
-  /* sandbox-ready. */                     \
-  V(SandboxedExternalPointer, uint64_t{1} << 32)  \
-  V(SandboxedPointer,         uint64_t{1} << 33)
+  V(SandboxedPointer,         uint64_t{1} << 32)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
@@ -210,7 +207,6 @@ namespace compiler {
   V(Unique,                       kBoolean | kUniqueName | kNull | \
                                   kUndefined | kHole | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | \
-                                  kSandboxedExternalPointer | \
                                   kSandboxedPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \

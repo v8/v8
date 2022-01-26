@@ -756,8 +756,7 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
       ExternalString::kResourceDataOffset,
       Handle<Name>(),
       MaybeHandle<Map>(),
-      V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ? Type::SandboxedExternalPointer()
-                                          : Type::ExternalPointer(),
+      Type::ExternalPointer(),
       MachineType::Pointer(),
       kNoWriteBarrier,
       ConstFieldInfo::None(),
