@@ -183,7 +183,7 @@ class V8_EXPORT V8 {
    * V8 was disposed.
    */
   static void DisposePlatform();
-  V8_DEPRECATE_SOON("Use DisposePlatform()")
+  V8_DEPRECATED("Use DisposePlatform()")
   static void ShutdownPlatform() { DisposePlatform(); }
 
 #ifdef V8_SANDBOX

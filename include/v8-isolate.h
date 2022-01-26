@@ -628,7 +628,7 @@ class V8_EXPORT Isolate {
    * This specifies the callback called by the upcoming dynamic
    * import() language feature to load modules.
    */
-  V8_DEPRECATE_SOON("Use HostImportModuleDynamicallyCallback")
+  V8_DEPRECATED("Use HostImportModuleDynamicallyCallback")
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyWithImportAssertionsCallback callback);
   void SetHostImportModuleDynamicallyCallback(

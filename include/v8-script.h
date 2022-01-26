@@ -47,7 +47,7 @@ class V8_EXPORT ScriptOrModule {
    * The options that were passed by the embedder as HostDefinedOptions to
    * the ScriptOrigin.
    */
-  V8_DEPRECATE_SOON("Use HostDefinedOptions")
+  V8_DEPRECATED("Use HostDefinedOptions")
   Local<PrimitiveArray> GetHostDefinedOptions();
   Local<Data> HostDefinedOptions();
 };

@@ -202,7 +202,7 @@ class V8_EXPORT EmbedderHeapTracer {
    *
    * Should only be used in testing code.
    */
-  V8_DEPRECATE_SOON("Use Isolate::RequestGarbageCollectionForTesting instead")
+  V8_DEPRECATED("Use Isolate::RequestGarbageCollectionForTesting instead")
   void GarbageCollectionForTesting(EmbedderStackState stack_state);
 
   /*
