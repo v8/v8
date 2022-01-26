@@ -2403,11 +2403,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   StackArgumentsAccessor args(eax);
   __ AssertCallableFunction(edi, edx);
 
-  Label class_constructor;
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ test(FieldOperand(edx, SharedFunctionInfo::kFlagsOffset),
-          Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
-  __ j(not_zero, &class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
@@ -2488,14 +2484,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ movzx_w(
       ecx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(edi, no_reg, ecx, eax, InvokeType::kJump);
-
-  // The function is a "classConstructor", need to raise an exception.
-  __ bind(&class_constructor);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ push(edi);
-    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
-  }
 }
 
 namespace {
