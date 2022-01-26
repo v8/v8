@@ -488,7 +488,23 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     Register weight, Label* skip_interrupt_label) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm_);
+  ScratchRegisterScope scratch_scope(this);
+  Register feedback_cell = scratch_scope.AcquireScratch();
+  LoadFunction(feedback_cell);
+  LoadTaggedPointerField(feedback_cell, feedback_cell,
+                         JSFunction::kFeedbackCellOffset);
+
+  Register interrupt_budget = scratch_scope.AcquireScratch();
+  __ LoadU32(
+      interrupt_budget,
+      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  // Remember to set flags as part of the add!
+  __ AddU32(interrupt_budget, interrupt_budget, weight);
+  __ StoreU32(
+      interrupt_budget,
+      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  if (skip_interrupt_label) __ b(ge, skip_interrupt_label);
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) { UNIMPLEMENTED(); }
