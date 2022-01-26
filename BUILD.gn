@@ -5163,7 +5163,11 @@ v8_component("v8_libbase") {
       "src/base/debug/stack_trace_fuchsia.cc",
       "src/base/platform/platform-fuchsia.cc",
     ]
-    deps += [ "//third_party/fuchsia-sdk/sdk/pkg/zx" ]
+    deps += [
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.kernel",
+      "//third_party/fuchsia-sdk/sdk/pkg/fdio",
+      "//third_party/fuchsia-sdk/sdk/pkg/zx",
+    ]
   } else if (is_mac || is_ios) {
     sources += [
       "src/base/debug/stack_trace_posix.cc",

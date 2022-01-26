@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fuchsia/kernel/cpp/fidl.h>
+#include <lib/fdio/directory.h>
 #include <lib/zx/resource.h>
 #include <lib/zx/thread.h>
 #include <lib/zx/vmar.h>
@@ -17,6 +19,22 @@ namespace v8 {
 namespace base {
 
 namespace {
+
+static zx::resource g_vmex_resource;
+
+static void* g_root_vmar_base = nullptr;
+
+void SetGlobalVmexResource() {
+  fuchsia::kernel::VmexResourceSyncPtr vmex_resource;
+  auto path = std::string("/svc/") + fuchsia::kernel::VmexResource::Name_;
+  zx_status_t status = fdio_service_connect(
+      path.data(), vmex_resource.NewRequest().TakeChannel().release());
+  if (status != ZX_OK) {
+    g_vmex_resource = zx::resource();
+  } else {
+    vmex_resource->Get(&g_vmex_resource);
+  }
+}
 
 zx_vm_option_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
@@ -85,7 +103,7 @@ void* AllocateInternal(const zx::vmar& vmar, void* vmar_base, size_t page_size,
   // to be marked as executable in the future.
   // TOOD(https://crbug.com/v8/8899): Only call this when we know that the
   // region will need to be marked as executable in the future.
-  if (vmo.replace_as_executable(zx::resource(), &vmo) != ZX_OK) {
+  if (vmo.replace_as_executable(g_vmex_resource, &vmo) != ZX_OK) {
     return nullptr;
   }
 
@@ -196,8 +214,6 @@ TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();
 }
 
-static void* g_root_vmar_base = nullptr;
-
 // static
 void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   PosixInitializeCommon(hard_abort, gc_fake_mmap);
@@ -208,6 +224,8 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
       ZX_INFO_VMAR, &info, sizeof(info), nullptr, nullptr);
   CHECK_EQ(ZX_OK, status);
   g_root_vmar_base = reinterpret_cast<void*>(info.base);
+
+  SetGlobalVmexResource();
 }
 
 // static
