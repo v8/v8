@@ -154,6 +154,39 @@ void InitExprInterface::ArrayInit(FullDecoder* decoder,
                 ValueType::Ref(HeapType(imm.index), kNonNullable));
 }
 
+void InitExprInterface::ArrayInitFromData(
+    FullDecoder* decoder, const ArrayIndexImmediate<validate>& array_imm,
+    const IndexImmediate<validate>& data_segment_imm, const Value& offset_value,
+    const Value& length_value, const Value& rtt, Value* result) {
+  if (!generate_result()) return;
+
+  uint32_t length = length_value.runtime_value.to_u32();
+  uint32_t offset = offset_value.runtime_value.to_u32();
+  const WasmDataSegment& data_segment =
+      module_->data_segments[data_segment_imm.index];
+  uint32_t length_in_bytes =
+      length * array_imm.array_type->element_type().element_size_bytes();
+
+  // Error handling.
+  if (length >
+      static_cast<uint32_t>(WasmArray::MaxLength(array_imm.array_type))) {
+    error_ = "length for array.init_from_data too large";
+    return;
+  }
+  if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
+                                  data_segment.source.length())) {
+    error_ = "data segment is out of bounds";
+    return;
+  }
+
+  Address source =
+      instance_->data_segment_starts()[data_segment_imm.index] + offset;
+  Handle<WasmArray> array_value = isolate_->factory()->NewWasmArrayFromMemory(
+      length, Handle<Map>::cast(rtt.runtime_value.to_ref()), source);
+  result->runtime_value = WasmValue(
+      array_value, ValueType::Ref(HeapType(array_imm.index), kNonNullable));
+}
+
 void InitExprInterface::RttCanon(FullDecoder* decoder, uint32_t type_index,
                                  Value* result) {
   if (!generate_result()) return;

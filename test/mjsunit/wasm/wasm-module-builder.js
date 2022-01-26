@@ -490,6 +490,7 @@ let kExprArrayInit = 0x19;
 let kExprArrayInitStatic = 0x1a;
 let kExprArrayNew = 0x1b;
 let kExprArrayNewDefault = 0x1c;
+let kExprArrayInitFromDataStatic = 0x1d;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
@@ -1044,6 +1045,15 @@ class Binary {
         this.emit_u32v(expr.value);
         this.emit_u32v(expr.operands.length - 1);
         break;
+      case kExprArrayInitFromDataStatic:
+        for (let operand of expr.operands) {
+          this.emit_init_expr_recursive(operand);
+        }
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(expr.kind);
+        this.emit_u32v(expr.array_index);
+        this.emit_u32v(expr.data_segment);
+        break;
       case kExprRttCanon:
         this.emit_u8(kGCPrefix);
         this.emit_u8(kExprRttCanon);
@@ -1207,6 +1217,13 @@ class WasmInitExpr {
   }
   static ArrayInitStatic(type, args) {
     return {kind: kExprArrayInitStatic, value: type, operands: args};
+  }
+  static ArrayInitStaticFromData(array_index, data_segment, args, builder) {
+    // array.init_from_data means we need to pull the data count section before
+    // any section that may include init. expressions.
+    builder.early_data_count_section = true;
+    return {kind: kExprArrayInitFromDataStatic, array_index: array_index,
+            data_segment: data_segment, operands: args};
   }
   static RttCanon(type) {
     return {kind: kExprRttCanon, value: type};

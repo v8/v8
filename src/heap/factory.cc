@@ -1651,6 +1651,27 @@ Handle<WasmArray> Factory::NewWasmArrayFromElements(
   return handle(result, isolate());
 }
 
+Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
+                                                  Handle<Map> map,
+                                                  Address source) {
+  wasm::ValueType element_type = reinterpret_cast<wasm::ArrayType*>(
+                                     map->wasm_type_info().foreign_address())
+                                     ->element_type();
+  DCHECK(element_type.is_numeric());
+  HeapObject raw =
+      AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
+  DisallowGarbageCollection no_gc;
+  raw.set_map_after_allocation(*map);
+  WasmArray result = WasmArray::cast(raw);
+  result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
+  result.set_length(length);
+  MemCopy(reinterpret_cast<void*>(result.ElementAddress(0)),
+          reinterpret_cast<void*>(source),
+          length * element_type.element_size_bytes());
+
+  return handle(result, isolate());
+}
+
 Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                           wasm::WasmValue* args,
                                           Handle<Map> map) {

@@ -507,6 +507,9 @@ class WasmGraphBuilder {
                  Node* length, wasm::WasmCodePosition position);
   Node* ArrayInit(const wasm::ArrayType* type, Node* rtt,
                   base::Vector<Node*> elements);
+  Node* ArrayInitFromData(const wasm::ArrayType* type, uint32_t data_segment,
+                          Node* offset, Node* length, Node* rtt,
+                          wasm::WasmCodePosition position);
   Node* I31New(Node* input);
   Node* I31GetS(Node* input);
   Node* I31GetU(Node* input);

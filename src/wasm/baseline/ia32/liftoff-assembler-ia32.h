@@ -121,7 +121,10 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kS128:
       assm->movdqu(dst, src.fp());
       break;
-    default:
+    case kVoid:
+    case kBottom:
+    case kI8:
+    case kI16:
       UNREACHABLE();
   }
 }
@@ -132,6 +135,8 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI32:
     case kRef:
     case kOptRef:
+    case kRtt:
+    case kRttWithDepth:
       assm->AllocateStackSpace(padding);
       assm->push(reg.gp());
       break;
@@ -152,7 +157,10 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
       assm->AllocateStackSpace(sizeof(double) * 2 + padding);
       assm->movdqu(Operand(esp, 0), reg.fp());
       break;
-    default:
+    case kVoid:
+    case kBottom:
+    case kI8:
+    case kI16:
       UNREACHABLE();
   }
 }

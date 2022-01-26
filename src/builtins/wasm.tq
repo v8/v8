@@ -37,6 +37,8 @@ extern runtime WasmI64AtomicWait(
 extern runtime WasmAllocateRtt(Context, Smi, Map, Smi): Map;
 extern runtime WasmArrayCopy(
     Context, WasmArray, Smi, WasmArray, Smi, Smi): JSAny;
+extern runtime WasmArrayInitFromData(
+    Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
 }
 
 namespace unsafe {
@@ -362,6 +364,14 @@ builtin WasmAllocateArray_InitNull(
     rtt: Map, length: uint32, elementSize: uint32): HeapObject {
   return WasmAllocateArray(
       rtt, length, elementSize, InitializationMode::kInitializeToNull);
+}
+
+builtin WasmArrayInitFromData(
+    dataSegment: uint32, offset: uint32, length: uint32, rtt: Map): Object {
+  const instance = LoadInstanceFromFrame();
+  tail runtime::WasmArrayInitFromData(
+      LoadContextFromInstance(instance), instance, SmiFromUint32(dataSegment),
+      SmiFromUint32(offset), SmiFromUint32(length), rtt);
 }
 
 // We put all uint32 parameters at the beginning so that they are assigned to

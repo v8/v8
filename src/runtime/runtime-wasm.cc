@@ -695,6 +695,37 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+// Returns
+// - the new array if the operation succeeds,
+// - Smi(0) if the requested array length is too large,
+// - Smi(1) if the data segment ran out-of-bounds.
+RUNTIME_FUNCTION(Runtime_WasmArrayInitFromData) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_UINT32_ARG_CHECKED(data_segment, 1);
+  CONVERT_UINT32_ARG_CHECKED(offset, 2);
+  CONVERT_UINT32_ARG_CHECKED(length, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Map, rtt, 4);
+  uint32_t element_size = WasmArray::DecodeElementSizeFromMap(*rtt);
+  uint32_t length_in_bytes = length * element_size;
+
+  if (length > static_cast<uint32_t>(WasmArray::MaxLength(element_size))) {
+    return Smi::FromInt(wasm::kArrayInitFromDataArrayTooLargeErrorCode);
+  }
+  // The check above implies no overflow.
+  DCHECK_EQ(length_in_bytes / element_size, length);
+  if (!base::IsInBounds<uint32_t>(
+          offset, length_in_bytes,
+          instance->data_segment_sizes()[data_segment])) {
+    return Smi::FromInt(wasm::kArrayInitFromDataSegmentOutOfBoundsErrorCode);
+  }
+
+  Address source = instance->data_segment_starts()[data_segment] + offset;
+  return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
+}
+
 namespace {
 // Synchronize the stack limit with the active continuation for stack-switching.
 // This can be done before or after changing the stack pointer itself, as long

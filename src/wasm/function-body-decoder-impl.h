@@ -940,6 +940,9 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& rtt, Value* result)                                      \
   F(ArrayInit, const ArrayIndexImmediate<validate>& imm,                  \
     const base::Vector<Value>& elements, const Value& rtt, Value* result) \
+  F(ArrayInitFromData, const ArrayIndexImmediate<validate>& array_imm,    \
+    const IndexImmediate<validate>& data_segment, const Value& offset,    \
+    const Value& length, const Value& rtt, Value* result)                 \
   F(RttCanon, uint32_t type_index, Value* result)                         \
   F(RttSub, uint32_t type_index, const Value& parent, Value* result,      \
     WasmRttSubMode mode)                                                  \
@@ -1882,6 +1885,12 @@ class WasmDecoder : public Decoder {
                                                   pc + length + dst_imm.length);
             return length + dst_imm.length + src_imm.length;
           }
+          case kExprArrayInitFromDataStatic: {
+            ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
+            IndexImmediate<validate> data_imm(
+                decoder, pc + length + array_imm.length, "data segment index");
+            return length + array_imm.length + data_imm.length;
+          }
           case kExprBrOnCast:
           case kExprBrOnCastFail:
           case kExprBrOnData:
@@ -2070,6 +2079,7 @@ class WasmDecoder : public Decoder {
             return {2, 0};
           case kExprArrayNew:
           case kExprArrayNewDefaultWithRtt:
+          case kExprArrayInitFromDataStatic:
           case kExprArrayGet:
           case kExprArrayGetS:
           case kExprArrayGetU:
@@ -4267,6 +4277,48 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Drop(2);  // rtt, length
         Push(value);
         return opcode_length + imm.length;
+      }
+      case kExprArrayInitFromDataStatic: {
+        ArrayIndexImmediate<validate> array_imm(this,
+                                                this->pc_ + opcode_length);
+        if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
+        ValueType element_type = array_imm.array_type->element_type();
+        if (element_type.is_reference()) {
+          this->DecodeError(
+              "array.init_from_data can only be used with value-type arrays, "
+              "found array type #%d instead",
+              array_imm.index);
+          return 0;
+        }
+#if V8_TARGET_BIG_ENDIAN
+        // Byte sequences in data segments are interpreted as little endian for
+        // the purposes of this instruction. This means that those will have to
+        // be transformed in big endian architectures. TODO(7748): Implement.
+        if (element_type.element_size_bytes() > 1) {
+          UNIMPLEMENTED();
+        }
+#endif
+        const byte* data_index_pc =
+            this->pc_ + opcode_length + array_imm.length;
+        IndexImmediate<validate> data_segment(this, data_index_pc,
+                                              "data segment");
+        if (!this->ValidateDataSegment(data_index_pc, data_segment)) return 0;
+
+        Value length = Peek(0, 1, kWasmI32);
+        Value offset = Peek(1, 0, kWasmI32);
+
+        Value rtt = CreateValue(ValueType::Rtt(array_imm.index));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, array_imm.index, &rtt);
+        Push(rtt);
+
+        Value array =
+            CreateValue(ValueType::Ref(array_imm.index, kNonNullable));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInitFromData, array_imm,
+                                           data_segment, offset, length, rtt,
+                                           &array);
+        Drop(3);  // rtt, length, offset
+        Push(array);
+        return opcode_length + array_imm.length + data_segment.length;
       }
       case kExprArrayGetS:
       case kExprArrayGetU: {

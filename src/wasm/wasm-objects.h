@@ -967,15 +967,15 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   inline uint32_t element_offset(uint32_t index);
   inline Address ElementAddress(uint32_t index);
 
-  static int MaxLength(uint32_t element_size_log2) {
+  static int MaxLength(uint32_t element_size_bytes) {
     // The total object size must fit into a Smi, for filler objects. To make
     // the behavior of Wasm programs independent from the Smi configuration,
     // we hard-code the smaller of the two supported ranges.
-    return (SmiTagging<4>::kSmiMaxValue - kHeaderSize) >> element_size_log2;
+    return (SmiTagging<4>::kSmiMaxValue - kHeaderSize) / element_size_bytes;
   }
 
   static int MaxLength(const wasm::ArrayType* type) {
-    return MaxLength(type->element_type().element_size_log2());
+    return MaxLength(type->element_type().element_size_bytes());
   }
 
   static inline void EncodeElementSizeInMap(int element_size, Map map);

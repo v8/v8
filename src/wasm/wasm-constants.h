@@ -171,6 +171,9 @@ constexpr uint32_t kMinimumSupertypeArraySize = 3;
 constexpr int32_t kOSRTargetOffset = 5 * kSystemPointerSize;
 #endif
 
+constexpr Tagged_t kArrayInitFromDataArrayTooLargeErrorCode = 0;
+constexpr Tagged_t kArrayInitFromDataSegmentOutOfBoundsErrorCode = 1;
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

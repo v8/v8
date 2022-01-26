@@ -408,6 +408,15 @@ class InitExprInterface {
                                 : WasmInitExpr::ArrayInit(imm.index, args);
   }
 
+  void ArrayInitFromData(FullDecoder* decoder,
+                         const ArrayIndexImmediate<validate>& array_imm,
+                         const IndexImmediate<validate>& data_segment_imm,
+                         const Value& offset_value, const Value& length_value,
+                         const Value& rtt, Value* result) {
+    // TODO(7748): Implement.
+    UNIMPLEMENTED();
+  }
+
   void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {
     result->init_expr = WasmInitExpr::RttCanon(type_index);
   }

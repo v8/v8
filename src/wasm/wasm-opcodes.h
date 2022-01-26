@@ -686,6 +686,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(ArrayInitStatic, 0xfb1a, _)                                      \
   V(ArrayNew, 0xfb1b, _)                                             \
   V(ArrayNewDefault, 0xfb1c, _)                                      \
+  V(ArrayInitFromDataStatic, 0xfb1d, _) /* n/s - V8 experimental */  \
   V(I31New, 0xfb20, _)                                               \
   V(I31GetS, 0xfb21, _)                                              \
   V(I31GetU, 0xfb22, _)                                              \

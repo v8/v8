@@ -230,6 +230,13 @@ class WasmGraphAssembler : public GraphAssembler {
     return graph()->NewNode(mcgraph()->common()->NumberConstant(value));
   }
 
+  Node* SmiConstant(Tagged_t value) {
+    Address tagged_value = Internals::IntToSmi(static_cast<int>(value));
+    return kTaggedSize == kInt32Size
+               ? Int32Constant(static_cast<int32_t>(tagged_value))
+               : Int64Constant(static_cast<int64_t>(tagged_value));
+  }
+
   // Helper functions for dealing with HeapObjects.
   // Rule of thumb: if access to a given field in an object is required in
   // at least two places, put a helper function here.
@@ -5618,6 +5625,27 @@ Node* WasmGraphBuilder::ArrayInit(const wasm::ArrayType* type, Node* rtt,
                                          array, offset, elements[i]);
     }
   }
+  return array;
+}
+
+Node* WasmGraphBuilder::ArrayInitFromData(const wasm::ArrayType* type,
+                                          uint32_t data_segment, Node* offset,
+                                          Node* length, Node* rtt,
+                                          wasm::WasmCodePosition position) {
+  Node* array = gasm_->CallBuiltin(
+      Builtin::kWasmArrayInitFromData, Operator::kNoDeopt | Operator::kNoThrow,
+      gasm_->Uint32Constant(data_segment), offset, length, rtt);
+  TrapIfTrue(wasm::kTrapArrayTooLarge,
+             gasm_->TaggedEqual(
+                 array, gasm_->SmiConstant(
+                            wasm::kArrayInitFromDataArrayTooLargeErrorCode)),
+             position);
+  TrapIfTrue(
+      wasm::kTrapDataSegmentOutOfBounds,
+      gasm_->TaggedEqual(
+          array, gasm_->SmiConstant(
+                     wasm::kArrayInitFromDataSegmentOutOfBoundsErrorCode)),
+      position);
   return array;
 }
 

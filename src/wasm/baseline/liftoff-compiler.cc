@@ -5355,6 +5355,45 @@ class LiftoffCompiler {
     __ PushRegister(kRef, array);
   }
 
+  void ArrayInitFromData(FullDecoder* decoder,
+                         const ArrayIndexImmediate<validate>& array_imm,
+                         const IndexImmediate<validate>& data_segment,
+                         const Value& /* offset */, const Value& /* length */,
+                         const Value& /* rtt */, Value* /* result */) {
+    LiftoffRegList pinned;
+    LiftoffRegister data_segment_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(data_segment_reg,
+                    WasmValue(static_cast<int32_t>(data_segment.index)));
+    LiftoffAssembler::VarState data_segment_var(kI32, data_segment_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmArrayInitFromData,
+                    MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kRtt),
+                    {
+                        data_segment_var,
+                        __ cache_state()->stack_state.end()[-3],  // offset
+                        __ cache_state()->stack_state.end()[-2],  // length
+                        __ cache_state()->stack_state.end()[-1]   // rtt
+                    },
+                    decoder->position());
+
+    LiftoffRegister result(kReturnRegister0);
+    // Reuse the data segment register for error handling.
+    LiftoffRegister error_smi = data_segment_reg;
+    LoadSmi(error_smi, kArrayInitFromDataArrayTooLargeErrorCode);
+    Label* trap_label_array_too_large =
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayTooLarge);
+    __ emit_cond_jump(kEqual, trap_label_array_too_large, kRef, result.gp(),
+                      error_smi.gp());
+    LoadSmi(error_smi, kArrayInitFromDataSegmentOutOfBoundsErrorCode);
+    Label* trap_label_segment_out_of_bounds = AddOutOfLineTrap(
+        decoder, WasmCode::kThrowWasmTrapDataSegmentOutOfBounds);
+    __ emit_cond_jump(kEqual, trap_label_segment_out_of_bounds, kRef,
+                      result.gp(), error_smi.gp());
+
+    __ PushRegister(kRef, result);
+  }
+
   // 1 bit Smi tag, 31 bits Smi shift, 1 bit i31ref high-bit truncation.
   constexpr static int kI31To32BitSmiShift = 33;
 
