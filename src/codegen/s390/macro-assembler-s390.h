@@ -1250,6 +1250,27 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
+#define SIMD_EXT_MUL_LIST(V) \
+  V(I64x2ExtMulLowI32x4S)    \
+  V(I64x2ExtMulHighI32x4S)   \
+  V(I64x2ExtMulLowI32x4U)    \
+  V(I64x2ExtMulHighI32x4U)   \
+  V(I32x4ExtMulLowI16x8S)    \
+  V(I32x4ExtMulHighI16x8S)   \
+  V(I32x4ExtMulLowI16x8U)    \
+  V(I32x4ExtMulHighI16x8U)   \
+  V(I16x8ExtMulLowI8x16S)    \
+  V(I16x8ExtMulHighI8x16S)   \
+  V(I16x8ExtMulLowI8x16U)    \
+  V(I16x8ExtMulHighI8x16U)
+
+#define PROTOTYPE_SIMD_EXT_MUL(name)                                         \
+  void name(Simd128Register dst, Simd128Register src1, Simd128Register src2, \
+            Simd128Register scratch);
+  SIMD_EXT_MUL_LIST(PROTOTYPE_SIMD_EXT_MUL)
+#undef PROTOTYPE_SIMD_EXT_MUL
+#undef SIMD_EXT_MUL_LIST
+
   // ---------------------------------------------------------------------------
   // Pointer compression Support
 

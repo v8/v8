@@ -5368,6 +5368,32 @@ SIMD_SHIFT_LIST(EMIT_SIMD_SHIFT)
 #undef EMIT_SIMD_SHIFT
 #undef SIMD_SHIFT_LIST
 
+#define SIMD_EXT_MUL_LIST(V)                    \
+  V(I64x2ExtMulLowI32x4S, vme, vmo, vmrl, 2)    \
+  V(I64x2ExtMulHighI32x4S, vme, vmo, vmrh, 2)   \
+  V(I64x2ExtMulLowI32x4U, vmle, vmlo, vmrl, 2)  \
+  V(I64x2ExtMulHighI32x4U, vmle, vmlo, vmrh, 2) \
+  V(I32x4ExtMulLowI16x8S, vme, vmo, vmrl, 1)    \
+  V(I32x4ExtMulHighI16x8S, vme, vmo, vmrh, 1)   \
+  V(I32x4ExtMulLowI16x8U, vmle, vmlo, vmrl, 1)  \
+  V(I32x4ExtMulHighI16x8U, vmle, vmlo, vmrh, 1) \
+  V(I16x8ExtMulLowI8x16S, vme, vmo, vmrl, 0)    \
+  V(I16x8ExtMulHighI8x16S, vme, vmo, vmrh, 0)   \
+  V(I16x8ExtMulLowI8x16U, vmle, vmlo, vmrl, 0)  \
+  V(I16x8ExtMulHighI8x16U, vmle, vmlo, vmrh, 0)
+
+#define EMIT_SIMD_EXT_MUL(name, mul_even, mul_odd, merge, mode)                \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1,         \
+                            Simd128Register src2, Simd128Register scratch) {   \
+    mul_even(scratch, src1, src2, Condition(0), Condition(0),                  \
+             Condition(mode));                                                 \
+    mul_odd(dst, src1, src2, Condition(0), Condition(0), Condition(mode));     \
+    merge(dst, scratch, dst, Condition(0), Condition(0), Condition(mode + 1)); \
+  }
+SIMD_EXT_MUL_LIST(EMIT_SIMD_EXT_MUL)
+#undef EMIT_SIMD_EXT_MUL
+#undef SIMD_EXT_MUL_LIST
+
 void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2) {
   Register scratch_1 = r0;

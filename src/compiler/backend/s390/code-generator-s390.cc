@@ -2727,6 +2727,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_REPLACE_LANE_LIST(EMIT_SIMD_REPLACE_LANE)
 #undef EMIT_SIMD_REPLACE_LANE
 #undef SIMD_REPLACE_LANE_LIST
+
+#define SIMD_EXT_MUL_LIST(V) \
+  V(I64x2ExtMulLowI32x4S)    \
+  V(I64x2ExtMulHighI32x4S)   \
+  V(I64x2ExtMulLowI32x4U)    \
+  V(I64x2ExtMulHighI32x4U)   \
+  V(I32x4ExtMulLowI16x8S)    \
+  V(I32x4ExtMulHighI16x8S)   \
+  V(I32x4ExtMulLowI16x8U)    \
+  V(I32x4ExtMulHighI16x8U)   \
+  V(I16x8ExtMulLowI8x16S)    \
+  V(I16x8ExtMulHighI8x16S)   \
+  V(I16x8ExtMulLowI8x16U)    \
+  V(I16x8ExtMulHighI8x16U)
+
+#define EMIT_SIMD_EXT_MUL(name)                                   \
+  case kS390_##name: {                                            \
+    __ name(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+            i.InputSimd128Register(1), kScratchDoubleReg);        \
+    break;                                                        \
+  }
+      SIMD_EXT_MUL_LIST(EMIT_SIMD_EXT_MUL)
+#undef EMIT_SIMD_EXT_MUL
+#undef SIMD_EXT_MUL_LIST
+
       // vector binops
     case kS390_F64x2Qfma: {
       Simd128Register src0 = i.InputSimd128Register(0);
@@ -3166,65 +3191,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Condition(0), Condition(0), Condition(2));
       break;
     }
-#define EXT_MUL(mul_even, mul_odd, merge, mode)                             \
-  Simd128Register dst = i.OutputSimd128Register(),                          \
-                  src0 = i.InputSimd128Register(0),                         \
-                  src1 = i.InputSimd128Register(1);                         \
-  __ mul_even(kScratchDoubleReg, src0, src1, Condition(0), Condition(0),    \
-              Condition(mode));                                             \
-  __ mul_odd(dst, src0, src1, Condition(0), Condition(0), Condition(mode)); \
-  __ merge(dst, kScratchDoubleReg, dst, Condition(0), Condition(0),         \
-           Condition(mode + 1));
-    case kS390_I64x2ExtMulLowI32x4S: {
-      EXT_MUL(vme, vmo, vmrl, 2)
-      break;
-    }
-    case kS390_I64x2ExtMulHighI32x4S: {
-      EXT_MUL(vme, vmo, vmrh, 2)
-      break;
-    }
-    case kS390_I64x2ExtMulLowI32x4U: {
-      EXT_MUL(vmle, vmlo, vmrl, 2)
-      break;
-    }
-    case kS390_I64x2ExtMulHighI32x4U: {
-      EXT_MUL(vmle, vmlo, vmrh, 2)
-      break;
-    }
-    case kS390_I32x4ExtMulLowI16x8S: {
-      EXT_MUL(vme, vmo, vmrl, 1)
-      break;
-    }
-    case kS390_I32x4ExtMulHighI16x8S: {
-      EXT_MUL(vme, vmo, vmrh, 1)
-      break;
-    }
-    case kS390_I32x4ExtMulLowI16x8U: {
-      EXT_MUL(vmle, vmlo, vmrl, 1)
-      break;
-    }
-    case kS390_I32x4ExtMulHighI16x8U: {
-      EXT_MUL(vmle, vmlo, vmrh, 1)
-      break;
-    }
-
-    case kS390_I16x8ExtMulLowI8x16S: {
-      EXT_MUL(vme, vmo, vmrl, 0)
-      break;
-    }
-    case kS390_I16x8ExtMulHighI8x16S: {
-      EXT_MUL(vme, vmo, vmrh, 0)
-      break;
-    }
-    case kS390_I16x8ExtMulLowI8x16U: {
-      EXT_MUL(vmle, vmlo, vmrl, 0)
-      break;
-    }
-    case kS390_I16x8ExtMulHighI8x16U: {
-      EXT_MUL(vmle, vmlo, vmrh, 0)
-      break;
-    }
-#undef EXT_MUL
 #define EXT_ADD_PAIRWISE(lane_size, mul_even, mul_odd)                        \
   Simd128Register src = i.InputSimd128Register(0);                            \
   Simd128Register dst = i.OutputSimd128Register();                            \
