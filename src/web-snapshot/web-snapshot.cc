@@ -1765,8 +1765,11 @@ void WebSnapshotDeserializer::DeserializeExports() {
   dictionary = GlobalDictionary::EnsureCapacity(
       isolate_, dictionary, dictionary->NumberOfElements() + count,
       AllocationType::kYoung);
-  global->set_global_dictionary(*dictionary, kReleaseStore);
 
+  // TODO(v8:11525): The code below skips checks, in particular
+  // LookupIterator::UpdateProtectors and
+  // LookupIterator::ExtendingNonExtensible.
+  InternalIndex entry = InternalIndex::NotFound();
   for (uint32_t i = 0; i < count; ++i) {
     Handle<String> export_name = ReadString(true);
     Handle<Object> export_value;
@@ -1783,13 +1786,19 @@ void WebSnapshotDeserializer::DeserializeExports() {
       return;
     }
 
-    auto result =
-        Object::SetProperty(isolate_, global, export_name, export_value);
-    if (result.is_null()) {
-      Throw("Setting global property failed");
-      return;
-    }
+    PropertyDetails property_details =
+        PropertyDetails(PropertyKind::kData, NONE,
+                        PropertyCell::InitialType(isolate_, export_value));
+    Handle<PropertyCell> transition_cell = isolate_->factory()->NewPropertyCell(
+        export_name, property_details, export_value);
+
+    dictionary =
+        GlobalDictionary::Add(isolate_, dictionary, export_name,
+                              transition_cell, property_details, &entry);
   }
+
+  global->set_global_dictionary(*dictionary, kReleaseStore);
+  JSObject::InvalidatePrototypeChains(global->map(isolate_));
 }
 
 void WebSnapshotDeserializer::ReadValue(
