@@ -175,9 +175,9 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // instructions. For example, when the bultins code is re-embedded into the
   // code range.
   bool short_builtin_calls = false;
-  // On some platforms, all code is within a given range in the process,
-  // and the start of this range is configured here.
-  Address code_range_start = 0;
+  // On some platforms, all code is created within a certain address range in
+  // the process, and the base of this code range is configured here.
+  Address code_range_base = 0;
   // Enable pc-relative calls/jumps on platforms that support it. When setting
   // this flag, the code range must be small enough to fit all offsets into
   // the instruction immediates.

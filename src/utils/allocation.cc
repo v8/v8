@@ -368,14 +368,17 @@ bool VirtualMemoryCage::InitReservation(
         VirtualMemory(params.page_allocator, existing_reservation.begin(),
                       existing_reservation.size());
     base_ = reservation_.address() + params.base_bias_size;
-  } else if (params.base_alignment == ReservationParams::kAnyBaseAlignment) {
-    // When the base doesn't need to be aligned, the virtual memory reservation
-    // fails only due to OOM.
+  } else if (params.base_alignment == ReservationParams::kAnyBaseAlignment ||
+             params.base_bias_size == 0) {
+    // When the base doesn't need to be aligned or when the requested
+    // base_bias_size is zero, the virtual memory reservation fails only
+    // due to OOM.
     Address hint =
         RoundDown(params.requested_start_hint,
                   RoundUp(params.base_alignment, allocate_page_size));
     VirtualMemory reservation(params.page_allocator, params.reservation_size,
-                              reinterpret_cast<void*>(hint));
+                              reinterpret_cast<void*>(hint),
+                              params.base_alignment);
     if (!reservation.IsReserved()) return false;
 
     reservation_ = std::move(reservation);
@@ -455,6 +458,7 @@ bool VirtualMemoryCage::InitReservation(
       RoundDown(params.reservation_size - (allocatable_base - base_) -
                     params.base_bias_size,
                 params.page_size);
+  size_ = allocatable_base + allocatable_size - base_;
   page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
       params.page_allocator, allocatable_base, allocatable_size,
       params.page_size,
@@ -465,6 +469,7 @@ bool VirtualMemoryCage::InitReservation(
 void VirtualMemoryCage::Free() {
   if (IsReserved()) {
     base_ = kNullAddress;
+    size_ = 0;
     page_allocator_.reset();
     reservation_.Free();
   }

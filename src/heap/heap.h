@@ -931,9 +931,14 @@ class Heap {
     return array_buffer_sweeper_.get();
   }
 
+  // The potentially overreserved address space region reserved by the code
+  // range if it exists or empty region otherwise.
   const base::AddressRegion& code_region();
 
   CodeRange* code_range() { return code_range_.get(); }
+
+  // The base of the code range if it exists or null address.
+  inline Address code_range_base();
 
   LocalHeap* main_thread_local_heap() { return main_thread_local_heap_; }
 

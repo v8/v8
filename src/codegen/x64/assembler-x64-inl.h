@@ -38,9 +38,9 @@ void Assembler::emitw(uint16_t x) {
 // TODO(ishell): Rename accordingly once RUNTIME_ENTRY is renamed.
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  DCHECK_NE(options().code_range_start, 0);
+  DCHECK_NE(options().code_range_base, 0);
   RecordRelocInfo(rmode);
-  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_start);
+  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_base);
   emitl(offset);
 }
 
@@ -273,7 +273,7 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
 }
 
 Address Assembler::runtime_entry_at(Address pc) {
-  return ReadUnalignedValue<int32_t>(pc) + options().code_range_start;
+  return ReadUnalignedValue<int32_t>(pc) + options().code_range_base;
 }
 
 // -----------------------------------------------------------------------------

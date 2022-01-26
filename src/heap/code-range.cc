@@ -172,7 +172,10 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
                                           size_t embedded_blob_code_size) {
   base::MutexGuard guard(&remap_embedded_builtins_mutex_);
 
-  const base::AddressRegion& code_region = reservation()->region();
+  // Remap embedded builtins into the end of the address range controlled by
+  // the BoundedPageAllocator.
+  const base::AddressRegion code_region(page_allocator()->begin(),
+                                        page_allocator()->size());
   CHECK_NE(code_region.begin(), kNullAddress);
   CHECK(!code_region.is_empty());
 

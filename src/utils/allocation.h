@@ -296,16 +296,18 @@ class VirtualMemory final {
 // ranges (on platforms that require code ranges) and are configurable via
 // ReservationParams.
 //
-// +------------+-----------+-----------  ~~~  -+
-// |     ...    |    ...    |   ...             |
-// +------------+-----------+------------ ~~~  -+
+// +------------+-----------+------------ ~~~ --+- ~~~ -+
+// |     ...    |    ...    |   ...             |  ...  |
+// +------------+-----------+------------ ~~~ --+- ~~~ -+
 // ^            ^           ^
 // start        cage base   allocatable base
 //
 // <------------>           <------------------->
 // base bias size              allocatable size
-// <-------------------------------------------->
-//             reservation size
+//              <------------------------------->
+//                          cage size
+// <---------------------------------------------------->
+//                   reservation size
 //
 // - The reservation is made using ReservationParams::page_allocator.
 // - start is the start of the virtual memory reservation.
@@ -313,9 +315,13 @@ class VirtualMemory final {
 // - allocatable base is the cage base rounded up to the nearest
 //   ReservationParams::page_size, and is the start of the allocatable area for
 //   the BoundedPageAllocator.
+// - cage size is the size of the area from cage base to the end of the
+//   allocatable area.
 //
 // - The base bias is configured by ReservationParams::base_bias_size.
-// - The reservation size is configured by ReservationParams::reservation_size.
+// - The reservation size is configured by ReservationParams::reservation_size
+//   but it might be actually bigger if we end up over-reserving the virtual
+//   address space.
 //
 // Additionally,
 // - The alignment of the cage base is configured by
@@ -346,6 +352,7 @@ class VirtualMemoryCage {
   VirtualMemoryCage& operator=(VirtualMemoryCage&& other) V8_NOEXCEPT;
 
   Address base() const { return base_; }
+  size_t size() const { return size_; }
 
   base::BoundedPageAllocator* page_allocator() const {
     return page_allocator_.get();
@@ -356,6 +363,7 @@ class VirtualMemoryCage {
 
   bool IsReserved() const {
     DCHECK_EQ(base_ != kNullAddress, reservation_.IsReserved());
+    DCHECK_EQ(base_ != kNullAddress, size_ != 0);
     return reservation_.IsReserved();
   }
 
@@ -386,6 +394,7 @@ class VirtualMemoryCage {
 
  protected:
   Address base_ = kNullAddress;
+  size_t size_ = 0;
   std::unique_ptr<base::BoundedPageAllocator> page_allocator_;
   VirtualMemory reservation_;
 };

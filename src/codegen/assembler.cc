@@ -72,14 +72,12 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
 #endif
   options.inline_offheap_trampolines &= !generating_embedded_builtin;
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-  const base::AddressRegion& code_range = isolate->heap()->code_region();
-  DCHECK_IMPLIES(code_range.begin() != kNullAddress, !code_range.is_empty());
-  options.code_range_start = code_range.begin();
+  options.code_range_base = isolate->heap()->code_range_base();
 #endif
   options.short_builtin_calls =
       isolate->is_short_builtin_calls_enabled() &&
       !generating_embedded_builtin &&
-      (options.code_range_start != kNullAddress) &&
+      (options.code_range_base != kNullAddress) &&
       // Serialization of RUNTIME_ENTRY reloc infos is not supported yet.
       !serializer;
   return options;

@@ -272,8 +272,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Returns the target address for a runtime function for the call encoded
   // at 'pc'.
   // Runtime entries can be temporarily encoded as the offset between the
-  // runtime function entrypoint and the code range start (stored in the
-  // code_range_start field), in order to be encodable as we generate the code,
+  // runtime function entrypoint and the code range base (stored in the
+  // code_range_base field), in order to be encodable as we generate the code,
   // before it is moved into the code space.
   inline Address runtime_entry_at(Address pc);
 

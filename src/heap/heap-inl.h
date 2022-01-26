@@ -191,6 +191,10 @@ inline const base::AddressRegion& Heap::code_region() {
 #endif
 }
 
+Address Heap::code_range_base() {
+  return code_range_ ? code_range_->base() : kNullAddress;
+}
+
 int Heap::MaxRegularHeapObjectSize(AllocationType allocation) {
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
       (allocation == AllocationType::kCode)) {

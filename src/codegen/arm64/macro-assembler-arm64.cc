@@ -1844,8 +1844,8 @@ int64_t TurboAssembler::CalculateTargetOffset(Address target,
     // Assembler::runtime_entry_at()).
     // Note, that builtin-to-builitin calls use different OFF_HEAP_TARGET mode
     // and therefore are encoded differently.
-    DCHECK_NE(options().code_range_start, 0);
-    offset -= static_cast<int64_t>(options().code_range_start);
+    DCHECK_NE(options().code_range_base, 0);
+    offset -= static_cast<int64_t>(options().code_range_base);
   } else {
     offset -= reinterpret_cast<int64_t>(pc);
   }
