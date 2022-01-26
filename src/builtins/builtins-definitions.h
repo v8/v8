@@ -385,6 +385,9 @@ namespace internal {
   /* ES6 #sec-array.prototype.pop */                                           \
   CPP(ArrayPop)                                                                \
   TFJ(ArrayPrototypePop, kDontAdaptArgumentsSentinel)                          \
+  /* ES6 #sec-array.prototype.groupby */                                       \
+  CPP(ArrayPrototypeGroupBy)                                                   \
+  CPP(ArrayPrototypeGroupByToMap)                                              \
   /* ES6 #sec-array.prototype.push */                                          \
   CPP(ArrayPush)                                                               \
   TFJ(ArrayPrototypePush, kDontAdaptArgumentsSentinel)                         \

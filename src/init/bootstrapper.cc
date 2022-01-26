@@ -4465,6 +4465,28 @@ void Genesis::InitializeGlobal_harmony_array_find_last() {
   }
 }
 
+void Genesis::InitializeGlobal_harmony_array_grouping() {
+  if (!FLAG_harmony_array_grouping) return;
+
+  Handle<JSFunction> array_function(native_context()->array_function(),
+                                    isolate());
+  Handle<JSObject> array_prototype(
+      JSObject::cast(array_function->instance_prototype()), isolate());
+
+  SimpleInstallFunction(isolate_, array_prototype, "groupBy",
+                        Builtin::kArrayPrototypeGroupBy, 1, false);
+  SimpleInstallFunction(isolate_, array_prototype, "groupByToMap",
+                        Builtin::kArrayPrototypeGroupByToMap, 1, false);
+
+  Handle<JSObject> unscopables = Handle<JSObject>::cast(
+      JSObject::GetProperty(isolate(), array_prototype,
+                            isolate()->factory()->unscopables_symbol())
+          .ToHandleChecked());
+
+  InstallTrueValuedProperty(isolate_, unscopables, "groupBy");
+  InstallTrueValuedProperty(isolate_, unscopables, "groupByToMap");
+}
+
 void Genesis::InitializeGlobal_harmony_object_has_own() {
   if (!FLAG_harmony_object_has_own) return;
 
