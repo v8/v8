@@ -116,6 +116,7 @@
       'V8 Linux64 - pointer compression - builder': 'release_x64_pointer_compression',
       'V8 Linux64 - pointer compression without dchecks':
           'release_x64_pointer_compression_without_dchecks',
+      'V8 Linux64 - python3 - builder': 'release_x64',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
       'V8 Linux64 gcc - debug builder': 'debug_x64_gcc',
