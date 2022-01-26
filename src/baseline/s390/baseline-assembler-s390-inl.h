@@ -318,7 +318,8 @@ template <typename Arg>
 inline Register ToRegister(BaselineAssembler* basm,
                            BaselineAssembler::ScratchRegisterScope* scope,
                            Arg arg) {
-  UNIMPLEMENTED();
+  Register reg = scope->AcquireScratch();
+  basm->Move(reg, arg);
   return reg;
 }
 inline Register ToRegister(BaselineAssembler* basm,
@@ -507,7 +508,15 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   if (skip_interrupt_label) __ b(ge, skip_interrupt_label);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Smi rhs) { UNIMPLEMENTED(); }
+void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
+  if (rhs.value() == 0) return;
+  __ LoadSmiLiteral(r0, rhs);
+  if (SmiValuesAre31Bits()) {
+    __ AddS32(lhs, lhs, r0);
+  } else {
+    __ AddS64(lhs, lhs, r0);
+  }
+}
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
@@ -595,7 +604,8 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
 inline void EnsureAccumulatorPreservedScope::AssertEqualToAccumulator(
     Register reg) {
-  UNIMPLEMENTED();
+  assembler_->masm()->CmpU64(reg, kInterpreterAccumulatorRegister);
+  assembler_->masm()->Assert(eq, AbortReason::kUnexpectedValue);
 }
 
 }  // namespace baseline
