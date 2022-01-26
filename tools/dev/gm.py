@@ -43,7 +43,8 @@ BUILD_TARGETS_ALL = ["all"]
 
 # All arches that this script understands.
 ARCHES = ["ia32", "x64", "arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
-          "riscv64", "s390", "s390x", "android_arm", "android_arm64", "loong64"]
+          "riscv64", "s390", "s390x", "android_arm", "android_arm64", "loong64",
+          "fuchsia_x64", "fuchsia_arm64"]
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
 # Modes that this script understands.
@@ -291,7 +292,7 @@ class Config(object):
     cpu = "x86"
     if self.arch == "android_arm":
       cpu = "arm"
-    elif self.arch == "android_arm64":
+    elif self.arch == "android_arm64" or self.arch == "fuchsia_arm64":
       cpu = "arm64"
     elif self.arch == "arm64" and _GetMachine() in ("aarch64", "arm64"):
       # arm64 build host:
@@ -310,7 +311,7 @@ class Config(object):
   def GetV8TargetCpu(self):
     if self.arch == "android_arm":
       v8_cpu = "arm"
-    elif self.arch == "android_arm64":
+    elif self.arch == "android_arm64" or self.arch == "fuchsia_arm64":
       v8_cpu = "arm64"
     elif self.arch in ("arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
                        "riscv64", "s390", "s390x", "loong64"):
@@ -322,6 +323,8 @@ class Config(object):
   def GetTargetOS(self):
     if self.arch in ("android_arm", "android_arm64"):
       return ["target_os = \"android\""]
+    elif self.arch in ("fuchsia_x64", "fuchsia_arm64"):
+      return ["target_os = \"fuchsia\""]
     return []
 
   def GetSpecialCompiler(self):
