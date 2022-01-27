@@ -261,9 +261,7 @@ Handle<FeedbackVector> FeedbackVector::New(
   DCHECK_EQ(vector->length(), slot_count);
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
-  DCHECK_EQ(vector->optimization_marker(),
-            FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                                     : OptimizationMarker::kNone);
+  DCHECK_EQ(vector->optimization_marker(), OptimizationMarker::kNone);
   DCHECK_EQ(vector->optimization_tier(), OptimizationTier::kNone);
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
@@ -443,9 +441,7 @@ void FeedbackVector::ClearOptimizationTier(FeedbackCell feedback_cell) {
 
 void FeedbackVector::InitializeOptimizationState() {
   int32_t state = 0;
-  state = OptimizationMarkerBits::update(
-      state, FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                                      : OptimizationMarker::kNone);
+  state = OptimizationMarkerBits::update(state, OptimizationMarker::kNone);
   state = OptimizationTierBits::update(state, OptimizationTier::kNone);
   set_flags(state);
 }

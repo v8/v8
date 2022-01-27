@@ -894,12 +894,6 @@ static void MaybeOptimizeCode(MacroAssembler* masm,
   ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(edx, edi, optimization_marker));
 
-  // TODO(v8:8394): The logging of first execution will break if
-  // feedback vectors are not allocated. We need to find a different way of
-  // logging these events if required.
-  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kLogFirstExecution,
-                                Runtime::kFunctionFirstExecution);
   TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
                                 OptimizationMarker::kCompileOptimized,
                                 Runtime::kCompileOptimized_NotConcurrent);
@@ -907,9 +901,8 @@ static void MaybeOptimizeCode(MacroAssembler* masm,
                                 OptimizationMarker::kCompileOptimizedConcurrent,
                                 Runtime::kCompileOptimized_Concurrent);
 
-  // Marker should be one of LogFirstExecution / CompileOptimized /
-  // CompileOptimizedConcurrent. InOptimizationQueue and None shouldn't reach
-  // here.
+  // Marker should be one of CompileOptimized / CompileOptimizedConcurrent.
+  // InOptimizationQueue and None shouldn't reach here.
   if (FLAG_debug_code) {
     __ int3();
   }
@@ -1030,9 +1023,8 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   ASM_CODE_COMMENT(masm);
   Label maybe_has_optimized_code;
   // Check if optimized code is available
-  __ test(
-      optimization_state,
-      Immediate(FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker));
+  __ test(optimization_state,
+          Immediate(FeedbackVector::kHasCompileOptimizedMarker));
   __ j(zero, &maybe_has_optimized_code);
 
   Register optimization_marker = optimization_state;

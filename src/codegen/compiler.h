@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);
-  static bool CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+  static void CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                ConcurrencyMode mode, CodeKind code_kind);
   static MaybeHandle<SharedFunctionInfo> CompileToplevel(
       ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,

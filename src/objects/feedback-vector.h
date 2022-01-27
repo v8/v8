@@ -203,9 +203,9 @@ class FeedbackVector
  public:
   NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
-  STATIC_ASSERT(OptimizationMarker::kLastOptimizationMarker <
+  STATIC_ASSERT(OptimizationMarker::kLastOptimizationMarker <=
                 OptimizationMarkerBits::kMax);
-  STATIC_ASSERT(OptimizationTier::kLastOptimizationTier <
+  STATIC_ASSERT(OptimizationTier::kLastOptimizationTier <=
                 OptimizationTierBits::kMax);
 
   static const bool kFeedbackVectorMaybeOptimizedCodeIsStoreRelease = true;
@@ -213,14 +213,13 @@ class FeedbackVector
                                       HeapObject>::maybe_optimized_code;
   DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(maybe_optimized_code)
 
-  static constexpr uint32_t kHasCompileOptimizedOrLogFirstExecutionMarker =
+  static constexpr uint32_t kHasCompileOptimizedMarker =
       kNoneOrInOptimizationQueueMask << OptimizationMarkerBits::kShift;
   static constexpr uint32_t kHasNoTopTierCodeOrCompileOptimizedMarkerMask =
       kNoneOrMidTierMask << OptimizationTierBits::kShift |
-      kHasCompileOptimizedOrLogFirstExecutionMarker;
+      kHasCompileOptimizedMarker;
   static constexpr uint32_t kHasOptimizedCodeOrCompileOptimizedMarkerMask =
-      OptimizationTierBits::kMask |
-      kHasCompileOptimizedOrLogFirstExecutionMarker;
+      OptimizationTierBits::kMask | kHasCompileOptimizedMarker;
 
   inline bool is_empty() const;
 

@@ -1129,10 +1129,7 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
 
     logger.StopLogging();
 
-    // Ignore all the log entries that happened before warmup
-    size_t start = logger.IndexOfLine(
-        {"function,first-execution", "warmUpEndMarkerFunction"});
-    CHECK(start != std::string::npos);
+    // TODO(cbruni): Reimplement first-execution logging if needed.
     std::vector<std::vector<std::string>> lines = {
         // Create a new script
         {"script,create"},
@@ -1159,23 +1156,17 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
         //         - execute eager functions.
         {"function,parse-function,", ",lazyFunction"},
         {"function,interpreter-lazy,", ",lazyFunction"},
-        {"function,first-execution,", ",lazyFunction"},
 
         {"function,parse-function,", ",lazyInnerFunction"},
         {"function,interpreter-lazy,", ",lazyInnerFunction"},
-        {"function,first-execution,", ",lazyInnerFunction"},
-
-        {"function,first-execution,", ",eagerFunction"},
 
         {"function,parse-function,", ",Foo"},
         {"function,interpreter-lazy,", ",Foo"},
-        {"function,first-execution,", ",Foo"},
 
         {"function,parse-function,", ",Foo.foo"},
         {"function,interpreter-lazy,", ",Foo.foo"},
-        {"function,first-execution,", ",Foo.foo"},
     };
-    CHECK(logger.ContainsLinesInOrder(lines, start));
+    CHECK(logger.ContainsLinesInOrder(lines));
   }
   i::FLAG_log_function_events = false;
   isolate->Dispose();

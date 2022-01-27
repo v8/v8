@@ -2081,7 +2081,7 @@ bool Compiler::FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
 }
 
 // static
-bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                 ConcurrencyMode mode, CodeKind code_kind) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
   DCHECK(AllowCompilation::IsAllowed(isolate));
@@ -2117,7 +2117,6 @@ bool Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                  function->ChecksOptimizationMarker());
   DCHECK_IMPLIES(function->IsInOptimizationQueue(),
                  mode == ConcurrencyMode::kConcurrent);
-  return true;
 }
 
 // static

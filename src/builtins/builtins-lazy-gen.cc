@@ -53,17 +53,14 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
                 FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask),
             &fallthrough);
 
-  GotoIfNot(IsSetWord32(
-                optimization_state,
-                FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker),
+  GotoIfNot(IsSetWord32(optimization_state,
+                        FeedbackVector::kHasCompileOptimizedMarker),
             &may_have_optimized_code);
 
   // TODO(ishell): introduce Runtime::kHandleOptimizationMarker and check
   // all these marker values there.
   TNode<Uint32T> marker =
       DecodeWord32<FeedbackVector::OptimizationMarkerBits>(optimization_state);
-  TailCallRuntimeIfMarkerEquals(marker, OptimizationMarker::kLogFirstExecution,
-                                Runtime::kFunctionFirstExecution, function);
   TailCallRuntimeIfMarkerEquals(marker, OptimizationMarker::kCompileOptimized,
                                 Runtime::kCompileOptimized_NotConcurrent,
                                 function);
