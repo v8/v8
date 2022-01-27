@@ -23,14 +23,14 @@ Running test: itShouldReturnExceptionDetailsForJSErrorObjects
                         functionName : foo
                         lineNumber : 2
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                     [1] : {
                         columnNumber : 0
-                        functionName : 
+                        functionName :
                         lineNumber : 4
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                 ]
             }
@@ -63,7 +63,7 @@ Running test: itShouldReturnIncompleteDetailsForJSErrorWithNoStack
 Running test: itShouldReportAnErrorForNonJSErrorObjects
 {
     error : {
-        code : -32602
+        code : -32000
         message : errorObjectId is not a JS error object
     }
     id : <messageId>

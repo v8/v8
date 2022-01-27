@@ -818,7 +818,7 @@ Response V8RuntimeAgentImpl::getExceptionDetails(
 
   const v8::Local<v8::Value> error = scope.object();
   if (!error->IsNativeError())
-    return Response::InvalidParams("errorObjectId is not a JS error object");
+    return Response::ServerError("errorObjectId is not a JS error object");
 
   const v8::Local<v8::Message> message =
       v8::debug::CreateMessageFromException(m_inspector->isolate(), error);
