@@ -549,12 +549,13 @@ class ValueType {
     return buf.str();
   }
 
- private:
   // We only use 31 bits so ValueType fits in a Smi. This can be changed if
   // needed.
   static constexpr int kKindBits = 5;
   static constexpr int kHeapTypeBits = 20;
   static constexpr int kDepthBits = 6;
+
+ private:
   STATIC_ASSERT(kV8MaxWasmTypes < (1u << kHeapTypeBits));
   // Note: we currently conservatively allow only 5 bits, but have room to
   // store 6, so we can raise the limit if needed.
@@ -610,6 +611,9 @@ constexpr ValueType kWasmDataRef =
 constexpr ValueType kWasmArrayRef =
     ValueType::Ref(HeapType::kArray, kNonNullable);
 constexpr ValueType kWasmAnyRef = ValueType::Ref(HeapType::kAny, kNullable);
+
+// Constants used by the generic js-to-wasm wrapper.
+constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
 
 // This is used in wasm.tq.
 constexpr ValueType kWasmExternNonNullableRef =

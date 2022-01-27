@@ -187,7 +187,9 @@ bool UseGenericWrapper(const FunctionSig* sig) {
   }
   for (ValueType type : sig->parameters()) {
     if (type.kind() != kI32 && type.kind() != kI64 && type.kind() != kF32 &&
-        type.kind() != kF64) {
+        type.kind() != kF64 &&
+        !(type.is_reference() &&
+          type.heap_representation() == wasm::HeapType::kExtern)) {
       return false;
     }
   }

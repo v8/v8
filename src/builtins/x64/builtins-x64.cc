@@ -2927,12 +2927,16 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
   constexpr int kValueTypesArrayStartOffset =
       kReturnCountOffset - kSystemPointerSize;
+  // A boolean flag to check if one of the parameters is a reference. If so, we
+  // iterate over the parameters two times, first for all value types, and then
+  // for all references.
+  constexpr int kHasRefTypesOffset =
+      kValueTypesArrayStartOffset - kSystemPointerSize;
   // We set and use this slot only when moving parameters into the parameter
   // registers (so no GC scan is needed).
-  constexpr int kFunctionDataOffset =
-      kValueTypesArrayStartOffset - kSystemPointerSize;
+  constexpr int kFunctionDataOffset = kHasRefTypesOffset - kSystemPointerSize;
   constexpr int kLastSpillOffset = kFunctionDataOffset;
-  constexpr int kNumSpillSlots = 6;
+  constexpr int kNumSpillSlots = 7;
   __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
   // Put the in_parameter count on the stack, we only  need it at the very end
   // when we pop the parameters off the stack.
@@ -2940,6 +2944,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ decq(in_param_count);  // Exclude receiver.
   __ movq(MemOperand(rbp, kInParamCountOffset), in_param_count);
   in_param_count = no_reg;
+
+  // Initialize the {HasRefTypes} slot.
+  __ movq(MemOperand(rbp, kHasRefTypesOffset), Immediate(0));
 
   // -------------------------------------------
   // Load the Wasm exported function data and the Wasm instance.
@@ -3173,6 +3180,64 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ j(not_equal, &loop_through_params);
 
   // -------------------------------------------
+  // Second loop to handle references.
+  // -------------------------------------------
+  // In this loop we iterate over all parameters for a second time and copy all
+  // reference parameters at the end of the integer parameters section.
+  Label ref_params_done;
+  // We check if we have seen a reference in the first parameter loop.
+  __ cmpq(MemOperand(rbp, kHasRefTypesOffset), Immediate(0));
+  __ j(equal, &ref_params_done);
+  // We re-calculate the beginning of the value-types array and the beginning of
+  // the parameters ({valuetypes_array_ptr} and {current_param}).
+  __ movq(valuetypes_array_ptr, MemOperand(rbp, kValueTypesArrayStartOffset));
+  return_count = current_param;
+  current_param = no_reg;
+  __ movq(return_count, MemOperand(rbp, kReturnCountOffset));
+  returns_size = return_count;
+  return_count = no_reg;
+  __ shlq(returns_size, Immediate(kValueTypeSizeLog2));
+  __ addq(valuetypes_array_ptr, returns_size);
+
+  current_param = returns_size;
+  returns_size = no_reg;
+  __ Move(current_param,
+          kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize);
+
+  Label ref_loop_through_params;
+  Label ref_loop_end;
+  // Start of the loop.
+  __ bind(&ref_loop_through_params);
+
+  // Load the current parameter with type.
+  __ movq(param, MemOperand(rbp, current_param, times_1, 0));
+  __ movl(valuetype,
+          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+  // Extract the ValueKind of the type, to check for kRef and kOptRef.
+  __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
+  Label move_ref_to_slot;
+  __ cmpq(valuetype, Immediate(wasm::ValueKind::kOptRef));
+  __ j(equal, &move_ref_to_slot);
+  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
+  __ j(equal, &move_ref_to_slot);
+  __ jmp(&ref_loop_end);
+
+  // Place the param into the proper slot in Integer section.
+  __ bind(&move_ref_to_slot);
+  __ movq(MemOperand(current_int_param_slot, 0), param);
+  __ subq(current_int_param_slot, Immediate(kSystemPointerSize));
+
+  // Move to the next parameter.
+  __ bind(&ref_loop_end);
+  __ addq(current_param, Immediate(increment));
+  __ addq(valuetypes_array_ptr, Immediate(kValueTypeSize));
+
+  // Check if we finished all parameters.
+  __ cmpq(current_param, param_limit);
+  __ j(not_equal, &ref_loop_through_params);
+
+  __ bind(&ref_params_done);
+  // -------------------------------------------
   // Move the parameters into the proper param registers.
   // -------------------------------------------
   // The Wasm function expects that the params can be popped from the top of the
@@ -3283,7 +3348,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &place_float_param);
 
-  __ int3();
+  // All other types are reference types. We can just fall through to place them
+  // in the integer section.
 
   __ bind(&place_integer_param);
   __ cmpq(start_int_section, current_int_param_slot);
@@ -3445,6 +3511,21 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &param_kWasmF64);
+
+  // The parameter is a reference. We do not convert the parameter immediately.
+  // Instead we will later loop over all parameters again to handle reference
+  // parameters. The reason is that later value type parameters may trigger a
+  // GC, and we cannot keep reference parameters alive then. Instead we leave
+  // reference parameters at their initial place on the stack and only copy them
+  // once no GC can happen anymore.
+  // As an optimization we set a flag here that indicates that we have seen a
+  // reference so far. If there was no reference parameter, we would not iterate
+  // over the parameters for a second time.
+  __ movq(MemOperand(rbp, kHasRefTypesOffset), Immediate(1));
+  RestoreAfterBuiltinCall(masm, function_data, wasm_instance,
+                          valuetypes_array_ptr, current_float_param_slot,
+                          current_int_param_slot, param_limit, current_param);
+  __ jmp(&param_conversion_done);
 
   __ int3();
 
