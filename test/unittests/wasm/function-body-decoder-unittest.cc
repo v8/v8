@@ -136,13 +136,13 @@ class TestModuleBuilder {
       type_builder.AddField(field.first, field.second);
     }
     mod.add_struct_type(type_builder.Build(), supertype);
-    return static_cast<byte>(mod.type_kinds.size() - 1);
+    return static_cast<byte>(mod.types.size() - 1);
   }
 
   byte AddArray(ValueType type, bool mutability) {
     ArrayType* array = mod.signature_zone->New<ArrayType>(type, mutability);
     mod.add_array_type(array, kNoSuperType);
-    return static_cast<byte>(mod.type_kinds.size() - 1);
+    return static_cast<byte>(mod.types.size() - 1);
   }
 
   void InitializeMemory(MemoryType mem_type = kMemory32) {

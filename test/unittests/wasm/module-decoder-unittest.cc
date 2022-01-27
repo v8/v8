@@ -1634,7 +1634,6 @@ TEST_F(WasmModuleVerifyTest, CanonicalTypeIds) {
   const WasmModule* module = result.value().get();
 
   EXPECT_EQ(5u, module->types.size());
-  EXPECT_EQ(5u, module->type_kinds.size());
   EXPECT_EQ(5u, module->canonicalized_type_ids.size());
   EXPECT_EQ(2u, module->signature_map.size());
 

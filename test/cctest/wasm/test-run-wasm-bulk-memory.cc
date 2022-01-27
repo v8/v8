@@ -410,13 +410,11 @@ void TestTableInitElems(TestExecutionTier execution_tier, int table_index) {
     function_indexes.push_back(fn.function_index());
   }
 
-  // Passive element segment has [f0, f1, f2, f3, f4, null].
-  function_indexes.push_back(WasmModuleBuilder::kNullIndex);
-
   // Add 10 function tables, even though we only test one table.
   for (int i = 0; i < 10; ++i) {
     r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
   }
+  // Passive element segment has [f0, f1, f2, f3, f4].
   r.builder().AddPassiveElementSegment(function_indexes);
 
   WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");

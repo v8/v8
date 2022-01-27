@@ -58,7 +58,7 @@ void WasmFunctionBuilder::EmitI32V(int32_t val) { body_.write_i32v(val); }
 
 void WasmFunctionBuilder::EmitU32V(uint32_t val) { body_.write_u32v(val); }
 
-void WasmFunctionBuilder::SetSignature(FunctionSig* sig) {
+void WasmFunctionBuilder::SetSignature(const FunctionSig* sig) {
   DCHECK(!locals_.has_sig());
   locals_.set_sig(sig);
   signature_index_ = builder_->AddSignature(sig);
@@ -274,7 +274,7 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       has_max_memory_size_(false),
       has_shared_memory_(false) {}
 
-WasmFunctionBuilder* WasmModuleBuilder::AddFunction(FunctionSig* sig) {
+WasmFunctionBuilder* WasmModuleBuilder::AddFunction(const FunctionSig* sig) {
   functions_.push_back(zone_->New<WasmFunctionBuilder>(this));
   // Add the signature if one was provided here.
   if (sig) functions_.back()->SetSignature(sig);
@@ -290,21 +290,22 @@ void WasmModuleBuilder::AddDataSegment(const byte* data, uint32_t size,
   }
 }
 
-uint32_t WasmModuleBuilder::ForceAddSignature(FunctionSig* sig,
+uint32_t WasmModuleBuilder::ForceAddSignature(const FunctionSig* sig,
                                               uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
   signature_map_.emplace(*sig, index);
-  types_.push_back(Type(sig, supertype));
+  types_.emplace_back(sig, supertype);
   return index;
 }
 
-uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig, uint32_t supertype) {
+uint32_t WasmModuleBuilder::AddSignature(const FunctionSig* sig,
+                                         uint32_t supertype) {
   auto sig_entry = signature_map_.find(*sig);
   if (sig_entry != signature_map_.end()) return sig_entry->second;
   return ForceAddSignature(sig, supertype);
 }
 
-uint32_t WasmModuleBuilder::AddException(FunctionSig* type) {
+uint32_t WasmModuleBuilder::AddException(const FunctionSig* type) {
   DCHECK_EQ(0, type->return_count());
   int type_index = AddSignature(type);
   uint32_t except_index = static_cast<uint32_t>(exceptions_.size());
@@ -315,19 +316,15 @@ uint32_t WasmModuleBuilder::AddException(FunctionSig* type) {
 uint32_t WasmModuleBuilder::AddStructType(StructType* type,
                                           uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.push_back(Type(type, supertype));
+  types_.emplace_back(type, supertype);
   return index;
 }
 
 uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type, uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
-  types_.push_back(Type(type, supertype));
+  types_.emplace_back(type, supertype);
   return index;
 }
-
-// static
-const uint32_t WasmModuleBuilder::kNullIndex =
-    std::numeric_limits<uint32_t>::max();
 
 uint32_t WasmModuleBuilder::IncreaseTableMinSize(uint32_t table_index,
                                                  uint32_t count) {
@@ -600,11 +597,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kTypeSectionCode, buffer);
     buffer->write_size(types_.size());
 
-    for (const Type& type : types_) {
+    for (const TypeDefinition& type : types_) {
       bool has_super = type.supertype != kNoSuperType;
       switch (type.kind) {
-        case Type::kFunctionSig: {
-          FunctionSig* sig = type.sig;
+        case TypeDefinition::kFunction: {
+          const FunctionSig* sig = type.function_sig;
           buffer->write_u8(has_super ? kWasmFunctionSubtypeCode
                                      : kWasmFunctionTypeCode);
           buffer->write_size(sig->parameter_count());
@@ -622,8 +619,8 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           }
           break;
         }
-        case Type::kStructType: {
-          StructType* struct_type = type.struct_type;
+        case TypeDefinition::kStruct: {
+          const StructType* struct_type = type.struct_type;
           buffer->write_u8(has_super ? kWasmStructSubtypeCode
                                      : kWasmStructTypeCode);
           buffer->write_size(struct_type->field_count());
@@ -638,8 +635,8 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           }
           break;
         }
-        case Type::kArrayType: {
-          ArrayType* array_type = type.array_type;
+        case TypeDefinition::kArray: {
+          const ArrayType* array_type = type.array_type;
           buffer->write_u8(has_super ? kWasmArraySubtypeCode
                                      : kWasmArrayTypeCode);
           WriteValueType(buffer, array_type->element_type());

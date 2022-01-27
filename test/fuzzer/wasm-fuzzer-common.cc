@@ -623,13 +623,6 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << ");\n";
   }
 
-#if DEBUG
-  for (uint8_t kind : module->type_kinds) {
-    DCHECK(kWasmArrayTypeCode == kind || kWasmStructTypeCode == kind ||
-           kWasmFunctionTypeCode == kind);
-  }
-#endif
-
   for (int i = 0; i < static_cast<int>(module->types.size()); i++) {
     if (module->has_struct(i)) {
       const StructType* struct_type = module->types[i].struct_type;

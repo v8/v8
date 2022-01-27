@@ -202,9 +202,9 @@ V8_INLINE bool EquivalentIndices(uint32_t index1, uint32_t index2,
                                  const WasmModule* module1,
                                  const WasmModule* module2) {
   DCHECK(index1 != index2 || module1 != module2);
-  uint8_t kind1 = module1->type_kinds[index1];
+  TypeDefinition::Kind kind1 = module1->types[index1].kind;
 
-  if (kind1 != module2->type_kinds[index2]) return false;
+  if (kind1 != module2->types[index2].kind) return false;
 
   base::RecursiveMutexGuard type_cache_access(
       TypeJudgementCache::instance()->type_cache_mutex());
@@ -213,12 +213,12 @@ V8_INLINE bool EquivalentIndices(uint32_t index1, uint32_t index2,
     return true;
   }
 
-  if (kind1 == kWasmStructTypeCode) {
+  if (kind1 == TypeDefinition::kStruct) {
     return StructEquivalentIndices(index1, index2, module1, module2);
-  } else if (kind1 == kWasmArrayTypeCode) {
+  } else if (kind1 == TypeDefinition::kArray) {
     return ArrayEquivalentIndices(index1, index2, module1, module2);
   } else {
-    DCHECK_EQ(kind1, kWasmFunctionTypeCode);
+    DCHECK_EQ(kind1, TypeDefinition::kFunction);
     return FunctionEquivalentIndices(index1, index2, module1, module2);
   }
 }
@@ -426,9 +426,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   // equality; here we catch (ref $x) being a subtype of (ref null $x).
   if (sub_module == super_module && sub_index == super_index) return true;
 
-  uint8_t sub_kind = sub_module->type_kinds[sub_index];
+  TypeDefinition::Kind sub_kind = sub_module->types[sub_index].kind;
 
-  if (sub_kind != super_module->type_kinds[super_index]) return false;
+  if (sub_kind != super_module->types[super_index].kind) return false;
 
   // Types with explicit supertypes just check those.
   if (sub_module->has_supertype(sub_index)) {
@@ -460,14 +460,15 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     return true;
   }
 
-  if (sub_kind == kWasmStructTypeCode) {
-    return StructIsSubtypeOf(sub_index, super_index, sub_module, super_module);
-  } else if (sub_kind == kWasmArrayTypeCode) {
-    return ArrayIsSubtypeOf(sub_index, super_index, sub_module, super_module);
-  } else {
-    DCHECK_EQ(sub_kind, kWasmFunctionTypeCode);
-    return FunctionIsSubtypeOf(sub_index, super_index, sub_module,
+  switch (sub_kind) {
+    case TypeDefinition::kStruct:
+      return StructIsSubtypeOf(sub_index, super_index, sub_module,
                                super_module);
+    case TypeDefinition::kArray:
+      return ArrayIsSubtypeOf(sub_index, super_index, sub_module, super_module);
+    case TypeDefinition::kFunction:
+      return FunctionIsSubtypeOf(sub_index, super_index, sub_module,
+                                 super_module);
   }
 }
 

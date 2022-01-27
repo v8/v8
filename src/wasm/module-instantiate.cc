@@ -230,14 +230,14 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
     rtt_parent = handle(Map::cast(maps->get(supertype)), isolate);
   }
   Handle<Map> map;
-  switch (module->type_kinds[type_index]) {
-    case kWasmStructTypeCode:
+  switch (module->types[type_index].kind) {
+    case TypeDefinition::kStruct:
       map = CreateStructMap(isolate, module, type_index, rtt_parent, instance);
       break;
-    case kWasmArrayTypeCode:
+    case TypeDefinition::kArray:
       map = CreateArrayMap(isolate, module, type_index, rtt_parent, instance);
       break;
-    case kWasmFunctionTypeCode:
+    case TypeDefinition::kFunction:
       // TODO(7748): Create funcref RTTs lazily?
       // TODO(7748): Canonicalize function maps (cross-module)?
       map = CreateFuncRefMap(isolate, module, rtt_parent, instance);
@@ -711,8 +711,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
     Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
-        static_cast<int>(module_->type_kinds.size()));
-    for (uint32_t index = 0; index < module_->type_kinds.size(); index++) {
+        static_cast<int>(module_->types.size()));
+    for (uint32_t index = 0; index < module_->types.size(); index++) {
       CreateMapForType(isolate_, module_, index, instance, maps);
     }
     instance->set_managed_object_maps(*maps);

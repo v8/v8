@@ -666,16 +666,16 @@ class ModuleDecoderImpl : public Decoder {
         errorf("type %d: cyclic inheritance", i);
         continue;
       }
-      switch (module_->type_kinds[i]) {
-        case kWasmStructTypeCode:
+      switch (module_->types[i].kind) {
+        case TypeDefinition::kStruct:
           if (!module->has_struct(explicit_super)) break;
           if (!StructIsSubtypeOf(i, explicit_super, module, module)) break;
           continue;
-        case kWasmArrayTypeCode:
+        case TypeDefinition::kArray:
           if (!module->has_array(explicit_super)) break;
           if (!ArrayIsSubtypeOf(i, explicit_super, module, module)) break;
           continue;
-        case kWasmFunctionTypeCode:
+        case TypeDefinition::kFunction:
           if (!module->has_signature(explicit_super)) break;
           if (!FunctionIsSubtypeOf(i, explicit_super, module, module)) break;
           continue;
