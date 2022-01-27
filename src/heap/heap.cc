@@ -1661,6 +1661,19 @@ Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
                    heap_->SizeOfObjects());
 }
 
+static GCType GetGCTypeFromGarbageCollector(GarbageCollector collector) {
+  switch (collector) {
+    case GarbageCollector::MARK_COMPACTOR:
+      return kGCTypeMarkSweepCompact;
+    case GarbageCollector::SCAVENGER:
+      return kGCTypeScavenge;
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
+      return kGCTypeMinorMarkCompact;
+    default:
+      UNREACHABLE();
+  }
+}
+
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
@@ -1673,11 +1686,41 @@ bool Heap::CollectGarbage(AllocationSpace space,
     FatalProcessOutOfMemory("GC during deserialization");
   }
 
+  // CollectGarbage consists of three parts:
+  // 1. The prologue part which may execute callbacks. These callbacks may
+  // allocate and trigger another garbage collection.
+  // 2. The main garbage collection phase.
+  // 3. The epilogue part which may execute callbacks. These callbacks may
+  // allocate and trigger another garbage collection
+
+  // Part 1: Invoke all callbacks which should happen before the actual garbage
+  // collection is triggered. Note that these callbacks may trigger another
+  // garbage collection since they may allocate.
+
   // Ensure that all pending phantom callbacks are invoked.
   isolate()->global_handles()->InvokeSecondPassPhantomCallbacks();
 
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
+  GCType gc_type = GetGCTypeFromGarbageCollector(collector);
+
+  {
+    GCCallbacksScope scope(this);
+    // Temporary override any embedder stack state as callbacks may create
+    // their own state on the stack and recursively trigger GC.
+    EmbedderStackStateScope embedder_scope(
+        local_embedder_heap_tracer(),
+        EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
+    if (scope.CheckReenter()) {
+      AllowGarbageCollection allow_gc;
+      AllowJavascriptExecution allow_js(isolate());
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
+      VMState<EXTERNAL> callback_state(isolate_);
+      HandleScope handle_scope(isolate_);
+      CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
+    }
+  }
+
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced ||
                           current_gc_flags_ & kForcedGC ||
                           force_gc_on_next_allocation_;
@@ -1761,39 +1804,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
       if (!IsYoungGenerationCollector(collector)) {
         PROFILE(isolate_, CodeMovingGCEvent());
-      }
-
-      GCType gc_type;
-
-      switch (collector) {
-        case GarbageCollector::MARK_COMPACTOR:
-          gc_type = kGCTypeMarkSweepCompact;
-          break;
-        case GarbageCollector::SCAVENGER:
-          gc_type = kGCTypeScavenge;
-          break;
-        case GarbageCollector::MINOR_MARK_COMPACTOR:
-          gc_type = kGCTypeMinorMarkCompact;
-          break;
-        default:
-          UNREACHABLE();
-      }
-
-      {
-        GCCallbacksScope scope(this);
-        // Temporary override any embedder stack state as callbacks may create
-        // their own state on the stack and recursively trigger GC.
-        EmbedderStackStateScope embedder_scope(
-            local_embedder_heap_tracer(),
-            EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
-        if (scope.CheckReenter()) {
-          AllowGarbageCollection allow_gc;
-          AllowJavascriptExecution allow_js(isolate());
-          TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
-          VMState<EXTERNAL> callback_state(isolate_);
-          HandleScope handle_scope(isolate_);
-          CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
-        }
       }
 
       if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
