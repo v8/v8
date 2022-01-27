@@ -2651,35 +2651,47 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
-#define SIMD_UNOP_LIST(V)                              \
-  V(F64x2Splat, Simd128Register, DoubleRegister)       \
-  V(F32x4Splat, Simd128Register, DoubleRegister)       \
-  V(I64x2Splat, Simd128Register, Register)             \
-  V(I32x4Splat, Simd128Register, Register)             \
-  V(I16x8Splat, Simd128Register, Register)             \
-  V(I8x16Splat, Simd128Register, Register)             \
-  V(F64x2Abs, Simd128Register, Simd128Register)        \
-  V(F64x2Neg, Simd128Register, Simd128Register)        \
-  V(F64x2Sqrt, Simd128Register, Simd128Register)       \
-  V(F64x2Ceil, Simd128Register, Simd128Register)       \
-  V(F64x2Floor, Simd128Register, Simd128Register)      \
-  V(F64x2Trunc, Simd128Register, Simd128Register)      \
-  V(F64x2NearestInt, Simd128Register, Simd128Register) \
-  V(F32x4Abs, Simd128Register, Simd128Register)        \
-  V(F32x4Neg, Simd128Register, Simd128Register)        \
-  V(F32x4Sqrt, Simd128Register, Simd128Register)       \
-  V(F32x4Ceil, Simd128Register, Simd128Register)       \
-  V(F32x4Floor, Simd128Register, Simd128Register)      \
-  V(F32x4Trunc, Simd128Register, Simd128Register)      \
-  V(F32x4NearestInt, Simd128Register, Simd128Register) \
-  V(I64x2Abs, Simd128Register, Simd128Register)        \
-  V(I32x4Abs, Simd128Register, Simd128Register)        \
-  V(I16x8Abs, Simd128Register, Simd128Register)        \
-  V(I8x16Abs, Simd128Register, Simd128Register)        \
-  V(I64x2Neg, Simd128Register, Simd128Register)        \
-  V(I32x4Neg, Simd128Register, Simd128Register)        \
-  V(I16x8Neg, Simd128Register, Simd128Register)        \
-  V(I8x16Neg, Simd128Register, Simd128Register)        \
+#define SIMD_UNOP_LIST(V)                                     \
+  V(F64x2Splat, Simd128Register, DoubleRegister)              \
+  V(F64x2Abs, Simd128Register, Simd128Register)               \
+  V(F64x2Neg, Simd128Register, Simd128Register)               \
+  V(F64x2Sqrt, Simd128Register, Simd128Register)              \
+  V(F64x2Ceil, Simd128Register, Simd128Register)              \
+  V(F64x2Floor, Simd128Register, Simd128Register)             \
+  V(F64x2Trunc, Simd128Register, Simd128Register)             \
+  V(F64x2NearestInt, Simd128Register, Simd128Register)        \
+  V(F32x4Splat, Simd128Register, DoubleRegister)              \
+  V(F32x4Abs, Simd128Register, Simd128Register)               \
+  V(F32x4Neg, Simd128Register, Simd128Register)               \
+  V(F32x4Sqrt, Simd128Register, Simd128Register)              \
+  V(F32x4Ceil, Simd128Register, Simd128Register)              \
+  V(F32x4Floor, Simd128Register, Simd128Register)             \
+  V(F32x4Trunc, Simd128Register, Simd128Register)             \
+  V(F32x4NearestInt, Simd128Register, Simd128Register)        \
+  V(I64x2Splat, Simd128Register, Register)                    \
+  V(I64x2Abs, Simd128Register, Simd128Register)               \
+  V(I64x2Neg, Simd128Register, Simd128Register)               \
+  V(I64x2SConvertI32x4Low, Simd128Register, Simd128Register)  \
+  V(I64x2SConvertI32x4High, Simd128Register, Simd128Register) \
+  V(I64x2UConvertI32x4Low, Simd128Register, Simd128Register)  \
+  V(I64x2UConvertI32x4High, Simd128Register, Simd128Register) \
+  V(I32x4Splat, Simd128Register, Register)                    \
+  V(I32x4Abs, Simd128Register, Simd128Register)               \
+  V(I32x4Neg, Simd128Register, Simd128Register)               \
+  V(I32x4SConvertI16x8Low, Simd128Register, Simd128Register)  \
+  V(I32x4SConvertI16x8High, Simd128Register, Simd128Register) \
+  V(I32x4UConvertI16x8Low, Simd128Register, Simd128Register)  \
+  V(I32x4UConvertI16x8High, Simd128Register, Simd128Register) \
+  V(I16x8Splat, Simd128Register, Register)                    \
+  V(I16x8Abs, Simd128Register, Simd128Register)               \
+  V(I16x8Neg, Simd128Register, Simd128Register)               \
+  V(I16x8SConvertI8x16Low, Simd128Register, Simd128Register)  \
+  V(I16x8SConvertI8x16High, Simd128Register, Simd128Register) \
+  V(I16x8UConvertI8x16Low, Simd128Register, Simd128Register)  \
+  V(I16x8UConvertI8x16High, Simd128Register, Simd128Register) \
+  V(I8x16Splat, Simd128Register, Register)                    \
+  V(I8x16Abs, Simd128Register, Simd128Register)               \
+  V(I8x16Neg, Simd128Register, Simd128Register)               \
   V(S128Not, Simd128Register, Simd128Register)
 
 #define EMIT_SIMD_UNOP(name, dtype, stype)         \
@@ -2959,58 +2971,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef CONVERT_INT32_TO_FLOAT
-#define VECTOR_UNPACK(op, mode)                                             \
-  __ op(i.OutputSimd128Register(), i.InputSimd128Register(0), Condition(0), \
-        Condition(0), Condition(mode));
-    case kS390_I64x2SConvertI32x4Low: {
-      VECTOR_UNPACK(vupl, 2)
-      break;
-    }
-    case kS390_I64x2SConvertI32x4High: {
-      VECTOR_UNPACK(vuph, 2)
-      break;
-    }
-    case kS390_I64x2UConvertI32x4Low: {
-      VECTOR_UNPACK(vupll, 2)
-      break;
-    }
-    case kS390_I64x2UConvertI32x4High: {
-      VECTOR_UNPACK(vuplh, 2)
-      break;
-    }
-    case kS390_I32x4SConvertI16x8Low: {
-      VECTOR_UNPACK(vupl, 1)
-      break;
-    }
-    case kS390_I32x4SConvertI16x8High: {
-      VECTOR_UNPACK(vuph, 1)
-      break;
-    }
-    case kS390_I32x4UConvertI16x8Low: {
-      VECTOR_UNPACK(vupll, 1)
-      break;
-    }
-    case kS390_I32x4UConvertI16x8High: {
-      VECTOR_UNPACK(vuplh, 1)
-      break;
-    }
-    case kS390_I16x8SConvertI8x16Low: {
-      VECTOR_UNPACK(vupl, 0)
-      break;
-    }
-    case kS390_I16x8SConvertI8x16High: {
-      VECTOR_UNPACK(vuph, 0)
-      break;
-    }
-    case kS390_I16x8UConvertI8x16Low: {
-      VECTOR_UNPACK(vupll, 0)
-      break;
-    }
-    case kS390_I16x8UConvertI8x16High: {
-      VECTOR_UNPACK(vuplh, 0)
-      break;
-    }
-#undef VECTOR_UNPACK
     case kS390_I16x8SConvertI32x4:
       __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0), Condition(0), Condition(2));

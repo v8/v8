@@ -5228,28 +5228,40 @@ void TurboAssembler::S128Not(Simd128Register dst, Simd128Register src) {
   vno(dst, src, src, Condition(0), Condition(0), Condition(0));
 }
 
-#define SIMD_UNOP_LIST_VRR_A(V)    \
-  V(F64x2Abs, vfpso, 2, 0, 3)      \
-  V(F64x2Neg, vfpso, 0, 0, 3)      \
-  V(F64x2Sqrt, vfsq, 0, 0, 3)      \
-  V(F64x2Ceil, vfi, 6, 0, 3)       \
-  V(F64x2Floor, vfi, 7, 0, 3)      \
-  V(F64x2Trunc, vfi, 5, 0, 3)      \
-  V(F64x2NearestInt, vfi, 4, 0, 3) \
-  V(F32x4Abs, vfpso, 2, 0, 2)      \
-  V(F32x4Neg, vfpso, 0, 0, 2)      \
-  V(F32x4Sqrt, vfsq, 0, 0, 2)      \
-  V(F32x4Ceil, vfi, 6, 0, 2)       \
-  V(F32x4Floor, vfi, 7, 0, 2)      \
-  V(F32x4Trunc, vfi, 5, 0, 2)      \
-  V(F32x4NearestInt, vfi, 4, 0, 2) \
-  V(I64x2Abs, vlp, 0, 0, 3)        \
-  V(I32x4Abs, vlp, 0, 0, 2)        \
-  V(I16x8Abs, vlp, 0, 0, 1)        \
-  V(I8x16Abs, vlp, 0, 0, 0)        \
-  V(I64x2Neg, vlc, 0, 0, 3)        \
-  V(I32x4Neg, vlc, 0, 0, 2)        \
-  V(I16x8Neg, vlc, 0, 0, 1)        \
+#define SIMD_UNOP_LIST_VRR_A(V)             \
+  V(F64x2Abs, vfpso, 2, 0, 3)               \
+  V(F64x2Neg, vfpso, 0, 0, 3)               \
+  V(F64x2Sqrt, vfsq, 0, 0, 3)               \
+  V(F64x2Ceil, vfi, 6, 0, 3)                \
+  V(F64x2Floor, vfi, 7, 0, 3)               \
+  V(F64x2Trunc, vfi, 5, 0, 3)               \
+  V(F64x2NearestInt, vfi, 4, 0, 3)          \
+  V(F32x4Abs, vfpso, 2, 0, 2)               \
+  V(F32x4Neg, vfpso, 0, 0, 2)               \
+  V(F32x4Sqrt, vfsq, 0, 0, 2)               \
+  V(F32x4Ceil, vfi, 6, 0, 2)                \
+  V(F32x4Floor, vfi, 7, 0, 2)               \
+  V(F32x4Trunc, vfi, 5, 0, 2)               \
+  V(F32x4NearestInt, vfi, 4, 0, 2)          \
+  V(I64x2Abs, vlp, 0, 0, 3)                 \
+  V(I64x2Neg, vlc, 0, 0, 3)                 \
+  V(I64x2SConvertI32x4Low, vupl, 0, 0, 2)   \
+  V(I64x2SConvertI32x4High, vuph, 0, 0, 2)  \
+  V(I64x2UConvertI32x4Low, vupll, 0, 0, 2)  \
+  V(I64x2UConvertI32x4High, vuplh, 0, 0, 2) \
+  V(I32x4Abs, vlp, 0, 0, 2)                 \
+  V(I32x4Neg, vlc, 0, 0, 2)                 \
+  V(I32x4SConvertI16x8Low, vupl, 0, 0, 1)   \
+  V(I32x4SConvertI16x8High, vuph, 0, 0, 1)  \
+  V(I32x4UConvertI16x8Low, vupll, 0, 0, 1)  \
+  V(I32x4UConvertI16x8High, vuplh, 0, 0, 1) \
+  V(I16x8Abs, vlp, 0, 0, 1)                 \
+  V(I16x8Neg, vlc, 0, 0, 1)                 \
+  V(I16x8SConvertI8x16Low, vupl, 0, 0, 0)   \
+  V(I16x8SConvertI8x16High, vuph, 0, 0, 0)  \
+  V(I16x8UConvertI8x16Low, vupll, 0, 0, 0)  \
+  V(I16x8UConvertI8x16High, vuplh, 0, 0, 0) \
+  V(I8x16Abs, vlp, 0, 0, 0)                 \
   V(I8x16Neg, vlc, 0, 0, 0)
 
 #define EMIT_SIMD_UNOP_VRR_A(name, op, c1, c2, c3)                      \
