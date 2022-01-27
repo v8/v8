@@ -383,7 +383,6 @@ v8::StartupData Snapshot::Create(
 
   SharedHeapSerializer shared_heap_serializer(isolate, flags,
                                               &read_only_serializer);
-  shared_heap_serializer.ReconstructSharedHeapObjectCacheForTestingIfNeeded();
 
   StartupSerializer startup_serializer(isolate, flags, &read_only_serializer,
                                        &shared_heap_serializer);

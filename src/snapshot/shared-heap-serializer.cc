@@ -44,6 +44,9 @@ SharedHeapSerializer::SharedHeapSerializer(
       serialized_objects_(isolate->heap())
 #endif
 {
+  if (ShouldReconstructSharedHeapObjectCacheForTesting()) {
+    ReconstructSharedHeapObjectCacheForTesting();
+  }
 }
 
 SharedHeapSerializer::~SharedHeapSerializer() {
@@ -87,16 +90,22 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
   if (!ShouldBeInSharedHeapObjectCache(*obj)) return false;
   int cache_index = SerializeInObjectCache(obj);
 
-  // When testing deserialization of a snapshot from a live isolate, the shared
-  // object cache needs to be extended because the live isolate may have had new
-  // internalized strings that were not present in the startup snapshot to be
-  // serialized.
-  if (reconstruct_read_only_and_shared_object_caches_for_testing()) {
-    const size_t existing_cache_size =
-        isolate()->shared_heap_object_cache()->size();
-    DCHECK_LE(base::checked_cast<size_t>(cache_index), existing_cache_size);
-    if (base::checked_cast<size_t>(cache_index) == existing_cache_size) {
-      isolate()->shared_heap_object_cache()->push_back(*obj);
+  // When testing deserialization of a snapshot from a live Isolate where there
+  // is also a shared Isolate, the shared object cache needs to be extended
+  // because the live isolate may have had new internalized strings that were
+  // not present in the startup snapshot to be serialized.
+  if (ShouldReconstructSharedHeapObjectCacheForTesting()) {
+    std::vector<Object>* existing_cache =
+        isolate()->shared_isolate()->shared_heap_object_cache();
+    const size_t existing_cache_size = existing_cache->size();
+    // This is strictly < because the existing cache contains the terminating
+    // undefined value, which the reconstructed cache does not.
+    DCHECK_LT(base::checked_cast<size_t>(cache_index), existing_cache_size);
+    if (base::checked_cast<size_t>(cache_index) == existing_cache_size - 1) {
+      ReadOnlyRoots roots(isolate());
+      DCHECK(existing_cache->back().IsUndefined(roots));
+      existing_cache->back() = *obj;
+      existing_cache->push_back(roots.undefined_value());
     }
   }
 
@@ -180,17 +189,29 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 #endif
 }
 
-void SharedHeapSerializer::
-    ReconstructSharedHeapObjectCacheForTestingIfNeeded() {
-  if (!reconstruct_read_only_and_shared_object_caches_for_testing()) return;
-  std::vector<Object>* cache = isolate()->shared_heap_object_cache();
-  DCHECK_EQ(isolate()->shared_isolate()->shared_heap_object_cache(), cache);
-  for (size_t i = 0, size = cache->size(); i < size; i++) {
+bool SharedHeapSerializer::ShouldReconstructSharedHeapObjectCacheForTesting()
+    const {
+  // When the live Isolate being serialized is not a client Isolate, there's no
+  // need to reconstruct the shared heap object cache because it is not actually
+  // shared.
+  return reconstruct_read_only_and_shared_object_caches_for_testing() &&
+         isolate()->shared_isolate() != nullptr;
+}
+
+void SharedHeapSerializer::ReconstructSharedHeapObjectCacheForTesting() {
+  std::vector<Object>* cache =
+      isolate()->shared_isolate()->shared_heap_object_cache();
+  // Don't reconstruct the final element, which is always undefined and marks
+  // the end of the cache, since serializing the live Isolate may extend the
+  // shared object cache.
+  for (size_t i = 0, size = cache->size(); i < size - 1; i++) {
     Handle<HeapObject> obj(HeapObject::cast(cache->at(i)), isolate());
+    DCHECK(ShouldBeInSharedHeapObjectCache(*obj));
     int cache_index = SerializeInObjectCache(obj);
     USE(cache_index);
     DCHECK_EQ(cache_index, i);
   }
+  DCHECK(cache->back().IsUndefined(isolate()));
 }
 
 }  // namespace internal
