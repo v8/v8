@@ -1022,8 +1022,33 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
       CHECK_EQ(code().kind(), kind());
       CHECK_EQ(code().builtin_id(), builtin_id());
 #endif  // V8_EXTERNAL_CODE_SPACE
-      CHECK_EQ(code().InstructionStart(), code_entry_point());
       CHECK_EQ(code().code_data_container(kAcquireLoad), *this);
+
+      // Ensure the cached code entry point corresponds to the Code object
+      // associated with this CodeDataContainer.
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+      if (V8_SHORT_BUILTIN_CALLS_BOOL) {
+        if (code().InstructionStart() == code_entry_point()) {
+          // Most common case, all good.
+        } else {
+          // When shared pointer compression cage is enabled and it has the
+          // embedded code blob copy then the Code::InstructionStart() might
+          // return address of the remapped builtin regardless of whether the
+          // builtins copy exsisted when the code_entry_point value was cached
+          // in the CodeDataContainer (see Code::OffHeapInstructionStart()).
+          // So, do a reverse Code object lookup via code_entry_point value to
+          // ensure it corresponds to the same Code object associated with this
+          // CodeDataContainer.
+          Code the_code = isolate->heap()->GcSafeFindCodeForInnerPointer(
+              code_entry_point());
+          CHECK_EQ(the_code, code());
+        }
+      } else {
+        CHECK_EQ(code().InstructionStart(), code_entry_point());
+      }
+#else
+      CHECK_EQ(code().InstructionStart(), code_entry_point());
+#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     }
   }
 }

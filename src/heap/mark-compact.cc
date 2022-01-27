@@ -1824,19 +1824,41 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
 
 class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
  public:
-  explicit EvacuateRecordOnlyVisitor(Heap* heap) : heap_(heap) {}
+  explicit EvacuateRecordOnlyVisitor(Heap* heap)
+      : heap_(heap)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        cage_base_(heap->isolate())
+#endif  // V8_COMPRESS_POINTERS
+  {
+  }
+
+  // The pointer compression cage base value used for decompression of all
+  // tagged values except references to Code objects.
+  V8_INLINE PtrComprCageBase cage_base() const {
+#ifdef V8_COMPRESS_POINTERS
+    return cage_base_;
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
 
   inline bool Visit(HeapObject object, int size) override {
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector(),
                                       &heap_->ephemeron_remembered_set_);
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(object));
-    PtrComprCageBase cage_base = GetPtrComprCageBase(object);
-    object.IterateBodyFast(cage_base, &visitor);
+    Map map = object.map(cage_base());
+    // Instead of calling object.IterateBodyFast(cage_base(), &visitor) here
+    // we can shortcut and use the precomputed size value passed to the visitor.
+    DCHECK_EQ(object.SizeFromMap(map), size);
+    object.IterateBodyFast(map, size, &visitor);
     return true;
   }
 
  private:
   Heap* heap_;
+#ifdef V8_COMPRESS_POINTERS
+  const PtrComprCageBase cage_base_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
