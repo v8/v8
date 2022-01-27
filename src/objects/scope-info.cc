@@ -280,6 +280,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                 isolate, local_names_hashtable, var->name(), local_index);
             USE(new_table);
             DCHECK_EQ(*new_table, *local_names_hashtable);
+            USE(new_table);
           }
           scope_info.set(context_local_info_base + local_index,
                          Smi::FromInt(info));
