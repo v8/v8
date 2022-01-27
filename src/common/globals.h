@@ -1772,8 +1772,6 @@ enum IsolateAddressId {
   V(TrapArrayOutOfBounds)          \
   V(TrapArrayTooLarge)
 
-enum WasmRttSubMode { kCanonicalize, kFresh };
-
 enum KeyedAccessLoadMode {
   STANDARD_LOAD,
   LOAD_IGNORE_OUT_OF_BOUNDS,

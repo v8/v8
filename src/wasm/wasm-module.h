@@ -344,6 +344,9 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
   std::unique_ptr<AsmJsOffsets> decoded_offsets_;
 };
 
+// Used as the supertype for a type at the top of the type hierarchy.
+constexpr uint32_t kNoSuperType = std::numeric_limits<uint32_t>::max();
+
 struct TypeDefinition {
   enum Kind { kFunction, kStruct, kArray };
 
@@ -353,6 +356,8 @@ struct TypeDefinition {
       : struct_type(type), supertype(supertype), kind(kStruct) {}
   TypeDefinition(const ArrayType* type, uint32_t supertype)
       : array_type(type), supertype(supertype), kind(kArray) {}
+  TypeDefinition()
+      : function_sig(nullptr), supertype(kNoSuperType), kind(kFunction) {}
 
   union {
     const FunctionSig* function_sig;
@@ -386,11 +391,6 @@ struct TypeFeedbackStorage {
 
 struct WasmTable;
 
-// End of a chain of explicit supertypes.
-constexpr uint32_t kGenericSuperType = std::numeric_limits<uint32_t>::max() - 1;
-// Used for types that have no explicit supertype.
-constexpr uint32_t kNoSuperType = std::numeric_limits<uint32_t>::max();
-
 // Static representation of a module.
 struct V8_EXPORT_PRIVATE WasmModule {
   std::unique_ptr<Zone> signature_zone;
@@ -418,11 +418,20 @@ struct V8_EXPORT_PRIVATE WasmModule {
   WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
 
+  void add_type(TypeDefinition type) {
+    types.push_back(type);
+    uint32_t canonical_id = type.kind == TypeDefinition::kFunction
+                                ? signature_map.FindOrInsert(*type.function_sig)
+                                : 0;
+    canonicalized_type_ids.push_back(canonical_id);
+  }
+
   bool has_type(uint32_t index) const { return index < types.size(); }
 
   void add_signature(const FunctionSig* sig, uint32_t supertype) {
     types.push_back(TypeDefinition(sig, supertype));
-    uint32_t canonical_id = sig ? signature_map.FindOrInsert(*sig) : 0;
+    DCHECK_NOT_NULL(sig);
+    uint32_t canonical_id = signature_map.FindOrInsert(*sig);
     canonicalized_type_ids.push_back(canonical_id);
   }
   bool has_signature(uint32_t index) const {
@@ -498,7 +507,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   explicit WasmModule(std::unique_ptr<Zone> signature_zone = nullptr);
   WasmModule(const WasmModule&) = delete;
-  ~WasmModule();
   WasmModule& operator=(const WasmModule&) = delete;
 };
 

@@ -567,15 +567,15 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
     WASM_FEATURE_SCOPE(gc);
     static const byte referencing_undefined_global_nested[] = {
         SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI32Code, true)),
-        SECTION(Global, ENTRY_COUNT(2),            // --
-                WASM_RTT_WITH_DEPTH(1, 0),         // type
-                0,                                 // mutable
-                WASM_RTT_SUB(0,                    // init value
-                             WASM_GLOBAL_GET(1)),  // --
-                kExprEnd,                          // --
-                WASM_RTT_WITH_DEPTH(0, 0),         // type
-                0,                                 // mutable
-                WASM_RTT_CANON(0), kExprEnd)       // init value
+        SECTION(Global, ENTRY_COUNT(2),                      // --
+                kRefCode, 0,                                 // type
+                0,                                           // mutable
+                WASM_ARRAY_NEW_DEFAULT(0,                    // init value
+                                       WASM_GLOBAL_GET(1)),  // --
+                kExprEnd,                                    // --
+                kI32Code,                                    // type
+                0,                                           // mutable
+                WASM_I32V(10), kExprEnd)                     // init value
     };
     EXPECT_FAILURE_WITH_MSG(referencing_undefined_global_nested,
                             "Invalid global index: 1");
@@ -809,229 +809,6 @@ TEST_F(WasmModuleVerifyTest, RttCanonGlobalTypeError) {
       "type error in init. expression[0] (expected (rtt 1 0), got (rtt 0 0))");
 }
 
-TEST_F(WasmModuleVerifyTest, GlobalRttSubOfCanon) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
-                              STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
-              WASM_RTT_SUB(1, WASM_RTT_CANON(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_OK(result);
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfCanon) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
-                              STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
-              WASM_RTT_FRESH_SUB(1, WASM_RTT_CANON(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_OK(result);
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttSubOfSubOfCanon) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
-                              STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(2, 1), 1,
-              WASM_RTT_SUB(1, WASM_RTT_SUB(1, WASM_RTT_CANON(0))), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_OK(result);
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfSubOfCanon) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
-                              STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(2, 1), 1,
-              WASM_RTT_FRESH_SUB(1, WASM_RTT_SUB(1, WASM_RTT_CANON(0))),
-              kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_OK(result);
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfFreshSubOfCanon) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
-                              STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(2, 1), 1,
-              WASM_RTT_FRESH_SUB(1, WASM_RTT_FRESH_SUB(1, WASM_RTT_CANON(0))),
-              kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_OK(result);
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobal) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
-                              STRUCT_FIELD(kI32Code, true))),
-      SECTION(Import,                     // section header
-              ENTRY_COUNT(1),             // number of imports
-              ADD_COUNT('m'),             // module name
-              ADD_COUNT('f'),             // global name
-              kExternalGlobal,            // import kind
-              WASM_RTT_WITH_DEPTH(0, 0),  // type
-              0),                         // mutability
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
-              WASM_RTT_SUB(1, WASM_GLOBAL_GET(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_OK(result);
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfGlobal) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(2), STRUCT_FIELD(kI32Code, true),
-                              STRUCT_FIELD(kI32Code, true))),
-      SECTION(Import,                     // section header
-              ENTRY_COUNT(1),             // number of imports
-              ADD_COUNT('m'),             // module name
-              ADD_COUNT('f'),             // global name
-              kExternalGlobal,            // import kind
-              WASM_RTT_WITH_DEPTH(0, 0),  // type
-              0),                         // mutability
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
-              WASM_RTT_FRESH_SUB(1, WASM_GLOBAL_GET(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_OK(result);
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttSubOfGlobalTypeError) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Import,           // section header
-              ENTRY_COUNT(1),   // number of imports
-              ADD_COUNT('m'),   // module name
-              ADD_COUNT('f'),   // global name
-              kExternalGlobal,  // import kind
-              kI32Code,         // type
-              0),               // mutability
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 0), 1,
-              WASM_RTT_SUB(0, WASM_GLOBAL_GET(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result,
-                "rtt.sub[0] expected rtt for a supertype of type 0, found "
-                "global.get of type i32");
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubOfGlobalTypeError) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Import,           // section header
-              ENTRY_COUNT(1),   // number of imports
-              ADD_COUNT('m'),   // module name
-              ADD_COUNT('f'),   // global name
-              kExternalGlobal,  // import kind
-              kI32Code,         // type
-              0),               // mutability
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 0), 1,
-              WASM_RTT_FRESH_SUB(0, WASM_GLOBAL_GET(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result,
-                "rtt.fresh_sub[0] expected rtt for a supertype of type 0, "
-                "found global.get of type i32");
-}
-
-#if !V8_OS_FUCHSIA
-TEST_F(WasmModuleVerifyTest, GlobalRttSubIllegalParent) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kF32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
-              WASM_RTT_SUB(1, WASM_RTT_CANON(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result,
-                "rtt.sub[0] expected rtt for a supertype of type 1, found "
-                "rtt.canon of type (rtt 0 0)");
-}
-
-TEST_F(WasmModuleVerifyTest, GlobalRttFreshSubIllegalParent) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kF32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(1, 1), 1,
-              WASM_RTT_FRESH_SUB(1, WASM_RTT_CANON(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result,
-                "rtt.fresh_sub[0] expected rtt for a supertype of type 1, "
-                "found rtt.canon of type (rtt 0 0)");
-}
-#endif  // !V8_OS_FUCHSIA
-
-TEST_F(WasmModuleVerifyTest, RttSubGlobalTypeError) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(0, 0), 1,
-              WASM_RTT_SUB(0, WASM_RTT_CANON(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(
-      result,
-      "type error in init. expression[0] (expected (rtt 0 0), got (rtt 1 0))");
-}
-
-TEST_F(WasmModuleVerifyTest, RttFreshSubGlobalTypeError) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT_WITH_DEPTH(0, 0), 1,
-              WASM_RTT_FRESH_SUB(0, WASM_RTT_CANON(0)), kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(
-      result,
-      "type error in init. expression[0] (expected (rtt 0 0), got (rtt 1 0))");
-}
-
 TEST_F(WasmModuleVerifyTest, StructNewInitExpr) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
@@ -1047,12 +824,12 @@ TEST_F(WasmModuleVerifyTest, StructNewInitExpr) {
   static const byte global_args[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(3),                        // --
-              kI32Code, 0,                                   // type, mutability
-              WASM_INIT_EXPR_I32V_1(10),                     // --
-              kRttWithDepthCode, 1, 0, 0,                    // type, mutability
-              WASM_RTT_SUB(0, WASM_RTT_CANON(0)), kExprEnd,  // --
-              kRefCode, 0, 0,                                // type, mutability
+      SECTION(Global, ENTRY_COUNT(3),       // --
+              kI32Code, 0,                  // type, mutability
+              WASM_INIT_EXPR_I32V_1(10),    // --
+              kRttWithDepthCode, 0, 0, 0,   // type, mutability
+              WASM_RTT_CANON(0), kExprEnd,  // --
+              kRefCode, 0, 0,               // type, mutability
               WASM_INIT_EXPR_STRUCT_NEW(0, WASM_GLOBAL_GET(0),
                                         WASM_GLOBAL_GET(1)))};
   EXPECT_VERIFIES(global_args);
@@ -1230,18 +1007,18 @@ TEST_F(WasmModuleVerifyTest, NominalStructTypeDef) {
   // Inheritance: t1 <: t2 <: t0
   static const byte all_good[] = {
       SECTION(Type, ENTRY_COUNT(3),    // --
-              kWasmStructSubtypeCode,  // type #0
+              kWasmStructNominalCode,  // type #0
               1,                       // field count
               kI32Code, 1,             // mut i32
               kDataRefCode,            // root of type hierarchy
 
-              kWasmStructSubtypeCode,  // type #1
+              kWasmStructNominalCode,  // type #1
               2,                       // field count
               kI32Code, 1,             // mut i32 (inherited)
               kI64Code, 1,             // mut i32 (added)
               2,                       // supertype
 
-              kWasmStructSubtypeCode,  // type #2
+              kWasmStructNominalCode,  // type #2
               1,                       // field count
               kI32Code, 1,             // mut i32 (inherited)
               0)};                     // supertype
@@ -1249,26 +1026,26 @@ TEST_F(WasmModuleVerifyTest, NominalStructTypeDef) {
   ModuleResult result = DecodeModule(all_good, all_good + sizeof(all_good));
   EXPECT_OK(result);
   WasmModule* module = result.value().get();
-  EXPECT_EQ(kGenericSuperType, module->supertype(0));
+  EXPECT_EQ(kNoSuperType, module->supertype(0));
   EXPECT_EQ(2u, module->supertype(1));
   EXPECT_EQ(0u, module->supertype(2));
 
   static const byte self_or_mutual_ref[] = {
       SECTION(Type, ENTRY_COUNT(4),       // --
-              kWasmStructSubtypeCode, 0,  // empty struct
+              kWasmStructNominalCode, 0,  // empty struct
               kDataRefCode,               // root of hierarchy
 
-              kWasmStructSubtypeCode,  // type1
+              kWasmStructNominalCode,  // type1
               1,                       // field count
               kOptRefCode, 1, 1,       // mut optref type1
               0,                       // supertype
 
-              kWasmStructSubtypeCode,  // type 2
+              kWasmStructNominalCode,  // type 2
               1,                       // field count
               kOptRefCode, 3, 1,       // mut optref type3
               0,                       // supertype
 
-              kWasmStructSubtypeCode,  // type 3
+              kWasmStructNominalCode,  // type 3
               1,                       // field count
               kOptRefCode, 2, 1,       // mut optref type2
               0)};                     // supertype
@@ -1277,17 +1054,17 @@ TEST_F(WasmModuleVerifyTest, NominalStructTypeDef) {
   static const byte mutual_ref_with_subtyping[] = {
       SECTION(Type,
               ENTRY_COUNT(3),          // --
-              kWasmStructSubtypeCode,  //
+              kWasmStructNominalCode,  //
               1,                       // field count
               kOptRefCode, 0, 0,       // ref type0
               kDataRefCode,            // root of hierarchy
 
-              kWasmStructSubtypeCode,  // --
+              kWasmStructNominalCode,  // --
               1,                       // field count
               kOptRefCode, 2, 0,       // ref type2
               0,                       // supertype
 
-              kWasmStructSubtypeCode,  // --
+              kWasmStructNominalCode,  // --
               1,                       // field count
               kOptRefCode, 1, 0,       // ref type1
               0)};                     // supertype
@@ -1295,28 +1072,31 @@ TEST_F(WasmModuleVerifyTest, NominalStructTypeDef) {
 
   static const byte inheritance_cycle[] = {
       SECTION(Type, ENTRY_COUNT(2),            // --
-              kWasmStructSubtypeCode, 0, 1,    // no fields, supertype 1
-              kWasmStructSubtypeCode, 0, 0)};  // no fields, supertype 0
+              kWasmStructNominalCode, 0, 1,    // no fields, supertype 1
+              kWasmStructNominalCode, 0, 0)};  // no fields, supertype 0
   EXPECT_FAILURE_WITH_MSG(inheritance_cycle, "cyclic inheritance");
 
   static const byte invalid_field[] = {
       SECTION(Type, ENTRY_COUNT(2),                         // --
               kWasmStructTypeCode, U32V_1(1), kI32Code, 1,  // t0: [i32]
-              kWasmStructSubtypeCode, U32V_1(2),            // t1:
+              kWasmStructNominalCode, U32V_1(2),            // t1:
               kI64Code, 1,               // i64 (invalid inheritance)
               kI32Code, 1, U32V_1(0))};  // i32 (added), supertype 0
-  EXPECT_FAILURE_WITH_MSG(invalid_field, "invalid explicit supertype");
+  EXPECT_FAILURE_WITH_MSG(
+      invalid_field, "mixing nominal and isorecursive types is not allowed");
 
   static const byte structural_supertype[] = {
       SECTION(Type, ENTRY_COUNT(2),       // --
               kWasmStructTypeCode, 0,     // empty struct
-              kWasmStructSubtypeCode, 0,  // also empty
+              kWasmStructNominalCode, 0,  // also empty
               0)};                        // supertype is structural type
-  EXPECT_FAILURE_WITH_MSG(structural_supertype, "invalid explicit supertype");
+  EXPECT_FAILURE_WITH_MSG(
+      structural_supertype,
+      "mixing nominal and isorecursive types is not allowed");
 
   static const byte supertype_oob[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
-              kWasmStructSubtypeCode,
+              kWasmStructNominalCode,
               0,     // empty struct
               13)};  // supertype with invalid index
   EXPECT_FAILURE_WITH_MSG(supertype_oob, "Type index 13 is out of bounds");
@@ -1329,14 +1109,14 @@ TEST_F(WasmModuleVerifyTest, NominalFunctionTypeDef) {
 
   static const byte all_good[] = {
       SECTION(Type, ENTRY_COUNT(2),      // --
-              kWasmFunctionSubtypeCode,  // type #0
+              kWasmFunctionNominalCode,  // type #0
               1,                         // params count
               kRefCode, 0,               // ref #0
               1,                         // results count
               kOptRefCode, 0,            // optref #0
               kFuncRefCode,              // root of type hierarchy
 
-              kWasmFunctionSubtypeCode,  // type #1
+              kWasmFunctionNominalCode,  // type #1
               1,                         // params count
               kOptRefCode, 0,            // refined (contravariant)
               1,                         // results count
@@ -1346,7 +1126,7 @@ TEST_F(WasmModuleVerifyTest, NominalFunctionTypeDef) {
   ModuleResult result = DecodeModule(all_good, all_good + sizeof(all_good));
   EXPECT_OK(result);
   WasmModule* module = result.value().get();
-  EXPECT_EQ(kGenericSuperType, module->supertype(0));
+  EXPECT_EQ(kNoSuperType, module->supertype(0));
   EXPECT_EQ(0u, module->supertype(1));
 }
 
@@ -3547,6 +3327,7 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
   EXPECT_NOT_OK(result, "data segments count 0 mismatch (1 expected)");
 }
 
+/* TODO(7748): Add support for rec. groups.
 TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
   WASM_FEATURE_SCOPE(gc);
   WASM_FEATURE_SCOPE(typed_funcref);
@@ -3561,7 +3342,7 @@ TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
       WASM_ARRAY_DEF(WASM_OPT_REF(0), true))};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-}
+}*/
 
 TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInGlobal) {
   WASM_FEATURE_SCOPE(typed_funcref);

@@ -195,20 +195,6 @@ void InitExprInterface::RttCanon(FullDecoder* decoder, uint32_t type_index,
       ValueType::Rtt(type_index, 0));
 }
 
-void InitExprInterface::RttSub(FullDecoder* decoder, uint32_t type_index,
-                               const Value& parent, Value* result,
-                               WasmRttSubMode mode) {
-  if (!generate_result()) return;
-  ValueType type = parent.type.has_depth()
-                       ? ValueType::Rtt(type_index, parent.type.depth() + 1)
-                       : ValueType::Rtt(type_index);
-  result->runtime_value =
-      WasmValue(Handle<Object>::cast(AllocateSubRtt(
-                    isolate_, instance_, type_index,
-                    Handle<Map>::cast(parent.runtime_value.to_ref()), mode)),
-                type);
-}
-
 void InitExprInterface::DoReturn(FullDecoder* decoder,
                                  uint32_t /*drop_values*/) {
   end_found_ = true;

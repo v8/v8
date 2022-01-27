@@ -554,109 +554,183 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
+  TypeDefinition consume_base_type_definition() {
+    DCHECK(enabled_features_.has_gc());
+    uint8_t kind = consume_u8("type kind");
+    switch (kind) {
+      case kWasmFunctionTypeCode: {
+        const FunctionSig* sig = consume_sig(module_->signature_zone.get());
+        return {sig, kNoSuperType};
+      }
+      case kWasmStructTypeCode: {
+        const StructType* type = consume_struct(module_->signature_zone.get());
+        return {type, kNoSuperType};
+      }
+      case kWasmArrayTypeCode: {
+        const ArrayType* type = consume_array(module_->signature_zone.get());
+        return {type, kNoSuperType};
+      }
+      case kWasmFunctionNominalCode:
+      case kWasmArrayNominalCode:
+      case kWasmStructNominalCode:
+        errorf(pc() - 1,
+               "mixing nominal and isorecursive types is not allowed");
+        return {};
+      default:
+        errorf(pc() - 1, "unknown type form: %d", kind);
+        return {};
+    }
+  }
+
+  TypeDefinition consume_nominal_type_definition() {
+    DCHECK(enabled_features_.has_gc());
+    size_t num_types = module_->types.size();
+    uint8_t kind = consume_u8("type kind");
+    switch (kind) {
+      case kWasmFunctionNominalCode: {
+        const FunctionSig* sig = consume_sig(module_->signature_zone.get());
+        uint32_t super_index = kNoSuperType;
+        HeapType super_type = consume_super_type();
+        if (super_type.is_index()) {
+          super_index = super_type.representation();
+        } else if (V8_UNLIKELY(super_type != HeapType::kFunc)) {
+          errorf(pc() - 1, "type %zu: invalid supertype %d", num_types,
+                 super_type.code());
+          return {};
+        }
+        return {sig, super_index};
+      }
+      case kWasmStructNominalCode: {
+        const StructType* type = consume_struct(module_->signature_zone.get());
+        uint32_t super_index = kNoSuperType;
+        HeapType super_type = consume_super_type();
+        if (super_type.is_index()) {
+          super_index = super_type.representation();
+        } else if (V8_UNLIKELY(super_type != HeapType::kData)) {
+          errorf(pc() - 1, "type %zu: invalid supertype %d", num_types,
+                 super_type.code());
+          return {};
+        }
+        return {type, super_index};
+      }
+      case kWasmArrayNominalCode: {
+        const ArrayType* type = consume_array(module_->signature_zone.get());
+        uint32_t super_index = kNoSuperType;
+        HeapType super_type = consume_super_type();
+        if (super_type.is_index()) {
+          super_index = super_type.representation();
+        } else if (V8_UNLIKELY(super_type != HeapType::kData)) {
+          errorf(pc() - 1, "type %zu: invalid supertype %d", num_types,
+                 super_type.code());
+          return {};
+        }
+        return {type, super_index};
+      }
+      case kWasmFunctionTypeCode:
+      case kWasmArrayTypeCode:
+      case kWasmStructTypeCode:
+      case kWasmSubtypeCode:
+      case kWasmRecursiveTypeGroupCode:
+        errorf(pc() - 1,
+               "mixing nominal and isorecursive types is not allowed");
+        return {};
+      default:
+        errorf(pc() - 1, "unknown type form: %d", kind);
+        return {};
+    }
+  }
+
+  TypeDefinition consume_subtype_definition() {
+    DCHECK(enabled_features_.has_gc());
+    uint8_t kind = read_u8<Decoder::kFullValidation>(pc(), "type kind");
+    if (kind == kWasmSubtypeCode) {
+      consume_bytes(1, "subtype definition");
+      constexpr uint32_t kMaximumSupertypes = 1;
+      uint32_t supertype_count =
+          consume_count("supertype count", kMaximumSupertypes);
+      uint32_t supertype =
+          supertype_count == 1 ? consume_u32v("supertype") : kNoSuperType;
+      if (V8_UNLIKELY(supertype >= module_->types.capacity())) {
+        errorf(pc(), "type %zu: invalid supertype %d", module_->types.size(),
+               supertype);
+        return {};
+      }
+      TypeDefinition type = consume_base_type_definition();
+      type.supertype = supertype;
+      return type;
+    } else {
+      return consume_base_type_definition();
+    }
+  }
+
   void DecodeTypeSection() {
     uint32_t types_count = consume_count("types count", kV8MaxWasmTypes);
-    module_->types.reserve(types_count);
-    for (uint32_t i = 0; ok() && i < types_count; ++i) {
-      TRACE("DecodeSignature[%d] module+%d\n", i,
-            static_cast<int>(pc_ - start_));
-      uint8_t kind = consume_u8("type kind");
-      switch (kind) {
-        case kWasmFunctionTypeCode:
-        case kWasmFunctionSubtypeCode: {
-          const FunctionSig* s = consume_sig(module_->signature_zone.get());
-          uint32_t super_index = kNoSuperType;
-          if (kind == kWasmFunctionSubtypeCode) {
-            if (!enabled_features_.has_gc()) {
-              errorf(pc(),
-                     "invalid function type definition, enable with "
-                     "--experimental-wasm-gc");
-              break;
-            }
-            HeapType super_type = consume_super_type();
-            if (super_type == HeapType::kFunc) {
-              super_index = kGenericSuperType;
-            } else if (super_type.is_index()) {
-              super_index = super_type.representation();
-            } else {
-              errorf(pc(), "type %d: invalid supertype %d", i,
-                     super_type.code());
-              break;
-            }
-          }
-          module_->add_signature(s, super_index);
-          break;
+
+    // Non wasm-gc type section decoding.
+    if (!enabled_features_.has_gc()) {
+      for (uint32_t i = 0; ok() && i < types_count; ++i) {
+        TRACE("DecodeSignature[%d] module+%d\n", i,
+              static_cast<int>(pc_ - start_));
+        expect_u8("signature definition", kWasmFunctionTypeCode);
+        const FunctionSig* sig = consume_sig(module_->signature_zone.get());
+        if (!ok()) break;
+        module_->add_signature(sig, kNoSuperType);
+      }
+      return;
+    }
+
+    if (types_count > 0) {
+      uint8_t first_type_opcode = this->read_u8<Decoder::kFullValidation>(pc());
+      if (first_type_opcode == kWasmFunctionNominalCode ||
+          first_type_opcode == kWasmStructNominalCode ||
+          first_type_opcode == kWasmArrayNominalCode) {
+        // wasm-gc nominal type section decoding.
+        // In a nominal module, all types belong in the same recursive group. We
+        // use the type vector's capacity to mark the end of the current
+        // recursive group.
+        module_->types.reserve(types_count);
+        for (uint32_t i = 0; ok() && i < types_count; ++i) {
+          TRACE("DecodeType[%d] module+%d\n", i,
+                static_cast<int>(pc_ - start_));
+          TypeDefinition type = consume_nominal_type_definition();
+          if (ok()) module_->add_type(type);
         }
-        case kWasmStructTypeCode:
-        case kWasmStructSubtypeCode: {
-          if (!enabled_features_.has_gc()) {
-            errorf(pc(),
-                   "invalid struct type definition, enable with "
-                   "--experimental-wasm-gc");
-            break;
-          }
-          const StructType* s = consume_struct(module_->signature_zone.get());
-          uint32_t super_index = kNoSuperType;
-          if (kind == kWasmStructSubtypeCode) {
-            HeapType super_type = consume_super_type();
-            if (super_type == HeapType::kData) {
-              super_index = kGenericSuperType;
-            } else if (super_type.is_index()) {
-              super_index = super_type.representation();
-            } else {
-              errorf(pc(), "type %d: invalid supertype %d", i,
-                     super_type.code());
-              break;
+      } else {
+        // wasm-gc isorecursive type section decoding.
+        for (uint32_t i = 0; ok() && i < types_count; ++i) {
+          TRACE("DecodeType[%d] module+%d\n", i,
+                static_cast<int>(pc_ - start_));
+          uint8_t kind = read_u8<Decoder::kFullValidation>(pc(), "type kind");
+          if (kind == kWasmRecursiveTypeGroupCode) {
+            consume_bytes(1, "rec. group definition");
+            uint32_t group_size =
+                consume_count("recursive group size", kV8MaxWasmTypes);
+            if (module_->types.size() + group_size > kV8MaxWasmTypes) {
+              errorf(pc(), "Type definition count exeeds maximum %zu",
+                     kV8MaxWasmTypes);
+              return;
             }
-          }
-          module_->add_struct_type(s, super_index);
-          // TODO(7748): Should we canonicalize struct types, like
-          // {signature_map} does for function signatures?
-          break;
-        }
-        case kWasmArrayTypeCode:
-        case kWasmArraySubtypeCode: {
-          if (!enabled_features_.has_gc()) {
-            errorf(pc(),
-                   "invalid array type definition, enable with "
-                   "--experimental-wasm-gc");
-            break;
-          }
-          const ArrayType* type = consume_array(module_->signature_zone.get());
-          uint32_t super_index = kNoSuperType;
-          if (kind == kWasmArraySubtypeCode) {
-            HeapType super_type = consume_super_type();
-            if (super_type == HeapType::kData) {
-              super_index = kGenericSuperType;
-            } else if (super_type.is_index()) {
-              super_index = super_type.representation();
-            } else {
-              errorf(pc(), "type %d: invalid supertype %d", i,
-                     super_type.code());
-              break;
+            // Reserve space for the current recursive group, so we are
+            // allowed to reference its elements.
+            module_->types.reserve(module_->types.size() + group_size);
+            for (uint32_t i = 0; i < group_size; i++) {
+              TypeDefinition type = consume_subtype_definition();
+              if (ok()) module_->add_type(type);
             }
+          } else {
+            TypeDefinition type = consume_subtype_definition();
+            if (ok()) module_->add_type(type);
           }
-          module_->add_array_type(type, super_index);
-          break;
         }
-        default:
-          errorf(pc(), "unknown type form: %d", kind);
-          break;
       }
     }
+
     // Check validity of explicitly defined supertypes.
     const WasmModule* module = module_.get();
     for (uint32_t i = 0; ok() && i < types_count; ++i) {
       uint32_t explicit_super = module_->supertype(i);
       if (explicit_super == kNoSuperType) continue;
-      if (explicit_super == kGenericSuperType) continue;
       DCHECK_LT(explicit_super, types_count);  // {consume_super_type} checks.
-      // Only types that have an explicit supertype themselves can be explicit
-      // supertypes of other types.
-      if (!module->has_supertype(explicit_super)) {
-        errorf("type %d has invalid explicit supertype %d", i, explicit_super);
-        continue;
-      }
       int depth = GetSubtypingDepth(module, i);
       if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) {
         errorf("type %d: subtyping depth is greater than allowed", i);
@@ -666,23 +740,10 @@ class ModuleDecoderImpl : public Decoder {
         errorf("type %d: cyclic inheritance", i);
         continue;
       }
-      switch (module_->types[i].kind) {
-        case TypeDefinition::kStruct:
-          if (!module->has_struct(explicit_super)) break;
-          if (!StructIsSubtypeOf(i, explicit_super, module, module)) break;
-          continue;
-        case TypeDefinition::kArray:
-          if (!module->has_array(explicit_super)) break;
-          if (!ArrayIsSubtypeOf(i, explicit_super, module, module)) break;
-          continue;
-        case TypeDefinition::kFunction:
-          if (!module->has_signature(explicit_super)) break;
-          if (!FunctionIsSubtypeOf(i, explicit_super, module, module)) break;
-          continue;
-        default:
-          UNREACHABLE();
+      if (!ValidSubtypeDefinition(i, explicit_super, module, module)) {
+        errorf("type %d has invalid explicit supertype %d", i, explicit_super);
+        continue;
       }
-      errorf("type %d has invalid explicit supertype %d", i, explicit_super);
     }
     module_->signature_map.Freeze();
   }
@@ -735,10 +796,9 @@ class ModuleDecoderImpl : public Decoder {
           const byte* type_position = pc();
           ValueType type = consume_reference_type();
           if (!WasmTable::IsValidTableType(type, module_.get())) {
-            error(
-                type_position,
-                "Currently, only externref and function references are allowed "
-                "as table types");
+            error(type_position,
+                  "Currently, only externref and function references are "
+                  "allowed as table types");
             break;
           }
           table->type = type;
@@ -1234,8 +1294,8 @@ class ModuleDecoderImpl : public Decoder {
       hint.top_tier =
           static_cast<WasmCompilationHintTier>(hint_byte >> 4 & 0x3);
 
-      // Ensure that the top tier never downgrades a compilation result.
-      // If baseline and top tier are the same compilation will be invoked only
+      // Ensure that the top tier never downgrades a compilation result. If
+      // baseline and top tier are the same compilation will be invoked only
       // once.
       if (hint.top_tier < hint.baseline_tier &&
           hint.top_tier != WasmCompilationHintTier::kDefault) {
@@ -1377,10 +1437,10 @@ class ModuleDecoderImpl : public Decoder {
 
   ModuleResult FinishDecoding(bool verify_functions = true) {
     if (ok() && CheckMismatchedCounts()) {
-      // We calculate the global offsets here, because there may not be a global
-      // section and code section that would have triggered the calculation
-      // before. Even without the globals section the calculation is needed
-      // because globals can also be defined in the import section.
+      // We calculate the global offsets here, because there may not be a
+      // global section and code section that would have triggered the
+      // calculation before. Even without the globals section the calculation
+      // is needed because globals can also be defined in the import section.
       CalculateGlobalOffsets(module_.get());
     }
 
@@ -1526,9 +1586,9 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  // Calculate individual global offsets and total size of globals table.
-  // This function should be called after all globals have been defined, which
-  // is after the import section and the global section, but before the global
+  // Calculate individual global offsets and total size of globals table. This
+  // function should be called after all globals have been defined, which is
+  // after the import section and the global section, but before the global
   // offsets are accessed, e.g. by the function compilers. The moment when this
   // function should be called is not well-defined, as the global section may
   // not exist. Therefore this function is called multiple times.
@@ -1745,6 +1805,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
+  // Consumes a byte, and emits an error if it does not equal {expected}.
   bool expect_u8(const char* name, uint8_t expected) {
     const byte* pos = pc();
     uint8_t value = consume_u8(name);

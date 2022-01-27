@@ -1042,9 +1042,6 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
                            int array_index, MaybeHandle<Map> rtt_parent,
                            Handle<WasmInstanceObject> instance);
-Handle<Map> AllocateSubRtt(Isolate* isolate,
-                           Handle<WasmInstanceObject> instance, uint32_t type,
-                           Handle<Map> parent, WasmRttSubMode mode);
 
 bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                        Handle<Object> value, ValueType expected,

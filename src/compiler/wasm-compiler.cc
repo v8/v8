@@ -5655,15 +5655,6 @@ Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
       wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index));
 }
 
-Node* WasmGraphBuilder::RttSub(uint32_t type_index, Node* parent_rtt,
-                               WasmRttSubMode mode) {
-  Builtin target = mode == WasmRttSubMode::kCanonicalize
-                       ? Builtin::kWasmAllocateRtt
-                       : Builtin::kWasmAllocateFreshRtt;
-  return gasm_->CallBuiltin(target, Operator::kEliminatable,
-                            Int32Constant(type_index), parent_rtt);
-}
-
 WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(
     GraphAssemblerLabel<1>* label) {
   return {// succeed_if

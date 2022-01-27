@@ -14,8 +14,10 @@ const module_bytes = [
   0x00, 0x61, 0x73, 0x6d, 1, 0, 0, 0,  // wasm magic
 
   0x01,  // type section
-  0x16,  // section length
-  0x04,  // number of types
+  0x18,  // section length
+  0x01,  // number of type section entries
+  0x49,  // recursive type group
+  0x04,  // number of types in the recursive group
   // type 0: struct $StrA (field ($byte i8) ($word i16) ($pointer (ref $StrB)))
   0x5f,  // struct
   0x03,  // field count
@@ -219,7 +221,7 @@ InspectorTest.runAsyncTestSuite([
     // Ignore javascript and full module wasm script, get scripts for functions.
     const [, {params: wasm_script}] =
         await Protocol.Debugger.onceScriptParsed(2);
-    let offset = 107;  // "local.set $varC" at the end.
+    let offset = 109;  // "local.set $varC" at the end.
     await setBreakpoint(offset, wasm_script.scriptId, wasm_script.url);
     InspectorTest.log('Calling main()');
     await WasmInspectorTest.evalWithUrl('instance.exports.main()', 'runWasm');

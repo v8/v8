@@ -629,8 +629,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             WasmCode::kWasmAllocateFixedArray, WasmCode::kWasmThrow,
             WasmCode::kWasmRethrow, WasmCode::kWasmRethrowExplicitContext,
             // Fast wasm-gc operations.
-            WasmCode::kWasmRefFunc, WasmCode::kWasmAllocateRtt,
-            WasmCode::kWasmAllocateFreshRtt};
+            WasmCode::kWasmRefFunc};
         if (std::count(unrollable_builtins,
                        unrollable_builtins + arraysize(unrollable_builtins),
                        info) == 0) {

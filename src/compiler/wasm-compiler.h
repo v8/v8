@@ -514,7 +514,6 @@ class WasmGraphBuilder {
   Node* I31GetS(Node* input);
   Node* I31GetU(Node* input);
   Node* RttCanon(uint32_t type_index);
-  Node* RttSub(uint32_t type_index, Node* parent_rtt, WasmRttSubMode mode);
 
   Node* RefTest(Node* object, Node* rtt, ObjectReferenceKnowledge config);
   Node* RefCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,

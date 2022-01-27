@@ -944,8 +944,6 @@ struct ControlBase : public PcForErrors<validate> {
     const IndexImmediate<validate>& data_segment, const Value& offset,    \
     const Value& length, const Value& rtt, Value* result)                 \
   F(RttCanon, uint32_t type_index, Value* result)                         \
-  F(RttSub, uint32_t type_index, const Value& parent, Value* result,      \
-    WasmRttSubMode mode)                                                  \
   F(DoReturn, uint32_t drop_values)
 
 #define INTERFACE_NON_CONSTANT_FUNCTIONS(F) /*       force 80 columns       */ \
@@ -1900,8 +1898,6 @@ class WasmDecoder : public Decoder {
             return length + imm.length;
           }
           case kExprRttCanon:
-          case kExprRttSub:
-          case kExprRttFreshSub:
           case kExprRefTestStatic:
           case kExprRefCastStatic:
           case kExprBrOnCastStatic:
@@ -2068,8 +2064,6 @@ class WasmDecoder : public Decoder {
           case kExprI31GetU:
           case kExprArrayNewDefault:
           case kExprArrayLen:
-          case kExprRttSub:
-          case kExprRttFreshSub:
           case kExprRefTestStatic:
           case kExprRefCastStatic:
           case kExprBrOnCastStatic:
@@ -4497,39 +4491,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             imm.index, GetSubtypingDepth(this->module_, imm.index)));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &value);
         Push(value);
-        return opcode_length + imm.length;
-      }
-      case kExprRttFreshSub:
-      case kExprRttSub: {
-        IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
-                                     "type index");
-        if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
-        Value parent = Peek(0, 0);
-        if (parent.type.is_bottom()) {
-          DCHECK(!current_code_reachable_and_ok_);
-          // Just leave the unreachable/bottom value on the stack.
-        } else {
-          if (!VALIDATE(parent.type.is_rtt() &&
-                        IsHeapSubtypeOf(imm.index, parent.type.ref_index(),
-                                        this->module_))) {
-            PopTypeError(
-                0, parent,
-                "rtt for a supertype of type " + std::to_string(imm.index));
-            return 0;
-          }
-          Value value = parent.type.has_depth()
-                            ? CreateValue(ValueType::Rtt(
-                                  imm.index, parent.type.depth() + 1))
-                            : CreateValue(ValueType::Rtt(imm.index));
-
-          WasmRttSubMode mode = opcode == kExprRttSub
-                                    ? WasmRttSubMode::kCanonicalize
-                                    : WasmRttSubMode::kFresh;
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttSub, imm.index, parent, &value,
-                                             mode);
-          Drop(parent);
-          Push(value);
-        }
         return opcode_length + imm.length;
       }
       case kExprRefTest:

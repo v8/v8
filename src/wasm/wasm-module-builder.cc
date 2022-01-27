@@ -64,6 +64,13 @@ void WasmFunctionBuilder::SetSignature(const FunctionSig* sig) {
   signature_index_ = builder_->AddSignature(sig);
 }
 
+void WasmFunctionBuilder::SetSignature(uint32_t sig_index) {
+  DCHECK(!locals_.has_sig());
+  DCHECK_EQ(builder_->types_[sig_index].kind, TypeDefinition::kFunction);
+  signature_index_ = sig_index;
+  locals_.set_sig(builder_->types_[sig_index].function_sig);
+}
+
 uint32_t WasmFunctionBuilder::AddLocal(ValueType type) {
   DCHECK(locals_.has_sig());
   return locals_.AddLocals(1, type);
@@ -278,6 +285,12 @@ WasmFunctionBuilder* WasmModuleBuilder::AddFunction(const FunctionSig* sig) {
   functions_.push_back(zone_->New<WasmFunctionBuilder>(this));
   // Add the signature if one was provided here.
   if (sig) functions_.back()->SetSignature(sig);
+  return functions_.back();
+}
+
+WasmFunctionBuilder* WasmModuleBuilder::AddFunction(uint32_t sig_index) {
+  functions_.push_back(zone_->New<WasmFunctionBuilder>(this));
+  functions_.back()->SetSignature(sig_index);
   return functions_.back();
 }
 
@@ -564,19 +577,6 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u8(static_cast<uint8_t>(kExprRttCanon));
       buffer->write_i32v(static_cast<int32_t>(init.immediate().index));
       break;
-    case WasmInitExpr::kRttSub:
-    case WasmInitExpr::kRttFreshSub:
-      // The operand to rtt.sub must be emitted first.
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
-                                        kWasmBottom);
-      STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
-      STATIC_ASSERT((kExprRttFreshSub >> 8) == kGCPrefix);
-      buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(init.kind() == WasmInitExpr::kRttSub
-                                                ? kExprRttSub
-                                                : kExprRttFreshSub));
-      buffer->write_i32v(static_cast<int32_t>(init.immediate().index));
-      break;
   }
 }
 
@@ -597,13 +597,17 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kTypeSectionCode, buffer);
     buffer->write_size(types_.size());
 
+    // TODO(7748): Add support for recursive groups.
     for (const TypeDefinition& type : types_) {
-      bool has_super = type.supertype != kNoSuperType;
+      if (type.supertype != kNoSuperType) {
+        buffer->write_u8(kWasmSubtypeCode);
+        buffer->write_u8(1);  // The supertype count is always 1.
+        buffer->write_u32v(type.supertype);
+      }
       switch (type.kind) {
         case TypeDefinition::kFunction: {
           const FunctionSig* sig = type.function_sig;
-          buffer->write_u8(has_super ? kWasmFunctionSubtypeCode
-                                     : kWasmFunctionTypeCode);
+          buffer->write_u8(kWasmFunctionTypeCode);
           buffer->write_size(sig->parameter_count());
           for (auto param : sig->parameters()) {
             WriteValueType(buffer, param);
@@ -612,40 +616,23 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           for (auto ret : sig->returns()) {
             WriteValueType(buffer, ret);
           }
-          if (type.supertype == kGenericSuperType) {
-            buffer->write_u8(kFuncRefCode);
-          } else if (has_super) {
-            buffer->write_i32v(type.supertype);
-          }
           break;
         }
         case TypeDefinition::kStruct: {
           const StructType* struct_type = type.struct_type;
-          buffer->write_u8(has_super ? kWasmStructSubtypeCode
-                                     : kWasmStructTypeCode);
+          buffer->write_u8(kWasmStructTypeCode);
           buffer->write_size(struct_type->field_count());
           for (uint32_t i = 0; i < struct_type->field_count(); i++) {
             WriteValueType(buffer, struct_type->field(i));
             buffer->write_u8(struct_type->mutability(i) ? 1 : 0);
           }
-          if (type.supertype == kGenericSuperType) {
-            buffer->write_u8(kDataRefCode);
-          } else if (has_super) {
-            buffer->write_i32v(type.supertype);
-          }
           break;
         }
         case TypeDefinition::kArray: {
           const ArrayType* array_type = type.array_type;
-          buffer->write_u8(has_super ? kWasmArraySubtypeCode
-                                     : kWasmArrayTypeCode);
+          buffer->write_u8(kWasmArrayTypeCode);
           WriteValueType(buffer, array_type->element_type());
           buffer->write_u8(array_type->mutability() ? 1 : 0);
-          if (type.supertype == kGenericSuperType) {
-            buffer->write_u8(kDataRefCode);
-          } else if (has_super) {
-            buffer->write_i32v(type.supertype);
-          }
           break;
         }
       }

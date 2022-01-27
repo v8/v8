@@ -34,7 +34,6 @@ extern runtime WasmI32AtomicWait(
     Context, WasmInstanceObject, Number, Number, BigInt): Smi;
 extern runtime WasmI64AtomicWait(
     Context, WasmInstanceObject, Number, BigInt, BigInt): Smi;
-extern runtime WasmAllocateRtt(Context, Smi, Map, Smi): Map;
 extern runtime WasmArrayCopy(
     Context, WasmArray, Smi, WasmArray, Smi, Smi): JSAny;
 extern runtime WasmArrayInitFromData(
@@ -53,10 +52,6 @@ const kExternTableType: constexpr int31
     generates 'wasm::kWasmExternRef.raw_bit_field()';
 const kExternNonNullTableType: constexpr int31
     generates 'wasm::kWasmExternNonNullableRef.raw_bit_field()';
-
-const kRttSubCanonicalize: constexpr int31
-    generates 'WasmRttSubMode::kCanonicalize';
-const kRttSubFresh: constexpr int31 generates 'WasmRttSubMode::kFresh';
 
 extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
 
@@ -304,18 +299,6 @@ builtin WasmTraceExit(info: Smi): JSAny {
 builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   const map: Map = GetFastPackedElementsJSArrayMap();
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
-}
-
-builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
-  tail runtime::WasmAllocateRtt(
-      LoadContextFromFrame(), SmiTag(typeIndex), parent,
-      SmiConstant(kRttSubCanonicalize));
-}
-
-builtin WasmAllocateFreshRtt(typeIndex: intptr, parent: Map): Map {
-  tail runtime::WasmAllocateRtt(
-      LoadContextFromFrame(), SmiTag(typeIndex), parent,
-      SmiConstant(kRttSubFresh));
 }
 
 builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {

@@ -167,6 +167,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  public:
   // Building methods.
   void SetSignature(const FunctionSig* sig);
+  void SetSignature(uint32_t sig_index);
   uint32_t AddLocal(ValueType type);
   void EmitByte(byte b);
   void EmitI32V(int32_t val);
@@ -312,6 +313,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   uint32_t AddImport(base::Vector<const char> name, FunctionSig* sig,
                      base::Vector<const char> module = {});
   WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
+  WasmFunctionBuilder* AddFunction(uint32_t sig_index);
   uint32_t AddGlobal(ValueType type, bool mutability = true,
                      WasmInitExpr init = WasmInitExpr());
   uint32_t AddGlobalImport(base::Vector<const char> name, ValueType type,

@@ -119,11 +119,8 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
 int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
   uint32_t starting_point = type_index;
   int depth = 0;
-  while ((type_index = module->supertype(type_index)) != kGenericSuperType) {
+  while ((type_index = module->supertype(type_index)) != kNoSuperType) {
     if (type_index == starting_point) return -1;  // Cycle detected.
-    // This is disallowed and will be rejected by validation, but might occur
-    // when this function is called.
-    if (type_index == kNoSuperType) break;
     depth++;
     if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) break;
   }
@@ -223,8 +220,6 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
 
 WasmModule::WasmModule(std::unique_ptr<Zone> signature_zone)
     : signature_zone(std::move(signature_zone)) {}
-
-WasmModule::~WasmModule() { DeleteCachedTypeJudgementsForModule(this); }
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a

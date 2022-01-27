@@ -5449,27 +5449,6 @@ class LiftoffCompiler {
     __ PushRegister(kRttWithDepth, rtt);
   }
 
-  void RttSub(FullDecoder* decoder, uint32_t type_index, const Value& parent,
-              Value* result, WasmRttSubMode mode) {
-    ValueKind parent_value_kind = parent.type.kind();
-    ValueKind rtt_value_kind = kRttWithDepth;
-    LiftoffRegister type_reg = __ GetUnusedRegister(kGpReg, {});
-    LiftoffAssembler::VarState parent_var =
-        __ cache_state()->stack_state.end()[-1];
-    __ LoadConstant(type_reg, WasmValue(type_index));
-    LiftoffAssembler::VarState type_var(kI32, type_reg, 0);
-    WasmCode::RuntimeStubId target = mode == WasmRttSubMode::kCanonicalize
-                                         ? WasmCode::kWasmAllocateRtt
-                                         : WasmCode::kWasmAllocateFreshRtt;
-    CallRuntimeStub(
-        target,
-        MakeSig::Returns(rtt_value_kind).Params(kI32, parent_value_kind),
-        {type_var, parent_var}, decoder->position());
-    // Drop the parent RTT.
-    __ cache_state()->stack_state.pop_back(1);
-    __ PushRegister(rtt_value_kind, LiftoffRegister(kReturnRegister0));
-  }
-
   enum NullSucceeds : bool {  // --
     kNullSucceeds = true,
     kNullFails = false

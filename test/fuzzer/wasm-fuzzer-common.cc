@@ -421,12 +421,6 @@ class InitExprInterface {
     result->init_expr = WasmInitExpr::RttCanon(type_index);
   }
 
-  void RttSub(FullDecoder* decoder, uint32_t type_index, const Value& parent,
-              Value* result, WasmRttSubMode mode) {
-    result->init_expr =
-        WasmInitExpr::RttSub(zone_, type_index, parent.init_expr);
-  }
-
   void DoReturn(FullDecoder* decoder, uint32_t /*drop_values*/) {
     // End decoding on "end".
     decoder->set_end(decoder->pc() + 1);
@@ -503,14 +497,6 @@ void AppendInitExpr(std::ostream& os, const WasmInitExpr& expr) {
       break;
     case WasmInitExpr::kRttCanon:
       os << "RttCanon(" << expr.immediate().index;
-      break;
-    case WasmInitExpr::kRttSub:
-      os << "RttSub(" << expr.immediate().index << ", ";
-      AppendInitExpr(os, (*expr.operands())[0]);
-      break;
-    case WasmInitExpr::kRttFreshSub:
-      os << "RttFreshSub(" << expr.immediate().index << ", ";
-      AppendInitExpr(os, (*expr.operands())[0]);
       break;
   }
 

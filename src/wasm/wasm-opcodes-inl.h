@@ -419,8 +419,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(I31GetS, "i31.get_s")
     CASE_OP(I31GetU, "i31.get_u")
     CASE_OP(RttCanon, "rtt.canon")
-    CASE_OP(RttSub, "rtt.sub")
-    CASE_OP(RttFreshSub, "rtt.fresh_sub")
     CASE_OP(RefTest, "ref.test")
     CASE_OP(RefTestStatic, "ref.test_static")
     CASE_OP(RefCast, "ref.cast")

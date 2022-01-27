@@ -9,12 +9,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestNominalTypesBasic() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  let struct1 = builder.addStructSubtype([makeField(kWasmI32, true)]);
-  let struct2 = builder.addStructSubtype(
+  builder.setNominal();
+  let struct1 = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct2 = builder.addStruct(
       [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct1);
 
-  let array1 = builder.addArraySubtype(kWasmI32, true);
-  let array2 = builder.addArraySubtype(kWasmI32, true, array1);
+  let array1 = builder.addArray(kWasmI32, true);
+  let array2 = builder.addArray(kWasmI32, true, array1);
 
   builder.addFunction("main", kSig_v_v)
       .addLocals(wasmOptRefType(struct1), 1)
@@ -29,14 +30,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kGCPrefix, kExprStructNewDefault, struct2, kExprLocalSet, 0,
         // Check that we can create an array with explicit RTT...
         kExprI32Const, 10,  // length
-        kGCPrefix, kExprRttCanon, array2, kGCPrefix,
-        kExprArrayNewDefaultWithRtt, array2,
+        kGCPrefix, kExprRttCanon, array2,
+        kGCPrefix, kExprArrayNewDefaultWithRtt, array2,
         // ...and upcast it.
         kExprLocalSet, 1,
         // Check that we can create an array with implicit RTT.
         kExprI32Const, 10,  // length
-        kGCPrefix, kExprArrayNewDefault, array2, kExprLocalSet, 1
-      ])
+        kGCPrefix, kExprArrayNewDefault, array2, kExprLocalSet, 1])
       .exportFunc();
 
   // This test is only interested in type checking.
@@ -46,10 +46,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestSubtypingDepthTooLarge() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addStructSubtype([]);
-  for (let i = 0; i < 32; i++) {
-      builder.addStructSubtype([], i);
-  }
+  builder.setNominal();
+  builder.addStruct([]);
+  for (let i = 0; i < 32; i++) builder.addStruct([], i);
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
       /subtyping depth is greater than allowed/);
@@ -58,7 +57,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestArrayInitFromDataStatic() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArraySubtype(kWasmI16, true);
+  builder.setNominal();
+  let array_type_index = builder.addArray(kWasmI16, true);
 
   let dummy_byte = 0xff;
   let element_0 = 1000;

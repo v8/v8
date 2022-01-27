@@ -49,13 +49,16 @@ enum ValueTypeCode : uint8_t {
   kDataRefCode = 0x67,
   kArrayRefCode = 0x66
 };
-// Binary encoding of other types.
+
+// Binary encoding of type definitions.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
-constexpr uint8_t kWasmFunctionSubtypeCode = 0x5d;
-constexpr uint8_t kWasmStructSubtypeCode = 0x5c;
-constexpr uint8_t kWasmArraySubtypeCode = 0x5b;
+constexpr uint8_t kWasmFunctionNominalCode = 0x5d;
+constexpr uint8_t kWasmStructNominalCode = 0x5c;
+constexpr uint8_t kWasmArrayNominalCode = 0x5b;
+constexpr uint8_t kWasmSubtypeCode = 0x50;
+constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x49;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {

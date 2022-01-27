@@ -77,9 +77,13 @@ let kLocalNamesCode = 2;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
-let kWasmFunctionSubtypeForm = 0x5d;
-let kWasmStructSubtypeForm = 0x5c;
-let kWasmArraySubtypeForm = 0x5b;
+let kWasmFunctionNominalForm = 0x5d;
+let kWasmStructNominalForm = 0x5c;
+let kWasmArrayNominalForm = 0x5b;
+let kWasmSubtypeForm = 0x50;
+let kWasmRecursiveTypeGroupForm = 0x49;
+
+let kNoSuperType = 0xFFFFFFFF;
 
 let kLimitsNoMaximum = 0x00;
 let kLimitsWithMaximum = 0x01;
@@ -1299,38 +1303,25 @@ function makeField(type, mutability) {
 }
 
 class WasmStruct {
-  constructor(fields) {
+  constructor(fields, supertype_idx) {
     if (!Array.isArray(fields)) {
       throw new Error('struct fields must be an array');
     }
     this.fields = fields;
     this.type_form = kWasmStructTypeForm;
-  }
-}
-
-class WasmStructSubtype extends WasmStruct {
-  constructor(fields, supertype_idx) {
-    super(fields);
     this.supertype = supertype_idx;
-    this.type_form = kWasmStructSubtypeForm;
   }
 }
 
 class WasmArray {
-  constructor(type, mutability) {
+  constructor(type, mutability, supertype_idx) {
     this.type = type;
     this.mutability = mutability;
     this.type_form = kWasmArrayTypeForm;
+    this.supertype = supertype_idx;
   }
 }
 
-class WasmArraySubtype extends WasmArray {
-  constructor(type, mutability, supertype_idx) {
-    super(type, mutability);
-    this.supertype = supertype_idx;
-    this.type_form = kWasmArraySubtypeForm;
-  }
-}
 class WasmElemSegment {
   constructor(table, offset, type, elements, is_decl) {
     this.table = table;
@@ -1383,6 +1374,7 @@ class WasmModuleBuilder {
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
     this.num_imported_tags = 0;
+    this.nominal = false;  // Controls only how gc-modules are printed.
     this.early_data_count_section = false;
     return this;
   }
@@ -1442,6 +1434,9 @@ class WasmModuleBuilder {
     this.explicit.push(this.createCustomSection(name, bytes));
   }
 
+  // TODO(7748): Support recursive groups.
+
+  // TODO(7748): Support function supertypes.
   addType(type) {
     this.types.push(type);
     var pl = type.params.length;   // should have params
@@ -1449,24 +1444,13 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
-  addStruct(fields) {
-    this.types.push(new WasmStruct(fields));
+  addStruct(fields, supertype_idx = kNoSuperType) {
+    this.types.push(new WasmStruct(fields, supertype_idx));
     return this.types.length - 1;
   }
 
-  kGenericSuperType = 0xFFFFFFFE;
-  addStructSubtype(fields, supertype_idx = this.kGenericSuperType) {
-    this.types.push(new WasmStructSubtype(fields, supertype_idx));
-    return this.types.length - 1;
-  }
-
-  addArray(type, mutability) {
-    this.types.push(new WasmArray(type, mutability));
-    return this.types.length - 1;
-  }
-
-  addArraySubtype(type, mutability, supertype_idx = this.kGenericSuperType) {
-    this.types.push(new WasmArraySubtype(type, mutability, supertype_idx));
+  addArray(type, mutability, supertype_idx = kNoSuperType) {
+    this.types.push(new WasmArray(type, mutability, supertype_idx));
     return this.types.length - 1;
   }
 
@@ -1679,6 +1663,10 @@ class WasmModuleBuilder {
     return this;
   }
 
+  setNominal() {
+    this.nominal = true;
+  }
+
   setName(name) {
     this.name = name;
     return this;
@@ -1698,32 +1686,51 @@ class WasmModuleBuilder {
         section.emit_u32v(wasm.types.length);
         for (let type of wasm.types) {
           if (type instanceof WasmStruct) {
-            section.emit_u8(type.type_form);
+            if (!this.nominal && type.supertype != kNoSuperType) {
+              section.emit_u8(kWasmSubtypeForm);
+              section.emit_u8(1);  // supertype count
+              section.emit_u32v(type.supertype);
+            }
+            section.emit_u8(this.nominal ? kWasmStructNominalForm
+                                         : kWasmStructTypeForm);
             section.emit_u32v(type.fields.length);
             for (let field of type.fields) {
               section.emit_type(field.type);
               section.emit_u8(field.mutability ? 1 : 0);
             }
-            if (type instanceof WasmStructSubtype) {
-              if (type.supertype === this.kGenericSuperType) {
+            if (this.nominal) {
+              if (type.supertype === kNoSuperType) {
                 section.emit_u8(kDataRefCode);
               } else {
                 section.emit_heap_type(type.supertype);
               }
             }
           } else if (type instanceof WasmArray) {
-            section.emit_u8(type.type_form);
+            if (!this.nominal && type.supertype != kNoSuperType) {
+              section.emit_u8(kWasmSubtypeForm);
+              section.emit_u8(1);  // supertype count
+              section.emit_u32v(type.supertype);
+            }
+            section.emit_u8(this.nominal ? kWasmArrayNominalForm
+                                         : kWasmArrayTypeForm);
             section.emit_type(type.type);
             section.emit_u8(type.mutability ? 1 : 0);
-            if (type instanceof WasmArraySubtype) {
-              if (type.supertype === this.kGenericSuperType) {
+            if (this.nominal) {
+              if (type.supertype === kNoSuperType) {
                 section.emit_u8(kDataRefCode);
               } else {
                 section.emit_heap_type(type.supertype);
               }
             }
           } else {
-            section.emit_u8(kWasmFunctionTypeForm);
+            /* TODO(7748): Support function supertypes.
+            if (!this.nominal && type.supertype != kNoSuperType) {
+              section.emit_u8(kWasmSubtypeForm);
+              section.emit_u8(1);  // supertype count
+              section.emit_u32v(type.supertype);
+            } */
+            section.emit_u8(this.nominal ? kWasmFunctionNominalForm
+                                         : kWasmFunctionTypeForm);
             section.emit_u32v(type.params.length);
             for (let param of type.params) {
               section.emit_type(param);
@@ -1731,6 +1738,15 @@ class WasmModuleBuilder {
             section.emit_u32v(type.results.length);
             for (let result of type.results) {
               section.emit_type(result);
+            }
+            if (this.nominal) {
+              /* TODO(7748): Support function supertypes.
+              if (type.supertype === kNoSuperType) {
+                section.emit_u8(kFuncRefCode);
+              } else {
+                section.emit_heap_type(type.supertype);
+              }*/
+              section.emit_u8(kFuncRefCode);
             }
           }
         }
