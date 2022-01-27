@@ -873,10 +873,13 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
       module->origin, owned_wire_bytes.as_vector(), isolate);
   if (shared_native_module == nullptr) {
-    const bool kIncludeLiftoff = false;
+    DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
+                                         ? DynamicTiering::kEnabled
+                                         : DynamicTiering::kDisabled;
+    const bool kIncludeLiftoff = dynamic_tiering == DynamicTiering::kDisabled;
     size_t code_size_estimate =
-        wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
-                                                            kIncludeLiftoff);
+        wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
+            module.get(), kIncludeLiftoff, dynamic_tiering);
     shared_native_module = wasm_engine->NewNativeModule(
         isolate, enabled_features, std::move(module), code_size_estimate);
     // We have to assign a compilation ID here, as it is required for a

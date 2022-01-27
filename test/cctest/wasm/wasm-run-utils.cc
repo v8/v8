@@ -360,9 +360,12 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   const bool kUsesLiftoff = true;
+  DynamicTiering dynamic_tiering = FLAG_wasm_dynamic_tiering
+                                       ? DynamicTiering::kEnabled
+                                       : DynamicTiering::kDisabled;
   size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(test_module_.get(),
-                                                          kUsesLiftoff);
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
+          test_module_.get(), kUsesLiftoff, dynamic_tiering);
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());

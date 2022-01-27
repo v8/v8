@@ -215,6 +215,7 @@ class AsyncCompileJob {
   Isolate* const isolate_;
   const char* const api_method_name_;
   const WasmFeatures enabled_features_;
+  const DynamicTiering dynamic_tiering_;
   const bool wasm_lazy_compilation_;
   base::TimeTicks start_time_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
