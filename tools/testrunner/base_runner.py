@@ -192,6 +192,7 @@ class BuildConfig(object):
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
     self.pointer_compression_shared_cage = build_config['v8_enable_pointer_compression_shared_cage']
+    self.shared_ro_heap = build_config['v8_enable_shared_ro_heap']
     self.sandbox = build_config['v8_enable_sandbox']
     self.third_party_heap = build_config['v8_enable_third_party_heap']
     self.webassembly = build_config['v8_enable_webassembly']
@@ -732,6 +733,9 @@ class BaseTestRunner(object):
       "lite_mode": self.build_config.lite_mode,
       "pointer_compression": self.build_config.pointer_compression,
       "pointer_compression_shared_cage": self.build_config.pointer_compression_shared_cage,
+      "no_js_shared_memory": (not self.build_config.shared_ro_heap) or
+                             (self.build_config.pointer_compression and
+                              not self.build_config.pointer_compression_shared_cage),
       "sandbox": self.build_config.sandbox,
       "dict_property_const_tracking": self.build_config.dict_property_const_tracking,
     }

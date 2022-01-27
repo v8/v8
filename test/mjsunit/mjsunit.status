@@ -1801,4 +1801,9 @@
   'tzoffset-transition-moscow': [FAIL],
 }], # variant == google3_nociu
 
+# Tests that cannot run without JS shared memory
+['no_js_shared_memory', {
+  'shared-memory/*': [SKIP],
+}],  # 'no_js_shared_memory'
+
 ]

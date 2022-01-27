@@ -3211,17 +3211,19 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
 
   handle_scope_data_.Initialize();
 
-  // When pointer compression is on with a per-Isolate cage, allocation in the
-  // shared Isolate can point into the per-Isolate RO heap as the offsets are
-  // constant across Isolates.
+  // A shared Isolate is used to support JavaScript shared memory features
+  // across Isolates. These features require all of the following to hold in the
+  // build configuration:
   //
-  // When pointer compression is on with a shared cage or when pointer
-  // compression is off, a shared RO heap is required. Otherwise a shared
-  // allocation requested by a client Isolate could point into the client
-  // Isolate's RO space (e.g. an RO map) whose pages gets unmapped when it is
-  // disposed.
-  CHECK_IMPLIES(is_shared_, COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL ||
-                                V8_SHARED_RO_HEAP_BOOL);
+  // 1. The RO space is shared, so e.g. immortal RO maps can be shared across
+  //   Isolates.
+  // 2. HeapObjects are shareable across Isolates, which requires either
+  //   pointers to be uncompressed (!COMPRESS_POINTER_BOOL), or that there is a
+  //   single virtual memory reservation shared by all Isolates in the process
+  //   for compressing pointers (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL).
+  CHECK_IMPLIES(is_shared_, V8_SHARED_RO_HEAP_BOOL &&
+                                (!COMPRESS_POINTERS_BOOL ||
+                                 COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL));
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value) \
   name##_ = (initial_value);

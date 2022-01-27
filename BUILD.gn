@@ -2218,6 +2218,7 @@ action("v8_dump_build_config") {
     "v8_enable_pointer_compression_shared_cage=" +
         "$v8_enable_pointer_compression_shared_cage",
     "v8_enable_sandbox=$v8_enable_sandbox",
+    "v8_enable_shared_ro_heap=$v8_enable_shared_ro_heap",
     "v8_enable_third_party_heap=$v8_enable_third_party_heap",
     "v8_enable_webassembly=$v8_enable_webassembly",
     "v8_dict_property_const_tracking=$v8_dict_property_const_tracking",
