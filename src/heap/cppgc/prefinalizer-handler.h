@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CPPGC_PREFINALIZER_HANDLER_H_
 #define V8_HEAP_CPPGC_PREFINALIZER_HANDLER_H_
 
+#include <utility>
 #include <vector>
 
 #include "include/cppgc/prefinalizer.h"
