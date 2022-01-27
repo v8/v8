@@ -71,6 +71,10 @@ inline Value<bool> IntPtrLessThan(d::MemoryAccessor accessor, intptr_t a,
                                   intptr_t b) {
   return {d::MemoryAccessResult::kOk, a < b};
 }
+inline Value<bool> IntPtrLessThanOrEqual(d::MemoryAccessor accessor, intptr_t a,
+                                         intptr_t b) {
+  return {d::MemoryAccessResult::kOk, a <= b};
+}
 inline Value<intptr_t> Signed(d::MemoryAccessor accessor, uintptr_t u) {
   return {d::MemoryAccessResult::kOk, static_cast<intptr_t>(u)};
 }

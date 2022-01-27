@@ -3024,6 +3024,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Calculate a valid size for the a hash table.
   TNode<IntPtrT> HashTableComputeCapacity(TNode<IntPtrT> at_least_space_for);
 
+  TNode<IntPtrT> NameToIndexHashTableLookup(TNode<NameToIndexHashTable> table,
+                                            TNode<Name> name, Label* not_found);
+
   template <class Dictionary>
   TNode<Smi> GetNumberOfElements(TNode<Dictionary> dictionary);
 

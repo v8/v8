@@ -46,16 +46,14 @@ void Context::Initialize(Isolate* isolate) {
   }
 }
 
-bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
-                                String name, VariableLookupResult* result) {
+bool ScriptContextTable::Lookup(Handle<String> name,
+                                VariableLookupResult* result) {
   DisallowGarbageCollection no_gc;
   // Static variables cannot be in script contexts.
-  for (int i = 0; i < table.used(kAcquireLoad); i++) {
-    Context context = table.get_context(i);
+  for (int i = 0; i < used(kAcquireLoad); i++) {
+    Context context = get_context(i);
     DCHECK(context.IsScriptContext());
-    int slot_index =
-        ScopeInfo::ContextSlotIndex(context.scope_info(), name, result);
-
+    int slot_index = context.scope_info().ContextSlotIndex(name, result);
     if (slot_index >= 0) {
       result->context_index = i;
       result->slot_index = slot_index;
@@ -217,7 +215,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         ScriptContextTable script_contexts =
             context->global_object().native_context().script_context_table();
         VariableLookupResult r;
-        if (ScriptContextTable::Lookup(isolate, script_contexts, *name, &r)) {
+        if (script_contexts.Lookup(name, &r)) {
           Context script_context = script_contexts.get_context(r.context_index);
           if (FLAG_trace_contexts) {
             PrintF("=> found property in script context %d: %p\n",
@@ -286,8 +284,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // for the context index.
       ScopeInfo scope_info = context->scope_info();
       VariableLookupResult lookup_result;
-      int slot_index =
-          ScopeInfo::ContextSlotIndex(scope_info, *name, &lookup_result);
+      int slot_index = scope_info.ContextSlotIndex(name, &lookup_result);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         // Re-direct lookup to the ScriptContextTable in case we find a hole in

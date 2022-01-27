@@ -1062,11 +1062,8 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
                                             Handle<Object> new_value) {
-  VariableLookupResult lookup_result;
-  int slot_index = ScopeInfo::ContextSlotIndex(context_->scope_info(),
-                                               *variable_name, &lookup_result);
+  int slot_index = context_->scope_info().ContextSlotIndex(variable_name);
   if (slot_index < 0) return false;
-
   context_->set(slot_index, *new_value);
   return true;
 }
@@ -1098,8 +1095,7 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
       context_->global_object().native_context().script_context_table(),
       isolate_);
   VariableLookupResult lookup_result;
-  if (ScriptContextTable::Lookup(isolate_, *script_contexts, *variable_name,
-                                 &lookup_result)) {
+  if (script_contexts->Lookup(variable_name, &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         isolate_, script_contexts, lookup_result.context_index);
     script_context->set(lookup_result.slot_index, *new_value);

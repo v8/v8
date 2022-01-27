@@ -121,6 +121,12 @@ extern class ScopeInfo extends HeapObject {
   context_local_names[Convert<intptr>(context_local_count) < kMaxInlinedLocalNamesSize ? context_local_count : 0]:
       String;
 
+  // Contains a hash_map from local names to context slot index.
+  // This is only used when local names are not inlined in the scope info.
+  context_local_names_hashtable?
+      [kMaxInlinedLocalNamesSize <= Convert<intptr>(context_local_count)]:
+          NameToIndexHashTable;
+
   // Contains the variable modes and initialization flags corresponding to
   // the context locals in ContextLocalNames.
   context_local_infos[context_local_count]: SmiTagged<VariableProperties>;
@@ -170,11 +176,11 @@ extern class ScopeInfo extends HeapObject {
       ModuleVariable;
 }
 
-// Returns the index of the named local in a ScopeInfo.
-// Assumes that the given name is internalized; uses pointer comparisons.
-@export
-macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
-    intptr labels NotFound {
+extern macro NameToIndexHashTableLookup(
+    NameToIndexHashTable, Name): intptr labels NotFound;
+
+macro IndexOfInlinedLocalName(
+    scopeInfo: ScopeInfo, name: Name): intptr labels NotFound {
   const count: intptr = Convert<intptr>(scopeInfo.context_local_count);
   for (let i: intptr = 0; i < count; ++i) {
     if (TaggedEqual(name, scopeInfo.context_local_names[i])) {
@@ -182,4 +188,18 @@ macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
     }
   }
   goto NotFound;
+}
+
+// Returns the index of the named local in a ScopeInfo.
+// Assumes that the given name is internalized; uses pointer comparisons.
+@export
+macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
+    intptr labels NotFound {
+  const count: intptr = Convert<intptr>(scopeInfo.context_local_count);
+  if (count < kMaxInlinedLocalNamesSize) {
+    return IndexOfInlinedLocalName(scopeInfo, name) otherwise goto NotFound;
+  } else {
+    return NameToIndexHashTableLookup(
+        scopeInfo.context_local_names_hashtable, name) otherwise goto NotFound;
+  }
 }

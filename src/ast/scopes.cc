@@ -257,11 +257,9 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
   if (scope_type == BLOCK_SCOPE) {
     // Set is_block_scope_for_object_literal_ based on the existince of the home
     // object variable (we don't store it explicitly).
-    VariableLookupResult lookup_result;
     DCHECK_NOT_NULL(ast_value_factory);
-    int home_object_index = ScopeInfo::ContextSlotIndex(
-        *scope_info, *(ast_value_factory->dot_home_object_string()->string()),
-        &lookup_result);
+    int home_object_index = scope_info->ContextSlotIndex(
+        ast_value_factory->dot_home_object_string()->string());
     DCHECK_IMPLIES(home_object_index >= 0,
                    scope_type == CLASS_SCOPE || scope_type == BLOCK_SCOPE);
     if (home_object_index >= 0) {
@@ -961,8 +959,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index =
-        ScopeInfo::ContextSlotIndex(scope_info, name_handle, &lookup_result);
+    index = scope_info.ContextSlotIndex(name->string(), &lookup_result);
     found = index >= 0;
   }
 
@@ -2727,8 +2724,7 @@ VariableProxy* Scope::NewHomeObjectVariableProxy(AstNodeFactory* factory,
     Variable* home_object = variables_.Lookup(name);
     if (home_object == nullptr) {
       VariableLookupResult lookup_result;
-      int index = ScopeInfo::ContextSlotIndex(*scope_info_, *name->string(),
-                                              &lookup_result);
+      int index = scope_info_->ContextSlotIndex(name->string(), &lookup_result);
       DCHECK_GE(index, 0);
       bool was_added;
       home_object = variables_.Declare(zone(), this, name, lookup_result.mode,
@@ -2889,10 +2885,8 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DCHECK_NULL(LookupLocalPrivateName(name));
   DisallowGarbageCollection no_gc;
 
-  String name_handle = *name->string();
   VariableLookupResult lookup_result;
-  int index =
-      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &lookup_result);
+  int index = scope_info_->ContextSlotIndex(name->string(), &lookup_result);
   if (index < 0) {
     return nullptr;
   }

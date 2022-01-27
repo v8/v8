@@ -391,9 +391,8 @@ class ScriptContextTable : public FixedArray {
   // valid information about its location.
   // If it returns false, `result` is untouched.
   V8_WARN_UNUSED_RESULT
-  V8_EXPORT_PRIVATE static bool Lookup(Isolate* isolate,
-                                       ScriptContextTable table, String name,
-                                       VariableLookupResult* result);
+  V8_EXPORT_PRIVATE bool Lookup(Handle<String> name,
+                                VariableLookupResult* result);
 
   V8_WARN_UNUSED_RESULT
   V8_EXPORT_PRIVATE static Handle<ScriptContextTable> Extend(

@@ -453,10 +453,14 @@ class NameToIndexShape : public BaseShape<Handle<Name>> {
 class V8_EXPORT_PRIVATE NameToIndexHashTable
     : public HashTable<NameToIndexHashTable, NameToIndexShape> {
  public:
+  static const int kEntryValueIndex = NameToIndexShape::kEntryValueIndex;
+
   inline static Handle<Map> GetMap(ReadOnlyRoots roots);
-  int32_t Lookup(Handle<Name> key);
+  int Lookup(Handle<Name> key);
+
   // Returns the value at entry.
   Object ValueAt(InternalIndex entry);
+  int IndexAt(InternalIndex entry);
 
   template <typename IsolateT>
   static Handle<NameToIndexHashTable> Add(IsolateT* isolate,

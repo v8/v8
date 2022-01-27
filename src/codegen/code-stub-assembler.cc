@@ -8522,12 +8522,34 @@ TNode<HeapObject> CodeStubAssembler::LoadName<GlobalDictionary>(
   return CAST(LoadObjectField(property_cell, PropertyCell::kNameOffset));
 }
 
+template <>
+TNode<HeapObject> CodeStubAssembler::LoadName<NameToIndexHashTable>(
+    TNode<HeapObject> key) {
+  CSA_DCHECK(this, IsName(key));
+  return key;
+}
+
+// The implementation should be in sync with NameToIndexHashTable::Lookup.
+TNode<IntPtrT> CodeStubAssembler::NameToIndexHashTableLookup(
+    TNode<NameToIndexHashTable> table, TNode<Name> name, Label* not_found) {
+  TVARIABLE(IntPtrT, var_entry);
+  Label index_found(this, {&var_entry});
+  NameDictionaryLookup<NameToIndexHashTable>(table, name, &index_found,
+                                             &var_entry, not_found,
+                                             LookupMode::kFindExisting);
+  BIND(&index_found);
+  TNode<Smi> value =
+      CAST(LoadValueByKeyIndex<NameToIndexHashTable>(table, var_entry.value()));
+  return SmiToIntPtr(value);
+}
+
 template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookup(
     TNode<Dictionary> dictionary, TNode<Name> unique_name, Label* if_found,
     TVariable<IntPtrT>* var_name_index, Label* if_not_found, LookupMode mode) {
   static_assert(std::is_same<Dictionary, NameDictionary>::value ||
-                    std::is_same<Dictionary, GlobalDictionary>::value,
+                    std::is_same<Dictionary, GlobalDictionary>::value ||
+                    std::is_same<Dictionary, NameToIndexHashTable>::value,
                 "Unexpected NameDictionary");
   DCHECK_EQ(MachineType::PointerRepresentation(), var_name_index->rep());
   DCHECK_IMPLIES(mode == kFindInsertionIndex, if_found == nullptr);

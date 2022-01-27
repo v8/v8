@@ -2355,13 +2355,12 @@ void JSSegments::JSSegmentsPrint(std::ostream& os) {
 namespace {
 void PrintScopeInfoList(ScopeInfo scope_info, std::ostream& os,
                         const char* list_name, int length) {
+  DisallowGarbageCollection no_gc;
   if (length <= 0) return;
   os << "\n - " << list_name;
   os << " {\n";
-  for (int i = 0; i < length; ++i) {
-    os << "    - " << i << ": ";
-    scope_info.context_local_names(i).ShortPrint(os);
-    os << "\n";
+  for (auto it : ScopeInfo::IterateLocalNames(&scope_info, no_gc)) {
+    os << "    - " << it->index() << ": " << it->name() << "\n";
   }
   os << "  }";
 }
@@ -2377,6 +2376,12 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
 
   os << "\n - parameters: " << ParameterCount();
   os << "\n - context locals : " << ContextLocalCount();
+  if (HasInlinedLocalNames()) {
+    os << "\n - inlined local names";
+  } else {
+    os << "\n - local names in a hashtable: "
+       << Brief(context_local_names_hashtable());
+  }
 
   os << "\n - scope type: " << scope_type();
   if (SloppyEvalCanExtendVars()) os << "\n - sloppy eval";

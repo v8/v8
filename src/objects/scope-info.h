@@ -19,6 +19,9 @@
 namespace v8 {
 namespace internal {
 
+// scope-info-tq.inc uses NameToIndexHashTable.
+class NameToIndexHashTable;
+
 #include "torque-generated/src/objects/scope-info-tq.inc"
 
 template <typename T>
@@ -144,12 +147,12 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   inline bool HasInlinedLocalNames() const;
 
   template <typename ScopeInfoPtr>
-  class LocalNamesIterator;
+  class LocalNamesRange;
 
-  static inline LocalNamesIterator<Handle<ScopeInfo>> IterateLocalNames(
+  static inline LocalNamesRange<Handle<ScopeInfo>> IterateLocalNames(
       Handle<ScopeInfo> scope_info);
 
-  static inline LocalNamesIterator<ScopeInfo*> IterateLocalNames(
+  static inline LocalNamesRange<ScopeInfo*> IterateLocalNames(
       ScopeInfo* scope_info, const DisallowGarbageCollection& no_gc);
 
   // Return the name of a given context local.
@@ -180,8 +183,9 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
-  static int ContextSlotIndex(ScopeInfo scope_info, String name,
-                              VariableLookupResult* lookup_result);
+  int ContextSlotIndex(Handle<String> name);
+  int ContextSlotIndex(Handle<String> name,
+                       VariableLookupResult* lookup_result);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
@@ -298,6 +302,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
  private:
   friend class WebSnapshotDeserializer;
+
+  int InlinedLocalNamesLookup(String name);
 
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;

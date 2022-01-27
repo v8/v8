@@ -9,6 +9,7 @@
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/string.h"
+#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -37,63 +38,102 @@ bool ScopeInfo::HasInlinedLocalNames() const {
 }
 
 template <typename ScopeInfoPtr>
-class ScopeInfo::LocalNamesIterator {
+class ScopeInfo::LocalNamesRange {
  public:
   class Iterator {
    public:
-    Iterator(ScopeInfoPtr scope_info, int index)
-        : scope_info_(scope_info), index_(index) {}
+    Iterator(const LocalNamesRange* range, InternalIndex index)
+        : range_(range), index_(index) {
+      DCHECK_NOT_NULL(range);
+      if (!range_->inlined()) advance_hashtable_index();
+    }
 
     Iterator& operator++() {
-      index_++;
+      DCHECK_LT(index_, range_->max_index());
+      ++index_;
+      if (range_->inlined()) return *this;
+      advance_hashtable_index();
       return *this;
     }
 
     friend bool operator==(const Iterator& a, const Iterator& b) {
-      return *a.scope_info_ == *b.scope_info_ && a.index_ == b.index_;
+      return a.range_ == b.range_ && a.index_ == b.index_;
     }
+
     friend bool operator!=(const Iterator& a, const Iterator& b) {
       return !(a == b);
     }
 
     String name() const {
-      DCHECK_LT(index_, scope_info_->context_local_count());
-      return scope_info_->context_local_names(index_);
+      DCHECK_LT(index_, range_->max_index());
+      if (range_->inlined()) {
+        return scope_info()->ContextInlinedLocalName(index_.as_int());
+      }
+      return String::cast(table().KeyAt(index_));
     }
 
     const Iterator* operator*() const { return this; }
 
-    int index() const { return index_; }
+    int index() const {
+      if (range_->inlined()) return index_.as_int();
+      return table().IndexAt(index_);
+    }
 
    private:
-    ScopeInfoPtr scope_info_;
-    int index_;
+    const LocalNamesRange* range_;
+    InternalIndex index_;
+
+    ScopeInfoPtr scope_info() const { return range_->scope_info_; }
+
+    NameToIndexHashTable table() const {
+      return scope_info()->context_local_names_hashtable();
+    }
+
+    void advance_hashtable_index() {
+      DisallowGarbageCollection no_gc;
+      ReadOnlyRoots roots = scope_info()->GetReadOnlyRoots();
+      InternalIndex max = range_->max_index();
+      // Increment until iterator points to a valid key or max.
+      while (index_ < max) {
+        Object key = table().KeyAt(index_);
+        if (table().IsKey(roots, key)) break;
+        ++index_;
+      }
+    }
+
+    friend class LocalNamesRange;
   };
 
-  explicit LocalNamesIterator(ScopeInfoPtr scope_info)
-      : scope_info_(scope_info) {}
+  bool inlined() const { return scope_info_->HasInlinedLocalNames(); }
 
-  inline Iterator begin() const { return Iterator(scope_info_, 0); }
-
-  inline Iterator end() const {
-    return Iterator(scope_info_, scope_info_->ContextLocalCount());
+  InternalIndex max_index() const {
+    int max = inlined()
+                  ? scope_info_->ContextLocalCount()
+                  : scope_info_->context_local_names_hashtable().Capacity();
+    return InternalIndex(max);
   }
+
+  explicit LocalNamesRange(ScopeInfoPtr scope_info) : scope_info_(scope_info) {}
+
+  inline Iterator begin() const { return Iterator(this, InternalIndex(0)); }
+
+  inline Iterator end() const { return Iterator(this, max_index()); }
 
  private:
   ScopeInfoPtr scope_info_;
 };
 
 // static
-ScopeInfo::LocalNamesIterator<Handle<ScopeInfo>> ScopeInfo::IterateLocalNames(
+ScopeInfo::LocalNamesRange<Handle<ScopeInfo>> ScopeInfo::IterateLocalNames(
     Handle<ScopeInfo> scope_info) {
-  return LocalNamesIterator<Handle<ScopeInfo>>(scope_info);
+  return LocalNamesRange<Handle<ScopeInfo>>(scope_info);
 }
 
 // static
-ScopeInfo::LocalNamesIterator<ScopeInfo*> ScopeInfo::IterateLocalNames(
+ScopeInfo::LocalNamesRange<ScopeInfo*> ScopeInfo::IterateLocalNames(
     ScopeInfo* scope_info, const DisallowGarbageCollection& no_gc) {
   USE(no_gc);
-  return LocalNamesIterator<ScopeInfo*>(scope_info);
+  return LocalNamesRange<ScopeInfo*>(scope_info);
 }
 
 }  // namespace internal

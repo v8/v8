@@ -6226,7 +6226,9 @@ Object ObjectHashTableBase<Derived, Shape>::Lookup(PtrComprCageBase cage_base,
   return this->get(Derived::EntryToIndex(entry) + 1);
 }
 
-int32_t NameToIndexHashTable::Lookup(Handle<Name> key) {
+// The implementation should be in sync with
+// CodeStubAssembler::NameToIndexHashTableLookup.
+int NameToIndexHashTable::Lookup(Handle<Name> key) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   ReadOnlyRoots roots = this->GetReadOnlyRoots(cage_base);
@@ -6265,6 +6267,16 @@ Object ObjectHashTableBase<Derived, Shape>::ValueAt(InternalIndex entry) {
 
 Object NameToIndexHashTable::ValueAt(InternalIndex entry) {
   return this->get(EntryToValueIndex(entry));
+}
+
+int NameToIndexHashTable::IndexAt(InternalIndex entry) {
+  Object value = ValueAt(entry);
+  if (value.IsSmi()) {
+    int index = Smi::ToInt(value);
+    DCHECK_LE(0, index);
+    return index;
+  }
+  return -1;
 }
 
 template <typename Derived, typename Shape>
