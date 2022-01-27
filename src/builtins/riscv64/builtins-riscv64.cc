@@ -974,18 +974,14 @@ static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
   // feedback vectors are not allocated. We need to find a different way of
   // logging these events if required.
   TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kLogFirstExecution,
-                                Runtime::kFunctionFirstExecution);
-  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
                                 OptimizationMarker::kCompileOptimized,
                                 Runtime::kCompileOptimized_NotConcurrent);
   TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
                                 OptimizationMarker::kCompileOptimizedConcurrent,
                                 Runtime::kCompileOptimized_Concurrent);
 
-  // Marker should be one of LogFirstExecution / CompileOptimized /
-  // CompileOptimizedConcurrent. InOptimizationQueue and None shouldn't reach
-  // here.
+  // Marker should be one of CompileOptimized / CompileOptimizedConcurrent.
+  // InOptimizationQueue and None shouldn't reach here.
   if (FLAG_debug_code) {
     __ stop();
   }
@@ -1102,9 +1098,8 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
-    __ And(
-        scratch, optimization_state,
-        Operand(FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker));
+    __ And(scratch, optimization_state,
+           Operand(FeedbackVector::kHasCompileOptimizedMarker));
     __ Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg),
               Label::Distance::kNear);
   }
