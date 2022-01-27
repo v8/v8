@@ -43,6 +43,47 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace {
+using pkey_alloc_t = int (*)(unsigned, unsigned);
+using pkey_free_t = int (*)(int);
+using pkey_mprotect_t = int (*)(void*, size_t, int, int);
+using pkey_get_t = int (*)(int);
+using pkey_set_t = int (*)(int, unsigned);
+
+pkey_alloc_t pkey_alloc = nullptr;
+pkey_free_t pkey_free = nullptr;
+pkey_mprotect_t pkey_mprotect = nullptr;
+pkey_get_t pkey_get = nullptr;
+pkey_set_t pkey_set = nullptr;
+
+#ifdef DEBUG
+bool pkey_initialized = false;
+#endif
+}  // namespace
+
+void InitializeMemoryProtectionKeySupport() {
+  // Flip {pkey_initialized} (in debug mode) and check the new value.
+  DCHECK_EQ(true, pkey_initialized = !pkey_initialized);
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  // Try to to find the pkey functions in glibc.
+  void* pkey_alloc_ptr = dlsym(RTLD_DEFAULT, "pkey_alloc");
+  if (!pkey_alloc_ptr) return;
+
+  // If {pkey_alloc} is available, the others must also be available.
+  void* pkey_free_ptr = dlsym(RTLD_DEFAULT, "pkey_free");
+  void* pkey_mprotect_ptr = dlsym(RTLD_DEFAULT, "pkey_mprotect");
+  void* pkey_get_ptr = dlsym(RTLD_DEFAULT, "pkey_get");
+  void* pkey_set_ptr = dlsym(RTLD_DEFAULT, "pkey_set");
+  CHECK(pkey_free_ptr && pkey_mprotect_ptr && pkey_get_ptr && pkey_set_ptr);
+
+  pkey_alloc = reinterpret_cast<pkey_alloc_t>(pkey_alloc_ptr);
+  pkey_free = reinterpret_cast<pkey_free_t>(pkey_free_ptr);
+  pkey_mprotect = reinterpret_cast<pkey_mprotect_t>(pkey_mprotect_ptr);
+  pkey_get = reinterpret_cast<pkey_get_t>(pkey_get_ptr);
+  pkey_set = reinterpret_cast<pkey_set_t>(pkey_set_ptr);
+#endif
+}
+
 // TODO(dlehmann) Security: Are there alternatives to disabling CFI altogether
 // for the functions below? Since they are essentially an arbitrary indirect
 // call gadget, disabling CFI should be only a last resort. In Chromium, there
@@ -57,139 +98,98 @@ namespace wasm {
 // level code (probably in the order of 100 lines).
 DISABLE_CFI_ICALL
 int AllocateMemoryProtectionKey() {
-// See comment on the import on feature testing for PKEY support.
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-  // Try to to find {pkey_alloc()} support in glibc.
-  typedef int (*pkey_alloc_t)(unsigned int, unsigned int);
-  // Cache the {dlsym()} lookup in a {static} variable.
-  static auto* pkey_alloc =
-      bit_cast<pkey_alloc_t>(dlsym(RTLD_DEFAULT, "pkey_alloc"));
-  if (pkey_alloc != nullptr) {
-    // If there is support in glibc, try to allocate a new key.
-    // This might still return -1, e.g., because the kernel does not support
-    // PKU or because there is no more key available.
-    // Different reasons for why {pkey_alloc()} failed could be checked with
-    // errno, e.g., EINVAL vs ENOSPC vs ENOSYS. See manpages and glibc manual
-    // (the latter is the authorative source):
-    // https://www.gnu.org/software/libc/manual/html_mono/libc.html#Memory-Protection-Keys
-    return pkey_alloc(/* flags, unused */ 0, kDisableAccess);
-  }
-#endif
-  return kNoMemoryProtectionKey;
+  DCHECK(pkey_initialized);
+  if (!pkey_alloc) return kNoMemoryProtectionKey;
+
+  // If there is support in glibc, try to allocate a new key.
+  // This might still return -1, e.g., because the kernel does not support
+  // PKU or because there is no more key available.
+  // Different reasons for why {pkey_alloc()} failed could be checked with
+  // errno, e.g., EINVAL vs ENOSPC vs ENOSYS. See manpages and glibc manual
+  // (the latter is the authorative source):
+  // https://www.gnu.org/software/libc/manual/html_mono/libc.html#Memory-Protection-Keys
+  STATIC_ASSERT(kNoMemoryProtectionKey == -1);
+  return pkey_alloc(/* flags, unused */ 0, kDisableAccess);
 }
 
 DISABLE_CFI_ICALL
 void FreeMemoryProtectionKey(int key) {
+  DCHECK(pkey_initialized);
   // Only free the key if one was allocated.
   if (key == kNoMemoryProtectionKey) return;
 
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-  typedef int (*pkey_free_t)(int);
-  static auto* pkey_free =
-      bit_cast<pkey_free_t>(dlsym(RTLD_DEFAULT, "pkey_free"));
-  // If a valid key was allocated, {pkey_free()} must also be available.
-  DCHECK_NOT_NULL(pkey_free);
-
-  int ret = pkey_free(key);
-  CHECK_EQ(/* success */ 0, ret);
-#else
   // On platforms without PKU support, we should have already returned because
   // the key must be {kNoMemoryProtectionKey}.
-  UNREACHABLE();
-#endif
+  DCHECK_NOT_NULL(pkey_free);
+  CHECK_EQ(/* success */ 0, pkey_free(key));
 }
 
+int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-// TODO(dlehmann): Copied from base/platform/platform-posix.cc. Should be
-// removed once this code is integrated in base/platform/platform-linux.cc.
-int GetProtectionFromMemoryPermission(base::OS::MemoryPermission access) {
-  switch (access) {
-    case base::OS::MemoryPermission::kNoAccess:
-    case base::OS::MemoryPermission::kNoAccessWillJitLater:
+  // Mappings for PKU are either RWX (on this level) or no access.
+  switch (permission) {
+    case PageAllocator::kNoAccess:
       return PROT_NONE;
-    case base::OS::MemoryPermission::kRead:
-      return PROT_READ;
-    case base::OS::MemoryPermission::kReadWrite:
-      return PROT_READ | PROT_WRITE;
-    case base::OS::MemoryPermission::kReadWriteExecute:
+    case PageAllocator::kReadWriteExecute:
       return PROT_READ | PROT_WRITE | PROT_EXEC;
-    case base::OS::MemoryPermission::kReadExecute:
-      return PROT_READ | PROT_EXEC;
+    default:
+      UNREACHABLE();
   }
+#endif
+  // Other platforms do not use PKU.
   UNREACHABLE();
 }
-#endif
 
 DISABLE_CFI_ICALL
 bool SetPermissionsAndMemoryProtectionKey(
     PageAllocator* page_allocator, base::AddressRegion region,
     PageAllocator::Permission page_permissions, int key) {
-  DCHECK_NOT_NULL(page_allocator);
+  DCHECK(pkey_initialized);
 
   void* address = reinterpret_cast<void*>(region.begin());
   size_t size = region.size();
 
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-  typedef int (*pkey_mprotect_t)(void*, size_t, int, int);
-  static auto* pkey_mprotect =
-      bit_cast<pkey_mprotect_t>(dlsym(RTLD_DEFAULT, "pkey_mprotect"));
+  if (pkey_mprotect) {
+    // Copied with slight modifications from base/platform/platform-posix.cc
+    // {OS::SetPermissions()}.
+    // TODO(dlehmann): Move this block into its own function at the right
+    // abstraction boundary (likely some static method in platform.h {OS})
+    // once the whole PKU code is moved into base/platform/.
+    DCHECK_EQ(0, region.begin() % page_allocator->CommitPageSize());
+    DCHECK_EQ(0, size % page_allocator->CommitPageSize());
 
-  if (pkey_mprotect == nullptr) {
-    // If there is no runtime support for {pkey_mprotect()}, no key should have
-    // been allocated in the first place.
-    DCHECK_EQ(kNoMemoryProtectionKey, key);
+    int protection = GetProtectionFromMemoryPermission(page_permissions);
 
-    // Without PKU support, fallback to regular {mprotect()}.
-    return page_allocator->SetPermissions(address, size, page_permissions);
+    int ret = pkey_mprotect(address, size, protection, key);
+
+    return ret == /* success */ 0;
   }
 
-  // Copied with slight modifications from base/platform/platform-posix.cc
-  // {OS::SetPermissions()}.
-  // TODO(dlehmann): Move this block into its own function at the right
-  // abstraction boundary (likely some static method in platform.h {OS})
-  // once the whole PKU code is moved into base/platform/.
-  DCHECK_EQ(0, region.begin() % page_allocator->CommitPageSize());
-  DCHECK_EQ(0, size % page_allocator->CommitPageSize());
+  // If there is no runtime support for {pkey_mprotect()}, no key should have
+  // been allocated in the first place.
+  DCHECK_EQ(kNoMemoryProtectionKey, key);
 
-  int protection = GetProtectionFromMemoryPermission(
-      static_cast<base::OS::MemoryPermission>(page_permissions));
-
-  int ret = pkey_mprotect(address, size, protection, key);
-
-  return ret == /* success */ 0;
-#else
   // Without PKU support, fallback to regular {mprotect()}.
   return page_allocator->SetPermissions(address, size, page_permissions);
-#endif
 }
 
 DISABLE_CFI_ICALL
 void SetPermissionsForMemoryProtectionKey(
     int key, MemoryProtectionKeyPermission permissions) {
+  DCHECK(pkey_initialized);
   DCHECK_NE(kNoMemoryProtectionKey, key);
 
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-  typedef int (*pkey_set_t)(int, unsigned int);
-  static auto* pkey_set = bit_cast<pkey_set_t>(dlsym(RTLD_DEFAULT, "pkey_set"));
   // If a valid key was allocated, {pkey_set()} must also be available.
   DCHECK_NOT_NULL(pkey_set);
 
-  int ret = pkey_set(key, permissions);
-  CHECK_EQ(0 /* success */, ret);
-#else
-  // On platforms without PKU support, this method cannot be called because
-  // no protection key can have been allocated.
-  UNREACHABLE();
-#endif
+  CHECK_EQ(0 /* success */, pkey_set(key, permissions));
 }
 
 DISABLE_CFI_ICALL
 MemoryProtectionKeyPermission GetMemoryProtectionKeyPermission(int key) {
+  DCHECK(pkey_initialized);
   DCHECK_NE(kNoMemoryProtectionKey, key);
 
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-  typedef int (*pkey_get_t)(int);
-  static auto* pkey_get = bit_cast<pkey_get_t>(dlsym(RTLD_DEFAULT, "pkey_get"));
   // If a valid key was allocated, {pkey_get()} must also be available.
   DCHECK_NOT_NULL(pkey_get);
 
@@ -197,11 +197,6 @@ MemoryProtectionKeyPermission GetMemoryProtectionKeyPermission(int key) {
   CHECK(permission == kNoRestrictions || permission == kDisableAccess ||
         permission == kDisableWrite);
   return static_cast<MemoryProtectionKeyPermission>(permission);
-#else
-  // On platforms without PKU support, this method cannot be called because
-  // no protection key can have been allocated.
-  UNREACHABLE();
-#endif
 }
 
 }  // namespace wasm
