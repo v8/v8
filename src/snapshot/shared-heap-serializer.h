@@ -43,6 +43,8 @@ class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
   bool SerializeUsingSharedHeapObjectCache(SnapshotByteSink* sink,
                                            Handle<HeapObject> obj);
 
+  void ReconstructSharedHeapObjectCacheForTestingIfNeeded();
+
   static bool CanBeInSharedOldSpace(HeapObject obj);
 
   static bool ShouldBeInSharedHeapObjectCache(HeapObject obj);

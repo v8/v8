@@ -65,10 +65,6 @@ void SharedHeapSerializer::FinalizeSerialization() {
   Pad();
 
 #ifdef DEBUG
-  // During snapshotting there is no shared heap.
-  CHECK(!isolate()->is_shared());
-  CHECK_NULL(isolate()->shared_isolate());
-
   // Check that all serialized object are in shared heap and not RO. RO objects
   // should be in the RO snapshot.
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
@@ -90,6 +86,20 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
     SnapshotByteSink* sink, Handle<HeapObject> obj) {
   if (!ShouldBeInSharedHeapObjectCache(*obj)) return false;
   int cache_index = SerializeInObjectCache(obj);
+
+  // When testing deserialization of a snapshot from a live isolate, the shared
+  // object cache needs to be extended because the live isolate may have had new
+  // internalized strings that were not present in the startup snapshot to be
+  // serialized.
+  if (reconstruct_read_only_and_shared_object_caches_for_testing()) {
+    const size_t existing_cache_size =
+        isolate()->shared_heap_object_cache()->size();
+    DCHECK_LE(base::checked_cast<size_t>(cache_index), existing_cache_size);
+    if (base::checked_cast<size_t>(cache_index) == existing_cache_size) {
+      isolate()->shared_heap_object_cache()->push_back(*obj);
+    }
+  }
+
   sink->Put(kSharedHeapObjectCache, "SharedHeapObjectCache");
   sink->PutInt(cache_index, "shared_heap_object_cache_index");
   return true;
@@ -168,6 +178,19 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // later ignored.
   serialized_objects_.Insert(obj, 0);
 #endif
+}
+
+void SharedHeapSerializer::
+    ReconstructSharedHeapObjectCacheForTestingIfNeeded() {
+  if (!reconstruct_read_only_and_shared_object_caches_for_testing()) return;
+  std::vector<Object>* cache = isolate()->shared_heap_object_cache();
+  DCHECK_EQ(isolate()->shared_isolate()->shared_heap_object_cache(), cache);
+  for (size_t i = 0, size = cache->size(); i < size; i++) {
+    Handle<HeapObject> obj(HeapObject::cast(cache->at(i)), isolate());
+    int cache_index = SerializeInObjectCache(obj);
+    USE(cache_index);
+    DCHECK_EQ(cache_index, i);
+  }
 }
 
 }  // namespace internal

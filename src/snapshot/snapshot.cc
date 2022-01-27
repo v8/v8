@@ -313,13 +313,17 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
   // Test serialization.
   {
     GlobalSafepointScope global_safepoint(isolate);
+    base::Optional<SafepointScope> shared_isolate_safepoint_scope;
+    if (Isolate* shared_isolate = isolate->shared_isolate()) {
+      shared_isolate_safepoint_scope.emplace(shared_isolate->heap());
+    }
     DisallowGarbageCollection no_gc;
 
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
         Snapshot::kAllowActiveIsolateForTesting |
-        (ReadOnlyHeap::IsReadOnlySpaceShared()
-             ? Snapshot::kReconstructReadOnlyObjectCacheForTesting
+        ((isolate->shared_isolate() || ReadOnlyHeap::IsReadOnlySpaceShared())
+             ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
     serialized_data = Snapshot::Create(isolate, *default_context,
                                        global_safepoint, no_gc, flags);
@@ -337,6 +341,9 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     new_isolate->set_snapshot_blob(&serialized_data);
     new_isolate->set_array_buffer_allocator(
         v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+    if (Isolate* shared_isolate = isolate->shared_isolate()) {
+      new_isolate->set_shared_isolate(shared_isolate);
+    }
     CHECK(Snapshot::Initialize(new_isolate));
 
     HandleScope scope(new_isolate);
@@ -376,6 +383,7 @@ v8::StartupData Snapshot::Create(
 
   SharedHeapSerializer shared_heap_serializer(isolate, flags,
                                               &read_only_serializer);
+  shared_heap_serializer.ReconstructSharedHeapObjectCacheForTestingIfNeeded();
 
   StartupSerializer startup_serializer(isolate, flags, &read_only_serializer,
                                        &shared_heap_serializer);
