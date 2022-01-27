@@ -5346,6 +5346,9 @@ int Shell::Main(int argc, char* argv[]) {
 
   if (HasFlagThatRequiresSharedIsolate()) {
     Isolate::CreateParams shared_create_params;
+    shared_create_params.constraints.ConfigureDefaults(
+        base::SysInfo::AmountOfPhysicalMemory(),
+        base::SysInfo::AmountOfVirtualMemory());
     shared_create_params.array_buffer_allocator = Shell::array_buffer_allocator;
     shared_isolate =
         reinterpret_cast<Isolate*>(i::Isolate::NewShared(shared_create_params));
