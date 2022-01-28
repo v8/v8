@@ -5,7 +5,8 @@
 #include "src/wasm/memory-protection-key.h"
 
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-#include <sys/mman.h>  // For {mprotect()} protection macros.
+#include <sys/mman.h>     // For {mprotect()} protection macros.
+#include <sys/utsname.h>  // For {uname()}.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 #endif
 
@@ -65,6 +66,17 @@ void InitializeMemoryProtectionKeySupport() {
   // Flip {pkey_initialized} (in debug mode) and check the new value.
   DCHECK_EQ(true, pkey_initialized = !pkey_initialized);
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  // PKU is broken on Linux kernels before 5.13 (see
+  // https://lore.kernel.org/all/20210623121456.399107624@linutronix.de/).
+  // Thus check the kernel version we are running on, and bail out if it's
+  // not at least 5.13.
+  struct utsname uname_buffer;
+  CHECK_EQ(0, uname(&uname_buffer));
+  int major, minor;
+  // Conservatively return if the release does not match the format we expect.
+  if (sscanf(uname_buffer.release, "%d.%d.", &major, &minor) != 2) return;
+  if (major < 5 || (major == 5 && minor < 13)) return;
+
   // Try to to find the pkey functions in glibc.
   void* pkey_alloc_ptr = dlsym(RTLD_DEFAULT, "pkey_alloc");
   if (!pkey_alloc_ptr) return;
