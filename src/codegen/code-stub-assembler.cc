@@ -13419,7 +13419,7 @@ TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
     TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
     switch (mode) {
       case kHasProperty:
-        GotoIf(IsPrivateSymbol(name), &return_false);
+        GotoIf(IsPrivateSymbol(name), &call_runtime);
 
         result = CAST(
             CallBuiltin(Builtin::kProxyHasProperty, context, object, name));
