@@ -119,9 +119,13 @@ class V8_NODISCARD LazyTimedHistogramScope : public BaseTimedHistogramScope {
 // Helper class for scoping a NestedHistogramTimer.
 class V8_NODISCARD NestedTimedHistogramScope : public BaseTimedHistogramScope {
  public:
-  explicit NestedTimedHistogramScope(NestedTimedHistogram* histogram,
-                                     Isolate* isolate = nullptr)
-      : BaseTimedHistogramScope(histogram), isolate_(isolate) {
+  enum class LongTaskRecordMode { kSkip, kRecord };
+
+  explicit NestedTimedHistogramScope(
+      NestedTimedHistogram* histogram,
+      LongTaskRecordMode long_task_record_mode = LongTaskRecordMode::kSkip)
+      : BaseTimedHistogramScope(histogram),
+        long_task_record_mode_(long_task_record_mode) {
     Start();
   }
   ~NestedTimedHistogramScope() { Stop(); }
@@ -130,19 +134,36 @@ class V8_NODISCARD NestedTimedHistogramScope : public BaseTimedHistogramScope {
   friend NestedTimedHistogram;
   friend PauseNestedTimedHistogramScope;
 
-  void StartInteral() {
+  V8_INLINE void Start() {
+    if (histogram_->Enabled()) StartInteral();
+    LogStart(isolate());
+  }
+
+  V8_NOINLINE void StartInteral() {
     previous_scope_ = timed_histogram()->Enter(this);
     base::TimeTicks now = base::TimeTicks::HighResolutionNow();
     if (previous_scope_) previous_scope_->Pause(now);
     timer_.Start(now);
   }
 
-  void StopInternal() {
+  void Pause(base::TimeTicks now) {
+    DCHECK(histogram_->Enabled());
+    timer_.Pause(now);
+  }
+
+  V8_INLINE void Stop() {
+    if (histogram_->Enabled()) StopInternal();
+    LogEnd(isolate());
+  }
+
+  V8_NOINLINE void StopInternal() {
     timed_histogram()->Leave(previous_scope_);
     base::TimeTicks now = base::TimeTicks::HighResolutionNow();
     base::TimeDelta elapsed = timer_.Elapsed(now);
     histogram_->AddTimedSample(elapsed);
-    if (isolate_) RecordLongTaskTime(elapsed);
+    if (long_task_record_mode_ == LongTaskRecordMode::kRecord) {
+      RecordLongTaskTime(elapsed);
+    }
 #ifdef DEBUG
     // StopInternal() is called in the destructor and don't access timer_
     // after that.
@@ -151,39 +172,33 @@ class V8_NODISCARD NestedTimedHistogramScope : public BaseTimedHistogramScope {
     if (previous_scope_) previous_scope_->Resume(now);
   }
 
-  V8_INLINE void Start() {
-    if (histogram_->Enabled()) StartInteral();
-    LogStart(timed_histogram()->counters()->isolate());
-  }
-
-  V8_INLINE void Stop() {
-    if (histogram_->Enabled()) StopInternal();
-    LogEnd(timed_histogram()->counters()->isolate());
-  }
-
-  void Pause(base::TimeTicks now) {
-    DCHECK(histogram_->Enabled());
-    timer_.Pause(now);
-  }
-
   void Resume(base::TimeTicks now) {
     DCHECK(histogram_->Enabled());
     timer_.Resume(now);
   }
 
   void RecordLongTaskTime(base::TimeDelta elapsed) const {
-    if (histogram_ == isolate_->counters()->execute()) {
-      isolate_->GetCurrentLongTaskStats()->v8_execute_us +=
+    if (histogram_ == timed_histogram()->counters()->execute()) {
+      isolate()->GetCurrentLongTaskStats()->v8_execute_us +=
           elapsed.InMicroseconds();
     }
   }
 
-  NestedTimedHistogram* timed_histogram() {
+  Isolate* isolate() const { return timed_histogram()->counters()->isolate(); }
+
+  NestedTimedHistogram* timed_histogram() const {
     return static_cast<NestedTimedHistogram*>(histogram_);
   }
 
   NestedTimedHistogramScope* previous_scope_;
-  Isolate* isolate_;
+  LongTaskRecordMode long_task_record_mode_;
+};
+
+class V8_NODISCARD LongTaskNestedTimedHistogramScope
+    : public NestedTimedHistogramScope {
+ public:
+  explicit LongTaskNestedTimedHistogramScope(NestedTimedHistogram* histogram)
+      : NestedTimedHistogramScope(histogram, LongTaskRecordMode::kRecord) {}
 };
 
 // Temporarily pause a NestedTimedHistogram when for instance leaving V8 for
@@ -191,21 +206,31 @@ class V8_NODISCARD NestedTimedHistogramScope : public BaseTimedHistogramScope {
 class V8_NODISCARD PauseNestedTimedHistogramScope {
  public:
   explicit PauseNestedTimedHistogramScope(NestedTimedHistogram* histogram)
-      : histogram_(histogram) {
-    previous_scope_ = histogram_->Enter(nullptr);
-    if (isEnabled()) {
-      previous_scope_->Pause(base::TimeTicks::HighResolutionNow());
-    }
+      : histogram_(histogram), previous_scope_(nullptr) {
+    if (histogram_->Enabled()) Pause();
   }
+
   ~PauseNestedTimedHistogramScope() {
-    histogram_->Leave(previous_scope_);
-    if (isEnabled()) {
-      previous_scope_->Resume(base::TimeTicks::HighResolutionNow());
-    }
+    if (previous_scope_ && histogram_->Enabled()) Resume();
   }
 
  private:
-  bool isEnabled() const { return previous_scope_ && histogram_->Enabled(); }
+  V8_NOINLINE void Pause() {
+    previous_scope_ = histogram_->Enter(nullptr);
+    // For performance reasons we don't annotate all internal callbacks with
+    // NestedTimerScopes which might lead to double pausing and minor
+    // inaccuracies.
+    // TODO(v8:12498): Add DCHECK_NOT_NULL(previous_scope_)
+    if (previous_scope_) {
+      previous_scope_->Pause(base::TimeTicks::HighResolutionNow());
+    }
+  }
+
+  V8_NOINLINE void Resume() {
+    histogram_->Leave(previous_scope_);
+    previous_scope_->Resume(base::TimeTicks::HighResolutionNow());
+  }
+
   NestedTimedHistogram* histogram_;
   NestedTimedHistogramScope* previous_scope_;
 };

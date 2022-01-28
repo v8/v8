@@ -1083,21 +1083,21 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
-  Bootstrapper* bootstrapper() { return bootstrapper_; }
+  Bootstrapper* bootstrapper() const { return bootstrapper_; }
   // Use for updating counters on a foreground thread.
-  Counters* counters() { return async_counters().get(); }
+  Counters* counters() const { return async_counters().get(); }
   // Use for updating counters on a background thread.
-  const std::shared_ptr<Counters>& async_counters() {
+  const std::shared_ptr<Counters>& async_counters() const {
     // Make sure InitializeCounters() has been called.
     DCHECK_NOT_NULL(async_counters_.get());
     return async_counters_;
   }
-  const std::shared_ptr<metrics::Recorder>& metrics_recorder() {
+  const std::shared_ptr<metrics::Recorder>& metrics_recorder() const {
     return metrics_recorder_;
   }
-  RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
-  CompilationCache* compilation_cache() { return compilation_cache_; }
-  Logger* logger() {
+  RuntimeProfiler* runtime_profiler() const { return runtime_profiler_; }
+  CompilationCache* compilation_cache() const { return compilation_cache_; }
+  Logger* logger() const {
     // Call InitializeLoggingAndCounters() if logging is needed before
     // the isolate is fully initialized.
     DCHECK_NOT_NULL(logger_);
