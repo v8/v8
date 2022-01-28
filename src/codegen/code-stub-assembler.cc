@@ -17,7 +17,6 @@
 #include "src/heap/heap-inl.h"  // For MemoryChunk. TODO(jkummerow): Drop.
 #include "src/heap/memory-chunk.h"
 #include "src/logging/counters.h"
-#include "src/numbers/integer-literal-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"
@@ -14884,19 +14883,6 @@ void CodeStubAssembler::Print(const char* prefix,
   // DebugPrint explicitly checks whether the tagged value is a MaybeObject.
   TNode<Object> arg = UncheckedCast<Object>(tagged_value);
   CallRuntime(Runtime::kDebugPrint, NoContextConstant(), arg);
-}
-
-IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralAdd(
-    const IntegerLiteral& lhs, const IntegerLiteral& rhs) {
-  return lhs + rhs;
-}
-IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralLeftShift(
-    const IntegerLiteral& lhs, const IntegerLiteral& rhs) {
-  return lhs << rhs;
-}
-IntegerLiteral CodeStubAssembler::ConstexprIntegerLiteralBitwiseOr(
-    const IntegerLiteral& lhs, const IntegerLiteral& rhs) {
-  return lhs | rhs;
 }
 
 void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {

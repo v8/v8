@@ -923,8 +923,6 @@ filegroup(
 filegroup(
     name = "torque_base_files",
     srcs = [
-        "src/numbers/integer-literal-inl.h",
-        "src/numbers/integer-literal.h",
         "src/torque/ast.h",
         "src/torque/cc-generator.cc",
         "src/torque/cc-generator.h",
@@ -2803,8 +2801,6 @@ filegroup(
         "src/interpreter/interpreter-generator.h",
         "src/interpreter/interpreter-intrinsics-generator.cc",
         "src/interpreter/interpreter-intrinsics-generator.h",
-        "src/numbers/integer-literal-inl.h",
-        "src/numbers/integer-literal.h",
     ] + select({
         "@v8//bazel/config:v8_target_ia32": ["src/builtins/ia32/builtins-ia32.cc"],
         "@v8//bazel/config:v8_target_x64": ["src/builtins/x64/builtins-x64.cc"],
