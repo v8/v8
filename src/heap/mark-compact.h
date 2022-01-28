@@ -511,6 +511,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     uint32_t offset;
   };
 
+  static bool IsMapOrForwardedMap(Map map);
+
   static bool ShouldRecordRelocSlot(Code host, RelocInfo* rinfo,
                                     HeapObject target);
   static RecordRelocSlotInfo ProcessRelocInfo(Code host, RelocInfo* rinfo,

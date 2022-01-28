@@ -88,6 +88,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-atomic-inl.h"
@@ -7053,6 +7054,7 @@ bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
     case CODE_SPACE:
       return dst == CODE_SPACE && type == CODE_TYPE;
     case MAP_SPACE:
+      return dst == MAP_SPACE && type == MAP_TYPE;
     case LO_SPACE:
     case CODE_LO_SPACE:
     case NEW_LO_SPACE:

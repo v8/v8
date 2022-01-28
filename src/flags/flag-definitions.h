@@ -1318,6 +1318,8 @@ DEFINE_BOOL(compact, true,
             "Perform compaction on full GCs based on V8's default heuristics")
 DEFINE_BOOL(compact_code_space, true,
             "Perform code space compaction on full collections.")
+DEFINE_BOOL(compact_map_space, false,
+            "Perform map space compaction on full collections.")
 DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
 DEFINE_BOOL(compact_with_stack, true,

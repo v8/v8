@@ -35,6 +35,8 @@ class EvacuationAllocator {
     heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
     heap_->code_space()->MergeCompactionSpace(
         compaction_spaces_.Get(CODE_SPACE));
+    heap_->map_space()->MergeCompactionSpace(compaction_spaces_.Get(MAP_SPACE));
+
     // Give back remaining LAB space if this EvacuationAllocator's new space LAB
     // sits right next to new space allocation top.
     const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
@@ -56,6 +58,7 @@ class EvacuationAllocator {
                                         AllocationAlignment alignment);
   inline void FreeLastInNewSpace(HeapObject object, int object_size);
   inline void FreeLastInOldSpace(HeapObject object, int object_size);
+  inline void FreeLastInMapSpace(HeapObject object, int object_size);
 
   Heap* const heap_;
   NewSpace* const new_space_;

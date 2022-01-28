@@ -801,9 +801,7 @@ void HeapObject::set_map(Map value) {
   set_map_word(MapWord::FromMap(value), kRelaxedStore);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
-    // TODO(1600) We are passing kNullAddress as a slot because maps can never
-    // be on an evacuation candidate.
-    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
+    WriteBarrier::Marking(*this, map_slot(), value);
   }
 #endif
 }
@@ -821,9 +819,7 @@ void HeapObject::set_map(Map value, ReleaseStoreTag tag) {
   set_map_word(MapWord::FromMap(value), tag);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (!value.is_null()) {
-    // TODO(1600) We are passing kNullAddress as a slot because maps can never
-    // be on an evacuation candidate.
-    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
+    WriteBarrier::Marking(*this, map_slot(), value);
   }
 #endif
 }
@@ -855,9 +851,7 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
-    // TODO(1600) We are passing kNullAddress as a slot because maps can never
-    // be on an evacuation candidate.
-    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
+    WriteBarrier::Marking(*this, map_slot(), value);
   } else {
     SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
   }

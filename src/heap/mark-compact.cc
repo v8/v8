@@ -53,6 +53,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/objects.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
@@ -509,6 +510,17 @@ void MarkCompactCollector::TearDown() {
   sweeper()->TearDown();
 }
 
+// static
+bool MarkCompactCollector::IsMapOrForwardedMap(Map map) {
+  MapWord map_word = map.map_word(kRelaxedLoad);
+
+  if (map_word.IsForwardingAddress()) {
+    return map_word.ToForwardingAddress().IsMap();
+  } else {
+    return map_word.ToMap().IsMap();
+  }
+}
+
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   DCHECK(!p->NeverEvacuate());
 
@@ -544,6 +556,10 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   }
 
   CollectEvacuationCandidates(heap()->old_space());
+
+  if (FLAG_compact_map_space) {
+    CollectEvacuationCandidates(heap()->map_space());
+  }
 
   if (FLAG_compact_code_space &&
       (heap()->IsGCWithoutStack() || FLAG_compact_code_space_with_stack)) {
@@ -741,7 +757,8 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
 }
 
 void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
-  DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE);
+  DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
+         space->identity() == MAP_SPACE);
 
   int number_of_pages = space->CountTotalPages();
   size_t area_size = space->AreaSize();
@@ -1362,6 +1379,10 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
                        p.address());
   }
 
+  inline void VisitMapPointer(HeapObject host) final {
+    VisitPointer(host, host.map_slot());
+  }
+
   inline void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
     DCHECK(!MapWord::IsPacked(p.Relaxed_Load(cage_base()).ptr()));
     RecordMigratedSlot(host, p.load(cage_base()), p.address());
@@ -1535,10 +1556,19 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      dst.IterateBodyFast(dst.map(cage_base), size, base->record_visitor_);
+      // In case the object's map gets relocated during GC we load the old map
+      // here. This is fine since they store the same content.
+      dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
       if (V8_UNLIKELY(FLAG_minor_mc)) {
         base->record_visitor_->MarkArrayBufferExtensionPromoted(dst);
       }
+    } else if (dest == MAP_SPACE) {
+      DCHECK_OBJECT_SIZE(size);
+      DCHECK(IsAligned(size, kTaggedSize));
+      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      if (mode != MigrationMode::kFast)
+        base->ExecuteMigrationObservers(dest, src, dst, size);
+      dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
       base->heap_->CopyBlock(dst_addr, src_addr, size);
@@ -1546,7 +1576,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       code.Relocate(dst_addr - src_addr);
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      dst.IterateBodyFast(dst.map(cage_base), size, base->record_visitor_);
+      // In case the object's map gets relocated during GC we load the old map
+      // here. This is fine since they store the same content.
+      dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
@@ -1786,7 +1818,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
     } else if (mode == NEW_TO_OLD) {
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(object));
       PtrComprCageBase cage_base = GetPtrComprCageBase(object);
-      object.IterateBodyFast(cage_base, record_visitor_);
+      object.IterateFast(cage_base, record_visitor_);
       if (V8_UNLIKELY(FLAG_minor_mc)) {
         record_visitor_->MarkArrayBufferExtensionPromoted(object);
       }
@@ -3122,14 +3154,17 @@ static inline SlotCallbackResult UpdateSlot(PtrComprCageBase cage_base,
     typename TSlot::TObject target = MakeSlotValue<TSlot, reference_type>(
         map_word.ToForwardingAddress(host_cage_base));
     if (access_mode == AccessMode::NON_ATOMIC) {
-      slot.store(target);
+      // Needs to be atomic for map space compaction: This slot could be a map
+      // word which we update while loading the map word for updating the slot
+      // on another page.
+      slot.Relaxed_Store(target);
     } else {
       slot.Release_CompareAndSwap(old, target);
     }
     DCHECK(!Heap::InFromPage(target));
     DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
   } else {
-    DCHECK(heap_obj.map(cage_base).IsMap(cage_base));
+    DCHECK(MarkCompactCollector::IsMapOrForwardedMap(map_word.ToMap()));
   }
   // OLD_TO_OLD slots are always removed after updating.
   return REMOVE_SLOT;

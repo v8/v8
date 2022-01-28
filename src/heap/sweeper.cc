@@ -387,7 +387,8 @@ int Sweeper::RawSweep(
           &old_to_new_cleanup);
     }
     Map map = object.map(cage_base, kAcquireLoad);
-    DCHECK(map.IsMap(cage_base));
+    // Map might be forwarded during GC.
+    DCHECK(MarkCompactCollector::IsMapOrForwardedMap(map));
     int size = object.SizeFromMap(map);
     live_bytes += size;
     free_start = free_end + size;

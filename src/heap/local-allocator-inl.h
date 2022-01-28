@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_LOCAL_ALLOCATOR_INL_H_
 #define V8_HEAP_LOCAL_ALLOCATOR_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/local-allocator.h"
-
 #include "src/heap/spaces-inl.h"
 
 namespace v8 {
@@ -21,6 +21,9 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
       return AllocateInNewSpace(object_size, origin, alignment);
     case OLD_SPACE:
       return compaction_spaces_.Get(OLD_SPACE)->AllocateRaw(object_size,
+                                                            alignment, origin);
+    case MAP_SPACE:
+      return compaction_spaces_.Get(MAP_SPACE)->AllocateRaw(object_size,
                                                             alignment, origin);
     case CODE_SPACE:
       return compaction_spaces_.Get(CODE_SPACE)
@@ -38,6 +41,9 @@ void EvacuationAllocator::FreeLast(AllocationSpace space, HeapObject object,
       return;
     case OLD_SPACE:
       FreeLastInOldSpace(object, object_size);
+      return;
+    case MAP_SPACE:
+      FreeLastInMapSpace(object, object_size);
       return;
     default:
       // Only new and old space supported.
@@ -57,6 +63,16 @@ void EvacuationAllocator::FreeLastInNewSpace(HeapObject object,
 void EvacuationAllocator::FreeLastInOldSpace(HeapObject object,
                                              int object_size) {
   if (!compaction_spaces_.Get(OLD_SPACE)->TryFreeLast(object.address(),
+                                                      object_size)) {
+    // We couldn't free the last object so we have to write a proper filler.
+    heap_->CreateFillerObjectAt(object.address(), object_size,
+                                ClearRecordedSlots::kNo);
+  }
+}
+
+void EvacuationAllocator::FreeLastInMapSpace(HeapObject object,
+                                             int object_size) {
+  if (!compaction_spaces_.Get(MAP_SPACE)->TryFreeLast(object.address(),
                                                       object_size)) {
     // We couldn't free the last object so we have to write a proper filler.
     heap_->CreateFillerObjectAt(object.address(), object_size,
