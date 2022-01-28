@@ -198,7 +198,8 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE void VisitExternalPointer(HeapObject host,
                                       ExternalPointer_t ptr) final {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    external_pointer_table_->Mark(static_cast<uint32_t>(ptr));
+    uint32_t index = ptr >> kExternalPointerIndexShift;
+    external_pointer_table_->Mark(index);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   }
 

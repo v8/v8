@@ -1584,17 +1584,22 @@ TNode<RawPtrT> CodeStubAssembler::EmptyBackingStoreBufferConstant() {
 #endif  // V8_SANDBOXED_POINTERS
 }
 
-TNode<ExternalPointerT> CodeStubAssembler::ChangeUint32ToExternalPointer(
-    TNode<Uint32T> value) {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+TNode<ExternalPointerT> CodeStubAssembler::ChangeIndexToExternalPointer(
+    TNode<Uint32T> index) {
   DCHECK_EQ(kExternalPointerSize, kUInt32Size);
-  return ReinterpretCast<ExternalPointerT>(value);
+  TNode<Uint32T> shifted_index =
+      Word32Shl(index, Uint32Constant(kExternalPointerIndexShift));
+  return ReinterpretCast<ExternalPointerT>(shifted_index);
 }
 
-TNode<Uint32T> CodeStubAssembler::ChangeExternalPointerToUint32(
-    TNode<ExternalPointerT> value) {
+TNode<Uint32T> CodeStubAssembler::ChangeExternalPointerToIndex(
+    TNode<ExternalPointerT> external_pointer) {
   DCHECK_EQ(kExternalPointerSize, kUInt32Size);
-  return ReinterpretCast<Uint32T>(value);
+  TNode<Uint32T> shifted_index = ReinterpretCast<Uint32T>(external_pointer);
+  return Word32Shr(shifted_index, Uint32Constant(kExternalPointerIndexShift));
 }
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
                                                        TNode<IntPtrT> offset) {
@@ -1656,9 +1661,8 @@ void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
   // real value). TODO(saelo) initialize the entry with zero here and switch
   // callers to a version that initializes the entry with a given pointer.
 
-  TNode<ExternalPointerT> encoded =
-      ChangeUint32ToExternalPointer(index.value());
-  StoreObjectFieldNoWriteBarrier<ExternalPointerT>(object, offset, encoded);
+  TNode<ExternalPointerT> pointer = ChangeIndexToExternalPointer(index.value());
+  StoreObjectFieldNoWriteBarrier<ExternalPointerT>(object, offset, pointer);
 #endif
 }
 
@@ -1674,7 +1678,9 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
 
   TNode<ExternalPointerT> encoded =
       LoadObjectField<ExternalPointerT>(object, offset);
-  TNode<Word32T> index = ChangeExternalPointerToUint32(encoded);
+  TNode<Uint32T> index = ChangeExternalPointerToIndex(encoded);
+  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
+  // that does one shift right instead of two shifts (right and then left).
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
@@ -1701,8 +1707,9 @@ void CodeStubAssembler::StoreExternalPointerToObject(
 
   TNode<ExternalPointerT> encoded =
       LoadObjectField<ExternalPointerT>(object, offset);
-  TNode<Word32T> index = ChangeExternalPointerToUint32(encoded);
-  // TODO(v8:10391, saelo): bounds check if table is not caged
+  TNode<Uint32T> index = ChangeExternalPointerToIndex(encoded);
+  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
+  // that does one shift right instead of two shifts (right and then left).
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 

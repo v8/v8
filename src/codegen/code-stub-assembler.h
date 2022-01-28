@@ -1093,8 +1093,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // ExternalPointerT-related functionality.
   //
 
-  TNode<ExternalPointerT> ChangeUint32ToExternalPointer(TNode<Uint32T> value);
-  TNode<Uint32T> ChangeExternalPointerToUint32(TNode<ExternalPointerT> value);
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  TNode<ExternalPointerT> ChangeIndexToExternalPointer(TNode<Uint32T> index);
+  TNode<Uint32T> ChangeExternalPointerToIndex(TNode<ExternalPointerT> pointer);
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
   // Initialize an external pointer field in an object.
   void InitializeExternalPointerField(TNode<HeapObject> object, int offset) {

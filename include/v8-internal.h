@@ -256,6 +256,26 @@ constexpr bool kAllowBackingStoresOutsideSandbox = false;
 constexpr bool kAllowBackingStoresOutsideSandbox = true;
 #endif  // V8_SANDBOXED_POINTERS
 
+// The size of the virtual memory reservation for an external pointer table.
+// This determines the maximum number of entries in a table. Using a maximum
+// size allows omitting bounds checks on table accesses if the indices are
+// guaranteed (e.g. through shifting) to be below the maximum index. This
+// value must be a power of two.
+static const size_t kExternalPointerTableReservationSize = 128 * MB;
+
+// The maximum number of entries in an external pointer table.
+static const size_t kMaxSandboxedExternalPointers =
+    kExternalPointerTableReservationSize / kApiSystemPointerSize;
+
+// The external pointer table indices stored in HeapObjects as external
+// pointers are shifted to the left by this amount to guarantee that they are
+// smaller than the maximum table size.
+static const uint32_t kExternalPointerIndexShift = 8;
+static_assert((1 << (32 - kExternalPointerIndexShift)) ==
+                  kMaxSandboxedExternalPointers,
+              "kExternalPointerTableReservationSize and "
+              "kExternalPointerIndexShift don't match");
+
 #endif  // V8_SANDBOX_IS_AVAILABLE
 
 // If sandboxed external pointers are enabled, these tag values will be ORed
@@ -287,17 +307,6 @@ enum ExternalPointerTag : uint64_t {
 // clang-format on
 
 constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;
-
-// The size of the virtual memory reservation for an external pointer table.
-// This determines the maximum number of entries in a table. Using a maximum
-// size allows omitting bounds checks on table accesses if the indices are
-// guaranteed (e.g. through shifting) to be below the maximum index. This
-// value must be a power of two.
-static const size_t kExternalPointerTableReservationSize = 128 * MB;
-
-// The maximum number of entries in an external pointer table.
-static const size_t kMaxSandboxedExternalPointers =
-    kExternalPointerTableReservationSize / kApiSystemPointerSize;
 
 // Converts encoded external pointer to address.
 V8_EXPORT Address DecodeExternalPointerImpl(const Isolate* isolate,

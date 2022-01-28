@@ -412,6 +412,7 @@ Node* MemoryLowering::DecodeExternalPointer(
   DCHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
   DCHECK(node->opcode() == IrOpcode::kLoad);
   DCHECK_EQ(kExternalPointerSize, kUInt32Size);
+  DCHECK_NE(kExternalPointerNullTag, external_pointer_tag);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   __ InitializeEffectControl(effect, control);
@@ -419,7 +420,11 @@ Node* MemoryLowering::DecodeExternalPointer(
   // Clone the load node and put it here.
   // TODO(turbofan): consider adding GraphAssembler::Clone() suitable for
   // cloning nodes from arbitrary locaions in effect/control chains.
-  Node* index = __ AddNode(graph()->CloneNode(node));
+  STATIC_ASSERT(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+  Node* shifted_index = __ AddNode(graph()->CloneNode(node));
+  Node* shift_amount =
+      __ Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
+  Node* offset = __ Word32Shr(shifted_index, shift_amount);
 
   // Uncomment this to generate a breakpoint for debugging purposes.
   // __ DebugBreak();
@@ -436,13 +441,10 @@ Node* MemoryLowering::DecodeExternalPointer(
       ExternalReference::external_pointer_table_address(isolate()));
   Node* table = __ Load(MachineType::Pointer(), table_address,
                         Internals::kExternalPointerTableBufferOffset);
-  Node* offset = __ Int32Mul(index, __ Int32Constant(sizeof(Address)));
   Node* decoded_ptr =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
-  if (external_pointer_tag != 0) {
-    Node* tag = __ IntPtrConstant(~external_pointer_tag);
-    decoded_ptr = __ WordAnd(decoded_ptr, tag);
-  }
+  Node* tag = __ IntPtrConstant(~external_pointer_tag);
+  decoded_ptr = __ WordAnd(decoded_ptr, tag);
   return decoded_ptr;
 #else
   return node;

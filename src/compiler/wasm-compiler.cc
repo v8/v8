@@ -3224,13 +3224,15 @@ Node* WasmGraphBuilder::BuildLoadExternalPointerFromObject(
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   Node* external_pointer = gasm_->LoadFromObject(
       MachineType::Uint32(), object, wasm::ObjectAccess::ToTagged(offset));
+  STATIC_ASSERT(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+  Node* shift_amount =
+      gasm_->Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
+  Node* scaled_index = gasm_->Word32Shr(external_pointer, shift_amount);
   Node* isolate_root = BuildLoadIsolateRoot();
   Node* table =
       gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
                             IsolateData::external_pointer_table_offset() +
                                 Internals::kExternalPointerTableBufferOffset);
-  Node* scaled_index = gasm_->Int32Mul(
-      external_pointer, gasm_->Int32Constant(kSystemPointerSize));
   Node* decoded_ptr = gasm_->Load(MachineType::Pointer(), table, scaled_index);
   return gasm_->WordAnd(decoded_ptr, gasm_->IntPtrConstant(~tag));
 #else

@@ -418,6 +418,7 @@ void TurboAssembler::LoadExternalPointerField(
     Register scratch, IsolateRootLocation isolateRootLocation) {
   DCHECK(!AreAliased(destination, scratch));
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  DCHECK_NE(kExternalPointerNullTag, tag);
   DCHECK(!field_operand.AddressUsesRegister(scratch));
   if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
     DCHECK(root_array_available_);
@@ -431,11 +432,10 @@ void TurboAssembler::LoadExternalPointerField(
                               Internals::kExternalPointerTableBufferOffset));
   }
   movl(destination, field_operand);
+  shrq(destination, Immediate(kExternalPointerIndexShift));
   movq(destination, Operand(scratch, destination, times_8, 0));
-  if (tag != 0) {
-    movq(scratch, Immediate64(~tag));
-    andq(destination, scratch);
-  }
+  movq(scratch, Immediate64(~tag));
+  andq(destination, scratch);
 #else
   movq(destination, field_operand);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS

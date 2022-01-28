@@ -3109,6 +3109,7 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  DCHECK_NE(kExternalPointerNullTag, tag);
   UseScratchRegisterScope temps(this);
   Register external_table = temps.AcquireX();
   if (isolate_root == no_reg) {
@@ -3120,11 +3121,13 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
                  IsolateData::external_pointer_table_offset() +
                      Internals::kExternalPointerTableBufferOffset));
   Ldr(destination.W(), field_operand);
-  Ldr(destination,
-      MemOperand(external_table, destination, LSL, kSystemPointerSizeLog2));
-  if (tag != 0) {
-    And(destination, destination, Immediate(~tag));
-  }
+  // MemOperand doesn't support LSR currently (only LSL), so here we do the
+  // offset computation separately first.
+  STATIC_ASSERT(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+  int shift_amount = kExternalPointerIndexShift - kSystemPointerSizeLog2;
+  Mov(destination, Operand(destination, LSR, shift_amount));
+  Ldr(destination, MemOperand(external_table, destination));
+  And(destination, destination, Immediate(~tag));
 #else
   Ldr(destination, field_operand);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS

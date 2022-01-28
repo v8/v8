@@ -18,7 +18,8 @@ V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
                                         ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   STATIC_ASSERT(kExternalPointerSize == kInt32Size);
-  return isolate->external_pointer_table().Get(encoded_pointer, tag);
+  uint32_t index = encoded_pointer >> kExternalPointerIndexShift;
+  return isolate->external_pointer_table().Get(index, tag);
 #else
   STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
   return encoded_pointer;
@@ -35,6 +36,7 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointer_t index = isolate->external_pointer_table().Allocate();
   isolate->external_pointer_table().Set(index, value, tag);
+  index <<= kExternalPointerIndexShift;
   base::Memory<ExternalPointer_t>(field_address) = index;
 #else
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
@@ -72,6 +74,7 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
                                          ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointer_t index = base::Memory<ExternalPointer_t>(field_address);
+  index >>= kExternalPointerIndexShift;
   isolate->external_pointer_table().Set(index, value, tag);
 #else
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
