@@ -858,6 +858,12 @@ String ScopeInfo::ContextInlinedLocalName(int var) const {
   return context_local_names(var);
 }
 
+String ScopeInfo::ContextInlinedLocalName(PtrComprCageBase cage_base,
+                                          int var) const {
+  DCHECK(HasInlinedLocalNames());
+  return context_local_names(cage_base, var);
+}
+
 VariableMode ScopeInfo::ContextLocalMode(int var) const {
   int value = context_local_infos(var);
   return VariableModeBits::decode(value);
@@ -928,9 +934,11 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
 }
 
 int ScopeInfo::InlinedLocalNamesLookup(String name) {
+  DisallowGarbageCollection no_gc;
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   int local_count = context_local_count();
   for (int i = 0; i < local_count; ++i) {
-    if (name == ContextInlinedLocalName(i)) {
+    if (name == ContextInlinedLocalName(cage_base, i)) {
       return i;
     }
   }

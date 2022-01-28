@@ -158,6 +158,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Return the name of a given context local.
   // It should only be used if inlined local names.
   String ContextInlinedLocalName(int var) const;
+  String ContextInlinedLocalName(PtrComprCageBase cage_base, int var) const;
 
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;
