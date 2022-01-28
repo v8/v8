@@ -412,12 +412,7 @@ if (v8_enable_short_builtin_calls == "") {
       v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64")
 }
 if (v8_enable_external_code_space == "") {
-  # Can't use !is_android here, because Torque toolchain is affected by
-  # the value of this flag but actually runs on the host side.
-  v8_enable_external_code_space =
-      v8_enable_pointer_compression &&
-      (v8_current_cpu == "x64" ||
-       (target_os != "android" && v8_current_cpu == "arm64"))
+  v8_enable_external_code_space = false
 }
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
