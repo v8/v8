@@ -5891,6 +5891,7 @@ group("v8_clusterfuzz") {
   deps = [
     ":d8",
     ":v8_simple_inspector_fuzzer",
+    "tools/clusterfuzz:v8_clusterfuzz_resources",
   ]
 
   if (v8_multi_arch_build) {

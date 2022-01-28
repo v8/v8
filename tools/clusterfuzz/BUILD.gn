@@ -23,3 +23,8 @@ if (v8_correctness_fuzzer) {
     outputs = [ "$root_out_dir/{{source_file_part}}" ]
   }
 }
+
+copy("v8_clusterfuzz_resources") {
+  sources = [ "clusterfuzz_trials_config.json" ]
+  outputs = [ "$root_out_dir/{{source_file_part}}" ]
+}
