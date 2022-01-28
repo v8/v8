@@ -2764,6 +2764,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_EXT_MUL
 #undef SIMD_EXT_MUL_LIST
 
+#define SIMD_ALL_TRUE_LIST(V) \
+  V(I64x2AllTrue)             \
+  V(I32x4AllTrue)             \
+  V(I16x8AllTrue)             \
+  V(I8x16AllTrue)
+
+#define EMIT_SIMD_ALL_TRUE(name)                                        \
+  case kS390_##name: {                                                  \
+    __ name(i.OutputRegister(), i.InputSimd128Register(0), kScratchReg, \
+            kScratchDoubleReg);                                         \
+    break;                                                              \
+  }
+      SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
+#undef EMIT_SIMD_ALL_TRUE
+#undef SIMD_ALL_TRUE_LIST
+
       // vector binops
     case kS390_F64x2Qfma: {
       Simd128Register src0 = i.InputSimd128Register(0);
@@ -2832,43 +2848,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     // vector boolean unops
     case kS390_V128AnyTrue: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Register dst = i.OutputRegister();
-      __ mov(dst, Operand(1));
-      __ xgr(kScratchReg, kScratchReg);
-      __ vtm(src, src, Condition(0), Condition(0), Condition(0));
-      __ locgr(Condition(8), dst, kScratchReg);
+      __ V128AnyTrue(i.OutputRegister(), i.InputSimd128Register(0),
+                     kScratchReg);
       break;
     }
-#define SIMD_ALL_TRUE(mode)                                                    \
-  Simd128Register src = i.InputSimd128Register(0);                             \
-  Register dst = i.OutputRegister();                                           \
-  __ mov(kScratchReg, Operand(1));                                             \
-  __ xgr(dst, dst);                                                            \
-  __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg, Condition(0), \
-        Condition(0), Condition(2));                                           \
-  __ vceq(kScratchDoubleReg, src, kScratchDoubleReg, Condition(0),             \
-          Condition(mode));                                                    \
-  __ vtm(kScratchDoubleReg, kScratchDoubleReg, Condition(0), Condition(0),     \
-         Condition(0));                                                        \
-  __ locgr(Condition(8), dst, kScratchReg);
-    case kS390_I64x2AllTrue: {
-      SIMD_ALL_TRUE(3)
-      break;
-    }
-    case kS390_I32x4AllTrue: {
-      SIMD_ALL_TRUE(2)
-      break;
-    }
-    case kS390_I16x8AllTrue: {
-      SIMD_ALL_TRUE(1)
-      break;
-    }
-    case kS390_I8x16AllTrue: {
-      SIMD_ALL_TRUE(0)
-      break;
-    }
-#undef SIMD_ALL_TRUE
     // vector bitwise ops
     case kS390_S128Const: {
       uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));

@@ -5406,6 +5406,27 @@ SIMD_EXT_MUL_LIST(EMIT_SIMD_EXT_MUL)
 #undef EMIT_SIMD_EXT_MUL
 #undef SIMD_EXT_MUL_LIST
 
+#define SIMD_ALL_TRUE_LIST(V) \
+  V(I64x2AllTrue, 3)          \
+  V(I32x4AllTrue, 2)          \
+  V(I16x8AllTrue, 1)          \
+  V(I8x16AllTrue, 0)
+
+#define EMIT_SIMD_ALL_TRUE(name, mode)                                     \
+  void TurboAssembler::name(Register dst, Simd128Register src,             \
+                            Register scratch1, Simd128Register scratch2) { \
+    mov(scratch1, Operand(1));                                             \
+    xgr(dst, dst);                                                         \
+    vx(scratch2, scratch2, scratch2, Condition(0), Condition(0),           \
+       Condition(2));                                                      \
+    vceq(scratch2, src, scratch2, Condition(0), Condition(mode));          \
+    vtm(scratch2, scratch2, Condition(0), Condition(0), Condition(0));     \
+    locgr(Condition(8), dst, scratch1);                                    \
+  }
+SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
+#undef EMIT_SIMD_ALL_TRUE
+#undef SIMD_ALL_TRUE_LIST
+
 void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2) {
   Register scratch_1 = r0;
@@ -5569,6 +5590,14 @@ void TurboAssembler::I8x16BitMask(Register dst, Simd128Register src,
   vlvgp(scratch3, scratch2, scratch1);
   vbperm(scratch3, src, scratch3, Condition(0), Condition(0), Condition(0));
   vlgv(dst, scratch3, MemOperand(r0, 3), Condition(1));
+}
+
+void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
+                                 Register scratch) {
+  mov(dst, Operand(1));
+  xgr(scratch, scratch);
+  vtm(src, src, Condition(0), Condition(0), Condition(0));
+  locgr(Condition(8), dst, scratch);
 }
 
 // Vector LE Load and Transform instructions.

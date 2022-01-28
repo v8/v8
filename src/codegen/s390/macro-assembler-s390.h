@@ -1113,6 +1113,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                     Simd128Register scratch2);
   void I8x16BitMask(Register dst, Simd128Register src, Register scratch1,
                     Register scratch2, Simd128Register scratch3);
+  void V128AnyTrue(Register dst, Simd128Register src, Register scratch);
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \
@@ -1284,6 +1285,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   SIMD_EXT_MUL_LIST(PROTOTYPE_SIMD_EXT_MUL)
 #undef PROTOTYPE_SIMD_EXT_MUL
 #undef SIMD_EXT_MUL_LIST
+
+#define SIMD_ALL_TRUE_LIST(V) \
+  V(I64x2AllTrue)             \
+  V(I32x4AllTrue)             \
+  V(I16x8AllTrue)             \
+  V(I8x16AllTrue)
+
+#define PROTOTYPE_SIMD_ALL_TRUE(name)                             \
+  void name(Register dst, Simd128Register src, Register scratch1, \
+            Simd128Register scratch2);
+  SIMD_ALL_TRUE_LIST(PROTOTYPE_SIMD_ALL_TRUE)
+#undef PROTOTYPE_SIMD_ALL_TRUE
+#undef SIMD_ALL_TRUE_LIST
 
   // ---------------------------------------------------------------------------
   // Pointer compression Support

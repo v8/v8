@@ -2492,6 +2492,21 @@ SIMD_EXT_MUL_LIST(EMIT_SIMD_EXT_MUL)
 #undef EMIT_SIMD_EXT_MUL
 #undef SIMD_EXT_MUL_LIST
 
+#define SIMD_ALL_TRUE_LIST(V)    \
+  V(i64x2_alltrue, I64x2AllTrue) \
+  V(i32x4_alltrue, I32x4AllTrue) \
+  V(i16x8_alltrue, I16x8AllTrue) \
+  V(i8x16_alltrue, I8x16AllTrue)
+
+#define EMIT_SIMD_ALL_TRUE(name, op)                        \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst,   \
+                                     LiftoffRegister src) { \
+    op(dst.gp(), src.fp(), r0, kScratchDoubleReg);          \
+  }
+SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
+#undef EMIT_SIMD_ALL_TRUE
+#undef SIMD_ALL_TRUE_LIST
+
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
@@ -2535,19 +2550,9 @@ void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
   bailout(kSimd, "f64x2.promote_low_f32x4");
 }
 
-void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  bailout(kSimd, "i64x2_alltrue");
-}
-
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
   I64x2BitMask(dst.gp(), src.fp(), r0, kScratchDoubleReg);
-}
-
-void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4_alltrue");
 }
 
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
@@ -2569,11 +2574,6 @@ void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   bailout(kSimd, "i32x4.extadd_pairwise_i16x8_u");
-}
-
-void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  bailout(kSimd, "i16x8_alltrue");
 }
 
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
@@ -2636,12 +2636,7 @@ void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
                                          LiftoffRegister src) {
-  bailout(kSimd, "v8x16_anytrue");
-}
-
-void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  bailout(kSimd, "i8x16_alltrue");
+  V128AnyTrue(dst.gp(), src.fp(), r0);
 }
 
 void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
