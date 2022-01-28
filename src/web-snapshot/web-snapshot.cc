@@ -1801,7 +1801,7 @@ void WebSnapshotDeserializer::DeserializeExports() {
 
 void WebSnapshotDeserializer::ReadValue(
     Handle<Object>& value, Representation& representation,
-    Handle<Object> object_for_deferred_reference,
+    Handle<HeapObject> object_for_deferred_reference,
     uint32_t index_for_deferred_reference) {
   uint32_t value_type;
   Factory* factory = isolate_->factory();
@@ -2001,7 +2001,7 @@ bool WebSnapshotDeserializer::SetFunctionPrototype(JSFunction function,
   // TODO(v8:11525): Enforce the invariant that no two prototypes share a map.
   Map map = prototype.map();
   map.set_is_prototype_map(true);
-  if (!map.constructor_or_back_pointer().IsNullOrUndefined()) {
+  if (!map.constructor_or_back_pointer().IsNullOrUndefined(isolate_)) {
     return false;
   }
   map.set_constructor_or_back_pointer(function);
@@ -2009,7 +2009,7 @@ bool WebSnapshotDeserializer::SetFunctionPrototype(JSFunction function,
   return true;
 }
 
-void WebSnapshotDeserializer::AddDeferredReference(Handle<Object> container,
+void WebSnapshotDeserializer::AddDeferredReference(Handle<HeapObject> container,
                                                    uint32_t index,
                                                    ValueType target_type,
                                                    uint32_t target_index) {
@@ -2038,7 +2038,7 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
   // Deferred references is a list of (object, index, target type, target index)
   // tuples.
   for (int i = 0; i < raw_deferred_references.Length() - 3; i += 4) {
-    Object container = raw_deferred_references.Get(i);
+    HeapObject container = HeapObject::cast(raw_deferred_references.Get(i));
     int index = raw_deferred_references.Get(i + 1).ToSmi().value();
     ValueType target_type =
         ValueType(raw_deferred_references.Get(i + 2).ToSmi().value());
@@ -2082,13 +2082,14 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
       default:
         UNREACHABLE();
     }
-    if (container.IsPropertyArray()) {
+    InstanceType instance_type = container.map().instance_type();
+    if (InstanceTypeChecker::IsPropertyArray(instance_type)) {
       PropertyArray::cast(container).set(index, target);
-    } else if (container.IsContext()) {
+    } else if (InstanceTypeChecker::IsContext(instance_type)) {
       Context::cast(container).set(index, target);
-    } else if (container.IsFixedArray()) {
+    } else if (InstanceTypeChecker::IsFixedArray(instance_type)) {
       FixedArray::cast(container).set(index, target);
-    } else if (container.IsJSFunction()) {
+    } else if (InstanceTypeChecker::IsJSFunction(instance_type)) {
       // The only deferred reference allowed for a JSFunction is the function
       // prototype.
       DCHECK_EQ(index, 0);
@@ -2099,7 +2100,7 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
         Throw("Can't reuse function prototype");
         return;
       }
-    } else if (container.IsMap()) {
+    } else if (InstanceTypeChecker::IsMap(instance_type)) {
       // The only deferred reference allowed for a Map is the __proto__.
       DCHECK_EQ(index, 0);
       DCHECK(target.IsJSReceiver());

@@ -271,12 +271,12 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeExports();
   void ReadValue(
       Handle<Object>& value, Representation& representation,
-      Handle<Object> object_for_deferred_reference = Handle<Object>(),
+      Handle<HeapObject> object_for_deferred_reference = Handle<HeapObject>(),
       uint32_t index_for_deferred_reference = 0);
   void ReadFunctionPrototype(Handle<JSFunction> function);
   bool SetFunctionPrototype(JSFunction function, JSReceiver prototype);
 
-  void AddDeferredReference(Handle<Object> container, uint32_t index,
+  void AddDeferredReference(Handle<HeapObject> container, uint32_t index,
                             ValueType target_type,
                             uint32_t target_object_index);
   void ProcessDeferredReferences();
