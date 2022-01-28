@@ -162,8 +162,9 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
 
 #if V8_ENABLE_WEBASSEMBLY
 void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
-  if (stack->jmpbuf()->sp == stack->base()) {
-    // Empty stack.
+  if (stack->jmpbuf()->sp == kNullAddress) {
+    // A null SP indicates that the computation associated with this stack has
+    // returned, leaving the stack segment empty.
     return;
   }
   StackFrame::State state;

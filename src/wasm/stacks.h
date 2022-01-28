@@ -44,7 +44,7 @@ class StackMemory {
 
   ~StackMemory() {
     if (FLAG_trace_wasm_stack_switching) {
-      PrintF("Delete stack (sp: %p)\n", reinterpret_cast<void*>(jmpbuf_.sp));
+      PrintF("Delete stack #%d\n", id_);
     }
     PageAllocator* allocator = GetPlatformPageAllocator();
     if (owned_) allocator->DecommitPages(limit_, size_);
@@ -59,6 +59,7 @@ class StackMemory {
   void* jslimit() const { return limit_ + kJSLimitOffsetKB; }
   Address base() const { return reinterpret_cast<Address>(limit_ + size_); }
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
+  int id() { return id_; }
 
   // Insert a stack in the linked list after this stack.
   void Add(StackMemory* stack) {
@@ -82,6 +83,8 @@ class StackMemory {
 
   // This constructor allocates a new stack segment.
   explicit StackMemory(Isolate* isolate) : isolate_(isolate), owned_(true) {
+    static int next_id = 1;
+    id_ = next_id++;
     PageAllocator* allocator = GetPlatformPageAllocator();
     int kJsStackSizeKB = 4;
     size_ = (kJsStackSizeKB + kJSLimitOffsetKB) * KB;
@@ -89,8 +92,9 @@ class StackMemory {
     limit_ = static_cast<byte*>(
         allocator->AllocatePages(nullptr, size_, allocator->AllocatePageSize(),
                                  PageAllocator::kReadWrite));
-    if (FLAG_trace_wasm_stack_switching)
-      PrintF("Allocate stack (sp: %p, limit: %p)\n", limit_ + size_, limit_);
+    if (FLAG_trace_wasm_stack_switching) {
+      PrintF("Allocate stack #%d\n", id_);
+    }
   }
 
   // Overload to represent a view of the libc stack.
@@ -98,13 +102,16 @@ class StackMemory {
       : isolate_(isolate),
         limit_(limit),
         size_(reinterpret_cast<size_t>(limit)),
-        owned_(false) {}
+        owned_(false) {
+    id_ = 0;
+  }
 
   Isolate* isolate_;
   byte* limit_;
   size_t size_;
   bool owned_;
   JumpBuffer jmpbuf_;
+  int id_;
   // Stacks form a circular doubly linked list per isolate.
   StackMemory* next_ = this;
   StackMemory* prev_ = this;
