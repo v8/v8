@@ -491,6 +491,14 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'v8_linux64_python3_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
   'v8_linux64_single_generation_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
