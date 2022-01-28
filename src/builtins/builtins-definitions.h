@@ -624,11 +624,11 @@ namespace internal {
   TFH(LoadICTrampoline_Megamorphic, Load)                                      \
   TFH(LoadSuperIC, LoadWithReceiverAndVector)                                  \
   TFH(LoadSuperICBaseline, LoadWithReceiverBaseline)                           \
-  TFH(KeyedLoadIC, LoadWithVector)                                             \
-  TFH(KeyedLoadIC_Megamorphic, LoadWithVector)                                 \
-  TFH(KeyedLoadICTrampoline, Load)                                             \
-  TFH(KeyedLoadICBaseline, LoadBaseline)                                       \
-  TFH(KeyedLoadICTrampoline_Megamorphic, Load)                                 \
+  TFH(KeyedLoadIC, KeyedLoadWithVector)                                        \
+  TFH(KeyedLoadIC_Megamorphic, KeyedLoadWithVector)                            \
+  TFH(KeyedLoadICTrampoline, KeyedLoad)                                        \
+  TFH(KeyedLoadICBaseline, KeyedLoadBaseline)                                  \
+  TFH(KeyedLoadICTrampoline_Megamorphic, KeyedLoad)                            \
   TFH(StoreGlobalIC, StoreGlobalWithVector)                                    \
   TFH(StoreGlobalICTrampoline, StoreGlobal)                                    \
   TFH(StoreGlobalICBaseline, StoreGlobalBaseline)                              \
@@ -659,9 +659,9 @@ namespace internal {
   TFH(CloneObjectIC, CloneObjectWithVector)                                    \
   TFH(CloneObjectICBaseline, CloneObjectBaseline)                              \
   TFH(CloneObjectIC_Slow, CloneObjectWithVector)                               \
-  TFH(KeyedHasIC, LoadWithVector)                                              \
-  TFH(KeyedHasICBaseline, LoadBaseline)                                        \
-  TFH(KeyedHasIC_Megamorphic, LoadWithVector)                                  \
+  TFH(KeyedHasIC, KeyedHasICWithVector)                                        \
+  TFH(KeyedHasICBaseline, KeyedHasICBaseline)                                  \
+  TFH(KeyedHasIC_Megamorphic, KeyedHasICWithVector)                            \
                                                                                \
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
@@ -707,29 +707,29 @@ namespace internal {
                                                                                \
   /* Binary ops with feedback collection */                                    \
   TFC(Add_Baseline, BinaryOp_Baseline)                                         \
-  TFC(AddSmi_Baseline, BinaryOp_Baseline)                                      \
+  TFC(AddSmi_Baseline, BinarySmiOp_Baseline)                                   \
   TFC(Subtract_Baseline, BinaryOp_Baseline)                                    \
-  TFC(SubtractSmi_Baseline, BinaryOp_Baseline)                                 \
+  TFC(SubtractSmi_Baseline, BinarySmiOp_Baseline)                              \
   TFC(Multiply_Baseline, BinaryOp_Baseline)                                    \
-  TFC(MultiplySmi_Baseline, BinaryOp_Baseline)                                 \
+  TFC(MultiplySmi_Baseline, BinarySmiOp_Baseline)                              \
   TFC(Divide_Baseline, BinaryOp_Baseline)                                      \
-  TFC(DivideSmi_Baseline, BinaryOp_Baseline)                                   \
+  TFC(DivideSmi_Baseline, BinarySmiOp_Baseline)                                \
   TFC(Modulus_Baseline, BinaryOp_Baseline)                                     \
-  TFC(ModulusSmi_Baseline, BinaryOp_Baseline)                                  \
+  TFC(ModulusSmi_Baseline, BinarySmiOp_Baseline)                               \
   TFC(Exponentiate_Baseline, BinaryOp_Baseline)                                \
-  TFC(ExponentiateSmi_Baseline, BinaryOp_Baseline)                             \
+  TFC(ExponentiateSmi_Baseline, BinarySmiOp_Baseline)                          \
   TFC(BitwiseAnd_Baseline, BinaryOp_Baseline)                                  \
-  TFC(BitwiseAndSmi_Baseline, BinaryOp_Baseline)                               \
+  TFC(BitwiseAndSmi_Baseline, BinarySmiOp_Baseline)                            \
   TFC(BitwiseOr_Baseline, BinaryOp_Baseline)                                   \
-  TFC(BitwiseOrSmi_Baseline, BinaryOp_Baseline)                                \
+  TFC(BitwiseOrSmi_Baseline, BinarySmiOp_Baseline)                             \
   TFC(BitwiseXor_Baseline, BinaryOp_Baseline)                                  \
-  TFC(BitwiseXorSmi_Baseline, BinaryOp_Baseline)                               \
+  TFC(BitwiseXorSmi_Baseline, BinarySmiOp_Baseline)                            \
   TFC(ShiftLeft_Baseline, BinaryOp_Baseline)                                   \
-  TFC(ShiftLeftSmi_Baseline, BinaryOp_Baseline)                                \
+  TFC(ShiftLeftSmi_Baseline, BinarySmiOp_Baseline)                             \
   TFC(ShiftRight_Baseline, BinaryOp_Baseline)                                  \
-  TFC(ShiftRightSmi_Baseline, BinaryOp_Baseline)                               \
+  TFC(ShiftRightSmi_Baseline, BinarySmiOp_Baseline)                            \
   TFC(ShiftRightLogical_Baseline, BinaryOp_Baseline)                           \
-  TFC(ShiftRightLogicalSmi_Baseline, BinaryOp_Baseline)                        \
+  TFC(ShiftRightLogicalSmi_Baseline, BinarySmiOp_Baseline)                     \
                                                                                \
   TFC(Add_WithFeedback, BinaryOp_WithFeedback)                                 \
   TFC(Subtract_WithFeedback, BinaryOp_WithFeedback)                            \

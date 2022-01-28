@@ -64,6 +64,36 @@ constexpr Register LoadDescriptor::SlotRegister() { return x0; }
 constexpr Register LoadWithVectorDescriptor::VectorRegister() { return x3; }
 
 // static
+constexpr Register KeyedLoadBaselineDescriptor::ReceiverRegister() {
+  return x1;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::NameRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::SlotRegister() { return x2; }
+
+// static
+constexpr Register KeyedLoadWithVectorDescriptor::VectorRegister() {
+  return x3;
+}
+
+// static
+constexpr Register KeyedHasICBaselineDescriptor::ReceiverRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedHasICBaselineDescriptor::NameRegister() { return x1; }
+// static
+constexpr Register KeyedHasICBaselineDescriptor::SlotRegister() { return x2; }
+
+// static
+constexpr Register KeyedHasICWithVectorDescriptor::VectorRegister() {
+  return x3;
+}
+
+// static
 constexpr Register
 LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister() {
   return x4;
@@ -106,7 +136,7 @@ constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() { return x4; }
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return x0; }
 
 // static
-constexpr auto TypeofDescriptor::registers() { return RegisterArray(x3); }
+constexpr auto TypeofDescriptor::registers() { return RegisterArray(x0); }
 
 // static
 constexpr auto CallTrampolineDescriptor::registers() {
@@ -230,6 +260,14 @@ constexpr auto BinaryOp_BaselineDescriptor::registers() {
   // x0: right operand
   // x2: feedback slot
   return RegisterArray(x1, x0, x2);
+}
+
+// static
+constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
+  // x0: left operand
+  // x1: right operand
+  // x2: feedback slot
+  return RegisterArray(x0, x1, x2);
 }
 
 // static

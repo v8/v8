@@ -35,6 +35,7 @@ namespace internal {
   V(BigIntToI64)                         \
   V(BinaryOp)                            \
   V(BinaryOp_Baseline)                   \
+  V(BinarySmiOp_Baseline)                \
   V(BinaryOp_WithFeedback)               \
   V(CallForwardVarargs)                  \
   V(CallFunctionTemplate)                \
@@ -91,6 +92,11 @@ namespace internal {
   V(LoadGlobalWithVector)                \
   V(LoadNoFeedback)                      \
   V(LoadWithVector)                      \
+  V(KeyedLoad)                           \
+  V(KeyedLoadBaseline)                   \
+  V(KeyedLoadWithVector)                 \
+  V(KeyedHasICBaseline)                  \
+  V(KeyedHasICWithVector)                \
   V(LoadWithReceiverAndVector)           \
   V(LoadWithReceiverBaseline)            \
   V(LookupBaseline)                      \
@@ -726,7 +732,7 @@ class NoContextDescriptor
   static constexpr auto registers();
 };
 
-// LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
+// LoadDescriptor is used by all stubs that implement Load ICs.
 class LoadDescriptor : public StaticCallInterfaceDescriptor<LoadDescriptor> {
  public:
   DEFINE_PARAMETERS(kReceiver, kName, kSlot)
@@ -926,6 +932,80 @@ class LoadWithVectorDescriptor
                          MachineType::AnyTagged(),  // kSlot
                          MachineType::AnyTagged())  // kVector
   DECLARE_DESCRIPTOR(LoadWithVectorDescriptor)
+
+  static constexpr inline Register VectorRegister();
+
+  static constexpr auto registers();
+};
+
+class KeyedLoadBaselineDescriptor
+    : public StaticCallInterfaceDescriptor<KeyedLoadBaselineDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(KeyedLoadBaselineDescriptor)
+
+  static constexpr inline Register ReceiverRegister();
+  static constexpr inline Register NameRegister();
+  static constexpr inline Register SlotRegister();
+
+  static constexpr auto registers();
+};
+
+class KeyedLoadDescriptor
+    : public StaticCallInterfaceDescriptor<KeyedLoadDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(KeyedLoadDescriptor)
+
+  static constexpr auto registers();
+};
+
+class KeyedLoadWithVectorDescriptor
+    : public StaticCallInterfaceDescriptor<KeyedLoadWithVectorDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(KeyedLoadWithVectorDescriptor)
+
+  static constexpr inline Register VectorRegister();
+
+  static constexpr auto registers();
+};
+
+class KeyedHasICBaselineDescriptor
+    : public StaticCallInterfaceDescriptor<KeyedHasICBaselineDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kReceiver, kName, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned())  // kSlot
+  DECLARE_DESCRIPTOR(KeyedHasICBaselineDescriptor)
+
+  static constexpr inline Register ReceiverRegister();
+  static constexpr inline Register NameRegister();
+  static constexpr inline Register SlotRegister();
+
+  static constexpr auto registers();
+};
+
+class KeyedHasICWithVectorDescriptor
+    : public StaticCallInterfaceDescriptor<KeyedHasICWithVectorDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned(),  // kSlot
+                         MachineType::AnyTagged())     // kVector
+  DECLARE_DESCRIPTOR(KeyedHasICWithVectorDescriptor)
 
   static constexpr inline Register VectorRegister();
 
@@ -1465,6 +1545,18 @@ class BinaryOp_BaselineDescriptor
                          MachineType::AnyTagged(),  // kRight
                          MachineType::UintPtr())    // kSlot
   DECLARE_DESCRIPTOR(BinaryOp_BaselineDescriptor)
+
+  static constexpr inline auto registers();
+};
+
+class BinarySmiOp_BaselineDescriptor
+    : public StaticCallInterfaceDescriptor<BinarySmiOp_BaselineDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kLeft, kRight, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kLeft
+                         MachineType::TaggedSigned(),  // kRight
+                         MachineType::UintPtr())       // kSlot
+  DECLARE_DESCRIPTOR(BinarySmiOp_BaselineDescriptor)
 
   static constexpr inline auto registers();
 };

@@ -457,6 +457,37 @@ constexpr auto LoadWithVectorDescriptor::registers() {
 }
 
 // static
+constexpr auto KeyedLoadBaselineDescriptor::registers() {
+  return RegisterArray(ReceiverRegister(), NameRegister(), SlotRegister());
+}
+
+// static
+constexpr auto KeyedLoadDescriptor::registers() {
+  return KeyedLoadBaselineDescriptor::registers();
+}
+
+// static
+constexpr auto KeyedLoadWithVectorDescriptor::registers() {
+  return RegisterArray(KeyedLoadBaselineDescriptor::ReceiverRegister(),
+                       KeyedLoadBaselineDescriptor::NameRegister(),
+                       KeyedLoadBaselineDescriptor::SlotRegister(),
+                       VectorRegister());
+}
+
+// static
+constexpr auto KeyedHasICBaselineDescriptor::registers() {
+  return RegisterArray(ReceiverRegister(), NameRegister(), SlotRegister());
+}
+
+// static
+constexpr auto KeyedHasICWithVectorDescriptor::registers() {
+  return RegisterArray(KeyedHasICBaselineDescriptor::ReceiverRegister(),
+                       KeyedHasICBaselineDescriptor::NameRegister(),
+                       KeyedHasICBaselineDescriptor::SlotRegister(),
+                       VectorRegister());
+}
+
+// static
 constexpr auto StoreWithVectorDescriptor::registers() {
   return RegisterArray(StoreDescriptor::ReceiverRegister(),
                        StoreDescriptor::NameRegister(),
