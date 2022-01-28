@@ -243,6 +243,14 @@ class V8_EXPORT WebSnapshotDeserializer
   uint32_t array_count() const { return array_count_; }
   uint32_t object_count() const { return object_count_; }
 
+  static void UpdatePointersCallback(v8::Isolate* isolate, v8::GCType type,
+                                     v8::GCCallbackFlags flags,
+                                     void* deserializer) {
+    reinterpret_cast<WebSnapshotDeserializer*>(deserializer)->UpdatePointers();
+  }
+
+  void UpdatePointers();
+
  private:
   WebSnapshotDeserializer(Isolate* isolate, Handle<Object> script_name,
                           base::Vector<const uint8_t> buffer);
@@ -255,7 +263,7 @@ class V8_EXPORT WebSnapshotDeserializer
   WebSnapshotDeserializer& operator=(const WebSnapshotDeserializer&) = delete;
 
   void DeserializeStrings();
-  Handle<String> ReadString(bool internalize = false);
+  String ReadString(bool internalize = false);
   void DeserializeMaps();
   void DeserializeContexts();
   Handle<ScopeInfo> CreateScopeInfo(uint32_t variable_count, bool has_parent,
@@ -269,31 +277,47 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeArrays();
   void DeserializeObjects();
   void DeserializeExports();
-  void ReadValue(
-      Handle<Object>& value, Representation& representation,
+  Object ReadValue(
       Handle<HeapObject> object_for_deferred_reference = Handle<HeapObject>(),
       uint32_t index_for_deferred_reference = 0);
   void ReadFunctionPrototype(Handle<JSFunction> function);
   bool SetFunctionPrototype(JSFunction function, JSReceiver prototype);
 
-  void AddDeferredReference(Handle<HeapObject> container, uint32_t index,
-                            ValueType target_type,
-                            uint32_t target_object_index);
+  HeapObject AddDeferredReference(Handle<HeapObject> container, uint32_t index,
+                                  ValueType target_type,
+                                  uint32_t target_object_index);
   void ProcessDeferredReferences();
   // Not virtual, on purpose (because it doesn't need to be).
   void Throw(const char* message);
 
-  Handle<FixedArray> strings_;
-  Handle<FixedArray> maps_;
-  Handle<FixedArray> contexts_;
-  Handle<FixedArray> functions_;
-  Handle<FixedArray> classes_;
-  Handle<FixedArray> arrays_;
-  Handle<FixedArray> objects_;
+  Handle<FixedArray> strings_handle_;
+  FixedArray strings_;
+
+  Handle<FixedArray> maps_handle_;
+  FixedArray maps_;
+
+  Handle<FixedArray> contexts_handle_;
+  FixedArray contexts_;
+
+  Handle<FixedArray> functions_handle_;
+  FixedArray functions_;
+
+  Handle<FixedArray> classes_handle_;
+  FixedArray classes_;
+
+  Handle<FixedArray> arrays_handle_;
+  FixedArray arrays_;
+
+  Handle<FixedArray> objects_handle_;
+  FixedArray objects_;
+
   Handle<ArrayList> deferred_references_;
 
-  Handle<WeakFixedArray> shared_function_infos_;
+  Handle<WeakFixedArray> shared_function_infos_handle_;
+  WeakFixedArray shared_function_infos_;
+
   Handle<ObjectHashTable> shared_function_info_table_;
+
   Handle<Script> script_;
   Handle<Object> script_name_;
 
