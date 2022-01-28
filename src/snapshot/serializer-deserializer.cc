@@ -14,8 +14,7 @@ namespace {
 DISABLE_CFI_PERF
 void IterateObjectCache(Isolate* isolate, std::vector<Object>* cache,
                         Root root_id, RootVisitor* visitor) {
-  size_t i;
-  for (i = 0;; ++i) {
+  for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
     if (cache->size() <= i) cache->push_back(Smi::zero());
     // During deserialization, the visitor populates the object cache and
