@@ -2778,16 +2778,14 @@ void ClassScope::FinalizeReparsedClassScope(
   DCHECK_EQ(scope_info->scope_type(), CLASS_SCOPE);
   DCHECK_EQ(scope_info->StartPosition(), start_position_);
 
-  int context_local_count = scope_info->ContextLocalCount();
   int context_header_length = scope_info->ContextHeaderLength();
   DisallowGarbageCollection no_gc;
-  for (int i = 0; i < context_local_count; ++i) {
-    int slot_index = context_header_length + i;
+  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
+    int slot_index = context_header_length + it->index();
     DCHECK_LT(slot_index, scope_info->ContextLength());
 
-    String name = scope_info->ContextInlinedLocalName(i);
     const AstRawString* string = ast_value_factory->GetString(
-        name, SharedStringAccessGuardIfNeeded(isolate));
+        it->name(), SharedStringAccessGuardIfNeeded(isolate));
     Variable* var = string->IsPrivateName() ? LookupLocalPrivateName(string)
                                             : LookupLocal(string);
     DCHECK_NOT_NULL(var);

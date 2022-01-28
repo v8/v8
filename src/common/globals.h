@@ -1153,10 +1153,7 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
   UNREACHABLE();
 }
 
-// TODO(victorgomes, v8:12315): Local names are currently always inlined, so we
-// choose the maximum int value as threshold.
-constexpr int kScopeInfoMaxInlinedLocalNamesSize =
-    std::numeric_limits<int>::max();
+constexpr int kScopeInfoMaxInlinedLocalNamesSize = 32;
 
 enum ScopeType : uint8_t {
   CLASS_SCOPE,     // The scope introduced by a class.
