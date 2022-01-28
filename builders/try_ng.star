@@ -17,6 +17,7 @@ def try_ng_pair(
         name,
         cq_properties = CQ.NONE,
         cq_branch_properties = CQ.NONE,
+        experiments = None,
         **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
     kwargs.setdefault("properties", {})["triggers"] = [
@@ -50,6 +51,7 @@ def try_ng_pair(
         cq_properties = cq_tg,
         cq_branch_properties = cq_branch_tg,
         in_list = "tryserver",
+        experiments = experiments,
         **kwargs
     )
     v8_builder(
@@ -60,6 +62,7 @@ def try_ng_pair(
         cq_properties = cq_td,
         cq_branch_properties = cq_branch_td,
         in_list = "tryserver",
+        experiments = experiments,
     )
     if "experiment_percentage" in cq_properties:
         kwargs["properties"]["triggers"] = None
@@ -70,6 +73,7 @@ def try_ng_pair(
             cq_properties = cq_exp,
             cq_branch_properties = cq_branch_exp,
             in_list = "tryserver",
+            experiments = experiments,
             **kwargs
         )
 
@@ -206,6 +210,14 @@ try_ng_pair(
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
+    name = "v8_linux64_python3_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+    experiments = {"luci.recipes.use_python3": 100, "v8.scripts.use_python3": 100},
 )
 
 try_ng_pair(
