@@ -33,6 +33,7 @@
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/object-stats.h"
@@ -1211,17 +1212,13 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-#if DEBUG
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    DCHECK(!BasicMemoryChunk::FromHeapObject(target)->InSharedHeap());
-#endif  // DEBUG
+    RecordRelocSlot(host, rinfo, target);
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-#if DEBUG
     HeapObject target = rinfo->target_object(cage_base());
-    DCHECK(!BasicMemoryChunk::FromHeapObject(target)->InSharedHeap());
-#endif  // DEBUG
+    RecordRelocSlot(host, rinfo, target);
   }
 
  private:
@@ -1233,6 +1230,20 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     RememberedSet<CLIENT_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
         MemoryChunk::FromHeapObject(host), slot.address());
     collector_->MarkObject(host, heap_object);
+  }
+
+  V8_INLINE void RecordRelocSlot(Code host, RelocInfo* rinfo,
+                                 HeapObject target) {
+    if (ShouldRecordRelocSlot(host, rinfo, target)) {
+      RecordRelocSlotInfo info = ProcessRelocInfo(host, rinfo, target);
+      RememberedSet<CLIENT_TO_SHARED>::InsertTyped(info.memory_chunk,
+                                                   info.slot_type, info.offset);
+    }
+  }
+
+  V8_INLINE bool ShouldRecordRelocSlot(Code host, RelocInfo* rinfo,
+                                       HeapObject target) {
+    return BasicMemoryChunk::FromHeapObject(target)->InSharedHeap();
   }
 
   MarkCompactCollector* const collector_;
@@ -4566,6 +4577,8 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
 
   while (chunk_iterator.HasNext()) {
     MemoryChunk* chunk = chunk_iterator.Next();
+    CodePageMemoryModificationScope unprotect_code_page(chunk);
+
     RememberedSet<CLIENT_TO_SHARED>::Iterate(
         chunk,
         [cage_base](MaybeObjectSlot slot) {
@@ -4574,6 +4587,20 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
         SlotSet::KEEP_EMPTY_BUCKETS);
 
     chunk->ReleaseSlotSet<CLIENT_TO_SHARED>();
+
+    RememberedSet<CLIENT_TO_SHARED>::IterateTyped(
+        chunk, [this](SlotType slot_type, Address slot) {
+          // Using UpdateStrongSlot is OK here, because there are no weak
+          // typed slots.
+          PtrComprCageBase cage_base = heap_->isolate();
+          return UpdateTypedSlotHelper::UpdateTypedSlot(
+              heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
+                return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base,
+                                                                slot);
+              });
+        });
+
+    chunk->ReleaseTypedSlotSet<CLIENT_TO_SHARED>();
   }
 
 #ifdef VERIFY_HEAP
