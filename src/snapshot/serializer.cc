@@ -1133,13 +1133,16 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
           sizeof(field_value), field_value);
     } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
                object_->IsCodeDataContainer(cage_base)) {
-      // The CodeEntryPoint field is just a cached value which will be
-      // recomputed after deserialization, so write zeros to keep the snapshot
-      // deterministic.
-      static byte field_value[kExternalPointerSize] = {0};
-      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               CodeDataContainer::kCodeEntryPointOffset,
-                               sizeof(field_value), field_value);
+      // code_cage_base and code_entry_point fields contain raw values that
+      // will be recomputed after deserialization, so write zeros to keep the
+      // snapshot deterministic.
+      CHECK_EQ(CodeDataContainer::kCodeCageBaseUpper32BitsOffset + kTaggedSize,
+               CodeDataContainer::kCodeEntryPointOffset);
+      static byte field_value[kTaggedSize + kExternalPointerSize] = {0};
+      OutputRawWithCustomField(
+          sink_, object_start, base, bytes_to_output,
+          CodeDataContainer::kCodeCageBaseUpper32BitsOffset,
+          sizeof(field_value), field_value);
     } else {
       sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
                     bytes_to_output, "Bytes");
