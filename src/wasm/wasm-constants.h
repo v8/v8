@@ -44,6 +44,7 @@ enum ValueTypeCode : uint8_t {
   kOptRefCode = 0x6c,
   kRefCode = 0x6b,
   kI31RefCode = 0x6a,
+  // TODO(7748): Only here for backwards compatibility, remove when able.
   kRttWithDepthCode = 0x69,
   kRttCode = 0x68,
   kDataRefCode = 0x67,

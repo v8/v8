@@ -313,44 +313,9 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       return heap_type.is_bottom() ? kWasmBottom
                                    : ValueType::Ref(heap_type, nullability);
     }
-    case kRttWithDepthCode: {
-      if (!VALIDATE(enabled.has_gc())) {
-        DecodeError<validate>(
-            decoder, pc,
-            "invalid value type 'rtt', enable with --experimental-wasm-gc");
-        return kWasmBottom;
-      }
-      uint32_t depth = decoder->read_u32v<validate>(pc + 1, length, "depth");
-      *length += 1;
-      if (!VALIDATE(depth <= kV8MaxRttSubtypingDepth)) {
-        DecodeError<validate>(
-            decoder, pc,
-            "subtyping depth %u is greater than the maximum depth "
-            "%u supported by V8",
-            depth, kV8MaxRttSubtypingDepth);
-        return kWasmBottom;
-      }
-      uint32_t type_index_length;
-      uint32_t type_index =
-          decoder->read_u32v<validate>(pc + *length, &type_index_length);
-      *length += type_index_length;
-      if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
-        DecodeError<validate>(
-            decoder, pc,
-            "Type index %u is greater than the maximum number %zu "
-            "of type definitions supported by V8",
-            type_index, kV8MaxWasmTypes);
-        return kWasmBottom;
-      }
-      // We use capacity over size so this works mid-DecodeTypeSection.
-      if (!VALIDATE(module == nullptr ||
-                    type_index < module->types.capacity())) {
-        DecodeError<validate>(decoder, pc, "Type index %u is out of bounds",
-                              type_index);
-        return kWasmBottom;
-      }
-      return ValueType::Rtt(type_index, depth);
-    }
+    // TODO(7748): This is here only for backwards compatibility, and the parsed
+    // depth is ignored.
+    case kRttWithDepthCode:
     case kRttCode: {
       if (!VALIDATE(enabled.has_gc())) {
         DecodeError<validate>(
@@ -358,8 +323,22 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
             "invalid value type 'rtt', enable with --experimental-wasm-gc");
         return kWasmBottom;
       }
-      uint32_t type_index = decoder->read_u32v<validate>(pc + 1, length);
-      *length += 1;
+      if (code == kRttWithDepthCode) {
+        uint32_t depth = decoder->read_u32v<validate>(pc + 1, length, "depth");
+        *length += 1;
+        if (!VALIDATE(depth <= kV8MaxRttSubtypingDepth)) {
+          DecodeError<validate>(
+              decoder, pc,
+              "subtyping depth %u is greater than the maximum depth "
+              "%u supported by V8",
+              depth, kV8MaxRttSubtypingDepth);
+          return kWasmBottom;
+        }
+      }
+      uint32_t type_index_length;
+      uint32_t type_index =
+          decoder->read_u32v<validate>(pc + *length, &type_index_length);
+      *length += type_index_length;
       if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
         DecodeError<validate>(
             decoder, pc,
@@ -4051,28 +4030,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprStructNewWithRtt: {
         StructIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
+        ValueType rtt_type = ValueType::Rtt(imm.index);
         Value rtt = opcode == kExprStructNew
-                        ? CreateValue(ValueType::Rtt(imm.index))
-                        : Peek(0, imm.struct_type->field_count());
+                        ? CreateValue(rtt_type)
+                        : Peek(0, imm.struct_type->field_count(), rtt_type);
         if (opcode == kExprStructNew) {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
-        } else {
-          DCHECK_EQ(opcode, kExprStructNewWithRtt);
-          if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
-            PopTypeError(imm.struct_type->field_count(), rtt, "rtt");
-            return 0;
-          }
-          // TODO(7748): Drop this check if {imm} is dropped from the proposal
-          // à la https://github.com/WebAssembly/function-references/pull/31.
-          if (!VALIDATE(rtt.type.is_bottom() ||
-                        (rtt.type.ref_index() == imm.index &&
-                         rtt.type.has_depth()))) {
-            PopTypeError(
-                imm.struct_type->field_count(), rtt,
-                "rtt with depth for type " + std::to_string(imm.index));
-            return 0;
-          }
         }
         ArgVector args = PeekArgs(imm.struct_type, 1);
         Value value = CreateValue(ValueType::Ref(imm.index, kNonNullable));
@@ -4099,27 +4063,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             }
           }
         }
-        Value rtt = opcode == kExprStructNewDefault
-                        ? CreateValue(ValueType::Rtt(imm.index))
-                        : Peek(0, 0);
+        ValueType rtt_type = ValueType::Rtt(imm.index);
+        Value rtt = opcode == kExprStructNewDefault ? CreateValue(rtt_type)
+                                                    : Peek(0, 0, rtt_type);
         if (opcode == kExprStructNewDefault) {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
-        } else {
-          DCHECK_EQ(opcode, kExprStructNewDefaultWithRtt);
-          if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
-            PopTypeError(0, rtt, "rtt");
-            return 0;
-          }
-          // TODO(7748): Drop this check if {imm} is dropped from the proposal
-          // à la https://github.com/WebAssembly/function-references/pull/31.
-          if (!VALIDATE(rtt.type.is_bottom() ||
-                        (rtt.type.ref_index() == imm.index &&
-                         rtt.type.has_depth()))) {
-            PopTypeError(
-                0, rtt, "rtt with depth for type " + std::to_string(imm.index));
-            return 0;
-          }
         }
         Value value = CreateValue(ValueType::Ref(imm.index, kNonNullable));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNewDefault, imm, rtt, &value);
@@ -4198,27 +4147,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         NON_CONST_ONLY
         ArrayIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        Value rtt = opcode == kExprArrayNew
-                        ? CreateValue(ValueType::Rtt(imm.index))
-                        : Peek(0, 2);
+        ValueType rtt_type = ValueType::Rtt(imm.index);
+        Value rtt = opcode == kExprArrayNew ? CreateValue(rtt_type)
+                                            : Peek(0, 2, rtt_type);
         if (opcode == kExprArrayNew) {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
-        } else {
-          DCHECK_EQ(opcode, kExprArrayNewWithRtt);
-          if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
-            PopTypeError(2, rtt, "rtt");
-            return 0;
-          }
-          // TODO(7748): Drop this check if {imm} is dropped from the proposal
-          // à la https://github.com/WebAssembly/function-references/pull/31.
-          if (!VALIDATE(rtt.type.is_bottom() ||
-                        (rtt.type.ref_index() == imm.index &&
-                         rtt.type.has_depth()))) {
-            PopTypeError(
-                2, rtt, "rtt with depth for type " + std::to_string(imm.index));
-            return 0;
-          }
         }
         Value length = Peek(1, 1, kWasmI32);
         Value initial_value =
@@ -4242,27 +4176,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
               imm.array_type->element_type().name().c_str());
           return 0;
         }
-        Value rtt = opcode == kExprArrayNewDefault
-                        ? CreateValue(ValueType::Rtt(imm.index))
-                        : Peek(0, 1);
+        ValueType rtt_type = ValueType::Rtt(imm.index);
+        Value rtt = opcode == kExprArrayNewDefault ? CreateValue(rtt_type)
+                                                   : Peek(0, 1, rtt_type);
         if (opcode == kExprArrayNewDefault) {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
-        } else {
-          DCHECK_EQ(opcode, kExprArrayNewDefaultWithRtt);
-          if (!VALIDATE(rtt.type.is_rtt() || rtt.type.is_bottom())) {
-            PopTypeError(1, rtt, "rtt");
-            return 0;
-          }
-          // TODO(7748): Drop this check if {imm} is dropped from the proposal
-          // à la https://github.com/WebAssembly/function-references/pull/31.
-          if (!VALIDATE(rtt.type.is_bottom() ||
-                        (rtt.type.ref_index() == imm.index &&
-                         rtt.type.has_depth()))) {
-            PopTypeError(
-                1, rtt, "rtt with depth for type " + std::to_string(imm.index));
-            return 0;
-          }
         }
         Value length = Peek(1, 0, kWasmI32);
         Value value = CreateValue(ValueType::Ref(imm.index, kNonNullable));
@@ -4487,8 +4406,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                      "type index");
         if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
-        Value value = CreateValue(ValueType::Rtt(
-            imm.index, GetSubtypingDepth(this->module_, imm.index)));
+        Value value = CreateValue(ValueType::Rtt(imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &value);
         Push(value);
         return opcode_length + imm.length;
@@ -4503,8 +4421,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                        "type index");
           if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
           opcode_length += imm.length;
-          rtt = CreateValue(ValueType::Rtt(
-              imm.index, GetSubtypingDepth(this->module_, imm.index)));
+          rtt = CreateValue(ValueType::Rtt(imm.index));
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
         } else {
@@ -4560,8 +4477,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                        "type index");
           if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
           opcode_length += imm.length;
-          rtt = CreateValue(ValueType::Rtt(
-              imm.index, GetSubtypingDepth(this->module_, imm.index)));
+          rtt = CreateValue(ValueType::Rtt(imm.index));
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
         } else {
@@ -4631,8 +4547,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                        "type index");
           if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
           pc_offset += imm.length;
-          rtt = CreateValue(ValueType::Rtt(
-              imm.index, GetSubtypingDepth(this->module_, imm.index)));
+          rtt = CreateValue(ValueType::Rtt(imm.index));
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
         } else {
@@ -4713,8 +4628,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                        "type index");
           if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
           pc_offset += imm.length;
-          rtt = CreateValue(ValueType::Rtt(
-              imm.index, GetSubtypingDepth(this->module_, imm.index)));
+          rtt = CreateValue(ValueType::Rtt(imm.index));
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
         } else {

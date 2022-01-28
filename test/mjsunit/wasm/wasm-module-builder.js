@@ -147,13 +147,8 @@ function wasmRefType(heap_type) {
   return {opcode: kWasmRef, heap_type: heap_type};
 }
 
-let kWasmRttWithDepth = 0x69;
-function wasmRtt(index, depth) {
-  if (index < 0) throw new Error("Expecting non-negative type index");
-  return {opcode: kWasmRttWithDepth, index: index, depth: depth};
-}
 let kWasmRtt = 0x68;
-function wasmRttNoDepth(index) {
+function wasmRtt(index) {
   if (index < 0) throw new Error("Expecting non-negative type index");
   return {opcode: kWasmRtt, index: index};
 }

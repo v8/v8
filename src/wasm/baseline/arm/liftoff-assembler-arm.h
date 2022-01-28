@@ -310,7 +310,6 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       assm->str(src.gp(), dst);
       break;
     case kI64:
@@ -345,7 +344,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       assm->ldr(dst.gp(), src);
       break;
     case kI64:

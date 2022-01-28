@@ -117,7 +117,6 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
       return WasmValue(isolate->factory()->null_value(), type);
     case kVoid:
     case kRtt:
-    case kRttWithDepth:
     case kRef:
     case kBottom:
       UNREACHABLE();
@@ -192,7 +191,7 @@ void InitExprInterface::RttCanon(FullDecoder* decoder, uint32_t type_index,
   if (!generate_result()) return;
   result->runtime_value = WasmValue(
       handle(instance_->managed_object_maps().get(type_index), isolate_),
-      ValueType::Rtt(type_index, 0));
+      ValueType::Rtt(type_index));
 }
 
 void InitExprInterface::DoReturn(FullDecoder* decoder,

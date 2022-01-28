@@ -134,7 +134,6 @@ void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
     buffer->write_i32v(type.heap_type().code());
   }
   if (type.is_rtt()) {
-    if (type.has_depth()) buffer->write_u32v(type.depth());
     buffer->write_u32v(type.ref_index());
   }
 }
@@ -520,7 +519,6 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
         case kBottom:
         case kRef:
         case kRtt:
-        case kRttWithDepth:
           UNREACHABLE();
       }
       break;

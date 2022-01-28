@@ -3984,8 +3984,8 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
                                           WASM_RTT_CANON(array_type_index)),
                  kExprDrop},
                 kAppendEnd,
-                "struct.new_with_rtt[1] expected rtt with depth for type 0, "
-                "found rtt.canon of type (rtt 0 1)");
+                "struct.new_with_rtt[1] expected type (rtt 0), found "
+                "rtt.canon of type (rtt 1)");
   // Out-of-bounds index.
   ExpectFailure(sigs.v_v(),
                 {WASM_STRUCT_NEW_WITH_RTT(42, WASM_I32V(0),
@@ -4123,8 +4123,8 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
                     array_type_index, WASM_REF_NULL(kFuncRefCode), WASM_I32V(5),
                     WASM_RTT_CANON(struct_type_index))},
                 kAppendEnd,
-                "array.new_with_rtt[2] expected rtt with depth for type 0, "
-                "found rtt.canon of type (rtt 0 1)");
+                "array.new_with_rtt[2] expected type (rtt 0), found "
+                "rtt.canon of type (rtt 1)");
   // Wrong type index.
   ExpectFailure(
       sigs.v_v(),
@@ -4324,15 +4324,9 @@ TEST_F(FunctionBodyDecoderTest, RttCanon) {
   uint8_t struct_type_index = builder.AddStruct({F(kWasmI64, true)});
 
   for (uint32_t type_index : {array_type_index, struct_type_index}) {
-    ValueType rtt1 = ValueType::Rtt(type_index, 0);
+    ValueType rtt1 = ValueType::Rtt(type_index);
     FunctionSig sig1(1, 0, &rtt1);
     ExpectValidates(&sig1, {WASM_RTT_CANON(type_index)});
-
-    // rtt.canon should fail for incorrect depth.
-    ValueType rtt2 = ValueType::Rtt(type_index, 1);
-    FunctionSig sig2(1, 0, &rtt2);
-    ExpectFailure(&sig2, {WASM_RTT_CANON(type_index)}, kAppendEnd,
-                  "type error in fallthru[0]");
   }
 }
 

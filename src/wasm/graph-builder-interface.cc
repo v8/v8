@@ -1148,10 +1148,13 @@ class WasmGraphBuildingInterface {
     DCHECK(object_type.is_object_reference());  // Checked by validation.
     // In the bottom case, the result is irrelevant.
     result.reference_kind =
-        rtt_type != kWasmBottom && module->has_signature(rtt_type.ref_index())
+        !rtt_type.is_bottom() && module->has_signature(rtt_type.ref_index())
             ? compiler::WasmGraphBuilder::kFunction
             : compiler::WasmGraphBuilder::kArrayOrStruct;
-    result.rtt_depth = rtt_type.has_depth() ? rtt_type.depth() : -1;
+    result.rtt_depth = rtt_type.is_bottom()
+                           ? 0 /* unused */
+                           : static_cast<uint8_t>(GetSubtypingDepth(
+                                 module, rtt_type.ref_index()));
     return result;
   }
 
@@ -1460,7 +1463,6 @@ class WasmGraphBuildingInterface {
       case kOptRef:
         return builder_->RefNull();
       case kRtt:
-      case kRttWithDepth:
       case kVoid:
       case kBottom:
       case kRef:

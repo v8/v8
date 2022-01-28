@@ -149,16 +149,6 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
       return supertype.kind() == kRtt &&
              EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                sub_module, super_module);
-    case kRttWithDepth:
-      return (supertype.kind() == kRtt &&
-              ((sub_module == super_module &&
-                subtype.ref_index() == supertype.ref_index()) ||
-               EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
-                                 sub_module, super_module))) ||
-             (supertype.kind() == kRttWithDepth &&
-              supertype.depth() == subtype.depth() &&
-              EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
-                                sub_module, super_module));
     case kRef:
     case kOptRef:
       break;
@@ -249,9 +239,6 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
 
   DCHECK(type1.has_index() && type2.has_index() &&
          (type1 != type2 || module1 != module2));
-
-  DCHECK_IMPLIES(type1.has_depth(), type2.has_depth());  // Due to 'if' above.
-  if (type1.has_depth() && type1.depth() != type2.depth()) return false;
 
   DCHECK(type1.has_index() && module1->has_type(type1.ref_index()) &&
          type2.has_index() && module2->has_type(type2.ref_index()));

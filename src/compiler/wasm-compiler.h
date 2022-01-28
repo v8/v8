@@ -230,7 +230,7 @@ class WasmGraphBuilder {
   struct ObjectReferenceKnowledge {
     bool object_can_be_null;
     ReferenceKind reference_kind;
-    int8_t rtt_depth;
+    uint8_t rtt_depth;
   };
   enum EnforceBoundsCheck : bool {  // --
     kNeedsBoundsCheck = true,

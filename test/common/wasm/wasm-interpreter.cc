@@ -1442,7 +1442,6 @@ class WasmInterpreterInternals {
         }
         case kRef:
         case kRtt:
-        case kRttWithDepth:
         case kVoid:
         case kBottom:
         case kI8:
@@ -3166,7 +3165,6 @@ class WasmInterpreterInternals {
         case kRef:
         case kOptRef:
         case kRtt:
-        case kRttWithDepth:
           encoded_values->set(encoded_index++, *value.to_ref());
           break;
         case kI8:
@@ -3253,8 +3251,7 @@ class WasmInterpreterInternals {
         }
         case kRef:
         case kOptRef:
-        case kRtt:
-        case kRttWithDepth: {
+        case kRtt: {
           Handle<Object> ref(encoded_values->get(encoded_index++), isolate_);
           value = WasmValue(ref, sig->GetParam(i));
           break;
@@ -3630,8 +3627,7 @@ class WasmInterpreterInternals {
 #undef CASE_TYPE
             case kRef:
             case kOptRef:
-            case kRtt:
-            case kRttWithDepth: {
+            case kRtt: {
               // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
@@ -4050,7 +4046,6 @@ class WasmInterpreterInternals {
           PrintF("ref:0x%" V8PRIxPTR, val.to_ref()->ptr());
           break;
         case kRtt:
-        case kRttWithDepth:
           PrintF("rtt:0x%" V8PRIxPTR, val.to_ref()->ptr());
           break;
         case kI8:

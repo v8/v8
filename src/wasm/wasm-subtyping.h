@@ -71,7 +71,7 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
 }
 
 // We have this function call IsSubtypeOf instead of the opposite because type
-// checks are much more common than heap type checks.}
+// checks are much more common than heap type checks.
 V8_INLINE bool IsHeapSubtypeOf(uint32_t subtype_index,
                                HeapType::Representation supertype,
                                const WasmModule* module) {

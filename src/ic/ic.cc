@@ -883,7 +883,6 @@ inline WasmValueType GetWasmValueType(wasm::ValueType type) {
     TYPE_CASE(OptRef)
 
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // Rtt values are not supposed to be made available to JavaScript side.
       UNREACHABLE();
 

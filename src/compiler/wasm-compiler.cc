@@ -2499,7 +2499,6 @@ Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
       case wasm::kRef:
       case wasm::kOptRef:
       case wasm::kRtt:
-      case wasm::kRttWithDepth:
         gasm_->StoreFixedArrayElementAny(values_array, index, value);
         ++index;
         break;
@@ -2631,7 +2630,6 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
       case wasm::kRef:
       case wasm::kOptRef:
       case wasm::kRtt:
-      case wasm::kRttWithDepth:
         value = gasm_->LoadFixedArrayElementAny(values_array, index);
         ++index;
         break;
@@ -5745,16 +5743,12 @@ void WasmGraphBuilder::TypeCheck(
 
   Node* type_info = gasm_->LoadWasmTypeInfo(map);
   Node* supertypes = gasm_->LoadSupertypes(type_info);
-  Node* rtt_depth =
-      config.rtt_depth >= 0
-          ? gasm_->IntPtrConstant(config.rtt_depth)
-          : BuildChangeSmiToIntPtr(gasm_->LoadFixedArrayLengthAsSmi(
-                gasm_->LoadSupertypes(gasm_->LoadWasmTypeInfo(rtt))));
+  Node* rtt_depth = gasm_->UintPtrConstant(config.rtt_depth);
+
   // If the depth of the rtt is known to be less that the minimum supertype
   // array length, we can access the supertype without bounds-checking the
   // supertype array.
-  if (config.rtt_depth < 0 || static_cast<uint32_t>(config.rtt_depth) >=
-                                  wasm::kMinimumSupertypeArraySize) {
+  if (config.rtt_depth >= wasm::kMinimumSupertypeArraySize) {
     Node* supertypes_length =
         BuildChangeSmiToIntPtr(gasm_->LoadFixedArrayLengthAsSmi(supertypes));
     callbacks.fail_if_not(gasm_->UintLessThan(rtt_depth, supertypes_length),
@@ -6420,7 +6414,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             UNREACHABLE();
         }
       case wasm::kRtt:
-      case wasm::kRttWithDepth:
       case wasm::kI8:
       case wasm::kI16:
       case wasm::kS128:
@@ -6593,7 +6586,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeBigIntToInt64(input, js_context, frame_state);
 
       case wasm::kRtt:
-      case wasm::kRttWithDepth:
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
@@ -6649,7 +6641,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kOptRef:
       case wasm::kI64:
       case wasm::kRtt:
-      case wasm::kRttWithDepth:
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:
@@ -6815,7 +6806,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         case wasm::kOptRef:
         case wasm::kI64:
         case wasm::kRtt:
-        case wasm::kRttWithDepth:
         case wasm::kS128:
         case wasm::kI8:
         case wasm::kI16:
@@ -6866,7 +6856,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kOptRef:
       case wasm::kI64:
       case wasm::kRtt:
-      case wasm::kRttWithDepth:
       case wasm::kS128:
       case wasm::kI8:
       case wasm::kI16:

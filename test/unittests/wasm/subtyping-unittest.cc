@@ -182,26 +182,14 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     VALID_SUBTYPE(ref(9), ref(8));
 
     // Identical rtts are subtypes of each other.
-    SUBTYPE(ValueType::Rtt(5, 3), ValueType::Rtt(5, 3));
     SUBTYPE(ValueType::Rtt(5), ValueType::Rtt(5));
     // Rtts of unrelated types are unrelated.
-    NOT_SUBTYPE(ValueType::Rtt(1, 1), ValueType::Rtt(2, 1));
     NOT_SUBTYPE(ValueType::Rtt(1), ValueType::Rtt(2));
-    NOT_SUBTYPE(ValueType::Rtt(1, 0), ValueType::Rtt(2));
-    // Rtts of different depth are unrelated.
-    NOT_SUBTYPE(ValueType::Rtt(5, 1), ValueType::Rtt(5, 3));
-    NOT_SUBTYPE(ValueType::Rtt(5, 8), ValueType::Rtt(5, 3));
     // Rtts of identical types are subtype-related.
     // TODO(7748): Implement type canonicalization.
-    // SUBTYPE(ValueType::Rtt(8, 1), ValueType::Rtt(9, 1));
     // SUBTYPE(ValueType::Rtt(8), ValueType::Rtt(9));
     // Rtts of subtypes are not related.
-    NOT_SUBTYPE(ValueType::Rtt(1, 1), ValueType::Rtt(0, 1));
     NOT_SUBTYPE(ValueType::Rtt(1), ValueType::Rtt(0));
-    // rtt(t, d) <: rtt(t)
-    for (uint8_t depth : {0, 1, 5}) {
-      SUBTYPE(ValueType::Rtt(1, depth), ValueType::Rtt(1));
-    }
 
     // Function subtyping;
     // Unrelated function types are unrelated.

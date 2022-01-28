@@ -1810,8 +1810,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
         break;
       case wasm::kRef:
       case wasm::kOptRef:
-      case wasm::kRtt:
-      case wasm::kRttWithDepth: {
+      case wasm::kRtt: {
         Tagged_t raw = base::ReadUnalignedValue<Tagged_t>(field_address);
 #if V8_COMPRESS_POINTERS
         Address obj = DecompressTaggedPointer(address(), raw);
@@ -1868,7 +1867,6 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
     case wasm::kRef:
     case wasm::kOptRef:
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       os << "\n   Printing elements of this type is unimplemented, sorry";
       // TODO(7748): Implement.
       break;

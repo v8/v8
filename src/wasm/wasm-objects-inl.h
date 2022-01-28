@@ -386,7 +386,6 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,
     }
 
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // Rtt values are not supposed to be made available to JavaScript side.
       UNREACHABLE();
 
@@ -422,7 +421,6 @@ MaybeHandle<Object> WasmObject::ToWasmValue(Isolate* isolate,
       UNREACHABLE();
 
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // Rtt values are not supposed to be made available to JavaScript side.
       UNREACHABLE();
 
@@ -500,7 +498,6 @@ void WasmObject::WriteValueAt(Isolate* isolate, Handle<HeapObject> obj,
       UNREACHABLE();
 
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // Rtt values are not supposed to be made available to JavaScript side.
       UNREACHABLE();
 

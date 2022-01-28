@@ -561,7 +561,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
   const byte type_index = tester.DefineStruct({F(kWasmI32, true)});
   const byte other_type_index = tester.DefineStruct({F(kWasmF32, true)});
   const byte rtt_index =
-      tester.AddGlobal(ValueType::Rtt(type_index, 0), false,
+      tester.AddGlobal(ValueType::Rtt(type_index), false,
                        WasmInitExpr::RttCanon(
                            static_cast<HeapType::Representation>(type_index)));
   const byte kTestStruct = tester.DefineFunction(
@@ -1347,11 +1347,11 @@ WASM_COMPILED_EXEC_TEST(BasicRtt) {
   const byte subtype_index = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)}, type_index);
 
-  ValueType kRttTypes[] = {ValueType::Rtt(type_index, 0)};
+  ValueType kRttTypes[] = {ValueType::Rtt(type_index)};
   FunctionSig sig_t_v(1, 0, kRttTypes);
-  ValueType kRttSubtypes[] = {ValueType::Rtt(subtype_index, 1)};
+  ValueType kRttSubtypes[] = {ValueType::Rtt(subtype_index)};
   FunctionSig sig_t2_v(1, 0, kRttSubtypes);
-  ValueType kRttTypesDeeper[] = {ValueType::Rtt(type_index, 1)};
+  ValueType kRttTypesDeeper[] = {ValueType::Rtt(type_index)};
   FunctionSig sig_t3_v(1, 0, kRttTypesDeeper);
   ValueType kRefTypes[] = {ref(type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
@@ -1643,7 +1643,7 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
       &sig, {},
       {WASM_ARRAY_NEW(type_index, WASM_I32V(10), WASM_I32V(42)), kExprEnd});
 
-  ValueType rtt_type = ValueType::Rtt(type_index, 0);
+  ValueType rtt_type = ValueType::Rtt(type_index);
   FunctionSig rtt_canon_sig(1, 0, &rtt_type);
   const byte kRttCanon = tester.DefineFunction(
       &rtt_canon_sig, {}, {WASM_RTT_CANON(type_index), kExprEnd});
@@ -1677,7 +1677,7 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   ValueType func_type = ValueType::Ref(sig_index, kNullable);
   FunctionSig sig_func(1, 0, &func_type);
 
-  ValueType rtt0 = ValueType::Rtt(sig_index, 0);
+  ValueType rtt0 = ValueType::Rtt(sig_index);
   FunctionSig sig_rtt0(1, 0, &rtt0);
   const byte rtt_canon = tester.DefineFunction(
       &sig_rtt0, {}, {WASM_RTT_CANON(sig_index), kExprEnd});
@@ -2030,12 +2030,12 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
                        WasmInitExpr::RefNullConst(
                            static_cast<HeapType::Representation>(ListType)));
   const byte RttSuper = tester.AddGlobal(
-      ValueType::Rtt(SuperType, 0), false,
+      ValueType::Rtt(SuperType), false,
       WasmInitExpr::RttCanon(static_cast<HeapType::Representation>(SuperType)));
-  const byte RttSub = tester.AddGlobal(ValueType::Rtt(SubType, 1), false,
+  const byte RttSub = tester.AddGlobal(ValueType::Rtt(SubType), false,
                                        WasmInitExpr::RttCanon(SubType));
   const byte RttList = tester.AddGlobal(
-      ValueType::Rtt(ListType, 0), false,
+      ValueType::Rtt(ListType), false,
       WasmInitExpr::RttCanon(static_cast<HeapType::Representation>(ListType)));
 
   const uint32_t kListLength = 1024;

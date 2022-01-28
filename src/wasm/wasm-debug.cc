@@ -657,8 +657,7 @@ class DebugInfoImpl {
         return WasmValue(Simd128(ReadUnalignedValue<int16>(stack_address)));
       case kRef:
       case kOptRef:
-      case kRtt:
-      case kRttWithDepth: {
+      case kRtt: {
         Handle<Object> obj(Object(ReadUnalignedValue<Address>(stack_address)),
                            isolate);
         return WasmValue(obj, value->type);

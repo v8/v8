@@ -1421,7 +1421,6 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       value = WasmValue(global_object->GetF64());
       break;
     case kRtt:
-    case kRttWithDepth:
     case kRef:
     case kOptRef:
       value = WasmValue(global_object->GetRef(), global_object->type());

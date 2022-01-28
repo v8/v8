@@ -1562,7 +1562,6 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
       return wasm::WasmValue(ref, field_type);
     }
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // TODO(7748): Expose RTTs to DevTools.
       UNIMPLEMENTED();
     case wasm::kVoid:
@@ -1592,7 +1591,6 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
       return wasm::WasmValue(ref, element_type);
     }
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // TODO(7748): Expose RTTs to DevTools.
       UNIMPLEMENTED();
     case wasm::kVoid:
@@ -1834,7 +1832,6 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTag* tag) {
         encoded_size += 1;
         break;
       case wasm::kRtt:
-      case wasm::kRttWithDepth:
       case wasm::kVoid:
       case wasm::kBottom:
       case wasm::kI8:
@@ -2336,7 +2333,6 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
       }
     }
     case kRtt:
-    case kRttWithDepth:
       // TODO(7748): Implement when the JS API for rtts is decided on.
       *error_message =
           "passing rtts between Webassembly and Javascript is not supported "

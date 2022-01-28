@@ -1044,8 +1044,7 @@ Handle<WasmValueObject> WasmValueObject::New(
       }
       break;
     }
-    case wasm::kRtt:
-    case wasm::kRttWithDepth: {
+    case wasm::kRtt: {
       // TODO(7748): Expose RTTs to DevTools.
       t = isolate->factory()->InternalizeString(base::StaticCharVector("rtt"));
       v = isolate->factory()->InternalizeString(
