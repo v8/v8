@@ -10,7 +10,6 @@
 #include <stdexcept>
 #include <unordered_map>
 
-#include "src/bigint/bigint.h"
 #include "src/flags/flags.h"
 #include "src/torque/ast.h"
 #include "src/torque/constants.h"
@@ -92,12 +91,6 @@ V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<bool>::id =
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<int32_t>::id =
     ParseResultTypeId::kInt32;
-template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<double>::id =
-    ParseResultTypeId::kDouble;
-template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<IntegerLiteral>::id = ParseResultTypeId::kIntegerLiteral;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<std::string>>::id =
@@ -854,8 +847,8 @@ class AnnotationSet {
   std::map<std::string, std::pair<AnnotationParameter, SourcePosition>> map_;
 };
 
-base::Optional<ParseResult> YieldInt32(ParseResultIterator* child_results) {
-  std::string value = child_results->matched_input().ToString();
+base::Optional<ParseResult> MakeInt32(ParseResultIterator* child_results) {
+  std::string value = child_results->NextAs<std::string>();
   size_t num_chars_converted = 0;
   int result = 0;
   try {
@@ -870,58 +863,6 @@ base::Optional<ParseResult> YieldInt32(ParseResultIterator* child_results) {
   // Tokenizer shouldn't have included extra trailing characters.
   DCHECK_EQ(num_chars_converted, value.size());
   return ParseResult{result};
-}
-
-base::Optional<ParseResult> YieldDouble(ParseResultIterator* child_results) {
-  std::string value = child_results->matched_input().ToString();
-  size_t num_chars_converted = 0;
-  double result = 0;
-  try {
-    result = std::stod(value, &num_chars_converted);
-  } catch (const std::out_of_range&) {
-    Error("double literal out-of-range");
-    return ParseResult{result};
-  }
-  // Tokenizer shouldn't have included extra trailing characters.
-  DCHECK_EQ(num_chars_converted, value.size());
-  return ParseResult{result};
-}
-
-base::Optional<ParseResult> YieldIntegerLiteral(
-    ParseResultIterator* child_results) {
-  // Note that kMaxDigits is rather arbitrary and we just need something that
-  // is large enough on all platforms to hold all (signed and unsigned) 64 bit
-  // integer values. We will insert range checks for the actual types later
-  // anyway, so we allow arbitrarily large literals here.
-  constexpr int kMaxDigits = 10;
-
-  std::string value = child_results->matched_input().ToString();
-  auto pos = value.begin();
-  auto end = value.end();
-  // Consume a leading minus.
-  bool sign = false;
-  if (*pos == '-') {
-    sign = true;
-    ++pos;
-  }
-  DCHECK_NE(pos, end);
-  bigint::FromStringAccumulator accumulator(kMaxDigits);
-  if (StringStartsWith({pos, end}, "0x")) {
-    // Parse hexadecimal literal.
-    pos += 2;
-    pos = accumulator.Parse(pos, end, 16);
-  } else {
-    // Parse decimal literal.
-    pos = accumulator.Parse(pos, end, 10);
-  }
-  // Should have processed all characters in the input.
-  DCHECK_EQ(pos, end);
-
-  auto literal = IntegerLiteral::ForLength(accumulator.ResultLength(), sign);
-  auto processor = bigint::Processor::New(new bigint::Platform());
-  processor->FromString(literal.GetRWDigits(), &accumulator);
-  processor->Destroy();
-  return ParseResult(std::move(literal));
 }
 
 base::Optional<ParseResult> MakeStringAnnotationParameter(
@@ -1944,17 +1885,29 @@ base::Optional<ParseResult> MakeAssignmentExpression(
   return ParseResult{result};
 }
 
-base::Optional<ParseResult> MakeFloatingPointLiteralExpression(
+base::Optional<ParseResult> MakeNumberLiteralExpression(
     ParseResultIterator* child_results) {
-  auto value = child_results->NextAs<double>();
-  Expression* result = MakeNode<FloatingPointLiteralExpression>(value);
-  return ParseResult{result};
-}
-
-base::Optional<ParseResult> MakeIntegerLiteralExpression(
-    ParseResultIterator* child_results) {
-  auto value = child_results->NextAs<IntegerLiteral>();
-  Expression* result = MakeNode<IntegerLiteralExpression>(std::move(value));
+  auto number = child_results->NextAs<std::string>();
+  // TODO(turbofan): Support 64bit literals.
+  // Meanwhile, we type it as constexpr float64 when out of int32 range.
+  double value = 0;
+  try {
+#if defined(V8_OS_SOLARIS)
+    // stod() on Solaris does not currently support hex strings. Use strtol()
+    // specifically for hex literals until stod() support is available.
+    if (number.find("0x") == std::string::npos &&
+        number.find("0X") == std::string::npos) {
+      value = std::stod(number);
+    } else {
+      value = static_cast<double>(strtol(number.c_str(), nullptr, 0));
+    }
+#else
+    value = std::stod(number);
+#endif  // !defined(V8_OS_SOLARIS)
+  } catch (const std::out_of_range&) {
+    Error("double literal out-of-range").Throw();
+  }
+  Expression* result = MakeNode<NumberLiteralExpression>(value);
   return ParseResult{result};
 }
 
@@ -2114,19 +2067,8 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
       // Internally, an optional field is just an indexed field where the count
       // is zero or one.
       index = MakeNode<ConditionalExpression>(
-          *index,
-          MakeCall(
-              MakeNode<Identifier>("FromConstexpr"),
-              {MakeNode<BasicTypeExpression>(std::vector<std::string>{},
-                                             MakeNode<Identifier>("intptr"),
-                                             std::vector<TypeExpression*>{})},
-              {MakeNode<IntegerLiteralExpression>(IntegerLiteral(1))}, {}),
-          MakeCall(
-              MakeNode<Identifier>("FromConstexpr"),
-              {MakeNode<BasicTypeExpression>(std::vector<std::string>{},
-                                             MakeNode<Identifier>("intptr"),
-                                             std::vector<TypeExpression*>{})},
-              {MakeNode<IntegerLiteralExpression>(IntegerLiteral(0))}, {}));
+          *index, MakeNode<NumberLiteralExpression>(1),
+          MakeNode<NumberLiteralExpression>(0));
     }
     index_info = ClassFieldIndexInfo{*index, optional};
   }
@@ -2245,24 +2187,12 @@ struct TorqueGrammar : Grammar {
     return false;
   }
 
-  static bool MatchIntegerLiteral(InputPosition* pos) {
+  static bool MatchDecimalLiteral(InputPosition* pos) {
     InputPosition current = *pos;
     bool found_digit = false;
     MatchString("-", &current);
     while (MatchChar(std::isdigit, &current)) found_digit = true;
-    if (found_digit) {
-      *pos = current;
-      return true;
-    }
-    return false;
-  }
-
-  static bool MatchFloatingPointLiteral(InputPosition* pos) {
-    InputPosition current = *pos;
-    bool found_digit = false;
-    MatchString("-", &current);
-    while (MatchChar(std::isdigit, &current)) found_digit = true;
-    if (!MatchString(".", &current)) return false;
+    MatchString(".", &current);
     while (MatchChar(std::isdigit, &current)) found_digit = true;
     if (!found_digit) return false;
     *pos = current;
@@ -2347,18 +2277,13 @@ struct TorqueGrammar : Grammar {
   // Result: std::string
   Symbol externalString = {Rule({&stringLiteral}, StringLiteralUnquoteAction)};
 
-  // Result: IntegerLiteral
-  Symbol integerLiteral = {
-      Rule({Pattern(MatchIntegerLiteral)}, YieldIntegerLiteral),
-      Rule({Pattern(MatchHexLiteral)}, YieldIntegerLiteral)};
-
-  // Result: double
-  Symbol floatingPointLiteral = {
-      Rule({Pattern(MatchFloatingPointLiteral)}, YieldDouble)};
+  // Result: std::string
+  Symbol decimalLiteral = {
+      Rule({Pattern(MatchDecimalLiteral)}, YieldMatchedInput),
+      Rule({Pattern(MatchHexLiteral)}, YieldMatchedInput)};
 
   // Result: int32_t
-  Symbol int32Literal = {Rule({Pattern(MatchIntegerLiteral)}, YieldInt32),
-                         Rule({Pattern(MatchHexLiteral)}, YieldInt32)};
+  Symbol int32Literal = {Rule({&decimalLiteral}, MakeInt32)};
 
   // Result: AnnotationParameter
   Symbol annotationParameter = {
@@ -2577,8 +2502,7 @@ struct TorqueGrammar : Grammar {
            MakeReferenceFieldAccessExpression),
       Rule({&primaryExpression, Token("["), expression, Token("]")},
            MakeElementAccessExpression),
-      Rule({&integerLiteral}, MakeIntegerLiteralExpression),
-      Rule({&floatingPointLiteral}, MakeFloatingPointLiteralExpression),
+      Rule({&decimalLiteral}, MakeNumberLiteralExpression),
       Rule({&stringLiteral}, MakeStringLiteralExpression),
       Rule({&simpleType, &initializerList}, MakeStructExpression),
       Rule({&newExpression}),

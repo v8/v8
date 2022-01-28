@@ -2290,7 +2290,6 @@ v8_source_set("v8_initializers") {
   deps = [
     ":torque_generated_initializers",
     ":v8_base_without_compiler",
-    ":v8_bigint",
     ":v8_shared_internal_headers",
     ":v8_tracing",
   ]
@@ -2366,8 +2365,6 @@ v8_source_set("v8_initializers") {
     "src/interpreter/interpreter-generator.h",
     "src/interpreter/interpreter-intrinsics-generator.cc",
     "src/interpreter/interpreter-intrinsics-generator.h",
-    "src/numbers/integer-literal-inl.h",
-    "src/numbers/integer-literal.h",
   ]
 
   if (v8_enable_webassembly) {
@@ -4856,8 +4853,6 @@ v8_source_set("torque_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
-    "src/numbers/integer-literal-inl.h",
-    "src/numbers/integer-literal.h",
     "src/torque/ast.h",
     "src/torque/cc-generator.cc",
     "src/torque/cc-generator.h",
@@ -4911,7 +4906,6 @@ v8_source_set("torque_base") {
   ]
 
   deps = [
-    ":v8_bigint",
     ":v8_flags",
     ":v8_shared_internal_headers",
   ]
