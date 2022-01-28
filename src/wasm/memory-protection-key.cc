@@ -174,6 +174,12 @@ bool SetPermissionsAndMemoryProtectionKey(
 
     int ret = pkey_mprotect(address, size, protection, key);
 
+    if (ret == 0 && page_permissions == PageAllocator::kNoAccess) {
+      // Similar to {OS::SetPermissions}, also discard the pages after switching
+      // to no access. This is advisory; ignore errors and continue execution.
+      USE(page_allocator->DiscardSystemPages(address, size));
+    }
+
     return ret == /* success */ 0;
   }
 
