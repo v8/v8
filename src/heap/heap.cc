@@ -2296,7 +2296,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate()));
 
   const char* collector_reason = nullptr;
-  const GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
+  GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
 
   tracer()->Start(collector, gc_reason, collector_reason);
 
@@ -2308,22 +2308,11 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
     // As long as we need to iterate the client heap to find references into the
     // shared heap, all client heaps need to be iterable.
     client->heap()->MakeHeapIterable();
-
-    if (FLAG_concurrent_marking) {
-      client->heap()->concurrent_marking()->Pause();
-    }
   });
 
-  PerformGarbageCollection(collector);
+  PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR);
 
   tracer()->Stop(collector);
-
-  isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-    if (FLAG_concurrent_marking &&
-        client->heap()->incremental_marking()->IsMarking()) {
-      client->heap()->concurrent_marking()->RescheduleJobIfNeeded();
-    }
-  });
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {
@@ -5572,10 +5561,7 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   if (IsSharedAllocationType(allocation)) {
     CollectSharedGarbage(GarbageCollectionReason::kLastResort);
 
-    // We need always_allocate() to be true both on the client- and
-    // server-isolate. It is used in both code paths.
-    AlwaysAllocateScope shared_scope(isolate()->shared_isolate()->heap());
-    AlwaysAllocateScope client_scope(isolate()->heap());
+    AlwaysAllocateScope scope(isolate()->shared_isolate()->heap());
     alloc = AllocateRaw(size, allocation, origin, alignment);
   } else {
     CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
