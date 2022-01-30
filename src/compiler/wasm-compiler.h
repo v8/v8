@@ -15,7 +15,6 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/base/small-vector.h"
-#include "src/objects/js-function.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -73,7 +72,6 @@ enum class WasmImportCallKind : uint8_t {
   kLinkError,                // static Wasm->Wasm type error
   kRuntimeTypeError,         // runtime Wasm->JS type error
   kWasmToCapi,               // fast Wasm->C-API call
-  kWasmToJSFastApi,          // fast Wasm->JS Fast API C call
   kWasmToWasm,               // fast Wasm->Wasm call
   kJSFunctionArityMatch,     // fast Wasm->JS call
   kJSFunctionArityMismatch,  // Wasm->JS, needs adapter frame
@@ -132,11 +130,6 @@ V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
 // Compiles a host call wrapper, which allows Wasm to call host functions.
 wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule*,
                                            const wasm::FunctionSig*);
-
-// Compiles a wrapper to call a Fast API function from Wasm.
-wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
-                                             const wasm::FunctionSig*,
-                                             Handle<JSFunction> target);
 
 // Returns an OptimizedCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
