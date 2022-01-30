@@ -3957,7 +3957,7 @@ std::unique_ptr<v8::BackingStore> v8::BackingStore::Reallocate(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, ArrayBuffer, BackingStore_Reallocate);
   Utils::ApiCheck(byte_length <= i::JSArrayBuffer::kMaxByteLength,
-                  "v8::BackingStore::Reallocate", "byte_lenght is too large");
+                  "v8::BackingStore::Reallocate", "byte_length is too large");
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::BackingStore* i_backing_store =
       reinterpret_cast<i::BackingStore*>(backing_store.get());
