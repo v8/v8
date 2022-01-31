@@ -799,12 +799,15 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // Control whether Liftoff or the interpreter will be used as the reference
   // tier.
   // TODO(thibaudm): Port nondeterminism detection to arm.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86)
-  bool liftoff_as_reference = configuration_byte & 1;
-#else
+  /* TODO(manoskouk): Temporarily disable liftoff-as-reference, i.e., wasm-gc
+     fuzzing until we update the fuzzer to isorecursive types.
+  #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86)
+    bool liftoff_as_reference = configuration_byte & 1;
+  #else
+    bool liftoff_as_reference = false;
+  #endif
+  */
   bool liftoff_as_reference = false;
-#endif
-
   FlagScope<bool> turbo_mid_tier_regalloc(&FLAG_turbo_force_mid_tier_regalloc,
                                           configuration_byte == 0);
 
