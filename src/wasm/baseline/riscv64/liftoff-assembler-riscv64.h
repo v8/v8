@@ -1326,7 +1326,7 @@ void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                                      int64_t imm) {
   TurboAssembler::Add64(dst.gp(), lhs.gp(), Operand(imm));
 }
-void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
+void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   addw(dst, src, zero_reg);
 }
 

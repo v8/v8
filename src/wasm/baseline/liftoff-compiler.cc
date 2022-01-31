@@ -2822,7 +2822,7 @@ class LiftoffCompiler {
     // Convert the index to ptrsize, bounds-checking the high word on 32-bit
     // systems for memory64.
     if (!env_->module->is_memory64) {
-      __ emit_u32_to_intptr(index_ptrsize, index_ptrsize);
+      __ emit_u32_to_uintptr(index_ptrsize, index_ptrsize);
     } else if (kSystemPointerSize == kInt32Size) {
       DCHECK_GE(kMaxUInt32, env_->max_memory_size);
       __ emit_cond_jump(kNotEqualZero, trap_label, kI32, index.high_gp());

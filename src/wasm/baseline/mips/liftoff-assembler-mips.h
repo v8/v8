@@ -1239,10 +1239,6 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   return true;
 }
 
-void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-  // This is a nop on mips32.
-}
-
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   TurboAssembler::Neg_s(dst, src);
 }

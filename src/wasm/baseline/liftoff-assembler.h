@@ -886,7 +886,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src);
   inline bool emit_i64_popcnt(LiftoffRegister dst, LiftoffRegister src);
 
-  inline void emit_u32_to_intptr(Register dst, Register src);
+  inline void emit_u32_to_uintptr(Register dst, Register src);
 
   void emit_ptrsize_add(Register dst, Register lhs, Register rhs) {
     if (kSystemPointerSize == 8) {
@@ -1662,6 +1662,10 @@ void LiftoffAssembler::emit_i64_xori(LiftoffRegister dst, LiftoffRegister lhs,
                                      int32_t imm) {
   liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_xori>(
       this, dst, lhs, imm);
+}
+
+void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
+  // This is a no-op on 32-bit systems.
 }
 
 #endif  // V8_TARGET_ARCH_32_BIT
