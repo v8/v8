@@ -1152,6 +1152,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(I16x8UConvertI8x16High) \
   V(I8x16Abs)               \
   V(I8x16Neg)               \
+  V(I8x16Popcnt)            \
   V(S128Not)
 
 #define PROTOTYPE_SIMD_UNOP(name) \

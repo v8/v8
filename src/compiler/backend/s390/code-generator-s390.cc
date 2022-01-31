@@ -3195,8 +3195,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
 #undef Q15_MUL_ROAUND
     case kS390_I8x16Popcnt: {
-      __ vpopct(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                Condition(0), Condition(0), Condition(0));
+      __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kS390_F64x2ConvertLowI32x4S: {

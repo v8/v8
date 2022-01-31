@@ -5262,7 +5262,8 @@ void TurboAssembler::S128Not(Simd128Register dst, Simd128Register src) {
   V(I16x8UConvertI8x16Low, vupll, 0, 0, 0)  \
   V(I16x8UConvertI8x16High, vuplh, 0, 0, 0) \
   V(I8x16Abs, vlp, 0, 0, 0)                 \
-  V(I8x16Neg, vlc, 0, 0, 0)
+  V(I8x16Neg, vlc, 0, 0, 0)                 \
+  V(I8x16Popcnt, vpopct, 0, 0, 0)
 
 #define EMIT_SIMD_UNOP_VRR_A(name, op, c1, c2, c3)                      \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src) { \
