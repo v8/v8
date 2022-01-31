@@ -478,12 +478,6 @@ class Code : public HeapObject {
   // Use GetBuiltinCatchPrediction to access this.
   inline void set_is_promise_rejection(bool flag);
 
-  // [is_exception_caught]: For kind BUILTIN tells whether the
-  // exception thrown by the code will be caught internally or
-  // uncaught if both this and is_promise_rejection is set.
-  // Use GetBuiltinCatchPrediction to access this.
-  inline void set_is_exception_caught(bool flag);
-
   // [is_off_heap_trampoline]: For kind BUILTIN tells whether
   // this is a trampoline to an off-heap builtin.
   inline bool is_off_heap_trampoline() const;
@@ -697,11 +691,10 @@ class Code : public HeapObject {
   V(EmbeddedObjectsClearedField, bool, 1, _)      \
   V(DeoptAlreadyCountedField, bool, 1, _)         \
   V(CanHaveWeakObjectsField, bool, 1, _)          \
-  V(IsPromiseRejectionField, bool, 1, _)          \
-  V(IsExceptionCaughtField, bool, 1, _)
+  V(IsPromiseRejectionField, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 6);
+  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 5);
   STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) *
                     kBitsPerByte);
@@ -721,7 +714,6 @@ class Code : public HeapObject {
   inline CodeDataContainer GCSafeCodeDataContainer(AcquireLoadTag) const;
 
   bool is_promise_rejection() const;
-  bool is_exception_caught() const;
 
   enum BytecodeToPCPosition {
     kPcAtStartOfBytecode,

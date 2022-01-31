@@ -354,13 +354,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
 #undef SET_PROMISE_REJECTION_PREDICTION
 
-// TODO(v8:11880): avoid roundtrips between cdc and code.
-#define SET_EXCEPTION_CAUGHT_PREDICTION(Name) \
-  FromCodeT(builtins->code(Builtin::k##Name)).set_is_exception_caught(true);
-
-  BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
-#undef SET_EXCEPTION_CAUGHT_PREDICTION
-
   builtins->MarkInitialized();
 }
 

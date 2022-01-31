@@ -634,21 +634,6 @@ inline void Code::set_is_promise_rejection(bool value) {
   container.set_kind_specific_flags(updated, kRelaxedStore);
 }
 
-inline bool Code::is_exception_caught() const {
-  DCHECK(kind() == CodeKind::BUILTIN);
-  int32_t flags =
-      code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad);
-  return IsExceptionCaughtField::decode(flags);
-}
-
-inline void Code::set_is_exception_caught(bool value) {
-  DCHECK(kind() == CodeKind::BUILTIN);
-  CodeDataContainer container = code_data_container(kAcquireLoad);
-  int32_t previous = container.kind_specific_flags(kRelaxedLoad);
-  int32_t updated = IsExceptionCaughtField::update(previous, value);
-  container.set_kind_specific_flags(updated, kRelaxedStore);
-}
-
 inline bool Code::is_off_heap_trampoline() const {
   const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
   return IsOffHeapTrampoline::decode(flags);
@@ -656,7 +641,6 @@ inline bool Code::is_off_heap_trampoline() const {
 
 inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
   if (is_promise_rejection()) return HandlerTable::PROMISE;
-  if (is_exception_caught()) return HandlerTable::CAUGHT;
   return HandlerTable::UNCAUGHT;
 }
 

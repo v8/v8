@@ -1908,12 +1908,9 @@ namespace internal {
   V(PromiseConstructor)                              \
   V(PromiseConstructorLazyDeoptContinuation)         \
   V(PromiseFulfillReactionJob)                       \
+  V(PromiseRejectReactionJob)                        \
   V(PromiseRace)                                     \
   V(ResolvePromise)
-
-// The exception thrown in the following builtins are caught internally and will
-// not be propagated further or re-thrown
-#define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseRejectReactionJob)
 
 #define IGNORE_BUILTIN(...)
 
