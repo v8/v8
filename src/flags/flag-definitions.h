@@ -684,7 +684,6 @@ DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
 #else
 DEFINE_BOOL(concurrent_sparkplug, false,
             "compile Sparkplug code in a background thread")
-DEFINE_IMPLICATION(concurrent_sparkplug, sparkplug)
 DEFINE_WEAK_IMPLICATION(future, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sparkplug)

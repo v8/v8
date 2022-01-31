@@ -15,6 +15,7 @@ ALL_VARIANT_FLAGS = {
   "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
   "jitless": [["--jitless"]],
   "sparkplug": [["--sparkplug"]],
+  "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
   "always_sparkplug": [[ "--always-sparkplug", "--sparkplug"]],
   "minor_mc": [["--minor-mc"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
@@ -50,8 +51,8 @@ ALL_VARIANT_FLAGS = {
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types",
-              "--validate-asm", "--sparkplug", "--always-sparkplug",
-              "--regexp-tier-up", "--no-regexp-interpret-all"],
+              "--validate-asm", "--sparkplug", "--concurrent-sparkplug",
+              "--always-sparkplug", "--regexp-tier-up", "--no-regexp-interpret-all"],
   "nooptimization": ["--always-opt"],
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
@@ -70,6 +71,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
              "--liftoff-only", "--wasm-speculative-inlining",
              "--wasm-dynamic-tiering"],
   "sparkplug": ["--jitless"],
+  "concurrent_sparkplug": ["--jitless"],
   "always_sparkplug": ["--jitless"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache",
                       "--cache=none"],
