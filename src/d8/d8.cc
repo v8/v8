@@ -1401,11 +1401,9 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   }
 
   // Loop until module execution finishes
-  // TODO(cbruni): This is a bit wonky. "Real" engines would not be
-  // able to just busy loop waiting for execution to finish.
   Local<Promise> result_promise(result.As<Promise>());
   while (result_promise->State() == Promise::kPending) {
-    isolate->PerformMicrotaskCheckpoint();
+    Shell::CompleteMessageLoop(isolate);
   }
 
   if (result_promise->State() == Promise::kRejected) {
