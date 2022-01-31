@@ -1045,32 +1045,7 @@ WebSnapshotDeserializer::WebSnapshotDeserializer(
     base::Vector<const uint8_t> buffer)
     : WebSnapshotSerializerDeserializer(isolate),
       script_name_(script_name),
-      deserializer_(isolate_, buffer.data(), buffer.length()) {
-  isolate_->heap()->AddGCEpilogueCallback(UpdatePointersCallback,
-                                          v8::kGCTypeAll, this);
-  Handle<FixedArray> empty_array = isolate_->factory()->empty_fixed_array();
-  strings_handle_ = empty_array;
-  maps_handle_ = empty_array;
-  contexts_handle_ = empty_array;
-  functions_handle_ = empty_array;
-  classes_handle_ = empty_array;
-  arrays_handle_ = empty_array;
-  objects_handle_ = empty_array;
-}
-
-WebSnapshotDeserializer::~WebSnapshotDeserializer() {
-  isolate_->heap()->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
-}
-
-void WebSnapshotDeserializer::UpdatePointers() {
-  strings_ = *strings_handle_;
-  maps_ = *maps_handle_;
-  contexts_ = *contexts_handle_;
-  functions_ = *functions_handle_;
-  classes_ = *classes_handle_;
-  arrays_ = *arrays_handle_;
-  objects_ = *objects_handle_;
-}
+      deserializer_(isolate_, buffer.data(), buffer.length()) {}
 
 // static
 base::Vector<const uint8_t> WebSnapshotDeserializer::ExtractScriptBuffer(
@@ -1124,6 +1099,7 @@ base::Vector<const uint8_t> WebSnapshotDeserializer::ExtractScriptBuffer(
   }
   UNREACHABLE();
 }
+WebSnapshotDeserializer::~WebSnapshotDeserializer() {}
 
 void WebSnapshotDeserializer::Throw(const char* message) {
   string_count_ = 0;
@@ -1236,8 +1212,7 @@ void WebSnapshotDeserializer::DeserializeStrings() {
     return;
   }
   STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
-  strings_handle_ = isolate_->factory()->NewFixedArray(string_count_);
-  strings_ = *strings_handle_;
+  strings_ = isolate_->factory()->NewFixedArray(string_count_);
   for (uint32_t i = 0; i < string_count_; ++i) {
     MaybeHandle<String> maybe_string = deserializer_.ReadUtf8String();
     Handle<String> string;
@@ -1245,21 +1220,22 @@ void WebSnapshotDeserializer::DeserializeStrings() {
       Throw("Malformed string");
       return;
     }
-    strings_.set(i, *string);
+    strings_->set(i, *string);
   }
 }
 
-String WebSnapshotDeserializer::ReadString(bool internalize) {
-  DCHECK(!strings_handle_->is_null());
+Handle<String> WebSnapshotDeserializer::ReadString(bool internalize) {
+  DCHECK(!strings_->is_null());
   uint32_t string_id;
   if (!deserializer_.ReadUint32(&string_id) || string_id >= string_count_) {
     Throw("malformed string id\n");
-    return ReadOnlyRoots(isolate_).empty_string();
+    return isolate_->factory()->empty_string();
   }
-  String string = String::cast(strings_.get(string_id));
-  if (internalize && !string.IsInternalizedString()) {
-    string = *isolate_->factory()->InternalizeString(handle(string, isolate_));
-    strings_.set(string_id, string);
+  Handle<String> string =
+      handle(String::cast(strings_->get(string_id)), isolate_);
+  if (internalize && !string->IsInternalizedString()) {
+    string = isolate_->factory()->InternalizeString(string);
+    strings_->set(string_id, *string);
   }
   return string;
 }
@@ -1271,8 +1247,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     return;
   }
   STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
-  maps_handle_ = isolate_->factory()->NewFixedArray(map_count_);
-  maps_ = *maps_handle_;
+  maps_ = isolate_->factory()->NewFixedArray(map_count_);
   for (uint32_t i = 0; i < map_count_; ++i) {
     uint32_t map_type;
     if (!deserializer_.ReadUint32(&map_type)) {
@@ -1315,7 +1290,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
       DisallowGarbageCollection no_gc;
       Map empty_map =
           isolate_->native_context()->object_function().initial_map();
-      maps_.set(i, empty_map);
+      maps_->set(i, empty_map);
       return;
     }
 
@@ -1333,7 +1308,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
         attributes = FlagsToAttributes(flags);
       }
 
-      Handle<String> key(ReadString(true), isolate_);
+      Handle<String> key = ReadString(true);
 
       // Use the "none" representation until we see the first object having this
       // map. At that point, modify the representation.
@@ -1357,14 +1332,14 @@ void WebSnapshotDeserializer::DeserializeMaps() {
       // TODO(v8::11525): Implement stricter checks, e.g., disallow cycles.
       --prototype_id;
       if (prototype_id < current_object_count_) {
-        map->set_prototype(HeapObject::cast(objects_.get(prototype_id)),
+        map->set_prototype(HeapObject::cast(objects_->get(prototype_id)),
                            UPDATE_WRITE_BARRIER);
       } else {
         // The object hasn't been deserialized yet.
         AddDeferredReference(map, 0, OBJECT_ID, prototype_id);
       }
     }
-    maps_.set(i, *map);
+    maps_->set(i, *map);
   }
 }
 
@@ -1376,8 +1351,7 @@ void WebSnapshotDeserializer::DeserializeContexts() {
     return;
   }
   STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
-  contexts_handle_ = isolate_->factory()->NewFixedArray(context_count_);
-  contexts_ = *contexts_handle_;
+  contexts_ = isolate_->factory()->NewFixedArray(context_count_);
   for (uint32_t i = 0; i < context_count_; ++i) {
     uint32_t context_type;
     if (!deserializer_.ReadUint32(&context_type)) {
@@ -1406,8 +1380,8 @@ void WebSnapshotDeserializer::DeserializeContexts() {
 
     Handle<Context> parent_context;
     if (parent_context_id > 0) {
-      parent_context =
-          handle(Context::cast(contexts_.get(parent_context_id - 1)), isolate_);
+      parent_context = handle(
+          Context::cast(contexts_->get(parent_context_id - 1)), isolate_);
       scope_info->set_outer_scope_info(parent_context->scope_info());
     } else {
       parent_context = handle(isolate_->context(), isolate_);
@@ -1417,10 +1391,8 @@ void WebSnapshotDeserializer::DeserializeContexts() {
     const int context_local_info_base = context_local_base + variable_count;
     for (int variable_index = 0;
          variable_index < static_cast<int>(variable_count); ++variable_index) {
-      {
-        String name = ReadString(true);
-        scope_info->set(context_local_base + variable_index, name);
-      }
+      Handle<String> name = ReadString(true);
+      scope_info->set(context_local_base + variable_index, *name);
 
       // TODO(v8:11525): Support variable modes etc.
       uint32_t info =
@@ -1452,14 +1424,15 @@ void WebSnapshotDeserializer::DeserializeContexts() {
         Throw("Unsupported context type");
         return;
     }
-    int context_header_length = scope_info->ContextHeaderLength();
     for (int variable_index = 0;
          variable_index < static_cast<int>(variable_count); ++variable_index) {
-      int context_index = context_header_length + variable_index;
-      Object value = ReadValue(context, context_index);
-      context->set(context_index, value);
+      Handle<Object> value;
+      Representation representation;
+      ReadValue(value, representation, context,
+                scope_info->ContextHeaderLength() + variable_index);
+      context->set(scope_info->ContextHeaderLength() + variable_index, *value);
     }
-    contexts_.set(i, *context);
+    contexts_->set(i, *context);
   }
 }
 
@@ -1515,19 +1488,15 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
                           : 0) +
                      (has_parent ? 1 : 0) + 2 * variable_count;
   Handle<ScopeInfo> scope_info = isolate_->factory()->NewScopeInfo(length);
-  {
-    DisallowGarbageCollection no_gc;
-    ScopeInfo raw = *scope_info;
 
-    raw.set_flags(flags);
-    DCHECK(!raw.IsEmpty());
+  scope_info->set_flags(flags);
+  DCHECK(!scope_info->IsEmpty());
 
-    raw.set_context_local_count(variable_count);
-    // TODO(v8:11525): Support parameters.
-    raw.set_parameter_count(0);
-    if (raw.HasPositionInfo()) {
-      raw.SetPositionInfo(0, 0);
-    }
+  scope_info->set_context_local_count(variable_count);
+  // TODO(v8:11525): Support parameters.
+  scope_info->set_parameter_count(0);
+  if (scope_info->HasPositionInfo()) {
+    scope_info->SetPositionInfo(0, 0);
   }
   return scope_info;
 }
@@ -1558,8 +1527,8 @@ Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
     raw.set_language_mode(LanguageMode::kStrict);
     raw.set_uncompiled_data(*uncompiled_data);
     raw.set_allows_lazy_compilation(true);
-    shared_function_infos_.Set(shared_function_info_index,
-                               HeapObjectReference::Weak(raw));
+    shared_function_infos_->Set(shared_function_info_index,
+                                HeapObjectReference::Weak(raw));
   }
   shared_function_info_table_ = ObjectHashTable::Put(
       shared_function_info_table_,
@@ -1572,8 +1541,8 @@ Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
   if (context_id > 0) {
     DCHECK_LT(context_id - 1, context_count_);
     // Guards raw pointer "context" below.
-    DisallowHeapAllocation no_heap_access;
-    Context context = Context::cast(contexts_.get(context_id - 1));
+    DisallowGarbageCollection no_gc;
+    Context context = Context::cast(contexts_->get(context_id - 1));
     function->set_context(context);
     shared->set_outer_scope_info(context.scope_info());
   }
@@ -1588,22 +1557,19 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     return;
   }
   STATIC_ASSERT(kMaxItemCount + 1 <= FixedArray::kMaxLength);
-  functions_handle_ = isolate_->factory()->NewFixedArray(function_count_);
-  functions_ = *functions_handle_;
+  functions_ = isolate_->factory()->NewFixedArray(function_count_);
 
   // Overallocate the array for SharedFunctionInfos; functions which we
   // deserialize soon will create more SharedFunctionInfos when called.
-  shared_function_infos_handle_ = isolate_->factory()->NewWeakFixedArray(
-      WeakArrayList::CapacityForLength(function_count_ + 1),
-      AllocationType::kOld);
-  shared_function_infos_ = *shared_function_infos_handle_;
+  shared_function_infos_ = isolate_->factory()->NewWeakFixedArray(
+      WeakArrayList::CapacityForLength(function_count_ + 1));
   shared_function_info_table_ = ObjectHashTable::New(isolate_, function_count_);
   script_ = isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   {
     DisallowGarbageCollection no_gc;
     Script raw = *script_;
     raw.set_type(Script::TYPE_WEB_SNAPSHOT);
-    raw.set_shared_function_infos(shared_function_infos_);
+    raw.set_shared_function_infos(*shared_function_infos_);
     raw.set_shared_function_info_table(*shared_function_info_table_);
   }
 
@@ -1614,15 +1580,13 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
       Throw("Malformed function");
       return;
     }
-    {
-      String source = ReadString(false);
-      DisallowGarbageCollection no_gc;
-      if (current_function_count_ == 0) {
-        script_->set_source(source);
-      } else {
-        // TODO(v8:11525): Support multiple source snippets.
-        DCHECK_EQ(script_->source(), source);
-      }
+
+    Handle<String> source = ReadString(false);
+    if (current_function_count_ == 0) {
+      script_->set_source(*source);
+    } else {
+      // TODO(v8:11525): Support multiple source snippets.
+      DCHECK_EQ(script_->source(), *source);
     }
 
     uint32_t start_position;
@@ -1642,7 +1606,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     Handle<JSFunction> function =
         CreateJSFunction(current_function_count_ + 1, start_position, length,
                          parameter_count, flags, context_id);
-    functions_.set(current_function_count_, *function);
+    functions_->set(current_function_count_, *function);
 
     ReadFunctionPrototype(function);
   }
@@ -1656,15 +1620,13 @@ void WebSnapshotDeserializer::DeserializeClasses() {
     return;
   }
   STATIC_ASSERT(kMaxItemCount + 1 <= FixedArray::kMaxLength);
-  classes_handle_ = isolate_->factory()->NewFixedArray(class_count_);
-  classes_ = *classes_handle_;
+  classes_ = isolate_->factory()->NewFixedArray(class_count_);
 
   // Grow the array for SharedFunctionInfos.
-  shared_function_infos_handle_ = WeakFixedArray::EnsureSpace(
-      isolate_, shared_function_infos_handle_,
+  shared_function_infos_ = WeakFixedArray::EnsureSpace(
+      isolate_, shared_function_infos_,
       WeakArrayList::CapacityForLength(function_count_ + 1 + class_count_));
-  shared_function_infos_ = *shared_function_infos_handle_;
-  script_->set_shared_function_infos(shared_function_infos_);
+  script_->set_shared_function_infos(*shared_function_infos_);
 
   for (; current_class_count_ < class_count_; ++current_class_count_) {
     uint32_t context_id;
@@ -1674,14 +1636,12 @@ void WebSnapshotDeserializer::DeserializeClasses() {
       return;
     }
 
-    {
-      String source = ReadString(false);
-      if (current_function_count_ + current_class_count_ == 0) {
-        script_->set_source(source);
-      } else {
-        // TODO(v8:11525): Support multiple source snippets.
-        DCHECK_EQ(script_->source(), source);
-      }
+    Handle<String> source = ReadString(false);
+    if (current_function_count_ + current_class_count_ == 0) {
+      script_->set_source(*source);
+    } else {
+      // TODO(v8:11525): Support multiple source snippets.
+      DCHECK_EQ(script_->source(), *source);
     }
 
     uint32_t start_position;
@@ -1701,7 +1661,7 @@ void WebSnapshotDeserializer::DeserializeClasses() {
     Handle<JSFunction> function = CreateJSFunction(
         function_count_ + current_class_count_ + 1, start_position, length,
         parameter_count, flags, context_id);
-    classes_.set(current_class_count_, *function);
+    classes_->set(current_class_count_, *function);
 
     ReadFunctionPrototype(function);
   }
@@ -1715,44 +1675,42 @@ void WebSnapshotDeserializer::DeserializeObjects() {
     return;
   }
   STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
-  objects_handle_ = isolate_->factory()->NewFixedArray(object_count_);
-  objects_ = *objects_handle_;
+  objects_ = isolate_->factory()->NewFixedArray(object_count_);
   for (; current_object_count_ < object_count_; ++current_object_count_) {
     uint32_t map_id;
     if (!deserializer_.ReadUint32(&map_id) || map_id >= map_count_) {
       Throw("Malformed object");
       return;
     }
-    Map map = Map::cast(maps_.get(map_id));
+    Handle<Map> map = handle(Map::cast(maps_->get(map_id)), isolate_);
     Handle<DescriptorArray> descriptors =
-        handle(map.instance_descriptors(kRelaxedLoad), isolate_);
-    int no_properties = map.NumberOfOwnDescriptors();
+        handle(map->instance_descriptors(kRelaxedLoad), isolate_);
+    int no_properties = map->NumberOfOwnDescriptors();
     // TODO(v8:11525): In-object properties.
-    Handle<JSObject> object =
-        isolate_->factory()->NewJSObjectFromMap(handle(map, isolate_));
     Handle<PropertyArray> property_array =
         isolate_->factory()->NewPropertyArray(no_properties);
     for (int i = 0; i < no_properties; ++i) {
-      Object value = ReadValue(property_array, i);
-      DisallowGarbageCollection no_gc;
+      Handle<Object> value;
+      Representation wanted_representation = Representation::None();
+      ReadValue(value, wanted_representation, property_array, i);
       // Read the representation from the map.
-      DescriptorArray raw_descriptors = *descriptors;
-      PropertyDetails details = raw_descriptors.GetDetails(InternalIndex(i));
+      PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
       CHECK_EQ(details.location(), PropertyLocation::kField);
       CHECK_EQ(PropertyKind::kData, details.kind());
       Representation r = details.representation();
       if (r.IsNone()) {
         // Switch over to wanted_representation.
-        details = details.CopyWithRepresentation(Representation::Tagged());
-        raw_descriptors.SetDetails(InternalIndex(i), details);
-      } else if (!r.Equals(Representation::Tagged())) {
+        details = details.CopyWithRepresentation(wanted_representation);
+        descriptors->SetDetails(InternalIndex(i), details);
+      } else if (!r.Equals(wanted_representation)) {
         // TODO(v8:11525): Support this case too.
         UNREACHABLE();
       }
-      property_array->set(i, value);
+      property_array->set(i, *value);
     }
+    Handle<JSObject> object = isolate_->factory()->NewJSObjectFromMap(map);
     object->set_raw_properties_or_hash(*property_array, kRelaxedStore);
-    objects_.set(static_cast<int>(current_object_count_), *object);
+    objects_->set(static_cast<int>(current_object_count_), *object);
   }
 }
 
@@ -1764,8 +1722,7 @@ void WebSnapshotDeserializer::DeserializeArrays() {
     return;
   }
   STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
-  arrays_handle_ = isolate_->factory()->NewFixedArray(array_count_);
-  arrays_ = *arrays_handle_;
+  arrays_ = isolate_->factory()->NewFixedArray(array_count_);
   for (; current_array_count_ < array_count_; ++current_array_count_) {
     uint32_t length;
     if (!deserializer_.ReadUint32(&length) || length > kMaxItemCount) {
@@ -1775,16 +1732,18 @@ void WebSnapshotDeserializer::DeserializeArrays() {
     Handle<FixedArray> elements = isolate_->factory()->NewFixedArray(length);
     ElementsKind elements_kind = PACKED_SMI_ELEMENTS;
     for (uint32_t i = 0; i < length; ++i) {
-      Object value = ReadValue(elements, i);
-      DisallowGarbageCollection no_gc;
-      if (!value.IsSmi()) {
+      Handle<Object> value;
+      Representation wanted_representation = Representation::None();
+      ReadValue(value, wanted_representation, elements, i);
+      if (!wanted_representation.IsSmi()) {
         elements_kind = PACKED_ELEMENTS;
       }
-      elements->set(static_cast<int>(i), value);
+      DCHECK(!value.is_null());
+      elements->set(static_cast<int>(i), *value);
     }
     Handle<JSArray> array = isolate_->factory()->NewJSArrayWithElements(
         elements, elements_kind, length);
-    arrays_.set(static_cast<int>(current_array_count_), *array);
+    arrays_->set(static_cast<int>(current_array_count_), *array);
   }
 }
 
@@ -1810,24 +1769,27 @@ void WebSnapshotDeserializer::DeserializeExports() {
   // LookupIterator::ExtendingNonExtensible.
   InternalIndex entry = InternalIndex::NotFound();
   for (uint32_t i = 0; i < count; ++i) {
-    Handle<String> export_name(ReadString(true), isolate_);
+    Handle<String> export_name = ReadString(true);
+    Handle<Object> export_value;
+    Representation representation;
     // No deferred references should occur at this point, since all objects have
     // been deserialized.
-    Object export_value = ReadValue();
-    DisallowGarbageCollection no_gc;
+    ReadValue(export_value, representation);
+
     // Check for the correctness of the snapshot (thus far) before producing
     // something observable. TODO(v8:11525): Strictly speaking, we should
     // produce observable effects only when we know that the whole snapshot is
     // correct.
-    if (has_error()) return;
+    if (has_error()) {
+      return;
+    }
 
     PropertyDetails property_details =
         PropertyDetails(PropertyKind::kData, NONE,
-                        PropertyCell::InitialType(isolate_, export_value));
-    Handle<Object> export_value_handle(export_value, isolate_);
-    AllowGarbageCollection allow_gc;
+                        PropertyCell::InitialType(isolate_, *export_value));
     Handle<PropertyCell> transition_cell = isolate_->factory()->NewPropertyCell(
-        export_name, property_details, export_value_handle);
+        export_name, property_details, export_value);
+
     dictionary =
         GlobalDictionary::Add(isolate_, dictionary, export_name,
                               transition_cell, property_details, &entry);
@@ -1837,7 +1799,8 @@ void WebSnapshotDeserializer::DeserializeExports() {
   JSObject::InvalidatePrototypeChains(global->map(isolate_));
 }
 
-Object WebSnapshotDeserializer::ReadValue(
+void WebSnapshotDeserializer::ReadValue(
+    Handle<Object>& value, Representation& representation,
     Handle<HeapObject> object_for_deferred_reference,
     uint32_t index_for_deferred_reference) {
   uint32_t value_type;
@@ -1847,117 +1810,163 @@ Object WebSnapshotDeserializer::ReadValue(
     Throw("Malformed variable");
     // Set "value" here so that the "keep on trucking" error handling won't fail
     // when dereferencing the handle.
-    return Smi::zero();
+    value = factory->undefined_value();
+    representation = Representation::None();
+    return;
   }
   switch (value_type) {
     case ValueType::FALSE_CONSTANT: {
-      return ReadOnlyRoots(isolate_).false_value();
+      value = factory->false_value();
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::TRUE_CONSTANT: {
-      return ReadOnlyRoots(isolate_).true_value();
+      value = factory->true_value();
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::NULL_CONSTANT: {
-      return ReadOnlyRoots(isolate_).null_value();
+      value = factory->null_value();
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::UNDEFINED_CONSTANT: {
-      return ReadOnlyRoots(isolate_).undefined_value();
+      value = factory->undefined_value();
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::INTEGER: {
       Maybe<int32_t> number = deserializer_.ReadZigZag<int32_t>();
       if (number.IsNothing()) {
         Throw("Malformed integer");
-        return Smi::zero();
+        return;
       }
-      return *factory->NewNumberFromInt(number.FromJust());
+      value = factory->NewNumberFromInt(number.FromJust());
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::DOUBLE: {
       double number;
       if (!deserializer_.ReadDouble(&number)) {
         Throw("Malformed double");
-        return Smi::zero();
+        return;
       }
-      return *factory->NewNumber(number);
+      value = factory->NewNumber(number);
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::STRING_ID: {
-      return ReadString(false);
+      value = ReadString(false);
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::ARRAY_ID:
       uint32_t array_id;
       if (!deserializer_.ReadUint32(&array_id) || array_id >= kMaxItemCount) {
         Throw("Malformed variable");
-        return Smi::zero();
+        return;
       }
       if (array_id < current_array_count_) {
-        return arrays_.get(array_id);
+        value = handle(arrays_->get(array_id), isolate_);
+      } else {
+        // The array hasn't been deserialized yet.
+        value = factory->undefined_value();
+        if (object_for_deferred_reference.is_null()) {
+          Throw("Invalid array reference");
+          return;
+        }
+        AddDeferredReference(object_for_deferred_reference,
+                             index_for_deferred_reference, ARRAY_ID, array_id);
       }
-      // The array hasn't been deserialized yet.
-      return AddDeferredReference(object_for_deferred_reference,
-                                  index_for_deferred_reference, ARRAY_ID,
-                                  array_id);
+      representation = Representation::Tagged();
+      break;
     case ValueType::OBJECT_ID:
       uint32_t object_id;
       if (!deserializer_.ReadUint32(&object_id) || object_id > kMaxItemCount) {
         Throw("Malformed variable");
-        return Smi::zero();
+        return;
       }
       if (object_id < current_object_count_) {
-        return objects_.get(object_id);
+        value = handle(objects_->get(object_id), isolate_);
+      } else {
+        // The object hasn't been deserialized yet.
+        value = factory->undefined_value();
+        if (object_for_deferred_reference.is_null()) {
+          Throw("Invalid object reference");
+          return;
+        }
+        AddDeferredReference(object_for_deferred_reference,
+                             index_for_deferred_reference, OBJECT_ID,
+                             object_id);
       }
-      // The object hasn't been deserialized yet.
-      return AddDeferredReference(object_for_deferred_reference,
-                                  index_for_deferred_reference, OBJECT_ID,
-                                  object_id);
+      representation = Representation::Tagged();
+      break;
     case ValueType::FUNCTION_ID: {
       uint32_t function_id;
       if (!deserializer_.ReadUint32(&function_id) ||
           function_id >= function_count_) {
         Throw("Malformed object property");
-        return Smi::zero();
+        return;
       }
       if (function_id < current_function_count_) {
-        return functions_.get(function_id);
+        value = handle(functions_->get(function_id), isolate_);
+      } else {
+        // The function hasn't been deserialized yet.
+        value = factory->undefined_value();
+        if (object_for_deferred_reference.is_null()) {
+          Throw("Invalid object reference");
+          return;
+        }
+        AddDeferredReference(object_for_deferred_reference,
+                             index_for_deferred_reference, FUNCTION_ID,
+                             function_id);
       }
-      // The function hasn't been deserialized yet.
-      return AddDeferredReference(object_for_deferred_reference,
-                                  index_for_deferred_reference, FUNCTION_ID,
-                                  function_id);
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::CLASS_ID: {
       uint32_t class_id;
       if (!deserializer_.ReadUint32(&class_id) || class_id >= kMaxItemCount) {
         Throw("Malformed object property");
-        return Smi::zero();
+        return;
       }
       if (class_id < current_class_count_) {
-        return classes_.get(class_id);
+        value = handle(classes_->get(class_id), isolate_);
+      } else {
+        // The class hasn't been deserialized yet.
+        value = factory->undefined_value();
+        if (object_for_deferred_reference.is_null()) {
+          Throw("Invalid object reference");
+          return;
+        }
+        AddDeferredReference(object_for_deferred_reference,
+                             index_for_deferred_reference, CLASS_ID, class_id);
       }
-      // The class hasn't been deserialized yet.
-      return AddDeferredReference(object_for_deferred_reference,
-                                  index_for_deferred_reference, CLASS_ID,
-                                  class_id);
+      representation = Representation::Tagged();
+      break;
     }
     case ValueType::REGEXP: {
-      Handle<String> pattern(ReadString(false), isolate_);
-      Handle<String> flags_string(ReadString(false), isolate_);
+      Handle<String> pattern = ReadString(false);
+      Handle<String> flags_string = ReadString(false);
       base::Optional<JSRegExp::Flags> flags =
           JSRegExp::FlagsFromString(isolate_, flags_string);
       if (!flags.has_value()) {
         Throw("Malformed flags in regular expression");
-        return Smi::zero();
+        return;
       }
       MaybeHandle<JSRegExp> maybe_regexp =
           JSRegExp::New(isolate_, pattern, flags.value());
-      Handle<JSRegExp> regexp;
-      if (!maybe_regexp.ToHandle(&regexp)) {
+      if (!maybe_regexp.ToHandle(&value)) {
         Throw("Malformed RegExp");
-        return Smi::zero();
+        return;
       }
-      return *regexp;
+      representation = Representation::Tagged();
+      break;
     }
     default:
       // TODO(v8:11525): Handle other value types.
       Throw("Unsupported value type");
-      return Smi::zero();
+      return;
   }
 }
 
@@ -1976,7 +1985,7 @@ void WebSnapshotDeserializer::ReadFunctionPrototype(
   --object_id;
   if (object_id < current_object_count_) {
     if (!SetFunctionPrototype(*function,
-                              JSReceiver::cast(objects_.get(object_id)))) {
+                              JSReceiver::cast(objects_->get(object_id)))) {
       Throw("Can't reuse function prototype");
       return;
     }
@@ -2000,38 +2009,16 @@ bool WebSnapshotDeserializer::SetFunctionPrototype(JSFunction function,
   return true;
 }
 
-HeapObject WebSnapshotDeserializer::AddDeferredReference(
-    Handle<HeapObject> container, uint32_t index, ValueType target_type,
-    uint32_t target_index) {
-  if (container.is_null()) {
-    const char* message = "Invalid reference";
-    switch (target_type) {
-      case ARRAY_ID:
-        message = "Invalid array reference";
-        break;
-      case OBJECT_ID:
-        message = "Invalid object reference";
-        break;
-      case CLASS_ID:
-        message = "Invalid class reference";
-        break;
-      case FUNCTION_ID:
-        message = "Invalid function reference";
-        break;
-      default:
-        break;
-    }
-    Throw(message);
-    return ReadOnlyRoots(isolate_).undefined_value();
-  }
+void WebSnapshotDeserializer::AddDeferredReference(Handle<HeapObject> container,
+                                                   uint32_t index,
+                                                   ValueType target_type,
+                                                   uint32_t target_index) {
   DCHECK(container->IsPropertyArray() || container->IsContext() ||
          container->IsFixedArray() || container->IsJSFunction() ||
          container->IsMap());
   deferred_references_ = ArrayList::Add(
       isolate_, deferred_references_, container, Smi::FromInt(index),
       Smi::FromInt(target_type), Smi::FromInt(target_index));
-  // Use HeapObject as placeholder since this might break elements kinds.
-  return ReadOnlyRoots(isolate_).undefined_value();
 }
 
 void WebSnapshotDeserializer::ProcessDeferredReferences() {
@@ -2043,14 +2030,18 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
 
   DisallowGarbageCollection no_gc;
   ArrayList raw_deferred_references = *deferred_references_;
+  FixedArray raw_functions = *functions_;
+  FixedArray raw_classes = *classes_;
+  FixedArray raw_arrays = *arrays_;
+  FixedArray raw_objects = *objects_;
 
   // Deferred references is a list of (object, index, target type, target index)
   // tuples.
   for (int i = 0; i < raw_deferred_references.Length() - 3; i += 4) {
     HeapObject container = HeapObject::cast(raw_deferred_references.Get(i));
     int index = raw_deferred_references.Get(i + 1).ToSmi().value();
-    ValueType target_type = static_cast<ValueType>(
-        raw_deferred_references.Get(i + 2).ToSmi().value());
+    ValueType target_type =
+        ValueType(raw_deferred_references.Get(i + 2).ToSmi().value());
     int target_index = raw_deferred_references.Get(i + 3).ToSmi().value();
     Object target;
     switch (target_type) {
@@ -2062,7 +2053,7 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
           Throw("Invalid function reference");
           return;
         }
-        target = functions_.get(target_index);
+        target = raw_functions.get(target_index);
         break;
       case CLASS_ID:
         if (static_cast<uint32_t>(target_index) >= class_count_) {
@@ -2070,7 +2061,7 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
           Throw("Invalid class reference");
           return;
         }
-        target = classes_.get(target_index);
+        target = raw_classes.get(target_index);
         break;
       case ARRAY_ID:
         if (static_cast<uint32_t>(target_index) >= array_count_) {
@@ -2078,7 +2069,7 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
           Throw("Invalid array reference");
           return;
         }
-        target = arrays_.get(target_index);
+        target = raw_arrays.get(target_index);
         break;
       case OBJECT_ID:
         if (static_cast<uint32_t>(target_index) >= object_count_) {
@@ -2086,7 +2077,7 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
           Throw("Invalid object reference");
           return;
         }
-        target = objects_.get(target_index);
+        target = raw_objects.get(target_index);
         break;
       default:
         UNREACHABLE();
