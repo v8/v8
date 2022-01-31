@@ -1862,6 +1862,7 @@ class WasmDecoder : public Decoder {
                                                   pc + length + dst_imm.length);
             return length + dst_imm.length + src_imm.length;
           }
+          case kExprArrayInitFromData:
           case kExprArrayInitFromDataStatic: {
             ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
             IndexImmediate<validate> data_imm(
@@ -2069,6 +2070,7 @@ class WasmDecoder : public Decoder {
           case kExprStructNewDefault:
             return {0, 1};
           case kExprArrayNewWithRtt:
+          case kExprArrayInitFromData:
             return {3, 1};
           case kExprStructNewWithRtt: {
             StructIndexImmediate<validate> imm(this, pc + 2);
@@ -4191,6 +4193,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length + imm.length;
       }
+      case kExprArrayInitFromData:
       case kExprArrayInitFromDataStatic: {
         ArrayIndexImmediate<validate> array_imm(this,
                                                 this->pc_ + opcode_length);
@@ -4217,12 +4220,17 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                               "data segment");
         if (!this->ValidateDataSegment(data_index_pc, data_segment)) return 0;
 
-        Value length = Peek(0, 1, kWasmI32);
-        Value offset = Peek(1, 0, kWasmI32);
+        ValueType rtt_type = ValueType::Rtt(array_imm.index);
+        Value rtt = opcode == kExprArrayInitFromDataStatic
+                        ? CreateValue(rtt_type)
+                        : Peek(0, 2, rtt_type);
+        if (opcode == kExprArrayInitFromDataStatic) {
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, array_imm.index, &rtt);
+          Push(rtt);
+        }
 
-        Value rtt = CreateValue(ValueType::Rtt(array_imm.index));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, array_imm.index, &rtt);
-        Push(rtt);
+        Value length = Peek(1, 1, kWasmI32);
+        Value offset = Peek(2, 0, kWasmI32);
 
         Value array =
             CreateValue(ValueType::Ref(array_imm.index, kNonNullable));

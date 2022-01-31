@@ -665,56 +665,57 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   /* AtomicFence does not target a particular linear memory. */ \
   V(AtomicFence, 0xfe03, v_v)
 
-#define FOREACH_GC_OPCODE(V)                                         \
-  V(StructNewWithRtt, 0xfb01, _)                                     \
-  V(StructNewDefaultWithRtt, 0xfb02, _)                              \
-  V(StructGet, 0xfb03, _)                                            \
-  V(StructGetS, 0xfb04, _)                                           \
-  V(StructGetU, 0xfb05, _)                                           \
-  V(StructSet, 0xfb06, _)                                            \
-  V(StructNew, 0xfb07, _)                                            \
-  V(StructNewDefault, 0xfb08, _)                                     \
-  V(ArrayNewWithRtt, 0xfb11, _)                                      \
-  V(ArrayNewDefaultWithRtt, 0xfb12, _)                               \
-  V(ArrayGet, 0xfb13, _)                                             \
-  V(ArrayGetS, 0xfb14, _)                                            \
-  V(ArrayGetU, 0xfb15, _)                                            \
-  V(ArraySet, 0xfb16, _)                                             \
-  V(ArrayLen, 0xfb17, _)                                             \
-  V(ArrayCopy, 0xfb18, _) /* not standardized - V8 experimental */   \
-  V(ArrayInit, 0xfb19, _) /* not standardized - V8 experimental */   \
-  V(ArrayInitStatic, 0xfb1a, _)                                      \
-  V(ArrayNew, 0xfb1b, _)                                             \
-  V(ArrayNewDefault, 0xfb1c, _)                                      \
-  V(ArrayInitFromDataStatic, 0xfb1d, _) /* n/st - V8 experimental */ \
-  V(I31New, 0xfb20, _)                                               \
-  V(I31GetS, 0xfb21, _)                                              \
-  V(I31GetU, 0xfb22, _)                                              \
-  V(RttCanon, 0xfb30, _)                                             \
-  V(RefTest, 0xfb40, _)                                              \
-  V(RefCast, 0xfb41, _)                                              \
-  V(BrOnCast, 0xfb42, _)                                             \
-  V(BrOnCastFail, 0xfb43, _)                                         \
-  V(RefTestStatic, 0xfb44, _)                                        \
-  V(RefCastStatic, 0xfb45, _)                                        \
-  V(BrOnCastStatic, 0xfb46, _)                                       \
-  V(BrOnCastStaticFail, 0xfb47, _)                                   \
-  V(RefIsFunc, 0xfb50, _)                                            \
-  V(RefIsData, 0xfb51, _)                                            \
-  V(RefIsI31, 0xfb52, _)                                             \
-  V(RefIsArray, 0xfb53, _) /* not standardized - V8 experimental */  \
-  V(RefAsFunc, 0xfb58, _)                                            \
-  V(RefAsData, 0xfb59, _)                                            \
-  V(RefAsI31, 0xfb5a, _)                                             \
-  V(RefAsArray, 0xfb5b, _) /* not standardized - V8 experimental */  \
-  V(BrOnFunc, 0xfb60, _)                                             \
-  V(BrOnData, 0xfb61, _)                                             \
-  V(BrOnI31, 0xfb62, _)                                              \
-  V(BrOnArray, 0xfb66, _) /* not standardized - V8 experimental */   \
-  V(BrOnNonFunc, 0xfb63, _)                                          \
-  V(BrOnNonData, 0xfb64, _)                                          \
-  V(BrOnNonI31, 0xfb65, _)                                           \
-  V(BrOnNonArray, 0xfb67, _) /* not standardized - V8 experimental */
+#define FOREACH_GC_OPCODE(V) /*              Force 80 columns               */ \
+  V(StructNewWithRtt, 0xfb01, _)                                               \
+  V(StructNewDefaultWithRtt, 0xfb02, _)                                        \
+  V(StructGet, 0xfb03, _)                                                      \
+  V(StructGetS, 0xfb04, _)                                                     \
+  V(StructGetU, 0xfb05, _)                                                     \
+  V(StructSet, 0xfb06, _)                                                      \
+  V(StructNew, 0xfb07, _)                                                      \
+  V(StructNewDefault, 0xfb08, _)                                               \
+  V(ArrayNewWithRtt, 0xfb11, _)                                                \
+  V(ArrayNewDefaultWithRtt, 0xfb12, _)                                         \
+  V(ArrayGet, 0xfb13, _)                                                       \
+  V(ArrayGetS, 0xfb14, _)                                                      \
+  V(ArrayGetU, 0xfb15, _)                                                      \
+  V(ArraySet, 0xfb16, _)                                                       \
+  V(ArrayLen, 0xfb17, _)                                                       \
+  V(ArrayCopy, 0xfb18, _)       /* not standardized - V8 experimental */       \
+  V(ArrayInit, 0xfb19, _)       /* not standardized - V8 experimental */       \
+  V(ArrayInitStatic, 0xfb1a, _) /* not standardized - V8 experimental */       \
+  V(ArrayNew, 0xfb1b, _)                                                       \
+  V(ArrayNewDefault, 0xfb1c, _)                                                \
+  V(ArrayInitFromData, 0xfb1e, _)       /* not stand. - V8 experimental */     \
+  V(ArrayInitFromDataStatic, 0xfb1d, _) /* not stand. - V8 experimental */     \
+  V(I31New, 0xfb20, _)                                                         \
+  V(I31GetS, 0xfb21, _)                                                        \
+  V(I31GetU, 0xfb22, _)                                                        \
+  V(RttCanon, 0xfb30, _)                                                       \
+  V(RefTest, 0xfb40, _)                                                        \
+  V(RefCast, 0xfb41, _)                                                        \
+  V(BrOnCast, 0xfb42, _)                                                       \
+  V(BrOnCastFail, 0xfb43, _)                                                   \
+  V(RefTestStatic, 0xfb44, _)                                                  \
+  V(RefCastStatic, 0xfb45, _)                                                  \
+  V(BrOnCastStatic, 0xfb46, _)                                                 \
+  V(BrOnCastStaticFail, 0xfb47, _)                                             \
+  V(RefIsFunc, 0xfb50, _)                                                      \
+  V(RefIsData, 0xfb51, _)                                                      \
+  V(RefIsI31, 0xfb52, _)                                                       \
+  V(RefIsArray, 0xfb53, _)                                                     \
+  V(RefAsFunc, 0xfb58, _)                                                      \
+  V(RefAsData, 0xfb59, _)                                                      \
+  V(RefAsI31, 0xfb5a, _)                                                       \
+  V(RefAsArray, 0xfb5b, _)                                                     \
+  V(BrOnFunc, 0xfb60, _)                                                       \
+  V(BrOnData, 0xfb61, _)                                                       \
+  V(BrOnI31, 0xfb62, _)                                                        \
+  V(BrOnArray, 0xfb66, _)                                                      \
+  V(BrOnNonFunc, 0xfb63, _)                                                    \
+  V(BrOnNonData, 0xfb64, _)                                                    \
+  V(BrOnNonI31, 0xfb65, _)                                                     \
+  V(BrOnNonArray, 0xfb67, _)
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \
