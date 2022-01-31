@@ -74,6 +74,7 @@
 
 ['variant == jitless', {
   # Too slow for jitless mode.
+  'kraken/audio-fft': [PASS, ['mode == debug', SKIP]],
   'kraken/imaging-desaturate' : [PASS, ['mode == debug', SKIP]],
   'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
   'octane/zlib': [SKIP],

@@ -1508,6 +1508,8 @@
   # stress-concurrent-allocation reverts the pretenuring decision due to low
   # survival rate in old generation.
   'compiler/deopt-pretenure': [SKIP],
+  # BUG(v8:9506): slow tests.
+  'wasm/shared-memory-worker-gc-stress': [SKIP],
 }],  # variant == stress_concurrent_allocation
 
 ##############################################################################
