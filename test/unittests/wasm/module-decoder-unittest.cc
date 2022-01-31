@@ -3363,6 +3363,18 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
   EXPECT_NOT_OK(result, "Type index 1 is out of bounds");
 }
 
+// TODO(7748): Add support for rec. groups.
+TEST_F(WasmModuleVerifyTest, ForwardSupertype) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
+              kWasmSubtypeCode, ENTRY_COUNT(1), 0,
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kRefCode, true)))};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_NOT_OK(result, "type 0: forward-declared supertype 0");
+}
+
 TEST_F(WasmModuleVerifyTest, IllegalPackedFields) {
   WASM_FEATURE_SCOPE(gc);
   WASM_FEATURE_SCOPE(typed_funcref);

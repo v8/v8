@@ -582,6 +582,15 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
+  bool check_supertype(uint32_t supertype) {
+    if (V8_UNLIKELY(supertype >= module_->types.size())) {
+      errorf(pc(), "type %zu: forward-declared supertype %d",
+             module_->types.size(), supertype);
+      return false;
+    }
+    return true;
+  }
+
   TypeDefinition consume_nominal_type_definition() {
     DCHECK(enabled_features_.has_gc());
     size_t num_types = module_->types.size();
@@ -650,11 +659,7 @@ class ModuleDecoderImpl : public Decoder {
           consume_count("supertype count", kMaximumSupertypes);
       uint32_t supertype =
           supertype_count == 1 ? consume_u32v("supertype") : kNoSuperType;
-      if (V8_UNLIKELY(supertype >= module_->types.capacity())) {
-        errorf(pc(), "type %zu: invalid supertype %d", module_->types.size(),
-               supertype);
-        return {};
-      }
+      if (!check_supertype(supertype)) return {};
       TypeDefinition type = consume_base_type_definition();
       type.supertype = supertype;
       return type;
@@ -736,6 +741,8 @@ class ModuleDecoderImpl : public Decoder {
         errorf("type %d: subtyping depth is greater than allowed", i);
         continue;
       }
+      // TODO(7748): Replace this with a DCHECK once we reject inheritance
+      // cycles for nominal modules.
       if (depth == -1) {
         errorf("type %d: cyclic inheritance", i);
         continue;
