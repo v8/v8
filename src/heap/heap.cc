@@ -1722,6 +1722,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
     }
   }
 
+  // Part 2: The main garbage collection phase.
+
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced ||
                           current_gc_flags_ & kForcedGC ||
                           force_gc_on_next_allocation_;
@@ -1819,30 +1821,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
       is_current_gc_forced_ = false;
       is_current_gc_for_heap_profiler_ = false;
 
-      {
-        TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
-        gc_post_processing_depth_++;
-        {
-          AllowGarbageCollection allow_gc;
-          AllowJavascriptExecution allow_js(isolate());
-          freed_global_handles +=
-              isolate_->global_handles()->PostGarbageCollectionProcessing(
-                  collector, gc_callback_flags);
-        }
-        gc_post_processing_depth_--;
-      }
-
-      {
-        GCCallbacksScope scope(this);
-        if (scope.CheckReenter()) {
-          AllowGarbageCollection allow_gc;
-          AllowJavascriptExecution allow_js(isolate());
-          TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
-          VMState<EXTERNAL> callback_state(isolate_);
-          HandleScope handle_scope(isolate_);
-          CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
-        }
-      }
       if (collector == GarbageCollector::MARK_COMPACTOR ||
           collector == GarbageCollector::SCAVENGER) {
         tracer()->RecordGCPhasesHistograms(gc_type_timer);
@@ -1882,6 +1860,35 @@ bool Heap::CollectGarbage(AllocationSpace space,
     }
 
     tracer()->Stop(collector);
+  }
+
+  // Part 3: Invoke all callbacks which should happen after the actual garbage
+  // collection is triggered. Note that these callbacks may trigger another
+  // garbage collection since they may allocate.
+
+  {
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
+    gc_post_processing_depth_++;
+    {
+      AllowGarbageCollection allow_gc;
+      AllowJavascriptExecution allow_js(isolate());
+      freed_global_handles +=
+          isolate_->global_handles()->PostGarbageCollectionProcessing(
+              collector, gc_callback_flags);
+    }
+    gc_post_processing_depth_--;
+  }
+
+  {
+    GCCallbacksScope scope(this);
+    if (scope.CheckReenter()) {
+      AllowGarbageCollection allow_gc;
+      AllowJavascriptExecution allow_js(isolate());
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
+      VMState<EXTERNAL> callback_state(isolate_);
+      HandleScope handle_scope(isolate_);
+      CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
+    }
   }
 
   if (collector == GarbageCollector::MARK_COMPACTOR &&

@@ -261,7 +261,8 @@ void GCTracer::ResetForTesting() {
 
 void GCTracer::NotifyYoungGenerationHandling(
     YoungGenerationHandling young_generation_handling) {
-  DCHECK(current_.type == Event::SCAVENGER || start_counter_ > 1);
+  DCHECK_GE(1, start_counter_);
+  DCHECK_EQ(Event::SCAVENGER, current_.type);
   heap_->isolate()->counters()->young_generation_handling()->AddSample(
       static_cast<int>(young_generation_handling));
 }
@@ -269,8 +270,8 @@ void GCTracer::NotifyYoungGenerationHandling(
 void GCTracer::Start(GarbageCollector collector,
                      GarbageCollectionReason gc_reason,
                      const char* collector_reason) {
+  DCHECK_EQ(0, start_counter_);
   start_counter_++;
-  if (start_counter_ != 1) return;
 
   previous_ = current_;
 
@@ -352,16 +353,7 @@ void GCTracer::StopInSafepoint() {
 
 void GCTracer::Stop(GarbageCollector collector) {
   start_counter_--;
-  if (start_counter_ != 0) {
-    if (FLAG_trace_gc_verbose) {
-      heap_->isolate()->PrintWithTimestamp(
-          "[Finished reentrant %s during %s.]\n",
-          Heap::CollectorName(collector), current_.TypeName(false));
-    }
-    return;
-  }
-
-  DCHECK_LE(0, start_counter_);
+  DCHECK_EQ(0, start_counter_);
   DCHECK((collector == GarbageCollector::SCAVENGER &&
           current_.type == Event::SCAVENGER) ||
          (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
