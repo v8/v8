@@ -633,9 +633,11 @@ constexpr WasmOpcodeSig GetAtomicOpcodeSigIndex(byte opcode) {
 }
 
 constexpr WasmOpcodeSig GetNumericOpcodeSigIndex(byte opcode) {
-#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
-  return FOREACH_NUMERIC_OPCODE(CASE) kSigEnum_None;
-#undef CASE
+#define CASE_SIG(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
+#define CASE_VARIADIC(name, opc)
+  return FOREACH_NUMERIC_OPCODE(CASE_SIG, CASE_VARIADIC) kSigEnum_None;
+#undef CASE_SIG
+#undef CASE_VARIADIC
 }
 
 constexpr std::array<WasmOpcodeSig, 256> kShortSigTable =

@@ -106,8 +106,8 @@ void PrintRawWasmCode(const byte* start, const byte* end) {
 namespace {
 const char* RawOpcodeName(WasmOpcode opcode) {
   switch (opcode) {
-#define DECLARE_NAME_CASE(name, opcode, sig) \
-  case kExpr##name:                          \
+#define DECLARE_NAME_CASE(name, ...) \
+  case kExpr##name:                  \
     return "kExpr" #name;
     FOREACH_OPCODE(DECLARE_NAME_CASE)
 #undef DECLARE_NAME_CASE

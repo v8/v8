@@ -569,29 +569,29 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   FOREACH_SIMD_MEM_1_OPERAND_OPCODE(V) \
   FOREACH_SIMD_CONST_OPCODE(V)
 
-#define FOREACH_NUMERIC_OPCODE(V)                         \
-  V(I32SConvertSatF32, 0xfc00, i_f)                       \
-  V(I32UConvertSatF32, 0xfc01, i_f)                       \
-  V(I32SConvertSatF64, 0xfc02, i_d)                       \
-  V(I32UConvertSatF64, 0xfc03, i_d)                       \
-  V(I64SConvertSatF32, 0xfc04, l_f)                       \
-  V(I64UConvertSatF32, 0xfc05, l_f)                       \
-  V(I64SConvertSatF64, 0xfc06, l_d)                       \
-  V(I64UConvertSatF64, 0xfc07, l_d)                       \
-  V(MemoryInit, 0xfc08, v_iii)                            \
-  V(DataDrop, 0xfc09, v_v)                                \
-  V(MemoryCopy, 0xfc0a, v_iii)                            \
-  V(MemoryFill, 0xfc0b, v_iii)                            \
-  V(TableInit, 0xfc0c, v_iii)                             \
-  V(ElemDrop, 0xfc0d, v_v)                                \
-  V(TableCopy, 0xfc0e, v_iii)                             \
+#define FOREACH_NUMERIC_OPCODE(V_SIG, V_VARIADIC)         \
+  V_SIG(I32SConvertSatF32, 0xfc00, i_f)                   \
+  V_SIG(I32UConvertSatF32, 0xfc01, i_f)                   \
+  V_SIG(I32SConvertSatF64, 0xfc02, i_d)                   \
+  V_SIG(I32UConvertSatF64, 0xfc03, i_d)                   \
+  V_SIG(I64SConvertSatF32, 0xfc04, l_f)                   \
+  V_SIG(I64UConvertSatF32, 0xfc05, l_f)                   \
+  V_SIG(I64SConvertSatF64, 0xfc06, l_d)                   \
+  V_SIG(I64UConvertSatF64, 0xfc07, l_d)                   \
+  V_VARIADIC(MemoryInit, 0xfc08)                          \
+  V_SIG(DataDrop, 0xfc09, v_v)                            \
+  V_VARIADIC(MemoryCopy, 0xfc0a)                          \
+  V_VARIADIC(MemoryFill, 0xfc0b)                          \
+  V_SIG(TableInit, 0xfc0c, v_iii)                         \
+  V_SIG(ElemDrop, 0xfc0d, v_v)                            \
+  V_SIG(TableCopy, 0xfc0e, v_iii)                         \
   /* TableGrow is polymorphic in the first parameter. */  \
   /* It's whatever the table type is. */                  \
-  V(TableGrow, 0xfc0f, i_ci)                              \
-  V(TableSize, 0xfc10, i_v)                               \
+  V_VARIADIC(TableGrow, 0xfc0f)                           \
+  V_SIG(TableSize, 0xfc10, i_v)                           \
   /* TableFill is polymorphic in the second parameter. */ \
   /* It's whatever the table type is. */                  \
-  V(TableFill, 0xfc11, v_iii)
+  V_VARIADIC(TableFill, 0xfc11)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
   V(AtomicNotify, 0xfe00, i_ii)                 \
@@ -730,7 +730,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   FOREACH_SIMD_OPCODE(V)             \
   FOREACH_ATOMIC_OPCODE(V)           \
   FOREACH_ATOMIC_0_OPERAND_OPCODE(V) \
-  FOREACH_NUMERIC_OPCODE(V)          \
+  FOREACH_NUMERIC_OPCODE(V, V)       \
   FOREACH_GC_OPCODE(V)
 
 // All signatures.
@@ -799,7 +799,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 
 enum WasmOpcode {
 // Declare expression opcodes.
-#define DECLARE_NAMED_ENUM(name, opcode, sig) kExpr##name = opcode,
+#define DECLARE_NAMED_ENUM(name, opcode, ...) kExpr##name = opcode,
   FOREACH_OPCODE(DECLARE_NAMED_ENUM)
 #undef DECLARE_NAMED_ENUM
 #define DECLARE_PREFIX(name, opcode) k##name##Prefix = opcode,
