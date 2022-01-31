@@ -4823,13 +4823,34 @@ class LiftoffCompiler {
 
   void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
 
+  // Pop a memtype (i32 or i64 depending on {WasmModule::is_memory64}) to a
+  // register. Returns the ptrsized register holding the popped value.
+  LiftoffRegister PopMemTypeToRegister(LiftoffRegList pinned) {
+    LiftoffRegister reg = __ PopToRegister(pinned);
+    // On 64-bit hosts, potentially zero-extend, then return.
+    if (kSystemPointerSize == kInt64Size) {
+      if (!env_->module->is_memory64) {
+        __ emit_u32_to_uintptr(reg.gp(), reg.gp());
+      }
+      return reg;
+    }
+    // For memory32 on 32-bit systems, also nothing to do.
+    if (!env_->module->is_memory64) return reg;
+
+    // TODO(v8:10949): Implement bounds-checking of the high word, while keeping
+    // register pressure low enough on ia32 to pop three 64-bit values (for
+    // memory.copy).
+    __ bailout(kOtherReason, "memory64 on 32-bit platform");
+    return reg.low();
+  }
+
   void MemoryInit(FullDecoder* decoder,
                   const MemoryInitImmediate<validate>& imm, const Value&,
                   const Value&, const Value&) {
     LiftoffRegList pinned;
     LiftoffRegister size = pinned.set(__ PopToRegister());
     LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
 
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
@@ -4839,8 +4860,8 @@ class LiftoffCompiler {
     __ LoadConstant(segment_index, WasmValue(imm.data_segment.index));
 
     ExternalReference ext_ref = ExternalReference::wasm_memory_init();
-    auto sig =
-        MakeSig::Returns(kI32).Params(kPointerKind, kI32, kI32, kI32, kI32);
+    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kPointerKind, kI32,
+                                             kI32, kI32);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, src,
                               segment_index, size};
     // We don't need the instance anymore after the call. We can use the
@@ -4877,13 +4898,14 @@ class LiftoffCompiler {
                   const MemoryCopyImmediate<validate>& imm, const Value&,
                   const Value&, const Value&) {
     LiftoffRegList pinned;
-    LiftoffRegister size = pinned.set(__ PopToRegister());
-    LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister size = pinned.set(PopMemTypeToRegister(pinned));
+    LiftoffRegister src = pinned.set(PopMemTypeToRegister(pinned));
+    LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_copy();
-    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kI32, kI32, kI32);
+    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kPointerKind,
+                                             kPointerKind, kPointerKind);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, src, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
@@ -4898,13 +4920,15 @@ class LiftoffCompiler {
                   const MemoryIndexImmediate<validate>& imm, const Value&,
                   const Value&, const Value&) {
     LiftoffRegList pinned;
-    LiftoffRegister size = pinned.set(__ PopToRegister());
+    LiftoffRegister size = pinned.set(PopMemTypeToRegister(pinned));
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
+
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ FillInstanceInto(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_fill();
-    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kI32, kI32, kI32);
+    auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kPointerKind, kI32,
+                                             kPointerKind);
     LiftoffRegister args[] = {LiftoffRegister(instance), dst, value, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.

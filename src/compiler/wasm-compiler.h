@@ -700,6 +700,9 @@ class WasmGraphBuilder {
   // generates {index > max ? Smi(max) : Smi(index)}
   Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
 
+  void MemTypeToUintPtrOrOOBTrap(std::initializer_list<Node**> nodes,
+                                 wasm::WasmCodePosition position);
+
   Node* IsNull(Node* object);
 
   void GetGlobalBaseAndOffset(const wasm::WasmGlobal&, Node** base_node,

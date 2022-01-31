@@ -5379,16 +5379,18 @@ void WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_init());
 
+  MemTypeToUintPtrOrOOBTrap({&dst}, position);
+
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},
-       {MachineRepresentation::kWord32, dst},
+       {MachineType::PointerRepresentation(), dst},
        {MachineRepresentation::kWord32, src},
        {MachineRepresentation::kWord32,
         gasm_->Uint32Constant(data_segment_index)},
        {MachineRepresentation::kWord32, size}});
 
-  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
-  MachineSignature sig(1, 1, sig_types);
+  auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                 .Params(MachineType::Pointer());
   Node* call = BuildCCall(&sig, function, stack_slot);
   // TODO(manoskouk): Also throw kDataSegmentOutOfBounds.
   TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
@@ -5427,19 +5429,42 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
   return stack_slot;
 }
 
+void WasmGraphBuilder::MemTypeToUintPtrOrOOBTrap(
+    std::initializer_list<Node**> nodes, wasm::WasmCodePosition position) {
+  if (!env_->module->is_memory64) {
+    for (Node** node : nodes) {
+      *node = BuildChangeUint32ToUintPtr(*node);
+    }
+    return;
+  }
+  if (kSystemPointerSize == kInt64Size) return;  // memory64 on 64-bit
+  Node* any_high_word = nullptr;
+  for (Node** node : nodes) {
+    Node* high_word =
+        gasm_->TruncateInt64ToInt32(gasm_->Word64Shr(*node, Int32Constant(32)));
+    any_high_word =
+        any_high_word ? gasm_->Word32Or(any_high_word, high_word) : high_word;
+    // Only keep the low word as uintptr_t.
+    *node = gasm_->TruncateInt64ToInt32(*node);
+  }
+  TrapIfTrue(wasm::kTrapMemOutOfBounds, any_high_word, position);
+}
+
 void WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_copy());
 
+  MemTypeToUintPtrOrOOBTrap({&dst, &src, &size}, position);
+
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},
-       {MachineRepresentation::kWord32, dst},
-       {MachineRepresentation::kWord32, src},
-       {MachineRepresentation::kWord32, size}});
+       {MachineType::PointerRepresentation(), dst},
+       {MachineType::PointerRepresentation(), src},
+       {MachineType::PointerRepresentation(), size}});
 
-  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
-  MachineSignature sig(1, 1, sig_types);
+  auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                 .Params(MachineType::Pointer());
   Node* call = BuildCCall(&sig, function, stack_slot);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
@@ -5449,14 +5474,16 @@ void WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_fill());
 
+  MemTypeToUintPtrOrOOBTrap({&dst, &size}, position);
+
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},
-       {MachineRepresentation::kWord32, dst},
+       {MachineType::PointerRepresentation(), dst},
        {MachineRepresentation::kWord32, value},
-       {MachineRepresentation::kWord32, size}});
+       {MachineType::PointerRepresentation(), size}});
 
-  MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
-  MachineSignature sig(1, 1, sig_types);
+  auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                 .Params(MachineType::Pointer());
   Node* call = BuildCCall(&sig, function, stack_slot);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }

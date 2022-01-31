@@ -4945,10 +4945,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprMemoryInit: {
         MemoryInitImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        // TODO(clemensb): Add memory64 support.
+        ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
         Value size = Peek(0, 2, kWasmI32);
         Value offset = Peek(1, 1, kWasmI32);
-        Value dst = Peek(2, 0, kWasmI32);
+        Value dst = Peek(2, 0, mem_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryInit, imm, dst, offset, size);
         Drop(3);
         return opcode_length + imm.length;
@@ -4965,10 +4965,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprMemoryCopy: {
         MemoryCopyImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        // TODO(clemensb): Add memory64 support.
-        Value size = Peek(0, 2, kWasmI32);
-        Value src = Peek(1, 1, kWasmI32);
-        Value dst = Peek(2, 0, kWasmI32);
+        ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+        Value size = Peek(0, 2, mem_type);
+        Value src = Peek(1, 1, mem_type);
+        Value dst = Peek(2, 0, mem_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryCopy, imm, dst, src, size);
         Drop(3);
         return opcode_length + imm.length;
@@ -4976,10 +4976,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprMemoryFill: {
         MemoryIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        // TODO(clemensb): Add memory64 support.
-        Value size = Peek(0, 2, kWasmI32);
+        ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+        Value size = Peek(0, 2, mem_type);
         Value value = Peek(1, 1, kWasmI32);
-        Value dst = Peek(2, 0, kWasmI32);
+        Value dst = Peek(2, 0, mem_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryFill, imm, dst, value, size);
         Drop(3);
         return opcode_length + imm.length;
