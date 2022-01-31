@@ -235,11 +235,16 @@ class WasmGraphBuildingInterface {
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
         decoder, decoder->pc(), decoder->num_locals(), decoder->zone());
     if (decoder->failed()) return;
+    int instance_cache_index = decoder->num_locals();
+    // If the module has shared memory, the stack guard might reallocate the
+    // shared memory. We have to assume the instance cache will be updated.
+    if (decoder->module_->has_shared_memory) {
+      assigned->Add(instance_cache_index);
+    }
     DCHECK_NOT_NULL(assigned);
     decoder->control_at(0)->loop_assignments = assigned;
 
     // Only introduce phis for variables assigned in this loop.
-    int instance_cache_index = decoder->num_locals();
     for (int i = decoder->num_locals() - 1; i >= 0; i--) {
       if (!assigned->Contains(i)) continue;
       TFNode* inputs[] = {ssa_env_->locals[i], control()};
@@ -253,7 +258,10 @@ class WasmGraphBuildingInterface {
 
     // Now we setup a new environment for the inside of the loop.
     SetEnv(Split(decoder->zone(), ssa_env_));
-    builder_->StackCheck(decoder->position());
+    builder_->StackCheck(decoder->module_->has_shared_memory
+                             ? &ssa_env_->instance_cache
+                             : nullptr,
+                         decoder->position());
     ssa_env_->SetNotMerged();
 
     // Wrap input merge into phis.

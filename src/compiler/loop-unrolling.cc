@@ -77,19 +77,14 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
             // ( LoadFromObject )
             //   |  |
             // {stack_check}
-            // |  *  |  *
-            // |  |  |  |
-            // |  ( Call )
-            // |   |    *
-            // |   |    |
+            // |   |
+            // |   *
+            // |
+            // | * *
+            // | | |
             // {use}: EffectPhi (stack check effect that we need to replace)
             DCHECK_EQ(use->opcode(), IrOpcode::kEffectPhi);
-            DCHECK_EQ(NodeProperties::GetEffectInput(use, 1)->opcode(),
-                      IrOpcode::kCall);
             DCHECK_EQ(NodeProperties::GetEffectInput(use), stack_check);
-            DCHECK_EQ(NodeProperties::GetEffectInput(
-                          NodeProperties::GetEffectInput(use, 1)),
-                      stack_check);
             DCHECK_EQ(NodeProperties::GetEffectInput(stack_check)->opcode(),
                       IrOpcode::kLoadFromObject);
             Node* replacing_effect = NodeProperties::GetEffectInput(

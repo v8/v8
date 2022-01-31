@@ -717,7 +717,9 @@ Node* WasmGraphBuilder::UndefinedValue() {
   return LOAD_ROOT(UndefinedValue, undefined_value);
 }
 
-void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
+void WasmGraphBuilder::StackCheck(
+    WasmInstanceCacheNodes* shared_memory_instance_cache,
+    wasm::WasmCodePosition position) {
   DCHECK_NOT_NULL(env_);  // Wrappers don't get stack checks.
   if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) {
     return;
@@ -731,8 +733,9 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
       mcgraph()->machine()->StackPointerGreaterThan(StackCheckKind::kWasm),
       limit, effect()));
 
-  Diamond stack_check(graph(), mcgraph()->common(), check, BranchHint::kTrue);
-  stack_check.Chain(control());
+  Node* if_true;
+  Node* if_false;
+  BranchExpectTrue(check, &if_true, &if_false);
 
   if (stack_check_call_operator_ == nullptr) {
     // Build and cache the stack check call operator and the constant
@@ -753,17 +756,31 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
     stack_check_call_operator_ = mcgraph()->common()->Call(call_descriptor);
   }
 
-  Node* call = graph()->NewNode(stack_check_call_operator_.get(),
-                                stack_check_code_node_.get(), effect(),
-                                stack_check.if_false);
-
+  Node* call =
+      graph()->NewNode(stack_check_call_operator_.get(),
+                       stack_check_code_node_.get(), effect(), if_false);
   SetSourcePosition(call, position);
 
   DCHECK_GT(call->op()->EffectOutputCount(), 0);
   DCHECK_EQ(call->op()->ControlOutputCount(), 0);
-  Node* ephi = stack_check.EffectPhi(effect(), call);
 
-  SetEffectControl(ephi, stack_check.merge);
+  SetEffectControl(call, if_false);
+
+  Node* merge = Merge(if_true, control());
+  Node* ephi_inputs[] = {check, effect(), merge};
+  Node* ephi = EffectPhi(2, ephi_inputs);
+
+  // We only need to refresh the size of a shared memory, as its start can never
+  // change.
+  if (shared_memory_instance_cache != nullptr) {
+    Node* new_memory_size =
+        LOAD_MUTABLE_INSTANCE_FIELD(MemorySize, MachineType::UintPtr());
+    shared_memory_instance_cache->mem_size = CreateOrMergeIntoPhi(
+        MachineType::PointerRepresentation(), merge,
+        shared_memory_instance_cache->mem_size, new_memory_size);
+  }
+
+  SetEffectControl(ephi, merge);
 }
 
 void WasmGraphBuilder::PatchInStackCheckIfNeeded() {
@@ -775,9 +792,11 @@ void WasmGraphBuilder::PatchInStackCheckIfNeeded() {
   SetEffectControl(dummy);
   // The function-prologue stack check is associated with position 0, which
   // is never a position of any instruction in the function.
-  StackCheck(0);
+  // We pass the null instance cache, as we are at the beginning of the function
+  // and do not need to update it.
+  StackCheck(nullptr, 0);
 
-  // In testing, no steck checks were emitted. Nothing to rewire then.
+  // In testing, no stack checks were emitted. Nothing to rewire then.
   if (effect() == dummy) return;
 
   // Now patch all control uses of {start} to use {control} and all effect uses
