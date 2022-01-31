@@ -1942,15 +1942,10 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   size_t old_committed = total_committed_code_space_.fetch_sub(region.size());
   DCHECK_LE(region.size(), old_committed);
   USE(old_committed);
-  TRACE_HEAP("Discarding system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
+  TRACE_HEAP("Decommitting system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  if (MemoryProtectionKeysEnabled()) {
-    CHECK(SetPermissionsAndMemoryProtectionKey(
-        allocator, region, PageAllocator::kNoAccess, kNoMemoryProtectionKey));
-  } else {
-    CHECK(SetPermissions(allocator, region.begin(), region.size(),
-                         PageAllocator::kNoAccess));
-  }
+  CHECK(allocator->DecommitPages(reinterpret_cast<void*>(region.begin()),
+                                 region.size()));
 }
 
 void WasmCodeManager::AssignRange(base::AddressRegion region,
