@@ -19,6 +19,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
 #include "src/common/message-template.h"
+#include "src/common/ptr-compr.h"
 #include "src/flags/flags.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index.h"
@@ -669,18 +670,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                                  std::is_enum<T>::value,
                                              int>::type = 0>
   inline T ReadField(size_t offset) const {
-    // Pointer compression causes types larger than kTaggedSize to be unaligned.
-#ifdef V8_COMPRESS_POINTERS
-    constexpr bool v8_pointer_compression_unaligned = sizeof(T) > kTaggedSize;
-#else
-    constexpr bool v8_pointer_compression_unaligned = false;
-#endif
-    if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
-      // Bug(v8:8875) Double fields may be unaligned.
-      return base::ReadUnalignedValue<T>(field_address(offset));
-    } else {
-      return base::Memory<T>(field_address(offset));
-    }
+    return ReadMaybeUnalignedValue<T>(field_address(offset));
   }
 
   // Atomically reads a field using relaxed memory ordering. Can only be used
@@ -696,18 +686,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                                  std::is_enum<T>::value,
                                              int>::type = 0>
   inline void WriteField(size_t offset, T value) const {
-    // Pointer compression causes types larger than kTaggedSize to be unaligned.
-#ifdef V8_COMPRESS_POINTERS
-    constexpr bool v8_pointer_compression_unaligned = sizeof(T) > kTaggedSize;
-#else
-    constexpr bool v8_pointer_compression_unaligned = false;
-#endif
-    if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
-      // Bug(v8:8875) Double fields may be unaligned.
-      base::WriteUnalignedValue<T>(field_address(offset), value);
-    } else {
-      base::Memory<T>(field_address(offset)) = value;
-    }
+    return WriteMaybeUnalignedValue<T>(field_address(offset), value);
   }
 
   //

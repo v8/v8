@@ -12,6 +12,7 @@
 #include <type_traits>
 
 #include "src/base/memory.h"
+#include "src/common/ptr-compr.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/foreign.h"
@@ -66,30 +67,12 @@ CAST_ACCESSOR(WasmInstanceObject)
   ACCESSORS_CHECKED2(holder, name, type, offset,                        \
                      !value.IsUndefined(GetReadOnlyRoots(cage_base)), true)
 
-#define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \
-  type holder::name() const {                                                 \
-    if (COMPRESS_POINTERS_BOOL && alignof(type) > kTaggedSize) {              \
-      /* TODO(ishell, v8:8875): When pointer compression is enabled 8-byte */ \
-      /* size fields (external pointers, doubles and BigInt data) are only */ \
-      /* kTaggedSize aligned so we have to use unaligned pointer friendly  */ \
-      /* way of accessing them in order to avoid undefined behavior in C++ */ \
-      /* code. */                                                             \
-      return base::ReadUnalignedValue<type>(FIELD_ADDR(*this, offset));       \
-    } else {                                                                  \
-      return *reinterpret_cast<type const*>(FIELD_ADDR(*this, offset));       \
-    }                                                                         \
-  }                                                                           \
-  void holder::set_##name(type value) {                                       \
-    if (COMPRESS_POINTERS_BOOL && alignof(type) > kTaggedSize) {              \
-      /* TODO(ishell, v8:8875): When pointer compression is enabled 8-byte */ \
-      /* size fields (external pointers, doubles and BigInt data) are only */ \
-      /* kTaggedSize aligned so we have to use unaligned pointer friendly  */ \
-      /* way of accessing them in order to avoid undefined behavior in C++ */ \
-      /* code. */                                                             \
-      base::WriteUnalignedValue<type>(FIELD_ADDR(*this, offset), value);      \
-    } else {                                                                  \
-      *reinterpret_cast<type*>(FIELD_ADDR(*this, offset)) = value;            \
-    }                                                                         \
+#define PRIMITIVE_ACCESSORS(holder, name, type, offset)               \
+  type holder::name() const {                                         \
+    return ReadMaybeUnalignedValue<type>(FIELD_ADDR(*this, offset));  \
+  }                                                                   \
+  void holder::set_##name(type value) {                               \
+    WriteMaybeUnalignedValue<type>(FIELD_ADDR(*this, offset), value); \
   }
 
 #define SANDBOXED_POINTER_ACCESSORS(holder, name, type, offset)      \

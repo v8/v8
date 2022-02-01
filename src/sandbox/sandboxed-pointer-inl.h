@@ -6,6 +6,7 @@
 #define V8_SANDBOX_SANDBOXED_POINTER_INL_H_
 
 #include "include/v8-internal.h"
+#include "src/common/ptr-compr.h"
 #include "src/execution/isolate.h"
 #include "src/sandbox/sandboxed-pointer.h"
 
@@ -22,7 +23,7 @@ V8_INLINE Address ReadSandboxedPointerField(Address field_address,
   Address pointer = cage_base.address() + offset;
   return pointer;
 #else
-  return base::ReadUnalignedValue<Address>(field_address);
+  return ReadMaybeUnalignedValue<Address>(field_address);
 #endif
 }
 
@@ -38,7 +39,7 @@ V8_INLINE void WriteSandboxedPointerField(Address field_address,
   base::WriteUnalignedValue<SandboxedPointer_t>(field_address,
                                                 sandboxed_pointer);
 #else
-  base::WriteUnalignedValue<Address>(field_address, pointer);
+  WriteMaybeUnalignedValue<Address>(field_address, pointer);
 #endif
 }
 
