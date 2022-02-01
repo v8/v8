@@ -26,8 +26,9 @@ namespace U_ICU_NAMESPACE {
 class UnicodeString;
 namespace number {
 class LocalizedNumberFormatter;
-}  // namespace number
-}  // namespace U_ICU_NAMESPACE
+class UnlocalizedNumberFormatter;
+}  //  namespace number
+}  //  namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
@@ -68,9 +69,13 @@ class JSNumberFormat
                                          int32_t* minimum, int32_t* maximum);
   static bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
                                             int32_t* minimum, int32_t* maximum);
-  static icu::number::LocalizedNumberFormatter SetDigitOptionsToFormatter(
-      const icu::number::LocalizedNumberFormatter& icu_number_formatter,
-      const Intl::NumberFormatDigitOptions& digit_options);
+
+  enum class ShowTrailingZeros { kShow, kHide };
+
+  static icu::number::UnlocalizedNumberFormatter SetDigitOptionsToFormatter(
+      const icu::number::UnlocalizedNumberFormatter& settings,
+      const Intl::NumberFormatDigitOptions& digit_options,
+      int rounding_increment, ShowTrailingZeros show);
 
   DECL_PRINTER(JSNumberFormat)
 
@@ -79,19 +84,6 @@ class JSNumberFormat
 
   TQ_OBJECT_CONSTRUCTORS(JSNumberFormat)
 };
-
-struct NumberFormatSpan {
-  int32_t field_id;
-  int32_t begin_pos;
-  int32_t end_pos;
-
-  NumberFormatSpan() = default;
-  NumberFormatSpan(int32_t field_id, int32_t begin_pos, int32_t end_pos)
-      : field_id(field_id), begin_pos(begin_pos), end_pos(end_pos) {}
-};
-
-V8_EXPORT_PRIVATE std::vector<NumberFormatSpan> FlattenRegionsToParts(
-    std::vector<NumberFormatSpan>* regions);
 
 }  // namespace internal
 }  // namespace v8

@@ -46,6 +46,7 @@ from testrunner.outproc import test262
 FEATURE_FLAGS = {
   'Intl.Locale-info': '--harmony_intl_locale_info',
   'Intl-enumeration': '--harmony_intl_enumeration',
+  'Intl.NumberFormat-v3': '--harmony_intl_number_format_v3',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
   'WeakRef': '--harmony-weak-refs-with-cleanup-some',

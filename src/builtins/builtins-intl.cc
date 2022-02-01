@@ -85,8 +85,15 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
 
   Handle<Object> x;
   if (args.length() >= 2) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                       Object::ToNumeric(isolate, args.at(1)));
+    Handle<Object> value = args.at(1);
+    if (FLAG_harmony_intl_number_format_v3) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, x,
+          Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, value));
+    } else {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                         Object::ToNumeric(isolate, value));
+    }
   } else {
     x = isolate->factory()->nan_value();
   }
@@ -501,8 +508,14 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 
   // 4. Let x be ? ToNumeric(value).
   Handle<Object> numeric_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
-                                     Object::ToNumeric(isolate, value));
+  if (FLAG_harmony_intl_number_format_v3) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, numeric_obj,
+        Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, value));
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
+                                       Object::ToNumeric(isolate, value));
+  }
 
   icu::number::LocalizedNumberFormatter* icu_localized_number_formatter =
       number_format->icu_number_formatter().raw();
@@ -902,20 +915,18 @@ BUILTIN(PluralRulesPrototypeResolvedOptions) {
 BUILTIN(PluralRulesPrototypeSelect) {
   HandleScope scope(isolate);
 
-  // 1. Let pr be the this value.
-  // 2. If Type(pr) is not Object, throw a TypeError exception.
-  // 3. If pr does not have an [[InitializedPluralRules]] internal slot, throw a
-  // TypeError exception.
+  // 1. 1. Let pr be the this value.
+  // 2. Perform ? RequireInternalSlot(pr, [[InitializedPluralRules]]).
   CHECK_RECEIVER(JSPluralRules, plural_rules,
                  "Intl.PluralRules.prototype.select");
 
-  // 4. Let n be ? ToNumber(value).
+  // 3. Let n be ? ToNumber(value).
   Handle<Object> number = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number,
                                      Object::ToNumber(isolate, number));
   double number_double = number->Number();
 
-  // 5. Return ? ResolvePlural(pr, n).
+  // 4. Return ! ResolvePlural(pr, n).
   RETURN_RESULT_OR_FAILURE(isolate, JSPluralRules::ResolvePlural(
                                         isolate, plural_rules, number_double));
 }

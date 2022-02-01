@@ -78,6 +78,7 @@
   V(_, minusSign_string, "minusSign")                               \
   V(_, nan_string, "nan")                                           \
   V(_, narrowSymbol_string, "narrowSymbol")                         \
+  V(_, negative_string, "negative")                                 \
   V(_, never_string, "never")                                       \
   V(_, none_string, "none")                                         \
   V(_, notation_string, "notation")                                 \
