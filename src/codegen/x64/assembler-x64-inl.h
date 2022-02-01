@@ -322,7 +322,8 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
     Object obj(DecompressTaggedPointer(cage_base, compressed));
     // Embedding of compressed Code objects must not happen when external code
     // space is enabled, because CodeDataContainers must be used instead.
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !obj.IsCode(cage_base));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !IsCodeSpaceObject(HeapObject::cast(obj)));
     return HeapObject::cast(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));

@@ -727,7 +727,7 @@ HeapObject MapWord::ToForwardingAddress() {
   HeapObject obj = HeapObject::FromAddress(value_);
   // For objects allocated outside of the main pointer compression cage the
   // variant with explicit cage base must be used.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !obj.IsCode());
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(obj));
   return obj;
 }
 
