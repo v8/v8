@@ -34,6 +34,7 @@ void SetVmexResource() {
       vmex_resource_svc.NewRequest().TakeChannel().release());
   DCHECK_EQ(status, ZX_OK);
   status = vmex_resource_svc->Get(&vmex_resource);
+  USE(status);
   DCHECK_EQ(status, ZX_OK);
   DCHECK(vmex_resource.is_valid());
   g_vmex_resource = vmex_resource.release();
