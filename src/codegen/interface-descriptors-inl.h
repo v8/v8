@@ -224,6 +224,10 @@ constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
   if (slot_address != no_reg && slot_address != SlotAddressRegister()) {
     saved_registers |= SlotAddressRegister().bit();
   }
+#elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+  if (object != ObjectRegister()) saved_registers |= ObjectRegister().bit();
+  // The slot address is always clobbered.
+  saved_registers |= SlotAddressRegister().bit();
 #else
   // TODO(cbruni): Enable callee-saved registers for other platforms.
   // This is a temporary workaround to prepare code for callee-saved registers.
