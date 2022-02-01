@@ -1561,7 +1561,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)             \
   V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG,        \
     LFR_TO_REG, USE, true, bool)                                               \
-  V(u32_to_intptr, LoadU32, Register, Register, , , USE, , void)               \
+  V(u32_to_uintptr, LoadU32, Register, Register, , , USE, , void)              \
   V(i32_signextend_i8, lbr, Register, Register, , , USE, , void)               \
   V(i32_signextend_i16, lhr, Register, Register, , , USE, , void)              \
   V(i64_signextend_i8, lgbr, LiftoffRegister, LiftoffRegister, LFR_TO_REG,     \

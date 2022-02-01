@@ -1116,7 +1116,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     LFR_TO_REG, LFR_TO_REG, USE, , void)                                     \
   V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,        \
     LFR_TO_REG, LFR_TO_REG, USE, , void)                                     \
-  V(u32_to_intptr, ZeroExtWord32, Register, Register, , , USE, , void)       \
+  V(u32_to_uintptr, ZeroExtWord32, Register, Register, , , USE, , void)      \
   V(i32_signextend_i8, extsb, Register, Register, , , USE, , void)           \
   V(i32_signextend_i16, extsh, Register, Register, , , USE, , void)          \
   V(i64_signextend_i8, extsb, LiftoffRegister, LiftoffRegister, LFR_TO_REG,  \
