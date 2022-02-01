@@ -292,7 +292,7 @@ void SetTerminateOnResume(Isolate* v8_isolate) {
 bool CanBreakProgram(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_DO_NOT_USE(isolate);
-  return isolate->debug()->AllFramesOnStackAreBlackboxed();
+  return !isolate->debug()->AllFramesOnStackAreBlackboxed();
 }
 
 Isolate* Script::GetIsolate() const {
