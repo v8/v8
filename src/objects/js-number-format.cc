@@ -102,7 +102,9 @@ enum class SignDisplay {
 // [[RoundingMode]] is one of the String values "ceil", "floor", "expand",
 // "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", or "halfEven",
 // specifying the rounding strategy for the number.
-enum class RoundingMode {
+// Note: To avoid name conflict with RoundingMode defined in other places,
+// prefix with Intl as IntlRoundingMode
+enum class IntlRoundingMode {
   CEIL,
   FLOOR,
   EXPAND,
@@ -207,25 +209,25 @@ icu::number::Notation ToICUNotation(Notation notation,
 }
 
 UNumberFormatRoundingMode ToUNumberFormatRoundingMode(
-    RoundingMode rounding_mode) {
+    IntlRoundingMode rounding_mode) {
   switch (rounding_mode) {
-    case RoundingMode::CEIL:
+    case IntlRoundingMode::CEIL:
       return UNumberFormatRoundingMode::UNUM_ROUND_CEILING;
-    case RoundingMode::FLOOR:
+    case IntlRoundingMode::FLOOR:
       return UNumberFormatRoundingMode::UNUM_ROUND_FLOOR;
-    case RoundingMode::EXPAND:
+    case IntlRoundingMode::EXPAND:
       return UNumberFormatRoundingMode::UNUM_ROUND_UP;
-    case RoundingMode::TRUNC:
+    case IntlRoundingMode::TRUNC:
       return UNumberFormatRoundingMode::UNUM_ROUND_DOWN;
-    case RoundingMode::HALF_CEIL:
+    case IntlRoundingMode::HALF_CEIL:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALF_CEILING;
-    case RoundingMode::HALF_FLOOR:
+    case IntlRoundingMode::HALF_FLOOR:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALF_FLOOR;
-    case RoundingMode::HALF_EXPAND:
+    case IntlRoundingMode::HALF_EXPAND:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALFUP;
-    case RoundingMode::HALF_TRUNC:
+    case IntlRoundingMode::HALF_TRUNC:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALFDOWN;
-    case RoundingMode::HALF_EVEN:
+    case IntlRoundingMode::HALF_EVEN:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALFEVEN;
   }
 }
@@ -1412,17 +1414,19 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     // « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
     // "halfExpand", "halfTrunc", "halfEven" »,
     // "halfExpand").
-    Maybe<RoundingMode> maybe_rounding_mode = GetStringOption<RoundingMode>(
-        isolate, options, "roundingMode", service,
-        {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-         "halfExpand", "halfTrunc", "halfEven"},
-        {RoundingMode::CEIL, RoundingMode::FLOOR, RoundingMode::EXPAND,
-         RoundingMode::TRUNC, RoundingMode::HALF_CEIL, RoundingMode::HALF_FLOOR,
-         RoundingMode::HALF_EXPAND, RoundingMode::HALF_TRUNC,
-         RoundingMode::HALF_EVEN},
-        RoundingMode::HALF_EXPAND);
+    Maybe<IntlRoundingMode> maybe_rounding_mode =
+        GetStringOption<IntlRoundingMode>(
+            isolate, options, "roundingMode", service,
+            {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+             "halfExpand", "halfTrunc", "halfEven"},
+            {IntlRoundingMode::CEIL, IntlRoundingMode::FLOOR,
+             IntlRoundingMode::EXPAND, IntlRoundingMode::TRUNC,
+             IntlRoundingMode::HALF_CEIL, IntlRoundingMode::HALF_FLOOR,
+             IntlRoundingMode::HALF_EXPAND, IntlRoundingMode::HALF_TRUNC,
+             IntlRoundingMode::HALF_EVEN},
+            IntlRoundingMode::HALF_EXPAND);
     MAYBE_RETURN(maybe_rounding_mode, MaybeHandle<JSNumberFormat>());
-    RoundingMode rounding_mode = maybe_rounding_mode.FromJust();
+    IntlRoundingMode rounding_mode = maybe_rounding_mode.FromJust();
     settings =
         settings.roundingMode(ToUNumberFormatRoundingMode(rounding_mode));
   }

@@ -2799,6 +2799,14 @@
   'language/identifiers/start-unicode-9*': [FAIL],
 }],  # no_i18n == True
 
+['arch == arm64', {
+  # Problem in V8 Android Arm64 - N5X
+  'intl402/NumberFormat/prototype/format/format-rounding-increment-1000': [SKIP],
+  'intl402/NumberFormat/prototype/format/format-rounding-increment-2000': [SKIP],
+  'intl402/NumberFormat/prototype/format/format-rounding-increment-2500': [SKIP],
+  'intl402/NumberFormat/prototype/format/format-rounding-increment-5000': [SKIP],
+}],  # 'arch == arm64'
+
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {
 
   # Causes stack overflow on simulators due to eager compilation of
