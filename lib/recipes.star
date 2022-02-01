@@ -35,6 +35,7 @@ def define_all_recipes():
         "v8/bazel",
         "v8/flako",
         "v8/node_integration_ng",
+        "v8/presubmit",
         "v8/spike",
         "v8/test_tools",
         "v8/verify_flakes",
@@ -46,7 +47,6 @@ def define_all_recipes():
         "chromium",
         "chromium_trybot",
         "run_presubmit",
-        "v8/presubmit",
     ]
     for recipe in py3_build_recipes:
         build_recipe(name = "recipe:" + recipe, use_python3 = True)
