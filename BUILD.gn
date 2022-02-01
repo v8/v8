@@ -357,6 +357,13 @@ declare_args() {
   # Change code emission and runtime features to be CET shadow-stack compliant
   # (incomplete and experimental).
   v8_enable_cet_shadow_stack = false
+
+  # Get VMEX priviledge at startup.
+  # It allows to run V8 without "deprecated-ambient-replace-as-executable".
+  # Sets -DV8_USE_VMEX_RESOURCE.
+  # TODO(victorgomes): Remove this flag once Chormium no longer needs
+  # the deprecated feature.
+  v8_fuchsia_use_vmex_resource = is_fuchsia && !build_with_chromium
 }
 
 # Derived defaults.
@@ -549,6 +556,10 @@ if (v8_enable_single_generation == true) {
 
 assert(!v8_enable_conservative_stack_scanning || v8_enable_single_generation,
        "Conservative stack scanning requires single generation")
+
+if (v8_fuchsia_use_vmex_resource) {
+  assert(target_os == "fuchsia", "VMEX resource only available on Fuchsia")
+}
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -975,6 +986,9 @@ config("features") {
   }
   if (v8_advanced_bigint_algorithms) {
     defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
+  }
+  if (v8_fuchsia_use_vmex_resource) {
+    defines += [ "V8_USE_VMEX_RESOURCE" ]
   }
 }
 

@@ -20,21 +20,25 @@ namespace base {
 
 namespace {
 
-static zx::resource g_vmex_resource;
+static zx_handle_t g_vmex_resource = ZX_HANDLE_INVALID;
 
 static void* g_root_vmar_base = nullptr;
 
-void SetGlobalVmexResource() {
-  fuchsia::kernel::VmexResourceSyncPtr vmex_resource;
-  auto path = std::string("/svc/") + fuchsia::kernel::VmexResource::Name_;
+#ifdef V8_USE_VMEX_RESOURCE
+void SetVmexResource() {
+  DCHECK_EQ(g_vmex_resource, ZX_HANDLE_INVALID);
+  zx::resource vmex_resource;
+  fuchsia::kernel::VmexResourceSyncPtr vmex_resource_svc;
   zx_status_t status = fdio_service_connect(
-      path.data(), vmex_resource.NewRequest().TakeChannel().release());
-  if (status != ZX_OK) {
-    g_vmex_resource = zx::resource();
-  } else {
-    vmex_resource->Get(&g_vmex_resource);
-  }
+      "/svc/fuchsia.kernel.VmexResource",
+      vmex_resource_svc.NewRequest().TakeChannel().release());
+  DCHECK_EQ(status, ZX_OK);
+  status = vmex_resource_svc->Get(&vmex_resource);
+  DCHECK_EQ(status, ZX_OK);
+  DCHECK(vmex_resource.is_valid());
+  g_vmex_resource = vmex_resource.release();
 }
+#endif
 
 zx_vm_option_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
@@ -103,7 +107,8 @@ void* AllocateInternal(const zx::vmar& vmar, void* vmar_base, size_t page_size,
   // to be marked as executable in the future.
   // TOOD(https://crbug.com/v8/8899): Only call this when we know that the
   // region will need to be marked as executable in the future.
-  if (vmo.replace_as_executable(g_vmex_resource, &vmo) != ZX_OK) {
+  zx::unowned_resource vmex(g_vmex_resource);
+  if (vmo.replace_as_executable(*vmex, &vmo) != ZX_OK) {
     return nullptr;
   }
 
@@ -225,7 +230,9 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   CHECK_EQ(ZX_OK, status);
   g_root_vmar_base = reinterpret_cast<void*>(info.base);
 
-  SetGlobalVmexResource();
+#ifdef V8_USE_VMEX_RESOURCE
+  SetVmexResource();
+#endif
 }
 
 // static

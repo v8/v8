@@ -1,4 +1,11 @@
 {
+  "facets": {
+    "fuchsia.test": {
+      "system-services": [
+        "fuchsia.kernel.VmexResource"
+      ]
+    }
+  },
   "sandbox": {
     "dev": [
       "null",
