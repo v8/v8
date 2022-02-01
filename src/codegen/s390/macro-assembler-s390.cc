@@ -5601,6 +5601,42 @@ void TurboAssembler::V128AnyTrue(Register dst, Simd128Register src,
   locgr(Condition(8), dst, scratch);
 }
 
+#define CONVERT_FLOAT_TO_INT32(convert, dst, src, scratch1, scratch2) \
+  for (int index = 0; index < 4; index++) {                           \
+    vlgv(scratch2, src, MemOperand(r0, index), Condition(2));         \
+    MovIntToFloat(scratch1, scratch2);                                \
+    convert(scratch2, scratch1, kRoundToZero);                        \
+    vlvg(dst, scratch2, MemOperand(r0, index), Condition(2));         \
+  }
+void TurboAssembler::I32x4SConvertF32x4(Simd128Register dst,
+                                        Simd128Register src,
+                                        Simd128Register scratch1,
+                                        Register scratch2) {
+  // NaN to 0.
+  vfce(scratch1, src, src, Condition(0), Condition(0), Condition(2));
+  vn(dst, src, scratch1, Condition(0), Condition(0), Condition(0));
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+    vcgd(dst, dst, Condition(5), Condition(0), Condition(2));
+  } else {
+    CONVERT_FLOAT_TO_INT32(ConvertFloat32ToInt32, dst, dst, scratch1, scratch2)
+  }
+}
+
+void TurboAssembler::I32x4UConvertF32x4(Simd128Register dst,
+                                        Simd128Register src,
+                                        Simd128Register scratch1,
+                                        Register scratch2) {
+  // vclgd or ConvertFloat32ToUnsignedInt32 will convert NaN to 0, negative to 0
+  // automatically.
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+    vclgd(dst, src, Condition(5), Condition(0), Condition(2));
+  } else {
+    CONVERT_FLOAT_TO_INT32(ConvertFloat32ToUnsignedInt32, dst, src, scratch1,
+                           scratch2)
+  }
+}
+#undef CONVERT_FLOAT_TO_INT32
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

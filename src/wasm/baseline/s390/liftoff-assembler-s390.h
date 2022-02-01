@@ -2682,12 +2682,12 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "i32x4_sconvert_f32x4");
+  I32x4SConvertF32x4(dst.fp(), src.fp(), kScratchDoubleReg, r0);
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "i32x4_uconvert_f32x4");
+  I32x4UConvertF32x4(dst.fp(), src.fp(), kScratchDoubleReg, r0);
 }
 
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
