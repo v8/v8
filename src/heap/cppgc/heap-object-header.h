@@ -230,7 +230,12 @@ size_t HeapObjectHeader::AllocatedSize() const {
 }
 
 void HeapObjectHeader::SetAllocatedSize(size_t size) {
+#if !defined(CPPGC_YOUNG_GENERATION)
+  // With sticky bits, marked objects correspond to old objects.
+  // TODO(bikineev:1029379): Consider disallowing old/marked objects to be
+  // resized.
   DCHECK(!IsMarked());
+#endif
   encoded_low_ = EncodeSize(size);
 }
 

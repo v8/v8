@@ -144,6 +144,14 @@ class V8_EXPORT CppHeap {
    */
   void CollectGarbageForTesting(cppgc::EmbedderStackState stack_state);
 
+  /**
+   * Performs a stop-the-world minor garbage collection for testing purposes.
+   *
+   * \param stack_state The stack state to assume for the garbage collection.
+   */
+  void CollectGarbageInYoungGenerationForTesting(
+      cppgc::EmbedderStackState stack_state);
+
  private:
   CppHeap() = default;
 

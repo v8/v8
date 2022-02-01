@@ -5,8 +5,8 @@
 import("//build/config/gclient_args.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
-import("split_static_library.gni")
 import("release_branch_toggle.gni")
+import("split_static_library.gni")
 
 declare_args() {
   # Set flags for tracking code coverage. Uses gcov with gcc and sanitizer
@@ -85,6 +85,9 @@ declare_args() {
   v8_enable_google_benchmark = false
 
   cppgc_is_standalone = false
+
+  # Enable young generation in cppgc.
+  cppgc_enable_young_generation = false
 
   # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
   # depending on platform. Disabled on Android to save binary size.

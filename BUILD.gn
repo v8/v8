@@ -295,9 +295,6 @@ declare_args() {
   # Enable allocations during prefinalizer invocations.
   cppgc_allow_allocations_in_prefinalizers = false
 
-  # Enable young generation in cppgc.
-  cppgc_enable_young_generation = false
-
   # Enable V8 zone compression experimental feature.
   # Sets -DV8_COMPRESS_ZONES.
   v8_enable_zone_compression = ""

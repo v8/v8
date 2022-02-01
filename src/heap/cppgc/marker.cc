@@ -77,6 +77,9 @@ void VisitRememberedSlots(HeapBase& heap,
     DCHECK(!slot_header.template IsInConstruction<AccessMode::kNonAtomic>());
 
     void* value = *reinterpret_cast<void**>(slot);
+    // Slot could be updated to nullptr or kSentinelPointer by the mutator.
+    if (value == kSentinelPointer || value == nullptr) continue;
+
     mutator_marking_state.DynamicallyMarkAddress(static_cast<Address>(value));
   }
 #endif

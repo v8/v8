@@ -27,6 +27,9 @@ bool InGC(HeapHandle& heap_handle) {
 }  // namespace
 
 void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
+// TODO(bikineev): Invalidate slots that reside within |object| and handle free
+// values in VisitRememberedSlots.
+#if !defined(CPPGC_YOUNG_GENERATION)
   if (InGC(heap_handle)) {
     return;
   }
@@ -59,6 +62,7 @@ void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
       // list entry.
     }
   }
+#endif  // !defined(CPPGC_YOUNG_GENERATION)
 }
 
 namespace {

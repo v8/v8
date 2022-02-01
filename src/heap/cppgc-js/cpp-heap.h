@@ -109,6 +109,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void EnableDetachedGarbageCollectionsForTesting();
 
   void CollectGarbageForTesting(
+      cppgc::internal::GarbageCollector::Config::CollectionType,
       cppgc::internal::GarbageCollector::Config::StackState);
 
   void CollectCustomSpaceStatisticsAtLastGC(
@@ -117,7 +118,9 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void FinishSweepingIfRunning();
 
-  void InitializeTracing(GarbageCollectionFlags);
+  void InitializeTracing(
+      cppgc::internal::GarbageCollector::Config::CollectionType,
+      GarbageCollectionFlags);
   void StartTracing();
   bool AdvanceTracing(double max_duration);
   bool IsTracingDone();
