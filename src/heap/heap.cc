@@ -115,14 +115,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-std::atomic<CollectionEpoch> global_epoch{0};
-
-CollectionEpoch next_epoch() {
-  return global_epoch.fetch_add(1, std::memory_order_relaxed) + 1;
-}
-}  // namespace
-
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
   return reinterpret_cast<Isolate*>(
@@ -1787,7 +1779,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   }
 
   {
-    tracer()->Start(collector, gc_reason, collector_reason);
+    tracer()->StartObservablePause(collector, gc_reason, collector_reason);
     DCHECK(AllowGarbageCollection::IsAllowed());
     DisallowGarbageCollection no_gc_during_gc;
     GarbageCollectionPrologue();
@@ -1812,8 +1804,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
       if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
         tp_heap_->CollectGarbage();
       } else {
-        freed_global_handles +=
-            PerformGarbageCollection(collector, gc_callback_flags);
+        freed_global_handles += PerformGarbageCollection(
+            collector, gc_reason, collector_reason, gc_callback_flags);
       }
       // Clear flags describing the current GC now that the current GC is
       // complete. Do this before GarbageCollectionEpilogue() since that could
@@ -1859,7 +1851,10 @@ bool Heap::CollectGarbage(AllocationSpace space,
       }
     }
 
-    tracer()->Stop(collector);
+    tracer()->StopObservablePause(collector);
+    if (IsYoungGenerationCollector(collector)) {
+      tracer()->StopCycle(collector);
+    }
   }
 
   // Part 3: Invoke all callbacks which should happen after the actual garbage
@@ -1955,9 +1950,9 @@ void Heap::StartIncrementalMarking(int gc_flags,
   VerifyCountersAfterSweeping();
 #endif
 
-  // Now that sweeping is completed, we can update the current epoch for the new
-  // full collection.
-  UpdateEpochFull();
+  // Now that sweeping is completed, we can start the next full GC cycle.
+  tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR, gc_reason,
+                       GCTracer::MarkingType::kIncremental);
 
   set_current_gc_flags(gc_flags);
   current_gc_callback_flags_ = gc_callback_flags;
@@ -1971,6 +1966,7 @@ void Heap::CompleteSweepingFull() {
   if (cpp_heap()) {
     CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
   }
+  tracer()->StopCycleIfPending();
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
@@ -2166,20 +2162,25 @@ GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
 }  // namespace
 
 size_t Heap::PerformGarbageCollection(
-    GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
+    GarbageCollector collector, GarbageCollectionReason gc_reason,
+    const char* collector_reason, const v8::GCCallbackFlags gc_callback_flags) {
   DisallowJavascriptExecution no_js(isolate());
 
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung(collector);
+    tracer()->StartCycle(collector, gc_reason, GCTracer::MarkingType::kAtomic);
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
+    // If incremental marking has been activated, the full GC cycle has already
+    // started, so don't start a new one.
+    if (!incremental_marking_->WasActivated()) {
+      tracer()->StartCycle(collector, gc_reason,
+                           GCTracer::MarkingType::kAtomic);
+    }
   }
 
-  // The last GC cycle is done after completing sweeping. Start the next GC
-  // cycle.
-  UpdateCurrentEpoch(collector);
-
+  DCHECK(tracer()->IsConsistentWithCollector(collector));
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
   base::Optional<SafepointScope> safepoint_scope;
@@ -2303,10 +2304,8 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   v8::Locker locker(reinterpret_cast<v8::Isolate*>(isolate()));
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate()));
 
-  const char* collector_reason = nullptr;
-  GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
-
-  tracer()->Start(collector, gc_reason, collector_reason);
+  tracer()->StartObservablePause(GarbageCollector::MARK_COMPACTOR, gc_reason,
+                                 nullptr);
 
   DCHECK_NOT_NULL(isolate()->global_safepoint());
 
@@ -2318,9 +2317,10 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
     client->heap()->MakeHeapIterable();
   });
 
-  PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR);
+  PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR, gc_reason,
+                           nullptr);
 
-  tracer()->Stop(collector);
+  tracer()->StopObservablePause(GarbageCollector::MARK_COMPACTOR);
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {
@@ -2356,16 +2356,6 @@ void Heap::EnsureSweepingCompleted(HeapObject object) {
   Page* page = Page::cast(chunk);
   mark_compact_collector()->EnsurePageIsSwept(page);
 }
-
-void Heap::UpdateCurrentEpoch(GarbageCollector collector) {
-  if (IsYoungGenerationCollector(collector)) {
-    epoch_young_ = next_epoch();
-  } else if (incremental_marking()->IsStopped()) {
-    epoch_full_ = next_epoch();
-  }
-}
-
-void Heap::UpdateEpochFull() { epoch_full_ = next_epoch(); }
 
 void Heap::RecomputeLimits(GarbageCollector collector) {
   if (!((collector == GarbageCollector::MARK_COMPACTOR) ||
@@ -3808,7 +3798,9 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
 
   NestedTimedHistogramScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking_finalize());
-  TRACE_EVENT1("v8", "V8.GCIncrementalMarkingFinalize", "epoch", epoch_full());
+  TRACE_EVENT1(
+      "v8", "V8.GCIncrementalMarkingFinalize", "epoch",
+      tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL_FINALIZE));
   TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
                  ThreadKind::kMain);
 
