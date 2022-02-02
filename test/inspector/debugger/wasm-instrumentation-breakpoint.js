@@ -12,8 +12,9 @@ Protocol.Debugger.onPaused(async msg => {
   let top_frame = msg.params.callFrames[0];
   let reason = msg.params.reason;
   let hitBreakpoints = msg.params.hitBreakpoints;
-  InspectorTest.log(`Paused at ${top_frame.url} with reason "${reason}".`);
-  if (!top_frame.url.startsWith('v8://test/')) {
+  const url = session.getCallFrameUrl(top_frame);
+  InspectorTest.log(`Paused at ${url} with reason "${reason}".`);
+  if (!url.startsWith('v8://test/')) {
     await session.logSourceLocation(top_frame.location);
   }
   // Report the hit breakpoints to make sure that it is empty, as

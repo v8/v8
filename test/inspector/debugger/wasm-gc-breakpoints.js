@@ -174,7 +174,7 @@ Protocol.Debugger.onPaused(async msg => {
     var lineNumber = frame.location.lineNumber;
     var columnNumber = frame.location.columnNumber;
     InspectorTest.log(`at ${functionName} (${lineNumber}:${columnNumber}):`);
-    if (!/^wasm/.test(frame.url)) {
+    if (!/^wasm/.test(session.getCallFrameUrl(frame))) {
       InspectorTest.log('   -- skipped');
       continue;
     }
