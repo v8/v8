@@ -1752,19 +1752,21 @@ void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
 // static
 Handle<WasmContinuationObject> WasmContinuationObject::New(
     Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
-    HeapObject parent) {
-  Handle<WasmContinuationObject> result = Handle<WasmContinuationObject>::cast(
-      isolate->factory()->NewStruct(WASM_CONTINUATION_OBJECT_TYPE));
+    Handle<HeapObject> parent) {
   stack->jmpbuf()->stack_limit = stack->jslimit();
   stack->jmpbuf()->sp = stack->base();
   stack->jmpbuf()->fp = kNullAddress;
-  result->set_jmpbuf(*isolate->factory()->NewForeign(
-      reinterpret_cast<Address>(stack->jmpbuf())));
+  wasm::JumpBuffer* jmpbuf = stack->jmpbuf();
   size_t external_size = stack->owned_size();
   Handle<Foreign> managed_stack = Managed<wasm::StackMemory>::FromUniquePtr(
       isolate, external_size, std::move(stack));
+  Handle<Foreign> foreign_jmpbuf =
+      isolate->factory()->NewForeign(reinterpret_cast<Address>(jmpbuf));
+  Handle<WasmContinuationObject> result = Handle<WasmContinuationObject>::cast(
+      isolate->factory()->NewStruct(WASM_CONTINUATION_OBJECT_TYPE));
+  result->set_jmpbuf(*foreign_jmpbuf);
   result->set_stack(*managed_stack);
-  result->set_parent(parent);
+  result->set_parent(*parent);
   return result;
 }
 
@@ -1772,12 +1774,12 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
 Handle<WasmContinuationObject> WasmContinuationObject::New(
     Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack) {
   auto parent = ReadOnlyRoots(isolate).undefined_value();
-  return New(isolate, std::move(stack), parent);
+  return New(isolate, std::move(stack), handle(parent, isolate));
 }
 
 // static
 Handle<WasmContinuationObject> WasmContinuationObject::New(
-    Isolate* isolate, WasmContinuationObject parent) {
+    Isolate* isolate, Handle<WasmContinuationObject> parent) {
   auto stack =
       std::unique_ptr<wasm::StackMemory>(wasm::StackMemory::New(isolate));
   return New(isolate, std::move(stack), parent);

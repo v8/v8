@@ -1004,8 +1004,8 @@ class WasmContinuationObject
  public:
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack);
-  static Handle<WasmContinuationObject> New(Isolate* isolate,
-                                            WasmContinuationObject parent);
+  static Handle<WasmContinuationObject> New(
+      Isolate* isolate, Handle<WasmContinuationObject> parent);
 
   DECL_PRINTER(WasmContinuationObject)
 
@@ -1014,7 +1014,7 @@ class WasmContinuationObject
  private:
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
-      HeapObject parent);
+      Handle<HeapObject> parent);
 
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
 };

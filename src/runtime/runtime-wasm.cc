@@ -731,6 +731,9 @@ void SyncStackLimit(Isolate* isolate) {
   auto continuation = WasmContinuationObject::cast(
       *isolate->roots_table().slot(RootIndex::kActiveContinuation));
   auto stack = Managed<wasm::StackMemory>::cast(continuation.stack()).get();
+  if (FLAG_trace_wasm_stack_switching) {
+    PrintF("Switch to stack #%d\n", stack->id());
+  }
   uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
   isolate->stack_guard()->SetStackLimit(limit);
 }
@@ -749,7 +752,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
                  *isolate->roots_table().slot(RootIndex::kActiveContinuation)),
              isolate);
   Handle<WasmContinuationObject> target =
-      WasmContinuationObject::New(isolate, *parent);
+      WasmContinuationObject::New(isolate, parent);
   auto target_stack =
       Managed<wasm::StackMemory>::cast(target->stack()).get().get();
   isolate->wasm_stacks()->Add(target_stack);
