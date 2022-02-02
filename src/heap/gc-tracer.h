@@ -51,8 +51,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
                "epoch", tracer->CurrentEpoch(scope_id))
 
-using CollectionEpoch = uint32_t;
-
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 class V8_EXPORT_PRIVATE GCTracer {
@@ -139,14 +137,6 @@ class V8_EXPORT_PRIVATE GCTracer {
       START = 4
     };
 
-#ifdef DEBUG
-    // Returns true if the event corresponds to a young generation GC.
-    static constexpr bool IsYoungGenerationEvent(Type type) {
-      DCHECK_NE(START, type);
-      return type == SCAVENGER || type == MINOR_MARK_COMPACTOR;
-    }
-#endif
-
     Event(Type type, GarbageCollectionReason gc_reason,
           const char* collector_reason);
 
@@ -221,25 +211,13 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   explicit GCTracer(Heap* heap);
 
-  CollectionEpoch CurrentEpoch(Scope::ScopeId id) const {
-    return Scope::NeedsYoungEpoch(id) ? epoch_young_ : epoch_full_;
-  }
-
-  // Start and stop a cycle's observable (atomic) pause.
-  void StartObservablePause(GarbageCollector collector,
-                            GarbageCollectionReason gc_reason,
-                            const char* collector_reason);
-  void StopObservablePause(GarbageCollector collector);
-
-  enum class MarkingType { kAtomic, kIncremental };
-
-  // Start and stop a GC cycle (collecting data and reporting results).
-  void StartCycle(GarbageCollector collector, GarbageCollectionReason gc_reason,
-                  MarkingType marking);
-  void StopCycle(GarbageCollector collector);
-  void StopCycleIfPending();
-
+  // Start collecting data.
+  void Start(GarbageCollector collector, GarbageCollectionReason gc_reason,
+             const char* collector_reason);
   void StartInSafepoint();
+
+  // Stop collecting data and print results.
+  void Stop(GarbageCollector collector);
   void StopInSafepoint();
 
   void NotifySweepingCompleted();
@@ -248,19 +226,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void NotifyYoungGenerationHandling(
       YoungGenerationHandling young_generation_handling);
-
-#ifdef DEBUG
-  // Checks if the current event is consistent with a collector.
-  bool IsConsistentWithCollector(GarbageCollector collector) const {
-    return (collector == GarbageCollector::SCAVENGER &&
-            current_.type == Event::SCAVENGER) ||
-           (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
-            current_.type == Event::MINOR_MARK_COMPACTOR) ||
-           (collector == GarbageCollector::MARK_COMPACTOR &&
-            (current_.type == Event::MARK_COMPACTOR ||
-             current_.type == Event::INCREMENTAL_MARK_COMPACTOR));
-  }
-#endif
 
   // Sample and accumulate bytes allocated since the last GC.
   void SampleAllocation(double current_ms, size_t new_space_counter_bytes,
@@ -388,6 +353,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats();
 #endif  // defined(V8_RUNTIME_CALL_STATS)
 
+  CollectionEpoch CurrentEpoch(Scope::ScopeId id);
+
  private:
   FRIEND_TEST(GCTracer, AverageSpeed);
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
@@ -461,9 +428,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   void ReportIncrementalMarkingStepToRecorder();
   void ReportYoungCycleToRecorder();
 
-  void NewCurrentEvent(Event::Type type, GarbageCollectionReason gc_reason,
-                       const char* collector_reason);
-
   // Pointer to the heap that owns this tracer.
   Heap* heap_;
 
@@ -473,11 +437,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Previous tracer event.
   Event previous_;
-
-  // We need two epochs, since there can be scavenges during incremental
-  // marking.
-  CollectionEpoch epoch_young_ = 0;
-  CollectionEpoch epoch_full_ = 0;
 
   // Size of incremental marking steps (in bytes) accumulated since the end of
   // the last mark compact GC.
@@ -535,15 +494,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::RingBuffer<double> recorded_survival_ratios_;
 
   bool metrics_report_pending_ = false;
-
-  // An ongoing GC cycle is considered pending if it has been started with
-  // |StartCycle()| but has not yet been finished with |StopCycle()|.
-  bool current_pending_ = false;
-
-  // When a full GC cycle is interrupted by a young generation GC cycle, the
-  // |previous_| event is used as temporary storage for the |current_| event
-  // that corresponded to the full GC cycle, and this field is set to true.
-  bool young_gc_while_full_gc_ = false;
 
   v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalMark
       incremental_mark_batched_events_;

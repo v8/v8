@@ -7004,9 +7004,6 @@ TEST(Regress978156) {
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (marking->IsStopped()) {
     SafepointScope scope(heap);
-    heap->tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR,
-                               GarbageCollectionReason::kTesting,
-                               GCTracer::MarkingType::kIncremental);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
