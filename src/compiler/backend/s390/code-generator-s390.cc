@@ -2892,35 +2892,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                             kScratchReg);
       break;
     }
-#undef CONVERT_FLOAT_TO_INT32
-#define CONVERT_INT32_TO_FLOAT(convert, double_index)               \
-  Simd128Register src = i.InputSimd128Register(0);                  \
-  Simd128Register dst = i.OutputSimd128Register();                  \
-  for (int index = 0; index < 4; index++) {                         \
-    __ vlgv(kScratchReg, src, MemOperand(r0, index), Condition(2)); \
-    __ convert(kScratchDoubleReg, kScratchReg);                     \
-    __ MovFloatToInt(kScratchReg, kScratchDoubleReg);               \
-    __ vlvg(dst, kScratchReg, MemOperand(r0, index), Condition(2)); \
-  }
     case kS390_F32x4SConvertI32x4: {
-      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
-        __ vcdg(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                Condition(4), Condition(0), Condition(2));
-      } else {
-        CONVERT_INT32_TO_FLOAT(ConvertIntToFloat, 0)
-      }
+      __ F32x4SConvertI32x4(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0), kScratchDoubleReg,
+                            kScratchReg);
       break;
     }
     case kS390_F32x4UConvertI32x4: {
-      if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
-        __ vcdlg(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 Condition(4), Condition(0), Condition(2));
-      } else {
-        CONVERT_INT32_TO_FLOAT(ConvertUnsignedIntToFloat, 0)
-      }
+      __ F32x4UConvertI32x4(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0), kScratchDoubleReg,
+                            kScratchReg);
       break;
     }
-#undef CONVERT_INT32_TO_FLOAT
     case kS390_I16x8SConvertI32x4:
       __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(0), Condition(0), Condition(2));

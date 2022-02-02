@@ -1118,6 +1118,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                           Simd128Register scratch1, Register scratch2);
   void I32x4UConvertF32x4(Simd128Register dst, Simd128Register src,
                           Simd128Register scratch1, Register scratch2);
+  void F32x4SConvertI32x4(Simd128Register dst, Simd128Register src,
+                          Simd128Register scratch1, Register scratch2);
+  void F32x4UConvertI32x4(Simd128Register dst, Simd128Register src,
+                          Simd128Register scratch1, Register scratch2);
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \

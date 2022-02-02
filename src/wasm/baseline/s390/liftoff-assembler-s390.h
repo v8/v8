@@ -2692,12 +2692,12 @@ void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "f32x4_sconvert_i32x4");
+  F32x4SConvertI32x4(dst.fp(), src.fp(), kScratchDoubleReg, r0);
 }
 
 void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  bailout(kSimd, "f32x4_uconvert_i32x4");
+  F32x4UConvertI32x4(dst.fp(), src.fp(), kScratchDoubleReg, r0);
 }
 
 void LiftoffAssembler::emit_f32x4_demote_f64x2_zero(LiftoffRegister dst,

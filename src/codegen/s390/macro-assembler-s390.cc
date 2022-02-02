@@ -5637,6 +5637,36 @@ void TurboAssembler::I32x4UConvertF32x4(Simd128Register dst,
 }
 #undef CONVERT_FLOAT_TO_INT32
 
+#define CONVERT_INT32_TO_FLOAT(convert, dst, src, scratch1, scratch2) \
+  for (int index = 0; index < 4; index++) {                           \
+    vlgv(scratch2, src, MemOperand(r0, index), Condition(2));         \
+    convert(scratch1, scratch2);                                      \
+    MovFloatToInt(scratch2, scratch1);                                \
+    vlvg(dst, scratch2, MemOperand(r0, index), Condition(2));         \
+  }
+void TurboAssembler::F32x4SConvertI32x4(Simd128Register dst,
+                                        Simd128Register src,
+                                        Simd128Register scratch1,
+                                        Register scratch2) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+    vcdg(dst, src, Condition(4), Condition(0), Condition(2));
+  } else {
+    CONVERT_INT32_TO_FLOAT(ConvertIntToFloat, dst, src, scratch1, scratch2)
+  }
+}
+void TurboAssembler::F32x4UConvertI32x4(Simd128Register dst,
+                                        Simd128Register src,
+                                        Simd128Register scratch1,
+                                        Register scratch2) {
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+    vcdlg(dst, src, Condition(4), Condition(0), Condition(2));
+  } else {
+    CONVERT_INT32_TO_FLOAT(ConvertUnsignedIntToFloat, dst, src, scratch1,
+                           scratch2)
+  }
+}
+#undef CONVERT_INT32_TO_FLOAT
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true
