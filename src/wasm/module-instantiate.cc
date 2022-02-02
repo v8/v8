@@ -1908,8 +1908,8 @@ V8_INLINE void SetFunctionTablePlaceholder(Isolate* isolate,
     table_object->entries().set(entry_index,
                                 *wasm_internal_function.ToHandleChecked());
   }
-  WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
-                                        function->sig, instance, func_index);
+  WasmTableObject::UpdateDispatchTables(isolate, *table_object, entry_index,
+                                        function->sig, *instance, func_index);
 }
 
 V8_INLINE void SetFunctionTableNullEntry(Isolate* isolate,

@@ -202,11 +202,10 @@ class WasmTableObject
                                      uint32_t count);
 
   // TODO(wasm): Unify these three methods into one.
-  static void UpdateDispatchTables(Isolate* isolate,
-                                   Handle<WasmTableObject> table,
+  static void UpdateDispatchTables(Isolate* isolate, WasmTableObject table,
                                    int entry_index,
                                    const wasm::FunctionSig* sig,
-                                   Handle<WasmInstanceObject> target_instance,
+                                   WasmInstanceObject target_instance,
                                    int target_func_index);
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,

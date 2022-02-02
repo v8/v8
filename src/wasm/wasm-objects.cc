@@ -358,8 +358,8 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
     auto* wasm_function = &target_instance->module()->functions[func_index];
     DCHECK_NOT_NULL(wasm_function);
     DCHECK_NOT_NULL(wasm_function->sig);
-    UpdateDispatchTables(isolate, table, entry_index, wasm_function->sig,
-                         target_instance, func_index);
+    UpdateDispatchTables(isolate, *table, entry_index, wasm_function->sig,
+                         *target_instance, func_index);
   } else if (WasmJSFunction::IsWasmJSFunction(*external)) {
     UpdateDispatchTables(isolate, table, entry_index,
                          Handle<WasmJSFunction>::cast(external));
@@ -478,37 +478,41 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
   }
 }
 
-void WasmTableObject::UpdateDispatchTables(
-    Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
-    const wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
-    int target_func_index) {
+void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
+                                           WasmTableObject table,
+                                           int entry_index,
+                                           const wasm::FunctionSig* sig,
+                                           WasmInstanceObject target_instance,
+                                           int target_func_index) {
+  DisallowGarbageCollection no_gc;
+
   // We simply need to update the IFTs for each instance that imports
   // this table.
-  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
-  FunctionTargetAndRef entry(target_instance, target_func_index);
+  FixedArray dispatch_tables = table.dispatch_tables();
+  DCHECK_EQ(0, dispatch_tables.length() % kDispatchTableNumElements);
 
-  for (int i = 0; i < dispatch_tables->length();
+  Object call_ref =
+      target_func_index <
+              static_cast<int>(target_instance.module()->num_imported_functions)
+          // The function in the target instance was imported. Use its imports
+          // table, which contains a tuple needed by the import wrapper.
+          ? target_instance.imported_function_refs().get(target_func_index)
+          // For wasm functions, just pass the target instance.
+          : target_instance;
+  Address call_target = target_instance.GetCallTarget(target_func_index);
+
+  for (int i = 0, len = dispatch_tables.length(); i < len;
        i += kDispatchTableNumElements) {
     int table_index =
-        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset)).value();
-    if (*target_instance ==
-        dispatch_tables->get(i + kDispatchTableInstanceOffset)) {
-      // Skip creating a handle if the IFT belongs to the {target_instance}.
-      auto sig_id = target_instance->module()->signature_map.Find(*sig);
-      target_instance->GetIndirectFunctionTable(isolate, table_index)
-          ->Set(entry_index, sig_id, entry.call_target(), *entry.ref());
-    } else {
-      Handle<WasmInstanceObject> instance =
-          handle(WasmInstanceObject::cast(
-                     dispatch_tables->get(i + kDispatchTableInstanceOffset)),
-                 isolate);
-      // Note that {SignatureMap::Find} may return {-1} if the signature is
-      // not found; it will simply never match any check.
-      auto sig_id = instance->module()->signature_map.Find(*sig);
-      instance->GetIndirectFunctionTable(isolate, table_index)
-          ->Set(entry_index, sig_id, entry.call_target(), *entry.ref());
-    }
+        Smi::cast(dispatch_tables.get(i + kDispatchTableIndexOffset)).value();
+    WasmInstanceObject instance = WasmInstanceObject::cast(
+        dispatch_tables.get(i + kDispatchTableInstanceOffset));
+    // Note that {SignatureMap::Find} may return {-1} if the signature is
+    // not found; it will simply never match any check.
+    auto sig_id = instance.module()->signature_map.Find(*sig);
+    WasmIndirectFunctionTable ift = WasmIndirectFunctionTable::cast(
+        instance.indirect_function_tables().get(table_index));
+    ift.Set(entry_index, sig_id, call_target, call_ref);
   }
 }
 
