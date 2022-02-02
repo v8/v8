@@ -1466,20 +1466,13 @@ Response V8DebuggerAgentImpl::currentCallFrames(
             .setLineNumber(loc.GetLineNumber())
             .setColumnNumber(loc.GetColumnNumber())
             .build();
-    String16 scriptId = String16::fromInteger(script->Id());
-    ScriptsMap::iterator scriptIterator =
-        m_scripts.find(location->getScriptId());
-    String16 url;
-    if (scriptIterator != m_scripts.end()) {
-      url = scriptIterator->second->sourceURL();
-    }
 
     auto frame = CallFrame::create()
                      .setCallFrameId(callFrameId)
                      .setFunctionName(toProtocolString(
                          m_isolate, iterator->GetFunctionDebugName()))
                      .setLocation(std::move(location))
-                     .setUrl(url)
+                     .setUrl(String16())
                      .setScopeChain(std::move(scopes))
                      .setThis(std::move(protocolReceiver))
                      .build();
