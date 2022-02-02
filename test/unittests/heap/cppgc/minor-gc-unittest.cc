@@ -5,6 +5,7 @@
 #if defined(CPPGC_YOUNG_GENERATION)
 
 #include "include/cppgc/allocation.h"
+#include "include/cppgc/explicit-management.h"
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/internal/caged-heap-local-data.h"
 #include "include/cppgc/persistent.h"
@@ -32,7 +33,7 @@ class SimpleGCedBase : public GarbageCollected<SimpleGCedBase> {
 size_t SimpleGCedBase::destructed_objects;
 
 template <size_t Size>
-class SimpleGCed final : public SimpleGCedBase {
+class SimpleGCed : public SimpleGCedBase {
   char array[Size];
 };
 
@@ -65,6 +66,7 @@ class MinorGCTest : public testing::TestWithHeap {
     Heap::From(GetHeap())->CollectGarbage(
         Heap::Config::MinorPreciseAtomicConfig());
   }
+
   void CollectMajor() {
     Heap::From(GetHeap())->CollectGarbage(Heap::Config::PreciseAtomicConfig());
   }
@@ -237,6 +239,88 @@ TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForSentinels) {
   old->next = static_cast<Type*>(kSentinelPointer);
   EXPECT_EQ(set_size_before_barrier, set.size());
 }
+
+template <typename From, typename To>
+void TestRememberedSetInvalidation(MinorGCTest& test) {
+  Persistent<From> old = MakeGarbageCollected<From>(test.GetAllocationHandle());
+
+  test.CollectMinor();
+
+  auto* young = MakeGarbageCollected<To>(test.GetAllocationHandle());
+
+  const auto& set = Heap::From(test.GetHeap())->remembered_slots();
+  const size_t set_size_before_barrier = set.size();
+
+  // Issue the generational barrier.
+  old->next = young;
+  EXPECT_EQ(set_size_before_barrier + 1, set.size());
+
+  // Release the persistent and free the old object.
+  auto* old_raw = old.Release();
+  subtle::FreeUnreferencedObject(test.GetHeapHandle(), *old_raw);
+  // Check that the reference was invalidated.
+  EXPECT_EQ(set_size_before_barrier, set.size());
+
+  // Visiting remembered slots must not fail.
+  test.CollectMinor();
+}
+
+TYPED_TEST(MinorGCTestForType, RememberedSetInvalidationOnPromptlyFree) {
+  using Type1 = typename TestFixture::Type;
+  using Type2 = typename OtherType<Type1>::Type;
+  TestRememberedSetInvalidation<Type1, Type1>(*this);
+  TestRememberedSetInvalidation<Type1, Type2>(*this);
+}
+
+TEST_F(MinorGCTest, RememberedSetInvalidationOnShrink) {
+  using Member = Member<Small>;
+
+  static constexpr size_t kTrailingMembers = 64;
+  static constexpr size_t kBytesToAllocate = kTrailingMembers * sizeof(Member);
+
+  static constexpr size_t kFirstMemberToInvalidate = 63;
+  static constexpr size_t kLastMemberToInvalidate = kTrailingMembers;
+
+  // Create an object with additional kBytesToAllocate bytes.
+  Persistent<Small> old = MakeGarbageCollected<Small>(
+      this->GetAllocationHandle(), AdditionalBytes(kBytesToAllocate));
+
+  auto get_member = [&old](size_t i) -> Member& {
+    return *reinterpret_cast<Member*>(reinterpret_cast<uint8_t*>(old.Get()) +
+                                      sizeof(Small) + i * sizeof(Member));
+  };
+
+  CollectMinor();
+
+  auto* young = MakeGarbageCollected<Small>(GetAllocationHandle());
+
+  const auto& set = Heap::From(GetHeap())->remembered_slots();
+  const size_t set_size_before_barrier = set.size();
+
+  // Issue the generational barriers.
+  for (size_t i = kFirstMemberToInvalidate; i < kLastMemberToInvalidate; ++i) {
+    // Construct the member.
+    new (&get_member(i)) Member;
+    // Issue the barrier.
+    get_member(i) = young;
+  }
+
+  // Check that barriers hit (kLastMemberToInvalidate -
+  // kFirstMemberToInvalidate) times.
+  EXPECT_EQ(set_size_before_barrier +
+                (kLastMemberToInvalidate - kFirstMemberToInvalidate),
+            set.size());
+
+  // Shrink the buffer for old object.
+  subtle::Resize(*old, AdditionalBytes(kBytesToAllocate / 2));
+
+  // Check that the reference was invalidated.
+  EXPECT_EQ(set_size_before_barrier, set.size());
+
+  // Visiting remembered slots must not fail.
+  CollectMinor();
+}
+
 }  // namespace internal
 }  // namespace cppgc
 

@@ -55,6 +55,11 @@ class GarbageCollector {
               MarkingType::kAtomic, SweepingType::kAtomic};
     }
 
+    static constexpr Config MinorConservativeAtomicConfig() {
+      return {CollectionType::kMinor, StackState::kMayContainHeapPointers,
+              MarkingType::kAtomic, SweepingType::kAtomic};
+    }
+
     CollectionType collection_type = CollectionType::kMajor;
     StackState stack_state = StackState::kMayContainHeapPointers;
     MarkingType marking_type = MarkingType::kAtomic;

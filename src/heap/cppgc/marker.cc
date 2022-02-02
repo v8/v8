@@ -67,6 +67,7 @@ void VisitRememberedSlots(HeapBase& heap,
   StatsCollector::EnabledScope stats_scope(
       heap.stats_collector(), StatsCollector::kMarkVisitRememberedSets);
   for (void* slot : heap.remembered_slots()) {
+    // Slot must always point to a valid, not freed object.
     auto& slot_header = BasePage::FromInnerAddress(&heap, slot)
                             ->ObjectHeaderFromInnerAddress(slot);
     if (slot_header.IsYoung()) continue;
@@ -79,6 +80,13 @@ void VisitRememberedSlots(HeapBase& heap,
     void* value = *reinterpret_cast<void**>(slot);
     // Slot could be updated to nullptr or kSentinelPointer by the mutator.
     if (value == kSentinelPointer || value == nullptr) continue;
+
+#if DEBUG
+    // Check that the slot can not point to a freed object.
+    HeapObjectHeader& header =
+        BasePage::FromPayload(value)->ObjectHeaderFromInnerAddress(value);
+    DCHECK(!header.IsFree());
+#endif
 
     mutator_marking_state.DynamicallyMarkAddress(static_cast<Address>(value));
   }

@@ -4,6 +4,7 @@
 
 #include "include/cppgc/explicit-management.h"
 
+#include <algorithm>
 #include <tuple>
 
 #include "src/heap/cppgc/heap-base.h"
@@ -24,12 +25,29 @@ bool InGC(HeapHandle& heap_handle) {
          heap.sweeper().IsSweepingInProgress();
 }
 
+void InvalidateRememberedSlots(HeapBase& heap, void* begin, void* end) {
+#if defined(CPPGC_YOUNG_GENERATION)
+  // Invalidate slots that reside within |object|.
+  auto& remembered_slots = heap.remembered_slots();
+  // TODO(bikineev): The 2 binary walks can be optimized with a custom
+  // algorithm.
+  auto from = remembered_slots.lower_bound(begin),
+       to = remembered_slots.lower_bound(end);
+  remembered_slots.erase(from, to);
+#ifdef ENABLE_SLOW_DCHECKS
+  // Check that no remembered slots are referring to the freed area.
+  DCHECK(std::none_of(remembered_slots.begin(), remembered_slots.end(),
+                      [begin, end](void* slot) {
+                        void* value = *reinterpret_cast<void**>(slot);
+                        return begin <= value && value < end;
+                      }));
+#endif  // ENABLE_SLOW_DCHECKS
+#endif  // !defined(CPPGC_YOUNG_GENERATION)
+}
+
 }  // namespace
 
 void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
-// TODO(bikineev): Invalidate slots that reside within |object| and handle free
-// values in VisitRememberedSlots.
-#if !defined(CPPGC_YOUNG_GENERATION)
   if (InGC(heap_handle)) {
     return;
   }
@@ -37,16 +55,21 @@ void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
   auto& header = HeapObjectHeader::FromObject(object);
   header.Finalize();
 
+  size_t object_size = 0;
+  USE(object_size);
+
   // `object` is guaranteed to be of type GarbageCollected, so getting the
   // BasePage is okay for regular and large objects.
   BasePage* base_page = BasePage::FromPayload(object);
   if (base_page->is_large()) {  // Large object.
+    object_size = LargePage::From(base_page)->ObjectSize();
     base_page->space().RemovePage(base_page);
     base_page->heap().stats_collector()->NotifyExplicitFree(
         LargePage::From(base_page)->PayloadSize());
     LargePage::Destroy(LargePage::From(base_page));
   } else {  // Regular object.
     const size_t header_size = header.AllocatedSize();
+    object_size = header.ObjectSize();
     auto* normal_page = NormalPage::From(base_page);
     auto& normal_space = *static_cast<NormalPageSpace*>(&base_page->space());
     auto& lab = normal_space.linear_allocation_buffer();
@@ -62,7 +85,8 @@ void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
       // list entry.
     }
   }
-#endif  // !defined(CPPGC_YOUNG_GENERATION)
+  InvalidateRememberedSlots(HeapBase::From(heap_handle), object,
+                            reinterpret_cast<uint8_t*>(object) + object_size);
 }
 
 namespace {
@@ -102,17 +126,17 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
     lab.Set(free_start, lab.size() + size_delta);
     SetMemoryInaccessible(lab.start(), size_delta);
     header.SetAllocatedSize(new_size);
-    return true;
-  }
-  // Heuristic: Only return memory to the free list if the block is larger than
-  // the smallest size class.
-  if (size_delta >= ObjectAllocator::kSmallestSpaceSize) {
+  } else if (size_delta >= ObjectAllocator::kSmallestSpaceSize) {
+    // Heuristic: Only return memory to the free list if the block is larger
+    // than the smallest size class.
     SetMemoryInaccessible(free_start, size_delta);
     base_page.heap().stats_collector()->NotifyExplicitFree(size_delta);
     normal_space.free_list().Add({free_start, size_delta});
     NormalPage::From(&base_page)->object_start_bitmap().SetBit(free_start);
     header.SetAllocatedSize(new_size);
   }
+  InvalidateRememberedSlots(base_page.heap(), free_start,
+                            free_start + size_delta);
   // Return success in any case, as we want to avoid that embedders start
   // copying memory because of small deltas.
   return true;
