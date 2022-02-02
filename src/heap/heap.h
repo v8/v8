@@ -270,8 +270,6 @@ using EphemeronRememberedSet =
     std::unordered_map<EphemeronHashTable, std::unordered_set<int>,
                        Object::Hasher>;
 
-using CollectionEpoch = uint32_t;
-
 class Heap {
  public:
   // Stores ephemeron entries where the EphemeronHashTable is in old-space,
@@ -549,8 +547,6 @@ class Heap {
   void NotifyBootstrapComplete();
 
   void NotifyOldGenerationExpansion(AllocationSpace space, MemoryChunk* chunk);
-
-  void UpdateCurrentEpoch(GarbageCollector collector);
 
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();
@@ -1677,11 +1673,6 @@ class Heap {
 
   static Isolate* GetIsolateFromWritableObject(HeapObject object);
 
-  CollectionEpoch epoch_young() { return epoch_young_; }
-  CollectionEpoch epoch_full() { return epoch_full_; }
-
-  void UpdateEpochFull();
-
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.
   void MakeHeapIterable();
@@ -1821,7 +1812,8 @@ class Heap {
   // Performs garbage collection in a safepoint.
   // Returns the number of freed global handles.
   size_t PerformGarbageCollection(
-      GarbageCollector collector,
+      GarbageCollector collector, GarbageCollectionReason gc_reason,
+      const char* collector_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Performs garbage collection in the shared heap.
@@ -2520,11 +2512,6 @@ class Heap {
   bool is_finalization_registry_cleanup_task_posted_ = false;
 
   std::unique_ptr<third_party_heap::Heap> tp_heap_;
-
-  // We need two epochs, since there can be scavenges during incremental
-  // marking.
-  CollectionEpoch epoch_young_ = 0;
-  CollectionEpoch epoch_full_ = 0;
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
