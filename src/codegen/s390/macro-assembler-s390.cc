@@ -4732,6 +4732,19 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   Call(builtin_index);
 }
 
+void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin,
+                                          Register destination) {
+  ASM_CODE_COMMENT(this);
+  LoadU64(destination, EntryFromBuiltinAsOperand(builtin));
+}
+
+MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(root_array_available());
+  return MemOperand(kRootRegister,
+                    IsolateData::BuiltinEntrySlotOffset(builtin));
+}
+
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
                                          Register code_object) {
   // Code objects are called differently depending on whether we are generating
