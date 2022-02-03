@@ -534,6 +534,9 @@ class ValueType {
  private:
   STATIC_ASSERT(kV8MaxWasmTypes < (1u << kHeapTypeBits));
 
+  // {hash_value} directly reads {bit_field_}.
+  friend size_t hash_value(ValueType type);
+
   using KindField = base::BitField<ValueKind, 0, kKindBits>;
   using HeapTypeField = KindField::Next<uint32_t, kHeapTypeBits>;
 
@@ -554,7 +557,8 @@ static_assert(ValueType::kLastUsedBit < 8 * sizeof(ValueType) - kSmiTagSize,
               "ValueType has space to be encoded in a Smi");
 
 inline size_t hash_value(ValueType type) {
-  return static_cast<size_t>(type.kind());
+  // Just use the whole encoded bit field, similar to {operator==}.
+  return static_cast<size_t>(type.bit_field_);
 }
 
 // Output operator, useful for DCHECKS and others.
