@@ -10,9 +10,16 @@ import argparse
 import os
 import sys
 import tempfile
-import urllib2
 
 from common_includes import *
+
+PYTHON3 = sys.version_info >= (3, 0)
+
+if PYTHON3:
+  import urllib.request as urllib2
+else:
+  import urllib2
+
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -48,7 +55,7 @@ class IncrementVersion(Step):
     # Use the highest version from main or from tags to determine the new
     # version.
     authoritative_version = sorted(
-        [main_version, latest_version], key=SortingKey)[1]
+        [main_version, latest_version], key=LooseVersion)[1]
     self.StoreVersion(authoritative_version, "authoritative_")
 
     # Variables prefixed with 'new_' contain the new version numbers for the
