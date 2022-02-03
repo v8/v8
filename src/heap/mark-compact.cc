@@ -2289,28 +2289,29 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
 }
 
 void MarkCompactCollector::RecordObjectStats() {
-  if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
-    heap()->CreateObjectStats();
-    ObjectStatsCollector collector(heap(), heap()->live_object_stats_.get(),
-                                   heap()->dead_object_stats_.get());
-    collector.Collect();
-    if (V8_UNLIKELY(TracingFlags::gc_stats.load(std::memory_order_relaxed) &
-                    v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-      std::stringstream live, dead;
-      heap()->live_object_stats_->Dump(live);
-      heap()->dead_object_stats_->Dump(dead);
-      TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
-                           "V8.GC_Objects_Stats", TRACE_EVENT_SCOPE_THREAD,
-                           "live", TRACE_STR_COPY(live.str().c_str()), "dead",
-                           TRACE_STR_COPY(dead.str().c_str()));
-    }
-    if (FLAG_trace_gc_object_stats) {
-      heap()->live_object_stats_->PrintJSON("live");
-      heap()->dead_object_stats_->PrintJSON("dead");
-    }
-    heap()->live_object_stats_->CheckpointObjectStats();
-    heap()->dead_object_stats_->ClearObjectStats();
+  if (V8_LIKELY(!TracingFlags::is_gc_stats_enabled())) return;
+  // Cannot run during bootstrapping due to incomplete objects.
+  if (isolate()->bootstrapper()->IsActive()) return;
+  heap()->CreateObjectStats();
+  ObjectStatsCollector collector(heap(), heap()->live_object_stats_.get(),
+                                 heap()->dead_object_stats_.get());
+  collector.Collect();
+  if (V8_UNLIKELY(TracingFlags::gc_stats.load(std::memory_order_relaxed) &
+                  v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+    std::stringstream live, dead;
+    heap()->live_object_stats_->Dump(live);
+    heap()->dead_object_stats_->Dump(dead);
+    TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
+                         "V8.GC_Objects_Stats", TRACE_EVENT_SCOPE_THREAD,
+                         "live", TRACE_STR_COPY(live.str().c_str()), "dead",
+                         TRACE_STR_COPY(dead.str().c_str()));
   }
+  if (FLAG_trace_gc_object_stats) {
+    heap()->live_object_stats_->PrintJSON("live");
+    heap()->dead_object_stats_->PrintJSON("dead");
+  }
+  heap()->live_object_stats_->CheckpointObjectStats();
+  heap()->dead_object_stats_->ClearObjectStats();
 }
 
 void MarkCompactCollector::MarkLiveObjects() {
