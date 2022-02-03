@@ -199,8 +199,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWith)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWithPlainTime)
 /* Temporal #sec-temporal.zoneddatetime.prototype.withplaindate */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWithPlainDate)
-/* Temporal #sec-temporal.zoneddatetime.prototype.withtimezone */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWithTimeZone)
 /* Temporal #sec-temporal.zoneddatetime.prototype.add */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeAdd)
 /* Temporal #sec-temporal.zoneddatetime.prototype.subtract */
@@ -744,6 +742,7 @@ TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Microsecond,
 TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Nanosecond,
                                                       iso_nanosecond)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithCalendar, withCalendar)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithTimeZone, withTimeZone)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(ZonedDateTime)
 

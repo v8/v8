@@ -4230,6 +4230,30 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithCalendar(
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
 }
 
+// #sec-temporal.zoneddatetime.prototype.withtimezone
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithTimeZone(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> time_zone_like) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method = "Temporal.ZonedDateTime.prototype.withTimeZone";
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Let timeZone be ? ToTemporalTimeZone(timeZoneLike).
+  Handle<JSReceiver> time_zone;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, time_zone, ToTemporalTimeZone(isolate, time_zone_like, method),
+      JSTemporalZonedDateTime);
+
+  // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
+  // timeZone, zonedDateTime.[[Calendar]]).
+  Handle<BigInt> nanoseconds =
+      Handle<BigInt>(zoned_date_time->nanoseconds(), isolate);
+  Handle<JSReceiver> calendar =
+      Handle<JSReceiver>(zoned_date_time->calendar(), isolate);
+  return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
+}
+
 // #sec-temporal.zoneddatetime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalZonedDateTime::GetISOFields(
     Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {

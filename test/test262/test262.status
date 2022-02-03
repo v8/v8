@@ -2424,7 +2424,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/with/read-time-fields-before-datefromfields': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/with/receiver-offset-broken': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/with/subclassing-ignored': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/withTimeZone/branding': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/with/timezone-getoffsetnanosecondsfor-non-integer': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/with/timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/with/timezone-getoffsetnanosecondsfor-out-of-range': [FAIL],
