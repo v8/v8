@@ -47,7 +47,8 @@ void InvalidateRememberedSlots(HeapBase& heap, void* begin, void* end) {
 
 }  // namespace
 
-void FreeUnreferencedObject(HeapHandle& heap_handle, void* object) {
+void ExplicitManagementImpl::FreeUnreferencedObject(HeapHandle& heap_handle,
+                                                    void* object) {
   if (InGC(heap_handle)) {
     return;
   }
@@ -144,7 +145,7 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
 
 }  // namespace
 
-bool Resize(void* object, size_t new_object_size) {
+bool ExplicitManagementImpl::Resize(void* object, size_t new_object_size) {
   // `object` is guaranteed to be of type GarbageCollected, so getting the
   // BasePage is okay for regular and large objects.
   BasePage* base_page = BasePage::FromPayload(object);

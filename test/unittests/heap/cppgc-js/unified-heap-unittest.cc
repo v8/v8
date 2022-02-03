@@ -113,7 +113,7 @@ TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
   cpp_heap().stats_collector()->NotifySafePointForTesting();
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc_scope(cpp_heap());
-    cppgc::internal::FreeUnreferencedObject(cpp_heap(), unreferenced);
+    cppgc::subtle::FreeUnreferencedObject(cpp_heap(), *unreferenced);
     // Force safepoint to make sure allocated size decrease due to freeing
     // unreferenced object is reported to CppHeap. Due to
     // NoGarbageCollectionScope, CppHeap will cache the reported decrease and
