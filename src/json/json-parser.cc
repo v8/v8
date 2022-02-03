@@ -230,8 +230,8 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;
-    isolate->heap()->AddGCEpilogueCallback(UpdatePointersCallback,
-                                           v8::kGCTypeAll, this);
+    isolate->main_thread_local_heap()->AddGCEpilogueCallback(
+        UpdatePointersCallback, this);
     chars_ = SeqString::cast(*source_).GetChars(no_gc);
     chars_may_relocate_ = true;
   }
@@ -317,7 +317,8 @@ JsonParser<Char>::~JsonParser() {
     // Check that the string shape hasn't changed. Otherwise our GC hooks are
     // broken.
     SeqString::cast(*source_);
-    isolate()->heap()->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
+    isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
+        UpdatePointersCallback, this);
   }
 }
 
