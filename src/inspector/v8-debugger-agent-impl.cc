@@ -845,9 +845,10 @@ Response V8DebuggerAgentImpl::getStackTrace(
   int64_t id = inStackTraceId->getId().toInteger64(&isOk);
   if (!isOk) return Response::ServerError("Invalid stack trace id");
 
-  V8DebuggerId debuggerId;
+  internal::V8DebuggerId debuggerId;
   if (inStackTraceId->hasDebuggerId()) {
-    debuggerId = V8DebuggerId(inStackTraceId->getDebuggerId(String16()));
+    debuggerId =
+        internal::V8DebuggerId(inStackTraceId->getDebuggerId(String16()));
   } else {
     debuggerId = m_debugger->debuggerIdFor(m_session->contextGroupId());
   }
@@ -1521,7 +1522,8 @@ V8DebuggerAgentImpl::currentExternalStackTrace() {
   if (externalParent.IsInvalid()) return nullptr;
   return protocol::Runtime::StackTraceId::create()
       .setId(stackTraceIdToString(externalParent.id))
-      .setDebuggerId(V8DebuggerId(externalParent.debugger_id).toString())
+      .setDebuggerId(
+          internal::V8DebuggerId(externalParent.debugger_id).toString())
       .build();
 }
 

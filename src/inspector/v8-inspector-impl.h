@@ -67,7 +67,7 @@ class V8InspectorImpl : public V8Inspector {
   int contextGroupId(v8::Local<v8::Context>) const;
   int contextGroupId(int contextId) const;
   uint64_t isolateId() const { return m_isolateId; }
-  int resolveUniqueContextId(V8DebuggerId uniqueId) const;
+  int resolveUniqueContextId(internal::V8DebuggerId uniqueId) const;
 
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
                                                         v8::Local<v8::String>);
@@ -84,6 +84,7 @@ class V8InspectorImpl : public V8Inspector {
   void contextCreated(const V8ContextInfo&) override;
   void contextDestroyed(v8::Local<v8::Context>) override;
   v8::MaybeLocal<v8::Context> contextById(int contextId) override;
+  V8DebuggerId uniqueDebuggerId(int contextId) override;
   void contextCollected(int contextGroupId, int contextId);
   void resetContextGroup(int contextGroupId) override;
   void idleStarted() override;

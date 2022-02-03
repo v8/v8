@@ -1159,10 +1159,11 @@ void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
   m_maxAsyncCallStacks = limit;
 }
 
-V8DebuggerId V8Debugger::debuggerIdFor(int contextGroupId) {
+internal::V8DebuggerId V8Debugger::debuggerIdFor(int contextGroupId) {
   auto it = m_contextGroupIdToDebuggerId.find(contextGroupId);
   if (it != m_contextGroupIdToDebuggerId.end()) return it->second;
-  V8DebuggerId debuggerId = V8DebuggerId::generate(m_inspector);
+  internal::V8DebuggerId debuggerId =
+      internal::V8DebuggerId::generate(m_inspector);
   m_contextGroupIdToDebuggerId.insert(
       it, std::make_pair(contextGroupId, debuggerId));
   return debuggerId;

@@ -107,7 +107,8 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
     stackTrace->setParentId(
         protocol::Runtime::StackTraceId::create()
             .setId(stackTraceIdToString(externalParent.id))
-            .setDebuggerId(V8DebuggerId(externalParent.debugger_id).toString())
+            .setDebuggerId(
+                internal::V8DebuggerId(externalParent.debugger_id).toString())
             .build());
   }
   return stackTrace;
@@ -115,7 +116,8 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
 
 }  // namespace
 
-V8StackTraceId::V8StackTraceId() : id(0), debugger_id(V8DebuggerId().pair()) {}
+V8StackTraceId::V8StackTraceId()
+    : id(0), debugger_id(internal::V8DebuggerId().pair()) {}
 
 V8StackTraceId::V8StackTraceId(uintptr_t id,
                                const std::pair<int64_t, int64_t> debugger_id)
@@ -127,7 +129,7 @@ V8StackTraceId::V8StackTraceId(uintptr_t id,
     : id(id), debugger_id(debugger_id), should_pause(should_pause) {}
 
 V8StackTraceId::V8StackTraceId(StringView json)
-    : id(0), debugger_id(V8DebuggerId().pair()) {
+    : id(0), debugger_id(internal::V8DebuggerId().pair()) {
   if (json.length() == 0) return;
   std::vector<uint8_t> cbor;
   if (json.is8Bit()) {
@@ -146,7 +148,7 @@ V8StackTraceId::V8StackTraceId(StringView json)
   int64_t parsedId = s.toInteger64(&isOk);
   if (!isOk || !parsedId) return;
   if (!dict->getString(kDebuggerId, &s)) return;
-  V8DebuggerId debuggerId(s);
+  internal::V8DebuggerId debuggerId(s);
   if (!debuggerId.isValid()) return;
   if (!dict->getBoolean(kShouldPause, &should_pause)) return;
   id = parsedId;
@@ -159,7 +161,7 @@ std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
   if (IsInvalid()) return nullptr;
   auto dict = protocol::DictionaryValue::create();
   dict->setString(kId, String16::fromInteger64(id));
-  dict->setString(kDebuggerId, V8DebuggerId(debugger_id).toString());
+  dict->setString(kDebuggerId, internal::V8DebuggerId(debugger_id).toString());
   dict->setBoolean(kShouldPause, should_pause);
   std::vector<uint8_t> json;
   v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(dict->Serialize()),

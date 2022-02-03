@@ -44,6 +44,7 @@
 #include "src/inspector/v8-console-message.h"
 #include "src/inspector/v8-console.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
+#include "src/inspector/v8-debugger-id.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-session-impl.h"
 #include "src/inspector/v8-profiler-agent-impl.h"
@@ -83,7 +84,8 @@ int V8InspectorImpl::contextGroupId(int contextId) const {
   return it != m_contextIdToGroupIdMap.end() ? it->second : 0;
 }
 
-int V8InspectorImpl::resolveUniqueContextId(V8DebuggerId uniqueId) const {
+int V8InspectorImpl::resolveUniqueContextId(
+    internal::V8DebuggerId uniqueId) const {
   auto it = m_uniqueIdToContextId.find(uniqueId.pair());
   return it == m_uniqueIdToContextId.end() ? 0 : it->second;
 }
@@ -178,6 +180,13 @@ InspectedContext* V8InspectorImpl::getContext(int contextId) const {
 v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
   InspectedContext* context = getContext(contextId);
   return context ? context->context() : v8::MaybeLocal<v8::Context>();
+}
+
+V8DebuggerId V8InspectorImpl::uniqueDebuggerId(int contextId) {
+  InspectedContext* context = getContext(contextId);
+  internal::V8DebuggerId unique_id;
+  if (context) unique_id = context->uniqueId();
+  return unique_id.toV8DebuggerId();
 }
 
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {

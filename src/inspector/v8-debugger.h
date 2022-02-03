@@ -124,7 +124,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void setMaxAsyncTaskStacksForTest(int limit);
   void dumpAsyncTaskStacksStateForTest();
 
-  V8DebuggerId debuggerIdFor(int contextGroupId);
+  internal::V8DebuggerId debuggerIdFor(int contextGroupId);
   std::shared_ptr<AsyncStackTrace> stackTraceFor(int contextGroupId,
                                                  const V8StackTraceId& id);
 
@@ -283,7 +283,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   StackTraceIdToStackTrace m_storedStackTraces;
   uintptr_t m_lastStackTraceId = 0;
 
-  std::unordered_map<int, V8DebuggerId> m_contextGroupIdToDebuggerId;
+  std::unordered_map<int, internal::V8DebuggerId> m_contextGroupIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
 };

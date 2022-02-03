@@ -217,7 +217,7 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
     }
     *contextId = executionContextId.fromJust();
   } else if (uniqueContextId.isJust()) {
-    V8DebuggerId uniqueId(uniqueContextId.fromJust());
+    internal::V8DebuggerId uniqueId(uniqueContextId.fromJust());
     if (!uniqueId.isValid())
       return Response::InvalidParams("invalid uniqueContextId");
     int id = inspector->resolveUniqueContextId(uniqueId);
