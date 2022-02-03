@@ -2704,25 +2704,25 @@ void LiftoffAssembler::emit_f32x4_demote_f64x2_zero(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16_sconvert_i16x8");
+  I8x16SConvertI16x8(dst.fp(), lhs.fp(), rhs.fp());
 }
 
 void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16_uconvert_i16x8");
+  I8x16UConvertI16x8(dst.fp(), lhs.fp(), rhs.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i16x8_sconvert_i32x4");
+  I16x8SConvertI32x4(dst.fp(), lhs.fp(), rhs.fp());
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i16x8_uconvert_i32x4");
+  I16x8UConvertI32x4(dst.fp(), lhs.fp(), rhs.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,

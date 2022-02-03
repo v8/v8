@@ -5709,6 +5709,43 @@ void TurboAssembler::F32x4UConvertI32x4(Simd128Register dst,
 }
 #undef CONVERT_INT32_TO_FLOAT
 
+void TurboAssembler::I16x8SConvertI32x4(Simd128Register dst,
+                                        Simd128Register src1,
+                                        Simd128Register src2) {
+  vpks(dst, src2, src1, Condition(0), Condition(2));
+}
+
+void TurboAssembler::I8x16SConvertI16x8(Simd128Register dst,
+                                        Simd128Register src1,
+                                        Simd128Register src2) {
+  vpks(dst, src2, src1, Condition(0), Condition(1));
+}
+
+#define VECTOR_PACK_UNSIGNED(dst, src1, src2, scratch, mode)       \
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), \
+     Condition(0), Condition(mode));                               \
+  vmx(scratch, src1, kDoubleRegZero, Condition(0), Condition(0),   \
+      Condition(mode));                                            \
+  vmx(dst, src2, kDoubleRegZero, Condition(0), Condition(0), Condition(mode));
+void TurboAssembler::I16x8UConvertI32x4(Simd128Register dst,
+                                        Simd128Register src1,
+                                        Simd128Register src2,
+                                        Simd128Register scratch) {
+  // treat inputs as signed, and saturate to unsigned (negative to 0).
+  VECTOR_PACK_UNSIGNED(dst, src1, src2, scratch, 2)
+  vpkls(dst, dst, scratch, Condition(0), Condition(2));
+}
+
+void TurboAssembler::I8x16UConvertI16x8(Simd128Register dst,
+                                        Simd128Register src1,
+                                        Simd128Register src2,
+                                        Simd128Register scratch) {
+  // treat inputs as signed, and saturate to unsigned (negative to 0).
+  VECTOR_PACK_UNSIGNED(dst, src1, src2, scratch, 1)
+  vpkls(dst, dst, scratch, Condition(0), Condition(1));
+}
+#undef VECTOR_PACK_UNSIGNED
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

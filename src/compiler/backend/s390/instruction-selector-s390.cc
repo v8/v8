@@ -2484,6 +2484,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I16x8GtU)              \
   V(I16x8GeU)              \
   V(I16x8SConvertI32x4)    \
+  V(I16x8UConvertI32x4)    \
   V(I16x8RoundingAverageU) \
   V(I16x8ExtMulLowI8x16S)  \
   V(I16x8ExtMulHighI8x16S) \
@@ -2505,6 +2506,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I8x16GtU)              \
   V(I8x16GeU)              \
   V(I8x16SConvertI16x8)    \
+  V(I8x16UConvertI16x8)    \
   V(I8x16RoundingAverageU) \
   V(I8x16Shl)              \
   V(I8x16ShrS)             \
@@ -2521,13 +2523,11 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I16x8AddSatU)                          \
   V(I16x8SubSatU)                          \
   V(I16x8Q15MulRSatS)                      \
-  V(I16x8UConvertI32x4)                    \
   V(I8x16AddSatS)                          \
   V(I8x16SubSatS)                          \
   V(I8x16AddSatU)                          \
   V(I8x16SubSatU)                          \
-  V(I8x16Swizzle)                          \
-  V(I8x16UConvertI16x8)
+  V(I8x16Swizzle)
 
 #define SIMD_UNOP_LIST(V)    \
   V(F64x2Abs)                \

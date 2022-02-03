@@ -2904,37 +2904,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                             kScratchReg);
       break;
     }
-    case kS390_I16x8SConvertI32x4:
-      __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(0), Condition(0), Condition(2));
+    case kS390_I16x8SConvertI32x4: {
+      __ I16x8SConvertI32x4(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0),
+                            i.InputSimd128Register(1));
       break;
-    case kS390_I8x16SConvertI16x8:
-      __ vpks(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(0), Condition(0), Condition(1));
+    }
+    case kS390_I8x16SConvertI16x8: {
+      __ I8x16SConvertI16x8(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0),
+                            i.InputSimd128Register(1));
       break;
-#define VECTOR_PACK_UNSIGNED(mode)                                             \
-  Simd128Register tempFPReg = i.ToSimd128Register(instr->TempAt(0));           \
-  __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg, Condition(0), \
-        Condition(0), Condition(mode));                                        \
-  __ vmx(tempFPReg, i.InputSimd128Register(0), kScratchDoubleReg,              \
-         Condition(0), Condition(0), Condition(mode));                         \
-  __ vmx(kScratchDoubleReg, i.InputSimd128Register(1), kScratchDoubleReg,      \
-         Condition(0), Condition(0), Condition(mode));
+    }
     case kS390_I16x8UConvertI32x4: {
-      // treat inputs as signed, and saturate to unsigned (negative to 0)
-      VECTOR_PACK_UNSIGNED(2)
-      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg,
-               Condition(0), Condition(2));
+      __ I16x8UConvertI32x4(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0),
+                            i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kS390_I8x16UConvertI16x8: {
-      // treat inputs as signed, and saturate to unsigned (negative to 0)
-      VECTOR_PACK_UNSIGNED(1)
-      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg,
-               Condition(0), Condition(1));
+      __ I8x16UConvertI16x8(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0),
+                            i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
-#undef VECTOR_PACK_UNSIGNED
 #define BINOP_EXTRACT(op, extract_high, extract_low, mode)              \
   Simd128Register src1 = i.InputSimd128Register(0);                     \
   Simd128Register src2 = i.InputSimd128Register(1);                     \
