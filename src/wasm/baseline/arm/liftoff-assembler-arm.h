@@ -636,10 +636,6 @@ void LiftoffAssembler::SpillInstance(Register instance) {
 
 void LiftoffAssembler::ResetOSRTarget() {}
 
-void LiftoffAssembler::FillInstanceInto(Register dst) {
-  ldr(dst, liftoff::GetInstanceOperand());
-}
-
 namespace liftoff {
 #define __ lasm->
 inline void LoadInternal(LiftoffAssembler* lasm, LiftoffRegister dst,

@@ -4853,7 +4853,7 @@ class LiftoffCompiler {
     LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
 
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    __ FillInstanceInto(instance);
+    __ LoadInstanceFromFrame(instance);
 
     LiftoffRegister segment_index =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -4902,7 +4902,7 @@ class LiftoffCompiler {
     LiftoffRegister src = pinned.set(PopMemTypeToRegister(pinned));
     LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    __ FillInstanceInto(instance);
+    __ LoadInstanceFromFrame(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_copy();
     auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kPointerKind,
                                              kPointerKind, kPointerKind);
@@ -4925,7 +4925,7 @@ class LiftoffCompiler {
     LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
 
     Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    __ FillInstanceInto(instance);
+    __ LoadInstanceFromFrame(instance);
     ExternalReference ext_ref = ExternalReference::wasm_memory_fill();
     auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kPointerKind, kI32,
                                              kPointerKind);

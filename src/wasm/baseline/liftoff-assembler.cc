@@ -1059,7 +1059,7 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
 
   // Reload the instance from the stack.
   if (!target_instance) {
-    FillInstanceInto(instance_reg);
+    LoadInstanceFromFrame(instance_reg);
   }
 }
 

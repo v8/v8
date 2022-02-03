@@ -373,10 +373,6 @@ void LiftoffAssembler::ResetOSRTarget() {
   movq(liftoff::GetOSRTargetSlot(), Immediate(0));
 }
 
-void LiftoffAssembler::FillInstanceInto(Register dst) {
-  movq(dst, liftoff::GetInstanceOperand());
-}
-
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm,
