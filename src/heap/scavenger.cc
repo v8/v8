@@ -7,6 +7,7 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/barrier.h"
+#include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/invalidated-slots-inl.h"
@@ -540,6 +541,15 @@ Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
       large_object_promotion_list_local_(
           &promotion_list->large_object_promotion_list_) {}
 
+namespace {
+ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
+  if (FLAG_shared_string_table && heap->isolate()->shared_isolate()) {
+    return new ConcurrentAllocator(nullptr, heap->shared_old_space());
+  }
+  return nullptr;
+}
+}  // namespace
+
 Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                      EmptyChunksList* empty_chunks, CopiedList* copied_list,
                      PromotionList* promotion_list,
@@ -554,12 +564,11 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       copied_size_(0),
       promoted_size_(0),
       allocator_(heap, CompactionSpaceKind::kCompactionSpaceForScavenge),
-      shared_old_allocator_(heap_->shared_old_allocator_.get()),
+      shared_old_allocator_(CreateSharedOldAllocator(heap_)),
       is_logging_(is_logging),
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()),
-      shared_string_table_(FLAG_shared_string_table &&
-                           (heap->isolate()->shared_isolate() != nullptr)) {}
+      shared_string_table_(shared_old_allocator_.get() != nullptr) {}
 
 void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
                                                  int size) {
@@ -741,6 +750,7 @@ void Scavenger::Finalize() {
   heap()->IncrementPromotedObjectsSize(promoted_size_);
   collector_->MergeSurvivingNewLargeObjects(surviving_new_large_objects_);
   allocator_.Finalize();
+  if (shared_old_allocator_) shared_old_allocator_->FreeLinearAllocationArea();
   empty_chunks_local_.Publish();
   ephemeron_table_list_local_.Publish();
   for (auto it = ephemeron_remembered_set_.begin();

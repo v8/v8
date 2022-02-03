@@ -197,7 +197,7 @@ class Scavenger {
   size_t copied_size_;
   size_t promoted_size_;
   EvacuationAllocator allocator_;
-  ConcurrentAllocator* shared_old_allocator_ = nullptr;
+  std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
 
   EphemeronRememberedSet ephemeron_remembered_set_;

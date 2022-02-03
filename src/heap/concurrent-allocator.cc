@@ -145,7 +145,7 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
   HeapObject object = HeapObject::FromAddress(result->first);
   LocalAllocationBuffer saved_lab = std::move(lab_);
   lab_ = LocalAllocationBuffer::FromResult(
-      local_heap_->heap(), AllocationResult(object), result->second);
+      space_->heap(), AllocationResult(object), result->second);
   DCHECK(lab_.IsValid());
   if (!lab_.TryMerge(&saved_lab)) {
     saved_lab.CloseAndMakeIterable();

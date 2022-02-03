@@ -24,7 +24,7 @@ AllocationResult ConcurrentAllocator::AllocateRaw(int object_size,
   DCHECK(!FLAG_enable_third_party_heap);
   // TODO(dinfuehr): Add support for allocation observers
 #ifdef DEBUG
-  local_heap_->VerifyCurrent();
+  if (local_heap_) local_heap_->VerifyCurrent();
 #endif
 
   if (object_size > kMaxLabObjectSize) {

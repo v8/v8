@@ -376,7 +376,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   // a memory area of the given size in it. If successful the method returns
   // the address and size of the area.
   base::Optional<std::pair<Address, size_t>> ExpandBackground(
-      LocalHeap* local_heap, size_t size_in_bytes);
+      size_t size_in_bytes);
 
   Page* AllocatePage();
 
@@ -415,8 +415,7 @@ class V8_EXPORT_PRIVATE PagedSpace
                                               AllocationOrigin origin);
 
   V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
-  TryAllocationFromFreeListBackground(LocalHeap* local_heap,
-                                      size_t min_size_in_bytes,
+  TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
                                       size_t max_size_in_bytes,
                                       AllocationAlignment alignment,
                                       AllocationOrigin origin);

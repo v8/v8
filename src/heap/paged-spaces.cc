@@ -334,7 +334,7 @@ Page* PagedSpace::Expand() {
 }
 
 base::Optional<std::pair<Address, size_t>> PagedSpace::ExpandBackground(
-    LocalHeap* local_heap, size_t size_in_bytes) {
+    size_t size_in_bytes) {
   Page* page = AllocatePage();
   if (page == nullptr) return {};
   base::MutexGuard lock(&space_mutex_);
@@ -585,10 +585,11 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
          identity() == MAP_SPACE);
   DCHECK(origin == AllocationOrigin::kRuntime ||
          origin == AllocationOrigin::kGC);
+  DCHECK_IMPLIES(!local_heap, origin == AllocationOrigin::kGC);
 
   base::Optional<std::pair<Address, size_t>> result =
-      TryAllocationFromFreeListBackground(local_heap, min_size_in_bytes,
-                                          max_size_in_bytes, alignment, origin);
+      TryAllocationFromFreeListBackground(min_size_in_bytes, max_size_in_bytes,
+                                          alignment, origin);
   if (result) return result;
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -600,7 +601,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
 
     // Retry the free list allocation.
     result = TryAllocationFromFreeListBackground(
-        local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
+        min_size_in_bytes, max_size_in_bytes, alignment, origin);
     if (result) return result;
 
     if (IsSweepingAllowedOnThread(local_heap)) {
@@ -619,8 +620,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
 
       if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
         result = TryAllocationFromFreeListBackground(
-            local_heap, min_size_in_bytes, max_size_in_bytes, alignment,
-            origin);
+            min_size_in_bytes, max_size_in_bytes, alignment, origin);
         if (result) return result;
       }
     }
@@ -628,7 +628,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
       heap()->CanExpandOldGenerationBackground(local_heap, AreaSize())) {
-    result = ExpandBackground(local_heap, max_size_in_bytes);
+    result = ExpandBackground(max_size_in_bytes);
     if (result) {
       DCHECK_EQ(Heap::GetFillToAlign(result->first, alignment), 0);
       return result;
@@ -645,15 +645,14 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
 
     // Last try to acquire memory from free list.
     return TryAllocationFromFreeListBackground(
-        local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
+        min_size_in_bytes, max_size_in_bytes, alignment, origin);
   }
 
   return {};
 }
 
 base::Optional<std::pair<Address, size_t>>
-PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
-                                                size_t min_size_in_bytes,
+PagedSpace::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
                                                 size_t max_size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
@@ -700,7 +699,8 @@ PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
 
 bool PagedSpace::IsSweepingAllowedOnThread(LocalHeap* local_heap) {
   // Code space sweeping is only allowed on main thread.
-  return local_heap->is_main_thread() || identity() != CODE_SPACE;
+  return (local_heap && local_heap->is_main_thread()) ||
+         identity() != CODE_SPACE;
 }
 
 #ifdef DEBUG
