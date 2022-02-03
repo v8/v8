@@ -114,6 +114,11 @@ class JSTemporalPlainDate
       Handle<Object> iso_month, Handle<Object> iso_day,
       Handle<Object> calendar_like);
 
+  // #sec-temporal.plaindate.prototype.withcalendar
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> WithCalendar(
+      Isolate* isolate, Handle<JSTemporalPlainDate> plain_date,
+      Handle<Object> calendar_like);
+
   // #sec-temporal.plaindate.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainDate> plain_date);
@@ -139,6 +144,11 @@ class JSTemporalPlainDateTime
       Handle<Object> minute, Handle<Object> second, Handle<Object> millisecond,
       Handle<Object> microsecond, Handle<Object> nanosecond,
       Handle<Object> calendar_like);
+
+  // #sec-temporal.plaindatetime.prototype.withcalendar
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime>
+  WithCalendar(Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+               Handle<Object> calendar_like);
 
   // #sec-temporal.plaindatetime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
@@ -272,6 +282,12 @@ class JSTemporalZonedDateTime
       Isolate* isolate, Handle<JSFunction> target,
       Handle<HeapObject> new_target, Handle<Object> epoch_nanoseconds,
       Handle<Object> time_zone_like, Handle<Object> calendar_like);
+
+  // #sec-temporal.zoneddatetime.prototype.withcalendar
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
+  WithCalendar(Isolate* isolate,
+               Handle<JSTemporalZonedDateTime> zoned_date_time,
+               Handle<Object> calendar_like);
 
   // #sec-temporal.zoneddatetime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(

@@ -103,7 +103,6 @@
   'temporal/plain-date-time-to-plain-year-month': [FAIL],
   'temporal/plain-date-time-valueOf': [FAIL],
   'temporal/plain-date-time-with': [FAIL],
-  'temporal/plain-date-time-with-calendar': [FAIL],
   'temporal/plain-date-time-with-plain-date': [FAIL],
   'temporal/plain-date-time-with-plain-time': [FAIL],
   'temporal/plain-date-to-json': [FAIL],
@@ -112,7 +111,6 @@
   'temporal/plain-date-to-plain-year-month': [FAIL],
   'temporal/plain-date-valueOf': [FAIL],
   'temporal/plain-date-with': [FAIL],
-  'temporal/plain-date-with-calendar': [FAIL],
 
   ##############################################################################
   # Open bugs.
