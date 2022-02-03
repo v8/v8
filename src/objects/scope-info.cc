@@ -138,9 +138,11 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     function_name_info = VariableAllocationInfo::NONE;
   }
 
-  const bool has_brand = scope->is_class_scope()
-                             ? scope->AsClassScope()->brand() != nullptr
-                             : false;
+  const bool has_brand =
+      scope->is_class_scope()
+          ? scope->AsClassScope()->brand() != nullptr
+          : scope->IsConstructorScope() &&
+                scope->AsDeclarationScope()->class_scope_has_private_brand();
   const bool should_save_class_variable_index =
       scope->is_class_scope()
           ? scope->AsClassScope()->should_save_class_variable_index()
@@ -219,7 +221,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         LanguageModeBit::encode(scope->language_mode()) |
         DeclarationScopeBit::encode(scope->is_declaration_scope()) |
         ReceiverVariableBits::encode(receiver_info) |
-        HasClassBrandBit::encode(has_brand) |
+        ClassScopeHasPrivateBrandBit::encode(has_brand) |
         HasSavedClassVariableBit::encode(should_save_class_variable_index) |
         HasNewTargetBit::encode(has_new_target) |
         FunctionVariableBits::encode(function_name_info) |
@@ -404,6 +406,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   DCHECK_EQ(index, scope_info_handle->length());
   DCHECK_EQ(parameter_count, scope_info_handle->ParameterCount());
   DCHECK_EQ(scope->num_heap_slots(), scope_info_handle->ContextLength());
+
   return scope_info_handle;
 }
 
@@ -432,7 +435,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       LanguageModeBit::encode(LanguageMode::kSloppy) |
       DeclarationScopeBit::encode(false) |
       ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
-      HasClassBrandBit::encode(false) |
+      ClassScopeHasPrivateBrandBit::encode(false) |
       HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
       IsAsmModuleBit::encode(false) | HasSimpleParametersBit::encode(true) |
@@ -507,7 +510,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       DeclarationScopeBit::encode(true) |
       ReceiverVariableBits::encode(is_script ? VariableAllocationInfo::CONTEXT
                                              : VariableAllocationInfo::UNUSED) |
-      HasClassBrandBit::encode(false) |
+      ClassScopeHasPrivateBrandBit::encode(false) |
       HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(is_empty_function
                                        ? VariableAllocationInfo::UNUSED
@@ -717,8 +720,8 @@ bool ScopeInfo::HasAllocatedReceiver() const {
          allocation == VariableAllocationInfo::CONTEXT;
 }
 
-bool ScopeInfo::HasClassBrand() const {
-  return HasClassBrandBit::decode(Flags());
+bool ScopeInfo::ClassScopeHasPrivateBrand() const {
+  return ClassScopeHasPrivateBrandBit::decode(Flags());
 }
 
 bool ScopeInfo::HasSavedClassVariable() const {

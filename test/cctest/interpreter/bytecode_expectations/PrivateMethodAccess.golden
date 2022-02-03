@@ -143,3 +143,148 @@ constant pool: [
 handlers: [
 ]
 
+---
+snippet: "
+  var test;
+  class F extends class {} {
+    #method() { }
+    constructor() {
+      (test = () => super())();
+      this.#method();
+    }
+  };
+  new F;
+"
+frame size: 9
+parameter count: 1
+bytecode array length: 58
+bytecodes: [
+  /*   89 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+                B(GetSuperConstructor), R(1),
+                B(ThrowIfNotSuperConstructor), R(1),
+                B(Star0),
+                B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   89 E> */ B(Construct), R(1), R(0), U8(0), U8(0),
+                B(Star2),
+                B(LdaCurrentContextSlot), U8(2),
+                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(Ldar), R(2),
+                B(StaCurrentContextSlot), U8(2),
+                B(LdaImmutableContextSlot), R(context), U8(3), U8(1),
+                B(Star4),
+                B(LdaSmi), I8(1),
+                B(Star6),
+                B(Mov), R(2), R(3),
+                B(Mov), R(context), R(5),
+                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(3), U8(4),
+                B(LdaNamedProperty), R(0), U8(0), U8(2),
+                B(JumpIfUndefined), U8(10),
+                B(Star8),
+                B(CallProperty0), R(8), R(2), U8(4),
+                B(Mov), R(2), R(7),
+                B(Ldar), R(2),
+  /*   96 S> */ B(Return),
+]
+constant pool: [
+  SYMBOL_TYPE,
+]
+handlers: [
+]
+
+---
+snippet: "
+  var test;
+  class G extends class {} {
+    #method() { }
+    constructor() {
+      test = () => super();
+      test();
+      this.#method();
+    }
+  };
+  new G();
+"
+frame size: 9
+parameter count: 1
+bytecode array length: 58
+bytecodes: [
+  /*   88 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+                B(GetSuperConstructor), R(1),
+                B(ThrowIfNotSuperConstructor), R(1),
+                B(Star0),
+                B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   88 E> */ B(Construct), R(1), R(0), U8(0), U8(0),
+                B(Star2),
+                B(LdaCurrentContextSlot), U8(2),
+                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(Ldar), R(2),
+                B(StaCurrentContextSlot), U8(2),
+                B(LdaImmutableContextSlot), R(context), U8(3), U8(1),
+                B(Star4),
+                B(LdaSmi), I8(1),
+                B(Star6),
+                B(Mov), R(2), R(3),
+                B(Mov), R(context), R(5),
+                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(3), U8(4),
+                B(LdaNamedProperty), R(0), U8(0), U8(2),
+                B(JumpIfUndefined), U8(10),
+                B(Star8),
+                B(CallProperty0), R(8), R(2), U8(4),
+                B(Mov), R(2), R(7),
+                B(Ldar), R(2),
+  /*   95 S> */ B(Return),
+]
+constant pool: [
+  SYMBOL_TYPE,
+]
+handlers: [
+]
+
+---
+snippet: "
+  var test;
+  class H extends class {} {
+    #method() { }
+    constructor(str) {
+      eval(str);
+      this.#method();
+    }
+  };
+  new test('test = () => super(); test()');
+"
+frame size: 9
+parameter count: 1
+bytecode array length: 58
+bytecodes: [
+  /*   88 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+                B(GetSuperConstructor), R(1),
+                B(ThrowIfNotSuperConstructor), R(1),
+                B(Star0),
+                B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   88 E> */ B(Construct), R(1), R(0), U8(0), U8(0),
+                B(Star2),
+                B(LdaCurrentContextSlot), U8(2),
+                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(Ldar), R(2),
+                B(StaCurrentContextSlot), U8(2),
+                B(LdaImmutableContextSlot), R(context), U8(3), U8(1),
+                B(Star4),
+                B(LdaSmi), I8(1),
+                B(Star6),
+                B(Mov), R(2), R(3),
+                B(Mov), R(context), R(5),
+                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(3), U8(4),
+                B(LdaNamedProperty), R(0), U8(0), U8(2),
+                B(JumpIfUndefined), U8(10),
+                B(Star8),
+                B(CallProperty0), R(8), R(2), U8(4),
+                B(Mov), R(2), R(7),
+                B(Ldar), R(2),
+  /*   95 S> */ B(Return),
+]
+constant pool: [
+  SYMBOL_TYPE,
+]
+handlers: [
+]
+

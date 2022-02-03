@@ -197,7 +197,7 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
     : Scope(zone, CLASS_SCOPE, ast_value_factory, scope_info),
       rare_data_and_is_parsing_heritage_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
-  if (scope_info->HasClassBrand()) {
+  if (scope_info->ClassScopeHasPrivateBrand()) {
     Variable* brand =
         LookupInScopeInfo(ast_value_factory->dot_brand_string(), this);
     DCHECK_NOT_NULL(brand);
@@ -280,6 +280,10 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
     DCHECK(!is_eval_scope());
     sloppy_eval_can_extend_vars_ = true;
   }
+  if (scope_info->ClassScopeHasPrivateBrand()) {
+    DCHECK(IsClassConstructor(function_kind()));
+    class_scope_has_private_brand_ = true;
+  }
 }
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
@@ -327,6 +331,7 @@ void DeclarationScope::SetDefaults() {
   was_lazily_parsed_ = false;
   is_skipped_function_ = false;
   preparse_data_builder_ = nullptr;
+  class_scope_has_private_brand_ = false;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -1484,6 +1489,18 @@ DeclarationScope* Scope::GetReceiverScope() {
   return scope->AsDeclarationScope();
 }
 
+DeclarationScope* Scope::GetConstructorScope() {
+  Scope* scope = this;
+  while (scope != nullptr && !scope->IsConstructorScope()) {
+    scope = scope->outer_scope();
+  }
+  if (scope == nullptr) {
+    return nullptr;
+  }
+  DCHECK(scope->IsConstructorScope());
+  return scope->AsDeclarationScope();
+}
+
 Scope* Scope::GetHomeObjectScope() {
   Scope* scope = this;
   while (scope != nullptr && !scope->is_home_object_scope()) {
@@ -1549,6 +1566,11 @@ void Scope::ForEach(FunctionType callback) {
       scope = scope->sibling_;
     }
   }
+}
+
+bool Scope::IsConstructorScope() const {
+  return is_declaration_scope() &&
+         IsClassConstructor(AsDeclarationScope()->function_kind());
 }
 
 bool Scope::IsOuterScopeOf(Scope* other) const {
@@ -1925,6 +1947,9 @@ void Scope::Print(int n) {
     }
     Indent(n1, "// ");
     PrintF("%s\n", FunctionKind2String(scope->function_kind()));
+    if (scope->class_scope_has_private_brand()) {
+      Indent(n1, "// class scope has private brand\n");
+    }
   }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");

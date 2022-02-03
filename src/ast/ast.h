@@ -2245,12 +2245,8 @@ class FunctionLiteral final : public Expression {
     return HasStaticPrivateMethodsOrAccessorsField::decode(bit_field_);
   }
 
-  void set_class_scope_has_private_brand(bool value) {
-    bit_field_ = ClassScopeHasPrivateBrandField::update(bit_field_, value);
-  }
-  bool class_scope_has_private_brand() const {
-    return ClassScopeHasPrivateBrandField::decode(bit_field_);
-  }
+  void set_class_scope_has_private_brand(bool value);
+  bool class_scope_has_private_brand() const;
 
   bool private_name_lookup_skips_outer_class() const;
 
@@ -2299,10 +2295,8 @@ class FunctionLiteral final : public Expression {
   using HasDuplicateParameters = Pretenure::Next<bool, 1>;
   using RequiresInstanceMembersInitializer =
       HasDuplicateParameters::Next<bool, 1>;
-  using ClassScopeHasPrivateBrandField =
-      RequiresInstanceMembersInitializer::Next<bool, 1>;
   using HasStaticPrivateMethodsOrAccessorsField =
-      ClassScopeHasPrivateBrandField::Next<bool, 1>;
+      RequiresInstanceMembersInitializer::Next<bool, 1>;
   using HasBracesField = HasStaticPrivateMethodsOrAccessorsField::Next<bool, 1>;
   using ShouldParallelCompileField = HasBracesField::Next<bool, 1>;
 

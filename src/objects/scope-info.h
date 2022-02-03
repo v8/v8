@@ -91,8 +91,11 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // or context-allocated?
   bool HasAllocatedReceiver() const;
 
-  // Does this scope has class brand (for private methods)?
-  bool HasClassBrand() const;
+  // Does this scope has class brand (for private methods)? If it's a class
+  // scope, this indicates whether the class has a private brand. If it's a
+  // constructor scope, this indicates whther it needs to initialize the
+  // brand.
+  bool ClassScopeHasPrivateBrand() const;
 
   // Does this scope contain a saved class variable for checking receivers of
   // static private methods?

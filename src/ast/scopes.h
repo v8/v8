@@ -459,6 +459,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     kDescend
   };
 
+  bool IsConstructorScope() const;
+
   // Check is this scope is an outer scope of the given scope.
   bool IsOuterScopeOf(Scope* other) const;
 
@@ -553,6 +555,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Find the first (non-arrow) function or script scope.  This is where
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
+
+  // Find the first constructor scope. Its outer scope is where the instance
+  // members that should be initialized right after super() is called
+  // are declared.
+  DeclarationScope* GetConstructorScope();
 
   // Find the first class scope or object literal block scope. This is where
   // 'super' is bound.
@@ -1239,6 +1246,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // to REPL_GLOBAL. Should only be called on REPL scripts.
   void RewriteReplGlobalVariables();
 
+  void set_class_scope_has_private_brand(bool value) {
+    class_scope_has_private_brand_ = value;
+  }
+  bool class_scope_has_private_brand() const {
+    return class_scope_has_private_brand_;
+  }
+
  private:
   V8_INLINE void AllocateParameter(Variable* var, int index);
 
@@ -1286,7 +1300,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_this_reference_ : 1;
   bool has_this_declaration_ : 1;
   bool needs_private_name_context_chain_recalc_ : 1;
-
+  bool class_scope_has_private_brand_ : 1;
   // If the scope is a function scope, this is the function kind.
   FunctionKind function_kind_;
 

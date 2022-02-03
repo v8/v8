@@ -478,6 +478,43 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   return *value;
 }
 
+RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 4);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Symbol, brand, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Context, context, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, depth_smi, 3);
+  DCHECK(brand->is_private_name());
+
+  LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
+
+  if (it.IsFound()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalidPrivateBrandReinitialization,
+                     brand));
+  }
+
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  // Look for the context in |depth| in the context chain to store it
+  // in the instance with the brand variable as key, which is needed by
+  // the debugger for retrieving names of private methods.
+  int depth = depth_smi->value();
+  DCHECK_GE(depth, 0);
+  for (; depth > 0; depth--) {
+    context =
+        handle(Context::cast(context->get(Context::PREVIOUS_INDEX)), isolate);
+  }
+  DCHECK_EQ(context->scope_info().scope_type(), ScopeType::CLASS_SCOPE);
+  CHECK(Object::AddDataProperty(&it, context, attributes, Just(kDontThrow),
+                                StoreOrigin::kMaybeKeyed)
+            .FromJust());
+  return *receiver;
+}
+
 // ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )
 // TODO(verwaest): Support the common cases with precached map directly in
 // an Object.create stub.

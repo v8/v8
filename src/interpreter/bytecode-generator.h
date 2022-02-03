@@ -333,7 +333,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
-  void BuildPrivateBrandInitialization(Register receiver);
+  void BuildPrivateBrandInitialization(Register receiver, Variable* brand);
   void BuildInstanceMemberInitialization(Register constructor,
                                          Register instance);
   void BuildGeneratorObjectVariableInitialization();

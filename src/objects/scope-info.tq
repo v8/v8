@@ -57,7 +57,10 @@ bitfield struct ScopeFlags extends uint31 {
   language_mode: LanguageMode: 1 bit;
   declaration_scope: bool: 1 bit;
   receiver_variable: VariableAllocationInfo: 2 bit;
-  has_class_brand: bool: 1 bit;
+  // In class scope, this indicates whether the class has a private brand.
+  // In constructor scope, this indicates whether the constructor needs
+  // private brand initialization.
+  class_scope_has_private_brand: bool: 1 bit;
   has_saved_class_variable: bool: 1 bit;
   has_new_target: bool: 1 bit;
   // TODO(cbruni): Combine with function variable field when only storing the

@@ -1478,7 +1478,7 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
       ScopeInfo::LanguageModeBit::encode(LanguageMode::kStrict) |
       ScopeInfo::DeclarationScopeBit::encode(false) |
       ScopeInfo::ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
-      ScopeInfo::HasClassBrandBit::encode(false) |
+      ScopeInfo::ClassScopeHasPrivateBrandBit::encode(false) |
       ScopeInfo::HasSavedClassVariableBit::encode(false) |
       ScopeInfo::HasNewTargetBit::encode(false) |
       ScopeInfo::FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
