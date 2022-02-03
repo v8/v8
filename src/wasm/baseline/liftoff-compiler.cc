@@ -4852,12 +4852,15 @@ class LiftoffCompiler {
     LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
 
-    Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    __ LoadInstanceFromFrame(instance);
-
     LiftoffRegister segment_index =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(segment_index, WasmValue(imm.data_segment.index));
+
+    Register instance = __ cache_state()->cached_instance;
+    if (instance == no_reg) {
+      instance = __ GetUnusedRegister(kGpReg, pinned).gp();
+      __ LoadInstanceFromFrame(instance);
+    }
 
     ExternalReference ext_ref = ExternalReference::wasm_memory_init();
     auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kPointerKind, kI32,
@@ -4901,8 +4904,13 @@ class LiftoffCompiler {
     LiftoffRegister size = pinned.set(PopMemTypeToRegister(pinned));
     LiftoffRegister src = pinned.set(PopMemTypeToRegister(pinned));
     LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
-    Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    __ LoadInstanceFromFrame(instance);
+
+    Register instance = __ cache_state()->cached_instance;
+    if (instance == no_reg) {
+      instance = __ GetUnusedRegister(kGpReg, pinned).gp();
+      __ LoadInstanceFromFrame(instance);
+    }
+
     ExternalReference ext_ref = ExternalReference::wasm_memory_copy();
     auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kPointerKind,
                                              kPointerKind, kPointerKind);
@@ -4924,8 +4932,12 @@ class LiftoffCompiler {
     LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister dst = pinned.set(PopMemTypeToRegister(pinned));
 
-    Register instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    __ LoadInstanceFromFrame(instance);
+    Register instance = __ cache_state()->cached_instance;
+    if (instance == no_reg) {
+      instance = __ GetUnusedRegister(kGpReg, pinned).gp();
+      __ LoadInstanceFromFrame(instance);
+    }
+
     ExternalReference ext_ref = ExternalReference::wasm_memory_fill();
     auto sig = MakeSig::Returns(kI32).Params(kPointerKind, kPointerKind, kI32,
                                              kPointerKind);
