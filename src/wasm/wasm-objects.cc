@@ -356,10 +356,8 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
                                                isolate);
     int func_index = exported_function->function_index();
     auto* wasm_function = &target_instance->module()->functions[func_index];
-    DCHECK_NOT_NULL(wasm_function);
-    DCHECK_NOT_NULL(wasm_function->sig);
-    UpdateDispatchTables(isolate, *table, entry_index, wasm_function->sig,
-                         *target_instance, func_index);
+    UpdateDispatchTables(isolate, *table, entry_index, wasm_function,
+                         *target_instance);
   } else if (WasmJSFunction::IsWasmJSFunction(*external)) {
     UpdateDispatchTables(isolate, table, entry_index,
                          Handle<WasmJSFunction>::cast(external));
@@ -481,9 +479,8 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
 void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
                                            WasmTableObject table,
                                            int entry_index,
-                                           const wasm::FunctionSig* sig,
-                                           WasmInstanceObject target_instance,
-                                           int target_func_index) {
+                                           const wasm::WasmFunction* func,
+                                           WasmInstanceObject target_instance) {
   DisallowGarbageCollection no_gc;
 
   // We simply need to update the IFTs for each instance that imports
@@ -492,14 +489,15 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
   DCHECK_EQ(0, dispatch_tables.length() % kDispatchTableNumElements);
 
   Object call_ref =
-      target_func_index <
-              static_cast<int>(target_instance.module()->num_imported_functions)
+      func->imported
           // The function in the target instance was imported. Use its imports
           // table, which contains a tuple needed by the import wrapper.
-          ? target_instance.imported_function_refs().get(target_func_index)
+          ? target_instance.imported_function_refs().get(func->func_index)
           // For wasm functions, just pass the target instance.
           : target_instance;
-  Address call_target = target_instance.GetCallTarget(target_func_index);
+  Address call_target = target_instance.GetCallTarget(func->func_index);
+
+  int original_sig_id = func->sig_index;
 
   for (int i = 0, len = dispatch_tables.length(); i < len;
        i += kDispatchTableNumElements) {
@@ -507,9 +505,21 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
         Smi::cast(dispatch_tables.get(i + kDispatchTableIndexOffset)).value();
     WasmInstanceObject instance = WasmInstanceObject::cast(
         dispatch_tables.get(i + kDispatchTableInstanceOffset));
-    // Note that {SignatureMap::Find} may return {-1} if the signature is
-    // not found; it will simply never match any check.
-    auto sig_id = instance.module()->signature_map.Find(*sig);
+    const WasmModule* module = instance.module();
+    // Try to avoid the signature map lookup by checking if the signature in
+    // {module} at {original_sig_id} matches {func->sig}.
+    int sig_id;
+    // TODO(7748): wasm-gc signatures cannot be canonicalized this way because
+    // references could wrongly be detected as identical.
+    if (module->has_signature(original_sig_id) &&
+        *module->signature(original_sig_id) == *func->sig) {
+      sig_id = module->canonicalized_type_ids[original_sig_id];
+      DCHECK_EQ(sig_id, module->signature_map.Find(*func->sig));
+    } else {
+      // Note that {SignatureMap::Find} may return {-1} if the signature is
+      // not found; it will simply never match any check.
+      sig_id = module->signature_map.Find(*func->sig);
+    }
     WasmIndirectFunctionTable ift = WasmIndirectFunctionTable::cast(
         instance.indirect_function_tables().get(table_index));
     ift.Set(entry_index, sig_id, call_target, call_ref);

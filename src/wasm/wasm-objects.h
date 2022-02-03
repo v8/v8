@@ -32,6 +32,7 @@ namespace wasm {
 class InterpretedFrame;
 class NativeModule;
 class WasmCode;
+struct WasmFunction;
 struct WasmGlobal;
 struct WasmModule;
 struct WasmTag;
@@ -204,9 +205,8 @@ class WasmTableObject
   // TODO(wasm): Unify these three methods into one.
   static void UpdateDispatchTables(Isolate* isolate, WasmTableObject table,
                                    int entry_index,
-                                   const wasm::FunctionSig* sig,
-                                   WasmInstanceObject target_instance,
-                                   int target_func_index);
+                                   const wasm::WasmFunction* func,
+                                   WasmInstanceObject target_instance);
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
                                    int entry_index,

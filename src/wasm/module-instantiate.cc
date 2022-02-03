@@ -1909,7 +1909,7 @@ V8_INLINE void SetFunctionTablePlaceholder(Isolate* isolate,
                                 *wasm_internal_function.ToHandleChecked());
   }
   WasmTableObject::UpdateDispatchTables(isolate, *table_object, entry_index,
-                                        function->sig, *instance, func_index);
+                                        function, *instance);
 }
 
 V8_INLINE void SetFunctionTableNullEntry(Isolate* isolate,
