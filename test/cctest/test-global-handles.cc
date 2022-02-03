@@ -708,6 +708,7 @@ TEST(TotalSizeRegularNode) {
 }
 
 TEST(TotalSizeTracedNode) {
+  ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();

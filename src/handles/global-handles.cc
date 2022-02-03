@@ -668,6 +668,8 @@ class GlobalHandles::TracedNode final
   bool is_on_stack() const { return IsOnStack::decode(flags_); }
   void set_is_on_stack(bool v) { flags_ = IsOnStack::update(flags_, v); }
 
+  void clear_object() { object_ = kNullAddress; }
+
   void SetFinalizationCallback(void* parameter,
                                WeakCallbackInfo<void>::Callback callback) {
     set_parameter(parameter);
@@ -698,7 +700,11 @@ class GlobalHandles::TracedNode final
 
   void ResetPhantomHandle(HandleHolder handle_holder) {
     DCHECK(IsInUse());
-    if (handle_holder == HandleHolder::kLive) {
+    // Even if the handle holder should be alive, the back reference may have
+    // been cleared which prevents the handle from being reclaimed at this
+    // point. This can happen for explicitly reset handles during incremental
+    // marking that then cannot be reclaimed during Scavenge.
+    if (handle_holder == HandleHolder::kLive && data_.parameter) {
       Address** handle = reinterpret_cast<Address**>(data_.parameter);
       *handle = nullptr;
     }
@@ -1151,14 +1157,48 @@ void GlobalHandles::Destroy(Address* location) {
   }
 }
 
+// static
 void GlobalHandles::DestroyTraced(Address* location) {
   if (location != nullptr) {
     TracedNode* node = TracedNode::FromLocation(location);
     if (node->is_on_stack()) {
       node->Release(nullptr);
-    } else {
-      NodeSpace<TracedNode>::Release(node);
+      return;
     }
+    DCHECK(!node->is_on_stack());
+
+    auto* global_handles = GlobalHandles::From(node);
+    // When marking is off the handle may be freed immediately. Note that this
+    // includes also the case when invoking the first pass callbacks during the
+    // atomic pause which requires releasing a node fully.
+    if (!global_handles->isolate()
+             ->heap()
+             ->incremental_marking()
+             ->IsMarking()) {
+      NodeSpace<TracedNode>::Release(node);
+      return;
+    }
+
+    // Incremental marking is on. This also covers the scavenge case which
+    // prohibits eagerly reclaiming nodes when marking is on during a scavenge.
+    //
+    // On-heap traced nodes are released in the atomic pause in
+    // `IterateWeakRootsForPhantomHandles()` when they are discovered as not
+    // marked.
+    //
+    // Eagerly clear out the object here to avoid needlessly marking it from
+    // this point on. Also clear out callback and backreference for the version
+    // with callbacks to avoid calling into possibly dead memory later.
+    //
+    // In the case this happens during incremental marking, the node may
+    // still be spuriously marked as live and is then only reclaimed on the
+    // next cycle.
+    node->clear_object();
+    node->set_parameter(nullptr);
+    node->SetFinalizationCallback(nullptr, nullptr);
+    // The destructor setting is left untouched to avoid casting a
+    // v8::TracedGlobal to a v8::TracedReference for the EmbedderRootsHandler
+    // which would be UB.
   }
 }
 
@@ -1376,7 +1416,9 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
           v8::Value* value = ToApi<v8::Value>(node->handle());
           handler->ResetRoot(
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-          DCHECK(!node->IsInUse());
+          // We cannot check whether a node is in use here as the reset behavior
+          // depends on whether incremental marking is running when reclaiming
+          // young objects.
         }
 
         ++number_of_phantom_handle_resets_;
