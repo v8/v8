@@ -36,7 +36,6 @@ def define_all_recipes():
         "v8/flako",
         "v8/node_integration_ng",
         "v8/spike",
-        "v8/test_tools",
     ]
     for recipe in build_recipes:
         build_recipe(name = "recipe:" + recipe)
@@ -47,6 +46,7 @@ def define_all_recipes():
         "run_presubmit",
         "v8/presubmit",
         "v8/verify_flakes",
+        "v8/test_tools",
     ]
     for recipe in py3_build_recipes:
         build_recipe(name = "recipe:" + recipe, use_python3 = True)
