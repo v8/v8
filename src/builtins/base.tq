@@ -27,6 +27,8 @@
 type void;
 type never;
 
+type IntegerLiteral constexpr 'IntegerLiteral';
+
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
     generates 'TNode<Object>' constexpr 'Object';
@@ -613,7 +615,7 @@ transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
         if (Float64IsNaN(value)) return SmiConstant(0);
         value = math::Float64Trunc(value);
         // ToInteger normalizes -0 to +0.
-        if (value == 0.0) return SmiConstant(0);
+        if (value == 0) return SmiConstant(0);
         const result = ChangeFloat64ToTagged(value);
         dcheck(IsNumberNormalized(result));
         return result;
@@ -989,6 +991,38 @@ extern operator '==' macro ConstexprInt32Equal(
 extern operator '!=' macro ConstexprInt32NotEqual(
     constexpr int32, constexpr int32): constexpr bool;
 
+// IntegerLiteral overloads
+extern macro ConstexprIntegerLiteralToInt31(constexpr IntegerLiteral):
+    constexpr int31;
+extern macro ConstexprIntegerLiteralToInt32(constexpr IntegerLiteral):
+    constexpr int32;
+extern macro ConstexprIntegerLiteralToUint32(constexpr IntegerLiteral):
+    constexpr uint32;
+extern macro ConstexprIntegerLiteralToUint64(constexpr IntegerLiteral):
+    constexpr uint64;
+extern macro ConstexprIntegerLiteralToIntptr(constexpr IntegerLiteral):
+    constexpr intptr;
+extern macro ConstexprIntegerLiteralToUintptr(constexpr IntegerLiteral):
+    constexpr uintptr;
+extern macro ConstexprIntegerLiteralToInt8(constexpr IntegerLiteral):
+    constexpr int8;
+extern macro ConstexprIntegerLiteralToUint8(constexpr IntegerLiteral):
+    constexpr uint8;
+extern macro ConstexprIntegerLiteralToFloat64(constexpr IntegerLiteral):
+    constexpr float64;
+
+extern operator '==' macro ConstexprIntegerLiteralEqual(
+    constexpr IntegerLiteral, constexpr IntegerLiteral): constexpr bool;
+extern operator '+' macro ConstexprIntegerLiteralAdd(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
+extern operator '<<' macro ConstexprIntegerLiteralLeftShift(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
+extern operator '|' macro ConstexprIntegerLiteralBitwiseOr(
+    constexpr IntegerLiteral,
+    constexpr IntegerLiteral): constexpr IntegerLiteral;
+
 extern operator '==' macro Word32Equal(int32, int32): bool;
 extern operator '==' macro Word32Equal(uint32, uint32): bool;
 extern operator '!=' macro Word32NotEqual(int32, int32): bool;
@@ -1178,19 +1212,29 @@ extern macro IntPtrConstant(constexpr int32): intptr;
 extern macro Uint16Constant(constexpr uint16): uint16;
 extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
+macro Int32Constant(i: constexpr IntegerLiteral): int32 {
+  return Int32Constant(ConstexprIntegerLiteralToInt32(i));
+}
 extern macro Int64Constant(constexpr int64): int64;
 extern macro Uint64Constant(constexpr uint64): uint64;
 extern macro Float64Constant(constexpr int32): float64;
 extern macro Float64Constant(constexpr float64): float64;
+extern macro Float64Constant(constexpr IntegerLiteral): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
 extern macro SmiConstant(constexpr bool): Smi;
 extern macro SmiConstant(constexpr uint32): Smi;
+macro SmiConstant(il: constexpr IntegerLiteral): Smi {
+  return SmiConstant(ConstexprIntegerLiteralToInt31(il));
+}
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
 extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;
 extern macro IntPtrConstant(constexpr intptr): intptr;
+macro IntPtrConstant(il: constexpr IntegerLiteral): intptr {
+  return IntPtrConstant(ConstexprIntegerLiteralToIntptr(il));
+}
 extern macro PointerConstant(constexpr RawPtr): RawPtr;
 extern macro SingleCharacterStringConstant(constexpr string): String;
 extern macro Float64SilenceNaN(float64): float64;
