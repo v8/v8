@@ -446,7 +446,9 @@ void CppHeap::InitializeTracing(
                  !GetMetricRecorder()->MetricsReportPending());
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  cppgc::internal::SequentialUnmarker unmarker(raw_heap());
+  if (collection_type ==
+      cppgc::internal::GarbageCollector::Config::CollectionType::kMajor)
+    cppgc::internal::SequentialUnmarker unmarker(raw_heap());
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   current_gc_flags_ = gc_flags;
