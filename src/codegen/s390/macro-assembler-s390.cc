@@ -2929,6 +2929,25 @@ void TurboAssembler::AddU64(Register dst, const Operand& imm) {
   algfi(dst, imm);
 }
 
+void TurboAssembler::AddU64(Register dst, Register src1, Register src2) {
+  if (dst != src2 && dst != src1) {
+    if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+      algrk(dst, src1, src2);
+    } else {
+      lgr(dst, src1);
+      algr(dst, src2);
+    }
+  } else if (dst != src2) {
+    // dst == src1
+    DCHECK(dst == src1);
+    algr(dst, src2);
+  } else {
+    // dst == src2
+    DCHECK(dst == src2);
+    algr(dst, src1);
+  }
+}
+
 // Add Logical 32-bit (Register-Memory)
 void TurboAssembler::AddU32(Register dst, const MemOperand& opnd) {
   DCHECK(is_int20(opnd.offset()));

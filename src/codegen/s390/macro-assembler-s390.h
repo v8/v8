@@ -240,6 +240,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Add Logical (Register - Immediate)
   void AddU32(Register dst, const Operand& imm);
   void AddU64(Register dst, const Operand& imm);
+  void AddU64(Register dst, Register src1, Register src2);
 
   // Add Logical (Register - Mem)
   void AddU32(Register dst, const MemOperand& opnd);
