@@ -1144,6 +1144,7 @@ filegroup(
         "src/codegen/unoptimized-compilation-info.h",
         "src/common/assert-scope.cc",
         "src/common/assert-scope.h",
+        "src/common/allow-deprecated.h",
         "src/common/checks.h",
         "src/common/high-allocation-throughput-scope.h",
         "src/common/message-template.h",

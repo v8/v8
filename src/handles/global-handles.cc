@@ -12,6 +12,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/sanitizer/asan.h"
+#include "src/common/allow-deprecated.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/embedder-tracing.h"
@@ -1322,8 +1323,10 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
       if (is_unmodified(node->location())) {
         v8::Value* value = ToApi<v8::Value>(node->handle());
         if (node->has_destructor()) {
+          START_ALLOW_USE_DEPRECATED()
           node->set_root(handler->IsRoot(
               *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value)));
+          END_ALLOW_USE_DEPRECATED()
         } else {
           node->set_root(handler->IsRoot(
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value)));
@@ -1709,8 +1712,10 @@ void GlobalHandles::IterateTracedNodes(
     if (node->IsInUse()) {
       v8::Value* value = ToApi<v8::Value>(node->handle());
       if (node->has_destructor()) {
+        START_ALLOW_USE_DEPRECATED()
         visitor->VisitTracedGlobalHandle(
             *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value));
+        END_ALLOW_USE_DEPRECATED()
       } else {
         visitor->VisitTracedReference(
             *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));

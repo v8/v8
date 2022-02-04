@@ -197,6 +197,21 @@ class BasicTracedReference : public TracedReferenceBase {
 /**
  * A traced handle with destructor that clears the handle. For more details see
  * BasicTracedReference.
+ *
+ * This type is being deprecated and embedders are encouraged to use
+ * `v8::TracedReference` in combination with `v8::CppHeap`. If this is not
+ * possible, the following provides feature parity:
+ *
+ * \code
+ * template <typename T>
+ * struct TracedGlobalPolyfill {
+ *   v8::TracedReference<T> traced_reference;
+ *   v8::Global<T> weak_reference_for_callback;
+ * };
+ * \endcode
+ *
+ * In this example, `weak_reference_for_callback` can be used to emulate
+ * `SetFinalizationCallback()`.
  */
 template <typename T>
 class TracedGlobal : public BasicTracedReference<T> {
@@ -211,6 +226,7 @@ class TracedGlobal : public BasicTracedReference<T> {
   /**
    * An empty TracedGlobal without storage cell.
    */
+  V8_DEPRECATE_SOON("See class comment.")
   TracedGlobal() : BasicTracedReference<T>() {}
 
   /**
@@ -220,6 +236,7 @@ class TracedGlobal : public BasicTracedReference<T> {
    * pointing to the same object.
    */
   template <class S>
+  V8_DEPRECATE_SOON("See class comment.")
   TracedGlobal(Isolate* isolate, Local<S> that) : BasicTracedReference<T>() {
     this->val_ =
         this->New(isolate, that.val_, &this->val_,
@@ -490,56 +507,6 @@ V8_INLINE bool operator!=(const v8::Local<U>& lhs,
 
 template <class T>
 template <class S>
-void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
-  Reset();
-  if (other.IsEmpty()) return;
-  this->val_ = this->New(isolate, other.val_, &this->val_,
-                         internal::GlobalHandleDestructionMode::kWithDestructor,
-                         internal::GlobalHandleStoreMode::kAssigningStore);
-}
-
-template <class T>
-template <class S>
-TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) noexcept {
-  static_assert(std::is_base_of<T, S>::value, "type check");
-  *this = std::move(rhs.template As<T>());
-  return *this;
-}
-
-template <class T>
-template <class S>
-TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal<S>& rhs) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
-  *this = rhs.template As<T>();
-  return *this;
-}
-
-template <class T>
-TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal&& rhs) noexcept {
-  if (this != &rhs) {
-    internal::MoveTracedGlobalReference(
-        reinterpret_cast<internal::Address**>(&rhs.val_),
-        reinterpret_cast<internal::Address**>(&this->val_));
-  }
-  return *this;
-}
-
-template <class T>
-TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal& rhs) {
-  if (this != &rhs) {
-    this->Reset();
-    if (rhs.val_ != nullptr) {
-      internal::CopyTracedGlobalReference(
-          reinterpret_cast<const internal::Address* const*>(&rhs.val_),
-          reinterpret_cast<internal::Address**>(&this->val_));
-    }
-  }
-  return *this;
-}
-
-template <class T>
-template <class S>
 void TracedReference<T>::Reset(Isolate* isolate, const Local<S>& other) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   this->Reset();
@@ -606,6 +573,56 @@ uint16_t TracedReferenceBase::WrapperClassId() const {
   internal::Address* obj = reinterpret_cast<internal::Address*>(val_);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
+}
+
+template <class T>
+template <class S>
+void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
+  static_assert(std::is_base_of<T, S>::value, "type check");
+  Reset();
+  if (other.IsEmpty()) return;
+  this->val_ = this->New(isolate, other.val_, &this->val_,
+                         internal::GlobalHandleDestructionMode::kWithDestructor,
+                         internal::GlobalHandleStoreMode::kAssigningStore);
+}
+
+template <class T>
+template <class S>
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) noexcept {
+  static_assert(std::is_base_of<T, S>::value, "type check");
+  *this = std::move(rhs.template As<T>());
+  return *this;
+}
+
+template <class T>
+template <class S>
+TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal<S>& rhs) {
+  static_assert(std::is_base_of<T, S>::value, "type check");
+  *this = rhs.template As<T>();
+  return *this;
+}
+
+template <class T>
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal&& rhs) noexcept {
+  if (this != &rhs) {
+    internal::MoveTracedGlobalReference(
+        reinterpret_cast<internal::Address**>(&rhs.val_),
+        reinterpret_cast<internal::Address**>(&this->val_));
+  }
+  return *this;
+}
+
+template <class T>
+TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal& rhs) {
+  if (this != &rhs) {
+    this->Reset();
+    if (rhs.val_ != nullptr) {
+      internal::CopyTracedGlobalReference(
+          reinterpret_cast<const internal::Address* const*>(&rhs.val_),
+          reinterpret_cast<internal::Address**>(&this->val_));
+    }
+  }
+  return *this;
 }
 
 template <class T>

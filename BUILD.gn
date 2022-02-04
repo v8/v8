@@ -2729,6 +2729,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/tnode.h",
     "src/codegen/turbo-assembler.h",
     "src/codegen/unoptimized-compilation-info.h",
+    "src/common/allow-deprecated.h",
     "src/common/assert-scope.h",
     "src/common/checks.h",
     "src/common/high-allocation-throughput-scope.h",

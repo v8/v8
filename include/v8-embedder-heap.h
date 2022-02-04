@@ -51,7 +51,11 @@ class V8_EXPORT EmbedderRootsHandler {
    * being treated as roots.
    */
   virtual bool IsRoot(const v8::TracedReference<v8::Value>& handle) = 0;
-  virtual bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) = 0;
+
+  V8_DEPRECATE_SOON("See v8::TracedGlobal class comment.")
+  virtual bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) {
+    return true;
+  }
 
   /**
    * Used in combination with |IsRoot|. Called by V8 when an
@@ -88,6 +92,7 @@ class V8_EXPORT EmbedderHeapTracer {
   class V8_EXPORT TracedGlobalHandleVisitor {
    public:
     virtual ~TracedGlobalHandleVisitor() = default;
+    V8_DEPRECATE_SOON("See v8::TracedGlobal class comment.")
     virtual void VisitTracedGlobalHandle(const TracedGlobal<Value>& handle) {}
     virtual void VisitTracedReference(const TracedReference<Value>& handle) {}
   };
@@ -189,6 +194,7 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual bool IsRootForNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
+  V8_DEPRECATE_SOON("See v8::TracedGlobal class comment.")
   virtual bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle);
 
   /**

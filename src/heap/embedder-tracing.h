@@ -8,6 +8,7 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-traced-handle.h"
+#include "src/common/allow-deprecated.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
@@ -23,7 +24,11 @@ class V8_EXPORT_PRIVATE DefaultEmbedderRootsHandler final
     : public EmbedderRootsHandler {
  public:
   bool IsRoot(const v8::TracedReference<v8::Value>& handle) final;
+
+  START_ALLOW_USE_DEPRECATED()
   bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) final;
+  END_ALLOW_USE_DEPRECATED()
+
   void ResetRoot(const v8::TracedReference<v8::Value>& handle) final;
 
   void SetTracer(EmbedderHeapTracer* tracer) { tracer_ = tracer; }

@@ -13,6 +13,7 @@
 #include "include/v8-template.h"
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
+#include "src/common/allow-deprecated.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
@@ -24,6 +25,8 @@
 #include "src/objects/shared-function-info.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
+
+START_ALLOW_USE_DEPRECATED()
 
 namespace v8 {
 
@@ -1327,3 +1330,5 @@ TEST(NotifyEmptyStack) {
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
+
+END_ALLOW_USE_DEPRECATED()
