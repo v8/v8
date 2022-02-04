@@ -93,6 +93,8 @@ class V8_EXPORT StandaloneTestingHeap final {
   HeapHandle& heap_handle_;
 };
 
+V8_EXPORT bool IsHeapObjectOld(void*);
+
 }  // namespace testing
 }  // namespace cppgc
 
