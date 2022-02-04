@@ -153,9 +153,11 @@ class ValueSerializer {
    * Asks the delegate to handle an error that occurred during data cloning, by
    * throwing an exception appropriate for the host.
    */
-  void ThrowDataCloneError(MessageTemplate template_index);
-  V8_NOINLINE void ThrowDataCloneError(MessageTemplate template_index,
-                                       Handle<Object> arg0);
+  V8_NOINLINE Maybe<bool> ThrowDataCloneError(MessageTemplate template_index)
+      V8_WARN_UNUSED_RESULT;
+  V8_NOINLINE Maybe<bool> ThrowDataCloneError(MessageTemplate template_index,
+                                              Handle<Object> arg0)
+      V8_WARN_UNUSED_RESULT;
 
   Maybe<bool> ThrowIfOutOfMemory();
 
@@ -243,11 +245,13 @@ class ValueDeserializer {
   void ConsumeTag(SerializationTag peeked_tag);
   Maybe<SerializationTag> ReadTag() V8_WARN_UNUSED_RESULT;
   template <typename T>
-  Maybe<T> ReadVarint() V8_WARN_UNUSED_RESULT;
+  V8_INLINE Maybe<T> ReadVarint() V8_WARN_UNUSED_RESULT;
+  template <typename T>
+  V8_NOINLINE Maybe<T> ReadVarintLoop() V8_WARN_UNUSED_RESULT;
   template <typename T>
   Maybe<T> ReadZigZag() V8_WARN_UNUSED_RESULT;
   Maybe<double> ReadDouble() V8_WARN_UNUSED_RESULT;
-  Maybe<base::Vector<const uint8_t>> ReadRawBytes(int size)
+  Maybe<base::Vector<const uint8_t>> ReadRawBytes(size_t size)
       V8_WARN_UNUSED_RESULT;
 
   // Reads a string if it matches the one provided.
@@ -266,9 +270,12 @@ class ValueDeserializer {
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
   MaybeHandle<BigInt> ReadBigInt() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadUtf8String() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadOneByteString() V8_WARN_UNUSED_RESULT;
-  MaybeHandle<String> ReadTwoByteString() V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadUtf8String(
+      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadOneByteString(
+      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadTwoByteString(
+      AllocationType allocation = AllocationType::kYoung) V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadJSObject() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArray> ReadSparseJSArray() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSArray> ReadDenseJSArray() V8_WARN_UNUSED_RESULT;

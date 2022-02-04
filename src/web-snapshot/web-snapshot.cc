@@ -1239,7 +1239,8 @@ void WebSnapshotDeserializer::DeserializeStrings() {
   strings_handle_ = isolate_->factory()->NewFixedArray(string_count_);
   strings_ = *strings_handle_;
   for (uint32_t i = 0; i < string_count_; ++i) {
-    MaybeHandle<String> maybe_string = deserializer_.ReadUtf8String();
+    MaybeHandle<String> maybe_string =
+        deserializer_.ReadUtf8String(AllocationType::kOld);
     Handle<String> string;
     if (!maybe_string.ToHandle(&string)) {
       Throw("Malformed string");
@@ -1257,7 +1258,7 @@ String WebSnapshotDeserializer::ReadString(bool internalize) {
     return ReadOnlyRoots(isolate_).empty_string();
   }
   String string = String::cast(strings_.get(string_id));
-  if (internalize && !string.IsInternalizedString()) {
+  if (internalize && !string.IsInternalizedString(isolate_)) {
     string = *isolate_->factory()->InternalizeString(handle(string, isolate_));
     strings_.set(string_id, string);
   }
