@@ -1171,6 +1171,9 @@ class Heap {
   // - or it was communicated to GC using NotifyObjectLayoutChange.
   V8_EXPORT_PRIVATE void VerifyObjectLayoutChange(HeapObject object,
                                                   Map new_map);
+  // Checks that this is a safe map transition.
+  V8_EXPORT_PRIVATE void VerifySafeMapTransition(HeapObject object,
+                                                 Map new_map);
 #endif
 
   // ===========================================================================

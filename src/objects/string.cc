@@ -288,7 +288,7 @@ StringMigrationResult MigrateStringMapUnderLockIfNeeded(
     CHECK(string.release_compare_and_swap_map_word(
         MapWord::FromMap(sentinel_map), MapWord::FromMap(target_map)));
   } else {
-    string.set_map(target_map, kReleaseStore);
+    string.set_map_safe_transition(target_map, kReleaseStore);
   }
 
   return StringMigrationResult::kThisThreadMigrated;

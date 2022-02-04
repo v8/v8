@@ -3878,6 +3878,9 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 };
 
 void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
+  // Object layout changes are currently not supported on background threads.
+  DCHECK_NULL(LocalHeap::Current());
+
   if (!FLAG_verify_heap) return;
 
   PtrComprCageBase cage_base(isolate());
@@ -3887,54 +3890,60 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
   // If you see this check triggering for a freshly allocated object,
   // use object->set_map_after_allocation() to initialize its map.
   if (pending_layout_change_object_.is_null()) {
-    if (object.IsJSObject(cage_base)) {
-      // Without double unboxing all in-object fields of a JSObject are tagged.
-      return;
-    }
-    if (object.IsString(cage_base) &&
-        (new_map == ReadOnlyRoots(this).thin_string_map() ||
-         new_map == ReadOnlyRoots(this).thin_one_byte_string_map())) {
-      // When transitioning a string to ThinString,
-      // Heap::NotifyObjectLayoutChange doesn't need to be invoked because only
-      // tagged fields are introduced.
-      return;
-    }
-    if (FLAG_shared_string_table && object.IsString(cage_base) &&
-        InstanceTypeChecker::IsInternalizedString(new_map.instance_type())) {
-      // In-place internalization does not change a string's fields.
-      //
-      // When sharing the string table, the setting and re-setting of maps below
-      // can race when there are parallel internalization operations, causing
-      // DCHECKs to fail.
-      return;
-    }
-    // Check that the set of slots before and after the transition match.
-    SlotCollectingVisitor old_visitor;
-    object.IterateFast(cage_base, &old_visitor);
-    MapWord old_map_word = object.map_word(cage_base, kRelaxedLoad);
-    // Temporarily set the new map to iterate new slots.
-    object.set_map_word(MapWord::FromMap(new_map), kRelaxedStore);
-    SlotCollectingVisitor new_visitor;
-    object.IterateFast(cage_base, &new_visitor);
-    // Restore the old map.
-    object.set_map_word(old_map_word, kRelaxedStore);
-    DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
-    for (int i = 0; i < new_visitor.number_of_slots(); i++) {
-      DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
-    }
-#ifdef V8_EXTERNAL_CODE_SPACE
-    DCHECK_EQ(new_visitor.number_of_code_slots(),
-              old_visitor.number_of_code_slots());
-    for (int i = 0; i < new_visitor.number_of_code_slots(); i++) {
-      DCHECK_EQ(new_visitor.code_slot(i), old_visitor.code_slot(i));
-    }
-#endif  // V8_EXTERNAL_CODE_SPACE
+    VerifySafeMapTransition(object, new_map);
   } else {
     DCHECK_EQ(pending_layout_change_object_, object);
     pending_layout_change_object_ = HeapObject();
   }
 }
-#endif
+
+void Heap::VerifySafeMapTransition(HeapObject object, Map new_map) {
+  PtrComprCageBase cage_base(isolate());
+
+  if (object.IsJSObject(cage_base)) {
+    // Without double unboxing all in-object fields of a JSObject are tagged.
+    return;
+  }
+  if (object.IsString(cage_base) &&
+      (new_map == ReadOnlyRoots(this).thin_string_map() ||
+       new_map == ReadOnlyRoots(this).thin_one_byte_string_map())) {
+    // When transitioning a string to ThinString,
+    // Heap::NotifyObjectLayoutChange doesn't need to be invoked because only
+    // tagged fields are introduced.
+    return;
+  }
+  if (FLAG_shared_string_table && object.IsString(cage_base) &&
+      InstanceTypeChecker::IsInternalizedString(new_map.instance_type())) {
+    // In-place internalization does not change a string's fields.
+    //
+    // When sharing the string table, the setting and re-setting of maps below
+    // can race when there are parallel internalization operations, causing
+    // DCHECKs to fail.
+    return;
+  }
+  // Check that the set of slots before and after the transition match.
+  SlotCollectingVisitor old_visitor;
+  object.IterateFast(cage_base, &old_visitor);
+  MapWord old_map_word = object.map_word(cage_base, kRelaxedLoad);
+  // Temporarily set the new map to iterate new slots.
+  object.set_map_word(MapWord::FromMap(new_map), kRelaxedStore);
+  SlotCollectingVisitor new_visitor;
+  object.IterateFast(cage_base, &new_visitor);
+  // Restore the old map.
+  object.set_map_word(old_map_word, kRelaxedStore);
+  DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
+  for (int i = 0; i < new_visitor.number_of_slots(); i++) {
+    DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
+  }
+#ifdef V8_EXTERNAL_CODE_SPACE
+  DCHECK_EQ(new_visitor.number_of_code_slots(),
+            old_visitor.number_of_code_slots());
+  for (int i = 0; i < new_visitor.number_of_code_slots(); i++) {
+    DCHECK_EQ(new_visitor.code_slot(i), old_visitor.code_slot(i));
+  }
+#endif  // V8_EXTERNAL_CODE_SPACE
+}
+#endif  // VERIFY_HEAP
 
 GCIdleTimeHeapState Heap::ComputeHeapState() {
   GCIdleTimeHeapState heap_state;
