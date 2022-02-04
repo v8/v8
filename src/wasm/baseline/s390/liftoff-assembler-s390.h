@@ -2256,91 +2256,93 @@ void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
   b(condition, target);  // branch if SMI
 }
 
-#define SIMD_BINOP_RR_LIST(V)   \
-  V(f64x2_add, F64x2Add, fp)    \
-  V(f64x2_sub, F64x2Sub, fp)    \
-  V(f64x2_mul, F64x2Mul, fp)    \
-  V(f64x2_div, F64x2Div, fp)    \
-  V(f64x2_min, F64x2Min, fp)    \
-  V(f64x2_max, F64x2Max, fp)    \
-  V(f64x2_eq, F64x2Eq, fp)      \
-  V(f64x2_ne, F64x2Ne, fp)      \
-  V(f64x2_lt, F64x2Lt, fp)      \
-  V(f64x2_le, F64x2Le, fp)      \
-  V(f64x2_pmin, F64x2Pmin, fp)  \
-  V(f64x2_pmax, F64x2Pmax, fp)  \
-  V(f32x4_add, F32x4Add, fp)    \
-  V(f32x4_sub, F32x4Sub, fp)    \
-  V(f32x4_mul, F32x4Mul, fp)    \
-  V(f32x4_div, F32x4Div, fp)    \
-  V(f32x4_min, F32x4Min, fp)    \
-  V(f32x4_max, F32x4Max, fp)    \
-  V(f32x4_eq, F32x4Eq, fp)      \
-  V(f32x4_ne, F32x4Ne, fp)      \
-  V(f32x4_lt, F32x4Lt, fp)      \
-  V(f32x4_le, F32x4Le, fp)      \
-  V(f32x4_pmin, F32x4Pmin, fp)  \
-  V(f32x4_pmax, F32x4Pmax, fp)  \
-  V(i64x2_add, I64x2Add, fp)    \
-  V(i64x2_sub, I64x2Sub, fp)    \
-  V(i64x2_mul, I64x2Mul, fp)    \
-  V(i64x2_eq, I64x2Eq, fp)      \
-  V(i64x2_ne, I64x2Ne, fp)      \
-  V(i64x2_gt_s, I64x2GtS, fp)   \
-  V(i64x2_ge_s, I64x2GeS, fp)   \
-  V(i64x2_shl, I64x2Shl, gp)    \
-  V(i64x2_shr_s, I64x2ShrS, gp) \
-  V(i64x2_shr_u, I64x2ShrU, gp) \
-  V(i32x4_add, I32x4Add, fp)    \
-  V(i32x4_sub, I32x4Sub, fp)    \
-  V(i32x4_mul, I32x4Mul, fp)    \
-  V(i32x4_eq, I32x4Eq, fp)      \
-  V(i32x4_ne, I32x4Ne, fp)      \
-  V(i32x4_gt_s, I32x4GtS, fp)   \
-  V(i32x4_ge_s, I32x4GeS, fp)   \
-  V(i32x4_gt_u, I32x4GtU, fp)   \
-  V(i32x4_ge_u, I32x4GeU, fp)   \
-  V(i32x4_min_s, I32x4MinS, fp) \
-  V(i32x4_min_u, I32x4MinU, fp) \
-  V(i32x4_max_s, I32x4MaxS, fp) \
-  V(i32x4_max_u, I32x4MaxU, fp) \
-  V(i32x4_shl, I32x4Shl, gp)    \
-  V(i32x4_shr_s, I32x4ShrS, gp) \
-  V(i32x4_shr_u, I32x4ShrU, gp) \
-  V(i16x8_add, I16x8Add, fp)    \
-  V(i16x8_sub, I16x8Sub, fp)    \
-  V(i16x8_mul, I16x8Mul, fp)    \
-  V(i16x8_eq, I16x8Eq, fp)      \
-  V(i16x8_ne, I16x8Ne, fp)      \
-  V(i16x8_gt_s, I16x8GtS, fp)   \
-  V(i16x8_ge_s, I16x8GeS, fp)   \
-  V(i16x8_gt_u, I16x8GtU, fp)   \
-  V(i16x8_ge_u, I16x8GeU, fp)   \
-  V(i16x8_min_s, I16x8MinS, fp) \
-  V(i16x8_min_u, I16x8MinU, fp) \
-  V(i16x8_max_s, I16x8MaxS, fp) \
-  V(i16x8_max_u, I16x8MaxU, fp) \
-  V(i16x8_shl, I16x8Shl, gp)    \
-  V(i16x8_shr_s, I16x8ShrS, gp) \
-  V(i16x8_shr_u, I16x8ShrU, gp) \
-  V(i8x16_add, I8x16Add, fp)    \
-  V(i8x16_sub, I8x16Sub, fp)    \
-  V(i8x16_eq, I8x16Eq, fp)      \
-  V(i8x16_ne, I8x16Ne, fp)      \
-  V(i8x16_gt_s, I8x16GtS, fp)   \
-  V(i8x16_ge_s, I8x16GeS, fp)   \
-  V(i8x16_gt_u, I8x16GtU, fp)   \
-  V(i8x16_ge_u, I8x16GeU, fp)   \
-  V(i8x16_min_s, I8x16MinS, fp) \
-  V(i8x16_min_u, I8x16MinU, fp) \
-  V(i8x16_max_s, I8x16MaxS, fp) \
-  V(i8x16_max_u, I8x16MaxU, fp) \
-  V(i8x16_shl, I8x16Shl, gp)    \
-  V(i8x16_shr_s, I8x16ShrS, gp) \
-  V(i8x16_shr_u, I8x16ShrU, gp) \
-  V(s128_and, S128And, fp)      \
-  V(s128_or, S128Or, fp)        \
-  V(s128_xor, S128Xor, fp)      \
+#define SIMD_BINOP_RR_LIST(V)                            \
+  V(f64x2_add, F64x2Add, fp)                             \
+  V(f64x2_sub, F64x2Sub, fp)                             \
+  V(f64x2_mul, F64x2Mul, fp)                             \
+  V(f64x2_div, F64x2Div, fp)                             \
+  V(f64x2_min, F64x2Min, fp)                             \
+  V(f64x2_max, F64x2Max, fp)                             \
+  V(f64x2_eq, F64x2Eq, fp)                               \
+  V(f64x2_ne, F64x2Ne, fp)                               \
+  V(f64x2_lt, F64x2Lt, fp)                               \
+  V(f64x2_le, F64x2Le, fp)                               \
+  V(f64x2_pmin, F64x2Pmin, fp)                           \
+  V(f64x2_pmax, F64x2Pmax, fp)                           \
+  V(f32x4_add, F32x4Add, fp)                             \
+  V(f32x4_sub, F32x4Sub, fp)                             \
+  V(f32x4_mul, F32x4Mul, fp)                             \
+  V(f32x4_div, F32x4Div, fp)                             \
+  V(f32x4_min, F32x4Min, fp)                             \
+  V(f32x4_max, F32x4Max, fp)                             \
+  V(f32x4_eq, F32x4Eq, fp)                               \
+  V(f32x4_ne, F32x4Ne, fp)                               \
+  V(f32x4_lt, F32x4Lt, fp)                               \
+  V(f32x4_le, F32x4Le, fp)                               \
+  V(f32x4_pmin, F32x4Pmin, fp)                           \
+  V(f32x4_pmax, F32x4Pmax, fp)                           \
+  V(i64x2_add, I64x2Add, fp)                             \
+  V(i64x2_sub, I64x2Sub, fp)                             \
+  V(i64x2_mul, I64x2Mul, fp)                             \
+  V(i64x2_eq, I64x2Eq, fp)                               \
+  V(i64x2_ne, I64x2Ne, fp)                               \
+  V(i64x2_gt_s, I64x2GtS, fp)                            \
+  V(i64x2_ge_s, I64x2GeS, fp)                            \
+  V(i64x2_shl, I64x2Shl, gp)                             \
+  V(i64x2_shr_s, I64x2ShrS, gp)                          \
+  V(i64x2_shr_u, I64x2ShrU, gp)                          \
+  V(i32x4_add, I32x4Add, fp)                             \
+  V(i32x4_sub, I32x4Sub, fp)                             \
+  V(i32x4_mul, I32x4Mul, fp)                             \
+  V(i32x4_eq, I32x4Eq, fp)                               \
+  V(i32x4_ne, I32x4Ne, fp)                               \
+  V(i32x4_gt_s, I32x4GtS, fp)                            \
+  V(i32x4_ge_s, I32x4GeS, fp)                            \
+  V(i32x4_gt_u, I32x4GtU, fp)                            \
+  V(i32x4_ge_u, I32x4GeU, fp)                            \
+  V(i32x4_min_s, I32x4MinS, fp)                          \
+  V(i32x4_min_u, I32x4MinU, fp)                          \
+  V(i32x4_max_s, I32x4MaxS, fp)                          \
+  V(i32x4_max_u, I32x4MaxU, fp)                          \
+  V(i32x4_shl, I32x4Shl, gp)                             \
+  V(i32x4_shr_s, I32x4ShrS, gp)                          \
+  V(i32x4_shr_u, I32x4ShrU, gp)                          \
+  V(i16x8_add, I16x8Add, fp)                             \
+  V(i16x8_sub, I16x8Sub, fp)                             \
+  V(i16x8_mul, I16x8Mul, fp)                             \
+  V(i16x8_eq, I16x8Eq, fp)                               \
+  V(i16x8_ne, I16x8Ne, fp)                               \
+  V(i16x8_gt_s, I16x8GtS, fp)                            \
+  V(i16x8_ge_s, I16x8GeS, fp)                            \
+  V(i16x8_gt_u, I16x8GtU, fp)                            \
+  V(i16x8_ge_u, I16x8GeU, fp)                            \
+  V(i16x8_min_s, I16x8MinS, fp)                          \
+  V(i16x8_min_u, I16x8MinU, fp)                          \
+  V(i16x8_max_s, I16x8MaxS, fp)                          \
+  V(i16x8_max_u, I16x8MaxU, fp)                          \
+  V(i16x8_shl, I16x8Shl, gp)                             \
+  V(i16x8_shr_s, I16x8ShrS, gp)                          \
+  V(i16x8_shr_u, I16x8ShrU, gp)                          \
+  V(i16x8_rounding_average_u, I16x8RoundingAverageU, fp) \
+  V(i8x16_add, I8x16Add, fp)                             \
+  V(i8x16_sub, I8x16Sub, fp)                             \
+  V(i8x16_eq, I8x16Eq, fp)                               \
+  V(i8x16_ne, I8x16Ne, fp)                               \
+  V(i8x16_gt_s, I8x16GtS, fp)                            \
+  V(i8x16_ge_s, I8x16GeS, fp)                            \
+  V(i8x16_gt_u, I8x16GtU, fp)                            \
+  V(i8x16_ge_u, I8x16GeU, fp)                            \
+  V(i8x16_min_s, I8x16MinS, fp)                          \
+  V(i8x16_min_u, I8x16MinU, fp)                          \
+  V(i8x16_max_s, I8x16MaxS, fp)                          \
+  V(i8x16_max_u, I8x16MaxU, fp)                          \
+  V(i8x16_shl, I8x16Shl, gp)                             \
+  V(i8x16_shr_s, I8x16ShrS, gp)                          \
+  V(i8x16_shr_u, I8x16ShrU, gp)                          \
+  V(i8x16_rounding_average_u, I8x16RoundingAverageU, fp) \
+  V(s128_and, S128And, fp)                               \
+  V(s128_or, S128Or, fp)                                 \
+  V(s128_xor, S128Xor, fp)                               \
   V(s128_and_not, S128AndNot, fp)
 
 #define EMIT_SIMD_BINOP_RR(name, op, stype)                                    \
@@ -2733,18 +2735,6 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
   bailout(kSimd, "i32x4.trunc_sat_f64x2_u_zero");
-}
-
-void LiftoffAssembler::emit_i8x16_rounding_average_u(LiftoffRegister dst,
-                                                     LiftoffRegister lhs,
-                                                     LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16_rounding_average_u");
-}
-
-void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
-                                                     LiftoffRegister lhs,
-                                                     LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_i16x8_rounding_average_u");
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

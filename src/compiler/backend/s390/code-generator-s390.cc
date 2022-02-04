@@ -2554,91 +2554,93 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64();
       break;
       // Simd Support.
-#define SIMD_BINOP_LIST(V)      \
-  V(F64x2Add, Simd128Register)  \
-  V(F64x2Sub, Simd128Register)  \
-  V(F64x2Mul, Simd128Register)  \
-  V(F64x2Div, Simd128Register)  \
-  V(F64x2Min, Simd128Register)  \
-  V(F64x2Max, Simd128Register)  \
-  V(F64x2Eq, Simd128Register)   \
-  V(F64x2Ne, Simd128Register)   \
-  V(F64x2Lt, Simd128Register)   \
-  V(F64x2Le, Simd128Register)   \
-  V(F64x2Pmin, Simd128Register) \
-  V(F64x2Pmax, Simd128Register) \
-  V(F32x4Add, Simd128Register)  \
-  V(F32x4Sub, Simd128Register)  \
-  V(F32x4Mul, Simd128Register)  \
-  V(F32x4Div, Simd128Register)  \
-  V(F32x4Min, Simd128Register)  \
-  V(F32x4Max, Simd128Register)  \
-  V(F32x4Eq, Simd128Register)   \
-  V(F32x4Ne, Simd128Register)   \
-  V(F32x4Lt, Simd128Register)   \
-  V(F32x4Le, Simd128Register)   \
-  V(F32x4Pmin, Simd128Register) \
-  V(F32x4Pmax, Simd128Register) \
-  V(I64x2Add, Simd128Register)  \
-  V(I64x2Sub, Simd128Register)  \
-  V(I64x2Mul, Simd128Register)  \
-  V(I64x2Eq, Simd128Register)   \
-  V(I64x2Ne, Simd128Register)   \
-  V(I64x2GtS, Simd128Register)  \
-  V(I64x2GeS, Simd128Register)  \
-  V(I64x2Shl, Register)         \
-  V(I64x2ShrS, Register)        \
-  V(I64x2ShrU, Register)        \
-  V(I32x4Add, Simd128Register)  \
-  V(I32x4Sub, Simd128Register)  \
-  V(I32x4Mul, Simd128Register)  \
-  V(I32x4Eq, Simd128Register)   \
-  V(I32x4Ne, Simd128Register)   \
-  V(I32x4GtS, Simd128Register)  \
-  V(I32x4GeS, Simd128Register)  \
-  V(I32x4GtU, Simd128Register)  \
-  V(I32x4GeU, Simd128Register)  \
-  V(I32x4MinS, Simd128Register) \
-  V(I32x4MinU, Simd128Register) \
-  V(I32x4MaxS, Simd128Register) \
-  V(I32x4MaxU, Simd128Register) \
-  V(I32x4Shl, Register)         \
-  V(I32x4ShrS, Register)        \
-  V(I32x4ShrU, Register)        \
-  V(I16x8Add, Simd128Register)  \
-  V(I16x8Sub, Simd128Register)  \
-  V(I16x8Mul, Simd128Register)  \
-  V(I16x8Eq, Simd128Register)   \
-  V(I16x8Ne, Simd128Register)   \
-  V(I16x8GtS, Simd128Register)  \
-  V(I16x8GeS, Simd128Register)  \
-  V(I16x8GtU, Simd128Register)  \
-  V(I16x8GeU, Simd128Register)  \
-  V(I16x8MinS, Simd128Register) \
-  V(I16x8MinU, Simd128Register) \
-  V(I16x8MaxS, Simd128Register) \
-  V(I16x8MaxU, Simd128Register) \
-  V(I16x8Shl, Register)         \
-  V(I16x8ShrS, Register)        \
-  V(I16x8ShrU, Register)        \
-  V(I8x16Add, Simd128Register)  \
-  V(I8x16Sub, Simd128Register)  \
-  V(I8x16Eq, Simd128Register)   \
-  V(I8x16Ne, Simd128Register)   \
-  V(I8x16GtS, Simd128Register)  \
-  V(I8x16GeS, Simd128Register)  \
-  V(I8x16GtU, Simd128Register)  \
-  V(I8x16GeU, Simd128Register)  \
-  V(I8x16MinS, Simd128Register) \
-  V(I8x16MinU, Simd128Register) \
-  V(I8x16MaxS, Simd128Register) \
-  V(I8x16MaxU, Simd128Register) \
-  V(I8x16Shl, Register)         \
-  V(I8x16ShrS, Register)        \
-  V(I8x16ShrU, Register)        \
-  V(S128And, Simd128Register)   \
-  V(S128Or, Simd128Register)    \
-  V(S128Xor, Simd128Register)   \
+#define SIMD_BINOP_LIST(V)                  \
+  V(F64x2Add, Simd128Register)              \
+  V(F64x2Sub, Simd128Register)              \
+  V(F64x2Mul, Simd128Register)              \
+  V(F64x2Div, Simd128Register)              \
+  V(F64x2Min, Simd128Register)              \
+  V(F64x2Max, Simd128Register)              \
+  V(F64x2Eq, Simd128Register)               \
+  V(F64x2Ne, Simd128Register)               \
+  V(F64x2Lt, Simd128Register)               \
+  V(F64x2Le, Simd128Register)               \
+  V(F64x2Pmin, Simd128Register)             \
+  V(F64x2Pmax, Simd128Register)             \
+  V(F32x4Add, Simd128Register)              \
+  V(F32x4Sub, Simd128Register)              \
+  V(F32x4Mul, Simd128Register)              \
+  V(F32x4Div, Simd128Register)              \
+  V(F32x4Min, Simd128Register)              \
+  V(F32x4Max, Simd128Register)              \
+  V(F32x4Eq, Simd128Register)               \
+  V(F32x4Ne, Simd128Register)               \
+  V(F32x4Lt, Simd128Register)               \
+  V(F32x4Le, Simd128Register)               \
+  V(F32x4Pmin, Simd128Register)             \
+  V(F32x4Pmax, Simd128Register)             \
+  V(I64x2Add, Simd128Register)              \
+  V(I64x2Sub, Simd128Register)              \
+  V(I64x2Mul, Simd128Register)              \
+  V(I64x2Eq, Simd128Register)               \
+  V(I64x2Ne, Simd128Register)               \
+  V(I64x2GtS, Simd128Register)              \
+  V(I64x2GeS, Simd128Register)              \
+  V(I64x2Shl, Register)                     \
+  V(I64x2ShrS, Register)                    \
+  V(I64x2ShrU, Register)                    \
+  V(I32x4Add, Simd128Register)              \
+  V(I32x4Sub, Simd128Register)              \
+  V(I32x4Mul, Simd128Register)              \
+  V(I32x4Eq, Simd128Register)               \
+  V(I32x4Ne, Simd128Register)               \
+  V(I32x4GtS, Simd128Register)              \
+  V(I32x4GeS, Simd128Register)              \
+  V(I32x4GtU, Simd128Register)              \
+  V(I32x4GeU, Simd128Register)              \
+  V(I32x4MinS, Simd128Register)             \
+  V(I32x4MinU, Simd128Register)             \
+  V(I32x4MaxS, Simd128Register)             \
+  V(I32x4MaxU, Simd128Register)             \
+  V(I32x4Shl, Register)                     \
+  V(I32x4ShrS, Register)                    \
+  V(I32x4ShrU, Register)                    \
+  V(I16x8Add, Simd128Register)              \
+  V(I16x8Sub, Simd128Register)              \
+  V(I16x8Mul, Simd128Register)              \
+  V(I16x8Eq, Simd128Register)               \
+  V(I16x8Ne, Simd128Register)               \
+  V(I16x8GtS, Simd128Register)              \
+  V(I16x8GeS, Simd128Register)              \
+  V(I16x8GtU, Simd128Register)              \
+  V(I16x8GeU, Simd128Register)              \
+  V(I16x8MinS, Simd128Register)             \
+  V(I16x8MinU, Simd128Register)             \
+  V(I16x8MaxS, Simd128Register)             \
+  V(I16x8MaxU, Simd128Register)             \
+  V(I16x8Shl, Register)                     \
+  V(I16x8ShrS, Register)                    \
+  V(I16x8ShrU, Register)                    \
+  V(I16x8RoundingAverageU, Simd128Register) \
+  V(I8x16Add, Simd128Register)              \
+  V(I8x16Sub, Simd128Register)              \
+  V(I8x16Eq, Simd128Register)               \
+  V(I8x16Ne, Simd128Register)               \
+  V(I8x16GtS, Simd128Register)              \
+  V(I8x16GeS, Simd128Register)              \
+  V(I8x16GtU, Simd128Register)              \
+  V(I8x16GeU, Simd128Register)              \
+  V(I8x16MinS, Simd128Register)             \
+  V(I8x16MinU, Simd128Register)             \
+  V(I8x16MaxS, Simd128Register)             \
+  V(I8x16MaxU, Simd128Register)             \
+  V(I8x16Shl, Register)                     \
+  V(I8x16ShrS, Register)                    \
+  V(I8x16ShrU, Register)                    \
+  V(I8x16RoundingAverageU, Simd128Register) \
+  V(S128And, Simd128Register)               \
+  V(S128Or, Simd128Register)                \
+  V(S128Xor, Simd128Register)               \
   V(S128AndNot, Simd128Register)
 
 #define EMIT_SIMD_BINOP(name, stype)                              \
@@ -2796,19 +2798,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_QFM
 #undef SIMD_QFM_LIST
 
-      // vector binops
-    case kS390_I16x8RoundingAverageU: {
-      __ vavgl(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               i.InputSimd128Register(1), Condition(0), Condition(0),
-               Condition(1));
-      break;
-    }
-    case kS390_I8x16RoundingAverageU: {
-      __ vavgl(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               i.InputSimd128Register(1), Condition(0), Condition(0),
-               Condition(0));
-      break;
-    }
     // vector unary ops
     case kS390_F32x4RecipApprox: {
       __ mov(kScratchReg, Operand(1));
