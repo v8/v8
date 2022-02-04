@@ -2989,7 +2989,8 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
     Handle<JSObject> webassembly = Handle<JSObject>::cast(webassembly_obj);
     // Setup Exception
     Handle<String> tag_name = v8_str(isolate, "Tag");
-    if (JSObject::HasOwnProperty(webassembly, tag_name).FromMaybe(true)) {
+    if (JSObject::HasOwnProperty(isolate, webassembly, tag_name)
+            .FromMaybe(true)) {
       // The {Exception} constructor already exists, there is nothing more to
       // do.
       return;

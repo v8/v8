@@ -1340,7 +1340,7 @@ TEST(TryHasOwnProperty) {
     for (Handle<JSObject> object : objects) {
       for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
         Handle<Name> name = names[name_index];
-        CHECK(JSReceiver::HasProperty(object, name).FromJust());
+        CHECK(JSReceiver::HasProperty(isolate, object, name).FromJust());
         ft.CheckTrue(object, name, expect_found);
       }
     }
@@ -1360,7 +1360,7 @@ TEST(TryHasOwnProperty) {
       for (size_t key_index = 0; key_index < arraysize(non_existing_names);
            key_index++) {
         Handle<Name> name = non_existing_names[key_index];
-        CHECK(!JSReceiver::HasProperty(object, name).FromJust());
+        CHECK(!JSReceiver::HasProperty(isolate, object, name).FromJust());
         ft.CheckTrue(object, name, expect_not_found);
       }
     }
@@ -1666,12 +1666,12 @@ TEST(TryLookupElement) {
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
   Handle<Object> expect_bailout(Smi::FromInt(kBailout), isolate);
 
-#define CHECK_FOUND(object, index)                         \
-  CHECK(JSReceiver::HasElement(object, index).FromJust()); \
+#define CHECK_FOUND(object, index)                                  \
+  CHECK(JSReceiver::HasElement(isolate, object, index).FromJust()); \
   ft.CheckTrue(object, smi##index, expect_found);
 
-#define CHECK_NOT_FOUND(object, index)                      \
-  CHECK(!JSReceiver::HasElement(object, index).FromJust()); \
+#define CHECK_NOT_FOUND(object, index)                               \
+  CHECK(!JSReceiver::HasElement(isolate, object, index).FromJust()); \
   ft.CheckTrue(object, smi##index, expect_not_found);
 
 #define CHECK_ABSENT(object, index)                  \

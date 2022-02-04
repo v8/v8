@@ -428,7 +428,8 @@ namespace {
 bool IsErrorObject(Isolate* isolate, Handle<Object> object) {
   if (!object->IsJSReceiver()) return false;
   Handle<Symbol> symbol = isolate->factory()->error_stack_symbol();
-  return JSReceiver::HasOwnProperty(Handle<JSReceiver>::cast(object), symbol)
+  return JSReceiver::HasOwnProperty(isolate, Handle<JSReceiver>::cast(object),
+                                    symbol)
       .FromMaybe(false);
 }
 
@@ -3021,7 +3022,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
   // 7. If trap is undefined, then
   if (trap->IsUndefined(isolate)) {
     // 7a. Return target.[[HasProperty]](P).
-    return JSReceiver::HasProperty(target, name);
+    return JSReceiver::HasProperty(isolate, target, name);
   }
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, P»)).
   Handle<Object> trap_result_obj;

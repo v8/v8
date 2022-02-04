@@ -119,14 +119,14 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> HasProperty(
       LookupIterator* it);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasProperty(
-      Handle<JSReceiver> object, Handle<Name> name);
+      Isolate* isolate, Handle<JSReceiver> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasElement(
-      Handle<JSReceiver> object, uint32_t index);
+      Isolate* isolate, Handle<JSReceiver> object, uint32_t index);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> HasOwnProperty(
-      Handle<JSReceiver> object, Handle<Name> name);
+      Isolate* isolate, Handle<JSReceiver> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasOwnProperty(
-      Handle<JSReceiver> object, uint32_t index);
+      Isolate* isolate, Handle<JSReceiver> object, uint32_t index);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSReceiver> receiver, const char* key);
@@ -587,11 +587,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Support functions for v8 api (needed for correct interceptor behavior).
   V8_WARN_UNUSED_RESULT static Maybe<bool> HasRealNamedProperty(
-      Handle<JSObject> object, Handle<Name> name);
+      Isolate* isolate, Handle<JSObject> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static Maybe<bool> HasRealElementProperty(
-      Handle<JSObject> object, uint32_t index);
+      Isolate* isolate, Handle<JSObject> object, uint32_t index);
   V8_WARN_UNUSED_RESULT static Maybe<bool> HasRealNamedCallbackProperty(
-      Handle<JSObject> object, Handle<Name> name);
+      Isolate* isolate, Handle<JSObject> object, Handle<Name> name);
 
   // Get the header size for a JSObject.  Used to compute the index of
   // embedder fields as well as the number of embedder fields.

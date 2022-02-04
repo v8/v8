@@ -537,7 +537,8 @@ V8_WARN_UNUSED_RESULT Object GenericArrayShift(Isolate* isolate,
     // c. Let fromPresent be ? HasProperty(O, from).
     bool from_present;
     MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, from_present, JSReceiver::HasProperty(receiver, from));
+        isolate, from_present,
+        JSReceiver::HasProperty(isolate, receiver, from));
 
     // d. If fromPresent is true, then.
     if (from_present) {
@@ -1046,7 +1047,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
 bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
                          uint32_t length, ArrayConcatVisitor* visitor) {
   FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, ++i, {
-    Maybe<bool> maybe = JSReceiver::HasElement(receiver, i);
+    Maybe<bool> maybe = JSReceiver::HasElement(isolate, receiver, i);
     if (maybe.IsNothing()) return false;
     if (maybe.FromJust()) {
       Handle<Object> element_value;
@@ -1123,7 +1124,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         if (!element_value->IsTheHole(isolate)) {
           if (!visitor->visit(j, element_value)) return false;
         } else {
-          Maybe<bool> maybe = JSReceiver::HasElement(array, j);
+          Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
           if (maybe.IsNothing()) return false;
           if (maybe.FromJust()) {
             // Call GetElement on array, not its prototype, or getters won't
@@ -1161,7 +1162,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
               isolate->factory()->NewNumber(double_value);
           if (!visitor->visit(j, element_value)) return false;
         } else {
-          Maybe<bool> maybe = JSReceiver::HasElement(array, j);
+          Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
           if (maybe.IsNothing()) return false;
           if (maybe.FromJust()) {
             // Call GetElement on array, not its prototype, or getters won't

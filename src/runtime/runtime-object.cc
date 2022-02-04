@@ -77,7 +77,7 @@ MaybeHandle<Object> Runtime::HasProperty(Isolate* isolate,
                              Object);
 
   // Lookup the {name} on {receiver}.
-  Maybe<bool> maybe = JSReceiver::HasProperty(receiver, name);
+  Maybe<bool> maybe = JSReceiver::HasProperty(isolate, receiver, name);
   if (maybe.IsNothing()) return MaybeHandle<Object>();
   return maybe.FromJust() ? ReadOnlyRoots(isolate).true_value_handle()
                           : ReadOnlyRoots(isolate).false_value_handle();
@@ -969,7 +969,7 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
                                      Object::ToName(isolate, key));
 
   // Lookup the {name} on {receiver}.
-  Maybe<bool> maybe = JSReceiver::HasProperty(receiver, name);
+  Maybe<bool> maybe = JSReceiver::HasProperty(isolate, receiver, name);
   if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(maybe.FromJust());
 }

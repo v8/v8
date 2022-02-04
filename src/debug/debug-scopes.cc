@@ -565,7 +565,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
     if (value->IsTheHole(isolate_)) {
       // Reflect variables under TDZ as undefined in scope object.
       if (scope_type == ScopeTypeScript &&
-          JSReceiver::HasOwnProperty(scope, name).FromMaybe(true)) {
+          JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true)) {
         // We also use the hole to represent overridden let-declarations via
         // REPL mode in a script context. Catch this case.
         return false;

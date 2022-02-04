@@ -557,7 +557,8 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
     Handle<Name> cause_string = isolate->factory()->cause_string();
     if (options->IsJSReceiver()) {
       Handle<JSReceiver> js_options = Handle<JSReceiver>::cast(options);
-      Maybe<bool> has_cause = JSObject::HasProperty(js_options, cause_string);
+      Maybe<bool> has_cause =
+          JSObject::HasProperty(isolate, js_options, cause_string);
       if (has_cause.IsNothing()) {
         DCHECK((isolate)->has_pending_exception());
         return MaybeHandle<JSObject>();

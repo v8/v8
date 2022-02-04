@@ -2765,7 +2765,8 @@ void Isolate::InstallConditionalFeatures(Handle<Context> context) {
   Handle<JSGlobalObject> global = handle(context->global_object(), this);
   Handle<String> sab_name = factory()->SharedArrayBuffer_string();
   if (IsSharedArrayBufferConstructorEnabled(context)) {
-    if (!JSObject::HasRealNamedProperty(global, sab_name).FromMaybe(true)) {
+    if (!JSObject::HasRealNamedProperty(this, global, sab_name)
+             .FromMaybe(true)) {
       JSObject::AddProperty(this, global, factory()->SharedArrayBuffer_string(),
                             shared_array_buffer_fun(), DONT_ENUM);
     }

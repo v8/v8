@@ -2895,7 +2895,7 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context,
   PREPARE_FOR_EXECUTION(context, TryCatch, StackTrace, Value);
   auto obj = i::Handle<i::JSObject>::cast(i_exception);
   i::Handle<i::String> name = isolate->factory()->stack_string();
-  Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
+  Maybe<bool> maybe = i::JSReceiver::HasProperty(isolate, obj, name);
   has_pending_exception = maybe.IsNothing();
   RETURN_ON_FAILED_EXECUTION(Value);
   if (!maybe.FromJust()) return v8::Local<Value>();
@@ -4748,12 +4748,12 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   // Check if the given key is an array index.
   uint32_t index = 0;
   if (key_obj->ToArrayIndex(&index)) {
-    maybe = i::JSReceiver::HasElement(self, index);
+    maybe = i::JSReceiver::HasElement(isolate, self, index);
   } else {
     // Convert the key to a name - possibly by calling back into JavaScript.
     i::Handle<i::Name> name;
     if (i::Object::ToName(isolate, key_obj).ToHandle(&name)) {
-      maybe = i::JSReceiver::HasProperty(self, name);
+      maybe = i::JSReceiver::HasProperty(isolate, self, name);
     }
   }
   has_pending_exception = maybe.IsNothing();
@@ -4779,7 +4779,7 @@ Maybe<bool> v8::Object::Has(Local<Context> context, uint32_t index) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(isolate, context, Object, Has, Nothing<bool>(), i::HandleScope);
   auto self = Utils::OpenHandle(this);
-  auto maybe = i::JSReceiver::HasElement(self, index);
+  auto maybe = i::JSReceiver::HasElement(isolate, self, index);
   has_pending_exception = maybe.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return maybe;
@@ -4882,7 +4882,7 @@ Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context,
            i::HandleScope);
   auto self = Utils::OpenHandle(this);
   auto key_val = Utils::OpenHandle(*key);
-  auto result = i::JSReceiver::HasOwnProperty(self, key_val);
+  auto result = i::JSReceiver::HasOwnProperty(isolate, self, key_val);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
@@ -4893,7 +4893,7 @@ Maybe<bool> v8::Object::HasOwnProperty(Local<Context> context, uint32_t index) {
   ENTER_V8(isolate, context, Object, HasOwnProperty, Nothing<bool>(),
            i::HandleScope);
   auto self = Utils::OpenHandle(this);
-  auto result = i::JSReceiver::HasOwnProperty(self, index);
+  auto result = i::JSReceiver::HasOwnProperty(isolate, self, index);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
@@ -4908,7 +4908,7 @@ Maybe<bool> v8::Object::HasRealNamedProperty(Local<Context> context,
   if (!self->IsJSObject()) return Just(false);
   auto key_val = Utils::OpenHandle(*key);
   auto result = i::JSObject::HasRealNamedProperty(
-      i::Handle<i::JSObject>::cast(self), key_val);
+      isolate, i::Handle<i::JSObject>::cast(self), key_val);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
@@ -4922,7 +4922,7 @@ Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   if (!self->IsJSObject()) return Just(false);
   auto result = i::JSObject::HasRealElementProperty(
-      i::Handle<i::JSObject>::cast(self), index);
+      isolate, i::Handle<i::JSObject>::cast(self), index);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
@@ -4937,7 +4937,7 @@ Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
   if (!self->IsJSObject()) return Just(false);
   auto key_val = Utils::OpenHandle(*key);
   auto result = i::JSObject::HasRealNamedCallbackProperty(
-      i::Handle<i::JSObject>::cast(self), key_val);
+      isolate, i::Handle<i::JSObject>::cast(self), key_val);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;

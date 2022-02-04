@@ -120,16 +120,15 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
 }
 
 // static
-Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
+Maybe<bool> JSReceiver::HasOwnProperty(Isolate* isolate,
+                                       Handle<JSReceiver> object,
                                        Handle<Name> name) {
   if (object->IsJSModuleNamespace()) {
     PropertyDescriptor desc;
-    return JSReceiver::GetOwnPropertyDescriptor(object->GetIsolate(), object,
-                                                name, &desc);
+    return JSReceiver::GetOwnPropertyDescriptor(isolate, object, name, &desc);
   }
 
   if (object->IsJSObject()) {  // Shortcut.
-    Isolate* isolate = object->GetIsolate();
     PropertyKey key(isolate, name);
     LookupIterator it(isolate, object, key, LookupIterator::OWN);
     return HasProperty(&it);
@@ -5220,25 +5219,25 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
   return GetPropertyWithInterceptorInternal(it, it->GetInterceptor(), done);
 }
 
-Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
+Maybe<bool> JSObject::HasRealNamedProperty(Isolate* isolate,
+                                           Handle<JSObject> object,
                                            Handle<Name> name) {
-  Isolate* isolate = object->GetIsolate();
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   return HasProperty(&it);
 }
 
-Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
+Maybe<bool> JSObject::HasRealElementProperty(Isolate* isolate,
+                                             Handle<JSObject> object,
                                              uint32_t index) {
-  Isolate* isolate = object->GetIsolate();
   LookupIterator it(isolate, object, index, object,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   return HasProperty(&it);
 }
 
-Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
+Maybe<bool> JSObject::HasRealNamedCallbackProperty(Isolate* isolate,
+                                                   Handle<JSObject> object,
                                                    Handle<Name> name) {
-  Isolate* isolate = object->GetIsolate();
   PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);

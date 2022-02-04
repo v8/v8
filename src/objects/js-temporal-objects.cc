@@ -1330,7 +1330,7 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
     // b. If ? HasProperty(temporalCalendarLike, "calendar") is false, return
     // temporalCalendarLike.
     Maybe<bool> maybe_has =
-        JSReceiver::HasProperty(obj, factory->calendar_string());
+        JSReceiver::HasProperty(isolate, obj, factory->calendar_string());
 
     MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
     if (!maybe_has.FromJust()) {
@@ -1345,7 +1345,8 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
     if (temporal_calendar_like->IsJSReceiver()) {
       obj = Handle<JSReceiver>::cast(temporal_calendar_like);
       // and ? HasProperty(temporalCalendarLike, "calendar") is false,
-      maybe_has = JSReceiver::HasProperty(obj, factory->calendar_string());
+      maybe_has =
+          JSReceiver::HasProperty(isolate, obj, factory->calendar_string());
       MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
       if (!maybe_has.FromJust()) {
         // return temporalCalendarLike.
@@ -1405,7 +1406,7 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     Handle<JSReceiver> obj = Handle<JSReceiver>::cast(temporal_time_zone_like);
     // b. If ? HasProperty(temporalTimeZoneLike, "timeZone") is false,
     Maybe<bool> maybe_has =
-        JSReceiver::HasProperty(obj, factory->timeZone_string());
+        JSReceiver::HasProperty(isolate, obj, factory->timeZone_string());
     MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
     if (!maybe_has.FromJust()) {
       // return temporalTimeZoneLike.
@@ -1421,7 +1422,8 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     if (temporal_time_zone_like->IsJSReceiver()) {
       // is Object and ? HasProperty(temporalTimeZoneLike, "timeZone") is false,
       obj = Handle<JSReceiver>::cast(temporal_time_zone_like);
-      maybe_has = JSReceiver::HasProperty(obj, factory->timeZone_string());
+      maybe_has =
+          JSReceiver::HasProperty(isolate, obj, factory->timeZone_string());
       MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
       if (!maybe_has.FromJust()) {
         // return temporalTimeZoneLike.

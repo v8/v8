@@ -337,7 +337,8 @@ TEST(HeapObjects) {
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
   Handle<JSGlobalObject> global(CcTest::i_isolate()->context().global_object(),
                                 isolate);
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(global, object_string));
+  CHECK(Just(true) ==
+        JSReceiver::HasOwnProperty(isolate, global, object_string));
 
   // Check ToString for oddballs
   ReadOnlyRoots roots(heap);
@@ -406,7 +407,7 @@ TEST(GarbageCollection) {
   CcTest::CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(global, name));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, name));
   // Check function is retained.
   Handle<Object> func_value =
       Object::GetProperty(isolate, global, name).ToHandleChecked();
@@ -424,7 +425,7 @@ TEST(GarbageCollection) {
   // After gc, it should survive.
   CcTest::CollectGarbage(NEW_SPACE);
 
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(global, obj_name));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, obj_name));
   Handle<Object> obj =
       Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
   CHECK(obj->IsJSObject());
@@ -800,60 +801,60 @@ TEST(ObjectProperties) {
   Handle<Smi> two(Smi::FromInt(2), isolate);
 
   // check for empty
-  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
 
   // add first
   Object::SetProperty(isolate, obj, first, one).Check();
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, first));
 
   // delete first
   CHECK(Just(true) ==
         JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
-  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
 
   // add first and then second
   Object::SetProperty(isolate, obj, first, one).Check();
   Object::SetProperty(isolate, obj, second, two).Check();
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, first));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
   // delete first and then second
   CHECK(Just(true) ==
         JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, second));
   CHECK(Just(true) ==
         JSReceiver::DeleteProperty(obj, second, LanguageMode::kSloppy));
-  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
-  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, second));
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
   // add first and then second
   Object::SetProperty(isolate, obj, first, one).Check();
   Object::SetProperty(isolate, obj, second, two).Check();
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, first));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
   // delete second and then first
   CHECK(Just(true) ==
         JSReceiver::DeleteProperty(obj, second, LanguageMode::kSloppy));
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, first));
   CHECK(Just(true) ==
         JSReceiver::DeleteProperty(obj, first, LanguageMode::kSloppy));
-  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
-  CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, second));
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, first));
+  CHECK(Just(false) == JSReceiver::HasOwnProperty(isolate, obj, second));
 
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
   Object::SetProperty(isolate, obj, s1, one).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, s1_string));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
   Object::SetProperty(isolate, obj, s2_string, one).Check();
   Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
-  CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, s2));
+  CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, obj, s2));
 }
 
 
