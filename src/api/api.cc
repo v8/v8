@@ -9873,10 +9873,12 @@ CpuProfiler* CpuProfiler::New(Isolate* isolate,
 CpuProfilingOptions::CpuProfilingOptions(CpuProfilingMode mode,
                                          unsigned max_samples,
                                          int sampling_interval_us,
-                                         MaybeLocal<Context> filter_context)
+                                         MaybeLocal<Context> filter_context,
+                                         bool enable_tracing)
     : mode_(mode),
       max_samples_(max_samples),
-      sampling_interval_us_(sampling_interval_us) {
+      sampling_interval_us_(sampling_interval_us),
+      enable_tracing_(enable_tracing) {
   if (!filter_context.IsEmpty()) {
     Local<Context> local_filter_context = filter_context.ToLocalChecked();
     filter_context_.Reset(local_filter_context->GetIsolate(),

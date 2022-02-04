@@ -306,15 +306,19 @@ class V8_EXPORT CpuProfilingOptions {
    *                             the profiler's sampling interval.
    * \param filter_context If specified, profiles will only contain frames
    *                       using this context. Other frames will be elided.
+   * \param enable_tracing Controls if profiles will log samples as traces
+   *                       events. Defaults to true.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
       unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
-      MaybeLocal<Context> filter_context = MaybeLocal<Context>());
+      MaybeLocal<Context> filter_context = MaybeLocal<Context>(),
+      bool enable_tracing = true);
 
   CpuProfilingMode mode() const { return mode_; }
   unsigned max_samples() const { return max_samples_; }
   int sampling_interval_us() const { return sampling_interval_us_; }
+  bool enable_tracing() const { return enable_tracing_; }
 
  private:
   friend class internal::CpuProfile;
@@ -326,6 +330,7 @@ class V8_EXPORT CpuProfilingOptions {
   unsigned max_samples_;
   int sampling_interval_us_;
   CopyablePersistentTraits<Context>::CopyablePersistent filter_context_;
+  bool enable_tracing_;
 };
 
 /**

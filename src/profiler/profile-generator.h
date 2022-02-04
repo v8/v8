@@ -355,7 +355,8 @@ class CodeEntryStorage;
 
 class V8_EXPORT_PRIVATE ProfileTree {
  public:
-  explicit ProfileTree(Isolate* isolate, CodeEntryStorage* storage = nullptr);
+  explicit ProfileTree(Isolate* isolate, CodeEntryStorage* storage = nullptr,
+                       bool stream_nodes = true);
   ~ProfileTree();
   ProfileTree(const ProfileTree&) = delete;
   ProfileTree& operator=(const ProfileTree&) = delete;
@@ -378,7 +379,9 @@ class V8_EXPORT_PRIVATE ProfileTree {
 
   Isolate* isolate() const { return isolate_; }
 
-  void EnqueueNode(const ProfileNode* node) { pending_nodes_.push_back(node); }
+  void EnqueueNode(const ProfileNode* node) {
+    if (stream_nodes_) pending_nodes_.push_back(node);
+  }
   size_t pending_nodes_count() const { return pending_nodes_.size(); }
   std::vector<const ProfileNode*> TakePendingNodes() {
     return std::move(pending_nodes_);
@@ -396,6 +399,7 @@ class V8_EXPORT_PRIVATE ProfileTree {
   Isolate* isolate_;
   CodeEntryStorage* const code_entries_;
   ProfileNode* root_;
+  bool stream_nodes_;
 };
 
 class CpuProfiler;

@@ -463,11 +463,14 @@ class DeleteNodesCallback {
   void AfterChildTraversed(ProfileNode*, ProfileNode*) { }
 };
 
-ProfileTree::ProfileTree(Isolate* isolate, CodeEntryStorage* storage)
-    : next_node_id_(1),
+ProfileTree::ProfileTree(Isolate* isolate, CodeEntryStorage* storage,
+                         bool stream_nodes)
+    : pending_nodes_(0),
+      next_node_id_(1),
       isolate_(isolate),
       code_entries_(storage),
-      root_(new ProfileNode(this, CodeEntry::root_entry(), nullptr)) {}
+      root_(new ProfileNode(this, CodeEntry::root_entry(), nullptr)),
+      stream_nodes_(stream_nodes) {}
 
 ProfileTree::~ProfileTree() {
   DeleteNodesCallback cb;
@@ -579,19 +582,22 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
       options_(options),
       delegate_(std::move(delegate)),
       start_time_(base::TimeTicks::Now()),
-      top_down_(profiler->isolate(), profiler->code_entries()),
+      top_down_(profiler->isolate(), profiler->code_entries(),
+                options_.enable_tracing()),
       profiler_(profiler),
       streaming_next_sample_(0),
       id_(++last_id_) {
-  // The startTime timestamp is not converted to Perfetto's clock domain and
-  // will get out of sync with other timestamps Perfetto knows about, including
-  // the automatic trace event "ts" timestamp. startTime is included for
-  // backward compatibility with the tracing protocol but the value of "ts"
-  // should be used instead (it is recorded nearly immediately after).
-  auto value = TracedValue::Create();
-  value->SetDouble("startTime", start_time_.since_origin().InMicroseconds());
-  TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "Profile", id_, "data", std::move(value));
+  if (options.enable_tracing()) {
+    // The startTime timestamp is not converted to Perfetto's clock domain and
+    // will get out of sync with other timestamps Perfetto knows about,
+    // including the automatic trace event "ts" timestamp. startTime is included
+    // for backward compatibility with the tracing protocol but the value of
+    // "ts" should be used instead (it is recorded nearly immediately after).
+    auto value = TracedValue::Create();
+    value->SetDouble("startTime", start_time_.since_origin().InMicroseconds());
+    TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
+                                "Profile", id_, "data", std::move(value));
+  }
 
   DisallowHeapAllocation no_gc;
   if (options_.has_filter_context()) {
@@ -687,6 +693,7 @@ void BuildNodeValue(const ProfileNode* node, TracedValue* value) {
 }  // namespace
 
 void CpuProfile::StreamPendingTraceEvents() {
+  if (!options_.enable_tracing()) return;
   std::vector<const ProfileNode*> pending_nodes = top_down_.TakePendingNodes();
   if (pending_nodes.empty() && samples_.empty()) return;
   auto value = TracedValue::Create();
@@ -750,20 +757,23 @@ void CpuProfile::StreamPendingTraceEvents() {
 }
 
 void CpuProfile::FinishProfile() {
-  end_time_ = base::TimeTicks::Now();
   // Stop tracking context movements after profiling stops.
   context_filter_.set_native_context_address(kNullAddress);
-  StreamPendingTraceEvents();
-  auto value = TracedValue::Create();
-  // The endTime timestamp is not converted to Perfetto's clock domain and will
-  // get out of sync with other timestamps Perfetto knows about, including the
-  // automatic trace event "ts" timestamp. endTime is included for backward
-  // compatibility with the tracing protocol: its presence in "data" is used by
-  // devtools to identify the last ProfileChunk but the value of "ts" should be
-  // used instead (it is recorded nearly immediately after).
-  value->SetDouble("endTime", end_time_.since_origin().InMicroseconds());
-  TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "ProfileChunk", id_, "data", std::move(value));
+  if (options_.enable_tracing()) {
+    end_time_ = base::TimeTicks::Now();
+    StreamPendingTraceEvents();
+    auto value = TracedValue::Create();
+    // The endTime timestamp is not converted to Perfetto's clock domain and
+    // will get out of sync with other timestamps Perfetto knows about,
+    // including the automatic trace event "ts" timestamp. endTime is included
+    // for backward compatibility with the tracing protocol: its presence in
+    // "data" is used by devtools to identify the last ProfileChunk but the
+    // value of "ts" should be used instead (it is recorded nearly immediately
+    // after).
+    value->SetDouble("endTime", end_time_.since_origin().InMicroseconds());
+    TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
+                                "ProfileChunk", id_, "data", std::move(value));
+  }
 }
 
 void CpuProfile::Print() const {
