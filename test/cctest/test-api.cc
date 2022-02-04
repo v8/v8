@@ -16711,7 +16711,7 @@ TEST(TestIdleNotification) {
           i::GarbageCollectionReason::kTesting);
     }
     finished = env->GetIsolate()->IdleNotificationDeadline(
-        (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
+        (v8::base::TimeTicks::Now().ToInternalValue() /
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
         IdlePauseInSeconds);
     if (CcTest::heap()->mark_compact_collector()->sweeping_in_progress()) {

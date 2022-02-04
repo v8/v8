@@ -462,8 +462,7 @@ base::OS::MemoryMappedFile* Shell::counters_file_ = nullptr;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
 base::LazyMutex Shell::context_mutex_;
-const base::TimeTicks Shell::kInitialTicks =
-    base::TimeTicks::HighResolutionNow();
+const base::TimeTicks Shell::kInitialTicks = base::TimeTicks::Now();
 Global<Function> Shell::stringify_function_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
@@ -1636,8 +1635,7 @@ void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (i::FLAG_verify_predictable) {
     args.GetReturnValue().Set(g_platform->MonotonicallyIncreasingTime());
   } else {
-    base::TimeDelta delta =
-        base::TimeTicks::HighResolutionNow() - kInitialTicks;
+    base::TimeDelta delta = base::TimeTicks::Now() - kInitialTicks;
     args.GetReturnValue().Set(delta.InMillisecondsF());
   }
 }

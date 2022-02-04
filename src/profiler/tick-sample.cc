@@ -200,7 +200,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
     tos = nullptr;
   }
   sampling_interval_ = sampling_interval;
-  timestamp = base::TimeTicks::HighResolutionNow();
+  timestamp = base::TimeTicks::Now();
 }
 
 bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,

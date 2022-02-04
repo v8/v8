@@ -305,8 +305,7 @@ Response V8ProfilerAgentImpl::startPreciseCoverage(
     Maybe<bool> callCount, Maybe<bool> detailed,
     Maybe<bool> allowTriggeredUpdates, double* out_timestamp) {
   if (!m_enabled) return Response::ServerError("Profiler is not enabled");
-  *out_timestamp =
-      v8::base::TimeTicks::HighResolutionNow().since_origin().InSecondsF();
+  *out_timestamp = v8::base::TimeTicks::Now().since_origin().InSecondsF();
   bool callCountValue = callCount.fromMaybe(false);
   bool detailedValue = detailed.fromMaybe(false);
   bool allowTriggeredUpdatesValue = allowTriggeredUpdates.fromMaybe(false);
@@ -419,8 +418,7 @@ Response V8ProfilerAgentImpl::takePreciseCoverage(
   }
   v8::HandleScope handle_scope(m_isolate);
   v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(m_isolate);
-  *out_timestamp =
-      v8::base::TimeTicks::HighResolutionNow().since_origin().InSecondsF();
+  *out_timestamp = v8::base::TimeTicks::Now().since_origin().InSecondsF();
   return coverageToProtocol(m_session->inspector(), coverage, out_result);
 }
 
@@ -439,8 +437,7 @@ void V8ProfilerAgentImpl::triggerPreciseCoverageDeltaUpdate(
   std::unique_ptr<protocol::Array<protocol::Profiler::ScriptCoverage>>
       out_result;
   coverageToProtocol(m_session->inspector(), coverage, &out_result);
-  double now =
-      v8::base::TimeTicks::HighResolutionNow().since_origin().InSecondsF();
+  double now = v8::base::TimeTicks::Now().since_origin().InSecondsF();
   m_frontend.preciseCoverageDeltaUpdate(now, occasion, std::move(out_result));
 }
 

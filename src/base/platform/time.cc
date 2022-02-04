@@ -118,7 +118,7 @@ V8_INLINE int64_t NanosecondsNow() {
          ts.tv_nsec;
 }
 
-V8_INLINE bool IsHighResolutionTimer(clockid_t clk_id) {
+inline bool IsHighResolutionTimer(clockid_t clk_id) {
   // Currently this is only needed for CLOCK_MONOTONIC. If other clocks need
   // to be checked, care must be taken to support all platforms correctly;
   // see ClockNow() above for precedent.
@@ -477,16 +477,6 @@ Time Time::NowFromSystemTime() { return Now(); }
 
 #endif  // V8_OS_STARBOARD
 
-// static
-TimeTicks TimeTicks::HighResolutionNow() {
-  // a DCHECK of TimeTicks::IsHighResolution() was removed from here
-  // as it turns out this path is used in the wild for logs and counters.
-  //
-  // TODO(hpayer) We may eventually want to split TimedHistograms based
-  // on low resolution clocks to avoid polluting metrics
-  return TimeTicks::Now();
-}
-
 Time Time::FromJsTime(double ms_since_epoch) {
   // The epoch is a valid time, so this constructor doesn't interpret
   // 0 as the null time.
@@ -739,7 +729,7 @@ TimeTicks TimeTicks::Now() {
 #elif V8_OS_STARBOARD
   ticks = SbTimeGetMonotonicNow();
 #else
-#error platform does not implement TimeTicks::HighResolutionNow.
+#error platform does not implement TimeTicks::Now.
 #endif  // V8_OS_MACOSX
   // Make sure we never return 0 here.
   return TimeTicks(ticks + 1);
@@ -750,7 +740,7 @@ bool TimeTicks::IsHighResolution() {
 #if V8_OS_MACOSX
   return true;
 #elif V8_OS_POSIX
-  static bool is_high_resolution = IsHighResolutionTimer(CLOCK_MONOTONIC);
+  static const bool is_high_resolution = IsHighResolutionTimer(CLOCK_MONOTONIC);
   return is_high_resolution;
 #else
   return true;

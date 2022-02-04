@@ -132,14 +132,14 @@ class V8_NODISCARD NestedTimedHistogramScope : public BaseTimedHistogramScope {
 
   void StartInteral() {
     previous_scope_ = timed_histogram()->Enter(this);
-    base::TimeTicks now = base::TimeTicks::HighResolutionNow();
+    base::TimeTicks now = base::TimeTicks::Now();
     if (previous_scope_) previous_scope_->Pause(now);
     timer_.Start(now);
   }
 
   void StopInternal() {
     timed_histogram()->Leave(previous_scope_);
-    base::TimeTicks now = base::TimeTicks::HighResolutionNow();
+    base::TimeTicks now = base::TimeTicks::Now();
     base::TimeDelta elapsed = timer_.Elapsed(now);
     histogram_->AddTimedSample(elapsed);
     if (isolate_) RecordLongTaskTime(elapsed);
@@ -194,13 +194,13 @@ class V8_NODISCARD PauseNestedTimedHistogramScope {
       : histogram_(histogram) {
     previous_scope_ = histogram_->Enter(nullptr);
     if (isEnabled()) {
-      previous_scope_->Pause(base::TimeTicks::HighResolutionNow());
+      previous_scope_->Pause(base::TimeTicks::Now());
     }
   }
   ~PauseNestedTimedHistogramScope() {
     histogram_->Leave(previous_scope_);
     if (isEnabled()) {
-      previous_scope_->Resume(base::TimeTicks::HighResolutionNow());
+      previous_scope_->Resume(base::TimeTicks::Now());
     }
   }
 

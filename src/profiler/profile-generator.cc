@@ -578,7 +578,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
     : title_(title),
       options_(options),
       delegate_(std::move(delegate)),
-      start_time_(base::TimeTicks::HighResolutionNow()),
+      start_time_(base::TimeTicks::Now()),
       top_down_(profiler->isolate(), profiler->code_entries()),
       profiler_(profiler),
       streaming_next_sample_(0),
@@ -750,7 +750,7 @@ void CpuProfile::StreamPendingTraceEvents() {
 }
 
 void CpuProfile::FinishProfile() {
-  end_time_ = base::TimeTicks::HighResolutionNow();
+  end_time_ = base::TimeTicks::Now();
   // Stop tracking context movements after profiling stops.
   context_filter_.set_native_context_address(kNullAddress);
   StreamPendingTraceEvents();

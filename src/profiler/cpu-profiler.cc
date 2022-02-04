@@ -268,8 +268,7 @@ SamplingEventsProcessor::ProcessOneSample() {
 void SamplingEventsProcessor::Run() {
   base::MutexGuard guard(&running_mutex_);
   while (running_.load(std::memory_order_relaxed)) {
-    base::TimeTicks nextSampleTime =
-        base::TimeTicks::HighResolutionNow() + period_;
+    base::TimeTicks nextSampleTime = base::TimeTicks::Now() + period_;
     base::TimeTicks now;
     SampleProcessingResult result;
     // Keep processing existing events until we need to do next sample
@@ -281,7 +280,7 @@ void SamplingEventsProcessor::Run() {
         // processed, proceed to the next code event.
         ProcessCodeEvent();
       }
-      now = base::TimeTicks::HighResolutionNow();
+      now = base::TimeTicks::Now();
     } while (result != NoSamplesInQueue && now < nextSampleTime);
 
     if (nextSampleTime > now) {
@@ -290,7 +289,7 @@ void SamplingEventsProcessor::Run() {
           nextSampleTime - now < base::TimeDelta::FromMilliseconds(100)) {
         // Do not use Sleep on Windows as it is very imprecise, with up to 16ms
         // jitter, which is unacceptable for short profile intervals.
-        while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
+        while (base::TimeTicks::Now() < nextSampleTime) {
         }
       } else  // NOLINT
 #else
@@ -307,7 +306,7 @@ void SamplingEventsProcessor::Run() {
           if (!running_.load(std::memory_order_relaxed)) {
             break;
           }
-          now = base::TimeTicks::HighResolutionNow();
+          now = base::TimeTicks::Now();
         }
       }
     }
