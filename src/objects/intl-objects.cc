@@ -2912,7 +2912,7 @@ MaybeHandle<Object> Intl::ToIntlMathematicalValueAsNumberBigIntOrString(
   }
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, input,
-      JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
+      JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),
                               ToPrimitiveHint::kNumber),
       Object);
   return input;

@@ -563,10 +563,11 @@ MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
+MaybeHandle<Object> Object::ToPrimitive(Isolate* isolate, Handle<Object> input,
                                         ToPrimitiveHint hint) {
   if (input->IsPrimitive()) return input;
-  return JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input), hint);
+  return JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),
+                                 hint);
 }
 
 // static

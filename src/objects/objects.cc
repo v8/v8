@@ -322,7 +322,7 @@ MaybeHandle<Object> Object::ConvertToNumberOrNumeric(Isolate* isolate,
     }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input,
-        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
+        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),
                                 ToPrimitiveHint::kNumber),
         Object);
   }
@@ -362,8 +362,8 @@ MaybeHandle<Object> Object::ConvertToUint32(Isolate* isolate,
 MaybeHandle<Name> Object::ConvertToName(Isolate* isolate,
                                         Handle<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, input, Object::ToPrimitive(input, ToPrimitiveHint::kString),
-      Name);
+      isolate, input,
+      Object::ToPrimitive(isolate, input, ToPrimitiveHint::kString), Name);
   if (input->IsName()) return Handle<Name>::cast(input);
   return ToString(isolate, input);
 }
@@ -374,7 +374,7 @@ MaybeHandle<Object> Object::ConvertToPropertyKey(Isolate* isolate,
                                                  Handle<Object> value) {
   // 1. Let key be ToPrimitive(argument, hint String).
   MaybeHandle<Object> maybe_key =
-      Object::ToPrimitive(value, ToPrimitiveHint::kString);
+      Object::ToPrimitive(isolate, value, ToPrimitiveHint::kString);
   // 2. ReturnIfAbrupt(key).
   Handle<Object> key;
   if (!maybe_key.ToHandle(&key)) return key;
@@ -412,7 +412,7 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
     }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input,
-        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
+        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),
                                 ToPrimitiveHint::kString),
         String);
     // The previous isString() check happened in Object::ToString and thus we
@@ -708,8 +708,8 @@ ComparisonResult Reverse(ComparisonResult result) {
 Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
                                         Handle<Object> y) {
   // ES6 section 7.2.11 Abstract Relational Comparison step 3 and 4.
-  if (!Object::ToPrimitive(x, ToPrimitiveHint::kNumber).ToHandle(&x) ||
-      !Object::ToPrimitive(y, ToPrimitiveHint::kNumber).ToHandle(&y)) {
+  if (!Object::ToPrimitive(isolate, x, ToPrimitiveHint::kNumber).ToHandle(&x) ||
+      !Object::ToPrimitive(isolate, y, ToPrimitiveHint::kNumber).ToHandle(&y)) {
     return Nothing<ComparisonResult>();
   }
   if (x->IsString() && y->IsString()) {
@@ -769,7 +769,7 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
       } else if (y->IsBigInt()) {
         return Just(BigInt::EqualToNumber(Handle<BigInt>::cast(y), x));
       } else if (y->IsJSReceiver()) {
-        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
+        if (!JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
           return Nothing<bool>();
         }
@@ -791,7 +791,7 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
         return BigInt::EqualToString(isolate, Handle<BigInt>::cast(y),
                                      Handle<String>::cast(x));
       } else if (y->IsJSReceiver()) {
-        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
+        if (!JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
           return Nothing<bool>();
         }
@@ -812,7 +812,7 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
         x = Oddball::ToNumber(isolate, Handle<Oddball>::cast(x));
         return Just(BigInt::EqualToNumber(Handle<BigInt>::cast(y), x));
       } else if (y->IsJSReceiver()) {
-        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
+        if (!JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
           return Nothing<bool>();
         }
@@ -824,7 +824,7 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
       if (y->IsSymbol()) {
         return Just(x.is_identical_to(y));
       } else if (y->IsJSReceiver()) {
-        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
+        if (!JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
           return Nothing<bool>();
         }
@@ -843,7 +843,7 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
         return Just(x->IsUndetectable());
       } else if (y->IsBoolean()) {
         y = Oddball::ToNumber(isolate, Handle<Oddball>::cast(y));
-      } else if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(x))
+      } else if (!JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(x))
                       .ToHandle(&x)) {
         return Nothing<bool>();
       }
@@ -891,8 +891,10 @@ MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
     return isolate->factory()->NewConsString(Handle<String>::cast(lhs),
                                              Handle<String>::cast(rhs));
   }
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToPrimitive(lhs), Object);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToPrimitive(rhs), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToPrimitive(isolate, lhs),
+                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToPrimitive(isolate, rhs),
+                             Object);
   if (lhs->IsString() || rhs->IsString()) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToString(isolate, rhs),
                                Object);

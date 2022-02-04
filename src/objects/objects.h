@@ -408,7 +408,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToPrimitive(
-      Handle<Object> input, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+      Isolate* isolate, Handle<Object> input,
+      ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.3 ToNumber
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToNumber(

@@ -86,12 +86,13 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ToPrimitive(
-      Handle<JSReceiver> receiver,
+      Isolate* isolate, Handle<JSReceiver> receiver,
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.1.1 OrdinaryToPrimitive
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
-      Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint);
+      Isolate* isolate, Handle<JSReceiver> receiver,
+      OrdinaryToPrimitiveHint hint);
 
   static MaybeHandle<NativeContext> GetFunctionRealm(
       Handle<JSReceiver> receiver);

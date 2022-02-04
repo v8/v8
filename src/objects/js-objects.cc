@@ -1921,9 +1921,9 @@ Maybe<bool> JSReceiver::IsExtensible(Handle<JSReceiver> object) {
 }
 
 // static
-MaybeHandle<Object> JSReceiver::ToPrimitive(Handle<JSReceiver> receiver,
+MaybeHandle<Object> JSReceiver::ToPrimitive(Isolate* isolate,
+                                            Handle<JSReceiver> receiver,
                                             ToPrimitiveHint hint) {
-  Isolate* const isolate = receiver->GetIsolate();
   Handle<Object> exotic_to_prim;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, exotic_to_prim,
@@ -1942,15 +1942,16 @@ MaybeHandle<Object> JSReceiver::ToPrimitive(Handle<JSReceiver> receiver,
                     NewTypeError(MessageTemplate::kCannotConvertToPrimitive),
                     Object);
   }
-  return OrdinaryToPrimitive(receiver, (hint == ToPrimitiveHint::kString)
-                                           ? OrdinaryToPrimitiveHint::kString
-                                           : OrdinaryToPrimitiveHint::kNumber);
+  return OrdinaryToPrimitive(isolate, receiver,
+                             (hint == ToPrimitiveHint::kString)
+                                 ? OrdinaryToPrimitiveHint::kString
+                                 : OrdinaryToPrimitiveHint::kNumber);
 }
 
 // static
 MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(
-    Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint) {
-  Isolate* const isolate = receiver->GetIsolate();
+    Isolate* isolate, Handle<JSReceiver> receiver,
+    OrdinaryToPrimitiveHint hint) {
   Handle<String> method_names[2];
   switch (hint) {
     case OrdinaryToPrimitiveHint::kNumber:
