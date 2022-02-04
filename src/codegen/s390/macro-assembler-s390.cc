@@ -578,6 +578,10 @@ void TurboAssembler::Move(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
+void TurboAssembler::Move(Register dst, const MemOperand& src) {
+  LoadU64(dst, src);
+}
+
 // Wrapper around Assembler::mvc (SS-a format)
 void TurboAssembler::MoveChar(const MemOperand& opnd1, const MemOperand& opnd2,
                               const Operand& length) {
