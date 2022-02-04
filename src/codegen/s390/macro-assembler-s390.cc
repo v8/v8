@@ -5470,6 +5470,21 @@ SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
 #undef EMIT_SIMD_ALL_TRUE
 #undef SIMD_ALL_TRUE_LIST
 
+#define SIMD_QFM_LIST(V) \
+  V(F64x2Qfma, vfma, 3)  \
+  V(F64x2Qfms, vfnms, 3) \
+  V(F32x4Qfma, vfma, 2)  \
+  V(F32x4Qfms, vfnms, 2)
+
+#define EMIT_SIMD_QFM(name, op, c1)                                       \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1,    \
+                            Simd128Register src2, Simd128Register src3) { \
+    op(dst, src2, src3, src1, Condition(c1), Condition(0));               \
+  }
+SIMD_QFM_LIST(EMIT_SIMD_QFM)
+#undef EMIT_SIMD_QFM
+#undef SIMD_QFM_LIST
+
 void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2) {
   Register scratch_1 = r0;

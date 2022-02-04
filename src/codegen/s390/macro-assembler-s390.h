@@ -1319,6 +1319,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_ALL_TRUE
 #undef SIMD_ALL_TRUE_LIST
 
+#define SIMD_QFM_LIST(V) \
+  V(F64x2Qfma)           \
+  V(F64x2Qfms)           \
+  V(F32x4Qfma)           \
+  V(F32x4Qfms)
+
+#define PROTOTYPE_SIMD_QFM(name)                                             \
+  void name(Simd128Register dst, Simd128Register src1, Simd128Register src2, \
+            Simd128Register src3);
+  SIMD_QFM_LIST(PROTOTYPE_SIMD_QFM)
+#undef PROTOTYPE_SIMD_QFM
+#undef SIMD_QFM_LIST
+
   // ---------------------------------------------------------------------------
   // Pointer compression Support
 

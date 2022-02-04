@@ -2780,39 +2780,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_ALL_TRUE
 #undef SIMD_ALL_TRUE_LIST
 
+#define SIMD_QFM_LIST(V) \
+  V(F64x2Qfma)           \
+  V(F64x2Qfms)           \
+  V(F32x4Qfma)           \
+  V(F32x4Qfms)
+
+#define EMIT_SIMD_QFM(name)                                        \
+  case kS390_##name: {                                             \
+    __ name(i.InputSimd128Register(0), i.InputSimd128Register(0),  \
+            i.InputSimd128Register(1), i.InputSimd128Register(2)); \
+    break;                                                         \
+  }
+      SIMD_QFM_LIST(EMIT_SIMD_QFM)
+#undef EMIT_SIMD_QFM
+#undef SIMD_QFM_LIST
+
       // vector binops
-    case kS390_F64x2Qfma: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register src2 = i.InputSimd128Register(2);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vfma(dst, src1, src2, src0, Condition(3), Condition(0));
-      break;
-    }
-    case kS390_F64x2Qfms: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register src2 = i.InputSimd128Register(2);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vfnms(dst, src1, src2, src0, Condition(3), Condition(0));
-      break;
-    }
-    case kS390_F32x4Qfma: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register src2 = i.InputSimd128Register(2);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vfma(dst, src1, src2, src0, Condition(2), Condition(0));
-      break;
-    }
-    case kS390_F32x4Qfms: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register src2 = i.InputSimd128Register(2);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vfnms(dst, src1, src2, src0, Condition(2), Condition(0));
-      break;
-    }
     case kS390_I16x8RoundingAverageU: {
       __ vavgl(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1), Condition(0), Condition(0),
