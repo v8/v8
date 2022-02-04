@@ -2675,7 +2675,7 @@ void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
                                         LiftoffRegister src1,
                                         LiftoffRegister src2,
                                         LiftoffRegister mask) {
-  bailout(kUnsupportedArchitecture, "emit_s128select");
+  S128Select(dst.fp(), src1.fp(), src2.fp(), mask.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,

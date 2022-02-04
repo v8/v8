@@ -2836,12 +2836,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_S128Zero: {
       Simd128Register dst = i.OutputSimd128Register();
-      __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+      __ S128Zero(dst, dst);
       break;
     }
     case kS390_S128AllOnes: {
       Simd128Register dst = i.OutputSimd128Register();
-      __ vceq(dst, dst, dst, Condition(0), Condition(3));
+      __ S128AllOnes(dst, dst);
       break;
     }
     case kS390_S128Select: {
@@ -2849,7 +2849,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register mask = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register src2 = i.InputSimd128Register(2);
-      __ vsel(dst, src1, src2, mask, Condition(0), Condition(0));
+      __ S128Select(dst, src1, src2, mask);
       break;
     }
     // vector conversions

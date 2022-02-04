@@ -5281,6 +5281,19 @@ void TurboAssembler::S128Not(Simd128Register dst, Simd128Register src) {
   vno(dst, src, src, Condition(0), Condition(0), Condition(0));
 }
 
+void TurboAssembler::S128Zero(Simd128Register dst, Simd128Register src) {
+  vx(dst, src, src, Condition(0), Condition(0), Condition(0));
+}
+
+void TurboAssembler::S128AllOnes(Simd128Register dst, Simd128Register src) {
+  vceq(dst, src, src, Condition(0), Condition(3));
+}
+
+void TurboAssembler::S128Select(Simd128Register dst, Simd128Register src1,
+                                Simd128Register src2, Simd128Register mask) {
+  vsel(dst, src1, src2, mask, Condition(0), Condition(0));
+}
+
 #define SIMD_UNOP_LIST_VRR_A(V)             \
   V(F64x2Abs, vfpso, 2, 0, 3)               \
   V(F64x2Neg, vfpso, 0, 0, 3)               \
