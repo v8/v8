@@ -778,7 +778,7 @@ void V8HeapExplorer::ExtractLocation(HeapEntry* entry, HeapObject object) {
 
   } else if (object.IsJSObject()) {
     JSObject obj = JSObject::cast(object);
-    JSFunction maybe_constructor = GetConstructor(obj);
+    JSFunction maybe_constructor = GetConstructor(heap_->isolate(), obj);
 
     if (!maybe_constructor.is_null()) {
       ExtractLocationForJSFunction(entry, maybe_constructor);
@@ -810,7 +810,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
     return AddEntry(object, HeapEntry::kRegExp, names_->GetName(re.source()));
   } else if (object.IsJSObject()) {
     const char* name = names_->GetName(
-        GetConstructorName(JSObject::cast(object)));
+        GetConstructorName(heap_->isolate(), JSObject::cast(object)));
     if (object.IsJSGlobalObject()) {
       auto it = global_object_tag_map_.find(JSGlobalObject::cast(object));
       if (it != global_object_tag_map_.end()) {
@@ -1760,24 +1760,23 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject js_obj,
   }
 }
 
-JSFunction V8HeapExplorer::GetConstructor(JSReceiver receiver) {
-  Isolate* isolate = receiver.GetIsolate();
+JSFunction V8HeapExplorer::GetConstructor(Isolate* isolate,
+                                          JSReceiver receiver) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   MaybeHandle<JSFunction> maybe_constructor =
-      JSReceiver::GetConstructor(handle(receiver, isolate));
+      JSReceiver::GetConstructor(isolate, handle(receiver, isolate));
 
   if (maybe_constructor.is_null()) return JSFunction();
 
   return *maybe_constructor.ToHandleChecked();
 }
 
-String V8HeapExplorer::GetConstructorName(JSObject object) {
-  Isolate* isolate = object.GetIsolate();
+String V8HeapExplorer::GetConstructorName(Isolate* isolate, JSObject object) {
   if (object.IsJSFunction()) return ReadOnlyRoots(isolate).closure_string();
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
-  return *JSReceiver::GetConstructorName(handle(object, isolate));
+  return *JSReceiver::GetConstructorName(isolate, handle(object, isolate));
 }
 
 HeapEntry* V8HeapExplorer::GetEntry(Object obj) {

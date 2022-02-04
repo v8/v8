@@ -471,7 +471,7 @@ Handle<Object> CallSiteInfo::GetTypeName(Handle<CallSiteInfo> info) {
   if (receiver->IsJSProxy()) {
     return isolate->factory()->Proxy_string();
   }
-  return JSReceiver::GetConstructorName(receiver);
+  return JSReceiver::GetConstructorName(isolate, receiver);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

@@ -4680,7 +4680,10 @@ MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
 
 Local<String> v8::Object::GetConstructorName() {
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::String> name = i::JSReceiver::GetConstructorName(self);
+  // TODO(v8:12547): Support shared objects.
+  DCHECK(!self->InSharedHeap());
+  i::Handle<i::String> name =
+      i::JSReceiver::GetConstructorName(self->GetIsolate(), self);
   return Utils::ToLocal(name);
 }
 

@@ -438,8 +438,8 @@ class CircularStructureMessageBuilder {
  private:
   void AppendConstructorName(Handle<Object> object) {
     builder_.AppendCharacter('\'');
-    Handle<String> constructor_name =
-        JSReceiver::GetConstructorName(Handle<JSReceiver>::cast(object));
+    Handle<String> constructor_name = JSReceiver::GetConstructorName(
+        builder_.isolate(), Handle<JSReceiver>::cast(object));
     builder_.AppendString(constructor_name);
     builder_.AppendCharacter('\'');
   }

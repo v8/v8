@@ -2724,7 +2724,7 @@ bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
   if (!obj->IsJSError(isolate)) return false;
   Handle<JSReceiver> js_obj = Handle<JSReceiver>::cast(obj);
   Handle<JSReceiver> constructor;
-  if (!JSReceiver::GetConstructor(js_obj).ToHandle(&constructor)) {
+  if (!JSReceiver::GetConstructor(isolate, js_obj).ToHandle(&constructor)) {
     return false;
   }
   return *constructor == *isolate->range_error_function();

@@ -1158,7 +1158,7 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   Handle<String> type = Object::TypeOf(isolate, value);
   if (value->IsJSReceiver()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
-    type = JSReceiver::GetConstructorName(object);
+    type = JSReceiver::GetConstructorName(isolate, object);
   } else if (value->IsNull(isolate)) {
     // typeof(null) is object. But it's more user-friendly to annotate
     // null as type "null".

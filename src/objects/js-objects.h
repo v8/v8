@@ -228,13 +228,15 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
 
   // Returns the constructor (the function that was used to instantiate the
   // object).
-  static MaybeHandle<JSFunction> GetConstructor(Handle<JSReceiver> receiver);
+  static MaybeHandle<JSFunction> GetConstructor(Isolate* isolate,
+                                                Handle<JSReceiver> receiver);
 
   // Returns the constructor name (the (possibly inferred) name of the function
   // that was used to instantiate the object), if any. If a FunctionTemplate is
   // used to instantiate the object, the class_name of the FunctionTemplate is
   // returned instead.
-  static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
+  static Handle<String> GetConstructorName(Isolate* isolate,
+                                           Handle<JSReceiver> receiver);
 
   V8_EXPORT_PRIVATE MaybeHandle<NativeContext> GetCreationContext();
 

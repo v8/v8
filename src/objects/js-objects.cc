@@ -499,9 +499,7 @@ String JSReceiver::class_name() {
 
 namespace {
 std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
-    Handle<JSReceiver> receiver) {
-  Isolate* isolate = receiver->GetIsolate();
-
+    Isolate* isolate, Handle<JSReceiver> receiver) {
   // If the object was instantiated simply with base == new.target, the
   // constructor on the map provides the most accurate name.
   // Don't provide the info for prototypes, since their constructors are
@@ -571,13 +569,14 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
 
 // static
 MaybeHandle<JSFunction> JSReceiver::GetConstructor(
-    Handle<JSReceiver> receiver) {
-  return GetConstructorHelper(receiver).first;
+    Isolate* isolate, Handle<JSReceiver> receiver) {
+  return GetConstructorHelper(isolate, receiver).first;
 }
 
 // static
-Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
-  return GetConstructorHelper(receiver).second;
+Handle<String> JSReceiver::GetConstructorName(Isolate* isolate,
+                                              Handle<JSReceiver> receiver) {
+  return GetConstructorHelper(isolate, receiver).second;
 }
 
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {

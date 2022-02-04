@@ -391,8 +391,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                       const char* name,
                       size_t size);
 
-  static JSFunction GetConstructor(JSReceiver receiver);
-  static String GetConstructorName(JSObject object);
+  static JSFunction GetConstructor(Isolate* isolate, JSReceiver receiver);
+  static String GetConstructorName(Isolate* isolate, JSObject object);
 
  private:
   void MarkVisitedField(int offset);
