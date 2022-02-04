@@ -83,9 +83,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5ba6fa484309fd49c890efd5d15668961c5117d0',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3a9b7ad1c9e31462e54cf7c5a918d99ebb2ee2ad',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f78b4b9f33bd8ef9944d5ce643daff1c31880189',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8ccda4f4eb749ece6207087268d978404b6d6bc7',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'e435ad79c17b1888b34df88d6a30a094936e3836',
   'buildtools/linux64': {
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1e084a5277c17a56a07e7df0d8df438982a4cda8',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '79dc3ff04c6403b8004bdcff8e82146bd508f1da',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fa5989b4f58798cdfd51664dccb3d0661b390727',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0faae1c8455edaed075218d5ebe0a62588ffed78',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
@@ -276,7 +276,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'fc5cfd78a357d5bb7735a58f383634faaafe706a',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '853a56c011bd3f27032391cb90fe13eedbcd5aff',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'f246ca28309e9e4d695821b03398975aa9ee05e3',
   'tools/clang/dsymutil': {
     'packages': [
       {
