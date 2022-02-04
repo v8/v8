@@ -289,7 +289,8 @@ def RunResultsProcessor(results_processor, output, count):
       stderr=subprocess.PIPE,
   )
   new_output = copy.copy(output)
-  new_output.stdout, _ = p.communicate(input=output.stdout)
+  new_output.stdout = p.communicate(
+      input=output.stdout.encode('utf-8'))[0].decode('utf-8')
   logging.info('>>> Processed stdout (#%d):\n%s', count, output.stdout)
   return new_output
 

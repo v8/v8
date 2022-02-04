@@ -80,7 +80,7 @@ class DetectRevisionToRoll(Step):
       version = self.GetVersionTag(revision)
       assert version, "Internal error. All recent releases should have a tag"
 
-      if SortingKey(self["last_version"]) < SortingKey(version):
+      if LooseVersion(self["last_version"]) < LooseVersion(version):
         self["roll"] = revision
         break
     else:
