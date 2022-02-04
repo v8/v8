@@ -281,6 +281,7 @@
       'v8_mac64_compile_full_dbg_ng': 'full_debug_x64',
       'v8_mac64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
+      'v8_linux_arm_lite_compile_dbg': 'debug_simulate_arm_lite',
       'v8_linux_arm_lite_rel_ng': 'release_simulate_arm_lite_trybot',
       'v8_linux_arm_dbg_ng': 'debug_simulate_arm',
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
