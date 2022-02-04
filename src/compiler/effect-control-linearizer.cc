@@ -4890,36 +4890,6 @@ void EffectControlLinearizer::LowerStoreMessage(Node* node) {
   __ StoreField(AccessBuilder::ForExternalIntPtr(), offset, object_pattern);
 }
 
-namespace {
-MachineType MachineTypeFor(CTypeInfo::Type type) {
-  switch (type) {
-    case CTypeInfo::Type::kVoid:
-      return MachineType::AnyTagged();
-    case CTypeInfo::Type::kBool:
-      return MachineType::Bool();
-    case CTypeInfo::Type::kInt32:
-      return MachineType::Int32();
-    case CTypeInfo::Type::kUint32:
-      return MachineType::Uint32();
-    case CTypeInfo::Type::kInt64:
-      return MachineType::Int64();
-    case CTypeInfo::Type::kAny:
-      static_assert(sizeof(AnyCType) == 8,
-                    "CTypeInfo::Type::kAny is assumed to be of size 64 bits.");
-      return MachineType::Int64();
-    case CTypeInfo::Type::kUint64:
-      return MachineType::Uint64();
-    case CTypeInfo::Type::kFloat32:
-      return MachineType::Float32();
-    case CTypeInfo::Type::kFloat64:
-      return MachineType::Float64();
-    case CTypeInfo::Type::kV8Value:
-    case CTypeInfo::Type::kApiObject:
-      return MachineType::AnyTagged();
-  }
-}
-}  // namespace
-
 Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
     Node* node, ElementsKind expected_elements_kind,
     GraphAssemblerLabel<0>* bailout) {
@@ -5238,15 +5208,14 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
            value_input_count);
 
   Node* stack_slot = nullptr;
+  int kAlign = alignof(v8::FastApiCallbackOptions);
+  int kSize = sizeof(v8::FastApiCallbackOptions);
+  // If this check fails, you've probably added new fields to
+  // v8::FastApiCallbackOptions, which means you'll need to write code
+  // that initializes and reads from them too.
+  CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
+  stack_slot = __ StackSlot(kSize, kAlign);
   if (c_signature->HasOptions()) {
-    int kAlign = alignof(v8::FastApiCallbackOptions);
-    int kSize = sizeof(v8::FastApiCallbackOptions);
-    // If this check fails, you've probably added new fields to
-    // v8::FastApiCallbackOptions, which means you'll need to write code
-    // that initializes and reads from them too.
-    CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
-    stack_slot = __ StackSlot(kSize, kAlign);
-
     __ Store(
         StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
         stack_slot,
@@ -5257,17 +5226,29 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
              stack_slot,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
              n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
+  } else {
+    __ Store(
+        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
+        stack_slot,
+        0,  // fallback = false
+        __ Int32Constant(0));
+    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                 kNoWriteBarrier),
+             stack_slot,
+             0,  // no data
+             n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
   }
 
   MachineSignature::Builder builder(
       graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
-  MachineType return_type = MachineTypeFor(c_signature->ReturnInfo().GetType());
+  MachineType return_type =
+      MachineType::TypeForCType(c_signature->ReturnInfo());
   builder.AddReturn(return_type);
   for (int i = 0; i < c_arg_count; ++i) {
     CTypeInfo type = c_signature->ArgumentInfo(i);
     MachineType machine_type =
         type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
-            ? MachineTypeFor(type.GetType())
+            ? MachineType::TypeForCType(type)
             : MachineType::AnyTagged();
     builder.AddParam(machine_type);
   }
@@ -5405,10 +5386,8 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
     Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
     __ Branch(is_zero, &if_success, &if_error);
   } else {
-    // If c_call_result is nullptr, we didn't execute the fast path, so
-    // we need to follow the slow path.
-    Node* is_zero = __ WordEqual(c_call_result, __ IntPtrConstant(0));
-    __ Branch(is_zero, &if_error, &if_success);
+    Node* true_constant = __ TrueConstant();
+    __ Branch(true_constant, &if_success, &if_error);
   }
 
   __ Bind(&if_success);
