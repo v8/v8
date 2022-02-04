@@ -7574,10 +7574,13 @@ WasmImportData ResolveWasmImportCall(
   Handle<HeapObject> suspender = isolate->factory()->undefined_value();
   if (WasmJSFunction::IsWasmJSFunction(*callable)) {
     auto js_function = Handle<WasmJSFunction>::cast(callable);
-    if (!js_function->MatchesSignature(expected_sig)) {
+    suspender = handle(js_function->GetSuspender(), isolate);
+    if ((!suspender->IsUndefined() &&
+         !js_function->MatchesSignatureForSuspend(expected_sig)) ||
+        (suspender->IsUndefined() &&
+         !js_function->MatchesSignature(expected_sig))) {
       return {WasmImportCallKind::kLinkError, callable, no_suspender};
     }
-    suspender = handle(js_function->GetSuspender(), isolate);
     // Resolve the short-cut to the underlying callable and continue.
     callable = handle(js_function->GetCallable(), isolate);
   }

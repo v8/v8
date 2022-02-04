@@ -1912,7 +1912,23 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Zone zone(i_isolate->allocator(), ZONE_NAME);
   i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
   if (i::WasmExportedFunction::IsWasmExportedFunction(*arg0)) {
-    sig = i::Handle<i::WasmExportedFunction>::cast(arg0)->sig();
+    auto wasm_exported_function =
+        i::Handle<i::WasmExportedFunction>::cast(arg0);
+    auto sfi = handle(wasm_exported_function->shared(), i_isolate);
+    i::Handle<i::WasmExportedFunctionData> data =
+        handle(sfi->wasm_exported_function_data(), i_isolate);
+    sig = wasm_exported_function->sig();
+    if (!data->suspender().IsUndefined()) {
+      // If this export is wrapped by a Suspender, the function returns a
+      // promise as an externref instead of the original return type.
+      size_t param_count = sig->parameter_count();
+      i::wasm::FunctionSig::Builder builder(&zone, 1, param_count);
+      for (size_t i = 0; i < param_count; ++i) {
+        builder.AddParam(sig->GetParam(0));
+      }
+      builder.AddReturn(i::wasm::kWasmExternRef);
+      sig = builder.Build();
+    }
   } else if (i::WasmJSFunction::IsWasmJSFunction(*arg0)) {
     sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
   } else {
@@ -2571,6 +2587,10 @@ void WebAssemblySuspenderReturnPromiseOnSuspend(
     thrower.TypeError("Argument 0 must be a wasm function");
   }
   i::WasmExportedFunctionData data = sfi.wasm_exported_function_data();
+  if (data.sig()->return_count() != 1) {
+    thrower.TypeError(
+        "Expected a WebAssembly.Function with exactly one return type");
+  }
   int index = data.function_index();
   i::Handle<i::WasmInstanceObject> instance(
       i::WasmInstanceObject::cast(data.internal().ref()), i_isolate);
@@ -2612,6 +2632,11 @@ void WebAssemblySuspenderSuspendOnReturnedPromise(
     return;
   }
   sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
+  if (sig->return_count() != 1 ||
+      sig->GetReturn(0) != i::wasm::kWasmExternRef) {
+    thrower.TypeError(
+        "Expected a WebAssembly.Function with return type externref");
+  }
 
   auto callable = handle(
       i::Handle<i::WasmJSFunction>::cast(arg0)->GetCallable(), i_isolate);

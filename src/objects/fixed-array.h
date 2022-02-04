@@ -594,6 +594,13 @@ class PodArray : public ByteArray {
     return memcmp(GetDataStartAddress(), buffer, length * sizeof(T)) == 0;
   }
 
+  bool matches(int offset, const T* buffer, int length) {
+    DCHECK_LE(offset, this->length());
+    DCHECK_LE(offset + length, this->length());
+    return memcmp(GetDataStartAddress() + sizeof(T) * offset, buffer,
+                  length * sizeof(T)) == 0;
+  }
+
   T get(int index) {
     T result;
     copy_out(index, &result, 1);

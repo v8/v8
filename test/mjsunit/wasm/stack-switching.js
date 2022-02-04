@@ -15,12 +15,68 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       /WebAssembly.Suspender must be invoked with 'new'/);
 })();
 
+(function TestSuspenderTypes() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addImport('m', 'import', kSig_v_i);
+  builder.addFunction("export", kSig_i_i)
+      .addBody([kExprLocalGet, 0]).exportFunc();
+  builder.addFunction("wrong1", kSig_ii_v)
+      .addBody([kExprI32Const, 0, kExprI32Const, 0]).exportFunc();
+  builder.addFunction("wrong2", kSig_v_v)
+      .addBody([]).exportFunc();
+  let suspender = new WebAssembly.Suspender();
+  function js_import(i) {
+    return new Promise((resolve) => { resolve(42); });
+  }
+
+  // Wrap the import, instantiate the module, and wrap the export.
+  let wasm_js_import = new WebAssembly.Function(
+      {parameters: ['i32'], results: ['externref']}, js_import);
+  let import_wrapper = suspender.suspendOnReturnedPromise(wasm_js_import);
+  let instance = builder.instantiate({'m': {'import': import_wrapper}});
+  let export_wrapper =
+      suspender.returnPromiseOnSuspend(instance.exports.export);
+
+  // Check type errors.
+  wasm_js_import = new WebAssembly.Function(
+      {parameters: [], results: ['i32']}, js_import);
+  assertThrows(() => suspender.suspendOnReturnedPromise(wasm_js_import),
+      TypeError, /Expected a WebAssembly.Function with return type externref/);
+  assertThrows(() => suspender.returnPromiseOnSuspend(instance.exports.wrong1),
+      TypeError,
+      /Expected a WebAssembly.Function with exactly one return type/);
+  assertThrows(() => suspender.returnPromiseOnSuspend(instance.exports.wrong2),
+      TypeError,
+      /Expected a WebAssembly.Function with exactly one return type/);
+  // Signature mismatch (link error).
+  let wrong_import = new WebAssembly.Function(
+      {parameters: ['f32'], results: ['externref']}, () => {});
+  wrong_import = suspender.suspendOnReturnedPromise(wrong_import);
+  assertThrows(() => builder.instantiate({'m': {'import': wrong_import}}),
+      WebAssembly.LinkError,
+      /imported function does not match the expected type/);
+
+  // Check the wrapped export's signature.
+  let export_sig = WebAssembly.Function.type(export_wrapper);
+  assertEquals(['i32'], export_sig.parameters);
+  assertEquals(['externref'], export_sig.results);
+
+  // Check the wrapped import's signature.
+  let import_sig = WebAssembly.Function.type(import_wrapper);
+  assertEquals(['i32'], import_sig.parameters);
+  assertEquals(['externref'], import_sig.results);
+})();
+
 (function TestStackSwitchNoSuspend() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32, true).exportAs('g');
-  builder.addFunction("test", kSig_v_v)
-      .addBody([kExprI32Const, 42, kExprGlobalSet, 0]).exportFunc();
+  builder.addFunction("test", kSig_i_v)
+      .addBody([
+          kExprI32Const, 42,
+          kExprGlobalSet, 0,
+          kExprI32Const, 0]).exportFunc();
   let instance = builder.instantiate();
   let suspender = new WebAssembly.Suspender();
   let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);
@@ -33,17 +89,21 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32, true).exportAs('g');
   import_index = builder.addImport('m', 'import', kSig_i_v);
-  builder.addFunction("test", kSig_v_v)
+  builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprCallFunction, import_index, // suspend
-          kExprGlobalSet, 0 // resume
+          kExprGlobalSet, 0, // resume
+          kExprI32Const, 0,
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
   function js_import() {
     return new Promise((resolve) => { resolve(42); });
   };
-  let wasm_js_import = new WebAssembly.Function({parameters: [], results: ['i32']}, js_import);
-  let suspending_wasm_js_import = suspender.suspendOnReturnedPromise(wasm_js_import);
+  let wasm_js_import = new WebAssembly.Function(
+      {parameters: [], results: ['externref']}, js_import);
+  let suspending_wasm_js_import =
+      suspender.suspendOnReturnedPromise(wasm_js_import);
+
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
   let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
   let combined_promise = wrapped_export();
@@ -61,7 +121,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // for (i = 0; i < 5; ++i) {
   //   g = g + import();
   // }
-  builder.addFunction("test", kSig_v_v)
+  builder.addFunction("test", kSig_i_v)
       .addLocals(kWasmI32, 1)
       .addBody([
           kExprI32Const, 5,
@@ -77,6 +137,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
             kExprLocalTee, 0,
             kExprBrIf, 0,
           kExprEnd,
+          kExprI32Const, 0,
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
   let i = 0;
@@ -84,8 +145,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   function js_import() {
     return new Promise((resolve) => { resolve(++i); });
   };
-  let wasm_js_import = new WebAssembly.Function({parameters: [], results: ['i32']}, js_import);
-  let suspending_wasm_js_import = suspender.suspendOnReturnedPromise(wasm_js_import);
+  let wasm_js_import = new WebAssembly.Function(
+      {parameters: [], results: ['externref']}, js_import);
+  let suspending_wasm_js_import =
+      suspender.suspendOnReturnedPromise(wasm_js_import);
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
   let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
   let chained_promise = wrapped_export();
@@ -97,8 +160,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let gc_index = builder.addImport('m', 'gc', kSig_v_v);
-  builder.addFunction("test", kSig_v_v)
-      .addBody([kExprCallFunction, gc_index]).exportFunc();
+  builder.addFunction("test", kSig_i_v)
+      .addBody([kExprCallFunction, gc_index, kExprI32Const, 0]).exportFunc();
   let instance = builder.instantiate({'m': {'gc': gc}});
   let suspender = new WebAssembly.Suspender();
   let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);

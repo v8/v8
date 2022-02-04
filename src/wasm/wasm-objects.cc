@@ -2150,12 +2150,33 @@ const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   return zone->New<wasm::FunctionSig>(return_count, parameter_count, types);
 }
 
+bool WasmJSFunction::MatchesSignatureForSuspend(const wasm::FunctionSig* sig) {
+  DCHECK_LE(sig->all().size(), kMaxInt);
+  int sig_size = static_cast<int>(sig->all().size());
+  int parameter_count = static_cast<int>(sig->parameter_count());
+  int return_count = static_cast<int>(sig->return_count());
+  DisallowHeapAllocation no_alloc;
+  WasmJSFunctionData function_data = shared().wasm_js_function_data();
+  if (parameter_count != function_data.serialized_parameter_count()) {
+    return false;
+  }
+  if (sig_size == 0) return true;  // Prevent undefined behavior.
+  // This function is only called for functions wrapped by a
+  // WebAssembly.Suspender object, so the return type has to be externref.
+  CHECK_EQ(function_data.serialized_return_count(), 1);
+  CHECK_EQ(function_data.serialized_signature().get(0), wasm::kWasmExternRef);
+  const wasm::ValueType* expected = sig->all().begin();
+  return function_data.serialized_signature().matches(
+      1, expected + return_count, parameter_count);
+}
+
 // TODO(9495): Update this if function type variance is introduced.
 bool WasmJSFunction::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
   int return_count = static_cast<int>(sig->return_count());
   int parameter_count = static_cast<int>(sig->parameter_count());
+  DisallowHeapAllocation no_alloc;
   WasmJSFunctionData function_data = shared().wasm_js_function_data();
   if (return_count != function_data.serialized_return_count() ||
       parameter_count != function_data.serialized_parameter_count()) {

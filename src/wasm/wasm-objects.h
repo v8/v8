@@ -631,6 +631,8 @@ class WasmJSFunction : public JSFunction {
   // that lifetime of the signature is hence directly coupled to the zone.
   const wasm::FunctionSig* GetSignature(Zone* zone);
   bool MatchesSignature(const wasm::FunctionSig* sig);
+  // Special typing rule for imports wrapped by a Suspender.
+  bool MatchesSignatureForSuspend(const wasm::FunctionSig* sig);
 
   DECL_CAST(WasmJSFunction)
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
