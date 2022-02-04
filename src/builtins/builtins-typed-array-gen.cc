@@ -186,8 +186,12 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
     TNode<Int32T> kind) {
-  return Word32Or(Word32Equal(kind, Int32Constant(UINT8_ELEMENTS)),
-                  Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS)));
+  return Word32Or(
+      Word32Or(Word32Equal(kind, Int32Constant(UINT8_ELEMENTS)),
+               Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS))),
+      Word32Or(
+          Word32Equal(kind, Int32Constant(RAB_GSAB_UINT8_ELEMENTS)),
+          Word32Equal(kind, Int32Constant(RAB_GSAB_UINT8_CLAMPED_ELEMENTS))));
 }
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(

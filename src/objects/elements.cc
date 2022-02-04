@@ -3611,6 +3611,7 @@ class TypedElementsAccessor
     }
   }
 
+  // TODO(v8:11111): Update this once we have external RAB / GSAB array types.
   static bool HasSimpleRepresentation(ExternalArrayType type) {
     return !(type == kExternalFloat32Array || type == kExternalFloat64Array ||
              type == kExternalUint8ClampedArray);
@@ -3642,9 +3643,9 @@ class TypedElementsAccessor
     CHECK(!source.WasDetached());
     CHECK(!destination.WasDetached());
 
-    DCHECK_LE(offset, destination.length());
-    DCHECK_LE(length, destination.length() - offset);
-    DCHECK_LE(length, source.length());
+    DCHECK_LE(offset, destination.GetLength());
+    DCHECK_LE(length, destination.GetLength() - offset);
+    DCHECK_LE(length, source.GetLength());
 
     ExternalArrayType source_type = source.type();
     ExternalArrayType destination_type = destination.type();
@@ -3705,6 +3706,7 @@ class TypedElementsAccessor
         source_shared || destination_shared ? kShared : kUnshared); \
     break;
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
+        RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
         default:
           UNREACHABLE();
           break;
@@ -3739,12 +3741,15 @@ class TypedElementsAccessor
   static bool TryCopyElementsFastNumber(Context context, JSArray source,
                                         JSTypedArray destination, size_t length,
                                         size_t offset) {
-    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) return false;
+    if (IsBigIntTypedArrayElementsKind(Kind)) return false;
     Isolate* isolate = source.GetIsolate();
     DisallowGarbageCollection no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
     CHECK(!destination.WasDetached());
+    bool out_of_bounds = false;
+    CHECK(destination.GetLengthOrOutOfBounds(out_of_bounds) >= length);
+    CHECK(!out_of_bounds);
 
     size_t current_length;
     DCHECK(source.length().IsNumber() &&
@@ -3752,7 +3757,7 @@ class TypedElementsAccessor
            length <= current_length);
     USE(current_length);
 
-    size_t dest_length = destination.length();
+    size_t dest_length = destination.GetLength();
     DCHECK(length + offset <= dest_length);
     USE(dest_length);
 
@@ -3830,15 +3835,16 @@ class TypedElementsAccessor
       LookupIterator it(isolate, source, i);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                          Object::GetProperty(&it));
-      if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+      if (IsBigIntTypedArrayElementsKind(Kind)) {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                            BigInt::FromObject(isolate, elem));
       } else {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                            Object::ToNumber(isolate, elem));
       }
-
-      if (V8_UNLIKELY(destination->WasDetached())) {
+      bool out_of_bounds = false;
+      size_t new_length = destination->GetLengthOrOutOfBounds(out_of_bounds);
+      if (V8_UNLIKELY(out_of_bounds || destination->WasDetached())) {
         const char* op = "set";
         const MessageTemplate message = MessageTemplate::kDetachedOperation;
         Handle<String> operation =
@@ -3846,8 +3852,14 @@ class TypedElementsAccessor
         THROW_NEW_ERROR_RETURN_FAILURE(isolate,
                                        NewTypeError(message, operation));
       }
-      // The spec says we store the length, then get each element, so we don't
-      // need to check changes to length.
+      if (V8_UNLIKELY(new_length <= offset + i)) {
+        // Proceed with the loop so that we call get getters for the source even
+        // though we don't set the values in the target.
+        // TODO(v8:11111): Maybe change this, depending on how
+        // https://github.com/tc39/proposal-resizablearraybuffer/issues/86 is
+        // resolved.
+        continue;
+      }
       SetImpl(destination, InternalIndex(offset + i), *elem);
     }
     return *isolate->factory()->undefined_value();
@@ -3860,15 +3872,24 @@ class TypedElementsAccessor
                                        Handle<JSObject> destination,
                                        size_t length, size_t offset) {
     Isolate* isolate = destination->GetIsolate();
+    if (length == 0) return *isolate->factory()->undefined_value();
+
     Handle<JSTypedArray> destination_ta =
         Handle<JSTypedArray>::cast(destination);
-    DCHECK_LE(offset + length, destination_ta->length());
-
-    if (length == 0) return *isolate->factory()->undefined_value();
 
     // All conversions from TypedArrays can be done without allocation.
     if (source->IsJSTypedArray()) {
+      // TODO(v8:11111): Add RAB/GSAB support.
+      DCHECK(!destination_ta->is_length_tracking());
+      DCHECK(!destination_ta->is_backed_by_rab());
+      DCHECK(!Handle<JSTypedArray>::cast(source)->is_length_tracking());
+      DCHECK(!Handle<JSTypedArray>::cast(source)->is_backed_by_rab());
+
       CHECK(!destination_ta->WasDetached());
+      bool out_of_bounds = false;
+      CHECK_LE(offset + length,
+               destination_ta->GetLengthOrOutOfBounds(out_of_bounds));
+      CHECK(!out_of_bounds);
       Handle<JSTypedArray> source_ta = Handle<JSTypedArray>::cast(source);
       ElementsKind source_kind = source_ta->GetElementsKind();
       bool source_is_bigint =
@@ -3884,6 +3905,10 @@ class TypedElementsAccessor
       }
     } else if (source->IsJSArray()) {
       CHECK(!destination_ta->WasDetached());
+      bool out_of_bounds = false;
+      CHECK_LE(offset + length,
+               destination_ta->GetLengthOrOutOfBounds(out_of_bounds));
+      CHECK(!out_of_bounds);
       // Fast cases for packed numbers kinds where we don't need to allocate.
       Handle<JSArray> source_js_array = Handle<JSArray>::cast(source);
       size_t current_length;
@@ -3898,7 +3923,8 @@ class TypedElementsAccessor
       }
     }
     // Final generic case that handles prototype chain lookups, getters, proxies
-    // and observable side effects via valueOf, etc.
+    // and observable side effects via valueOf, etc. In this case, it's possible
+    // that the length getter detached / resized the underlying buffer.
     return CopyElementsHandleSlow(source, destination_ta, length, offset);
   }
 };
@@ -5209,6 +5235,7 @@ void CopyFastNumberJSArrayElementsToTypedArray(Address raw_context,
         context, source, destination, length, offset));      \
     break;
     TYPED_ARRAYS(TYPED_ARRAYS_CASE)
+    RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAYS_CASE)
 #undef TYPED_ARRAYS_CASE
     default:
       UNREACHABLE();
@@ -5228,6 +5255,7 @@ void CopyTypedArrayElementsToTypedArray(Address raw_source,
                                                        length, offset);     \
     break;
     TYPED_ARRAYS(TYPED_ARRAYS_CASE)
+    RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAYS_CASE)
 #undef TYPED_ARRAYS_CASE
     default:
       UNREACHABLE();

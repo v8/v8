@@ -73,6 +73,20 @@ macro IsLengthTrackingJSArrayBufferView(array: JSArrayBufferView): bool {
   return array.bit_field.is_length_tracking;
 }
 
+extern macro LoadVariableLengthJSArrayBufferViewByteLength(
+    JSArrayBufferView, JSArrayBuffer): uintptr labels DetachedOrOutOfBounds;
+
+@export
+macro LoadJSArrayBufferViewByteLength(
+    view: JSArrayBufferView, buffer: JSArrayBuffer):
+    uintptr labels DetachedOrOutOfBounds {
+  if (IsVariableLengthJSArrayBufferView(view)) {
+    return LoadVariableLengthJSArrayBufferViewByteLength(view, buffer)
+        otherwise DetachedOrOutOfBounds;
+  }
+  return view.byte_length;
+}
+
 extern class JSTypedArray extends JSArrayBufferView {
   length: uintptr;
   // A SandboxedPtr if the sandbox is enabled

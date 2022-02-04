@@ -176,6 +176,20 @@ function LastIndexOfHelper(array, n, fromIndex) {
   return array.lastIndexOf(n, fromIndex);
 }
 
+function SetHelper(target, source, offset) {
+  if (target instanceof BigInt64Array || target instanceof BigUint64Array) {
+    const bigIntSource = [];
+    for (s of source) {
+      bigIntSource.push(BigInt(s));
+    }
+    source = bigIntSource;
+  }
+  if (offset == undefined) {
+    return target.set(source);
+  }
+  return target.set(source, offset);
+}
+
 function testDataViewMethodsUpToSize(view, bufferSize) {
   for (const [getter, setter, size, isBigInt] of dataViewAccessorsAndSizes) {
     for (let i = 0; i <= bufferSize - size; ++i) {
