@@ -1949,7 +1949,8 @@ class Heap {
 
   // Code that should be run before and after each GC.  Includes some
   // reporting/verification activities when compiled with DEBUG set.
-  void GarbageCollectionPrologue();
+  void GarbageCollectionPrologue(GarbageCollectionReason gc_reason,
+                                 const v8::GCCallbackFlags gc_callback_flags);
   void GarbageCollectionPrologueInSafepoint();
   void GarbageCollectionEpilogue(GarbageCollector collector);
   void GarbageCollectionEpilogueInSafepoint(GarbageCollector collector);
