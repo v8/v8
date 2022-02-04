@@ -189,8 +189,6 @@ class V8_EXPORT Message {
   bool IsSharedCrossOrigin() const;
   bool IsOpaque() const;
 
-  V8_DEPRECATED("Use the version that takes a std::ostream&.")
-  static void PrintCurrentStackTrace(Isolate* isolate, FILE* out);
   static void PrintCurrentStackTrace(Isolate* isolate, std::ostream& out);
 
   static const int kNoLineNumberInfo = 0;
