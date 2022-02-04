@@ -1618,6 +1618,11 @@ DEFINE_INT(heap_snapshot_string_limit, 1024,
            "truncate strings to this length in the heap snapshot")
 DEFINE_BOOL(heap_profiler_show_hidden_objects, false,
             "use 'native' rather than 'hidden' node type in snapshot")
+#ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
+DEFINE_BOOL(heap_snapshot_verify, false,
+            "verify that heap snapshot matches marking visitor behavior")
+DEFINE_IMPLICATION(enable_slow_asserts, heap_snapshot_verify)
+#endif
 
 // sampling-heap-profiler.cc
 DEFINE_BOOL(sampling_heap_profiler_suppress_randomness, false,

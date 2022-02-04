@@ -25,6 +25,11 @@ struct EphemeronMarking {
 template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
+  // Declares that this marking state is not collecting retainers, so the
+  // marking visitor may update the heap state to store information about
+  // progress, and may avoid fully visiting an object if it is safe to do so.
+  static constexpr bool kCollectRetainers = false;
+
   explicit MarkingStateBase(PtrComprCageBase cage_base)
 #if V8_COMPRESS_POINTERS
       : cage_base_(cage_base)
@@ -100,6 +105,15 @@ class MarkingStateBase {
   void ClearLiveness(MemoryChunk* chunk) {
     static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
     static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
+  }
+
+  void AddStrongReferenceForReferenceSummarizer(HeapObject host,
+                                                HeapObject obj) {
+    // This is not a reference summarizer, so there is nothing to do here.
+  }
+
+  void AddWeakReferenceForReferenceSummarizer(HeapObject host, HeapObject obj) {
+    // This is not a reference summarizer, so there is nothing to do here.
   }
 
  private:
@@ -257,6 +271,23 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int MarkDescriptorArrayBlack(DescriptorArray descriptors);
   // Marks the object grey and pushes it on the marking work list.
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
+
+  V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
+                                                          HeapObject obj) {
+    concrete_visitor()
+        ->marking_state()
+        ->AddStrongReferenceForReferenceSummarizer(host, obj);
+  }
+
+  V8_INLINE void AddWeakReferenceForReferenceSummarizer(HeapObject host,
+                                                        HeapObject obj) {
+    concrete_visitor()->marking_state()->AddWeakReferenceForReferenceSummarizer(
+        host, obj);
+  }
+
+  constexpr bool CanUpdateValuesInHeap() {
+    return !MarkingState::kCollectRetainers;
+  }
 
   MarkingWorklists::Local* const local_marking_worklists_;
   WeakObjects::Local* const local_weak_objects_;

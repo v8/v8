@@ -342,6 +342,9 @@ declare_args() {
   # When it's disabled, the --turbo-allocation-folding runtime flag will be ignored.
   v8_enable_allocation_folding = true
 
+  # Enable runtime verification of heap snapshots produced for devtools.
+  v8_enable_heap_snapshot_verify = ""
+
   # Enable global allocation site tracking.
   v8_allocation_site_tracking = true
 
@@ -384,6 +387,10 @@ if (v8_enable_test_features == "") {
 }
 if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = v8_enable_debugging_features
+}
+if (v8_enable_heap_snapshot_verify == "") {
+  v8_enable_heap_snapshot_verify =
+      v8_enable_debugging_features || dcheck_always_on
 }
 if (v8_enable_snapshot_code_comments) {
   assert(v8_code_comments == true || v8_code_comments == "",
@@ -890,6 +897,9 @@ config("features") {
   }
   if (v8_enable_debug_code) {
     defines += [ "V8_ENABLE_DEBUG_CODE" ]
+  }
+  if (v8_enable_heap_snapshot_verify) {
+    defines += [ "V8_ENABLE_HEAP_SNAPSHOT_VERIFY" ]
   }
   if (v8_enable_snapshot_native_code_counters) {
     defines += [ "V8_SNAPSHOT_NATIVE_CODE_COUNTERS" ]
@@ -3572,6 +3582,10 @@ v8_header_set("v8_internal_headers") {
     ]
   }
 
+  if (v8_enable_heap_snapshot_verify) {
+    sources += [ "src/heap/reference-summarizer.h" ]
+  }
+
   if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
       "src/baseline/ia32/baseline-assembler-ia32-inl.h",
@@ -4511,6 +4525,10 @@ v8_source_set("v8_base_without_compiler") {
       "src/debug/wasm/gdb-server/transport.cc",
       "src/debug/wasm/gdb-server/wasm-module-debug.cc",
     ]
+  }
+
+  if (v8_enable_heap_snapshot_verify) {
+    sources += [ "src/heap/reference-summarizer.cc" ]
   }
 
   if (v8_current_cpu == "x86") {

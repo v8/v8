@@ -26,6 +26,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
     HeapObject host, HeapObject object) {
   DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
   concrete_visitor()->SynchronizePageAccess(object);
+  AddStrongReferenceForReferenceSummarizer(host, object);
   if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
     local_marking_worklists_->Push(object);
     if (V8_UNLIKELY(concrete_visitor()->retaining_path_mode() ==
@@ -65,6 +66,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessWeakHeapObject(
     // the reference when we know the liveness of the whole transitive
     // closure.
     local_weak_objects_->weak_references_local.Push(std::make_pair(host, slot));
+    AddWeakReferenceForReferenceSummarizer(host, heap_object);
   }
 }
 
@@ -117,6 +119,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
     if (host.IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
           std::make_pair(object, host));
+      AddWeakReferenceForReferenceSummarizer(host, object);
     } else {
       MarkObject(host, object);
     }
@@ -244,7 +247,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArray(
   // in the large object space.
   ProgressBar& progress_bar =
       MemoryChunk::FromHeapObject(object)->ProgressBar();
-  return progress_bar.IsEnabled()
+  return CanUpdateValuesInHeap() && progress_bar.IsEnabled()
              ? VisitFixedArrayWithProgressBar(map, object, progress_bar)
              : concrete_visitor()->VisitLeftTrimmableArray(map, object);
 }
@@ -344,6 +347,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
 
     concrete_visitor()->SynchronizePageAccess(key);
     concrete_visitor()->RecordSlot(table, key_slot, key);
+    AddWeakReferenceForReferenceSummarizer(table, key);
 
     ObjectSlot value_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
@@ -357,6 +361,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
         HeapObject value = HeapObject::cast(value_obj);
         concrete_visitor()->SynchronizePageAccess(value);
         concrete_visitor()->RecordSlot(table, value_slot, value);
+        AddWeakReferenceForReferenceSummarizer(table, value);
 
         // Revisit ephemerons with both key and value unreachable at end
         // of concurrent marking cycle.
@@ -387,6 +392,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
       // JSWeakRef points to a potentially dead object. We have to process
       // them when we know the liveness of the whole transitive closure.
       local_weak_objects_->js_weak_refs_local.Push(weak_ref);
+      AddWeakReferenceForReferenceSummarizer(weak_ref, target);
     }
   }
   return size;
@@ -417,6 +423,8 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
     // token. We have to process them when we know the liveness of the whole
     // transitive closure.
     local_weak_objects_->weak_cells_local.Push(weak_cell);
+    AddWeakReferenceForReferenceSummarizer(weak_cell, target);
+    AddWeakReferenceForReferenceSummarizer(weak_cell, unregister_token);
   }
   return size;
 }
@@ -443,8 +451,11 @@ template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptors(
     DescriptorArray descriptor_array, int number_of_own_descriptors) {
   int16_t new_marked = static_cast<int16_t>(number_of_own_descriptors);
-  int16_t old_marked = descriptor_array.UpdateNumberOfMarkedDescriptors(
-      mark_compact_epoch_, new_marked);
+  int16_t old_marked = 0;
+  if (CanUpdateValuesInHeap()) {
+    old_marked = descriptor_array.UpdateNumberOfMarkedDescriptors(
+        mark_compact_epoch_, new_marked);
+  }
   if (old_marked < new_marked) {
     VisitPointers(
         descriptor_array,
