@@ -537,6 +537,10 @@ namespace interpreter {
   V(Return)                     \
   V(SuspendGenerator)
 
+#define UNCONDITIONAL_THROW_BYTECODE_LIST(V) \
+  V(Throw)                                   \
+  V(ReThrow)
+
 // Enumeration of interpreter bytecodes.
 enum class Bytecode : uint8_t {
 #define DECLARE_BYTECODE(Name, ...) k##Name,
@@ -798,6 +802,13 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   static constexpr bool Returns(Bytecode bytecode) {
 #define OR_BYTECODE(NAME) || bytecode == Bytecode::k##NAME
     return false RETURN_BYTECODE_LIST(OR_BYTECODE);
+#undef OR_BYTECODE
+  }
+
+  // Returns true if the bytecode unconditionally throws.
+  static constexpr bool UnconditionallyThrows(Bytecode bytecode) {
+#define OR_BYTECODE(NAME) || bytecode == Bytecode::k##NAME
+    return false UNCONDITIONAL_THROW_BYTECODE_LIST(OR_BYTECODE);
 #undef OR_BYTECODE
   }
 

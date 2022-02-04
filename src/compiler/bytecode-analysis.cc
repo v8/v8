@@ -254,7 +254,9 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLiveness& liveness,
   // Update from next bytecode (unless there isn't one or this is an
   // unconditional jump).
   if (next_bytecode_in_liveness != nullptr &&
-      !Bytecodes::IsUnconditionalJump(bytecode)) {
+      !Bytecodes::IsUnconditionalJump(bytecode) &&
+      !Bytecodes::Returns(bytecode) &&
+      !Bytecodes::UnconditionallyThrows(bytecode)) {
     if (IsFirstUpdate) {
       // On first update, we can assume that this out-liveness is the same as
       // the next liveness, and can directly alias it -- we'll allocate a new
