@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '79dc3ff04c6403b8004bdcff8e82146bd508f1da',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '87e60660bd20d8397e7f699432def54a1a3e4e51',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0faae1c8455edaed075218d5ebe0a62588ffed78',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'df01c5ad5be408cd157b879a1cce983f90762765',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
