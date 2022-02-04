@@ -124,7 +124,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void StartTracing();
   bool AdvanceTracing(double max_duration);
   bool IsTracingDone();
-  void TraceEpilogue();
+  void TraceEpilogue(cppgc::internal::GarbageCollector::Config::CollectionType);
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
 
   // StatsCollector::AllocationObserver interface.

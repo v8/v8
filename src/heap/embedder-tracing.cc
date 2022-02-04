@@ -69,7 +69,8 @@ void LocalEmbedderHeapTracer::TraceEpilogue() {
       EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
 
   if (cpp_heap_) {
-    cpp_heap()->TraceEpilogue();
+    cpp_heap()->TraceEpilogue(
+        cppgc::internal::GarbageCollector::Config::CollectionType::kMajor);
   } else {
     EmbedderHeapTracer::TraceSummary summary;
     remote_tracer_->TraceEpilogue(&summary);
