@@ -589,8 +589,9 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  MAYBE_RETURN(JSReceiver::SetPrototype(obj, prototype, false, kThrowOnError),
-               ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(isolate, obj, prototype, false, kThrowOnError),
+      ReadOnlyRoots(isolate).exception());
   return *obj;
 }
 
@@ -715,8 +716,9 @@ RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfThrow) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, proto, 1);
 
-  MAYBE_RETURN(JSReceiver::SetPrototype(object, proto, true, kThrowOnError),
-               ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(isolate, object, proto, true, kThrowOnError),
+      ReadOnlyRoots(isolate).exception());
 
   return *object;
 }
@@ -729,7 +731,7 @@ RUNTIME_FUNCTION(Runtime_JSReceiverSetPrototypeOfDontThrow) {
   CONVERT_ARG_HANDLE_CHECKED(Object, proto, 1);
 
   Maybe<bool> result =
-      JSReceiver::SetPrototype(object, proto, true, kDontThrow);
+      JSReceiver::SetPrototype(isolate, object, proto, true, kDontThrow);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }

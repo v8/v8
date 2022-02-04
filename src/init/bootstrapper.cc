@@ -1438,10 +1438,10 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
       isolate->native_context()->set_initial_error_prototype(*prototype);
     } else {
       Handle<JSFunction> global_error = isolate->error_function();
-      CHECK(JSReceiver::SetPrototype(error_fun, global_error, false,
+      CHECK(JSReceiver::SetPrototype(isolate, error_fun, global_error, false,
                                      kThrowOnError)
                 .FromMaybe(false));
-      CHECK(JSReceiver::SetPrototype(prototype,
+      CHECK(JSReceiver::SetPrototype(isolate, prototype,
                                      handle(global_error->prototype(), isolate),
                                      false, kThrowOnError)
                 .FromMaybe(false));
@@ -4057,7 +4057,8 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   result->shared().DontAdaptArguments();
   result->shared().set_length(3);
 
-  CHECK(JSObject::SetPrototype(result, typed_array_function, false, kDontThrow)
+  CHECK(JSObject::SetPrototype(isolate(), result, typed_array_function, false,
+                               kDontThrow)
             .FromJust());
 
   Handle<Smi> bytes_per_element(
@@ -4074,8 +4075,8 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   DCHECK(result->prototype().IsJSObject());
   Handle<JSObject> prototype(JSObject::cast(result->prototype()), isolate());
 
-  CHECK(JSObject::SetPrototype(prototype, typed_array_prototype, false,
-                               kDontThrow)
+  CHECK(JSObject::SetPrototype(isolate(), prototype, typed_array_prototype,
+                               false, kDontThrow)
             .FromJust());
 
   CHECK_NE(prototype->map().ptr(),

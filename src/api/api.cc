@@ -4591,14 +4591,16 @@ Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
     // We do not allow exceptions thrown while setting the prototype
     // to propagate outside.
     TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-    auto result = i::JSProxy::SetPrototype(i::Handle<i::JSProxy>::cast(self),
-                                           value_obj, false, i::kThrowOnError);
+    auto result =
+        i::JSProxy::SetPrototype(isolate, i::Handle<i::JSProxy>::cast(self),
+                                 value_obj, false, i::kThrowOnError);
     has_pending_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   } else {
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-    auto result = i::JSObject::SetPrototype(i::Handle<i::JSObject>::cast(self),
-                                            value_obj, false, i::kThrowOnError);
+    auto result =
+        i::JSObject::SetPrototype(isolate, i::Handle<i::JSObject>::cast(self),
+                                  value_obj, false, i::kThrowOnError);
     if (result.IsNothing()) {
       isolate->clear_pending_exception();
       return Nothing<bool>();

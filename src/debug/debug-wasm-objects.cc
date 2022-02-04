@@ -649,7 +649,8 @@ class ContextProxy {
         GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
     JSObject::AddProperty(isolate, object, "functions", functions, FROZEN);
     Handle<JSObject> prototype = ContextProxyPrototype::Create(isolate);
-    JSObject::SetPrototype(object, prototype, false, kDontThrow).Check();
+    JSObject::SetPrototype(isolate, object, prototype, false, kDontThrow)
+        .Check();
     return object;
   }
 };
@@ -1151,8 +1152,8 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   }
   Handle<JSArray> final_entries = isolate->factory()->NewJSArrayWithElements(
       entries, i::PACKED_ELEMENTS, length);
-  JSObject::SetPrototype(final_entries, isolate->factory()->null_value(), false,
-                         kDontThrow)
+  JSObject::SetPrototype(isolate, final_entries,
+                         isolate->factory()->null_value(), false, kDontThrow)
       .Check();
   Handle<String> entries_string =
       isolate->factory()->NewStringFromStaticChars("[[Entries]]");

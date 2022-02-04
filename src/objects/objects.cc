@@ -5123,10 +5123,9 @@ Maybe<bool> JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
 
 // ES6: 9.5.2 [[SetPrototypeOf]] (V)
 // static
-Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
-                                  bool from_javascript,
+Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, Handle<JSProxy> proxy,
+                                  Handle<Object> value, bool from_javascript,
                                   ShouldThrow should_throw) {
-  Isolate* isolate = proxy->GetIsolate();
   STACK_CHECK(isolate, Nothing<bool>());
   Handle<Name> trap_name = isolate->factory()->setPrototypeOf_string();
   // 1. Assert: Either Type(V) is Object or Type(V) is Null.
@@ -5150,7 +5149,7 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
       Nothing<bool>());
   // 7. If trap is undefined, then return target.[[SetPrototypeOf]]().
   if (trap->IsUndefined(isolate)) {
-    return JSReceiver::SetPrototype(target, value, from_javascript,
+    return JSReceiver::SetPrototype(isolate, target, value, from_javascript,
                                     should_throw);
   }
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, V»)).

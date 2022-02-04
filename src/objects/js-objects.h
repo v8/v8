@@ -254,8 +254,8 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
-      Handle<JSReceiver> object, Handle<Object> value, bool from_javascript,
-      ShouldThrow should_throw);
+      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> value,
+      bool from_javascript, ShouldThrow should_throw);
 
   inline static Handle<Object> GetDataProperty(Handle<JSReceiver> object,
                                                Handle<Name> name);
@@ -702,8 +702,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
-      Handle<JSObject> object, Handle<Object> value, bool from_javascript,
-      ShouldThrow should_throw);
+      Isolate* isolate, Handle<JSObject> object, Handle<Object> value,
+      bool from_javascript, ShouldThrow should_throw);
 
   // Makes the object prototype immutable
   // Never called from JavaScript

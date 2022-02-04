@@ -2153,14 +2153,15 @@ MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(Handle<JSReceiver> object,
                                try_fast_path, true);
 }
 
-Maybe<bool> JSReceiver::SetPrototype(Handle<JSReceiver> object,
+Maybe<bool> JSReceiver::SetPrototype(Isolate* isolate,
+                                     Handle<JSReceiver> object,
                                      Handle<Object> value, bool from_javascript,
                                      ShouldThrow should_throw) {
   if (object->IsJSProxy()) {
-    return JSProxy::SetPrototype(Handle<JSProxy>::cast(object), value,
+    return JSProxy::SetPrototype(isolate, Handle<JSProxy>::cast(object), value,
                                  from_javascript, should_throw);
   }
-  return JSObject::SetPrototype(Handle<JSObject>::cast(object), value,
+  return JSObject::SetPrototype(isolate, Handle<JSObject>::cast(object), value,
                                 from_javascript, should_throw);
 }
 
@@ -4846,11 +4847,9 @@ void JSObject::InvalidatePrototypeValidityCell(JSGlobalObject global) {
   InvalidateOnePrototypeValidityCellInternal(global.map());
 }
 
-Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
+Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
                                    Handle<Object> value, bool from_javascript,
                                    ShouldThrow should_throw) {
-  Isolate* isolate = object->GetIsolate();
-
 #ifdef DEBUG
   int size = object->Size();
 #endif

@@ -673,9 +673,9 @@ bool TransferPrototype(i::Isolate* isolate, i::Handle<i::JSObject> destination,
       i::JSObject::GetPrototype(isolate, source);
   i::Handle<i::HeapObject> prototype;
   if (maybe_prototype.ToHandle(&prototype)) {
-    Maybe<bool> result = i::JSObject::SetPrototype(destination, prototype,
-                                                   /*from_javascript=*/false,
-                                                   internal::kThrowOnError);
+    Maybe<bool> result = i::JSObject::SetPrototype(
+        isolate, destination, prototype,
+        /*from_javascript=*/false, internal::kThrowOnError);
     if (!result.FromJust()) {
       DCHECK(isolate->has_pending_exception());
       return false;
@@ -2931,7 +2931,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<Map> function_map = isolate->factory()->CreateSloppyFunctionMap(
         FUNCTION_WITHOUT_PROTOTYPE, MaybeHandle<JSFunction>());
     CHECK(JSObject::SetPrototype(
-              function_proto,
+              isolate, function_proto,
               handle(context->function_function().prototype(), isolate), false,
               kDontThrow)
               .FromJust());
