@@ -202,7 +202,7 @@ class CodeDataContainer : public HeapObject {
 
   // When V8_EXTERNAL_CODE_SPACE is enabled the flags field contains cached
   // values of some flags of the from the respective Code object.
-  DECL_INT_ACCESSORS(flags)
+  DECL_RELAXED_UINT16_ACCESSORS(flags)
 
   friend Factory;
   friend FactoryBase<Factory>;

@@ -291,7 +291,7 @@ bool JSFunction::ShouldFlushBaselineCode(
   // SFI / FV to JSFunction but it is safe in practice.
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
   if (!maybe_code.IsCodeT()) return false;
-  Code code = FromCodeT(CodeT::cast(maybe_code));
+  CodeT code = CodeT::cast(maybe_code);
   if (code.kind() != CodeKind::BASELINE) return false;
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);

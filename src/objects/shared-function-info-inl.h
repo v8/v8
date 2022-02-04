@@ -138,8 +138,8 @@ void SharedFunctionInfo::set_internal_formal_parameter_count(int value) {
   TorqueGeneratedClass::set_formal_parameter_count(value);
 }
 
-RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
-                               function_token_offset)
+RENAME_PRIMITIVE_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
+                                  function_token_offset, uint16_t)
 
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 int32_t SharedFunctionInfo::relaxed_flags() const {

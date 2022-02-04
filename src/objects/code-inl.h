@@ -982,7 +982,7 @@ void CodeDataContainer::clear_padding() {
          kSize - kUnalignedSize);
 }
 
-INT_ACCESSORS(CodeDataContainer, flags, kFlagsOffset)
+RELAXED_UINT16_ACCESSORS(CodeDataContainer, flags, kFlagsOffset)
 
 // Ensure builtin_id field fits into int16_t, so that we can rely on sign
 // extension to convert int16_t{-1} to kNoBuiltinId.
@@ -992,15 +992,17 @@ STATIC_ASSERT(Builtins::kBuiltinCount < std::numeric_limits<int16_t>::max());
 
 void CodeDataContainer::initialize_flags(CodeKind kind, Builtin builtin_id) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  int value = KindField::encode(kind);
-  set_flags(value);
+  uint16_t value = KindField::encode(kind);
+  set_flags(value, kRelaxedStore);
 
   WriteField<int16_t>(kBuiltinIdOffset, static_cast<int16_t>(builtin_id));
 }
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 
-CodeKind CodeDataContainer::kind() const { return KindField::decode(flags()); }
+CodeKind CodeDataContainer::kind() const {
+  return KindField::decode(flags(kRelaxedLoad));
+}
 
 Builtin CodeDataContainer::builtin_id() const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
