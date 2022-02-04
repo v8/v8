@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_EMBEDDER_TRACING_H_
 #define V8_HEAP_EMBEDDER_TRACING_H_
 
+#include <atomic>
+
 #include "include/v8-cppgc.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-traced-handle.h"
@@ -123,7 +125,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   }
 
   void IncreaseAllocatedSize(size_t bytes) {
-    remote_stats_.used_size += bytes;
+    remote_stats_.used_size.fetch_add(bytes, std::memory_order_relaxed);
     remote_stats_.allocated_size += bytes;
     if (remote_stats_.allocated_size >
         remote_stats_.allocated_size_limit_for_check) {
@@ -134,13 +136,15 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   }
 
   void DecreaseAllocatedSize(size_t bytes) {
-    DCHECK_GE(remote_stats_.used_size, bytes);
-    remote_stats_.used_size -= bytes;
+    DCHECK_GE(remote_stats_.used_size.load(std::memory_order_relaxed), bytes);
+    remote_stats_.used_size.fetch_sub(bytes, std::memory_order_relaxed);
   }
 
   void StartIncrementalMarkingIfNeeded();
 
-  size_t used_size() const { return remote_stats_.used_size; }
+  size_t used_size() const {
+    return remote_stats_.used_size.load(std::memory_order_relaxed);
+  }
   size_t allocated_size() const { return remote_stats_.allocated_size; }
 
   WrapperInfo ExtractWrapperInfo(Isolate* isolate, JSObject js_object);
@@ -209,7 +213,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     // Used size of objects in bytes reported by the embedder. Updated via
     // TraceSummary at the end of tracing and incrementally when the GC is not
     // in progress.
-    size_t used_size = 0;
+    std::atomic<size_t> used_size{0};
     // Totally bytes allocated by the embedder. Monotonically
     // increasing value. Used to approximate allocation rate.
     size_t allocated_size = 0;
