@@ -163,10 +163,9 @@ v8_source_set("cppgc_unittests_sources") {
 v8_executable("unittests") {
   testonly = true
 
-  # TODO(machenbach): Translate from gyp.
-  #['OS=="aix"', {
-  #  'ldflags': [ '-Wl,-bbigtoc' ],
-  #}],
+  if (current_os == "aix") {
+    ldflags = [ "-Wl,-bbigtoc" ]
+  }
 
   deps = [
     ":unittests_sources",
