@@ -1100,6 +1100,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
 }
 
 void TurboAssembler::PushCommonFrame(Register marker_reg) {
+  ASM_CODE_COMMENT(this);
   int fp_delta = 0;
   CleanseP(r14);
   if (marker_reg.is_valid()) {
@@ -1453,6 +1454,7 @@ void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
 
 void TurboAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
+  ASM_CODE_COMMENT(this);
   // We create a stack frame with:
   //    Return Addr <-- old sp
   //    Old FP      <-- new fp
@@ -1460,14 +1462,19 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
   //    type
   //    CodeObject  <-- new sp
 
-  mov(ip, Operand(StackFrame::TypeToMarker(type)));
-  PushCommonFrame(ip);
+  Register scratch = no_reg;
+  if (!StackFrame::IsJavaScript(type)) {
+    scratch = ip;
+    mov(scratch, Operand(StackFrame::TypeToMarker(type)));
+  }
+  PushCommonFrame(scratch);
 #if V8_ENABLE_WEBASSEMBLY
   if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
+  ASM_CODE_COMMENT(this);
   // Drop the execution stack down to the frame pointer and restore
   // the caller frame pointer, return address and constant pool pointer.
   LoadU64(r14, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
