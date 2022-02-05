@@ -73,18 +73,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToJSON)
 TO_BE_IMPLEMENTED(TemporalPlainTimeFrom)
 /* Temporal #sec-temporal.plaintime.compare */
 TO_BE_IMPLEMENTED(TemporalPlainTimeCompare)
-/* Temporal #sec-get-temporal.plaintime.prototype.hour */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeHour)
-/* Temporal #sec-get-temporal.plaintime.prototype.minute */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeMinute)
-/* Temporal #sec-get-temporal.plaintime.prototype.second */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeSecond)
-/* Temporal #sec-get-temporal.plaintime.prototype.millisecond */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeMillisecond)
-/* Temporal #sec-get-temporal.plaintime.prototype.microsecond */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeMicrosecond)
-/* Temporal #sec-get-temporal.plaintime.prototype.nanoseond */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeNanosecond)
 /* Temporal #sec-temporal.plaintime.prototype.add */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeAdd)
 /* Temporal #sec-temporal.plaintime.prototype.subtract */
@@ -113,18 +101,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToJSON)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimeFrom)
 /* Temporal #sec-temporal.plaindatetime.compare */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimeCompare)
-/* Temporal #sec-get-temporal.plaindatetime.prototype.hour */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeHour)
-/* Temporal #sec-get-temporal.plaindatetime.prototype.minute */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeMinute)
-/* Temporal #sec-get-temporal.plaindatetime.prototype.second */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeSecond)
-/* Temporal #sec-get-temporal.plaindatetime.prototype.millisecond */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeMillisecond)
-/* Temporal #sec-get-temporal.plaindatetime.prototype.microsecond */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeMicrosecond)
-/* Temporal #sec-get-temporal.plaindatetime.prototype.nanosecond */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeNanosecond)
 /* Temporal #sec-temporal.plaindatetime.prototype.with */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeWith)
 /* Temporal #sec-temporal.plaindatetime.prototype.withplainTime */
@@ -495,6 +471,14 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
                                   ".prototype.compare for comparison.")));   \
   }
 
+#define TEMPORAL_GET_SMI(T, METHOD, field)                        \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                       \
+    HandleScope scope(isolate);                                   \
+    const char* method = "get Temporal." #T ".prototype." #field; \
+    CHECK_RECEIVER(JSTemporal##T, obj, method);                   \
+    return Smi::FromInt(obj->field());                            \
+  }
+
 #define TEMPORAL_GET(T, METHOD, field)                            \
   BUILTIN(Temporal##T##Prototype##METHOD) {                       \
     HandleScope scope(isolate);                                   \
@@ -599,6 +583,12 @@ BUILTIN(TemporalPlainTimeConstructor) {
                                args.atOrUndefined(isolate, 6)));  // nanosecond
 }
 TEMPORAL_GET(PlainTime, Calendar, calendar)
+TEMPORAL_GET_SMI(PlainTime, Hour, iso_hour)
+TEMPORAL_GET_SMI(PlainTime, Minute, iso_minute)
+TEMPORAL_GET_SMI(PlainTime, Second, iso_second)
+TEMPORAL_GET_SMI(PlainTime, Millisecond, iso_millisecond)
+TEMPORAL_GET_SMI(PlainTime, Microsecond, iso_microsecond)
+TEMPORAL_GET_SMI(PlainTime, Nanosecond, iso_nanosecond)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainTime)
 
@@ -634,6 +624,12 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, MonthsInYear,
                                        monthsInYear)
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithCalendar, withCalendar)
+TEMPORAL_GET_SMI(PlainDateTime, Hour, iso_hour)
+TEMPORAL_GET_SMI(PlainDateTime, Minute, iso_minute)
+TEMPORAL_GET_SMI(PlainDateTime, Second, iso_second)
+TEMPORAL_GET_SMI(PlainDateTime, Millisecond, iso_millisecond)
+TEMPORAL_GET_SMI(PlainDateTime, Microsecond, iso_microsecond)
+TEMPORAL_GET_SMI(PlainDateTime, Nanosecond, iso_nanosecond)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainDateTime)
 
