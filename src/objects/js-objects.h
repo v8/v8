@@ -675,7 +675,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                      Heap* heap);
 
   // Access fast-case object properties at index.
-  static Handle<Object> FastPropertyAt(Handle<JSObject> object,
+  static Handle<Object> FastPropertyAt(Isolate* isolate,
+                                       Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
   inline Object RawFastPropertyAt(FieldIndex index) const;

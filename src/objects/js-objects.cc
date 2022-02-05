@@ -291,7 +291,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
             Representation representation = details.representation();
             FieldIndex index = FieldIndex::ForPropertyIndex(
                 *map, details.field_index(), representation);
-            prop_value = JSObject::FastPropertyAt(from, representation, index);
+            prop_value =
+                JSObject::FastPropertyAt(isolate, from, representation, index);
           }
         } else {
           LookupIterator it(isolate, from, next_key,
@@ -2042,8 +2043,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
           Representation representation = details.representation();
           FieldIndex field_index = FieldIndex::ForPropertyIndex(
               *map, details.field_index(), representation);
-          prop_value =
-              JSObject::FastPropertyAt(object, representation, field_index);
+          prop_value = JSObject::FastPropertyAt(isolate, object, representation,
+                                                field_index);
         }
       } else {
         LookupIterator it(isolate, object, next_key,
@@ -4301,10 +4302,10 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   return Just(true);
 }
 
-Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
+Handle<Object> JSObject::FastPropertyAt(Isolate* isolate,
+                                        Handle<JSObject> object,
                                         Representation representation,
                                         FieldIndex index) {
-  Isolate* isolate = object->GetIsolate();
   Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
   return Object::WrapForRead(isolate, raw_value, representation);
 }

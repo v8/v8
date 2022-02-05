@@ -635,8 +635,8 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
                   details.location() == PropertyLocation::kField)) {
       DCHECK_EQ(PropertyKind::kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-      value = JSObject::FastPropertyAt(object, details.representation(),
-                                       field_index);
+      value = JSObject::FastPropertyAt(isolate_, object,
+                                       details.representation(), field_index);
     } else {
       // This logic should essentially match WriteJSObjectPropertiesSlow.
       // If the property is no longer found, do not serialize it.

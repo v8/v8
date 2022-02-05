@@ -926,8 +926,8 @@ Handle<Object> LookupIterator::FetchValue(
         field_index.is_inobject() && field_index.is_double()) {
       return isolate_->factory()->undefined_value();
     }
-    return JSObject::FastPropertyAt(holder, property_details_.representation(),
-                                    field_index);
+    return JSObject::FastPropertyAt(
+        isolate_, holder, property_details_.representation(), field_index);
   } else {
     result =
         holder_->map(isolate_).instance_descriptors(isolate_).GetStrongValue(

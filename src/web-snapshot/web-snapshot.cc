@@ -763,8 +763,8 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
     PropertyDetails details =
         map->instance_descriptors(kRelaxedLoad).GetDetails(i);
     FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-    Handle<Object> value =
-        JSObject::FastPropertyAt(object, details.representation(), field_index);
+    Handle<Object> value = JSObject::FastPropertyAt(
+        isolate_, object, details.representation(), field_index);
     discovery_queue_.push(value);
   }
 }
@@ -860,8 +860,8 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
     PropertyDetails details =
         map->instance_descriptors(kRelaxedLoad).GetDetails(i);
     FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-    Handle<Object> value =
-        JSObject::FastPropertyAt(object, details.representation(), field_index);
+    Handle<Object> value = JSObject::FastPropertyAt(
+        isolate_, object, details.representation(), field_index);
     WriteValue(value, object_serializer_);
   }
 }
