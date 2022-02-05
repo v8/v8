@@ -53,7 +53,6 @@
   'temporal/calendar-days-in-week': [FAIL],
   'temporal/calendar-days-in-year': [FAIL],
   'temporal/calendar-fields': [FAIL],
-  'temporal/calendar-from': [FAIL],
   'temporal/calendar-in-leap-year': [FAIL],
   'temporal/calendar-merge-fields': [FAIL],
   'temporal/calendar-month': [FAIL],

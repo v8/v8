@@ -1298,6 +1298,9 @@ MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantFor(
                                       date_time, disambiguation, method);
 }
 
+}  // namespace
+
+namespace temporal {
 // #sec-temporal-totemporalcalendar
 MaybeHandle<JSReceiver> ToTemporalCalendar(
     Isolate* isolate, Handle<Object> temporal_calendar_like,
@@ -1371,6 +1374,9 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
   return CreateTemporalCalendar(isolate, identifier);
 }
 
+}  // namespace temporal
+
+namespace {
 // #sec-temporal-totemporalcalendarwithisodefault
 MaybeHandle<JSReceiver> ToTemporalCalendarWithISODefault(
     Isolate* isolate, Handle<Object> temporal_calendar_like,
@@ -1383,9 +1389,12 @@ MaybeHandle<JSReceiver> ToTemporalCalendarWithISODefault(
     return temporal::GetISO8601Calendar(isolate);
   }
   // 2. Return ? ToTemporalCalendar(temporalCalendarLike).
-  return ToTemporalCalendar(isolate, temporal_calendar_like, method);
+  return temporal::ToTemporalCalendar(isolate, temporal_calendar_like, method);
 }
 
+}  // namespace
+
+namespace temporal {
 // #sec-temporal-totemporaltimezone
 MaybeHandle<JSReceiver> ToTemporalTimeZone(
     Isolate* isolate, Handle<Object> temporal_time_zone_like,
@@ -1444,6 +1453,10 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
   // 4. Return ? CreateTemporalTimeZone(result).
   return temporal::CreateTemporalTimeZone(isolate, result);
 }
+
+}  // namespace temporal
+
+namespace {
 
 #define COMPARE_RESULT_TO_SIGN(r)  \
   ((r) == ComparisonResult::kEqual \
@@ -3782,9 +3795,10 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
   // [[InitializedTemporalDate]]).
   // 3. Let calendar be ? ToTemporalCalendar(calendar).
   Handle<JSReceiver> calendar;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar,
-                             ToTemporalCalendar(isolate, calendar_like, method),
-                             JSTemporalPlainDate);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      temporal::ToTemporalCalendar(isolate, calendar_like, method),
+      JSTemporalPlainDate);
   // 4. Return ? CreateTemporalDate(temporalDate.[[ISOYear]],
   // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]], calendar).
   return CreateTemporalDate(isolate, temporal_date->iso_year(),
@@ -3881,9 +3895,10 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithCalendar(
   // [[InitializedTemporalDateTime]]).
   // 3. Let calendar be ? ToTemporalCalendar(calendar).
   Handle<JSReceiver> calendar;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar,
-                             ToTemporalCalendar(isolate, calendar_like, method),
-                             JSTemporalPlainDateTime);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      temporal::ToTemporalCalendar(isolate, calendar_like, method),
+      JSTemporalPlainDateTime);
   // 4. Return ? CreateTemporalDateTime(temporalDateTime.[[ISOYear]],
   // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]],
   // temporalDateTime.[[ISOHour]], temporalDateTime.[[ISOMinute]],
@@ -4192,7 +4207,8 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   // 4. Let timeZone be ? ToTemporalTimeZone(timeZoneLike).
   Handle<JSReceiver> time_zone;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, time_zone, ToTemporalTimeZone(isolate, time_zone_like, method),
+      isolate, time_zone,
+      temporal::ToTemporalTimeZone(isolate, time_zone_like, method),
       JSTemporalZonedDateTime);
 
   // 5. Let calendar be ? ToTemporalCalendarWithISODefault(calendarLike).
@@ -4219,9 +4235,10 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithCalendar(
   // [[InitializedTemporalZonedDateTime]]).
   // 3. Let calendar be ? ToTemporalCalendar(calendarLike).
   Handle<JSReceiver> calendar;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar,
-                             ToTemporalCalendar(isolate, calendar_like, method),
-                             JSTemporalZonedDateTime);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      temporal::ToTemporalCalendar(isolate, calendar_like, method),
+      JSTemporalZonedDateTime);
 
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // zonedDateTime.[[TimeZone]], calendar).
@@ -4242,7 +4259,8 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithTimeZone(
   // 3. Let timeZone be ? ToTemporalTimeZone(timeZoneLike).
   Handle<JSReceiver> time_zone;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, time_zone, ToTemporalTimeZone(isolate, time_zone_like, method),
+      isolate, time_zone,
+      temporal::ToTemporalTimeZone(isolate, time_zone_like, method),
       JSTemporalZonedDateTime);
 
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],

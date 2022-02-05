@@ -346,6 +346,14 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> InvokeCalendarMethod(
     Isolate* isolate, Handle<JSReceiver> calendar, Handle<String> name,
     Handle<JSReceiver> temporal_like);
 
+V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> ToTemporalCalendar(
+    Isolate* isolate, Handle<Object> temporal_calendar_like,
+    const char* method);
+
+V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> ToTemporalTimeZone(
+    Isolate* isolate, Handle<Object> temporal_time_zone_like,
+    const char* method);
+
 }  // namespace temporal
 }  // namespace internal
 }  // namespace v8

@@ -307,8 +307,6 @@ TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToJSON)
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToPlainDate)
 
 /* Temporal.TimeZone */
-/* Temporal #sec-temporal.timezone.from */
-TO_BE_IMPLEMENTED(TemporalTimeZoneFrom)
 /* Temporal #sec-temporal.timezone.prototype.getoffsetnanosecondsfor */
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetNanosecondsFor)
 /* Temporal #sec-temporal.timezone.prototype.getoffsetstringfor */
@@ -327,8 +325,6 @@ TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPreviousTransition)
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeToJSON)
 
 /* Temporal.Calendar */
-/* Temporal #sec-temporal.calendar.from */
-TO_BE_IMPLEMENTED(TemporalCalendarFrom)
 /* Temporal #sec-temporal.calendar.prototype.datefromfields */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateFromFields)
 /* Temporal #sec-temporal.calendar.prototype.yearmonthfromfields */
@@ -788,11 +784,25 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
 TEMPORAL_CONSTRUCTOR1(Calendar)
 TEMPORAL_ID_BY_TO_STRING(Calendar)
 TEMPORAL_TO_STRING(Calendar)
+// #sec-temporal.calendar.from
+BUILTIN(TemporalCalendarFrom) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(isolate, temporal::ToTemporalCalendar(
+                                        isolate, args.atOrUndefined(isolate, 1),
+                                        "Temporal.Calendar.from"));
+}
 
 // TimeZone
 TEMPORAL_CONSTRUCTOR1(TimeZone)
 TEMPORAL_ID_BY_TO_STRING(TimeZone)
 TEMPORAL_TO_STRING(TimeZone)
+// #sec-temporal.timezone.from
+BUILTIN(TemporalTimeZoneFrom) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(isolate, temporal::ToTemporalTimeZone(
+                                        isolate, args.atOrUndefined(isolate, 1),
+                                        "Temporal.TimeZone.from"));
+}
 
 #ifdef V8_INTL_SUPPORT
 // get Temporal.*.prototype.era/eraYear
