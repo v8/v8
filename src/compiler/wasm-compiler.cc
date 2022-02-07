@@ -471,7 +471,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* WasmArrayElementOffset(Node* index, wasm::ValueType element_type) {
     Node* index_intptr =
-        mcgraph()->machine()->Is64() ? ChangeInt32ToInt64(index) : index;
+        mcgraph()->machine()->Is64() ? ChangeUint32ToUint64(index) : index;
     return IntAdd(
         IntPtrConstant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)),
         IntMul(index_intptr,
