@@ -197,7 +197,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
                        int column) override;
 
   int currentContextGroupId();
-  bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
 
   bool hasScheduledBreakOnNextFunctionCall() const;
 

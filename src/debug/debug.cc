@@ -1182,14 +1182,31 @@ void Debug::PrepareStep(StepAction step_action) {
       // Clear last position info. For stepping out it does not matter.
       thread_local_.last_statement_position_ = kNoSourcePosition;
       thread_local_.last_frame_count_ = -1;
-      if (!shared.is_null() && !location.IsReturnOrSuspend() &&
-          !IsBlackboxed(shared)) {
-        // At not return position we flood return positions with one shots and
-        // will repeat StepOut automatically at next break.
-        thread_local_.target_frame_count_ = current_frame_count;
-        thread_local_.fast_forward_to_return_ = true;
-        FloodWithOneShot(shared, true);
-        return;
+      if (!shared.is_null()) {
+        if (!location.IsReturnOrSuspend() && !IsBlackboxed(shared)) {
+          // At not return position we flood return positions with one shots and
+          // will repeat StepOut automatically at next break.
+          thread_local_.target_frame_count_ = current_frame_count;
+          thread_local_.fast_forward_to_return_ = true;
+          FloodWithOneShot(shared, true);
+          return;
+        }
+        if (IsAsyncFunction(shared->kind())) {
+          // Stepping out of an async function whose implicit promise is awaited
+          // by some other async function, should resume the latter. The return
+          // value here is either a JSPromise or a JSGeneratorObject (for the
+          // initial yield of async generators).
+          Handle<JSReceiver> return_value(
+              JSReceiver::cast(thread_local_.return_value_), isolate_);
+          Handle<Object> awaited_by = JSReceiver::GetDataProperty(
+              return_value, isolate_->factory()->promise_awaited_by_symbol());
+          if (awaited_by->IsJSGeneratorObject()) {
+            DCHECK(!has_suspended_generator());
+            thread_local_.suspended_generator_ = *awaited_by;
+            ClearStepping();
+            return;
+          }
+        }
       }
       // Skip the current frame, find the first frame we want to step out to
       // and deoptimize every frame along the way.

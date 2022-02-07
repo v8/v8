@@ -819,12 +819,13 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
 }
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, outer_promise, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject_handler, 2);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_predicted_as_caught, 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 3);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_predicted_as_caught, 4);
 
   // Allocate the throwaway promise and fire the appropriate init
   // hook for the throwaway promise (passing the {promise} as its
@@ -852,6 +853,11 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
                         isolate->factory()->promise_handled_by_symbol(),
                         outer_promise, StoreOrigin::kMaybeKeyed,
                         Just(ShouldThrow::kThrowOnError))
+        .Check();
+
+    Object::SetProperty(
+        isolate, promise, isolate->factory()->promise_awaited_by_symbol(),
+        generator, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
         .Check();
   }
 

@@ -138,9 +138,9 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
   Goto(&if_instrumentation_done);
   BIND(&if_instrumentation);
   {
-    var_throwaway =
-        CallRuntime(Runtime::kDebugAsyncFunctionSuspended, native_context,
-                    value, outer_promise, on_reject, is_predicted_as_caught);
+    var_throwaway = CallRuntime(Runtime::kDebugAsyncFunctionSuspended,
+                                native_context, value, outer_promise, on_reject,
+                                generator, is_predicted_as_caught);
     Goto(&if_instrumentation_done);
   }
   BIND(&if_instrumentation_done);

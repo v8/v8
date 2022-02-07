@@ -441,7 +441,6 @@ AsyncStackTrace::AsyncStackTrace(
     std::shared_ptr<AsyncStackTrace> asyncParent,
     const V8StackTraceId& externalParent)
     : m_id(0),
-      m_suspendedTaskId(nullptr),
       m_description(description),
       m_frames(std::move(frames)),
       m_asyncParent(std::move(asyncParent)),
@@ -454,12 +453,6 @@ AsyncStackTrace::buildInspectorObject(V8Debugger* debugger,
                                     m_asyncParent.lock(), m_externalParent,
                                     maxAsyncDepth);
 }
-
-void AsyncStackTrace::setSuspendedTaskId(void* task) {
-  m_suspendedTaskId = task;
-}
-
-void* AsyncStackTrace::suspendedTaskId() const { return m_suspendedTaskId; }
 
 uintptr_t AsyncStackTrace::store(V8Debugger* debugger,
                                  std::shared_ptr<AsyncStackTrace> stack) {
