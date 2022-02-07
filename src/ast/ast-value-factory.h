@@ -80,7 +80,7 @@ class AstRawString final : public ZoneObject {
   uint32_t Hash() const {
     // Hash field must be computed.
     DCHECK_EQ(raw_hash_field_ & Name::kHashNotComputedMask, 0);
-    return raw_hash_field_ >> Name::kHashShift;
+    return Name::HashBits::decode(raw_hash_field_);
   }
 
   // This function can be called after internalizing.

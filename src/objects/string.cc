@@ -1632,7 +1632,7 @@ uint32_t String::ComputeAndSetHash(
 
   // Check the hash code is there.
   DCHECK(HasHashCode());
-  uint32_t result = raw_hash_field >> kHashShift;
+  uint32_t result = HashBits::decode(raw_hash_field);
   DCHECK_NE(result, 0);  // Ensure that the hash value of 0 is never computed.
   return result;
 }
@@ -1643,7 +1643,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     EnsureHash();  // Force computation of hash code.
     uint32_t field = raw_hash_field();
-    if ((field & kIsNotIntegerIndexMask) != 0) return false;
+    if (!IsIntegerIndex(field)) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
@@ -1658,7 +1658,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     EnsureHash();  // Force computation of hash code.
     uint32_t field = raw_hash_field();
-    if ((field & kIsNotIntegerIndexMask) != 0) return false;
+    if (!IsIntegerIndex(field)) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }

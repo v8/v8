@@ -241,7 +241,7 @@ transitioning javascript builtin NumberParseFloat(
   } label String(s: String) {
     // Check if the string is a cached array index.
     const hash: NameHash = s.raw_hash_field;
-    if (!hash.is_not_integer_index_mask &&
+    if (IsIntegerIndex(hash) &&
         hash.array_index_length < kMaxCachedArrayIndexLength) {
       const arrayIndex: uint32 = hash.array_index_value;
       return SmiFromUint32(arrayIndex);
@@ -292,7 +292,7 @@ transitioning builtin ParseInt(implicit context: Context)(
   } label String(s: String) {
     // Check if the string is a cached array index.
     const hash: NameHash = s.raw_hash_field;
-    if (!hash.is_not_integer_index_mask &&
+    if (IsIntegerIndex(hash) &&
         hash.array_index_length < kMaxCachedArrayIndexLength) {
       const arrayIndex: uint32 = hash.array_index_value;
       return SmiFromUint32(arrayIndex);

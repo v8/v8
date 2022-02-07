@@ -1363,7 +1363,7 @@ bool String::AsArrayIndex(uint32_t* index) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
-  if (IsHashFieldComputed(field) && (field & kIsNotIntegerIndexMask)) {
+  if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {
     return false;
   }
   return SlowAsArrayIndex(index);
@@ -1375,7 +1375,7 @@ bool String::AsIntegerIndex(size_t* index) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
-  if (IsHashFieldComputed(field) && (field & kIsNotIntegerIndexMask)) {
+  if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {
     return false;
   }
   return SlowAsIntegerIndex(index);

@@ -84,7 +84,7 @@ template EXPORT_TEMPLATE_DEFINE(
 bool AstRawString::AsArrayIndex(uint32_t* index) const {
   // The StringHasher will set up the hash. Bail out early if we know it
   // can't be convertible to an array index.
-  if ((raw_hash_field_ & Name::kIsNotIntegerIndexMask) != 0) return false;
+  if (!IsIntegerIndex()) return false;
   if (length() <= Name::kMaxCachedArrayIndexLength) {
     *index = Name::ArrayIndexValueBits::decode(raw_hash_field_);
     return true;
@@ -97,7 +97,7 @@ bool AstRawString::AsArrayIndex(uint32_t* index) const {
 }
 
 bool AstRawString::IsIntegerIndex() const {
-  return (raw_hash_field_ & Name::kIsNotIntegerIndexMask) == 0;
+  return Name::IsIntegerIndex(raw_hash_field_);
 }
 
 bool AstRawString::IsOneByteEqualTo(const char* data) const {

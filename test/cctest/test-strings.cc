@@ -1840,13 +1840,13 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     CHECK(s->AsIntegerIndex(&index));
     CHECK_EQ(data.integer_index, index);
     s->EnsureHash();
-    CHECK_EQ(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK(String::IsIntegerIndex(s->raw_hash_field()));
     CHECK(s->HasHashCode());
   }
   if (!s->HasHashCode()) s->EnsureHash();
   CHECK(s->HasHashCode());
   if (!data.is_integer_index) {
-    CHECK_NE(0, s->raw_hash_field() & String::kIsNotIntegerIndexMask);
+    CHECK(String::IsHash(s->raw_hash_field()));
   }
 }
 
@@ -1858,12 +1858,12 @@ TEST(HashArrayIndexStrings) {
   v8::HandleScope scope(CcTest::isolate());
   i::Isolate* isolate = CcTest::i_isolate();
 
-  CHECK_EQ(StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */) >>
-               Name::kHashShift,
+  CHECK_EQ(Name::HashBits::decode(
+               StringHasher::MakeArrayIndexHash(0 /* value */, 1 /* length */)),
            isolate->factory()->zero_string()->hash());
 
-  CHECK_EQ(StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */) >>
-               Name::kHashShift,
+  CHECK_EQ(Name::HashBits::decode(
+               StringHasher::MakeArrayIndexHash(1 /* value */, 1 /* length */)),
            isolate->factory()->one_string()->hash());
 
   IndexData tests[] = {

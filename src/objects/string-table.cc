@@ -662,7 +662,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
         .ptr();
   }
 
-  if ((raw_hash_field & Name::kIsNotIntegerIndexMask) == 0) {
+  if (Name::IsIntegerIndex(raw_hash_field)) {
     // It is an index, but it's not cached.
     return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
   }

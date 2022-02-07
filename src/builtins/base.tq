@@ -1929,6 +1929,18 @@ extern operator '[]' macro LoadWeakFixedArrayElement(
 
 extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
 
+extern enum HashFieldType extends uint32 constexpr 'Name::HashFieldType' {
+  kHash,
+  kIntegerIndex,
+  kForwardingIndex,
+  kEmpty
+}
+
+operator '==' macro HashFieldTypeEquals(
+    s1: HashFieldType, s2: HashFieldType): bool {
+  return Word32Equal(s1, s2);
+}
+
 const kNoHashSentinel:
     constexpr int32 generates 'PropertyArray::kNoHashSentinel';
 extern macro LoadNameHash(Name): uint32;

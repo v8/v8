@@ -2109,7 +2109,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 TNode<Uint32T> CodeStubAssembler::LoadNameHashAssumeComputed(TNode<Name> name) {
   TNode<Uint32T> hash_field = LoadNameRawHashField(name);
   CSA_DCHECK(this, IsClearWord32(hash_field, Name::kHashNotComputedMask));
-  return Unsigned(Word32Shr(hash_field, Int32Constant(Name::kHashShift)));
+  return DecodeWord32<Name::HashBits>(hash_field);
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadNameHash(TNode<Name> name,
@@ -2119,7 +2119,7 @@ TNode<Uint32T> CodeStubAssembler::LoadNameHash(TNode<Name> name,
     GotoIf(IsSetWord32(raw_hash_field, Name::kHashNotComputedMask),
            if_hash_not_computed);
   }
-  return Unsigned(Word32Shr(raw_hash_field, Int32Constant(Name::kHashShift)));
+  return DecodeWord32<Name::HashBits>(raw_hash_field);
 }
 
 TNode<Smi> CodeStubAssembler::LoadStringLengthAsSmi(TNode<String> string) {
@@ -6794,8 +6794,9 @@ TNode<BoolT> CodeStubAssembler::IsUniqueNameNoIndex(TNode<HeapObject> object) {
   return Select<BoolT>(
       IsInternalizedStringInstanceType(instance_type),
       [=] {
-        return IsSetWord32(LoadNameRawHashField(CAST(object)),
-                           Name::kIsNotIntegerIndexMask);
+        return IsNotEqualInWord32<Name::HashFieldTypeBits>(
+            LoadNameRawHashField(CAST(object)),
+            Name::HashFieldType::kIntegerIndex);
       },
       [=] { return IsSymbolInstanceType(instance_type); });
 }
@@ -8119,7 +8120,8 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
              &if_has_cached_index);
       // No cached array index. If the string knows that it contains an index,
       // then it must be an uncacheable index. Handle this case in the runtime.
-      GotoIf(IsClearWord32(raw_hash_field, Name::kIsNotIntegerIndexMask),
+      GotoIf(IsEqualInWord32<Name::HashFieldTypeBits>(
+                 raw_hash_field, Name::HashFieldType::kIntegerIndex),
              if_bailout);
 
       GotoIf(InstanceTypeEqual(var_instance_type.value(), THIN_STRING_TYPE),

@@ -1112,9 +1112,9 @@ Symbol Factory::NewSymbolInternal(AllocationType allocation) {
       Symbol::kSize, allocation, read_only_roots().symbol_map()));
   DisallowGarbageCollection no_gc;
   // Generate a random hash value.
-  int hash = isolate()->GenerateIdentityHash(Name::kHashBitMask);
-  symbol.set_raw_hash_field(Name::kIsNotIntegerIndexMask |
-                            (hash << Name::kHashShift));
+  int hash = isolate()->GenerateIdentityHash(Name::HashBits::kMax);
+  symbol.set_raw_hash_field(
+      Name::CreateHashFieldValue(hash, Name::HashFieldType::kHash));
   symbol.set_description(read_only_roots().undefined_value(),
                          SKIP_WRITE_BARRIER);
   symbol.set_flags(0);
