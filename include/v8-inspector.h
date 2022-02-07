@@ -118,6 +118,7 @@ class V8_EXPORT V8ContextInfo {
 // See also Runtime.UniqueDebuggerId in the protocol.
 class V8_EXPORT V8DebuggerId {
  public:
+  V8DebuggerId() = default;
   V8DebuggerId(const V8DebuggerId&) = default;
   V8DebuggerId& operator=(const V8DebuggerId&) = default;
 
@@ -127,7 +128,6 @@ class V8_EXPORT V8DebuggerId {
 
  private:
   friend class internal::V8DebuggerId;
-  V8DebuggerId() = default;
   explicit V8DebuggerId(std::pair<int64_t, int64_t>);
 
   int64_t m_first = 0;
