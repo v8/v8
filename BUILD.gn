@@ -5931,7 +5931,7 @@ group("v8_clusterfuzz") {
   deps = [
     ":d8",
     ":v8_simple_inspector_fuzzer",
-    "tools/clusterfuzz:v8_clusterfuzz_resources",
+    "tools/clusterfuzz/trials:v8_clusterfuzz_resources",
   ]
 
   if (v8_multi_arch_build) {
@@ -5940,7 +5940,7 @@ group("v8_clusterfuzz") {
       ":d8(//build/toolchain/linux:clang_x64_v8_arm64)",
       ":d8(//build/toolchain/linux:clang_x86)",
       ":d8(//build/toolchain/linux:clang_x86_v8_arm)",
-      ":d8(tools/clusterfuzz/toolchain:clang_x64_pointer_compression)",
+      ":d8(tools/clusterfuzz/foozzie/toolchain:clang_x64_pointer_compression)",
     ]
   }
 }
@@ -6156,7 +6156,7 @@ v8_executable("d8") {
   }
 
   if (v8_correctness_fuzzer) {
-    deps += [ "tools/clusterfuzz:v8_correctness_fuzzer_resources" ]
+    deps += [ "tools/clusterfuzz/foozzie:v8_correctness_fuzzer_resources" ]
   }
 
   defines = []

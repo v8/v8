@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("../../gni/v8.gni")
+import("../../../gni/v8.gni")
 
 if (v8_correctness_fuzzer) {
   copy("v8_correctness_fuzzer_resources") {
@@ -22,9 +22,4 @@ if (v8_correctness_fuzzer) {
     ]
     outputs = [ "$root_out_dir/{{source_file_part}}" ]
   }
-}
-
-copy("v8_clusterfuzz_resources") {
-  sources = [ "clusterfuzz_trials_config.json" ]
-  outputs = [ "$root_out_dir/{{source_file_part}}" ]
 }
