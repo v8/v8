@@ -41,6 +41,7 @@
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
@@ -7031,16 +7032,29 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         global_proxy);
   }
 
-  Node* BuildSuspend(Node* promise, Node* suspender) {
+  Node* BuildSuspend(Node* value, Node* api_function_ref,
+                     MachineRepresentation rep) {
+    // If value is a promise, suspend to the js-to-wasm prompt, and resume later
+    // with the promise's resolved value.
+    auto resume = gasm_->MakeLabel(rep);
+    gasm_->GotoIf(IsSmi(value), &resume, value);
+    gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
+                     BranchHint::kTrue, value);
+    Node* suspender = gasm_->Load(
+        MachineType::TaggedPointer(), api_function_ref,
+        wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kSuspenderOffset));
     auto* call_descriptor = GetBuiltinCallDescriptor(
         Builtin::kWasmSuspend, zone_, StubCallMode::kCallWasmRuntimeStub);
     Node* call_target = mcgraph()->RelocatableIntPtrConstant(
         wasm::WasmCode::kWasmSuspend, RelocInfo::WASM_STUB_CALL);
-    Node* args[] = {promise, suspender};
+    Node* args[] = {value, suspender};
     Node* chained_promise =
         BuildCallToRuntime(Runtime::kWasmCreateResumePromise, args, 2);
-    return gasm_->Call(call_descriptor, call_target, chained_promise,
-                       suspender);
+    Node* resolved =
+        gasm_->Call(call_descriptor, call_target, chained_promise, suspender);
+    gasm_->Goto(&resume, resolved);
+    gasm_->Bind(&resume);
+    return resume.PhiAt(0);
   }
 
   // For wasm-to-js wrappers, parameter 0 is a WasmApiFunctionRef.
@@ -7107,11 +7121,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         DCHECK_EQ(pos, args.size());
         call = gasm_->Call(call_descriptor, pos, args.begin());
         if (suspend == wasm::kSuspend) {
-          Node* suspender =
-              gasm_->Load(MachineType::TaggedPointer(), Param(0),
-                          wasm::ObjectAccess::ToTagged(
-                              WasmApiFunctionRef::kSuspenderOffset));
-          call = BuildSuspend(call, suspender);
+          MachineRepresentation rep =
+              sig_->return_count() >= 1
+                  ? sig_->GetReturn(0).machine_representation()
+                  : MachineRepresentation::kNone;
+          call = BuildSuspend(call, Param(0), rep);
         }
         break;
       }

@@ -167,3 +167,29 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);
   wrapper();
 })();
+
+// Check that the suspender does not suspend if the import's
+// return value is not a promise.
+(function TestStackSwitchNoPromise() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI32, true).exportAs('g');
+  import_index = builder.addImport('m', 'import', kSig_i_v);
+  builder.addFunction("test", kSig_i_v)
+      .addBody([
+          kExprCallFunction, import_index, // suspend
+          kExprGlobalSet, 0, // resume
+          kExprGlobalGet, 0,
+      ]).exportFunc();
+  let suspender = new WebAssembly.Suspender();
+  function js_import() {
+    return 42
+  };
+  let wasm_js_import = new WebAssembly.Function({parameters: [], results: ['externref']}, js_import);
+  let suspending_wasm_js_import = suspender.suspendOnReturnedPromise(wasm_js_import);
+  let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
+  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let result = wrapped_export();
+  // TODO(thibaudm): Check the result's value once this is supported.
+  assertEquals(42, instance.exports.g.value);
+})();
