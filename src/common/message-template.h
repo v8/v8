@@ -353,7 +353,7 @@ namespace internal {
   T(InvalidCountValue, "Invalid count value")                                  \
   T(InvalidDataViewAccessorOffset,                                             \
     "Offset is outside the bounds of the DataView")                            \
-  T(InvalidDataViewLength, "Invalid DataView length")                          \
+  T(InvalidDataViewLength, "Invalid DataView length %")                        \
   T(InvalidOffset, "Start offset % is outside the bounds of the buffer")       \
   T(InvalidHint, "Invalid hint: %")                                            \
   T(InvalidIndex, "Invalid value: not (convertible to) a safe integer")        \
