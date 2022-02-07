@@ -64,12 +64,18 @@ class ScopeInfo::LocalNamesRange {
       return !(a == b);
     }
 
-    String name() const {
+    String name(PtrComprCageBase cage_base) const {
       DCHECK_LT(index_, range_->max_index());
       if (range_->inlined()) {
-        return scope_info()->ContextInlinedLocalName(index_.as_int());
+        return scope_info()->ContextInlinedLocalName(cage_base,
+                                                     index_.as_int());
       }
-      return String::cast(table().KeyAt(index_));
+      return String::cast(table().KeyAt(cage_base, index_));
+    }
+
+    String name() const {
+      PtrComprCageBase cage_base = GetPtrComprCageBase(*scope_info());
+      return name(cage_base);
     }
 
     const Iterator* operator*() const { return this; }

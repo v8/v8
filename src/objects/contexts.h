@@ -386,6 +386,14 @@ class ScriptContextTable : public FixedArray {
   inline Context get_context(int i) const;
   inline Context get_context(int i, AcquireLoadTag tag) const;
 
+  DECL_ACCESSORS(names_to_context_index, NameToIndexHashTable)
+
+  // Adds local names from `script_context` to the hash table.
+  static void AddLocalNamesFromContext(
+      Isolate* isolate, Handle<ScriptContextTable> script_context_table,
+      Handle<Context> script_context, bool ignore_duplicates,
+      int script_context_index);
+
   // Lookup a variable `name` in a ScriptContextTable.
   // If it returns true, the variable is found and `result` contains
   // valid information about its location.
@@ -396,11 +404,15 @@ class ScriptContextTable : public FixedArray {
 
   V8_WARN_UNUSED_RESULT
   V8_EXPORT_PRIVATE static Handle<ScriptContextTable> Extend(
-      Handle<ScriptContextTable> table, Handle<Context> script_context);
+      Isolate* isolate, Handle<ScriptContextTable> table,
+      Handle<Context> script_context, bool ignore_duplicates = false);
 
-  static const int kUsedSlotIndex = 0;
-  static const int kFirstContextSlotIndex = 1;
+  static const int kHashTableIndex = 0;
+  static const int kUsedSlotIndex = 1;
+  static const int kFirstContextSlotIndex = 2;
   static const int kMinLength = kFirstContextSlotIndex;
+
+  static const int kHashTableOffset = OffsetOfElementAt(kHashTableIndex);
 
   OBJECT_CONSTRUCTORS(ScriptContextTable, FixedArray);
 };
@@ -562,8 +574,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static const int kInvalidContext = 1;
 
   // Direct slot access.
-  inline void set_scope_info(ScopeInfo scope_info,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  DECL_ACCESSORS(scope_info, ScopeInfo)
 
   inline Object unchecked_previous() const;
   inline Context previous() const;
@@ -576,7 +587,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
       HeapObject object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   JSObject extension_object() const;
   JSReceiver extension_receiver() const;
-  V8_EXPORT_PRIVATE inline ScopeInfo scope_info() const;
 
   // Find the module context (assuming there is one) and return the associated
   // module object.

@@ -1243,7 +1243,7 @@ void Genesis::InstallGlobalThisBinding() {
   context->set(slot, native_context()->global_proxy());
 
   Handle<ScriptContextTable> new_script_contexts =
-      ScriptContextTable::Extend(script_contexts, context);
+      ScriptContextTable::Extend(isolate(), script_contexts, context);
   native_context()->set_script_context_table(*new_script_contexts);
 }
 
