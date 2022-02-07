@@ -5566,7 +5566,10 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   if (IsSharedAllocationType(allocation)) {
     CollectSharedGarbage(GarbageCollectionReason::kLastResort);
 
-    AlwaysAllocateScope scope(isolate()->shared_isolate()->heap());
+    // We need always_allocate() to be true both on the client- and
+    // server-isolate. It is used in both code paths.
+    AlwaysAllocateScope shared_scope(isolate()->shared_isolate()->heap());
+    AlwaysAllocateScope client_scope(isolate()->heap());
     alloc = AllocateRaw(size, allocation, origin, alignment);
   } else {
     CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
