@@ -379,8 +379,8 @@ constexpr Register kWasmInstanceRegister = a0;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
 constexpr DoubleRegister kFPReturnRegister0 = fa0;
-constexpr VRegister kSimd128ScratchReg = v23;
-constexpr VRegister kSimd128ScratchReg2 = v24;
+constexpr VRegister kSimd128ScratchReg = v24;
+constexpr VRegister kSimd128ScratchReg2 = v23;
 constexpr VRegister kSimd128ScratchReg3 = v8;
 constexpr VRegister kSimd128RegZero = v25;
 
