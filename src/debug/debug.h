@@ -475,6 +475,8 @@ class V8_EXPORT_PRIVATE Debug {
                      DebugInfoListNode** curr);
   void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
 
+  void ClearGlobalPromiseStack();
+
   void SetTemporaryObjectTrackingDisabled(bool disabled);
   bool GetTemporaryObjectTrackingDisabled() const;
 

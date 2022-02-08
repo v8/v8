@@ -2599,14 +2599,15 @@ void Isolate::PushPromise(Handle<JSObject> promise) {
   tltop->promise_on_stack_ = new PromiseOnStack(global_promise, prev);
 }
 
-void Isolate::PopPromise() {
+bool Isolate::PopPromise() {
   ThreadLocalTop* tltop = thread_local_top();
-  if (tltop->promise_on_stack_ == nullptr) return;
+  if (tltop->promise_on_stack_ == nullptr) return false;
   PromiseOnStack* prev = tltop->promise_on_stack_->prev();
   Handle<Object> global_promise = tltop->promise_on_stack_->promise();
   delete tltop->promise_on_stack_;
   tltop->promise_on_stack_ = prev;
   global_handles()->Destroy(global_promise.location());
+  return true;
 }
 
 namespace {

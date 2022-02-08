@@ -855,7 +855,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Push and pop a promise and the current try-catch handler.
   void PushPromise(Handle<JSObject> promise);
-  void PopPromise();
+  bool PopPromise();
 
   // Return the relevant Promise that a throw/rejection pertains to, based
   // on the contents of the Promise stack

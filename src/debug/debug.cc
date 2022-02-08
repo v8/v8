@@ -440,6 +440,7 @@ void Debug::Unload() {
   ClearStepping();
   RemoveAllCoverageInfos();
   ClearAllDebuggerHints();
+  ClearGlobalPromiseStack();
   debug_delegate_ = nullptr;
 }
 
@@ -1988,6 +1989,11 @@ void Debug::FreeDebugInfoListNode(DebugInfoListNode* prev,
                                                 kReleaseStore);
 
   delete node;
+}
+
+void Debug::ClearGlobalPromiseStack() {
+  while (isolate_->PopPromise()) {
+  }
 }
 
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
