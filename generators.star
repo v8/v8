@@ -2,6 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# Python3: Eventually we add all recipes to this list.
+def recipes_with_python3_stes():
+    return [
+        "v8/presubmit",
+    ]
+
 def consoles_map(ctx):
     """
     Returns a mapping of console ID to console config.
@@ -169,6 +175,15 @@ def ensure_forward_triggering_properties(ctx):
                 properties["triggers"] = tlist
                 builder.properties = json.encode(properties)
 
+def python3_steps(ctx):
+    python3_recipes = recipes_with_python3_stes()
+    build_bucket = ctx.output["cr-buildbucket.cfg"]
+    for bucket in build_bucket.buckets:
+        for builder in bucket.swarming.builders:
+            recipe = json.decode(builder.properties)["recipe"]
+            if recipe in python3_recipes:
+                builder.experiments["v8.steps.use_python3"] = 100
+
 lucicfg.generator(aggregate_builder_tester_console)
 
 lucicfg.generator(separate_builder_tester_console)
@@ -178,3 +193,5 @@ lucicfg.generator(headless_consoles)
 lucicfg.generator(mirror_dev_consoles)
 
 lucicfg.generator(ensure_forward_triggering_properties)
+
+lucicfg.generator(python3_steps)
