@@ -1190,6 +1190,9 @@
   # BUG(v8:11858): Deadlocks in predictable mode when waiting for the native
   # module cache entry to be completed.
   'regress/wasm/regress-709684': [SKIP],
+
+  # BUG(v8:12605): flaky test.
+  'wasm/grow-shared-memory': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
