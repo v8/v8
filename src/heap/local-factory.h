@@ -66,9 +66,9 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
 
   // This is the real Isolate that will be used for allocating and accessing
   // external pointer entries when V8_SANDBOXED_EXTERNAL_POINTERS is enabled.
-  Isolate* isolate_for_heap_sandbox() {
+  Isolate* isolate_for_sandbox() {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    return isolate_for_heap_sandbox_;
+    return isolate_for_sandbox_;
 #else
     return nullptr;
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
 
   ReadOnlyRoots roots_;
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  Isolate* isolate_for_heap_sandbox_;
+  Isolate* isolate_for_sandbox_;
 #endif
 #ifdef DEBUG
   bool a_script_was_added_to_the_script_list_ = false;
