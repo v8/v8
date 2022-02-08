@@ -747,12 +747,18 @@ void WasmGraphBuilder::StackCheck(
     stack_check_code_node_.set(mcgraph()->RelocatableIntPtrConstant(
         wasm::WasmCode::kWasmStackGuard, RelocInfo::WASM_STUB_CALL));
 
+    constexpr Operator::Properties properties =
+        Operator::kNoThrow | Operator::kNoWrite;
+    // If we ever want to mark this call as  kNoDeopt, we'll have to make it
+    // non-eliminatable some other way.
+    STATIC_ASSERT((properties & Operator::kEliminatable) !=
+                  Operator::kEliminatable);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(),                    // zone
         NoContextDescriptor{},                // descriptor
         0,                                    // stack parameter count
         CallDescriptor::kNoFlags,             // flags
-        Operator::kNoThrow,                   // properties
+        properties,                           // properties
         StubCallMode::kCallWasmRuntimeStub);  // stub call mode
     stack_check_call_operator_ = mcgraph()->common()->Call(call_descriptor);
   }
