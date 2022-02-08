@@ -31,11 +31,8 @@ def define_all_recipes():
     build_recipes = [
         "chromium_integration",
         "v8",
-        "v8/archive",
         "v8/bazel",
         "v8/flako",
-        "v8/node_integration_ng",
-        "v8/spike",
     ]
     for recipe in build_recipes:
         build_recipe(name = "recipe:" + recipe)
@@ -44,8 +41,11 @@ def define_all_recipes():
         "chromium",
         "chromium_trybot",
         "run_presubmit",
+        "v8/archive",
+        "v8/node_integration_ng",
         "v8/presubmit",
         "v8/verify_flakes",
+        "v8/spike",
         "v8/test_tools",
     ]
     for recipe in py3_build_recipes:
