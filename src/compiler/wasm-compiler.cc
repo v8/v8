@@ -90,6 +90,11 @@ MachineType assert_size(int expected_size, MachineType type) {
       assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstance(), \
       wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
 
+#define LOAD_INSTANCE_FIELD_NO_ELIMINATION(name, type)                   \
+  gasm_->Load(                                                           \
+      assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type), GetInstance(), \
+      wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset))
+
 // Use MachineType::Pointer() over Tagged() to load root pointers because they
 // do not get compressed.
 #define LOAD_ROOT(root_name, factory_name)                   \
@@ -780,8 +785,12 @@ void WasmGraphBuilder::StackCheck(
   // We only need to refresh the size of a shared memory, as its start can never
   // change.
   if (shared_memory_instance_cache != nullptr) {
+    // We handle caching of the instance cache nodes manually, and we may reload
+    // them in contexts where load elimination would eliminate the reload.
+    // Therefore, we use plain Load nodes which are not subject to load
+    // elimination.
     Node* new_memory_size =
-        LOAD_MUTABLE_INSTANCE_FIELD(MemorySize, MachineType::UintPtr());
+        LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemorySize, MachineType::UintPtr());
     shared_memory_instance_cache->mem_size = CreateOrMergeIntoPhi(
         MachineType::PointerRepresentation(), merge,
         shared_memory_instance_cache->mem_size, new_memory_size);
@@ -3501,19 +3510,23 @@ Node* WasmGraphBuilder::BuildConvertUint32ToSmiWithSaturation(Node* value,
 
 void WasmGraphBuilder::InitInstanceCache(
     WasmInstanceCacheNodes* instance_cache) {
+  // We handle caching of the instance cache nodes manually, and we may reload
+  // them in contexts where load elimination would eliminate the reload.
+  // Therefore, we use plain Load nodes which are not subject to load
+  // elimination.
 
   // Load the memory start.
 #ifdef V8_SANDBOXED_POINTERS
-  instance_cache->mem_start =
-      LOAD_MUTABLE_INSTANCE_FIELD(MemoryStart, MachineType::SandboxedPointer());
+  instance_cache->mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
+      MemoryStart, MachineType::SandboxedPointer());
 #else
   instance_cache->mem_start =
-      LOAD_MUTABLE_INSTANCE_FIELD(MemoryStart, MachineType::UintPtr());
+      LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemoryStart, MachineType::UintPtr());
 #endif
 
   // Load the memory size.
   instance_cache->mem_size =
-      LOAD_MUTABLE_INSTANCE_FIELD(MemorySize, MachineType::UintPtr());
+      LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemorySize, MachineType::UintPtr());
 }
 
 void WasmGraphBuilder::PrepareInstanceCacheForLoop(
