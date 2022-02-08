@@ -1068,6 +1068,17 @@ UNINITIALIZED_TEST(ConsoleTimeEvents) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     ScopedLoggerInitializer logger(isolate);
+    {
+      // setup console global.
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::String> name = v8::String::NewFromUtf8Literal(
+          isolate, "console", v8::NewStringType::kInternalized);
+      v8::Local<v8::Context> context = isolate->GetCurrentContext();
+      v8::Local<v8::Value> console = context->GetExtrasBindingObject()
+                                         ->Get(context, name)
+                                         .ToLocalChecked();
+      context->Global()->Set(context, name, console).FromJust();
+    }
     // Test that console time events are properly logged
     const char* source_text =
         "console.time();"

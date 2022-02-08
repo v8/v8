@@ -3243,8 +3243,8 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
     isolate->SetWasmLoadSourceMapCallback(Shell::WasmLoadSourceMapCallback);
   }
   InitializeModuleEmbedderData(context);
+  Context::Scope scope(context);
   if (options.include_arguments) {
-    Context::Scope scope(context);
     const std::vector<const char*>& args = options.arguments;
     int size = static_cast<int>(args.size());
     Local<Array> array = Array::New(isolate, size);
@@ -3258,6 +3258,15 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
         isolate, "arguments", NewStringType::kInternalized);
     context->Global()->Set(context, name, array).FromJust();
   }
+  {
+    // setup console global.
+    Local<String> name = String::NewFromUtf8Literal(
+        isolate, "console", NewStringType::kInternalized);
+    Local<Value> console =
+        context->GetExtrasBindingObject()->Get(context, name).ToLocalChecked();
+    context->Global()->Set(context, name, console).FromJust();
+  }
+
   return handle_scope.Escape(context);
 }
 

@@ -169,6 +169,7 @@
   V(_, computed_string, "<computed>")                                 \
   V(_, configurable_string, "configurable")                           \
   V(_, conjunction_string, "conjunction")                             \
+  V(_, console_string, "console")                                     \
   V(_, constrain_string, "constrain")                                 \
   V(_, construct_string, "construct")                                 \
   V(_, constructor_string, "constructor")                             \
