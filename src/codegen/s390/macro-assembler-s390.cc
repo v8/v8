@@ -5876,6 +5876,40 @@ void TurboAssembler::I8x16SubSatU(Simd128Register dst, Simd128Register src1,
 }
 #undef BINOP_EXTRACT
 
+void TurboAssembler::F64x2PromoteLowF32x4(Simd128Register dst,
+                                          Simd128Register src,
+                                          Simd128Register scratch1,
+                                          Register scratch2, Register scratch3,
+                                          Register scratch4) {
+  Register holder = scratch3;
+  for (int index = 0; index < 2; ++index) {
+    vlgv(scratch2, src, MemOperand(scratch2, index + 2), Condition(2));
+    MovIntToFloat(scratch1, scratch2);
+    ldebr(scratch1, scratch1);
+    MovDoubleToInt64(holder, scratch1);
+    holder = scratch4;
+  }
+  vlvgp(dst, scratch3, scratch4);
+}
+
+void TurboAssembler::F32x4DemoteF64x2Zero(Simd128Register dst,
+                                          Simd128Register src,
+                                          Simd128Register scratch1,
+                                          Register scratch2, Register scratch3,
+                                          Register scratch4) {
+  Register holder = scratch3;
+  for (int index = 0; index < 2; ++index) {
+    vlgv(scratch2, src, MemOperand(r0, index), Condition(3));
+    MovInt64ToDouble(scratch1, scratch2);
+    ledbr(scratch1, scratch1);
+    MovFloatToInt(holder, scratch1);
+    holder = scratch4;
+  }
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+  vlvg(dst, scratch3, MemOperand(r0, 2), Condition(2));
+  vlvg(dst, scratch4, MemOperand(r0, 3), Condition(2));
+}
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

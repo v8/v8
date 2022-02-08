@@ -3064,32 +3064,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_F64x2PromoteLowF32x4: {
-      Register holder = r1;
-      for (int index = 0; index < 2; ++index) {
-        __ vlgv(r0, i.InputSimd128Register(0), MemOperand(r0, index + 2),
-                Condition(2));
-        __ MovIntToFloat(kScratchDoubleReg, r0);
-        __ ldebr(kScratchDoubleReg, kScratchDoubleReg);
-        __ MovDoubleToInt64(holder, kScratchDoubleReg);
-        holder = ip;
-      }
-      __ vlvgp(i.OutputSimd128Register(), r1, ip);
+      __ F64x2PromoteLowF32x4(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), kScratchDoubleReg, r0,
+                              r1, ip);
       break;
     }
     case kS390_F32x4DemoteF64x2Zero: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Register holder = r1;
-      for (int index = 0; index < 2; ++index) {
-        __ vlgv(r0, i.InputSimd128Register(0), MemOperand(r0, index),
-                Condition(3));
-        __ MovInt64ToDouble(kScratchDoubleReg, r0);
-        __ ledbr(kScratchDoubleReg, kScratchDoubleReg);
-        __ MovFloatToInt(holder, kScratchDoubleReg);
-        holder = ip;
-      }
-      __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
-      __ vlvg(dst, r1, MemOperand(r0, 2), Condition(2));
-      __ vlvg(dst, ip, MemOperand(r0, 3), Condition(2));
+      __ F32x4DemoteF64x2Zero(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), kScratchDoubleReg, r0,
+                              r1, ip);
       break;
     }
     case kS390_I32x4TruncSatF64x2SZero: {
