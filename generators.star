@@ -6,6 +6,7 @@
 def recipes_with_python3_stes():
     return [
         "v8/presubmit",
+        "v8/archive",
     ]
 
 def consoles_map(ctx):
