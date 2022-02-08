@@ -8591,6 +8591,15 @@ void Isolate::Initialize(Isolate* isolate,
   } else {
     i_isolate->set_snapshot_blob(i::Snapshot::DefaultSnapshotBlob());
   }
+
+  if (params.fatal_error_callback) {
+    isolate->SetFatalErrorHandler(params.fatal_error_callback);
+  }
+
+  if (params.oom_error_callback) {
+    isolate->SetOOMErrorHandler(params.oom_error_callback);
+  }
+
   if (params.counter_lookup_callback) {
     isolate->SetCounterFunction(params.counter_lookup_callback);
   }

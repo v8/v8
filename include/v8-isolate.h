@@ -283,6 +283,12 @@ class V8_EXPORT Isolate {
     int embedder_wrapper_object_index = -1;
 
     /**
+     * Callbacks to invoke in case of fatal or OOM errors.
+     */
+    FatalErrorCallback fatal_error_callback = nullptr;
+    OOMErrorCallback oom_error_callback = nullptr;
+
+    /**
      * The following parameter is experimental and may change significantly.
      * This is currently for internal testing.
      */
