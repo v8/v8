@@ -5787,6 +5787,95 @@ void TurboAssembler::I8x16UConvertI16x8(Simd128Register dst,
 }
 #undef VECTOR_PACK_UNSIGNED
 
+#define BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, op, extract_high, \
+                      extract_low, mode)                                     \
+  DCHECK(dst != scratch1 && dst != scratch2);                                \
+  DCHECK(dst != src1 && dst != src2);                                        \
+  extract_high(scratch1, src1, Condition(0), Condition(0), Condition(mode)); \
+  extract_high(scratch2, src2, Condition(0), Condition(0), Condition(mode)); \
+  op(dst, scratch1, scratch2, Condition(0), Condition(0),                    \
+     Condition(mode + 1));                                                   \
+  extract_low(scratch1, src1, Condition(0), Condition(0), Condition(mode));  \
+  extract_low(scratch2, src2, Condition(0), Condition(0), Condition(mode));  \
+  op(scratch1, scratch1, scratch2, Condition(0), Condition(0),               \
+     Condition(mode + 1));
+void TurboAssembler::I16x8AddSatS(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, va, vuph, vupl, 1)
+  vpks(dst, dst, scratch1, Condition(0), Condition(2));
+}
+
+void TurboAssembler::I16x8SubSatS(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, vs, vuph, vupl, 1)
+  vpks(dst, dst, scratch1, Condition(0), Condition(2));
+}
+
+void TurboAssembler::I16x8AddSatU(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, va, vuplh, vupll, 1)
+  vpkls(dst, dst, scratch1, Condition(0), Condition(2));
+}
+
+void TurboAssembler::I16x8SubSatU(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, vs, vuplh, vupll, 1)
+  // negative intermediate values to 0.
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), Condition(0),
+     Condition(0));
+  vmx(dst, kDoubleRegZero, dst, Condition(0), Condition(0), Condition(2));
+  vmx(scratch1, kDoubleRegZero, scratch1, Condition(0), Condition(0),
+      Condition(2));
+  vpkls(dst, dst, scratch1, Condition(0), Condition(2));
+}
+
+void TurboAssembler::I8x16AddSatS(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, va, vuph, vupl, 0)
+  vpks(dst, dst, scratch1, Condition(0), Condition(1));
+}
+
+void TurboAssembler::I8x16SubSatS(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, vs, vuph, vupl, 0)
+  vpks(dst, dst, scratch1, Condition(0), Condition(1));
+}
+
+void TurboAssembler::I8x16AddSatU(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, va, vuplh, vupll, 0)
+  vpkls(dst, dst, scratch1, Condition(0), Condition(1));
+}
+
+void TurboAssembler::I8x16SubSatU(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  BINOP_EXTRACT(dst, src1, src2, scratch1, scratch2, vs, vuplh, vupll, 0)
+  // negative intermediate values to 0.
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), Condition(0),
+     Condition(0));
+  vmx(dst, kDoubleRegZero, dst, Condition(0), Condition(0), Condition(1));
+  vmx(scratch1, kDoubleRegZero, scratch1, Condition(0), Condition(0),
+      Condition(1));
+  vpkls(dst, dst, scratch1, Condition(0), Condition(1));
+}
+#undef BINOP_EXTRACT
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

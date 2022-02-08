@@ -2798,6 +2798,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_QFM
 #undef SIMD_QFM_LIST
 
+#define SIMD_ADD_SUB_SAT_LIST(V) \
+  V(I16x8AddSatS)                \
+  V(I16x8SubSatS)                \
+  V(I16x8AddSatU)                \
+  V(I16x8SubSatU)                \
+  V(I8x16AddSatS)                \
+  V(I8x16SubSatS)                \
+  V(I8x16AddSatU)                \
+  V(I8x16SubSatU)
+
+#define EMIT_SIMD_ADD_SUB_SAT(name)                               \
+  case kS390_##name: {                                            \
+    __ name(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+            i.InputSimd128Register(1), kScratchDoubleReg,         \
+            i.ToSimd128Register(instr->TempAt(0)));               \
+    break;                                                        \
+  }
+      SIMD_ADD_SUB_SAT_LIST(EMIT_SIMD_ADD_SUB_SAT)
+#undef EMIT_SIMD_ADD_SUB_SAT
+#undef SIMD_ADD_SUB_SAT_LIST
+
     // vector unary ops
     case kS390_F32x4RecipApprox: {
       __ mov(kScratchReg, Operand(1));
@@ -2901,88 +2922,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                             i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
-#define BINOP_EXTRACT(op, extract_high, extract_low, mode)              \
-  Simd128Register src1 = i.InputSimd128Register(0);                     \
-  Simd128Register src2 = i.InputSimd128Register(1);                     \
-  Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));   \
-  Simd128Register tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));   \
-  DCHECK_NE(src1, tempFPReg1);                                          \
-  DCHECK_NE(src2, tempFPReg1);                                          \
-  __ extract_high(kScratchDoubleReg, src1, Condition(0), Condition(0),  \
-                  Condition(mode));                                     \
-  __ extract_high(tempFPReg1, src2, Condition(0), Condition(0),         \
-                  Condition(mode));                                     \
-  __ op(kScratchDoubleReg, kScratchDoubleReg, tempFPReg1, Condition(0), \
-        Condition(0), Condition(mode + 1));                             \
-  __ extract_low(tempFPReg1, src1, Condition(0), Condition(0),          \
-                 Condition(mode));                                      \
-  __ extract_low(tempFPReg2, src2, Condition(0), Condition(0),          \
-                 Condition(mode));                                      \
-  __ op(tempFPReg1, tempFPReg1, tempFPReg2, Condition(0), Condition(0), \
-        Condition(mode + 1));
-    case kS390_I16x8AddSatS: {
-      BINOP_EXTRACT(va, vuph, vupl, 1)
-      __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-              Condition(0), Condition(2));
-      break;
-    }
-    case kS390_I16x8SubSatS: {
-      BINOP_EXTRACT(vs, vuph, vupl, 1)
-      __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-              Condition(0), Condition(2));
-      break;
-    }
-    case kS390_I16x8AddSatU: {
-      BINOP_EXTRACT(va, vuplh, vupll, 1)
-      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-               Condition(0), Condition(2));
-      break;
-    }
-    case kS390_I16x8SubSatU: {
-      BINOP_EXTRACT(vs, vuplh, vupll, 1)
-      // negative to 0
-      __ vx(tempFPReg2, tempFPReg2, tempFPReg2, Condition(0), Condition(0),
-            Condition(0));
-      __ vmx(kScratchDoubleReg, tempFPReg2, kScratchDoubleReg, Condition(0),
-             Condition(0), Condition(2));
-      __ vmx(tempFPReg1, tempFPReg2, tempFPReg1, Condition(0), Condition(0),
-             Condition(2));
-      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-               Condition(0), Condition(2));
-      break;
-    }
-    case kS390_I8x16AddSatS: {
-      BINOP_EXTRACT(va, vuph, vupl, 0)
-      __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-              Condition(0), Condition(1));
-      break;
-    }
-    case kS390_I8x16SubSatS: {
-      BINOP_EXTRACT(vs, vuph, vupl, 0)
-      __ vpks(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-              Condition(0), Condition(1));
-      break;
-    }
-    case kS390_I8x16AddSatU: {
-      BINOP_EXTRACT(va, vuplh, vupll, 0)
-      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-               Condition(0), Condition(1));
-      break;
-    }
-    case kS390_I8x16SubSatU: {
-      BINOP_EXTRACT(vs, vuplh, vupll, 0)
-      // negative to 0
-      __ vx(tempFPReg2, tempFPReg2, tempFPReg2, Condition(0), Condition(0),
-            Condition(0));
-      __ vmx(kScratchDoubleReg, tempFPReg2, kScratchDoubleReg, Condition(0),
-             Condition(0), Condition(1));
-      __ vmx(tempFPReg1, tempFPReg2, tempFPReg1, Condition(0), Condition(0),
-             Condition(1));
-      __ vpkls(i.OutputSimd128Register(), kScratchDoubleReg, tempFPReg1,
-               Condition(0), Condition(1));
-      break;
-    }
-#undef BINOP_EXTRACT
     case kS390_I8x16Shuffle: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),

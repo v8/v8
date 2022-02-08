@@ -1339,6 +1339,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_QFM
 #undef SIMD_QFM_LIST
 
+#define SIMD_ADD_SUB_SAT_LIST(V) \
+  V(I16x8AddSatS)                \
+  V(I16x8SubSatS)                \
+  V(I16x8AddSatU)                \
+  V(I16x8SubSatU)                \
+  V(I8x16AddSatS)                \
+  V(I8x16SubSatS)                \
+  V(I8x16AddSatU)                \
+  V(I8x16SubSatU)
+
+#define PROTOTYPE_SIMD_ADD_SUB_SAT(name)                                     \
+  void name(Simd128Register dst, Simd128Register src1, Simd128Register src2, \
+            Simd128Register scratch1, Simd128Register scratch2);
+  SIMD_ADD_SUB_SAT_LIST(PROTOTYPE_SIMD_ADD_SUB_SAT)
+#undef PROTOTYPE_SIMD_ADD_SUB_SAT
+#undef SIMD_ADD_SUB_SAT_LIST
+
   // ---------------------------------------------------------------------------
   // Pointer compression Support
 
