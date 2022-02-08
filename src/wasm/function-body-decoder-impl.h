@@ -5363,11 +5363,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   int BuildSimpleOperator(WasmOpcode opcode, const FunctionSig* sig) {
     DCHECK_GE(1, sig->return_count());
-    ValueType ret = sig->return_count() == 0 ? kWasmVoid : sig->GetReturn(0);
     if (sig->parameter_count() == 1) {
-      return BuildSimpleOperator(opcode, ret, sig->GetParam(0));
+      // All current simple unary operators have exactly 1 return value.
+      DCHECK_EQ(1, sig->return_count());
+      return BuildSimpleOperator(opcode, sig->GetReturn(0), sig->GetParam(0));
     } else {
       DCHECK_EQ(2, sig->parameter_count());
+      ValueType ret = sig->return_count() == 0 ? kWasmVoid : sig->GetReturn(0);
       return BuildSimpleOperator(opcode, ret, sig->GetParam(0),
                                  sig->GetParam(1));
     }
@@ -5375,16 +5377,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   int BuildSimpleOperator(WasmOpcode opcode, ValueType return_type,
                           ValueType arg_type) {
+    DCHECK_NE(kWasmVoid, return_type);
     Value val = Peek(0, 0, arg_type);
-    if (return_type == kWasmVoid) {
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, opcode, val, nullptr);
-      Drop(val);
-    } else {
-      Value ret = CreateValue(return_type);
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, opcode, val, &ret);
-      Drop(val);
-      Push(ret);
-    }
+    Value ret = CreateValue(return_type);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, opcode, val, &ret);
+    Drop(val);
+    Push(ret);
     return 1;
   }
 
