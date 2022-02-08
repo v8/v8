@@ -5461,8 +5461,7 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
   for (auto arg : args) {
     MachineRepresentation type = arg.first;
     Node* value = arg.second;
-    gasm_->Store(StoreRepresentation(type, kNoWriteBarrier), stack_slot,
-                 Int32Constant(offset), value);
+    gasm_->StoreUnaligned(type, stack_slot, Int32Constant(offset), value);
     offset += ElementSizeInBytes(type);
   }
   return stack_slot;
