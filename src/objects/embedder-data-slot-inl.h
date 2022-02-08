@@ -118,7 +118,14 @@ bool EmbedderDataSlot::ToAlignedPointerSafe(Isolate* isolate,
     raw_value = isolate->external_pointer_table().Get(
         index, kEmbedderDataSlotPayloadTag);
     *out_pointer = reinterpret_cast<void*>(raw_value);
-    return true;
+    // The index being valid does not guarantee that this slot contains an
+    // external pointer. After initialization, the raw part will contain the
+    // "undefined" value (see Factory::InitializeJSObjectBody) which could look
+    // like an external pointer table index as well. To deal with that, we also
+    // check that the returned value has the embedder data slot tag, since
+    // otherwise the pointer would be invalid.
+    // TODO(v8:10391) maybe initialize the slot to zero to avoid this issue.
+    return (raw_value & kExternalPointerTagMask) == 0;
   }
   return false;
 #else

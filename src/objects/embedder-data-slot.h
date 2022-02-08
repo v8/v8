@@ -85,12 +85,13 @@ class EmbedderDataSlot
   V8_INLINE bool ToAlignedPointer(Isolate* isolate, void** out_result) const;
 
   // Same as ToAlignedPointer() but with a workaround for sandboxed external
-  // pointers.  When sandboxed external pointers are enabled, this method
+  // pointers. When sandboxed external pointers are enabled, this method
   // doesn't crash when the raw part of the slot contains "undefined" instead
-  // of a correct external table entry index (see
-  // Factory::InitializeJSObjectBody() for details).  Returns true when the
-  // external pointer table index was pointing to a valid entry, otherwise
-  // false.
+  // of a valid external table entry index (see
+  // Factory::InitializeJSObjectBody() for details). Returns true if this slot
+  // contains a valid external pointer, false otherwise.
+  //
+  // TODO(v8:10391) we could instead initialize the raw part to zero.
   //
   // Call this function if you are not sure whether the slot contains valid
   // external pointer or not.
