@@ -372,6 +372,12 @@ def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
     )
 
 def _v8_target_cpu_transition_impl(settings, attr):
+    # Check for an existing v8_target_cpu flag.
+    if "@v8//bazel/config:v8_target_cpu" in settings:
+        if settings["@v8//bazel/config:v8_target_cpu"] != "none":
+            return
+
+    # Auto-detect target architecture based on the --cpu flag.
     mapping = {
         "haswell": "x64",
         "k8": "x64",
@@ -395,7 +401,7 @@ def _v8_target_cpu_transition_impl(settings, attr):
 # on the command line.
 v8_target_cpu_transition = transition(
     implementation = _v8_target_cpu_transition_impl,
-    inputs = ["//command_line_option:cpu"],
+    inputs = ["@v8//bazel/config:v8_target_cpu", "//command_line_option:cpu"],
     outputs = ["@v8//bazel/config:v8_target_cpu"],
 )
 
