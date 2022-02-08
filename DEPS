@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'dfc291f6e05b87846e93739b7555f59f2afcb2cb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '19e2886dfc33fb7124a1d31e2dc01d3980b361ba',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '2a745cc87d28e53996469189bc7661811d6f9c34',
   'buildtools/clang_format/script':
@@ -113,7 +113,7 @@ deps = {
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '77c52e2f68f76dbe661420d85f51521805990ae2',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'f2ef96ecb8ecba64489f0412d345698ffb38e094',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'b86911d6e7455c4be2ddbc390803aecad19cfc3a',
   'buildtools/win': {
     'packages': [
       {
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b4974c8f859b9ca0e5c7fa03588cb9011563d522',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '25f38be662aec0c8b1509024001e5cc5254a363c',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9c0ccc73749185eec23cd518bb8a35818f8c8c5f',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '1b93e14c92416185694f8764be425f82fa0d4242',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
