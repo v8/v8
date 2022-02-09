@@ -76,6 +76,10 @@ new_path = path_to_depot_tools + os.pathsep + os.environ.get('PATH')
 os.environ['PATH'] = new_path
 
 
+def maybe_decode(obj):
+  return obj.decode('utf-8') if PYTHON3 else obj
+
+
 def TextToFile(text, file_name):
   with open(file_name, "w") as f:
     f.write(text)
@@ -112,7 +116,7 @@ def Command(cmd, args="", prefix="", pipe=True, cwd=None):
   sys.stdout.flush()
   try:
     if pipe:
-      return subprocess.check_output(cmd_line, shell=True, cwd=cwd)
+      return maybe_decode(subprocess.check_output(cmd_line, shell=True, cwd=cwd))
     else:
       return subprocess.check_call(cmd_line, shell=True, cwd=cwd)
   except subprocess.CalledProcessError:

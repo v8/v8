@@ -29,6 +29,7 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
+import json
 import os
 import shutil
 import tempfile
@@ -92,6 +93,10 @@ class ToplevelTest(unittest.TestCase):
                 "4.8.231",
                 ]
     self.assertEquals(expected, NormalizeVersionTags(input))
+
+  def testCommand(self):
+    """Ensure json can decode the output of commands."""
+    json.dumps(Command('ls', pipe=True))
 
 
 def Cmd(*args, **kwargs):
