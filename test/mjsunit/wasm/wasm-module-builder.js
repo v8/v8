@@ -81,7 +81,7 @@ let kWasmFunctionNominalForm = 0x5d;
 let kWasmStructNominalForm = 0x5c;
 let kWasmArrayNominalForm = 0x5b;
 let kWasmSubtypeForm = 0x50;
-let kWasmRecursiveTypeGroupForm = 0x49;
+let kWasmRecursiveTypeGroupForm = 0x4f;
 
 let kNoSuperType = 0xFFFFFFFF;
 

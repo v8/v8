@@ -16,7 +16,7 @@ const module_bytes = [
   0x01,  // type section
   0x18,  // section length
   0x01,  // number of type section entries
-  0x49,  // recursive type group
+  0x4f,  // recursive type group
   0x04,  // number of types in the recursive group
   // type 0: struct $StrA (field ($byte i8) ($word i16) ($pointer (ref $StrB)))
   0x5f,  // struct

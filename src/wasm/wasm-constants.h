@@ -59,7 +59,7 @@ constexpr uint8_t kWasmFunctionNominalCode = 0x5d;
 constexpr uint8_t kWasmStructNominalCode = 0x5c;
 constexpr uint8_t kWasmArrayNominalCode = 0x5b;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
-constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x49;
+constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4f;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
