@@ -2587,7 +2587,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     builder.SetMaxMemorySize(32);
-    builder.WriteTo(buffer);
+    builder.WriteTo(buffer, /* emit_recursive_group = */ liftoff_as_reference);
     return true;
   }
 };

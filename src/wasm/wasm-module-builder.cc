@@ -585,7 +585,8 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
 }
 }  // namespace
 
-void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
+void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer,
+                                bool emit_recursive_group) const {
   // == Emit magic =============================================================
   buffer->write_u32(kWasmMagic);
   buffer->write_u32(kWasmVersion);
@@ -593,6 +594,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   // == Emit types =============================================================
   if (types_.size() > 0) {
     size_t start = EmitSection(kTypeSectionCode, buffer);
+
+    if (emit_recursive_group) {
+      // Wrap all types in a recursive group.
+      buffer->write_size(1);
+      buffer->write_u8(kWasmRecursiveTypeGroupCode);
+    }
+
     buffer->write_size(types_.size());
 
     // TODO(7748): Add support for recursive groups.

@@ -360,7 +360,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void SetHasSharedMemory();
 
   // Writing methods.
-  void WriteTo(ZoneBuffer* buffer) const;
+  // If {emit_recursive_group}, wrap all type definitions in a wasm-gc recursive
+  // group.
+  // TODO(7748): Support custom recursive groups.
+  void WriteTo(ZoneBuffer* buffer, bool emit_recursive_group = false) const;
   void WriteAsmJsOffsetTable(ZoneBuffer* buffer) const;
 
   Zone* zone() { return zone_; }
