@@ -32,6 +32,7 @@ def experiment_builder(**kwargs):
         )
 
     return v8_builder(
+        experiments = {"luci.recipes.use_python3": 100, "v8.scripts.use_python3": 100, "v8.steps.use_python3": 100},
         **kwargs
     )
 
@@ -197,7 +198,6 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.DEFAULT,
-        experiments = {"luci.recipes.use_python3": 100, "v8.scripts.use_python3": 100, "v8.steps.use_python3": 100},
         to_notify = ["machenbach@chromium.org"],
     ),
 )
