@@ -204,6 +204,7 @@ class Scavenger {
   const bool is_logging_;
   const bool is_incremental_marking_;
   const bool is_compacting_;
+  const bool is_compacting_including_map_space_;
   const bool shared_string_table_;
 
   friend class IterateAndScavengePromotedObjectsVisitor;

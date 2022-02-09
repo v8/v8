@@ -182,7 +182,11 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
                  : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
     }
     HeapObjectReference::Update(slot, target);
-    if (object_fields == ObjectFields::kMaybePointers) {
+
+    // During incremental marking we want to push every object in order to
+    // record slots for map words. Necessary for map space compaction.
+    if (object_fields == ObjectFields::kMaybePointers ||
+        is_compacting_including_map_space_) {
       promotion_list_local_.PushRegularObject(target, object_size);
     }
     promoted_size_ += object_size;
