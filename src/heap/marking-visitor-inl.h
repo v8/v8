@@ -115,6 +115,8 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
       rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
+  if (!is_shared_heap_ && object.InSharedHeap()) return;
+
   if (!concrete_visitor()->marking_state()->IsBlackOrGrey(object)) {
     if (host.IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
@@ -132,6 +134,8 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
     Code host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+
+  if (!is_shared_heap_ && target.InSharedHeap()) return;
   MarkObject(host, target);
   concrete_visitor()->RecordRelocSlot(host, rinfo, target);
 }

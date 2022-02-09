@@ -1056,14 +1056,20 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   Handle<Map> map = resource->IsCacheable()
                         ? external_one_byte_string_map()
                         : uncached_external_one_byte_string_map();
+  AllocationType type = RefineAllocationTypeForInPlaceInternalizableString(
+      AllocationType::kOld, *map);
   ExternalOneByteString external_string =
-      ExternalOneByteString::cast(New(map, AllocationType::kOld));
+      ExternalOneByteString::cast(New(map, type));
   DisallowGarbageCollection no_gc;
   external_string.AllocateExternalPointerEntries(isolate());
   external_string.set_length(static_cast<int>(length));
   external_string.set_raw_hash_field(String::kEmptyHashField);
   external_string.SetResource(isolate(), resource);
-  isolate()->heap()->RegisterExternalString(external_string);
+
+  Heap* owner_heap = isolate()->OwnsStringTable()
+                         ? isolate()->heap()
+                         : isolate()->shared_isolate()->heap();
+  owner_heap->RegisterExternalString(external_string);
 
   return Handle<String>(external_string, isolate());
 }
@@ -1078,14 +1084,20 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
 
   Handle<Map> map = resource->IsCacheable() ? external_string_map()
                                             : uncached_external_string_map();
-  ExternalTwoByteString string =
-      ExternalTwoByteString::cast(New(map, AllocationType::kOld));
+  AllocationType type = RefineAllocationTypeForInPlaceInternalizableString(
+      AllocationType::kOld, *map);
+  ExternalTwoByteString string = ExternalTwoByteString::cast(New(map, type));
   DisallowGarbageCollection no_gc;
   string.AllocateExternalPointerEntries(isolate());
   string.set_length(static_cast<int>(length));
   string.set_raw_hash_field(String::kEmptyHashField);
   string.SetResource(isolate(), resource);
-  isolate()->heap()->RegisterExternalString(string);
+
+  Heap* owner_heap = isolate()->OwnsStringTable()
+                         ? isolate()->heap()
+                         : isolate()->shared_isolate()->heap();
+  owner_heap->RegisterExternalString(string);
+
   return Handle<ExternalTwoByteString>(string, isolate());
 }
 

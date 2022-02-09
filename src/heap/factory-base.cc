@@ -16,6 +16,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball.h"
@@ -1071,7 +1072,8 @@ FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
 #ifdef DEBUG
   InstanceType instance_type = string_map.instance_type();
   DCHECK(InstanceTypeChecker::IsInternalizedString(instance_type) ||
-         String::IsInPlaceInternalizable(instance_type));
+         String::IsInPlaceInternalizable(instance_type) ||
+         InstanceTypeChecker::IsExternalString(instance_type));
 #endif
   if (FLAG_single_generation && allocation == AllocationType::kYoung) {
     allocation = AllocationType::kOld;

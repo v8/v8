@@ -720,7 +720,7 @@ String::FlatContent String::GetFlatContent(
     //
     // TODO(v8:12007): Currently character data is never overwritten for
     // shared strings.
-    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate) && !IsShared(),
+    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate) && !InSharedHeap(),
                    ThreadId::Current() == isolate->thread_id());
   }
 #endif
