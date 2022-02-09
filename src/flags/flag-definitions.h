@@ -1387,11 +1387,6 @@ DEFINE_BOOL(clear_free_memory, false, "initialize free memory with 0")
 DEFINE_BOOL(crash_on_aborted_evacuation, false,
             "crash when evacuation of page fails")
 
-DEFINE_BOOL_READONLY(
-    young_generation_large_objects, true,
-    "allocates large objects by default in the young generation large "
-    "object space")
-
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
 DEFINE_BOOL(debug_code, DEBUG_BOOL,

@@ -207,7 +207,6 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
   // TODO(hpayer): Make this check size based, i.e.
   // object_size > kMaxRegularHeapObjectSize
   if (V8_UNLIKELY(
-          FLAG_young_generation_large_objects &&
           BasicMemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner_identity());

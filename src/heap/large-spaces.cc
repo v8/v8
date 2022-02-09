@@ -380,19 +380,31 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     CHECK(ReadOnlyHeap::Contains(map) || heap()->map_space()->Contains(map));
 
     // We have only the following types in the large object space:
-    if (!(object.IsAbstractCode(cage_base) || object.IsSeqString(cage_base) ||
-          object.IsExternalString(cage_base) ||
-          object.IsThinString(cage_base) || object.IsFixedArray(cage_base) ||
-          object.IsFixedDoubleArray(cage_base) ||
-          object.IsWeakFixedArray(cage_base) ||
-          object.IsWeakArrayList(cage_base) ||
-          object.IsPropertyArray(cage_base) || object.IsByteArray(cage_base) ||
-          object.IsFeedbackVector(cage_base) || object.IsBigInt(cage_base) ||
-          object.IsFreeSpace(cage_base) ||
-          object.IsFeedbackMetadata(cage_base) || object.IsContext(cage_base) ||
-          object.IsUncompiledDataWithoutPreparseData(cage_base) ||
-          object.IsPreparseData(cage_base)) &&
-        !FLAG_young_generation_large_objects) {
+    const bool is_valid_lo_space_object =                         //
+        object.IsAbstractCode(cage_base) ||                       //
+        object.IsBigInt(cage_base) ||                             //
+        object.IsByteArray(cage_base) ||                          //
+        object.IsContext(cage_base) ||                            //
+        object.IsExternalString(cage_base) ||                     //
+        object.IsFeedbackMetadata(cage_base) ||                   //
+        object.IsFeedbackVector(cage_base) ||                     //
+        object.IsFixedArray(cage_base) ||                         //
+        object.IsFixedDoubleArray(cage_base) ||                   //
+        object.IsFreeSpace(cage_base) ||                          //
+        object.IsPreparseData(cage_base) ||                       //
+        object.IsPropertyArray(cage_base) ||                      //
+        object.IsScopeInfo() ||                                   //
+        object.IsSeqString(cage_base) ||                          //
+        object.IsSwissNameDictionary() ||                         //
+        object.IsThinString(cage_base) ||                         //
+        object.IsUncompiledDataWithoutPreparseData(cage_base) ||  //
+#if V8_ENABLE_WEBASSEMBLY                                         //
+        object.IsWasmArray() ||                                   //
+#endif                                                            //
+        object.IsWeakArrayList(cage_base) ||                      //
+        object.IsWeakFixedArray(cage_base);
+    if (!is_valid_lo_space_object) {
+      object.Print();
       FATAL("Found invalid Object (instance_type=%i) in large object space.",
             object.map(cage_base).instance_type());
     }

@@ -1247,15 +1247,9 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
     TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(
         AllocateDoubleAlignFlag::encode(needs_double_alignment) |
         AllowLargeObjectAllocationFlag::encode(allow_large_object_allocation)));
-    if (FLAG_young_generation_large_objects) {
-      result =
-          CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
-                      SmiTag(size_in_bytes), runtime_flags);
-    } else {
-      result =
-          CallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
-                      SmiTag(size_in_bytes), runtime_flags);
-    }
+    result =
+        CallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
+                    SmiTag(size_in_bytes), runtime_flags);
     Goto(&out);
 
     BIND(&next);
@@ -1376,10 +1370,6 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
   bool const new_space = !(flags & AllocationFlag::kPretenured);
   bool const allow_large_objects =
       flags & AllocationFlag::kAllowLargeObjectAllocation;
-  // For optimized allocations, we don't allow the allocation to happen in a
-  // different generation than requested.
-  bool const always_allocated_in_requested_space =
-      !new_space || !allow_large_objects || FLAG_young_generation_large_objects;
   if (!allow_large_objects) {
     intptr_t size_constant;
     if (TryToIntPtrConstant(size_in_bytes, &size_constant)) {
@@ -1388,8 +1378,7 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
       CSA_DCHECK(this, IsRegularHeapObjectSize(size_in_bytes));
     }
   }
-  if (!(flags & AllocationFlag::kDoubleAlignment) &&
-      always_allocated_in_requested_space) {
+  if (!(flags & AllocationFlag::kDoubleAlignment)) {
     return OptimizedAllocate(
         size_in_bytes,
         new_space ? AllocationType::kYoung : AllocationType::kOld,
@@ -4367,7 +4356,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
   TVARIABLE(Map, var_target_map, source_map);
 
   Label done(this, {&var_result}), is_cow(this),
-      new_space_check(this, {&var_target_map});
+      new_space_handler(this, {&var_target_map});
 
   // If source_map is either FixedDoubleArrayMap, or FixedCOWArrayMap but
   // we can't just use COW, use FixedArrayMap as the target map. Otherwise, use
@@ -4375,11 +4364,11 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
   if (IsDoubleElementsKind(from_kind)) {
     CSA_DCHECK(this, IsFixedDoubleArrayMap(source_map));
     var_target_map = FixedArrayMapConstant();
-    Goto(&new_space_check);
+    Goto(&new_space_handler);
   } else {
     CSA_DCHECK(this, Word32BinaryNot(IsFixedDoubleArrayMap(source_map)));
     Branch(TaggedEqual(var_target_map.value(), FixedCOWArrayMapConstant()),
-           &is_cow, &new_space_check);
+           &is_cow, &new_space_handler);
 
     BIND(&is_cow);
     {
@@ -4389,34 +4378,19 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
       // 2) we're asked to extract only part of the |source| (|first| != 0).
       if (extract_flags & ExtractFixedArrayFlag::kDontCopyCOW) {
         Branch(IntPtrOrSmiNotEqual(IntPtrOrSmiConstant<TIndex>(0), first),
-               &new_space_check, [&] {
+               &new_space_handler, [&] {
                  var_result = source;
                  Goto(&done);
                });
       } else {
         var_target_map = FixedArrayMapConstant();
-        Goto(&new_space_check);
+        Goto(&new_space_handler);
       }
     }
   }
 
-  BIND(&new_space_check);
+  BIND(&new_space_handler);
   {
-    bool handle_old_space = !FLAG_young_generation_large_objects;
-    if (handle_old_space) {
-      int constant_count;
-      handle_old_space =
-          !TryGetIntPtrOrSmiConstantValue(count, &constant_count) ||
-          (constant_count >
-           FixedArray::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
-    }
-
-    Label old_space(this, Label::kDeferred);
-    if (handle_old_space) {
-      GotoIfFixedArraySizeDoesntFitInNewSpace(capacity, &old_space,
-                                              FixedArray::kHeaderSize);
-    }
-
     Comment("Copy FixedArray in young generation");
     // We use PACKED_ELEMENTS to tell AllocateFixedArray and
     // CopyFixedArrayElements that we want a FixedArray.
@@ -4456,50 +4430,6 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
                              var_holes_converted);
     }
     Goto(&done);
-
-    if (handle_old_space) {
-      BIND(&old_space);
-      {
-        Comment("Copy FixedArray in old generation");
-        Label copy_one_by_one(this);
-
-        // Try to use memcpy if we don't need to convert holes to undefined.
-        if (convert_holes == HoleConversionMode::kDontConvert &&
-            source_elements_kind) {
-          // Only try memcpy if we're not copying object pointers.
-          GotoIfNot(IsFastSmiElementsKind(*source_elements_kind),
-                    &copy_one_by_one);
-
-          const ElementsKind to_smi_kind = PACKED_SMI_ELEMENTS;
-          to_elements = AllocateFixedArray(
-              to_smi_kind, capacity, allocation_flags, var_target_map.value());
-          var_result = to_elements;
-
-          FillFixedArrayWithValue(to_smi_kind, to_elements, count, capacity,
-                                  RootIndex::kTheHoleValue);
-          // CopyElements will try to use memcpy if it's not conflicting with
-          // GC. Otherwise it will copy elements by elements, but skip write
-          // barriers (since we're copying smis to smis).
-          CopyElements(to_smi_kind, to_elements, IntPtrConstant(0), source,
-                       ParameterToIntPtr(first), ParameterToIntPtr(count),
-                       SKIP_WRITE_BARRIER);
-          Goto(&done);
-        } else {
-          Goto(&copy_one_by_one);
-        }
-
-        BIND(&copy_one_by_one);
-        {
-          to_elements = AllocateFixedArray(to_kind, capacity, allocation_flags,
-                                           var_target_map.value());
-          var_result = to_elements;
-          CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
-                                 count, capacity, UPDATE_WRITE_BARRIER,
-                                 convert_holes, var_holes_converted);
-          Goto(&done);
-        }
-      }
-    }
   }
 
   BIND(&done);

@@ -243,15 +243,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   } else {
     if (AllocationType::kYoung == type) {
       if (large_object) {
-        if (FLAG_young_generation_large_objects) {
-          allocation = new_lo_space_->AllocateRaw(size_in_bytes);
-        } else {
-          // If young generation large objects are disabled we have to tenure
-          // the allocation and violate the given allocation type. This could be
-          // dangerous. We may want to remove
-          // FLAG_young_generation_large_objects and avoid patching.
-          allocation = lo_space_->AllocateRaw(size_in_bytes);
-        }
+        allocation = new_lo_space_->AllocateRaw(size_in_bytes);
       } else {
         allocation = new_space_->AllocateRaw(size_in_bytes, alignment, origin);
       }

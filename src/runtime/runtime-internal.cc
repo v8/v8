@@ -471,8 +471,6 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
       AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
-  CHECK(FLAG_young_generation_large_objects ||
-        size <= kMaxRegularHeapObjectSize);
   if (!allow_large_object_allocation) {
     CHECK(size <= kMaxRegularHeapObjectSize);
   }

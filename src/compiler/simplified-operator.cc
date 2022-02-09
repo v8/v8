@@ -1834,11 +1834,6 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
     Type type, AllocationType allocation,
     AllowLargeObjects allow_large_objects) {
-  // We forbid optimized allocations to allocate in a different generation than
-  // requested.
-  DCHECK(!(allow_large_objects == AllowLargeObjects::kTrue &&
-           allocation == AllocationType::kYoung &&
-           !FLAG_young_generation_large_objects));
   return zone()->New<Operator1<AllocateParameters>>(
       IrOpcode::kAllocateRaw, Operator::kEliminatable, "AllocateRaw", 1, 1, 1,
       1, 1, 1, AllocateParameters(type, allocation, allow_large_objects));
