@@ -3,18 +3,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-lucicfg.check_version("1.27.0", "Please update depot_tools")
+lucicfg.check_version("1.30.9", "Please update depot_tools")
 
 load(
     "//lib/lib.star",
     "waterfall_acls",
 )
 
-# Enable LUCI Realms support.
-lucicfg.enable_experiment("crbug.com/1085650")
-
-# Launch 100% of Swarming tasks for builds in "realms-aware mode"
-luci.builder.defaults.experiments.set({"luci.use_realms": 100})
+# Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
+lucicfg.enable_experiment("crbug.com/1182002")
 
 lucicfg.config(
     config_dir = "generated",
