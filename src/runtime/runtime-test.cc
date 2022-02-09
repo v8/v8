@@ -1223,23 +1223,23 @@ RUNTIME_FUNCTION(Runtime_RegexpIsUnmodified) {
       RegExp::IsUnmodifiedRegExp(isolate, regexp));
 }
 
-#define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)      \
-  RUNTIME_FUNCTION(Runtime_Has##Name) {                 \
-    CONVERT_ARG_CHECKED(JSObject, obj, 0);              \
-    return isolate->heap()->ToBoolean(obj.Has##Name()); \
+#define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name) \
+  RUNTIME_FUNCTION(Runtime_##Name) {               \
+    CONVERT_ARG_CHECKED(JSObject, obj, 0);         \
+    return isolate->heap()->ToBoolean(obj.Name()); \
   }
 
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(SmiElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ObjectElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(SmiOrObjectElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DoubleElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HoleyElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DictionaryElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(PackedElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(SloppyArgumentsElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasFastElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasSmiElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasObjectElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasSmiOrObjectElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasDoubleElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasHoleyElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasDictionaryElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasPackedElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasSloppyArgumentsElements)
 // Properties test sitting with elements tests - not fooling anyone.
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasFastProperties)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
 
