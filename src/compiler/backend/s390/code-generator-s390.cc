@@ -2819,6 +2819,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef EMIT_SIMD_ADD_SUB_SAT
 #undef SIMD_ADD_SUB_SAT_LIST
 
+#define SIMD_EXT_ADD_PAIRWISE_LIST(V) \
+  V(I32x4ExtAddPairwiseI16x8S)        \
+  V(I32x4ExtAddPairwiseI16x8U)        \
+  V(I16x8ExtAddPairwiseI8x16S)        \
+  V(I16x8ExtAddPairwiseI8x16U)
+
+#define EMIT_SIMD_EXT_ADD_PAIRWISE(name)                               \
+  case kS390_##name: {                                                 \
+    __ name(i.OutputSimd128Register(), i.InputSimd128Register(0),      \
+            kScratchDoubleReg, i.ToSimd128Register(instr->TempAt(0))); \
+    break;                                                             \
+  }
+      SIMD_EXT_ADD_PAIRWISE_LIST(EMIT_SIMD_EXT_ADD_PAIRWISE)
+#undef EMIT_SIMD_EXT_ADD_PAIRWISE
+#undef SIMD_EXT_ADD_PAIRWISE_LIST
+
     // vector unary ops
     case kS390_F32x4RecipApprox: {
       __ mov(kScratchReg, Operand(1));
@@ -2989,40 +3005,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             Condition(0), Condition(0), Condition(2));
       break;
     }
-#define EXT_ADD_PAIRWISE(lane_size, mul_even, mul_odd)                        \
-  Simd128Register src = i.InputSimd128Register(0);                            \
-  Simd128Register dst = i.OutputSimd128Register();                            \
-  Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));         \
-  DCHECK_NE(src, tempFPReg1);                                                 \
-  __ vrepi(tempFPReg1, Operand(1), Condition(lane_size));                     \
-  __ mul_even(kScratchDoubleReg, src, tempFPReg1, Condition(0), Condition(0), \
-              Condition(lane_size));                                          \
-  __ mul_odd(tempFPReg1, src, tempFPReg1, Condition(0), Condition(0),         \
-             Condition(lane_size));                                           \
-  __ va(dst, kScratchDoubleReg, tempFPReg1, Condition(0), Condition(0),       \
-        Condition(lane_size + 1));
-    case kS390_I32x4ExtAddPairwiseI16x8S: {
-      EXT_ADD_PAIRWISE(1, vme, vmo)
-      break;
-    }
-    case kS390_I32x4ExtAddPairwiseI16x8U: {
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
-            Condition(0), Condition(0), Condition(3));
-      __ vsum(dst, src0, kScratchDoubleReg, Condition(0), Condition(0),
-              Condition(1));
-      break;
-    }
-    case kS390_I16x8ExtAddPairwiseI8x16S: {
-      EXT_ADD_PAIRWISE(0, vme, vmo)
-      break;
-    }
-    case kS390_I16x8ExtAddPairwiseI8x16U: {
-      EXT_ADD_PAIRWISE(0, vmle, vmlo)
-      break;
-    }
-#undef EXT_ADD_PAIRWISE
 #define Q15_MUL_ROAUND(accumulator, unpack)                                   \
   __ unpack(tempFPReg1, src0, Condition(0), Condition(0), Condition(1));      \
   __ unpack(accumulator, src1, Condition(0), Condition(0), Condition(1));     \

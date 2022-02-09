@@ -5910,6 +5910,46 @@ void TurboAssembler::F32x4DemoteF64x2Zero(Simd128Register dst,
   vlvg(dst, scratch4, MemOperand(r0, 3), Condition(2));
 }
 
+#define EXT_ADD_PAIRWISE(dst, src, scratch1, scratch2, lane_size, mul_even, \
+                         mul_odd)                                           \
+  CHECK_NE(src, scratch2);                                                  \
+  vrepi(scratch2, Operand(1), Condition(lane_size));                        \
+  mul_even(scratch1, src, scratch2, Condition(0), Condition(0),             \
+           Condition(lane_size));                                           \
+  mul_odd(scratch2, src, scratch2, Condition(0), Condition(0),              \
+          Condition(lane_size));                                            \
+  va(dst, scratch1, scratch2, Condition(0), Condition(0),                   \
+     Condition(lane_size + 1));
+void TurboAssembler::I32x4ExtAddPairwiseI16x8S(Simd128Register dst,
+                                               Simd128Register src,
+                                               Simd128Register scratch1,
+                                               Simd128Register scratch2) {
+  EXT_ADD_PAIRWISE(dst, src, scratch1, scratch2, 1, vme, vmo)
+}
+
+void TurboAssembler::I32x4ExtAddPairwiseI16x8U(Simd128Register dst,
+                                               Simd128Register src,
+                                               Simd128Register scratch,
+                                               Simd128Register scratch2) {
+  vx(scratch, scratch, scratch, Condition(0), Condition(0), Condition(3));
+  vsum(dst, src, scratch, Condition(0), Condition(0), Condition(1));
+}
+
+void TurboAssembler::I16x8ExtAddPairwiseI8x16S(Simd128Register dst,
+                                               Simd128Register src,
+                                               Simd128Register scratch1,
+                                               Simd128Register scratch2) {
+  EXT_ADD_PAIRWISE(dst, src, scratch1, scratch2, 0, vme, vmo)
+}
+
+void TurboAssembler::I16x8ExtAddPairwiseI8x16U(Simd128Register dst,
+                                               Simd128Register src,
+                                               Simd128Register scratch1,
+                                               Simd128Register scratch2) {
+  EXT_ADD_PAIRWISE(dst, src, scratch1, scratch2, 0, vmle, vmlo)
+}
+#undef EXT_ADD_PAIRWISE
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

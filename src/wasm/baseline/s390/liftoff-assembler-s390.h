@@ -2541,6 +2541,32 @@ SIMD_ADD_SUB_SAT_LIST(EMIT_SIMD_ADD_SUB_SAT)
 #undef EMIT_SIMD_ADD_SUB_SAT
 #undef SIMD_ADD_SUB_SAT_LIST
 
+#define SIMD_EXT_ADD_PAIRWISE_LIST(V)                         \
+  V(i32x4_extadd_pairwise_i16x8_s, I32x4ExtAddPairwiseI16x8S) \
+  V(i32x4_extadd_pairwise_i16x8_u, I32x4ExtAddPairwiseI16x8U) \
+  V(i16x8_extadd_pairwise_i8x16_s, I16x8ExtAddPairwiseI8x16S) \
+  V(i16x8_extadd_pairwise_i8x16_u, I16x8ExtAddPairwiseI8x16U)
+
+#define EMIT_SIMD_EXT_ADD_PAIRWISE(name, op)                                 \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst,                    \
+                                     LiftoffRegister src) {                  \
+    Simd128Register src1 = src.fp();                                         \
+    Simd128Register dest = dst.fp();                                         \
+    /* Make sure dst and temp are unique. */                                 \
+    if (dest == src1) {                                                      \
+      dest = GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src1)).fp();  \
+    }                                                                        \
+    Simd128Register temp =                                                   \
+        GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dest, src1)).fp(); \
+    op(dest, src1, kScratchDoubleReg, temp);                                 \
+    if (dest != dst.fp()) {                                                  \
+      vlr(dst.fp(), dest, Condition(0), Condition(0), Condition(0));         \
+    }                                                                        \
+  }
+SIMD_EXT_ADD_PAIRWISE_LIST(EMIT_SIMD_EXT_ADD_PAIRWISE)
+#undef EMIT_SIMD_EXT_ADD_PAIRWISE
+#undef SIMD_EXT_ADD_PAIRWISE_LIST
+
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
@@ -2600,29 +2626,9 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
   bailout(kSimd, "i32x4_dot_i16x8_s");
 }
 
-void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
-                                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4.extadd_pairwise_i16x8_s");
-}
-
-void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
-                                                          LiftoffRegister src) {
-  bailout(kSimd, "i32x4.extadd_pairwise_i16x8_u");
-}
-
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
   I16x8BitMask(dst.gp(), src.fp(), r0, kScratchDoubleReg);
-}
-
-void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
-                                                          LiftoffRegister src) {
-  bailout(kSimd, "i16x8.extadd_pairwise_i8x16_s");
-}
-
-void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
-                                                          LiftoffRegister src) {
-  bailout(kSimd, "i16x8.extadd_pairwise_i8x16_u");
 }
 
 void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
