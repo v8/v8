@@ -648,9 +648,6 @@ class Heap {
 
   void CheckHandleCount();
 
-  // Number of "runtime allocations" done so far.
-  uint32_t allocations_count() { return allocations_count_; }
-
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
@@ -800,12 +797,6 @@ class Heap {
 
   V8_EXPORT_PRIVATE void AddRetainedMap(Handle<NativeContext> context,
                                         Handle<Map> map);
-
-  // This event is triggered after successful allocation of a new object made
-  // by runtime. Allocations of target space for object evacuation do not
-  // trigger the event. In order to track ALL allocations one must turn off
-  // FLAG_inline_new.
-  inline void OnAllocationEvent(HeapObject object, int size_in_bytes);
 
   // This event is triggered after object is moved to a new place.
   void OnMoveEvent(HeapObject target, HeapObject source, int size_in_bytes);
@@ -1681,6 +1672,8 @@ class Heap {
   void MakeHeapIterable();
 
  private:
+  class AllocationTrackerForDebugging;
+
   using ExternalStringTableUpdaterCallback = String (*)(Heap* heap,
                                                         FullObjectSlot pointer);
 
@@ -1893,9 +1886,6 @@ class Heap {
                                 double deadline_in_ms);
 
   int NextAllocationTimeout(int current_timeout = 0);
-  inline void UpdateAllocationsHash(HeapObject object);
-  inline void UpdateAllocationsHash(uint32_t value);
-  void PrintAllocationsHash();
 
   void PrintMaxMarkingLimitReached();
   void PrintMaxNewSpaceSizeReached();
@@ -2284,12 +2274,6 @@ class Heap {
   // Returns the amount of external memory registered since last global gc.
   V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact();
 
-  // How many "runtime allocations" happened.
-  uint32_t allocations_count_ = 0;
-
-  // Running hash over allocations performed.
-  uint32_t raw_allocations_hash_ = 0;
-
   // Starts marking when stress_marking_percentage_% of the marking start limit
   // is reached.
   std::atomic<int> stress_marking_percentage_{0};
@@ -2394,6 +2378,8 @@ class Heap {
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
+  std::unique_ptr<AllocationTrackerForDebugging>
+      allocation_tracker_for_debugging_;
 
   // This object controls virtual space reserved for code on the V8 heap. This
   // is only valid for 64-bit architectures where kRequiresCodeRange.

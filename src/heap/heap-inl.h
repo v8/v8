@@ -208,11 +208,9 @@ int Heap::MaxRegularHeapObjectSize(AllocationType allocation) {
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationOrigin origin,
                                    AllocationAlignment alignment) {
+  DCHECK_EQ(gc_state(), NOT_IN_GC);
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
-                 alignment == AllocationAlignment::kTaggedAligned);
-  DCHECK_EQ(gc_state(), NOT_IN_GC);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
     if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
@@ -220,17 +218,17 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
       return AllocationResult::Retry(space);
     }
   }
-#endif
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 #ifdef DEBUG
   IncrementObjectCounters();
-#endif
+#endif  // DEBUG
 
   if (CanSafepoint()) {
     main_thread_local_heap()->Safepoint();
   }
 
-  size_t large_object_threshold = MaxRegularHeapObjectSize(type);
-  bool large_object =
+  const size_t large_object_threshold = MaxRegularHeapObjectSize(type);
+  const bool large_object =
       static_cast<size_t>(size_in_bytes) > large_object_threshold;
 
   HeapObject object;
@@ -248,7 +246,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
         if (FLAG_young_generation_large_objects) {
           allocation = new_lo_space_->AllocateRaw(size_in_bytes);
         } else {
-          // If young generation large objects are disalbed we have to tenure
+          // If young generation large objects are disabled we have to tenure
           // the allocation and violate the given allocation type. This could be
           // dangerous. We may want to remove
           // FLAG_young_generation_large_objects and avoid patching.
@@ -264,6 +262,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
         allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
       }
     } else if (AllocationType::kCode == type) {
+      DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
       DCHECK(AllowCodeAllocation::IsAllowed());
       if (large_object) {
         allocation = code_lo_space_->AllocateRaw(size_in_bytes);
@@ -271,6 +270,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
         allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
       }
     } else if (AllocationType::kMap == type) {
+      DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
       allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
     } else if (AllocationType::kReadOnly == type) {
       DCHECK(!large_object);
@@ -308,9 +308,11 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
       Page::FromHeapObject(object)->object_start_bitmap()->SetBit(
           object.address());
     }
-#endif
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
-    OnAllocationEvent(object, size_in_bytes);
+    for (auto& tracker : allocation_trackers_) {
+      tracker->AllocationEvent(object.address(), size_in_bytes);
+    }
   }
 
   return allocation;
@@ -357,56 +359,8 @@ Address Heap::AllocateRawOrFail(int size, AllocationType allocation,
       .address();
 }
 
-void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {
-  for (auto& tracker : allocation_trackers_) {
-    tracker->AllocationEvent(object.address(), size_in_bytes);
-  }
-
-  if (FLAG_verify_predictable) {
-    ++allocations_count_;
-    // Advance synthetic time by making a time request.
-    MonotonicallyIncreasingTimeInMs();
-
-    UpdateAllocationsHash(object);
-    UpdateAllocationsHash(size_in_bytes);
-
-    if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
-      PrintAllocationsHash();
-    }
-  } else if (FLAG_fuzzer_gc_analysis) {
-    ++allocations_count_;
-  } else if (FLAG_trace_allocation_stack_interval > 0) {
-    ++allocations_count_;
-    if (allocations_count_ % FLAG_trace_allocation_stack_interval == 0) {
-      isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
-    }
-  }
-}
-
 bool Heap::CanAllocateInReadOnlySpace() {
   return read_only_space()->writable();
-}
-
-void Heap::UpdateAllocationsHash(HeapObject object) {
-  Address object_address = object.address();
-  MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
-  AllocationSpace allocation_space = memory_chunk->owner_identity();
-
-  STATIC_ASSERT(kSpaceTagSize + kPageSizeBits <= 32);
-  uint32_t value =
-      static_cast<uint32_t>(object_address - memory_chunk->address()) |
-      (static_cast<uint32_t>(allocation_space) << kPageSizeBits);
-
-  UpdateAllocationsHash(value);
-}
-
-void Heap::UpdateAllocationsHash(uint32_t value) {
-  uint16_t c1 = static_cast<uint16_t>(value);
-  uint16_t c2 = static_cast<uint16_t>(value >> 16);
-  raw_allocations_hash_ =
-      StringHasher::AddCharacterCore(raw_allocations_hash_, c1);
-  raw_allocations_hash_ =
-      StringHasher::AddCharacterCore(raw_allocations_hash_, c2);
 }
 
 void Heap::RegisterExternalString(String string) {

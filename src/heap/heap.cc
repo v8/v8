@@ -716,6 +716,102 @@ void Heap::ReportStatisticsAfterGC() {
   }
 }
 
+class Heap::AllocationTrackerForDebugging final
+    : public HeapObjectAllocationTracker {
+ public:
+  static bool IsNeeded() {
+    return FLAG_verify_predictable || FLAG_fuzzer_gc_analysis ||
+           FLAG_trace_allocation_stack_interval;
+  }
+
+  explicit AllocationTrackerForDebugging(Heap* heap) : heap_(heap) {
+    CHECK(IsNeeded());
+  }
+
+  ~AllocationTrackerForDebugging() final {
+    if (FLAG_verify_predictable || FLAG_fuzzer_gc_analysis) {
+      PrintAllocationsHash();
+    }
+  }
+
+  void AllocationEvent(Address addr, int size) final {
+    if (FLAG_verify_predictable) {
+      ++allocations_count_;
+      // Advance synthetic time by making a time request.
+      heap_->MonotonicallyIncreasingTimeInMs();
+
+      UpdateAllocationsHash(HeapObject::FromAddress(addr));
+      UpdateAllocationsHash(size);
+
+      if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
+        PrintAllocationsHash();
+      }
+    } else if (FLAG_fuzzer_gc_analysis) {
+      ++allocations_count_;
+    } else if (FLAG_trace_allocation_stack_interval > 0) {
+      ++allocations_count_;
+      if (allocations_count_ % FLAG_trace_allocation_stack_interval == 0) {
+        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
+      }
+    }
+  }
+
+  void MoveEvent(Address source, Address target, int size) final {
+    if (FLAG_verify_predictable) {
+      ++allocations_count_;
+      // Advance synthetic time by making a time request.
+      heap_->MonotonicallyIncreasingTimeInMs();
+
+      UpdateAllocationsHash(HeapObject::FromAddress(source));
+      UpdateAllocationsHash(HeapObject::FromAddress(target));
+      UpdateAllocationsHash(size);
+
+      if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
+        PrintAllocationsHash();
+      }
+    } else if (FLAG_fuzzer_gc_analysis) {
+      ++allocations_count_;
+    }
+  }
+
+  void UpdateObjectSizeEvent(Address, int) final {}
+
+ private:
+  void UpdateAllocationsHash(HeapObject object) {
+    Address object_address = object.address();
+    MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
+    AllocationSpace allocation_space = memory_chunk->owner_identity();
+
+    STATIC_ASSERT(kSpaceTagSize + kPageSizeBits <= 32);
+    uint32_t value =
+        static_cast<uint32_t>(object_address - memory_chunk->address()) |
+        (static_cast<uint32_t>(allocation_space) << kPageSizeBits);
+
+    UpdateAllocationsHash(value);
+  }
+
+  void UpdateAllocationsHash(uint32_t value) {
+    const uint16_t c1 = static_cast<uint16_t>(value);
+    const uint16_t c2 = static_cast<uint16_t>(value >> 16);
+    raw_allocations_hash_ =
+        StringHasher::AddCharacterCore(raw_allocations_hash_, c1);
+    raw_allocations_hash_ =
+        StringHasher::AddCharacterCore(raw_allocations_hash_, c2);
+  }
+
+  void PrintAllocationsHash() {
+    uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
+    PrintF("\n### Allocations = %zu, hash = 0x%08x\n", allocations_count_,
+           hash);
+  }
+
+  Heap* const heap_;
+  // Count of all allocations performed through C++ bottlenecks.
+  size_t allocations_count_ = 0;
+  // Running hash over allocations performed.
+  uint32_t raw_allocations_hash_ = 0;
+};
+
 void Heap::AddHeapObjectAllocationTracker(
     HeapObjectAllocationTracker* tracker) {
   if (allocation_trackers_.empty() && FLAG_inline_new) {
@@ -3334,22 +3430,6 @@ void Heap::OnMoveEvent(HeapObject target, HeapObject source,
     PROFILE(isolate_,
             NativeContextMoveEvent(source.address(), target.address()));
   }
-
-  if (FLAG_verify_predictable) {
-    ++allocations_count_;
-    // Advance synthetic time by making a time request.
-    MonotonicallyIncreasingTimeInMs();
-
-    UpdateAllocationsHash(source);
-    UpdateAllocationsHash(target);
-    UpdateAllocationsHash(size_in_bytes);
-
-    if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
-      PrintAllocationsHash();
-    }
-  } else if (FLAG_fuzzer_gc_analysis) {
-    ++allocations_count_;
-  }
 }
 
 FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
@@ -5763,6 +5843,10 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   local_embedder_heap_tracer_.reset(new LocalEmbedderHeapTracer(isolate()));
   embedder_roots_handler_ =
       &local_embedder_heap_tracer()->default_embedder_roots_handler();
+  if (Heap::AllocationTrackerForDebugging::IsNeeded()) {
+    allocation_tracker_for_debugging_ =
+        std::make_unique<Heap::AllocationTrackerForDebugging>(this);
+  }
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
@@ -5834,11 +5918,6 @@ int Heap::NextAllocationTimeout(int current_timeout) {
     }
   }
   return FLAG_gc_interval;
-}
-
-void Heap::PrintAllocationsHash() {
-  uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
-  PrintF("\n### Allocations = %u, hash = 0x%08x\n", allocations_count(), hash);
 }
 
 void Heap::PrintMaxMarkingLimitReached() {
@@ -6016,10 +6095,6 @@ void Heap::TearDown() {
 
   UpdateMaximumCommitted();
 
-  if (FLAG_verify_predictable || FLAG_fuzzer_gc_analysis) {
-    PrintAllocationsHash();
-  }
-
   if (FLAG_fuzzer_gc_analysis) {
     if (FLAG_stress_marking > 0) {
       PrintMaxMarkingLimitReached();
@@ -6074,8 +6149,8 @@ void Heap::TearDown() {
   concurrent_marking_.reset();
 
   gc_idle_time_handler_.reset();
-
   memory_measurement_.reset();
+  allocation_tracker_for_debugging_.reset();
 
   if (memory_reducer_ != nullptr) {
     memory_reducer_->TearDown();
