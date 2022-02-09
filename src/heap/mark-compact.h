@@ -844,8 +844,6 @@ class V8_NODISCARD EvacuationScope {
   MarkCompactCollector* collector_;
 };
 
-#ifdef ENABLE_MINOR_MC
-
 // Collector for young-generation only.
 class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
  public:
@@ -924,8 +922,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   friend class YoungGenerationMarkingJob;
   friend class YoungGenerationMarkingVisitor;
 };
-
-#endif  // ENABLE_MINOR_MC
 
 }  // namespace internal
 }  // namespace v8

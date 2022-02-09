@@ -40,16 +40,12 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   }
 }
 
-#ifdef ENABLE_MINOR_MC
-
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InYoungGeneration(obj) &&
       non_atomic_marking_state_.WhiteToGrey(obj)) {
     main_thread_worklist_local_.Push(obj);
   }
 }
-
-#endif
 
 void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {

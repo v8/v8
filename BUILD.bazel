@@ -53,7 +53,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_can_use_fpu_instructions
 # v8_use_mips_abi_hardfloat
 # v8_enable_gdbjit
-# v8_enable_minor_mc
 # v8_check_header_includes
 # v8_enable_shared_ro_heap
 # v8_enable_lazy_source_positions
@@ -119,11 +118,6 @@ v8_flag(name = "v8_enable_future")
 
 v8_flag(
     name = "v8_enable_lazy_source_positions",
-    default = True,
-)
-
-v8_flag(
-    name = "v8_enable_minor_mc",
     default = True,
 )
 
@@ -259,7 +253,6 @@ v8_config(
         "v8_enable_hugepage": "ENABLE_HUGEPAGE",
         "v8_enable_future": "V8_ENABLE_FUTURE",
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",
-        "v8_enable_minor_mc": "ENABLE_MINOR_MC",
         "v8_enable_object_print": "OBJECT_PRINT",
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",

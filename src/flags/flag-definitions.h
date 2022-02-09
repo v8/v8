@@ -1855,14 +1855,9 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 //
 // Minor mark compact collector flags.
 //
-#ifdef ENABLE_MINOR_MC
 DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
-#else
-DEFINE_BOOL_READONLY(minor_mc, false,
-                     "perform young generation mark compact GCs")
-#endif  // ENABLE_MINOR_MC
 
 //
 // Dev shell flags

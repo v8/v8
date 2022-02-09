@@ -441,10 +441,8 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 
   Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 
-#ifdef ENABLE_MINOR_MC
   MinorMarkCompactCollector::MarkingState* minor_marking_state =
       heap()->minor_mark_compact_collector()->marking_state();
-#endif  // ENABLE_MINOR_MC
 
   collector_->local_marking_worklists()->Publish();
   MarkingBarrier::PublishAll(heap());
@@ -455,10 +453,8 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
           // this is referred inside DCHECK.
           this,
 #endif
-#ifdef ENABLE_MINOR_MC
-          minor_marking_state,
-#endif
-          cage_base, filler_map](HeapObject obj, HeapObject* out) -> bool {
+          minor_marking_state, cage_base,
+          filler_map](HeapObject obj, HeapObject* out) -> bool {
         DCHECK(obj.IsHeapObject());
         // Only pointers to from space have to be updated.
         if (Heap::InFromPage(obj)) {
@@ -481,24 +477,20 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
           // new space.
           DCHECK(Heap::IsLargeObject(obj) ||
                  Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE));
-#ifdef ENABLE_MINOR_MC
           if (minor_marking_state->IsWhite(obj)) {
             return false;
           }
-#endif  // ENABLE_MINOR_MC
-        // Either a large object or an object marked by the minor
-        // mark-compactor.
+          // Either a large object or an object marked by the minor
+          // mark-compactor.
           *out = obj;
           return true;
         } else {
           // The object may be on a page that was moved from new to old space.
           // Only applicable during minor MC garbage collections.
           if (Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
-#ifdef ENABLE_MINOR_MC
             if (minor_marking_state->IsWhite(obj)) {
               return false;
             }
-#endif  // ENABLE_MINOR_MC
             *out = obj;
             return true;
           }

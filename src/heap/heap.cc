@@ -2577,7 +2577,6 @@ void Heap::MarkCompact() {
 }
 
 void Heap::MinorMarkCompact() {
-#ifdef ENABLE_MINOR_MC
   DCHECK(FLAG_minor_mc);
   DCHECK(new_space());
 
@@ -2603,9 +2602,6 @@ void Heap::MinorMarkCompact() {
   minor_mark_compact_collector()->CollectGarbage();
 
   SetGCState(NOT_IN_GC);
-#else
-  UNREACHABLE();
-#endif  // ENABLE_MINOR_MC
 }
 
 void Heap::MarkCompactEpilogue() {
@@ -4669,9 +4665,7 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
   void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
                       ObjectSlot target) override {
     VisitPointer(host, target);
-#ifdef ENABLE_MINOR_MC
     if (FLAG_minor_mc) return VisitPointer(host, target);
-#endif
     // Keys are handled separately and should never appear in this set.
     CHECK(!InUntypedSet(key));
     Object k = *key;
@@ -5829,11 +5823,7 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   }
 
   tracer_.reset(new GCTracer(this));
-#ifdef ENABLE_MINOR_MC
   minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
-#else
-  minor_mark_compact_collector_ = nullptr;
-#endif  // ENABLE_MINOR_MC
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
@@ -5854,11 +5844,9 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
   mark_compact_collector()->SetUp();
-#ifdef ENABLE_MINOR_MC
   if (minor_mark_compact_collector() != nullptr) {
     minor_mark_compact_collector()->SetUp();
   }
-#endif  // ENABLE_MINOR_MC
 
   if (new_space()) {
     scavenge_job_.reset(new ScavengeJob());
@@ -6137,13 +6125,11 @@ void Heap::TearDown() {
     mark_compact_collector_.reset();
   }
 
-#ifdef ENABLE_MINOR_MC
   if (minor_mark_compact_collector_ != nullptr) {
     minor_mark_compact_collector_->TearDown();
     delete minor_mark_compact_collector_;
     minor_mark_compact_collector_ = nullptr;
   }
-#endif  // ENABLE_MINOR_MC
 
   scavenger_collector_.reset();
   array_buffer_sweeper_.reset();

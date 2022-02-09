@@ -483,12 +483,8 @@ class Heap {
   }
 
   static inline GarbageCollector YoungGenerationCollector() {
-#if ENABLE_MINOR_MC
     return (FLAG_minor_mc) ? GarbageCollector::MINOR_MARK_COMPACTOR
                            : GarbageCollector::SCAVENGER;
-#else
-    return GarbageCollector::SCAVENGER;
-#endif  // ENABLE_MINOR_MC
   }
 
   static inline const char* CollectorName(GarbageCollector collector) {

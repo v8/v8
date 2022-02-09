@@ -613,9 +613,7 @@ void MarkCompactCollector::CollectGarbage() {
   // update the state as they proceed.
   DCHECK(state_ == PREPARE_GC);
 
-#ifdef ENABLE_MINOR_MC
   heap()->minor_mark_compact_collector()->CleanupSweepToIteratePages();
-#endif  // ENABLE_MINOR_MC
 
   MarkLiveObjects();
   ClearNonLiveReferences();
@@ -4806,8 +4804,6 @@ void MarkCompactCollector::StartSweepSpaces() {
   }
 }
 
-#ifdef ENABLE_MINOR_MC
-
 namespace {
 
 #ifdef VERIFY_HEAP
@@ -5988,8 +5984,6 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
     TraceEvacuation(isolate(), pages_count, wanted_num_tasks, live_bytes, 0);
   }
 }
-
-#endif  // ENABLE_MINOR_MC
 
 }  // namespace internal
 }  // namespace v8
