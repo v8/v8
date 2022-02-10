@@ -82,7 +82,8 @@ Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
                                     SKIP_WRITE_BARRIER);
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    data_container.set_code_cage_base(impl()->isolate()->code_cage_base());
+    data_container.set_code_cage_base(impl()->isolate()->code_cage_base(),
+                                      kRelaxedStore);
     Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
     data_container.AllocateExternalPointerEntries(isolate_for_sandbox);
     data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);

@@ -2165,8 +2165,10 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
 
 CodeRef JSFunctionRef::code() const {
-  return MakeRefAssumeMemoryFence(broker(),
-                                  FromCodeT(object()->code(kAcquireLoad)));
+  CodeT code = object()->code(kAcquireLoad);
+  // Safe to do a relaxed conversion to Code here since CodeT::code field is
+  // modified only by GC and the CodeT was acquire-loaded.
+  return MakeRefAssumeMemoryFence(broker(), FromCodeT(code, kRelaxedLoad));
 }
 
 NativeContextRef JSFunctionRef::native_context() const {

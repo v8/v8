@@ -881,7 +881,7 @@ void CodeDataContainer::set_raw_code(Object value, WriteBarrierMode mode) {
 }
 
 Object CodeDataContainer::raw_code(RelaxedLoadTag tag) const {
-  PtrComprCageBase cage_base = code_cage_base();
+  PtrComprCageBase cage_base = code_cage_base(tag);
   return CodeDataContainer::raw_code(cage_base, tag);
 }
 
@@ -915,6 +915,28 @@ void CodeDataContainer::set_code_cage_base(Address code_cage_base) {
 #endif
 }
 
+PtrComprCageBase CodeDataContainer::code_cage_base(RelaxedLoadTag) const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // TODO(v8:10391): consider protecting this value with the sandbox.
+  Address code_cage_base_hi =
+      Relaxed_ReadField<Tagged_t>(kCodeCageBaseUpper32BitsOffset);
+  return PtrComprCageBase(code_cage_base_hi << 32);
+#else
+  return GetPtrComprCageBase(*this);
+#endif
+}
+
+void CodeDataContainer::set_code_cage_base(Address code_cage_base,
+                                           RelaxedStoreTag) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  Tagged_t code_cage_base_hi = static_cast<Tagged_t>(code_cage_base >> 32);
+  Relaxed_WriteField<Tagged_t>(kCodeCageBaseUpper32BitsOffset,
+                               code_cage_base_hi);
+#else
+  UNREACHABLE();
+#endif
+}
+
 void CodeDataContainer::AllocateExternalPointerEntries(Isolate* isolate) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   InitExternalPointerField(kCodeEntryPointOffset, isolate, kCodeEntryPointTag);
@@ -930,7 +952,7 @@ Code CodeDataContainer::code(PtrComprCageBase cage_base) const {
 }
 
 Code CodeDataContainer::code(RelaxedLoadTag tag) const {
-  PtrComprCageBase cage_base = code_cage_base();
+  PtrComprCageBase cage_base = code_cage_base(tag);
   return CodeDataContainer::code(cage_base, tag);
 }
 

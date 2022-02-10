@@ -674,6 +674,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     return ReadMaybeUnalignedValue<T>(field_address(offset));
   }
 
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
+                                                 std::is_enum<T>::value,
+                                             int>::type = 0>
+  inline void WriteField(size_t offset, T value) const {
+    return WriteMaybeUnalignedValue<T>(field_address(offset), value);
+  }
+
   // Atomically reads a field using relaxed memory ordering. Can only be used
   // with integral types whose size is <= kTaggedSize (to guarantee alignment).
   template <class T,
@@ -683,12 +690,14 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                     int>::type = 0>
   inline T Relaxed_ReadField(size_t offset) const;
 
-  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
-                                                 std::is_enum<T>::value,
-                                             int>::type = 0>
-  inline void WriteField(size_t offset, T value) const {
-    return WriteMaybeUnalignedValue<T>(field_address(offset), value);
-  }
+  // Atomically writes a field using relaxed memory ordering. Can only be used
+  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
+  template <class T,
+            typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                     std::is_enum<T>::value) &&
+                                        !std::is_floating_point<T>::value,
+                                    int>::type = 0>
+  inline void Relaxed_WriteField(size_t offset, T value);
 
   //
   // SandboxedPointer_t field accessors.

@@ -80,6 +80,8 @@ class CodeDataContainer : public HeapObject {
   // the full value is not guaranteed.
   inline PtrComprCageBase code_cage_base() const;
   inline void set_code_cage_base(Address code_cage_base);
+  inline PtrComprCageBase code_cage_base(RelaxedLoadTag) const;
+  inline void set_code_cage_base(Address code_cage_base, RelaxedStoreTag);
 
   // Cached value of code().InstructionStart().
   // Available only when V8_EXTERNAL_CODE_SPACE is defined.
