@@ -1073,8 +1073,7 @@ FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
 #ifdef DEBUG
   InstanceType instance_type = string_map.instance_type();
   DCHECK(InstanceTypeChecker::IsInternalizedString(instance_type) ||
-         String::IsInPlaceInternalizable(instance_type) ||
-         InstanceTypeChecker::IsExternalString(instance_type));
+         String::IsInPlaceInternalizable(instance_type));
 #endif
   if (FLAG_single_generation && allocation == AllocationType::kYoung) {
     allocation = AllocationType::kOld;

@@ -577,6 +577,9 @@ class String : public TorqueGeneratedString<String, Name> {
   static inline bool IsInPlaceInternalizable(String string);
   static inline bool IsInPlaceInternalizable(InstanceType instance_type);
 
+  static inline bool IsInPlaceInternalizableExcludingExternal(
+      InstanceType instance_type);
+
  private:
   friend class Name;
   friend class StringTableInsertionKey;

@@ -1449,6 +1449,13 @@ bool String::IsInPlaceInternalizable(InstanceType instance_type) {
   }
 }
 
+// static
+bool String::IsInPlaceInternalizableExcludingExternal(
+    InstanceType instance_type) {
+  return IsInPlaceInternalizable(instance_type) &&
+         !InstanceTypeChecker::IsExternalString(instance_type);
+}
+
 }  // namespace internal
 }  // namespace v8
 

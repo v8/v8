@@ -381,7 +381,8 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
           map, slot, String::unchecked_cast(source), size,
           ObjectFields::kMaybePointers);
     case kVisitDataObject:  // External strings have kVisitDataObject.
-      if (String::IsInPlaceInternalizable(map.instance_type())) {
+      if (String::IsInPlaceInternalizableExcludingExternal(
+              map.instance_type())) {
         return EvacuateInPlaceInternalizableString(
             map, slot, String::unchecked_cast(source), size,
             ObjectFields::kDataOnly);
