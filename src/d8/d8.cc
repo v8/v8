@@ -50,7 +50,6 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/maybe-handles.h"
-#include "src/heap/parked-scope.h"
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
@@ -4627,12 +4626,6 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
     }
   }
   CollectGarbage(isolate);
-
-  // Park the main thread here to prevent deadlocks in shared GCs when waiting
-  // in JoinThread.
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::ParkedScope parked(i_isolate->main_thread_local_isolate());
-
   for (int i = 1; i < options.num_isolates; ++i) {
     if (last_run) {
       options.isolate_sources[i].JoinThread();
