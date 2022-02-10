@@ -470,6 +470,11 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
           HeapObject dest = map_word.ToForwardingAddress();
           DCHECK_IMPLIES(marking_state()->IsWhite(obj),
                          obj.IsFreeSpaceOrFiller());
+          if (dest.InSharedHeap()) {
+            // Object got promoted into the shared heap. Drop it from the client
+            // heap marking worklist.
+            return false;
+          }
           *out = dest;
           return true;
         } else if (Heap::InToPage(obj)) {
