@@ -1850,7 +1850,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
                                        ? CommittedOldGenerationMemory()
                                        : 0;
   {
-    tracer()->StartObservablePause(collector, gc_reason, collector_reason);
+    tracer()->StartObservablePause();
     VMState<GC> state(isolate());
     DevToolsTraceEventScope devtools_trace_event_scope(
         this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
@@ -1936,7 +1936,13 @@ bool Heap::CollectGarbage(AllocationSpace space,
       }
     }
 
-    tracer()->StopObservablePause(collector);
+    tracer()->StopAtomicPause();
+    tracer()->StopObservablePause();
+    tracer()->UpdateStatistics(collector);
+    // Young generation cycles finish atomically. It is important that
+    // StopObservablePause, UpdateStatistics and StopCycle are called in this
+    // order; the latter may replace the current event with that of an
+    // interrupted full cycle.
     if (IsYoungGenerationCollector(collector)) {
       tracer()->StopCycle(collector);
     }
@@ -2036,7 +2042,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
 #endif
 
   // Now that sweeping is completed, we can start the next full GC cycle.
-  tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR, gc_reason,
+  tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR, gc_reason, nullptr,
                        GCTracer::MarkingType::kIncremental);
 
   set_current_gc_flags(gc_flags);
@@ -2051,7 +2057,7 @@ void Heap::CompleteSweepingFull() {
   if (cpp_heap()) {
     CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
   }
-  tracer()->StopCycleIfPending();
+  tracer()->StopCycleIfSweeping();
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
@@ -2253,16 +2259,23 @@ size_t Heap::PerformGarbageCollection(
 
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung(collector);
-    tracer()->StartCycle(collector, gc_reason, GCTracer::MarkingType::kAtomic);
+    tracer()->StartCycle(collector, gc_reason, collector_reason,
+                         GCTracer::MarkingType::kAtomic);
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
     // If incremental marking has been activated, the full GC cycle has already
     // started, so don't start a new one.
     if (!incremental_marking_->WasActivated()) {
-      tracer()->StartCycle(collector, gc_reason,
+      tracer()->StartCycle(collector, gc_reason, collector_reason,
                            GCTracer::MarkingType::kAtomic);
     }
+  }
+
+  tracer()->StartAtomicPause();
+  if (!Heap::IsYoungGenerationCollector(collector) &&
+      incremental_marking_->WasActivated()) {
+    tracer()->UpdateCurrentEvent(gc_reason, collector_reason);
   }
 
   DCHECK(tracer()->IsConsistentWithCollector(collector));
@@ -2389,8 +2402,8 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   v8::Locker locker(reinterpret_cast<v8::Isolate*>(isolate()));
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate()));
 
-  tracer()->StartObservablePause(GarbageCollector::MARK_COMPACTOR, gc_reason,
-                                 nullptr);
+  tracer()->StartObservablePause();
+  DCHECK(!incremental_marking_->WasActivated());
 
   DCHECK_NOT_NULL(isolate()->global_safepoint());
 
@@ -2405,7 +2418,9 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR, gc_reason,
                            nullptr);
 
-  tracer()->StopObservablePause(GarbageCollector::MARK_COMPACTOR);
+  tracer()->StopAtomicPause();
+  tracer()->StopObservablePause();
+  tracer()->UpdateStatistics(GarbageCollector::MARK_COMPACTOR);
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {

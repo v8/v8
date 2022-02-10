@@ -147,14 +147,24 @@ class V8_EXPORT_PRIVATE GCTracer {
     }
 #endif
 
-    Event(Type type, GarbageCollectionReason gc_reason,
+    // The state diagram for a GC cycle:
+    //   (NOT_RUNNING) -----(StartCycle)----->
+    //   MARKING       --(StartAtomicPause)-->
+    //   ATOMIC        ---(StopAtomicPause)-->
+    //   SWEEPING      ------(StopCycle)-----> NOT_RUNNING
+    enum class State { NOT_RUNNING, MARKING, ATOMIC, SWEEPING };
+
+    Event(Type type, State state, GarbageCollectionReason gc_reason,
           const char* collector_reason);
 
     // Returns a string describing the event type.
     const char* TypeName(bool short_name) const;
 
-    // Type of event
+    // Type of the event.
     Type type;
+
+    // State of the cycle corresponding to the event.
+    State state;
 
     GarbageCollectionReason gc_reason;
     const char* collector_reason;
@@ -225,19 +235,27 @@ class V8_EXPORT_PRIVATE GCTracer {
     return Scope::NeedsYoungEpoch(id) ? epoch_young_ : epoch_full_;
   }
 
-  // Start and stop a cycle's observable (atomic) pause.
-  void StartObservablePause(GarbageCollector collector,
-                            GarbageCollectionReason gc_reason,
-                            const char* collector_reason);
-  void StopObservablePause(GarbageCollector collector);
+  // Start and stop an observable pause.
+  void StartObservablePause();
+  void StopObservablePause();
+
+  // Update the current event if it precedes the start of the observable pause.
+  void UpdateCurrentEvent(GarbageCollectionReason gc_reason,
+                          const char* collector_reason);
+
+  void UpdateStatistics(GarbageCollector collector);
 
   enum class MarkingType { kAtomic, kIncremental };
 
   // Start and stop a GC cycle (collecting data and reporting results).
   void StartCycle(GarbageCollector collector, GarbageCollectionReason gc_reason,
-                  MarkingType marking);
+                  const char* collector_reason, MarkingType marking);
   void StopCycle(GarbageCollector collector);
-  void StopCycleIfPending();
+  void StopCycleIfSweeping();
+
+  // Start and stop a cycle's atomic pause.
+  void StartAtomicPause();
+  void StopAtomicPause();
 
   void StartInSafepoint();
   void StopInSafepoint();
@@ -250,6 +268,8 @@ class V8_EXPORT_PRIVATE GCTracer {
       YoungGenerationHandling young_generation_handling);
 
 #ifdef DEBUG
+  bool IsInObservablePause() const { return 0.0 < start_of_observable_pause_; }
+
   // Checks if the current event is consistent with a collector.
   bool IsConsistentWithCollector(GarbageCollector collector) const {
     return (collector == GarbageCollector::SCAVENGER &&
@@ -461,9 +481,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   void ReportIncrementalMarkingStepToRecorder();
   void ReportYoungCycleToRecorder();
 
-  void NewCurrentEvent(Event::Type type, GarbageCollectionReason gc_reason,
-                       const char* collector_reason);
-
   // Pointer to the heap that owns this tracer.
   Heap* heap_;
 
@@ -473,6 +490,9 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Previous tracer event.
   Event previous_;
+
+  // The starting time of the observable pause or 0.0 if we're not inside it.
+  double start_of_observable_pause_ = 0.0;
 
   // We need two epochs, since there can be scavenges during incremental
   // marking.
@@ -535,10 +555,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::RingBuffer<double> recorded_survival_ratios_;
 
   bool metrics_report_pending_ = false;
-
-  // An ongoing GC cycle is considered pending if it has been started with
-  // |StartCycle()| but has not yet been finished with |StopCycle()|.
-  bool current_pending_ = false;
 
   // When a full GC cycle is interrupted by a young generation GC cycle, the
   // |previous_| event is used as temporary storage for the |current_| event

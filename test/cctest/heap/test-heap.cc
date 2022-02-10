@@ -6392,9 +6392,13 @@ HEAP_TEST(Regress670675) {
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
   }
+  heap->tracer()->StopCycleIfSweeping();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
     SafepointScope safepoint_scope(heap);
+    heap->tracer()->StartCycle(
+        GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+        "collector cctest", GCTracer::MarkingType::kIncremental);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
   size_t array_length = 128 * KB;
@@ -7005,9 +7009,9 @@ TEST(Regress978156) {
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (marking->IsStopped()) {
     SafepointScope scope(heap);
-    heap->tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR,
-                               GarbageCollectionReason::kTesting,
-                               GCTracer::MarkingType::kIncremental);
+    heap->tracer()->StartCycle(
+        GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+        "collector cctest", GCTracer::MarkingType::kIncremental);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();

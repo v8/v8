@@ -155,9 +155,11 @@ bool GCTracer::Scope::NeedsYoungEpoch(ScopeId id) {
   UNREACHABLE();
 }
 
-GCTracer::Event::Event(Type type, GarbageCollectionReason gc_reason,
+GCTracer::Event::Event(Type type, State state,
+                       GarbageCollectionReason gc_reason,
                        const char* collector_reason)
     : type(type),
+      state(state),
       gc_reason(gc_reason),
       collector_reason(collector_reason),
       start_time(0.0),
@@ -195,7 +197,8 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
 
 GCTracer::GCTracer(Heap* heap)
     : heap_(heap),
-      current_(Event::START, GarbageCollectionReason::kUnknown, nullptr),
+      current_(Event::START, Event::State::NOT_RUNNING,
+               GarbageCollectionReason::kUnknown, nullptr),
       previous_(current_),
       incremental_marking_bytes_(0),
       incremental_marking_duration_(0.0),
@@ -227,32 +230,12 @@ GCTracer::GCTracer(Heap* heap)
   }
 }
 
-void GCTracer::NewCurrentEvent(Event::Type type,
-                               GarbageCollectionReason gc_reason,
-                               const char* collector_reason) {
-  // If the current event is pending, we can only create a new one if
-  // a young generation GC is interrupting a full GC.
-  DCHECK_IMPLIES(current_pending_,
-                 Event::IsYoungGenerationEvent(type) &&
-                     !Event::IsYoungGenerationEvent(current_.type));
-
-  // We cannot start a new cycle while a young generation GC cycle has
-  // already interrupted a full GC cycle.
-  DCHECK(!young_gc_while_full_gc_);
-
-  previous_ = current_;
-  young_gc_while_full_gc_ = current_pending_;
-
-  current_ = Event(type, gc_reason, collector_reason);
-  current_.reduce_memory = heap_->ShouldReduceMemory();
-  current_pending_ = true;
-}
-
 void GCTracer::ResetForTesting() {
-  current_ = Event(Event::START, GarbageCollectionReason::kTesting, nullptr);
-  current_pending_ = false;
+  current_ = Event(Event::START, Event::State::NOT_RUNNING,
+                   GarbageCollectionReason::kTesting, nullptr);
   current_.end_time = MonotonicallyIncreasingTimeInMs();
   previous_ = current_;
+  start_of_observable_pause_ = 0.0;
   young_gc_while_full_gc_ = false;
   ResetIncrementalMarkingCounters();
   allocation_time_ms_ = 0.0;
@@ -284,70 +267,86 @@ void GCTracer::ResetForTesting() {
 
 void GCTracer::NotifyYoungGenerationHandling(
     YoungGenerationHandling young_generation_handling) {
+  DCHECK_GE(1, start_counter_);
   DCHECK_EQ(Event::SCAVENGER, current_.type);
   heap_->isolate()->counters()->young_generation_handling()->AddSample(
       static_cast<int>(young_generation_handling));
 }
 
-void GCTracer::StartObservablePause(GarbageCollector collector,
-                                    GarbageCollectionReason gc_reason,
-                                    const char* collector_reason) {
+void GCTracer::StartObservablePause() {
   DCHECK_EQ(0, start_counter_);
   start_counter_++;
 
-  if (!Heap::IsYoungGenerationCollector(collector) && current_pending_) {
-    // For incremental marking, the event has already been created and we need
-    // to update the GC reason here.
-    current_.gc_reason = gc_reason;
-    current_.collector_reason = collector_reason;
-  } else {
-    // An event needs to be created here and, in case we are in a full GC
-    // cycle, it is not incremental.
-    switch (collector) {
-      case GarbageCollector::SCAVENGER:
-        NewCurrentEvent(Event::SCAVENGER, gc_reason, collector_reason);
-        break;
-      case GarbageCollector::MINOR_MARK_COMPACTOR:
-        NewCurrentEvent(Event::MINOR_MARK_COMPACTOR, gc_reason,
-                        collector_reason);
-        break;
-      case GarbageCollector::MARK_COMPACTOR:
-        NewCurrentEvent(Event::MARK_COMPACTOR, gc_reason, collector_reason);
-        break;
-    }
-  }
-  current_.start_time = MonotonicallyIncreasingTimeInMs();
+  DCHECK(!IsInObservablePause());
+  start_of_observable_pause_ = MonotonicallyIncreasingTimeInMs();
+}
 
-  DCHECK(IsConsistentWithCollector(collector));
-
-  Counters* counters = heap_->isolate()->counters();
-
-  if (Heap::IsYoungGenerationCollector(collector)) {
-    counters->scavenge_reason()->AddSample(static_cast<int>(gc_reason));
-  } else {
-    counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
-
-    if (FLAG_trace_gc_freelists) {
-      PrintIsolate(heap_->isolate(),
-                   "FreeLists statistics before collection:\n");
-      heap_->PrintFreeListsStats();
-    }
-  }
+void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
+                                  const char* collector_reason) {
+  // For incremental marking, the event has already been created and we just
+  // need to update a few fields.
+  DCHECK_EQ(Event::INCREMENTAL_MARK_COMPACTOR, current_.type);
+  DCHECK_EQ(Event::State::ATOMIC, current_.state);
+  DCHECK(IsInObservablePause());
+  current_.gc_reason = gc_reason;
+  current_.collector_reason = collector_reason;
+  // TODO(chromium:1154636): The start_time of the current event contains
+  // currently the start time of the observable pause. This should be
+  // reconsidered.
+  current_.start_time = start_of_observable_pause_;
+  current_.reduce_memory = heap_->ShouldReduceMemory();
 }
 
 void GCTracer::StartCycle(GarbageCollector collector,
                           GarbageCollectionReason gc_reason,
-                          MarkingType marking) {
-  // We need to create an event only if incremental marking starts a full GC
-  // cycle. Otherwise, we're inside the observable pause and the event has
-  // already been created.
+                          const char* collector_reason, MarkingType marking) {
+  // We cannot start a new cycle while there's another one in its atomic pause.
+  DCHECK_NE(Event::State::ATOMIC, current_.state);
+  // We cannot start a new cycle while a young generation GC cycle has
+  // already interrupted a full GC cycle.
+  DCHECK(!young_gc_while_full_gc_);
+
+  young_gc_while_full_gc_ = current_.state != Event::State::NOT_RUNNING;
+
+  DCHECK_IMPLIES(young_gc_while_full_gc_,
+                 Heap::IsYoungGenerationCollector(collector) &&
+                     !Event::IsYoungGenerationEvent(current_.type));
+
+  Event::Type type;
+  switch (collector) {
+    case GarbageCollector::SCAVENGER:
+      type = Event::SCAVENGER;
+      break;
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
+      type = Event::MINOR_MARK_COMPACTOR;
+      break;
+    case GarbageCollector::MARK_COMPACTOR:
+      type = marking == MarkingType::kIncremental
+                 ? Event::INCREMENTAL_MARK_COMPACTOR
+                 : Event::MARK_COMPACTOR;
+      break;
+  }
+
+  DCHECK_IMPLIES(!young_gc_while_full_gc_,
+                 current_.state == Event::State::NOT_RUNNING);
+  DCHECK_EQ(Event::State::NOT_RUNNING, previous_.state);
+
+  previous_ = current_;
+  current_ = Event(type, Event::State::MARKING, gc_reason, collector_reason);
+
   switch (marking) {
     case MarkingType::kAtomic:
-      DCHECK(IsConsistentWithCollector(collector));
+      DCHECK(IsInObservablePause());
+      // TODO(chromium:1154636): The start_time of the current event contains
+      // currently the start time of the observable pause. This should be
+      // reconsidered.
+      current_.start_time = start_of_observable_pause_;
+      current_.reduce_memory = heap_->ShouldReduceMemory();
       break;
     case MarkingType::kIncremental:
+      // The current event will be updated later.
       DCHECK(!Heap::IsYoungGenerationCollector(collector));
-      NewCurrentEvent(Event::INCREMENTAL_MARK_COMPACTOR, gc_reason, nullptr);
+      DCHECK(!IsInObservablePause());
       break;
   }
 
@@ -356,6 +355,11 @@ void GCTracer::StartCycle(GarbageCollector collector,
   } else {
     epoch_full_ = next_epoch();
   }
+}
+
+void GCTracer::StartAtomicPause() {
+  DCHECK_EQ(Event::State::MARKING, current_.state);
+  current_.state = Event::State::ATOMIC;
 }
 
 void GCTracer::StartInSafepoint() {
@@ -387,14 +391,22 @@ void GCTracer::StopInSafepoint() {
   current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
 }
 
-void GCTracer::StopObservablePause(GarbageCollector collector) {
+void GCTracer::StopObservablePause() {
   start_counter_--;
   DCHECK_EQ(0, start_counter_);
 
+  DCHECK(IsInObservablePause());
+  start_of_observable_pause_ = 0.0;
+
+  // TODO(chromium:1154636): The end_time of the current event contains
+  // currently the end time of the observable pause. This should be
+  // reconsidered.
+  current_.end_time = MonotonicallyIncreasingTimeInMs();
+}
+
+void GCTracer::UpdateStatistics(GarbageCollector collector) {
   const bool is_young = Heap::IsYoungGenerationCollector(collector);
   DCHECK(IsConsistentWithCollector(collector));
-
-  current_.end_time = MonotonicallyIncreasingTimeInMs();
 
   AddAllocation(current_.end_time);
 
@@ -463,26 +475,44 @@ void GCTracer::StopObservablePause(GarbageCollector collector) {
   }
 }
 
+void GCTracer::StopAtomicPause() {
+  DCHECK_EQ(Event::State::ATOMIC, current_.state);
+  current_.state = Event::State::SWEEPING;
+}
+
 void GCTracer::StopCycle(GarbageCollector collector) {
-  DCHECK(current_pending_);
-  current_pending_ = false;
+  DCHECK_EQ(Event::State::SWEEPING, current_.state);
+  current_.state = Event::State::NOT_RUNNING;
 
   DCHECK(IsConsistentWithCollector(collector));
 
+  Counters* counters = heap_->isolate()->counters();
+  GarbageCollectionReason gc_reason = current_.gc_reason;
+
   if (Heap::IsYoungGenerationCollector(collector)) {
     ReportYoungCycleToRecorder();
+
+    counters->scavenge_reason()->AddSample(static_cast<int>(gc_reason));
+
     // If a young generation GC interrupted an unfinished full GC cycle, restore
     // the event corresponding to the full GC cycle.
     if (young_gc_while_full_gc_) {
       std::swap(current_, previous_);
-      current_pending_ = true;
       young_gc_while_full_gc_ = false;
+    }
+  } else {
+    counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
+
+    if (FLAG_trace_gc_freelists) {
+      PrintIsolate(heap_->isolate(),
+                   "FreeLists statistics before collection:\n");
+      heap_->PrintFreeListsStats();
     }
   }
 }
 
-void GCTracer::StopCycleIfPending() {
-  if (!current_pending_) return;
+void GCTracer::StopCycleIfSweeping() {
+  if (current_.state != Event::State::SWEEPING) return;
   StopCycle(GarbageCollector::MARK_COMPACTOR);
 }
 
@@ -1432,6 +1462,10 @@ void FlushBatchedIncrementalEvents(
 }  // namespace
 
 void GCTracer::ReportFullCycleToRecorder() {
+  // TODO(chromium:1154636): The following check should be added. It is now
+  // failing because this method is called during young generation GC cycles
+  // that finalize sweeping. This should be fixed.
+  // DCHECK(!Event::IsYoungGenerationEvent(current_.type));
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
@@ -1483,6 +1517,7 @@ void GCTracer::ReportFullCycleToRecorder() {
 }
 
 void GCTracer::ReportIncrementalMarkingStepToRecorder() {
+  DCHECK_EQ(Event::Type::INCREMENTAL_MARK_COMPACTOR, current_.type);
   static constexpr int kMaxBatchedEvents =
       CppHeap::MetricRecorderAdapter::kMaxBatchedEvents;
   const std::shared_ptr<metrics::Recorder>& recorder =
@@ -1510,6 +1545,7 @@ void GCTracer::ReportIncrementalMarkingStepToRecorder() {
 }
 
 void GCTracer::ReportYoungCycleToRecorder() {
+  DCHECK(Event::IsYoungGenerationEvent(current_.type));
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);

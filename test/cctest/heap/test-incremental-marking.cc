@@ -129,9 +129,9 @@ UNINITIALIZED_TEST(IncrementalMarkingUsingTasks) {
     marking->Stop();
     {
       SafepointScope scope(heap);
-      heap->tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR,
-                                 GarbageCollectionReason::kTesting,
-                                 GCTracer::MarkingType::kIncremental);
+      heap->tracer()->StartCycle(
+          GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+          "collector cctest", GCTracer::MarkingType::kIncremental);
       marking->Start(i::GarbageCollectionReason::kTesting);
     }
     CHECK(platform.PendingTask());
