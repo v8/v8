@@ -185,16 +185,6 @@ def python3_steps(ctx):
             if recipe in python3_recipes:
                 builder.experiments["v8.steps.use_python3"] = 100
 
-def python3_scripts(ctx):
-    build_bucket = ctx.output["cr-buildbucket.cfg"]
-    for bucket in build_bucket.buckets:
-        if "try" in bucket.name:
-            # We switch the tryserver last.
-            continue
-        for builder in bucket.swarming.builders:
-            if not builder.experiments.get("v8.scripts.use_python3"):
-                builder.experiments["v8.scripts.use_python3"] = 20
-
 lucicfg.generator(aggregate_builder_tester_console)
 
 lucicfg.generator(separate_builder_tester_console)
@@ -206,5 +196,3 @@ lucicfg.generator(mirror_dev_consoles)
 lucicfg.generator(ensure_forward_triggering_properties)
 
 lucicfg.generator(python3_steps)
-
-lucicfg.generator(python3_scripts)
