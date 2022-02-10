@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+STATIC_ASSERT(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);
+
 // static
 uint32_t ExternalPointerTable::AllocateEntry(ExternalPointerTable* table) {
   return table->Allocate();
@@ -54,9 +56,11 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
   return num_active_entries;
 }
 
-void ExternalPointerTable::Grow() {
+uint32_t ExternalPointerTable::Grow() {
   // Freelist should be empty.
   DCHECK_EQ(0, freelist_head_);
+  // Mutex must be held when calling this method.
+  mutex_->AssertHeld();
 
   // Grow the table by one block.
   uint32_t old_capacity = capacity_;
@@ -78,7 +82,13 @@ void ExternalPointerTable::Grow() {
     store(i, make_freelist_entry(i + 1));
   }
   store(last, make_freelist_entry(0));
-  freelist_head_ = start;
+
+  // This must be a release store to prevent reordering of the preceeding
+  // stores to the freelist from being reordered past this store. See
+  // Allocate() for more details.
+  base::Release_Store(reinterpret_cast<base::Atomic32*>(&freelist_head_),
+                      start);
+  return start;
 }
 
 }  // namespace internal

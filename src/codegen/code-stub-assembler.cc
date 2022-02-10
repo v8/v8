@@ -1605,56 +1605,17 @@ TNode<Uint32T> CodeStubAssembler::ChangeExternalPointerToIndex(
 void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
                                                        TNode<IntPtrT> offset) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  TVARIABLE(Uint32T, index);
-
   TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
       ExternalReference::external_pointer_table_address(isolate()));
-  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
-      Load(MachineType::Pointer(), external_pointer_table_address,
-           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
-  // Note: if external pointer table entries are ever allocated from a
-  // background thread, this logic must become atomic, for example by doing an
-  // atomic load of the currentl freelist head, then writing back the new
-  // freelist head in a CAS loop.
-  TNode<Uint32T> freelist_head = UncheckedCast<Uint32T>(Load(
-      MachineType::Uint32(), external_pointer_table_address,
-      UintPtrConstant(Internals::kExternalPointerTableFreelistHeadOffset)));
 
-  Label take_from_freelist(this), call_runtime(this, Label::kDeferred),
-      done(this);
-  TNode<BoolT> compare = Word32Equal(freelist_head, Uint32Constant(0));
-  Branch(compare, &call_runtime, &take_from_freelist);
-
-  BIND(&take_from_freelist);
-  {
-    index = freelist_head;
-
-    // The next freelist entry is stored in the lower 32 bits of the entry.
-    TNode<IntPtrT> entry_offset = ElementOffsetFromIndex(
-        ChangeUint32ToWord(index.value()), SYSTEM_POINTER_ELEMENTS, 0);
-    TNode<UintPtrT> entry = UncheckedCast<UintPtrT>(
-        Load(MachineType::Pointer(), table, entry_offset));
-    TNode<Uint32T> next_freelist_elem = Unsigned(TruncateWordToInt32(entry));
-    StoreNoWriteBarrier(
-        MachineRepresentation::kWord32, external_pointer_table_address,
-        UintPtrConstant(Internals::kExternalPointerTableFreelistHeadOffset),
-        next_freelist_elem);
-
-    Goto(&done);
-  }
-
-  BIND(&call_runtime);
-  {
-    TNode<ExternalReference> table_allocate_function = ExternalConstant(
-        ExternalReference::external_pointer_table_allocate_entry());
-    index = UncheckedCast<Uint32T>(
-        CallCFunction(table_allocate_function, MachineType::Uint32(),
-                      std::make_pair(MachineType::Pointer(),
-                                     external_pointer_table_address)));
-
-    Goto(&done);
-  }
-  BIND(&done);
+  // We could implement the fast path for allocating from the freelist here,
+  // however, this logic needs to be atomic and so requires CSA to expose
+  // atomic operations.
+  TNode<ExternalReference> table_allocate_function = ExternalConstant(
+      ExternalReference::external_pointer_table_allocate_entry());
+  TNode<Uint32T> index = UncheckedCast<Uint32T>(CallCFunction(
+      table_allocate_function, MachineType::Uint32(),
+      std::make_pair(MachineType::Pointer(), external_pointer_table_address)));
 
   // Currently, we assume that the caller will immediately initialize the entry
   // through StoreExternalPointerToObject after allocating it. That way, we
@@ -1662,7 +1623,7 @@ void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
   // real value). TODO(saelo) initialize the entry with zero here and switch
   // callers to a version that initializes the entry with a given pointer.
 
-  TNode<ExternalPointerT> pointer = ChangeIndexToExternalPointer(index.value());
+  TNode<ExternalPointerT> pointer = ChangeIndexToExternalPointer(index);
   StoreObjectFieldNoWriteBarrier<ExternalPointerT>(object, offset, pointer);
 #endif
 }

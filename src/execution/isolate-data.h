@@ -56,8 +56,9 @@ class Isolate;
   V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-#define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V) \
-  V(kExternalPointerTableOffset, kSystemPointerSize * 2, external_pointer_table)
+#define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)    \
+  V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
+    external_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS

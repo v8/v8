@@ -8,6 +8,7 @@
 #include "include/v8config.h"
 #include "src/base/atomicops.h"
 #include "src/base/memory.h"
+#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 
 #ifdef V8_SANDBOX_IS_AVAILABLE
@@ -59,6 +60,10 @@ class Isolate;
  */
 class V8_EXPORT_PRIVATE ExternalPointerTable {
  public:
+  // Size of an ExternalPointerTable, for layout computation in IsolateData.
+  // Asserted to be equal to the actual size in external-pointer-table.cc.
+  static int constexpr kSize = 3 * kSystemPointerSize;
+
   ExternalPointerTable() = default;
 
   // Initializes this external pointer table by reserving the backing memory
@@ -69,29 +74,42 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   inline void TearDown();
 
   // Retrieves the entry at the given index.
+  //
+  // This method is atomic and can be called from background threads.
   inline Address Get(uint32_t index, ExternalPointerTag tag) const;
 
   // Sets the entry at the given index to the given value.
+  //
+  // This method is atomic and can be called from background threads.
   inline void Set(uint32_t index, Address value, ExternalPointerTag tag);
 
   // Returns true if the entry exists and isn't free.
+  //
+  // This method is atomic and can be called from background threads.
   inline bool IsValidIndex(uint32_t index) const;
 
   // Allocates a new entry in the external pointer table. The caller must
   // initialize the entry afterwards through set(). In particular, the caller is
   // responsible for setting the mark bit of the new entry.
   // TODO(saelo) this can fail, in which case we should probably do GC + retry.
+  //
+  // This method is atomic and can be called from background threads.
   inline uint32_t Allocate();
 
   // Runtime function called from CSA. Internally just calls Allocate().
   static uint32_t AllocateEntry(ExternalPointerTable* table);
 
   // Marks the specified entry as alive.
-  // Called on the GC thread, so has to CAS to avoid races with the mutator.
+  //
+  // This method is atomic and can be called from background threads.
   inline void Mark(uint32_t index);
 
-  // Frees unmarked entries. Must be called on the mutator thread or while that
-  // thread is stopped. Returns the number of live entries after sweeping.
+  // Frees unmarked entries.
+  //
+  // This method must be called on the mutator thread or while that thread is
+  // stopped.
+  //
+  // Returns the number of live entries after sweeping.
   uint32_t Sweep(Isolate* isolate);
 
  private:
@@ -108,9 +126,11 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // Returns true if this external pointer table has been initialized.
   bool is_initialized() { return buffer_ != kNullAddress; }
 
-  // Extends the table and adds newly created entries to the freelist.
-  // TODO(saelo) this can fail and so should probably return bool.
-  void Grow();
+  // Extends the table and adds newly created entries to the freelist. Returns
+  // the new freelist head. When calling this method, mutex_ must be locked.
+  //
+  // TODO(saelo) this can fail, deal with that appropriately.
+  uint32_t Grow();
 
   // Computes the address of the specified entry.
   inline Address entry_address(uint32_t index) const {
@@ -174,6 +194,12 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 
   // The index of the first entry on the freelist or zero if the list is empty.
   uint32_t freelist_head_ = 0;
+
+  // Lock protecting the slow path for entry allocation, in particular Grow().
+  // As the size of this structure must be predictable (it's part of
+  // IsolateData), it cannot directly contain a Mutex and so instead contains a
+  // pointer to one.
+  base::Mutex* mutex_ = nullptr;
 };
 
 }  // namespace internal

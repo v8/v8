@@ -30,7 +30,14 @@ void ExternalPointerTable::Init(Isolate* isolate) {
         "Failed to reserve memory for ExternalPointerTable backing buffer");
   }
 
-  // Allocate the initial block.
+  mutex_ = new base::Mutex;
+  if (!mutex_) {
+    V8::FatalProcessOutOfMemory(
+        isolate, "Failed to allocate mutex for ExternalPointerTable");
+  }
+
+  // Allocate the initial block. Mutex must be held for that.
+  base::MutexGuard guard(mutex_);
   Grow();
 
   // Set up the special null entry. This entry must currently contain nullptr
@@ -46,9 +53,12 @@ void ExternalPointerTable::TearDown() {
   CHECK(GetPlatformVirtualAddressSpace()->FreePages(
       buffer_, kExternalPointerTableReservationSize));
 
+  delete mutex_;
+
   buffer_ = kNullAddress;
   capacity_ = 0;
   freelist_head_ = 0;
+  mutex_ = nullptr;
 }
 
 Address ExternalPointerTable::Get(uint32_t index,
@@ -78,21 +88,44 @@ bool ExternalPointerTable::IsValidIndex(uint32_t index) const {
 uint32_t ExternalPointerTable::Allocate() {
   DCHECK(is_initialized());
 
-  if (!freelist_head_) {
-    // Freelist is empty so grow the table.
-    Grow();
+  base::Atomic32* freelist_head_ptr =
+      reinterpret_cast<base::Atomic32*>(&freelist_head_);
+
+  uint32_t index;
+  bool success = false;
+  while (!success) {
+    // This is essentially DCLP (see
+    // https://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11/)
+    // and so requires an acquire load as well as a release store in Grow() to
+    // prevent reordering of memory accesses, which could for example cause one
+    // thread to read a freelist entry before it has been properly initialized.
+    uint32_t freelist_head = base::Acquire_Load(freelist_head_ptr);
+    if (!freelist_head) {
+      // Freelist is empty. Need to take the lock, then attempt to grow the
+      // table if no other thread has done it in the meantime.
+      base::MutexGuard guard(mutex_);
+
+      // Reload freelist head in case another thread already grew the table.
+      freelist_head = base::Relaxed_Load(freelist_head_ptr);
+
+      if (!freelist_head) {
+        // Freelist is (still) empty so grow the table.
+        freelist_head = Grow();
+      }
+    }
+
+    DCHECK(freelist_head);
+    DCHECK_LT(freelist_head, capacity_);
+    index = freelist_head;
+
+    // The next free element is stored in the lower 32 bits of the entry.
+    uint32_t new_freelist_head = static_cast<uint32_t>(load_atomic(index));
+
+    uint32_t old_val = base::Relaxed_CompareAndSwap(
+        freelist_head_ptr, freelist_head, new_freelist_head);
+    success = old_val == freelist_head;
   }
 
-  // Note: if external pointer table entries are ever allocated from a
-  // background thread, this logic must become atomic, for example by doing an
-  // atomic load of the currentl freelist head, then writing back the new
-  // freelist head in a CAS loop.
-
-  DCHECK(freelist_head_);
-  uint32_t index = freelist_head_;
-  DCHECK_LT(index, capacity_);
-  // The next free element is stored in the lower 32 bits of the entry.
-  freelist_head_ = static_cast<uint32_t>(load_atomic(index));
   return index;
 }
 
