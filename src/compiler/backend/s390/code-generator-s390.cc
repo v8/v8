@@ -3058,26 +3058,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_I32x4TruncSatF64x2SZero: {
-      Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register dst = i.OutputSimd128Register();
-      // NaN to 0
-      __ vlr(kScratchDoubleReg, src, Condition(0), Condition(0), Condition(0));
-      __ vfce(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
-              Condition(0), Condition(0), Condition(3));
-      __ vn(kScratchDoubleReg, src, kScratchDoubleReg, Condition(0),
-            Condition(0), Condition(0));
-      __ vcgd(kScratchDoubleReg, kScratchDoubleReg, Condition(5), Condition(0),
-              Condition(3));
-      __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
-      __ vpks(dst, dst, kScratchDoubleReg, Condition(0), Condition(3));
+      __ I32x4TruncSatF64x2SZero(i.OutputSimd128Register(),
+                                 i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
     case kS390_I32x4TruncSatF64x2UZero: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vclgd(kScratchDoubleReg, i.InputSimd128Register(0), Condition(5),
-               Condition(0), Condition(3));
-      __ vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
-      __ vpkls(dst, dst, kScratchDoubleReg, Condition(0), Condition(3));
+      __ I32x4TruncSatF64x2UZero(i.OutputSimd128Register(),
+                                 i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
 #define LOAD_SPLAT(type)                           \

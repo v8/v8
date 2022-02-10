@@ -5950,6 +5950,26 @@ void TurboAssembler::I16x8ExtAddPairwiseI8x16U(Simd128Register dst,
 }
 #undef EXT_ADD_PAIRWISE
 
+void TurboAssembler::I32x4TruncSatF64x2SZero(Simd128Register dst,
+                                             Simd128Register src,
+                                             Simd128Register scratch) {
+  // NaN to 0.
+  vlr(scratch, src, Condition(0), Condition(0), Condition(0));
+  vfce(scratch, scratch, scratch, Condition(0), Condition(0), Condition(3));
+  vn(scratch, src, scratch, Condition(0), Condition(0), Condition(0));
+  vcgd(scratch, scratch, Condition(5), Condition(0), Condition(3));
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+  vpks(dst, dst, scratch, Condition(0), Condition(3));
+}
+
+void TurboAssembler::I32x4TruncSatF64x2UZero(Simd128Register dst,
+                                             Simd128Register src,
+                                             Simd128Register scratch) {
+  vclgd(scratch, src, Condition(5), Condition(0), Condition(3));
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+  vpkls(dst, dst, scratch, Condition(0), Condition(3));
+}
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true
