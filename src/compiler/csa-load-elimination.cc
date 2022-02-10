@@ -497,8 +497,8 @@ Reduction CsaLoadElimination::PropagateInputState(Node* node) {
 CsaLoadElimination::AbstractState const* CsaLoadElimination::ComputeLoopState(
     Node* node, AbstractState const* state) const {
   DCHECK_EQ(node->opcode(), IrOpcode::kEffectPhi);
-  ZoneQueue<Node*> queue(zone());
-  ZoneSet<Node*> visited(zone());
+  std::queue<Node*> queue;
+  std::unordered_set<Node*> visited;
   visited.insert(node);
   for (int i = 1; i < node->InputCount() - 1; ++i) {
     queue.push(node->InputAt(i));
@@ -507,7 +507,23 @@ CsaLoadElimination::AbstractState const* CsaLoadElimination::ComputeLoopState(
     Node* const current = queue.front();
     queue.pop();
     if (visited.insert(current).second) {
-      if (!current->op()->HasProperty(Operator::kNoWrite)) {
+      if (current->opcode() == IrOpcode::kStoreToObject) {
+        Node* object = NodeProperties::GetValueInput(current, 0);
+        Node* offset = NodeProperties::GetValueInput(current, 1);
+        MachineRepresentation repr =
+            ObjectAccessOf(current->op()).machine_type.representation();
+        const HalfState* new_mutable_state =
+            state->mutable_state.KillField(object, offset, repr);
+        state = zone()->New<AbstractState>(*new_mutable_state,
+                                           state->immutable_state);
+      } else if (current->opcode() == IrOpcode::kInitializeImmutableInObject) {
+#if DEBUG
+        // We are not allowed to reset an immutable (object, offset) pair.
+        Node* object = NodeProperties::GetValueInput(current, 0);
+        Node* offset = NodeProperties::GetValueInput(current, 1);
+        CHECK(state->immutable_state.Lookup(object, offset).IsEmpty());
+#endif
+      } else if (!current->op()->HasProperty(Operator::kNoWrite)) {
         return zone()->New<AbstractState>(HalfState(zone()),
                                           state->immutable_state);
       }
