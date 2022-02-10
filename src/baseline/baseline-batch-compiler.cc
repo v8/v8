@@ -152,12 +152,14 @@ class ConcurrentBaselineCompiler {
           outgoing_queue_(outcoming_queue) {}
 
     void Run(JobDelegate* delegate) override {
-      // Since we're going to compile an entire batch, this guarantees that
-      // we only switch back the memory chunks to RX at the end.
-      CodePageCollectionMemoryModificationScope batch_alloc(isolate_->heap());
       LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
       UnparkedScope unparked_scope(&local_isolate);
       LocalHandleScope handle_scope(&local_isolate);
+
+      // Since we're going to compile an entire batch, this guarantees that
+      // we only switch back the memory chunks to RX at the end.
+      CodePageCollectionMemoryModificationScope batch_alloc(isolate_->heap());
+
       while (!incoming_queue_->IsEmpty() && !delegate->ShouldYield()) {
         std::unique_ptr<BaselineBatchCompilerJob> job;
         if (!incoming_queue_->Dequeue(&job)) break;
