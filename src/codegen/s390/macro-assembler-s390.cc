@@ -5970,6 +5970,13 @@ void TurboAssembler::I32x4TruncSatF64x2UZero(Simd128Register dst,
   vpkls(dst, dst, scratch, Condition(0), Condition(3));
 }
 
+void TurboAssembler::S128Const(Simd128Register dst, uint64_t high, uint64_t low,
+                               Register scratch1, Register scratch2) {
+  mov(scratch1, Operand(low));
+  mov(scratch2, Operand(high));
+  vlvgp(dst, scratch2, scratch1);
+}
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

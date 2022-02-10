@@ -2866,9 +2866,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_S128Const: {
       uint64_t low = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t high = make_uint64(i.InputUint32(3), i.InputUint32(2));
-      __ mov(r0, Operand(low));
-      __ mov(ip, Operand(high));
-      __ vlvgp(i.OutputSimd128Register(), ip, r0);
+      __ S128Const(i.OutputSimd128Register(), high, low, r0, ip);
       break;
     }
     case kS390_S128Zero: {

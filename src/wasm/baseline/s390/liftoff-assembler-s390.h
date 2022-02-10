@@ -2662,7 +2662,13 @@ void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
-  bailout(kUnsupportedArchitecture, "emit_s128_const");
+  uint64_t vals[2];
+  memcpy(vals, imms, sizeof(vals));
+#ifdef V8_TARGET_BIG_ENDIAN
+  vals[0] = ByteReverse(vals[0]);
+  vals[1] = ByteReverse(vals[1]);
+#endif
+  S128Const(dst.fp(), vals[1], vals[0], r0, ip);
 }
 
 void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,
