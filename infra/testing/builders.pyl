@@ -497,6 +497,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 2},
+      {'name': 'gcmole'},
     ],
   },
   'v8_linux64_single_generation_dbg_ng_triggered': {
@@ -1374,6 +1375,7 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 2},
+      {'name': 'gcmole'},
     ],
   },
   'V8 Linux64 - shared': {
