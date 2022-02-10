@@ -9,6 +9,7 @@
 #include "src/heap/code-object-registry.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
 
@@ -133,6 +134,8 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
                                        nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
                                        nullptr);
+  base::AsAtomicPointer::Release_Store(
+      &chunk->typed_slot_set_[CLIENT_TO_SHARED], nullptr);
   chunk->invalidated_slots_[OLD_TO_NEW] = nullptr;
   chunk->invalidated_slots_[OLD_TO_OLD] = nullptr;
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
@@ -313,6 +316,7 @@ void MemoryChunk::ReleaseSlotSet(SlotSet** slot_set) {
 
 template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_NEW>();
 template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<OLD_TO_OLD>();
+template TypedSlotSet* MemoryChunk::AllocateTypedSlotSet<CLIENT_TO_SHARED>();
 
 template <RememberedSetType type>
 TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
@@ -329,6 +333,7 @@ TypedSlotSet* MemoryChunk::AllocateTypedSlotSet() {
 
 template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_NEW>();
 template void MemoryChunk::ReleaseTypedSlotSet<OLD_TO_OLD>();
+template void MemoryChunk::ReleaseTypedSlotSet<CLIENT_TO_SHARED>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseTypedSlotSet() {

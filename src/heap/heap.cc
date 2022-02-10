@@ -2385,8 +2385,9 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   v8::Locker locker(reinterpret_cast<v8::Isolate*>(isolate()));
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate()));
 
-  tracer()->StartObservablePause(GarbageCollector::MARK_COMPACTOR, gc_reason,
-                                 nullptr);
+  const GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
+
+  tracer()->StartObservablePause(collector, gc_reason, nullptr);
 
   DCHECK_NOT_NULL(isolate()->global_safepoint());
 
@@ -2396,12 +2397,23 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
     // As long as we need to iterate the client heap to find references into the
     // shared heap, all client heaps need to be iterable.
     client->heap()->MakeHeapIterable();
+
+    if (FLAG_concurrent_marking) {
+      client->heap()->concurrent_marking()->Pause();
+    }
   });
 
   PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR, gc_reason,
                            nullptr);
 
-  tracer()->StopObservablePause(GarbageCollector::MARK_COMPACTOR);
+  tracer()->StopObservablePause(collector);
+
+  isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+    if (FLAG_concurrent_marking &&
+        client->heap()->incremental_marking()->IsMarking()) {
+      client->heap()->concurrent_marking()->RescheduleJobIfNeeded();
+    }
+  });
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {

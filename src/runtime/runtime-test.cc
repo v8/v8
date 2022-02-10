@@ -1476,5 +1476,11 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
                                     Handle<String>::cast(obj)->IsShared());
 }
 
+RUNTIME_FUNCTION(Runtime_SharedGC) {
+  SealHandleScope scope(isolate);
+  isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8
