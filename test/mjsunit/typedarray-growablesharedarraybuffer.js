@@ -93,6 +93,93 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
                /Invalid typed array length: 2/);
 })();
 
+(function ConstructFromTypedArray() {
+  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
+    const gsab = CreateGrowableSharedArrayBuffer(
+        4 * sourceCtor.BYTES_PER_ELEMENT,
+        8 * sourceCtor.BYTES_PER_ELEMENT);
+    const fixedLength = new sourceCtor(gsab, 0, 4);
+    const fixedLengthWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new sourceCtor(gsab, 0);
+    const lengthTrackingWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taFull = new sourceCtor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taFull, i, i + 1);
+    }
+
+    // Orig. array: [1, 2, 3, 4]
+    //              [1, 2, 3, 4] << fixedLength
+    //                    [3, 4] << fixedLengthWithOffset
+    //              [1, 2, 3, 4, ...] << lengthTracking
+    //                    [3, 4, ...] << lengthTrackingWithOffset
+
+    assertEquals([1, 2, 3, 4], ToNumbers(new targetCtor(fixedLength)));
+    assertEquals([3, 4], ToNumbers(new targetCtor(fixedLengthWithOffset)));
+    assertEquals([1, 2, 3, 4], ToNumbers(new targetCtor(lengthTracking)));
+    assertEquals([3, 4], ToNumbers(new targetCtor(lengthTrackingWithOffset)));
+
+    // Grow.
+    gsab.grow(6 * sourceCtor.BYTES_PER_ELEMENT);
+
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taFull, i, i + 1);
+    }
+
+    // Orig. array: [1, 2, 3, 4, 5, 6]
+    //              [1, 2, 3, 4] << fixedLength
+    //                    [3, 4] << fixedLengthWithOffset
+    //              [1, 2, 3, 4, 5, 6, ...] << lengthTracking
+    //                    [3, 4, 5, 6, ...] << lengthTrackingWithOffset
+
+    assertEquals([1, 2, 3, 4], ToNumbers(new targetCtor(fixedLength)));
+    assertEquals([3, 4], ToNumbers(new targetCtor(fixedLengthWithOffset)));
+    assertEquals([1, 2, 3, 4, 5, 6],
+                 ToNumbers(new targetCtor(lengthTracking)));
+    assertEquals([3, 4, 5, 6],
+                 ToNumbers(new targetCtor(lengthTrackingWithOffset)));
+  });
+})();
+
+(function ConstructFromTypedArraySpeciesConstructorNotCalled() {
+  class MySharedArrayBuffer extends SharedArrayBuffer {
+    constructor(...params) {
+      super(...params);
+    }
+    static get [Symbol.species]() {
+      throw new Error('This should not be called!');
+    }
+  };
+
+  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
+    const gsab = new MySharedArrayBuffer(
+      4 * sourceCtor.BYTES_PER_ELEMENT,
+      {maxByteLength: 8 * sourceCtor.BYTES_PER_ELEMENT});
+    // Write some data into the array.
+    const taWrite = new sourceCtor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    const fixedLength = new sourceCtor(gsab, 0, 4);
+    assertEquals([0, 2, 4, 6], ToNumbers(new targetCtor(fixedLength)));
+
+    const fixedLengthWithOffset = new sourceCtor(
+        gsab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
+    assertEquals([4, 6], ToNumbers(new targetCtor(fixedLengthWithOffset)));
+
+    const lengthTracking = new sourceCtor(gsab, 0);
+    assertEquals([0, 2, 4, 6], ToNumbers(new targetCtor(lengthTracking)));
+
+    const lengthTrackingWithOffset = new sourceCtor(
+      gsab, 2 * sourceCtor.BYTES_PER_ELEMENT);
+    assertEquals([4, 6], ToNumbers(new targetCtor(lengthTrackingWithOffset)));
+  });
+})();
+
 (function TypedArrayLengthWhenGrown1() {
   const gsab = CreateGrowableSharedArrayBuffer(16, 40);
 

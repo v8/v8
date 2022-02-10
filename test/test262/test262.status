@@ -285,8 +285,6 @@
   'built-ins/ArrayBuffer/prototype/transfer/this-is-sharedarraybuffer': [PASS],
   'built-ins/TypedArray/prototype/sort/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
   'built-ins/TypedArray/prototype/sort/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-different-type': [FAIL],
-  'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-same-type': [FAIL],
   # See also https://github.com/tc39/test262/issues/3380
   'built-ins/TypedArray/prototype/map/callbackfn-resize': [FAIL],
 

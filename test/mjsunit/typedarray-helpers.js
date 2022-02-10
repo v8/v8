@@ -60,6 +60,19 @@ function IsBigIntTypedArray(ta) {
   return (ta instanceof BigInt64Array) || (ta instanceof BigUint64Array);
 }
 
+function AllBigIntMatchedCtorCombinations(test) {
+  for (let targetCtor of ctors) {
+    for (let sourceCtor of ctors) {
+      if (IsBigIntTypedArray(new targetCtor()) !=
+          IsBigIntTypedArray(new sourceCtor())) {
+        // Can't mix BigInt and non-BigInt types.
+        continue;
+      }
+      test(targetCtor, sourceCtor);
+    }
+  }
+}
+
 function ReadDataFromBuffer(ab, ctor) {
   let result = [];
   const ta = new ctor(ab, 0, ab.byteLength / ctor.BYTES_PER_ELEMENT);

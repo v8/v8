@@ -3879,12 +3879,6 @@ class TypedElementsAccessor
 
     // All conversions from TypedArrays can be done without allocation.
     if (source->IsJSTypedArray()) {
-      // TODO(v8:11111): Add RAB/GSAB support.
-      DCHECK(!destination_ta->is_length_tracking());
-      DCHECK(!destination_ta->is_backed_by_rab());
-      DCHECK(!Handle<JSTypedArray>::cast(source)->is_length_tracking());
-      DCHECK(!Handle<JSTypedArray>::cast(source)->is_backed_by_rab());
-
       CHECK(!destination_ta->WasDetached());
       bool out_of_bounds = false;
       CHECK_LE(offset + length,
@@ -3899,7 +3893,7 @@ class TypedElementsAccessor
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
       if (source_is_bigint == target_is_bigint && !source_ta->WasDetached() &&
-          length + offset <= source_ta->length()) {
+          length + offset <= source_ta->GetLength()) {
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
       }

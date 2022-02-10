@@ -76,14 +76,14 @@ macro IsLengthTrackingJSArrayBufferView(array: JSArrayBufferView): bool {
 extern macro LoadVariableLengthJSArrayBufferViewByteLength(
     JSArrayBufferView, JSArrayBuffer): uintptr labels DetachedOrOutOfBounds;
 
-@export
 macro LoadJSArrayBufferViewByteLength(
-    view: JSArrayBufferView, buffer: JSArrayBuffer):
-    uintptr labels DetachedOrOutOfBounds {
+    view: JSArrayBufferView,
+    buffer: JSArrayBuffer): uintptr labels DetachedOrOutOfBounds {
   if (IsVariableLengthJSArrayBufferView(view)) {
     return LoadVariableLengthJSArrayBufferViewByteLength(view, buffer)
         otherwise DetachedOrOutOfBounds;
   }
+  if (IsDetachedBuffer(buffer)) goto DetachedOrOutOfBounds;
   return view.byte_length;
 }
 
