@@ -728,6 +728,51 @@ String::FlatContent String::GetFlatContent(
   return GetFlatContent(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
+String::FlatContent::FlatContent(const uint8_t* start, int length,
+                                 const DisallowGarbageCollection& no_gc)
+    : onebyte_start(start), length_(length), state_(ONE_BYTE), no_gc_(no_gc) {
+#ifdef ENABLE_SLOW_DCHECKS
+  checksum_ = ComputeChecksum();
+#endif
+}
+
+String::FlatContent::FlatContent(const base::uc16* start, int length,
+                                 const DisallowGarbageCollection& no_gc)
+    : twobyte_start(start), length_(length), state_(TWO_BYTE), no_gc_(no_gc) {
+#ifdef ENABLE_SLOW_DCHECKS
+  checksum_ = ComputeChecksum();
+#endif
+}
+
+String::FlatContent::~FlatContent() {
+  // When ENABLE_SLOW_DCHECKS, check the string contents did not change during
+  // the lifetime of the FlatContent. To avoid extra memory use, only the hash
+  // is checked instead of snapshotting the full character data.
+  //
+  // If you crashed here, it means something changed the character data of this
+  // FlatContent during its lifetime (e.g. GC relocated the string). This is
+  // almost always a bug. If you are certain it is not a bug, you can disable
+  // the checksum verification in the caller by calling
+  // UnsafeDisableChecksumVerification().
+  SLOW_DCHECK(checksum_ == kChecksumVerificationDisabled ||
+              checksum_ == ComputeChecksum());
+}
+
+#ifdef ENABLE_SLOW_DCHECKS
+uint32_t String::FlatContent::ComputeChecksum() const {
+  constexpr uint64_t hashseed = 1;
+  uint32_t hash;
+  if (state_ == ONE_BYTE) {
+    hash = StringHasher::HashSequentialString(onebyte_start, length_, hashseed);
+  } else {
+    DCHECK_EQ(TWO_BYTE, state_);
+    hash = StringHasher::HashSequentialString(twobyte_start, length_, hashseed);
+  }
+  DCHECK_NE(kChecksumVerificationDisabled, hash);
+  return hash;
+}
+#endif
+
 String::FlatContent String::GetFlatContent(
     const DisallowGarbageCollection& no_gc,
     const SharedStringAccessGuardIfNeeded& access_guard) {
