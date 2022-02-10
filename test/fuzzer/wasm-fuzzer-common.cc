@@ -799,7 +799,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 // Control whether Liftoff or the interpreter will be used as the reference
 // tier.
 // TODO(thibaudm): Port nondeterminism detection to arm.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86) || \
+    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
   bool liftoff_as_reference = configuration_byte & 1;
 #else
   bool liftoff_as_reference = false;
