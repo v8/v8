@@ -738,7 +738,7 @@ class Heap::AllocationTrackerForDebugging final
 
   void AllocationEvent(Address addr, int size) final {
     if (FLAG_verify_predictable) {
-      ++allocations_count_;
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
       // Advance synthetic time by making a time request.
       heap_->MonotonicallyIncreasingTimeInMs();
 
@@ -749,9 +749,9 @@ class Heap::AllocationTrackerForDebugging final
         PrintAllocationsHash();
       }
     } else if (FLAG_fuzzer_gc_analysis) {
-      ++allocations_count_;
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
     } else if (FLAG_trace_allocation_stack_interval > 0) {
-      ++allocations_count_;
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
       if (allocations_count_ % FLAG_trace_allocation_stack_interval == 0) {
         heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
       }
@@ -760,7 +760,7 @@ class Heap::AllocationTrackerForDebugging final
 
   void MoveEvent(Address source, Address target, int size) final {
     if (FLAG_verify_predictable) {
-      ++allocations_count_;
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
       // Advance synthetic time by making a time request.
       heap_->MonotonicallyIncreasingTimeInMs();
 
@@ -772,7 +772,7 @@ class Heap::AllocationTrackerForDebugging final
         PrintAllocationsHash();
       }
     } else if (FLAG_fuzzer_gc_analysis) {
-      ++allocations_count_;
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
     }
   }
 
@@ -803,13 +803,15 @@ class Heap::AllocationTrackerForDebugging final
 
   void PrintAllocationsHash() {
     uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
-    PrintF("\n### Allocations = %zu, hash = 0x%08x\n", allocations_count_,
-           hash);
+    PrintF("\n### Allocations = %zu, hash = 0x%08x\n",
+           allocations_count_.load(std::memory_order_relaxed), hash);
   }
 
   Heap* const heap_;
-  // Count of all allocations performed through C++ bottlenecks.
-  size_t allocations_count_ = 0;
+  // Count of all allocations performed through C++ bottlenecks. This needs to
+  // be atomic as objects are moved in parallel in the GC which counts as
+  // allocations.
+  std::atomic<size_t> allocations_count_;
   // Running hash over allocations performed.
   uint32_t raw_allocations_hash_ = 0;
 };
