@@ -218,6 +218,7 @@ try_ng_pair(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
     experiments = {"luci.recipes.use_python3": 100, "v8.scripts.use_python3": 100, "v8.steps.use_python3": 100},
+    gclient_vars = [GCLIENT_VARS.GCMOLE],
 )
 
 try_ng_pair(

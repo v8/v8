@@ -199,6 +199,7 @@ in_category(
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.DEFAULT,
         to_notify = ["machenbach@chromium.org"],
+        gclient_vars = [GCLIENT_VARS.GCMOLE],
     ),
 )
 
