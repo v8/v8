@@ -1160,6 +1160,12 @@ void LiftoffAssembler::MoveToReturnLocations(
   }
 
   // Slow path for multi-return.
+  // We sometimes allocate a register to perform stack-to-stack moves, which can
+  // cause a spill in the cache state. Conservatively save and restore the
+  // original state in case it is needed after the current instruction
+  // (conditional branch).
+  CacheState saved_state;
+  saved_state.Split(*cache_state());
   int call_desc_return_idx = 0;
   DCHECK_LE(sig->return_count(), cache_state_.stack_height());
   VarState* slots = cache_state_.stack_state.end() - sig->return_count();
@@ -1210,6 +1216,7 @@ void LiftoffAssembler::MoveToReturnLocations(
       }
     }
   }
+  cache_state()->Steal(saved_state);
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
