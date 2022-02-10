@@ -721,14 +721,16 @@ class Heap::AllocationTrackerForDebugging final
  public:
   static bool IsNeeded() {
     return FLAG_verify_predictable || FLAG_fuzzer_gc_analysis ||
-           FLAG_trace_allocation_stack_interval;
+           (FLAG_trace_allocation_stack_interval > 0);
   }
 
   explicit AllocationTrackerForDebugging(Heap* heap) : heap_(heap) {
     CHECK(IsNeeded());
+    heap_->AddHeapObjectAllocationTracker(this);
   }
 
   ~AllocationTrackerForDebugging() final {
+    heap_->RemoveHeapObjectAllocationTracker(this);
     if (FLAG_verify_predictable || FLAG_fuzzer_gc_analysis) {
       PrintAllocationsHash();
     }
