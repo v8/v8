@@ -1122,7 +1122,7 @@ TEST(TransitionLookup) {
 
   // Ensure we didn't overflow transition array and therefore all the
   // combinations of cases are covered.
-  CHECK(TransitionsAccessor(isolate, root_map).CanHaveMoreTransitions());
+  CHECK(TransitionsAccessor::CanHaveMoreTransitions(isolate, root_map));
 
   // Now try querying keys.
   bool positive_lookup_tested = false;

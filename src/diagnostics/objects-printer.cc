@@ -2592,8 +2592,7 @@ void Map::MapPrint(std::ostream& os) {
   // the isolate to iterate over the transitions.
   if (!IsReadOnlyHeapObject(*this)) {
     Isolate* isolate = GetIsolateFromWritableObject(*this);
-    DisallowGarbageCollection no_gc;
-    TransitionsAccessor transitions(isolate, *this, &no_gc);
+    TransitionsAccessor transitions(isolate, *this);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
       os << "\n - transitions #" << nof_transitions << ": ";
@@ -2780,14 +2779,13 @@ void TransitionsAccessor::PrintTransitionTree(
       descriptors.PrintDescriptorDetails(os, descriptor,
                                          PropertyDetails::kForTransitions);
     }
-    TransitionsAccessor transitions(isolate_, target, no_gc);
+    TransitionsAccessor transitions(isolate_, target);
     transitions.PrintTransitionTree(os, level + 1, no_gc);
   }
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {
-  DisallowGarbageCollection no_gc;
-  TransitionsAccessor ta(GetIsolate(), map(), &no_gc);
+  TransitionsAccessor ta(GetIsolate(), map());
   if (ta.NumberOfTransitions() == 0) return;
   os << "\n - transitions";
   ta.PrintTransitions(os);
@@ -2891,9 +2889,8 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
     printf("Please provide a valid Map\n");
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
-    i::DisallowGarbageCollection no_gc;
     i::Map map = i::Map::unchecked_cast(o);
-    i::TransitionsAccessor transitions(i::Isolate::Current(), map, &no_gc);
+    i::TransitionsAccessor transitions(i::Isolate::Current(), map);
     transitions.PrintTransitionTree();
 #endif
   }
