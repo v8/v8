@@ -92,7 +92,6 @@ BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
       end_to_header_(zone),
       header_to_info_(zone),
       osr_entry_point_(-1) {
-  if (analyze_liveness) liveness_map_.emplace(bytecode_array->length(), zone);
   Analyze();
 }
 
@@ -394,6 +393,12 @@ void BytecodeAnalysis::Analyze() {
   DCHECK_EQ(osr_loop_end_offset < 0, osr_bailout_id_.IsNone());
 
   interpreter::BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
+
+  bytecode_count_ = iterator.size();
+  if (analyze_liveness_) {
+    liveness_map_.emplace(bytecode_array()->length(), zone());
+  }
+
   for (iterator.GoToEnd(); iterator.IsValid(); --iterator) {
     Bytecode bytecode = iterator.current_bytecode();
     int current_offset = iterator.current_offset();

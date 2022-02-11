@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_BYTECODE_LIVENESS_MAP_H_
 #define V8_COMPILER_BYTECODE_LIVENESS_MAP_H_
 
-#include "src/base/hashmap.h"
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone.h"
 
@@ -85,12 +84,38 @@ struct BytecodeLiveness {
 
 class V8_EXPORT_PRIVATE BytecodeLivenessMap {
  public:
-  BytecodeLivenessMap(int size, Zone* zone);
+  BytecodeLivenessMap(int bytecode_size, Zone* zone)
+      : liveness_(zone->NewArray<BytecodeLiveness>(bytecode_size))
+#ifdef DEBUG
+        ,
+        size_(bytecode_size)
+#endif
+  {
+  }
 
-  BytecodeLiveness& InsertNewLiveness(int offset);
+  BytecodeLiveness& InsertNewLiveness(int offset) {
+    DCHECK_GE(offset, 0);
+    DCHECK_LT(offset, size_);
+#ifdef DEBUG
+    // Null out the in/out liveness, so that later DCHECKs know whether these
+    // have been correctly initialised or not. That code does initialise them
+    // unconditionally though, so we can skip the nulling out in release.
+    liveness_[offset].in = nullptr;
+    liveness_[offset].out = nullptr;
+#endif
+    return liveness_[offset];
+  }
 
-  BytecodeLiveness& GetLiveness(int offset);
-  const BytecodeLiveness& GetLiveness(int offset) const;
+  BytecodeLiveness& GetLiveness(int offset) {
+    DCHECK_GE(offset, 0);
+    DCHECK_LT(offset, size_);
+    return liveness_[offset];
+  }
+  const BytecodeLiveness& GetLiveness(int offset) const {
+    DCHECK_GE(offset, 0);
+    DCHECK_LT(offset, size_);
+    return liveness_[offset];
+  }
 
   BytecodeLivenessState* GetInLiveness(int offset) {
     return GetLiveness(offset).in;
@@ -107,9 +132,10 @@ class V8_EXPORT_PRIVATE BytecodeLivenessMap {
   }
 
  private:
-  base::TemplateHashMapImpl<int, BytecodeLiveness,
-                            base::KeyEqualityMatcher<int>, ZoneAllocationPolicy>
-      liveness_map_;
+  BytecodeLiveness* liveness_;
+#ifdef DEBUG
+  size_t size_;
+#endif
 };
 
 }  // namespace compiler

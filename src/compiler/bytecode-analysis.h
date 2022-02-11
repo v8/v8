@@ -133,6 +133,10 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   // Return whether liveness analysis was performed (for verification purposes).
   bool liveness_analyzed() const { return analyze_liveness_; }
 
+  // Return the number of bytecodes (i.e. the number of bytecode operations, as
+  // opposed to the number of bytes in the bytecode).
+  int bytecode_count() const { return bytecode_count_; }
+
  private:
   struct LoopStackEntry {
     int header_offset;
@@ -176,6 +180,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   ZoneMap<int, LoopInfo> header_to_info_;
   int osr_entry_point_;
   base::Optional<BytecodeLivenessMap> liveness_map_;
+  int bytecode_count_;
 };
 
 }  // namespace compiler
