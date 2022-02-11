@@ -5977,6 +5977,36 @@ void TurboAssembler::S128Const(Simd128Register dst, uint64_t high, uint64_t low,
   vlvgp(dst, scratch2, scratch1);
 }
 
+void TurboAssembler::I8x16Swizzle(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2,
+                                  Simd128Register scratch1,
+                                  Simd128Register scratch2) {
+  DCHECK_NE(src1, scratch2);
+  // Saturate the indices to 5 bits. Input indices more than 31 should
+  // return 0.
+  vrepi(scratch1, Operand(31), Condition(0));
+  vmnl(scratch2, src2, scratch1, Condition(0), Condition(0), Condition(0));
+  // Input needs to be reversed.
+  vlgv(r0, src1, MemOperand(r0, 0), Condition(3));
+  vlgv(r1, src1, MemOperand(r0, 1), Condition(3));
+  lrvgr(r0, r0);
+  lrvgr(r1, r1);
+  vlvgp(dst, r1, r0);
+  // Clear scratch.
+  vx(scratch1, scratch1, scratch1, Condition(0), Condition(0), Condition(0));
+  vperm(dst, dst, scratch1, scratch2, Condition(0), Condition(0));
+}
+
+void TurboAssembler::I8x16Shuffle(Simd128Register dst, Simd128Register src1,
+                                  Simd128Register src2, uint64_t high,
+                                  uint64_t low, Register scratch1,
+                                  Register scratch2, Simd128Register scratch3) {
+  mov(scratch1, Operand(low));
+  mov(scratch2, Operand(high));
+  vlvgp(kScratchDoubleReg, scratch2, scratch1);
+  vperm(dst, src1, src2, scratch3, Condition(0), Condition(0));
+}
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true
