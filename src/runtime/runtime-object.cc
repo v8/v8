@@ -117,7 +117,7 @@ void GeneralizeAllTransitionsToFieldAsMutable(Isolate* isolate, Handle<Map> map,
   // Collect all outgoing field transitions.
   {
     DisallowGarbageCollection no_gc;
-    TransitionsAccessor transitions(isolate, *map);
+    TransitionsAccessor transitions(isolate, *map, &no_gc);
     transitions.ForEachTransitionTo(
         *name,
         [&](Map target) {

@@ -45,22 +45,19 @@ TEST(TransitionArray_SimpleFieldTransitions) {
   CHECK(map0->raw_transitions()->IsSmi());
 
   {
-    TransitionsAccessor::Insert(isolate, map0, name1, map1,
-                                SIMPLE_PROPERTY_TRANSITION);
+    TestTransitionsAccessor transitions(isolate, map0);
+    transitions.Insert(name1, map1, SIMPLE_PROPERTY_TRANSITION);
   }
   {
-    {
-      TestTransitionsAccessor transitions(isolate, map0);
-      CHECK(transitions.IsWeakRefEncoding());
-      CHECK_EQ(*map1, transitions.SearchTransition(*name1, PropertyKind::kData,
-                                                   attributes));
-      CHECK_EQ(1, transitions.NumberOfTransitions());
-      CHECK_EQ(*name1, transitions.GetKey(0));
-      CHECK_EQ(*map1, transitions.GetTarget(0));
-    }
+    TestTransitionsAccessor transitions(isolate, map0);
+    CHECK(transitions.IsWeakRefEncoding());
+    CHECK_EQ(*map1, transitions.SearchTransition(*name1, PropertyKind::kData,
+                                                 attributes));
+    CHECK_EQ(1, transitions.NumberOfTransitions());
+    CHECK_EQ(*name1, transitions.GetKey(0));
+    CHECK_EQ(*map1, transitions.GetTarget(0));
 
-    TransitionsAccessor::Insert(isolate, map0, name2, map2,
-                                SIMPLE_PROPERTY_TRANSITION);
+    transitions.Insert(name2, map2, SIMPLE_PROPERTY_TRANSITION);
   }
   {
     TestTransitionsAccessor transitions(isolate, map0);
@@ -108,22 +105,19 @@ TEST(TransitionArray_FullFieldTransitions) {
   CHECK(map0->raw_transitions()->IsSmi());
 
   {
-    TransitionsAccessor::Insert(isolate, map0, name1, map1,
-                                PROPERTY_TRANSITION);
+    TestTransitionsAccessor transitions(isolate, map0);
+    transitions.Insert(name1, map1, PROPERTY_TRANSITION);
   }
   {
-    {
-      TestTransitionsAccessor transitions(isolate, map0);
-      CHECK(transitions.IsFullTransitionArrayEncoding());
-      CHECK_EQ(*map1, transitions.SearchTransition(*name1, PropertyKind::kData,
-                                                   attributes));
-      CHECK_EQ(1, transitions.NumberOfTransitions());
-      CHECK_EQ(*name1, transitions.GetKey(0));
-      CHECK_EQ(*map1, transitions.GetTarget(0));
-    }
+    TestTransitionsAccessor transitions(isolate, map0);
+    CHECK(transitions.IsFullTransitionArrayEncoding());
+    CHECK_EQ(*map1, transitions.SearchTransition(*name1, PropertyKind::kData,
+                                                 attributes));
+    CHECK_EQ(1, transitions.NumberOfTransitions());
+    CHECK_EQ(*name1, transitions.GetKey(0));
+    CHECK_EQ(*map1, transitions.GetTarget(0));
 
-    TransitionsAccessor::Insert(isolate, map0, name2, map2,
-                                PROPERTY_TRANSITION);
+    transitions.Insert(name2, map2, PROPERTY_TRANSITION);
   }
   {
     TestTransitionsAccessor transitions(isolate, map0);
@@ -172,10 +166,10 @@ TEST(TransitionArray_DifferentFieldNames) {
     names[i] = name;
     maps[i] = map;
 
-    TransitionsAccessor::Insert(isolate, map0, name, map, PROPERTY_TRANSITION);
+    TransitionsAccessor(isolate, map0).Insert(name, map, PROPERTY_TRANSITION);
   }
 
-  TransitionsAccessor transitions(isolate, *map0);
+  TransitionsAccessor transitions(isolate, map0);
   for (int i = 0; i < PROPS_COUNT; i++) {
     CHECK_EQ(*maps[i], transitions.SearchTransition(
                            *names[i], PropertyKind::kData, attributes));
@@ -220,11 +214,11 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
             .ToHandleChecked();
     attr_maps[i] = map;
 
-    TransitionsAccessor::Insert(isolate, map0, name, map, PROPERTY_TRANSITION);
+    TransitionsAccessor(isolate, map0).Insert(name, map, PROPERTY_TRANSITION);
   }
 
   // Ensure that transitions for |name| field are valid.
-  TransitionsAccessor transitions(isolate, *map0);
+  TransitionsAccessor transitions(isolate, map0);
   for (int i = 0; i < ATTRS_COUNT; i++) {
     PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
     CHECK_EQ(*attr_maps[i], transitions.SearchTransition(
@@ -264,7 +258,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     names[i] = name;
     maps[i] = map;
 
-    TransitionsAccessor::Insert(isolate, map0, name, map, PROPERTY_TRANSITION);
+    TransitionsAccessor(isolate, map0).Insert(name, map, PROPERTY_TRANSITION);
   }
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
@@ -283,11 +277,11 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
             .ToHandleChecked();
     attr_maps[i] = map;
 
-    TransitionsAccessor::Insert(isolate, map0, name, map, PROPERTY_TRANSITION);
+    TransitionsAccessor(isolate, map0).Insert(name, map, PROPERTY_TRANSITION);
   }
 
   // Ensure that transitions for |name| field are valid.
-  TransitionsAccessor transitions(isolate, *map0);
+  TransitionsAccessor transitions(isolate, map0);
   for (int i = 0; i < ATTRS_COUNT; i++) {
     PropertyAttributes attr = static_cast<PropertyAttributes>(i);
     CHECK_EQ(*attr_maps[i],

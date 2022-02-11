@@ -486,13 +486,14 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                      descriptor_index)),
                  isolate_);
     } else {
-      TransitionsAccessor transitions(isolate(), *map);
+      DisallowGarbageCollection no_gc;
+      TransitionsAccessor transitions(isolate(), *map, &no_gc);
       expected = transitions.ExpectedTransitionKey();
       if (!expected.is_null()) {
         // Directly read out the target while reading out the key, otherwise it
         // might die while building the string below.
-        target =
-            TransitionsAccessor(isolate(), *map).ExpectedTransitionTarget();
+        target = TransitionsAccessor(isolate(), *map, &no_gc)
+                     .ExpectedTransitionTarget();
       }
     }
 
@@ -504,7 +505,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
         map = ParentOfDescriptorOwner(isolate_, map, feedback, descriptor);
         feedback_descriptors = 0;
       }
-      if (!TransitionsAccessor(isolate(), *map)
+      if (!TransitionsAccessor(isolate(), map)
                .FindTransitionToField(key)
                .ToHandle(&target)) {
         break;

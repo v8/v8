@@ -3230,8 +3230,7 @@ void JSObject::MigrateToMap(Isolate* isolate, Handle<JSObject> object,
       old_map->set_owns_descriptors(false);
       DCHECK(old_map->is_abandoned_prototype_map());
       // Ensure that no transition was inserted for prototype migrations.
-      DCHECK_EQ(0,
-                TransitionsAccessor(isolate, *old_map).NumberOfTransitions());
+      DCHECK_EQ(0, TransitionsAccessor(isolate, old_map).NumberOfTransitions());
       DCHECK(new_map->GetBackPointer(isolate).IsUndefined(isolate));
       DCHECK(object->map(isolate) != *old_map);
     }
@@ -4203,10 +4202,10 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
   Handle<Map> old_map(object->map(), isolate);
   old_map = Map::Update(isolate, old_map);
-  Handle<Map> transition_map;
-  MaybeHandle<Map> maybe_transition_map =
-      TransitionsAccessor::SearchSpecial(isolate, old_map, *transition_marker);
-  if (maybe_transition_map.ToHandle(&transition_map)) {
+  TransitionsAccessor transitions(isolate, old_map);
+  Map transition = transitions.SearchSpecial(*transition_marker);
+  if (!transition.is_null()) {
+    Handle<Map> transition_map(transition, isolate);
     DCHECK(transition_map->has_dictionary_elements() ||
            transition_map->has_typed_array_elements() ||
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
@@ -4216,7 +4215,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       new_element_dictionary = CreateElementDictionary(isolate, object);
     }
     JSObject::MigrateToMap(isolate, object, transition_map);
-  } else if (TransitionsAccessor::CanHaveMoreTransitions(isolate, old_map)) {
+  } else if (transitions.CanHaveMoreTransitions()) {
     // Create a new descriptor array with the appropriate property attributes
     Handle<Map> new_map = Map::CopyForPreventExtensions(
         isolate, old_map, attrs, transition_marker, "CopyForPreventExtensions");

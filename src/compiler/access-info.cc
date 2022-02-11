@@ -1119,9 +1119,10 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     PropertyAttributes attrs) const {
   // Check if the {map} has a data transition with the given {name}.
   Map transition =
-      TransitionsAccessor(isolate(), *map.object(), true)
+      TransitionsAccessor(isolate(), map.object(), true)
           .SearchTransition(*name.object(), PropertyKind::kData, attrs);
   if (transition.is_null()) return Invalid();
+
   base::Optional<MapRef> maybe_transition_map =
       TryMakeRef(broker(), transition);
   if (!maybe_transition_map.has_value()) return Invalid();

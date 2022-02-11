@@ -563,7 +563,8 @@ int InstanceSizeWithMinSlack(JSHeapBroker* broker, MapRef map) {
     DCHECK(map.object()->GetBackPointer().IsUndefined(broker->isolate()));
 
     static constexpr bool kConcurrentAccess = true;
-    TransitionsAccessor(broker->isolate(), *map.object(), kConcurrentAccess)
+    TransitionsAccessor(broker->isolate(), *map.object(), &no_gc,
+                        kConcurrentAccess)
         .TraverseTransitionTree([&](Map m) {
           maps.push_back(broker->CanonicalPersistentHandle(m));
         });

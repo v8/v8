@@ -17,23 +17,9 @@
 namespace v8 {
 namespace internal {
 
-// static
-TransitionArray TransitionsAccessor::GetTransitionArray(
-    Isolate* isolate, MaybeObject raw_transitions) {
-  DCHECK_EQ(kFullTransitionArray, GetEncoding(isolate, raw_transitions));
-  USE(isolate);
-  return TransitionArray::cast(raw_transitions.GetHeapObjectAssumeStrong());
-}
-
-// static
-TransitionArray TransitionsAccessor::GetTransitionArray(Isolate* isolate,
-                                                        Handle<Map> map) {
-  MaybeObject raw_transitions = map->raw_transitions(isolate, kAcquireLoad);
-  return GetTransitionArray(isolate, raw_transitions);
-}
-
 TransitionArray TransitionsAccessor::transitions() {
-  return GetTransitionArray(isolate_, raw_transitions_);
+  DCHECK_EQ(kFullTransitionArray, encoding());
+  return TransitionArray::cast(raw_transitions_->GetHeapObjectAssumeStrong());
 }
 
 OBJECT_CONSTRUCTORS_IMPL(TransitionArray, WeakFixedArray)
@@ -207,13 +193,26 @@ int TransitionArray::SearchName(Name name, bool concurrent_search,
 }
 
 TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Map map,
+                                         DisallowGarbageCollection* no_gc,
+                                         bool concurrent_access)
+    : isolate_(isolate), map_(map), concurrent_access_(concurrent_access) {
+  Initialize();
+  USE(no_gc);
+}
+
+TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Handle<Map> map,
                                          bool concurrent_access)
     : isolate_(isolate),
-      map_(map),
-      raw_transitions_(map.raw_transitions(isolate_, kAcquireLoad)),
-      encoding_(GetEncoding(isolate_, raw_transitions_)),
+      map_handle_(map),
+      map_(*map),
       concurrent_access_(concurrent_access) {
-  DCHECK_IMPLIES(encoding_ == kMigrationTarget, map_.is_deprecated());
+  Initialize();
+}
+
+void TransitionsAccessor::Reload() {
+  DCHECK(!map_handle_.is_null());
+  map_ = *map_handle_;
+  Initialize();
 }
 
 int TransitionsAccessor::Capacity() { return transitions().Capacity(); }
@@ -240,36 +239,13 @@ TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
   }
 }
 
-// static
-TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
-    Isolate* isolate, TransitionArray array) {
-  return GetEncoding(isolate, MaybeObject::FromObject(array));
-}
-
-// static
-TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
-    Isolate* isolate, Handle<Map> map) {
-  MaybeObject raw_transitions = map->raw_transitions(isolate, kAcquireLoad);
-  return GetEncoding(isolate, raw_transitions);
-}
-
-// static
-MaybeHandle<Map> TransitionsAccessor::SearchTransition(
-    Isolate* isolate, Handle<Map> map, Name name, PropertyKind kind,
-    PropertyAttributes attributes) {
-  Map result = TransitionsAccessor(isolate, *map)
-                   .SearchTransition(name, kind, attributes);
-  if (result.is_null()) return MaybeHandle<Map>();
-  return MaybeHandle<Map>(result, isolate);
-}
-
-// static
-MaybeHandle<Map> TransitionsAccessor::SearchSpecial(Isolate* isolate,
-                                                    Handle<Map> map,
-                                                    Symbol name) {
-  Map result = TransitionsAccessor(isolate, *map).SearchSpecial(name);
-  if (result.is_null()) return MaybeHandle<Map>();
-  return MaybeHandle<Map>(result, isolate);
+void TransitionsAccessor::Initialize() {
+  raw_transitions_ = map_.raw_transitions(isolate_, kAcquireLoad);
+  encoding_ = GetEncoding(isolate_, raw_transitions_);
+  DCHECK_IMPLIES(encoding_ == kMigrationTarget, map_.is_deprecated());
+#if DEBUG
+  needs_reload_ = false;
+#endif
 }
 
 int TransitionArray::number_of_transitions() const {

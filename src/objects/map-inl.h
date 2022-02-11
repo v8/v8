@@ -768,7 +768,8 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
 
 // static
 Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
-  return TransitionsAccessor(isolate, *this,
+  DisallowGarbageCollection no_gc;
+  return TransitionsAccessor(isolate, *this, &no_gc,
                              cmode == ConcurrencyMode::kConcurrent)
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
