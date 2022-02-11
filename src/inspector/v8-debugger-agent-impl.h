@@ -149,6 +149,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void reset();
 
   // Interface for V8InspectorImpl
+  void didPauseOnInstrumentation(v8::debug::BreakpointId instrumentationId);
+
   void didPause(int contextId, v8::Local<v8::Value> exception,
                 const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
                 v8::debug::ExceptionType exceptionType, bool isUncaught,

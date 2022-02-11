@@ -531,12 +531,12 @@ bool Script::SetBreakpoint(Local<String> condition, Location* location,
   return true;
 }
 
-bool Script::SetBreakpointOnScriptEntry(BreakpointId* id) const {
+bool Script::SetInstrumentationBreakpoint(BreakpointId* id) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::TYPE_WASM) {
-    isolate->debug()->SetOnEntryBreakpointForWasmScript(script, id);
+    isolate->debug()->SetInstrumentationBreakpointForWasmScript(script, id);
     return true;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -544,7 +544,8 @@ bool Script::SetBreakpointOnScriptEntry(BreakpointId* id) const {
   for (i::SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
     if (sfi.is_toplevel()) {
       return isolate->debug()->SetBreakpointForFunction(
-          handle(sfi, isolate), isolate->factory()->empty_string(), id);
+          handle(sfi, isolate), isolate->factory()->empty_string(), id,
+          internal::Debug::kInstrumentation);
     }
   }
   return false;

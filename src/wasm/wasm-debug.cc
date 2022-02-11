@@ -921,8 +921,8 @@ bool WasmScript::SetBreakPoint(Handle<Script> script, int* position,
 }
 
 // static
-void WasmScript::SetBreakPointOnEntry(Handle<Script> script,
-                                      Handle<BreakPoint> break_point) {
+void WasmScript::SetInstrumentationBreakpoint(Handle<Script> script,
+                                              Handle<BreakPoint> break_point) {
   // Special handling for on-entry breakpoints.
   AddBreakpointToInfo(script, kOnEntryBreakpointPosition, break_point);
   script->set_break_on_entry(true);

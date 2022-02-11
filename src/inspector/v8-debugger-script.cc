@@ -255,9 +255,9 @@ class ActualScript : public V8DebuggerScript {
                                    id);
   }
 
-  bool setBreakpointOnRun(int* id) const override {
+  bool setInstrumentationBreakpoint(int* id) const override {
     v8::HandleScope scope(m_isolate);
-    return script()->SetBreakpointOnScriptEntry(id);
+    return script()->SetInstrumentationBreakpoint(id);
   }
 
   const String16& hash() const override {

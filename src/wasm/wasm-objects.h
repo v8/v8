@@ -811,7 +811,7 @@ class WasmScript : public AllStatic {
   // Set an "on entry" breakpoint (a.k.a. instrumentation breakpoint) inside
   // the given module. This will affect all live and future instances of the
   // module.
-  V8_EXPORT_PRIVATE static void SetBreakPointOnEntry(
+  V8_EXPORT_PRIVATE static void SetInstrumentationBreakpoint(
       Handle<Script>, Handle<BreakPoint> break_point);
 
   // Set a breakpoint on first breakable position of the given function index

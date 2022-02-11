@@ -496,6 +496,42 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
       });
 }
 
+void V8Debugger::BreakOnInstrumentation(
+    v8::Local<v8::Context> pausedContext,
+    v8::debug::BreakpointId instrumentationId) {
+  // Don't allow nested breaks.
+  if (isPaused()) return;
+
+  int contextGroupId = m_inspector->contextGroupId(pausedContext);
+  bool hasAgents = false;
+  m_inspector->forEachSession(
+      contextGroupId, [&hasAgents](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */))
+          hasAgents = true;
+      });
+  if (!hasAgents) return;
+
+  m_pausedContextGroupId = contextGroupId;
+  m_inspector->forEachSession(
+      contextGroupId, [instrumentationId](V8InspectorSessionImpl* session) {
+        if (session->debuggerAgent()->acceptsPause(false /* isOOMBreak */)) {
+          session->debuggerAgent()->didPauseOnInstrumentation(
+              instrumentationId);
+        }
+      });
+  {
+    v8::Context::Scope scope(pausedContext);
+    m_inspector->client()->runMessageLoopOnPause(contextGroupId);
+    m_pausedContextGroupId = 0;
+  }
+
+  m_inspector->forEachSession(contextGroupId,
+                              [](V8InspectorSessionImpl* session) {
+                                if (session->debuggerAgent()->enabled())
+                                  session->debuggerAgent()->didContinue();
+                              });
+}
+
 void V8Debugger::BreakProgramRequested(
     v8::Local<v8::Context> pausedContext,
     const std::vector<v8::debug::BreakpointId>& break_points_hit,

@@ -194,7 +194,7 @@ class V8_EXPORT_PRIVATE Script {
   bool IsWasm() const;
   void RemoveWasmBreakpoint(BreakpointId id);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  bool SetBreakpointOnScriptEntry(BreakpointId* id) const;
+  bool SetInstrumentationBreakpoint(BreakpointId* id) const;
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -239,6 +239,9 @@ class DebugDelegate {
       v8::Local<v8::Context> paused_context,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit,
       base::EnumSet<BreakReason> break_reasons = {}) {}
+  virtual void BreakOnInstrumentation(
+      v8::Local<v8::Context> paused_context,
+      const debug::BreakpointId instrumentationId) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught,

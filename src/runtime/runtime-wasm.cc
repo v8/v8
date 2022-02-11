@@ -579,7 +579,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
 
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
-
+  bool paused_on_instrumentation = false;
   // Check for instrumentation breakpoint.
   DCHECK_EQ(script->break_on_entry(), !!instance->break_on_entry());
   if (script->break_on_entry()) {
@@ -596,14 +596,9 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
           .set_break_on_entry(false);
     }
     DCHECK(!instance->break_on_entry());
-    Handle<FixedArray> on_entry_breakpoints;
-    if (maybe_on_entry_breakpoints.ToHandle(&on_entry_breakpoints)) {
-      debug_info->ClearStepping(isolate);
-      StepAction step_action = isolate->debug()->last_step_action();
-      isolate->debug()->ClearStepping();
-      isolate->debug()->OnDebugBreak(on_entry_breakpoints, step_action);
-      // Don't process regular breakpoints.
-      return ReadOnlyRoots(isolate).undefined_value();
+    if (!maybe_on_entry_breakpoints.is_null()) {
+      isolate->debug()->OnInstrumentationBreak();
+      paused_on_instrumentation = true;
     }
   }
 
@@ -628,6 +623,12 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
       // We hit one or several breakpoints. Notify the debug listeners.
       isolate->debug()->OnDebugBreak(breakpoints, step_action);
     }
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  // We only hit the instrumentation breakpoint, and there is no other reason to
+  // break.
+  if (paused_on_instrumentation) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
