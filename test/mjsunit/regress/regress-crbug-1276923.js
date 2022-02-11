@@ -21,7 +21,7 @@ foo();
 
 // Stress execution with GCs.
 function bar() {
-  for (let cnt = 0, i = 655; cnt < 50000 && i !== 1; cnt++, i = i / 3) {
+  for (let cnt = 0, i = 655; cnt < 10000 && i !== 1; cnt++, i = i / 3) {
     i %= 2;
     const c = { "b": 1, "a":1, "c": 1,  "d": 1 };
     eval();
