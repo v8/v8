@@ -50,6 +50,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/maybe-handles.h"
+#include "src/heap/parked-scope.h"
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
@@ -4626,6 +4627,12 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
     }
   }
   CollectGarbage(isolate);
+
+  // Park the main thread here to prevent deadlocks in shared GCs when waiting
+  // in JoinThread.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::ParkedScope parked(i_isolate->main_thread_local_isolate());
+
   for (int i = 1; i < options.num_isolates; ++i) {
     if (last_run) {
       options.isolate_sources[i].JoinThread();
@@ -5372,24 +5379,31 @@ int Shell::Main(int argc, char* argv[]) {
         }
       } else if (options.code_cache_options !=
                  ShellOptions::CodeCacheOptions::kNoProduceCache) {
-        printf("============ Run: Produce code cache ============\n");
-        // First run to produce the cache
-        Isolate::CreateParams create_params2;
-        create_params2.array_buffer_allocator = Shell::array_buffer_allocator;
-        create_params2.experimental_attach_to_shared_isolate =
-            Shell::shared_isolate;
-        i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
-        Isolate* isolate2 = Isolate::New(create_params2);
-        i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
         {
-          D8Console console2(isolate2);
-          Initialize(isolate2, &console2);
-          PerIsolateData data2(isolate2);
-          Isolate::Scope isolate_scope(isolate2);
+          // Park the main thread here in case the new isolate wants to perform
+          // a shared GC to prevent a deadlock.
+          i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+          i::ParkedScope parked(i_isolate->main_thread_local_isolate());
 
-          result = RunMain(isolate2, false);
+          printf("============ Run: Produce code cache ============\n");
+          // First run to produce the cache
+          Isolate::CreateParams create_params2;
+          create_params2.array_buffer_allocator = Shell::array_buffer_allocator;
+          create_params2.experimental_attach_to_shared_isolate =
+              Shell::shared_isolate;
+          i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
+          Isolate* isolate2 = Isolate::New(create_params2);
+          i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
+          {
+            D8Console console2(isolate2);
+            Initialize(isolate2, &console2);
+            PerIsolateData data2(isolate2);
+            Isolate::Scope isolate_scope(isolate2);
+
+            result = RunMain(isolate2, false);
+          }
+          isolate2->Dispose();
         }
-        isolate2->Dispose();
 
         // Change the options to consume cache
         DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
