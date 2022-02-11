@@ -241,42 +241,42 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     allocation = tp_heap_->Allocate(size_in_bytes, type, alignment);
   } else {
-    if (AllocationType::kYoung == type) {
-      if (large_object) {
-        allocation = new_lo_space_->AllocateRaw(size_in_bytes);
-      } else {
-        allocation = new_space_->AllocateRaw(size_in_bytes, alignment, origin);
-      }
-    } else if (AllocationType::kOld == type) {
-      if (large_object) {
-        allocation = lo_space_->AllocateRaw(size_in_bytes);
-      } else {
-        allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
-      }
-    } else if (AllocationType::kCode == type) {
-      DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
-      DCHECK(AllowCodeAllocation::IsAllowed());
-      if (large_object) {
-        allocation = code_lo_space_->AllocateRaw(size_in_bytes);
-      } else {
-        allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
-      }
-    } else if (AllocationType::kMap == type) {
-      DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
-      allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
-    } else if (AllocationType::kReadOnly == type) {
-      DCHECK(!large_object);
-      DCHECK(CanAllocateInReadOnlySpace());
-      DCHECK_EQ(AllocationOrigin::kRuntime, origin);
-      allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
-    } else if (AllocationType::kSharedOld == type) {
+    if (V8_UNLIKELY(large_object)) {
       allocation =
-          shared_old_allocator_->AllocateRaw(size_in_bytes, alignment, origin);
-    } else if (AllocationType::kSharedMap == type) {
-      allocation =
-          shared_map_allocator_->AllocateRaw(size_in_bytes, alignment, origin);
+          AllocateRawLargeInternal(size_in_bytes, type, origin, alignment);
     } else {
-      UNREACHABLE();
+      switch (type) {
+        case AllocationType::kYoung:
+          allocation =
+              new_space_->AllocateRaw(size_in_bytes, alignment, origin);
+          break;
+        case AllocationType::kOld:
+          allocation =
+              old_space_->AllocateRaw(size_in_bytes, alignment, origin);
+          break;
+        case AllocationType::kCode:
+          DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
+          DCHECK(AllowCodeAllocation::IsAllowed());
+          allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
+          break;
+        case AllocationType::kMap:
+          DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
+          allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
+          break;
+        case AllocationType::kReadOnly:
+          DCHECK(CanAllocateInReadOnlySpace());
+          DCHECK_EQ(AllocationOrigin::kRuntime, origin);
+          allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
+          break;
+        case AllocationType::kSharedMap:
+          allocation = shared_map_allocator_->AllocateRaw(size_in_bytes,
+                                                          alignment, origin);
+          break;
+        case AllocationType::kSharedOld:
+          allocation = shared_old_allocator_->AllocateRaw(size_in_bytes,
+                                                          alignment, origin);
+          break;
+      }
     }
   }
 
@@ -317,21 +317,15 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_EQ(gc_state(), NOT_IN_GC);
-  Heap* heap = isolate()->heap();
-  if (allocation == AllocationType::kYoung &&
-      alignment == AllocationAlignment::kTaggedAligned &&
-      size <= MaxRegularHeapObjectSize(allocation) &&
-      V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
-                FLAG_gc_interval == -1)) {
-    Address* top = heap->NewSpaceAllocationTopAddress();
-    Address* limit = heap->NewSpaceAllocationLimitAddress();
-    if (*limit - *top >= static_cast<unsigned>(size)) {
-      DCHECK(IsAligned(size, kTaggedSize));
-      HeapObject obj = HeapObject::FromAddress(*top);
-      *top += size;
-      MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size);
-      return obj;
-    }
+  if (allocation == AllocationType::kYoung) {
+    auto result = AllocateRaw(size, AllocationType::kYoung, origin, alignment);
+    HeapObject object;
+    if (result.To(&object)) return object;
+
+  } else if (allocation == AllocationType::kOld) {
+    auto result = AllocateRaw(size, AllocationType::kOld, origin, alignment);
+    HeapObject object;
+    if (result.To(&object)) return object;
   }
   switch (mode) {
     case kLightRetry:

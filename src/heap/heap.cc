@@ -5648,6 +5648,26 @@ HeapObject Heap::AllocateRawWithLightRetrySlowPath(
   return HeapObject();
 }
 
+AllocationResult Heap::AllocateRawLargeInternal(int size_in_bytes,
+                                                AllocationType allocation,
+                                                AllocationOrigin origin,
+                                                AllocationAlignment alignment) {
+  DCHECK_GT(size_in_bytes, MaxRegularHeapObjectSize(allocation));
+  switch (allocation) {
+    case AllocationType::kYoung:
+      return new_lo_space_->AllocateRaw(size_in_bytes);
+    case AllocationType::kOld:
+      return lo_space_->AllocateRaw(size_in_bytes);
+    case AllocationType::kCode:
+      return code_lo_space_->AllocateRaw(size_in_bytes);
+    case AllocationType::kMap:
+    case AllocationType::kReadOnly:
+    case AllocationType::kSharedMap:
+    case AllocationType::kSharedOld:
+      UNREACHABLE();
+  }
+}
+
 HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment) {
