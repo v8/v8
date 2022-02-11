@@ -140,21 +140,19 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
   int aligned_size = filler_size + size_in_bytes;
   if (!allocation_info_.CanIncrementTop(aligned_size)) {
-    return AllocationResult::Retry(NEW_SPACE);
+    return AllocationResult::Failure(NEW_SPACE);
   }
   HeapObject object =
       HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));
-  if (filler_size > 0) {
-    return heap_->PrecedeWithFiller(object, filler_size);
-  }
-
-  return AllocationResult(object);
+  return filler_size > 0 ? AllocationResult::FromObject(
+                               heap_->PrecedeWithFiller(object, filler_size))
+                         : AllocationResult::FromObject(object);
 }
 
 LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
                                                         AllocationResult result,
                                                         intptr_t size) {
-  if (result.IsRetry()) return InvalidBuffer();
+  if (result.IsFailure()) return InvalidBuffer();
   HeapObject obj;
   bool ok = result.To(&obj);
   USE(ok);

@@ -5636,7 +5636,7 @@ HeapObject Heap::AllocateRawWithLightRetrySlowPath(
     if (IsSharedAllocationType(allocation)) {
       CollectSharedGarbage(GarbageCollectionReason::kAllocationFailure);
     } else {
-      CollectGarbage(alloc.RetrySpace(),
+      CollectGarbage(alloc.ToGarbageCollectionSpace(),
                      GarbageCollectionReason::kAllocationFailure);
     }
     alloc = AllocateRaw(size, allocation, origin, alignment);

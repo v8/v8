@@ -37,11 +37,9 @@ AllocationResult ConcurrentAllocator::AllocateRaw(int object_size,
 AllocationResult ConcurrentAllocator::AllocateInLab(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
   AllocationResult allocation = lab_.AllocateRawAligned(object_size, alignment);
-  if (allocation.IsRetry()) {
-    return AllocateInLabSlow(object_size, alignment, origin);
-  } else {
-    return allocation;
-  }
+  return allocation.IsFailure()
+             ? AllocateInLabSlow(object_size, alignment, origin)
+             : allocation;
 }
 
 }  // namespace internal

@@ -84,15 +84,15 @@ AllocationResult EvacuationAllocator::AllocateInLAB(
     int object_size, AllocationAlignment alignment) {
   AllocationResult allocation;
   if (!new_space_lab_.IsValid() && !NewLocalAllocationBuffer()) {
-    return AllocationResult::Retry(OLD_SPACE);
+    return AllocationResult::Failure(OLD_SPACE);
   }
   allocation = new_space_lab_.AllocateRawAligned(object_size, alignment);
-  if (allocation.IsRetry()) {
+  if (allocation.IsFailure()) {
     if (!NewLocalAllocationBuffer()) {
-      return AllocationResult::Retry(OLD_SPACE);
+      return AllocationResult::Failure(OLD_SPACE);
     } else {
       allocation = new_space_lab_.AllocateRawAligned(object_size, alignment);
-      CHECK(!allocation.IsRetry());
+      CHECK(!allocation.IsFailure());
     }
   }
   return allocation;
@@ -102,7 +102,7 @@ bool EvacuationAllocator::NewLocalAllocationBuffer() {
   if (lab_allocation_will_fail_) return false;
   AllocationResult result =
       new_space_->AllocateRawSynchronized(kLabSize, kTaggedAligned);
-  if (result.IsRetry()) {
+  if (result.IsFailure()) {
     lab_allocation_will_fail_ = true;
     return false;
   }

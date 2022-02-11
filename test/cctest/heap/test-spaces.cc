@@ -344,14 +344,14 @@ TEST(OldLargeObjectSpace) {
   while (true) {
     {
       AllocationResult allocation = lo->AllocateRaw(lo_size);
-      if (allocation.IsRetry()) break;
+      if (allocation.IsFailure()) break;
       ho = HeapObject::cast(allocation.ToObjectChecked());
       Handle<HeapObject> keep_alive(ho, isolate);
     }
   }
 
   CHECK(!lo->IsEmpty());
-  CHECK(lo->AllocateRaw(lo_size).IsRetry());
+  CHECK(lo->AllocateRaw(lo_size).IsFailure());
 }
 
 #ifndef DEBUG
@@ -411,7 +411,7 @@ TEST(SizeOfInitialHeap) {
 
 static HeapObject AllocateUnaligned(NewSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
-  CHECK(!allocation.IsRetry());
+  CHECK(!allocation.IsFailure());
   HeapObject filler;
   CHECK(allocation.To(&filler));
   space->heap()->CreateFillerObjectAt(filler.address(), size,
@@ -421,7 +421,7 @@ static HeapObject AllocateUnaligned(NewSpace* space, int size) {
 
 static HeapObject AllocateUnaligned(PagedSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
-  CHECK(!allocation.IsRetry());
+  CHECK(!allocation.IsFailure());
   HeapObject filler;
   CHECK(allocation.To(&filler));
   space->heap()->CreateFillerObjectAt(filler.address(), size,
@@ -431,7 +431,7 @@ static HeapObject AllocateUnaligned(PagedSpace* space, int size) {
 
 static HeapObject AllocateUnaligned(OldLargeObjectSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size);
-  CHECK(!allocation.IsRetry());
+  CHECK(!allocation.IsFailure());
   HeapObject filler;
   CHECK(allocation.To(&filler));
   return filler;

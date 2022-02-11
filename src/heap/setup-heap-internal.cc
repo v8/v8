@@ -153,7 +153,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
       Map::cast(result), instance_type, instance_size, elements_kind,
       inobject_properties);
 
-  return map;
+  return AllocationResult::FromObject(map);
 }
 
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
@@ -184,7 +184,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   DCHECK(!map.is_in_retained_map_list());
   map.clear_padding();
   map.set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
-  return map;
+  return AllocationResult::FromObject(map);
 }
 
 void Heap::FinalizePartialMap(Map map) {
@@ -208,7 +208,7 @@ AllocationResult Heap::Allocate(Handle<Map> map,
       allocation_type == AllocationType::kYoung ? SKIP_WRITE_BARRIER
                                                 : UPDATE_WRITE_BARRIER;
   result.set_map_after_allocation(*map, write_barrier_mode);
-  return result;
+  return AllocationResult::FromObject(result);
 }
 
 bool Heap::CreateInitialMaps() {

@@ -26,6 +26,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
+#include "src/heap/allocation-result.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
@@ -212,44 +213,6 @@ class StrongRootsEntry final {
 
   friend class Heap;
 };
-
-class AllocationResult {
- public:
-  static inline AllocationResult Retry(AllocationSpace space) {
-    return AllocationResult(space);
-  }
-
-  // Implicit constructor from Object.
-  AllocationResult(Object object)  // NOLINT
-      : object_(object) {
-    // AllocationResults can't return Smis, which are used to represent
-    // failure and the space to retry in.
-    CHECK(!object.IsSmi());
-  }
-
-  AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
-
-  inline bool IsRetry() { return object_.IsSmi(); }
-  inline HeapObject ToObjectChecked();
-  inline HeapObject ToObject();
-  inline Address ToAddress();
-  inline AllocationSpace RetrySpace();
-
-  template <typename T>
-  bool To(T* obj) {
-    if (IsRetry()) return false;
-    *obj = T::cast(object_);
-    return true;
-  }
-
- private:
-  explicit AllocationResult(AllocationSpace space)
-      : object_(Smi::FromInt(static_cast<int>(space))) {}
-
-  Object object_;
-};
-
-STATIC_ASSERT(sizeof(AllocationResult) == kSystemPointerSize);
 
 #ifdef DEBUG
 struct CommentStatistic {

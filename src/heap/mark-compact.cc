@@ -1757,7 +1757,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     AllocationSpace space_allocated_in = NEW_SPACE;
     AllocationResult allocation = local_allocator_->Allocate(
         NEW_SPACE, size, AllocationOrigin::kGC, alignment);
-    if (allocation.IsRetry()) {
+    if (allocation.IsFailure()) {
       allocation = AllocateInOldSpace(size, alignment);
       space_allocated_in = OLD_SPACE;
     }
@@ -1771,7 +1771,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
                                              AllocationAlignment alignment) {
     AllocationResult allocation = local_allocator_->Allocate(
         OLD_SPACE, size_in_bytes, AllocationOrigin::kGC, alignment);
-    if (allocation.IsRetry()) {
+    if (allocation.IsFailure()) {
       heap_->FatalProcessOutOfMemory(
           "MarkCompactCollector: semi-space copy, fallback in old gen");
     }

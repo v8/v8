@@ -1289,6 +1289,7 @@ filegroup(
         "src/handles/persistent-handles.h",
         "src/heap/allocation-observer.cc",
         "src/heap/allocation-observer.h",
+        "src/heap/allocation-result.h",
         "src/heap/allocation-stats.h",
         "src/heap/array-buffer-sweeper.cc",
         "src/heap/array-buffer-sweeper.h",

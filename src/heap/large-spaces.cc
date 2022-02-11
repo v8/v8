@@ -135,11 +135,11 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGeneration(object_size) ||
       !heap()->ShouldExpandOldGenerationOnSlowAllocation()) {
-    return AllocationResult::Retry(identity());
+    return AllocationResult::Failure(identity());
   }
 
   LargePage* page = AllocateLargePage(object_size, executable);
-  if (page == nullptr) return AllocationResult::Retry(identity());
+  if (page == nullptr) return AllocationResult::Failure(identity());
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   HeapObject object = page->GetObject();
   UpdatePendingObject(object);
@@ -156,7 +156,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   heap()->NotifyOldGenerationExpansion(identity(), page);
   AdvanceAndInvokeAllocationObservers(object.address(),
                                       static_cast<size_t>(object_size));
-  return object;
+  return AllocationResult::FromObject(object);
 }
 
 AllocationResult OldLargeObjectSpace::AllocateRawBackground(
@@ -171,11 +171,11 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGenerationBackground(local_heap, object_size) ||
       !heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap)) {
-    return AllocationResult::Retry(identity());
+    return AllocationResult::Failure(identity());
   }
 
   LargePage* page = AllocateLargePage(object_size, executable);
-  if (page == nullptr) return AllocationResult::Retry(identity());
+  if (page == nullptr) return AllocationResult::Failure(identity());
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   HeapObject object = page->GetObject();
   heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
@@ -189,7 +189,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   if (identity() == CODE_LO_SPACE) {
     heap()->isolate()->AddCodeMemoryChunk(page);
   }
-  return object;
+  return AllocationResult::FromObject(object);
 }
 
 LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
@@ -483,16 +483,16 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   // Do not allocate more objects if promoting the existing object would exceed
   // the old generation capacity.
   if (!heap()->CanExpandOldGeneration(SizeOfObjects())) {
-    return AllocationResult::Retry(identity());
+    return AllocationResult::Failure(identity());
   }
 
   // Allocation for the first object must succeed independent from the capacity.
   if (SizeOfObjects() > 0 && static_cast<size_t>(object_size) > Available()) {
-    return AllocationResult::Retry(identity());
+    return AllocationResult::Failure(identity());
   }
 
   LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
-  if (page == nullptr) return AllocationResult::Retry(identity());
+  if (page == nullptr) return AllocationResult::Failure(identity());
 
   // The size of the first object may exceed the capacity.
   capacity_ = std::max(capacity_, SizeOfObjects());
@@ -513,7 +513,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
   AdvanceAndInvokeAllocationObservers(result.address(),
                                       static_cast<size_t>(object_size));
-  return result;
+  return AllocationResult::FromObject(result);
 }
 
 size_t NewLargeObjectSpace::Available() { return capacity_ - SizeOfObjects(); }

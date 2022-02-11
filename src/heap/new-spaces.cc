@@ -619,13 +619,13 @@ AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes,
                                                 AllocationOrigin origin) {
   DCHECK(!FLAG_enable_third_party_heap);
   if (!EnsureAllocation(size_in_bytes, kTaggedAligned)) {
-    return AllocationResult::Retry(NEW_SPACE);
+    return AllocationResult::Failure(NEW_SPACE);
   }
 
   DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
 
   AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
-  DCHECK(!result.IsRetry());
+  DCHECK(!result.IsFailure());
 
   InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
                             size_in_bytes);
@@ -638,7 +638,7 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
                                               AllocationOrigin origin) {
   DCHECK(!FLAG_enable_third_party_heap);
   if (!EnsureAllocation(size_in_bytes, alignment)) {
-    return AllocationResult::Retry(NEW_SPACE);
+    return AllocationResult::Failure(NEW_SPACE);
   }
 
   DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
@@ -647,7 +647,7 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
 
   AllocationResult result = AllocateFastAligned(
       size_in_bytes, &aligned_size_in_bytes, alignment, origin);
-  DCHECK(!result.IsRetry());
+  DCHECK(!result.IsFailure());
 
   InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
                             aligned_size_in_bytes, aligned_size_in_bytes);

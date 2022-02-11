@@ -82,9 +82,9 @@ AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   if (!alloc.To(&obj)) return alloc;
   obj.set_map_after_allocation(ReadOnlyRoots(heap).meta_map(),
                                SKIP_WRITE_BARRIER);
-  return isolate->factory()->InitializeMap(Map::cast(obj), JS_OBJECT_TYPE,
-                                           JSObject::kHeaderSize,
-                                           TERMINAL_FAST_ELEMENTS_KIND, 0);
+  return AllocationResult::FromObject(isolate->factory()->InitializeMap(
+      Map::cast(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      TERMINAL_FAST_ELEMENTS_KIND, 0));
 }
 
 // This is the same as Factory::NewFixedArray, except it doesn't retry
@@ -104,7 +104,7 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
   array.set_length(length);
   MemsetTagged(array.data_start(), ReadOnlyRoots(heap).undefined_value(),
                length);
-  return array;
+  return AllocationResult::FromObject(array);
 }
 
 HEAP_TEST(MarkCompactCollector) {
@@ -128,7 +128,7 @@ HEAP_TEST(MarkCompactCollector) {
     do {
       allocation =
           AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);
-    } while (!allocation.IsRetry());
+    } while (!allocation.IsFailure());
     CcTest::CollectGarbage(NEW_SPACE);
     AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung)
         .ToObjectChecked();
@@ -137,7 +137,7 @@ HEAP_TEST(MarkCompactCollector) {
   // keep allocating maps until it fails
   do {
     allocation = AllocateMapForTest(isolate);
-  } while (!allocation.IsRetry());
+  } while (!allocation.IsFailure());
   CcTest::CollectGarbage(MAP_SPACE);
   AllocateMapForTest(isolate).ToObjectChecked();
 

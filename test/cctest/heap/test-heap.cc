@@ -1831,7 +1831,7 @@ TEST(TestAlignedOverAllocation) {
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   // Allocate a dummy object to properly set up the linear allocation info.
   AllocationResult dummy = heap->old_space()->AllocateRawUnaligned(kTaggedSize);
-  CHECK(!dummy.IsRetry());
+  CHECK(!dummy.IsFailure());
   heap->CreateFillerObjectAt(dummy.ToObjectChecked().address(), kTaggedSize,
                              ClearRecordedSlots::kNo);
 
@@ -5387,7 +5387,7 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
                                   SKIP_WRITE_BARRIER);
   ByteArray::cast(result).set_length(length);
   ByteArray::cast(result).clear_padding();
-  return result;
+  return AllocationResult::FromObject(result);
 }
 
 bool HeapTester::CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes) {

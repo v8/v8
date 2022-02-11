@@ -66,26 +66,6 @@ T ForwardingAddress(T heap_obj) {
   }
 }
 
-AllocationSpace AllocationResult::RetrySpace() {
-  DCHECK(IsRetry());
-  return static_cast<AllocationSpace>(Smi::ToInt(object_));
-}
-
-HeapObject AllocationResult::ToObjectChecked() {
-  CHECK(!IsRetry());
-  return HeapObject::cast(object_);
-}
-
-HeapObject AllocationResult::ToObject() {
-  DCHECK(!IsRetry());
-  return HeapObject::cast(object_);
-}
-
-Address AllocationResult::ToAddress() {
-  DCHECK(!IsRetry());
-  return HeapObject::cast(object_).address();
-}
-
 // static
 base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   if (isolate->disable_bytecode_flushing()) {
@@ -215,7 +195,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
     if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
       AllocationSpace space = FLAG_single_generation ? OLD_SPACE : NEW_SPACE;
-      return AllocationResult::Retry(space);
+      return AllocationResult::Failure(space);
     }
   }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
