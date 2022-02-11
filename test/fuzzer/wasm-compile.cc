@@ -114,43 +114,47 @@ ValueType GetValueTypeHelper(DataRange* data, bool liftoff_as_reference,
                              NonNullables allow_non_nullable,
                              PackedTypes include_packed_types,
                              Generics include_generics) {
-  const bool nullable =
-      (allow_non_nullable == kAllowNonNullables) ? data->get<bool>() : true;
-  const uint32_t num_types =
-      nullable ? num_nullable_types : num_non_nullable_types;
-
+  // Non wasm-gc types.
   std::vector<ValueType> types{kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                kWasmS128};
-
-  if (include_packed_types == kIncludePackedTypes) {
-    types.insert(types.end(), {kWasmI8, kWasmI16});
-  }
 
   if (!liftoff_as_reference) {
     return types[data->get<uint8_t>() % types.size()];
   }
 
-  if (nullable) {
-    types.insert(types.end(),
-                 {ValueType::Ref(HeapType(HeapType::kI31), kNullable),
-                  kWasmExternRef, kWasmFuncRef});
+  // If {liftoff_as_reference}, include wasm-gc types.
+  if (include_packed_types == kIncludePackedTypes) {
+    types.insert(types.end(), {kWasmI8, kWasmI16});
   }
-
+  // Decide if the return type will be nullable or not.
+  const bool nullable =
+      (allow_non_nullable == kAllowNonNullables) ? data->get<bool>() : true;
+  if (nullable) {
+    types.insert(types.end(), {kWasmI31Ref, kWasmExternRef, kWasmFuncRef});
+  }
   if (include_generics == kIncludeGenerics) {
     types.insert(types.end(), {kWasmDataRef, kWasmAnyRef, kWasmEqRef});
   }
 
-  uint32_t id = data->get<uint8_t>() % (types.size() + num_types);
+  // The last index of user-defined types allowed is different based on the
+  // nullability of the output.
+  const uint32_t num_user_defined_types =
+      nullable ? num_nullable_types : num_non_nullable_types;
+
+  // Conceptually, user-defined types are added to the end of the list. Pick a
+  // random one among them.
+  uint32_t id = data->get<uint8_t>() % (types.size() + num_user_defined_types);
   if (id >= types.size()) {
+    // Return user-defined type.
     return ValueType::Ref(id - static_cast<uint32_t>(types.size()),
                           nullable ? kNullable : kNonNullable);
   }
-
+  // If returning a reference type, fix its nullability according to {nullable}.
   if (types[id].is_reference()) {
     return ValueType::Ref(types[id].heap_type(),
                           nullable ? kNullable : kNonNullable);
   }
-
+  // Otherwise, just return the picked type.
   return types[id];
 }
 
@@ -2363,6 +2367,26 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
 
 WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
                               ValueType type,
+                              uint32_t num_struct_and_array_types);
+
+WasmInitExpr GenerateStructNewInitExpr(Zone* zone, WasmModuleBuilder* builder,
+                                       uint32_t index,
+                                       uint32_t num_struct_and_array_types) {
+  const StructType* struct_type = builder->GetStructType(index);
+  ZoneVector<WasmInitExpr>* elements =
+      zone->New<ZoneVector<WasmInitExpr>>(zone);
+  int field_count = struct_type->field_count();
+  for (int field_index = 0; field_index < field_count; field_index++) {
+    elements->push_back(GenerateInitExpr(zone, builder,
+                                         struct_type->field(field_index),
+                                         num_struct_and_array_types));
+  }
+  elements->push_back(WasmInitExpr::RttCanon(index));
+  return WasmInitExpr::StructNewWithRtt(index, elements);
+}
+
+WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
+                              ValueType type,
                               uint32_t num_struct_and_array_types) {
   switch (type.kind()) {
     case kOptRef:
@@ -2382,50 +2406,47 @@ WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
       return WasmInitExpr(s128_const);
     }
     case kRef: {
-      HeapType::Representation representation =
-          type.heap_type().representation();
-      int index = 0;
-      if (type.has_index()) {
-        index = type.ref_index();
-      }
-      if (representation == HeapType::kData ||
-          representation == HeapType::kAny || representation == HeapType::kEq ||
-          builder->IsStructType(index)) {
-        // We materialize all these types with a struct because they are all its
-        // supertypes.
-        DCHECK(builder->IsStructType(index));
-        ZoneVector<WasmInitExpr>* elements =
-            zone->New<ZoneVector<WasmInitExpr>>(zone);
-        int field_count = builder->GetStructType(index)->field_count();
-        for (int field_index = 0; field_index < field_count; field_index++) {
-          elements->push_back(GenerateInitExpr(
-              zone, builder, builder->GetStructType(index)->field(field_index),
-              num_struct_and_array_types));
+      switch (type.heap_type().representation()) {
+        case HeapType::kData:
+        case HeapType::kAny:
+        case HeapType::kEq: {
+          // We materialize all these types with a struct because they are all
+          // its supertypes.
+          DCHECK(builder->IsStructType(0));
+          return GenerateStructNewInitExpr(zone, builder, 0,
+                                           num_struct_and_array_types);
         }
-        elements->push_back(WasmInitExpr::RttCanon(index));
-        return WasmInitExpr::StructNewWithRtt(index, elements);
+        case HeapType::kFunc:
+          // We just pick the function at index 0.
+          DCHECK_GT(builder->NumFunctions(), 0);
+          return WasmInitExpr::RefFuncConst(0);
+        default: {
+          uint32_t index = type.ref_index();
+          if (builder->IsStructType(index)) {
+            return GenerateStructNewInitExpr(zone, builder, index,
+                                             num_struct_and_array_types);
+          }
+          if (builder->IsArrayType(index)) {
+            ZoneVector<WasmInitExpr>* elements =
+                zone->New<ZoneVector<WasmInitExpr>>(zone);
+            elements->push_back(GenerateInitExpr(
+                zone, builder, builder->GetArrayType(index)->element_type(),
+                num_struct_and_array_types));
+            elements->push_back(WasmInitExpr::RttCanon(index));
+            return WasmInitExpr::ArrayInit(index, elements);
+          }
+          if (builder->IsSignature(index)) {
+            // Transform from signature index to function index.
+            return WasmInitExpr::RefFuncConst(index -
+                                              num_struct_and_array_types);
+          }
+          UNREACHABLE();
+        }
       }
-      DCHECK(type.has_index());
-      if (representation == HeapType::kFunc) {
-        return WasmInitExpr::RefFuncConst(index);
-      }
-      if (builder->IsArrayType(index)) {
-        ZoneVector<WasmInitExpr>* elements =
-            zone->New<ZoneVector<WasmInitExpr>>(zone);
-        elements->push_back(GenerateInitExpr(
-            zone, builder, builder->GetArrayType(index)->element_type(),
-            num_struct_and_array_types));
-        elements->push_back(WasmInitExpr::RttCanon(index));
-        return WasmInitExpr::ArrayInit(index, elements);
-      }
-      if (builder->IsSignature(index)) {
-        // Transform from signature index to function specific index.
-        index -= num_struct_and_array_types;
-        return WasmInitExpr::RefFuncConst(index);
-      }
-      UNREACHABLE();
     }
-    default:
+    case kVoid:
+    case kRtt:
+    case kBottom:
       UNREACHABLE();
   }
 }
@@ -2464,13 +2485,23 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         uint8_t num_fields = range.get<uint8_t>() % (kMaxStructFields + 1);
         StructType::Builder struct_builder(zone, num_fields);
         for (int field_index = 0; field_index < num_fields; field_index++) {
-          // We exclude generics for struct 0, because in GenerateInitExpr we
-          // generate it by default for kAny, kData and kEq.
-          // Allowing generic types in struct 0's fields would produce
-          // a recursive infinite loop.
+          // Notes:
+          // - We allow a type to only have non-nullable fields of types that
+          //   are defined earlier. This way we avoid infinite non-nullable
+          //   constructions. Also relevant for arrays and functions.
+          // - Currently, we also allow nullable fields to only reference types
+          //   that are defined earlier. The reason is that every type can only
+          //   reference types in its own or earlier recursive groups, and we do
+          //   not support recursive groups yet. Also relevant for arrays and
+          //   functions. TODO(7748): Change the number of nullable types once
+          //   we support rec. groups.
+          // - We exclude the generics types anyref, dataref, and eqref from the
+          //   fields of struct 0. This is because in GenerateInitExpr we
+          //   materialize these types with (ref 0), and having such fields in
+          //   struct 0 would produce an infinite recursion.
           ValueType type = GetValueTypeHelper(
-              &range, true, num_types, builder.NumTypes(), kAllowNonNullables,
-              kIncludePackedTypes,
+              &range, true, builder.NumTypes(), builder.NumTypes(),
+              kAllowNonNullables, kIncludePackedTypes,
               struct_index != 0 ? kIncludeGenerics : kExcludeGenerics);
 
           bool mutability = range.get<bool>();
@@ -2482,18 +2513,19 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       for (int array_index = 0; array_index < num_arrays; array_index++) {
         ValueType type = GetValueTypeHelper(
-            &range, true, num_types, builder.NumTypes(), kAllowNonNullables,
-            kIncludePackedTypes, kIncludeGenerics);
+            &range, true, builder.NumTypes(), builder.NumTypes(),
+            kAllowNonNullables, kIncludePackedTypes, kIncludeGenerics);
         ArrayType* array_fuz = zone->New<ArrayType>(type, true);
         builder.AddArrayType(array_fuz);
       }
     }
 
+    // We keep the signature for the first (main) function constant.
     function_signatures.push_back(builder.ForceAddSignature(sigs.i_iii()));
 
-    for (int i = 1; i < num_functions; ++i) {
+    for (uint8_t i = 1; i < num_functions; i++) {
       FunctionSig* sig = GenerateSig(zone, &range, kFunctionSig,
-                                     liftoff_as_reference, num_types);
+                                     liftoff_as_reference, builder.NumTypes());
       uint32_t signature_index = builder.ForceAddSignature(sig);
       function_signatures.push_back(signature_index);
     }
@@ -2508,9 +2540,17 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     // Generate function declarations before tables. This will be needed once we
     // have typed-function tables.
     std::vector<WasmFunctionBuilder*> functions;
-    for (int i = 0; i < num_functions; ++i) {
+    for (uint8_t i = 0; i < num_functions; i++) {
       const FunctionSig* sig = builder.GetSignature(function_signatures[i]);
-      functions.push_back(builder.AddFunction(sig));
+      // If we are using wasm-gc, we cannot allow signature normalization
+      // performed by adding a function by {FunctionSig}, because we emit
+      // everything in one recursive group which blocks signature
+      // canonicalization.
+      // TODO(7748): Relax this when we implement type canonicalization and
+      // proper recursive-group support.
+      functions.push_back(liftoff_as_reference
+                              ? builder.AddFunction(function_signatures[i])
+                              : builder.AddFunction(sig));
     }
 
     int num_globals = range.get<uint8_t>() % (kMaxGlobals + 1);
@@ -2587,7 +2627,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     builder.SetMaxMemorySize(32);
-    builder.WriteTo(buffer, /* emit_recursive_group = */ liftoff_as_reference);
+    builder.WriteTo(buffer);
     return true;
   }
 };

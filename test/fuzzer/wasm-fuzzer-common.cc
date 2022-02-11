@@ -193,16 +193,43 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
 }
 
 namespace {
+
 struct PrintSig {
   const size_t num;
   const std::function<ValueType(size_t)> getter;
 };
+
 PrintSig PrintParameters(const FunctionSig* sig) {
   return {sig->parameter_count(), [=](size_t i) { return sig->GetParam(i); }};
 }
+
 PrintSig PrintReturns(const FunctionSig* sig) {
   return {sig->return_count(), [=](size_t i) { return sig->GetReturn(i); }};
 }
+
+std::string HeapTypeToConstantName(HeapType heap_type) {
+  switch (heap_type.representation()) {
+    case HeapType::kFunc:
+      return "kWasmFuncRef";
+    case HeapType::kExtern:
+      return "kWasmExternRef";
+    case HeapType::kEq:
+      return "kWasmEqRef";
+    case HeapType::kI31:
+      return "kWasmI31Ref";
+    case HeapType::kData:
+      return "kWasmDataRef";
+    case HeapType::kArray:
+      return "kWasmArrayRef";
+    case HeapType::kAny:
+      return "kWasmAnyRef";
+    case HeapType::kBottom:
+      UNREACHABLE();
+    default:
+      return std::to_string(heap_type.ref_index());
+  }
+}
+
 std::string ValueTypeToConstantName(ValueType type) {
   switch (type.kind()) {
     case kI8:
@@ -229,61 +256,21 @@ std::string ValueTypeToConstantName(ValueType type) {
           return "kWasmEqRef";
         case HeapType::kAny:
           return "kWasmAnyRef";
-        case HeapType::kData:
-          return "wasmOptRefType(kWasmDataRef)";
-        case HeapType::kArray:
-          return "wasmOptRefType(kWasmArrayRef)";
-        case HeapType::kI31:
-          return "wasmOptRefType(kWasmI31Ref)";
         case HeapType::kBottom:
+          UNREACHABLE();
+        case HeapType::kData:
+        case HeapType::kArray:
+        case HeapType::kI31:
         default:
-          return "wasmOptRefType(" + std::to_string(type.ref_index()) + ")";
+          return "wasmOptRefType(" + HeapTypeToConstantName(type.heap_type()) +
+                 ")";
       }
     case kRef:
-      switch (type.heap_representation()) {
-        case HeapType::kExtern:
-          return "wasmRefType(kWasmExternRef)";
-        case HeapType::kFunc:
-          return "wasmRefType(kWasmFuncRef)";
-        case HeapType::kEq:
-          return "wasmRefType(kWasmEqRef)";
-        case HeapType::kAny:
-          return "wasmRefType(kWasmAnyRef)";
-        case HeapType::kData:
-          return "wasmRefType(kWasmDataRef)";
-        case HeapType::kArray:
-          return "wasmRefType(kWasmArrayRef)";
-        case HeapType::kI31:
-          return "wasmRefType(kWasmI31Ref)";
-        case HeapType::kBottom:
-        default:
-          return "wasmRefType(" + std::to_string(type.ref_index()) + ")";
-      }
-    default:
+      return "wasmRefType(" + HeapTypeToConstantName(type.heap_type()) + ")";
+    case kRtt:
+    case kVoid:
+    case kBottom:
       UNREACHABLE();
-  }
-}
-
-std::string HeapTypeToConstantName(HeapType heap_type) {
-  switch (heap_type.representation()) {
-    case HeapType::kFunc:
-      return "kWasmFuncRef";
-    case HeapType::kExtern:
-      return "kWasmExternRef";
-    case HeapType::kEq:
-      return "kWasmEqRef";
-    case HeapType::kI31:
-      return "kWasmI31Ref";
-    case HeapType::kData:
-      return "kWasmDataRef";
-    case HeapType::kArray:
-      return "kWasmArrayRef";
-    case HeapType::kAny:
-      return "kWasmAnyRef";
-    case HeapType::kBottom:
-      UNREACHABLE();
-    default:
-      return std::to_string(heap_type.ref_index());
   }
 }
 
@@ -587,28 +574,6 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "\n"
         "const builder = new WasmModuleBuilder();\n";
 
-  if (module->has_memory) {
-    os << "builder.addMemory(" << module->initial_pages;
-    if (module->has_maximum_pages) {
-      os << ", " << module->maximum_pages;
-    } else {
-      os << ", undefined";
-    }
-    os << ", " << (module->mem_export ? "true" : "false");
-    if (module->has_shared_memory) {
-      os << ", true";
-    }
-    os << ");\n";
-  }
-
-  for (WasmGlobal& global : module->globals) {
-    os << "builder.addGlobal(" << ValueTypeToConstantName(global.type) << ", "
-       << global.mutability << ", ";
-    DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, global.init,
-                            global.type);
-    os << ");\n";
-  }
-
   for (int i = 0; i < static_cast<int>(module->types.size()); i++) {
     if (module->has_struct(i)) {
       const StructType* struct_type = module->types[i].struct_type;
@@ -632,6 +597,28 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
          << PrintReturns(sig) << "));\n";
     }
+  }
+
+  if (module->has_memory) {
+    os << "builder.addMemory(" << module->initial_pages;
+    if (module->has_maximum_pages) {
+      os << ", " << module->maximum_pages;
+    } else {
+      os << ", undefined";
+    }
+    os << ", " << (module->mem_export ? "true" : "false");
+    if (module->has_shared_memory) {
+      os << ", true";
+    }
+    os << ");\n";
+  }
+
+  for (WasmGlobal& global : module->globals) {
+    os << "builder.addGlobal(" << ValueTypeToConstantName(global.type) << ", "
+       << global.mutability << ", ";
+    DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, global.init,
+                            global.type);
+    os << ");\n";
   }
 
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
