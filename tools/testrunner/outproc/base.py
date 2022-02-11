@@ -4,8 +4,10 @@
 
 try: # Python3
   from itertools import zip_longest
+  PYTHON3 = True
 except ImportError: # Python2
   from itertools import izip_longest as zip_longest
+  PYTHON3 = False
 
 from ..testproc.base import (
     DROP_RESULT, DROP_OUTPUT, DROP_PASS_OUTPUT, DROP_PASS_STDOUT)
@@ -143,9 +145,11 @@ class ExpectedOutProc(OutProc):
 
   def _is_failure_output(self, output):
     if output.exit_code != 0:
-        return True
+      return True
 
-    with open(self._expected_filename, 'r') as f:
+    # TODO(https://crbug.com/1292013): Simplify after Python3 migration.
+    kwargs = {'encoding': 'utf-8'} if PYTHON3 else {}
+    with open(self._expected_filename, 'r', **kwargs) as f:
       expected_lines = f.readlines()
 
     for act_iterator in self._act_block_iterator(output):
