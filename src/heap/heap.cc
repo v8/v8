@@ -811,7 +811,7 @@ class Heap::AllocationTrackerForDebugging final
   // Count of all allocations performed through C++ bottlenecks. This needs to
   // be atomic as objects are moved in parallel in the GC which counts as
   // allocations.
-  std::atomic<size_t> allocations_count_;
+  std::atomic<size_t> allocations_count_{0};
   // Running hash over allocations performed.
   uint32_t raw_allocations_hash_ = 0;
 };
