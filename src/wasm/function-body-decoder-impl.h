@@ -4715,35 +4715,70 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result_on_fallthrough);
         return pc_offset;
       }
-#define ABSTRACT_TYPE_CHECK(heap_type)                                  \
-  case kExprRefIs##heap_type: {                                         \
-    NON_CONST_ONLY                                                      \
-    Value arg = Peek(0, 0, kWasmAnyRef);                                \
-    Value result = CreateValue(kWasmI32);                               \
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(RefIs##heap_type, arg, &result); \
-    Drop(arg);                                                          \
-    Push(result);                                                       \
-    return opcode_length;                                               \
+#define ABSTRACT_TYPE_CHECK(h_type)                                            \
+  case kExprRefIs##h_type: {                                                   \
+    NON_CONST_ONLY                                                             \
+    Value arg = Peek(0, 0, kWasmAnyRef);                                       \
+    if (this->failed()) return 0;                                              \
+    Value result = CreateValue(kWasmI32);                                      \
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {                           \
+      if (IsHeapSubtypeOf(arg.type.heap_representation(), HeapType::k##h_type, \
+                          this->module_)) {                                    \
+        if (arg.type.is_nullable()) {                                          \
+          /* We abuse ref.as_non_null, which isn't otherwise used as a unary   \
+           * operator, as a sentinel for the negation of ref.is_null. */       \
+          CALL_INTERFACE(UnOp, kExprRefAsNonNull, arg, &result);               \
+        } else {                                                               \
+          CALL_INTERFACE(Drop);                                                \
+          CALL_INTERFACE(I32Const, &result, 1);                                \
+        }                                                                      \
+      } else if (!IsHeapSubtypeOf(HeapType::k##h_type,                         \
+                                  arg.type.heap_representation(),              \
+                                  this->module_)) {                            \
+        CALL_INTERFACE(Drop);                                                  \
+        CALL_INTERFACE(I32Const, &result, 0);                                  \
+      } else {                                                                 \
+        CALL_INTERFACE(RefIs##h_type, arg, &result);                           \
+      }                                                                        \
+    }                                                                          \
+    Drop(arg);                                                                 \
+    Push(result);                                                              \
+    return opcode_length;                                                      \
   }
-
         ABSTRACT_TYPE_CHECK(Data)
         ABSTRACT_TYPE_CHECK(Func)
         ABSTRACT_TYPE_CHECK(I31)
         ABSTRACT_TYPE_CHECK(Array)
 #undef ABSTRACT_TYPE_CHECK
 
-#define ABSTRACT_TYPE_CAST(heap_type)                                      \
-  case kExprRefAs##heap_type: {                                            \
-    NON_CONST_ONLY                                                         \
-    Value arg = Peek(0, 0, kWasmAnyRef);                                   \
-    Value result =                                                         \
-        CreateValue(ValueType::Ref(HeapType::k##heap_type, kNonNullable)); \
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(RefAs##heap_type, arg, &result);    \
-    Drop(arg);                                                             \
-    Push(result);                                                          \
-    return opcode_length;                                                  \
+#define ABSTRACT_TYPE_CAST(h_type)                                             \
+  case kExprRefAs##h_type: {                                                   \
+    NON_CONST_ONLY                                                             \
+    Value arg = Peek(0, 0, kWasmAnyRef);                                       \
+    ValueType non_nullable_abstract_type =                                     \
+        ValueType::Ref(HeapType::k##h_type, kNonNullable);                     \
+    Value result = CreateValue(non_nullable_abstract_type);                    \
+    if (V8_LIKELY(current_code_reachable_and_ok_)) {                           \
+      if (IsHeapSubtypeOf(arg.type.heap_representation(), HeapType::k##h_type, \
+                          this->module_)) {                                    \
+        if (arg.type.is_nullable()) {                                          \
+          CALL_INTERFACE(RefAsNonNull, arg, &result);                          \
+        } else {                                                               \
+          CALL_INTERFACE(Forward, arg, &result);                               \
+        }                                                                      \
+      } else if (!IsHeapSubtypeOf(HeapType::k##h_type,                         \
+                                  arg.type.heap_representation(),              \
+                                  this->module_)) {                            \
+        CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);                    \
+        EndControl();                                                          \
+      } else {                                                                 \
+        CALL_INTERFACE(RefAs##h_type, arg, &result);                           \
+      }                                                                        \
+    }                                                                          \
+    Drop(arg);                                                                 \
+    Push(result);                                                              \
+    return opcode_length;                                                      \
   }
-
         ABSTRACT_TYPE_CAST(Data)
         ABSTRACT_TYPE_CAST(Func)
         ABSTRACT_TYPE_CAST(I31)

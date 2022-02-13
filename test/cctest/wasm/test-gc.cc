@@ -1599,6 +1599,97 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   tester.CheckHasThrown(kRefCastUnrelatedNonNullable);
 }
 
+WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
+  // TODO(7748): Add tests for branch_on_*.
+  WasmGCTester tester(execution_tier);
+  byte type_index = tester.DefineArray(wasm::kWasmI32, true);
+  byte struct_type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  ValueType sig_types[] = {kWasmS128, kWasmI32, kWasmF64};
+  FunctionSig sig(1, 2, sig_types);
+
+  const byte kIsArrayNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_ARRAY(WASM_REF_NULL(kAnyRefCode)), kExprEnd});
+  const byte kIsArrayUpcast = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_ARRAY(WASM_ARRAY_NEW_DEFAULT_WITH_RTT(
+           type_index, WASM_I32V(10), WASM_RTT_CANON(type_index))),
+       kExprEnd});
+  const byte kIsArrayUpcastNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(type_index, kNullable)},
+      {WASM_LOCAL_SET(
+           0, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(type_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(type_index))),
+       WASM_REF_IS_ARRAY(WASM_LOCAL_GET(0)), kExprEnd});
+  const byte kIsArrayUpcastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_ARRAY(WASM_REF_NULL(type_index)), kExprEnd});
+  const byte kIsArrayUnrelated = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(struct_type_index, kNullable)},
+      {WASM_LOCAL_SET(
+           0, WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                  struct_type_index, WASM_RTT_CANON(struct_type_index))),
+       WASM_REF_IS_ARRAY(WASM_LOCAL_GET(0)), kExprEnd});
+  const byte kIsArrayUnrelatedNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_ARRAY(WASM_REF_NULL(kI31RefCode)), kExprEnd});
+  const byte kIsArrayUnrelatedNonNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_ARRAY(WASM_I31_NEW(WASM_I32V(10))), kExprEnd});
+
+  const byte kAsArrayNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_ARRAY(WASM_REF_NULL(kAnyRefCode))),
+       kExprEnd});
+  const byte kAsArrayUpcast = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_ARRAY(WASM_ARRAY_NEW_DEFAULT_WITH_RTT(
+           type_index, WASM_I32V(10), WASM_RTT_CANON(type_index)))),
+       kExprEnd});
+  const byte kAsArrayUpcastNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(type_index, kNullable)},
+      {WASM_LOCAL_SET(
+           0, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(type_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(type_index))),
+       WASM_REF_IS_NULL(WASM_REF_AS_ARRAY(WASM_LOCAL_GET(0))), kExprEnd});
+  const byte kAsArrayUpcastNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_ARRAY(WASM_REF_NULL(type_index))),
+       kExprEnd});
+  const byte kAsArrayUnrelated = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(struct_type_index, kNullable)},
+      {WASM_LOCAL_SET(
+           0, WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                  struct_type_index, WASM_RTT_CANON(struct_type_index))),
+       WASM_REF_IS_NULL(WASM_REF_AS_ARRAY(WASM_LOCAL_GET(0))), kExprEnd});
+  const byte kAsArrayUnrelatedNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_ARRAY(WASM_REF_NULL(kI31RefCode))),
+       kExprEnd});
+  const byte kAsArrayUnrelatedNonNullable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_ARRAY(WASM_I31_NEW(WASM_I32V(10)))),
+       kExprEnd});
+
+  tester.CompileModule();
+
+  tester.CheckResult(kIsArrayNull, 0);
+  tester.CheckResult(kIsArrayUpcast, 1);
+  tester.CheckResult(kIsArrayUpcastNullable, 1);
+  tester.CheckResult(kIsArrayUpcastNull, 0);
+  tester.CheckResult(kIsArrayUnrelated, 0);
+  tester.CheckResult(kIsArrayUnrelatedNull, 0);
+  tester.CheckResult(kIsArrayUnrelatedNonNullable, 0);
+
+  tester.CheckHasThrown(kAsArrayNull);
+  tester.CheckResult(kAsArrayUpcast, 0);
+  tester.CheckResult(kAsArrayUpcastNullable, 0);
+  tester.CheckHasThrown(kAsArrayUpcastNull);
+  tester.CheckHasThrown(kAsArrayUnrelated);
+  tester.CheckHasThrown(kAsArrayUnrelatedNull);
+  tester.CheckHasThrown(kAsArrayUnrelatedNonNullable);
+}
+
 WASM_EXEC_TEST(NoDepthRtt) {
   WasmGCTester tester(execution_tier);
 
