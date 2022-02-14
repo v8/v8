@@ -42,6 +42,7 @@ class CodeDataContainer;
   V(kWrapperTracing, "(Wrapper tracing)")               \
   V(kWriteBarrier, "(Write barrier)")                   \
   V(kRetainMaps, "(Retain maps)")                       \
+  V(kClientHeap, "(Client heap)")                       \
   V(kUnknown, "(Unknown)")
 
 class VisitorSynchronization : public AllStatic {
