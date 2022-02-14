@@ -907,19 +907,14 @@ class WasmGenerator {
         builder_->EmitU32V(index);
       }
     } else {
-      DCHECK(builder_->builder()->IsSignature(index));
-      int func_size = builder_->builder()->NumFunctions();
-      for (int i = 0; i < func_size; i++) {
-        WasmFunctionBuilder* func = builder_->builder()->GetFunction(i);
-        // TODO(11954): Choose a random function from among those matching the
-        // signature (consider function subtyping?).
-        if (*(func->signature()) ==
-            *(builder_->builder()->GetSignature(index))) {
-          builder_->EmitWithU32V(kExprRefFunc, func->func_index());
-          return true;
-        }
-      }
-      UNREACHABLE();
+      // Map the type index to a function index.
+      // TODO(11954. 7748): Once we have type canonicalization, choose a random
+      // function from among those matching the signature (consider function
+      // subtyping?).
+      uint32_t func_index = index - (num_arrays_ + num_structs_);
+      DCHECK_EQ(builder_->builder()->GetSignature(index),
+                builder_->builder()->GetFunction(func_index)->signature());
+      builder_->EmitWithU32V(kExprRefFunc, func_index);
     }
 
     return true;
