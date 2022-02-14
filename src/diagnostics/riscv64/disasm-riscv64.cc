@@ -2495,6 +2495,39 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
         UNSUPPORTED_RISCV();
       }
       break;
+    case RO_V_VFWADD_VV:
+      Format(instr, "vfwadd.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWSUB_VV:
+      Format(instr, "vfwsub.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWADD_W_VV:
+      Format(instr, "vfwadd.wv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWSUB_W_VV:
+      Format(instr, "vfwsub.wv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWREDUSUM_VV:
+      Format(instr, "vfwredusum.vs 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWREDOSUM_VV:
+      Format(instr, "vfwredosum.vs 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWMUL_VV:
+      Format(instr, "vfwmul.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWMACC_VV:
+      Format(instr, "vfwmacc.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFWNMACC_VV:
+      Format(instr, "vfwnmacc.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFWMSAC_VV:
+      Format(instr, "vfwmsac.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFWNMSAC_VV:
+      Format(instr, "vfwnmsac.vv 'vd, 'vs1, 'vs2'vm");
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -2539,6 +2572,33 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       break;
     case RO_V_VFNMSAC_VF:
       Format(instr, "vfnmsac.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFWADD_VF:
+      Format(instr, "vfwadd.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWSUB_VF:
+      Format(instr, "vfwsub.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWADD_W_VF:
+      Format(instr, "vfwadd.wf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWSUB_W_VF:
+      Format(instr, "vfwsub.wf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWMUL_VF:
+      Format(instr, "vfwmul.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWMACC_VF:
+      Format(instr, "vfwmacc.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFWNMACC_VF:
+      Format(instr, "vfwnmacc.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFWMSAC_VF:
+      Format(instr, "vfwmsac.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFWNMSAC_VF:
+      Format(instr, "vfwnmsac.vf 'vd, 'fs1, 'vs2'vm");
       break;
     default:
       UNSUPPORTED_RISCV();

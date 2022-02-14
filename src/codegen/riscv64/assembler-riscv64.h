@@ -769,12 +769,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
                  MaskType mask = NoMask);
 
+#define DEFINE_OPFWV(name, funct6)                           \
+  void name##_wv(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
 #define DEFINE_OPFRED(name, funct6)                          \
   void name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
                  MaskType mask = NoMask);
 
 #define DEFINE_OPFVF(name, funct6)                             \
   void name##_vf(VRegister vd, VRegister vs2, FPURegister fs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFWF(name, funct6)                             \
+  void name##_wf(VRegister vd, VRegister vs2, FPURegister fs1, \
                  MaskType mask = NoMask);
 
 #define DEFINE_OPFVV_FMA(name, funct6)                       \
@@ -900,6 +908,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPFVV(vfmul, VFMUL_FUNCT6)
   DEFINE_OPFVF(vfmul, VFMUL_FUNCT6)
 
+  // Vector Widening Floating-Point Add/Subtract Instructions
+  DEFINE_OPFVV(vfwadd, VFWADD_FUNCT6)
+  DEFINE_OPFVF(vfwadd, VFWADD_FUNCT6)
+  DEFINE_OPFVV(vfwsub, VFWSUB_FUNCT6)
+  DEFINE_OPFVF(vfwsub, VFWSUB_FUNCT6)
+  DEFINE_OPFWV(vfwadd, VFWADD_W_FUNCT6)
+  DEFINE_OPFWF(vfwadd, VFWADD_W_FUNCT6)
+  DEFINE_OPFWV(vfwsub, VFWSUB_W_FUNCT6)
+  DEFINE_OPFWF(vfwsub, VFWSUB_W_FUNCT6)
+
+  // Vector Widening Floating-Point Reduction Instructions
+  DEFINE_OPFVV(vfwredusum, VFWREDUSUM_FUNCT6)
+  DEFINE_OPFVV(vfwredosum, VFWREDOSUM_FUNCT6)
+
+  // Vector Widening Floating-Point Multiply
+  DEFINE_OPFVV(vfwmul, VFWMUL_FUNCT6)
+  DEFINE_OPFVF(vfwmul, VFWMUL_FUNCT6)
+
   DEFINE_OPFVV(vmfeq, VMFEQ_FUNCT6)
   DEFINE_OPFVV(vmfne, VMFNE_FUNCT6)
   DEFINE_OPFVV(vmflt, VMFLT_FUNCT6)
@@ -933,6 +959,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPFVV_FMA(vfnmsac, VFNMSAC_FUNCT6)
   DEFINE_OPFVF_FMA(vfnmsac, VFNMSAC_FUNCT6)
 
+  // Vector Widening Floating-Point Fused Multiply-Add Instructions
+  DEFINE_OPFVV_FMA(vfwmacc, VFWMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwmacc, VFWMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwnmacc, VFWNMACC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwnmacc, VFWNMACC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwmsac, VFWMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwmsac, VFWMSAC_FUNCT6)
+  DEFINE_OPFVV_FMA(vfwnmsac, VFWNMSAC_FUNCT6)
+  DEFINE_OPFVF_FMA(vfwnmsac, VFWNMSAC_FUNCT6)
+
   // Vector Narrowing Fixed-Point Clip Instructions
   DEFINE_OPIVV(vnclip, VNCLIP_FUNCT6)
   DEFINE_OPIVX(vnclip, VNCLIP_FUNCT6)
@@ -955,7 +991,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef DEFINE_OPMVV
 #undef DEFINE_OPMVX
 #undef DEFINE_OPFVV
+#undef DEFINE_OPFWV
 #undef DEFINE_OPFVF
+#undef DEFINE_OPFWF
 #undef DEFINE_OPFVV_FMA
 #undef DEFINE_OPFVF_FMA
 #undef DEFINE_OPMVV_VIE
