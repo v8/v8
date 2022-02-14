@@ -2790,7 +2790,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
 #define EMIT_SIMD_QFM(name)                                        \
   case kS390_##name: {                                             \
-    __ name(i.InputSimd128Register(0), i.InputSimd128Register(0),  \
+    __ name(i.OutputSimd128Register(), i.InputSimd128Register(0),  \
             i.InputSimd128Register(1), i.InputSimd128Register(2)); \
     break;                                                         \
   }
