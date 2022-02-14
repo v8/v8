@@ -831,12 +831,22 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kErrorConstructor:
     // RegExp builtins.
     case Builtin::kRegExpConstructor:
+    // Reflect builtins.
+    case Builtin::kReflectApply:
+    case Builtin::kReflectConstruct:
+    case Builtin::kReflectGetOwnPropertyDescriptor:
+    case Builtin::kReflectGetPrototypeOf:
+    case Builtin::kReflectHas:
+    case Builtin::kReflectIsExtensible:
+    case Builtin::kReflectOwnKeys:
     // Internal.
     case Builtin::kStrictPoisonPillThrower:
     case Builtin::kAllocateInYoungGeneration:
     case Builtin::kAllocateInOldGeneration:
     case Builtin::kAllocateRegularInYoungGeneration:
     case Builtin::kAllocateRegularInOldGeneration:
+    case Builtin::kConstructVarargs:
+    case Builtin::kConstructWithArrayLike:
       return DebugInfo::kHasNoSideEffect;
 
 #ifdef V8_INTL_SUPPORT
