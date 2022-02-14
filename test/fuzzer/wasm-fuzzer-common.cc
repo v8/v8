@@ -288,7 +288,7 @@ struct PrintName {
       : name(wire_bytes.GetNameOrNull(ref)) {}
 };
 std::ostream& operator<<(std::ostream& os, const PrintName& name) {
-  return os.write(name.name.begin(), name.name.size());
+  return os.put('\'').write(name.name.begin(), name.name.size()).put('\'');
 }
 
 // An interface for WasmFullDecoder used to decode initializer expressions. As
@@ -599,6 +599,16 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     }
   }
 
+  for (WasmImport imported : module->import_table) {
+    // TODO(wasm): Support other imports when needed.
+    CHECK_EQ(kExternalFunction, imported.kind);
+    auto module_name = PrintName(wire_bytes, imported.module_name);
+    auto field_name = PrintName(wire_bytes, imported.field_name);
+    int sig_index = module->functions[imported.index].sig_index;
+    os << "builder.addImport(" << module_name << ", " << field_name << ", "
+       << sig_index << " /* sig */);\n";
+  }
+
   if (module->has_memory) {
     os << "builder.addMemory(" << module->initial_pages;
     if (module->has_maximum_pages) {
@@ -668,6 +678,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 
   for (const WasmFunction& func : module->functions) {
+    if (func.imported) continue;
+
     base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     os << "// Generate function " << (func.func_index + 1) << " (out of "
        << module->functions.size() << ").\n";
@@ -705,7 +717,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   for (WasmExport& exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    os << "builder.addExport('" << PrintName(wire_bytes, exp.name) << "', "
+    os << "builder.addExport(" << PrintName(wire_bytes, exp.name) << ", "
        << exp.index << ");\n";
   }
 
