@@ -519,6 +519,7 @@ DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #if !MUST_WRITE_PROTECT_CODE_MEMORY
 DEFINE_WEAK_VALUE_IMPLICATION(future, write_protect_code_memory, false)
 #endif
+DEFINE_WEAK_IMPLICATION(future, compact_map_space)
 
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
