@@ -2218,11 +2218,16 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       // transition was found.
       Handle<Object> key;
       Handle<Map> target;
-      TransitionsAccessor transitions(isolate_, map);
-      Handle<String> expected_key = transitions.ExpectedTransitionKey();
+      Handle<String> expected_key;
+      {
+        TransitionsAccessor transitions(isolate_, *map);
+        expected_key = transitions.ExpectedTransitionKey();
+        if (!expected_key.is_null()) {
+          target = transitions.ExpectedTransitionTarget();
+        }
+      }
       if (!expected_key.is_null() && ReadExpectedString(expected_key)) {
         key = expected_key;
-        target = transitions.ExpectedTransitionTarget();
       } else {
         if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
           return Nothing<uint32_t>();
@@ -2231,7 +2236,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           key =
               isolate_->factory()->InternalizeString(Handle<String>::cast(key));
           // Don't reuse |transitions| because it could be stale.
-          transitioning = TransitionsAccessor(isolate_, map)
+          transitioning = TransitionsAccessor(isolate_, *map)
                               .FindTransitionToField(Handle<String>::cast(key))
                               .ToHandle(&target);
         } else {

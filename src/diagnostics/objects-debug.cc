@@ -520,11 +520,9 @@ void Map::MapVerify(Isolate* isolate) {
     }
   }
   SLOW_DCHECK(instance_descriptors(isolate).IsSortedNoDuplicates());
-  DisallowGarbageCollection no_gc;
+  SLOW_DCHECK(TransitionsAccessor(isolate, *this).IsSortedNoDuplicates());
   SLOW_DCHECK(
-      TransitionsAccessor(isolate, *this, &no_gc).IsSortedNoDuplicates());
-  SLOW_DCHECK(TransitionsAccessor(isolate, *this, &no_gc)
-                  .IsConsistentWithBackPointers());
+      TransitionsAccessor(isolate, *this).IsConsistentWithBackPointers());
   // Only JSFunction maps have has_prototype_slot() bit set and constructible
   // JSFunction objects must have prototype slot.
   CHECK_IMPLIES(has_prototype_slot(),
