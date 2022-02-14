@@ -24,19 +24,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   // Iterator for the elements of this BitVector.
   class Iterator {
    public:
-    explicit Iterator(BitVector* target)
-        : target_(target),
-          current_index_(0),
-          current_value_(target->is_inline() ? target->data_.inline_
-                                             : target->data_.ptr_[0]),
-          current_(-1) {
-      Advance();
-    }
-    ~Iterator() = default;
-
-    bool Done() const { return current_index_ >= target_->data_length_; }
-
-    V8_EXPORT_PRIVATE inline void Advance() {
+    V8_EXPORT_PRIVATE inline void operator++() {
       current_++;
 
       // Skip zeroed words.
@@ -57,15 +45,46 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
       current_value_ >>= 1;
     }
 
-    int Current() const {
+    int operator*() const {
       DCHECK(!Done());
       return current_;
     }
 
+    bool operator!=(const Iterator& other) const {
+      // "other" is required to be the end sentinel value, to avoid us needing
+      // to compare exact "current" values.
+      DCHECK(other.Done());
+      DCHECK_EQ(target_, other.target_);
+      return current_index_ != other.current_index_;
+    }
+
    private:
-    BitVector* target_;
-    int current_index_;
+    static constexpr struct StartTag {
+    } kStartTag = {};
+    static constexpr struct EndTag {
+    } kEndTag = {};
+
+    explicit Iterator(const BitVector* target, StartTag)
+        : target_(target),
+          current_value_(target->is_inline() ? target->data_.inline_
+                                             : target->data_.ptr_[0]),
+          current_index_(0),
+          current_(-1) {
+      ++(*this);
+    }
+    explicit Iterator(const BitVector* target, EndTag)
+        : target_(target),
+          current_value_(0),
+          current_index_(target->data_length_),
+          current_(-1) {
+      DCHECK(Done());
+    }
+
+    bool Done() const { return current_index_ >= target_->data_length_; }
+
+    const BitVector* target_;
     uintptr_t current_value_;
+    int current_index_;
     int current_;
 
     friend class BitVector;
@@ -295,6 +314,10 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
 
   int length() const { return length_; }
 
+  Iterator begin() const { return Iterator(this, Iterator::kStartTag); }
+
+  Iterator end() const { return Iterator(this, Iterator::kEndTag); }
+
 #ifdef DEBUG
   void Print() const;
 #endif
@@ -311,63 +334,36 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
 
 class GrowableBitVector {
  public:
-  class Iterator {
-   public:
-    Iterator(const GrowableBitVector* target, Zone* zone)
-        : it_(target->bits_ == nullptr ? zone->New<BitVector>(1, zone)
-                                       : target->bits_) {}
-    bool Done() const { return it_.Done(); }
-    void Advance() { it_.Advance(); }
-    int Current() const { return it_.Current(); }
-
-   private:
-    BitVector::Iterator it_;
-  };
-
-  GrowableBitVector() : bits_(nullptr) {}
-  GrowableBitVector(int length, Zone* zone)
-      : bits_(zone->New<BitVector>(length, zone)) {}
+  GrowableBitVector() : bits_() {}
+  GrowableBitVector(int length, Zone* zone) : bits_(length, zone) {}
 
   bool Contains(int value) const {
     if (!InBitsRange(value)) return false;
-    return bits_->Contains(value);
+    return bits_.Contains(value);
   }
 
   void Add(int value, Zone* zone) {
     EnsureCapacity(value, zone);
-    bits_->Add(value);
+    bits_.Add(value);
   }
 
-  void Union(const GrowableBitVector& other, Zone* zone) {
-    for (Iterator it(&other, zone); !it.Done(); it.Advance()) {
-      Add(it.Current(), zone);
-    }
-  }
-
-  void Clear() {
-    if (bits_ != nullptr) bits_->Clear();
-  }
+  void Clear() { bits_.Clear(); }
 
  private:
   static const int kInitialLength = 1024;
 
-  bool InBitsRange(int value) const {
-    return bits_ != nullptr && bits_->length() > value;
-  }
+  bool InBitsRange(int value) const { return bits_.length() > value; }
 
   void EnsureCapacity(int value, Zone* zone) {
     if (InBitsRange(value)) return;
-    int new_length = bits_ == nullptr ? kInitialLength : bits_->length();
+    int new_length =
+        base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(value));
+    new_length = std::min(new_length, kInitialLength);
     while (new_length <= value) new_length *= 2;
-
-    if (bits_ == nullptr) {
-      bits_ = zone->New<BitVector>(new_length, zone);
-    } else {
-      bits_->Resize(new_length, zone);
-    }
+    bits_.Resize(new_length, zone);
   }
 
-  BitVector* bits_;
+  BitVector bits_;
 };
 
 }  // namespace internal

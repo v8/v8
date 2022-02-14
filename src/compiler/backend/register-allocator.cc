@@ -1404,10 +1404,8 @@ TopTierRegisterAllocationData::GetPhiMapValueFor(TopLevelLiveRange* top_range) {
 
 bool TopTierRegisterAllocationData::ExistsUseWithoutDefinition() {
   bool found = false;
-  BitVector::Iterator iterator(live_in_sets()[0]);
-  while (!iterator.Done()) {
+  for (int operand_index : *live_in_sets()[0]) {
     found = true;
-    int operand_index = iterator.Current();
     PrintF("Register allocator error: live v%d reached first block.\n",
            operand_index);
     LiveRange* range = GetOrCreateLiveRangeFor(operand_index);
@@ -1417,7 +1415,6 @@ bool TopTierRegisterAllocationData::ExistsUseWithoutDefinition() {
     } else {
       PrintF("  (function: %s)\n", debug_name());
     }
-    iterator.Advance();
   }
   return found;
 }
@@ -1895,13 +1892,10 @@ void LiveRangeBuilder::AddInitialIntervals(const InstructionBlock* block,
   LifetimePosition end = LifetimePosition::InstructionFromInstructionIndex(
                              block->last_instruction_index())
                              .NextStart();
-  BitVector::Iterator iterator(live_out);
-  while (!iterator.Done()) {
-    int operand_index = iterator.Current();
+  for (int operand_index : *live_out) {
     TopLevelLiveRange* range = data()->GetOrCreateLiveRangeFor(operand_index);
     range->AddUseInterval(start, end, allocation_zone(),
                           data()->is_trace_alloc());
-    iterator.Advance();
   }
 }
 
@@ -2401,18 +2395,15 @@ void LiveRangeBuilder::ProcessLoopHeader(const InstructionBlock* block,
   DCHECK(block->IsLoopHeader());
   // Add a live range stretching from the first loop instruction to the last
   // for each value live on entry to the header.
-  BitVector::Iterator iterator(live);
   LifetimePosition start = LifetimePosition::GapFromInstructionIndex(
       block->first_instruction_index());
   LifetimePosition end = LifetimePosition::GapFromInstructionIndex(
                              code()->LastLoopInstructionIndex(block))
                              .NextFullStart();
-  while (!iterator.Done()) {
-    int operand_index = iterator.Current();
+  for (int operand_index : *live) {
     TopLevelLiveRange* range = data()->GetOrCreateLiveRangeFor(operand_index);
     range->EnsureInterval(start, end, allocation_zone(),
                           data()->is_trace_alloc());
-    iterator.Advance();
   }
   // Insert all values into the live in sets of all blocks in the loop.
   for (int i = block->rpo_number().ToInt() + 1; i < block->loop_end().ToInt();
@@ -4769,10 +4760,11 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
   for (const InstructionBlock* block : code()->instruction_blocks()) {
     if (CanEagerlyResolveControlFlow(block)) continue;
     BitVector* live = live_in_sets[block->rpo_number().ToInt()];
-    BitVector::Iterator iterator(live);
-    while (!iterator.Done()) {
+    auto it = live->begin();
+    auto end = live->end();
+    while (it != end) {
       data()->tick_counter()->TickAndMaybeEnterSafepoint();
-      int vreg = iterator.Current();
+      int vreg = *it;
       LiveRangeBoundArray* array = finder.ArrayFor(vreg);
       for (const RpoNumber& pred : block->predecessors()) {
         FindResult result;
@@ -4835,7 +4827,7 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
                 move_loc != -1,
             code()->GetInstructionBlock(move_loc)->IsDeferred());
       }
-      iterator.Advance();
+      ++it;
     }
   }
 
@@ -5013,10 +5005,8 @@ void LiveRangeConnector::CommitSpillsInDeferredBlocks(
 
   ZoneQueue<int> worklist(temp_zone);
 
-  for (BitVector::Iterator iterator(
-           range->GetListOfBlocksRequiringSpillOperands(data()));
-       !iterator.Done(); iterator.Advance()) {
-    worklist.push(iterator.Current());
+  for (int block_id : *range->GetListOfBlocksRequiringSpillOperands(data())) {
+    worklist.push(block_id);
   }
 
   ZoneSet<std::pair<RpoNumber, int>> done_moves(temp_zone);

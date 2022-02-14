@@ -3240,10 +3240,8 @@ void MidTierRegisterAllocator::UpdateSpillRangesForLoops() {
           data_->GetBlock(last_loop_block)->last_instruction_index();
       // Extend spill range for all spilled values that are live on entry to the
       // loop header.
-      BitVector::Iterator iterator(&data_->spilled_virtual_registers());
-      for (; !iterator.Done(); iterator.Advance()) {
-        const VirtualRegisterData& vreg_data =
-            VirtualRegisterDataFor(iterator.Current());
+      for (int vreg : data_->spilled_virtual_registers()) {
+        const VirtualRegisterData& vreg_data = VirtualRegisterDataFor(vreg);
         if (vreg_data.HasSpillRange() &&
             vreg_data.spill_range()->IsLiveAt(block->first_instruction_index(),
                                               block)) {
@@ -3385,10 +3383,8 @@ void MidTierSpillSlotAllocator::Allocate(
 
 void AllocateSpillSlots(MidTierRegisterAllocationData* data) {
   ZoneVector<VirtualRegisterData*> spilled(data->allocation_zone());
-  BitVector::Iterator iterator(&data->spilled_virtual_registers());
-  for (; !iterator.Done(); iterator.Advance()) {
-    VirtualRegisterData& vreg_data =
-        data->VirtualRegisterDataFor(iterator.Current());
+  for (int vreg : data->spilled_virtual_registers()) {
+    VirtualRegisterData& vreg_data = data->VirtualRegisterDataFor(vreg);
     if (vreg_data.HasPendingSpillOperand()) {
       spilled.push_back(&vreg_data);
     }
@@ -3452,10 +3448,8 @@ void MidTierReferenceMapPopulator::RecordReferences(
 
 void PopulateReferenceMaps(MidTierRegisterAllocationData* data) {
   MidTierReferenceMapPopulator populator(data);
-  BitVector::Iterator iterator(&data->spilled_virtual_registers());
-  for (; !iterator.Done(); iterator.Advance()) {
-    populator.RecordReferences(
-        data->VirtualRegisterDataFor(iterator.Current()));
+  for (int vreg : data->spilled_virtual_registers()) {
+    populator.RecordReferences(data->VirtualRegisterDataFor(vreg));
   }
 }
 

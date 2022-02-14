@@ -2080,9 +2080,8 @@ void ScheduleVerifier::Run(Schedule* schedule) {
       if (idom == nullptr) continue;
       BitVector* block_doms = dominators[block->id().ToSize()];
 
-      for (BitVector::Iterator it(block_doms); !it.Done(); it.Advance()) {
-        BasicBlock* dom =
-            schedule->GetBlockById(BasicBlock::Id::FromInt(it.Current()));
+      for (int id : *block_doms) {
+        BasicBlock* dom = schedule->GetBlockById(BasicBlock::Id::FromInt(id));
         if (dom != idom &&
             !dominators[idom->id().ToSize()]->Contains(dom->id().ToInt())) {
           FATAL("Block B%d is not immediately dominated by B%d",
