@@ -1441,6 +1441,7 @@ void FlushBatchedIncrementalEvents(
   DCHECK(!batched_events.events.empty());
   isolate->metrics_recorder()->AddMainThreadEvent(std::move(batched_events),
                                                   GetContextId(isolate));
+  batched_events = {};
 }
 
 }  // namespace
@@ -1455,7 +1456,7 @@ void GCTracer::ReportFullCycleToRecorder() {
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
   if (!recorder->HasEmbedderRecorder()) {
-    incremental_mark_batched_events_.events.clear();
+    incremental_mark_batched_events_ = {};
     if (cpp_heap) {
       cpp_heap->GetMetricRecorder()->ClearCachedEvents();
     }
