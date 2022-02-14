@@ -12,6 +12,17 @@
 namespace v8 {
 namespace internal {
 
+// This enum are states that how many OSR code caches belong to a SFI. Without
+// this enum, need to check all OSR code cache entries to know whether a
+// JSFunction's SFI has OSR code cache. The enum value kCachedMultiple is for
+// doing time-consuming loop check only when the very unlikely state change
+// kCachedMultiple -> { kCachedOnce | kCachedMultiple }.
+enum OSRCodeCacheStateOfSFI : uint8_t {
+  kNotCached,       // Likely state, no OSR code cache
+  kCachedOnce,      // Unlikely state, one OSR code cache
+  kCachedMultiple,  // Very unlikely state, multiple OSR code caches
+};
+
 class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
  public:
   DECL_CAST(OSROptimizedCodeCache)
@@ -47,6 +58,10 @@ class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
 
   // Remove all code objects marked for deoptimization from OSR code cache.
   void EvictMarkedCode(Isolate* isolate);
+
+  // Returns vector of bytecode offsets corresponding to the shared function
+  // |shared|
+  std::vector<int> GetBytecodeOffsetsFromSFI(SharedFunctionInfo shared);
 
  private:
   // Functions that implement heuristics on when to grow / shrink the cache.

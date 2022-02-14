@@ -47,7 +47,8 @@ class RuntimeProfiler {
   // optimization attempts should be made.
   bool MaybeOSR(JSFunction function, UnoptimizedFrame* frame);
   OptimizationReason ShouldOptimize(JSFunction function,
-                                    BytecodeArray bytecode_array);
+                                    BytecodeArray bytecode_array,
+                                    JavaScriptFrame* frame);
   void Optimize(JSFunction function, OptimizationReason reason,
                 CodeKind code_kind);
   void Baseline(JSFunction function, OptimizationReason reason);

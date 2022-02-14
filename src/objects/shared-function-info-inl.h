@@ -302,6 +302,17 @@ BailoutReason SharedFunctionInfo::disabled_optimization_reason() const {
   return DisabledOptimizationReasonBits::decode(flags(kRelaxedLoad));
 }
 
+OSRCodeCacheStateOfSFI SharedFunctionInfo::osr_code_cache_state() const {
+  return OsrCodeCacheStateBits::decode(flags(kRelaxedLoad));
+}
+
+void SharedFunctionInfo::set_osr_code_cache_state(
+    OSRCodeCacheStateOfSFI state) {
+  int hints = flags(kRelaxedLoad);
+  hints = OsrCodeCacheStateBits::update(hints, state);
+  set_flags(hints, kRelaxedStore);
+}
+
 LanguageMode SharedFunctionInfo::language_mode() const {
   STATIC_ASSERT(LanguageModeSize == 2);
   return construct_language_mode(IsStrictBit::decode(flags(kRelaxedLoad)));

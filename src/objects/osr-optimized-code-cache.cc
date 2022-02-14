@@ -122,6 +122,18 @@ void OSROptimizedCodeCache::EvictMarkedCode(Isolate* isolate) {
   }
 }
 
+std::vector<int> OSROptimizedCodeCache::GetBytecodeOffsetsFromSFI(
+    SharedFunctionInfo shared) {
+  std::vector<int> bytecode_offsets;
+  DisallowGarbageCollection gc;
+  for (int index = 0; index < length(); index += kEntryLength) {
+    if (GetSFIFromEntry(index) == shared) {
+      bytecode_offsets.push_back(GetBytecodeOffsetFromEntry(index).ToInt());
+    }
+  }
+  return bytecode_offsets;
+}
+
 int OSROptimizedCodeCache::GrowOSRCache(
     Handle<NativeContext> native_context,
     Handle<OSROptimizedCodeCache>* osr_cache) {
@@ -179,12 +191,26 @@ int OSROptimizedCodeCache::FindEntry(Handle<SharedFunctionInfo> shared,
 }
 
 void OSROptimizedCodeCache::ClearEntry(int index, Isolate* isolate) {
-  Set(index + OSRCodeCacheConstants::kSharedOffset,
-      HeapObjectReference::ClearedValue(isolate));
-  Set(index + OSRCodeCacheConstants::kCachedCodeOffset,
-      HeapObjectReference::ClearedValue(isolate));
-  Set(index + OSRCodeCacheConstants::kOsrIdOffset,
-      HeapObjectReference::ClearedValue(isolate));
+  SharedFunctionInfo shared = GetSFIFromEntry(index);
+  DCHECK_GT(shared.osr_code_cache_state(), kNotCached);
+  if (V8_LIKELY(shared.osr_code_cache_state() == kCachedOnce)) {
+    shared.set_osr_code_cache_state(kNotCached);
+  } else if (shared.osr_code_cache_state() == kCachedMultiple) {
+    int osr_code_cache_count = 0;
+    for (int index = 0; index < length(); index += kEntryLength) {
+      if (GetSFIFromEntry(index) == shared) {
+        osr_code_cache_count++;
+      }
+    }
+    if (osr_code_cache_count == 2) {
+      shared.set_osr_code_cache_state(kCachedOnce);
+    }
+  }
+  HeapObjectReference cleared_value =
+      HeapObjectReference::ClearedValue(isolate);
+  Set(index + OSRCodeCacheConstants::kSharedOffset, cleared_value);
+  Set(index + OSRCodeCacheConstants::kCachedCodeOffset, cleared_value);
+  Set(index + OSRCodeCacheConstants::kOsrIdOffset, cleared_value);
 }
 
 void OSROptimizedCodeCache::InitializeEntry(int entry,
@@ -197,6 +223,11 @@ void OSROptimizedCodeCache::InitializeEntry(int entry,
   Set(entry + OSRCodeCacheConstants::kCachedCodeOffset, weak_code_entry);
   Set(entry + OSRCodeCacheConstants::kOsrIdOffset,
       MaybeObject::FromSmi(Smi::FromInt(osr_offset.ToInt())));
+  if (V8_LIKELY(shared.osr_code_cache_state() == kNotCached)) {
+    shared.set_osr_code_cache_state(kCachedOnce);
+  } else if (shared.osr_code_cache_state() == kCachedOnce) {
+    shared.set_osr_code_cache_state(kCachedMultiple);
+  }
 }
 
 void OSROptimizedCodeCache::MoveEntry(int src, int dst, Isolate* isolate) {
@@ -205,7 +236,11 @@ void OSROptimizedCodeCache::MoveEntry(int src, int dst, Isolate* isolate) {
   Set(dst + OSRCodeCacheConstants::kCachedCodeOffset,
       Get(src + OSRCodeCacheConstants::kCachedCodeOffset));
   Set(dst + OSRCodeCacheConstants::kOsrIdOffset, Get(src + kOsrIdOffset));
-  ClearEntry(src, isolate);
+  HeapObjectReference cleared_value =
+      HeapObjectReference::ClearedValue(isolate);
+  Set(src + OSRCodeCacheConstants::kSharedOffset, cleared_value);
+  Set(src + OSRCodeCacheConstants::kCachedCodeOffset, cleared_value);
+  Set(src + OSRCodeCacheConstants::kOsrIdOffset, cleared_value);
 }
 
 int OSROptimizedCodeCache::CapacityForLength(int curr_length) {

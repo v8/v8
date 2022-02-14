@@ -150,8 +150,8 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
     }
   }
 
-  OptimizationReason reason =
-      ShouldOptimize(function, function.shared().GetBytecodeArray(isolate_));
+  OptimizationReason reason = ShouldOptimize(
+      function, function.shared().GetBytecodeArray(isolate_), frame);
 
   if (reason != OptimizationReason::kDoNotOptimize) {
     Optimize(function, reason, code_kind);
@@ -183,9 +183,35 @@ bool ShouldOptimizeAsSmallFunction(int bytecode_size, bool any_ic_changed) {
 }  // namespace
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
-                                                   BytecodeArray bytecode) {
+                                                   BytecodeArray bytecode,
+                                                   JavaScriptFrame* frame) {
   if (function.ActiveTierIsTurbofan()) {
     return OptimizationReason::kDoNotOptimize;
+  }
+  // If function's SFI has OSR cache, once enter loop range of OSR cache, set
+  // OSR loop nesting level for matching condition of OSR (loop_depth <
+  // osr_level), soon later OSR will be triggered when executing bytecode
+  // JumpLoop which is entry of the OSR cache, then hit the OSR cache.
+  if (V8_UNLIKELY(function.shared().osr_code_cache_state() > kNotCached) &&
+      frame->is_unoptimized()) {
+    int current_offset =
+        static_cast<UnoptimizedFrame*>(frame)->GetBytecodeOffset();
+    OSROptimizedCodeCache cache =
+        function.context().native_context().GetOSROptimizedCodeCache();
+    std::vector<int> bytecode_offsets =
+        cache.GetBytecodeOffsetsFromSFI(function.shared());
+    interpreter::BytecodeArrayIterator iterator(
+        Handle<BytecodeArray>(bytecode, isolate_));
+    for (int jump_offset : bytecode_offsets) {
+      iterator.SetOffset(jump_offset);
+      int jump_target_offset = iterator.GetJumpTargetOffset();
+      if (jump_offset >= current_offset &&
+          current_offset >= jump_target_offset) {
+        bytecode.set_osr_loop_nesting_level(iterator.GetImmediateOperand(1) +
+                                            1);
+        return OptimizationReason::kHotAndStable;
+      }
+    }
   }
   const int ticks = function.feedback_vector().profiler_ticks();
   const int ticks_for_optimization =
