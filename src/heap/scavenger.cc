@@ -414,7 +414,7 @@ void ScavengerCollector::CollectGarbage() {
     heap_->UpdateYoungReferencesInExternalStringTable(
         &Heap::UpdateYoungReferenceInExternalStringTableEntry);
 
-    heap_->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
+    heap_->incremental_marking()->UpdateMarkingWorklistAfterYoungGenGC();
 
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->UpdateRetainersAfterScavenge();

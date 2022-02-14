@@ -2626,7 +2626,7 @@ void Heap::MinorMarkCompact() {
       incremental_marking());
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
 
-  minor_mark_compact_collector()->CollectGarbage();
+  minor_mark_compact_collector_->CollectGarbage();
 
   SetGCState(NOT_IN_GC);
 }
@@ -4693,7 +4693,7 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
   void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
                       ObjectSlot target) override {
     VisitPointer(host, target);
-    if (FLAG_minor_mc) return VisitPointer(host, target);
+    if (FLAG_minor_mc) return;
     // Keys are handled separately and should never appear in this set.
     CHECK(!InUntypedSet(key));
     Object k = *key;
@@ -5775,6 +5775,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   mark_compact_collector_.reset(new MarkCompactCollector(this));
 
   scavenger_collector_.reset(new ScavengerCollector(this));
+  minor_mark_compact_collector_.reset(new MinorMarkCompactCollector(this));
 
   incremental_marking_.reset(
       new IncrementalMarking(this, mark_compact_collector_->weak_objects()));
@@ -5869,7 +5870,6 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   }
 
   tracer_.reset(new GCTracer(this));
-  minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
@@ -5890,8 +5890,8 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
   mark_compact_collector()->SetUp();
-  if (minor_mark_compact_collector() != nullptr) {
-    minor_mark_compact_collector()->SetUp();
+  if (minor_mark_compact_collector_) {
+    minor_mark_compact_collector_->SetUp();
   }
 
   if (new_space()) {
@@ -6171,10 +6171,9 @@ void Heap::TearDown() {
     mark_compact_collector_.reset();
   }
 
-  if (minor_mark_compact_collector_ != nullptr) {
+  if (minor_mark_compact_collector_) {
     minor_mark_compact_collector_->TearDown();
-    delete minor_mark_compact_collector_;
-    minor_mark_compact_collector_ = nullptr;
+    minor_mark_compact_collector_.reset();
   }
 
   scavenger_collector_.reset();

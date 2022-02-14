@@ -436,7 +436,7 @@ void IncrementalMarking::FinalizeIncrementally() {
   }
 }
 
-void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
+void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
   if (!IsMarking()) return;
 
   Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();

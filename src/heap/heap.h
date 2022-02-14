@@ -870,7 +870,7 @@ class Heap {
   }
 
   MinorMarkCompactCollector* minor_mark_compact_collector() {
-    return minor_mark_compact_collector_;
+    return minor_mark_compact_collector_.get();
   }
 
   ArrayBufferSweeper* array_buffer_sweeper() {
@@ -2327,7 +2327,7 @@ class Heap {
 
   std::unique_ptr<GCTracer> tracer_;
   std::unique_ptr<MarkCompactCollector> mark_compact_collector_;
-  MinorMarkCompactCollector* minor_mark_compact_collector_ = nullptr;
+  std::unique_ptr<MinorMarkCompactCollector> minor_mark_compact_collector_;
   std::unique_ptr<ScavengerCollector> scavenger_collector_;
   std::unique_ptr<ArrayBufferSweeper> array_buffer_sweeper_;
 

@@ -187,7 +187,6 @@ class LiveObjectVisitor : AllStatic {
 
 enum class AlwaysPromoteYoung { kYes, kNo };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
-enum class MarkingTreatmentMode { KEEP, CLEAR };
 enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 
 // Base class for minor and full MC collectors.
@@ -865,8 +864,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void TearDown() override;
   void CollectGarbage() override;
 
-  void MakeIterable(Page* page, MarkingTreatmentMode marking_mode,
-                    FreeSpaceTreatmentMode free_space_mode);
+  void MakeIterable(Page* page, FreeSpaceTreatmentMode free_space_mode);
   void CleanupSweepToIteratePages();
 
  private:

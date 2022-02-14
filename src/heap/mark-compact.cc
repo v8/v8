@@ -5288,7 +5288,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARKING_DEQUE);
-    heap()->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
+    heap()->incremental_marking()->UpdateMarkingWorklistAfterYoungGenGC();
   }
 
   {
@@ -5314,8 +5314,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
 }
 
 void MinorMarkCompactCollector::MakeIterable(
-    Page* p, MarkingTreatmentMode marking_mode,
-    FreeSpaceTreatmentMode free_space_mode) {
+    Page* p, FreeSpaceTreatmentMode free_space_mode) {
   CHECK(!p->IsLargePage());
   // We have to clear the full collectors markbits for the areas that we
   // remove here.
@@ -5356,11 +5355,6 @@ void MinorMarkCompactCollector::MakeIterable(
     }
     p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                     ClearRecordedSlots::kNo);
-  }
-
-  if (marking_mode == MarkingTreatmentMode::CLEAR) {
-    non_atomic_marking_state()->ClearLiveness(p);
-    p->ClearFlag(Page::SWEEP_TO_ITERATE);
   }
 }
 
@@ -5935,14 +5929,12 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
           marking_state->live_bytes(chunk));
       if (!chunk->IsLargePage()) {
         if (heap()->ShouldZapGarbage()) {
-          collector_->MakeIterable(static_cast<Page*>(chunk),
-                                   MarkingTreatmentMode::KEEP, ZAP_FREE_SPACE);
+          collector_->MakeIterable(static_cast<Page*>(chunk), ZAP_FREE_SPACE);
         } else if (heap()->incremental_marking()->IsMarking()) {
           // When incremental marking is on, we need to clear the mark bits of
           // the full collector. We cannot yet discard the young generation mark
           // bits as they are still relevant for pointers updating.
           collector_->MakeIterable(static_cast<Page*>(chunk),
-                                   MarkingTreatmentMode::KEEP,
                                    IGNORE_FREE_SPACE);
         }
       }
@@ -5955,14 +5947,12 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
           marking_state->live_bytes(chunk));
       DCHECK(!chunk->IsLargePage());
       if (heap()->ShouldZapGarbage()) {
-        collector_->MakeIterable(static_cast<Page*>(chunk),
-                                 MarkingTreatmentMode::KEEP, ZAP_FREE_SPACE);
+        collector_->MakeIterable(static_cast<Page*>(chunk), ZAP_FREE_SPACE);
       } else if (heap()->incremental_marking()->IsMarking()) {
         // When incremental marking is on, we need to clear the mark bits of
         // the full collector. We cannot yet discard the young generation mark
         // bits as they are still relevant for pointers updating.
-        collector_->MakeIterable(static_cast<Page*>(chunk),
-                                 MarkingTreatmentMode::KEEP, IGNORE_FREE_SPACE);
+        collector_->MakeIterable(static_cast<Page*>(chunk), IGNORE_FREE_SPACE);
       }
       break;
     case kObjectsOldToOld:
