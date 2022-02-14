@@ -2017,7 +2017,6 @@ filegroup(
         "src/tracing/tracing-category-observer.cc",
         "src/tracing/tracing-category-observer.h",
         "src/trap-handler/handler-inside.cc",
-        "src/trap-handler/handler-inside-posix.h",
         "src/trap-handler/handler-outside.cc",
         "src/trap-handler/handler-shared.cc",
         "src/trap-handler/trap-handler-internal.h",
@@ -2300,6 +2299,7 @@ filegroup(
         # Only for x64 builds and for arm64 with x64 host simulator.
         "@v8//bazel/config:is_posix_x64": [
             "src/trap-handler/handler-inside-posix.cc",
+            "src/trap-handler/handler-inside-posix.h",
             "src/trap-handler/handler-outside-posix.cc",
         ],
         "//conditions:default": [],
@@ -2312,8 +2312,8 @@ filegroup(
     }) + select({
         "@v8//bazel/config:is_windows": [
             "src/trap-handler/handler-inside-win.cc",
-            "src/trap-handler/handler-outside-win.cc",
             "src/trap-handler/handler-inside-win.h",
+            "src/trap-handler/handler-outside-win.cc",
         ],
         "//conditions:default": [],
     }) + select({
