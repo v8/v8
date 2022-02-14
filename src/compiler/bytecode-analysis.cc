@@ -717,21 +717,12 @@ std::ostream& BytecodeAnalysis::PrintLivenessTo(std::ostream& os) const {
   for (; !iterator.done(); iterator.Advance()) {
     int current_offset = iterator.current_offset();
 
-    const BitVector& in_liveness =
-        GetInLivenessFor(current_offset)->bit_vector();
-    const BitVector& out_liveness =
-        GetOutLivenessFor(current_offset)->bit_vector();
+    const BytecodeLivenessState* in_liveness = GetInLivenessFor(current_offset);
+    const BytecodeLivenessState* out_liveness =
+        GetOutLivenessFor(current_offset);
 
-    for (int i = 0; i < in_liveness.length(); ++i) {
-      os << (in_liveness.Contains(i) ? "L" : ".");
-    }
-    os << " -> ";
-
-    for (int i = 0; i < out_liveness.length(); ++i) {
-      os << (out_liveness.Contains(i) ? "L" : ".");
-    }
-
-    os << " | " << current_offset << ": ";
+    os << ToString(*in_liveness) << " -> " << ToString(*out_liveness) << " | "
+       << current_offset << ": ";
     iterator.PrintTo(os) << std::endl;
   }
 
@@ -984,22 +975,16 @@ bool BytecodeAnalysis::LivenessIsValid() {
     interpreter::BytecodeArrayIterator forward_iterator(bytecode_array());
     for (; !forward_iterator.done(); forward_iterator.Advance()) {
       int current_offset = forward_iterator.current_offset();
-      const BitVector& in_liveness =
-          GetInLivenessFor(current_offset)->bit_vector();
-      const BitVector& out_liveness =
-          GetOutLivenessFor(current_offset)->bit_vector();
+      const BytecodeLivenessState* in_liveness =
+          GetInLivenessFor(current_offset);
+      const BytecodeLivenessState* out_liveness =
+          GetOutLivenessFor(current_offset);
 
-      for (int i = 0; i < in_liveness.length(); ++i) {
-        of << (in_liveness.Contains(i) ? 'L' : '.');
-      }
+      std::string in_liveness_str = ToString(*in_liveness);
+      std::string out_liveness_str = ToString(*out_liveness);
 
-      of << " | ";
-
-      for (int i = 0; i < out_liveness.length(); ++i) {
-        of << (out_liveness.Contains(i) ? 'L' : '.');
-      }
-
-      of << " : " << current_offset << " : ";
+      of << in_liveness_str << " | " << out_liveness_str << " : "
+         << current_offset << " : ";
 
       // Draw loop back edges by indentin everything between loop headers and
       // jump loop instructions.
@@ -1023,21 +1008,10 @@ bool BytecodeAnalysis::LivenessIsValid() {
 
       if (current_offset == invalid_offset) {
         // Underline the invalid liveness.
-        if (which_invalid == 0) {
-          for (int i = 0; i < in_liveness.length(); ++i) {
-            of << '^';
-          }
-          for (int i = 0; i < out_liveness.length() + 3; ++i) {
-            of << ' ';
-          }
-        } else {
-          for (int i = 0; i < in_liveness.length() + 3; ++i) {
-            of << ' ';
-          }
-          for (int i = 0; i < out_liveness.length(); ++i) {
-            of << '^';
-          }
-        }
+        char in_underline = which_invalid == 0 ? '^' : ' ';
+        char out_underline = which_invalid == 0 ? ' ' : '^';
+        of << std::string(in_liveness_str.size(), in_underline) << "   "
+           << std::string(out_liveness_str.size(), out_underline);
 
         // Make sure to draw the loop indentation marks on this additional line.
         of << " : " << current_offset << " : ";
@@ -1049,19 +1023,11 @@ bool BytecodeAnalysis::LivenessIsValid() {
 
         // Print the invalid liveness.
         if (which_invalid == 0) {
-          for (int i = 0; i < in_liveness.length(); ++i) {
-            of << (invalid_liveness.bit_vector().Contains(i) ? 'L' : '.');
-          }
-          for (int i = 0; i < out_liveness.length() + 3; ++i) {
-            of << ' ';
-          }
+          of << ToString(invalid_liveness) << "   "
+             << std::string(out_liveness_str.size(), ' ');
         } else {
-          for (int i = 0; i < in_liveness.length() + 3; ++i) {
-            of << ' ';
-          }
-          for (int i = 0; i < out_liveness.length(); ++i) {
-            of << (invalid_liveness.bit_vector().Contains(i) ? 'L' : '.');
-          }
+          of << std::string(in_liveness_str.size(), ' ') << "   "
+             << ToString(invalid_liveness);
         }
 
         // Make sure to draw the loop indentation marks on this additional line.

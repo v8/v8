@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_BYTECODE_LIVENESS_MAP_H_
 #define V8_COMPILER_BYTECODE_LIVENESS_MAP_H_
 
+#include <string>
+
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone.h"
 
@@ -25,19 +27,13 @@ class BytecodeLivenessState : public ZoneObject {
   BytecodeLivenessState(const BytecodeLivenessState& other, Zone* zone)
       : bit_vector_(other.bit_vector_, zone) {}
 
-  const BitVector& bit_vector() const { return bit_vector_; }
-
-  BitVector& bit_vector() { return bit_vector_; }
-
   bool RegisterIsLive(int index) const {
     DCHECK_GE(index, 0);
     DCHECK_LT(index, bit_vector_.length() - 1);
-    return bit_vector_.Contains(index);
+    return bit_vector_.Contains(index + 1);
   }
 
-  bool AccumulatorIsLive() const {
-    return bit_vector_.Contains(bit_vector_.length() - 1);
-  }
+  bool AccumulatorIsLive() const { return bit_vector_.Contains(0); }
 
   bool Equals(const BytecodeLivenessState& other) const {
     return bit_vector_.Equals(other.bit_vector_);
@@ -46,18 +42,18 @@ class BytecodeLivenessState : public ZoneObject {
   void MarkRegisterLive(int index) {
     DCHECK_GE(index, 0);
     DCHECK_LT(index, bit_vector_.length() - 1);
-    bit_vector_.Add(index);
+    bit_vector_.Add(index + 1);
   }
 
   void MarkRegisterDead(int index) {
     DCHECK_GE(index, 0);
     DCHECK_LT(index, bit_vector_.length() - 1);
-    bit_vector_.Remove(index);
+    bit_vector_.Remove(index + 1);
   }
 
-  void MarkAccumulatorLive() { bit_vector_.Add(bit_vector_.length() - 1); }
+  void MarkAccumulatorLive() { bit_vector_.Add(0); }
 
-  void MarkAccumulatorDead() { bit_vector_.Remove(bit_vector_.length() - 1); }
+  void MarkAccumulatorDead() { bit_vector_.Remove(0); }
 
   void MarkAllLive() { bit_vector_.AddAll(); }
 
@@ -72,6 +68,8 @@ class BytecodeLivenessState : public ZoneObject {
   void CopyFrom(const BytecodeLivenessState& other) {
     bit_vector_.CopyFrom(other.bit_vector_);
   }
+
+  int register_count() const { return bit_vector_.length() - 1; }
 
  private:
   BitVector bit_vector_;
@@ -137,6 +135,8 @@ class V8_EXPORT_PRIVATE BytecodeLivenessMap {
   size_t size_;
 #endif
 };
+
+V8_EXPORT_PRIVATE std::string ToString(const BytecodeLivenessState& liveness);
 
 }  // namespace compiler
 }  // namespace internal
