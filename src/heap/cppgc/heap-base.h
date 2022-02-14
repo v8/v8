@@ -15,6 +15,7 @@
 #include "src/base/macros.h"
 #include "src/heap/cppgc/compactor.h"
 #include "src/heap/cppgc/garbage-collector.h"
+#include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/cppgc/object-allocator.h"
@@ -163,6 +164,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   std::set<void*>& remembered_slots() { return remembered_slots_; }
+  std::set<HeapObjectHeader*>& remembered_source_objects() {
+    return remembered_source_objects_;
+  }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   size_t ObjectPayloadSize() const;
@@ -260,6 +264,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
       allocation_observer_for_PROCESS_HEAP_STATISTICS_;
 #if defined(CPPGC_YOUNG_GENERATION)
   std::set<void*> remembered_slots_;
+  std::set<HeapObjectHeader*> remembered_source_objects_;
 #endif
 
   size_t no_gc_scope_ = 0;

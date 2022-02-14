@@ -25,9 +25,10 @@ bool InGC(HeapHandle& heap_handle) {
          heap.sweeper().IsSweepingInProgress();
 }
 
-void InvalidateRememberedSlots(HeapBase& heap, void* begin, void* end) {
 #if defined(CPPGC_YOUNG_GENERATION)
-  // Invalidate slots that reside within |object|.
+void InvalidateRememberedSlotsInRange(HeapBase& heap, void* begin, void* end) {
+  // Invalidate slots from |remembered_slots| that reside within |begin| and
+  // |end|.
   auto& remembered_slots = heap.remembered_slots();
   // TODO(bikineev): The 2 binary walks can be optimized with a custom
   // algorithm.
@@ -42,8 +43,8 @@ void InvalidateRememberedSlots(HeapBase& heap, void* begin, void* end) {
                         return begin <= value && value < end;
                       }));
 #endif  // ENABLE_SLOW_DCHECKS
-#endif  // !defined(CPPGC_YOUNG_GENERATION)
 }
+#endif  // !defined(CPPGC_YOUNG_GENERATION)
 
 }  // namespace
 
@@ -86,8 +87,13 @@ void ExplicitManagementImpl::FreeUnreferencedObject(HeapHandle& heap_handle,
       // list entry.
     }
   }
-  InvalidateRememberedSlots(HeapBase::From(heap_handle), object,
-                            reinterpret_cast<uint8_t*>(object) + object_size);
+#if defined(CPPGC_YOUNG_GENERATION)
+  auto& heap_base = HeapBase::From(heap_handle);
+  InvalidateRememberedSlotsInRange(
+      heap_base, object, reinterpret_cast<uint8_t*>(object) + object_size);
+  // If this object was registered as remembered, remove it.
+  heap_base.remembered_source_objects().erase(&header);
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
 namespace {
@@ -136,8 +142,10 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
     NormalPage::From(&base_page)->object_start_bitmap().SetBit(free_start);
     header.SetAllocatedSize(new_size);
   }
-  InvalidateRememberedSlots(base_page.heap(), free_start,
-                            free_start + size_delta);
+#if defined(CPPGC_YOUNG_GENERATION)
+  InvalidateRememberedSlotsInRange(base_page.heap(), free_start,
+                                   free_start + size_delta);
+#endif  // defined(CPPGC_YOUNG_GENERATION)
   // Return success in any case, as we want to avoid that embedders start
   // copying memory because of small deltas.
   return true;

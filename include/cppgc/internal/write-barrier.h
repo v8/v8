@@ -80,9 +80,13 @@ class V8_EXPORT WriteBarrier final {
 #if defined(CPPGC_YOUNG_GENERATION)
   static V8_INLINE void GenerationalBarrier(const Params& params,
                                             const void* slot);
-#else   // !CPPGC_YOUNG_GENERATION
+  static V8_INLINE void GenerationalBarrierForSourceObject(
+      const Params& params, const void* inner_pointer);
+#else  // !CPPGC_YOUNG_GENERATION
   static V8_INLINE void GenerationalBarrier(const Params& params,
                                             const void* slot) {}
+  static V8_INLINE void GenerationalBarrierForSourceObject(
+      const Params& params, const void* inner_pointer) {}
 #endif  // CPPGC_YOUNG_GENERATION
 
 #if V8_ENABLE_CHECKS
@@ -120,8 +124,10 @@ class V8_EXPORT WriteBarrier final {
 #if defined(CPPGC_YOUNG_GENERATION)
   static CagedHeapLocalData& GetLocalData(HeapHandle&);
   static void GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
-                                      const AgeTable& ageTable,
+                                      const AgeTable& age_table,
                                       const void* slot, uintptr_t value_offset);
+  static void GenerationalBarrierForSourceObjectSlow(
+      const CagedHeapLocalData& local_data, const void* object);
 #endif  // CPPGC_YOUNG_GENERATION
 
   static AtomicEntryFlag incremental_or_concurrent_marking_flag_;
@@ -402,6 +408,21 @@ void WriteBarrier::GenerationalBarrier(const Params& params, const void* slot) {
   if (V8_LIKELY(age_table[params.slot_offset] == AgeTable::Age::kYoung)) return;
 
   GenerationalBarrierSlow(local_data, age_table, slot, params.value_offset);
+}
+
+// static
+void WriteBarrier::GenerationalBarrierForSourceObject(
+    const Params& params, const void* inner_pointer) {
+  CheckParams(Type::kGenerational, params);
+
+  const CagedHeapLocalData& local_data = params.caged_heap();
+  const AgeTable& age_table = local_data.age_table;
+
+  // Assume that if the first element is in young generation, the whole range is
+  // in young generation.
+  if (V8_LIKELY(age_table[params.slot_offset] == AgeTable::Age::kYoung)) return;
+
+  GenerationalBarrierForSourceObjectSlow(local_data, inner_pointer);
 }
 
 #endif  // !CPPGC_YOUNG_GENERATION

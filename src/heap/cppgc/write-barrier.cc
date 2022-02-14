@@ -140,6 +140,20 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
   // Record slot.
   local_data.heap_base.remembered_slots().insert(const_cast<void*>(slot));
 }
+
+// static
+void WriteBarrier::GenerationalBarrierForSourceObjectSlow(
+    const CagedHeapLocalData& local_data, const void* inner_pointer) {
+  DCHECK(inner_pointer);
+
+  auto& object_header =
+      BasePage::FromInnerAddress(&local_data.heap_base, inner_pointer)
+          ->ObjectHeaderFromInnerAddress(inner_pointer);
+
+  // Record the source object.
+  local_data.heap_base.remembered_source_objects().emplace(
+      const_cast<HeapObjectHeader*>(&object_header));
+}
 #endif  // CPPGC_YOUNG_GENERATION
 
 #if V8_ENABLE_CHECKS

@@ -137,6 +137,7 @@ void HeapBase::ResetRememberedSet() {
   DCHECK(AllLABsAreEmpty(raw_heap()).value());
   caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
   remembered_slots().clear();
+  remembered_source_objects().clear();
 }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
