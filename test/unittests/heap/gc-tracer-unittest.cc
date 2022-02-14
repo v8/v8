@@ -325,12 +325,12 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   EXPECT_EQ(3000000u, tracer->incremental_marking_bytes_);
   EXPECT_EQ(1000000 / 100,
             tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
-  StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
-               StartTracingMode::kIncrementalEnterPause);
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
   EXPECT_EQ(400, tracer->incremental_marking_duration_);
   EXPECT_EQ(4000000u, tracer->incremental_marking_bytes_);
+  StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
+               StartTracingMode::kIncrementalEnterPause);
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(400, tracer->current_.incremental_marking_duration);
   EXPECT_EQ(4000000u, tracer->current_.incremental_marking_bytes);

@@ -262,8 +262,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void NotifySweepingCompleted();
 
-  void NotifyGCCompleted();
-
   void NotifyYoungGenerationHandling(
       YoungGenerationHandling young_generation_handling);
 
@@ -520,7 +518,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   IncrementalMarkingInfos
       incremental_marking_scopes_[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
 
-
   // Timestamp and allocation counter at the last sampled allocation event.
   double allocation_time_ms_;
   size_t new_space_allocation_counter_bytes_;
@@ -553,8 +550,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
   base::RingBuffer<BytesAndDuration> recorded_embedder_generation_allocations_;
   base::RingBuffer<double> recorded_survival_ratios_;
-
-  bool metrics_report_pending_ = false;
 
   // When a full GC cycle is interrupted by a young generation GC cycle, the
   // |previous_| event is used as temporary storage for the |current_| event

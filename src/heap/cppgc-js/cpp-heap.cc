@@ -243,7 +243,6 @@ void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
     const FullCycle& cppgc_event) {
   DCHECK(!last_full_gc_event_.has_value());
   last_full_gc_event_ = cppgc_event;
-  GetIsolate()->heap()->tracer()->NotifyGCCompleted();
 }
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(

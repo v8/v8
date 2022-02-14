@@ -501,6 +501,8 @@ void GCTracer::StopCycle(GarbageCollector collector) {
       young_gc_while_full_gc_ = false;
     }
   } else {
+    ReportFullCycleToRecorder();
+
     counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
 
     if (FLAG_trace_gc_freelists) {
@@ -528,8 +530,6 @@ void GCTracer::NotifySweepingCompleted() {
     heap_->code_space()->PrintAllocationsOrigins();
     heap_->map_space()->PrintAllocationsOrigins();
   }
-  metrics_report_pending_ = true;
-  NotifyGCCompleted();
 }
 
 void GCTracer::SampleAllocation(double current_ms,
@@ -1380,22 +1380,6 @@ void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
                        "background_duration", marking_background_duration);
 }
 
-void GCTracer::NotifyGCCompleted() {
-  // Report full GC cycle metric to recorder only when both v8 and cppgc (if
-  // available) GCs have finished. This method is invoked by both v8 and cppgc.
-  if (!metrics_report_pending_) {
-    // V8 sweeping is not done yet.
-    return;
-  }
-  const auto* cpp_heap = heap_->cpp_heap();
-  if (cpp_heap &&
-      !CppHeap::From(cpp_heap)->GetMetricRecorder()->MetricsReportPending()) {
-    // Cppgc sweeping is not done yet.
-    return;
-  }
-  ReportFullCycleToRecorder();
-}
-
 namespace {
 
 void CopyTimeMetrics(
@@ -1462,20 +1446,18 @@ void FlushBatchedIncrementalEvents(
 }  // namespace
 
 void GCTracer::ReportFullCycleToRecorder() {
-  // TODO(chromium:1154636): The following check should be added. It is now
-  // failing because this method is called during young generation GC cycles
-  // that finalize sweeping. This should be fixed.
-  // DCHECK(!Event::IsYoungGenerationEvent(current_.type));
+  DCHECK(!Event::IsYoungGenerationEvent(current_.type));
+  DCHECK_EQ(Event::State::NOT_RUNNING, current_.state);
+  auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
+  DCHECK_IMPLIES(cpp_heap,
+                 cpp_heap->GetMetricRecorder()->MetricsReportPending());
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
-  metrics_report_pending_ = false;
   if (!recorder->HasEmbedderRecorder()) {
     incremental_mark_batched_events_.events.clear();
-    if (heap_->cpp_heap()) {
-      v8::internal::CppHeap::From(heap_->cpp_heap())
-          ->GetMetricRecorder()
-          ->ClearCachedEvents();
+    if (cpp_heap) {
+      cpp_heap->GetMetricRecorder()->ClearCachedEvents();
     }
     return;
   }
@@ -1484,8 +1466,7 @@ void GCTracer::ReportFullCycleToRecorder() {
                                   heap_->isolate());
   }
   v8::metrics::GarbageCollectionFullCycle event;
-  if (heap_->cpp_heap()) {
-    auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
+  if (cpp_heap) {
     cpp_heap->GetMetricRecorder()->FlushBatchedIncrementalEvents();
     const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
         optional_cppgc_event =
@@ -1546,6 +1527,7 @@ void GCTracer::ReportIncrementalMarkingStepToRecorder() {
 
 void GCTracer::ReportYoungCycleToRecorder() {
   DCHECK(Event::IsYoungGenerationEvent(current_.type));
+  DCHECK_EQ(Event::State::NOT_RUNNING, current_.state);
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
