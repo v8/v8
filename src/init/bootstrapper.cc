@@ -6011,8 +6011,15 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       Handle<Object> value(cell->value(), isolate());
       if (value->IsTheHole(isolate())) continue;
       PropertyDetails details = cell->property_details();
-      if (details.kind() != PropertyKind::kData) continue;
-      JSObject::AddProperty(isolate(), to, key, value, details.attributes());
+      if (details.kind() == PropertyKind::kData) {
+        JSObject::AddProperty(isolate(), to, key, value, details.attributes());
+      } else {
+        DCHECK_EQ(PropertyKind::kAccessor, details.kind());
+        DCHECK(!to->HasFastProperties());
+        PropertyDetails d(PropertyKind::kAccessor, details.attributes(),
+                          PropertyCellType::kMutable);
+        JSObject::SetNormalizedProperty(to, key, value, d);
+      }
     }
 
   } else if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -6186,8 +6193,8 @@ Genesis::Genesis(
 
     // If no global proxy template was passed in, simply use the global in the
     // snapshot. If a global proxy template was passed in it's used to recreate
-    // the global object and its protype chain, and the data properties from the
-    // deserialized global are copied onto it.
+    // the global object and its prototype chain, and the data and the accessor
+    // properties from the deserialized global are copied onto it.
     if (context_snapshot_index == 0 && !global_proxy_template.IsEmpty()) {
       Handle<JSGlobalObject> global_object =
           CreateNewGlobals(global_proxy_template, global_proxy);
