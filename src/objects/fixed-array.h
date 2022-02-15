@@ -141,10 +141,13 @@ class FixedArray
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
   inline void set_undefined(Isolate* isolate, int index);
+  inline void set_undefined(ReadOnlyRoots ro_roots, int index);
   inline void set_null(int index);
   inline void set_null(Isolate* isolate, int index);
+  inline void set_null(ReadOnlyRoots ro_roots, int index);
   inline void set_the_hole(int index);
   inline void set_the_hole(Isolate* isolate, int index);
+  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
   inline ObjectSlot GetFirstElementAddress();
   inline bool ContainsOnlySmisOrHoles();
@@ -214,10 +217,6 @@ class FixedArray
 
  private:
   STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
-
-  inline void set_undefined(ReadOnlyRoots ro_roots, int index);
-  inline void set_null(ReadOnlyRoots ro_roots, int index);
-  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
   TQ_OBJECT_CONSTRUCTORS(FixedArray)
 };

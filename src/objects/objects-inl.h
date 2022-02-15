@@ -1120,7 +1120,8 @@ Object Object::GetSimpleHash(Object object) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (object.IsHeapNumber()) {
+  auto instance_type = HeapObject::cast(object).map().instance_type();
+  if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
     double num = HeapNumber::cast(object).value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
     // Use ComputeUnseededHash for all values in Signed32 range, including -0,
@@ -1133,20 +1134,16 @@ Object Object::GetSimpleHash(Object object) {
       hash = ComputeLongHash(base::double_to_uint64(num));
     }
     return Smi::FromInt(hash & Smi::kMaxValue);
-  }
-  if (object.IsName()) {
+  } else if (InstanceTypeChecker::IsName(instance_type)) {
     uint32_t hash = Name::cast(object).EnsureHash();
     return Smi::FromInt(hash);
-  }
-  if (object.IsOddball()) {
+  } else if (InstanceTypeChecker::IsOddball(instance_type)) {
     uint32_t hash = Oddball::cast(object).to_string().EnsureHash();
     return Smi::FromInt(hash);
-  }
-  if (object.IsBigInt()) {
+  } else if (InstanceTypeChecker::IsBigInt(instance_type)) {
     uint32_t hash = BigInt::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
-  }
-  if (object.IsSharedFunctionInfo()) {
+  } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
     uint32_t hash = SharedFunctionInfo::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
