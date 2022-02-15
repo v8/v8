@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE Register final {
     return Register(kRegisterFileStartOffset - operand);
   }
 
-  static Register FromShortStar(Bytecode bytecode) {
+  static constexpr Register FromShortStar(Bytecode bytecode) {
     DCHECK(Bytecodes::IsShortStar(bytecode));
     return Register(static_cast<int>(Bytecode::kStar0) -
                     static_cast<int>(bytecode));
