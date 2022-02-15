@@ -1685,27 +1685,6 @@ inline std::ostream& operator<<(std::ostream& os,
   }
 }
 
-enum class OptimizationTier {
-  kNone = 0b00,
-  kMidTier = 0b01,
-  kTopTier = 0b10,
-  kLastOptimizationTier = kTopTier
-};
-static constexpr uint32_t kNoneOrMidTierMask = 0b10;
-static constexpr uint32_t kNoneMask = 0b11;
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const OptimizationTier& tier) {
-  switch (tier) {
-    case OptimizationTier::kNone:
-      return os << "OptimizationTier::kNone";
-    case OptimizationTier::kMidTier:
-      return os << "OptimizationTier::kMidTier";
-    case OptimizationTier::kTopTier:
-      return os << "OptimizationTier::kTopTier";
-  }
-}
-
 enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
 enum class CallFeedbackContent { kTarget, kReceiver };
 

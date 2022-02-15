@@ -1197,7 +1197,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
     os << "\n - no optimized code";
   }
   os << "\n - optimization marker: " << optimization_marker();
-  os << "\n - optimization tier: " << optimization_tier();
+  os << "\n - maybe has optimized code: " << maybe_has_optimized_code();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - profiler ticks: " << profiler_ticks();
   os << "\n - closure feedback cell array: ";

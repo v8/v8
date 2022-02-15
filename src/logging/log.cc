@@ -1393,7 +1393,7 @@ void Logger::FeedbackVectorEvent(FeedbackVector vector, AbstractCode code) {
       << vector.length();
   msg << kNext << reinterpret_cast<void*>(code.InstructionStart());
   msg << kNext << vector.optimization_marker();
-  msg << kNext << vector.optimization_tier();
+  msg << kNext << vector.maybe_has_optimized_code();
   msg << kNext << vector.invocation_count();
   msg << kNext << vector.profiler_ticks() << kNext;
 

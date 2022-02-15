@@ -114,8 +114,7 @@ RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   DCHECK(function->shared().is_compiled());
 
   function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-      function->raw_feedback_cell(), function->shared(),
-      "Runtime_HealOptimizedCodeSlot");
+      function->shared(), "Runtime_HealOptimizedCodeSlot");
   return function->code();
 }
 

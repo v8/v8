@@ -441,8 +441,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
     // The code in the function's optimized code feedback vector slot might
     // be different from the code on the function - evict it if necessary.
     function.feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-        function.raw_feedback_cell(), function.shared(),
-        "unlinking code marked for deopt");
+        function.shared(), "unlinking code marked for deopt");
     if (!code.deopt_already_counted()) {
       code.set_deopt_already_counted(true);
     }

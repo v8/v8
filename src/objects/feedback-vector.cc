@@ -262,7 +262,7 @@ Handle<FeedbackVector> FeedbackVector::New(
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
   DCHECK_EQ(vector->optimization_marker(), OptimizationMarker::kNone);
-  DCHECK_EQ(vector->optimization_tier(), OptimizationTier::kNone);
+  DCHECK(!vector->maybe_has_optimized_code());
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
   DCHECK(vector->maybe_optimized_code()->IsCleared());
@@ -388,8 +388,7 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
 
 // static
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
-                                      Handle<CodeT> code,
-                                      FeedbackCell feedback_cell) {
+                                      Handle<CodeT> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   // We should set optimized code only when there is no valid optimized code.
   DCHECK(!vector->has_optimized_code() ||
@@ -403,8 +402,8 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code),
                                    kReleaseStore);
   int32_t state = vector->flags();
-  state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
   state = OptimizationMarkerBits::update(state, OptimizationMarker::kNone);
+  state = MaybeHasOptimizedCodeBit::update(state, true);
   vector->set_flags(state);
 }
 
@@ -415,12 +414,12 @@ void FeedbackVector::SetInterruptBudget(FeedbackCell feedback_cell) {
   feedback_cell.set_interrupt_budget(FLAG_interrupt_budget);
 }
 
-void FeedbackVector::ClearOptimizedCode(FeedbackCell feedback_cell) {
+void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
-  DCHECK_NE(optimization_tier(), OptimizationTier::kNone);
+  DCHECK(maybe_has_optimized_code());
   set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()),
                            kReleaseStore);
-  ClearOptimizationTier(feedback_cell);
+  set_maybe_has_optimized_code(false);
 }
 
 void FeedbackVector::ClearOptimizationMarker() {
@@ -433,24 +432,16 @@ void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
   set_flags(state);
 }
 
-void FeedbackVector::ClearOptimizationTier(FeedbackCell feedback_cell) {
-  int32_t state = flags();
-  state = OptimizationTierBits::update(state, OptimizationTier::kNone);
-  set_flags(state);
-}
-
 void FeedbackVector::InitializeOptimizationState() {
-  int32_t state = 0;
-  state = OptimizationMarkerBits::update(state, OptimizationMarker::kNone);
-  state = OptimizationTierBits::update(state, OptimizationTier::kNone);
-  set_flags(state);
+  set_flags(OptimizationMarkerBits::encode(OptimizationMarker::kNone) |
+            MaybeHasOptimizedCodeBit::encode(false));
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    FeedbackCell feedback_cell, SharedFunctionInfo shared, const char* reason) {
+    SharedFunctionInfo shared, const char* reason) {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   if (slot->IsCleared()) {
-    ClearOptimizationTier(feedback_cell);
+    set_maybe_has_optimized_code(false);
     return;
   }
 
@@ -460,7 +451,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     if (!code.deopt_already_counted()) {
       code.set_deopt_already_counted(true);
     }
-    ClearOptimizedCode(feedback_cell);
+    ClearOptimizedCode();
   }
 }
 

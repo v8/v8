@@ -93,13 +93,7 @@ inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
   return kind == CodeKind::TURBOFAN;
 }
 
-inline OptimizationTier GetTierForCodeKind(CodeKind kind) {
-  if (kind == CodeKind::TURBOFAN) return OptimizationTier::kTopTier;
-  return OptimizationTier::kNone;
-}
-
 inline CodeKind CodeKindForTopTier() { return CodeKind::TURBOFAN; }
-
 inline CodeKind CodeKindForOSR() { return CodeKind::TURBOFAN; }
 
 // The dedicated CodeKindFlag enum represents all code kinds in a format

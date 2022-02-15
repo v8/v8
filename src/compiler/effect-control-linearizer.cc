@@ -3616,7 +3616,7 @@ void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
           __ Word32And(optimization_state,
                        __ Uint32Constant(
                            FeedbackVector::
-                               kHasNoTopTierCodeOrCompileOptimizedMarkerMask)),
+                               kHasOptimizedCodeOrCompileOptimizedMarkerMask)),
           __ Int32Constant(0)),
       &fallthrough, &has_optimized_code_or_marker, BranchHint::kTrue);
 

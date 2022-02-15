@@ -4134,10 +4134,11 @@ TEST(WeakReference) {
           .Build();
   CHECK(code->IsCode());
 
+  // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
+  // to the FOR_TESTING code kind).
   fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(ToCodeT(*code)),
                                v8::kReleaseStore);
-  fv->set_flags(i::FeedbackVector::OptimizationTierBits::encode(
-                    i::OptimizationTier::kTopTier) |
+  fv->set_flags(i::FeedbackVector::MaybeHasOptimizedCodeBit::encode(true) |
                 i::FeedbackVector::OptimizationMarkerBits::encode(
                     i::OptimizationMarker::kNone));
 

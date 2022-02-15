@@ -132,11 +132,10 @@ CodeT FeedbackVector::optimized_code() const {
   if (slot->GetHeapObject(&heap_object)) {
     code = CodeT::cast(heap_object);
   }
-  // It is possible that the maybe_optimized_code slot is cleared but the
-  // optimization tier hasn't been updated yet. We update the tier when we
-  // execute the function next time / when we create new closure.
-  DCHECK_IMPLIES(!code.is_null(), OptimizationTierBits::decode(flags()) ==
-                                      GetTierForCodeKind(code.kind()));
+  // It is possible that the maybe_optimized_code slot is cleared but the flags
+  // haven't been updated yet. We update them when we execute the function next
+  // time / when we create new closure.
+  DCHECK_IMPLIES(!code.is_null(), maybe_has_optimized_code());
   return code;
 }
 
@@ -144,17 +143,17 @@ OptimizationMarker FeedbackVector::optimization_marker() const {
   return OptimizationMarkerBits::decode(flags());
 }
 
-OptimizationTier FeedbackVector::optimization_tier() const {
-  OptimizationTier tier = OptimizationTierBits::decode(flags());
-  // It is possible that the optimization tier bits aren't updated when the code
-  // was cleared due to a GC.
-  DCHECK_IMPLIES(tier == OptimizationTier::kNone,
-                 maybe_optimized_code(kAcquireLoad)->IsCleared());
-  return tier;
+bool FeedbackVector::has_optimized_code() const {
+  DCHECK_IMPLIES(!optimized_code().is_null(), maybe_has_optimized_code());
+  return !optimized_code().is_null();
 }
 
-bool FeedbackVector::has_optimized_code() const {
-  return !optimized_code().is_null();
+bool FeedbackVector::maybe_has_optimized_code() const {
+  return MaybeHasOptimizedCodeBit::decode(flags());
+}
+
+void FeedbackVector::set_maybe_has_optimized_code(bool value) {
+  set_flags(MaybeHasOptimizedCodeBit::update(flags(), value));
 }
 
 bool FeedbackVector::has_optimization_marker() const {

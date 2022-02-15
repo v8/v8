@@ -842,8 +842,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<CodeT> GetCodeFromOptimizedCodeCache(
   if (osr_offset.IsNone() && function->has_feedback_vector()) {
     FeedbackVector feedback_vector = function->feedback_vector();
     feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
-        function->raw_feedback_cell(), function->shared(),
-        "GetCodeFromOptimizedCodeCache");
+        function->shared(), "GetCodeFromOptimizedCodeCache");
     code = feedback_vector.optimized_code();
   } else if (!osr_offset.IsNone()) {
     code = function->context()
@@ -894,8 +893,7 @@ void InsertCodeIntoOptimizedCodeCache(
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
         handle(function->feedback_vector(), isolate);
-    FeedbackVector::SetOptimizedCode(vector, code,
-                                     function->raw_feedback_cell());
+    FeedbackVector::SetOptimizedCode(vector, code);
   } else {
     DCHECK(CodeKindCanOSR(kind));
     OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
@@ -3292,8 +3290,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
       // deoptimized the code on the feedback vector. So check for any
       // deoptimized code just before installing it on the funciton.
       function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-          function->raw_feedback_cell(), *shared,
-          "new function from shared function info");
+          *shared, "new function from shared function info");
       CodeT code = function->feedback_vector().optimized_code();
       if (!code.is_null()) {
         // Caching of optimized code enabled and optimized code found.
