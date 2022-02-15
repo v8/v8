@@ -49,7 +49,7 @@ void FeedbackCell::reset_feedback_vector(
 
 void FeedbackCell::SetInitialInterruptBudget() {
   if (FLAG_lazy_feedback_allocation) {
-    set_interrupt_budget(FLAG_budget_for_feedback_vector_allocation);
+    set_interrupt_budget(FLAG_interrupt_budget_for_feedback_allocation);
   } else {
     set_interrupt_budget(FLAG_interrupt_budget);
   }

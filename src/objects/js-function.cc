@@ -240,18 +240,16 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   DCHECK(function->shared().HasBytecodeArray());
 
-  bool has_closure_feedback_cell_array =
+  const bool has_closure_feedback_cell_array =
       (function->has_closure_feedback_cell_array() ||
        function->has_feedback_vector());
   // Initialize the interrupt budget to the feedback vector allocation budget
   // when initializing the feedback cell for the first time or after a bytecode
   // flush. We retain the closure feedback cell array on bytecode flush, so
   // reset_budget_for_feedback_allocation is used to reset the budget in these
-  // cases. When using a fixed allocation budget, we reset it on a bytecode
-  // flush so no additional initialization is required here.
-  if (V8_UNLIKELY(FLAG_feedback_allocation_on_bytecode_size) &&
-      (reset_budget_for_feedback_allocation ||
-       !has_closure_feedback_cell_array)) {
+  // cases.
+  if (reset_budget_for_feedback_allocation ||
+      !has_closure_feedback_cell_array) {
     function->SetInterruptBudget();
   }
 

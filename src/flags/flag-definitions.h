@@ -596,29 +596,29 @@ DEFINE_BOOL_READONLY(enable_sealed_frozen_elements_kind, true,
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
+// Tiering: Sparkplug / feedback vector allocation.
+DEFINE_INT(interrupt_budget_for_feedback_allocation, 940,
+           "The fixed interrupt budget (in bytecode size) for allocating "
+           "feedback vectors")
+DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
+           "The interrupt budget factor (applied to bytecode size) for "
+           "allocating feedback vectors, used when bytecode size is known")
+
+// Tiering: Turbofan.
+DEFINE_INT(interrupt_budget, 132 * KB,
+           "interrupt budget which should be used for the profiler counter")
 DEFINE_INT(ticks_before_optimization, 3,
            "the number of times we have to go through the interrupt budget "
            "before considering this function for optimization")
 DEFINE_INT(bytecode_size_allowance_per_tick, 1100,
            "increases the number of ticks required for optimization by "
            "bytecode.length/X")
-DEFINE_INT(interrupt_budget, 132 * KB,
-           "interrupt budget which should be used for the profiler counter")
 DEFINE_INT(
     max_bytecode_size_for_early_opt, 81,
     "Maximum bytecode length for a function to be optimized on the first tick")
 
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
-DEFINE_INT(budget_for_feedback_vector_allocation, 940,
-           "The budget in amount of bytecode executed by a function before we "
-           "decide to allocate feedback vectors")
-DEFINE_INT(scale_factor_for_feedback_allocation, 8,
-           "scale bytecode size for feedback vector allocation.")
-DEFINE_BOOL(feedback_allocation_on_bytecode_size, true,
-            "Instead of a fixed budget for lazy feedback vector allocation, "
-            "scale it based in the bytecode size.")
-DEFINE_IMPLICATION(sparkplug, feedback_allocation_on_bytecode_size)
 DEFINE_BOOL(lazy_feedback_allocation, true, "Allocate feedback vectors lazily")
 
 // Flags for Ignition.

@@ -13,7 +13,7 @@ from . import base
 EXTRA_FLAGS = [
     (0.1, '--always-opt'),
     (0.1, '--assert-types'),
-    (0.1, '--budget-for-feedback-vector-allocation=0'),
+    (0.1, '--interrupt-budget-for-feedback-allocation=0'),
     (0.1, '--cache=code'),
     (0.25, '--compact-map-space'),
     (0.1, '--force-slow-path'),
@@ -278,7 +278,8 @@ class InterruptBudgetFuzzer(Fuzzer):
       # For most code paths, only one of the flags below has a meaning
       # based on the flag above.
       flag2 = '--interrupt-budget=%d' % rng.randint(0, 135168)
-      flag3 = '--budget-for-feedback-vector-allocation=%d' % rng.randint(0, 940)
+      flag3 = '--interrupt-budget-for-feedback-allocation=%d' % rng.randint(
+          0, 940)
 
       yield [flag1, flag2, flag3]
 

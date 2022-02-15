@@ -545,7 +545,12 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
           count =
               static_cast<uint32_t>(func.feedback_vector().invocation_count());
         } else if (func.raw_feedback_cell().interrupt_budget() <
-                   FLAG_budget_for_feedback_vector_allocation) {
+                   FLAG_interrupt_budget_for_feedback_allocation) {
+          // TODO(jgruber): The condition above is no longer precise since we
+          // may use either the fixed interrupt_budget or
+          // FLAG_interrupt_budget_factor_for_feedback_allocation. If the
+          // latter, we may incorrectly set a count of 1.
+          //
           // We haven't allocated feedback vector, but executed the function
           // atleast once. We don't have precise invocation count here.
           count = 1;
