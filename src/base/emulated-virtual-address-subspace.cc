@@ -16,7 +16,7 @@ EmulatedVirtualAddressSubspace::EmulatedVirtualAddressSubspace(
     size_t total_size)
     : VirtualAddressSpace(parent_space->page_size(),
                           parent_space->allocation_granularity(), base,
-                          total_size),
+                          total_size, parent_space->max_page_permissions()),
       mapped_size_(mapped_size),
       parent_space_(parent_space),
       region_allocator_(base, mapped_size, parent_space_->page_size()) {
@@ -139,7 +139,7 @@ bool EmulatedVirtualAddressSubspace::CanAllocateSubspaces() {
 std::unique_ptr<v8::VirtualAddressSpace>
 EmulatedVirtualAddressSubspace::AllocateSubspace(
     Address hint, size_t size, size_t alignment,
-    PagePermissions max_permissions) {
+    PagePermissions max_page_permissions) {
   UNREACHABLE();
 }
 

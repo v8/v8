@@ -184,11 +184,15 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
 
     Address hint = RoundDown(vas->RandomPageAddress(), kSandboxAlignment);
 
-    // Currently, executable memory is still allocated inside the sandbox. In
-    // the future, we should drop that and use kReadWrite as max_permissions.
-    address_space_ =
-        vas->AllocateSubspace(hint, reservation_size, kSandboxAlignment,
-                              PagePermissions::kReadWriteExecute);
+    // There should be no executable pages mapped inside the sandbox since
+    // those could be corrupted by an attacker and therefore pose a security
+    // risk. Furthermore, allowing executable mappings in the sandbox requires
+    // MAP_JIT on macOS, which causes fork() to become excessively slow
+    // (multiple seconds or even minutes for a 1TB sandbox on macOS 12.X), in
+    // turn causing tests to time out. As such, the maximum page permission
+    // inside the sandbox should be read + write.
+    address_space_ = vas->AllocateSubspace(
+        hint, reservation_size, kSandboxAlignment, PagePermissions::kReadWrite);
     if (!address_space_) {
       size /= 2;
     }

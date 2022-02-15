@@ -196,12 +196,11 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
   // Memory permissions. These should be kept in sync with the ones in
-  // v8::PageAllocator.
+  // v8::PageAllocator and v8::PagePermissions.
   enum class MemoryPermission {
     kNoAccess,
     kRead,
     kReadWrite,
-    // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
     kReadExecute,
     // TODO(jkummerow): Remove this when Wasm has a platform-independent

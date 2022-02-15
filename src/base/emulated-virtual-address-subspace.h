@@ -61,7 +61,7 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_permissions) override;
+      PagePermissions max_page_permissions) override;
 
   bool DiscardSystemPages(Address address, size_t size) override;
 

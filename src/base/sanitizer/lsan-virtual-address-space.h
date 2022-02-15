@@ -52,7 +52,7 @@ class V8_BASE_EXPORT LsanVirtualAddressSpace final
 
   std::unique_ptr<VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_permissions) override;
+      PagePermissions max_page_permissions) override;
 
   bool DiscardSystemPages(Address address, size_t size) override {
     return vas_->DiscardSystemPages(address, size);

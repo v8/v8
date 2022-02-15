@@ -17,7 +17,8 @@ namespace base {
 LsanVirtualAddressSpace::LsanVirtualAddressSpace(
     std::unique_ptr<v8::VirtualAddressSpace> vas)
     : VirtualAddressSpace(vas->page_size(), vas->allocation_granularity(),
-                          vas->base(), vas->size()),
+                          vas->base(), vas->size(),
+                          vas->max_page_permissions()),
       vas_(std::move(vas)) {
   DCHECK_NOT_NULL(vas_);
 }
@@ -46,9 +47,9 @@ bool LsanVirtualAddressSpace::FreePages(Address address, size_t size) {
 
 std::unique_ptr<VirtualAddressSpace> LsanVirtualAddressSpace::AllocateSubspace(
     Address hint, size_t size, size_t alignment,
-    PagePermissions max_permissions) {
+    PagePermissions max_page_permissions) {
   auto subspace =
-      vas_->AllocateSubspace(hint, size, alignment, max_permissions);
+      vas_->AllocateSubspace(hint, size, alignment, max_page_permissions);
 #if defined(LEAK_SANITIZER)
   if (subspace) {
     subspace = std::make_unique<LsanVirtualAddressSpace>(std::move(subspace));
