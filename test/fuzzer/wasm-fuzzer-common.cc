@@ -623,6 +623,24 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << ");\n";
   }
 
+  for (WasmDataSegment segment : module->data_segments) {
+    base::Vector<const uint8_t> data = wire_bytes.module_bytes().SubVector(
+        segment.source.offset(), segment.source.end_offset());
+    if (segment.active) {
+      // TODO(wasm): Add other expressions when needed.
+      CHECK_EQ(ConstantExpression::kI32Const, segment.dest_addr.kind());
+      os << "builder.addDataSegment(" << segment.dest_addr.i32_value() << ", ";
+    } else {
+      os << "builder.addPassiveDataSegment(";
+    }
+    os << "[";
+    if (!data.empty()) {
+      os << unsigned{data[0]};
+      for (unsigned byte : data + 1) os << ", " << byte;
+    }
+    os << "]);\n";
+  }
+
   for (WasmGlobal& global : module->globals) {
     os << "builder.addGlobal(" << ValueTypeToConstantName(global.type) << ", "
        << global.mutability << ", ";
