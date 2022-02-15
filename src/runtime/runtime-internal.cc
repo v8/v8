@@ -413,23 +413,6 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromCode) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(FeedbackCell, feedback_cell, 0);
-
-  // TODO(leszeks): Consider checking stack interrupts here, and removing
-  // those checks for code that can have budget interrupts.
-
-  DCHECK(feedback_cell->value().IsFeedbackVector());
-
-  FeedbackVector::SetInterruptBudget(*feedback_cell);
-
-  SealHandleScope shs(isolate);
-  isolate->tiering_manager()->OnInterruptTickFromCode();
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 namespace {
 
 #if V8_ENABLE_WEBASSEMBLY

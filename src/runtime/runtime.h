@@ -222,7 +222,6 @@ namespace internal {
   F(IncrementUseCounter, 1, 1)                               \
   F(BytecodeBudgetInterruptFromBytecode, 1, 1)               \
   F(BytecodeBudgetInterruptWithStackCheckFromBytecode, 1, 1) \
-  F(BytecodeBudgetInterruptFromCode, 1, 1)                   \
   F(NewError, 2, 1)                                          \
   F(NewReferenceError, 2, 1)                                 \
   F(NewSyntaxError, 2, 1)                                    \

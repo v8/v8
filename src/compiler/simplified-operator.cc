@@ -1320,18 +1320,6 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAsUintN(
       SpeculativeBigIntAsNParameters(bits, feedback));
 }
 
-const Operator* SimplifiedOperatorBuilder::UpdateInterruptBudget(int delta) {
-  return zone()->New<Operator1<int>>(
-      IrOpcode::kUpdateInterruptBudget, Operator::kNoThrow | Operator::kNoDeopt,
-      "UpdateInterruptBudget", 1, 1, 1, 0, 1, 0, delta);
-}
-
-const Operator* SimplifiedOperatorBuilder::TierUpCheck() {
-  return zone()->New<Operator>(IrOpcode::kTierUpCheck,
-                               Operator::kNoThrow | Operator::kNoDeopt,
-                               "TierUpCheck", 5, 1, 1, 0, 1, 0);
-}
-
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
   DCHECK(type.CanBeAsserted());
   return zone()->New<Operator1<Type>>(IrOpcode::kAssertType,

@@ -271,11 +271,5 @@ void TieringManager::OnInterruptTickFromBytecode() {
   OnInterruptTick(it.frame());
 }
 
-void TieringManager::OnInterruptTickFromCode() {
-  JavaScriptFrameIterator it(isolate_);
-  DCHECK(it.frame()->is_optimized());
-  OnInterruptTick(it.frame());
-}
-
 }  // namespace internal
 }  // namespace v8

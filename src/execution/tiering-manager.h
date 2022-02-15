@@ -25,7 +25,6 @@ class TieringManager {
   explicit TieringManager(Isolate* isolate) : isolate_(isolate) {}
 
   void OnInterruptTickFromBytecode();
-  void OnInterruptTickFromCode();
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 

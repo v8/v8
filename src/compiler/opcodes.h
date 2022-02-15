@@ -488,14 +488,12 @@
   V(StringToLowerCaseIntl)              \
   V(StringToNumber)                     \
   V(StringToUpperCaseIntl)              \
-  V(TierUpCheck)                        \
   V(ToBoolean)                          \
   V(TransitionAndStoreElement)          \
   V(TransitionAndStoreNonNumberElement) \
   V(TransitionAndStoreNumberElement)    \
   V(TransitionElementsKind)             \
   V(TypeOf)                             \
-  V(UpdateInterruptBudget)              \
   V(VerifyType)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \

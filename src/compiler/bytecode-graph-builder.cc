@@ -90,13 +90,6 @@ class BytecodeGraphBuilder {
     return feedback_vector_node_;
   }
 
-  void CreateFeedbackCellNode();
-  Node* feedback_cell_node() const {
-    DCHECK(CodeKindCanTierUp(code_kind()));
-    DCHECK_NOT_NULL(feedback_cell_node_);
-    return feedback_cell_node_;
-  }
-
   // Same as above for the feedback vector node.
   void CreateNativeContextNode();
   Node* native_context_node() const {
@@ -106,12 +99,7 @@ class BytecodeGraphBuilder {
 
   Node* BuildLoadFeedbackCell(int index);
 
-  // Checks the optimization marker and potentially triggers compilation or
-  // installs the finished code object.
-  // Only relevant for specific code kinds (see CodeKindCanTierUp).
-  void MaybeBuildTierUpCheck();
-
-  // Builder for loading the a native context field.
+  // Builder for loading a native context field.
   Node* BuildLoadNativeContextField(int index);
 
   // Helper function for creating a feedback source containing type feedback
@@ -342,8 +330,6 @@ class BytecodeGraphBuilder {
   void BuildJumpIfNotHole();
   void BuildJumpIfJSReceiver();
 
-  void BuildUpdateInterruptBudget(int delta);
-
   void BuildSwitchOnSmi(Node* condition);
   void BuildSwitchOnGeneratorState(
       const ZoneVector<ResumeJumpTarget>& resume_jump_targets,
@@ -505,7 +491,6 @@ class BytecodeGraphBuilder {
   Node** input_buffer_;
 
   const CodeKind code_kind_;
-  Node* feedback_cell_node_;
   Node* feedback_vector_node_;
   Node* native_context_node_;
 
@@ -1081,7 +1066,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       input_buffer_size_(0),
       input_buffer_(nullptr),
       code_kind_(code_kind),
-      feedback_cell_node_(nullptr),
       feedback_vector_node_(nullptr),
       native_context_node_(nullptr),
       needs_eager_checkpoint_(true),
@@ -1121,14 +1105,6 @@ Node* BytecodeGraphBuilder::GetParameter(int parameter_index,
   return cached_parameters_[index];
 }
 
-void BytecodeGraphBuilder::CreateFeedbackCellNode() {
-  DCHECK_NULL(feedback_cell_node_);
-  // Only used by tier-up logic; for code that doesn't tier-up, we can skip
-  // this.
-  if (!CodeKindCanTierUp(code_kind())) return;
-  feedback_cell_node_ = jsgraph()->Constant(feedback_cell_);
-}
-
 void BytecodeGraphBuilder::CreateFeedbackVectorNode() {
   DCHECK_NULL(feedback_vector_node_);
   feedback_vector_node_ = jsgraph()->Constant(feedback_vector());
@@ -1141,25 +1117,6 @@ Node* BytecodeGraphBuilder::BuildLoadFeedbackCell(int index) {
 void BytecodeGraphBuilder::CreateNativeContextNode() {
   DCHECK_NULL(native_context_node_);
   native_context_node_ = jsgraph()->Constant(native_context());
-}
-
-void BytecodeGraphBuilder::MaybeBuildTierUpCheck() {
-  // For OSR we don't tier up, so we don't need to build this check. Also
-  // tiering up currently tail calls to IET which tail calls aren't supported
-  // with OSR. See AdjustStackPointerForTailCall.
-  if (!CodeKindCanTierUp(code_kind()) || skip_tierup_check()) return;
-
-  int parameter_count = bytecode_array().parameter_count();
-  Node* target = GetFunctionClosure();
-  Node* new_target = GetParameter(
-      Linkage::GetJSCallNewTargetParamIndex(parameter_count), "%new.target");
-  Node* argc = GetParameter(
-      Linkage::GetJSCallArgCountParamIndex(parameter_count), "%argc");
-  DCHECK_EQ(environment()->Context()->opcode(), IrOpcode::kParameter);
-  Node* context = environment()->Context();
-
-  NewNode(simplified()->TierUpCheck(), feedback_vector_node(), target,
-          new_target, argc, context);
 }
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
@@ -1192,9 +1149,7 @@ void BytecodeGraphBuilder::CreateGraph() {
                   graph()->start());
   set_environment(&env);
 
-  CreateFeedbackCellNode();
   CreateFeedbackVectorNode();
-  MaybeBuildTierUpCheck();
   CreateNativeContextNode();
 
   VisitBytecodes();
@@ -3568,9 +3523,6 @@ void BytecodeGraphBuilder::VisitSetPendingMessage() {
 
 void BytecodeGraphBuilder::BuildReturn(const BytecodeLivenessState* liveness) {
   BuildLoopExitsForFunctionExit(liveness);
-  // Note: Negated offset since a return acts like a backwards jump, and should
-  // decrement the budget.
-  BuildUpdateInterruptBudget(-bytecode_iterator().current_offset());
   Node* pop_node = jsgraph()->ZeroConstant();
   Node* control =
       NewNode(common()->Return(), pop_node, environment()->LookupAccumulator());
@@ -3986,7 +3938,6 @@ void BytecodeGraphBuilder::BuildLoopExitsForFunctionExit(
 }
 
 void BytecodeGraphBuilder::BuildJump() {
-  BuildUpdateInterruptBudget(bytecode_iterator().GetRelativeJumpTargetOffset());
   MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
 }
 
@@ -3995,8 +3946,6 @@ void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
   {
     SubEnvironment sub_environment(this);
     NewIfTrue();
-    BuildUpdateInterruptBudget(
-        bytecode_iterator().GetRelativeJumpTargetOffset());
     MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   }
   NewIfFalse();
@@ -4007,8 +3956,6 @@ void BytecodeGraphBuilder::BuildJumpIfNot(Node* condition) {
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
-    BuildUpdateInterruptBudget(
-        bytecode_iterator().GetRelativeJumpTargetOffset());
     MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   }
   NewIfTrue();
@@ -4033,8 +3980,6 @@ void BytecodeGraphBuilder::BuildJumpIfFalse() {
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
-    BuildUpdateInterruptBudget(
-        bytecode_iterator().GetRelativeJumpTargetOffset());
     environment()->BindAccumulator(jsgraph()->FalseConstant());
     MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   }
@@ -4048,8 +3993,6 @@ void BytecodeGraphBuilder::BuildJumpIfTrue() {
     SubEnvironment sub_environment(this);
     NewIfTrue();
     environment()->BindAccumulator(jsgraph()->TrueConstant());
-    BuildUpdateInterruptBudget(
-        bytecode_iterator().GetRelativeJumpTargetOffset());
     MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   }
   NewIfFalse();
@@ -4079,16 +4022,6 @@ void BytecodeGraphBuilder::BuildJumpIfJSReceiver() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* condition = NewNode(simplified()->ObjectIsReceiver(), accumulator);
   BuildJumpIf(condition);
-}
-
-void BytecodeGraphBuilder::BuildUpdateInterruptBudget(int delta) {
-  if (!CodeKindCanTierUp(code_kind())) return;
-
-  // Keep uses of this in sync with Ignition's UpdateInterruptBudget.
-  int delta_with_current_bytecode =
-      delta - bytecode_iterator().current_bytecode_size();
-  NewNode(simplified()->UpdateInterruptBudget(delta_with_current_bytecode),
-          feedback_cell_node());
 }
 
 JSTypeHintLowering::LoweringResult

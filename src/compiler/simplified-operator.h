@@ -855,20 +855,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* TypeOf();
 
-  // Adds the given delta to the current feedback vector's interrupt budget,
-  // and calls the runtime profiler in case the budget is exhausted.  A note on
-  // the delta parameter: the interrupt budget mechanism originates in the
-  // interpreter and thus still refers to 'bytecodes' even though we are
-  // generating native code. The interrupt budget essentially corresponds to
-  // the number of bytecodes we can execute before calling the profiler. The
-  // delta parameter represents the executed bytecodes since the last update.
-  const Operator* UpdateInterruptBudget(int delta);
-
-  // Takes the current feedback vector as input 0, and generates a check of the
-  // vector's marker. Depending on the marker's value, we either do nothing,
-  // trigger optimized compilation, or install a finished code object.
-  const Operator* TierUpCheck();
-
   const Operator* ToBoolean();
 
   const Operator* StringConcat();
@@ -1229,37 +1215,6 @@ class FastApiCallNode final : public SimplifiedNodeWrapperBase {
     return TNode<Object>::UncheckedCast(
         NodeProperties::GetValueInput(node(), SlowCallArgumentIndex(i)));
   }
-};
-
-class TierUpCheckNode final : public SimplifiedNodeWrapperBase {
- public:
-  explicit constexpr TierUpCheckNode(Node* node)
-      : SimplifiedNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kTierUpCheck, node->opcode());
-  }
-
-#define INPUTS(V)                                       \
-  V(FeedbackVector, feedback_vector, 0, FeedbackVector) \
-  V(Target, target, 1, JSReceiver)                      \
-  V(NewTarget, new_target, 2, Object)                   \
-  V(InputCount, input_count, 3, UntaggedT)              \
-  V(Context, context, 4, Context)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
-};
-
-class UpdateInterruptBudgetNode final : public SimplifiedNodeWrapperBase {
- public:
-  explicit constexpr UpdateInterruptBudgetNode(Node* node)
-      : SimplifiedNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kUpdateInterruptBudget, node->opcode());
-  }
-
-  int delta() const { return OpParameter<int>(node()->op()); }
-
-#define INPUTS(V) V(FeedbackCell, feedback_cell, 0, FeedbackCell)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
 };
 
 #undef DEFINE_INPUT_ACCESSORS

@@ -184,8 +184,6 @@ class EffectControlLinearizer {
   void LowerCheckEqualsInternalizedString(Node* node, Node* frame_state);
   void LowerCheckEqualsSymbol(Node* node, Node* frame_state);
   Node* LowerTypeOf(Node* node);
-  void LowerTierUpCheck(Node* node);
-  void LowerUpdateInterruptBudget(Node* node);
   Node* LowerToBoolean(Node* node);
   Node* LowerPlainPrimitiveToNumber(Node* node);
   Node* LowerPlainPrimitiveToWord32(Node* node);
@@ -1168,12 +1166,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kTypeOf:
       result = LowerTypeOf(node);
-      break;
-    case IrOpcode::kTierUpCheck:
-      LowerTierUpCheck(node);
-      break;
-    case IrOpcode::kUpdateInterruptBudget:
-      LowerUpdateInterruptBudget(node);
       break;
     case IrOpcode::kNewDoubleElements:
       result = LowerNewDoubleElements(node);
@@ -3595,85 +3587,6 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
       callable.descriptor().GetStackParameterCount(), flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
                  __ NoContextConstant());
-}
-
-void EffectControlLinearizer::LowerTierUpCheck(Node* node) {
-  TierUpCheckNode n(node);
-  TNode<FeedbackVector> vector = n.feedback_vector();
-
-  Node* optimization_state =
-      __ LoadField(AccessBuilder::ForFeedbackVectorFlags(), vector);
-
-  // TODO(jgruber): The branch introduces a sequence of spills before the
-  // branch (and restores at `fallthrough`) that are completely unnecessary
-  // since the IfFalse continuation ends in a tail call. Investigate how to
-  // avoid these and fix it.
-
-  auto fallthrough = __ MakeLabel();
-  auto has_optimized_code_or_marker = __ MakeDeferredLabel();
-  __ BranchWithHint(
-      __ Word32Equal(
-          __ Word32And(optimization_state,
-                       __ Uint32Constant(
-                           FeedbackVector::
-                               kHasOptimizedCodeOrCompileOptimizedMarkerMask)),
-          __ Int32Constant(0)),
-      &fallthrough, &has_optimized_code_or_marker, BranchHint::kTrue);
-
-  __ Bind(&has_optimized_code_or_marker);
-
-  // The optimization marker field contains a non-trivial value, and some
-  // action has to be taken. For example, perhaps tier-up has been requested
-  // and we need to kick off a compilation job; or optimized code is available
-  // and should be tail-called.
-  //
-  // Currently we delegate these tasks to the InterpreterEntryTrampoline.
-  // TODO(jgruber,v8:8888): Consider a dedicated builtin instead.
-
-  TNode<HeapObject> code =
-      __ HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
-
-  JSTrampolineDescriptor descriptor;
-  CallDescriptor::Flags flags = CallDescriptor::kFixedTargetRegister |
-                                CallDescriptor::kIsTailCallForTierUp;
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), descriptor, descriptor.GetStackParameterCount(), flags,
-      Operator::kNoProperties);
-  Node* nodes[] = {code,        n.target(),  n.new_target(), n.input_count(),
-                   n.context(), __ effect(), __ control()};
-
-#ifdef DEBUG
-  static constexpr int kCodeContextEffectControl = 4;
-  DCHECK_EQ(arraysize(nodes),
-            descriptor.GetParameterCount() + kCodeContextEffectControl);
-#endif  // DEBUG
-
-  __ TailCall(call_descriptor, arraysize(nodes), nodes);
-
-  __ Bind(&fallthrough);
-}
-
-void EffectControlLinearizer::LowerUpdateInterruptBudget(Node* node) {
-  UpdateInterruptBudgetNode n(node);
-  TNode<FeedbackCell> feedback_cell = n.feedback_cell();
-  TNode<Int32T> budget = __ LoadField<Int32T>(
-      AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell);
-  Node* new_budget = __ Int32Add(budget, __ Int32Constant(n.delta()));
-  __ StoreField(AccessBuilder::ForFeedbackCellInterruptBudget(), feedback_cell,
-                new_budget);
-  if (n.delta() < 0) {
-    auto next = __ MakeLabel();
-    auto if_budget_exhausted = __ MakeDeferredLabel();
-    __ Branch(__ Int32LessThan(new_budget, __ Int32Constant(0)),
-              &if_budget_exhausted, &next);
-
-    __ Bind(&if_budget_exhausted);
-    CallBuiltin(Builtin::kBytecodeBudgetInterruptFromCode,
-                node->op()->properties(), feedback_cell);
-    __ Goto(&next);
-
-    __ Bind(&next);
-  }
 }
 
 Node* EffectControlLinearizer::LowerToBoolean(Node* node) {

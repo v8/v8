@@ -1215,9 +1215,6 @@ Type Typer::Visitor::TypeTypeOf(Node* node) {
   return Type::InternalizedString();
 }
 
-Type Typer::Visitor::TypeTierUpCheck(Node* node) { UNREACHABLE(); }
-Type Typer::Visitor::TypeUpdateInterruptBudget(Node* node) { UNREACHABLE(); }
-
 // JS conversion operators.
 
 Type Typer::Visitor::TypeToBoolean(Node* node) {
