@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_LOCAL_ALLOCATOR_H_
-#define V8_HEAP_LOCAL_ALLOCATOR_H_
+#ifndef V8_HEAP_EVACUATION_ALLOCATOR_H_
+#define V8_HEAP_EVACUATION_ALLOCATOR_H_
 
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
@@ -70,4 +70,4 @@ class EvacuationAllocator {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_LOCAL_ALLOCATOR_H_
+#endif  // V8_HEAP_EVACUATION_ALLOCATOR_H_

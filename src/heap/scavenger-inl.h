@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_SCAVENGER_INL_H_
 #define V8_HEAP_SCAVENGER_INL_H_
 
+#include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/incremental-marking-inl.h"
-#include "src/heap/local-allocator-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/scavenger.h"
 #include "src/objects/map.h"

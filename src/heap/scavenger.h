@@ -7,8 +7,8 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/heap/base/worklist.h"
+#include "src/heap/evacuation-allocator.h"
 #include "src/heap/index-generator.h"
-#include "src/heap/local-allocator.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/slot-set.h"
