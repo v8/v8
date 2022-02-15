@@ -27,7 +27,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([]).exportFunc();
   let suspender = new WebAssembly.Suspender();
   function js_import(i) {
-    return new Promise((resolve) => { resolve(42); });
+    return Promise.resolve(42);
   }
 
   // Wrap the import, instantiate the module, and wrap the export.
@@ -97,7 +97,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
   function js_import() {
-    return new Promise((resolve) => { resolve(42); });
+    return Promise.resolve(42);
   };
   let wasm_js_import = new WebAssembly.Function(
       {parameters: [], results: ['externref']}, js_import);
@@ -143,7 +143,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let i = 0;
   // The n-th call to the import returns a promise that resolves to n.
   function js_import() {
-    return new Promise((resolve) => { resolve(++i); });
+    return Promise.resolve(++i);
   };
   let wasm_js_import = new WebAssembly.Function(
       {parameters: [], results: ['externref']}, js_import);

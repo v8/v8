@@ -2911,6 +2911,221 @@ void RestoreAfterBuiltinCall(MacroAssembler* masm, Register function_data,
   __ popq(param_limit);
   __ popq(current_param);
 }
+
+void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc) {
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufSpOffset), rsp);
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufFpOffset), rbp);
+  __ movq(kScratchRegister,
+          __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset), kScratchRegister);
+  __ leaq(kScratchRegister, MemOperand(pc, 0));
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufPcOffset), kScratchRegister);
+}
+
+void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc) {
+  __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
+  __ movq(rbp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
+  if (load_pc) {
+    __ jmp(MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
+  }
+  // The stack limit is set separately under the ExecutionAccess lock.
+}
+
+void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
+               Label* suspend) {
+  Register foreign_jmpbuf = tmp;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
+  Register jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, kScratchRegister);
+  FillJumpBuffer(masm, jmpbuf, suspend);
+}
+
+// Returns the new continuation in rax.
+void AllocateContinuation(MacroAssembler* masm, Register function_data,
+                          Register wasm_instance) {
+  Register suspender = kScratchRegister;
+  __ LoadAnyTaggedField(
+      suspender,
+      FieldOperand(function_data, WasmExportedFunctionData::kSuspenderOffset));
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 3);
+  __ Push(wasm_instance);
+  __ Push(function_data);
+  __ Push(suspender);  // Argument.
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmAllocateContinuation);
+  __ Pop(function_data);
+  __ Pop(wasm_instance);
+  STATIC_ASSERT(kReturnRegister0 == rax);
+  suspender = no_reg;
+}
+
+void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation) {
+  Register foreign_jmpbuf = target_continuation;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
+  Register target_jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      target_jmpbuf,
+      FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, kScratchRegister);
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 0);
+  // Switch stack!
+  LoadJumpBuffer(masm, target_jmpbuf, false);
+}
+
+void LoadAndCallTargetWasmFunction(MacroAssembler* masm, Register function_data,
+                                   Register wasm_instance, Register tmp1) {
+  // TODO(thibaudm): Handle arguments.
+  // Set thread_in_wasm_flag.
+  Register thread_in_wasm_flag_addr = tmp1;
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
+  Register function_entry = function_data;
+  __ LoadAnyTaggedField(
+      function_entry,
+      FieldOperand(function_entry, WasmExportedFunctionData::kInternalOffset));
+  __ LoadExternalPointerField(
+      function_entry,
+      FieldOperand(function_data, WasmInternalFunction::kForeignAddressOffset),
+      kForeignForeignAddressTag, kScratchRegister);
+  __ Push(wasm_instance);
+  __ call(function_entry);
+  // Note: we might be returning to an "OnFulfilled" frame if the stack was
+  // suspended and resumed via the chained promise.
+  __ Pop(wasm_instance);
+  // Unset thread_in_wasm_flag.
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
+}
+
+void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
+                              Register tmp1, Register tmp2) {
+  Register active_continuation = tmp1;
+  __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
+
+  // Set a null pointer in the jump buffer's SP slot to indicate to the stack
+  // frame iterator that this stack is empty.
+  Register foreign_jmpbuf = kScratchRegister;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
+  Register jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, tmp2);
+  __ movq(Operand(jmpbuf, wasm::kJmpBufSpOffset), Immediate(kNullAddress));
+
+  Register parent = tmp2;
+  __ LoadAnyTaggedField(
+      parent,
+      FieldOperand(active_continuation, WasmContinuationObject::kParentOffset));
+
+  // Update active continuation root.
+  __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), parent);
+  foreign_jmpbuf = tmp1;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(parent, WasmContinuationObject::kJmpbufOffset));
+  jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, tmp2);
+
+  // Switch stack!
+  LoadJumpBuffer(masm, jmpbuf, false);
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 1);
+  __ Push(wasm_instance);  // Spill.
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(wasm_instance);
+}
+
+void RestoreParentSuspender(MacroAssembler* masm) {
+  Register suspender = kScratchRegister;
+  __ LoadRoot(suspender, RootIndex::kActiveSuspender);
+  __ LoadAnyTaggedField(
+      suspender, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
+  __ CompareRoot(suspender, RootIndex::kUndefinedValue);
+  Label undefined;
+  __ j(equal, &undefined, Label::kNear);
+#ifdef DEBUG
+  // Check that the parent suspender is inactive.
+  Label parent_inactive;
+  Register state = rbx;
+  __ LoadTaggedSignedField(
+      state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
+  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::Inactive));
+  __ j(equal, &parent_inactive, Label::kNear);
+  __ Trap();
+  __ bind(&parent_inactive);
+#endif
+  __ StoreTaggedSignedField(
+      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
+      Smi::FromInt(WasmSuspenderObject::State::Active));
+  __ bind(&undefined);
+  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+}
+
+void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
+                                     Register function_data,
+                                     Register wasm_instance) {
+  Register closure = function_data;
+  Register shared_function_info = closure;
+  __ LoadAnyTaggedField(
+      shared_function_info,
+      MemOperand(
+          closure,
+          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+  closure = no_reg;
+  __ LoadAnyTaggedField(
+      function_data,
+      MemOperand(shared_function_info,
+                 SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag));
+  shared_function_info = no_reg;
+
+  __ LoadAnyTaggedField(
+      wasm_instance,
+      MemOperand(function_data,
+                 WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
+}
+
+void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
+                         Register valuetypes_array_ptr, Register return_count,
+                         Register param_count) {
+  Register foreign_signature = valuetypes_array_ptr;
+  __ LoadAnyTaggedField(
+      foreign_signature,
+      MemOperand(function_data,
+                 WasmExportedFunctionData::kSignatureOffset - kHeapObjectTag));
+  Register signature = foreign_signature;
+  __ LoadExternalPointerField(
+      signature,
+      FieldOperand(foreign_signature, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, kScratchRegister);
+  foreign_signature = no_reg;
+  __ movq(return_count,
+          MemOperand(signature, wasm::FunctionSig::kReturnCountOffset));
+  __ movq(param_count,
+          MemOperand(signature, wasm::FunctionSig::kParameterCountOffset));
+  valuetypes_array_ptr = signature;
+  __ movq(valuetypes_array_ptr,
+          MemOperand(signature, wasm::FunctionSig::kRepsOffset));
+}
 }  // namespace
 
 void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
@@ -2920,9 +3135,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // -------------------------------------------
   // Compute offsets and prepare for GC.
   // -------------------------------------------
+  constexpr int kGCScanSlotCountOffset =
+      BuiltinWasmWrapperConstants::kGCScanSlotCountOffset;
   // The number of parameters passed to this function.
   constexpr int kInParamCountOffset =
-      BuiltinWasmWrapperConstants::kGCScanSlotCountOffset - kSystemPointerSize;
+      kGCScanSlotCountOffset - kSystemPointerSize;
   // The number of parameters according to the signature.
   constexpr int kParamCountOffset = kInParamCountOffset - kSystemPointerSize;
   constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
@@ -2949,29 +3166,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // Initialize the {HasRefTypes} slot.
   __ movq(MemOperand(rbp, kHasRefTypesOffset), Immediate(0));
 
-  // -------------------------------------------
-  // Load the Wasm exported function data and the Wasm instance.
-  // -------------------------------------------
-  Register closure = rdi;
-  Register shared_function_info = closure;
-  __ LoadAnyTaggedField(
-      shared_function_info,
-      MemOperand(
-          closure,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
-  closure = no_reg;
-  Register function_data = shared_function_info;
-  __ LoadAnyTaggedField(
-      function_data,
-      MemOperand(shared_function_info,
-                 SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag));
-  shared_function_info = no_reg;
-
+  Register function_data = rdi;
   Register wasm_instance = rsi;
-  __ LoadAnyTaggedField(
-      wasm_instance,
-      MemOperand(function_data,
-                 WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
+  LoadFunctionDataAndWasmInstance(masm, function_data, wasm_instance);
 
   // -------------------------------------------
   // Decrement the budget of the generic wrapper in function data.
@@ -2993,27 +3190,11 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // -------------------------------------------
   // Load values from the signature.
   // -------------------------------------------
-  Register foreign_signature = r11;
-  __ LoadAnyTaggedField(
-      foreign_signature,
-      MemOperand(function_data,
-                 WasmExportedFunctionData::kSignatureOffset - kHeapObjectTag));
-  Register signature = foreign_signature;
-  __ LoadExternalPointerField(
-      signature,
-      FieldOperand(foreign_signature, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, kScratchRegister);
-  foreign_signature = no_reg;
+  Register valuetypes_array_ptr = r11;
   Register return_count = r8;
-  __ movq(return_count,
-          MemOperand(signature, wasm::FunctionSig::kReturnCountOffset));
   Register param_count = rcx;
-  __ movq(param_count,
-          MemOperand(signature, wasm::FunctionSig::kParameterCountOffset));
-  Register valuetypes_array_ptr = signature;
-  __ movq(valuetypes_array_ptr,
-          MemOperand(signature, wasm::FunctionSig::kRepsOffset));
-  signature = no_reg;
+  LoadValueTypesArray(masm, function_data, valuetypes_array_ptr, return_count,
+                      param_count);
 
   // -------------------------------------------
   // Store signature-related values to the stack.
@@ -3405,8 +3586,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   // We set the indicating value for the GC to the proper one for Wasm call.
   constexpr int kWasmCallGCScanSlotCount = 0;
-  __ Move(MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset),
-          kWasmCallGCScanSlotCount);
+  __ Move(MemOperand(rbp, kGCScanSlotCountOffset), kWasmCallGCScanSlotCount);
 
   // -------------------------------------------
   // Call the Wasm function.
@@ -3489,12 +3669,10 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // The builtin expects the parameter to be in register param = rax.
 
   constexpr int kBuiltinCallGCScanSlotCount = 2;
-  PrepareForBuiltinCall(
-      masm,
-      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset),
-      kBuiltinCallGCScanSlotCount, current_param, param_limit,
-      current_int_param_slot, current_float_param_slot, valuetypes_array_ptr,
-      wasm_instance, function_data);
+  PrepareForBuiltinCall(masm, MemOperand(rbp, kGCScanSlotCountOffset),
+                        kBuiltinCallGCScanSlotCount, current_param, param_limit,
+                        current_int_param_slot, current_float_param_slot,
+                        valuetypes_array_ptr, wasm_instance, function_data);
 
   Label param_kWasmI32_not_smi;
   Label param_kWasmI64;
@@ -3670,8 +3848,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&compile_wrapper);
   // Enable GC.
-  MemOperand GCScanSlotPlace =
-      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  MemOperand GCScanSlotPlace = MemOperand(rbp, kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 4);
   // Save registers to the stack.
   __ pushq(wasm_instance);
@@ -3693,45 +3870,10 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
 namespace {
 // Helper function for wasm stack switching.
-void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc) {
-  __ movq(MemOperand(jmpbuf, wasm::kJmpBufSpOffset), rsp);
-  __ movq(MemOperand(jmpbuf, wasm::kJmpBufFpOffset), rbp);
-  __ movq(kScratchRegister,
-          __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
-  __ movq(MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset), kScratchRegister);
-  __ leaq(kScratchRegister, MemOperand(pc, 0));
-  __ movq(MemOperand(jmpbuf, wasm::kJmpBufPcOffset), kScratchRegister);
-}
 
-void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc) {
-  __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
-  __ movq(rbp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
-  if (load_pc) {
-    __ jmp(MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
-  }
-  // The stack limit is set separately under the ExecutionAccess lock.
-  // TODO(thibaudm): Reload live registers.
-}
-}  // namespace
-
-void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
-  // Set up the stackframe.
-  __ EnterFrame(StackFrame::STACK_SWITCH);
-
-  // Parameters.
-  Register closure = kJSFunctionRegister;                  // rdi
-  Register param_count = kJavaScriptCallArgCountRegister;  // rax
-  __ decq(param_count);                                    // Exclude receiver.
-
-  __ subq(rsp, Immediate(ReturnPromiseOnSuspendFrameConstants::kSpillAreaSize));
-
-  __ movq(
-      MemOperand(rbp, ReturnPromiseOnSuspendFrameConstants::kParamCountOffset),
-      param_count);
-
-  // -------------------------------------------
-  // Get the instance and wasm call target.
-  // -------------------------------------------
+// Returns the wasm instance in rsi and the function data in the same register
+// the input.
+void GetInstanceAndFunctionData(MacroAssembler* masm, Register closure) {
   Register sfi = closure;
   __ LoadAnyTaggedField(
       sfi,
@@ -3746,177 +3888,40 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   __ LoadAnyTaggedField(
       wasm_instance,
       FieldOperand(function_data, WasmExportedFunctionData::kInstanceOffset));
-  sfi = no_reg;
-  closure = no_reg;
-  // live: [rsi, rdi]
+}
+}  // namespace
 
-  // -------------------------------------------
-  // Save current state in active jmpbuf.
-  // -------------------------------------------
+void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::STACK_SWITCH);
+
+  // Parameters.
+  Register param_count = kJavaScriptCallArgCountRegister;  // rax
+  __ decq(param_count);
+  __ subq(rsp, Immediate(ReturnPromiseOnSuspendFrameConstants::kSpillAreaSize));
+  __ movq(
+      MemOperand(rbp, ReturnPromiseOnSuspendFrameConstants::kParamCountOffset),
+      param_count);
+
+  GetInstanceAndFunctionData(masm, kJSFunctionRegister);
+  Register function_data = rdi;
+  Register wasm_instance = kWasmInstanceRegister;
+  // live: [rdi, rsi]
   Register active_continuation = rax;
-  Register foreign_jmpbuf = rbx;
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
-  Register jmpbuf = rbx;
-  __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
+  // live: [rdi, rsi, rax]
   Label suspend;
-  FillJumpBuffer(masm, jmpbuf, &suspend);
-  foreign_jmpbuf = no_reg;
-  // live: [rsi, rdi, rax]
-
-  // -------------------------------------------
-  // Allocate a new continuation.
-  // -------------------------------------------
-  Register suspender = rbx;
-  __ LoadAnyTaggedField(
-      suspender,
-      FieldOperand(function_data, WasmExportedFunctionData::kSuspenderOffset));
-  MemOperand GCScanSlotPlace =
-      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
-  __ Move(GCScanSlotPlace, 3);
-  __ Push(wasm_instance);
-  __ Push(function_data);
-  __ Push(suspender);  // Argument.
-  __ Move(kContextRegister, Smi::zero());
-  __ CallRuntime(Runtime::kWasmAllocateContinuation);
-  __ Pop(function_data);
-  __ Pop(wasm_instance);
-  STATIC_ASSERT(kReturnRegister0 == rax);
+  SaveState(masm, active_continuation, rbx, &suspend);
+  // live: [rdi, rsi]
+  AllocateContinuation(masm, function_data, wasm_instance);
   Register target_continuation = rax;
-  suspender = no_reg;
-  // live: [rsi, rdi, rax]
-
-  // -------------------------------------------
-  // Load target continuation jmpbuf.
-  // -------------------------------------------
-  foreign_jmpbuf = rbx;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
-  Register target_jmpbuf = rbx;
-  __ LoadExternalPointerField(
-      target_jmpbuf,
-      FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
-  __ Move(GCScanSlotPlace, 0);
-  // Switch stack!
-  LoadJumpBuffer(masm, target_jmpbuf, false);
-  foreign_jmpbuf = no_reg;
-  target_jmpbuf = no_reg;
-  // live: [rsi, rdi]
-
-  // -------------------------------------------
-  // Load and call target wasm function.
-  // -------------------------------------------
-  // TODO(thibaudm): Handle arguments.
-  // TODO(thibaudm): Handle GC.
-  // Set thread_in_wasm_flag.
-  Register thread_in_wasm_flag_addr = rax;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
-  Register function_entry = function_data;
-  __ LoadAnyTaggedField(
-      function_entry,
-      FieldOperand(function_entry, WasmExportedFunctionData::kInternalOffset));
-  __ LoadExternalPointerField(
-      function_entry,
-      FieldOperand(function_data, WasmInternalFunction::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
-  __ Push(wasm_instance);
-  __ call(function_entry);
-  // Note: we might be returning to an "OnFulfilled" frame if the stack was
-  // suspended and resumed via the chained promise.
-  __ Pop(wasm_instance);
-  // Unset thread_in_wasm_flag.
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
-  function_entry = no_reg;
-  function_data = no_reg;
+  // live: [rdi, rsi, rax]
+  LoadTargetJumpBuffer(masm, target_continuation);
+  // live: [rdi, rsi]
+  LoadAndCallTargetWasmFunction(masm, function_data, wasm_instance, rax);
   // live: [rsi]
-
-  // -------------------------------------------
-  // Reload parent continuation.
-  // -------------------------------------------
-  active_continuation = rbx;
-  __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
-  // Set a null pointer in the jump buffer's SP slot to indicate to the stack
-  // frame iterator that this stack is empty.
-  foreign_jmpbuf = rcx;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
-  jmpbuf = foreign_jmpbuf;
-  __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, rdx);
-  __ movq(Operand(jmpbuf, wasm::kJmpBufSpOffset), Immediate(kNullAddress));
-  Register parent = rdx;
-  __ LoadAnyTaggedField(
-      parent,
-      FieldOperand(active_continuation, WasmContinuationObject::kParentOffset));
-  active_continuation = no_reg;
-  // live: [rsi, rdx]
-
-  // -------------------------------------------
-  // Update active continuation.
-  // -------------------------------------------
-  __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), parent);
-  foreign_jmpbuf = rax;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(parent, WasmContinuationObject::kJmpbufOffset));
-  jmpbuf = foreign_jmpbuf;
-  __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
-  // Switch stack!
-  LoadJumpBuffer(masm, jmpbuf, false);
-  __ Move(GCScanSlotPlace, 1);
-  __ Push(wasm_instance);  // Spill.
-  __ Move(kContextRegister, Smi::zero());
-  __ CallRuntime(Runtime::kWasmSyncStackLimit);
-  __ Pop(wasm_instance);
-  parent = no_reg;
-  active_continuation = no_reg;
-  foreign_jmpbuf = no_reg;
-  wasm_instance = no_reg;
-  // live: [rsi]
-
-  // -------------------------------------------
-  // Restore parent suspender.
-  // -------------------------------------------
-  suspender = rax;
-  __ LoadRoot(suspender, RootIndex::kActiveSuspender);
-  __ LoadAnyTaggedField(
-      suspender, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
-  __ CompareRoot(suspender, RootIndex::kUndefinedValue);
-  Label undefined;
-  __ j(equal, &undefined, Label::kNear);
-#ifdef DEBUG
-  // Check that the parent suspender is inactive.
-  Label parent_inactive;
-  Register state = rbx;
-  __ LoadTaggedSignedField(
-      state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
-  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::Inactive));
-  __ j(equal, &parent_inactive, Label::kNear);
-  __ Trap();
-  __ bind(&parent_inactive);
-#endif
-  __ StoreTaggedSignedField(
-      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
-      Smi::FromInt(WasmSuspenderObject::State::Active));
-  __ bind(&undefined);
-  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+  ReloadParentContinuation(masm, wasm_instance, rax, rbx);
+  // live: []
+  RestoreParentSuspender(masm);
 
   __ bind(&suspend);
 
