@@ -6015,6 +6015,29 @@ void TurboAssembler::I32x4DotI16x8S(Simd128Register dst, Simd128Register src1,
   va(dst, scratch, dst, Condition(0), Condition(0), Condition(2));
 }
 
+#define Q15_MUL_ROAUND(accumulator, src1, src2, const_val, scratch, unpack) \
+  unpack(scratch, src1, Condition(0), Condition(0), Condition(1));          \
+  unpack(accumulator, src2, Condition(0), Condition(0), Condition(1));      \
+  vml(accumulator, scratch, accumulator, Condition(0), Condition(0),        \
+      Condition(2));                                                        \
+  va(accumulator, accumulator, const_val, Condition(0), Condition(0),       \
+     Condition(2));                                                         \
+  vrepi(scratch, Operand(15), Condition(2));                                \
+  vesrav(accumulator, accumulator, scratch, Condition(0), Condition(0),     \
+         Condition(2));
+void TurboAssembler::I16x8Q15MulRSatS(Simd128Register dst, Simd128Register src1,
+                                      Simd128Register src2,
+                                      Simd128Register scratch1,
+                                      Simd128Register scratch2,
+                                      Simd128Register scratch3) {
+  DCHECK(!AreAliased(src1, src2, scratch1, scratch2, scratch3));
+  vrepi(scratch1, Operand(0x4000), Condition(2));
+  Q15_MUL_ROAUND(scratch2, src1, src2, scratch1, scratch3, vupl)
+  Q15_MUL_ROAUND(dst, src1, src2, scratch1, scratch3, vuph)
+  vpks(dst, dst, scratch2, Condition(0), Condition(2));
+}
+#undef Q15_MUL_ROAUND
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

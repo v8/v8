@@ -2639,7 +2639,16 @@ void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
                                                 LiftoffRegister src1,
                                                 LiftoffRegister src2) {
-  bailout(kSimd, "i16x8_q15mulr_sat_s");
+  Simd128Register s1 = src1.fp();
+  Simd128Register s2 = src2.fp();
+  Simd128Register dest = dst.fp();
+  // Make sure temp registers are unique.
+  Simd128Register temp1 =
+      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dest, s1, s2)).fp();
+  Simd128Register temp2 =
+      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dest, s1, s2, temp1))
+          .fp();
+  I16x8Q15MulRSatS(dest, s1, s2, kScratchDoubleReg, temp1, temp2);
 }
 
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,

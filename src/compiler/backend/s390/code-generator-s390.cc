@@ -2975,32 +2975,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                         i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
-#define Q15_MUL_ROAUND(accumulator, unpack)                                   \
-  __ unpack(tempFPReg1, src0, Condition(0), Condition(0), Condition(1));      \
-  __ unpack(accumulator, src1, Condition(0), Condition(0), Condition(1));     \
-  __ vml(accumulator, tempFPReg1, accumulator, Condition(0), Condition(0),    \
-         Condition(2));                                                       \
-  __ va(accumulator, accumulator, tempFPReg2, Condition(0), Condition(0),     \
-        Condition(2));                                                        \
-  __ vrepi(tempFPReg1, Operand(15), Condition(2));                            \
-  __ vesrav(accumulator, accumulator, tempFPReg1, Condition(0), Condition(0), \
-            Condition(2));
     case kS390_I16x8Q15MulRSatS: {
-      Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register src0 = i.InputSimd128Register(0);
-      Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      Simd128Register tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));
-      DCHECK_NE(src1, tempFPReg1);
-      DCHECK_NE(src0, tempFPReg2);
-      DCHECK_NE(src1, tempFPReg2);
-      __ vrepi(tempFPReg2, Operand(0x4000), Condition(2));
-      Q15_MUL_ROAUND(kScratchDoubleReg, vupl)
-      Q15_MUL_ROAUND(dst, vuph)
-      __ vpks(dst, dst, kScratchDoubleReg, Condition(0), Condition(2));
+      __ I16x8Q15MulRSatS(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputSimd128Register(1), kScratchDoubleReg,
+                          i.ToSimd128Register(instr->TempAt(0)),
+                          i.ToSimd128Register(instr->TempAt(1)));
       break;
     }
-#undef Q15_MUL_ROAUND
     case kS390_I8x16Popcnt: {
       __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
