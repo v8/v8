@@ -615,8 +615,6 @@ void MarkCompactCollector::CollectGarbage() {
   // update the state as they proceed.
   DCHECK(state_ == PREPARE_GC);
 
-  heap()->minor_mark_compact_collector()->CleanupSweepToIteratePages();
-
   MarkLiveObjects();
   ClearNonLiveReferences();
   VerifyMarking();
@@ -4101,10 +4099,9 @@ void MarkCompactCollector::Evacuate() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
 
     for (Page* p : new_space_evacuation_pages_) {
-      if (p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
-        p->ClearFlag(Page::PAGE_NEW_NEW_PROMOTION);
-        sweeper()->AddPageForIterability(p);
-      } else if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
+      // Full GCs don't promote pages within new space.
+      DCHECK(!p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+      if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
         DCHECK_EQ(OLD_SPACE, p->owner_identity());
         sweeper()->AddPage(OLD_SPACE, p, Sweeper::REGULAR);
@@ -5091,14 +5088,13 @@ MinorMarkCompactCollector::~MinorMarkCompactCollector() {
   delete main_marking_visitor_;
 }
 
-void MinorMarkCompactCollector::CleanupSweepToIteratePages() {
-  for (Page* p : sweep_to_iterate_pages_) {
-    if (p->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
-      p->ClearFlag(Page::SWEEP_TO_ITERATE);
-      non_atomic_marking_state()->ClearLiveness(p);
-    }
+void MinorMarkCompactCollector::CleanupPromotedPages() {
+  for (Page* p : promoted_pages_) {
+    p->ClearFlag(Page::PAGE_NEW_NEW_PROMOTION);
+    p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
+    non_atomic_marking_state()->ClearLiveness(p);
   }
-  sweep_to_iterate_pages_.clear();
+  promoted_pages_.clear();
 }
 
 void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
@@ -5264,7 +5260,6 @@ void MinorMarkCompactCollector::CollectGarbage() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEPING);
     heap()->mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
-    CleanupSweepToIteratePages();
   }
 
   heap()->array_buffer_sweeper()->EnsureFinished();
@@ -5295,7 +5290,8 @@ void MinorMarkCompactCollector::CollectGarbage() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_RESET_LIVENESS);
     for (Page* p :
          PageRange(heap()->new_space()->from_space().first_page(), nullptr)) {
-      DCHECK(!p->IsFlagSet(Page::SWEEP_TO_ITERATE));
+      DCHECK_EQ(promoted_pages_.end(),
+                std::find(promoted_pages_.begin(), promoted_pages_.end(), p));
       non_atomic_marking_state()->ClearLiveness(p);
       if (FLAG_concurrent_marking) {
         // Ensure that concurrent marker does not track pages that are
@@ -5309,6 +5305,8 @@ void MinorMarkCompactCollector::CollectGarbage() {
     // generation.
     heap()->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
   }
+
+  CleanupPromotedPages();
 
   SweepArrayBufferExtensions();
 }
@@ -5865,10 +5863,7 @@ void MinorMarkCompactCollector::Evacuate() {
     for (Page* p : new_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) ||
           p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
-        p->ClearFlag(Page::PAGE_NEW_NEW_PROMOTION);
-        p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
-        p->SetFlag(Page::SWEEP_TO_ITERATE);
-        sweep_to_iterate_pages_.push_back(p);
+        promoted_pages_.push_back(p);
       }
     }
     new_space_evacuation_pages_.clear();

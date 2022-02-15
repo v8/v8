@@ -865,7 +865,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void CollectGarbage() override;
 
   void MakeIterable(Page* page, FreeSpaceTreatmentMode free_space_mode);
-  void CleanupSweepToIteratePages();
+  void CleanupPromotedPages();
 
  private:
   using MarkingWorklist =
@@ -914,7 +914,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   YoungGenerationMarkingVisitor* main_marking_visitor_;
   base::Semaphore page_parallel_job_semaphore_;
   std::vector<Page*> new_space_evacuation_pages_;
-  std::vector<Page*> sweep_to_iterate_pages_;
+  std::vector<Page*> promoted_pages_;
 
   friend class YoungGenerationMarkingTask;
   friend class YoungGenerationMarkingJob;

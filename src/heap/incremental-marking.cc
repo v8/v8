@@ -447,69 +447,70 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
   collector_->local_marking_worklists()->Publish();
   MarkingBarrier::PublishAll(heap());
   PtrComprCageBase cage_base(heap_->isolate());
-  collector_->marking_worklists()->Update(
-      [
+  collector_->marking_worklists()->Update([
 #ifdef DEBUG
-          // this is referred inside DCHECK.
-          this,
+                                              // this is referred inside DCHECK.
+                                              this,
 #endif
-          minor_marking_state, cage_base,
-          filler_map](HeapObject obj, HeapObject* out) -> bool {
-        DCHECK(obj.IsHeapObject());
-        // Only pointers to from space have to be updated.
-        if (Heap::InFromPage(obj)) {
-          MapWord map_word = obj.map_word(cage_base, kRelaxedLoad);
-          if (!map_word.IsForwardingAddress()) {
-            // There may be objects on the marking deque that do not exist
-            // anymore, e.g. left trimmed objects or objects from the root set
-            // (frames). If these object are dead at scavenging time, their
-            // marking deque entries will not point to forwarding addresses.
-            // Hence, we can discard them.
-            return false;
-          }
-          HeapObject dest = map_word.ToForwardingAddress();
-          DCHECK_IMPLIES(marking_state()->IsWhite(obj),
-                         obj.IsFreeSpaceOrFiller());
-          if (dest.InSharedHeap()) {
-            // Object got promoted into the shared heap. Drop it from the client
-            // heap marking worklist.
-            return false;
-          }
-          *out = dest;
-          return true;
-        } else if (Heap::InToPage(obj)) {
-          // The object may be on a large page or on a page that was moved in
-          // new space.
-          DCHECK(Heap::IsLargeObject(obj) ||
-                 Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE));
-          if (minor_marking_state->IsWhite(obj)) {
-            return false;
-          }
-          // Either a large object or an object marked by the minor
-          // mark-compactor.
-          *out = obj;
-          return true;
-        } else {
-          // The object may be on a page that was moved from new to old space.
-          // Only applicable during minor MC garbage collections.
-          if (Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
-            if (minor_marking_state->IsWhite(obj)) {
-              return false;
-            }
-            *out = obj;
-            return true;
-          }
-          DCHECK_IMPLIES(marking_state()->IsWhite(obj),
-                         obj.IsFreeSpaceOrFiller(cage_base));
-          // Skip one word filler objects that appear on the
-          // stack when we perform in place array shift.
-          if (obj.map(cage_base) != filler_map) {
-            *out = obj;
-            return true;
-          }
+                                              minor_marking_state, cage_base,
+                                              filler_map](
+                                              HeapObject obj,
+                                              HeapObject* out) -> bool {
+    DCHECK(obj.IsHeapObject());
+    // Only pointers to from space have to be updated.
+    if (Heap::InFromPage(obj)) {
+      MapWord map_word = obj.map_word(cage_base, kRelaxedLoad);
+      if (!map_word.IsForwardingAddress()) {
+        // There may be objects on the marking deque that do not exist
+        // anymore, e.g. left trimmed objects or objects from the root set
+        // (frames). If these object are dead at scavenging time, their
+        // marking deque entries will not point to forwarding addresses.
+        // Hence, we can discard them.
+        return false;
+      }
+      HeapObject dest = map_word.ToForwardingAddress();
+      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFreeSpaceOrFiller());
+      if (dest.InSharedHeap()) {
+        // Object got promoted into the shared heap. Drop it from the client
+        // heap marking worklist.
+        return false;
+      }
+      *out = dest;
+      return true;
+    } else if (Heap::InToPage(obj)) {
+      // The object may be on a large page or on a page that was moved in
+      // new space.
+      DCHECK(Heap::IsLargeObject(obj) || Page::FromHeapObject(obj)->IsFlagSet(
+                                             Page::PAGE_NEW_NEW_PROMOTION));
+      if (minor_marking_state->IsWhite(obj)) {
+        return false;
+      }
+      // Either a large object or an object marked by the minor
+      // mark-compactor.
+      *out = obj;
+      return true;
+    } else {
+      // The object may be on a page that was moved from new to old space.
+      // Only applicable during minor MC garbage collections.
+      if (!Heap::IsLargeObject(obj) &&
+          Page::FromHeapObject(obj)->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
+        if (minor_marking_state->IsWhite(obj)) {
           return false;
         }
-      });
+        *out = obj;
+        return true;
+      }
+      DCHECK_IMPLIES(marking_state()->IsWhite(obj),
+                     obj.IsFreeSpaceOrFiller(cage_base));
+      // Skip one word filler objects that appear on the
+      // stack when we perform in place array shift.
+      if (obj.map(cage_base) != filler_map) {
+        *out = obj;
+        return true;
+      }
+      return false;
+    }
+  });
 
   collector_->local_weak_objects()->Publish();
   weak_objects_->UpdateAfterScavenge();
