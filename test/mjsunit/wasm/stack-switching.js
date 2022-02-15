@@ -87,13 +87,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestStackSwitchSuspend() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addGlobal(kWasmI32, true).exportAs('g');
   import_index = builder.addImport('m', 'import', kSig_i_v);
   builder.addFunction("test", kSig_i_v)
       .addBody([
           kExprCallFunction, import_index, // suspend
-          kExprGlobalSet, 0, // resume
-          kExprI32Const, 0,
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
   function js_import() {
@@ -107,8 +104,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
   let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
   let combined_promise = wrapped_export();
-  assertEquals(0, instance.exports.g.value);
-  combined_promise.then(_ => assertEquals(42, instance.exports.g.value));
+  combined_promise.then(v => assertEquals(42, v));
 })();
 
 // Check that we can suspend back out of a resumed computation.
@@ -192,4 +188,41 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let result = wrapped_export();
   // TODO(thibaudm): Check the result's value once this is supported.
   assertEquals(42, instance.exports.g.value);
+})();
+
+(function TestStackSwitchSuspendArgs() {
+  print(arguments.callee.name);
+  function reduce(array) {
+    // a[0] + a[1] * 2 + a[2] * 3 + ...
+    return array.reduce((prev, cur, i) => prev + cur * (i + 1));
+  }
+  let builder = new WasmModuleBuilder();
+  // Number of param registers + 1 for both types.
+  let sig = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+      kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32], [kWasmI32]);
+  import_index = builder.addImport('m', 'import', sig);
+  builder.addFunction("test", sig)
+      .addBody([
+          kExprLocalGet, 0, kExprLocalGet, 1, kExprLocalGet, 2, kExprLocalGet, 3,
+          kExprLocalGet, 4, kExprLocalGet, 5, kExprLocalGet, 6, kExprLocalGet, 7,
+          kExprLocalGet, 8, kExprLocalGet, 9, kExprLocalGet, 10, kExprLocalGet, 11,
+          kExprLocalGet, 12,
+          kExprCallFunction, import_index, // suspend
+      ]).exportFunc();
+  let suspender = new WebAssembly.Suspender();
+  function js_import(i1, i2, i3, i4, i5, i6, f1, f2, f3, f4, f5, f6, f7) {
+    return Promise.resolve(reduce(Array.from(arguments)));
+  };
+  let wasm_js_import = new WebAssembly.Function(
+      {parameters: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'f32', 'f32',
+        'f32', 'f32', 'f32', 'f32', 'f32'], results: ['externref']}, js_import);
+  let suspending_wasm_js_import =
+      suspender.suspendOnReturnedPromise(wasm_js_import);
+
+  let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
+  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let args = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+  let combined_promise =
+      wrapped_export.apply(null, args);
+  combined_promise.then(v => assertEquals(reduce(args), v));
 })();
