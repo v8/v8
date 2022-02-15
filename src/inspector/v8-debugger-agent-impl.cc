@@ -717,9 +717,15 @@ Response V8DebuggerAgentImpl::removeBreakpoint(const String16& breakpointId) {
   // not Wasm breakpoint.
   std::vector<V8DebuggerScript*> scripts;
   for (const auto& scriptIter : m_scripts) {
-    if (!matches(m_inspector, *scriptIter.second, type, selector)) continue;
+    const bool scriptSelectorMatch =
+        matches(m_inspector, *scriptIter.second, type, selector);
+    const bool isInstrumentation =
+        type == BreakpointType::kInstrumentationBreakpoint;
+    if (!scriptSelectorMatch && !isInstrumentation) continue;
     V8DebuggerScript* script = scriptIter.second.get();
-    scripts.push_back(script);
+    if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly) {
+      scripts.push_back(script);
+    }
   }
   removeBreakpointImpl(breakpointId, scripts);
 

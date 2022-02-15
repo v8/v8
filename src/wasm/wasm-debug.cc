@@ -897,6 +897,19 @@ int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
   return 0;
 }
 
+void SetBreakOnEntryFlag(Script script, bool enabled) {
+  if (script.break_on_entry() == enabled) return;
+
+  script.set_break_on_entry(enabled);
+  // Update the "break_on_entry" flag on all live instances.
+  i::WeakArrayList weak_instance_list = script.wasm_weak_instance_list();
+  for (int i = 0; i < weak_instance_list.length(); ++i) {
+    if (weak_instance_list.Get(i)->IsCleared()) continue;
+    i::WasmInstanceObject instance =
+        i::WasmInstanceObject::cast(weak_instance_list.Get(i)->GetHeapObject());
+    instance.set_break_on_entry(enabled);
+  }
+}
 }  // namespace
 
 // static
@@ -925,16 +938,9 @@ void WasmScript::SetInstrumentationBreakpoint(Handle<Script> script,
                                               Handle<BreakPoint> break_point) {
   // Special handling for on-entry breakpoints.
   AddBreakpointToInfo(script, kOnEntryBreakpointPosition, break_point);
-  script->set_break_on_entry(true);
 
   // Update the "break_on_entry" flag on all live instances.
-  i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
-  for (int i = 0; i < weak_instance_list.length(); ++i) {
-    if (weak_instance_list.Get(i)->IsCleared()) continue;
-    i::WasmInstanceObject instance =
-        i::WasmInstanceObject::cast(weak_instance_list.Get(i)->GetHeapObject());
-    instance.set_break_on_entry(true);
-  }
+  SetBreakOnEntryFlag(*script, true);
 }
 
 // static
@@ -1034,12 +1040,17 @@ bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
     breakpoint_infos->set_undefined(breakpoint_infos->length() - 1);
   }
 
-  // Remove the breakpoint from DebugInfo and recompile.
-  wasm::NativeModule* native_module = script->wasm_native_module();
-  const wasm::WasmModule* module = native_module->module();
-  int func_index = GetContainingWasmFunction(module, position);
-  native_module->GetDebugInfo()->RemoveBreakpoint(func_index, position,
-                                                  isolate);
+  if (break_point->id() == v8::internal::Debug::kInstrumentationId) {
+    // Special handling for instrumentation breakpoints.
+    SetBreakOnEntryFlag(*script, false);
+  } else {
+    // Remove the breakpoint from DebugInfo and recompile.
+    wasm::NativeModule* native_module = script->wasm_native_module();
+    const wasm::WasmModule* module = native_module->module();
+    int func_index = GetContainingWasmFunction(module, position);
+    native_module->GetDebugInfo()->RemoveBreakpoint(func_index, position,
+                                                    isolate);
+  }
 
   return true;
 }
@@ -1076,6 +1087,7 @@ bool WasmScript::ClearBreakPointById(Handle<Script> script, int breakpoint_id) {
 void WasmScript::ClearAllBreakpoints(Script script) {
   script.set_wasm_breakpoint_infos(
       ReadOnlyRoots(script.GetIsolate()).empty_fixed_array());
+  SetBreakOnEntryFlag(script, false);
 }
 
 // static
