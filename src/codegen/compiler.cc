@@ -34,7 +34,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"

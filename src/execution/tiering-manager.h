@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_EXECUTION_RUNTIME_PROFILER_H_
-#define V8_EXECUTION_RUNTIME_PROFILER_H_
+#ifndef V8_EXECUTION_TIERING_MANAGER_H_
+#define V8_EXECUTION_TIERING_MANAGER_H_
 
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
@@ -20,14 +20,12 @@ class JSFunction;
 enum class CodeKind;
 enum class OptimizationReason : uint8_t;
 
-class RuntimeProfiler {
+class TieringManager {
  public:
-  explicit RuntimeProfiler(Isolate* isolate);
+  explicit TieringManager(Isolate* isolate) : isolate_(isolate) {}
 
-  // Called from the interpreter when the bytecode interrupt has been exhausted.
-  void MarkCandidatesForOptimizationFromBytecode();
-  // Likewise, from generated code.
-  void MarkCandidatesForOptimizationFromCode();
+  void OnInterruptTickFromBytecode();
+  void OnInterruptTickFromCode();
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 
@@ -35,8 +33,8 @@ class RuntimeProfiler {
                                  int nesting_levels = 1);
 
  private:
-  // Helper function called from MarkCandidatesForOptimization*
-  void MarkCandidatesForOptimization(JavaScriptFrame* frame);
+  // Helper function called from OnInterruptTick*
+  void OnInterruptTick(JavaScriptFrame* frame);
 
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
@@ -53,22 +51,22 @@ class RuntimeProfiler {
                 CodeKind code_kind);
   void Baseline(JSFunction function, OptimizationReason reason);
 
-  class V8_NODISCARD MarkCandidatesForOptimizationScope final {
+  class V8_NODISCARD OnInterruptTickScope final {
    public:
-    explicit MarkCandidatesForOptimizationScope(RuntimeProfiler* profiler);
-    ~MarkCandidatesForOptimizationScope();
+    explicit OnInterruptTickScope(TieringManager* profiler);
+    ~OnInterruptTickScope();
 
    private:
     HandleScope handle_scope_;
-    RuntimeProfiler* const profiler_;
+    TieringManager* const profiler_;
     DisallowGarbageCollection no_gc;
   };
 
-  Isolate* isolate_;
-  bool any_ic_changed_;
+  Isolate* const isolate_;
+  bool any_ic_changed_ = false;
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_EXECUTION_RUNTIME_PROFILER_H_
+#endif  // V8_EXECUTION_TIERING_MANAGER_H_

@@ -57,7 +57,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/execution/microtask-queue.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"

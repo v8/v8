@@ -53,8 +53,8 @@
 #include "src/execution/messages.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/protectors-inl.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
+#include "src/execution/tiering-manager.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles-inl.h"
@@ -3387,9 +3387,9 @@ void Isolate::Deinit() {
   builtins_.TearDown();
   bootstrapper_->TearDown();
 
-  if (runtime_profiler_ != nullptr) {
-    delete runtime_profiler_;
-    runtime_profiler_ = nullptr;
+  if (tiering_manager_ != nullptr) {
+    delete tiering_manager_;
+    tiering_manager_ = nullptr;
   }
 
   delete heap_profiler_;
@@ -4035,9 +4035,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     optimizing_compile_dispatcher_ = new OptimizingCompileDispatcher(this);
   }
 
-  // Initialize runtime profiler before deserialization, because collections may
-  // occur, clearing/updating ICs.
-  runtime_profiler_ = new RuntimeProfiler(this);
+  // Initialize before deserialization since collections may occur,
+  // clearing/updating ICs (and thus affecting tiering decisions).
+  tiering_manager_ = new TieringManager(this);
 
   // If we are deserializing, read the state into the now-empty heap.
   {

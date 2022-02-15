@@ -21,7 +21,6 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/perf-jit.h"
 #include "src/execution/isolate.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"

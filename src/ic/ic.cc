@@ -17,7 +17,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
-#include "src/execution/runtime-profiler.h"
+#include "src/execution/tiering-manager.h"
 #include "src/handles/handles-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-configuration-inl.h"
@@ -345,7 +345,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
   }
 #endif
 
-  isolate->runtime_profiler()->NotifyICChanged();
+  isolate->tiering_manager()->NotifyICChanged();
 }
 
 namespace {

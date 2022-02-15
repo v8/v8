@@ -121,7 +121,7 @@ class PersistentHandlesList;
 class ReadOnlyArtifacts;
 class RegExpStack;
 class RootVisitor;
-class RuntimeProfiler;
+class TieringManager;
 class SetupIsolateDelegate;
 class Simulator;
 class SnapshotData;
@@ -1095,7 +1095,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const std::shared_ptr<metrics::Recorder>& metrics_recorder() {
     return metrics_recorder_;
   }
-  RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
+  TieringManager* tiering_manager() { return tiering_manager_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
   Logger* logger() {
     // Call InitializeLoggingAndCounters() if logging is needed before
@@ -2071,7 +2071,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   StringStream* incomplete_message_ = nullptr;
   Address isolate_addresses_[kIsolateAddressCount + 1] = {};
   Bootstrapper* bootstrapper_ = nullptr;
-  RuntimeProfiler* runtime_profiler_ = nullptr;
+  TieringManager* tiering_manager_ = nullptr;
   CompilationCache* compilation_cache_ = nullptr;
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;

@@ -30,7 +30,6 @@
 #include "src/execution/embedder-state.h"
 #include "src/execution/isolate-utils-inl.h"
 #include "src/execution/microtask-queue.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles-inl.h"

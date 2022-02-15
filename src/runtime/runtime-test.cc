@@ -20,7 +20,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
-#include "src/execution/runtime-profiler.h"
+#include "src/execution/tiering-manager.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/stub-cache.h"
@@ -514,7 +514,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   // Make the profiler arm all back edges in unoptimized code.
   if (it.frame()->is_unoptimized()) {
-    isolate->runtime_profiler()->AttemptOnStackReplacement(
+    isolate->tiering_manager()->AttemptOnStackReplacement(
         UnoptimizedFrame::cast(it.frame()),
         AbstractCode::kMaxLoopNestingMarker);
   }
