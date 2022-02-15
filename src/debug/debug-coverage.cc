@@ -612,7 +612,8 @@ std::unique_ptr<Coverage> Coverage::CollectPrecise(Isolate* isolate) {
        isolate->is_block_binary_code_coverage())) {
     // We do not have to hold onto feedback vectors for invocations we already
     // reported. So we can reset the list.
-    isolate->SetFeedbackVectorsForProfilingTools(*ArrayList::New(isolate, 0));
+    isolate->SetFeedbackVectorsForProfilingTools(
+        ReadOnlyRoots(isolate).empty_array_list());
   }
   return result;
 }

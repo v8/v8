@@ -187,6 +187,7 @@ class Symbol;
   V(SwissNameDictionary, empty_swiss_property_dictionary,                      \
     EmptySwissPropertyDictionary)                                              \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
+  V(ArrayList, empty_array_list, EmptyArrayList)                               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
   /* Special numbers */                                                        \

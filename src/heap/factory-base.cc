@@ -252,9 +252,6 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
   DCHECK(source->IsString() || source->IsUndefined());
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
-#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
-  Handle<ArrayList> list = NewArrayList(0, AllocationType::kOld);
-#endif
   Handle<Script> script = handle(
       NewStructInternal<Script>(SCRIPT_TYPE, AllocationType::kOld), isolate());
   {
@@ -276,7 +273,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     raw.set_flags(0);
     raw.set_host_defined_options(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
-    raw.set_script_or_modules(*list);
+    raw.set_script_or_modules(roots.empty_array_list());
 #endif
   }
 
@@ -291,12 +288,16 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 template <typename Impl>
 Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size,
                                                   AllocationType allocation) {
+  if (size == 0) return impl()->empty_array_list();
   Handle<FixedArray> fixed_array =
       NewFixedArray(size + ArrayList::kFirstIndex, allocation);
-  fixed_array->set_map_no_write_barrier(read_only_roots().array_list_map());
-  Handle<ArrayList> result = Handle<ArrayList>::cast(fixed_array);
-  result->SetLength(0);
-  return result;
+  {
+    DisallowGarbageCollection no_gc;
+    FixedArray raw = *fixed_array;
+    raw.set_map_no_write_barrier(read_only_roots().array_list_map());
+    ArrayList::cast(raw).SetLength(0);
+  }
+  return Handle<ArrayList>::cast(fixed_array);
 }
 
 template <typename Impl>

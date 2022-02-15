@@ -4056,15 +4056,11 @@ Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
 // static
 Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
                                          Handle<ArrayList> array, int length) {
-  const bool empty = (array->length() == 0);
-  Handle<FixedArray> ret =
-      EnsureSpaceInFixedArray(isolate, array, kFirstIndex + length);
-  if (empty) {
-    ret->set_map_no_write_barrier(array->GetReadOnlyRoots().array_list_map());
-
-    Handle<ArrayList>::cast(ret)->SetLength(0);
-  }
-  return Handle<ArrayList>::cast(ret);
+  DCHECK_LT(0, length);
+  auto new_array = Handle<ArrayList>::cast(
+      EnsureSpaceInFixedArray(isolate, array, kFirstIndex + length));
+  DCHECK_EQ(array->Length(), new_array->Length());
+  return new_array;
 }
 
 // static
@@ -4073,10 +4069,14 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               const MaybeObjectHandle& value) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 1);
-  // Reload length; GC might have removed elements from the array.
-  length = array->length();
-  array->Set(length, *value);
-  array->set_length(length + 1);
+  {
+    DisallowGarbageCollection no_gc;
+    WeakArrayList raw = *array;
+    // Reload length; GC might have removed elements from the array.
+    length = raw.length();
+    raw.Set(length, *value);
+    raw.set_length(length + 1);
+  }
   return array;
 }
 
@@ -4086,11 +4086,15 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               const MaybeObjectHandle& value2) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 2);
-  // Reload length; GC might have removed elements from the array.
-  length = array->length();
-  array->Set(length, *value1);
-  array->Set(length + 1, *value2);
-  array->set_length(length + 2);
+  {
+    DisallowGarbageCollection no_gc;
+    WeakArrayList raw = *array;
+    // Reload length; GC might have removed elements from the array.
+    length = array->length();
+    raw.Set(length, *value1);
+    raw.Set(length + 1, *value2);
+    raw.set_length(length + 2);
+  }
   return array;
 }
 
@@ -4099,17 +4103,23 @@ Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
                                             Handle<WeakArrayList> array,
                                             const MaybeObjectHandle& value,
                                             AllocationType allocation) {
-  int length = array->length();
+  int length = 0;
+  int new_length = 0;
+  {
+    DisallowGarbageCollection no_gc;
+    WeakArrayList raw = *array;
+    length = raw.length();
 
-  if (length < array->capacity()) {
-    array->Set(length, *value);
-    array->set_length(length + 1);
-    return array;
+    if (length < raw.capacity()) {
+      raw.Set(length, *value);
+      raw.set_length(length + 1);
+      return array;
+    }
+
+    // Not enough space in the array left, either grow, shrink or
+    // compact the array.
+    new_length = raw.CountLiveElements() + 1;
   }
-
-  // Not enough space in the array left, either grow, shrink or
-  // compact the array.
-  int new_length = array->CountLiveElements() + 1;
 
   bool shrink = new_length < length / 4;
   bool grow = 3 * (length / 4) < new_length;
@@ -4128,14 +4138,19 @@ Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
   // Now append value to the array, there should always be enough space now.
   DCHECK_LT(array->length(), array->capacity());
 
-  // Reload length, allocation might have killed some weak refs.
-  int index = array->length();
-  array->Set(index, *value);
-  array->set_length(index + 1);
+  {
+    DisallowGarbageCollection no_gc;
+    WeakArrayList raw = *array;
+    // Reload length, allocation might have killed some weak refs.
+    int index = raw.length();
+    raw.Set(index, *value);
+    raw.set_length(index + 1);
+  }
   return array;
 }
 
 void WeakArrayList::Compact(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
   int length = this->length();
   int new_length = 0;
 
@@ -4153,7 +4168,7 @@ void WeakArrayList::Compact(Isolate* isolate) {
   set_length(new_length);
 }
 
-bool WeakArrayList::IsFull() { return length() == capacity(); }
+bool WeakArrayList::IsFull() const { return length() == capacity(); }
 
 // static
 Handle<WeakArrayList> WeakArrayList::EnsureSpace(Isolate* isolate,

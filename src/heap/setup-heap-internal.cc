@@ -250,7 +250,6 @@ bool Heap::CreateInitialMaps() {
 #undef ALLOCATE_PARTIAL_MAP
   }
 
-  // Allocate the empty array.
   {
     AllocationResult alloc =
         AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly);
@@ -534,6 +533,15 @@ bool Heap::CreateInitialMaps() {
 #undef ALLOCATE_VARSIZE_MAP
 #undef ALLOCATE_MAP
   }
+  {
+    AllocationResult alloc = AllocateRaw(
+        ArrayList::SizeFor(ArrayList::kFirstIndex), AllocationType::kReadOnly);
+    if (!alloc.To(&obj)) return false;
+    obj.set_map_after_allocation(roots.array_list_map(), SKIP_WRITE_BARRIER);
+    ArrayList::cast(obj).set_length(ArrayList::kFirstIndex);
+    ArrayList::cast(obj).SetLength(0);
+  }
+  set_empty_array_list(ArrayList::cast(obj));
 
   {
     AllocationResult alloc =
@@ -785,6 +793,7 @@ void Heap::CreateInitialObjects() {
   Handle<NameDictionary> empty_property_dictionary = NameDictionary::New(
       isolate(), 1, AllocationType::kReadOnly, USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!empty_property_dictionary->HasSufficientCapacityToAdd(1));
+
   set_empty_property_dictionary(*empty_property_dictionary);
 
   set_public_symbol_table(*empty_property_dictionary);
@@ -794,7 +803,7 @@ void Heap::CreateInitialObjects() {
   set_number_string_cache(*factory->NewFixedArray(
       kInitialNumberStringCacheSize * 2, AllocationType::kOld));
 
-  set_basic_block_profiling_data(ArrayList::cast(roots.empty_fixed_array()));
+  set_basic_block_profiling_data(roots.empty_array_list());
 
   // Allocate cache for string split and regexp-multiple.
   set_string_split_cache(*factory->NewFixedArray(

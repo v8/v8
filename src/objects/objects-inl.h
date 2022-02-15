@@ -303,9 +303,8 @@ bool Object::IsNumeric(PtrComprCageBase cage_base) const {
 }
 
 DEF_GETTER(HeapObject, IsArrayList, bool) {
-  ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
-  return *this == roots.empty_fixed_array() ||
-         map(cage_base) == roots.array_list_map();
+  return map(cage_base) ==
+         GetReadOnlyRoots(cage_base).unchecked_array_list_map();
 }
 
 DEF_GETTER(HeapObject, IsRegExpMatchInfo, bool) {

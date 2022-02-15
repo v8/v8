@@ -570,10 +570,31 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   }
 }
 
+void FixedArray::FixedArrayVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::FixedArrayVerify(*this, isolate);
+  if (*this == ReadOnlyRoots(isolate).empty_fixed_array()) {
+    CHECK_EQ(length(), 0);
+    CHECK_EQ(map(), ReadOnlyRoots(isolate).fixed_array_map());
+  } else if (IsArrayList()) {
+    ArrayList::cast(*this).ArrayListVerify(isolate);
+  }
+}
+
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WeakFixedArrayVerify(*this, isolate);
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
+  }
+}
+
+void ArrayList::ArrayListVerify(Isolate* isolate) {
+  // Avoid calling the torque-generated ArrayListVerify to prevent an endlessly
+  // recursion verification.
+  CHECK(IsArrayList());
+  CHECK_LE(ArrayList::kLengthIndex, length());
+  CHECK_LE(0, Length());
+  if (Length() == 0 && length() == ArrayList::kLengthIndex) {
+    CHECK_EQ(*this, ReadOnlyRoots(isolate).empty_array_list());
   }
 }
 
