@@ -6007,6 +6007,14 @@ void TurboAssembler::I8x16Shuffle(Simd128Register dst, Simd128Register src1,
   vperm(dst, src1, src2, scratch3, Condition(0), Condition(0));
 }
 
+void TurboAssembler::I32x4DotI16x8S(Simd128Register dst, Simd128Register src1,
+                                    Simd128Register src2,
+                                    Simd128Register scratch) {
+  vme(scratch, src1, src2, Condition(0), Condition(0), Condition(1));
+  vmo(dst, src1, src2, Condition(0), Condition(0), Condition(1));
+  va(dst, scratch, dst, Condition(0), Condition(0), Condition(2));
+}
+
 // Vector LE Load and Transform instructions.
 #ifdef V8_TARGET_BIG_ENDIAN
 #define IS_BIG_ENDIAN true

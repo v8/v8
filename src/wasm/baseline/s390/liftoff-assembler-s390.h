@@ -2628,7 +2628,7 @@ void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
-  bailout(kSimd, "i32x4_dot_i16x8_s");
+  I32x4DotI16x8S(dst.fp(), lhs.fp(), rhs.fp(), kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,

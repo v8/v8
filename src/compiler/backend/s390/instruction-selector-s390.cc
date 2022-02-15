@@ -2470,6 +2470,7 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(I32x4Shl)              \
   V(I32x4ShrS)             \
   V(I32x4ShrU)             \
+  V(I32x4DotI16x8S)        \
   V(I16x8Add)              \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
@@ -2517,7 +2518,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(S128AndNot)
 
 #define SIMD_BINOP_UNIQUE_REGISTER_LIST(V) \
-  V(I32x4DotI16x8S)                        \
   V(I16x8AddSatS)                          \
   V(I16x8SubSatS)                          \
   V(I16x8AddSatU)                          \
