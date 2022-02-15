@@ -61,12 +61,12 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
   // all these marker values there.
   TNode<Uint32T> marker =
       DecodeWord32<FeedbackVector::OptimizationMarkerBits>(optimization_state);
-  TailCallRuntimeIfMarkerEquals(marker, OptimizationMarker::kCompileOptimized,
-                                Runtime::kCompileOptimized_NotConcurrent,
-                                function);
   TailCallRuntimeIfMarkerEquals(
-      marker, OptimizationMarker::kCompileOptimizedConcurrent,
-      Runtime::kCompileOptimized_Concurrent, function);
+      marker, OptimizationMarker::kCompileTurbofan_NotConcurrent,
+      Runtime::kCompileTurbofan_NotConcurrent, function);
+  TailCallRuntimeIfMarkerEquals(marker,
+                                OptimizationMarker::kCompileTurbofan_Concurrent,
+                                Runtime::kCompileTurbofan_Concurrent, function);
 
   Unreachable();
   BIND(&may_have_optimized_code);

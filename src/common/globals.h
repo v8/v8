@@ -1653,9 +1653,9 @@ enum class OptimizationMarker : int32_t {
   // some processing needs to be done.
   kNone = 0b00,
   kInOptimizationQueue = 0b01,
-  kCompileOptimized = 0b10,
-  kCompileOptimizedConcurrent = 0b11,
-  kLastOptimizationMarker = kCompileOptimizedConcurrent,
+  kCompileTurbofan_NotConcurrent = 0b10,
+  kCompileTurbofan_Concurrent = 0b11,
+  kLastOptimizationMarker = kCompileTurbofan_Concurrent,
 };
 // For kNone or kInOptimizationQueue we don't need any special processing.
 // To check both cases using a single mask, we expect the kNone to be 0 and
@@ -1671,20 +1671,15 @@ inline bool IsInOptimizationQueueMarker(OptimizationMarker marker) {
   return marker == OptimizationMarker::kInOptimizationQueue;
 }
 
-inline bool IsCompileOptimizedMarker(OptimizationMarker marker) {
-  return marker == OptimizationMarker::kCompileOptimized ||
-         marker == OptimizationMarker::kCompileOptimizedConcurrent;
-}
-
 inline std::ostream& operator<<(std::ostream& os,
                                 const OptimizationMarker& marker) {
   switch (marker) {
     case OptimizationMarker::kNone:
       return os << "OptimizationMarker::kNone";
-    case OptimizationMarker::kCompileOptimized:
-      return os << "OptimizationMarker::kCompileOptimized";
-    case OptimizationMarker::kCompileOptimizedConcurrent:
-      return os << "OptimizationMarker::kCompileOptimizedConcurrent";
+    case OptimizationMarker::kCompileTurbofan_NotConcurrent:
+      return os << "OptimizationMarker::kCompileTurbofan_NotConcurrent";
+    case OptimizationMarker::kCompileTurbofan_Concurrent:
+      return os << "OptimizationMarker::kCompileTurbofan_Concurrent";
     case OptimizationMarker::kInOptimizationQueue:
       return os << "OptimizationMarker::kInOptimizationQueue";
   }

@@ -57,14 +57,15 @@ bool JSFunction::ChecksOptimizationMarker() {
 }
 
 bool JSFunction::IsMarkedForOptimization() {
-  return has_feedback_vector() && feedback_vector().optimization_marker() ==
-                                      OptimizationMarker::kCompileOptimized;
+  return has_feedback_vector() &&
+         feedback_vector().optimization_marker() ==
+             OptimizationMarker::kCompileTurbofan_NotConcurrent;
 }
 
 bool JSFunction::IsMarkedForConcurrentOptimization() {
   return has_feedback_vector() &&
          feedback_vector().optimization_marker() ==
-             OptimizationMarker::kCompileOptimizedConcurrent;
+             OptimizationMarker::kCompileTurbofan_Concurrent;
 }
 
 void JSFunction::SetInterruptBudget() {
@@ -110,9 +111,10 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
     }
   }
 
-  SetOptimizationMarker(mode == ConcurrencyMode::kConcurrent
-                            ? OptimizationMarker::kCompileOptimizedConcurrent
-                            : OptimizationMarker::kCompileOptimized);
+  SetOptimizationMarker(
+      mode == ConcurrencyMode::kConcurrent
+          ? OptimizationMarker::kCompileTurbofan_Concurrent
+          : OptimizationMarker::kCompileTurbofan_NotConcurrent);
 }
 
 bool JSFunction::IsInOptimizationQueue() {

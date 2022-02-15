@@ -29,8 +29,8 @@ namespace internal {
 
 namespace {
 
-Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
-                        ConcurrencyMode mode) {
+Object CompileTurbofan(Isolate* isolate, Handle<JSFunction> function,
+                       ConcurrencyMode mode) {
   StackLimitCheck check(isolate);
   // Concurrent optimization runs on another thread, thus no additional gap.
   const int stack_gap = mode == ConcurrencyMode::kConcurrent
@@ -92,18 +92,18 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   return baseline_code;
 }
 
-RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
+RUNTIME_FUNCTION(Runtime_CompileTurbofan_Concurrent) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return CompileOptimized(isolate, function, ConcurrencyMode::kConcurrent);
+  return CompileTurbofan(isolate, function, ConcurrencyMode::kConcurrent);
 }
 
-RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
+RUNTIME_FUNCTION(Runtime_CompileTurbofan_NotConcurrent) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return CompileOptimized(isolate, function, ConcurrencyMode::kNotConcurrent);
+  return CompileTurbofan(isolate, function, ConcurrencyMode::kNotConcurrent);
 }
 
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
@@ -342,7 +342,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
           function->PrintName(scope.file());
           PrintF(scope.file(), " for non-concurrent optimization]\n");
         }
-        function->SetOptimizationMarker(OptimizationMarker::kCompileOptimized);
+        function->SetOptimizationMarker(
+            OptimizationMarker::kCompileTurbofan_NotConcurrent);
       }
       return *result;
     }

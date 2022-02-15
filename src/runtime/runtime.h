@@ -107,8 +107,8 @@ namespace internal {
   F(CompileForOnStackReplacement, 0, 1)   \
   F(CompileLazy, 1, 1)                    \
   F(CompileBaseline, 1, 1)                \
-  F(CompileOptimized_Concurrent, 1, 1)    \
-  F(CompileOptimized_NotConcurrent, 1, 1) \
+  F(CompileTurbofan_Concurrent, 1, 1)     \
+  F(CompileTurbofan_NotConcurrent, 1, 1)  \
   F(InstallBaselineCode, 1, 1)            \
   F(HealOptimizedCodeSlot, 1, 1)          \
   F(InstantiateAsmJs, 4, 1)               \

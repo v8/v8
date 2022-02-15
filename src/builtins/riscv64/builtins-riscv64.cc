@@ -973,12 +973,13 @@ static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
   // TODO(v8:8394): The logging of first execution will break if
   // feedback vectors are not allocated. We need to find a different way of
   // logging these events if required.
+  TailCallRuntimeIfMarkerEquals(
+      masm, optimization_marker,
+      OptimizationMarker::kCompileTurbofan_NotConcurrent,
+      Runtime::kCompileTurbofan_NotConcurrent);
   TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kCompileOptimized,
-                                Runtime::kCompileOptimized_NotConcurrent);
-  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kCompileOptimizedConcurrent,
-                                Runtime::kCompileOptimized_Concurrent);
+                                OptimizationMarker::kCompileTurbofan_Concurrent,
+                                Runtime::kCompileTurbofan_Concurrent);
 
   // Marker should be one of CompileOptimized / CompileOptimizedConcurrent.
   // InOptimizationQueue and None shouldn't reach here.
