@@ -2058,13 +2058,12 @@ class WasmModuleBuilder {
           if (seg.is_active) {
             section.emit_u8(0);  // linear memory index 0 / flags
             if (seg.is_global) {
-              // initializer is a global variable
+              // Initializer is a global variable.
               section.emit_u8(kExprGlobalGet);
               section.emit_u32v(seg.addr);
             } else {
-              // initializer is a constant
-              section.emit_u8(kExprI32Const);
-              section.emit_u32v(seg.addr);
+              // Initializer is a constant.
+              section.emit_bytes(wasmI32Const(seg.addr));
             }
             section.emit_u8(kExprEnd);
           } else {
@@ -2076,7 +2075,7 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add any explicitly added sections
+    // Add any explicitly added sections.
     for (let exp of wasm.explicit) {
       if (debug) print('emitting explicit @ ' + binary.length);
       binary.emit_bytes(exp);
