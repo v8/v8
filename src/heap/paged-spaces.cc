@@ -772,6 +772,9 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       CHECK_EQ(external_page_bytes[t], page->ExternalBackingStoreBytes(t));
       external_space_bytes[t] += external_page_bytes[t];
     }
+
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
   }
   for (int i = 0; i < kNumTypes; i++) {
     if (i == ExternalBackingStoreType::kArrayBuffer) continue;

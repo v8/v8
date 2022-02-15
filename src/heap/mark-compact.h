@@ -26,6 +26,7 @@ namespace internal {
 class EvacuationJobTraits;
 class HeapObjectVisitor;
 class ItemParallelJob;
+class LargePage;
 class MigrationObserver;
 class ReadOnlySpace;
 class RecordMigratedSlotVisitor;
@@ -807,6 +808,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       aborted_evacuation_candidates_due_to_oom_;
   std::vector<std::pair<Address, Page*>>
       aborted_evacuation_candidates_due_to_flags_;
+  std::vector<LargePage*> promoted_large_pages_;
 
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
@@ -915,6 +917,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   base::Semaphore page_parallel_job_semaphore_;
   std::vector<Page*> new_space_evacuation_pages_;
   std::vector<Page*> promoted_pages_;
+  std::vector<LargePage*> promoted_large_pages_;
 
   friend class YoungGenerationMarkingTask;
   friend class YoungGenerationMarkingJob;

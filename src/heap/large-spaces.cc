@@ -445,6 +445,9 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
       ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
       external_backing_store_bytes[t] += chunk->ExternalBackingStoreBytes(t);
     }
+
+    CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+    CHECK(!chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
   }
   for (int i = 0; i < kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);

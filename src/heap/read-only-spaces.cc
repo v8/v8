@@ -533,6 +533,9 @@ void ReadOnlySpace::Verify(Isolate* isolate) {
       CHECK(!object.IsExternalString());
       CHECK(!object.IsJSArrayBuffer());
     }
+
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
   }
   CHECK(allocation_pointer_found_in_space);
 

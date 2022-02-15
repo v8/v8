@@ -702,6 +702,11 @@ void NewSpace::Verify(Isolate* isolate) {
     external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
   }
 
+  CHECK(!Page::FromAllocationAreaAddress(current)->IsFlagSet(
+      Page::PAGE_NEW_OLD_PROMOTION));
+  CHECK(!Page::FromAllocationAreaAddress(current)->IsFlagSet(
+      Page::PAGE_NEW_NEW_PROMOTION));
+
   PtrComprCageBase cage_base(isolate);
   while (current != top()) {
     if (!Page::IsAlignedToPageSize(current)) {
@@ -740,6 +745,8 @@ void NewSpace::Verify(Isolate* isolate) {
     } else {
       // At end of page, switch to next page.
       Page* page = Page::FromAllocationAreaAddress(current)->next_page();
+      CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+      CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
       current = page->area_start();
     }
   }

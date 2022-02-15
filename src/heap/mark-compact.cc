@@ -3917,6 +3917,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       if (marking_state->IsBlack(object)) {
         heap_->lo_space()->PromoteNewLargeObject(current);
         current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+        promoted_large_pages_.push_back(current);
         evacuation_items.emplace_back(ParallelWorkItem{}, current);
       }
     }
@@ -4108,6 +4109,12 @@ void MarkCompactCollector::Evacuate() {
       }
     }
     new_space_evacuation_pages_.clear();
+
+    for (LargePage* p : promoted_large_pages_) {
+      DCHECK(p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+      p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
+    }
+    promoted_large_pages_.clear();
 
     for (Page* p : old_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
@@ -5095,6 +5102,11 @@ void MinorMarkCompactCollector::CleanupPromotedPages() {
     non_atomic_marking_state()->ClearLiveness(p);
   }
   promoted_pages_.clear();
+
+  for (LargePage* p : promoted_large_pages_) {
+    p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
+  }
+  promoted_large_pages_.clear();
 }
 
 void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
@@ -5985,6 +5997,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
     if (non_atomic_marking_state_.IsGrey(object)) {
       heap_->lo_space()->PromoteNewLargeObject(current);
       current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+      promoted_large_pages_.push_back(current);
       evacuation_items.emplace_back(ParallelWorkItem{}, current);
     }
   }
