@@ -83,7 +83,8 @@ void Scavenger::PageMemoryFence(MaybeObject object) {
 }
 
 bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
-                              int size) {
+                              int size,
+                              PromotionHeapChoice promotion_heap_choice) {
   // Copy the content of source to target.
   target.set_map_word(MapWord::FromMap(map), kRelaxedStore);
   heap()->CopyBlock(target.address() + kTaggedSize,
@@ -100,7 +101,8 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
     heap()->OnMoveEvent(target, source, size);
   }
 
-  if (is_incremental_marking_) {
+  if (is_incremental_marking_ &&
+      promotion_heap_choice != kPromoteIntoSharedHeap) {
     heap()->incremental_marking()->TransferColor(source, target);
   }
   heap()->UpdateAllocationSite(map, source, &local_pretenuring_feedback_);
@@ -123,7 +125,8 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
   if (allocation.To(&target)) {
     DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
         target));
-    const bool self_success = MigrateObject(map, object, target, object_size);
+    const bool self_success =
+        MigrateObject(map, object, target, object_size, kPromoteIntoLocalHeap);
     if (!self_success) {
       allocator_.FreeLast(NEW_SPACE, target, object_size);
       MapWord map_word = object.map_word(kAcquireLoad);
@@ -171,7 +174,8 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
   if (allocation.To(&target)) {
     DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
         target));
-    const bool self_success = MigrateObject(map, object, target, object_size);
+    const bool self_success =
+        MigrateObject(map, object, target, object_size, promotion_heap_choice);
     if (!self_success) {
       allocator_.FreeLast(OLD_SPACE, target, object_size);
       MapWord map_word = object.map_word(kAcquireLoad);

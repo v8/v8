@@ -111,6 +111,8 @@ class Scavenger {
   size_t bytes_promoted() const { return promoted_size_; }
 
  private:
+  enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
+
   // Number of objects to process before interrupting for potentially waking
   // up other tasks.
   static const int kInterruptThreshold = 128;
@@ -135,7 +137,8 @@ class Scavenger {
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
   V8_INLINE bool MigrateObject(Map map, HeapObject source, HeapObject target,
-                               int size);
+                               int size,
+                               PromotionHeapChoice promotion_heap_choice);
 
   V8_INLINE SlotCallbackResult
   RememberedSetEntryNeeded(CopyAndForwardResult result);
@@ -144,8 +147,6 @@ class Scavenger {
   V8_INLINE CopyAndForwardResult
   SemiSpaceCopyObject(Map map, THeapObjectSlot slot, HeapObject object,
                       int object_size, ObjectFields object_fields);
-
-  enum PromotionHeapChoice { kPromoteIntoLocalHeap, kPromoteIntoSharedHeap };
 
   template <typename THeapObjectSlot,
             PromotionHeapChoice promotion_heap_choice = kPromoteIntoLocalHeap>
