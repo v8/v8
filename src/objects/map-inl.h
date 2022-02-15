@@ -688,8 +688,8 @@ bool Map::IsBooleanMap() const {
 }
 
 bool Map::IsNullOrUndefinedMap() const {
-  return *this == GetReadOnlyRoots().null_map() ||
-         *this == GetReadOnlyRoots().undefined_map();
+  auto roots = GetReadOnlyRoots();
+  return *this == roots.null_map() || *this == roots.undefined_map();
 }
 
 bool Map::IsPrimitiveMap() const {

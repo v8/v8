@@ -3816,22 +3816,25 @@ Handle<DescriptorArray> DescriptorArray::CopyUpTo(Isolate* isolate,
 }
 
 Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
-    Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
-    PropertyAttributes attributes, int slack) {
+    Isolate* isolate, Handle<DescriptorArray> source_handle,
+    int enumeration_index, PropertyAttributes attributes, int slack) {
   if (enumeration_index + slack == 0) {
     return isolate->factory()->empty_descriptor_array();
   }
 
   int size = enumeration_index;
-
-  Handle<DescriptorArray> descriptors =
+  Handle<DescriptorArray> copy_handle =
       DescriptorArray::Allocate(isolate, size, slack);
+
+  DisallowGarbageCollection no_gc;
+  auto source = *source_handle;
+  auto copy = *copy_handle;
 
   if (attributes != NONE) {
     for (InternalIndex i : InternalIndex::Range(size)) {
-      MaybeObject value_or_field_type = desc->GetValue(i);
-      Name key = desc->GetKey(i);
-      PropertyDetails details = desc->GetDetails(i);
+      MaybeObject value_or_field_type = source.GetValue(i);
+      Name key = source.GetKey(i);
+      PropertyDetails details = source.GetDetails(i);
       // Bulk attribute changes never affect private properties.
       if (!key.IsPrivate()) {
         int mask = DONT_DELETE | DONT_ENUM;
@@ -3845,35 +3848,39 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
         details = details.CopyAddAttributes(
             static_cast<PropertyAttributes>(attributes & mask));
       }
-      descriptors->Set(i, key, value_or_field_type, details);
+      copy.Set(i, key, value_or_field_type, details);
     }
   } else {
     for (InternalIndex i : InternalIndex::Range(size)) {
-      descriptors->CopyFrom(i, *desc);
+      copy.CopyFrom(i, source);
     }
   }
 
-  if (desc->number_of_descriptors() != enumeration_index) descriptors->Sort();
+  if (source.number_of_descriptors() != enumeration_index) copy.Sort();
 
-  return descriptors;
+  return copy_handle;
 }
 
 // Create a new descriptor array with only enumerable, configurable, writeable
 // data properties, but identical field locations.
 Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
-    Isolate* isolate, Handle<DescriptorArray> src, int enumeration_index,
+    Isolate* isolate, Handle<DescriptorArray> src_handle, int enumeration_index,
     int slack) {
   if (enumeration_index + slack == 0) {
     return isolate->factory()->empty_descriptor_array();
   }
 
   int size = enumeration_index;
-  Handle<DescriptorArray> descriptors =
+  Handle<DescriptorArray> descriptors_handle =
       DescriptorArray::Allocate(isolate, size, slack);
 
+  DisallowGarbageCollection no_gc;
+  auto src = *src_handle;
+  auto descriptors = *descriptors_handle;
+
   for (InternalIndex i : InternalIndex::Range(size)) {
-    Name key = src->GetKey(i);
-    PropertyDetails details = src->GetDetails(i);
+    Name key = src.GetKey(i);
+    PropertyDetails details = src.GetDetails(i);
     Representation new_representation = details.representation();
 
     DCHECK(!key.IsPrivateName());
@@ -3882,7 +3889,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
     // If the new representation is an in-place changeable field, make it
     // generic as possible (under in-place changes) to avoid type confusion if
     // the source representation changes after this feedback has been collected.
-    MaybeObject type = src->GetValue(i);
+    MaybeObject type = src.GetValue(i);
     if (details.location() == PropertyLocation::kField) {
       type = MaybeObject::FromObject(FieldType::Any());
       // TODO(bmeurer,ishell): Igor suggested to use some kind of dynamic
@@ -3899,12 +3906,12 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
                                 details.constness(), new_representation,
                                 details.field_index());
 
-    descriptors->Set(i, key, type, new_details);
+    descriptors.Set(i, key, type, new_details);
   }
 
-  descriptors->Sort();
+  descriptors.Sort();
 
-  return descriptors;
+  return descriptors_handle;
 }
 
 bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
