@@ -105,6 +105,8 @@ v8_flag(name = "v8_enable_disassembler")
 
 v8_flag(name = "v8_enable_handle_zapping")
 
+v8_flag(name = "v8_enable_runtime_call_stats")
+
 v8_flag(name = "v8_enable_hugepage")
 
 v8_flag(name = "v8_enable_fast_mksnapshot")
@@ -255,6 +257,7 @@ v8_config(
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",
         "v8_enable_object_print": "OBJECT_PRINT",
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
+        "v8_enable_runtime_call_stats": "V8_RUNTIME_CALL_STATS",
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
         "v8_enable_trace_maps": "V8_TRACE_MAPS",
         "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
@@ -2016,8 +2019,8 @@ filegroup(
         "src/tracing/traced-value.h",
         "src/tracing/tracing-category-observer.cc",
         "src/tracing/tracing-category-observer.h",
-        "src/trap-handler/handler-inside.cc",
         "src/trap-handler/handler-inside-posix.h",
+        "src/trap-handler/handler-inside.cc",
         "src/trap-handler/handler-outside.cc",
         "src/trap-handler/handler-shared.cc",
         "src/trap-handler/trap-handler-internal.h",
@@ -2298,7 +2301,7 @@ filegroup(
         ],
     }) + select({
         # Only for x64 builds and for arm64 with x64 host simulator.
-        "@v8//bazel/config:is_posix_x64": [
+        "@v8//bazel/config:is_non_android_posix_x64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
@@ -2312,8 +2315,8 @@ filegroup(
     }) + select({
         "@v8//bazel/config:is_windows": [
             "src/trap-handler/handler-inside-win.cc",
-            "src/trap-handler/handler-outside-win.cc",
             "src/trap-handler/handler-inside-win.h",
+            "src/trap-handler/handler-outside-win.cc",
         ],
         "//conditions:default": [],
     }) + select({

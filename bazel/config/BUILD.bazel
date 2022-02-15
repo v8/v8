@@ -178,9 +178,25 @@ selects.config_setting_group(
 )
 
 selects.config_setting_group(
+    name = "is_non_android_posix",
+    match_any = [
+        ":is_linux",
+        ":is_macos",
+    ],
+)
+
+selects.config_setting_group(
     name = "is_posix_x64",
     match_all = [
         ":is_posix",
+        ":is_x64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_non_android_posix_x64",
+    match_all = [
+        ":is_non_android_posix",
         ":is_x64",
     ],
 )
