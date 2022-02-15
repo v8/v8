@@ -4940,10 +4940,6 @@ void TurboAssembler::CallCFunctionHelper(Register function,
     Register scratch = t2;
 
     auipc(pc_scratch, 0);
-    // TODO(RISCV): Does this need an offset? It seems like this should be the
-    // PC of the call, but MIPS does not seem to do that.
-    // https://github.com/v8-riscv/v8/issues/378
-
     // See x64 code for reasoning about how to address the isolate data fields.
     if (root_array_available()) {
       Sd(pc_scratch, MemOperand(kRootRegister,
