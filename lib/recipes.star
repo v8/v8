@@ -30,8 +30,6 @@ def define_all_recipes():
     )
     build_recipes = [
         "chromium_integration",
-        "v8",
-        "v8/bazel",
         "v8/flako",
     ]
     for recipe in build_recipes:
@@ -41,7 +39,9 @@ def define_all_recipes():
         "chromium",
         "chromium_trybot",
         "run_presubmit",
+        "v8",
         "v8/archive",
+        "v8/bazel",
         "v8/node_integration_ng",
         "v8/presubmit",
         "v8/verify_flakes",
