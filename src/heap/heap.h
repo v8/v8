@@ -957,9 +957,6 @@ class Heap {
   // Inline allocation. ========================================================
   // ===========================================================================
 
-  // Indicates whether inline bump-pointer allocation has been disabled.
-  bool inline_allocation_disabled() { return inline_allocation_disabled_; }
-
   // Switch whether inline bump-pointer allocation should be used.
   V8_EXPORT_PRIVATE void EnableInlineAllocation();
   V8_EXPORT_PRIVATE void DisableInlineAllocation();
@@ -2278,10 +2275,6 @@ class Heap {
   // generation and on every allocation in large object space.
   std::atomic<size_t> old_generation_allocation_limit_{0};
   size_t global_allocation_limit_ = 0;
-
-  // Indicates that inline bump-pointer allocation has been globally disabled
-  // for all spaces. This is used to disable allocations in generated code.
-  bool inline_allocation_disabled_ = false;
 
   // Weak list heads, threaded through the objects.
   // List heads are initialized lazily and contain the undefined_value at start.

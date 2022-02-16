@@ -3000,7 +3000,7 @@ TEST(TrackBumpPointerAllocations) {
 
     // Now check that not all allocations are tracked if we manually reenable
     // inline allocations.
-    CHECK(CcTest::heap()->inline_allocation_disabled());
+    CHECK(!CcTest::heap()->new_space()->IsInlineAllocationEnabled());
     CcTest::heap()->EnableInlineAllocation();
 
     CompileRun(inline_heap_allocation_source);

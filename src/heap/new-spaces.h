@@ -487,7 +487,7 @@ class V8_EXPORT_PRIVATE NewSpace
   void MakeLinearAllocationAreaIterable();
 
   // Creates a filler object in the linear allocation area and closes it.
-  void FreeLinearAllocationArea();
+  void FreeLinearAllocationArea() override;
 
  private:
   static const int kAllocationBufferParkingThreshold = 4 * KB;

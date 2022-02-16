@@ -5595,32 +5595,31 @@ bool Heap::ShouldStressCompaction() const {
 }
 
 void Heap::EnableInlineAllocation() {
-  if (!inline_allocation_disabled_) return;
-  inline_allocation_disabled_ = false;
-
   // Update inline allocation limit for new space.
   if (new_space()) {
-    new_space()->AdvanceAllocationObservers();
-    new_space()->UpdateInlineAllocationLimit(0);
+    new_space()->EnableInlineAllocation();
+  }
+  // Update inline allocation limit for old spaces.
+  PagedSpaceIterator spaces(this);
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
+    base::MutexGuard guard(space->mutex());
+    space->EnableInlineAllocation();
   }
 }
 
 void Heap::DisableInlineAllocation() {
-  if (inline_allocation_disabled_) return;
-  inline_allocation_disabled_ = true;
-
   // Update inline allocation limit for new space.
   if (new_space()) {
-    new_space()->UpdateInlineAllocationLimit(0);
+    new_space()->DisableInlineAllocation();
   }
-
   // Update inline allocation limit for old spaces.
   PagedSpaceIterator spaces(this);
   CodePageCollectionMemoryModificationScope modification_scope(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
     base::MutexGuard guard(space->mutex());
-    space->FreeLinearAllocationArea();
+    space->DisableInlineAllocation();
   }
 }
 

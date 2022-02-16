@@ -259,10 +259,12 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) {
   DCHECK_GE(end - start, min_size);
 
-  if (heap()->inline_allocation_disabled()) {
-    // Fit the requested area exactly.
+  if (!use_lab_) {
+    // LABs are disabled, so we fit the requested area exactly.
     return start + min_size;
-  } else if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
+  }
+
+  if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
     // Ensure there are no unaccounted allocations.
     DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
 
@@ -277,10 +279,27 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
         static_cast<uint64_t>(start) + std::max(min_size, rounded_step);
     uint64_t new_end = std::min(step_end, static_cast<uint64_t>(end));
     return static_cast<Address>(new_end);
-  } else {
-    // The entire node can be used as the linear allocation area.
-    return end;
   }
+
+  // LABs are enabled and no observers attached. Return the whole node for the
+  // LAB.
+  return end;
+}
+
+void SpaceWithLinearArea::DisableInlineAllocation() {
+  if (!use_lab_) return;
+
+  use_lab_ = false;
+  FreeLinearAllocationArea();
+  UpdateInlineAllocationLimit(0);
+}
+
+void SpaceWithLinearArea::EnableInlineAllocation() {
+  if (use_lab_) return;
+
+  use_lab_ = true;
+  AdvanceAllocationObservers();
+  UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {

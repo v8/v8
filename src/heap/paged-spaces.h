@@ -194,7 +194,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   void ResetFreeList();
 
   // Empty space linear allocation area, returning unused area to free list.
-  void FreeLinearAllocationArea();
+  void FreeLinearAllocationArea() override;
 
   void MakeLinearAllocationAreaIterable();
 
