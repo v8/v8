@@ -278,9 +278,6 @@ declare_args() {
   # ARM64.
   v8_control_flow_integrity = false
 
-  # Enable object names in cppgc for debug purposes.
-  cppgc_enable_object_names = false
-
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
       v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||

@@ -86,6 +86,9 @@ declare_args() {
 
   cppgc_is_standalone = false
 
+  # Enable object names in cppgc for debug purposes.
+  cppgc_enable_object_names = false
+
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
 
