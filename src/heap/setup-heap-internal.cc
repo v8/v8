@@ -151,7 +151,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                   SKIP_WRITE_BARRIER);
   Map map = isolate()->factory()->InitializeMap(
       Map::cast(result), instance_type, instance_size, elements_kind,
-      inobject_properties);
+      inobject_properties, this);
 
   return AllocationResult::FromObject(map);
 }

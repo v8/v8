@@ -104,6 +104,7 @@ class StatsCounter;
     "FLAG_mock_arraybuffer_allocator")                                         \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
+  V(address_of_shared_string_table_flag, "FLAG_shared_string_table")           \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
   V(baseline_pc_for_bytecode_offset, "BaselinePCForBytecodeOffset")            \

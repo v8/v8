@@ -61,6 +61,7 @@
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-struct-inl.h"
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
@@ -98,7 +99,7 @@ namespace internal {
 //   every encountered tagged pointer.
 // - Verification should be pushed down to the specific instance type if its
 //   integrity is independent of an outer object.
-// - In cases where the InstanceType is too genernic (e.g. FixedArray) the
+// - In cases where the InstanceType is too generic (e.g. FixedArray) the
 //   XXXVerify of the outer method has to do recursive verification.
 // - If the corresponding objects have inheritence the parent's Verify method
 //   is called as well.
@@ -1181,6 +1182,33 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(JSShadowRealm)
+
+void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
+  CHECK(IsJSSharedStruct());
+  JSObjectVerify(isolate);
+  CHECK(HasFastProperties());
+  // Shared structs can only point to primitives or other shared HeapObjects,
+  // even internally.
+  // TODO(v8:12547): Generalize shared -> shared pointer verification.
+  Map struct_map = map();
+  CHECK(struct_map.InSharedHeap());
+  CHECK(struct_map.GetBackPointer().IsUndefined(isolate));
+  Object maybe_cell = struct_map.prototype_validity_cell();
+  if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
+  CHECK(!struct_map.is_extensible());
+  CHECK(!struct_map.is_prototype_map());
+  CHECK(property_array().InSharedHeap());
+  DescriptorArray descriptors = struct_map.instance_descriptors(isolate);
+  CHECK(descriptors.InSharedHeap());
+  for (InternalIndex i : struct_map.IterateOwnDescriptors()) {
+    PropertyDetails details = descriptors.GetDetails(i);
+    CHECK_EQ(PropertyKind::kData, details.kind());
+    CHECK_EQ(PropertyLocation::kField, details.location());
+    CHECK(details.representation().IsTagged());
+    CHECK(
+        RawFastPropertyAt(FieldIndex::ForDescriptor(struct_map, i)).IsShared());
+  }
+}
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell());

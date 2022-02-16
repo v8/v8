@@ -3042,6 +3042,25 @@ void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
                                           object, offset, value);
 }
 
+void CodeStubAssembler::StoreJSSharedStructInObjectField(
+    TNode<HeapObject> object, TNode<IntPtrT> offset, TNode<Object> value) {
+  CSA_DCHECK(this, IsJSSharedStruct(object));
+  // JSSharedStructs are allocated in the shared old space, which is currently
+  // collected by stopping the world, so the incremental write barrier is not
+  // needed. They can only store Smis and other HeapObjects in the shared old
+  // space, so the generational write barrier is also not needed.
+  // TODO(v8:12547): Add a safer, shared variant of NoWriteBarrier instead of
+  // using Unsafe.
+  int const_offset;
+  if (TryToInt32Constant(offset, &const_offset)) {
+    UnsafeStoreObjectFieldNoWriteBarrier(object, const_offset, value);
+  } else {
+    UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, object,
+                              IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)),
+                              value);
+  }
+}
+
 void CodeStubAssembler::StoreMap(TNode<HeapObject> object, TNode<Map> map) {
   OptimizedStoreMap(object, map);
   DcheckHasValidMap(object);
@@ -6540,6 +6559,19 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayIterator(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_ARRAY_ITERATOR_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSSharedStructInstanceType(
+    TNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, JS_SHARED_STRUCT_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSSharedStructMap(TNode<Map> map) {
+  return IsJSSharedStructInstanceType(LoadMapInstanceType(map));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSSharedStruct(TNode<HeapObject> object) {
+  return IsJSSharedStructMap(LoadMap(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSAsyncGeneratorObject(
     TNode<HeapObject> object) {
   return HasInstanceType(object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
@@ -6666,6 +6698,19 @@ TNode<BoolT> CodeStubAssembler::IsInternalizedStringInstanceType(
       Word32And(instance_type,
                 Int32Constant(kIsNotStringMask | kIsNotInternalizedMask)),
       Int32Constant(kStringTag | kInternalizedTag));
+}
+
+TNode<BoolT> CodeStubAssembler::IsSharedStringInstanceType(
+    TNode<Int32T> instance_type) {
+  TNode<BoolT> is_shared = Word32Equal(
+      Word32And(instance_type,
+                Int32Constant(kIsNotStringMask | kSharedStringMask)),
+      Int32Constant(kStringTag | kSharedStringTag));
+  // TODO(v8:12007): Internalized strings do not have kSharedStringTag until
+  // the shared string table ships.
+  return Word32Or(is_shared,
+                  Word32And(HasSharedStringTableFlag(),
+                            IsInternalizedStringInstanceType(instance_type)));
 }
 
 TNode<BoolT> CodeStubAssembler::IsUniqueName(TNode<HeapObject> object) {
@@ -6939,6 +6984,17 @@ TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
   return Select<BoolT>(
       TaggedIsSmi(number), [=] { return TaggedIsPositiveSmi(number); },
       [=] { return IsHeapNumberUint32(CAST(number)); });
+}
+
+TNode<BoolT> CodeStubAssembler::IsReadOnlyHeapObject(TNode<HeapObject> object) {
+  TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
+  TNode<IntPtrT> page = PageFromAddress(object_word);
+  TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
+      Load(MachineType::Pointer(), page,
+           IntPtrConstant(BasicMemoryChunk::kFlagsOffset)));
+  return WordNotEqual(
+      WordAnd(flags, IntPtrConstant(BasicMemoryChunk::READ_ONLY_HEAP)),
+      IntPtrConstant(0));
 }
 
 template <typename TIndex>
@@ -15792,6 +15848,36 @@ void CodeStubAssembler::SwissNameDictionaryAdd(TNode<SwissNameDictionary> table,
     SwissNameDictionaryAddPortable(table, key, value, property_details,
                                    needs_resize);
   }
+}
+
+void CodeStubAssembler::SharedValueBarrier(
+    TNode<Context> context, TNode<Object> value,
+    TVariable<Object>* var_shared_value) {
+  // The barrier ensures that the value can be shared across Isolates.
+  // The fast paths should be kept in sync with Object::Share.
+
+  Label skip_barrier(this);
+
+  // Fast path: Smis are trivially shared.
+  GotoIf(TaggedIsSmi(value), &skip_barrier);
+  // Fast path: Shared memory features imply shared RO space, so RO objects are
+  // trivially shared.
+  DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
+  GotoIf(IsReadOnlyHeapObject(CAST(value)), &skip_barrier);
+
+  // Fast path: Check if the HeapObject is already shared.
+  TNode<Uint16T> value_instance_type =
+      LoadMapInstanceType(LoadMap(CAST(value)));
+  GotoIf(IsSharedStringInstanceType(value_instance_type), &skip_barrier);
+  GotoIf(IsJSSharedStructInstanceType(value_instance_type), &skip_barrier);
+
+  // Slow path: Call out to runtime to share primitives and to throw on
+  // non-shared JS objects.
+  *var_shared_value =
+      CallRuntime(Runtime::kSharedValueBarrierSlow, context, value);
+  Goto(&skip_barrier);
+
+  BIND(&skip_barrier);
 }
 
 }  // namespace internal

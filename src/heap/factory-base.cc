@@ -47,6 +47,8 @@ template V8_EXPORT_PRIVATE Handle<HeapNumber>
 FactoryBase<Factory>::NewHeapNumber<AllocationType::kOld>();
 template V8_EXPORT_PRIVATE Handle<HeapNumber>
 FactoryBase<Factory>::NewHeapNumber<AllocationType::kReadOnly>();
+template V8_EXPORT_PRIVATE Handle<HeapNumber>
+FactoryBase<Factory>::NewHeapNumber<AllocationType::kSharedOld>();
 
 template V8_EXPORT_PRIVATE Handle<HeapNumber>
 FactoryBase<LocalFactory>::NewHeapNumber<AllocationType::kOld>();

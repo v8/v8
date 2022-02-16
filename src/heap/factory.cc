@@ -444,10 +444,11 @@ Handle<Oddball> Factory::NewBasicBlockCountersMarker() {
                     Oddball::kBasicBlockCountersMarker);
 }
 
-Handle<PropertyArray> Factory::NewPropertyArray(int length) {
+Handle<PropertyArray> Factory::NewPropertyArray(int length,
+                                                AllocationType allocation) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_property_array();
-  HeapObject result = AllocateRawFixedArray(length, AllocationType::kYoung);
+  HeapObject result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;
   result.set_map_after_allocation(*property_array_map(), SKIP_WRITE_BARRIER);
   PropertyArray array = PropertyArray::cast(result);
@@ -1850,15 +1851,19 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
   HeapObject result = isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
       Map::kSize, allocation_type);
   DisallowGarbageCollection no_gc;
-  result.set_map_after_allocation(*meta_map(), SKIP_WRITE_BARRIER);
+  Heap* roots = allocation_type == AllocationType::kMap
+                    ? isolate()->heap()
+                    : isolate()->shared_isolate()->heap();
+  result.set_map_after_allocation(ReadOnlyRoots(roots).meta_map(),
+                                  SKIP_WRITE_BARRIER);
   return handle(InitializeMap(Map::cast(result), type, instance_size,
-                              elements_kind, inobject_properties),
+                              elements_kind, inobject_properties, roots),
                 isolate());
 }
 
 Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
-                           ElementsKind elements_kind,
-                           int inobject_properties) {
+                           ElementsKind elements_kind, int inobject_properties,
+                           Heap* roots) {
   DisallowGarbageCollection no_gc;
   map.set_bit_field(0);
   map.set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
@@ -1869,7 +1874,8 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
       Map::Bits3::IsExtensibleBit::encode(true);
   map.set_bit_field3(bit_field3);
   map.set_instance_type(type);
-  HeapObject raw_null_value = *null_value();
+  ReadOnlyRoots ro_roots(roots);
+  HeapObject raw_null_value = ro_roots.null_value();
   map.set_prototype(raw_null_value, SKIP_WRITE_BARRIER);
   map.set_constructor_or_back_pointer(raw_null_value, SKIP_WRITE_BARRIER);
   map.set_instance_size(instance_size);
@@ -1878,20 +1884,19 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
     map.SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                           inobject_properties);
     DCHECK_EQ(map.GetInObjectProperties(), inobject_properties);
-    map.set_prototype_validity_cell(*invalid_prototype_validity_cell());
+    map.set_prototype_validity_cell(roots->invalid_prototype_validity_cell());
   } else {
     DCHECK_EQ(inobject_properties, 0);
     map.set_inobject_properties_start_or_constructor_function_index(0);
     map.set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
                                     SKIP_WRITE_BARRIER);
   }
-  map.set_dependent_code(
-      DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
-      SKIP_WRITE_BARRIER);
+  map.set_dependent_code(DependentCode::empty_dependent_code(ro_roots),
+                         SKIP_WRITE_BARRIER);
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()),
                           SKIP_WRITE_BARRIER);
   map.SetInObjectUnusedPropertyFields(inobject_properties);
-  map.SetInstanceDescriptors(isolate(), *empty_descriptor_array(), 0);
+  map.SetInstanceDescriptors(isolate(), ro_roots.empty_descriptor_array(), 0);
   // Must be called only after |instance_type| and |instance_size| are set.
   map.set_visitor_id(Map::GetVisitorId(map));
   DCHECK(!map.is_in_retained_map_list());

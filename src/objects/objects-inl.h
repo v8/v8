@@ -1164,6 +1164,46 @@ Object Object::GetHash() {
   return receiver.GetIdentityHash();
 }
 
+bool Object::IsShared() const {
+  // Smis are trivially shared.
+  if (IsSmi()) return true;
+
+  HeapObject object = HeapObject::cast(*this);
+
+  // RO objects are shared when the RO space is shared.
+  if (IsReadOnlyHeapObject(object)) {
+    return ReadOnlyHeap::IsReadOnlySpaceShared();
+  }
+
+  // Check if this object is already shared.
+  switch (object.map().instance_type()) {
+    case SHARED_STRING_TYPE:
+    case SHARED_ONE_BYTE_STRING_TYPE:
+    case JS_SHARED_STRUCT_TYPE:
+      DCHECK(object.InSharedHeap());
+      return true;
+    case INTERNALIZED_STRING_TYPE:
+    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+      if (FLAG_shared_string_table) {
+        DCHECK(object.InSharedHeap());
+        return true;
+      }
+      return false;
+    default:
+      return false;
+  }
+}
+
+// static
+MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
+                                  ShouldThrow throw_if_cannot_be_shared) {
+  // Sharing values requires the RO space be shared.
+  DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
+  if (value->IsShared()) return value;
+  return ShareSlow(isolate, Handle<HeapObject>::cast(value),
+                   throw_if_cannot_be_shared);
+}
+
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {
   return key;
 }

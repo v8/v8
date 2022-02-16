@@ -128,7 +128,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Oddball> NewBasicBlockCountersMarker();
 
   // Allocates a property array initialized with undefined values.
-  Handle<PropertyArray> NewPropertyArray(int length);
+  Handle<PropertyArray> NewPropertyArray(
+      int length, AllocationType allocation = AllocationType::kYoung);
   // Tries allocating a fixed array initialized with undefined values.
   // In case of an allocation failure (OOM) an empty handle is returned.
   // The caller has to manually signal an
@@ -445,10 +446,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
                      int inobject_properties = 0,
                      AllocationType allocation_type = AllocationType::kMap);
-  // Initializes the fields of a newly created Map. Exposed for tests and
-  // heap setup; other code should just call NewMap which takes care of it.
+  // Initializes the fields of a newly created Map using roots from the
+  // passed-in Heap. Exposed for tests and heap setup; other code should just
+  // call NewMap which takes care of it.
   Map InitializeMap(Map map, InstanceType type, int instance_size,
-                    ElementsKind elements_kind, int inobject_properties);
+                    ElementsKind elements_kind, int inobject_properties,
+                    Heap* roots);
 
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.

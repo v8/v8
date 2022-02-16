@@ -6364,7 +6364,7 @@ void Heap::CompactWeakArrayLists() {
 }
 
 void Heap::AddRetainedMap(Handle<NativeContext> context, Handle<Map> map) {
-  if (map->is_in_retained_map_list()) {
+  if (map->is_in_retained_map_list() || map->InSharedWritableHeap()) {
     return;
   }
 
