@@ -1264,14 +1264,14 @@ WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
 
 std::vector<WasmCode*> NativeModule::PublishCode(
     base::Vector<std::unique_ptr<WasmCode>> codes) {
+  // Publishing often happens in a loop, so the caller should hold the
+  // {CodeSpaceWriteScope} outside of such a loop.
+  DCHECK(CodeSpaceWriteScope::IsInScope());
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.PublishCode", "number", codes.size());
   std::vector<WasmCode*> published_code;
   published_code.reserve(codes.size());
   base::RecursiveMutexGuard lock(&allocation_mutex_);
-  // Get writable permission already here (and not inside the loop in
-  // {PatchJumpTablesLocked}), to avoid switching for each {code} individually.
-  CodeSpaceWriteScope code_space_write_scope(this);
   // The published code is put into the top-most surrounding {WasmCodeRefScope}.
   for (auto& code : codes) {
     published_code.push_back(PublishCodeLocked(std::move(code)));

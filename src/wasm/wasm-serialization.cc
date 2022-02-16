@@ -623,6 +623,7 @@ class PublishTask : public JobTask {
       : deserializer_(deserializer), from_queue_(from_queue) {}
 
   void Run(JobDelegate* delegate) override {
+    CodeSpaceWriteScope code_space_write_scope(deserializer_->native_module_);
     WasmCodeRefScope code_scope;
     do {
       auto to_publish = from_queue_->PopAll();
