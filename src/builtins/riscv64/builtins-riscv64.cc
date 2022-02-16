@@ -1475,27 +1475,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Branch(&after_stack_check_interrupt);
 
   __ bind(&has_optimized_code_or_marker);
-  Label maybe_has_optimized_code;
-  // Check if optimized code marker is available
-  __ And(scratch, optimization_state,
-         FeedbackVector::OptimizationTierBits::kMask);
-  __ Branch(&maybe_has_optimized_code, ne, scratch, Operand(zero_reg),
-            Label::Distance::kNear);
-
-  Register optimization_marker = optimization_state;
-  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
-  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
-  // Fall through if there's no runnable optimized code.
-  __ Branch(&not_optimized);
-
-  __ bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = optimization_state;
-  __ LoadAnyTaggedField(
-      optimization_marker,
-      FieldMemOperand(feedback_vector,
-                      FeedbackVector::kMaybeOptimizedCodeOffset));
-
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, t4, a5);
+  MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
+                                               feedback_vector);
   __ bind(&is_baseline);
   {
     // Load the feedback vector from the closure.
