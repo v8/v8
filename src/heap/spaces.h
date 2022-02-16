@@ -195,8 +195,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 #endif
 
  protected:
-  int allocation_observers_paused_depth_ = 0;
-
   AllocationCounter allocation_counter_;
 
   // The List manages the pages that belong to the given space.
