@@ -529,7 +529,7 @@ def main(args):
       #:n't use parallel python runner.
       "sequential": False,
       # Print commands to console before executing them.
-      "verbose": True,
+      "verbose": False,
       # Perform dead variable analysis.
       "dead_vars": True,
       # Enable verbose tracing from the plugin itself.
