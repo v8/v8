@@ -408,8 +408,6 @@ bool SharedFunctionInfo::IsDontAdaptArguments() const {
          kDontAdaptArgumentsSentinel;
 }
 
-bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
-
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
   Object maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo(cage_base)) {

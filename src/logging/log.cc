@@ -1880,7 +1880,7 @@ EnumerateCompiledFunctions(Heap* heap) {
        obj = iterator.Next()) {
     if (obj.IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
-      if (sfi.is_compiled() && !sfi.IsInterpreted()) {
+      if (sfi.is_compiled() && !sfi.HasBytecodeArray()) {
         compiled_funcs.emplace_back(
             handle(sfi, isolate),
             handle(AbstractCode::cast(sfi.abstract_code(isolate)), isolate));

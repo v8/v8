@@ -255,7 +255,7 @@ void TieringManager::OnInterruptTick(JavaScriptFrame* frame) {
   CodeKind code_kind = function.GetActiveTier().value();
 
   DCHECK(function.shared().is_compiled());
-  DCHECK(function.shared().IsInterpreted());
+  DCHECK(function.shared().HasBytecodeArray());
 
   DCHECK_IMPLIES(CodeKindIsOptimizedJSFunction(code_kind),
                  function.has_feedback_vector());

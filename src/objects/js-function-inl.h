@@ -88,7 +88,7 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
 
   DCHECK(!is_compiled() || ActiveTierIsIgnition() || ActiveTierIsBaseline());
   DCHECK(!ActiveTierIsTurbofan());
-  DCHECK(shared().IsInterpreted());
+  DCHECK(shared().HasBytecodeArray());
   DCHECK(shared().allows_lazy_compilation() ||
          !shared().optimization_disabled());
 

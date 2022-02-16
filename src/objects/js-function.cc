@@ -124,7 +124,7 @@ base::Optional<CodeKind> JSFunction::GetActiveTier() const {
           (CodeKindIsOptimizedJSFunction(code().kind()) &&
            code().marked_for_deoptimization()) ||
           (code().builtin_id() == Builtin::kCompileLazy &&
-           shared().IsInterpreted()));
+           shared().HasBytecodeArray() && !shared().HasBaselineCode()));
   }
 #endif  // DEBUG
 

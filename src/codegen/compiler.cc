@@ -2098,7 +2098,7 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
     // optimizing.
     DCHECK(!isolate->has_pending_exception());
     DCHECK(function->shared().is_compiled());
-    DCHECK(function->shared().IsInterpreted());
+    DCHECK(function->shared().HasBytecodeArray());
     code = ContinuationForConcurrentOptimization(isolate, function);
   }
 

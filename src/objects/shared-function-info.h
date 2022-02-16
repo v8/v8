@@ -211,10 +211,6 @@ class SharedFunctionInfo
   template <typename IsolateT>
   inline AbstractCode abstract_code(IsolateT* isolate);
 
-  // Tells whether or not this shared function info has an attached
-  // BytecodeArray.
-  inline bool IsInterpreted() const;
-
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
   V8_EXPORT_PRIVATE void SetScript(ReadOnlyRoots roots,

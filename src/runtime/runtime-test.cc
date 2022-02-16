@@ -302,8 +302,12 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   // This function may not have been lazily compiled yet, even though its shared
   // function has.
   if (!function->is_compiled()) {
-    DCHECK(function->shared().IsInterpreted());
-    function->set_code(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+    DCHECK(function->shared().HasBytecodeArray());
+    CodeT codet = *BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+    if (function->shared().HasBaselineCode()) {
+      codet = function->shared().baseline_code(kAcquireLoad);
+    }
+    function->set_code(codet);
   }
 
   JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
