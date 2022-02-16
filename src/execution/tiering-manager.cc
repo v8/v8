@@ -246,8 +246,6 @@ TieringManager::OnInterruptTickScope::~OnInterruptTickScope() {
 }
 
 void TieringManager::OnInterruptTick(JavaScriptFrame* frame) {
-  isolate_->counters()->runtime_profiler_ticks()->Increment();
-
   if (!isolate_->use_optimizer()) return;
   OnInterruptTickScope scope(this);
 

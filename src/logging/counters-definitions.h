@@ -340,7 +340,6 @@ namespace internal {
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
-  SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
   SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                              \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
