@@ -577,11 +577,10 @@ bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 // static
 PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
 #if V8_OS_LINUX && !V8_OS_ANDROID
-  const char* shm_name = "/V8_SharedMemoryForTesting";
-  int fd = shm_open(shm_name, O_RDWR | O_CREAT, S_IREAD | S_IWRITE);
+  const char* name = "V8MemFDForTesting";
+  int fd = memfd_create(name, MFD_CLOEXEC);
   if (fd == -1) return kInvalidSharedMemoryHandle;
   CHECK_EQ(0, ftruncate(fd, size));
-  CHECK_EQ(0, shm_unlink(shm_name));
   return SharedMemoryHandleFromFileDescriptor(fd);
 #else
   return kInvalidSharedMemoryHandle;
