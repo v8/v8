@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -21,9 +21,6 @@ Flags are passed unchanged to the test runner. They must start with -- and must
 not contain spaces.
 """
 # See HELP below for additional documentation.
-# Note on Python3 compatibility: gm.py itself is Python3 compatible, but
-# run-tests.py, which will be executed by the same binary, is not; hence
-# the hashbang line at the top of this file explicitly requires Python2.
 
 from __future__ import print_function
 import errno
