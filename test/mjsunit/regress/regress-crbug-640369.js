@@ -10,7 +10,7 @@ function A() {
 }
 %EnsureFeedbackVectorForFunction(A);
 function foo() {
-  for (var i = 0; i < 1; i = 2) %OptimizeOsr();
+  for (var i = 0; i < 2; i++) %OptimizeOsr(0, "concurrent");
   return new A();
 }
 %PrepareFunctionForOptimization(foo);

@@ -7,7 +7,7 @@
 function foo(obj) {
   var counter = 1;
   for (var i = 0; i < obj.length; i++) {
-    %OptimizeOsr();
+    %OptimizeOsr(0, "concurrent");
     %PrepareFunctionForOptimization(foo);
   }
   counter += obj;

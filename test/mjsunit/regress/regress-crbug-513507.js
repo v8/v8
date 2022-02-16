@@ -10,10 +10,10 @@
 function makeFun() {
   function fun(osr_fuse) {
     for (var i = 0; i < 3; ++i) {
-      if (i == osr_fuse) %OptimizeOsr();
+      if (i >= osr_fuse) %OptimizeOsr(0, "concurrent");
     }
     for (var i = 3; i < 6; ++i) {
-      if (i == osr_fuse) %OptimizeOsr();
+      if (i >= osr_fuse) %OptimizeOsr(0, "concurrent");
     }
   }
   %PrepareFunctionForOptimization(fun);

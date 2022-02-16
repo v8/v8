@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --sparkplug --no-always-sparkplug --use-osr
-// Flags: --opt --no-always-opt --deopt-every-n-times=0 --no-concurrent-osr
+// Flags: --opt --no-always-opt --deopt-every-n-times=0
 
 function isExecutingBaseline(func) {
   let opt_status = %GetOptimizationStatus(func);
@@ -35,13 +35,24 @@ function checkTopmostFrame(func) {
 
 function g() {
   for (var i = 0; i <= 20; i++) {
+    if (i == 6) {
+      let opt_status = %GetOptimizationStatus(g);
+
+      if ((V8OptimizationStatus.kTopmostFrameIsTurboFanned & opt_status) !== 0) {
+        console.log("quit for concurrent osr not enabled.");
+        testRunner.quit(0);
+      }
+    }
     checkTopmostFrame(g)
     if (i == 2) {
       %BaselineOsr();
       expectedStatus = V8OptimizationStatus.kTopmostFrameIsBaseline;
     }
     if (i == 5) {
-      %OptimizeOsr();
+      %OptimizeOsr(0, "concurrent");
+    }
+    if (i == 6) {
+      %FinalizeOptimization();
       expectedStatus = V8OptimizationStatus.kTopmostFrameIsTurboFanned;
     }
   }

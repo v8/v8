@@ -10,8 +10,8 @@ function g() {
 
 function f() {
   var result = "R:";
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i == 1 || i == 2) %OptimizeOsr(0, "concurrent");
     result += g([1])[0];
     result += g([2])[0];
   }
@@ -19,4 +19,4 @@ function f() {
 }
 %PrepareFunctionForOptimization(f);
 
-assertEquals("R:121212", f());
+assertEquals("R:12121212", f());

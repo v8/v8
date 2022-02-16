@@ -4,4 +4,4 @@
 //
 // Flags: --allow-natives-syntax --fuzzing --no-testing-d8-test-runner
 
-[1,2,3].reduceRight(() => { %OptimizeOsr(1); });
+[1,2,3].reduceRight(() => { %OptimizeOsr(1, "concurrent"); });

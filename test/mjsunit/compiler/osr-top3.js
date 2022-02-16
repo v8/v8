@@ -9,7 +9,7 @@ function f() {
     for (var j = 0; j < 3; j++) {
       var sum = 0;
       for (var i = 0; i < 1000; i++) {
-        if (i == 100) %OptimizeOsr();
+        if (i == 100 || i == 101) %OptimizeOsr(0, "concurrent");
         var x = i + 2;
         var y = x + 5;
         var z = y + 3;

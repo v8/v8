@@ -11,7 +11,7 @@
     for (var x in a) {
       try {
         for (var i = 0; i < 10; i++) {
-          %OptimizeOsr();
+          %OptimizeOsr(0, "concurrent");
           %PrepareFunctionForOptimization(g);
         }
         return;
@@ -32,7 +32,7 @@
     for (var x in a) {
       if (x) {
         for (var i = 0; i < 10; i++) {
-          %OptimizeOsr();
+          %OptimizeOsr(0, "concurrent");
           %PrepareFunctionForOptimization(g);
         }
       }

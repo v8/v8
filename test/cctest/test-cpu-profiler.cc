@@ -2376,7 +2376,7 @@ static const char* pre_profiling_osr_script = R"(
       for (let pass = 0; pass <= optDuration + deoptDuration; pass++) {
         const startTime = Date.now();
         // Let a few passes go by to ensure we have enough feeback info
-        if (pass == 3) %OptimizeOsr();
+        if (pass == 3 || pass == 4) %OptimizeOsr(0, "concurrent");
         // Force deoptimization. %DeoptimizeNow and %DeoptimizeFunction don't
         // doptimize OSRs.
         if (pass == optDuration) whenPass = () => {};

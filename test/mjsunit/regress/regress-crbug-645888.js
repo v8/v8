@@ -7,7 +7,10 @@
 function f() {
   for (var i = 0; i < 3; ++i) {
     if (i == 1) {
-      %OptimizeOsr();
+      %OptimizeOsr(0, "concurrent");
+    }
+    if (i == 2) {
+      %OptimizeOsr(0, "concurrent");
       break;  // Trigger next loop.
     }
   }

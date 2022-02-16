@@ -11,7 +11,7 @@ function f() {
     var y = x + 5;
     var z = y + 3;
     sum += z;
-    if (i == 11) %OptimizeOsr();
+    if (i == 11 || i == 12) %OptimizeOsr(0, "concurrent");
   }
   return sum;
 }

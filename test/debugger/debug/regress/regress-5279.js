@@ -11,7 +11,7 @@ function f() {
   const myObj = {};
 
   for (let i = 0; i < 10; i++) {
-    %OptimizeOsr();
+    %OptimizeOsr(0, "concurrent");
     %ScheduleBreak();
     %PrepareFunctionForOptimization(f);
   }

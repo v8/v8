@@ -12,8 +12,8 @@ function f(x) {
     while (inner > 0) {
       sum += x;
       inner--;
-      if (inner == 5) {
-        %OptimizeOsr();
+      if (inner == 5 || inner == 4) {
+        %OptimizeOsr(0, "concurrent");
       }
     }
     outer--;

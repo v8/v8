@@ -53,7 +53,7 @@ function createSource(name, fillCnt) {
   }
   src +=
   `    if (i == 5) {
-         %OptimizeOsr();
+         %OptimizeOsr(0, "concurrent");
          %PretenureAllocationSite(local_arr);
        }
      }

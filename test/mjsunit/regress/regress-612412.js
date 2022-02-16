@@ -10,7 +10,7 @@ var f = (function() {
   "use asm";
   return function g(c1, c2) {
     for (var x = 0 ; x < 10; ++x) {
-      if (x == 5) %OptimizeOsr();
+      if (x == 5 || x == 6) %OptimizeOsr(0, "concurrent");
       c1();
     }
   }

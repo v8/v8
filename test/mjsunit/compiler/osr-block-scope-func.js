@@ -11,7 +11,7 @@ function foo() {
   {
     let sum = 0;
     for (var i = 0; i < 100; i++) {
-      if (i == 50) %OptimizeOsr();
+      if (i == 50 || i == 51) %OptimizeOsr(0, "concurrent");
       sum += i;
     }
     result = ret;

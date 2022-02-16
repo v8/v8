@@ -6,7 +6,7 @@
 
 function OSRInsideTry(x) {
   try {
-    for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
+    for (var i = 0; i < 10; i++) { if (i > 5) %OptimizeOsr(0, "concurrent"); }
     throw x;
   } catch (e) {
     return e + 1;
@@ -21,7 +21,7 @@ function OSRInsideCatch(x) {
   try {
     throw x;
   } catch (e) {
-    for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
+    for (var i = 0; i < 10; i++) { if (i > 5) %OptimizeOsr(0, "concurrent"); }
     return e + 1;
   }
   return x + 2;
@@ -34,7 +34,7 @@ function OSRInsideFinally_Return(x) {
   try {
     throw x;
   } finally {
-    for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
+    for (var i = 0; i < 10; i++) { if (i > 5) %OptimizeOsr(0, "concurrent"); }
     return x + 1;
   }
   return x + 2;
@@ -47,7 +47,7 @@ function OSRInsideFinally_ReThrow(x) {
   try {
     throw x;
   } finally {
-    for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
+    for (var i = 0; i < 10; i++) { if (i > 5) %OptimizeOsr(0, "concurrent"); }
   }
   return x + 2;
 }

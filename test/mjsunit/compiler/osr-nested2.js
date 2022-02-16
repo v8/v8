@@ -12,7 +12,7 @@ function f() {
       var y = x + 5;
       var z = y + 3;
       sum += z;
-      if (i == 21) %OptimizeOsr();
+      if (i == 21) %OptimizeOsr(0, "concurrent");
     }
   }
   return sum;

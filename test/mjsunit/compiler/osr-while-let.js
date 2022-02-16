@@ -25,7 +25,7 @@ function foo() {
       var flag = 1;
       for (; flag == 1; (flag = 0, temp_x = x)) {
         if (x < 2) {
-          result = x; %OptimizeOsr();
+          result = x; %OptimizeOsr(0, "concurrent");
           %PrepareFunctionForOptimization(foo);
         } else {
           break outer;
@@ -48,7 +48,7 @@ function smo() {
     outer: while (true) {
       let y = x;
       for (var i = 0; i < 5; i++) {
-        %OptimizeOsr();
+        %OptimizeOsr(0, "concurrent");
         %PrepareFunctionForOptimization(smo);
         if (i) break outer;
         else result = y;

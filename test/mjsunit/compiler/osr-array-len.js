@@ -9,7 +9,7 @@ function fastaRandom(n, table) {
   var line = new Array(5);
   while (n > 0) {
     if (n < line.length) line = new Array(n);
-    %OptimizeOsr();
+    %OptimizeOsr(0, "concurrent");
     line[0] = n;
     n--;
     %PrepareFunctionForOptimization(fastaRandom);

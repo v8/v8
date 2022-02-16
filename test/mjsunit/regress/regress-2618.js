@@ -39,7 +39,7 @@ function f() {
   do {
     do {
       for (var i = 0; i < 10; i++) {
-        %OptimizeOsr();
+        %OptimizeOsr(0, "concurrent");
         %PrepareFunctionForOptimization(f);
       }
       // Note: this check can't be wrapped in a function, because
@@ -74,7 +74,7 @@ function g() {
               do {
                 do {
                   for (var i = 0; i < 10; i++) {
-                    %OptimizeOsr();
+                    %OptimizeOsr(0, "concurrent");
                     %PrepareFunctionForOptimization(g);
                   }
                   var opt_status = %GetOptimizationStatus(g);

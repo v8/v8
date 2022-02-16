@@ -9,7 +9,7 @@ function f() {
   while (1) {
     for (var j = 0; j < 200; j -=  j) {
       sum = sum + 1;
-      %OptimizeOsr();
+      %OptimizeOsr(0, "concurrent");
       if (sum == 2) return;
       %PrepareFunctionForOptimization(f);
     }

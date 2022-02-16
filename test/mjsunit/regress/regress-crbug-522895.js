@@ -8,7 +8,7 @@ var body =
   "function bar1(  )  {" +
   "  var i = 35;       " +
   "  while (i-- > 31) {" +
-  "    %OptimizeOsr(); " +
+  "    %OptimizeOsr(0, \"concurrent\"); " +
   "    j = 9;          " +
   "    %PrepareFunctionForOptimization(bar1); " +
   "    while (j-- > 7);" +

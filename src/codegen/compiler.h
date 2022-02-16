@@ -236,7 +236,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Generate and return optimized code for OSR, or empty handle on failure.
   V8_WARN_UNUSED_RESULT static MaybeHandle<CodeT> GetOptimizedCodeForOSR(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-      JavaScriptFrame* osr_frame);
+      JavaScriptFrame* osr_frame, int osr_depth);
 };
 
 // A base class for compilation jobs intended to run concurrent to the main

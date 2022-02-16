@@ -18,9 +18,9 @@ function TestVarInInnerFunction() {
     a; b; c;
   }
   // Force recompilation.
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -42,9 +42,9 @@ function TestLetInInnerFunction() {
     let a;
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -62,9 +62,9 @@ function TestConstInInnerFunction() {
     const a = 0;
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -81,9 +81,9 @@ function TestInnerFunctionParameter() {
   function inner(a) {
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -100,9 +100,9 @@ function TestInnerFunctionRestParameter() {
   function inner(...a) {
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -119,9 +119,9 @@ function TestInnerFunctionDestructuredParameter_1() {
   function inner([d, a]) {
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -138,9 +138,9 @@ function TestInnerFunctionDestructuredParameter_2() {
   function inner({d, a}) {
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -155,9 +155,9 @@ function TestInnerArrowFunctionParameter() {
   var b = 2;
   var c = 3;
   (a) => { a; b; c; }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -172,9 +172,9 @@ function TestInnerArrowFunctionRestParameter() {
   var b = 2;
   var c = 3;
   (...a) => { a; b; c; }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -189,9 +189,9 @@ function TestInnerArrowFunctionDestructuredParameter_1() {
   var b = 2;
   var c = 3;
   ([d, a]) => { a; b; c; }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -206,9 +206,9 @@ function TestInnerArrowFunctionDestructuredParameter_2() {
   var b = 2;
   var c = 3;
   ({d, a}) => { a; b; c;  }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -225,9 +225,9 @@ function TestInnerInnerFunctionParameter() {
   function inner() {
     function innerinner(a) { a; b; c; }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -244,9 +244,9 @@ function TestInnerInnerFunctionRestParameter() {
   function inner() {
     function innerinner(...a) { a; b; c; }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -263,9 +263,9 @@ function TestInnerInnerFunctionDestructuredParameter_1() {
   function inner() {
     function innerinner({d, a}) { a; b; c; }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -282,9 +282,9 @@ function TestInnerInnerFunctionDestructuredParameter_2() {
   function inner() {
     function innerinner([d, a]) { a; b; c; }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -301,9 +301,9 @@ function TestInnerInnerArrowFunctionParameter() {
   function inner() {
     var f = a => a + b + c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -320,9 +320,9 @@ function TestInnerInnerArrowFunctionRestParameter() {
   function inner() {
     var f = (...a) => a + b + c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -339,9 +339,9 @@ function TestInnerInnerArrowFunctionDestructuredParameter_1() {
   function inner() {
     var f = ([d, a]) => a + b + c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -358,9 +358,9 @@ function TestInnerInnerArrowFunctionDestructuredParameter_2() {
   function inner() {
     var f = ({d, a}) => a + b + c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -378,9 +378,9 @@ function TestInnerFunctionInnerFunction() {
     function a() { }
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -398,9 +398,9 @@ function TestInnerFunctionSloppyBlockFunction() {
     if (true) { function a() { } }
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -421,9 +421,9 @@ function TestInnerFunctionCatchVariable() {
       a; b; c;
     }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -442,9 +442,9 @@ function TestInnerFunctionLoopVariable1() {
       a; b; c;
     }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -463,9 +463,9 @@ function TestInnerFunctionLoopVariable2() {
       a; b; c;
     }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -484,9 +484,9 @@ function TestInnerFunctionLoopVariable3() {
       a; b; c;
     }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -505,9 +505,9 @@ function TestInnerFunctionLoopVariable4() {
       a; b; c;
     }
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -525,9 +525,9 @@ function TestInnerFunctionClass() {
     class a {}
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -545,9 +545,9 @@ function TestInnerFunctionDestructuring1() {
     var [a, a2] = [1, 2];
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -565,9 +565,9 @@ function TestInnerFunctionDestructuring2() {
     let [a, a2] = [1, 2];
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -585,9 +585,9 @@ function TestInnerFunctionDestructuring3() {
     const [a, a2] = [1, 2];
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -605,9 +605,9 @@ function TestInnerFunctionDestructuring4() {
     var [a2, ...a] = [1, 2];
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -625,9 +625,9 @@ function TestInnerFunctionDestructuring5() {
     let [a2, ...a] = [1, 2];
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -645,9 +645,9 @@ function TestInnerFunctionDestructuring6() {
     const [a2, ...a] = [1, 2];
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -665,9 +665,9 @@ function TestInnerFunctionDestructuring7() {
     var {a, a2} = {a: 1, a2: 2};
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -685,9 +685,9 @@ function TestInnerFunctionDestructuring8() {
     let {a, a2} = {a: 1, a2: 2};
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -705,9 +705,9 @@ function TestInnerFunctionDestructuring9() {
     const {a, a2} = {a: 1, a2: 2};
     a; b; c;
   }
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     assertEquals(1, a);
     assertEquals(2, b);
@@ -720,9 +720,9 @@ TestInnerFunctionDestructuring9();
 // A cluster of similar tests where the inner function only declares a variable
 // whose name clashes with an outer function variable name, but doesn't use it.
 function TestRegress650969_1_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -734,9 +734,9 @@ function TestRegress650969_1_var() {
 TestRegress650969_1_var();
 
 function TestRegress650969_1_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -748,9 +748,9 @@ function TestRegress650969_1_let() {
 TestRegress650969_1_let();
 
 function TestRegress650969_2_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -762,9 +762,9 @@ function TestRegress650969_2_var() {
 TestRegress650969_2_var();
 
 function TestRegress650969_2_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -776,9 +776,9 @@ function TestRegress650969_2_let() {
 TestRegress650969_2_let();
 
 function TestRegress650969_2_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -790,9 +790,9 @@ function TestRegress650969_2_const() {
 TestRegress650969_2_const();
 
 function TestRegress650969_3_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -804,9 +804,9 @@ function TestRegress650969_3_var() {
 TestRegress650969_3_var();
 
 function TestRegress650969_3_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -818,9 +818,9 @@ function TestRegress650969_3_let() {
 TestRegress650969_3_let();
 
 function TestRegress650969_4_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -832,9 +832,9 @@ function TestRegress650969_4_var() {
 TestRegress650969_4_var();
 
 function TestRegress650969_4_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -846,9 +846,9 @@ function TestRegress650969_4_let() {
 TestRegress650969_4_let();
 
 function TestRegress650969_4_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -860,9 +860,9 @@ function TestRegress650969_4_const() {
 TestRegress650969_4_const();
 
 function TestRegress650969_9_parameter() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner(a) {}
@@ -872,9 +872,9 @@ function TestRegress650969_9_parameter() {
 TestRegress650969_9_parameter();
 
 function TestRegress650969_9_restParameter() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner(...a) {}
@@ -884,9 +884,9 @@ function TestRegress650969_9_restParameter() {
 TestRegress650969_9_restParameter();
 
 function TestRegress650969_9_destructuredParameter_1() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner([d, a]) {}
@@ -896,9 +896,9 @@ function TestRegress650969_9_destructuredParameter_1() {
 TestRegress650969_9_destructuredParameter_1();
 
 function TestRegress650969_9_destructuredParameter_2() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner({d, a}) {}
@@ -908,9 +908,9 @@ function TestRegress650969_9_destructuredParameter_2() {
 TestRegress650969_9_destructuredParameter_2();
 
 function TestRegress650969_10_parameter() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -922,9 +922,9 @@ function TestRegress650969_10_parameter() {
 TestRegress650969_10_parameter();
 
 function TestRegress650969_10_restParameter() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -936,9 +936,9 @@ function TestRegress650969_10_restParameter() {
 TestRegress650969_10_restParameter();
 
 function TestRegress650969_10_destructuredParameter_1() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -950,9 +950,9 @@ function TestRegress650969_10_destructuredParameter_1() {
 TestRegress650969_10_destructuredParameter_1();
 
 function TestRegress650969_10_destructuredParameter_2() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -964,9 +964,9 @@ function TestRegress650969_10_destructuredParameter_2() {
 TestRegress650969_10_destructuredParameter_2();
 
 function TestRegress650969_11_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -979,9 +979,9 @@ TestRegress650969_11_var();
 
 
 function TestRegress650969_11_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -993,9 +993,9 @@ function TestRegress650969_11_let() {
 TestRegress650969_11_let();
 
 function TestRegress650969_11_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1007,9 +1007,9 @@ function TestRegress650969_11_const() {
 TestRegress650969_11_const();
 
 function TestRegress650969_12_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1021,9 +1021,9 @@ function TestRegress650969_12_var() {
 TestRegress650969_12_var();
 
 function TestRegress650969_12_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1035,9 +1035,9 @@ function TestRegress650969_12_let() {
 TestRegress650969_12_let();
 
 function TestRegress650969_12_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1049,9 +1049,9 @@ function TestRegress650969_12_const() {
 TestRegress650969_12_const();
 
 function TestRegress650969_13_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1063,9 +1063,9 @@ function TestRegress650969_13_var() {
 TestRegress650969_13_var();
 
 function TestRegress650969_13_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1077,9 +1077,9 @@ function TestRegress650969_13_let() {
 TestRegress650969_13_let();
 
 function TestRegress650969_13_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1091,9 +1091,9 @@ function TestRegress650969_13_const() {
 TestRegress650969_13_const();
 
 function TestRegress650969_14_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1105,9 +1105,9 @@ function TestRegress650969_14_var() {
 TestRegress650969_14_var();
 
 function TestRegress650969_14_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1119,9 +1119,9 @@ function TestRegress650969_14_let() {
 TestRegress650969_14_let();
 
 function TestRegress650969_14_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1133,9 +1133,9 @@ function TestRegress650969_14_const() {
 TestRegress650969_14_const();
 
 function TestRegress650969_15_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1147,9 +1147,9 @@ function TestRegress650969_15_var() {
 TestRegress650969_15_var();
 
 function TestRegress650969_15_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1161,9 +1161,9 @@ function TestRegress650969_15_let() {
 TestRegress650969_15_let();
 
 function TestRegress650969_15_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1175,9 +1175,9 @@ function TestRegress650969_15_const() {
 TestRegress650969_15_const();
 
 function TestRegress650969_16_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1189,9 +1189,9 @@ function TestRegress650969_16_var() {
 TestRegress650969_16_var();
 
 function TestRegress650969_16_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1203,9 +1203,9 @@ function TestRegress650969_16_let() {
 TestRegress650969_16_let();
 
 function TestRegress650969_16_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1217,9 +1217,9 @@ function TestRegress650969_16_const() {
 TestRegress650969_16_const();
 
 function TestRegress650969_17_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1231,9 +1231,9 @@ function TestRegress650969_17_var() {
 TestRegress650969_17_var();
 
 function TestRegress650969_17_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1245,9 +1245,9 @@ function TestRegress650969_17_let() {
 TestRegress650969_17_let();
 
 function TestRegress650969_17_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1259,9 +1259,9 @@ function TestRegress650969_17_const() {
 TestRegress650969_17_const();
 
 function TestRegress650969_18() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1273,9 +1273,9 @@ function TestRegress650969_18() {
 TestRegress650969_18();
 
 function TestRegress650969_18() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a;
     function inner() {
@@ -1289,9 +1289,9 @@ TestRegress650969_18();
 // Regression tests for an intermediate stage where unresolved references were
 // discarded too aggressively.
 function TestRegress650969_sidetrack_var() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a = 0;
     function inner() {
@@ -1304,9 +1304,9 @@ function TestRegress650969_sidetrack_var() {
 TestRegress650969_sidetrack_var();
 
 function TestRegress650969_sidetrack_let() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a = 0;
     function inner() {
@@ -1319,9 +1319,9 @@ function TestRegress650969_sidetrack_let() {
 TestRegress650969_sidetrack_let();
 
 function TestRegress650969_sidetrack_const() {
-  for (var i = 0; i < 3; ++i) {
-    if (i == 1) {
-      %OptimizeOsr();
+  for (var i = 0; i < 4; ++i) {
+    if (i >= 1) {
+      %OptimizeOsr(0, "concurrent");
     }
     var a = 0;
     function inner() {

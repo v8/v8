@@ -51,7 +51,7 @@ function foo() {
   {
     let sum = 0;
     for (var i = 0; i < 10; i++) {
-      %OptimizeOsr();
+      %OptimizeOsr(0, "concurrent");
       sum += i;
       %PrepareFunctionForOptimization(foo);
     }
@@ -66,7 +66,7 @@ test(45, foo);
 function bar() {
   let sum = 0;
   for (var i = 0; i < 10; i++) {
-    %OptimizeOsr();
+    %OptimizeOsr(0, "concurrent");
     sum += i;
     %PrepareFunctionForOptimization(bar);
   }
@@ -80,7 +80,7 @@ function bon() {
   {
     let sum = 0;
     for (var i = 0; i < 10; i++) {
-      if (i == 5) %OptimizeOsr();
+      if (i == 5) %OptimizeOsr(0, "concurrent");
       sum += i;
     }
     return sum;
@@ -96,7 +96,7 @@ function row() {
     let sum = 0;
     while (true) {
       if (i == 8) return sum;
-      %OptimizeOsr();
+      %OptimizeOsr(0, "concurrent");
       sum = i;
       i = i + 1 | 0;
       %PrepareFunctionForOptimization(row);
@@ -111,7 +111,7 @@ test(7, row);
 function nub() {
   let i = 0;
   while (i < 2) {
-    %OptimizeOsr();
+    %OptimizeOsr(0, "concurrent");
     i++;
     %PrepareFunctionForOptimization(nub);
   }
@@ -126,7 +126,7 @@ function kub() {
   let i = 0;
   while (i < 2) {
     let x = i;
-    %OptimizeOsr();
+    %OptimizeOsr(0, "concurrent");
     i++;
     result = x;
     %PrepareFunctionForOptimization(kub);

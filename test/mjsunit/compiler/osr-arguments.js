@@ -8,7 +8,7 @@ function f1() {
   var sum = 0;
   for (var i = 0; i < 1000; i++) {
     sum += arguments[0] + arguments[1] + arguments[2] + arguments[3];
-    if (i == 18) %OptimizeOsr();
+    if (i == 18 || i == 19) %OptimizeOsr(0, "concurrent");
   }
   return sum;
 }

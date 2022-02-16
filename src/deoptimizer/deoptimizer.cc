@@ -453,6 +453,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
     // this call from here.
     OSROptimizedCodeCache::Compact(
         Handle<NativeContext>(function.context().native_context(), isolate));
+    // Background compilation for OSR arm back edges at compilation finalization
+    // stage regardless of the active execution state (unoptimized/optimized).
+    // Reset osr_loop_nesting_level to avoid unwanted OSR from unoptimized frame
+    // after deoptimization.
+    function.shared().GetBytecodeArray(isolate).set_osr_loop_nesting_level(0);
   }
 }
 

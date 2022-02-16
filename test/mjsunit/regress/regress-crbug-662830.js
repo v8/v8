@@ -12,7 +12,7 @@ function f() {
 function g() {
   try { f(); } catch(e) { }
   %PrepareFunctionForOptimization(g);
-  for (var i = 0; i < 3; ++i) if (i === 1) %OptimizeOsr();
+  for (var i = 0; i < 3; ++i) %OptimizeOsr(0, "concurrent");
   %_DeoptimizeNow();
 }
 %PrepareFunctionForOptimization(g);

@@ -11,7 +11,7 @@ function Cb(a, trigger) {
     // This will fail after OSR if Runtime_StringCharCodeAt is modified
     // to iterates optimized frames and visit safepoint pointers.
     if (g == "C".charCodeAt(0)) {
-      %OptimizeOsr();
+      %OptimizeOsr(0, "concurrent");
       %PrepareFunctionForOptimization(Cb);
     }
   }
@@ -24,7 +24,7 @@ var s2 = "long string to make cons string 2";
 Cb(s1 + s2);
 %PrepareFunctionForOptimization(Cb);
 Cb(s1);
-var s3 = "string for triggering osr in Cb";
+var s3 = "string for triggering osr in CCb";
 %PrepareFunctionForOptimization(Cb);
 Cb(s3 + s3);
 %PrepareFunctionForOptimization(Cb);

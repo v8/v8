@@ -28615,7 +28615,7 @@ TEST(FastApiStackSlot) {
       " let foo = 128;"
       " for (let i = 0; i < 100; ++i) {"
       "  let bar = true;"
-      "  if (i == 10) %OptimizeOsr();"
+      "  if (i == 10 || i == 11) %OptimizeOsr(0, \"concurrent\");"
       "  try { receiver.api_func(arg) } catch(_) {};"
       "  try { receiver.api_func(arg) } catch(_) {};"
       " };"

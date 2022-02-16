@@ -6,8 +6,8 @@
 
 function mod() {
   function f0() {
-    for (var i = 0; i < 3; i = i + 1 | 0) {
-      %OptimizeOsr();
+    for (var i = 0; i < 4; i = i + 1 | 0) {
+      %OptimizeOsr(0, "concurrent");
       %PrepareFunctionForOptimization(f0);
     }
     return {blah: i};
@@ -15,8 +15,8 @@ function mod() {
   %PrepareFunctionForOptimization(f0);
 
   function f1(a) {
-    for (var i = 0; i < 3; i = i + 1 | 0) {
-      %OptimizeOsr();
+    for (var i = 0; i < 4; i = i + 1 | 0) {
+      %OptimizeOsr(0, "concurrent");
       %PrepareFunctionForOptimization(f1);
     }
     return {blah: i};
@@ -24,8 +24,8 @@ function mod() {
   %PrepareFunctionForOptimization(f1);
 
   function f2(a,b) {
-    for (var i = 0; i < 3; i = i + 1 | 0) {
-      %OptimizeOsr();
+    for (var i = 0; i < 4; i = i + 1 | 0) {
+      %OptimizeOsr(0, "concurrent");
       %PrepareFunctionForOptimization(f2);
     }
     return {blah: i};
@@ -33,8 +33,8 @@ function mod() {
   %PrepareFunctionForOptimization(f2);
 
   function f3(a,b,c) {
-    for (var i = 0; i < 3; i = i + 1 | 0) {
-      %OptimizeOsr();
+    for (var i = 0; i < 4; i = i + 1 | 0) {
+      %OptimizeOsr(0, "concurrent");
       %PrepareFunctionForOptimization(f3);
     }
     return {blah: i};
@@ -42,8 +42,8 @@ function mod() {
   %PrepareFunctionForOptimization(f3);
 
   function f4(a,b,c,d) {
-    for (var i = 0; i < 3; i = i + 1 | 0) {
-      %OptimizeOsr();
+    for (var i = 0; i < 4; i = i + 1 | 0) {
+      %OptimizeOsr(0, "concurrent");
       %PrepareFunctionForOptimization(f4);
     }
     return {blah: i};
@@ -51,11 +51,11 @@ function mod() {
   %PrepareFunctionForOptimization(f4);
 
   function bar() {
-    assertEquals(3, f0().blah);
-    assertEquals(3, f1(1).blah);
-    assertEquals(3, f2(1,2).blah);
-    assertEquals(3, f3(1,2,3).blah);
-    assertEquals(3, f4(1,2,3,4).blah);
+    assertEquals(4, f0().blah);
+    assertEquals(4, f1(1).blah);
+    assertEquals(4, f2(1,2).blah);
+    assertEquals(4, f3(1,2,3).blah);
+    assertEquals(4, f4(1,2,3,4).blah);
   }
   bar();
 }

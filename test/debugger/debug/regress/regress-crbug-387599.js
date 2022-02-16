@@ -8,7 +8,7 @@ Debug.setListener(function() {});
 
 function f() {
   for (var i = 0; i < 100; i++) {
-    %OptimizeOsr();
+    %OptimizeOsr(0, "concurrent");
     %PrepareFunctionForOptimization(f);
   }
 }
