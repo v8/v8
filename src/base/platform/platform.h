@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "include/v8-platform.h"
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
@@ -208,6 +209,11 @@ class V8_BASE_EXPORT OS {
     kNoAccessWillJitLater
   };
 
+  // Helpers to create shared memory objects. Currently only used for testing.
+  static PlatformSharedMemoryHandle CreateSharedMemoryHandleForTesting(
+      size_t size);
+  static void DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle);
+
   static bool HasLazyCommits();
 
   // Sleep for a specified time interval.
@@ -335,7 +341,13 @@ class V8_BASE_EXPORT OS {
                                                  void* new_address,
                                                  size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
+  V8_WARN_UNUSED_RESULT static bool Free(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT static void* AllocateShared(
+      void* address, size_t size, OS::MemoryPermission access,
+      PlatformSharedMemoryHandle handle, uint64_t offset);
+
+  V8_WARN_UNUSED_RESULT static bool FreeShared(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
 
@@ -404,6 +416,13 @@ class V8_BASE_EXPORT AddressSpaceReservation {
                                       OS::MemoryPermission access);
 
   V8_WARN_UNUSED_RESULT bool Free(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT bool AllocateShared(void* address, size_t size,
+                                            OS::MemoryPermission access,
+                                            PlatformSharedMemoryHandle handle,
+                                            uint64_t offset);
+
+  V8_WARN_UNUSED_RESULT bool FreeShared(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
                                             OS::MemoryPermission access);

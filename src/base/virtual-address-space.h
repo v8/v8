@@ -68,6 +68,13 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
 
   bool FreeGuardRegion(Address address, size_t size) override;
 
+  Address AllocateSharedPages(Address hint, size_t size,
+                              PagePermissions permissions,
+                              PlatformSharedMemoryHandle handle,
+                              uint64_t offset) override;
+
+  bool FreeSharedPages(Address address, size_t size) override;
+
   bool CanAllocateSubspaces() override;
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
@@ -105,6 +112,13 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   bool AllocateGuardRegion(Address address, size_t size) override;
 
   bool FreeGuardRegion(Address address, size_t size) override;
+
+  Address AllocateSharedPages(Address hint, size_t size,
+                              PagePermissions permissions,
+                              PlatformSharedMemoryHandle handle,
+                              uint64_t offset) override;
+
+  bool FreeSharedPages(Address address, size_t size) override;
 
   bool CanAllocateSubspaces() override { return true; }
 

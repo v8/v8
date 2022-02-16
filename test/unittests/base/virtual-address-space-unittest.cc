@@ -98,6 +98,34 @@ void TestParentSpaceCannotAllocateInChildSpace(v8::VirtualAddressSpace* parent,
   }
 }
 
+void TestSharedPageAllocation(v8::VirtualAddressSpace* space) {
+  const size_t size = 2 * space->allocation_granularity();
+
+  PlatformSharedMemoryHandle handle =
+      OS::CreateSharedMemoryHandleForTesting(size);
+  if (handle == kInvalidSharedMemoryHandle) return;
+
+  Address mapping1 =
+      space->AllocateSharedPages(VirtualAddressSpace::kNoHint, size,
+                                 PagePermissions::kReadWrite, handle, 0);
+  ASSERT_NE(kNullAddress, mapping1);
+  Address mapping2 =
+      space->AllocateSharedPages(VirtualAddressSpace::kNoHint, size,
+                                 PagePermissions::kReadWrite, handle, 0);
+  ASSERT_NE(kNullAddress, mapping2);
+  ASSERT_NE(mapping1, mapping2);
+
+  int value = 0x42;
+  EXPECT_EQ(0, *reinterpret_cast<int*>(mapping2));
+  *reinterpret_cast<int*>(mapping1) = value;
+  EXPECT_EQ(value, *reinterpret_cast<int*>(mapping2));
+
+  EXPECT_TRUE(space->FreeSharedPages(mapping1, size));
+  EXPECT_TRUE(space->FreeSharedPages(mapping2, size));
+
+  OS::DestroySharedMemoryHandle(handle);
+}
+
 TEST(VirtualAddressSpaceTest, TestPagePermissionSubsets) {
   const PagePermissions kNoAccess = PagePermissions::kNoAccess;
   const PagePermissions kRead = PagePermissions::kRead;
@@ -142,6 +170,7 @@ TEST(VirtualAddressSpaceTest, TestRootSpace) {
   TestRandomPageAddressGeneration(&rootspace);
   TestBasicPageAllocation(&rootspace);
   TestPageAllocationAlignment(&rootspace);
+  TestSharedPageAllocation(&rootspace);
 }
 
 TEST(VirtualAddressSpaceTest, TestSubspace) {
@@ -164,6 +193,7 @@ TEST(VirtualAddressSpaceTest, TestSubspace) {
   TestBasicPageAllocation(subspace.get());
   TestPageAllocationAlignment(subspace.get());
   TestParentSpaceCannotAllocateInChildSpace(&rootspace, subspace.get());
+  TestSharedPageAllocation(subspace.get());
 
   // Test sub-subspaces
   if (!subspace->CanAllocateSubspaces()) return;
@@ -180,6 +210,7 @@ TEST(VirtualAddressSpaceTest, TestSubspace) {
   TestBasicPageAllocation(subsubspace.get());
   TestPageAllocationAlignment(subsubspace.get());
   TestParentSpaceCannotAllocateInChildSpace(subspace.get(), subsubspace.get());
+  TestSharedPageAllocation(subsubspace.get());
 }
 
 TEST(VirtualAddressSpaceTest, TestEmulatedSubspace) {
@@ -227,6 +258,7 @@ TEST(VirtualAddressSpaceTest, TestEmulatedSubspace) {
   TestPageAllocationAlignment(&subspace);
   // An emulated subspace does *not* guarantee that the parent space cannot
   // allocate pages in it, so no TestParentSpaceCannotAllocateInChildSpace.
+  TestSharedPageAllocation(&subspace);
 }
 
 }  // namespace base

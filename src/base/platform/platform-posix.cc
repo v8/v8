@@ -12,15 +12,15 @@
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
+#include <fcntl.h>
 #include <sched.h>  // for sched_yield
 #include <stdio.h>
-#include <time.h>
-#include <unistd.h>
-
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 #if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
     defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/sysctl.h>  // for sysctl
@@ -428,8 +428,28 @@ void* OS::AllocateShared(size_t size, MemoryPermission access) {
 }
 
 // static
-bool OS::Free(void* address, const size_t size) {
+bool OS::Free(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
+  DCHECK_EQ(0, size % AllocatePageSize());
+  return munmap(address, size) == 0;
+}
+
+// macOS specific implementation in platform-macos.cc.
+#if !defined(V8_OS_MACOSX)
+// static
+void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
+                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+  DCHECK_EQ(0, size % AllocatePageSize());
+  int prot = GetProtectionFromMemoryPermission(access);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  void* result = mmap(hint, size, prot, MAP_SHARED, fd, offset);
+  if (result == MAP_FAILED) return nullptr;
+  return result;
+}
+#endif  // !defined(V8_OS_MACOSX)
+
+// static
+bool OS::FreeShared(void* address, size_t size) {
   DCHECK_EQ(0, size % AllocatePageSize());
   return munmap(address, size) == 0;
 }
@@ -551,6 +571,30 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
 bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
   return Free(reservation.base(), reservation.size());
 }
+
+// macOS specific implementation in platform-macos.cc.
+#if !defined(V8_OS_MACOSX)
+// static
+PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+#if V8_OS_LINUX && !V8_OS_ANDROID
+  const char* shm_name = "/V8_SharedMemoryForTesting";
+  int fd = shm_open(shm_name, O_RDWR | O_CREAT, S_IREAD | S_IWRITE);
+  if (fd == -1) return kInvalidSharedMemoryHandle;
+  CHECK_EQ(0, ftruncate(fd, size));
+  CHECK_EQ(0, shm_unlink(shm_name));
+  return SharedMemoryHandleFromFileDescriptor(fd);
+#else
+  return kInvalidSharedMemoryHandle;
+#endif
+}
+
+// static
+void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
+  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  CHECK_EQ(0, close(fd));
+}
+#endif  // !defined(V8_OS_MACOSX)
 
 // static
 bool OS::HasLazyCommits() {
@@ -904,6 +948,26 @@ bool AddressSpaceReservation::Allocate(void* address, size_t size,
 bool AddressSpaceReservation::Free(void* address, size_t size) {
   DCHECK(Contains(address, size));
   return OS::DecommitPages(address, size);
+}
+
+// macOS specific implementation in platform-macos.cc.
+#if !defined(V8_OS_MACOSX)
+bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
+                                             OS::MemoryPermission access,
+                                             PlatformSharedMemoryHandle handle,
+                                             uint64_t offset) {
+  DCHECK(Contains(address, size));
+  int prot = GetProtectionFromMemoryPermission(access);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  return mmap(address, size, prot, MAP_SHARED | MAP_FIXED, fd, offset) !=
+         MAP_FAILED;
+}
+#endif  // !defined(V8_OS_MACOSX)
+
+bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return mmap(address, size, PROT_NONE, MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
+              -1, 0) == address;
 }
 
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,

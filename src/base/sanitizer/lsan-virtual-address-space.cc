@@ -28,7 +28,7 @@ Address LsanVirtualAddressSpace::AllocatePages(Address hint, size_t size,
                                                PagePermissions permissions) {
   Address result = vas_->AllocatePages(hint, size, alignment, permissions);
 #if defined(LEAK_SANITIZER)
-  if (result != 0) {
+  if (result) {
     __lsan_register_root_region(reinterpret_cast<void*>(result), size);
   }
 #endif  // defined(LEAK_SANITIZER)
@@ -37,6 +37,29 @@ Address LsanVirtualAddressSpace::AllocatePages(Address hint, size_t size,
 
 bool LsanVirtualAddressSpace::FreePages(Address address, size_t size) {
   bool result = vas_->FreePages(address, size);
+#if defined(LEAK_SANITIZER)
+  if (result) {
+    __lsan_unregister_root_region(reinterpret_cast<void*>(address), size);
+  }
+#endif  // defined(LEAK_SANITIZER)
+  return result;
+}
+
+Address LsanVirtualAddressSpace::AllocateSharedPages(
+    Address hint, size_t size, PagePermissions permissions,
+    PlatformSharedMemoryHandle handle, uint64_t offset) {
+  Address result =
+      vas_->AllocateSharedPages(hint, size, permissions, handle, offset);
+#if defined(LEAK_SANITIZER)
+  if (result) {
+    __lsan_register_root_region(reinterpret_cast<void*>(result), size);
+  }
+#endif  // defined(LEAK_SANITIZER)
+  return result;
+}
+
+bool LsanVirtualAddressSpace::FreeSharedPages(Address address, size_t size) {
+  bool result = vas_->FreeSharedPages(address, size);
 #if defined(LEAK_SANITIZER)
   if (result) {
     __lsan_unregister_root_region(reinterpret_cast<void*>(address), size);

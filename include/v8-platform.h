@@ -512,6 +512,57 @@ class PageAllocator {
   virtual bool CanAllocateSharedPages() { return false; }
 };
 
+// Opaque type representing a handle to a shared memory region.
+using PlatformSharedMemoryHandle = intptr_t;
+static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle = -1;
+
+// Conversion routines from the platform-dependent shared memory identifiers
+// into the opaque PlatformSharedMemoryHandle type. These use the underlying
+// types (e.g. unsigned int) instead of the typedef'd ones (e.g. mach_port_t)
+// to avoid pulling in large OS header files into this header file. Instead,
+// the users of these routines are expected to include the respecitve OS
+// headers in addition to this one.
+#if V8_OS_MACOSX
+// Convert between a shared memory handle and a mach_port_t referencing a memory
+// entry object.
+inline PlatformSharedMemoryHandle SharedMemoryHandleFromMachMemoryEntry(
+    unsigned int port) {
+  return static_cast<PlatformSharedMemoryHandle>(port);
+}
+inline unsigned int MachMemoryEntryFromSharedMemoryHandle(
+    PlatformSharedMemoryHandle handle) {
+  return static_cast<unsigned int>(handle);
+}
+#elif V8_OS_FUCHSIA
+// Convert between a shared memory handle and a zx_handle_t to a VMO.
+inline PlatformSharedMemoryHandle SharedMemoryHandleFromVMO(uint32_t handle) {
+  return static_cast<PlatformSharedMemoryHandle>(handle);
+}
+inline uint32_t VMOFromSharedMemoryHandle(PlatformSharedMemoryHandle handle) {
+  return static_cast<uint32_t>(handle);
+}
+#elif V8_OS_WIN
+// Convert between a shared memory handle and a Windows HANDLE to a file mapping
+// object.
+inline PlatformSharedMemoryHandle SharedMemoryHandleFromFileMapping(
+    void* handle) {
+  return reinterpret_cast<PlatformSharedMemoryHandle>(handle);
+}
+inline void* FileMappingFromSharedMemoryHandle(
+    PlatformSharedMemoryHandle handle) {
+  return reinterpret_cast<void*>(handle);
+}
+#else
+// Convert between a shared memory handle and a file descriptor.
+inline PlatformSharedMemoryHandle SharedMemoryHandleFromFileDescriptor(int fd) {
+  return static_cast<PlatformSharedMemoryHandle>(fd);
+}
+inline int FileDescriptorFromSharedMemoryHandle(
+    PlatformSharedMemoryHandle handle) {
+  return static_cast<int>(handle);
+}
+#endif
+
 /**
  * Possible permissions for memory pages.
  */
@@ -690,6 +741,43 @@ class VirtualAddressSpace {
    * \returns true on success, false otherwise.
    */
   virtual V8_WARN_UNUSED_RESULT bool FreeGuardRegion(Address address,
+                                                     size_t size) = 0;
+
+  /**
+   * Allocates shared memory pages with the given permissions.
+   *
+   * \param hint Placement hint. See AllocatePages.
+   *
+   * \param size The size of the allocation in bytes. Must be a multiple of the
+   * allocation_granularity().
+   *
+   * \param permissions The page permissions of the newly allocated pages.
+   *
+   * \param handle A platform-specific handle to a shared memory object. See
+   * the SharedMemoryHandleFromX routines above for ways to obtain these.
+   *
+   * \param offset The offset in the shared memory object at which the mapping
+   * should start. Must be a multiple of the allocation_granularity().
+   *
+   * \returns the start address of the allocated pages on success, zero on
+   * failure.
+   */
+  virtual V8_WARN_UNUSED_RESULT Address
+  AllocateSharedPages(Address hint, size_t size, PagePermissions permissions,
+                      PlatformSharedMemoryHandle handle, uint64_t offset) = 0;
+
+  /**
+   * Frees previously allocated shared pages.
+   *
+   * \param address The start address of the pages to free. This address must
+   * have been obtains from a call to AllocateSharedPages.
+   *
+   * \param size The size in bytes of the region to free. This must match the
+   * size passed to AllocateSharedPages when the pages were allocated.
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual V8_WARN_UNUSED_RESULT bool FreeSharedPages(Address address,
                                                      size_t size) = 0;
 
   /**

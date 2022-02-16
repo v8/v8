@@ -64,16 +64,16 @@ Address EmulatedVirtualAddressSubspace::AllocatePages(
 
   // No luck or hint is outside of the mapped region. Try to allocate pages in
   // the unmapped space using page allocation hints instead.
-
-  // Somewhat arbitrary size limitation to ensure that the loop below for
-  // finding a fitting base address hint terminates quickly.
-  if (size >= (unmapped_size() / 2)) return kNullAddress;
+  if (!IsUsableSizeForUnmappedRegion(size)) return kNullAddress;
 
   static constexpr int kMaxAttempts = 10;
   for (int i = 0; i < kMaxAttempts; i++) {
-    // If the hint wouldn't result in the entire allocation being inside the
-    // managed region, simply retry. There is at least a 50% chance of
-    // getting a usable address due to the size restriction above.
+    // If an unmapped region exists, it must cover at least 50% of the whole
+    // space (unmapped + mapped region). Since we limit the size of allocation
+    // to 50% of the unmapped region (see IsUsableSizeForUnmappedRegion), a
+    // random page address has at least a 25% chance of being a usable base. As
+    // such, this loop should usually terminate quickly.
+    DCHECK_GE(unmapped_size(), mapped_size());
     while (!UnmappedRegionContains(hint, size)) {
       hint = RandomPageAddress();
     }
@@ -103,6 +103,39 @@ bool EmulatedVirtualAddressSubspace::FreePages(Address address, size_t size) {
   }
   if (!UnmappedRegionContains(address, size)) return false;
   return parent_space_->FreePages(address, size);
+}
+
+Address EmulatedVirtualAddressSubspace::AllocateSharedPages(
+    Address hint, size_t size, PagePermissions permissions,
+    PlatformSharedMemoryHandle handle, uint64_t offset) {
+  // Can only allocate shared pages in the unmapped region.
+  if (!IsUsableSizeForUnmappedRegion(size)) return kNullAddress;
+
+  static constexpr int kMaxAttempts = 10;
+  for (int i = 0; i < kMaxAttempts; i++) {
+    // See AllocatePages() for why this loop usually terminates quickly.
+    DCHECK_GE(unmapped_size(), mapped_size());
+    while (!UnmappedRegionContains(hint, size)) {
+      hint = RandomPageAddress();
+    }
+
+    Address region = parent_space_->AllocateSharedPages(hint, size, permissions,
+                                                        handle, offset);
+    if (UnmappedRegionContains(region, size)) {
+      return region;
+    } else if (region) {
+      CHECK(parent_space_->FreeSharedPages(region, size));
+    }
+
+    hint = RandomPageAddress();
+  }
+
+  return kNullAddress;
+}
+
+bool EmulatedVirtualAddressSubspace::FreeSharedPages(Address address,
+                                                     size_t size) {
+  return parent_space_->FreeSharedPages(address, size);
 }
 
 bool EmulatedVirtualAddressSubspace::SetPagePermissions(

@@ -50,6 +50,13 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
 
   bool FreePages(Address address, size_t size) override;
 
+  Address AllocateSharedPages(Address hint, size_t size,
+                              PagePermissions permissions,
+                              PlatformSharedMemoryHandle handle,
+                              uint64_t offset) override;
+
+  bool FreeSharedPages(Address address, size_t size) override;
+
   bool SetPagePermissions(Address address, size_t size,
                           PagePermissions permissions) override;
 
@@ -90,6 +97,13 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
 
   bool UnmappedRegionContains(Address addr, size_t length) const {
     return Contains(unmapped_base(), unmapped_size(), addr, length);
+  }
+
+  // Helper function to define a limit for the size of allocations in the
+  // unmapped region. This limit makes it possible to estimate the expected
+  // runtime of some loops in the Allocate methods.
+  bool IsUsableSizeForUnmappedRegion(size_t size) const {
+    return size <= (unmapped_size() / 2);
   }
 
   // Size of the mapped region located at the beginning of this address space.

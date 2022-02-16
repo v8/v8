@@ -35,6 +35,13 @@ class V8_BASE_EXPORT LsanVirtualAddressSpace final
 
   bool FreePages(Address address, size_t size) override;
 
+  Address AllocateSharedPages(Address hint, size_t size,
+                              PagePermissions permissions,
+                              PlatformSharedMemoryHandle handle,
+                              uint64_t offset) override;
+
+  bool FreeSharedPages(Address address, size_t size) override;
+
   bool SetPagePermissions(Address address, size_t size,
                           PagePermissions permissions) override {
     return vas_->SetPagePermissions(address, size, permissions);

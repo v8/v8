@@ -724,13 +724,26 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
 
 typedef PVOID (*VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
                                  MEM_EXTENDED_PARAMETER*, ULONG);
-VirtualAlloc2_t VirtualAlloc2;
+VirtualAlloc2_t VirtualAlloc2 = nullptr;
+
+typedef PVOID (*MapViewOfFile3_t)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG,
+                                  ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
+MapViewOfFile3_t MapViewOfFile3 = nullptr;
+
+typedef PVOID (*UnmapViewOfFile2_t)(HANDLE, PVOID, ULONG);
+UnmapViewOfFile2_t UnmapViewOfFile2 = nullptr;
 
 void OS::EnsureWin32MemoryAPILoaded() {
   static bool loaded = false;
   if (!loaded) {
     VirtualAlloc2 = (VirtualAlloc2_t)GetProcAddress(
         GetModuleHandle(L"kernelbase.dll"), "VirtualAlloc2");
+
+    MapViewOfFile3 = (MapViewOfFile3_t)GetProcAddress(
+        GetModuleHandle(L"kernelbase.dll"), "MapViewOfFile3");
+
+    UnmapViewOfFile2 = (UnmapViewOfFile2_t)GetProcAddress(
+        GetModuleHandle(L"kernelbase.dll"), "UnmapViewOfFile2");
 
     loaded = true;
   }
@@ -811,6 +824,22 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
       if (IsWindows10OrGreater())
         return PAGE_EXECUTE_READ | PAGE_TARGETS_INVALID;
       return PAGE_EXECUTE_READ;
+  }
+  UNREACHABLE();
+}
+
+// Desired access parameter for MapViewOfFile
+DWORD GetFileViewAccessFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
+    case OS::MemoryPermission::kRead:
+      return FILE_MAP_READ;
+    case OS::MemoryPermission::kReadWrite:
+      return FILE_MAP_READ | FILE_MAP_WRITE;
+    default:
+      // Execute access is not supported
+      break;
   }
   UNREACHABLE();
 }
@@ -897,11 +926,39 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
 }
 
 // static
-bool OS::Free(void* address, const size_t size) {
+bool OS::Free(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
   USE(size);
   return VirtualFree(address, 0, MEM_RELEASE) != 0;
+}
+
+// static
+void* OS::AllocateShared(void* hint, size_t size, MemoryPermission permission,
+                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(hint) % AllocatePageSize());
+  DCHECK_EQ(0, size % AllocatePageSize());
+  DCHECK_EQ(0, offset % AllocatePageSize());
+
+  DWORD off_hi = static_cast<DWORD>(offset >> 32);
+  DWORD off_lo = static_cast<DWORD>(offset);
+  DWORD access = GetFileViewAccessFromMemoryPermission(permission);
+
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  void* result =
+      MapViewOfFileEx(file_mapping, access, off_hi, off_lo, size, hint);
+
+  if (!result) {
+    // Retry without hint.
+    result = MapViewOfFile(file_mapping, access, off_hi, off_lo, size);
+  }
+
+  return result;
+}
+
+// static
+bool OS::FreeShared(void* address, size_t size) {
+  return UnmapViewOfFile(address);
 }
 
 // static
@@ -965,7 +1022,10 @@ bool OS::DecommitPages(void* address, size_t size) {
 }
 
 // static
-bool OS::CanReserveAddressSpace() { return VirtualAlloc2 != nullptr; }
+bool OS::CanReserveAddressSpace() {
+  return VirtualAlloc2 != nullptr && MapViewOfFile3 != nullptr &&
+         UnmapViewOfFile2 != nullptr;
+}
 
 // static
 Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
@@ -991,6 +1051,21 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
 // static
 bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
   return OS::Free(reservation.base(), reservation.size());
+}
+
+// static
+PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+  HANDLE handle = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr,
+                                    PAGE_READWRITE, 0, size, nullptr);
+  if (!handle) return kInvalidSharedMemoryHandle;
+  return SharedMemoryHandleFromFileMapping(handle);
+}
+
+// static
+void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
+  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  CHECK(CloseHandle(file_mapping));
 }
 
 // static
@@ -1147,12 +1222,32 @@ bool AddressSpaceReservation::Allocate(void* address, size_t size,
                     ? MEM_RESERVE | MEM_REPLACE_PLACEHOLDER
                     : MEM_RESERVE | MEM_COMMIT | MEM_REPLACE_PLACEHOLDER;
   DWORD protect = GetProtectionFromMemoryPermission(access);
-  return VirtualAlloc2(nullptr, address, size, flags, protect, NULL, 0);
+  return VirtualAlloc2(nullptr, address, size, flags, protect, nullptr, 0);
 }
 
 bool AddressSpaceReservation::Free(void* address, size_t size) {
   DCHECK(Contains(address, size));
   return VirtualFree(address, size, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER);
+}
+
+bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
+                                             OS::MemoryPermission access,
+                                             PlatformSharedMemoryHandle handle,
+                                             uint64_t offset) {
+  DCHECK(Contains(address, size));
+  CHECK(MapViewOfFile3);
+
+  DWORD protect = GetProtectionFromMemoryPermission(access);
+  HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
+  return MapViewOfFile3(file_mapping, nullptr, address, offset, size,
+                        MEM_REPLACE_PLACEHOLDER, protect, nullptr, 0);
+}
+
+bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  CHECK(UnmapViewOfFile2);
+
+  return UnmapViewOfFile2(nullptr, address, MEM_PRESERVE_PLACEHOLDER);
 }
 
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
