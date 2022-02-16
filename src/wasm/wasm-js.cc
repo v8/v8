@@ -1668,7 +1668,7 @@ uint32_t GetEncodedSize(i::Handle<i::WasmTagObject> tag_object) {
 }
 
 void EncodeExceptionValues(v8::Isolate* isolate,
-                           i::PodArray<i::wasm::ValueType> signature,
+                           i::Handle<i::PodArray<i::wasm::ValueType>> signature,
                            const Local<Value>& arg,
                            ScheduledErrorThrower* thrower,
                            i::Handle<i::FixedArray> values_out) {
@@ -1679,10 +1679,10 @@ void EncodeExceptionValues(v8::Isolate* isolate,
     return;
   }
   auto values = arg.As<Object>();
-  for (int i = 0; i < signature.length(); ++i) {
+  for (int i = 0; i < signature->length(); ++i) {
     MaybeLocal<Value> maybe_value = values->Get(context, i);
     Local<Value> value = maybe_value.ToLocalChecked();
-    i::wasm::ValueType type = signature.get(i);
+    i::wasm::ValueType type = signature->get(i);
     switch (type.kind()) {
       case i::wasm::kI32: {
         int32_t i32 = 0;
@@ -1761,17 +1761,19 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 0 must be a WebAssembly tag");
     return;
   }
-  auto tag_object = i::Handle<i::WasmTagObject>::cast(arg0);
-  auto tag = i::Handle<i::WasmExceptionTag>(
+  i::Handle<i::WasmTagObject> tag_object =
+      i::Handle<i::WasmTagObject>::cast(arg0);
+  i::Handle<i::WasmExceptionTag> tag(
       i::WasmExceptionTag::cast(tag_object->tag()), i_isolate);
   uint32_t size = GetEncodedSize(tag_object);
   i::Handle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);
   // The constructor above should guarantee that the cast below succeeds.
-  auto values = i::Handle<i::FixedArray>::cast(
+  i::Handle<i::FixedArray> values = i::Handle<i::FixedArray>::cast(
       i::WasmExceptionPackage::GetExceptionValues(i_isolate,
                                                   runtime_exception));
-  auto signature = tag_object->serialized_signature();
+  i::Handle<i::PodArray<i::wasm::ValueType>> signature(
+      tag_object->serialized_signature(), i_isolate);
   EncodeExceptionValues(isolate, signature, args[1], &thrower, values);
   if (thrower.error()) return;
   args.GetReturnValue().Set(
