@@ -6119,15 +6119,16 @@ void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
   V(16, vlebrh, LoadU16LE, 1) \
   V(8, vleb, LoadU8, 0)
 
-#define LOAD_LANE(name, vector_instr, scalar_instr, condition)               \
-  void TurboAssembler::LoadLane##name##LE(Simd128Register dst,               \
-                                          const MemOperand& mem, int lane) { \
-    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {                 \
-      vector_instr(dst, mem, Condition(lane));                               \
-      return;                                                                \
-    }                                                                        \
-    scalar_instr(r1, mem);                                                   \
-    vlvg(dst, r1, MemOperand(r0, lane), Condition(condition));               \
+#define LOAD_LANE(name, vector_instr, scalar_instr, condition)             \
+  void TurboAssembler::LoadLane##name##LE(Simd128Register dst,             \
+                                          const MemOperand& mem, int lane, \
+                                          Register scratch) {              \
+    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {               \
+      vector_instr(dst, mem, Condition(lane));                             \
+      return;                                                              \
+    }                                                                      \
+    scalar_instr(scratch, mem);                                            \
+    vlvg(dst, scratch, MemOperand(r0, lane), Condition(condition));        \
   }
 LOAD_LANE_LIST(LOAD_LANE)
 #undef LOAD_LANE

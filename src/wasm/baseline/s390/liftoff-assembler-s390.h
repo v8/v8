@@ -2579,7 +2579,33 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 Register addr, Register offset_reg,
                                 uintptr_t offset_imm, LoadType type,
                                 uint8_t laneidx, uint32_t* protected_load_pc) {
-  bailout(kSimd, "loadlane");
+  if (!is_int20(offset_imm)) {
+    mov(ip, Operand(offset_imm));
+    if (offset_reg != no_reg) {
+      AddS64(ip, offset_reg);
+    }
+    offset_reg = ip;
+    offset_imm = 0;
+  }
+  MemOperand src_op =
+      MemOperand(addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
+
+  MachineType mem_type = type.mem_type();
+  if (dst != src) {
+    vlr(dst.fp(), src.fp(), Condition(0), Condition(0), Condition(0));
+  }
+
+  if (protected_load_pc) *protected_load_pc = pc_offset();
+  if (mem_type == MachineType::Int8()) {
+    LoadLane8LE(dst.fp(), src_op, 15 - laneidx, r1);
+  } else if (mem_type == MachineType::Int16()) {
+    LoadLane16LE(dst.fp(), src_op, 7 - laneidx, r1);
+  } else if (mem_type == MachineType::Int32()) {
+    LoadLane32LE(dst.fp(), src_op, 3 - laneidx, r1);
+  } else {
+    DCHECK_EQ(MachineType::Int64(), mem_type);
+    LoadLane64LE(dst.fp(), src_op, 1 - laneidx, r1);
+  }
 }
 
 void LiftoffAssembler::StoreLane(Register dst, Register offset,
