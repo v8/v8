@@ -522,7 +522,7 @@ static constexpr PlatformSharedMemoryHandle kInvalidSharedMemoryHandle = -1;
 // to avoid pulling in large OS header files into this header file. Instead,
 // the users of these routines are expected to include the respecitve OS
 // headers in addition to this one.
-#if V8_OS_MACOSX
+#if defined(V8_OS_MACOSX) && !defined(V8_OS_IOS)
 // Convert between a shared memory handle and a mach_port_t referencing a memory
 // entry object.
 inline PlatformSharedMemoryHandle SharedMemoryHandleFromMachMemoryEntry(
@@ -533,7 +533,7 @@ inline unsigned int MachMemoryEntryFromSharedMemoryHandle(
     PlatformSharedMemoryHandle handle) {
   return static_cast<unsigned int>(handle);
 }
-#elif V8_OS_FUCHSIA
+#elif defined(V8_OS_FUCHSIA)
 // Convert between a shared memory handle and a zx_handle_t to a VMO.
 inline PlatformSharedMemoryHandle SharedMemoryHandleFromVMO(uint32_t handle) {
   return static_cast<PlatformSharedMemoryHandle>(handle);
@@ -541,7 +541,7 @@ inline PlatformSharedMemoryHandle SharedMemoryHandleFromVMO(uint32_t handle) {
 inline uint32_t VMOFromSharedMemoryHandle(PlatformSharedMemoryHandle handle) {
   return static_cast<uint32_t>(handle);
 }
-#elif V8_OS_WIN
+#elif defined(V8_OS_WIN)
 // Convert between a shared memory handle and a Windows HANDLE to a file mapping
 // object.
 inline PlatformSharedMemoryHandle SharedMemoryHandleFromFileMapping(

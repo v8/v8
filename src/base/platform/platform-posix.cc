@@ -435,7 +435,7 @@ bool OS::Free(void* address, size_t size) {
 }
 
 // macOS specific implementation in platform-macos.cc.
-#if !defined(V8_OS_MACOSX)
+#if !defined(V8_OS_MACOSX) || defined(V8_OS_IOS)
 // static
 void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
                          PlatformSharedMemoryHandle handle, uint64_t offset) {
@@ -446,7 +446,7 @@ void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
   if (result == MAP_FAILED) return nullptr;
   return result;
 }
-#endif  // !defined(V8_OS_MACOSX)
+#endif  // !defined(V8_OS_MACOSX) || defined(V8_OS_IOS)
 
 // static
 bool OS::FreeShared(void* address, size_t size) {
@@ -573,7 +573,7 @@ bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 }
 
 // macOS specific implementation in platform-macos.cc.
-#if !defined(V8_OS_MACOSX)
+#if !defined(V8_OS_MACOSX) || defined(V8_OS_IOS)
 // static
 PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
 #if V8_OS_LINUX && !V8_OS_ANDROID
@@ -594,7 +594,7 @@ void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
   int fd = FileDescriptorFromSharedMemoryHandle(handle);
   CHECK_EQ(0, close(fd));
 }
-#endif  // !defined(V8_OS_MACOSX)
+#endif  // !defined(V8_OS_MACOSX) || defined(V8_OS_IOS)
 
 // static
 bool OS::HasLazyCommits() {
@@ -951,7 +951,7 @@ bool AddressSpaceReservation::Free(void* address, size_t size) {
 }
 
 // macOS specific implementation in platform-macos.cc.
-#if !defined(V8_OS_MACOSX)
+#if !defined(V8_OS_MACOSX) || defined(V8_OS_IOS)
 bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
                                              OS::MemoryPermission access,
                                              PlatformSharedMemoryHandle handle,
@@ -962,7 +962,7 @@ bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
   return mmap(address, size, prot, MAP_SHARED | MAP_FIXED, fd, offset) !=
          MAP_FAILED;
 }
-#endif  // !defined(V8_OS_MACOSX)
+#endif  // !defined(V8_OS_MACOSX) || defined(V8_OS_IOS)
 
 bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
   DCHECK(Contains(address, size));

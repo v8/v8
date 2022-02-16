@@ -638,6 +638,7 @@ filegroup(
         "@v8//bazel/config:is_macos": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-macos.cc",
+            "src/base/platform/platform-xnu.cc",
         ],
         "@v8//bazel/config:is_windows": [
             "src/base/win32-headers.h",

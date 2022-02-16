@@ -5183,6 +5183,7 @@ v8_component("v8_libbase") {
         sources += [
           "src/base/debug/stack_trace_posix.cc",
           "src/base/platform/platform-macos.cc",
+          "src/base/platform/platform-xnu.cc",
         ]
       } else {
         sources += [
@@ -5206,10 +5207,16 @@ v8_component("v8_libbase") {
       "//third_party/fuchsia-sdk/sdk/pkg/fdio",
       "//third_party/fuchsia-sdk/sdk/pkg/zx",
     ]
-  } else if (is_mac || is_ios) {
+  } else if (is_mac) {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
       "src/base/platform/platform-macos.cc",
+      "src/base/platform/platform-xnu.cc",
+    ]
+  } else if (is_ios) {
+    sources += [
+      "src/base/debug/stack_trace_posix.cc",
+      "src/base/platform/platform-xnu.cc",
     ]
   } else if (is_win) {
     # TODO(infra): Add support for cygwin.
