@@ -1544,9 +1544,9 @@ struct EscapeAnalysisPhase {
     GraphReducer reducer(temp_zone, data->graph(),
                          &data->info()->tick_counter(), data->broker(),
                          data->jsgraph()->Dead(), data->observe_node_manager());
-    EscapeAnalysisReducer escape_reducer(&reducer, data->jsgraph(),
-                                         escape_analysis.analysis_result(),
-                                         temp_zone);
+    EscapeAnalysisReducer escape_reducer(
+        &reducer, data->jsgraph(), data->broker(),
+        escape_analysis.analysis_result(), temp_zone);
 
     AddReducer(data, &reducer, &escape_reducer);
 
