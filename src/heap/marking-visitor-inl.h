@@ -355,7 +355,8 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     ObjectSlot value_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
-    if (concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
+    if ((!is_shared_heap_ && key.InSharedHeap()) ||
+        concrete_visitor()->marking_state()->IsBlackOrGrey(key)) {
       VisitPointer(table, value_slot);
     } else {
       Object value_obj = table.ValueAt(i);
@@ -365,6 +366,8 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
         concrete_visitor()->SynchronizePageAccess(value);
         concrete_visitor()->RecordSlot(table, value_slot, value);
         AddWeakReferenceForReferenceSummarizer(table, value);
+
+        if (!is_shared_heap_ && value.InSharedHeap()) continue;
 
         // Revisit ephemerons with both key and value unreachable at end
         // of concurrent marking cycle.
