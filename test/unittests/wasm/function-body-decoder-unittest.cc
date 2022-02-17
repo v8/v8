@@ -353,7 +353,7 @@ TEST_F(FunctionBodyDecoderTest, Int32Const1) {
 TEST_F(FunctionBodyDecoderTest, RefFunc) {
   builder.AddFunction(sigs.v_ii());
   builder.AddFunction(sigs.ii_v());
-  ExpectValidates(sigs.a_v(), {kExprRefFunc, 1});
+  ExpectValidates(sigs.c_v(), {kExprRefFunc, 1});
 }
 
 TEST_F(FunctionBodyDecoderTest, EmptyFunction) {
@@ -3394,15 +3394,13 @@ TEST_F(FunctionBodyDecoderTest, DeclarativeElemDrop) {
 }
 
 TEST_F(FunctionBodyDecoderTest, RefFuncDeclared) {
-  builder.InitializeTable(wasm::kWasmVoid);
   byte function_index = builder.AddFunction(sigs.v_i());
-  ExpectValidates(sigs.a_v(), {WASM_REF_FUNC(function_index)});
+  ExpectValidates(sigs.c_v(), {WASM_REF_FUNC(function_index)});
 }
 
 TEST_F(FunctionBodyDecoderTest, RefFuncUndeclared) {
-  builder.InitializeTable(wasm::kWasmVoid);
   byte function_index = builder.AddFunction(sigs.v_i(), false);
-  ExpectFailure(sigs.a_v(), {WASM_REF_FUNC(function_index)});
+  ExpectFailure(sigs.c_v(), {WASM_REF_FUNC(function_index)});
 }
 
 TEST_F(FunctionBodyDecoderTest, ElemSegmentIndexUnsigned) {

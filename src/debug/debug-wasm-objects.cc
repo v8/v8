@@ -771,71 +771,23 @@ Handle<String> WasmSimd128ToString(Isolate* isolate, wasm::Simd128 s128) {
 
 Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
                               wasm::NativeModule* module) {
-  bool is_nullable = type.kind() == wasm::kOptRef;
-  const char* null_str = is_nullable ? " null" : "";
-  // This length only needs to be enough for generated names like
-  // "(ref null $type12345)". For names coming from the name section,
-  // we'll dynamically allocate an appropriately sized vector.
-  base::EmbeddedVector<char, 32> type_name;
-  size_t len;
+  DCHECK(type.is_object_reference());
+  std::ostringstream name;
   if (type.heap_type().is_generic()) {
-    const char* generic_name = "";
-    wasm::HeapType::Representation heap_rep = type.heap_representation();
-    switch (heap_rep) {
-      case wasm::HeapType::kFunc:
-        generic_name = "func";
-        break;
-      case wasm::HeapType::kExtern:
-        generic_name = "extern";
-        break;
-      case wasm::HeapType::kEq:
-        generic_name = "eq";
-        break;
-      case wasm::HeapType::kI31:
-        generic_name = "i31";
-        break;
-      case wasm::HeapType::kData:
-        generic_name = "data";
-        break;
-      case wasm::HeapType::kArray:
-        generic_name = "array";
-        break;
-      case wasm::HeapType::kAny:
-        generic_name = "any";
-        break;
-      default:
-        UNREACHABLE();
-    }
-    len = SNPrintF(type_name, "(ref%s %s)", null_str, generic_name);
+    name << type.name();
   } else {
-    int type_index = type.ref_index();
+    name << "(ref " << (type.is_nullable() ? "null " : "") << "$";
     wasm::ModuleWireBytes module_wire_bytes(module->wire_bytes());
-    base::Vector<const char> name_vec = module_wire_bytes.GetNameOrNull(
-        module->GetDebugInfo()->GetTypeName(type_index));
-    if (name_vec.empty()) {
-      len = SNPrintF(type_name, "(ref%s $type%u)", null_str, type_index);
+    base::Vector<const char> module_name = module_wire_bytes.GetNameOrNull(
+        module->GetDebugInfo()->GetTypeName(type.ref_index()));
+    if (module_name.empty()) {
+      name << "type" << type.ref_index();
     } else {
-      size_t required_length =
-          name_vec.size() +       // length of provided name
-          7 +                     // length of "(ref $)"
-          (is_nullable ? 5 : 0);  // length of " null" (optional)
-      base::Vector<char> long_type_name =
-          base::Vector<char>::New(required_length);
-      len = SNPrintF(long_type_name, "(ref%s $", null_str);
-      base::Vector<char> suffix =
-          long_type_name.SubVector(len, long_type_name.size());
-      // StrNCpy requires that there is room for an assumed trailing \0...
-      DCHECK_EQ(suffix.size(), name_vec.size() + 1);
-      base::StrNCpy(suffix, name_vec.data(), name_vec.size());
-      // ...but we actually write ')' into that byte.
-      long_type_name[required_length - 1] = ')';
-      Handle<String> result =
-          isolate->factory()->InternalizeString(long_type_name);
-      long_type_name.Dispose();
-      return result;
+      name.write(module_name.begin(), module_name.size());
     }
+    name << ")";
   }
-  return isolate->factory()->InternalizeString(type_name.SubVector(0, len));
+  return isolate->factory()->InternalizeString(base::VectorOf(name.str()));
 }
 
 }  // namespace
@@ -1017,13 +969,6 @@ Handle<WasmValueObject> WasmValueObject::New(
       break;
     }
     case wasm::kOptRef:
-      if (value.type().is_reference_to(wasm::HeapType::kExtern)) {
-        t = isolate->factory()->InternalizeString(
-            base::StaticCharVector("externref"));
-        v = value.to_ref();
-        break;
-      }
-      V8_FALLTHROUGH;
     case wasm::kRef: {
       t = GetRefTypeName(isolate, value.type(), module_object->native_module());
       Handle<Object> ref = value.to_ref();
@@ -1031,11 +976,12 @@ Handle<WasmValueObject> WasmValueObject::New(
         v = StructProxy::Create(isolate, value, module_object);
       } else if (ref->IsWasmArray()) {
         v = ArrayProxy::Create(isolate, value, module_object);
-      } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull()) {
-        v = ref;
       } else if (ref->IsWasmInternalFunction()) {
         v = handle(Handle<WasmInternalFunction>::cast(ref)->external(),
                    isolate);
+      } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull() ||
+                 value.type().is_reference_to(wasm::HeapType::kExtern)) {
+        v = ref;
       } else {
         // Fail gracefully.
         base::EmbeddedVector<char, 64> error;

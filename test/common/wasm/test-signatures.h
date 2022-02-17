@@ -102,7 +102,7 @@ class TestSignatures {
   FunctionSig* d_dd() { return &sig_d_dd; }
 
   FunctionSig* e_v() { return &sig_e_v; }
-  FunctionSig* a_v() { return &sig_c_v; }
+  FunctionSig* c_v() { return &sig_c_v; }
   FunctionSig* e_e() { return &sig_e_e; }
   FunctionSig* c_c() { return &sig_c_c; }
 
