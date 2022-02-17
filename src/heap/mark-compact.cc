@@ -1244,7 +1244,7 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (!heap_object.InSharedHeap()) return;
-    RememberedSet<CLIENT_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
         MemoryChunk::FromHeapObject(host), slot.address());
     collector_->MarkRootObject(Root::kClientHeap, heap_object);
   }
@@ -1253,8 +1253,8 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
                                  HeapObject target) {
     if (ShouldRecordRelocSlot(host, rinfo, target)) {
       RecordRelocSlotInfo info = ProcessRelocInfo(host, rinfo, target);
-      RememberedSet<CLIENT_TO_SHARED>::InsertTyped(info.memory_chunk,
-                                                   info.slot_type, info.offset);
+      RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk,
+                                                info.slot_type, info.offset);
     }
   }
 
@@ -3478,7 +3478,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
   // Old-to-old slot sets must be empty after evacuation.
   for (Page* p : *heap()->old_space()) {
     DCHECK_NULL((p->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
-    DCHECK_NULL((p->slot_set<CLIENT_TO_SHARED, AccessMode::NON_ATOMIC>()));
+    DCHECK_NULL((p->slot_set<OLD_TO_SHARED, AccessMode::NON_ATOMIC>()));
     DCHECK_NULL((p->typed_slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
     DCHECK_NULL(p->invalidated_slots<OLD_TO_OLD>());
     DCHECK_NULL(p->invalidated_slots<OLD_TO_NEW>());
@@ -4648,16 +4648,16 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     MemoryChunk* chunk = chunk_iterator.Next();
     CodePageMemoryModificationScope unprotect_code_page(chunk);
 
-    RememberedSet<CLIENT_TO_SHARED>::Iterate(
+    RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
         [cage_base](MaybeObjectSlot slot) {
           return UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
         },
         SlotSet::KEEP_EMPTY_BUCKETS);
 
-    chunk->ReleaseSlotSet<CLIENT_TO_SHARED>();
+    chunk->ReleaseSlotSet<OLD_TO_SHARED>();
 
-    RememberedSet<CLIENT_TO_SHARED>::IterateTyped(
+    RememberedSet<OLD_TO_SHARED>::IterateTyped(
         chunk, [this](SlotType slot_type, Address slot) {
           // Using UpdateStrongSlot is OK here, because there are no weak
           // typed slots.
@@ -4669,7 +4669,7 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
               });
         });
 
-    chunk->ReleaseTypedSlotSet<CLIENT_TO_SHARED>();
+    chunk->ReleaseTypedSlotSet<OLD_TO_SHARED>();
   }
 
 #ifdef VERIFY_HEAP
