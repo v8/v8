@@ -17,19 +17,17 @@ namespace internal {
 // allocation that can be turned into an object or a failed attempt.
 class AllocationResult final {
  public:
-  static AllocationResult Failure(AllocationSpace space) {
-    return AllocationResult(space);
-  }
+  static AllocationResult Failure() { return AllocationResult(); }
 
   static AllocationResult FromObject(HeapObject heap_object) {
     return AllocationResult(heap_object);
   }
 
-  // Empty constructor creates a failed result that will turn into a full
-  // garbage collection.
-  AllocationResult() : AllocationResult(AllocationSpace::OLD_SPACE) {}
+  // Empty constructor creates a failed result. The callsite determines which
+  // GC to invoke based on the requested allocation.
+  AllocationResult() = default;
 
-  bool IsFailure() const { return object_.IsSmi(); }
+  bool IsFailure() const { return object_.is_null(); }
 
   template <typename T>
   bool To(T* obj) const {
@@ -53,19 +51,10 @@ class AllocationResult final {
     return HeapObject::cast(object_).address();
   }
 
-  // Returns the space that should be passed to a garbage collection call.
-  AllocationSpace ToGarbageCollectionSpace() const {
-    DCHECK(IsFailure());
-    return static_cast<AllocationSpace>(Smi::ToInt(object_));
-  }
-
  private:
-  explicit AllocationResult(AllocationSpace space)
-      : object_(Smi::FromInt(static_cast<int>(space))) {}
-
   explicit AllocationResult(HeapObject heap_object) : object_(heap_object) {}
 
-  Object object_;
+  HeapObject object_;
 };
 
 STATIC_ASSERT(sizeof(AllocationResult) == kSystemPointerSize);

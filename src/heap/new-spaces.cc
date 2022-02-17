@@ -619,7 +619,7 @@ AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes,
                                                 AllocationOrigin origin) {
   DCHECK(!FLAG_enable_third_party_heap);
   if (!EnsureAllocation(size_in_bytes, kTaggedAligned)) {
-    return AllocationResult::Failure(NEW_SPACE);
+    return AllocationResult::Failure();
   }
 
   DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
@@ -638,7 +638,7 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
                                               AllocationOrigin origin) {
   DCHECK(!FLAG_enable_third_party_heap);
   if (!EnsureAllocation(size_in_bytes, alignment)) {
-    return AllocationResult::Failure(NEW_SPACE);
+    return AllocationResult::Failure();
   }
 
   DCHECK_EQ(allocation_info_->start(), allocation_info_->top());

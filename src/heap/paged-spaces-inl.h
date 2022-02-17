@@ -95,7 +95,7 @@ bool PagedSpace::EnsureLabMain(int size_in_bytes, AllocationOrigin origin) {
 
 AllocationResult PagedSpace::AllocateFastUnaligned(int size_in_bytes) {
   if (!allocation_info_->CanIncrementTop(size_in_bytes)) {
-    return AllocationResult::Failure(identity());
+    return AllocationResult::Failure();
   }
   return AllocationResult::FromObject(
       HeapObject::FromAddress(allocation_info_->IncrementTop(size_in_bytes)));
@@ -108,7 +108,7 @@ AllocationResult PagedSpace::AllocateFastAligned(
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
   int aligned_size = filler_size + size_in_bytes;
   if (!allocation_info_->CanIncrementTop(aligned_size)) {
-    return AllocationResult::Failure(identity());
+    return AllocationResult::Failure();
   }
   HeapObject obj =
       HeapObject::FromAddress(allocation_info_->IncrementTop(aligned_size));
@@ -123,7 +123,7 @@ AllocationResult PagedSpace::AllocateRawUnaligned(int size_in_bytes,
                                                   AllocationOrigin origin) {
   DCHECK(!FLAG_enable_third_party_heap);
   if (!EnsureLabMain(size_in_bytes, origin)) {
-    return AllocationResult::Failure(identity());
+    return AllocationResult::Failure();
   }
 
   AllocationResult result = AllocateFastUnaligned(size_in_bytes);
@@ -152,7 +152,7 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
   int filler_size = Heap::GetMaximumFillToAlign(alignment);
   allocation_size += filler_size;
   if (!EnsureLabMain(allocation_size, origin)) {
-    return AllocationResult::Failure(identity());
+    return AllocationResult::Failure();
   }
   int aligned_size_in_bytes;
   AllocationResult result =

@@ -135,11 +135,11 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGeneration(object_size) ||
       !heap()->ShouldExpandOldGenerationOnSlowAllocation()) {
-    return AllocationResult::Failure(identity());
+    return AllocationResult::Failure();
   }
 
   LargePage* page = AllocateLargePage(object_size, executable);
-  if (page == nullptr) return AllocationResult::Failure(identity());
+  if (page == nullptr) return AllocationResult::Failure();
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   HeapObject object = page->GetObject();
   UpdatePendingObject(object);
@@ -171,11 +171,11 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGenerationBackground(local_heap, object_size) ||
       !heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap)) {
-    return AllocationResult::Failure(identity());
+    return AllocationResult::Failure();
   }
 
   LargePage* page = AllocateLargePage(object_size, executable);
-  if (page == nullptr) return AllocationResult::Failure(identity());
+  if (page == nullptr) return AllocationResult::Failure();
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   HeapObject object = page->GetObject();
   heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
@@ -486,16 +486,16 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   // Do not allocate more objects if promoting the existing object would exceed
   // the old generation capacity.
   if (!heap()->CanExpandOldGeneration(SizeOfObjects())) {
-    return AllocationResult::Failure(identity());
+    return AllocationResult::Failure();
   }
 
   // Allocation for the first object must succeed independent from the capacity.
   if (SizeOfObjects() > 0 && static_cast<size_t>(object_size) > Available()) {
-    return AllocationResult::Failure(identity());
+    return AllocationResult::Failure();
   }
 
   LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
-  if (page == nullptr) return AllocationResult::Failure(identity());
+  if (page == nullptr) return AllocationResult::Failure();
 
   // The size of the first object may exceed the capacity.
   capacity_ = std::max(capacity_, SizeOfObjects());

@@ -140,7 +140,7 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
   int filler_size = Heap::GetFillToAlign(current_top, alignment);
   int aligned_size = filler_size + size_in_bytes;
   if (!allocation_info_.CanIncrementTop(aligned_size)) {
-    return AllocationResult::Failure(NEW_SPACE);
+    return AllocationResult::Failure();
   }
   HeapObject object =
       HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));

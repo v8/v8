@@ -194,8 +194,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
     if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
-      AllocationSpace space = FLAG_single_generation ? OLD_SPACE : NEW_SPACE;
-      return AllocationResult::Failure(space);
+      return AllocationResult::Failure();
     }
   }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT

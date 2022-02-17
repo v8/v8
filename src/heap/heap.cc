@@ -480,6 +480,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return GarbageCollector::MARK_COMPACTOR;
   }
 
+  DCHECK(!FLAG_single_generation);
+  DCHECK(!FLAG_gc_global);
   // Default
   *reason = nullptr;
   return YoungGenerationCollector();
@@ -5623,6 +5625,26 @@ void Heap::DisableInlineAllocation() {
   }
 }
 
+namespace {
+
+constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
+  switch (type) {
+    case AllocationType::kYoung:
+      return NEW_SPACE;
+    case AllocationType::kOld:
+    case AllocationType::kCode:
+    case AllocationType::kMap:
+      // OLD_SPACE indicates full GC.
+      return OLD_SPACE;
+    case AllocationType::kReadOnly:
+    case AllocationType::kSharedMap:
+    case AllocationType::kSharedOld:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
 HeapObject Heap::AllocateRawWithLightRetrySlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment) {
@@ -5644,7 +5666,7 @@ HeapObject Heap::AllocateRawWithLightRetrySlowPath(
     if (IsSharedAllocationType(allocation)) {
       CollectSharedGarbage(GarbageCollectionReason::kAllocationFailure);
     } else {
-      CollectGarbage(alloc.ToGarbageCollectionSpace(),
+      CollectGarbage(AllocationTypeToGCSpace(allocation),
                      GarbageCollectionReason::kAllocationFailure);
     }
     alloc = AllocateRaw(size, allocation, origin, alignment);

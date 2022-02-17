@@ -109,7 +109,7 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
 AllocationResult NewSpace::AllocateFastUnaligned(int size_in_bytes,
                                                  AllocationOrigin origin) {
   if (!allocation_info_->CanIncrementTop(size_in_bytes)) {
-    return AllocationResult::Failure(NEW_SPACE);
+    return AllocationResult::Failure();
   }
   HeapObject obj =
       HeapObject::FromAddress(allocation_info_->IncrementTop(size_in_bytes));
@@ -132,7 +132,7 @@ AllocationResult NewSpace::AllocateFastAligned(
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
   if (!allocation_info_->CanIncrementTop(aligned_size_in_bytes)) {
-    return AllocationResult::Failure(NEW_SPACE);
+    return AllocationResult::Failure();
   }
   HeapObject obj = HeapObject::FromAddress(
       allocation_info_->IncrementTop(aligned_size_in_bytes));
