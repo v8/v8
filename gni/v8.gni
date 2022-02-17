@@ -32,10 +32,6 @@ declare_args() {
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
-  # This flag is deprecated and is now available through the inspector interface
-  # as an argument to profiler's method `takeHeapSnapshot`.
-  v8_enable_raw_heap_snapshots = false
-
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
   v8_use_external_startup_data = ""
