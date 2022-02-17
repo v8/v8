@@ -298,8 +298,9 @@ TEST(PageBackendTest, LookupNormal) {
   PageBackend backend(allocator, oom_handler);
   constexpr size_t kBucket = 0;
   Address writeable_base = backend.AllocateNormalPageMemory(kBucket);
-  if (kGuardPageSize)
+  if (kGuardPageSize) {
     EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
+  }
   EXPECT_EQ(nullptr, backend.Lookup(writeable_base - 1));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base + kPageSize -
@@ -318,8 +319,9 @@ TEST(PageBackendTest, LookupLarge) {
   PageBackend backend(allocator, oom_handler);
   constexpr size_t kSize = 7934;
   Address writeable_base = backend.AllocateLargePageMemory(kSize);
-  if (kGuardPageSize)
+  if (kGuardPageSize) {
     EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
+  }
   EXPECT_EQ(nullptr, backend.Lookup(writeable_base - 1));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base + kSize - 1));
