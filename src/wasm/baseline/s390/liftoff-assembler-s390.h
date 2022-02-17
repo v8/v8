@@ -2612,7 +2612,30 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  uintptr_t offset_imm, LiftoffRegister src,
                                  StoreType type, uint8_t lane,
                                  uint32_t* protected_store_pc) {
-  bailout(kSimd, "store lane");
+  if (!is_int20(offset_imm)) {
+    mov(ip, Operand(offset_imm));
+    if (offset != no_reg) {
+      AddS64(ip, offset);
+    }
+    offset = ip;
+    offset_imm = 0;
+  }
+  MemOperand dst_op =
+      MemOperand(dst, offset == no_reg ? r0 : offset, offset_imm);
+
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+
+  MachineRepresentation rep = type.mem_rep();
+  if (rep == MachineRepresentation::kWord8) {
+    StoreLane8LE(src.fp(), dst_op, 15 - lane, r1);
+  } else if (rep == MachineRepresentation::kWord16) {
+    StoreLane16LE(src.fp(), dst_op, 7 - lane, r1);
+  } else if (rep == MachineRepresentation::kWord32) {
+    StoreLane32LE(src.fp(), dst_op, 3 - lane, r1);
+  } else {
+    DCHECK_EQ(MachineRepresentation::kWord64, rep);
+    StoreLane64LE(src.fp(), dst_op, 1 - lane, r1);
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,

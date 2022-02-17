@@ -6140,15 +6140,16 @@ LOAD_LANE_LIST(LOAD_LANE)
   V(16, vstebrh, StoreU16LE, 1) \
   V(8, vsteb, StoreU8, 0)
 
-#define STORE_LANE(name, vector_instr, scalar_instr, condition)               \
-  void TurboAssembler::StoreLane##name##LE(Simd128Register src,               \
-                                           const MemOperand& mem, int lane) { \
-    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {                  \
-      vector_instr(src, mem, Condition(lane));                                \
-      return;                                                                 \
-    }                                                                         \
-    vlgv(r1, src, MemOperand(r0, lane), Condition(condition));                \
-    scalar_instr(r1, mem);                                                    \
+#define STORE_LANE(name, vector_instr, scalar_instr, condition)             \
+  void TurboAssembler::StoreLane##name##LE(Simd128Register src,             \
+                                           const MemOperand& mem, int lane, \
+                                           Register scratch) {              \
+    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {                \
+      vector_instr(src, mem, Condition(lane));                              \
+      return;                                                               \
+    }                                                                       \
+    vlgv(scratch, src, MemOperand(r0, lane), Condition(condition));         \
+    scalar_instr(scratch, mem);                                             \
   }
 STORE_LANE_LIST(STORE_LANE)
 #undef STORE_LANE

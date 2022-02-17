@@ -3114,7 +3114,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   size_t index = 2;                                    \
   MemOperand operand = i.MemoryOperand(&mode, &index); \
   Simd128Register src = i.InputSimd128Register(0);     \
-  __ StoreLane##type##LE(src, operand, lane);
+  __ StoreLane##type##LE(src, operand, lane, kScratchReg);
     case kS390_S128Store8Lane: {
       STORE_LANE(8, 15 - i.InputUint8(1));
       break;
