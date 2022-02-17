@@ -194,7 +194,7 @@ void MarkingBarrier::Deactivate() {
   is_compacting_ = false;
   if (is_main_thread_barrier_) {
     DeactivateSpace(heap_->old_space());
-    DeactivateSpace(heap_->map_space());
+    if (heap_->map_space()) DeactivateSpace(heap_->map_space());
     DeactivateSpace(heap_->code_space());
     DeactivateSpace(heap_->new_space());
     for (LargePage* p : *heap_->new_lo_space()) {
@@ -233,7 +233,7 @@ void MarkingBarrier::Activate(bool is_compacting) {
   is_activated_ = true;
   if (is_main_thread_barrier_) {
     ActivateSpace(heap_->old_space());
-    ActivateSpace(heap_->map_space());
+    if (heap_->map_space()) ActivateSpace(heap_->map_space());
     ActivateSpace(heap_->code_space());
     ActivateSpace(heap_->new_space());
 

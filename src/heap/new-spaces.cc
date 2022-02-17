@@ -720,7 +720,8 @@ void NewSpace::Verify(Isolate* isolate) {
       // be in map space or read-only space.
       Map map = object.map(cage_base);
       CHECK(map.IsMap(cage_base));
-      CHECK(ReadOnlyHeap::Contains(map) || heap()->map_space()->Contains(map));
+      CHECK(ReadOnlyHeap::Contains(map) ||
+            isolate->heap()->space_for_maps()->Contains(map));
 
       // The object should not be code or a map.
       CHECK(!object.IsMap(cage_base));

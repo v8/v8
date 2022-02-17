@@ -35,7 +35,10 @@ class EvacuationAllocator {
     heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
     heap_->code_space()->MergeCompactionSpace(
         compaction_spaces_.Get(CODE_SPACE));
-    heap_->map_space()->MergeCompactionSpace(compaction_spaces_.Get(MAP_SPACE));
+    if (heap_->map_space()) {
+      heap_->map_space()->MergeCompactionSpace(
+          compaction_spaces_.Get(MAP_SPACE));
+    }
 
     // Give back remaining LAB space if this EvacuationAllocator's new space LAB
     // sits right next to new space allocation top.

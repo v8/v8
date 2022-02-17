@@ -523,7 +523,7 @@ DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #if !MUST_WRITE_PROTECT_CODE_MEMORY
 DEFINE_WEAK_VALUE_IMPLICATION(future, write_protect_code_memory, false)
 #endif
-DEFINE_WEAK_IMPLICATION(future, compact_map_space)
+DEFINE_WEAK_IMPLICATION(future, compact_maps)
 
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
@@ -1322,8 +1322,11 @@ DEFINE_BOOL(compact, true,
             "Perform compaction on full GCs based on V8's default heuristics")
 DEFINE_BOOL(compact_code_space, true,
             "Perform code space compaction on full collections.")
-DEFINE_BOOL(compact_map_space, false,
-            "Perform map space compaction on full collections.")
+DEFINE_BOOL(compact_maps, false,
+            "Perform compaction on maps on full collections.")
+DEFINE_BOOL(use_map_space, true, "Use separate space for maps.")
+// Without a map space we have to compact maps.
+DEFINE_NEG_VALUE_IMPLICATION(use_map_space, compact_maps, true)
 DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
 DEFINE_BOOL(compact_with_stack, true,

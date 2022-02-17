@@ -15,7 +15,7 @@ EXTRA_FLAGS = [
     (0.1, '--assert-types'),
     (0.1, '--interrupt-budget-for-feedback-allocation=0'),
     (0.1, '--cache=code'),
-    (0.25, '--compact-map-space'),
+    (0.25, '--compact-maps'),
     (0.1, '--force-slow-path'),
     (0.2, '--future'),
     (0.1, '--interrupt-budget=100'),

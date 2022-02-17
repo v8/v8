@@ -93,7 +93,8 @@ OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
       state_(kOldSpaceState),
       old_iterator_(heap->old_space()->begin()),
       code_iterator_(heap->code_space()->begin()),
-      map_iterator_(heap->map_space()->begin()),
+      map_iterator_(heap->map_space() ? heap->map_space()->begin()
+                                      : PageRange::iterator(nullptr)),
       lo_iterator_(heap->lo_space()->begin()),
       code_lo_iterator_(heap->code_lo_space()->begin()) {}
 

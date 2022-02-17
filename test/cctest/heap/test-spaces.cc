@@ -394,6 +394,9 @@ TEST(SizeOfInitialHeap) {
   Heap* heap = isolate->heap();
   for (int i = FIRST_GROWABLE_PAGED_SPACE; i <= LAST_GROWABLE_PAGED_SPACE;
        i++) {
+    // Map space might be disabled.
+    if (i == MAP_SPACE && !heap->paged_space(i)) continue;
+
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
     if (i == CODE_SPACE && i::FLAG_debug_code) continue;
 

@@ -742,7 +742,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       Map map = object.map(cage_base);
       CHECK(map.IsMap(cage_base));
       CHECK(ReadOnlyHeap::Contains(map) ||
-            isolate->heap()->map_space()->Contains(map));
+            isolate->heap()->space_for_maps()->Contains(map));
 
       // Perform space-specific object verification.
       VerifyObject(object);

@@ -844,6 +844,7 @@ class Heap {
   OldSpace* shared_old_space() { return shared_old_space_; }
   CodeSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
+  inline PagedSpace* space_for_maps();
   OldLargeObjectSpace* lo_space() { return lo_space_; }
   CodeLargeObjectSpace* code_lo_space() { return code_lo_space_; }
   NewLargeObjectSpace* new_lo_space() { return new_lo_space_; }
@@ -862,6 +863,8 @@ class Heap {
   const MemoryAllocator* memory_allocator() const {
     return memory_allocator_.get();
   }
+
+  inline ConcurrentAllocator* concurrent_allocator_for_maps();
 
   inline Isolate* isolate();
 

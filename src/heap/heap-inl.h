@@ -20,6 +20,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/concurrent-allocator-inl.h"
+#include "src/heap/concurrent-allocator.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
@@ -98,6 +99,16 @@ int64_t Heap::external_memory() { return external_memory_.total(); }
 
 int64_t Heap::update_external_memory(int64_t delta) {
   return external_memory_.Update(delta);
+}
+
+PagedSpace* Heap::space_for_maps() {
+  return V8_LIKELY(map_space_) ? static_cast<PagedSpace*>(map_space_)
+                               : static_cast<PagedSpace*>(old_space_);
+}
+
+ConcurrentAllocator* Heap::concurrent_allocator_for_maps() {
+  return V8_LIKELY(shared_map_allocator_) ? shared_map_allocator_.get()
+                                          : shared_old_allocator_.get();
 }
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
@@ -238,19 +249,26 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
           DCHECK(AllowCodeAllocation::IsAllowed());
           allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
           break;
-        case AllocationType::kMap:
+        case AllocationType::kMap: {
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
-          allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
+          PagedSpace* allocation_space =
+              V8_LIKELY(map_space_) ? static_cast<PagedSpace*>(map_space_)
+                                    : static_cast<PagedSpace*>(old_space_);
+          allocation = allocation_space->AllocateRawUnaligned(size_in_bytes);
           break;
+        }
         case AllocationType::kReadOnly:
           DCHECK(CanAllocateInReadOnlySpace());
           DCHECK_EQ(AllocationOrigin::kRuntime, origin);
           allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
           break;
-        case AllocationType::kSharedMap:
-          allocation = shared_map_allocator_->AllocateRaw(size_in_bytes,
-                                                          alignment, origin);
+        case AllocationType::kSharedMap: {
+          ConcurrentAllocator* allocator = V8_LIKELY(shared_map_allocator_)
+                                               ? shared_map_allocator_.get()
+                                               : shared_old_allocator_.get();
+          allocation = allocator->AllocateRaw(size_in_bytes, alignment, origin);
           break;
+        }
         case AllocationType::kSharedOld:
           allocation = shared_old_allocator_->AllocateRaw(size_in_bytes,
                                                           alignment, origin);

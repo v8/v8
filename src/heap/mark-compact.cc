@@ -217,7 +217,7 @@ class FullMarkingVerifier : public MarkingVerifier {
     VerifyMarking(heap_->new_lo_space());
     VerifyMarking(heap_->old_space());
     VerifyMarking(heap_->code_space());
-    VerifyMarking(heap_->map_space());
+    if (heap_->map_space()) VerifyMarking(heap_->map_space());
     VerifyMarking(heap_->lo_space());
     VerifyMarking(heap_->code_lo_space());
   }
@@ -399,7 +399,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     VerifyEvacuation(heap_->new_space());
     VerifyEvacuation(heap_->old_space());
     VerifyEvacuation(heap_->code_space());
-    VerifyEvacuation(heap_->map_space());
+    if (heap_->map_space()) VerifyEvacuation(heap_->map_space());
   }
 
  protected:
@@ -560,7 +560,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   CollectEvacuationCandidates(heap()->old_space());
 
-  if (FLAG_compact_map_space) {
+  if (heap()->map_space() && FLAG_compact_maps) {
     CollectEvacuationCandidates(heap()->map_space());
   }
 
@@ -571,7 +571,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
     TraceFragmentation(heap()->code_space());
   }
 
-  if (FLAG_trace_fragmentation) {
+  if (FLAG_trace_fragmentation && heap()->map_space()) {
     TraceFragmentation(heap()->map_space());
   }
 
@@ -663,7 +663,9 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
 void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->old_space());
   VerifyMarkbitsAreClean(heap_->code_space());
-  VerifyMarkbitsAreClean(heap_->map_space());
+  if (heap_->map_space()) {
+    VerifyMarkbitsAreClean(heap_->map_space());
+  }
   VerifyMarkbitsAreClean(heap_->new_space());
   // Read-only space should always be black since we never collect any objects
   // in it or linked from it.
@@ -684,8 +686,10 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   sweeper()->EnsureCompleted();
   heap()->old_space()->RefillFreeList();
   heap()->code_space()->RefillFreeList();
-  heap()->map_space()->RefillFreeList();
-  heap()->map_space()->SortFreeList();
+  if (heap()->map_space()) {
+    heap()->map_space()->RefillFreeList();
+    heap()->map_space()->SortFreeList();
+  }
 
   heap()->tracer()->NotifySweepingCompleted();
 
@@ -997,7 +1001,7 @@ void MarkCompactCollector::VerifyMarking() {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     heap()->old_space()->VerifyLiveBytes();
-    heap()->map_space()->VerifyLiveBytes();
+    if (heap()->map_space()) heap()->map_space()->VerifyLiveBytes();
     heap()->code_space()->VerifyLiveBytes();
   }
 #endif
@@ -4601,8 +4605,10 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                                       RememberedSetUpdatingMode::ALL);
     CollectRememberedSetUpdatingItems(&updating_items, heap()->code_lo_space(),
                                       RememberedSetUpdatingMode::ALL);
-    CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
-                                      RememberedSetUpdatingMode::ALL);
+    if (heap()->map_space()) {
+      CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
+                                        RememberedSetUpdatingMode::ALL);
+    }
 
     // Iterating to space may require a valid body descriptor for e.g.
     // WasmStruct which races with updating a slot in Map. Since to space is
@@ -4837,7 +4843,7 @@ void MarkCompactCollector::StartSweepSpaces() {
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_CODE, ThreadKind::kMain);
       StartSweepSpace(heap()->code_space());
     }
-    {
+    if (heap()->map_space()) {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
       StartSweepSpace(heap()->map_space());
@@ -4937,7 +4943,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     VerifyEvacuation(heap_->new_space());
     VerifyEvacuation(heap_->old_space());
     VerifyEvacuation(heap_->code_space());
-    VerifyEvacuation(heap_->map_space());
+    if (heap_->map_space()) VerifyEvacuation(heap_->map_space());
   }
 
  protected:
@@ -5205,8 +5211,11 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
                                     RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
   CollectRememberedSetUpdatingItems(&updating_items, heap()->code_space(),
                                     RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-  CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
-                                    RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+  if (heap()->map_space()) {
+    CollectRememberedSetUpdatingItems(
+        &updating_items, heap()->map_space(),
+        RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+  }
   CollectRememberedSetUpdatingItems(&updating_items, heap()->lo_space(),
                                     RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
   CollectRememberedSetUpdatingItems(&updating_items, heap()->code_lo_space(),

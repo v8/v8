@@ -377,7 +377,8 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     // in map space or read-only space.
     Map map = object.map(cage_base);
     CHECK(map.IsMap(cage_base));
-    CHECK(ReadOnlyHeap::Contains(map) || heap()->map_space()->Contains(map));
+    CHECK(ReadOnlyHeap::Contains(map) ||
+          isolate->heap()->space_for_maps()->Contains(map));
 
     // We have only the following types in the large object space:
     const bool is_valid_lo_space_object =                         //

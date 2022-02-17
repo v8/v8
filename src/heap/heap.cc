@@ -534,12 +534,14 @@ void Heap::PrintShortHeapStatistics() {
                ", committed: %6zu KB\n",
                code_space_->SizeOfObjects() / KB, code_space_->Available() / KB,
                code_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_,
-               "Map space,              used: %6zu KB"
-               ", available: %6zu KB"
-               ", committed: %6zu KB\n",
-               map_space_->SizeOfObjects() / KB, map_space_->Available() / KB,
-               map_space_->CommittedMemory() / KB);
+  if (map_space()) {
+    PrintIsolate(isolate_,
+                 "Map space,              used: %6zu KB"
+                 ", available: %6zu KB"
+                 ", committed: %6zu KB\n",
+                 map_space_->SizeOfObjects() / KB, map_space_->Available() / KB,
+                 map_space_->CommittedMemory() / KB);
+  }
   PrintIsolate(isolate_,
                "Large object space,     used: %6zu KB"
                ", available: %6zu KB"
@@ -1409,7 +1411,11 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 
   UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_space)
   UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(code_space)
-  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(map_space)
+
+  if (map_space()) {
+    UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(map_space)
+  }
+
   UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(lo_space)
 #undef UPDATE_COUNTERS_FOR_SPACE
 #undef UPDATE_FRAGMENTATION_FOR_SPACE
@@ -1478,8 +1484,10 @@ void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
         static_cast<int>(CommittedMemory() / KB));
     isolate_->counters()->heap_sample_total_used()->AddSample(
         static_cast<int>(SizeOfObjects() / KB));
-    isolate_->counters()->heap_sample_map_space_committed()->AddSample(
-        static_cast<int>(map_space()->CommittedMemory() / KB));
+    if (map_space()) {
+      isolate_->counters()->heap_sample_map_space_committed()->AddSample(
+          static_cast<int>(map_space()->CommittedMemory() / KB));
+    }
     isolate_->counters()->heap_sample_code_space_committed()->AddSample(
         static_cast<int>(code_space()->CommittedMemory() / KB));
 
@@ -3685,7 +3693,7 @@ void Heap::FreeSharedLinearAllocationAreas() {
 void Heap::FreeMainThreadSharedLinearAllocationAreas() {
   if (!isolate()->shared_isolate()) return;
   shared_old_allocator_->FreeLinearAllocationArea();
-  shared_map_allocator_->FreeLinearAllocationArea();
+  if (shared_map_allocator_) shared_map_allocator_->FreeLinearAllocationArea();
   main_thread_local_heap()->FreeSharedLinearAllocationArea();
 }
 
@@ -4444,8 +4452,8 @@ bool Heap::Contains(HeapObject value) const {
   return HasBeenSetUp() &&
          ((new_space_ && new_space_->ToSpaceContains(value)) ||
           old_space_->Contains(value) || code_space_->Contains(value) ||
-          map_space_->Contains(value) || lo_space_->Contains(value) ||
-          code_lo_space_->Contains(value) ||
+          (map_space_ && map_space_->Contains(value)) ||
+          lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
           (new_lo_space_ && new_lo_space_->Contains(value)));
 }
 
@@ -4464,7 +4472,7 @@ bool Heap::ContainsCode(HeapObject value) const {
 bool Heap::SharedHeapContains(HeapObject value) const {
   if (shared_old_space_)
     return shared_old_space_->Contains(value) ||
-           shared_map_space_->Contains(value);
+           (shared_map_space_ && shared_map_space_->Contains(value));
   return false;
 }
 
@@ -4496,6 +4504,7 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
     case CODE_SPACE:
       return code_space_->Contains(value);
     case MAP_SPACE:
+      DCHECK(map_space_);
       return map_space_->Contains(value);
     case LO_SPACE:
       return lo_space_->Contains(value);
@@ -4525,6 +4534,7 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
     case CODE_SPACE:
       return code_space_->ContainsSlow(addr);
     case MAP_SPACE:
+      DCHECK(map_space_);
       return map_space_->ContainsSlow(addr);
     case LO_SPACE:
       return lo_space_->ContainsSlow(addr);
@@ -4586,7 +4596,9 @@ void Heap::Verify() {
   if (new_space_) new_space_->Verify(isolate());
 
   old_space_->Verify(isolate(), &visitor);
-  map_space_->Verify(isolate(), &visitor);
+  if (map_space_) {
+    map_space_->Verify(isolate(), &visitor);
+  }
 
   VerifyPointersVisitor no_dirty_regions_visitor(this);
   code_space_->Verify(isolate(), &no_dirty_regions_visitor);
@@ -5308,8 +5320,8 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->old_space_capacity = old_space_->Capacity();
   *stats->code_space_size = code_space_->SizeOfObjects();
   *stats->code_space_capacity = code_space_->Capacity();
-  *stats->map_space_size = map_space_->SizeOfObjects();
-  *stats->map_space_capacity = map_space_->Capacity();
+  *stats->map_space_size = map_space_ ? map_space_->SizeOfObjects() : 0;
+  *stats->map_space_capacity = map_space_ ? map_space_->Capacity() : 0;
   *stats->lo_space_size = lo_space_->Size();
   *stats->code_lo_space_size = code_lo_space_->Size();
   isolate_->global_handles()->RecordStats(stats);
@@ -5880,7 +5892,9 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   }
   space_[OLD_SPACE] = old_space_ = new OldSpace(this, old_allocation_info);
   space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
-  space_[MAP_SPACE] = map_space_ = new MapSpace(this);
+  if (FLAG_use_map_space) {
+    space_[MAP_SPACE] = map_space_ = new MapSpace(this);
+  }
   space_[LO_SPACE] = lo_space_ = new OldLargeObjectSpace(this);
   space_[CODE_LO_SPACE] = code_lo_space_ = new CodeLargeObjectSpace(this);
 
@@ -5938,13 +5952,17 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
 
   if (isolate()->shared_isolate()) {
-    shared_old_space_ = isolate()->shared_isolate()->heap()->old_space();
+    Heap* shared_heap = isolate()->shared_isolate()->heap();
+
+    shared_old_space_ = shared_heap->old_space();
     shared_old_allocator_.reset(
         new ConcurrentAllocator(main_thread_local_heap(), shared_old_space_));
 
-    shared_map_space_ = isolate()->shared_isolate()->heap()->map_space();
-    shared_map_allocator_.reset(
-        new ConcurrentAllocator(main_thread_local_heap(), shared_map_space_));
+    if (shared_heap->map_space()) {
+      shared_map_space_ = shared_heap->map_space();
+      shared_map_allocator_.reset(
+          new ConcurrentAllocator(main_thread_local_heap(), shared_map_space_));
+    }
   }
 
   main_thread_local_heap()->SetUpMainThread();

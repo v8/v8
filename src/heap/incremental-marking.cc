@@ -285,7 +285,7 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(IsMarking());
   black_allocation_ = true;
   heap()->old_space()->MarkLinearAllocationAreaBlack();
-  heap()->map_space()->MarkLinearAllocationAreaBlack();
+  if (heap()->map_space()) heap()->map_space()->MarkLinearAllocationAreaBlack();
   heap()->code_space()->MarkLinearAllocationAreaBlack();
   heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MarkLinearAllocationAreaBlack();
@@ -299,7 +299,7 @@ void IncrementalMarking::StartBlackAllocation() {
 void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMarking());
   heap()->old_space()->UnmarkLinearAllocationArea();
-  heap()->map_space()->UnmarkLinearAllocationArea();
+  if (heap()->map_space()) heap()->map_space()->UnmarkLinearAllocationArea();
   heap()->code_space()->UnmarkLinearAllocationArea();
   heap()->safepoint()->IterateLocalHeaps(
       [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationArea(); });
