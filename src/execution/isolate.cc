@@ -5001,6 +5001,54 @@ void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
   if (debug()->is_active()) PopPromise();
 }
 
+void Isolate::OnTerminationDuringRunMicrotasks() {
+  // This performs cleanup for when RunMicrotasks (in
+  // builtins-microtask-queue-gen.cc) is aborted via a termination exception.
+  // This has to be kept in sync with the code in said file. Currently this
+  // includes:
+  //
+  //  (1) Resetting the |current_microtask| slot on the Isolate to avoid leaking
+  //      memory (and also to keep |current_microtask| not being undefined as an
+  //      indicator that we're currently pumping the microtask queue).
+  //  (2) Empty the promise stack to avoid leaking memory.
+  //  (3) If the |current_microtask| is a promise reaction or resolve thenable
+  //      job task, then signal the async event delegate and debugger that the
+  //      microtask finished running.
+  //
+
+  // Reset the |current_microtask| global slot.
+  Handle<Microtask> current_microtask(
+      Microtask::cast(heap()->current_microtask()), this);
+  heap()->set_current_microtask(ReadOnlyRoots(this).undefined_value());
+
+  // Empty the promise stack.
+  while (PopPromise()) {
+  }
+
+  if (current_microtask->IsPromiseReactionJobTask()) {
+    Handle<PromiseReactionJobTask> promise_reaction_job_task =
+        Handle<PromiseReactionJobTask>::cast(current_microtask);
+    Handle<HeapObject> promise_or_capability(
+        promise_reaction_job_task->promise_or_capability(), this);
+    if (promise_or_capability->IsPromiseCapability()) {
+      promise_or_capability = handle(
+          Handle<PromiseCapability>::cast(promise_or_capability)->promise(),
+          this);
+    }
+    if (promise_or_capability->IsJSPromise()) {
+      OnPromiseAfter(Handle<JSPromise>::cast(promise_or_capability));
+    }
+  } else if (current_microtask->IsPromiseResolveThenableJobTask()) {
+    Handle<PromiseResolveThenableJobTask> promise_resolve_thenable_job_task =
+        Handle<PromiseResolveThenableJobTask>::cast(current_microtask);
+    Handle<JSPromise> promise_to_resolve(
+        promise_resolve_thenable_job_task->promise_to_resolve(), this);
+    OnPromiseAfter(promise_to_resolve);
+  }
+
+  SetTerminationOnExternalTryCatch();
+}
+
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
   promise_reject_callback_ = callback;
 }
