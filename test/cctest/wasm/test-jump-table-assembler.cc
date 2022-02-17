@@ -162,7 +162,7 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ Ret();
 
   FlushInstructionCache(thunk, kThunkBufferSize);
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
   // MacOS on arm64 refuses {mprotect} calls to toggle permissions of RWX
   // memory. Simply do nothing here, as the space will by default be executable
   // and non-writable for the JumpTableRunner.
@@ -203,7 +203,7 @@ class JumpTablePatcher : public v8::base::Thread {
 
   void Run() override {
     TRACE("Patcher %p is starting ...\n", this);
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
     // Make sure to switch memory to writable on M1 hardware.
     CodeSpaceWriteScope code_space_write_scope(nullptr);
 #endif
@@ -267,7 +267,7 @@ TEST(JumpTablePatchingStress) {
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
     std::vector<Address> patcher_thunks;
     {
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
       // Make sure to switch memory to writable on M1 hardware.
       CodeSpaceWriteScope code_space_write_scope(nullptr);
 #endif

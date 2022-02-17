@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #endif
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <pthread.h>
@@ -39,7 +39,7 @@
 
 namespace {
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 int64_t ComputeThreadTicks() {
   mach_msg_type_number_t thread_info_count = THREAD_BASIC_INFO_COUNT;
   thread_basic_info_data_t thread_info_data;
@@ -156,8 +156,7 @@ V8_INLINE uint64_t QPCNowRaw() {
   USE(result);
   return perf_counter_now.QuadPart;
 }
-#endif  // V8_OS_MACOSX
-
+#endif  // V8_OS_DARWIN
 
 }  // namespace
 
@@ -245,8 +244,7 @@ int64_t TimeDelta::InNanoseconds() const {
   return delta_ * Time::kNanosecondsPerMicrosecond;
 }
 
-
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 
 TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
   DCHECK_GE(ts.tv_nsec, 0);
@@ -266,8 +264,7 @@ struct mach_timespec TimeDelta::ToMachTimespec() const {
   return ts;
 }
 
-#endif  // V8_OS_MACOSX
-
+#endif  // V8_OS_DARWIN
 
 #if V8_OS_POSIX
 
@@ -713,7 +710,7 @@ bool TimeTicks::IsHighResolution() {
 
 TimeTicks TimeTicks::Now() {
   int64_t ticks;
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   static struct mach_timebase_info info;
   if (info.denom == 0) {
     kern_return_t result = mach_timebase_info(&info);
@@ -730,14 +727,14 @@ TimeTicks TimeTicks::Now() {
   ticks = SbTimeGetMonotonicNow();
 #else
 #error platform does not implement TimeTicks::Now.
-#endif  // V8_OS_MACOSX
+#endif  // V8_OS_DARWIN
   // Make sure we never return 0 here.
   return TimeTicks(ticks + 1);
 }
 
 // static
 bool TimeTicks::IsHighResolution() {
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   return true;
 #elif V8_OS_POSIX
   static const bool is_high_resolution = IsHighResolutionTimer(CLOCK_MONOTONIC);
@@ -763,7 +760,7 @@ bool ThreadTicks::IsSupported() {
   // Thread CPU time accounting is unavailable in PASE
   return false;
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-    defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
+    defined(V8_OS_DARWIN) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
   return true;
 #elif defined(V8_OS_WIN)
   return IsSupportedWin();
@@ -784,7 +781,7 @@ ThreadTicks ThreadTicks::Now() {
 #else
   UNREACHABLE();
 #endif
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
   return ThreadTicks(ComputeThreadTicks());
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
   defined(V8_OS_ANDROID)

@@ -1213,7 +1213,7 @@ config("toolchain") {
     defines += [ "V8_TARGET_OS_LINUX" ]
   } else if (target_os == "mac") {
     defines += [ "V8_HAVE_TARGET_OS" ]
-    defines += [ "V8_TARGET_OS_MACOSX" ]
+    defines += [ "V8_TARGET_OS_MACOS" ]
   } else if (target_os == "win") {
     defines += [ "V8_HAVE_TARGET_OS" ]
     defines += [ "V8_TARGET_OS_WIN" ]
@@ -5186,8 +5186,8 @@ v8_component("v8_libbase") {
       if (host_os == "mac") {
         sources += [
           "src/base/debug/stack_trace_posix.cc",
+          "src/base/platform/platform-darwin.cc",
           "src/base/platform/platform-macos.cc",
-          "src/base/platform/platform-xnu.cc",
         ]
       } else {
         sources += [
@@ -5214,13 +5214,13 @@ v8_component("v8_libbase") {
   } else if (is_mac) {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
+      "src/base/platform/platform-darwin.cc",
       "src/base/platform/platform-macos.cc",
-      "src/base/platform/platform-xnu.cc",
     ]
   } else if (is_ios) {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
-      "src/base/platform/platform-xnu.cc",
+      "src/base/platform/platform-darwin.cc",
     ]
   } else if (is_win) {
     # TODO(infra): Add support for cygwin.

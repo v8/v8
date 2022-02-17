@@ -1601,7 +1601,7 @@ class Heap {
   void* GetRandomMmapAddr() {
     void* result = v8::internal::GetRandomMmapAddr();
 #if V8_TARGET_ARCH_X64
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
     // The Darwin kernel [as of macOS 10.12.5] does not clean up page
     // directory entries [PDE] created from mmap or mach_vm_allocate, even
     // after the region is destroyed. Using a virtual address space that is
@@ -1611,7 +1611,7 @@ class Heap {
     // space. See crbug.com/700928.
     uintptr_t offset = reinterpret_cast<uintptr_t>(result) & kMmapRegionMask;
     result = reinterpret_cast<void*>(mmap_region_base_ + offset);
-#endif  // V8_OS_MACOSX
+#endif  // V8_OS_DARWIN
 #endif  // V8_TARGET_ARCH_X64
     return result;
   }

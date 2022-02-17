@@ -4,7 +4,7 @@
 
 #include "src/base/platform/time.h"
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <mach/mach_time.h>
 #endif
 #if V8_OS_POSIX
@@ -201,8 +201,7 @@ TEST(TimeDelta, FromAndIn) {
             TimeDelta::FromMicroseconds(13).InMicroseconds());
 }
 
-
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 TEST(TimeDelta, MachTimespec) {
   TimeDelta null = TimeDelta();
   EXPECT_EQ(null, TimeDelta::FromMachTimespec(null.ToMachTimespec()));

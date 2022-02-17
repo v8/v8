@@ -474,7 +474,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
 // stack check, do it before calling this function because this function may
 // write into the newly allocated space. It may also overwrite the given
 // register's value, in the version that takes a register.
-#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOS)
   void AllocateStackSpace(Register bytes_scratch);
   void AllocateStackSpace(int bytes);
 #else

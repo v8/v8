@@ -152,7 +152,7 @@ Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value,
                          std::unique_ptr<protocol::Value>* result) {
   if (value->IsUndefined()) return Response::Success();
-#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_MACOSX
+#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_DARWIN
   // For whatever reason, ASan on MacOS has bigger stack frames.
   static const int kMaxDepth = 900;
 #else

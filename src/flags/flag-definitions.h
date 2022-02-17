@@ -211,7 +211,7 @@ struct MaybeBoolFlag {
 #define ENABLE_SPARKPLUG_BY_DEFAULT false
 #endif
 
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
 // Must be enabled on M1.
 #define MUST_WRITE_PROTECT_CODE_MEMORY true
 #else
@@ -684,7 +684,7 @@ DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 #if ENABLE_SPARKPLUG
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
 // M1 requires W^X.
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
                      "compile Sparkplug code in a background thread")
@@ -722,7 +722,7 @@ DEFINE_BOOL(trace_baseline_concurrent_compilation, false,
 DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
 DEFINE_IMPLICATION(harmony_struct, shared_string_table)
 
-#if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+#if !defined(V8_OS_DARWIN) || !defined(V8_HOST_ARCH_ARM64)
 DEFINE_BOOL(write_code_using_rwx, true,
             "flip permissions to rwx to write page instead of rw")
 DEFINE_NEG_IMPLICATION(jitless, write_code_using_rwx)

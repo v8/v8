@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Platform-specific code for MacOS goes here. Code shared between iOS and
-// macOS is in platform-xnu.cc, while the POSIX-compatible are in in
+// macOS is in platform-darwin.cc, while the POSIX-compatible are in in
 // platform-posix.cc.
 
 #include <mach/mach.h>

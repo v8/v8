@@ -35,7 +35,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
   }
   struct sigaction old_action_;
 // On Mac, sometimes we get SIGBUS instead of SIGSEGV.
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   struct sigaction old_bus_action_;
 #endif
 
@@ -46,7 +46,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
     sigemptyset(&action.sa_mask);
     action.sa_flags = SA_SIGINFO;
     sigaction(SIGSEGV, &action, &old_action_);
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
     sigaction(SIGBUS, &action, &old_bus_action_);
 #endif
   }
@@ -54,7 +54,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
   void TearDown() override {
     // Be a good citizen and restore the old signal handler.
     sigaction(SIGSEGV, &old_action_, nullptr);
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
     sigaction(SIGBUS, &old_bus_action_, nullptr);
 #endif
   }

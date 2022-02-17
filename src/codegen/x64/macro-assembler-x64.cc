@@ -2763,7 +2763,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   popq(rbp);
 }
 
-#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOS)
 void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
   ASM_CODE_COMMENT(this);
   // On Windows and on macOS, we cannot increment the stack size by more than

@@ -73,7 +73,7 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 
 constexpr unsigned CpuFeaturesFromTargetOS() {
   unsigned features = 0;
-#if defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_MACOS)
   features |= 1u << JSCVT;
 #endif
   return features;

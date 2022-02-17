@@ -315,7 +315,7 @@ v8_config(
         ],
         "@v8//bazel/config:is_macos": [
             "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_MACOSX",
+            "V8_TARGET_OS_MACOS",
         ],
         "@v8//bazel/config:is_windows": [
             "V8_HAVE_TARGET_OS",
@@ -637,8 +637,8 @@ filegroup(
         ],
         "@v8//bazel/config:is_macos": [
             "src/base/debug/stack_trace_posix.cc",
+            "src/base/platform/platform-darwin.cc",
             "src/base/platform/platform-macos.cc",
-            "src/base/platform/platform-xnu.cc",
         ],
         "@v8//bazel/config:is_windows": [
             "src/base/win32-headers.h",
