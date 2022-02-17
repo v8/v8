@@ -482,6 +482,9 @@ DEFINE_BOOL_READONLY(enable_unconditional_write_barriers,
                      V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS_BOOL,
                      "always use full write barriers")
 
+DEFINE_BOOL(use_full_record_write_builtin, true,
+            "Force use of full version of RecordWrite builtin.")
+
 #ifdef V8_ENABLE_SINGLE_GENERATION
 #define V8_SINGLE_GENERATION_BOOL true
 #else
