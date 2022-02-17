@@ -826,12 +826,13 @@ class LiftoffCompiler {
                       .AsRegister()));
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
     // Load the feedback vector and cache it in a stack slot.
-    constexpr LiftoffRegList parameter_registers = GetGpParamRegisters();
+    constexpr LiftoffRegList kGpParamRegisters = GetGpParamRegisters();
     if (FLAG_wasm_speculative_inlining) {
+      CODE_COMMENT("load feedback vector");
       int declared_func_index =
           func_index_ - env_->module->num_imported_functions;
       DCHECK_GE(declared_func_index, 0);
-      LiftoffRegList pinned = parameter_registers;
+      LiftoffRegList pinned = kGpParamRegisters;
       LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       __ LoadTaggedPointerFromInstance(
           tmp.gp(), kWasmInstanceRegister,
@@ -841,11 +842,10 @@ class LiftoffCompiler {
                                declared_func_index),
                            pinned);
       __ Spill(liftoff::kFeedbackVectorOffset, tmp, kPointerKind);
-    } else {
-      __ Spill(liftoff::kFeedbackVectorOffset, WasmValue::ForUintPtr(0));
     }
     if (dynamic_tiering()) {
-      LiftoffRegList pinned = parameter_registers;
+      CODE_COMMENT("load tier up budget");
+      LiftoffRegList pinned = kGpParamRegisters;
       LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       LOAD_INSTANCE_FIELD(tmp.gp(), TieringBudgetArray, kSystemPointerSize,
                           pinned);
@@ -853,8 +853,6 @@ class LiftoffCompiler {
           kInt32Size * declared_function_index(env_->module, func_index_);
       __ Load(tmp, tmp.gp(), no_reg, offset, LoadType::kI32Load, pinned);
       __ Spill(liftoff::kTierupBudgetOffset, tmp, ValueKind::kI32);
-    } else {
-      __ Spill(liftoff::kTierupBudgetOffset, WasmValue::ForUintPtr(0));
     }
     if (for_debugging_) __ ResetOSRTarget();
 
