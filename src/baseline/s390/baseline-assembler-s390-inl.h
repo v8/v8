@@ -476,7 +476,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
       interrupt_budget,
       FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   // Remember to set flags as part of the add!
-  __ AddU32(interrupt_budget, Operand(weight));
+  __ AddS32(interrupt_budget, Operand(weight));
   __ StoreU32(
       interrupt_budget,
       FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
@@ -501,7 +501,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
       interrupt_budget,
       FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   // Remember to set flags as part of the add!
-  __ AddU32(interrupt_budget, interrupt_budget, weight);
+  __ AddS32(interrupt_budget, interrupt_budget, weight);
   __ StoreU32(
       interrupt_budget,
       FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
