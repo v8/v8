@@ -6054,16 +6054,16 @@ void TurboAssembler::I16x8Q15MulRSatS(Simd128Register dst, Simd128Register src1,
   V(16x8, vlbrrep, LoadU16LE, 1) \
   V(8x16, vlrep, LoadU8, 0)
 
-#define LOAD_SPLAT(name, vector_instr, scalar_instr, condition)        \
-  void TurboAssembler::LoadAndSplat##name##LE(Simd128Register dst,     \
-                                              const MemOperand& mem) { \
-    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {           \
-      vector_instr(dst, mem, Condition(condition));                    \
-      return;                                                          \
-    }                                                                  \
-    scalar_instr(r1, mem);                                             \
-    vlvg(dst, r1, MemOperand(r0, 0), Condition(condition));            \
-    vrep(dst, dst, Operand(0), Condition(condition));                  \
+#define LOAD_SPLAT(name, vector_instr, scalar_instr, condition)       \
+  void TurboAssembler::LoadAndSplat##name##LE(                        \
+      Simd128Register dst, const MemOperand& mem, Register scratch) { \
+    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {          \
+      vector_instr(dst, mem, Condition(condition));                   \
+      return;                                                         \
+    }                                                                 \
+    scalar_instr(scratch, mem);                                       \
+    vlvg(dst, scratch, MemOperand(r0, 0), Condition(condition));      \
+    vrep(dst, dst, Operand(0), Condition(condition));                 \
   }
 LOAD_SPLAT_LIST(LOAD_SPLAT)
 #undef LOAD_SPLAT
@@ -6077,40 +6077,41 @@ LOAD_SPLAT_LIST(LOAD_SPLAT)
   V(8x8U, vuplh, 0)         \
   V(8x8S, vuph, 0)
 
-#define LOAD_EXTEND(name, unpack_instr, condition)                      \
-  void TurboAssembler::LoadAndExtend##name##LE(Simd128Register dst,     \
-                                               const MemOperand& mem) { \
-    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {            \
-      vlebrg(kScratchDoubleReg, mem, Condition(0));                     \
-    } else {                                                            \
-      LoadU64LE(r1, mem);                                               \
-      vlvg(kScratchDoubleReg, r1, MemOperand(r0, 0), Condition(3));     \
-    }                                                                   \
-    unpack_instr(dst, kScratchDoubleReg, Condition(0), Condition(0),    \
-                 Condition(condition));                                 \
+#define LOAD_EXTEND(name, unpack_instr, condition)                            \
+  void TurboAssembler::LoadAndExtend##name##LE(                               \
+      Simd128Register dst, const MemOperand& mem, Register scratch) {         \
+    if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {                  \
+      vlebrg(dst, mem, Condition(0));                                         \
+    } else {                                                                  \
+      LoadU64LE(scratch, mem);                                                \
+      vlvg(dst, scratch, MemOperand(r0, 0), Condition(3));                    \
+    }                                                                         \
+    unpack_instr(dst, dst, Condition(0), Condition(0), Condition(condition)); \
   }
 LOAD_EXTEND_LIST(LOAD_EXTEND)
 #undef LOAD_EXTEND
 #undef LOAD_EXTEND
 
-void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
+void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem,
+                                   Register scratch) {
   vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
   if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {
     vlebrf(dst, mem, Condition(3));
     return;
   }
-  LoadU32LE(r1, mem);
-  vlvg(dst, r1, MemOperand(r0, 3), Condition(2));
+  LoadU32LE(scratch, mem);
+  vlvg(dst, scratch, MemOperand(r0, 3), Condition(2));
 }
 
-void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
+void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem,
+                                   Register scratch) {
   vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
   if (CAN_LOAD_STORE_REVERSE && is_uint12(mem.offset())) {
     vlebrg(dst, mem, Condition(1));
     return;
   }
-  LoadU64LE(r1, mem);
-  vlvg(dst, r1, MemOperand(r0, 1), Condition(3));
+  LoadU64LE(scratch, mem);
+  vlvg(dst, scratch, MemOperand(r0, 1), Condition(3));
 }
 
 #define LOAD_LANE_LIST(V)     \

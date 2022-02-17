@@ -3022,7 +3022,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   AddressingMode mode = kMode_None;                \
   MemOperand operand = i.MemoryOperand(&mode);     \
   Simd128Register dst = i.OutputSimd128Register(); \
-  __ LoadAndSplat##type##LE(dst, operand);
+  __ LoadAndSplat##type##LE(dst, operand, kScratchReg);
     case kS390_S128Load64Splat: {
       LOAD_SPLAT(64x2);
       break;
@@ -3044,7 +3044,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   AddressingMode mode = kMode_None;                \
   MemOperand operand = i.MemoryOperand(&mode);     \
   Simd128Register dst = i.OutputSimd128Register(); \
-  __ LoadAndExtend##type##LE(dst, operand);
+  __ LoadAndExtend##type##LE(dst, operand, kScratchReg);
     case kS390_S128Load32x2U: {
       LOAD_EXTEND(32x2U);
       break;
@@ -3074,7 +3074,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   AddressingMode mode = kMode_None;                \
   MemOperand operand = i.MemoryOperand(&mode);     \
   Simd128Register dst = i.OutputSimd128Register(); \
-  __ LoadV##type##ZeroLE(dst, operand);
+  __ LoadV##type##ZeroLE(dst, operand, kScratchReg);
     case kS390_S128Load32Zero: {
       LOAD_AND_ZERO(32);
       break;

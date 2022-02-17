@@ -399,18 +399,30 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadF64LE(DoubleRegister dst, const MemOperand& opnd, Register scratch);
   void LoadF32LE(DoubleRegister dst, const MemOperand& opnd, Register scratch);
   // Vector LE Load and Transform instructions.
-  void LoadAndSplat64x2LE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndSplat8x16LE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndExtend8x8ULE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndExtend8x8SLE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndExtend16x4ULE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndExtend32x2ULE(Simd128Register dst, const MemOperand& mem);
-  void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem);
-  void LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem);
-  void LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndSplat64x2LE(Simd128Register dst, const MemOperand& mem,
+                          Register scratch);
+  void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem,
+                          Register scratch);
+  void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& me,
+                          Register scratch);
+  void LoadAndSplat8x16LE(Simd128Register dst, const MemOperand& mem,
+                          Register scratch);
+  void LoadAndExtend8x8ULE(Simd128Register dst, const MemOperand& mem,
+                           Register scratch);
+  void LoadAndExtend8x8SLE(Simd128Register dst, const MemOperand& mem,
+                           Register scratch);
+  void LoadAndExtend16x4ULE(Simd128Register dst, const MemOperand& mem,
+                            Register scratch);
+  void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem,
+                            Register scratch);
+  void LoadAndExtend32x2ULE(Simd128Register dst, const MemOperand& mem,
+                            Register scratch);
+  void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem,
+                            Register scratch);
+  void LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem,
+                     Register scratch);
+  void LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem,
+                     Register scratch);
   void LoadLane8LE(Simd128Register dst, const MemOperand& mem, int lane,
                    Register scratch);
   void LoadLane16LE(Simd128Register dst, const MemOperand& mem, int lane,
