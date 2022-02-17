@@ -661,19 +661,24 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
       TaskPriority::kUserVisible,
       std::make_unique<DeserializeCodeTask>(this, &reloc_queue));
 
+  // Choose a batch size such that we do not create too small batches (>=100k
+  // code bytes), but also not too many (<=100 batches).
+  constexpr size_t kMinBatchSizeInBytes = 100000;
+  size_t batch_limit =
+      std::max(kMinBatchSizeInBytes, remaining_code_size_ / 100);
+
   std::vector<DeserializationUnit> batch;
-  const byte* batch_start = reader->current_location();
+  size_t batch_size = 0;
   CodeSpaceWriteScope code_space_write_scope(native_module_);
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
     DeserializationUnit unit = ReadCode(i, reader);
     if (!unit.code) continue;
+    batch_size += unit.code->instructions().size();
     batch.emplace_back(std::move(unit));
-    uint64_t batch_size_in_bytes = reader->current_location() - batch_start;
-    constexpr int kMinBatchSizeInBytes = 100000;
-    if (batch_size_in_bytes >= kMinBatchSizeInBytes) {
+    if (batch_size >= batch_limit) {
       reloc_queue.Add(std::move(batch));
       DCHECK(batch.empty());
-      batch_start = reader->current_location();
+      batch_size = 0;
       job_handle->NotifyConcurrencyIncrease();
     }
   }
