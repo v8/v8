@@ -39,8 +39,7 @@ Zone::Zone(AccountingAllocator* allocator, const char* name,
 
 Zone::~Zone() {
   DeleteAll();
-
-  DCHECK_EQ(segment_bytes_allocated_, 0);
+  DCHECK_EQ(segment_bytes_allocated_.load(), 0);
 }
 
 void* Zone::AsanNew(size_t size) {
