@@ -10243,19 +10243,6 @@ void EmbedderHeapTracer::FinalizeTracing() {
   }
 }
 
-void EmbedderHeapTracer::GarbageCollectionForTesting(
-    EmbedderStackState stack_state) {
-  CHECK(isolate_);
-  Utils::ApiCheck(i::FLAG_expose_gc,
-                  "v8::EmbedderHeapTracer::GarbageCollectionForTesting",
-                  "Must use --expose-gc");
-  i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
-  heap->SetEmbedderStackStateForNextFinalization(stack_state);
-  heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
-                                 i::GarbageCollectionReason::kTesting,
-                                 kGCCallbackFlagForced);
-}
-
 void EmbedderHeapTracer::IncreaseAllocatedSize(size_t bytes) {
   if (isolate_) {
     i::LocalEmbedderHeapTracer* const tracer =

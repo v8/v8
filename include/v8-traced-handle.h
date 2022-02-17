@@ -226,7 +226,7 @@ class TracedGlobal : public BasicTracedReference<T> {
   /**
    * An empty TracedGlobal without storage cell.
    */
-  V8_DEPRECATE_SOON("See class comment.")
+  V8_DEPRECATED("See class comment.")
   TracedGlobal() : BasicTracedReference<T>() {}
 
   /**
@@ -236,7 +236,7 @@ class TracedGlobal : public BasicTracedReference<T> {
    * pointing to the same object.
    */
   template <class S>
-  V8_DEPRECATE_SOON("See class comment.")
+  V8_DEPRECATED("See class comment.")
   TracedGlobal(Isolate* isolate, Local<S> that) : BasicTracedReference<T>() {
     this->val_ =
         this->New(isolate, that.val_, &this->val_,

@@ -52,7 +52,7 @@ class V8_EXPORT EmbedderRootsHandler {
    */
   virtual bool IsRoot(const v8::TracedReference<v8::Value>& handle) = 0;
 
-  V8_DEPRECATE_SOON("See v8::TracedGlobal class comment.")
+  V8_DEPRECATED("See v8::TracedGlobal class comment.")
   virtual bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) {
     return true;
   }
@@ -92,7 +92,7 @@ class V8_EXPORT EmbedderHeapTracer {
   class V8_EXPORT TracedGlobalHandleVisitor {
    public:
     virtual ~TracedGlobalHandleVisitor() = default;
-    V8_DEPRECATE_SOON("See v8::TracedGlobal class comment.")
+    V8_DEPRECATED("See v8::TracedGlobal class comment.")
     virtual void VisitTracedGlobalHandle(const TracedGlobal<Value>& handle) {}
     virtual void VisitTracedReference(const TracedReference<Value>& handle) {}
   };
@@ -194,7 +194,7 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual bool IsRootForNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
-  V8_DEPRECATE_SOON("See v8::TracedGlobal class comment.")
+  V8_DEPRECATED("See v8::TracedGlobal class comment.")
   virtual bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle);
 
   /**
@@ -202,14 +202,6 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
-
-  /*
-   * Called by the embedder to immediately perform a full garbage collection.
-   *
-   * Should only be used in testing code.
-   */
-  V8_DEPRECATED("Use Isolate::RequestGarbageCollectionForTesting instead")
-  void GarbageCollectionForTesting(EmbedderStackState stack_state);
 
   /*
    * Called by the embedder to signal newly allocated or freed memory. Not bound
