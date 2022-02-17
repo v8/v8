@@ -494,11 +494,9 @@ def print_stats(S, args):
 
 
 def extract_domain(filename):
-  print(filename)
   # Extract domain name: domain#123.txt or domain_123.txt
   match = re.match(r'^(.*?)[^a-zA-Z]?[0-9]+?.txt', filename)
   domain = match.group(1)
-  print(domain)
   return domain
 
 
