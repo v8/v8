@@ -527,10 +527,6 @@ Handle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
     ObjectSlot end(array.slots_end());
     size_t slot_count = end - start;
     MemsetTagged(start, *undefined_value(), slot_count);
-    for (int i = 0; i < length; i++) {
-      // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
-      EmbedderDataSlot(array, i).AllocateExternalPointerEntry(isolate());
-    }
   }
   return handle(array, isolate());
 }

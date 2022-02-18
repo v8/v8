@@ -62,8 +62,6 @@ class EmbedderDataSlot
   // Opaque type used for storing raw embedder data.
   using RawData = Address;
 
-  V8_INLINE void AllocateExternalPointerEntry(Isolate* isolate);
-
   V8_INLINE Object load_tagged() const;
   V8_INLINE void store_smi(Smi value);
 

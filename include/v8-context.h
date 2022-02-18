@@ -368,17 +368,17 @@ Local<Value> Context::GetEmbedderData(int index) {
 }
 
 void* Context::GetAlignedPointerFromEmbedderData(int index) {
-  using I = internal::Internals;
-  static_assert(I::kEmbedderDataSlotSize == internal::kApiSystemPointerSize,
-                "Enable fast path with sandboxed external pointers enabled "
-                "once embedder data slots are 32 bits large");
-#if !defined(V8_ENABLE_CHECKS) && !defined(V8_SANDBOXED_EXTERNAL_POINTERS)
+#if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
+  using I = internal::Internals;
   A ctx = *reinterpret_cast<const A*>(this);
   A embedder_data =
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
       I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  value_offset += I::kEmbedderDataSlotRawPayloadOffset;
+#endif
   internal::Isolate* isolate = I::GetIsolateForSandbox(ctx);
   return reinterpret_cast<void*>(
       I::ReadExternalPointerField(isolate, embedder_data, value_offset,

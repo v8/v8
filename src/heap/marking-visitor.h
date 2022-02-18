@@ -222,10 +222,11 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     // When sandboxed external pointers are enabled, EmbedderDataSlots may
     // contain an external pointer, which must be marked as alive.
-    uint32_t maybe_index = base::Relaxed_Load(reinterpret_cast<base::Atomic32*>(
-        slot.address() + EmbedderDataSlot::kRawPayloadOffset));
-    if (external_pointer_table_->IsValidIndex(maybe_index)) {
-      external_pointer_table_->Mark(maybe_index);
+    base::Atomic32* ptr = reinterpret_cast<base::Atomic32*>(
+        slot.address() + EmbedderDataSlot::kRawPayloadOffset);
+    uint32_t index = base::Relaxed_Load(ptr) >> kExternalPointerIndexShift;
+    if (external_pointer_table_->IsValidIndex(index)) {
+      external_pointer_table_->Mark(index);
     }
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   }

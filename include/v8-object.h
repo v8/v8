@@ -735,18 +735,18 @@ Local<Value> Object::GetInternalField(int index) {
 }
 
 void* Object::GetAlignedPointerFromInternalField(int index) {
-  using I = internal::Internals;
-  static_assert(I::kEmbedderDataSlotSize == internal::kApiSystemPointerSize,
-                "Enable fast path with sandboxed external pointers enabled "
-                "once embedder data slots are 32 bits large");
-#if !defined(V8_ENABLE_CHECKS) && !defined(V8_SANDBOXED_EXTERNAL_POINTERS)
+#if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
+  using I = internal::Internals;
   A obj = *reinterpret_cast<A*>(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);
   if (v8::internal::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+    offset += I::kEmbedderDataSlotRawPayloadOffset;
+#endif
     internal::Isolate* isolate = I::GetIsolateForSandbox(obj);
     A value = I::ReadExternalPointerField(
         isolate, obj, offset, internal::kEmbedderDataSlotPayloadTag);

@@ -611,7 +611,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static inline int GetEmbedderFieldCount(Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
-  inline void InitializeEmbedderField(Isolate* isolate, int index);
   inline Object GetEmbedderField(int index);
   inline void SetEmbedderField(int index, Object value);
   inline void SetEmbedderField(int index, Smi value);
