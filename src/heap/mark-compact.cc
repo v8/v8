@@ -2912,16 +2912,12 @@ void MarkCompactCollector::ClearWeakCollections() {
       if (FLAG_verify_heap) {
         Object value = table.ValueAt(i);
         if (value.IsHeapObject()) {
-          HeapObject heap_object = HeapObject::cast(value);
-          CHECK_IMPLIES(
-              (!is_shared_heap_ && key.InSharedHeap()) ||
-                  non_atomic_marking_state()->IsBlackOrGrey(key),
-              (!is_shared_heap_ && heap_object.InSharedHeap()) ||
-                  non_atomic_marking_state()->IsBlackOrGrey(heap_object));
+          CHECK_IMPLIES(non_atomic_marking_state()->IsBlackOrGrey(key),
+                        non_atomic_marking_state()->IsBlackOrGrey(
+                            HeapObject::cast(value)));
         }
       }
 #endif
-      if (!is_shared_heap_ && key.InSharedHeap()) continue;
       if (!non_atomic_marking_state()->IsBlackOrGrey(key)) {
         table.RemoveEntry(i);
       }
