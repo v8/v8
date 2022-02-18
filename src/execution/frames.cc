@@ -1203,7 +1203,17 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
             HeapObject forwarded = map_word.IsForwardingAddress()
                                        ? map_word.ToForwardingAddress()
                                        : raw;
-            CHECK(forwarded.map(cage_base).IsMap());
+            bool is_self_forwarded =
+                forwarded.map_word(cage_base, kRelaxedLoad).ptr() ==
+                forwarded.address();
+            if (is_self_forwarded) {
+              // The object might be in a self-forwarding state if it's located
+              // in new large object space. GC will fix this at a later stage.
+              CHECK(BasicMemoryChunk::FromHeapObject(forwarded)
+                        ->InNewLargeObjectSpace());
+            } else {
+              CHECK(forwarded.map(cage_base).IsMap(cage_base));
+            }
           }
         }
       } else {
