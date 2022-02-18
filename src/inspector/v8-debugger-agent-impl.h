@@ -226,7 +226,16 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   size_t m_maxScriptCacheSize = 0;
   size_t m_cachedScriptSize = 0;
-  std::deque<String16> m_cachedScriptIds;
+  struct CachedScript {
+    String16 scriptId;
+    String16 source;
+    std::vector<uint8_t> bytecode;
+
+    size_t size() const {
+      return source.length() * sizeof(UChar) + bytecode.size();
+    }
+  };
+  std::deque<CachedScript> m_cachedScripts;
 
   using BreakReason =
       std::pair<String16, std::unique_ptr<protocol::DictionaryValue>>;
