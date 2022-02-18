@@ -14,6 +14,7 @@
   V(_, calendars_string, "calendars")                               \
   V(_, cardinal_string, "cardinal")                                 \
   V(_, caseFirst_string, "caseFirst")                               \
+  V(_, ceil_string, "ceil")                                         \
   V(_, compare_string, "compare")                                   \
   V(_, collation_string, "collation")                               \
   V(_, collations_string, "collations")                             \
@@ -33,12 +34,14 @@
   V(_, era_string, "era")                                           \
   V(_, eraYear_string, "eraYear")                                   \
   V(_, exceptZero_string, "exceptZero")                             \
+  V(_, expand_string, "expand")                                     \
   V(_, exponentInteger_string, "exponentInteger")                   \
   V(_, exponentMinusSign_string, "exponentMinusSign")               \
   V(_, exponentSeparator_string, "exponentSeparator")               \
   V(_, fallback_string, "fallback")                                 \
   V(_, first_string, "first")                                       \
   V(_, firstDay_string, "firstDay")                                 \
+  V(_, floor_string, "floor")                                       \
   V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \
   V(_, fractionalSecond_string, "fractionalSecond")                 \
@@ -51,6 +54,11 @@
   V(_, h12_string, "h12")                                           \
   V(_, h23_string, "h23")                                           \
   V(_, h24_string, "h24")                                           \
+  V(_, halfCeil_string, "halfCeil")                                 \
+  V(_, halfEven_string, "halfEven")                                 \
+  V(_, halfExpand_string, "halfExpand")                             \
+  V(_, halfFloor_string, "halfFloor")                               \
+  V(_, halfTrunc_string, "halfTrunc")                               \
   V(_, hour12_string, "hour12")                                     \
   V(_, hourCycle_string, "hourCycle")                               \
   V(_, hourCycles_string, "hourCycles")                             \
@@ -62,6 +70,7 @@
   V(_, kana_string, "kana")                                         \
   V(_, language_string, "language")                                 \
   V(_, languageDisplay_string, "languageDisplay")                   \
+  V(_, lessPrecision_string, "lessPrecision")                       \
   V(_, letter_string, "letter")                                     \
   V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \
@@ -71,11 +80,13 @@
   V(_, ltr_string, "ltr")                                           \
   V(_, maximumFractionDigits_string, "maximumFractionDigits")       \
   V(_, maximumSignificantDigits_string, "maximumSignificantDigits") \
+  V(_, min2_string, "min2")                                         \
   V(_, minimalDays_string, "minimalDays")                           \
   V(_, minimumFractionDigits_string, "minimumFractionDigits")       \
   V(_, minimumIntegerDigits_string, "minimumIntegerDigits")         \
   V(_, minimumSignificantDigits_string, "minimumSignificantDigits") \
   V(_, minusSign_string, "minusSign")                               \
+  V(_, morePrecision_string, "morePrecision")                       \
   V(_, nan_string, "nan")                                           \
   V(_, narrowSymbol_string, "narrowSymbol")                         \
   V(_, negative_string, "negative")                                 \
@@ -92,6 +103,8 @@
   V(_, quarter_string, "quarter")                                   \
   V(_, region_string, "region")                                     \
   V(_, relatedYear_string, "relatedYear")                           \
+  V(_, roundingMode_string, "roundingMode")                         \
+  V(_, roundingPriority_string, "roundingPriority")                 \
   V(_, rtl_string, "rtl")                                           \
   V(_, scientific_string, "scientific")                             \
   V(_, segment_string, "segment")                                   \
@@ -104,12 +117,15 @@
   V(_, standard_string, "standard")                                 \
   V(_, startRange_string, "startRange")                             \
   V(_, strict_string, "strict")                                     \
+  V(_, stripIfInteger_string, "stripIfInteger")                     \
   V(_, style_string, "style")                                       \
   V(_, term_string, "term")                                         \
   V(_, textInfo_string, "textInfo")                                 \
   V(_, timeStyle_string, "timeStyle")                               \
   V(_, timeZones_string, "timeZones")                               \
   V(_, timeZoneName_string, "timeZoneName")                         \
+  V(_, trailingZeroDisplay_string, "trailingZeroDisplay")           \
+  V(_, trunc_string, "trunc")                                       \
   V(_, type_string, "type")                                         \
   V(_, unknown_string, "unknown")                                   \
   V(_, upper_string, "upper")                                       \

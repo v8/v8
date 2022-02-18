@@ -411,6 +411,35 @@ bool UseGroupingFromSkeleton(const icu::UnicodeString& skeleton) {
   return skeleton.indexOf("group-off") == -1;
 }
 
+Handle<Object> UseGroupingFromSkeleton(Isolate* isolate,
+                                       const icu::UnicodeString& skeleton) {
+  Factory* factory = isolate->factory();
+  static const char* group = "group-";
+  int32_t start = skeleton.indexOf(group);
+  if (start >= 0) {
+    DCHECK_EQ(6, strlen(group));
+    icu::UnicodeString check = skeleton.tempSubString(start + 6);
+    // Ex: skeleton as
+    // .### rounding-mode-half-up group-off
+    if (check.startsWith("off")) {
+      return factory->false_value();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-half-up group-min2
+    if (check.startsWith("min2")) {
+      return ReadOnlyRoots(isolate).min2_string_handle();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-half-up group-on-aligned
+    if (check.startsWith("on-aligned")) {
+      return ReadOnlyRoots(isolate).always_string_handle();
+    }
+  }
+  // Ex: skeleton as
+  // .###
+  return ReadOnlyRoots(isolate).auto_string_handle();
+}
+
 // Parse currency code from skeleton. For example, skeleton as
 // "currency/TWD .00 rounding-mode-half-up unit-width-full-name;"
 const icu::UnicodeString CurrencyFromSkeleton(
@@ -543,6 +572,109 @@ Handle<String> SignDisplayString(Isolate* isolate,
   if (skeleton.indexOf("sign-accounting-negative") >= 0 ||
       skeleton.indexOf("sign-negative") >= 0) {
     return ReadOnlyRoots(isolate).negative_string_handle();
+  }
+  return ReadOnlyRoots(isolate).auto_string_handle();
+}
+
+// Return RoundingMode as string based on skeleton.
+Handle<String> RoundingModeString(Isolate* isolate,
+                                  const icu::UnicodeString& skeleton) {
+  static const char* rounding_mode = "rounding-mode-";
+  int32_t start = skeleton.indexOf(rounding_mode);
+  if (start >= 0) {
+    DCHECK_EQ(14, strlen(rounding_mode));
+    icu::UnicodeString check = skeleton.tempSubString(start + 14);
+
+    // Ex: skeleton as
+    // .### rounding-mode-ceiling
+    if (check.startsWith("ceiling")) {
+      return ReadOnlyRoots(isolate).ceil_string_handle();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-down
+    if (check.startsWith("down")) {
+      return ReadOnlyRoots(isolate).trunc_string_handle();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-floor
+    if (check.startsWith("floor")) {
+      return ReadOnlyRoots(isolate).floor_string_handle();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-half-ceiling
+    if (check.startsWith("half-ceiling")) {
+      return ReadOnlyRoots(isolate).halfCeil_string_handle();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-half-down
+    if (check.startsWith("half-down")) {
+      return ReadOnlyRoots(isolate).halfTrunc_string_handle();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-half-floor
+    if (check.startsWith("half-floor")) {
+      return ReadOnlyRoots(isolate).halfFloor_string_handle();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-half-up
+    if (check.startsWith("half-up")) {
+      return ReadOnlyRoots(isolate).halfExpand_string_handle();
+    }
+    // Ex: skeleton as
+    // .### rounding-mode-up
+    if (check.startsWith("up")) {
+      return ReadOnlyRoots(isolate).expand_string_handle();
+    }
+  }
+  // Ex: skeleton as
+  // .###
+  return ReadOnlyRoots(isolate).halfEven_string_handle();
+}
+
+Handle<Object> RoundingIncrement(Isolate* isolate,
+                                 const icu::UnicodeString& skeleton) {
+  int32_t cur = skeleton.indexOf(u"precision-increment/");
+  if (cur < 0) return isolate->factory()->NewNumberFromInt(1);
+  cur += 20;  // length of "precision-increment/"
+  int32_t increment = 0;
+  while (cur < skeleton.length()) {
+    char16_t c = skeleton[cur++];
+    if (c == u'.') continue;
+    if (!IsDecimalDigit(c)) break;
+    increment = increment * 10 + (c - '0');
+  }
+  return isolate->factory()->NewNumberFromInt(increment);
+}
+
+// Return RoundingPriority as string based on skeleton.
+Handle<String> RoundingPriorityString(Isolate* isolate,
+                                      const icu::UnicodeString& skeleton) {
+  int32_t found;
+  // If #r or @r is followed by a SPACE or in the end of line.
+  if ((found = skeleton.indexOf("#r")) >= 0 ||
+      (found = skeleton.indexOf("@r")) >= 0) {
+    if (found + 2 == skeleton.length() || skeleton[found + 2] == ' ') {
+      return ReadOnlyRoots(isolate).morePrecision_string_handle();
+    }
+  }
+  // If #s or @s is followed by a SPACE or in the end of line.
+  if ((found = skeleton.indexOf("#s")) >= 0 ||
+      (found = skeleton.indexOf("@s")) >= 0) {
+    if (found + 2 == skeleton.length() || skeleton[found + 2] == ' ') {
+      return ReadOnlyRoots(isolate).morePrecision_string_handle();
+    }
+  }
+  return ReadOnlyRoots(isolate).auto_string_handle();
+}
+
+// Return trailingZeroDisplay as string based on skeleton.
+Handle<String> TrailingZeroDisplayString(Isolate* isolate,
+                                         const icu::UnicodeString& skeleton) {
+  int32_t found;
+  if ((found = skeleton.indexOf("/w")) >= 0) {
+    if (found + 2 == skeleton.length() || skeleton[found + 2] == ' ') {
+      return ReadOnlyRoots(isolate).stripIfInteger_string_handle();
+    }
   }
   return ReadOnlyRoots(isolate).auto_string_handle();
 }
@@ -815,6 +947,11 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   //    [[Notation]]                    "notation"
   //    [[CompactDisplay]]              "compactDisplay"
   //    [[SignDisplay]]                 "signDisplay"
+  //
+  // For v3
+  //    [[RoundingMode]]                "roundingMode"
+  //    [[RoundingIncrement]]           "roundingIncrement"
+  //    [[TrailingZeroDisplay]]         "trailingZeroDisplay"
 
   CHECK(JSReceiver::CreateDataProperty(isolate, options,
                                        factory->locale_string(), locale,
@@ -895,11 +1032,18 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               .FromJust());
   }
 
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->useGrouping_string(),
-            factory->ToBoolean(UseGroupingFromSkeleton(skeleton)),
-            Just(kDontThrow))
-            .FromJust());
+  if (FLAG_harmony_intl_number_format_v3) {
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->useGrouping_string(),
+              UseGroupingFromSkeleton(isolate, skeleton), Just(kDontThrow))
+              .FromJust());
+  } else {
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->useGrouping_string(),
+              factory->ToBoolean(UseGroupingFromSkeleton(skeleton)),
+              Just(kDontThrow))
+              .FromJust());
+  }
 
   Notation notation = NotationFromSkeleton(skeleton);
   CHECK(JSReceiver::CreateDataProperty(
@@ -917,6 +1061,24 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             isolate, options, factory->signDisplay_string(),
             SignDisplayString(isolate, skeleton), Just(kDontThrow))
             .FromJust());
+  if (FLAG_harmony_intl_number_format_v3) {
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->roundingMode_string(),
+              RoundingModeString(isolate, skeleton), Just(kDontThrow))
+              .FromJust());
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->roundingIncrement_string(),
+              RoundingIncrement(isolate, skeleton), Just(kDontThrow))
+              .FromJust());
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->trailingZeroDisplay_string(),
+              TrailingZeroDisplayString(isolate, skeleton), Just(kDontThrow))
+              .FromJust());
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->roundingPriority_string(),
+              RoundingPriorityString(isolate, skeleton), Just(kDontThrow))
+              .FromJust());
+  }
   return options;
 }
 

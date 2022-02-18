@@ -108,24 +108,26 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
   // RangeError exception.
   // 8. Return value.
   value_str = String::Flatten(isolate, value_str);
-  DisallowGarbageCollection no_gc;
-  const String::FlatContent& flat = value_str->GetFlatContent(no_gc);
-  int32_t length = value_str->length();
-  for (size_t i = 0; i < str_values.size(); i++) {
-    if (static_cast<int32_t>(strlen(str_values.at(i))) == length) {
-      if (flat.IsOneByte()) {
-        if (CompareCharsEqual(str_values.at(i), flat.ToOneByteVector().begin(),
-                              length)) {
-          return Just(enum_values[i]);
-        }
-      } else {
-        if (CompareCharsEqual(str_values.at(i), flat.ToUC16Vector().begin(),
-                              length)) {
-          return Just(enum_values[i]);
+  {
+    DisallowGarbageCollection no_gc;
+    const String::FlatContent& flat = value_str->GetFlatContent(no_gc);
+    int32_t length = value_str->length();
+    for (size_t i = 0; i < str_values.size(); i++) {
+      if (static_cast<int32_t>(strlen(str_values.at(i))) == length) {
+        if (flat.IsOneByte()) {
+          if (CompareCharsEqual(str_values.at(i),
+                                flat.ToOneByteVector().begin(), length)) {
+            return Just(enum_values[i]);
+          }
+        } else {
+          if (CompareCharsEqual(str_values.at(i), flat.ToUC16Vector().begin(),
+                                length)) {
+            return Just(enum_values[i]);
+          }
         }
       }
     }
-  }
+  }  // end of no_gc
   THROW_NEW_ERROR_RETURN_VALUE(
       isolate,
       NewRangeError(MessageTemplate::kValueOutOfRange, value,
