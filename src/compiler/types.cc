@@ -258,7 +258,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
     case JS_SHADOW_REALM_TYPE:
-    case JS_SHARED_STRUCT_TYPE:
     case JS_TEMPORAL_CALENDAR_TYPE:
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:

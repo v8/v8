@@ -66,7 +66,6 @@
 //         - JSRegExp
 //         - JSSetIterator
 //         - JSShadowRealm
-//         - JSSharedStruct
 //         - JSStringIterator
 //         - JSTemporalCalendar
 //         - JSTemporalDuration
@@ -729,27 +728,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Returns false if the exception was thrown, otherwise true.
   static bool CheckContextualStoreToJSGlobalObject(
       LookupIterator* it, Maybe<ShouldThrow> should_throw);
-
-  // Returns whether the object is safe to share across Isolates.
-  //
-  // Currently, the following kinds of values can be safely shared across
-  // Isolates:
-  // - Smis
-  // - Objects in RO space when the RO space is shared
-  // - HeapNumbers in the shared old space
-  // - Strings for which String::IsShared() is true
-  // - JSSharedStructs
-  inline bool IsShared() const;
-
-  // Returns an equivalent value that's safe to share across Isolates if
-  // possible. Acts as the identity function when value->IsShared().
-  static inline MaybeHandle<Object> Share(
-      Isolate* isolate, Handle<Object> value,
-      ShouldThrow throw_if_cannot_be_shared);
-
-  static MaybeHandle<Object> ShareSlow(Isolate* isolate,
-                                       Handle<HeapObject> value,
-                                       ShouldThrow throw_if_cannot_be_shared);
 
  protected:
   inline Address field_address(size_t offset) const {

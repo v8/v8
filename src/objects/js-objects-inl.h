@@ -334,7 +334,7 @@ Object JSObject::RawFastPropertyAt(FieldIndex index) const {
 Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
                                    FieldIndex index) const {
   if (index.is_inobject()) {
-    return TaggedField<Object>::Relaxed_Load(cage_base, *this, index.offset());
+    return TaggedField<Object>::load(cage_base, *this, index.offset());
   } else {
     return property_array(cage_base).get(cage_base,
                                          index.outobject_array_index());

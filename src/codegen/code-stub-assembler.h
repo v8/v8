@@ -1807,22 +1807,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0);
 
-  void StoreJSSharedStructInObjectField(TNode<HeapObject> object,
-                                        TNode<IntPtrT> offset,
-                                        TNode<Object> value);
-
-  void StoreJSSharedStructPropertyArrayElement(TNode<PropertyArray> array,
-                                               TNode<IntPtrT> index,
-                                               TNode<Object> value) {
-    // JSSharedStructs are allocated in the shared old space, which is currently
-    // collected by stopping the world, so the incremental write barrier is not
-    // needed. They can only store Smis and other HeapObjects in the shared old
-    // space, so the generational write barrier is also not needed.
-    // TODO(v8:12547): Add a safer, shared variant of SKIP_WRITE_BARRIER.
-    StoreFixedArrayOrPropertyArrayElement(array, index, value,
-                                          UNSAFE_SKIP_WRITE_BARRIER);
-  }
-
   // EnsureArrayPushable verifies that receiver with this map is:
   //   1. Is not a prototype.
   //   2. Is not a dictionary.
@@ -2443,10 +2427,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    TVariable<Numeric>* var_numeric,
                                    TVariable<Smi>* var_feedback);
 
-  // Ensures that {value} is shareable across Isolates, and throws if not.
-  void SharedValueBarrier(TNode<Context> context, TNode<Object> value,
-                          TVariable<Object>* var_shared_value);
-
   TNode<WordT> TimesSystemPointerSize(TNode<WordT> value);
   TNode<IntPtrT> TimesSystemPointerSize(TNode<IntPtrT> value) {
     return Signed(TimesSystemPointerSize(implicit_cast<TNode<WordT>>(value)));
@@ -2590,9 +2570,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSPrimitiveWrapperInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSPrimitiveWrapperMap(TNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapper(TNode<HeapObject> object);
-  TNode<BoolT> IsJSSharedStructInstanceType(TNode<Int32T> instance_type);
-  TNode<BoolT> IsJSSharedStructMap(TNode<Map> map);
-  TNode<BoolT> IsJSSharedStruct(TNode<HeapObject> object);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
   TNode<BoolT> IsName(TNode<HeapObject> object);
   TNode<BoolT> IsNameInstanceType(TNode<Int32T> instance_type);
@@ -2632,7 +2609,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
-  TNode<BoolT> IsSharedStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsTemporalInstantInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsUniqueName(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoIndex(TNode<HeapObject> object);
@@ -2640,7 +2616,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsUndetectableMap(TNode<Map> map);
   TNode<BoolT> IsNotWeakFixedArraySubclass(TNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(TNode<Object> object);
-  TNode<BoolT> IsReadOnlyHeapObject(TNode<HeapObject> object);
 
   TNode<BoolT> IsPromiseResolveProtectorCellInvalid();
   TNode<BoolT> IsPromiseThenProtectorCellInvalid();
@@ -2665,11 +2640,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> HasBuiltinSubclassingFlag() {
     return LoadRuntimeFlag(
         ExternalReference::address_of_builtin_subclassing_flag());
-  }
-
-  TNode<BoolT> HasSharedStringTableFlag() {
-    return LoadRuntimeFlag(
-        ExternalReference::address_of_shared_string_table_flag());
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.

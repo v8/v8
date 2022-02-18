@@ -60,7 +60,6 @@
 #include "src/objects/js-segments.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/codegen/script-details.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/ordered-hash-table.h"
@@ -4443,24 +4442,6 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
                         Builtin::kShadowRealmPrototypeEvaluate, 1, true);
   SimpleInstallFunction(isolate_, prototype, "importValue",
                         Builtin::kShadowRealmPrototypeImportValue, 2, true);
-}
-
-void Genesis::InitializeGlobal_harmony_struct() {
-  if (!FLAG_harmony_struct) return;
-
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<String> name =
-      isolate()->factory()->InternalizeUtf8String("SharedStructType");
-  Handle<JSFunction> shared_struct_type_fun = CreateFunctionForBuiltin(
-      isolate(), name, isolate()->strict_function_with_readonly_prototype_map(),
-      Builtin::kSharedStructTypeConstructor);
-  JSObject::MakePrototypesFast(shared_struct_type_fun, kStartAtReceiver,
-                               isolate());
-  shared_struct_type_fun->shared().set_native(true);
-  shared_struct_type_fun->shared().DontAdaptArguments();
-  shared_struct_type_fun->shared().set_length(1);
-  JSObject::AddProperty(isolate(), global, "SharedStructType",
-                        shared_struct_type_fun, DONT_ENUM);
 }
 
 void Genesis::InitializeGlobal_harmony_array_find_last() {

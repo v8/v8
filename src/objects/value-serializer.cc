@@ -25,7 +25,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-struct-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -591,8 +590,6 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
-    case JS_SHARED_STRUCT_TYPE:
-      return WriteJSSharedStruct(Handle<JSSharedStruct>::cast(receiver));
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
@@ -1028,12 +1025,6 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
   return ThrowIfOutOfMemory();
 }
 
-Maybe<bool> ValueSerializer::WriteJSSharedStruct(
-    Handle<JSSharedStruct> shared_struct) {
-  // TODO(v8:12547): Support copying serialization for shared structs as well.
-  return WriteSharedObject(shared_struct);
-}
-
 #if V8_ENABLE_WEBASSEMBLY
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
   if (delegate_ == nullptr) {
@@ -1070,7 +1061,8 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
-  DCHECK(object->IsShared());
+  // Currently only strings are shareable.
+  DCHECK(String::cast(*object).IsShared());
   DCHECK(supports_shared_values_);
   DCHECK_NOT_NULL(delegate_);
   DCHECK(delegate_->SupportsSharedValues());
@@ -2152,7 +2144,8 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
   }
   Handle<HeapObject> shared_object =
       Handle<HeapObject>::cast(Utils::OpenHandle(*shared_value));
-  DCHECK(shared_object->IsShared());
+  // Currently only strings are shareable.
+  DCHECK(String::cast(*shared_object).IsShared());
   return shared_object;
 }
 

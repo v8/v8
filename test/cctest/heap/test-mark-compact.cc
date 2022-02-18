@@ -84,7 +84,7 @@ AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
                                SKIP_WRITE_BARRIER);
   return AllocationResult::FromObject(isolate->factory()->InitializeMap(
       Map::cast(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
-      TERMINAL_FAST_ELEMENTS_KIND, 0, heap));
+      TERMINAL_FAST_ELEMENTS_KIND, 0));
 }
 
 // This is the same as Factory::NewFixedArray, except it doesn't retry

@@ -1162,14 +1162,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     ZoneVector<PropertyAccessInfo> access_infos_for_feedback(zone());
     for (const MapRef& map : inferred_maps) {
       if (map.is_deprecated()) continue;
-
-      // TODO(v8:12547): Support writing to shared structs, which needs a write
-      // barrier that calls Object::Share to ensure the RHS is shared.
-      if (InstanceTypeChecker::IsJSSharedStruct(map.instance_type()) &&
-          access_mode == AccessMode::kStore) {
-        return NoChange();
-      }
-
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
           map, feedback.name(), access_mode, dependencies());
       access_infos_for_feedback.push_back(access_info);
@@ -1738,13 +1730,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
              IsGrowStoreMode(feedback.keyed_mode().store_mode())) &&
             !receiver_map.HasOnlyStablePrototypesWithFastElements(
                 &prototype_maps)) {
-          return NoChange();
-        }
-
-        // TODO(v8:12547): Support writing to shared structs, which needs a
-        // write barrier that calls Object::Share to ensure the RHS is shared.
-        if (InstanceTypeChecker::IsJSSharedStruct(
-                receiver_map.instance_type())) {
           return NoChange();
         }
       }

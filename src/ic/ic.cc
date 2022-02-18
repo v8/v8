@@ -2147,10 +2147,6 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
         int descriptor = lookup->GetFieldDescriptorIndex();
         FieldIndex index = lookup->GetFieldIndex();
-        if (V8_UNLIKELY(holder->IsJSSharedStruct())) {
-          return MaybeObjectHandle(StoreHandler::StoreSharedStructField(
-              isolate(), descriptor, index, lookup->representation()));
-        }
         PropertyConstness constness = lookup->constness();
         if (constness == PropertyConstness::kConst &&
             IsStoreOwnICKind(nexus()->kind())) {

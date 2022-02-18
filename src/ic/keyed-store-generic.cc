@@ -83,18 +83,16 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   // kind.
   void EmitGenericPropertyStore(TNode<JSReceiver> receiver,
                                 TNode<Map> receiver_map,
-                                TNode<Uint16T> instance_type,
                                 const StoreICParameters* p,
                                 ExitPoint* exit_point, Label* slow,
                                 Maybe<LanguageMode> maybe_language_mode);
 
   void EmitGenericPropertyStore(TNode<JSReceiver> receiver,
                                 TNode<Map> receiver_map,
-                                TNode<Uint16T> instance_type,
                                 const StoreICParameters* p, Label* slow) {
     ExitPoint direct_exit(this);
-    EmitGenericPropertyStore(receiver, receiver_map, instance_type, p,
-                             &direct_exit, slow, Nothing<LanguageMode>());
+    EmitGenericPropertyStore(receiver, receiver_map, p, &direct_exit, slow,
+                             Nothing<LanguageMode>());
   }
 
   void BranchIfPrototypesMayHaveReadOnlyElements(
@@ -794,8 +792,7 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
 
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     TNode<JSReceiver> receiver, TNode<Map> receiver_map,
-    TNode<Uint16T> instance_type, const StoreICParameters* p,
-    ExitPoint* exit_point, Label* slow,
+    const StoreICParameters* p, ExitPoint* exit_point, Label* slow,
     Maybe<LanguageMode> maybe_language_mode) {
   CSA_DCHECK(this, IsSimpleObjectMap(receiver_map));
   // TODO(rmcilroy) Type as Struct once we use a trimmed down
@@ -844,22 +841,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       BIND(&data_property);
       {
-        Label shared(this);
-        GotoIf(IsJSSharedStructInstanceType(instance_type), &shared);
-
         CheckForAssociatedProtector(name, slow);
         OverwriteExistingFastDataProperty(receiver, receiver_map, descriptors,
                                           name_index, details, p->value(), slow,
                                           false);
         exit_point->Return(p->value());
-
-        BIND(&shared);
-        {
-          StoreJSSharedStructField(p->context(), receiver, receiver_map,
-                                   descriptors, name_index, details,
-                                   p->value());
-          exit_point->Return(p->value());
-        }
       }
     }
     BIND(&lookup_transition);
@@ -1082,8 +1068,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
     StoreICParameters p(context, receiver, var_unique.value(), value, {},
                         UndefinedConstant(), StoreICMode::kDefault);
     ExitPoint direct_exit(this);
-    EmitGenericPropertyStore(CAST(receiver), receiver_map, instance_type, &p,
-                             &direct_exit, &slow, language_mode);
+    EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &direct_exit,
+                             &slow, language_mode);
   }
 
   BIND(&not_internalized);
@@ -1157,8 +1143,7 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
       StoreICParameters p(
           context, receiver, name, value, slot, UndefinedConstant(),
           IsKeyedStoreOwn() ? StoreICMode::kStoreOwn : StoreICMode::kDefault);
-      EmitGenericPropertyStore(CAST(receiver), receiver_map, instance_type, &p,
-                               &miss);
+      EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &miss);
     }
   }
 
@@ -1187,9 +1172,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
                                IsSimpleObjectMap(LoadMap(receiver))));
   GotoIfNot(is_simple_receiver, &slow);
 
-  TNode<Map> map = LoadMap(receiver);
-  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
-  EmitGenericPropertyStore(receiver, map, instance_type, &p, &exit_point, &slow,
+  EmitGenericPropertyStore(receiver, LoadMap(receiver), &p, &exit_point, &slow,
                            Just(language_mode));
 
   BIND(&slow);

@@ -2823,16 +2823,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
 
   } else  // NOLINT(readability/braces)
 #endif    // V8_ENABLE_WEBASSEMBLY
-          // clang-format off
-  if (V8_UNLIKELY(receiver->IsJSSharedStruct(isolate))) {
-    // clang-format on
-
-    // Shared structs can only point to primitives or shared values.
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
-        Nothing<bool>());
-    it->WriteDataValue(to_assign, false);
-  } else {
+  {
     // Possibly migrate to the most up-to-date map that will be able to store
     // |value| under it->name().
     it->PrepareForDataProperty(to_assign);
@@ -2922,30 +2913,6 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   }
 
   return Just(true);
-}
-
-// static
-MaybeHandle<Object> Object::ShareSlow(Isolate* isolate,
-                                      Handle<HeapObject> value,
-                                      ShouldThrow throw_if_cannot_be_shared) {
-  // Use Object::Share() if value might already be shared.
-  DCHECK(!value->IsShared());
-
-  if (value->IsString()) {
-    return String::Share(isolate, Handle<String>::cast(value));
-  }
-
-  if (value->IsHeapNumber()) {
-    uint64_t bits = HeapNumber::cast(*value).value_as_bits(kRelaxedLoad);
-    return isolate->factory()
-        ->NewHeapNumberFromBits<AllocationType::kSharedOld>(bits);
-  }
-
-  if (throw_if_cannot_be_shared == kThrowOnError) {
-    THROW_NEW_ERROR(
-        isolate, NewTypeError(MessageTemplate::kCannotBeShared, value), Object);
-  }
-  return MaybeHandle<Object>();
 }
 
 template <class T>

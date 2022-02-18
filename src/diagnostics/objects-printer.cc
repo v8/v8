@@ -1425,14 +1425,6 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSSharedStruct::JSSharedStructPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSSharedStruct");
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
-  os << "\n - isolate: " << isolate;
-  if (isolate->is_shared()) os << " (shared)";
-  JSObjectPrintBody(os, *this);
-}
-
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSWeakMap");
   os << "\n - table: " << Brief(table());

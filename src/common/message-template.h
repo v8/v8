@@ -60,7 +60,6 @@ namespace internal {
     "CallSite expects wasm object as first or function as second argument, "   \
     "got <%, %>")                                                              \
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
-  T(CannotBeShared, "% cannot be shared")                                      \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
   T(CannotFreeze, "Cannot freeze")                                             \
@@ -386,8 +385,6 @@ namespace internal {
   T(ToPrecisionFormatRange,                                                    \
     "toPrecision() argument must be between 1 and 100")                        \
   T(ToRadixFormatRange, "toString() radix argument must be between 2 and 36")  \
-  T(StructFieldCountOutOfRange,                                                \
-    "Struct field count out of range (maximum of 999 allowed)")                \
   T(TypedArraySetOffsetOutOfBounds, "offset is out of bounds")                 \
   T(TypedArraySetSourceTooLarge, "Source is too large")                        \
   T(TypedArrayTooLargeToSort,                                                  \

@@ -1061,7 +1061,6 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
   // WasmObjects.
   DCHECK(!holder_->IsWasmObject(isolate_));
 #endif  // V8_ENABLE_WEBASSEMBLY
-  DCHECK_IMPLIES(holder_->IsJSSharedStruct(), value->IsShared());
 
   Handle<JSReceiver> holder = GetHolder<JSReceiver>();
   if (IsElement(*holder)) {

@@ -737,15 +737,5 @@ RUNTIME_FUNCTION(Runtime_DoubleToStringWithRadix) {
   return *result;
 }
 
-RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, value, 0);
-  Handle<Object> shared_value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, shared_value, Object::ShareSlow(isolate, value, kThrowOnError));
-  return *shared_value;
-}
-
 }  // namespace internal
 }  // namespace v8

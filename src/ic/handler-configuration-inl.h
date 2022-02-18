@@ -225,8 +225,7 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
                                      int descriptor, FieldIndex field_index,
                                      Representation representation) {
   DCHECK(!representation.IsNone());
-  DCHECK(kind == Kind::kField || kind == Kind::kConstField ||
-         kind == Kind::kSharedStructField);
+  DCHECK(kind == Kind::kField || kind == Kind::kConstField);
 
   int config = KindBits::encode(kind) |
                IsInobjectBits::encode(field_index.is_inobject()) |
@@ -243,14 +242,6 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, int descriptor,
   Kind kind = constness == PropertyConstness::kMutable ? Kind::kField
                                                        : Kind::kConstField;
   return StoreField(isolate, kind, descriptor, field_index, representation);
-}
-
-Handle<Smi> StoreHandler::StoreSharedStructField(
-    Isolate* isolate, int descriptor, FieldIndex field_index,
-    Representation representation) {
-  DCHECK(representation.Equals(Representation::Tagged()));
-  return StoreField(isolate, Kind::kSharedStructField, descriptor, field_index,
-                    representation);
 }
 
 Handle<Smi> StoreHandler::StoreNativeDataProperty(Isolate* isolate,
