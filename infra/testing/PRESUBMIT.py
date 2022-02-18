@@ -11,10 +11,9 @@ For simplicity, we check all pyl files on any changes in this folder.
 import ast
 import os
 
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
+# This line is 'magic' in that git-cl looks for it to decide whether to
+# use Python3 instead of Python2 when running the code in this file.
+USE_PYTHON3 = True
 
 SUPPORTED_BUILDER_SPEC_KEYS = [
   'swarming_dimensions',
@@ -120,7 +119,7 @@ def _check_test(error_msg, test):
   test_args = test.get('test_args', [])
   if not isinstance(test_args, list):
     errors += error_msg('If specified, test_args must be a list of arguments')
-  if not all(isinstance(x, basestring) for x in test_args):
+  if not all(isinstance(x, str) for x in test_args):
     errors += error_msg('If specified, all test_args must be strings')
 
   # Limit shards to 14 to avoid erroneous resource exhaustion.
@@ -128,7 +127,7 @@ def _check_test(error_msg, test):
       error_msg, test, 'shards', lower_bound=1, upper_bound=14)
 
   variant = test.get('variant', 'default')
-  if not variant or not isinstance(variant, basestring):
+  if not variant or not isinstance(variant, str):
     errors += error_msg('If specified, variant must be a non-empty string')
 
   return errors
@@ -148,11 +147,11 @@ def _check_test_spec(file_path, raw_pyl):
     return error_msg('Test spec must be a dict')
 
   errors = []
-  for buildername, builder_spec in full_test_spec.iteritems():
+  for buildername, builder_spec in full_test_spec.items():
     def error_msg(msg):
       return ['Error in %s for builder %s:\n%s' % (file_path, buildername, msg)]
 
-    if not isinstance(buildername, basestring) or not buildername:
+    if not isinstance(buildername, str) or not buildername:
       errors += error_msg('Buildername must be a non-empty string')
 
     if not isinstance(builder_spec, dict) or not builder_spec:

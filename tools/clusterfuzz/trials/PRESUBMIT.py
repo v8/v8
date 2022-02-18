@@ -4,10 +4,9 @@
 
 import json
 
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
+# This line is 'magic' in that git-cl looks for it to decide whether to
+# use Python3 instead of Python2 when running the code in this file.
+USE_PYTHON3 = True
 
 
 def _CheckTrialsConfig(input_api, output_api):
@@ -23,16 +22,20 @@ def _CheckTrialsConfig(input_api, output_api):
       try:
         trials = json.load(j)
         for trial in trials:
-          if not all (k in trial for k in ('app_args', 'app_name', 'probability')):
-            results.append('trial %s is not configured correctly' % trial)
+          if not all(
+              k in trial for k in ('app_args', 'app_name', 'probability')):
+            results.append('trial {} is not configured correctly'.format(trial))
           if trial['app_name'] != 'd8':
-            results.append('trial %s has an incorrect app_name' % trial)
+            results.append('trial {} has an incorrect app_name'.format(trial))
           if not isinstance(trial['probability'], float):
-            results.append('trial %s probability is not a float' % trial)
+            results.append('trial {} probability is not a float'.format(trial))
           if not (0 <= trial['probability'] <= 1):
-            results.append('trial %s has invalid probability value' % trial)
-          if not isinstance(trial['app_args'], basestring) or not trial['app_args']:
-            results.append('trial %s should have a non-empty string for app_args' % trial)
+            results.append(
+                'trial {} has invalid probability value'.format(trial))
+          if not isinstance(trial['app_args'], str) or not trial['app_args']:
+            results.append(
+                'trial {} should have a non-empty string for app_args'.format(
+                    trial))
       except Exception as e:
         results.append(
             'JSON validation failed for %s. Error:\n%s' % (f.LocalPath(), e))
