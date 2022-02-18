@@ -1452,6 +1452,38 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   return success;
 }
 
+// Treat every line as a JSON value and parse it.
+bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
+  HandleScope handle_scope(isolate);
+  PerIsolateData* isolate_data = PerIsolateData::Get(isolate);
+  Local<Context> realm =
+      isolate_data->realms_[isolate_data->realm_current_].Get(isolate);
+  Context::Scope context_scope(realm);
+  TryCatch try_catch(isolate);
+
+  std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
+  int length = 0;
+  std::unique_ptr<char[]> data(ReadChars(absolute_path.c_str(), &length));
+  if (length == 0) {
+    printf("Error reading '%s'\n", file_name);
+    base::OS::ExitProcess(1);
+  }
+  std::stringstream stream(data.get());
+  std::string line;
+  while (std::getline(stream, line, '\n')) {
+    Local<String> source =
+        String::NewFromUtf8(isolate, line.c_str()).ToLocalChecked();
+    MaybeLocal<Value> maybe_value = JSON::Parse(realm, source);
+    Local<Value> value;
+    if (!maybe_value.ToLocal(&value)) {
+      DCHECK(try_catch.HasCaught());
+      ReportException(isolate, &try_catch);
+      return false;
+    }
+  }
+  return true;
+}
+
 PerIsolateData::PerIsolateData(Isolate* isolate)
     : isolate_(isolate), realms_(nullptr) {
   isolate->SetData(0, this);
@@ -3577,11 +3609,12 @@ char* Shell::ReadChars(const char* name, int* size_out) {
 MaybeLocal<PrimitiveArray> Shell::ReadLines(Isolate* isolate,
                                             const char* name) {
   int length;
-  const char* data = reinterpret_cast<const char*>(ReadChars(name, &length));
-  if (data == nullptr) {
+  std::unique_ptr<char[]> data(ReadChars(name, &length));
+
+  if (data.get() == nullptr) {
     return MaybeLocal<PrimitiveArray>();
   }
-  std::stringstream stream(data);
+  std::stringstream stream(data.get());
   std::string line;
   std::vector<std::string> lines;
   while (std::getline(stream, line, '\n')) {
@@ -3925,6 +3958,15 @@ bool SourceGroup::Execute(Isolate* isolate) {
       arg = argv_[++i];
       Shell::set_script_executed();
       if (!Shell::ExecuteWebSnapshot(isolate, arg)) {
+        success = false;
+        break;
+      }
+      continue;
+    } else if (strcmp(arg, "--json") == 0 && i + 1 < end_offset_) {
+      // Treat the next file as a JSON file.
+      arg = argv_[++i];
+      Shell::set_script_executed();
+      if (!Shell::LoadJSON(isolate, arg)) {
         success = false;
         break;
       }
@@ -4562,7 +4604,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current++;
       current->Begin(argv, i + 1);
     } else if (strcmp(str, "--module") == 0 ||
-               strcmp(str, "--web-snapshot") == 0) {
+               strcmp(str, "--web-snapshot") == 0 ||
+               strcmp(str, "--json") == 0) {
       // Pass on to SourceGroup, which understands these options.
     } else if (strncmp(str, "--", 2) == 0) {
       if (!i::FLAG_correctness_fuzzer_suppressions) {
