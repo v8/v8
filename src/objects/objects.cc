@@ -441,11 +441,11 @@ Handle<String> AsStringOrEmpty(Isolate* isolate, Handle<Object> object) {
 Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
                                           Handle<JSReceiver> error) {
   Handle<Name> name_key = isolate->factory()->name_string();
-  Handle<Object> name = JSReceiver::GetDataProperty(error, name_key);
+  Handle<Object> name = JSReceiver::GetDataProperty(isolate, error, name_key);
   Handle<String> name_str = AsStringOrEmpty(isolate, name);
 
   Handle<Name> msg_key = isolate->factory()->message_string();
-  Handle<Object> msg = JSReceiver::GetDataProperty(error, msg_key);
+  Handle<Object> msg = JSReceiver::GetDataProperty(isolate, error, msg_key);
   Handle<String> msg_str = AsStringOrEmpty(isolate, msg);
 
   if (name_str->length() == 0) return msg_str;
@@ -530,7 +530,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     // -- J S R e c e i v e r
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(input);
     Handle<Object> to_string = JSReceiver::GetDataProperty(
-        receiver, isolate->factory()->toString_string());
+        isolate, receiver, isolate->factory()->toString_string());
 
     if (IsErrorObject(isolate, input) ||
         *to_string == *isolate->error_to_string()) {
@@ -541,7 +541,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
                                         Handle<JSReceiver>::cast(input));
     } else if (*to_string == *isolate->object_to_string()) {
       Handle<Object> ctor = JSReceiver::GetDataProperty(
-          receiver, isolate->factory()->constructor_string());
+          isolate, receiver, isolate->factory()->constructor_string());
       if (ctor->IsFunction()) {
         Handle<String> ctor_name;
         if (ctor->IsJSBoundFunction()) {
@@ -599,7 +599,7 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
 
   Handle<String> builtin_tag = handle(receiver->class_name(), isolate);
   Handle<Object> tag_obj = JSReceiver::GetDataProperty(
-      receiver, isolate->factory()->to_string_tag_symbol());
+      isolate, receiver, isolate->factory()->to_string_tag_symbol());
   Handle<String> tag =
       tag_obj->IsString() ? Handle<String>::cast(tag_obj) : builtin_tag;
 

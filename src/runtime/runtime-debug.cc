@@ -354,7 +354,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       Handle<Symbol> memory_symbol =
           isolate->factory()->array_buffer_wasm_memory_symbol();
       Handle<Object> memory_object =
-          JSObject::GetDataProperty(js_array_buffer, memory_symbol);
+          JSObject::GetDataProperty(isolate, js_array_buffer, memory_symbol);
       if (!memory_object->IsUndefined(isolate)) {
         result = ArrayList::Add(isolate, result,
                                 isolate->factory()->NewStringFromAsciiChecked(

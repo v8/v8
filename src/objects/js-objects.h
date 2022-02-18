@@ -260,7 +260,8 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> value,
       bool from_javascript, ShouldThrow should_throw);
 
-  inline static Handle<Object> GetDataProperty(Handle<JSReceiver> object,
+  inline static Handle<Object> GetDataProperty(Isolate* isolate,
+                                               Handle<JSReceiver> object,
                                                Handle<Name> name);
   V8_EXPORT_PRIVATE static Handle<Object> GetDataProperty(
       LookupIterator* it, AllocationPolicy allocation_policy =

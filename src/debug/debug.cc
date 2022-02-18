@@ -1271,7 +1271,8 @@ void Debug::PrepareStep(StepAction step_action) {
           Handle<JSReceiver> return_value(
               JSReceiver::cast(thread_local_.return_value_), isolate_);
           Handle<Object> awaited_by = JSReceiver::GetDataProperty(
-              return_value, isolate_->factory()->promise_awaited_by_symbol());
+              isolate_, return_value,
+              isolate_->factory()->promise_awaited_by_symbol());
           if (awaited_by->IsJSGeneratorObject()) {
             DCHECK(!has_suspended_generator());
             thread_local_.suspended_generator_ = *awaited_by;
@@ -2141,7 +2142,8 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   // Check whether the promise has been marked as having triggered a message.
   Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
   if (!promise->IsJSObject() ||
-      JSReceiver::GetDataProperty(Handle<JSObject>::cast(promise), key)
+      JSReceiver::GetDataProperty(isolate_, Handle<JSObject>::cast(promise),
+                                  key)
           ->IsUndefined(isolate_)) {
     OnException(value, promise, v8::debug::kPromiseRejection);
   }

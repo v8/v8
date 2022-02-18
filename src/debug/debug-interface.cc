@@ -1224,7 +1224,7 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
 
   i::Handle<i::Symbol> key = isolate->factory()->promise_debug_message_symbol();
   i::Handle<i::Object> maybeMessage =
-      i::JSReceiver::GetDataProperty(promise, key);
+      i::JSReceiver::GetDataProperty(isolate, promise, key);
 
   if (!maybeMessage->IsJSMessageObject(isolate)) return MaybeLocal<Message>();
   return ToApiHandle<Message>(

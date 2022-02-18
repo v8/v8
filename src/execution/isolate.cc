@@ -901,7 +901,8 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
   Handle<JSObject> error = isolate->error_function();
 
   Handle<String> key = isolate->factory()->stackTraceLimit_string();
-  Handle<Object> stack_trace_limit = JSReceiver::GetDataProperty(error, key);
+  Handle<Object> stack_trace_limit =
+      JSReceiver::GetDataProperty(isolate, error, key);
   if (!stack_trace_limit->IsNumber()) return false;
 
   // Ensure that limit is not negative.
@@ -1226,7 +1227,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
 Handle<FixedArray> Isolate::GetDetailedStackTrace(
     Handle<JSReceiver> error_object) {
   Handle<Object> error_stack = JSReceiver::GetDataProperty(
-      error_object, factory()->error_stack_symbol());
+      this, error_object, factory()->error_stack_symbol());
   if (!error_stack->IsErrorStackData()) {
     return Handle<FixedArray>();
   }
@@ -1243,7 +1244,7 @@ Handle<FixedArray> Isolate::GetDetailedStackTrace(
 Handle<FixedArray> Isolate::GetSimpleStackTrace(
     Handle<JSReceiver> error_object) {
   Handle<Object> error_stack = JSReceiver::GetDataProperty(
-      error_object, factory()->error_stack_symbol());
+      this, error_object, factory()->error_stack_symbol());
   if (error_stack->IsFixedArray()) {
     return Handle<FixedArray>::cast(error_stack);
   }
@@ -2349,19 +2350,19 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
 
   Handle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
   Handle<Object> start_pos = JSReceiver::GetDataProperty(
-      Handle<JSObject>::cast(exception), start_pos_symbol);
+      this, Handle<JSObject>::cast(exception), start_pos_symbol);
   if (!start_pos->IsSmi()) return false;
   int start_pos_value = Handle<Smi>::cast(start_pos)->value();
 
   Handle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
   Handle<Object> end_pos = JSReceiver::GetDataProperty(
-      Handle<JSObject>::cast(exception), end_pos_symbol);
+      this, Handle<JSObject>::cast(exception), end_pos_symbol);
   if (!end_pos->IsSmi()) return false;
   int end_pos_value = Handle<Smi>::cast(end_pos)->value();
 
   Handle<Name> script_symbol = factory()->error_script_symbol();
   Handle<Object> script = JSReceiver::GetDataProperty(
-      Handle<JSObject>::cast(exception), script_symbol);
+      this, Handle<JSObject>::cast(exception), script_symbol);
   if (!script->IsScript()) return false;
 
   Handle<Script> cast_script(Script::cast(*script), this);
@@ -2620,7 +2621,8 @@ bool PromiseIsRejectHandler(Isolate* isolate, Handle<JSReceiver> handler) {
   //    has a dependency edge to the generated outer Promise.
   // Otherwise, this is a real reject handler for the Promise.
   Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
-  Handle<Object> forwarding_handler = JSReceiver::GetDataProperty(handler, key);
+  Handle<Object> forwarding_handler =
+      JSReceiver::GetDataProperty(isolate, handler, key);
   return forwarding_handler->IsUndefined(isolate);
 }
 
@@ -2664,7 +2666,8 @@ bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise) {
     if (promise->status() == Promise::kPending) {
       promises.push(promise);
     }
-    Handle<Object> outer_promise_obj = JSObject::GetDataProperty(promise, key);
+    Handle<Object> outer_promise_obj =
+        JSObject::GetDataProperty(this, promise, key);
     if (!outer_promise_obj->IsJSPromise()) break;
     promise = Handle<JSPromise>::cast(outer_promise_obj);
   }

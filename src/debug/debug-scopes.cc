@@ -964,7 +964,8 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       // Names of variables introduced by eval are strings.
       DCHECK(keys->get(i).IsString());
       Handle<String> key(String::cast(keys->get(i)), isolate_);
-      Handle<Object> value = JSReceiver::GetDataProperty(extension, key);
+      Handle<Object> value =
+          JSReceiver::GetDataProperty(isolate_, extension, key);
       if (visitor(key, value, scope_type)) return;
     }
   }

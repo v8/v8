@@ -651,7 +651,8 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
       CHECK(context->global_proxy() == *global_proxy);
       Handle<String> o = isolate->factory()->NewStringFromAsciiChecked("o");
       Handle<JSObject> global_object(context->global_object(), isolate);
-      Handle<Object> property = JSReceiver::GetDataProperty(global_object, o);
+      Handle<Object> property =
+          JSReceiver::GetDataProperty(isolate, global_object, o);
       CHECK(property.is_identical_to(global_proxy));
 
       v8::Local<v8::Context> v8_context = v8::Utils::ToLocal(context);
@@ -2163,9 +2164,9 @@ TEST(CodeSerializerLargeStrings) {
 
   CHECK_EQ(6 * 1999999, Handle<String>::cast(copy_result)->length());
   Handle<Object> property = JSReceiver::GetDataProperty(
-      isolate->global_object(), f->NewStringFromAsciiChecked("s"));
+      isolate, isolate->global_object(), f->NewStringFromAsciiChecked("s"));
   CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
-  property = JSReceiver::GetDataProperty(isolate->global_object(),
+  property = JSReceiver::GetDataProperty(isolate, isolate->global_object(),
                                          f->NewStringFromAsciiChecked("t"));
   CHECK(isolate->heap()->InSpace(HeapObject::cast(*property), LO_SPACE));
   // Make sure we do not serialize too much, e.g. include the source string.

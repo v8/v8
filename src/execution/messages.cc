@@ -998,7 +998,7 @@ MaybeHandle<Object> ErrorUtils::GetFormattedStack(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
 
   Handle<Object> error_stack = JSReceiver::GetDataProperty(
-      error_object, isolate->factory()->error_stack_symbol());
+      isolate, error_object, isolate->factory()->error_stack_symbol());
   if (error_stack->IsErrorStackData()) {
     Handle<ErrorStackData> error_stack_data =
         Handle<ErrorStackData>::cast(error_stack);
@@ -1041,7 +1041,7 @@ void ErrorUtils::SetFormattedStack(Isolate* isolate,
                                    Handle<JSObject> error_object,
                                    Handle<Object> formatted_stack) {
   Handle<Object> error_stack = JSReceiver::GetDataProperty(
-      error_object, isolate->factory()->error_stack_symbol());
+      isolate, error_object, isolate->factory()->error_stack_symbol());
   if (error_stack->IsErrorStackData()) {
     Handle<ErrorStackData> error_stack_data =
         Handle<ErrorStackData>::cast(error_stack);

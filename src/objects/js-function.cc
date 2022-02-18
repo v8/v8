@@ -756,7 +756,8 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
                                JSReceiver::GetFunctionRealm(new_target), Map);
     DCHECK(context->IsNativeContext());
     Handle<Object> maybe_index = JSReceiver::GetDataProperty(
-        constructor, isolate->factory()->native_context_index_symbol());
+        isolate, constructor,
+        isolate->factory()->native_context_index_symbol());
     int index = maybe_index->IsSmi() ? Smi::ToInt(*maybe_index)
                                      : Context::OBJECT_FUNCTION_INDEX;
     Handle<JSFunction> realm_constructor(JSFunction::cast(context->get(index)),
@@ -880,7 +881,7 @@ Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
     // that exact behavior and go with SharedFunctionInfo::DebugName()
     // in case of the fast-path.
     Handle<Object> name =
-        GetDataProperty(function, isolate->factory()->name_string());
+        GetDataProperty(isolate, function, isolate->factory()->name_string());
     if (name->IsString()) return Handle<String>::cast(name);
   }
   return SharedFunctionInfo::DebugName(handle(function->shared(), isolate));
@@ -935,7 +936,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
 
   // Check if we should print {function} as a class.
   Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
-      function, isolate->factory()->class_positions_symbol());
+      isolate, function, isolate->factory()->class_positions_symbol());
   if (maybe_class_positions->IsClassPositions()) {
     ClassPositions class_positions =
         ClassPositions::cast(*maybe_class_positions);

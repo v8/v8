@@ -721,7 +721,8 @@ RUNTIME_FUNCTION(Runtime_GetInitializerFunction) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, constructor, 0);
   Handle<Symbol> key = isolate->factory()->class_fields_symbol();
-  Handle<Object> initializer = JSReceiver::GetDataProperty(constructor, key);
+  Handle<Object> initializer =
+      JSReceiver::GetDataProperty(isolate, constructor, key);
   return *initializer;
 }
 

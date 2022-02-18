@@ -283,8 +283,8 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
       for (int i = 0; i < keys->length(); i++) {
         DCHECK(keys->get(i).IsString());
         Handle<String> key(String::cast(keys->get(i)), isolate_);
-        Handle<Object> value =
-            JSReceiver::GetDataProperty(element.materialized_object, key);
+        Handle<Object> value = JSReceiver::GetDataProperty(
+            isolate_, element.materialized_object, key);
         scope_iterator_.SetVariableValue(key, value);
       }
     }

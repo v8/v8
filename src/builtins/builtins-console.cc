@@ -150,11 +150,12 @@ void ConsoleCall(
   HandleScope scope(isolate);
   debug::ConsoleCallArguments wrapper(args);
   Handle<Object> context_id_obj = JSObject::GetDataProperty(
-      args.target(), isolate->factory()->console_context_id_symbol());
+      isolate, args.target(), isolate->factory()->console_context_id_symbol());
   int context_id =
       context_id_obj->IsSmi() ? Handle<Smi>::cast(context_id_obj)->value() : 0;
   Handle<Object> context_name_obj = JSObject::GetDataProperty(
-      args.target(), isolate->factory()->console_context_name_symbol());
+      isolate, args.target(),
+      isolate->factory()->console_context_name_symbol());
   Handle<String> context_name = context_name_obj->IsString()
                                     ? Handle<String>::cast(context_name_obj)
                                     : isolate->factory()->anonymous_string();

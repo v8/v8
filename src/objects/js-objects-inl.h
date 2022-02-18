@@ -85,9 +85,10 @@ MaybeHandle<Object> JSReceiver::GetElement(Isolate* isolate,
   return Object::GetProperty(&it);
 }
 
-Handle<Object> JSReceiver::GetDataProperty(Handle<JSReceiver> object,
+Handle<Object> JSReceiver::GetDataProperty(Isolate* isolate,
+                                           Handle<JSReceiver> object,
                                            Handle<Name> name) {
-  LookupIterator it(object->GetIsolate(), object, name, object,
+  LookupIterator it(isolate, object, name, object,
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   if (!it.IsFound()) return it.factory()->undefined_value();
   return GetDataProperty(&it);
