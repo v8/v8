@@ -226,14 +226,14 @@ icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string,
   DisallowGarbageCollection no_gc;
 
   const String::FlatContent& flat = string->GetFlatContent(no_gc);
-  if (!flat.IsOneByte()) return icu::StringPiece(nullptr, 0);
+  if (!flat.IsOneByte()) return icu::StringPiece();
 
   int32_t length = string->length();
   DCHECK_LT(offset, length);
   const char* char_buffer =
       reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
   if (!String::IsAscii(char_buffer, length)) {
-    return icu::StringPiece(nullptr, 0);
+    return icu::StringPiece();
   }
 
   return icu::StringPiece(char_buffer + offset, length - offset);

@@ -785,8 +785,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   void UpdateCPUDuration(size_t cpu_duration, ExecutionTier tier);
   void AddLiftoffBailout() {
-    liftoff_bailout_count_.fetch_add(1,
-                                     std::memory_order::memory_order_relaxed);
+    liftoff_bailout_count_.fetch_add(1, std::memory_order_relaxed);
   }
 
   WasmCode* Lookup(Address) const;

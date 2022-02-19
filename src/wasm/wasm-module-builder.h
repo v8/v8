@@ -424,8 +424,6 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   struct WasmGlobal {
-    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmGlobal);
-
     ValueType type;
     bool mutability;
     WasmInitExpr init;

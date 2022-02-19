@@ -182,7 +182,7 @@ class Handle final : public HandleBase {
 };
 
 template <typename T>
-inline std::ostream& operator<<(std::ostream& os, Handle<T> handle);
+std::ostream& operator<<(std::ostream& os, Handle<T> handle);
 
 // ----------------------------------------------------------------------------
 // A stack-allocated class that governs a number of local handles.
