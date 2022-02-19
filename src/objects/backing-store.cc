@@ -544,13 +544,13 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
 }
 
 std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(Isolate* isolate,
-                                                           size_t new_pages) {
+                                                           size_t new_pages,
+                                                           size_t max_pages) {
   // Note that we could allocate uninitialized to save initialization cost here,
   // but since Wasm memories are allocated by the page allocator, the zeroing
   // cost is already built-in.
-  // TODO(titzer): should we use a suitable maximum here?
   auto new_backing_store = BackingStore::AllocateWasmMemory(
-      isolate, new_pages, new_pages,
+      isolate, new_pages, max_pages,
       is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared);
 
   if (!new_backing_store ||

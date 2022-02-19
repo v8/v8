@@ -997,8 +997,14 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   size_t new_pages = old_pages + pages;
   DCHECK_LT(old_pages, new_pages);
   // Try allocating a new backing store and copying.
+  // To avoid overall quadratic complexity of many small grow operations, we
+  // grow by at least 0.5 MB + 12.5% of the existing memory size.
+  // These numbers are kept small because we must be careful about address
+  // space consumption on 32-bit platforms.
+  size_t min_growth = old_pages + 8 + (old_pages >> 3);
+  size_t new_capacity = std::max(new_pages, min_growth);
   std::unique_ptr<BackingStore> new_backing_store =
-      backing_store->CopyWasmMemory(isolate, new_pages);
+      backing_store->CopyWasmMemory(isolate, new_pages, new_capacity);
   if (!new_backing_store) {
     // Crash on out-of-memory if the correctness fuzzer is running.
     if (FLAG_correctness_fuzzer_suppressions) {
