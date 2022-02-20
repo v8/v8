@@ -60,65 +60,6 @@ bool ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
   return false;
 }
 
-// Visits ranges that were recorded in the generational barrier for ranges.
-void VisitRememberedObjects(HeapBase& heap, Visitor& visitor,
-                            MutatorMarkingState& mutator_marking_state) {
-#if defined(CPPGC_YOUNG_GENERATION)
-  for (HeapObjectHeader* source_hoh : heap.remembered_source_objects()) {
-    DCHECK(source_hoh);
-    // The age checking in the generational barrier is imprecise, since a card
-    // may have mixed young/old objects. Check here precisely if the object is
-    // old.
-    if (source_hoh->IsYoung()) continue;
-    // The design of young generation requires collections to be executed at the
-    // top level (with the guarantee that no objects are currently being in
-    // construction). This can be ensured by running young GCs from safe points
-    // or by reintroducing nested allocation scopes that avoid finalization.
-    DCHECK(!source_hoh->template IsInConstruction<AccessMode::kNonAtomic>());
-
-    const TraceCallback trace_callback =
-        GlobalGCInfoTable::GCInfoFromIndex(source_hoh->GetGCInfoIndex()).trace;
-
-    // Process eagerly to avoid reaccounting.
-    trace_callback(&visitor, source_hoh->ObjectStart());
-  }
-#endif
-}
-
-// Visit remembered set that was recorded in the generational barrier.
-void VisitRememberedSlots(HeapBase& heap,
-                          MutatorMarkingState& mutator_marking_state) {
-#if defined(CPPGC_YOUNG_GENERATION)
-  for (void* slot : heap.remembered_slots()) {
-    // Slot must always point to a valid, not freed object.
-    auto& slot_header = BasePage::FromInnerAddress(&heap, slot)
-                            ->ObjectHeaderFromInnerAddress(slot);
-    // The age checking in the generational barrier is imprecise, since a card
-    // may have mixed young/old objects. Check here precisely if the object is
-    // old.
-    if (slot_header.IsYoung()) continue;
-    // The design of young generation requires collections to be executed at the
-    // top level (with the guarantee that no objects are currently being in
-    // construction). This can be ensured by running young GCs from safe points
-    // or by reintroducing nested allocation scopes that avoid finalization.
-    DCHECK(!slot_header.template IsInConstruction<AccessMode::kNonAtomic>());
-
-    void* value = *reinterpret_cast<void**>(slot);
-    // Slot could be updated to nullptr or kSentinelPointer by the mutator.
-    if (value == kSentinelPointer || value == nullptr) continue;
-
-#if DEBUG
-    // Check that the slot can not point to a freed object.
-    HeapObjectHeader& header =
-        BasePage::FromPayload(value)->ObjectHeaderFromInnerAddress(value);
-    DCHECK(!header.IsFree());
-#endif
-
-    mutator_marking_state.DynamicallyMarkAddress(static_cast<Address>(value));
-  }
-#endif
-}
-
 static constexpr size_t kDefaultDeadlineCheckInterval = 150u;
 
 template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
@@ -411,12 +352,13 @@ void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
         heap().stats_collector(), StatsCollector::kMarkVisitStack);
     heap().stack()->IteratePointers(&stack_visitor());
   }
+#if defined(CPPGC_YOUNG_GENERATION)
   if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
     StatsCollector::EnabledScope stats_scope(
         heap().stats_collector(), StatsCollector::kMarkVisitRememberedSets);
-    VisitRememberedSlots(heap(), mutator_marking_state_);
-    VisitRememberedObjects(heap(), visitor(), mutator_marking_state_);
+    heap().remembered_set().Visit(visitor(), mutator_marking_state_);
   }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
 bool MarkerBase::VisitCrossThreadPersistentsIfNeeded() {

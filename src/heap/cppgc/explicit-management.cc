@@ -25,27 +25,6 @@ bool InGC(HeapHandle& heap_handle) {
          heap.sweeper().IsSweepingInProgress();
 }
 
-#if defined(CPPGC_YOUNG_GENERATION)
-void InvalidateRememberedSlotsInRange(HeapBase& heap, void* begin, void* end) {
-  // Invalidate slots from |remembered_slots| that reside within |begin| and
-  // |end|.
-  auto& remembered_slots = heap.remembered_slots();
-  // TODO(bikineev): The 2 binary walks can be optimized with a custom
-  // algorithm.
-  auto from = remembered_slots.lower_bound(begin),
-       to = remembered_slots.lower_bound(end);
-  remembered_slots.erase(from, to);
-#ifdef ENABLE_SLOW_DCHECKS
-  // Check that no remembered slots are referring to the freed area.
-  DCHECK(std::none_of(remembered_slots.begin(), remembered_slots.end(),
-                      [begin, end](void* slot) {
-                        void* value = *reinterpret_cast<void**>(slot);
-                        return begin <= value && value < end;
-                      }));
-#endif  // ENABLE_SLOW_DCHECKS
-}
-#endif  // !defined(CPPGC_YOUNG_GENERATION)
-
 }  // namespace
 
 void ExplicitManagementImpl::FreeUnreferencedObject(HeapHandle& heap_handle,
@@ -89,10 +68,10 @@ void ExplicitManagementImpl::FreeUnreferencedObject(HeapHandle& heap_handle,
   }
 #if defined(CPPGC_YOUNG_GENERATION)
   auto& heap_base = HeapBase::From(heap_handle);
-  InvalidateRememberedSlotsInRange(
-      heap_base, object, reinterpret_cast<uint8_t*>(object) + object_size);
+  heap_base.remembered_set().InvalidateRememberedSlotsInRange(
+      object, reinterpret_cast<uint8_t*>(object) + object_size);
   // If this object was registered as remembered, remove it.
-  heap_base.remembered_source_objects().erase(&header);
+  heap_base.remembered_set().InvalidateRememberedSourceObject(header);
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
@@ -143,8 +122,8 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
     header.SetAllocatedSize(new_size);
   }
 #if defined(CPPGC_YOUNG_GENERATION)
-  InvalidateRememberedSlotsInRange(base_page.heap(), free_start,
-                                   free_start + size_delta);
+  base_page.heap().remembered_set().InvalidateRememberedSlotsInRange(
+      free_start, free_start + size_delta);
 #endif  // defined(CPPGC_YOUNG_GENERATION)
   // Return success in any case, as we want to avoid that embedders start
   // copying memory because of small deltas.
