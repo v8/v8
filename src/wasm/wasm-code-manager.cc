@@ -1519,10 +1519,21 @@ void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
   DCHECK_NOT_NULL(code_space_data.jump_table);
   DCHECK_NOT_NULL(code_space_data.far_jump_table);
 
-  code_allocator_.MakeWritable(
-      AddressRegionOf(code_space_data.jump_table->instructions()));
-  code_allocator_.MakeWritable(
-      AddressRegionOf(code_space_data.far_jump_table->instructions()));
+  // Jump tables are often allocated next to each other, so we can switch
+  // permissions on both at the same time.
+  if (code_space_data.jump_table->instructions().end() ==
+      code_space_data.far_jump_table->instructions().begin()) {
+    base::Vector<uint8_t> jump_tables_space = base::VectorOf(
+        code_space_data.jump_table->instructions().begin(),
+        code_space_data.jump_table->instructions().size() +
+            code_space_data.far_jump_table->instructions().size());
+    code_allocator_.MakeWritable(AddressRegionOf(jump_tables_space));
+  } else {
+    code_allocator_.MakeWritable(
+        AddressRegionOf(code_space_data.jump_table->instructions()));
+    code_allocator_.MakeWritable(
+        AddressRegionOf(code_space_data.far_jump_table->instructions()));
+  }
 
   DCHECK_LT(slot_index, module_->num_declared_functions);
   Address jump_table_slot =
