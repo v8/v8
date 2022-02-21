@@ -75,7 +75,7 @@ class V8ToCppGCReferencesVisitor final
  private:
   void VisitHandle(const v8::TracedReference<v8::Value>& value,
                    uint16_t class_id) {
-    DCHECK(value.IsEmpty());
+    DCHECK(!value.IsEmpty());
 
     const internal::JSObject js_object =
         *reinterpret_cast<const internal::JSObject* const&>(value);
