@@ -231,7 +231,7 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
   for (int i = 0, length = exports->Length(); i < length; ++i) {
     v8::Local<v8::String> str =
         exports->Get(v8_isolate, i)->ToString(context).ToLocalChecked();
-    if (str.IsEmpty()) {
+    if (str->Length() == 0) {
       continue;
     }
     v8::ScriptCompiler::Source source(str);
@@ -254,6 +254,9 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
   for (int i = 0, length = exports->Length(); i < length; ++i) {
     v8::Local<v8::String> str =
         exports->Get(v8_isolate, i)->ToString(context).ToLocalChecked();
+    if (str->Length() == 0) {
+      continue;
+    }
     SerializeExport(export_objects[i],
                     Handle<String>::cast(Utils::OpenHandle(*str)));
   }
