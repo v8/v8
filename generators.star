@@ -190,7 +190,7 @@ def python3_steps(ctx):
             continue
         for builder in bucket.swarming.builders:
             if not builder.experiments.get("v8.steps.use_python3"):
-                builder.experiments["v8.steps.use_python3"] = 20
+                builder.experiments["v8.steps.use_python3"] = 100
 
 lucicfg.generator(aggregate_builder_tester_console)
 
