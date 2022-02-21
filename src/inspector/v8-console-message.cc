@@ -396,23 +396,11 @@ V8ConsoleMessage::getAssociatedExceptionData(
 
   v8::Isolate* isolate = inspector->isolate();
   v8::HandleScope handles(isolate);
-  v8::Local<v8::Context> context;
-  if (!inspector->exceptionMetaDataContext().ToLocal(&context)) return nullptr;
   v8::MaybeLocal<v8::Value> maybe_exception = m_arguments[0]->Get(isolate);
   v8::Local<v8::Value> exception;
   if (!maybe_exception.ToLocal(&exception)) return nullptr;
 
-  v8::MaybeLocal<v8::Object> maybe_data =
-      inspector->getAssociatedExceptionData(exception);
-  v8::Local<v8::Object> data;
-  if (!maybe_data.ToLocal(&data)) return nullptr;
-  v8::TryCatch tryCatch(isolate);
-  v8::MicrotasksScope microtasksScope(isolate,
-                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
-  v8::Context::Scope contextScope(context);
-  std::unique_ptr<protocol::DictionaryValue> jsonObject;
-  objectToProtocolValue(context, data, 2, &jsonObject);
-  return jsonObject;
+  return inspector->getAssociatedExceptionDataForProtocol(exception);
 }
 
 std::unique_ptr<protocol::Runtime::RemoteObject>

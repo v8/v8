@@ -134,6 +134,8 @@ class V8InspectorImpl : public V8Inspector {
   int64_t generateUniqueId();
   V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Object> getAssociatedExceptionData(
       v8::Local<v8::Value> exception);
+  std::unique_ptr<protocol::DictionaryValue>
+  getAssociatedExceptionDataForProtocol(v8::Local<v8::Value> exception);
 
   class EvaluateScope {
    public:

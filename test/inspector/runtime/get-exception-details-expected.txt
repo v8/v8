@@ -23,14 +23,14 @@ Running test: itShouldReturnExceptionDetailsForJSErrorObjects
                         functionName : foo
                         lineNumber : 2
                         scriptId : <scriptId>
-                        url :
+                        url : 
                     }
                     [1] : {
                         columnNumber : 0
-                        functionName :
+                        functionName : 
                         lineNumber : 4
                         scriptId : <scriptId>
-                        url :
+                        url : 
                     }
                 ]
             }
@@ -67,4 +67,46 @@ Running test: itShouldReportAnErrorForNonJSErrorObjects
         message : errorObjectId is not a JS error object
     }
     id : <messageId>
+}
+
+Running test: itShouldIncludeMetaData
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 9
+            exception : {
+                className : Error
+                description : Error: myerror     at foo (<anonymous>:3:10)     at <anonymous>:5:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            exceptionMetaData : {
+                foo : bar
+            }
+            lineNumber : 2
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 9
+                        functionName : foo
+                        lineNumber : 2
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 0
+                        functionName : 
+                        lineNumber : 4
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Error: myerror
+        }
+    }
 }

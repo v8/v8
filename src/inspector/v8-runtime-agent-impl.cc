@@ -834,6 +834,13 @@ Response V8RuntimeAgentImpl::getExceptionDetails(
   // Lets use the normal message text instead.
   out_exceptionDetails->fromJust()->setText(
       toProtocolString(m_inspector->isolate(), message->Get()));
+
+  // Check if the exception has any metadata on the inspector and also attach
+  // it.
+  std::unique_ptr<protocol::DictionaryValue> data =
+      m_inspector->getAssociatedExceptionDataForProtocol(error);
+  if (data)
+    out_exceptionDetails->fromJust()->setExceptionMetaData(std::move(data));
   return Response::Success();
 }
 

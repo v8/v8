@@ -50,6 +50,7 @@
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
+#include "src/inspector/value-mirror.h"
 
 namespace v8_inspector {
 
@@ -518,4 +519,24 @@ v8::MaybeLocal<v8::Object> V8InspectorImpl::getAssociatedExceptionData(
     return v8::MaybeLocal<v8::Object>();
   return scope.Escape(object.As<v8::Object>());
 }
+
+std::unique_ptr<protocol::DictionaryValue>
+V8InspectorImpl::getAssociatedExceptionDataForProtocol(
+    v8::Local<v8::Value> exception) {
+  v8::MaybeLocal<v8::Object> maybeData = getAssociatedExceptionData(exception);
+  v8::Local<v8::Object> data;
+  if (!maybeData.ToLocal(&data)) return nullptr;
+
+  v8::Local<v8::Context> context;
+  if (!exceptionMetaDataContext().ToLocal(&context)) return nullptr;
+
+  v8::TryCatch tryCatch(m_isolate);
+  v8::MicrotasksScope microtasksScope(m_isolate,
+                                      v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::Context::Scope contextScope(context);
+  std::unique_ptr<protocol::DictionaryValue> jsonObject;
+  objectToProtocolValue(context, data, 2, &jsonObject);
+  return jsonObject;
+}
+
 }  // namespace v8_inspector

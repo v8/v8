@@ -12,6 +12,13 @@ function foo() {
 foo();
 `;
 
+const expressionWithMeta = `
+function foo() {
+  return new inspector.newExceptionWithMetaData('myerror', 'foo', 'bar');
+}
+foo();
+`;
+
 InspectorTest.runAsyncTestSuite([
   async function itShouldReturnExceptionDetailsForJSErrorObjects() {
     await Protocol.Runtime.enable();  // Enable detailed stacktrace capturing.
@@ -31,5 +38,12 @@ InspectorTest.runAsyncTestSuite([
     const {result} = await Protocol.Runtime.evaluate({expression: '() =>({})'});
     InspectorTest.logMessage(await Protocol.Runtime.getExceptionDetails(
         {errorObjectId: result.result.objectId}));
+  },
+
+  async function itShouldIncludeMetaData() {
+    await Protocol.Runtime.enable();  // Enable detailed stacktrace capturing.
+    const {result} = await Protocol.Runtime.evaluate({expression: expressionWithMeta});
+    InspectorTest.logMessage(await Protocol.Runtime.getExceptionDetails(
+      {errorObjectId: result.result.objectId}));
   }
 ]);
