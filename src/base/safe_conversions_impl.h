@@ -12,6 +12,7 @@
 #ifndef V8_BASE_SAFE_CONVERSIONS_IMPL_H_
 #define V8_BASE_SAFE_CONVERSIONS_IMPL_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <limits>
