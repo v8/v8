@@ -9,7 +9,7 @@ var counter = 188;
 function gen(w) {  // defeat compiler cache.
  var num = counter++;
   var Z = [ "", "", "", ];
-  Z[w] = "%OptimizeOsr(0, \"concurrent\"); %PrepareFunctionForOptimization(f" + num + ")";
+  Z[w] = "%OptimizeOsr(); %PrepareFunctionForOptimization(f" + num + ")";
   var src =
     "function f" + num + "(a,b,c) {" +
     "  var x = 0;" +

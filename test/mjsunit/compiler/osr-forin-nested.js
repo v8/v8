@@ -12,8 +12,8 @@ function test(e, f, v) {
 
 function foo(t) {
   for (var x in t) {
-    for (var i = 0; i < 3; i++) {
-      %OptimizeOsr(0, "concurrent");
+    for (var i = 0; i < 2; i++) {
+      %OptimizeOsr();
       %PrepareFunctionForOptimization(foo);
     }
   }
@@ -26,8 +26,8 @@ test(5, foo, {x:20});
 function bar(t) {
   var sum = 0;
   for (var x in t) {
-    for (var i = 0; i < 3; i++) {
-      %OptimizeOsr(0, "concurrent");
+    for (var i = 0; i < 2; i++) {
+      %OptimizeOsr();
       sum += t[x];
       %PrepareFunctionForOptimization(bar);
     }
@@ -36,4 +36,4 @@ function bar(t) {
 }
 %PrepareFunctionForOptimization(bar);
 
-test(93, bar, {x:20,y:11});
+test(62, bar, {x:20,y:11});

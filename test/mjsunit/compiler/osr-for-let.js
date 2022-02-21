@@ -21,7 +21,7 @@ function bar() {
     let sum = 0;
     for (let i = 0; i < 90; i++) {
       sum += i;
-      if (i == 45 || i == 46) %OptimizeOsr(0, "concurrent");
+      if (i == 45) %OptimizeOsr();
     }
     result = sum;
   }
@@ -33,10 +33,10 @@ test(4005, bar);
 
 function baz() {
   let sum = 0;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     %PrepareFunctionForOptimization(baz);
     sum = 2;
-    %OptimizeOsr(0, "concurrent");
+    %OptimizeOsr();
   }
   return sum;
 }
@@ -45,30 +45,30 @@ test(2, baz);
 
 function qux() {
   var result = 0;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     %PrepareFunctionForOptimization(qux);
     result = i;
-    %OptimizeOsr(0, "concurrent");
+    %OptimizeOsr();
   }
   return result;
 }
 
-test(2, qux);
+test(1, qux);
 
 function nux() {
   var result = 0;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     {
       %PrepareFunctionForOptimization(nux);
       let sum = i;
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
       result = sum;
     }
   }
   return result;
 }
 
-test(2, nux);
+test(1, nux);
 
 function blo() {
   var result;
@@ -76,7 +76,7 @@ function blo() {
     let sum = 0;
     for (let i = 0; i < 90; i++) {
       sum += i;
-      if (i == 45 || i == 46) %OptimizeOsr(0, "concurrent");
+      if (i == 45) %OptimizeOsr();
     }
     result = ret;
     function ret() {

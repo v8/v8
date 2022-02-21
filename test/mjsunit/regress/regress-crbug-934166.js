@@ -15,7 +15,7 @@
         // elided.
         with(f&&g&&(s()=N)({...g})){}
       } catch {}
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
     }
   }
   %EnsureFeedbackVectorForFunction(f);

@@ -7,7 +7,7 @@
 
 function f(get, ...a) {
   for (let i = 0; i < 1000; i++) {
-    if (i === 998 || i === 999) %OptimizeOsr(0, "concurrent");
+    if (i === 999) %OptimizeOsr();
     a.map(f);
   }
   return get();

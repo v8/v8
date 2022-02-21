@@ -123,6 +123,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
                                         CodeKind code_kind) {
   if (function.IsInOptimizationQueue()) {
     TraceInOptimizationQueue(function);
+    return;
   }
 
   if (FLAG_testing_d8_test_runner &&
@@ -154,7 +155,6 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 }
 
 bool TieringManager::MaybeOSR(JSFunction function, UnoptimizedFrame* frame) {
-  if (function.shared().osr_is_in_optimization_queue()) return false;
   int ticks = function.feedback_vector().profiler_ticks();
   if (function.IsMarkedForOptimization() ||
       function.IsMarkedForConcurrentOptimization() ||
@@ -181,6 +181,9 @@ bool ShouldOptimizeAsSmallFunction(int bytecode_size, bool any_ic_changed) {
 OptimizationReason TieringManager::ShouldOptimize(JSFunction function,
                                                   BytecodeArray bytecode,
                                                   JavaScriptFrame* frame) {
+  if (function.ActiveTierIsTurbofan()) {
+    return OptimizationReason::kDoNotOptimize;
+  }
   // If function's SFI has OSR cache, once enter loop range of OSR cache, set
   // OSR loop nesting level for matching condition of OSR (loop_depth <
   // osr_level), soon later OSR will be triggered when executing bytecode
@@ -202,18 +205,10 @@ OptimizationReason TieringManager::ShouldOptimize(JSFunction function,
           current_offset >= jump_target_offset) {
         bytecode.set_osr_loop_nesting_level(iterator.GetImmediateOperand(1) +
                                             1);
-        return function.ActiveTierIsTurbofan() ||
-                       function.IsInOptimizationQueue()
-                   ? OptimizationReason::kDoNotOptimize
-                   : OptimizationReason::kHotAndStable;
+        return OptimizationReason::kHotAndStable;
       }
     }
   }
-
-  if (function.ActiveTierIsTurbofan() || function.HasOptimizationMarker()) {
-    return OptimizationReason::kDoNotOptimize;
-  }
-
   const int ticks = function.feedback_vector().profiler_ticks();
   const int ticks_for_optimization =
       FLAG_ticks_before_optimization +

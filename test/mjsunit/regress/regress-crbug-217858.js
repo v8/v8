@@ -12,7 +12,7 @@ function f() {
 function g() {
   for (var i = 0; i < 300; i++) {
     f();
-    if (i == 150 || i == 151) %OptimizeOsr(0, "concurrent");
+    if (i == 150) %OptimizeOsr();
   }
 }
 %PrepareFunctionForOptimization(g);

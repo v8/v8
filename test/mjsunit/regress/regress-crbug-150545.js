@@ -47,7 +47,7 @@
   function outer() {
     inner(1,2,3);
     for (var i = 0; i < 3; i++) {
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
       %PrepareFunctionForOptimization(outer);
     }
   }

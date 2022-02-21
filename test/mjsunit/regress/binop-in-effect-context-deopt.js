@@ -33,7 +33,7 @@
     var dummy = deopt + 0;
     for (var i = 0; osr && i < 2; i++) {
       %PrepareFunctionForOptimization(f);
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
     }
     return result;
   }

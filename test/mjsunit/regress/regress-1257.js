@@ -18,8 +18,8 @@ function foo () {
         l = 0;
         break;
       case 0:
-        if (cnt++ == 5 || cnt == 6) {
-          %OptimizeOsr(0, "concurrent");
+        if (cnt++ == 5) {
+          %OptimizeOsr();
           l = 1;
         }
         break;

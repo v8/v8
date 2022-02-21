@@ -271,9 +271,6 @@ class FastJSWasmCallTester {
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_turbo_inline_js_wasm_calls = true;
     i::FLAG_stress_background_compile = false;
-    // Disable concurrent osr to avoid background compilation after test has
-    // been finished.
-    i::FLAG_concurrent_osr = false;
   }
 
   void DeclareCallback(const char* name, FunctionSig* signature,

@@ -7,7 +7,7 @@
 (function TestGeneratorOSRSimple() {
   function* gen1() {
     for (var i = 0; i < 3; ++i) {
-      if (i >= 1) %OptimizeOsr(0, "concurrent");
+      if (i == 1) %OptimizeOsr();
     }
     return 23;
   }
@@ -19,10 +19,7 @@
 (function TestGeneratorOSRYieldAfterArming() {
   function* gen2() {
     for (var i = 0; i < 3; ++i) {
-      if (i == 1 || i == 2) {
-        %PrepareFunctionForOptimization(gen2);
-        %OptimizeOsr(0, "concurrent");
-      }
+      if (i == 1) %OptimizeOsr();
       yield i;
     }
     return 23;
@@ -39,7 +36,7 @@
   function* gen3() {
     for (var i = 0; i < 3; ++i) {
       yield i;
-      if (i >= 1) %OptimizeOsr(0, "concurrent");
+      if (i == 1) %OptimizeOsr();
     }
     return 23;
   }
@@ -56,7 +53,7 @@
     for (var i = 0; i < 3; ++i) {
       for (var j = 0; j < 3; ++j) {
         for (var k = 0; k < 10; ++k) {
-          if (k == 5 || k == 6) %OptimizeOsr(0, "concurrent");
+          if (k == 5) %OptimizeOsr();
         }
         %PrepareFunctionForOptimization(gen4);
       }

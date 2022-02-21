@@ -8,10 +8,7 @@ function f() {
   C = class {};
   for (var i = 0; i < 5; ++i) {
     gc();
-    if (i == 2 || i == 3) {
-      %OptimizeOsr(0, "concurrent");
-      %PrepareFunctionForOptimization(f);
-    }
+    if (i == 2) %OptimizeOsr();
     C.prototype.foo = i + 9000000000000000;
   }
 }

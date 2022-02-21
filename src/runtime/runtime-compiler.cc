@@ -19,9 +19,6 @@
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/parked-scope.h"
-#include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecodes.h"
-#include "src/interpreter/interpreter.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -239,7 +236,7 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
 
 namespace {
 
-std::tuple<BytecodeOffset, int> DetermineEntryAndDisarmOSRForUnoptimized(
+BytecodeOffset DetermineEntryAndDisarmOSRForUnoptimized(
     JavaScriptFrame* js_frame) {
   UnoptimizedFrame* frame = reinterpret_cast<UnoptimizedFrame*>(js_frame);
 
@@ -260,15 +257,9 @@ std::tuple<BytecodeOffset, int> DetermineEntryAndDisarmOSRForUnoptimized(
   // Reset the OSR loop nesting depth to disarm back edges.
   bytecode->set_osr_loop_nesting_level(0);
 
-  // Read depth of loop from bytecode array
-  interpreter::BytecodeArrayIterator bytecode_iterator(
-      bytecode, frame->GetBytecodeOffset());
-  int osr_depth = bytecode_iterator.GetImmediateOperand(1);
-
   // Return a BytecodeOffset representing the bytecode offset of the back
-  // branch and an int which is the loop depth of the corresponding bytecode
-  // offset.
-  return {BytecodeOffset(frame->GetBytecodeOffset()), osr_depth};
+  // branch.
+  return BytecodeOffset(frame->GetBytecodeOffset());
 }
 
 }  // namespace
@@ -287,10 +278,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
 
   // Determine the entry point for which this OSR request has been fired and
   // also disarm all back edges in the calling code to stop new requests.
-  BytecodeOffset osr_offset = BytecodeOffset::None();
-  int osr_depth = AbstractCode::kNoLoopNestingLevelValue;
-  std::tie(osr_offset, osr_depth) =
-      DetermineEntryAndDisarmOSRForUnoptimized(frame);
+  BytecodeOffset osr_offset = DetermineEntryAndDisarmOSRForUnoptimized(frame);
   DCHECK(!osr_offset.IsNone());
 
   MaybeHandle<CodeT> maybe_result;
@@ -302,11 +290,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       function->PrintName(scope.file());
       PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
     }
-
-    // With concurrent osr enabled, GetOptimizedCodeForOSR only returns valid
-    // code at OSROptimizeCodeCache hit.
-    maybe_result = Compiler::GetOptimizedCodeForOSR(
-        isolate, function, osr_offset, frame, osr_depth);
+    maybe_result =
+        Compiler::GetOptimizedCodeForOSR(isolate, function, osr_offset, frame);
   }
 
   // Check whether we ended up with usable optimized code.
@@ -338,18 +323,15 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
         // feedback. We cannot do this currently since we OSR only after we mark
         // a function for optimization. We should instead change it to be based
         // based on number of ticks.
-        if (function->IsMarkedForOptimization() ||
-            function->IsMarkedForConcurrentOptimization()) {
-          function->ClearOptimizationMarker();
-        }
+        DCHECK(!function->IsInOptimizationQueue());
+        function->ClearOptimizationMarker();
       }
       // TODO(mythria): Once we have OSR code cache we may not need to mark
       // the function for non-concurrent compilation. We could arm the loops
       // early so the second execution uses the already compiled OSR code and
       // the optimization occurs concurrently off main thread.
       if (!function->HasAvailableOptimizedCode() &&
-          function->feedback_vector().invocation_count() > 1 &&
-          !function->IsInOptimizationQueue()) {
+          function->feedback_vector().invocation_count() > 1) {
         // If we're not already optimized, set to optimize non-concurrently on
         // the next call, otherwise we'd run unoptimized once more and
         // potentially compile for OSR again.
@@ -362,7 +344,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
         function->SetOptimizationMarker(
             OptimizationMarker::kCompileTurbofan_NotConcurrent);
       }
-      function->feedback_vector().set_profiler_ticks(0);
       return *result;
     }
   }

@@ -492,8 +492,6 @@ class SharedFunctionInfo
   // closest outer class scope.
   DECL_BOOLEAN_ACCESSORS(private_name_lookup_skips_outer_class)
 
-  DECL_BOOLEAN_ACCESSORS(osr_is_in_optimization_queue)
-
   inline FunctionKind kind() const;
 
   // Defines the index in a native context of closure's map instantiated using

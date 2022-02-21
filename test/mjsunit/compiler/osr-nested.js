@@ -36,7 +36,7 @@ function f() {
       var y = x + 5;
       var z = y + 3;
       sum += z;
-      if (j == 5 || j == 6) %OptimizeOsr(0, "concurrent");
+      if (j == 5) %OptimizeOsr();
     }
   }
   return sum;

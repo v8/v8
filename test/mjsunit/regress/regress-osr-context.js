@@ -12,7 +12,7 @@
     for (let i = 0; i < 5; ++i) {
       a--;  // Make sure {a} is non-immutable, hence context allocated.
       function g() { return i }  // Make sure block has a context.
-      if (i == 2 || i == 3) %OptimizeOsr(0, "concurrent");
+      if (i == 2) %OptimizeOsr();
     }
     return a;
   }

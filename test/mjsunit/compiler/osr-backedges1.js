@@ -15,7 +15,7 @@ function foo(a) {
     if (i == 5) { i = 6; continue; }
     if (i == 6) { i = 7; continue; }
     if (i == 7) { i = 8; continue; }
-    for (var j = 0; j < 10; j++) { if (i == 5) %OptimizeOsr(0, "concurrent"); }
+    for (var j = 0; j < 10; j++) { if (i == 5) %OptimizeOsr(); }
     break;
   }
   return j;

@@ -553,7 +553,6 @@ DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
 // TODO(tebbi): Support allocating types from background thread.
 DEFINE_NEG_IMPLICATION(assert_types, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(assert_types, concurrent_osr)
 
 DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
@@ -1545,8 +1544,6 @@ DEFINE_BOOL(always_opt, false, "always try to optimize functions")
 DEFINE_IMPLICATION(always_opt, opt)
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
 DEFINE_BOOL(prepare_always_opt, false, "prepare for turning on always opt")
-DEFINE_BOOL(concurrent_osr, true,
-            "compile turbofan optimized code for osr on background thread")
 
 DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
 #ifdef DEBUG

@@ -1468,15 +1468,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return baseline_batch_compiler_;
   }
 
-  bool concurrent_recompilation_enabled() const {
+  bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
     DCHECK(optimizing_compile_dispatcher_ == nullptr ||
            FLAG_concurrent_recompilation);
     return optimizing_compile_dispatcher_ != nullptr;
-  }
-
-  bool concurrent_osr_enabled() const {
-    return concurrent_recompilation_enabled() && FLAG_concurrent_osr;
   }
 
   OptimizingCompileDispatcher* optimizing_compile_dispatcher() {

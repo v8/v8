@@ -9,7 +9,7 @@ function id(f) { return f; }
 function foo(a) {
   var r = /\0/;
   for (var i = 0; i < 10; i++) {
-    if (a) %OptimizeOsr(0, "concurrent");
+    if (a) %OptimizeOsr();
     %PrepareFunctionForOptimization(foo);
   }
   return r;
@@ -18,7 +18,7 @@ function foo(a) {
 
 function bar(a) {
   for (var i = 0; i < 10; i++) {
-    if (a) %OptimizeOsr(0, "concurrent");
+    if (a) %OptimizeOsr();
     %PrepareFunctionForOptimization(bar);
     var r = /\0/;
   }
@@ -28,7 +28,7 @@ function bar(a) {
 
 function baz(a) {
   for (var i = 0; i < 10; i++) {
-    if (a) %OptimizeOsr(0, "concurrent");
+    if (a) %OptimizeOsr();
     %PrepareFunctionForOptimization(baz);
   }
   return /\0/;
@@ -38,7 +38,7 @@ function baz(a) {
 function qux(a) {
   for (var i = 0; i < 10; i++) {
     if (i > 5 && a) {
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
       %PrepareFunctionForOptimization(qux);
     } else {
       var r = /\0/;

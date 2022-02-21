@@ -31,7 +31,7 @@ function ChangeSmiConstantAndOsr() {
   var j = 1;
   for (var i = 0; i < 4; i++) {
     if (i == 2) {
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
       g();
     }
   }
@@ -49,7 +49,7 @@ function ChangeFloatConstantAndOsr() {
   var j = 0.1;
   for (var i = 0; i < 4; i++) {
     if (i == 2) {
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
       g();
     }
   }
@@ -68,7 +68,7 @@ function ChangeFloatVarAndOsr() {
   for (var i = 0; i < 4; i++) {
     j = j + 0.1;
     if (i == 2) {
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
       g();
     }
   }
@@ -102,7 +102,7 @@ function ChangeIntVarAndOsr() {
   for (var i = 0; i < 4; i++) {
     j = j + 1|0;
     if (i == 2) {
-      %OptimizeOsr(0, "concurrent");
+      %OptimizeOsr();
       g();
     }
   }

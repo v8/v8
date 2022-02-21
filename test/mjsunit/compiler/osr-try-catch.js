@@ -14,8 +14,8 @@ function SingleLoop() {
   for (var a = 0; a < 2; a++) {
     try { throw 'The exception should have been caught.'; }
     catch(e) {}
-    for (var b = 0; b < 2; b++) {
-      %OptimizeOsr(0, "concurrent");
+    for (var b = 0; b < 1; b++) {
+      %OptimizeOsr();
       %PrepareFunctionForOptimization(SingleLoop);
     }
   }
@@ -33,10 +33,10 @@ function EmptyBody() {
   try {; } catch(e) {; }
   var a = 0;
   while (1) {
-    %OptimizeOsr(0, "concurrent");
+    %OptimizeOsr();
     print("foo");
 
-    if (a == 2) break;
+    if (a == 1) break;
     a++;
     %PrepareFunctionForOptimization(EmptyBody);
   }
@@ -46,12 +46,12 @@ function EmptyBody() {
 function NestedLoops() {
   for (var a = 0; a < 2; a++) {
     try {; } catch(e) {; }
-    %OptimizeOsr(0, "concurrent");
+    %OptimizeOsr();
     var b = 0;
     while (1) {
       print("bar");
 
-      if (b == 2) break;
+      if (b == 1) break;
       b++;
     }
     %PrepareFunctionForOptimization(NestedLoops);

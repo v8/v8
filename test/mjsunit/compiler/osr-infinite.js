@@ -8,7 +8,7 @@ var global_counter = 0;
 
 function thrower() {
   var x = global_counter++;
-  if (x == 5 || x == 6)  %OptimizeOsr(1, "concurrent");
+  if (x == 5)  %OptimizeOsr(1);
   if (x == 10) throw "terminate";
 }
 

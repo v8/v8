@@ -814,8 +814,6 @@ class AbstractCode : public HeapObject {
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
 
-  static const int kNoLoopNestingLevelValue = -1;
-
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 
  private:

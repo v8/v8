@@ -264,17 +264,6 @@ bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
   return true;
 }
 
-ConcurrencyMode ConcurrencyModeFromString(Handle<Object> mode,
-                                          Isolate* isolate) {
-  if (mode->IsString() &&
-      Handle<String>::cast(mode)->IsOneByteEqualTo(
-          base::StaticCharVector("concurrent")) &&
-      isolate->concurrent_recompilation_enabled()) {
-    return ConcurrencyMode::kConcurrent;
-  }
-  return ConcurrencyMode::kNotConcurrent;
-}
-
 Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
                                   TierupKind tierup_kind) {
   if (args.length() != 1 && args.length() != 2) {
@@ -296,7 +285,11 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   if (args.length() == 2) {
     CONVERT_ARG_HANDLE_CHECKED(Object, type, 1);
     if (!type->IsString()) return CrashUnlessFuzzing(isolate);
-    concurrency_mode = ConcurrencyModeFromString(type, isolate);
+    if (Handle<String>::cast(type)->IsOneByteEqualTo(
+            base::StaticCharVector("concurrent")) &&
+        isolate->concurrent_recompilation_enabled()) {
+      concurrency_mode = ConcurrencyMode::kConcurrent;
+    }
   }
   if (FLAG_trace_opt) {
     PrintF("[manually marking ");
@@ -348,14 +341,6 @@ bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
   // optimization.
   JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
   return true;
-}
-
-void FinalizeOptimization(Isolate* isolate) {
-  if (isolate->concurrent_recompilation_enabled()) {
-    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
-    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-    isolate->optimizing_compile_dispatcher()->set_finalize(true);
-  }
 }
 
 }  // namespace
@@ -474,13 +459,13 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionForTopTier) {
 
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 0 || args.length() == 1 || args.length() == 2);
+  DCHECK(args.length() == 0 || args.length() == 1);
 
   Handle<JSFunction> function;
 
-  // The first optional parameter determines the frame being targeted.
+  // The optional parameter determines the frame being targeted.
   int stack_depth = 0;
-  if (args.length() >= 1) {
+  if (args.length() == 1) {
     if (!args[0].IsSmi()) return CrashUnlessFuzzing(isolate);
     stack_depth = args.smi_at(0);
   }
@@ -490,21 +475,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   while (!it.done() && stack_depth--) it.Advance();
   if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
-
-  if (it.frame()->is_optimized()) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  if (function->shared().osr_is_in_optimization_queue()) {
-    FinalizeOptimization(isolate);
-    return ReadOnlyRoots(isolate).undefined_value();
-  } else if (function->shared().osr_code_cache_state() !=
-             OSRCodeCacheStateOfSFI::kNotCached) {
-    isolate->tiering_manager()->AttemptOnStackReplacement(
-        UnoptimizedFrame::cast(it.frame()),
-        AbstractCode::kMaxLoopNestingMarker);
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
 
   if (!FLAG_opt) return ReadOnlyRoots(isolate).undefined_value();
 
@@ -533,33 +503,18 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  // The second parameter determines the concurrency mode.
-  ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
-  if (args.length() == 2) {
-    CONVERT_ARG_HANDLE_CHECKED(Object, type, 1);
-    if (!type->IsString()) return CrashUnlessFuzzing(isolate);
-    concurrency_mode = ConcurrencyModeFromString(type, isolate);
-  }
-
-  if (concurrency_mode == ConcurrencyMode::kNotConcurrent) {
-    CHECK(!isolate->concurrent_osr_enabled());
-  } else {
-    CHECK(isolate->concurrent_osr_enabled());
-  }
-
+  // Ensure that the function is marked for non-concurrent optimization, so that
+  // subsequent runs don't also optimize.
   if (FLAG_trace_osr) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[OSR - OptimizeOsr marking ");
     function->ShortPrint(scope.file());
-    PrintF(scope.file(), " for %s optimization]\n",
-           concurrency_mode == ConcurrencyMode::kConcurrent ? "concurrent"
-                                                            : "non-concurrent");
+    PrintF(scope.file(), " for non-concurrent optimization]\n");
   }
-
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate));
   JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-  function->MarkForOptimization(concurrency_mode);
+  function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
 
   // Make the profiler arm all back edges in unoptimized code.
   if (it.frame()->is_unoptimized()) {
@@ -717,7 +672,11 @@ RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
 
 RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
   DCHECK_EQ(0, args.length());
-  FinalizeOptimization(isolate);
+  if (isolate->concurrent_recompilation_enabled()) {
+    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+    isolate->optimizing_compile_dispatcher()->set_finalize(true);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

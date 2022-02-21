@@ -10,7 +10,7 @@ function foo() {
     B: for (var j = 0; j < 5; j++) {
          %PrepareFunctionForOptimization(foo);
       C: for (var k = 0; k < 10; k++) {
-        if (k === 4 || k === 5) %OptimizeOsr(0, "concurrent");
+        if (k === 5) %OptimizeOsr();
         if (k === 6) break B;
         sum++;
       }
@@ -30,7 +30,7 @@ function bar(a) {
          %PrepareFunctionForOptimization(bar);
       C: for (var k = 0; k < 10; k++) {
         sum++;
-        %OptimizeOsr(0, "concurrent");
+        %OptimizeOsr();
         if (a === 1) break A;
         if (a === 2) break B;
         if (a === 3) break C;

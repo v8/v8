@@ -17,7 +17,7 @@ function wrapper1() {
   for (var i = 0; i < 4; i++) {
     // Get this function optimized before calling to increment.
     // Check that that call performs the necessary side-effect checks.
-    %OptimizeOsr(0, "concurrent");
+    %OptimizeOsr();
     %PrepareFunctionForOptimization(wrapper1);
   }
   f1();

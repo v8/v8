@@ -92,7 +92,7 @@ function test_osr_elements_kind() {
   %NeverOptimizeFunction(construct_smis);
   %NeverOptimizeFunction(construct_doubles);
   %NeverOptimizeFunction(convert_mixed);
-  for (var i = 0; i < 10; i++) { if (i == 5 || i == 6) %OptimizeOsr(0, "concurrent"); }
+  for (var i = 0; i < 10; i++) { if (i == 5) %OptimizeOsr(); }
 
   // This code exists to eliminate the learning influence of AllocationSites
   // on the following tests.

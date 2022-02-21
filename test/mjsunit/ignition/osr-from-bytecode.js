@@ -6,7 +6,7 @@
 
 function f() {
   for (var i = 0; i < 10; i++) {
-    if (i == 5 || i == 6) %OptimizeOsr(0, "concurrent");
+    if (i == 5) %OptimizeOsr();
   }
 }
 %PrepareFunctionForOptimization(f);

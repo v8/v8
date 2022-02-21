@@ -47,7 +47,7 @@ function g() { try { return o.f(); } finally { }}
 // This function should be optimized via OSR.
 function h() {
   for (var i = 0; i < 10; i++) {
-    %OptimizeOsr(0, "concurrent");
+    %OptimizeOsr();
     %PrepareFunctionForOptimization(h);
   }
   g();

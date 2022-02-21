@@ -10,8 +10,8 @@ function f(x) {
   while (count > 0) {
     sum += x;
     count--;
-    if (count == 5 || count == 4) {
-      %OptimizeOsr(0, "concurrent");
+    if (count == 5) {
+      %OptimizeOsr();
     }
   }
   return sum;

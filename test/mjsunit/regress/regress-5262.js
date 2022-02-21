@@ -10,7 +10,7 @@ function boom(o) { o.g = h }
 function f(osr_and_recurse) {
   if (osr_and_recurse) {
     for (var i = 0; i < 3; ++i) {
-      if (i >= 1) %OptimizeOsr(0, "concurrent");
+      if (i == 1) %OptimizeOsr();
     }
     %PrepareFunctionForOptimization(f);
     %OptimizeFunctionOnNextCall(f);

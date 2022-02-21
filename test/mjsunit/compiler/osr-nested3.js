@@ -13,7 +13,7 @@ function f() {
         var y = x + 5;
         var z = y + 3;
         sum += z;
-        if (i == 19) %OptimizeOsr(0, "concurrent");
+        if (i == 19) %OptimizeOsr();
       }
     }
   }
