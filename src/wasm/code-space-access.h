@@ -53,6 +53,8 @@ class V8_NODISCARD CodeSpaceWriteScope final {
   CodeSpaceWriteScope(const CodeSpaceWriteScope&) = delete;
   CodeSpaceWriteScope& operator=(const CodeSpaceWriteScope&) = delete;
 
+  static bool IsInScope() { return code_space_write_nesting_level_ > 0; }
+
  private:
   static thread_local int code_space_write_nesting_level_;
 #if defined(DEBUG) && !V8_HAS_PTHREAD_JIT_WRITE_PROTECT

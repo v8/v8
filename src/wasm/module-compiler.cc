@@ -3202,6 +3202,10 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   auto* module = native_module_->module();
   auto enabled_features = native_module_->enabled_features();
   const bool lazy_module = IsLazyModule(module);
+  base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
+  if (lazy_module || !lazy_functions.empty()) {
+    lazy_code_space_write_scope.emplace(native_module_);
+  }
   {
     base::MutexGuard guard(&callbacks_mutex_);
     DCHECK(compilation_progress_.empty());

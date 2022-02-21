@@ -1135,9 +1135,11 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   DCHECK_LE(module_->num_imported_functions, func_index);
   DCHECK_LT(func_index,
             module_->num_imported_functions + module_->num_declared_functions);
+  // Avoid opening a new write scope per function. The caller should hold the
+  // scope instead.
+  DCHECK(CodeSpaceWriteScope::IsInScope());
 
   base::RecursiveMutexGuard guard(&allocation_mutex_);
-  CodeSpaceWriteScope code_space_write_scope(this);
   if (!lazy_compile_table_) {
     uint32_t num_slots = module_->num_declared_functions;
     WasmCodeRefScope code_ref_scope;
