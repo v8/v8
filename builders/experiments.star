@@ -32,7 +32,7 @@ def experiment_builder(**kwargs):
         )
 
     return v8_builder(
-        experiments = {"v8.scripts.use_python3": 100, "v8.steps.use_python3": 100},
+        experiments = {"v8.scripts.use_python3": 100},
         **kwargs
     )
 
