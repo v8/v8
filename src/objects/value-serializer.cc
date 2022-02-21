@@ -1995,6 +1995,8 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 }
 
 MaybeHandle<Object> ValueDeserializer::ReadJSError() {
+  uint32_t id = next_id_++;
+
   Handle<Object> message = isolate_->factory()->undefined_value();
   Handle<Object> options = isolate_->factory()->undefined_value();
   Handle<Object> stack = isolate_->factory()->undefined_value();
@@ -2073,6 +2075,7 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   }
 
   ErrorUtils::SetFormattedStack(isolate_, error, stack);
+  AddObjectWithID(id, error);
   return error;
 }
 
