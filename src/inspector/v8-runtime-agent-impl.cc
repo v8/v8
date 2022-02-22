@@ -452,15 +452,14 @@ Response V8RuntimeAgentImpl::getProperties(
                                        : WrapMode::kNoPreview,
       result, exceptionDetails);
   if (!response.IsSuccess()) return response;
-  if (exceptionDetails->isJust() || accessorPropertiesOnly.fromMaybe(false))
-    return Response::Success();
+  if (exceptionDetails->isJust()) return Response::Success();
   std::unique_ptr<protocol::Array<InternalPropertyDescriptor>>
       internalPropertiesProtocolArray;
   std::unique_ptr<protocol::Array<PrivatePropertyDescriptor>>
       privatePropertiesProtocolArray;
   response = scope.injectedScript()->getInternalAndPrivateProperties(
-      object, scope.objectGroupName(), &internalPropertiesProtocolArray,
-      &privatePropertiesProtocolArray);
+      object, scope.objectGroupName(), accessorPropertiesOnly.fromMaybe(false),
+      &internalPropertiesProtocolArray, &privatePropertiesProtocolArray);
   if (!response.IsSuccess()) return response;
   if (!internalPropertiesProtocolArray->empty())
     *internalProperties = std::move(internalPropertiesProtocolArray);
