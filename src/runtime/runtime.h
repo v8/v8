@@ -140,6 +140,8 @@ namespace internal {
   F(HandleDebuggerStatement, 0, 1)              \
   F(IsBreakOnException, 1, 1)                   \
   F(LiveEditPatchScript, 2, 1)                  \
+  F(WebSnapshotDeserialize, -1, 1)              \
+  F(WebSnapshotSerialize, -1, 1)                \
   F(ProfileCreateSnapshotDataBlob, 0, 1)        \
   F(ScheduleBreak, 0, 1)                        \
   F(ScriptLocationFromLine2, 4, 1)              \

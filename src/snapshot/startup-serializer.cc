@@ -132,7 +132,6 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
 
 }  // namespace
 #endif  // DEBUG
-
 void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   PtrComprCageBase cage_base(isolate());
 #ifdef DEBUG
