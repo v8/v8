@@ -433,8 +433,10 @@ void V8Debugger::handleProgramBreak(
   }
   m_inspector->forEachSession(contextGroupId,
                               [](V8InspectorSessionImpl* session) {
-                                if (session->debuggerAgent()->enabled())
+                                if (session->debuggerAgent()->enabled()) {
+                                  session->debuggerAgent()->clearBreakDetails();
                                   session->debuggerAgent()->didContinue();
+                                }
                               });
 
   if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();

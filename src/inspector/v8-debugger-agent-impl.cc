@@ -1740,11 +1740,6 @@ void V8DebuggerAgentImpl::setScriptInstrumentationBreakpointIfNeeded(
   }
   v8::debug::BreakpointId debuggerBreakpointId;
   if (!scriptRef->setInstrumentationBreakpoint(&debuggerBreakpointId)) return;
-  std::unique_ptr<protocol::DictionaryValue> data =
-      protocol::DictionaryValue::create();
-  data->setString("url", scriptRef->sourceURL());
-  data->setString("scriptId", scriptRef->scriptId());
-  if (!sourceMapURL.isEmpty()) data->setString("sourceMapURL", sourceMapURL);
 
   m_debuggerBreakpointIdToBreakpointId[debuggerBreakpointId] = breakpointId;
   m_breakpointIdToDebuggerBreakpointIds[breakpointId].push_back(
@@ -1897,7 +1892,6 @@ void V8DebuggerAgentImpl::didPause(
 }
 
 void V8DebuggerAgentImpl::didContinue() {
-  clearBreakDetails();
   m_frontend.resumed();
   m_frontend.flush();
 }

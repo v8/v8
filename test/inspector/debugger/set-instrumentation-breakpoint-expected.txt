@@ -112,3 +112,15 @@ paused with reason: instrumentation
 Remove instrumentation breakpoint..
 evaluate another script..
 no breakpoint was hit
+
+Running test: testInstrumentationCoincideWithScheduledPauseOnNextStatement
+set breakpoint..
+set instrumentation
+paused with reason: instrumentation
+{
+    scriptId : <scriptId>
+    url : 
+}
+paused with reason: instrumentation:scriptFirstStatement
+{
+}

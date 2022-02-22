@@ -195,5 +195,32 @@ InspectorTest.runAsyncTestSuite([
 
     await Protocol.Debugger.disable();
     await Protocol.Runtime.disable();
+  },
+
+  async function testInstrumentationCoincideWithScheduledPauseOnNextStatement() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('set breakpoint..');
+    InspectorTest.log('set instrumentation');
+    await Protocol.Debugger.setInstrumentationBreakpoint({
+      instrumentation: 'beforeScriptExecution'
+    });
+    contextGroup.schedulePauseOnNextStatement('instrumentation:scriptFirstStatement', '{}');
+    const runPromise = Protocol.Runtime.evaluate({expression: 'console.log(3)'});
+    {
+      const { params: { reason, data } } = await Protocol.Debugger.oncePaused();
+      InspectorTest.log(`paused with reason: ${reason}`);
+      InspectorTest.logMessage(data);
+      Protocol.Debugger.resume();
+    }
+    {
+      const { params: { reason, data } } = await Protocol.Debugger.oncePaused();
+      InspectorTest.log(`paused with reason: ${reason}`);
+      InspectorTest.logMessage(data);
+      Protocol.Debugger.resume();
+    }
+    await runPromise;
+    await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
   }
 ]);
