@@ -432,6 +432,12 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   }
   Handle<Map> initial_map =
       factory->NewMap(type, instance_size, elements_kind, inobject_properties);
+  if (type == JS_FUNCTION_TYPE) {
+    DCHECK_EQ(instance_size, JSFunction::kSizeWithPrototype);
+    // Since we are creating an initial map for JSFunction objects with
+    // prototype slot, set the respective bit.
+    initial_map->set_has_prototype_slot(true);
+  }
   // TODO(littledan): Why do we have this is_generator test when
   // NewFunctionPrototype already handles finding an appropriately
   // shared prototype?

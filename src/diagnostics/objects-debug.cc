@@ -526,8 +526,19 @@ void Map::MapVerify(Isolate* isolate) {
       TransitionsAccessor(isolate, *this).IsConsistentWithBackPointers());
   // Only JSFunction maps have has_prototype_slot() bit set and constructible
   // JSFunction objects must have prototype slot.
-  CHECK_IMPLIES(has_prototype_slot(),
-                InstanceTypeChecker::IsJSFunction(instance_type()));
+  CHECK_IMPLIES(has_prototype_slot(), IsJSFunctionMap());
+
+  if (IsJSObjectMap()) {
+    int header_end_offset = JSObject::GetHeaderSize(*this);
+    int inobject_fields_start_offset = GetInObjectPropertyOffset(0);
+    // Ensure that embedder fields are located exactly between header and
+    // inobject properties.
+    CHECK_EQ(header_end_offset, JSObject::GetEmbedderFieldsStartOffset(*this));
+    CHECK_EQ(header_end_offset +
+                 JSObject::GetEmbedderFieldCount(*this) * kEmbedderDataSlotSize,
+             inobject_fields_start_offset);
+  }
+
   if (!may_have_interesting_symbols()) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
