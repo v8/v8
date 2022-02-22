@@ -528,6 +528,43 @@ TYPED_TEST(MinorGCTestForType, GenerationalBarrierDeferredTracing) {
   EXPECT_EQ(0u, remembered_objects.size());
 }
 
+namespace {
+class GCedWithCustomWeakCallback final
+    : public GarbageCollected<GCedWithCustomWeakCallback> {
+ public:
+  static size_t custom_callback_called;
+
+  void CustomWeakCallbackMethod(const LivenessBroker& broker) {
+    custom_callback_called++;
+  }
+
+  void Trace(cppgc::Visitor* visitor) const {
+    visitor->RegisterWeakCallbackMethod<
+        GCedWithCustomWeakCallback,
+        &GCedWithCustomWeakCallback::CustomWeakCallbackMethod>(this);
+  }
+};
+size_t GCedWithCustomWeakCallback::custom_callback_called = 0;
+}  // namespace
+
+TEST_F(MinorGCTest, ReexecuteCustomCallback) {
+  // Create an object with additional kBytesToAllocate bytes.
+  Persistent<GCedWithCustomWeakCallback> old =
+      MakeGarbageCollected<GCedWithCustomWeakCallback>(GetAllocationHandle());
+
+  CollectMinor();
+  EXPECT_EQ(1u, GCedWithCustomWeakCallback::custom_callback_called);
+
+  CollectMinor();
+  EXPECT_EQ(2u, GCedWithCustomWeakCallback::custom_callback_called);
+
+  CollectMinor();
+  EXPECT_EQ(3u, GCedWithCustomWeakCallback::custom_callback_called);
+
+  CollectMajor();
+  // The callback must be called only once.
+  EXPECT_EQ(4u, GCedWithCustomWeakCallback::custom_callback_called);
+}
 }  // namespace internal
 }  // namespace cppgc
 

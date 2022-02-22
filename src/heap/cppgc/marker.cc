@@ -319,12 +319,32 @@ void MarkerBase::ProcessWeakness() {
   heap().GetWeakCrossThreadPersistentRegion().Trace(&visitor());
 
   // Call weak callbacks on objects that may now be pointing to dead objects.
-  MarkingWorklists::WeakCallbackItem item;
   LivenessBroker broker = LivenessBrokerFactory::Create();
+#if defined(CPPGC_YOUNG_GENERATION)
+  auto& remembered_set = heap().remembered_set();
+  if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
+    // Custom callbacks assume that untraced pointers point to not yet freed
+    // objects. They must make sure that upon callback completion no
+    // UntracedMember points to a freed object. This may not hold true if a
+    // custom callback for an old object operates with a reference to a young
+    // object that was freed on a minor collection cycle. To maintain the
+    // invariant that UntracedMembers always point to valid objects, execute
+    // custom callbacks for old objects on each minor collection cycle.
+    remembered_set.ExecuteCustomCallbacks(broker);
+  } else {
+    // For major GCs, just release all the remembered weak callbacks.
+    remembered_set.ReleaseCustomCallbacks();
+  }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
+  MarkingWorklists::WeakCallbackItem item;
   MarkingWorklists::WeakCallbackWorklist::Local& local =
       mutator_marking_state_.weak_callback_worklist();
   while (local.Pop(&item)) {
     item.callback(broker, item.parameter);
+#if defined(CPPGC_YOUNG_GENERATION)
+    heap().remembered_set().AddWeakCallback(item);
+#endif  // defined(CPPGC_YOUNG_GENERATION)
   }
 
   // Weak callbacks should not add any new objects for marking.

@@ -82,6 +82,13 @@ void OldToNewRememberedSet::AddSourceObject(HeapObjectHeader& hoh) {
   remembered_source_objects_.insert(&hoh);
 }
 
+void OldToNewRememberedSet::AddWeakCallback(WeakCallbackItem item) {
+  DCHECK(!BasePage::FromInnerAddress(&heap_, item.parameter)
+              ->ObjectHeaderFromInnerAddress(item.parameter)
+              .IsYoung());
+  remembered_weak_callbacks_.insert(item);
+}
+
 void OldToNewRememberedSet::InvalidateRememberedSlotsInRange(void* begin,
                                                              void* end) {
   // TODO(1029379): The 2 binary walks can be optimized with a custom algorithm.
@@ -107,6 +114,16 @@ void OldToNewRememberedSet::Visit(Visitor& visitor,
                                   MutatorMarkingState& marking_state) {
   VisitRememberedSlots(remembered_slots_, heap_, marking_state);
   VisitRememberedSourceObjects(remembered_source_objects_, visitor);
+}
+
+void OldToNewRememberedSet::ExecuteCustomCallbacks(LivenessBroker broker) {
+  for (const auto& callback : remembered_weak_callbacks_) {
+    callback.callback(broker, callback.parameter);
+  }
+}
+
+void OldToNewRememberedSet::ReleaseCustomCallbacks() {
+  remembered_weak_callbacks_.clear();
 }
 
 void OldToNewRememberedSet::Reset() {
