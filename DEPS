@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '82354b240233e09646b147ec0a1cfdce31fb1fcd',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'eaff71261cd612b7fcf42a9c84b3e045676060aa',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '93c15529c323c6cc12516ef9caac7fd815ee7c82',
   'buildtools/clang_format/script':
@@ -113,7 +113,7 @@ deps = {
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '738dc100c61890744f9e78cac27c71d0a2190781',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '75396220433652a698b05c5fb648fe1f5e1d7a27',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8cd7191937c9341646c88e39eae63ccd692ace91',
   'buildtools/win': {
     'packages': [
       {
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0cfa90e2036681a39ff8d5734532a19a752ed092',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '42cf2acbaee8f149fdc08661eece63aaf271b4bc',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
@@ -274,7 +274,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '4aca88e3555bca33756b7c072bb347a249232441',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'cd494c4016fcb3a6bca8ae617e0f754c4ac33f2b',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '3730026620f6de2d26c2ad3f35e21e6982101e5d',
   'tools/clang/dsymutil': {
