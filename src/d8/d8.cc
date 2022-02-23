@@ -4010,7 +4010,11 @@ void SourceGroup::ExecuteInThread() {
   Shell::Initialize(isolate, &console, false);
 
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
-    next_semaphore_.Wait();
+    {
+      i::ParkedScope parked_scope(
+          reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate());
+      next_semaphore_.Wait();
+    }
     {
       Isolate::Scope iscope(isolate);
       PerIsolateData data(isolate);
