@@ -433,32 +433,6 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_OptimizeFunctionForTopTier) {
-  // TODO(rmcilroy): Ideally this should be rolled into
-  // OptimizeFunctionOnNextCall, but there is no way to mark the tier to be
-  // optimized using the regular optimization marking system.
-  HandleScope scope(isolate);
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-
-  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
-  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-
-  IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(isolate));
-  if (!CanOptimizeFunction(function, isolate,
-                           TierupKind::kTierupBytecodeOrMidTier,
-                           &is_compiled_scope)) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  Compiler::CompileOptimized(isolate, function, ConcurrencyMode::kNotConcurrent,
-                             CodeKindForTopTier());
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 0 || args.length() == 1);
