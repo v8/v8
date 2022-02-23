@@ -844,54 +844,54 @@ struct type_sew_t<128> {
   RVV_VI_VFP_LOOP_END                                     \
   rvv_trace_vd();
 
-#define RVV_VI_VFP_VF_LOOP_WIDEN(BODY32, vs2_is_widen)                       \
-  RVV_VI_VFP_LOOP_BASE                                                       \
-  switch (rvv_vsew()) {                                                      \
-    case E16:                                                                \
-    case E64: {                                                              \
-      UNIMPLEMENTED();                                                       \
-      break;                                                                 \
-    }                                                                        \
-    case E32: {                                                              \
-      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true);                    \
-      float fs1 = (get_fpu_register_float(rs1_reg()));                       \
-      float vs2 = vs2_is_widen                                               \
-                      ? static_cast<float>(Rvvelt<double>(rvv_vs2_reg(), i)) \
-                      : Rvvelt<float>(rvv_vs2_reg(), i);                     \
-      float vs3 = static_cast<float>(Rvvelt<float>(rvv_vd_reg(), i));        \
-      BODY32;                                                                \
-      break;                                                                 \
-    }                                                                        \
-    default:                                                                 \
-      UNREACHABLE();                                                         \
-      break;                                                                 \
-  }                                                                          \
-  RVV_VI_VFP_LOOP_END                                                        \
+#define RVV_VI_VFP_VF_LOOP_WIDEN(BODY32, vs2_is_widen)                         \
+  RVV_VI_VFP_LOOP_BASE                                                         \
+  switch (rvv_vsew()) {                                                        \
+    case E16:                                                                  \
+    case E64: {                                                                \
+      UNIMPLEMENTED();                                                         \
+      break;                                                                   \
+    }                                                                          \
+    case E32: {                                                                \
+      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true);                      \
+      double fs1 = static_cast<double>(get_fpu_register_float(rs1_reg()));     \
+      double vs2 = vs2_is_widen                                                \
+                       ? Rvvelt<double>(rvv_vs2_reg(), i)                      \
+                       : static_cast<double>(Rvvelt<float>(rvv_vs2_reg(), i)); \
+      double vs3 = static_cast<double>(Rvvelt<float>(rvv_vd_reg(), i));        \
+      BODY32;                                                                  \
+      break;                                                                   \
+    }                                                                          \
+    default:                                                                   \
+      UNREACHABLE();                                                           \
+      break;                                                                   \
+  }                                                                            \
+  RVV_VI_VFP_LOOP_END                                                          \
   rvv_trace_vd();
 
-#define RVV_VI_VFP_VV_LOOP_WIDEN(BODY32, vs2_is_widen)                       \
-  RVV_VI_VFP_LOOP_BASE                                                       \
-  switch (rvv_vsew()) {                                                      \
-    case E16:                                                                \
-    case E64: {                                                              \
-      UNIMPLEMENTED();                                                       \
-      break;                                                                 \
-    }                                                                        \
-    case E32: {                                                              \
-      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true);                    \
-      float vs2 = vs2_is_widen                                               \
-                      ? static_cast<float>(Rvvelt<double>(rvv_vs2_reg(), i)) \
-                      : Rvvelt<float>(rvv_vs2_reg(), i);                     \
-      float vs1 = Rvvelt<float>(rvv_vs1_reg(), i);                           \
-      float vs3 = static_cast<float>(Rvvelt<float>(rvv_vd_reg(), i));        \
-      BODY32;                                                                \
-      break;                                                                 \
-    }                                                                        \
-    default:                                                                 \
-      require(0);                                                            \
-      break;                                                                 \
-  }                                                                          \
-  RVV_VI_VFP_LOOP_END                                                        \
+#define RVV_VI_VFP_VV_LOOP_WIDEN(BODY32, vs2_is_widen)                         \
+  RVV_VI_VFP_LOOP_BASE                                                         \
+  switch (rvv_vsew()) {                                                        \
+    case E16:                                                                  \
+    case E64: {                                                                \
+      UNIMPLEMENTED();                                                         \
+      break;                                                                   \
+    }                                                                          \
+    case E32: {                                                                \
+      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true);                      \
+      double vs2 = vs2_is_widen                                                \
+                       ? static_cast<double>(Rvvelt<double>(rvv_vs2_reg(), i)) \
+                       : static_cast<double>(Rvvelt<float>(rvv_vs2_reg(), i)); \
+      double vs1 = static_cast<double>(Rvvelt<float>(rvv_vs1_reg(), i));       \
+      double vs3 = static_cast<double>(Rvvelt<float>(rvv_vd_reg(), i));        \
+      BODY32;                                                                  \
+      break;                                                                   \
+    }                                                                          \
+    default:                                                                   \
+      require(0);                                                              \
+      break;                                                                   \
+  }                                                                            \
+  RVV_VI_VFP_LOOP_END                                                          \
   rvv_trace_vd();
 
 #define RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(type, check_fn, op)      \
@@ -6475,7 +6475,7 @@ void Simulator::DecodeRvvFVV() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VV_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(float, is_invalid_fadd, +);
+            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(double, is_invalid_fadd, +);
             USE(vs3);
           },
           false)
@@ -6484,7 +6484,7 @@ void Simulator::DecodeRvvFVV() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VV_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(float, is_invalid_fsub, -);
+            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(double, is_invalid_fsub, -);
             USE(vs3);
           },
           false)
@@ -6493,7 +6493,7 @@ void Simulator::DecodeRvvFVV() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VV_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(float, is_invalid_fadd, +);
+            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(double, is_invalid_fadd, +);
             USE(vs3);
           },
           true)
@@ -6502,7 +6502,7 @@ void Simulator::DecodeRvvFVV() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VV_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(float, is_invalid_fsub, -);
+            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(double, is_invalid_fsub, -);
             USE(vs3);
           },
           true)
@@ -6511,7 +6511,7 @@ void Simulator::DecodeRvvFVV() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VV_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(float, is_invalid_fmul, *);
+            RVV_VI_VFP_VV_ARITH_CHECK_COMPUTE(double, is_invalid_fmul, *);
             USE(vs3);
           },
           false)
@@ -6661,7 +6661,7 @@ void Simulator::DecodeRvvFVF() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VF_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(float, is_invalid_fadd, +);
+            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(double, is_invalid_fadd, +);
             USE(vs3);
           },
           false)
@@ -6670,7 +6670,7 @@ void Simulator::DecodeRvvFVF() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VF_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(float, is_invalid_fsub, -);
+            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(double, is_invalid_fsub, -);
             USE(vs3);
           },
           false)
@@ -6679,7 +6679,7 @@ void Simulator::DecodeRvvFVF() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VF_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(float, is_invalid_fadd, +);
+            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(double, is_invalid_fadd, +);
             USE(vs3);
           },
           true)
@@ -6688,7 +6688,7 @@ void Simulator::DecodeRvvFVF() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VF_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(float, is_invalid_fsub, -);
+            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(double, is_invalid_fsub, -);
             USE(vs3);
           },
           true)
@@ -6697,7 +6697,7 @@ void Simulator::DecodeRvvFVF() {
       RVV_VI_CHECK_DSS(true);
       RVV_VI_VFP_VF_LOOP_WIDEN(
           {
-            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(float, is_invalid_fmul, *);
+            RVV_VI_VFP_VF_ARITH_CHECK_COMPUTE(double, is_invalid_fmul, *);
             USE(vs3);
           },
           false)
