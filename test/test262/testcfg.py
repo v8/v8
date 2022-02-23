@@ -69,16 +69,18 @@ SKIPPED_FEATURES = set([])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
+BASE_DIR = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 
 TEST_262_SUITE_PATH = ["data", "test"]
 TEST_262_HARNESS_PATH = ["data", "harness"]
-TEST_262_TOOLS_PATH = ["harness", "src"]
+TEST_262_TOOLS_ABS_PATH = [BASE_DIR, "third_party", "test262-harness", "src"]
 TEST_262_LOCAL_TESTS_PATH = ["local-tests", "test"]
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             *TEST_262_TOOLS_PATH))
+sys.path.append(os.path.join(*TEST_262_TOOLS_ABS_PATH))
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -139,15 +141,14 @@ class TestSuite(testsuite.TestSuite):
     self.parse_test_record = self._load_parse_test_record()
 
   def _load_parse_test_record(self):
-    root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
+    root = os.path.join(*TEST_262_TOOLS_ABS_PATH)
     f = None
     try:
       (f, pathname, description) = imp.find_module("parseTestRecord", [root])
       module = imp.load_module("parseTestRecord", f, pathname, description)
       return module.parseTestRecord
     except:
-      print ('Cannot load parseTestRecord; '
-             'you may need to gclient sync for test262')
+      print('Cannot load parseTestRecord')
       raise
     finally:
       if f:
