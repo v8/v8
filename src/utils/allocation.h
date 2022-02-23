@@ -156,20 +156,18 @@ V8_WARN_UNUSED_RESULT void* AllocatePages(v8::PageAllocator* page_allocator,
                                           PageAllocator::Permission access);
 
 // Frees memory allocated by a call to AllocatePages. |address| and |size| must
-// be multiples of AllocatePageSize(). Returns true on success, otherwise false.
+// be multiples of AllocatePageSize().
 V8_EXPORT_PRIVATE
-V8_WARN_UNUSED_RESULT bool FreePages(v8::PageAllocator* page_allocator,
-                                     void* address, const size_t size);
+void FreePages(v8::PageAllocator* page_allocator, void* address,
+               const size_t size);
 
 // Releases memory that is no longer needed. The range specified by |address|
 // and |size| must be an allocated memory region. |size| and |new_size| must be
 // multiples of CommitPageSize(). Memory from |new_size| to |size| is released.
 // Released memory is left in an undefined state, so it should not be accessed.
-// Returns true on success, otherwise false.
 V8_EXPORT_PRIVATE
-V8_WARN_UNUSED_RESULT bool ReleasePages(v8::PageAllocator* page_allocator,
-                                        void* address, size_t size,
-                                        size_t new_size);
+void ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
+                  size_t new_size);
 
 // Sets permissions according to |access|. |address| and |size| must be
 // multiples of CommitPageSize(). Setting permission to kNoAccess may

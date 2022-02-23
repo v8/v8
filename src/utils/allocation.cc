@@ -213,19 +213,19 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
   return result;
 }
 
-bool FreePages(v8::PageAllocator* page_allocator, void* address,
+void FreePages(v8::PageAllocator* page_allocator, void* address,
                const size_t size) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
-  return page_allocator->FreePages(address, size);
+  CHECK(page_allocator->FreePages(address, size));
 }
 
-bool ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
+void ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
                   size_t new_size) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_LT(new_size, size);
   DCHECK(IsAligned(new_size, page_allocator->CommitPageSize()));
-  return page_allocator->ReleasePages(address, size, new_size);
+  CHECK(page_allocator->ReleasePages(address, size, new_size));
 }
 
 bool SetPermissions(v8::PageAllocator* page_allocator, void* address,
@@ -293,8 +293,8 @@ size_t VirtualMemory::Release(Address free_start) {
   const size_t free_size = old_size - (free_start - region_.begin());
   CHECK(InVM(free_start, free_size));
   region_.set_size(old_size - free_size);
-  CHECK(ReleasePages(page_allocator_, reinterpret_cast<void*>(region_.begin()),
-                     old_size, region_.size()));
+  ReleasePages(page_allocator_, reinterpret_cast<void*>(region_.begin()),
+               old_size, region_.size());
   return free_size;
 }
 
@@ -307,8 +307,8 @@ void VirtualMemory::Free() {
   Reset();
   // FreePages expects size to be aligned to allocation granularity however
   // ReleasePages may leave size at only commit granularity. Align it here.
-  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-                  RoundUp(region.size(), page_allocator->AllocatePageSize())));
+  FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+            RoundUp(region.size(), page_allocator->AllocatePageSize()));
 }
 
 void VirtualMemory::FreeReadOnly() {
@@ -320,8 +320,8 @@ void VirtualMemory::FreeReadOnly() {
 
   // FreePages expects size to be aligned to allocation granularity however
   // ReleasePages may leave size at only commit granularity. Align it here.
-  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-                  RoundUp(region.size(), page_allocator->AllocatePageSize())));
+  FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+            RoundUp(region.size(), page_allocator->AllocatePageSize()));
 }
 
 VirtualMemoryCage::VirtualMemoryCage() = default;

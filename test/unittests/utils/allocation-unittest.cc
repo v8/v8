@@ -102,7 +102,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
         page_allocator, nullptr, page_size, page_size, permission));
     ProbeMemory(buffer, MemoryAction::kRead, can_read);
     ProbeMemory(buffer, MemoryAction::kWrite, can_write);
-    CHECK(FreePages(page_allocator, buffer, page_size));
+    FreePages(page_allocator, buffer, page_size);
   }
 };
 
@@ -141,7 +141,7 @@ TEST(AllocationTest, AllocateAndFree) {
       page_allocator, page_allocator->GetRandomMmapAddr(), kAllocationSize,
       page_size, PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(mem_addr);
-  CHECK(v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize));
+  v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize);
 
   // A large allocation, aligned significantly beyond native granularity.
   const size_t kBigAlignment = 64 * v8::internal::MB;
@@ -151,8 +151,7 @@ TEST(AllocationTest, AllocateAndFree) {
       kAllocationSize, kBigAlignment, PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(aligned_mem_addr);
   CHECK_EQ(aligned_mem_addr, AlignedAddress(aligned_mem_addr, kBigAlignment));
-  CHECK(v8::internal::FreePages(page_allocator, aligned_mem_addr,
-                                kAllocationSize));
+  v8::internal::FreePages(page_allocator, aligned_mem_addr, kAllocationSize);
 }
 
 TEST(AllocationTest, ReserveMemory) {
@@ -172,7 +171,7 @@ TEST(AllocationTest, ReserveMemory) {
   addr[v8::internal::KB - 1] = 2;
   CHECK(v8::internal::SetPermissions(page_allocator, mem_addr, commit_size,
                                      PageAllocator::Permission::kNoAccess));
-  CHECK(v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize));
+  v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize);
 }
 
 }  // namespace internal

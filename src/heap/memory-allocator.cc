@@ -229,7 +229,7 @@ bool MemoryAllocator::UncommitMemory(VirtualMemory* reservation) {
 
 void MemoryAllocator::FreeMemoryRegion(v8::PageAllocator* page_allocator,
                                        Address base, size_t size) {
-  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(base), size));
+  FreePages(page_allocator, reinterpret_cast<void*>(base), size);
 }
 
 Address MemoryAllocator::AllocateAlignedMemory(

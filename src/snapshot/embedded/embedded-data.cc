@@ -175,8 +175,8 @@ void OffHeapInstructionStream::FreeOffHeapOffHeapInstructionStream(
   v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
   const uint32_t page_size =
       static_cast<uint32_t>(page_allocator->AllocatePageSize());
-  CHECK(FreePages(page_allocator, code, RoundUp(code_size, page_size)));
-  CHECK(FreePages(page_allocator, data, RoundUp(data_size, page_size)));
+  FreePages(page_allocator, code, RoundUp(code_size, page_size));
+  FreePages(page_allocator, data, RoundUp(data_size, page_size));
 }
 
 namespace {

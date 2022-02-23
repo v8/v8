@@ -241,11 +241,10 @@ BackingStore::~BackingStore() {
     auto region =
         GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
 
-    bool pages_were_freed =
-        region.size() == 0 /* no need to free any pages */ ||
-        FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-                  region.size());
-    CHECK(pages_were_freed);
+    if (!region.is_empty()) {
+      FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+                region.size());
+    }
     Clear();
     return;
   }
@@ -257,11 +256,10 @@ BackingStore::~BackingStore() {
     auto region =
         GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
 
-    bool pages_were_freed =
-        region.size() == 0 /* no need to free any pages */ ||
-        FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-                  region.size());
-    CHECK(pages_were_freed);
+    if (!region.is_empty()) {
+      FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+                region.size());
+    }
     Clear();
     return;
   }
@@ -476,7 +474,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   if (!gc_retry(commit_memory)) {
     TRACE_BS("BSw:try   failed to set permissions (%p, %zu)\n", buffer_start,
              committed_byte_length);
-    CHECK(FreePages(page_allocator, allocation_base, reservation_size));
+    FreePages(page_allocator, allocation_base, reservation_size);
     // SetPermissions put us over the process memory limit.
     // We return an empty result so that the caller can throw an exception.
     return {};
