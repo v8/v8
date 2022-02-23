@@ -206,60 +206,60 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTL(F, I)
 #endif  // V8_INTL_SUPPORT
 
-#define FOR_EACH_INTRINSIC_INTERNAL(F, I)                    \
-  F(AccessCheck, 1, 1)                                       \
-  F(AllocateByteArray, 1, 1)                                 \
-  F(AllocateInYoungGeneration, 2, 1)                         \
-  F(AllocateInOldGeneration, 2, 1)                           \
-  F(AllocateSeqOneByteString, 1, 1)                          \
-  F(AllocateSeqTwoByteString, 1, 1)                          \
-  F(AllowDynamicFunction, 1, 1)                              \
-  I(CreateAsyncFromSyncIterator, 1, 1)                       \
-  F(CreateListFromArrayLike, 1, 1)                           \
-  F(DoubleToStringWithRadix, 2, 1)                           \
-  F(FatalProcessOutOfMemoryInAllocateRaw, 0, 1)              \
-  F(FatalProcessOutOfMemoryInvalidArrayLength, 0, 1)         \
-  F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)           \
-  F(GetTemplateObject, 3, 1)                                 \
-  F(IncrementUseCounter, 1, 1)                               \
-  F(BytecodeBudgetInterruptFromBytecode, 1, 1)               \
-  F(BytecodeBudgetInterruptWithStackCheckFromBytecode, 1, 1) \
-  F(NewError, 2, 1)                                          \
-  F(NewReferenceError, 2, 1)                                 \
-  F(NewSyntaxError, 2, 1)                                    \
-  F(NewTypeError, -1 /* [1, 4] */, 1)                        \
-  F(OrdinaryHasInstance, 2, 1)                               \
-  F(PromoteScheduledException, 0, 1)                         \
-  F(ReportMessageFromMicrotask, 1, 1)                        \
-  F(ReThrow, 1, 1)                                           \
-  F(ReThrowWithMessage, 2, 1)                                \
-  F(RunMicrotaskCallback, 2, 1)                              \
-  F(PerformMicrotaskCheckpoint, 0, 1)                        \
-  F(SharedValueBarrierSlow, 1, 1)                            \
-  F(StackGuard, 0, 1)                                        \
-  F(StackGuardWithGap, 1, 1)                                 \
-  F(Throw, 1, 1)                                             \
-  F(ThrowApplyNonFunction, 1, 1)                             \
-  F(ThrowCalledNonCallable, 1, 1)                            \
-  F(ThrowConstructedNonConstructable, 1, 1)                  \
-  F(ThrowConstructorReturnedNonObject, 0, 1)                 \
-  F(ThrowInvalidStringLength, 0, 1)                          \
-  F(ThrowInvalidTypedArrayAlignment, 2, 1)                   \
-  F(ThrowIteratorError, 1, 1)                                \
-  F(ThrowSpreadArgError, 2, 1)                               \
-  F(ThrowIteratorResultNotAnObject, 1, 1)                    \
-  F(ThrowNotConstructor, 1, 1)                               \
-  F(ThrowPatternAssignmentNonCoercible, 1, 1)                \
-  F(ThrowRangeError, -1 /* >= 1 */, 1)                       \
-  F(ThrowReferenceError, 1, 1)                               \
-  F(ThrowAccessedUninitializedVariable, 1, 1)                \
-  F(ThrowStackOverflow, 0, 1)                                \
-  F(ThrowSymbolAsyncIteratorInvalid, 0, 1)                   \
-  F(ThrowSymbolIteratorInvalid, 0, 1)                        \
-  F(ThrowThrowMethodMissing, 0, 1)                           \
-  F(ThrowTypeError, -1 /* >= 1 */, 1)                        \
-  F(ThrowTypeErrorIfStrict, -1 /* >= 1 */, 1)                \
-  F(Typeof, 1, 1)                                            \
+#define FOR_EACH_INTRINSIC_INTERNAL(F, I)            \
+  F(AccessCheck, 1, 1)                               \
+  F(AllocateByteArray, 1, 1)                         \
+  F(AllocateInYoungGeneration, 2, 1)                 \
+  F(AllocateInOldGeneration, 2, 1)                   \
+  F(AllocateSeqOneByteString, 1, 1)                  \
+  F(AllocateSeqTwoByteString, 1, 1)                  \
+  F(AllowDynamicFunction, 1, 1)                      \
+  I(CreateAsyncFromSyncIterator, 1, 1)               \
+  F(CreateListFromArrayLike, 1, 1)                   \
+  F(DoubleToStringWithRadix, 2, 1)                   \
+  F(FatalProcessOutOfMemoryInAllocateRaw, 0, 1)      \
+  F(FatalProcessOutOfMemoryInvalidArrayLength, 0, 1) \
+  F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)   \
+  F(GetTemplateObject, 3, 1)                         \
+  F(IncrementUseCounter, 1, 1)                       \
+  F(BytecodeBudgetInterrupt, 1, 1)                   \
+  F(BytecodeBudgetInterruptWithStackCheck, 1, 1)     \
+  F(NewError, 2, 1)                                  \
+  F(NewReferenceError, 2, 1)                         \
+  F(NewSyntaxError, 2, 1)                            \
+  F(NewTypeError, -1 /* [1, 4] */, 1)                \
+  F(OrdinaryHasInstance, 2, 1)                       \
+  F(PromoteScheduledException, 0, 1)                 \
+  F(ReportMessageFromMicrotask, 1, 1)                \
+  F(ReThrow, 1, 1)                                   \
+  F(ReThrowWithMessage, 2, 1)                        \
+  F(RunMicrotaskCallback, 2, 1)                      \
+  F(PerformMicrotaskCheckpoint, 0, 1)                \
+  F(SharedValueBarrierSlow, 1, 1)                    \
+  F(StackGuard, 0, 1)                                \
+  F(StackGuardWithGap, 1, 1)                         \
+  F(Throw, 1, 1)                                     \
+  F(ThrowApplyNonFunction, 1, 1)                     \
+  F(ThrowCalledNonCallable, 1, 1)                    \
+  F(ThrowConstructedNonConstructable, 1, 1)          \
+  F(ThrowConstructorReturnedNonObject, 0, 1)         \
+  F(ThrowInvalidStringLength, 0, 1)                  \
+  F(ThrowInvalidTypedArrayAlignment, 2, 1)           \
+  F(ThrowIteratorError, 1, 1)                        \
+  F(ThrowSpreadArgError, 2, 1)                       \
+  F(ThrowIteratorResultNotAnObject, 1, 1)            \
+  F(ThrowNotConstructor, 1, 1)                       \
+  F(ThrowPatternAssignmentNonCoercible, 1, 1)        \
+  F(ThrowRangeError, -1 /* >= 1 */, 1)               \
+  F(ThrowReferenceError, 1, 1)                       \
+  F(ThrowAccessedUninitializedVariable, 1, 1)        \
+  F(ThrowStackOverflow, 0, 1)                        \
+  F(ThrowSymbolAsyncIteratorInvalid, 0, 1)           \
+  F(ThrowSymbolIteratorInvalid, 0, 1)                \
+  F(ThrowThrowMethodMissing, 0, 1)                   \
+  F(ThrowTypeError, -1 /* >= 1 */, 1)                \
+  F(ThrowTypeErrorIfStrict, -1 /* >= 1 */, 1)        \
+  F(Typeof, 1, 1)                                    \
   F(UnwindAndFindExceptionHandler, 0, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F, I)           \

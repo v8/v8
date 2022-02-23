@@ -1028,11 +1028,10 @@ void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
 
     BIND(&interrupt_check);
     // JumpLoop should do a stack check as part of the interrupt.
-    CallRuntime(
-        bytecode() == Bytecode::kJumpLoop
-            ? Runtime::kBytecodeBudgetInterruptWithStackCheckFromBytecode
-            : Runtime::kBytecodeBudgetInterruptFromBytecode,
-        GetContext(), function);
+    CallRuntime(bytecode() == Bytecode::kJumpLoop
+                    ? Runtime::kBytecodeBudgetInterruptWithStackCheck
+                    : Runtime::kBytecodeBudgetInterrupt,
+                GetContext(), function);
     Goto(&done);
 
     BIND(&ok);

@@ -24,7 +24,7 @@ class TieringManager {
  public:
   explicit TieringManager(Isolate* isolate) : isolate_(isolate) {}
 
-  void OnInterruptTickFromBytecode();
+  void OnInterruptTick(Handle<JSFunction> function);
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 
@@ -32,9 +32,6 @@ class TieringManager {
                                  int nesting_levels = 1);
 
  private:
-  // Helper function called from OnInterruptTick*
-  void OnInterruptTick(JavaScriptFrame* frame);
-
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
   void MaybeOptimizeFrame(JSFunction function, JavaScriptFrame* frame,
@@ -56,7 +53,6 @@ class TieringManager {
     ~OnInterruptTickScope();
 
    private:
-    HandleScope handle_scope_;
     TieringManager* const profiler_;
     DisallowGarbageCollection no_gc;
   };

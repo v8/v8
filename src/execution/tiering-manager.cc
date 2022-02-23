@@ -5,6 +5,8 @@
 #include "src/execution/tiering-manager.h"
 
 #include "src/base/platform/platform.h"
+#include "src/baseline/baseline-batch-compiler.h"
+#include "src/baseline/baseline.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -236,7 +238,7 @@ OptimizationReason TieringManager::ShouldOptimize(JSFunction function,
 
 TieringManager::OnInterruptTickScope::OnInterruptTickScope(
     TieringManager* profiler)
-    : handle_scope_(profiler->isolate_), profiler_(profiler) {
+    : profiler_(profiler) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.MarkCandidatesForOptimization");
 }
@@ -245,28 +247,72 @@ TieringManager::OnInterruptTickScope::~OnInterruptTickScope() {
   profiler_->any_ic_changed_ = false;
 }
 
-void TieringManager::OnInterruptTick(JavaScriptFrame* frame) {
-  if (!isolate_->use_optimizer()) return;
+void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
+  IsCompiledScope is_compiled_scope(
+      function->shared().is_compiled_scope(isolate_));
+
+  // Remember whether the function had a vector at this point. This is relevant
+  // later since the configuration 'Ignition without a vector' can be
+  // considered a tier on its own. We begin tiering up to tiers higher than
+  // Sparkplug only when reaching this point *with* a feedback vector.
+  const bool had_feedback_vector = function->has_feedback_vector();
+
+  // Ensure that the feedback vector has been allocated, and reset the
+  // interrupt budget in preparation for the next tick.
+  if (had_feedback_vector) {
+    function->SetInterruptBudget();
+  } else {
+    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    DCHECK(is_compiled_scope.is_compiled());
+    // Also initialize the invocation count here. This is only really needed for
+    // OSR. When we OSR functions with lazy feedback allocation we want to have
+    // a non zero invocation count so we can inline functions.
+    function->feedback_vector().set_invocation_count(1, kRelaxedStore);
+  }
+
+  DCHECK(function->has_feedback_vector());
+  DCHECK(function->shared().is_compiled());
+  DCHECK(function->shared().HasBytecodeArray());
+
+  // TODO(jgruber): Consider integrating this into a linear tiering system
+  // controlled by OptimizationMarker in which the order is always
+  // Ignition-Sparkplug-Turbofan, and only a single tierup is requested at
+  // once.
+  // It's unclear whether this is possible and/or makes sense - for example,
+  // batching compilation can introduce arbitrary latency between the SP
+  // compile request and fulfillment, which doesn't work with strictly linear
+  // tiering.
+  if (CanCompileWithBaseline(isolate_, function->shared()) &&
+      !function->ActiveTierIsBaseline()) {
+    if (FLAG_baseline_batch_compilation) {
+      isolate_->baseline_batch_compiler()->EnqueueFunction(function);
+    } else {
+      IsCompiledScope is_compiled_scope(
+          function->shared().is_compiled_scope(isolate_));
+      Compiler::CompileBaseline(isolate_, function, Compiler::CLEAR_EXCEPTION,
+                                &is_compiled_scope);
+    }
+  }
+
+  // We only tier up beyond sparkplug if we already had a feedback vector.
+  if (!had_feedback_vector) return;
+
+  // Don't tier up if Turbofan is disabled.
+  // TODO(jgruber): Update this for a multi-tier world.
+  if (V8_UNLIKELY(!isolate_->use_optimizer())) return;
+
+  // --- We've decided to proceed for now. ---
+
+  DisallowGarbageCollection no_gc;
   OnInterruptTickScope scope(this);
+  JSFunction function_obj = *function;
 
-  JSFunction function = frame->function();
-  CodeKind code_kind = function.GetActiveTier().value();
+  function_obj.feedback_vector().SaturatingIncrementProfilerTicks();
 
-  DCHECK(function.shared().is_compiled());
-  DCHECK(function.shared().HasBytecodeArray());
-
-  DCHECK_IMPLIES(CodeKindIsOptimizedJSFunction(code_kind),
-                 function.has_feedback_vector());
-  if (!function.has_feedback_vector()) return;
-
-  function.feedback_vector().SaturatingIncrementProfilerTicks();
-  MaybeOptimizeFrame(function, frame, code_kind);
-}
-
-void TieringManager::OnInterruptTickFromBytecode() {
   JavaScriptFrameIterator it(isolate_);
   DCHECK(it.frame()->is_unoptimized());
-  OnInterruptTick(it.frame());
+  const CodeKind code_kind = function_obj.GetActiveTier().value();
+  MaybeOptimizeFrame(function_obj, it.frame(), code_kind);
 }
 
 }  // namespace internal

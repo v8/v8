@@ -7,10 +7,7 @@
 #include "src/api/api.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
-#include "src/baseline/baseline-batch-compiler.h"
-#include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/compiler.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
@@ -342,42 +339,7 @@ RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
   return isolate->stack_guard()->HandleInterrupts();
 }
 
-namespace {
-
-void BytecodeBudgetInterruptFromBytecode(Isolate* isolate,
-                                         Handle<JSFunction> function) {
-  bool should_mark_for_optimization = function->has_feedback_vector();
-  if (!function->has_feedback_vector()) {
-    IsCompiledScope is_compiled_scope(
-        function->shared().is_compiled_scope(isolate));
-    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-    DCHECK(is_compiled_scope.is_compiled());
-    // Also initialize the invocation count here. This is only really needed for
-    // OSR. When we OSR functions with lazy feedback allocation we want to have
-    // a non zero invocation count so we can inline functions.
-    function->feedback_vector().set_invocation_count(1, kRelaxedStore);
-  } else {
-    function->SetInterruptBudget();
-  }
-  if (CanCompileWithBaseline(isolate, function->shared()) &&
-      !function->ActiveTierIsBaseline()) {
-    if (FLAG_baseline_batch_compilation) {
-      isolate->baseline_batch_compiler()->EnqueueFunction(function);
-    } else {
-      IsCompiledScope is_compiled_scope(
-          function->shared().is_compiled_scope(isolate));
-      Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
-                                &is_compiled_scope);
-    }
-  }
-  if (should_mark_for_optimization) {
-    SealHandleScope shs(isolate);
-    isolate->tiering_manager()->OnInterruptTickFromBytecode();
-  }
-}
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheckFromBytecode) {
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheck) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -399,17 +361,17 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptWithStackCheckFromBytecode) {
     }
   }
 
-  BytecodeBudgetInterruptFromBytecode(isolate, function);
+  isolate->tiering_manager()->OnInterruptTick(function);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   TRACE_EVENT0("v8.execute", "V8.BytecodeBudgetInterrupt");
 
-  BytecodeBudgetInterruptFromBytecode(isolate, function);
+  isolate->tiering_manager()->OnInterruptTick(function);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
