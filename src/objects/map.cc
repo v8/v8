@@ -1136,8 +1136,8 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> src_handle,
   Handle<Map> result = isolate->factory()->NewMap(
       src_handle->instance_type(), instance_size, TERMINAL_FAST_ELEMENTS_KIND,
       inobject_properties);
-  Handle<HeapObject> prototype(src_handle->prototype(), isolate);
-  Map::SetPrototype(isolate, result, prototype);
+  // We have to set the bitfields before any potential GCs could happen because
+  // heap verification might fail otherwise.
   {
     DisallowGarbageCollection no_gc;
     Map src = *src_handle;
@@ -1161,6 +1161,8 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> src_handle,
     raw.set_bit_field3(new_bit_field3);
     raw.clear_padding();
   }
+  Handle<HeapObject> prototype(src_handle->prototype(), isolate);
+  Map::SetPrototype(isolate, result, prototype);
   return result;
 }
 
