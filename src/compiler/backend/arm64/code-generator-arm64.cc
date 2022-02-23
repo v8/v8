@@ -255,6 +255,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         offset = FrameOffset::FromStackPointer(from_sp);
       }
     }
+    // Access below the stack pointer is not expected in arm64 and is actively
+    // prevented at run time in the simulator.
+    DCHECK_IMPLIES(offset.from_stack_pointer(), offset.offset() >= 0);
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
 };
