@@ -1005,6 +1005,13 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
     bool accepts_context = context_filter.Accept(native_context_address);
     bool accepts_embedder_context =
         context_filter.Accept(embedder_native_context_address);
+
+    // if FilterContext is set, do not propagate StateTag if not accepted.
+    // GC is exception because native context address is guaranteed to be empty.
+    DCHECK(state != StateTag::GC || native_context_address == kNullAddress);
+    if (!accepts_context && state != StateTag::GC) {
+      state = StateTag::IDLE;
+    }
     profile->AddPath(timestamp, accepts_context ? path : empty_path, src_line,
                      update_stats, sampling_interval, state,
                      accepts_embedder_context ? embedder_state_tag

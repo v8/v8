@@ -3920,6 +3920,15 @@ TEST(ContextIsolation) {
         diff_context_profile->GetTopDownRoot();
     // Ensure that no children were recorded (including callbacks, builtins).
     CHECK(!FindChild(diff_root, "start"));
+
+    CHECK_GT(diff_context_profile->GetSamplesCount(), 0);
+    for (int i = 0; i < diff_context_profile->GetSamplesCount(); i++) {
+      CHECK(diff_context_profile->GetSampleState(i) == StateTag::IDLE ||
+            // GC State do not have a context
+            diff_context_profile->GetSampleState(i) == StateTag::GC ||
+            // first frame and native code reports as external
+            diff_context_profile->GetSampleState(i) == StateTag::EXTERNAL);
+    }
   }
 }
 
