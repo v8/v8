@@ -2903,8 +2903,8 @@ filegroup(
         "src/heap/cppgc/process-heap-statistics.h",
         "src/heap/cppgc/raw-heap.cc",
         "src/heap/cppgc/raw-heap.h",
-        "src/heap/cppgc/remembered-set.cc"
-        "src/heap/cppgc/remembered-set.h"
+        "src/heap/cppgc/remembered-set.cc",
+        "src/heap/cppgc/remembered-set.h",
         "src/heap/cppgc/source-location.cc",
         "src/heap/cppgc/stats-collector.cc",
         "src/heap/cppgc/stats-collector.h",

@@ -48,10 +48,12 @@ class V8_EXPORT_PRIVATE OldToNewRememberedSet final {
  private:
   friend class MinorGCTest;
 
-  static constexpr auto compare_parameter = [](const WeakCallbackItem& lhs,
-                                               const WeakCallbackItem& rhs) {
-    return lhs.parameter < rhs.parameter;
-  };
+  static constexpr struct {
+    bool operator()(const WeakCallbackItem& lhs,
+                    const WeakCallbackItem& rhs) const {
+      return lhs.parameter < rhs.parameter;
+    }
+  } compare_parameter{};
 
   const HeapBase& heap_;
   std::set<void*> remembered_slots_;
