@@ -13,15 +13,6 @@
 namespace v8 {
 namespace internal {
 
-enum class AllocationOrigin {
-  kGeneratedCode = 0,
-  kRuntime = 1,
-  kGC = 2,
-  kFirstAllocationOrigin = kGeneratedCode,
-  kLastAllocationOrigin = kGC,
-  kNumberOfAllocationOrigins = kLastAllocationOrigin + 1
-};
-
 // The result of an allocation attempt. Either represents a successful
 // allocation that can be turned into an object or a failed attempt.
 class AllocationResult final {

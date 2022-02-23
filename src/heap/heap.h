@@ -27,7 +27,6 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
-#include "src/heap/heap-allocator.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/fixed-array.h"
@@ -126,6 +125,15 @@ enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 enum ExternalBackingStoreType { kArrayBuffer, kExternalString, kNumTypes };
 
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
+
+enum class AllocationOrigin {
+  kGeneratedCode = 0,
+  kRuntime = 1,
+  kGC = 2,
+  kFirstAllocationOrigin = kGeneratedCode,
+  kLastAllocationOrigin = kGC,
+  kNumberOfAllocationOrigins = kLastAllocationOrigin + 1
+};
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. If you add new items here, update
@@ -1577,8 +1585,8 @@ class Heap {
 #endif
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  void V8_EXPORT_PRIVATE set_allocation_timeout(int allocation_timeout);
-#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+  void set_allocation_timeout(int timeout) { allocation_timeout_ = timeout; }
+#endif
 
 #ifdef DEBUG
   void VerifyCountersAfterSweeping();
@@ -1836,6 +1844,8 @@ class Heap {
                                 GCIdleTimeHeapState heap_state, double start_ms,
                                 double deadline_in_ms);
 
+  int NextAllocationTimeout(int current_timeout = 0);
+
   void PrintMaxMarkingLimitReached();
   void PrintMaxNewSpaceSizeReached();
 
@@ -2047,6 +2057,13 @@ class Heap {
               AllocationOrigin origin = AllocationOrigin::kRuntime,
               AllocationAlignment alignment = kTaggedAligned);
 
+  // Allocates an uninitialized large object. Used as dispatch by
+  // `AllocateRaw()` for large objects. Do not call this from anywhere else.
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawLargeInternal(int size_in_bytes, AllocationType allocation,
+                           AllocationOrigin origin = AllocationOrigin::kRuntime,
+                           AllocationAlignment alignment = kTaggedAligned);
+
   // This method will try to allocate objects quickly (AllocationType::kYoung)
   // otherwise it falls back to a slower path indicated by the mode.
   enum AllocationRetryMode { kLightRetry, kRetryOrFail };
@@ -2060,6 +2077,25 @@ class Heap {
   V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
       int size, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kTaggedAligned);
+
+  // This method will try to perform an allocation of a given size of a given
+  // AllocationType. If the allocation fails, a regular full garbage collection
+  // is triggered and the allocation is retried. This is performed multiple
+  // times. If after that retry procedure the allocation still fails nullptr is
+  // returned.
+  V8_WARN_UNUSED_RESULT HeapObject AllocateRawWithLightRetrySlowPath(
+      int size, AllocationType allocation, AllocationOrigin origin,
+      AllocationAlignment alignment = kTaggedAligned);
+
+  // This method will try to perform an allocation of a given size of a given
+  // AllocationType. If the allocation fails, a regular full garbage collection
+  // is triggered and the allocation is retried. This is performed multiple
+  // times. If after that retry procedure the allocation still fails a "hammer"
+  // garbage collection is triggered which tries to significantly reduce memory.
+  // If the allocation still fails after that a fatal error is thrown.
+  V8_WARN_UNUSED_RESULT HeapObject AllocateRawWithRetryOrFailSlowPath(
+      int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kTaggedAligned);
 
   // Allocates a heap object based on the map.
@@ -2112,8 +2148,6 @@ class Heap {
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_ = nullptr;
-
-  HeapAllocator heap_allocator_;
 
   // These limits are initialized in Heap::ConfigureHeap based on the resource
   // constraints and flags.
@@ -2408,6 +2442,13 @@ class Heap {
   base::Mutex unprotected_memory_chunks_mutex_;
   std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
 
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  // If the --gc-interval flag is set to a positive value, this
+  // variable holds the value indicating the number of allocations
+  // remain until the next failure and garbage collection.
+  int allocation_timeout_ = 0;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
   std::unordered_map<HeapObject, HeapObject, Object::Hasher> retainer_;
   std::unordered_map<HeapObject, Root, Object::Hasher> retaining_root_;
   // If an object is retained by an ephemeron, then the retaining key of the
@@ -2432,7 +2473,6 @@ class Heap {
   friend class EvacuateVisitorBase;
   friend class GCCallbacksScope;
   friend class GCTracer;
-  friend class HeapAllocator;
   friend class HeapObjectIterator;
   friend class ScavengeTaskObserver;
   friend class IgnoreLocalGCRequests;
@@ -2522,7 +2562,6 @@ class V8_NODISCARD AlwaysAllocateScope {
   friend class AlwaysAllocateScopeForTesting;
   friend class Evacuator;
   friend class Heap;
-  friend class HeapAllocator;
   friend class Isolate;
 
   explicit inline AlwaysAllocateScope(Heap* heap);
