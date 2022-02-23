@@ -215,10 +215,13 @@ class V8_EXPORT WebSnapshotSerializer
   Handle<ArrayList> objects_;
 
   // IndexMap to keep track of explicitly blocked external objects and
-  // non-serializable/not-supporte objects (e.g. API Objects).
+  // non-serializable/not-supported objects (e.g. API Objects).
   ObjectCacheIndexMap external_objects_ids_;
 
-  // ObjectCacheIndexMap implements fast lookup item -> id.
+  // ObjectCacheIndexMap implements fast lookup item -> id. Some items (context,
+  // function, class, array, object) can point to other items and we serialize
+  // them in the reverse order. This ensures that the items this item points to
+  // have a lower ID and will be deserialized first.
   ObjectCacheIndexMap string_ids_;
   ObjectCacheIndexMap map_ids_;
   ObjectCacheIndexMap context_ids_;

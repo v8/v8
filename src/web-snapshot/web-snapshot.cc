@@ -300,26 +300,29 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
 }
 
 void WebSnapshotSerializer::SerializePendingItems() {
-  for (int i = 0; i < contexts_->Length(); ++i) {
+  // Serialize the items in the reverse order. The items at the end of the
+  // contexts_ etc get lower IDs and vice versa. IDs which items use for
+  // referring to each other are reversed by Get<item>Id functions().
+  for (int i = contexts_->Length() - 1; i >= 0; --i) {
     Handle<Context> context =
         handle(Context::cast(contexts_->Get(i)), isolate_);
     SerializeContext(context);
   }
-  for (int i = 0; i < functions_->Length(); ++i) {
+  for (int i = functions_->Length() - 1; i >= 0; --i) {
     Handle<JSFunction> function =
         handle(JSFunction::cast(functions_->Get(i)), isolate_);
     SerializeFunction(function);
   }
-  for (int i = 0; i < classes_->Length(); ++i) {
+  for (int i = classes_->Length() - 1; i >= 0; --i) {
     Handle<JSFunction> function =
         handle(JSFunction::cast(classes_->Get(i)), isolate_);
     SerializeClass(function);
   }
-  for (int i = 0; i < arrays_->Length(); ++i) {
+  for (int i = arrays_->Length() - 1; i >= 0; --i) {
     Handle<JSArray> array = handle(JSArray::cast(arrays_->Get(i)), isolate_);
     SerializeArray(array);
   }
-  for (int i = 0; i < objects_->Length(); ++i) {
+  for (int i = objects_->Length() - 1; i >= 0; --i) {
     Handle<JSObject> object =
         handle(JSObject::cast(objects_->Get(i)), isolate_);
     SerializeObject(object);
@@ -623,7 +626,6 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
   // e.g., we know all functions upfront and can construct the source code that
   // covers them before serializing the functions.
 
-  // TODO(v8:11525): Serialize leaf objects first.
   discovery_queue_.push(start_object);
 
   while (!discovery_queue_.empty()) {
@@ -708,12 +710,6 @@ void WebSnapshotSerializer::DiscoverContextAndPrototype(
 }
 
 void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
-  // Ensure that parent contexts get a lower ID.
-  if (!context->previous().IsNativeContext() &&
-      !context->previous().IsScriptContext()) {
-    DiscoverContext(handle(context->previous(), isolate_));
-  }
-
   uint32_t id;
   if (InsertIntoIndexMap(context_ids_, *context, id)) return;
 
@@ -730,6 +726,11 @@ void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
     Object value = context->get(scope_info.ContextHeaderLength() + i);
     if (!value.IsHeapObject()) continue;
     discovery_queue_.push(handle(HeapObject::cast(value), isolate_));
+  }
+
+  if (!context->previous().IsNativeContext() &&
+      !context->previous().IsScriptContext()) {
+    DiscoverContext(handle(context->previous(), isolate_));
   }
 }
 
@@ -1035,7 +1036,7 @@ uint32_t WebSnapshotSerializer::GetFunctionId(JSFunction function) {
   bool return_value = function_ids_.Lookup(function, &id);
   DCHECK(return_value);
   USE(return_value);
-  return static_cast<uint32_t>(id);
+  return static_cast<uint32_t>(function_ids_.size() - 1 - id);
 }
 
 uint32_t WebSnapshotSerializer::GetClassId(JSFunction function) {
@@ -1043,7 +1044,7 @@ uint32_t WebSnapshotSerializer::GetClassId(JSFunction function) {
   bool return_value = class_ids_.Lookup(function, &id);
   DCHECK(return_value);
   USE(return_value);
-  return static_cast<uint32_t>(id);
+  return static_cast<uint32_t>(class_ids_.size() - 1 - id);
 }
 
 uint32_t WebSnapshotSerializer::GetContextId(Context context) {
@@ -1051,7 +1052,7 @@ uint32_t WebSnapshotSerializer::GetContextId(Context context) {
   bool return_value = context_ids_.Lookup(context, &id);
   DCHECK(return_value);
   USE(return_value);
-  return static_cast<uint32_t>(id);
+  return static_cast<uint32_t>(context_ids_.size() - 1 - id);
 }
 
 uint32_t WebSnapshotSerializer::GetArrayId(JSArray array) {
@@ -1059,7 +1060,7 @@ uint32_t WebSnapshotSerializer::GetArrayId(JSArray array) {
   bool return_value = array_ids_.Lookup(array, &id);
   DCHECK(return_value);
   USE(return_value);
-  return static_cast<uint32_t>(id);
+  return static_cast<uint32_t>(array_ids_.size() - 1 - id);
 }
 
 uint32_t WebSnapshotSerializer::GetObjectId(JSObject object) {
@@ -1067,7 +1068,7 @@ uint32_t WebSnapshotSerializer::GetObjectId(JSObject object) {
   bool return_value = object_ids_.Lookup(object, &id);
   DCHECK(return_value);
   USE(return_value);
-  return static_cast<uint32_t>(id);
+  return static_cast<uint32_t>(object_ids_.size() - 1 - id);
 }
 
 uint32_t WebSnapshotSerializer::GetExternalId(HeapObject object) {
