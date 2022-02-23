@@ -961,11 +961,11 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
     __ CallRuntimeStub(ool->stub);
-    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
+    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
 
     if (ool->safepoint_info) {
       for (auto index : ool->safepoint_info->slots) {
-        safepoint.DefinePointerSlot(index);
+        safepoint.DefineTaggedStackSlot(index);
       }
 
       int total_frame_size = __ GetTotalFrameSize();
@@ -6444,12 +6444,12 @@ class LiftoffCompiler {
   }
 
   void DefineSafepoint() {
-    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
+    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
     __ cache_state()->DefineSafepoint(safepoint);
   }
 
   void DefineSafepointWithCalleeSavedRegisters() {
-    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
+    auto safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
     __ cache_state()->DefineSafepointWithCalleeSavedRegisters(safepoint);
   }
 

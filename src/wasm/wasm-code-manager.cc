@@ -1060,7 +1060,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   base::Vector<const byte> instructions(
       reinterpret_cast<byte*>(code->raw_body_start()),
       static_cast<size_t>(code->raw_body_size()));
-  const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
+  const int stack_slots = code->stack_slots();
 
   // Metadata offsets in Code objects are relative to the start of the metadata
   // section, whereas WasmCode expects offsets relative to InstructionStart.

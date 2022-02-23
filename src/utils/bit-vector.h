@@ -349,8 +349,18 @@ class GrowableBitVector {
 
   void Clear() { bits_.Clear(); }
 
+  int length() const { return bits_.length(); }
+
+  bool Equals(const GrowableBitVector& other) const {
+    return length() == other.length() && bits_.Equals(other.bits_);
+  }
+
+  BitVector::Iterator begin() const { return bits_.begin(); }
+
+  BitVector::Iterator end() const { return bits_.end(); }
+
  private:
-  static const int kInitialLength = 1024;
+  static constexpr int kInitialLength = 1024;
 
   bool InBitsRange(int value) const { return bits_.length() > value; }
 

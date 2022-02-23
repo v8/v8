@@ -586,7 +586,7 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
 }
 
 void CodeGenerator::RecordSafepoint(ReferenceMap* references) {
-  Safepoint safepoint = safepoints()->DefineSafepoint(tasm());
+  auto safepoint = safepoints()->DefineSafepoint(tasm());
   int frame_header_offset = frame()->GetFixedSlotCount();
   for (const InstructionOperand& operand : references->reference_operands()) {
     if (operand.IsStackSlot()) {
@@ -598,7 +598,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references) {
       // we also don't need to worry about them, since the GC has special
       // knowledge about those fields anyway.
       if (index < frame_header_offset) continue;
-      safepoint.DefinePointerSlot(index);
+      safepoint.DefineTaggedStackSlot(index);
     }
   }
 }

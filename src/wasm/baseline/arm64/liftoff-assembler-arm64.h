@@ -3138,10 +3138,9 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   PopCPURegList(liftoff::PadRegList(regs.GetGpList()));
 }
 
-void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
-                                               LiftoffRegList all_spills,
-                                               LiftoffRegList ref_spills,
-                                               int spill_offset) {
+void LiftoffAssembler::RecordSpillsInSafepoint(
+    SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
+    LiftoffRegList ref_spills, int spill_offset) {
   int spill_space_size = 0;
   bool needs_padding =
       (base::bits::CountPopulation(all_spills.GetGpList()) & 1) != 0;
@@ -3152,7 +3151,7 @@ void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
   while (!all_spills.is_empty()) {
     LiftoffRegister reg = all_spills.GetLastRegSet();
     if (ref_spills.has(reg)) {
-      safepoint.DefinePointerSlot(spill_offset);
+      safepoint.DefineTaggedStackSlot(spill_offset);
     }
     all_spills.clear(reg);
     ++spill_offset;

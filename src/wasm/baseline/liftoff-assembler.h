@@ -219,9 +219,10 @@ class LiftoffAssembler : public TurboAssembler {
                                   /*out*/ LiftoffRegList* spills,
                                   SpillLocation spill_location);
 
-    void DefineSafepoint(Safepoint& safepoint);
+    void DefineSafepoint(SafepointTableBuilder::Safepoint& safepoint);
 
-    void DefineSafepointWithCalleeSavedRegisters(Safepoint& safepoint);
+    void DefineSafepointWithCalleeSavedRegisters(
+        SafepointTableBuilder::Safepoint& safepoint);
 
     base::SmallVector<VarState, 8> stack_state;
     LiftoffRegList used_registers;
@@ -1460,10 +1461,9 @@ class LiftoffAssembler : public TurboAssembler {
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);
 
-  inline void RecordSpillsInSafepoint(Safepoint& safepoint,
-                                      LiftoffRegList all_spills,
-                                      LiftoffRegList ref_spills,
-                                      int spill_offset);
+  inline void RecordSpillsInSafepoint(
+      SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
+      LiftoffRegList ref_spills, int spill_offset);
 
   inline void DropStackSlotsAndRet(uint32_t num_stack_slots);
 

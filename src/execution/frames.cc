@@ -1060,10 +1060,10 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   if (!is_wasm) {
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
         isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
-    if (!entry->safepoint_entry.is_valid()) {
+    if (!entry->safepoint_entry.is_initialized()) {
       entry->safepoint_entry =
           entry->code.GetSafepointEntry(isolate(), inner_pointer);
-      DCHECK(entry->safepoint_entry.is_valid());
+      DCHECK(entry->safepoint_entry.is_initialized());
     } else {
       DCHECK_EQ(entry->safepoint_entry,
                 entry->code.GetSafepointEntry(isolate(), inner_pointer));
@@ -1085,7 +1085,6 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     if (is_wasm_call) has_tagged_outgoing_params = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
-  uint32_t slot_space = stack_slots * kSystemPointerSize;
 
   // Determine the fixed header and spill slot area size.
   int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
@@ -1143,14 +1142,22 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         UNREACHABLE();
     }
   }
-  slot_space -=
+
+  // slot_space holds the actual number of spill slots, without fixed frame
+  // slots.
+  const uint32_t slot_space =
+      stack_slots * kSystemPointerSize -
       (frame_header_size + StandardFrameConstants::kFixedFrameSizeAboveFp);
 
+  // base <= limit.
+  // Fixed frame slots.
   FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
   FullObjectSlot frame_header_limit(
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
+  // Parameters passed to the callee.
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot parameters_limit(frame_header_base.address() - slot_space);
+  // Spill slots are in the region ]frame_header_base, parameters_limit];
 
   // Visit the rest of the parameters if they are tagged.
   if (has_tagged_outgoing_params) {
@@ -1165,7 +1172,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   PtrComprCageBase cage_base(isolate());
   for (uint8_t bits : safepoint_entry.tagged_slots()) {
     while (bits) {
-      int bit = base::bits::CountTrailingZeros(bits);
+      const int bit = base::bits::CountTrailingZeros(bits);
       bits &= ~(1 << bit);
       FullObjectSlot spill_slot = parameters_limit + slot_offset + bit;
 #ifdef V8_COMPRESS_POINTERS

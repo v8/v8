@@ -585,7 +585,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   os << "\n";
 
-  if (has_safepoint_info()) {
+  if (uses_safepoint_table()) {
     SafepointTable table(isolate, current_pc, *this);
     table.Print(os);
     os << "\n";

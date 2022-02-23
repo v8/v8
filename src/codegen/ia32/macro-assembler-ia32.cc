@@ -1465,14 +1465,6 @@ void MacroAssembler::LoadNativeContextSlot(Register destination, int index) {
   mov(destination, Operand(destination, Context::SlotOffset(index)));
 }
 
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // The registers are pushed starting with the lowest encoding,
-  // which means that lowest encodings are furthest away from
-  // the stack pointer.
-  DCHECK(reg_code >= 0 && reg_code < kNumSafepointRegisters);
-  return kNumSafepointRegisters - reg_code - 1;
-}
-
 void TurboAssembler::Ret() { ret(0); }
 
 void TurboAssembler::Ret(int bytes_dropped, Register scratch) {

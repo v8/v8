@@ -549,28 +549,29 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
   }
 }
 
-void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
+void LiftoffAssembler::CacheState::DefineSafepoint(
+    SafepointTableBuilder::Safepoint& safepoint) {
   for (const auto& slot : stack_state) {
     if (is_reference(slot.kind())) {
       DCHECK(slot.is_stack());
-      safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
+      safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(slot));
     }
   }
 }
 
 void LiftoffAssembler::CacheState::DefineSafepointWithCalleeSavedRegisters(
-    Safepoint& safepoint) {
+    SafepointTableBuilder::Safepoint& safepoint) {
   for (const auto& slot : stack_state) {
     if (!is_reference(slot.kind())) continue;
     if (slot.is_stack()) {
-      safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
+      safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(slot));
     } else {
       DCHECK(slot.is_reg());
-      safepoint.DefineRegister(slot.reg().gp().code());
+      safepoint.DefineTaggedRegister(slot.reg().gp().code());
     }
   }
   if (cached_instance != no_reg) {
-    safepoint.DefineRegister(cached_instance.code());
+    safepoint.DefineTaggedRegister(cached_instance.code());
   }
 }
 

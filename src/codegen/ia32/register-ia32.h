@@ -120,9 +120,6 @@ constexpr RegList kJSCallerSaved =
 
 constexpr int kNumJSCallerSaved = 5;
 
-// Number of registers for which space is reserved in safepoints.
-constexpr int kNumSafepointRegisters = 8;
-
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
 DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)

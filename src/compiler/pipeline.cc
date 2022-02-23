@@ -3039,7 +3039,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   wasm::WasmCompilationResult result;
   code_generator->tasm()->GetCode(
       nullptr, &result.code_desc, code_generator->safepoint_table_builder(),
-      static_cast<int>(code_generator->GetHandlerTableOffset()));
+      static_cast<int>(code_generator->handler_table_offset()));
   result.instr_buffer = code_generator->tasm()->ReleaseBuffer();
   result.source_positions = code_generator->GetSourcePositionTable();
   result.protected_instructions_data =
@@ -3161,7 +3161,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   CodeGenerator* code_generator = pipeline.code_generator();
   code_generator->tasm()->GetCode(
       nullptr, &result->code_desc, code_generator->safepoint_table_builder(),
-      static_cast<int>(code_generator->GetHandlerTableOffset()));
+      static_cast<int>(code_generator->handler_table_offset()));
 
   result->instr_buffer = code_generator->tasm()->ReleaseBuffer();
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();

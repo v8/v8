@@ -420,7 +420,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,

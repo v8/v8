@@ -2312,10 +2312,9 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     Code raw_result = *result;
 
     const bool set_is_off_heap_trampoline = true;
-    const int stack_slots =
-        raw_code.has_safepoint_info() ? raw_code.stack_slots() : 0;
     raw_result.initialize_flags(raw_code.kind(), raw_code.is_turbofanned(),
-                                stack_slots, set_is_off_heap_trampoline);
+                                raw_code.stack_slots(),
+                                set_is_off_heap_trampoline);
     raw_result.set_builtin_id(raw_code.builtin_id());
     raw_result.set_handler_table_offset(raw_code.handler_table_offset());
     raw_result.set_constant_pool_offset(raw_code.constant_pool_offset());

@@ -558,7 +558,8 @@ void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);
   STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   RELAXED_WRITE_UINT32_FIELD(*this, kFlagsOffset, flags);
-  DCHECK_IMPLIES(stack_slots != 0, has_safepoint_info());
+  DCHECK_IMPLIES(stack_slots != 0, uses_safepoint_table());
+  DCHECK_IMPLIES(!uses_safepoint_table(), stack_slots == 0);
 }
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
@@ -670,14 +671,15 @@ void Code::set_inlined_bytecode_size(unsigned size) {
   RELAXED_WRITE_UINT_FIELD(*this, kInlinedBytecodeSizeOffset, size);
 }
 
-bool Code::has_safepoint_info() const {
+bool Code::uses_safepoint_table() const {
   return is_turbofanned() || is_wasm_code();
 }
 
 int Code::stack_slots() const {
-  DCHECK(has_safepoint_info());
   const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
-  return StackSlotsField::decode(flags);
+  const int slots = StackSlotsField::decode(flags);
+  DCHECK_IMPLIES(!uses_safepoint_table(), slots == 0);
+  return slots;
 }
 
 bool CodeDataContainer::marked_for_deoptimization() const {

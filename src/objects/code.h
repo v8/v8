@@ -451,10 +451,12 @@ class Code : public HeapObject {
   inline unsigned inlined_bytecode_size() const;
   inline void set_inlined_bytecode_size(unsigned size);
 
-  inline bool has_safepoint_info() const;
+  // [uses_safepoint_table]: Whether this Code object uses safepoint tables
+  // (note the table may still be empty, see has_safepoint_table).
+  inline bool uses_safepoint_table() const;
 
-  // [stack_slots]: If {has_safepoint_info()}, the number of stack slots
-  // reserved in the code prologue.
+  // [stack_slots]: If {uses_safepoint_table()}, the number of stack slots
+  // reserved in the code prologue; otherwise 0.
   inline int stack_slots() const;
 
   // [marked_for_deoptimization]: If CodeKindCanDeoptimize(kind), tells whether

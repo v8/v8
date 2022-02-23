@@ -100,9 +100,6 @@ constexpr RegList kCallerSaved =
 
 constexpr int kNumJSCallerSaved = 5;
 
-// Number of registers for which space is reserved in safepoints.
-constexpr int kNumSafepointRegisters = 16;
-
 #ifdef V8_TARGET_OS_WIN
 // Windows calling convention
 constexpr Register arg_reg_1 = rcx;
