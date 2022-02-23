@@ -503,7 +503,9 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
 
   // Find the break location where execution has stopped.
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
-  if (IsBreakOnInstrumentation(debug_info, location)) {
+  const bool hitInstrumentationBreak =
+      IsBreakOnInstrumentation(debug_info, location);
+  if (hitInstrumentationBreak) {
     OnInstrumentationBreak();
   }
 
@@ -540,7 +542,9 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   // StepOut at not return position was requested and return break locations
   // were flooded with one shots.
   if (thread_local_.fast_forward_to_return_) {
-    DCHECK(location.IsReturnOrSuspend());
+    // We might hit an instrumentation breakpoint before running into a
+    // return/suspend location.
+    DCHECK(location.IsReturnOrSuspend() || hitInstrumentationBreak);
     // We have to ignore recursive calls to function.
     if (current_frame_count > target_frame_count) return;
     ClearStepping();
