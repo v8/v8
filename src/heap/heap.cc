@@ -204,6 +204,7 @@ class ScavengeTaskObserver : public AllocationObserver {
 
 Heap::Heap()
     : isolate_(isolate()),
+      heap_allocator_(this),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
       safepoint_(std::make_unique<IsolateSafepoint>(this)),
@@ -1022,15 +1023,8 @@ void Heap::GarbageCollectionPrologue(
   if (force_gc_on_next_allocation_) force_gc_on_next_allocation_ = false;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  // Reset the allocation timeout, but make sure to allow at least a few
-  // allocations after a collection. The reason for this is that we have a lot
-  // of allocation sequences and we assume that a garbage collection will allow
-  // the subsequent allocation attempts to go through.
-  if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
-    allocation_timeout_ =
-        std::max(6, NextAllocationTimeout(allocation_timeout_));
-  }
-#endif
+  heap_allocator_.UpdateAllocationTimeout();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   // There may be an allocation memento behind objects in new space. Upon
   // evacuation of a non-full new space (or if we are on the last page) there
@@ -5637,118 +5631,13 @@ void Heap::DisableInlineAllocation() {
   }
 }
 
-namespace {
-
-constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
-  switch (type) {
-    case AllocationType::kYoung:
-      return NEW_SPACE;
-    case AllocationType::kOld:
-    case AllocationType::kCode:
-    case AllocationType::kMap:
-      // OLD_SPACE indicates full GC.
-      return OLD_SPACE;
-    case AllocationType::kReadOnly:
-    case AllocationType::kSharedMap:
-    case AllocationType::kSharedOld:
-      UNREACHABLE();
-  }
-}
-
-}  // namespace
-
-HeapObject Heap::AllocateRawWithLightRetrySlowPath(
-    int size, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment) {
-  HeapObject result;
-  AllocationResult alloc = AllocateRaw(size, allocation, origin, alignment);
-  if (alloc.To(&result)) {
-    // DCHECK that the successful allocation is not "exception". The one
-    // exception to this is when allocating the "exception" object itself, in
-    // which case this must be an ROSpace allocation and the exception object
-    // in the roots has to be unset.
-    DCHECK((CanAllocateInReadOnlySpace() &&
-            allocation == AllocationType::kReadOnly &&
-            ReadOnlyRoots(this).unchecked_exception() == Smi::zero()) ||
-           result != ReadOnlyRoots(this).exception());
-    return result;
-  }
-  // Two GCs before panicking. In newspace will almost always succeed.
-  for (int i = 0; i < 2; i++) {
-    if (IsSharedAllocationType(allocation)) {
-      CollectSharedGarbage(GarbageCollectionReason::kAllocationFailure);
-    } else {
-      CollectGarbage(AllocationTypeToGCSpace(allocation),
-                     GarbageCollectionReason::kAllocationFailure);
-    }
-    alloc = AllocateRaw(size, allocation, origin, alignment);
-    if (alloc.To(&result)) {
-      DCHECK(result != ReadOnlyRoots(this).exception());
-      return result;
-    }
-  }
-  return HeapObject();
-}
-
-AllocationResult Heap::AllocateRawLargeInternal(int size_in_bytes,
-                                                AllocationType allocation,
-                                                AllocationOrigin origin,
-                                                AllocationAlignment alignment) {
-  DCHECK_GT(size_in_bytes, MaxRegularHeapObjectSize(allocation));
-  switch (allocation) {
-    case AllocationType::kYoung:
-      return new_lo_space_->AllocateRaw(size_in_bytes);
-    case AllocationType::kOld:
-      return lo_space_->AllocateRaw(size_in_bytes);
-    case AllocationType::kCode:
-      return code_lo_space_->AllocateRaw(size_in_bytes);
-    case AllocationType::kMap:
-    case AllocationType::kReadOnly:
-    case AllocationType::kSharedMap:
-    case AllocationType::kSharedOld:
-      UNREACHABLE();
-  }
-}
-
-HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
-    int size, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment) {
-  AllocationResult alloc;
-  HeapObject result =
-      AllocateRawWithLightRetrySlowPath(size, allocation, origin, alignment);
-  if (!result.is_null()) return result;
-
-  isolate()->counters()->gc_last_resort_from_handles()->Increment();
-  if (IsSharedAllocationType(allocation)) {
-    CollectSharedGarbage(GarbageCollectionReason::kLastResort);
-
-    // We need always_allocate() to be true both on the client- and
-    // server-isolate. It is used in both code paths.
-    AlwaysAllocateScope shared_scope(isolate()->shared_isolate()->heap());
-    AlwaysAllocateScope client_scope(isolate()->heap());
-    alloc = AllocateRaw(size, allocation, origin, alignment);
-  } else {
-    CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
-
-    AlwaysAllocateScope scope(this);
-    alloc = AllocateRaw(size, allocation, origin, alignment);
-  }
-
-  if (alloc.To(&result)) {
-    DCHECK(result != ReadOnlyRoots(this).exception());
-    return result;
-  }
-  // TODO(1181417): Fix this.
-  FatalProcessOutOfMemory("CALL_AND_RETRY_LAST");
-}
-
 void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   DCHECK_NULL(main_thread_local_heap_);
   main_thread_local_heap_ = main_thread_local_heap;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  allocation_timeout_ = NextAllocationTimeout();
-#endif
+  heap_allocator_.UpdateAllocationTimeout();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   tp_heap_ = third_party_heap::Heap::New(isolate());
@@ -5846,6 +5735,7 @@ void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
                  read_only_space_ == ro_heap->read_only_space());
   space_[RO_SPACE] = nullptr;
   read_only_space_ = ro_heap->read_only_space();
+  heap_allocator_.SetReadOnlySpace(read_only_space_);
 }
 
 void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
@@ -5856,6 +5746,7 @@ void Heap::ReplaceReadOnlySpace(SharedReadOnlySpace* space) {
   }
 
   read_only_space_ = space;
+  heap_allocator_.SetReadOnlySpace(read_only_space_);
 }
 
 class StressConcurrentAllocationObserver : public AllocationObserver {
@@ -5966,6 +5857,7 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   }
 
   main_thread_local_heap()->SetUpMainThread();
+  heap_allocator_.Setup();
 }
 
 void Heap::InitializeHashSeed() {
@@ -5979,19 +5871,6 @@ void Heap::InitializeHashSeed() {
   }
   ReadOnlyRoots(this).hash_seed().copy_in(
       0, reinterpret_cast<byte*>(&new_hash_seed), kInt64Size);
-}
-
-int Heap::NextAllocationTimeout(int current_timeout) {
-  if (FLAG_random_gc_interval > 0) {
-    // If current timeout hasn't reached 0 the GC was caused by something
-    // different than --stress-atomic-gc flag and we don't update the timeout.
-    if (current_timeout <= 0) {
-      return isolate()->fuzzer_rng()->NextInt(FLAG_random_gc_interval + 1);
-    } else {
-      return current_timeout;
-    }
-  }
-  return FLAG_gc_interval;
 }
 
 void Heap::PrintMaxMarkingLimitReached() {
@@ -7576,6 +7455,12 @@ void StrongRootBlockAllocator::deallocate(Address* p, size_t n) noexcept {
 
   base::Free(block);
 }
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+void Heap::set_allocation_timeout(int allocation_timeout) {
+  heap_allocator_.SetAllocationTimeout(allocation_timeout);
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 }  // namespace internal
 }  // namespace v8
