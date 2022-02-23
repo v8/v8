@@ -273,6 +273,9 @@
 
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
+
+  # BUG(v8:12645)
+  'shared-memory/shared-struct-workers': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

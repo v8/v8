@@ -985,6 +985,10 @@ namespace internal {
   TFS(WeakCollectionDelete, kCollection, kKey)                                 \
   TFS(WeakCollectionSet, kCollection, kKey, kValue)                            \
                                                                                \
+  /* JS Structs */                                                             \
+  CPP(SharedStructTypeConstructor)                                             \
+  CPP(SharedStructConstructor)                                                 \
+                                                                               \
   /* AsyncGenerator */                                                         \
                                                                                \
   TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \

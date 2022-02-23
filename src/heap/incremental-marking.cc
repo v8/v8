@@ -422,7 +422,7 @@ void IncrementalMarking::FinalizeIncrementally() {
   // 2) Age and retain maps embedded in optimized code.
   MarkRoots();
 
-  // Map retaining is needed for perfromance, not correctness,
+  // Map retaining is needed for performance, not correctness,
   // so we can do it only once at the beginning of the finalization.
   RetainMaps();
 

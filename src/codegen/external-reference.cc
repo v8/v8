@@ -558,6 +558,10 @@ ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
 
+ExternalReference ExternalReference::address_of_shared_string_table_flag() {
+  return ExternalReference(&FLAG_shared_string_table);
+}
+
 ExternalReference ExternalReference::address_of_load_from_stack_count(
     const char* function_name) {
   return ExternalReference(

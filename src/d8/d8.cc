@@ -5191,7 +5191,9 @@ void Shell::WaitForRunningWorkers() {
 
 namespace {
 
-bool HasFlagThatRequiresSharedIsolate() { return i::FLAG_shared_string_table; }
+bool HasFlagThatRequiresSharedIsolate() {
+  return i::FLAG_shared_string_table || i::FLAG_harmony_struct;
+}
 
 }  // namespace
 
