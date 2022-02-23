@@ -1180,7 +1180,12 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   V8_INLINE void MarkObject(HeapObject host, Object object) {
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
-    if (!collector_->is_shared_heap() && heap_object.InSharedHeap()) return;
+    // We use this visitor both in client and shared GCs. The client GC should
+    // not mark objects in the shared heap. In shared GCs we are marking each
+    // client's top stack frame, so it is actually legal to encounter references
+    // into the client heap here in a shared GC. We need to bail out in these
+    // cases as well.
+    if (collector_->is_shared_heap() != heap_object.InSharedHeap()) return;
     collector_->MarkObject(host, heap_object);
   }
 
