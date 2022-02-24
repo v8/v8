@@ -99,6 +99,10 @@ class JSTemporalInstant
       Isolate* isolate, Handle<JSFunction> target,
       Handle<HeapObject> new_target, Handle<Object> epoch_nanoseconds);
 
+  // #sec-temporal.now.instant
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> Now(
+      Isolate* isolate);
+
   DECL_PRINTER(JSTemporalInstant)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)
@@ -123,6 +127,14 @@ class JSTemporalPlainDate
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainDate> plain_date);
 
+  // #sec-temporal.now.plaindate
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> Now(
+      Isolate* isolate, Handle<Object> calendar_like,
+      Handle<Object> temporal_time_zone_like);
+
+  // #sec-temporal.now.plaindateiso
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> NowISO(
+      Isolate* isolate, Handle<Object> temporal_time_zone_like);
   DECL_PRINTER(JSTemporalPlainDate)
 
   DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
@@ -153,6 +165,15 @@ class JSTemporalPlainDateTime
   // #sec-temporal.plaindatetime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time);
+
+  // #sec-temporal.now.plaindatetime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Now(
+      Isolate* isolate, Handle<Object> calendar_like,
+      Handle<Object> temporal_time_zone_like);
+
+  // #sec-temporal.now.plaindatetimeiso
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> NowISO(
+      Isolate* isolate, Handle<Object> temporal_time_zone_like);
 
   DECL_PRINTER(JSTemporalPlainDateTime)
 
@@ -204,6 +225,10 @@ class JSTemporalPlainTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainTime> plain_time);
 
+  // #sec-temporal.now.plaintimeiso
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> NowISO(
+      Isolate* isolate, Handle<Object> temporal_time_zone_like);
+
   DECL_PRINTER(JSTemporalPlainTime)
 
   DEFINE_TORQUE_GENERATED_JS_TEMPORAL_HOUR_MINUTE_SECOND()
@@ -243,6 +268,10 @@ class JSTemporalPlainYearMonth
 class JSTemporalTimeZone
     : public TorqueGeneratedJSTemporalTimeZone<JSTemporalTimeZone, JSObject> {
  public:
+  // #sec-temporal.now.timezone
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalTimeZone> Now(
+      Isolate* isolate);
+
   // #sec-temporal.timezone
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalTimeZone> Constructor(
       Isolate* isolate, Handle<JSFunction> target,
@@ -298,6 +327,15 @@ class JSTemporalZonedDateTime
   // #sec-temporal.zoneddatetime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.now.zoneddatetime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> Now(
+      Isolate* isolate, Handle<Object> calendar_like,
+      Handle<Object> temporal_time_zone_like);
+
+  // #sec-temporal.now.zoneddatetimeiso
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> NowISO(
+      Isolate* isolate, Handle<Object> temporal_time_zone_like);
 
   DECL_PRINTER(JSTemporalZonedDateTime)
 
