@@ -893,7 +893,8 @@ void WasmCodeAllocator::InsertIntoWritableRegions(base::AddressRegion region,
         writable_memory_.erase(previous);
       }
     }
-    if (region.end() == insert_pos->begin()) {
+    if (insert_pos != writable_memory_.end() &&
+        region.end() == insert_pos->begin()) {
       region = {region.begin(), insert_pos->size() + region.size()};
       insert_pos = writable_memory_.erase(insert_pos);
     }
