@@ -926,11 +926,11 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
 }
 
 // static
-bool OS::Free(void* address, size_t size) {
+void OS::Free(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
   USE(size);
-  return VirtualFree(address, 0, MEM_RELEASE) != 0;
+  CHECK_NE(0, VirtualFree(address, 0, MEM_RELEASE));
 }
 
 // static
@@ -957,15 +957,15 @@ void* OS::AllocateShared(void* hint, size_t size, MemoryPermission permission,
 }
 
 // static
-bool OS::FreeShared(void* address, size_t size) {
-  return UnmapViewOfFile(address);
+void OS::FreeShared(void* address, size_t size) {
+  CHECK(UnmapViewOfFile(address));
 }
 
 // static
-bool OS::Release(void* address, size_t size) {
+void OS::Release(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+  CHECK_NE(0, VirtualFree(address, size, MEM_DECOMMIT));
 }
 
 // static
@@ -1049,8 +1049,8 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
 }
 
 // static
-bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
-  return OS::Free(reservation.base(), reservation.size());
+void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+  OS::Free(reservation.base(), reservation.size());
 }
 
 // static

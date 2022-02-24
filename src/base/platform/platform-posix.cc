@@ -406,14 +406,14 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
   if (aligned_base != base) {
     DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    CHECK(Free(base, prefix_size));
+    Free(base, prefix_size);
     request_size -= prefix_size;
   }
   // Unmap memory allocated after the potentially unaligned end.
   if (size != request_size) {
     DCHECK_LT(size, request_size);
     size_t suffix_size = request_size - size;
-    CHECK(Free(aligned_base + size, suffix_size));
+    Free(aligned_base + size, suffix_size);
     request_size -= suffix_size;
   }
 
@@ -428,10 +428,10 @@ void* OS::AllocateShared(size_t size, MemoryPermission access) {
 }
 
 // static
-bool OS::Free(void* address, size_t size) {
+void OS::Free(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
-  return munmap(address, size) == 0;
+  CHECK_EQ(0, munmap(address, size));
 }
 
 // macOS specific implementation in platform-macos.cc.
@@ -449,16 +449,16 @@ void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
 #endif  // !defined(V8_OS_MACOS)
 
 // static
-bool OS::FreeShared(void* address, size_t size) {
+void OS::FreeShared(void* address, size_t size) {
   DCHECK_EQ(0, size % AllocatePageSize());
-  return munmap(address, size) == 0;
+  CHECK_EQ(0, munmap(address, size));
 }
 
 // static
-bool OS::Release(void* address, size_t size) {
+void OS::Release(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-  return munmap(address, size) == 0;
+  CHECK_EQ(0, munmap(address, size));
 }
 
 // static
@@ -568,8 +568,8 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
 }
 
 // static
-bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
-  return Free(reservation.base(), reservation.size());
+void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+  Free(reservation.base(), reservation.size());
 }
 
 // macOS specific implementation in platform-macos.cc.
@@ -719,7 +719,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) CHECK(OS::Free(memory_, RoundUp(size_, OS::AllocatePageSize())));
+  if (memory_) OS::Free(memory_, RoundUp(size_, OS::AllocatePageSize()));
   fclose(file_);
 }
 

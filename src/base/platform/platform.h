@@ -341,15 +341,15 @@ class V8_BASE_EXPORT OS {
                                                  void* new_address,
                                                  size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Free(void* address, size_t size);
+  static void Free(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT static void* AllocateShared(
       void* address, size_t size, OS::MemoryPermission access,
       PlatformSharedMemoryHandle handle, uint64_t offset);
 
-  V8_WARN_UNUSED_RESULT static bool FreeShared(void* address, size_t size);
+  static void FreeShared(void* address, size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
+  static void Release(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
@@ -365,8 +365,7 @@ class V8_BASE_EXPORT OS {
   CreateAddressSpaceReservation(void* hint, size_t size, size_t alignment,
                                 MemoryPermission max_permission);
 
-  V8_WARN_UNUSED_RESULT static bool FreeAddressSpaceReservation(
-      AddressSpaceReservation reservation);
+  static void FreeAddressSpaceReservation(AddressSpaceReservation reservation);
 
   static const int msPerSecond = 1000;
 

@@ -89,7 +89,8 @@ bool VirtualAddressSpace::FreePages(Address address, size_t size) {
   DCHECK(IsAligned(address, allocation_granularity()));
   DCHECK(IsAligned(size, allocation_granularity()));
 
-  return OS::Free(reinterpret_cast<void*>(address), size);
+  OS::Free(reinterpret_cast<void*>(address), size);
+  return true;
 }
 
 bool VirtualAddressSpace::SetPagePermissions(Address address, size_t size,
@@ -109,7 +110,7 @@ bool VirtualAddressSpace::AllocateGuardRegion(Address address, size_t size) {
   void* result = OS::Allocate(hint, size, allocation_granularity(),
                               OS::MemoryPermission::kNoAccess);
   if (result && result != hint) {
-    CHECK(OS::Free(result, size));
+    OS::Free(result, size);
   }
   return result == hint;
 }
@@ -118,7 +119,8 @@ bool VirtualAddressSpace::FreeGuardRegion(Address address, size_t size) {
   DCHECK(IsAligned(address, allocation_granularity()));
   DCHECK(IsAligned(size, allocation_granularity()));
 
-  return OS::Free(reinterpret_cast<void*>(address), size);
+  OS::Free(reinterpret_cast<void*>(address), size);
+  return true;
 }
 
 bool VirtualAddressSpace::CanAllocateSubspaces() {
@@ -141,7 +143,8 @@ bool VirtualAddressSpace::FreeSharedPages(Address address, size_t size) {
   DCHECK(IsAligned(address, allocation_granularity()));
   DCHECK(IsAligned(size, allocation_granularity()));
 
-  return OS::FreeShared(reinterpret_cast<void*>(address), size);
+  OS::FreeShared(reinterpret_cast<void*>(address), size);
+  return true;
 }
 
 std::unique_ptr<v8::VirtualAddressSpace> VirtualAddressSpace::AllocateSubspace(
@@ -176,7 +179,8 @@ bool VirtualAddressSpace::DecommitPages(Address address, size_t size) {
 }
 
 bool VirtualAddressSpace::FreeSubspace(VirtualAddressSubspace* subspace) {
-  return OS::FreeAddressSpaceReservation(subspace->reservation_);
+  OS::FreeAddressSpaceReservation(subspace->reservation_);
+  return true;
 }
 
 VirtualAddressSubspace::VirtualAddressSubspace(

@@ -254,8 +254,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 }
 
 // static
-bool OS::Free(void* address, size_t size) {
-  return UnmapVmo(*zx::vmar::root_self(), AllocatePageSize(), address, size);
+void OS::Free(void* address, size_t size) {
+  CHECK(UnmapVmo(*zx::vmar::root_self(), AllocatePageSize(), address, size));
 }
 
 // static
@@ -271,12 +271,12 @@ void* OS::AllocateShared(void* address, size_t size,
 }
 
 // static
-bool OS::FreeShared(void* address, size_t size) {
-  return UnmapVmo(*zx::vmar::root_self(), AllocatePageSize(), address, size);
+void OS::FreeShared(void* address, size_t size) {
+  CHECK(UnmapVmo(*zx::vmar::root_self(), AllocatePageSize(), address, size));
 }
 
 // static
-bool OS::Release(void* address, size_t size) { return Free(address, size); }
+void OS::Release(void* address, size_t size) { Free(address, size); }
 
 // static
 bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
@@ -320,10 +320,10 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
 }
 
 // static
-bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
   // Destroy the vmar and release the handle.
   zx::vmar vmar(reservation.vmar_);
-  return vmar.destroy() == ZX_OK;
+  CHECK_EQ(ZX_OK, vmar.destroy());
 }
 
 // static
@@ -399,7 +399,8 @@ Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
 
 bool AddressSpaceReservation::FreeSubReservation(
     AddressSpaceReservation reservation) {
-  return OS::FreeAddressSpaceReservation(reservation);
+  OS::FreeAddressSpaceReservation(reservation);
+  return true;
 }
 
 bool AddressSpaceReservation::Allocate(void* address, size_t size,
