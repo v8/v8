@@ -5,7 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_REGALLOC_DATA_H_
 #define V8_MAGLEV_MAGLEV_REGALLOC_DATA_H_
 
-#include "src/codegen/x64/register-x64.h"
+#include "src/codegen/register.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/utils/pointer-with-payload.h"
 

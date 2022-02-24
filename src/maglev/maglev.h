@@ -7,10 +7,7 @@
 
 // TODO(v8:7700): Remove all references to V8_ENABLE_MAGLEV once maglev ships.
 
-#ifndef V8_ENABLE_MAGLEV
-// Let's explicitly avoid accidental includes for now.
-#error Maglev should be enabled.
-#endif  // V8_ENABLE_MAGLEV
+#ifdef V8_ENABLE_MAGLEV
 
 #include "src/handles/handles.h"
 
@@ -25,6 +22,8 @@ class Maglev : public AllStatic {
   static MaybeHandle<CodeT> Compile(Isolate* isolate,
                                     Handle<JSFunction> function);
 };
+
+#endif  // V8_ENABLE_MAGLEV
 
 }  // namespace internal
 }  // namespace v8

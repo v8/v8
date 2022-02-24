@@ -8,7 +8,7 @@
 #include "src/base/logging.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
-#include "src/codegen/x64/register-x64.h"
+#include "src/codegen/register.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/ic/handler-configuration.h"
 #include "src/maglev/maglev-code-gen-state.h"
