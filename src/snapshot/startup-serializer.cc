@@ -77,10 +77,10 @@ StartupSerializer::StartupSerializer(
 
 StartupSerializer::~StartupSerializer() {
   for (Handle<AccessorInfo> info : accessor_infos_) {
-    RestoreExternalReferenceRedirector(isolate(), info);
+    RestoreExternalReferenceRedirector(isolate(), *info);
   }
   for (Handle<CallHandlerInfo> info : call_handler_infos_) {
-    RestoreExternalReferenceRedirector(isolate(), info);
+    RestoreExternalReferenceRedirector(isolate(), *info);
   }
   OutputStatistics("StartupSerializer");
 }
