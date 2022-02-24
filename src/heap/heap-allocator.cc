@@ -141,30 +141,20 @@ void HeapAllocator::SetAllocationTimeout(int allocation_timeout) {
 }
 
 void HeapAllocator::UpdateAllocationTimeout() {
-  if (FLAG_random_gc_interval <= 0 && FLAG_gc_interval < 0) return;
-
-  int new_timeout;
   if (FLAG_random_gc_interval > 0) {
-    new_timeout = allocation_timeout_ <= 0
-                      ? heap_->isolate()->fuzzer_rng()->NextInt(
-                            FLAG_random_gc_interval + 1)
-                      : allocation_timeout_;
-
-  } else {
-    DCHECK_GE(FLAG_gc_interval, 0);
-    new_timeout = FLAG_gc_interval;
+    const int new_timeout = allocation_timeout_ <= 0
+                                ? heap_->isolate()->fuzzer_rng()->NextInt(
+                                      FLAG_random_gc_interval + 1)
+                                : allocation_timeout_;
+    // Reset the allocation timeout, but make sure to allow at least a few
+    // allocations after a collection. The reason for this is that we have a lot
+    // of allocation sequences and we assume that a garbage collection will
+    // allow the subsequent allocation attempts to go through.
+    constexpr int kFewAllocationsHeadroom = 6;
+    allocation_timeout_ = std::max(kFewAllocationsHeadroom, new_timeout);
+  } else if (FLAG_gc_interval >= 0) {
+    allocation_timeout_ = FLAG_gc_interval;
   }
-  DCHECK_GE(new_timeout, 0);
-
-  // Reset the allocation timeout, but make sure to allow at least a few
-  // allocations after a collection. The reason for this is that we have a lot
-  // of allocation sequences and we assume that a garbage collection will allow
-  // the subsequent allocation attempts to go through.
-  //
-  // TODO(v8:12615): Move `kFewAllocationsHeadroom` behind
-  // `FLAG_random_gc_interval`.
-  constexpr int kFewAllocationsHeadroom = 6;
-  allocation_timeout_ = std::max(kFewAllocationsHeadroom, new_timeout);
 }
 
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
