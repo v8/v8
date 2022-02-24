@@ -6384,17 +6384,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   int AddArgumentNodes(base::Vector<Node*> args, int pos, int param_count,
-                       const wasm::FunctionSig* sig) {
+                       const wasm::FunctionSig* sig, Node* context) {
     // Convert wasm numbers to JS values.
     for (int i = 0; i < param_count; ++i) {
       Node* param =
           Param(i + 1);  // Start from index 1 to drop the instance_node.
-      args[pos++] = ToJS(param, sig->GetParam(i));
+      args[pos++] = ToJS(param, sig->GetParam(i), context);
     }
     return pos;
   }
 
-  Node* ToJS(Node* node, wasm::ValueType type) {
+  Node* ToJS(Node* node, wasm::ValueType type, Node* context) {
     switch (type.kind()) {
       case wasm::kI32:
         return BuildChangeInt32ToNumber(node);
@@ -6439,30 +6439,39 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                   gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
               // Do not wrap {null}.
               gasm_->GotoIf(IsNull(node), &done, node);
-              gasm_->Goto(&done, BuildAllocateObjectWrapper(node));
+              gasm_->Goto(&done, BuildAllocateObjectWrapper(node, context));
               gasm_->Bind(&done);
               return done.PhiAt(0);
             } else {
-              return BuildAllocateObjectWrapper(node);
+              return BuildAllocateObjectWrapper(node, context);
             }
           case wasm::HeapType::kAny: {
-            // Wrap {node} in object wrapper if it is an array/struct/i31.
+            // Wrap {node} in object wrapper if it is an array/struct.
             // Extract external function if this is a WasmInternalFunction.
             // Otherwise (i.e. null and external refs), return input.
+            // Treat i31 as externref because they are indistinguishable from
+            // Smis.
             // TODO(7748): Update this when JS interop is settled.
+            auto wrap = gasm_->MakeLabel();
+            auto function = gasm_->MakeLabel();
             auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-            gasm_->GotoIf(IsSmi(node), &done, BuildAllocateObjectWrapper(node));
-            // This includes the case where {node == null}.
-            gasm_->GotoIf(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &done,
-                          BuildAllocateObjectWrapper(node));
+            gasm_->GotoIf(IsSmi(node), &done, node);
+            gasm_->GotoIf(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &wrap);
             gasm_->GotoIf(
                 gasm_->HasInstanceType(node, WASM_INTERNAL_FUNCTION_TYPE),
-                &done,
-                gasm_->LoadFromObject(
-                    MachineType::TaggedPointer(), node,
-                    wasm::ObjectAccess::ToTagged(
-                        WasmInternalFunction::kExternalOffset)));
+                &function);
+            // This includes the case where {node == null}.
             gasm_->Goto(&done, node);
+
+            gasm_->Bind(&wrap);
+            gasm_->Goto(&done, BuildAllocateObjectWrapper(node, context));
+
+            gasm_->Bind(&function);
+            gasm_->Goto(&done, gasm_->LoadFromObject(
+                                   MachineType::TaggedPointer(), node,
+                                   wasm::ObjectAccess::ToTagged(
+                                       WasmInternalFunction::kExternalOffset)));
+
             gasm_->Bind(&done);
             return done.PhiAt(0);
           }
@@ -6495,18 +6504,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   // TODO(7748): Temporary solution to allow round-tripping of Wasm objects
   // through JavaScript, where they show up as opaque boxes. This will disappear
   // once we have a proper WasmGC <-> JS interaction story.
-  Node* BuildAllocateObjectWrapper(Node* input) {
+  Node* BuildAllocateObjectWrapper(Node* input, Node* context) {
     if (FLAG_wasm_gc_js_interop) return input;
-    return gasm_->CallBuiltin(
-        Builtin::kWasmAllocateObjectWrapper, Operator::kEliminatable, input,
-        LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+    return gasm_->CallBuiltin(Builtin::kWasmAllocateObjectWrapper,
+                              Operator::kEliminatable, input, context);
   }
 
   // Assumes {input} has been checked for validity against the target wasm type.
   // If {input} is a function, returns the WasmInternalFunction associated with
   // it. If {input} has the {wasm_wrapped_object_symbol} property, returns the
   // value of that property. Otherwise, returns {input}.
-  Node* BuildUnpackObjectWrapper(Node* input) {
+  Node* BuildUnpackObjectWrapper(Node* input, Node* context) {
     auto not_a_function = gasm_->MakeLabel();
     auto end = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
 
@@ -6526,7 +6534,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Node* obj = gasm_->CallBuiltin(
           Builtin::kWasmGetOwnProperty, Operator::kEliminatable, input,
           LOAD_ROOT(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol),
-          LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+          context);
       // Invalid object wrappers (i.e. any other JS object that doesn't have the
       // magic hidden property) will return {undefined}. Map that to {input}.
       Node* is_undefined = gasm_->TaggedEqual(obj, UndefinedValue());
@@ -6615,10 +6623,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kAny:
             // If this is a wrapper for arrays/structs/i31s, unpack it.
             // TODO(7748): Update this when JS interop has settled.
-            return BuildUnpackObjectWrapper(input);
+            return BuildUnpackObjectWrapper(input, js_context);
           case wasm::HeapType::kFunc:
             BuildCheckValidRefValue(input, js_context, type);
-            return BuildUnpackObjectWrapper(input);
+            return BuildUnpackObjectWrapper(input, js_context);
           case wasm::HeapType::kData:
           case wasm::HeapType::kArray:
           case wasm::HeapType::kEq:
@@ -6627,11 +6635,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             BuildCheckValidRefValue(input, js_context, type);
             // This will just return {input} if the object is not wrapped, i.e.
             // if it is null (given the check just above).
-            return BuildUnpackObjectWrapper(input);
+            return BuildUnpackObjectWrapper(input, js_context);
           default:
             if (module_->has_signature(type.ref_index())) {
               BuildCheckValidRefValue(input, js_context, type);
-              return BuildUnpackObjectWrapper(input);
+              return BuildUnpackObjectWrapper(input, js_context);
             }
             // If this is reached, then IsJSCompatibleSignature() is too
             // permissive.
@@ -6847,7 +6855,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     } else if (sig_->return_count() == 1) {
       jsval = js_wasm_call_data && !js_wasm_call_data->result_needs_conversion()
                   ? rets[0]
-                  : ToJS(rets[0], sig_->GetReturn());
+                  : ToJS(rets[0], sig_->GetReturn(), js_context);
     } else {
       int32_t return_count = static_cast<int32_t>(sig_->return_count());
       Node* size = gasm_->NumberConstant(return_count);
@@ -6857,7 +6865,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Node* fixed_array = gasm_->LoadJSArrayElements(jsval);
 
       for (int i = 0; i < return_count; ++i) {
-        Node* value = ToJS(rets[i], sig_->GetReturn(i));
+        Node* value = ToJS(rets[i], sig_->GetReturn(i), js_context);
         gasm_->StoreFixedArrayElementAny(fixed_array, i, value);
       }
     }
@@ -7130,7 +7138,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             graph()->zone(), false, wasm_count + 1, CallDescriptor::kNoFlags);
 
         // Convert wasm numbers to JS values.
-        pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_);
+        pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
+                               native_context);
 
         args[pos++] = undefined_node;  // new target
         args[pos++] =
@@ -7164,7 +7173,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             BuildReceiverNode(callable_node, native_context, undefined_node);
 
         // Convert wasm numbers to JS values.
-        pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_);
+        pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
+                               native_context);
         for (int i = wasm_count; i < expected_arity; ++i) {
           args[pos++] = undefined_node;
         }
@@ -7204,7 +7214,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             StubCallMode::kCallBuiltinPointer);
 
         // Convert wasm numbers to JS values.
-        pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_);
+        pos = AddArgumentNodes(base::VectorOf(args), pos, wasm_count, sig_,
+                               native_context);
 
         // The native_context is sufficient here, because all kind of callables
         // which depend on the context provide their own context. The context
@@ -7505,8 +7516,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Convert parameter JS values to wasm numbers and back to JS values.
     for (int i = 0; i < wasm_count; ++i) {
       Node* param = Param(i + 1);  // Start from index 1 to skip receiver.
-      args[pos++] =
-          ToJS(FromJS(param, context, sig_->GetParam(i)), sig_->GetParam(i));
+      args[pos++] = ToJS(FromJS(param, context, sig_->GetParam(i)),
+                         sig_->GetParam(i), context);
     }
 
     args[pos++] = context;
@@ -7521,7 +7532,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (sig_->return_count() == 0) {
       jsval = UndefinedValue();
     } else if (sig_->return_count() == 1) {
-      jsval = ToJS(FromJS(call, context, sig_->GetReturn()), sig_->GetReturn());
+      jsval = ToJS(FromJS(call, context, sig_->GetReturn()), sig_->GetReturn(),
+                   context);
     } else {
       Node* fixed_array =
           BuildMultiReturnFixedArrayFromIterable(sig_, call, context);
@@ -7532,7 +7544,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         const auto& type = sig_->GetReturn(i);
         Node* elem = gasm_->LoadFixedArrayElementAny(fixed_array, i);
-        Node* cast = ToJS(FromJS(elem, context, type), type);
+        Node* cast = ToJS(FromJS(elem, context, type), type, context);
         gasm_->StoreFixedArrayElementAny(result_fixed_array, i, cast);
       }
     }
