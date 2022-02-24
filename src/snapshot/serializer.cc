@@ -1255,5 +1255,21 @@ Serializer::HotObjectsList::~HotObjectsList() {
   heap_->UnregisterStrongRoots(strong_roots_entry_);
 }
 
+Handle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {
+  if (size() == 0) {
+    return isolate->factory()->empty_fixed_array();
+  }
+  Handle<FixedArray> externals = isolate->factory()->NewFixedArray(size());
+  DisallowGarbageCollection no_gc;
+  FixedArray raw = *externals;
+  IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
+      &map_);
+  for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
+    raw.set(*it.entry(), it.key());
+  }
+
+  return externals;
+}
+
 }  // namespace internal
 }  // namespace v8

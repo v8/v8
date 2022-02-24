@@ -653,6 +653,9 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
         if (object->IsString()) {
           // Can't contain references to other objects.
           break;
+        } else if (external_objects_ids_.size() > 0) {
+          int unused_id;
+          external_objects_ids_.LookupOrInsert(*object, &unused_id);
         } else {
           Throw("Unsupported object");
         }
@@ -963,9 +966,10 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
   }
 
   DCHECK(object->IsHeapObject());
-  switch (HeapObject::cast(*object).map().instance_type()) {
+  Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
+  switch ((*heap_object).map().instance_type()) {
     case ODDBALL_TYPE:
-      switch (Oddball::cast(*object).kind()) {
+      switch (Oddball::cast(*heap_object).kind()) {
         case Oddball::kFalse:
           serializer.WriteUint32(ValueType::FALSE_CONSTANT);
           return;
@@ -984,26 +988,26 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
     case HEAP_NUMBER_TYPE:
       // TODO(v8:11525): Handle possible endianness mismatch.
       serializer.WriteUint32(ValueType::DOUBLE);
-      serializer.WriteDouble(HeapNumber::cast(*object).value());
+      serializer.WriteDouble(HeapNumber::cast(*heap_object).value());
       break;
     case JS_FUNCTION_TYPE:
       serializer.WriteUint32(ValueType::FUNCTION_ID);
-      serializer.WriteUint32(GetFunctionId(JSFunction::cast(*object)));
+      serializer.WriteUint32(GetFunctionId(JSFunction::cast(*heap_object)));
       break;
     case JS_CLASS_CONSTRUCTOR_TYPE:
       serializer.WriteUint32(ValueType::CLASS_ID);
-      serializer.WriteUint32(GetClassId(JSFunction::cast(*object)));
+      serializer.WriteUint32(GetClassId(JSFunction::cast(*heap_object)));
       break;
     case JS_OBJECT_TYPE:
       serializer.WriteUint32(ValueType::OBJECT_ID);
-      serializer.WriteUint32(GetObjectId(JSObject::cast(*object)));
+      serializer.WriteUint32(GetObjectId(JSObject::cast(*heap_object)));
       break;
     case JS_ARRAY_TYPE:
       serializer.WriteUint32(ValueType::ARRAY_ID);
-      serializer.WriteUint32(GetArrayId(JSArray::cast(*object)));
+      serializer.WriteUint32(GetArrayId(JSArray::cast(*heap_object)));
       break;
     case JS_REG_EXP_TYPE: {
-      Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(object);
+      Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(heap_object);
       if (regexp->map() != isolate_->regexp_function()->initial_map()) {
         Throw("Unsupported RegExp map");
         return;
@@ -1020,8 +1024,8 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       break;
     }
     default:
-      if (object->IsString()) {
-        SerializeString(Handle<String>::cast(object), id);
+      if (heap_object->IsString()) {
+        SerializeString(Handle<String>::cast(heap_object), id);
         serializer.WriteUint32(ValueType::STRING_ID);
         serializer.WriteUint32(id);
       } else {
@@ -1077,6 +1081,10 @@ uint32_t WebSnapshotSerializer::GetExternalId(HeapObject object) {
   DCHECK(return_value);
   USE(return_value);
   return static_cast<uint32_t>(id);
+}
+
+Handle<FixedArray> WebSnapshotSerializer::GetExternals() {
+  return external_objects_ids_.Values(isolate_);
 }
 
 WebSnapshotDeserializer::WebSnapshotDeserializer(v8::Isolate* isolate,
@@ -1215,7 +1223,6 @@ bool WebSnapshotDeserializer::Deserialize(
     timer.Start();
   }
   if (!DeserializeSnapshot()) {
-    isolate_->ReportPendingMessages();
     return false;
   }
   if (!DeserializeScript()) {
@@ -2051,8 +2058,8 @@ Object WebSnapshotDeserializer::ReadRegexp() {
 Object WebSnapshotDeserializer::ReadExternalReference() {
   uint32_t ref_id;
   if (!deserializer_.ReadUint32(&ref_id) ||
-      ref_id > static_cast<uint32_t>(external_references_.length())) {
-    Throw("Malformed class / function");
+      ref_id >= static_cast<uint32_t>(external_references_.length())) {
+    Throw("Invalid external reference");
     return Smi::zero();
   }
   return external_references_.get(ref_id);

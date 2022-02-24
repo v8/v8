@@ -152,6 +152,12 @@ class V8_EXPORT WebSnapshotSerializer
     return static_cast<uint32_t>(object_ids_.size());
   }
 
+  uint32_t external_objects_count() const {
+    return static_cast<uint32_t>(external_objects_ids_.size());
+  }
+
+  Handle<FixedArray> GetExternals();
+
  private:
   WebSnapshotSerializer(const WebSnapshotSerializer&) = delete;
   WebSnapshotSerializer& operator=(const WebSnapshotSerializer&) = delete;

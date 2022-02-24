@@ -1559,22 +1559,34 @@ RUNTIME_FUNCTION(Runtime_WebSnapshotSerialize) {
   }
   Handle<Object> object = args.at<Object>(0);
   Handle<FixedArray> block_list = isolate->factory()->empty_fixed_array();
+  Handle<JSArray> block_list_js_array;
   if (args.length() == 2) {
     if (!args[1].IsJSArray()) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kInvalidArgument));
     }
-    auto raw_blocklist = args.at<JSArray>(1);
+    block_list_js_array = args.at<JSArray>(1);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, block_list,
-        JSReceiver::GetOwnValues(raw_blocklist,
+        JSReceiver::GetOwnValues(block_list_js_array,
                                  PropertyFilter::ENUMERABLE_STRINGS));
   }
 
   auto snapshot_data = std::make_shared<WebSnapshotData>();
   WebSnapshotSerializer serializer(isolate);
   if (!serializer.TakeSnapshot(object, block_list, *snapshot_data)) {
+    DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
+  }
+  if (!block_list_js_array.is_null() &&
+      static_cast<uint32_t>(block_list->length()) <
+          serializer.external_objects_count()) {
+    Handle<FixedArray> externals = serializer.GetExternals();
+    Handle<Map> map = JSObject::GetElementsTransitionMap(block_list_js_array,
+                                                         PACKED_ELEMENTS);
+    block_list_js_array->set_elements(*externals);
+    block_list_js_array->set_length(Smi::FromInt(externals->length()));
+    block_list_js_array->set_map(*map);
   }
   i::Handle<i::Object> managed_object = Managed<WebSnapshotData>::FromSharedPtr(
       isolate, snapshot_data->buffer_size, snapshot_data);
@@ -1613,8 +1625,8 @@ RUNTIME_FUNCTION(Runtime_WebSnapshotDeserialize) {
   WebSnapshotDeserializer deserializer(v8_isolate, data->buffer,
                                        data->buffer_size);
   if (!deserializer.Deserialize(injected_references)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kWebSnapshotError));
+    DCHECK(isolate->has_pending_exception());
+    return ReadOnlyRoots(isolate).exception();
   }
   Handle<Object> object;
   if (!deserializer.value().ToHandle(&object)) {

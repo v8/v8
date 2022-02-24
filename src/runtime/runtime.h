@@ -142,8 +142,6 @@ namespace internal {
   F(HandleDebuggerStatement, 0, 1)              \
   F(IsBreakOnException, 1, 1)                   \
   F(LiveEditPatchScript, 2, 1)                  \
-  F(WebSnapshotDeserialize, -1, 1)              \
-  F(WebSnapshotSerialize, -1, 1)                \
   F(ProfileCreateSnapshotDataBlob, 0, 1)        \
   F(ScheduleBreak, 0, 1)                        \
   F(ScriptLocationFromLine2, 4, 1)              \
@@ -481,11 +479,11 @@ namespace internal {
   F(DebugTrace, 0, 1)                         \
   F(DebugTrackRetainingPath, -1, 1)           \
   F(DeoptimizeFunction, 1, 1)                 \
+  F(DisableOptimizationFinalization, 0, 1)    \
   F(DisallowCodegenFromStrings, 1, 1)         \
   F(DisassembleFunction, 1, 1)                \
   F(EnableCodeLoggingForTesting, 0, 1)        \
   F(EnsureFeedbackVectorForFunction, 1, 1)    \
-  F(DisableOptimizationFinalization, 0, 1)    \
   F(FinalizeOptimization, 0, 1)               \
   F(GetCallable, 0, 1)                        \
   F(GetInitializerFunction, 1, 1)             \
@@ -539,10 +537,10 @@ namespace internal {
   F(PretenureAllocationSite, 1, 1)            \
   F(PrintWithNameForAssert, 2, 1)             \
   F(PromiseSpeciesProtector, 0, 1)            \
+  F(RegExpSpeciesProtector, 0, 1)             \
   F(RegexpHasBytecode, 2, 1)                  \
   F(RegexpHasNativeCode, 2, 1)                \
   F(RegexpIsUnmodified, 1, 1)                 \
-  F(RegExpSpeciesProtector, 0, 1)             \
   F(RegexpTypeTag, 1, 1)                      \
   F(RunningInSimulator, 0, 1)                 \
   F(RuntimeEvaluateREPL, 1, 1)                \
@@ -561,6 +559,8 @@ namespace internal {
   F(TurbofanStaticAssert, 1, 1)               \
   F(TypedArraySpeciesProtector, 0, 1)         \
   F(WaitForBackgroundOptimization, 0, 1)      \
+  F(WebSnapshotDeserialize, -1, 1)            \
+  F(WebSnapshotSerialize, -1, 1)              \
   I(DeoptimizeNow, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)    \

@@ -162,6 +162,8 @@ class ObjectCacheIndexMap {
     return true;
   }
 
+  Handle<FixedArray> Values(Isolate* isolate);
+
   int size() const { return next_index_; }
 
  private:
