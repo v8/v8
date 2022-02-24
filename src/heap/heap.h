@@ -752,7 +752,6 @@ class Heap {
   // This event is triggered after object is moved to a new place.
   void OnMoveEvent(HeapObject target, HeapObject source, int size_in_bytes);
 
-  inline bool CanAllocateInReadOnlySpace();
   bool deserialization_complete() const { return deserialization_complete_; }
 
   // We can only invoke Safepoint() on the main thread local heap after
@@ -2022,6 +2021,8 @@ class Heap {
   // ===========================================================================
   // Allocation methods. =======================================================
   // ===========================================================================
+
+  HeapAllocator* allocator() { return &heap_allocator_; }
 
   // Allocates a JS Map in the heap.
   V8_WARN_UNUSED_RESULT AllocationResult

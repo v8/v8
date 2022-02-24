@@ -50,6 +50,10 @@ ReadOnlySpace* HeapAllocator::read_only_space() const {
   return read_only_space_;
 }
 
+bool HeapAllocator::CanAllocateInReadOnlySpace() const {
+  return read_only_space()->writable();
+}
+
 template <AllocationType type>
 V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
     int size_in_bytes, AllocationOrigin origin, AllocationAlignment alignment) {

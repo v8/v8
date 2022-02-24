@@ -203,17 +203,6 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   return heap_allocator_.AllocateRaw(size_in_bytes, type, origin, alignment);
 }
 
-template <Heap::AllocationRetryMode mode>
-HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
-                                 AllocationOrigin origin,
-                                 AllocationAlignment alignment) {
-  return heap_allocator_.AllocateRawWith < mode ==
-                 AllocationRetryMode::kLightRetry
-             ? HeapAllocator::kLightRetry
-             : HeapAllocator::kRetryOrFail >
-                   (size, allocation, origin, alignment);
-}
-
 Address Heap::AllocateRawOrFail(int size, AllocationType allocation,
                                 AllocationOrigin origin,
                                 AllocationAlignment alignment) {
@@ -221,10 +210,6 @@ Address Heap::AllocateRawOrFail(int size, AllocationType allocation,
       .AllocateRawWith<HeapAllocator::kRetryOrFail>(size, allocation, origin,
                                                     alignment)
       .address();
-}
-
-bool Heap::CanAllocateInReadOnlySpace() {
-  return read_only_space()->writable();
 }
 
 void Heap::RegisterExternalString(String string) {

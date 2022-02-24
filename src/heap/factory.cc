@@ -21,6 +21,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/basic-memory-chunk.h"
+#include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
@@ -267,16 +268,17 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 MaybeHandle<Code> Factory::CodeBuilder::AllocateCode(
     bool retry_allocation_or_fail) {
   Heap* heap = isolate_->heap();
+  HeapAllocator* allocator = heap->allocator();
   HeapObject result;
   AllocationType allocation_type = V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
                                        ? AllocationType::kCode
                                        : AllocationType::kReadOnly;
   const int object_size = Code::SizeFor(code_desc_.body_size());
   if (retry_allocation_or_fail) {
-    result = heap->AllocateRawWith<Heap::kRetryOrFail>(
+    result = allocator->AllocateRawWith<HeapAllocator::kRetryOrFail>(
         object_size, allocation_type, AllocationOrigin::kRuntime);
   } else {
-    result = heap->AllocateRawWith<Heap::kLightRetry>(
+    result = allocator->AllocateRawWith<HeapAllocator::kLightRetry>(
         object_size, allocation_type, AllocationOrigin::kRuntime);
     // Return an empty handle if we cannot allocate the code object.
     if (result.is_null()) return MaybeHandle<Code>();
@@ -330,7 +332,7 @@ Handle<Code> Factory::CodeBuilder::Build() {
 
 HeapObject Factory::AllocateRaw(int size, AllocationType allocation,
                                 AllocationAlignment alignment) {
-  return isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
+  return allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
       size, allocation, AllocationOrigin::kRuntime, alignment);
 }
 
@@ -343,8 +345,8 @@ HeapObject Factory::AllocateRawWithAllocationSite(
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     size += AllocationMemento::kSize;
   }
-  HeapObject result =
-      isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(size, allocation);
+  HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+      size, allocation);
   WriteBarrierMode write_barrier_mode = allocation == AllocationType::kYoung
                                             ? SKIP_WRITE_BARRIER
                                             : UPDATE_WRITE_BARRIER;
@@ -371,8 +373,8 @@ void Factory::InitializeAllocationMemento(AllocationMemento memento,
 HeapObject Factory::New(Handle<Map> map, AllocationType allocation) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
-  HeapObject result =
-      isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(size, allocation);
+  HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+      size, allocation);
   // New space objects are allocated white.
   WriteBarrierMode write_barrier_mode = allocation == AllocationType::kYoung
                                             ? SKIP_WRITE_BARRIER
@@ -386,7 +388,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size,
                                             AllocationType allocation,
                                             AllocationOrigin origin) {
   Heap* heap = isolate()->heap();
-  HeapObject result = heap->AllocateRawWith<Heap::kRetryOrFail>(
+  HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
       size, allocation, origin, alignment);
   heap->CreateFillerObjectAt(result.address(), size, ClearRecordedSlots::kNo);
   return Handle<HeapObject>(result, isolate());
@@ -846,9 +848,8 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
   String result = String::cast(AllocateRawWithImmortalMap(
       size,
       RefineAllocationTypeForInPlaceInternalizableString(
-          isolate()->heap()->CanAllocateInReadOnlySpace()
-              ? AllocationType::kReadOnly
-              : AllocationType::kOld,
+          CanAllocateInReadOnlySpace() ? AllocationType::kReadOnly
+                                       : AllocationType::kOld,
           map),
       map));
   DisallowGarbageCollection no_gc;
@@ -1150,8 +1151,8 @@ Context Factory::NewContextInternal(Handle<Map> map, int size,
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, variadic_part_length);
   DCHECK_LE(Context::SizeFor(variadic_part_length), size);
 
-  HeapObject result =
-      isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(size, allocation);
+  HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+      size, allocation);
   result.set_map_after_allocation(*map);
   DisallowGarbageCollection no_gc;
   Context context = Context::cast(result);
@@ -1844,7 +1845,7 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
                      IsTerminalElementsKind(elements_kind));
   DCHECK(allocation_type == AllocationType::kMap ||
          allocation_type == AllocationType::kSharedMap);
-  HeapObject result = isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
+  HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
       Map::kSize, allocation_type);
   DisallowGarbageCollection no_gc;
   Heap* roots = allocation_type == AllocationType::kMap
@@ -1937,8 +1938,9 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     adjusted_object_size += AllocationMemento::kSize;
   }
-  HeapObject raw_clone = isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
-      adjusted_object_size, AllocationType::kYoung);
+  HeapObject raw_clone =
+      allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+          adjusted_object_size, AllocationType::kYoung);
 
   DCHECK(Heap::InYoungGeneration(raw_clone) || FLAG_single_generation);
 
@@ -2175,7 +2177,7 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
 }
 
 Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
-  return isolate()->heap()->CanAllocateInReadOnlySpace()
+  return CanAllocateInReadOnlySpace()
              ? NewHeapNumber<AllocationType::kReadOnly>(value)
              : NewHeapNumber<AllocationType::kOld>(value);
 }
@@ -2362,8 +2364,9 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
   {
     int obj_size = code->Size();
     CodePageCollectionMemoryModificationScope code_allocation(heap);
-    HeapObject result = heap->AllocateRawWith<Heap::kRetryOrFail>(
-        obj_size, AllocationType::kCode, AllocationOrigin::kRuntime);
+    HeapObject result =
+        allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+            obj_size, AllocationType::kCode, AllocationOrigin::kRuntime);
 
     // Copy code object.
     Address old_addr = code->address();
@@ -3874,7 +3877,7 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
 }
 
 bool Factory::CanAllocateInReadOnlySpace() {
-  return isolate()->heap()->CanAllocateInReadOnlySpace();
+  return allocator()->CanAllocateInReadOnlySpace();
 }
 
 bool Factory::EmptyStringRootIsInitialized() {

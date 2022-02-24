@@ -111,11 +111,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
   inline ReadOnlyRoots read_only_roots() const;
 
-  template <typename T>
-  Handle<T> MakeHandle(T obj) {
-    return handle(obj, isolate());
-  }
-
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
                              byte kind);
@@ -1031,6 +1026,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return nullptr;
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   }
+
+  V8_INLINE HeapAllocator* allocator() const;
 
   bool CanAllocateInReadOnlySpace();
   bool EmptyStringRootIsInitialized();

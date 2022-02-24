@@ -65,6 +65,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
                   AllocationOrigin origin = AllocationOrigin::kRuntime,
                   AllocationAlignment alignment = kTaggedAligned);
 
+  V8_INLINE bool CanAllocateInReadOnlySpace() const;
+
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   void UpdateAllocationTimeout();
   void SetAllocationTimeout(int allocation_timeout);
