@@ -1864,15 +1864,6 @@ class Heap {
   void InvokeIncrementalMarkingPrologueCallbacks();
   void InvokeIncrementalMarkingEpilogueCallbacks();
 
-  // Returns the timer used for a given GC type.
-  // - GCScavenger: young generation GC
-  // - GCCompactor: full GC
-  // - GCFinalzeMC: finalization of incremental full GC
-  // - GCFinalizeMCReduceMemory: finalization of incremental full GC with
-  // memory reduction
-  TimedHistogram* GCTypeTimer(GarbageCollector collector);
-  TimedHistogram* GCTypePriorityTimer(GarbageCollector collector);
-
   // ===========================================================================
   // Pretenuring. ==============================================================
   // ===========================================================================

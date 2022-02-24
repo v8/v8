@@ -541,7 +541,8 @@ TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
   tracer->current_.scopes[GCTracer::Scope::MC_MARK] = 5;
   tracer->current_.scopes[GCTracer::Scope::MC_PROLOGUE] = 6;
   tracer->current_.scopes[GCTracer::Scope::MC_SWEEP] = 7;
-  tracer->RecordGCPhasesHistograms(i_isolate()->counters()->gc_finalize());
+  tracer->RecordGCPhasesHistograms(
+      GCTracer::RecordGCPhasesInfo::Mode::Finalize);
   EXPECT_EQ(1, GcHistogram::Get("V8.GCFinalizeMC.Clear")->Total());
   EXPECT_EQ(2, GcHistogram::Get("V8.GCFinalizeMC.Epilogue")->Total());
   EXPECT_EQ(3, GcHistogram::Get("V8.GCFinalizeMC.Evacuate")->Total());
@@ -560,7 +561,8 @@ TEST_F(GCTracerTest, RecordScavengerHistograms) {
   tracer->ResetForTesting();
   tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS] = 1;
   tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL] = 2;
-  tracer->RecordGCPhasesHistograms(i_isolate()->counters()->gc_scavenger());
+  tracer->RecordGCPhasesHistograms(
+      GCTracer::RecordGCPhasesInfo::Mode::Scavenger);
   EXPECT_EQ(1, GcHistogram::Get("V8.GCScavenger.ScavengeRoots")->Total());
   EXPECT_EQ(2, GcHistogram::Get("V8.GCScavenger.ScavengeMain")->Total());
   GcHistogram::CleanUp();

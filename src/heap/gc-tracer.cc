@@ -195,6 +195,45 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
   return "Unknown Event Type";
 }
 
+GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(Heap* heap,
+                                                 GarbageCollector collector) {
+  Counters* counters = heap->isolate()->counters();
+  const bool in_background = heap->isolate()->IsIsolateInBackground();
+  if (Heap::IsYoungGenerationCollector(collector)) {
+    mode = Mode::Scavenger;
+    type_timer = counters->gc_scavenger();
+    type_priority_timer = in_background ? counters->gc_scavenger_background()
+                                        : counters->gc_scavenger_foreground();
+  } else {
+    DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
+    if (heap->incremental_marking()->IsStopped()) {
+      mode = Mode::None;
+      type_timer = counters->gc_compactor();
+      type_priority_timer = in_background ? counters->gc_compactor_background()
+                                          : counters->gc_compactor_foreground();
+    } else if (heap->ShouldReduceMemory()) {
+      mode = Mode::None;
+      type_timer = counters->gc_finalize_reduce_memory();
+      type_priority_timer =
+          in_background ? counters->gc_finalize_reduce_memory_background()
+                        : counters->gc_finalize_reduce_memory_foreground();
+    } else {
+      if (heap->incremental_marking()->IsMarking() &&
+          heap->incremental_marking()
+              ->local_marking_worklists()
+              ->IsPerContextMode()) {
+        mode = Mode::None;
+        type_timer = counters->gc_finalize_measure_memory();
+      } else {
+        mode = Mode::Finalize;
+        type_timer = counters->gc_finalize();
+      }
+      type_priority_timer = in_background ? counters->gc_finalize_background()
+                                          : counters->gc_finalize_foreground();
+    }
+  }
+}
+
 GCTracer::GCTracer(Heap* heap)
     : heap_(heap),
       current_(Event::START, Event::State::NOT_RUNNING,
@@ -1272,9 +1311,9 @@ void GCTracer::AddScopeSampleBackground(Scope::ScopeId scope, double duration) {
   counter.total_duration_ms += duration;
 }
 
-void GCTracer::RecordGCPhasesHistograms(TimedHistogram* gc_timer) {
+void GCTracer::RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode) {
   Counters* counters = heap_->isolate()->counters();
-  if (gc_timer == counters->gc_finalize()) {
+  if (mode == RecordGCPhasesInfo::Mode::Finalize) {
     DCHECK_EQ(Scope::FIRST_TOP_MC_SCOPE, Scope::MC_CLEAR);
     counters->gc_finalize_clear()->AddSample(
         static_cast<int>(current_.scopes[Scope::MC_CLEAR]));
@@ -1323,7 +1362,7 @@ void GCTracer::RecordGCPhasesHistograms(TimedHistogram* gc_timer) {
     }
 
     DCHECK_EQ(Scope::LAST_TOP_MC_SCOPE, Scope::MC_SWEEP);
-  } else if (gc_timer == counters->gc_scavenger()) {
+  } else if (mode == RecordGCPhasesInfo::Mode::Scavenger) {
     counters->gc_scavenger_scavenge_main()->AddSample(
         static_cast<int>(current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL]));
     counters->gc_scavenger_scavenge_roots()->AddSample(

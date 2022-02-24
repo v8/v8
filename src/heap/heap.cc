@@ -1539,50 +1539,6 @@ void Heap::ScheduleScavengeTaskIfNeeded() {
   scavenge_job_->ScheduleTaskIfNeeded(this);
 }
 
-TimedHistogram* Heap::GCTypePriorityTimer(GarbageCollector collector) {
-  if (IsYoungGenerationCollector(collector)) {
-    if (isolate_->IsIsolateInBackground()) {
-      return isolate_->counters()->gc_scavenger_background();
-    }
-    return isolate_->counters()->gc_scavenger_foreground();
-  }
-  DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
-  if (incremental_marking()->IsStopped()) {
-    if (isolate_->IsIsolateInBackground()) {
-      return isolate_->counters()->gc_compactor_background();
-    }
-    return isolate_->counters()->gc_compactor_foreground();
-  }
-  if (ShouldReduceMemory()) {
-    if (isolate_->IsIsolateInBackground()) {
-      return isolate_->counters()->gc_finalize_reduce_memory_background();
-    }
-    return isolate_->counters()->gc_finalize_reduce_memory_foreground();
-  }
-  if (isolate_->IsIsolateInBackground()) {
-    return isolate_->counters()->gc_finalize_background();
-  }
-  return isolate_->counters()->gc_finalize_foreground();
-}
-
-TimedHistogram* Heap::GCTypeTimer(GarbageCollector collector) {
-  if (IsYoungGenerationCollector(collector)) {
-    return isolate_->counters()->gc_scavenger();
-  }
-  DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
-  if (incremental_marking()->IsStopped()) {
-    return isolate_->counters()->gc_compactor();
-  }
-  if (ShouldReduceMemory()) {
-    return isolate_->counters()->gc_finalize_reduce_memory();
-  }
-  if (incremental_marking()->IsMarking() &&
-      incremental_marking()->local_marking_worklists()->IsPerContextMode()) {
-    return isolate_->counters()->gc_finalize_measure_memory();
-  }
-  return isolate_->counters()->gc_finalize();
-}
-
 void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
                              const v8::GCCallbackFlags gc_callback_flags) {
   // Since we are ignoring the return value, the exact choice of space does
@@ -1877,17 +1833,23 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
     GarbageCollectionPrologue(gc_reason, gc_callback_flags);
     {
-      TimedHistogram* gc_type_timer = GCTypeTimer(collector);
-      TimedHistogramScope histogram_timer_scope(gc_type_timer, isolate_);
-      TRACE_EVENT0("v8", gc_type_timer->name());
-
-      TimedHistogram* gc_type_priority_timer = GCTypePriorityTimer(collector);
-      OptionalTimedHistogramScopeMode mode =
-          isolate_->IsMemorySavingsModeActive()
-              ? OptionalTimedHistogramScopeMode::DONT_TAKE_TIME
-              : OptionalTimedHistogramScopeMode::TAKE_TIME;
-      OptionalTimedHistogramScope histogram_timer_priority_scope(
-          gc_type_priority_timer, isolate_, mode);
+      GCTracer::RecordGCPhasesInfo record_gc_phases_info(this, collector);
+      base::Optional<TimedHistogramScope> histogram_timer_scope;
+      base::Optional<OptionalTimedHistogramScope>
+          histogram_timer_priority_scope;
+      if (record_gc_phases_info.type_timer) {
+        histogram_timer_scope.emplace(record_gc_phases_info.type_timer,
+                                      isolate_);
+        TRACE_EVENT0("v8", record_gc_phases_info.type_timer->name());
+      }
+      if (record_gc_phases_info.type_priority_timer) {
+        OptionalTimedHistogramScopeMode mode =
+            isolate_->IsMemorySavingsModeActive()
+                ? OptionalTimedHistogramScopeMode::DONT_TAKE_TIME
+                : OptionalTimedHistogramScopeMode::TAKE_TIME;
+        histogram_timer_priority_scope.emplace(
+            record_gc_phases_info.type_priority_timer, isolate_, mode);
+      }
 
       if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
         tp_heap_->CollectGarbage();
@@ -1903,7 +1865,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
       if (collector == GarbageCollector::MARK_COMPACTOR ||
           collector == GarbageCollector::SCAVENGER) {
-        tracer()->RecordGCPhasesHistograms(gc_type_timer);
+        tracer()->RecordGCPhasesHistograms(record_gc_phases_info.mode);
       }
     }
 

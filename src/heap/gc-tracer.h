@@ -219,6 +219,24 @@ class V8_EXPORT_PRIVATE GCTracer {
         incremental_marking_scopes[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
   };
 
+  class RecordGCPhasesInfo {
+   public:
+    RecordGCPhasesInfo(Heap* heap, GarbageCollector collector);
+
+    enum class Mode { None, Scavenger, Finalize };
+
+    Mode mode;
+
+    // The timer used for a given GC type:
+    // - GCScavenger: young generation GC
+    // - GCCompactor: full GC
+    // - GCFinalizeMC: finalization of incremental full GC
+    // - GCFinalizeMCReduceMemory: finalization of incremental full GC with
+    //   memory reduction.
+    TimedHistogram* type_timer;
+    TimedHistogram* type_priority_timer;
+  };
+
   static const int kThroughputTimeFrameMs = 5000;
   static constexpr double kConservativeSpeedInBytesPerMillisecond = 128 * KB;
 
@@ -393,7 +411,7 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void AddScopeSampleBackground(Scope::ScopeId scope, double duration);
 
-  void RecordGCPhasesHistograms(TimedHistogram* gc_timer);
+  void RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode);
 
   void RecordEmbedderSpeed(size_t bytes, double duration);
 
