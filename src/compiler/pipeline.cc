@@ -3471,10 +3471,11 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   std::unique_ptr<const RegisterConfiguration> restricted_config;
   bool use_mid_tier_register_allocator =
-      FLAG_turbo_force_mid_tier_regalloc ||
-      (FLAG_turbo_use_mid_tier_regalloc_for_huge_functions &&
-       data->sequence()->VirtualRegisterCount() >
-           kTopTierVirtualRegistersLimit);
+      !CodeKindIsStaticallyCompiled(data->info()->code_kind()) &&
+      (FLAG_turbo_force_mid_tier_regalloc ||
+       (FLAG_turbo_use_mid_tier_regalloc_for_huge_functions &&
+        data->sequence()->VirtualRegisterCount() >
+            kTopTierVirtualRegistersLimit));
 
   if (call_descriptor->HasRestrictedAllocatableRegisters()) {
     RegList registers = call_descriptor->AllocatableRegisters();
