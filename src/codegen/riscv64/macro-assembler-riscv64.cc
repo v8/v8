@@ -4444,12 +4444,15 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   if (save_doubles) {
     // The stack is already aligned to 0 modulo 8 for stores with sdc1.
-    int kNumOfSavedRegisters = FPURegister::kNumRegisters;
-    int space = kNumOfSavedRegisters * kDoubleSize;
+    int space = kNumCallerSavedFPU * kDoubleSize;
     Sub64(sp, sp, Operand(space));
-    for (int i = 0; i < kNumOfSavedRegisters; i++) {
-      FPURegister reg = FPURegister::from_code(i);
-      StoreDouble(reg, MemOperand(sp, i * kDoubleSize));
+    int count = 0;
+    for (int i = 0; i < kNumFPURegisters; i++) {
+      if (kCallerSavedFPU & (1 << i)) {
+        FPURegister reg = FPURegister::from_code(i);
+        StoreDouble(reg, MemOperand(sp, count * kDoubleSize));
+        count++;
+      }
     }
   }
 
@@ -4480,14 +4483,17 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   // Optionally restore all double registers.
   if (save_doubles) {
-    // Remember: we only need to restore every 2nd double FPU value.
-    int kNumOfSavedRegisters = FPURegister::kNumRegisters / 2;
+    // Remember: we only need to restore kCallerSavedFPU.
     Sub64(scratch, fp,
           Operand(ExitFrameConstants::kFixedFrameSizeFromFp +
-                  kNumOfSavedRegisters * kDoubleSize));
-    for (int i = 0; i < kNumOfSavedRegisters; i++) {
-      FPURegister reg = FPURegister::from_code(2 * i);
-      LoadDouble(reg, MemOperand(scratch, i * kDoubleSize));
+                  kNumCallerSavedFPU * kDoubleSize));
+    int cout = 0;
+    for (int i = 0; i < kNumFPURegisters; i++) {
+      if (kCalleeSavedFPU & (1 << i)) {
+        FPURegister reg = FPURegister::from_code(i);
+        LoadDouble(reg, MemOperand(scratch, cout * kDoubleSize));
+        cout++;
+      }
     }
   }
 

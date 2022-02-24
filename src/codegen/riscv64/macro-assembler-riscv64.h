@@ -1107,7 +1107,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Enter exit frame.
   // argc - argument count to be dropped by LeaveExitFrame.
-  // save_doubles - saves FPU registers on stack, currently disabled.
+  // save_doubles - saves FPU registers on stack.
   // stack_space - extra stack space.
   void EnterExitFrame(bool save_doubles, int stack_space = 0,
                       StackFrame::Type frame_type = StackFrame::EXIT);
