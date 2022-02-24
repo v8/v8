@@ -169,6 +169,16 @@ def ensure_forward_triggering_properties(ctx):
                 properties["triggers"] = tlist
                 builder.properties = json.encode(properties)
 
+def python3_scripts(ctx):
+    build_bucket = ctx.output["cr-buildbucket.cfg"]
+    for bucket in build_bucket.buckets:
+        if bucket.name != "ci":
+            # We switch tryserver and branches last.
+            continue
+        for builder in bucket.swarming.builders:
+            if not builder.experiments.get("v8.scripts.use_python3"):
+                builder.experiments["v8.scripts.use_python3"] = 20
+
 lucicfg.generator(aggregate_builder_tester_console)
 
 lucicfg.generator(separate_builder_tester_console)
@@ -178,3 +188,5 @@ lucicfg.generator(headless_consoles)
 lucicfg.generator(mirror_dev_consoles)
 
 lucicfg.generator(ensure_forward_triggering_properties)
+
+lucicfg.generator(python3_scripts)
