@@ -49,6 +49,9 @@ class Verifier::Visitor {
 
  private:
   void CheckNotTyped(Node* node) {
+    // Verification of simplified lowering sets types of many additional nodes.
+    if (FLAG_verify_simplified_lowering) return;
+
     if (NodeProperties::IsTyped(node)) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
