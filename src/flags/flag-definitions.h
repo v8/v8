@@ -756,9 +756,6 @@ DEFINE_INT(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
-// TODO(v8:12142): Remove this flag once all references (chromium feature flag,
-// finch trials, field trial configs) are gone.
-DEFINE_BOOL(concurrent_inlining, true, "deprecated, does nothing")
 DEFINE_BOOL(
     stress_concurrent_inlining, false,
     "create additional concurrent optimization jobs but throw away result")
