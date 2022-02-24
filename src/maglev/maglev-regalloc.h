@@ -8,6 +8,7 @@
 #include "src/maglev/maglev-compilation-data.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-regalloc-data.h"
 
 namespace v8 {
 namespace internal {
@@ -53,7 +54,8 @@ class StraightForwardRegisterAllocator {
   std::vector<int> future_register_uses_[kAllocatableGeneralRegisterCount];
 
   // Currently live values.
-  std::map<ValueNode*, LiveNodeInfo> values_;
+  using LiveNodeInfoMap = std::map<ValueNode*, LiveNodeInfo>;
+  LiveNodeInfoMap values_;
 
   base::ThreadedList<StackSlot> free_slots_;
   int top_of_stack_ = 0;
@@ -74,8 +76,7 @@ class StraightForwardRegisterAllocator {
 
   void PrintLiveRegs() const;
 
-  // Update use info and clear now dead registers.
-  void UpdateInputUseAndClearDead(uint32_t use, const Input& input);
+  class InputsUpdater;
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);

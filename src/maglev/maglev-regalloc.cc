@@ -306,38 +306,76 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
   }
 }
 
-void StraightForwardRegisterAllocator::UpdateInputUseAndClearDead(
-    uint32_t use, const Input& input) {
-  ValueNode* node = input.node();
-  auto it = values_.find(node);
-  // If a value is dead, free it.
-  if (node->live_range().end == use) {
-    // There were multiple uses in this node.
-    if (it == values_.end()) return;
-    DCHECK_NE(it, values_.end());
-    LiveNodeInfo& info = it->second;
-    // TODO(jgruber,v8:7700): Instead of looping over all register values to
-    // find possible references, clear register values more efficiently.
-    for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-      if (register_values_[i] != &info) continue;
-      register_values_[i] = nullptr;
+class StraightForwardRegisterAllocator::InputsUpdater {
+ public:
+  explicit InputsUpdater(StraightForwardRegisterAllocator* allocator,
+                         NodeBase* node)
+      : allocator_(allocator), use_(node->id()) {}
+
+  void UpdateInputUse(const Input& input) {
+    ValueNode* node = input.node();
+    auto it = allocator_->values_.find(node);
+    if (node->live_range().end == use_) {
+      // If a value is dead, make sure it's cleared.
+      // Mark the info for clearing by clearing the node.
+      if (it->second.node == nullptr) return;
+      if (it->second.reg.is_valid()) {
+        // Collect values in registers for clearing later.
+        it->second.node = nullptr;
+        to_clear_[register_values_to_clear_++] = it;
+      } else {
+        // Immediately clear values in stack slots.
+        Clear(it);
+      }
+    } else {
+      // Otherwise update the next use.
+      DCHECK_NE(it, allocator_->values_.end());
+      it->second.next_use = input.next_use_id();
     }
+  }
+
+  ~InputsUpdater() {
+    // If no values died, simply return.
+    if (register_values_to_clear_ == 0) return;
+    // First clear the registers pointing to to-clear infos.
+    for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
+      LiveNodeInfo* value = allocator_->register_values_[i];
+      if (value == nullptr) continue;
+      if (value->node != nullptr) {
+        // The value shouldn't be dead yet.
+        // TODO(verwaest): This won't work yet because of deopt uses.
+        // DCHECK_GT(value->last_use, use_);
+        continue;
+      }
+      allocator_->register_values_[i] = nullptr;
+    }
+    // Then clear the infos.
+    for (int i = 0; i < register_values_to_clear_; i++) Clear(to_clear_[i]);
+  }
+
+ private:
+  void Clear(LiveNodeInfoMap::iterator& it) {
+    LiveNodeInfo& info = it->second;
     // If the stack slot is a local slot, free it so it can be reused.
     if (info.stack_slot != nullptr && info.stack_slot->slot.index() > 0) {
-      free_slots_.Add(info.stack_slot);
+      allocator_->free_slots_.Add(info.stack_slot);
     }
-    values_.erase(it);
-    return;
+    allocator_->values_.erase(it);
   }
-  // Otherwise update the next use.
-  DCHECK_NE(it, values_.end());
-  it->second.next_use = input.next_use_id();
-}
+
+  StraightForwardRegisterAllocator* const allocator_;
+  const uint32_t use_;
+  LiveNodeInfoMap::iterator to_clear_[kAllocatableGeneralRegisterCount];
+  int register_values_to_clear_ = 0;
+};
 
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  for (Input& input : *node) UpdateInputUseAndClearDead(node->id(), input);
+  {
+    InputsUpdater updater(this, node);
+    for (Input& input : *node) updater.UpdateInputUse(input);
+  }
 
   if (node->properties().is_call()) SpillAndClearRegisters();
   // TODO(verwaest): This isn't a good idea :)
@@ -399,6 +437,18 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
     case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
     case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
       UNREACHABLE();
+  }
+
+  // Immediately kill the register use if the node doesn't have a valid
+  // live-range.
+  // TODO(verwaest): Remove once we can avoid allocating such registers.
+  if (!node->has_valid_live_range() &&
+      node->result().operand().IsAnyRegister()) {
+    auto it = values_.find(node);
+    Register reg = it->second.reg;
+    DCHECK(reg.is_valid());
+    values_.erase(it);
+    register_values_[MapRegisterToIndex(reg)] = nullptr;
   }
 }
 
@@ -501,7 +551,10 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  for (Input& input : *node) UpdateInputUseAndClearDead(node->id(), input);
+  {
+    InputsUpdater updater(this, node);
+    for (Input& input : *node) updater.UpdateInputUse(input);
+  }
 
   if (node->properties().is_call()) SpillAndClearRegisters();
 
@@ -515,9 +568,9 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
         LiveNodeInfo& info = values_[input.node()];
         input.InjectAllocated(info.allocation());
       }
+      InputsUpdater updater(this, node);
       for (Phi* phi : *phis) {
-        Input& input = phi->input(block->predecessor_id());
-        UpdateInputUseAndClearDead(node->id(), input);
+        updater.UpdateInputUse(phi->input(block->predecessor_id()));
       }
     }
   }
