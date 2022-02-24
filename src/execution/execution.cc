@@ -13,6 +13,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"  // Only for static asserts.
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -281,6 +282,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   DCHECK_LE(params.argc, FixedArray::kMaxLength);
 
 #if V8_ENABLE_WEBASSEMBLY
+  // When executing JS code, there should be no {CodeSpaceWriteScope} open.
+  DCHECK(!wasm::CodeSpaceWriteScope::IsInScope());
   // If we have PKU support for Wasm, ensure that code is currently write
   // protected for this thread.
   DCHECK_IMPLIES(wasm::GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
