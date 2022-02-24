@@ -1651,10 +1651,12 @@ using FileAndLine = std::pair<const char*, int>;
 enum class OptimizationMarker : int32_t {
   // These values are set so that it is easy to check if there is a marker where
   // some processing needs to be done.
-  kNone = 0b00,
-  kInOptimizationQueue = 0b01,
-  kCompileTurbofan_NotConcurrent = 0b10,
-  kCompileTurbofan_Concurrent = 0b11,
+  kNone = 0b000,
+  kInOptimizationQueue = 0b001,
+  kCompileMaglev_NotConcurrent = 0b010,
+  kCompileMaglev_Concurrent = 0b011,
+  kCompileTurbofan_NotConcurrent = 0b100,
+  kCompileTurbofan_Concurrent = 0b101,
   kLastOptimizationMarker = kCompileTurbofan_Concurrent,
 };
 // For kNone or kInOptimizationQueue we don't need any special processing.
@@ -1664,18 +1666,18 @@ STATIC_ASSERT(static_cast<int>(OptimizationMarker::kNone) == 0b00 &&
               static_cast<int>(OptimizationMarker::kInOptimizationQueue) ==
                   0b01);
 STATIC_ASSERT(static_cast<int>(OptimizationMarker::kLastOptimizationMarker) <=
-              0b11);
-static constexpr uint32_t kNoneOrInOptimizationQueueMask = 0b10;
-
-inline bool IsInOptimizationQueueMarker(OptimizationMarker marker) {
-  return marker == OptimizationMarker::kInOptimizationQueue;
-}
+              0b111);
+static constexpr uint32_t kNoneOrInOptimizationQueueMask = 0b110;
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const OptimizationMarker& marker) {
   switch (marker) {
     case OptimizationMarker::kNone:
       return os << "OptimizationMarker::kNone";
+    case OptimizationMarker::kCompileMaglev_NotConcurrent:
+      return os << "OptimizationMarker::kCompileMaglev_NotConcurrent";
+    case OptimizationMarker::kCompileMaglev_Concurrent:
+      return os << "OptimizationMarker::kCompileMaglev_Concurrent";
     case OptimizationMarker::kCompileTurbofan_NotConcurrent:
       return os << "OptimizationMarker::kCompileTurbofan_NotConcurrent";
     case OptimizationMarker::kCompileTurbofan_Concurrent:
@@ -1696,13 +1698,23 @@ inline std::ostream& operator<<(std::ostream& os,
     case SpeculationMode::kDisallowSpeculation:
       return os << "SpeculationMode::kDisallowSpeculation";
   }
-  UNREACHABLE();
-  return os;
 }
 
 enum class BlockingBehavior { kBlock, kDontBlock };
 
 enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
+
+inline const char* ToString(ConcurrencyMode mode) {
+  switch (mode) {
+    case ConcurrencyMode::kNotConcurrent:
+      return "ConcurrencyMode::kNotConcurrent";
+    case ConcurrencyMode::kConcurrent:
+      return "ConcurrencyMode::kConcurrent";
+  }
+}
+inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
+  return os << ToString(mode);
+}
 
 #define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                            \
   C(Handler, handler)                                               \

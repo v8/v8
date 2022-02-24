@@ -64,6 +64,10 @@
 #include "src/web-snapshot/web-snapshot.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev.h"
+#endif  // V8_ENABLE_MAGLEV
+
 namespace v8 {
 namespace internal {
 
@@ -192,29 +196,13 @@ class CompilerTracer : public AllStatic {
   }
 };
 
-}  // namespace
-
-// Helper that times a scoped region and records the elapsed time.
-struct ScopedTimer {
-  explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
-    DCHECK_NOT_NULL(location_);
-    timer_.Start();
-  }
-
-  ~ScopedTimer() { *location_ += timer_.Elapsed(); }
-
-  base::ElapsedTimer timer_;
-  base::TimeDelta* location_;
-};
-
-// static
-void Compiler::LogFunctionCompilation(Isolate* isolate,
-                                      CodeEventListener::LogEventsAndTags tag,
-                                      Handle<Script> script,
-                                      Handle<SharedFunctionInfo> shared,
-                                      Handle<FeedbackVector> vector,
-                                      Handle<AbstractCode> abstract_code,
-                                      CodeKind kind, double time_taken_ms) {
+void LogFunctionCompilation(Isolate* isolate,
+                            CodeEventListener::LogEventsAndTags tag,
+                            Handle<Script> script,
+                            Handle<SharedFunctionInfo> shared,
+                            Handle<FeedbackVector> vector,
+                            Handle<AbstractCode> abstract_code, CodeKind kind,
+                            double time_taken_ms) {
   DCHECK(!abstract_code.is_null());
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     DCHECK_NE(*abstract_code, FromCodeT(*BUILTIN_CODE(isolate, CompileLazy)));
@@ -281,6 +269,21 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
                              shared->StartPosition(), shared->EndPosition(),
                              *debug_name));
 }
+
+}  // namespace
+
+// Helper that times a scoped region and records the elapsed time.
+struct ScopedTimer {
+  explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
+    DCHECK_NOT_NULL(location_);
+    timer_.Start();
+  }
+
+  ~ScopedTimer() { *location_ += timer_.Elapsed(); }
+
+  base::ElapsedTimer timer_;
+  base::TimeDelta* location_;
+};
 
 namespace {
 
@@ -369,9 +372,9 @@ void RecordUnoptimizedFunctionCompilation(
                          time_taken_to_finalize.InMillisecondsF();
 
   Handle<Script> script(Script::cast(shared->script()), isolate);
-  Compiler::LogFunctionCompilation(
-      isolate, tag, script, shared, Handle<FeedbackVector>(), abstract_code,
-      CodeKind::INTERPRETED_FUNCTION, time_taken_ms);
+  LogFunctionCompilation(isolate, tag, script, shared, Handle<FeedbackVector>(),
+                         abstract_code, CodeKind::INTERPRETED_FUNCTION,
+                         time_taken_ms);
 }
 
 }  // namespace
@@ -507,7 +510,7 @@ void OptimizedCompilationJob::RecordFunctionCompilation(
       Script::cast(compilation_info()->shared_info()->script()), isolate);
   Handle<FeedbackVector> feedback_vector(
       compilation_info()->closure()->feedback_vector(), isolate);
-  Compiler::LogFunctionCompilation(
+  LogFunctionCompilation(
       isolate, tag, script, compilation_info()->shared_info(), feedback_vector,
       abstract_code, compilation_info()->code_kind(), time_taken_ms);
 }
@@ -1021,6 +1024,85 @@ enum class GetOptimizedCodeResultHandling {
   kDiscardForTesting,
 };
 
+bool ShouldOptimize(CodeKind code_kind, Handle<SharedFunctionInfo> shared) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
+  switch (code_kind) {
+    case CodeKind::TURBOFAN:
+      return FLAG_opt && shared->PassesFilter(FLAG_turbo_filter);
+    case CodeKind::MAGLEV:
+      // TODO(v8:7700): FLAG_maglev_filter.
+      return FLAG_maglev;
+    default:
+      UNREACHABLE();
+  }
+}
+
+MaybeHandle<CodeT> CompileTurbofan(
+    Isolate* isolate, Handle<JSFunction> function,
+    Handle<SharedFunctionInfo> shared, ConcurrencyMode mode,
+    BytecodeOffset osr_offset, JavaScriptFrame* osr_frame,
+    GetOptimizedCodeResultHandling result_handling) {
+  VMState<COMPILER> state(isolate);
+  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
+
+  static constexpr CodeKind kCodeKind = CodeKind::TURBOFAN;
+
+  DCHECK(!isolate->has_pending_exception());
+  PostponeInterruptsScope postpone(isolate);
+  bool has_script = shared->script().IsScript();
+  // BUG(5946): This DCHECK is necessary to make certain that we won't
+  // tolerate the lack of a script without bytecode.
+  DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
+  std::unique_ptr<OptimizedCompilationJob> job(
+      compiler::Pipeline::NewCompilationJob(isolate, function, kCodeKind,
+                                            has_script, osr_offset, osr_frame));
+  OptimizedCompilationInfo* compilation_info = job->compilation_info();
+
+  if (result_handling == GetOptimizedCodeResultHandling::kDiscardForTesting) {
+    compilation_info->set_discard_result_for_testing();
+  }
+
+  // Prepare the job and launch concurrent compilation, or compile now.
+  if (mode == ConcurrencyMode::kConcurrent) {
+    if (GetOptimizedCodeLater(std::move(job), isolate, compilation_info,
+                              kCodeKind, function)) {
+      return ContinuationForConcurrentOptimization(isolate, function);
+    }
+  } else {
+    DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
+    if (GetOptimizedCodeNow(job.get(), isolate, compilation_info)) {
+      return ToCodeT(compilation_info->code(), isolate);
+    }
+  }
+
+  if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+  return {};
+}
+
+MaybeHandle<CodeT> CompileMaglev(
+    Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
+    BytecodeOffset osr_offset, JavaScriptFrame* osr_frame,
+    GetOptimizedCodeResultHandling result_handling) {
+  // TODO(v8:7700): Add missing support.
+  CHECK(mode == ConcurrencyMode::kNotConcurrent);
+  CHECK(osr_offset.IsNone());
+  CHECK(osr_frame == nullptr);
+  CHECK(result_handling == GetOptimizedCodeResultHandling::kDefault);
+
+  // TODO(v8:7700): Tracing, see CompileTurbofan.
+
+  DCHECK(!isolate->has_pending_exception());
+  PostponeInterruptsScope postpone(isolate);
+
+#ifdef V8_ENABLE_MAGLEV
+  return Maglev::Compile(isolate, function);
+#else
+  return {};
+#endif
+}
+
 MaybeHandle<CodeT> GetOptimizedCode(
     Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
@@ -1035,6 +1117,7 @@ MaybeHandle<CodeT> GetOptimizedCode(
   // don't try to re-optimize.
   if (function->HasOptimizationMarker()) function->ClearOptimizationMarker();
 
+  // TODO(v8:7700): Distinguish between Maglev and Turbofan.
   if (shared->optimization_disabled() &&
       shared->disabled_optimization_reason() == BailoutReason::kNeverOptimize) {
     return {};
@@ -1043,12 +1126,12 @@ MaybeHandle<CodeT> GetOptimizedCode(
   // Do not optimize when debugger needs to hook into every call.
   if (isolate->debug()->needs_check_on_function_call()) return {};
 
-  // Do not use TurboFan if we need to be able to set break points.
+  // Do not optimize if we need to be able to set break points.
   if (shared->HasBreakInfo()) return {};
 
-  // Do not use TurboFan if optimization is disabled or function doesn't pass
+  // Do not optimize if optimization is disabled or function doesn't pass
   // turbo_filter.
-  if (!FLAG_opt || !shared->PassesFilter(FLAG_turbo_filter)) return {};
+  if (!ShouldOptimize(code_kind, shared)) return {};
 
   // If code was pending optimization for testing, remove the entry from the
   // table that was preventing the bytecode from being flushed.
@@ -1067,45 +1150,19 @@ MaybeHandle<CodeT> GetOptimizedCode(
     }
   }
 
-  // Reset profiler ticks, function is no longer considered hot.
+  // Reset profiler ticks, the function is no longer considered hot.
+  // TODO(v8:7700): Update for Maglev tiering.
   DCHECK(shared->is_compiled());
   function->feedback_vector().set_profiler_ticks(0);
 
-  VMState<COMPILER> state(isolate);
-  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
-
-  DCHECK(!isolate->has_pending_exception());
-  PostponeInterruptsScope postpone(isolate);
-  bool has_script = shared->script().IsScript();
-  // BUG(5946): This DCHECK is necessary to make certain that we won't
-  // tolerate the lack of a script without bytecode.
-  DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
-  std::unique_ptr<OptimizedCompilationJob> job(
-      compiler::Pipeline::NewCompilationJob(isolate, function, code_kind,
-                                            has_script, osr_offset, osr_frame));
-  OptimizedCompilationInfo* compilation_info = job->compilation_info();
-
-  if (result_handling == GetOptimizedCodeResultHandling::kDiscardForTesting) {
-    compilation_info->set_discard_result_for_testing();
-  }
-
-  // Prepare the job and launch concurrent compilation, or compile now.
-  if (mode == ConcurrencyMode::kConcurrent) {
-    if (GetOptimizedCodeLater(std::move(job), isolate, compilation_info,
-                              code_kind, function)) {
-      return ContinuationForConcurrentOptimization(isolate, function);
-    }
+  if (code_kind == CodeKind::TURBOFAN) {
+    return CompileTurbofan(isolate, function, shared, mode, osr_offset,
+                           osr_frame, result_handling);
   } else {
-    DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
-    if (GetOptimizedCodeNow(job.get(), isolate, compilation_info)) {
-      return ToCodeT(compilation_info->code(), isolate);
-    }
+    DCHECK_EQ(code_kind, CodeKind::MAGLEV);
+    return CompileMaglev(isolate, function, mode, osr_offset, osr_frame,
+                         result_handling);
   }
-
-  if (isolate->has_pending_exception()) isolate->clear_pending_exception();
-  return {};
 }
 
 // When --stress-concurrent-inlining is enabled, spawn concurrent jobs in
@@ -1116,6 +1173,9 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
                                                  Handle<JSFunction> function,
                                                  ConcurrencyMode mode,
                                                  CodeKind code_kind) {
+  // TODO(v8:7700): Support Maglev.
+  if (code_kind == CodeKind::MAGLEV) return;
+
   DCHECK(FLAG_stress_concurrent_inlining &&
          isolate->concurrent_recompilation_enabled() &&
          mode == ConcurrencyMode::kNotConcurrent &&
@@ -2024,11 +2084,11 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
 
   if (shared->script().IsScript()) {
-    Compiler::LogFunctionCompilation(
-        isolate, CodeEventListener::FUNCTION_TAG,
-        handle(Script::cast(shared->script()), isolate), shared,
-        Handle<FeedbackVector>(), Handle<AbstractCode>::cast(code),
-        CodeKind::BASELINE, time_taken_ms);
+    LogFunctionCompilation(isolate, CodeEventListener::FUNCTION_TAG,
+                           handle(Script::cast(shared->script()), isolate),
+                           shared, Handle<FeedbackVector>(),
+                           Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
+                           time_taken_ms);
   }
   return true;
 }
@@ -2050,6 +2110,32 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
   function->set_code(baseline_code);
 
   return true;
+}
+
+// static
+bool Compiler::CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
+                             ConcurrencyMode mode,
+                             IsCompiledScope* is_compiled_scope) {
+#ifdef V8_ENABLE_MAGLEV
+  // Bytecode must be available for maglev compilation.
+  DCHECK(is_compiled_scope->is_compiled());
+  // TODO(v8:7700): Support concurrent compilation.
+  DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
+
+  // Maglev code needs a feedback vector.
+  JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+
+  MaybeHandle<CodeT> maybe_code = Maglev::Compile(isolate, function);
+  Handle<CodeT> code;
+  if (!maybe_code.ToHandle(&code)) return false;
+
+  DCHECK_EQ(code->kind(), CodeKind::MAGLEV);
+  function->set_code(*code);
+
+  return true;
+#else
+  return false;
+#endif  // V8_ENABLE_MAGLEV
 }
 
 // static

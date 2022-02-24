@@ -2152,6 +2152,8 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::TURBOFAN:
     case CodeKind::BASELINE:
+    case CodeKind::MAGLEV:
+      return;  // We log this later using LogCompiledFunctions.
     case CodeKind::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
     case CodeKind::FOR_TESTING:

@@ -28,6 +28,7 @@ namespace internal {
   V(C_WASM_ENTRY)          \
   V(INTERPRETED_FUNCTION)  \
   V(BASELINE)              \
+  V(MAGLEV)                \
   V(TURBOFAN)
 
 enum class CodeKind {
@@ -62,12 +63,16 @@ inline constexpr bool CodeKindIsUnoptimizedJSFunction(CodeKind kind) {
 }
 
 inline constexpr bool CodeKindIsOptimizedJSFunction(CodeKind kind) {
-  return kind == CodeKind::TURBOFAN;
+  STATIC_ASSERT(static_cast<int>(CodeKind::MAGLEV) + 1 ==
+                static_cast<int>(CodeKind::TURBOFAN));
+  return base::IsInRange(kind, CodeKind::MAGLEV, CodeKind::TURBOFAN);
 }
 
 inline constexpr bool CodeKindIsJSFunction(CodeKind kind) {
-  return CodeKindIsUnoptimizedJSFunction(kind) ||
-         CodeKindIsOptimizedJSFunction(kind);
+  STATIC_ASSERT(static_cast<int>(CodeKind::BASELINE) + 1 ==
+                static_cast<int>(CodeKind::MAGLEV));
+  return base::IsInRange(kind, CodeKind::INTERPRETED_FUNCTION,
+                         CodeKind::TURBOFAN);
 }
 
 inline constexpr bool CodeKindIsBuiltinOrJSFunction(CodeKind kind) {

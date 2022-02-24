@@ -29,16 +29,16 @@ namespace internal {
 
 namespace {
 
-Object CompileTurbofan(Isolate* isolate, Handle<JSFunction> function,
-                       ConcurrencyMode mode) {
+Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+                        CodeKind target_kind, ConcurrencyMode mode) {
   StackLimitCheck check(isolate);
   // Concurrent optimization runs on another thread, thus no additional gap.
-  const int stack_gap = mode == ConcurrencyMode::kConcurrent
-                            ? 0
-                            : kStackSpaceRequiredForCompilation * KB;
-  if (check.JsHasOverflowed(stack_gap)) return isolate->StackOverflow();
+  const int gap = mode == ConcurrencyMode::kConcurrent
+                      ? 0
+                      : kStackSpaceRequiredForCompilation * KB;
+  if (check.JsHasOverflowed(gap)) return isolate->StackOverflow();
 
-  Compiler::CompileOptimized(isolate, function, mode, function->NextTier());
+  Compiler::CompileOptimized(isolate, function, mode, target_kind);
 
   // As a post-condition of CompileOptimized, the function *must* be compiled,
   // i.e. the installed Code object must not be the CompileLazy builtin.
@@ -92,18 +92,36 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   return baseline_code;
 }
 
+RUNTIME_FUNCTION(Runtime_CompileMaglev_Concurrent) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return CompileOptimized(isolate, function, CodeKind::MAGLEV,
+                          ConcurrencyMode::kConcurrent);
+}
+
+RUNTIME_FUNCTION(Runtime_CompileMaglev_NotConcurrent) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return CompileOptimized(isolate, function, CodeKind::MAGLEV,
+                          ConcurrencyMode::kNotConcurrent);
+}
+
 RUNTIME_FUNCTION(Runtime_CompileTurbofan_Concurrent) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return CompileTurbofan(isolate, function, ConcurrencyMode::kConcurrent);
+  return CompileOptimized(isolate, function, CodeKind::TURBOFAN,
+                          ConcurrencyMode::kConcurrent);
 }
 
 RUNTIME_FUNCTION(Runtime_CompileTurbofan_NotConcurrent) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return CompileTurbofan(isolate, function, ConcurrencyMode::kNotConcurrent);
+  return CompileOptimized(isolate, function, CodeKind::TURBOFAN,
+                          ConcurrencyMode::kNotConcurrent);
 }
 
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {

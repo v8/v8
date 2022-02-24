@@ -79,44 +79,10 @@ void JSFunction::SetInterruptBudget() {
   }
 }
 
-void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
-  Isolate* isolate = GetIsolate();
-  if (!isolate->concurrent_recompilation_enabled() ||
-      isolate->bootstrapper()->IsActive()) {
-    mode = ConcurrencyMode::kNotConcurrent;
-  }
-
-  DCHECK(!is_compiled() || ActiveTierIsIgnition() || ActiveTierIsBaseline());
-  DCHECK(!ActiveTierIsTurbofan());
-  DCHECK(shared().HasBytecodeArray());
-  DCHECK(shared().allows_lazy_compilation() ||
-         !shared().optimization_disabled());
-
-  if (mode == ConcurrencyMode::kConcurrent) {
-    if (IsInOptimizationQueue()) {
-      if (FLAG_trace_concurrent_recompilation) {
-        PrintF("  ** Not marking ");
-        ShortPrint();
-        PrintF(" -- already in optimization queue.\n");
-      }
-      return;
-    }
-    if (FLAG_trace_concurrent_recompilation) {
-      PrintF("  ** Marking ");
-      ShortPrint();
-      PrintF(" for concurrent recompilation.\n");
-    }
-  }
-
-  SetOptimizationMarker(
-      mode == ConcurrencyMode::kConcurrent
-          ? OptimizationMarker::kCompileTurbofan_Concurrent
-          : OptimizationMarker::kCompileTurbofan_NotConcurrent);
-}
-
 bool JSFunction::IsInOptimizationQueue() {
   if (!has_feedback_vector()) return false;
-  return IsInOptimizationQueueMarker(feedback_vector().optimization_marker());
+  return feedback_vector().optimization_marker() ==
+         OptimizationMarker::kInOptimizationQueue;
 }
 
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {

@@ -436,6 +436,10 @@ class Code : public HeapObject {
   // TurboFan optimizing compiler.
   inline bool is_turbofanned() const;
 
+  // TODO(jgruber): Reconsider these predicates; we should probably merge them
+  // and rename to something appropriate.
+  inline bool is_maglevved() const;
+
   // [can_have_weak_objects]: If CodeKindIsOptimizedJSFunction(kind), tells
   // whether the embedded objects in code should be treated weakly.
   inline bool can_have_weak_objects() const;

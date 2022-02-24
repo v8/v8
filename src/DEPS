@@ -51,6 +51,8 @@ include_rules = [
   "+src/interpreter/interpreter.h",
   "+src/interpreter/interpreter-generator.h",
   "+src/interpreter/setup-interpreter.h",
+  "-src/maglev",
+  "+src/maglev/maglev.h",
   "-src/regexp",
   "+src/regexp/regexp.h",
   "+src/regexp/regexp-flags.h",

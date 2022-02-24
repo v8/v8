@@ -48,7 +48,7 @@ Running test: testErrorStackTraceLimitWithRuntimeEnabled
                 callFrames : [
                     [0] : {
                         columnNumber : 10
-                        functionName : 
+                        functionName :
                         lineNumber : 8
                         scriptId : <scriptId>
                         url : test.js
@@ -209,10 +209,10 @@ Running test: testErrorStackTraceLimitWithRuntimeEnabled
                     }
                     [23] : {
                         columnNumber : 0
-                        functionName : 
+                        functionName :
                         lineNumber : 0
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                 ]
             }
@@ -272,7 +272,7 @@ Running test: testErrorStackTraceLimitWithRuntimeEnabled
                 callFrames : [
                     [0] : {
                         columnNumber : 10
-                        functionName : 
+                        functionName :
                         lineNumber : 8
                         scriptId : <scriptId>
                         url : test.js
@@ -337,7 +337,7 @@ Running test: testErrorStackTraceLimitWithRuntimeEnabled
                 callFrames : [
                     [0] : {
                         columnNumber : 10
-                        functionName : 
+                        functionName :
                         lineNumber : 8
                         scriptId : <scriptId>
                         url : test.js
@@ -439,7 +439,7 @@ Running test: testErrorStackTraceLimitNonNumber
                 callFrames : [
                     [0] : {
                         columnNumber : 10
-                        functionName : 
+                        functionName :
                         lineNumber : 8
                         scriptId : <scriptId>
                         url : test.js
@@ -600,10 +600,10 @@ Running test: testErrorStackTraceLimitNonNumber
                     }
                     [23] : {
                         columnNumber : 0
-                        functionName : 
+                        functionName :
                         lineNumber : 0
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                 ]
             }
@@ -639,7 +639,7 @@ Running test: testErrorStackTraceLimitDeleted
                 callFrames : [
                     [0] : {
                         columnNumber : 10
-                        functionName : 
+                        functionName :
                         lineNumber : 8
                         scriptId : <scriptId>
                         url : test.js
@@ -800,10 +800,10 @@ Running test: testErrorStackTraceLimitDeleted
                     }
                     [23] : {
                         columnNumber : 0
-                        functionName : 
+                        functionName :
                         lineNumber : 0
                         scriptId : <scriptId>
-                        url : 
+                        url :
                     }
                 ]
             }

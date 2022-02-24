@@ -53,14 +53,6 @@ void BytecodeArrayIterator::ApplyDebugBreak() {
   *cursor = interpreter::Bytecodes::ToByte(debugbreak);
 }
 
-int BytecodeArrayIterator::current_bytecode_size() const {
-  return prefix_size_ + current_bytecode_size_without_prefix();
-}
-
-int BytecodeArrayIterator::current_bytecode_size_without_prefix() const {
-  return Bytecodes::Size(current_bytecode(), current_operand_scale());
-}
-
 uint32_t BytecodeArrayIterator::GetUnsignedOperand(
     int operand_index, OperandType operand_type) const {
   DCHECK_GE(operand_index, 0);

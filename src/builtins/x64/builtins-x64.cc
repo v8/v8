@@ -954,6 +954,13 @@ static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
 
   TailCallRuntimeIfMarkerEquals(
       masm, optimization_marker,
+      OptimizationMarker::kCompileMaglev_NotConcurrent,
+      Runtime::kCompileMaglev_NotConcurrent);
+  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
+                                OptimizationMarker::kCompileMaglev_Concurrent,
+                                Runtime::kCompileMaglev_Concurrent);
+  TailCallRuntimeIfMarkerEquals(
+      masm, optimization_marker,
       OptimizationMarker::kCompileTurbofan_NotConcurrent,
       Runtime::kCompileTurbofan_NotConcurrent);
   TailCallRuntimeIfMarkerEquals(masm, optimization_marker,

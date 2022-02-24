@@ -773,6 +773,12 @@ const LoopInfo& BytecodeAnalysis::GetLoopInfoFor(int header_offset) const {
   return header_to_info_.find(header_offset)->second;
 }
 
+const LoopInfo* BytecodeAnalysis::TryGetLoopInfoFor(int header_offset) const {
+  auto it = header_to_info_.find(header_offset);
+  if (it == header_to_info_.end()) return nullptr;
+  return &it->second;
+}
+
 const BytecodeLivenessState* BytecodeAnalysis::GetInLivenessFor(
     int offset) const {
   if (!analyze_liveness_) return nullptr;

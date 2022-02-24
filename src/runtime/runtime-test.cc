@@ -37,6 +37,10 @@
 #include "src/snapshot/snapshot.h"
 #include "src/web-snapshot/web-snapshot.h"
 
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev.h"
+#endif  // V8_ENABLE_MAGLEV
+
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -216,11 +220,14 @@ RUNTIME_FUNCTION(Runtime_IsAtomicsWaitAllowed) {
 
 namespace {
 
-enum class TierupKind { kTierupBytecode, kTierupBytecodeOrMidTier };
-
+template <CodeKind code_kind>
 bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
-                         TierupKind tierup_kind,
-                         IsCompiledScope* is_compiled_scope) {
+                         IsCompiledScope* is_compiled_scope);
+
+template <>
+bool CanOptimizeFunction<CodeKind::TURBOFAN>(
+    Handle<JSFunction> function, Isolate* isolate,
+    IsCompiledScope* is_compiled_scope) {
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
@@ -252,8 +259,7 @@ bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
   }
 
   CodeKind kind = CodeKindForTopTier();
-  if ((tierup_kind == TierupKind::kTierupBytecode &&
-       function->HasAvailableOptimizedCode()) ||
+  if (function->HasAvailableOptimizedCode() ||
       function->HasAvailableCodeKind(kind)) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksOptimizationMarker());
@@ -266,8 +272,23 @@ bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
   return true;
 }
 
-Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
-                                  TierupKind tierup_kind) {
+#ifdef V8_ENABLE_MAGLEV
+template <>
+bool CanOptimizeFunction<CodeKind::MAGLEV>(Handle<JSFunction> function,
+                                           Isolate* isolate,
+                                           IsCompiledScope* is_compiled_scope) {
+  if (!FLAG_maglev) return false;
+
+  CHECK(!IsAsmWasmFunction(isolate, *function));
+
+  // TODO(v8:7700): Disabled optimization due to deopts?
+  // TODO(v8:7700): Already cached?
+
+  return function->GetActiveTier() < CodeKind::MAGLEV;
+}
+#endif  // V8_ENABLE_MAGLEV
+
+Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
   if (args.length() != 1 && args.length() != 2) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -276,10 +297,11 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
+  static constexpr CodeKind kCodeKind = CodeKind::TURBOFAN;
+
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate));
-  if (!CanOptimizeFunction(function, isolate, tierup_kind,
-                           &is_compiled_scope)) {
+  if (!CanOptimizeFunction<kCodeKind>(function, isolate, &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -296,9 +318,8 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   if (FLAG_trace_opt) {
     PrintF("[manually marking ");
     function->ShortPrint();
-    PrintF(" for %s optimization]\n",
-           concurrency_mode == ConcurrencyMode::kConcurrent ? "concurrent"
-                                                            : "non-concurrent");
+    PrintF(" for %s %s optimization]\n", ToString(concurrency_mode),
+           CodeKindToString(kCodeKind));
   }
 
   // This function may not have been lazily compiled yet, even though its shared
@@ -378,9 +399,80 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
   return *function;
 }
 
+// TODO(v8:7700): Remove this function once we no longer need it to measure
+// maglev compile times. For normal tierup, OptimizeMaglevOnNextCall should be
+// used instead.
+#ifdef V8_ENABLE_MAGLEV
+RUNTIME_FUNCTION(Runtime_BenchMaglev) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_SMI_ARG_CHECKED(count, 1);
+
+  Handle<CodeT> codet;
+  base::ElapsedTimer timer;
+  timer.Start();
+  codet = Maglev::Compile(isolate, function).ToHandleChecked();
+  for (int i = 1; i < count; ++i) {
+    HandleScope handle_scope(isolate);
+    Maglev::Compile(isolate, function);
+  }
+  PrintF("Maglev compile time: %g ms!\n",
+         timer.Elapsed().InMillisecondsF() / count);
+
+  function->set_code(*codet);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+#else
+RUNTIME_FUNCTION(Runtime_BenchMaglev) {
+  PrintF("Maglev is not enabled.\n");
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+#endif  // V8_ENABLE_MAGLEV
+
+#ifdef V8_ENABLE_MAGLEV
+RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  static constexpr CodeKind kCodeKind = CodeKind::MAGLEV;
+
+  IsCompiledScope is_compiled_scope(
+      function->shared().is_compiled_scope(isolate));
+  if (!CanOptimizeFunction<kCodeKind>(function, isolate, &is_compiled_scope)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  DCHECK(is_compiled_scope.is_compiled());
+  DCHECK(function->is_compiled());
+
+  // TODO(v8:7700): Support concurrent compiles.
+  const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
+
+  if (FLAG_trace_opt) {
+    PrintF("[manually marking ");
+    function->ShortPrint();
+    PrintF(" for %s %s optimization]\n", ToString(concurrency_mode),
+           CodeKindToString(kCodeKind));
+  }
+
+  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  function->MarkForOptimization(isolate, kCodeKind, concurrency_mode);
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+#else
+RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
+  PrintF("Maglev is not enabled.\n");
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+#endif  // V8_ENABLE_MAGLEV
+
+// TODO(jgruber): Rename to OptimizeTurbofanOnNextCall.
 RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
-  return OptimizeFunctionOnNextCall(args, isolate, TierupKind::kTierupBytecode);
+  return OptimizeFunctionOnNextCall(args, isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {

@@ -107,6 +107,8 @@ namespace internal {
   F(CompileForOnStackReplacement, 0, 1)   \
   F(CompileLazy, 1, 1)                    \
   F(CompileBaseline, 1, 1)                \
+  F(CompileMaglev_Concurrent, 1, 1)       \
+  F(CompileMaglev_NotConcurrent, 1, 1)    \
   F(CompileTurbofan_Concurrent, 1, 1)     \
   F(CompileTurbofan_NotConcurrent, 1, 1)  \
   F(InstallBaselineCode, 1, 1)            \
@@ -467,6 +469,7 @@ namespace internal {
   F(ArrayIteratorProtector, 0, 1)             \
   F(ArraySpeciesProtector, 0, 1)              \
   F(BaselineOsr, -1, 1)                       \
+  F(BenchMaglev, 2, 1)                        \
   F(ClearFunctionFeedback, 1, 1)              \
   F(ClearMegamorphicStubCache, 0, 1)          \
   F(CompleteInobjectSlackTracking, 1, 1)      \
@@ -529,6 +532,7 @@ namespace internal {
   F(NeverOptimizeFunction, 1, 1)              \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
   F(NotifyContextDisposed, 0, 1)              \
+  F(OptimizeMaglevOnNextCall, 1, 1)           \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
   F(OptimizeOsr, -1, 1)                       \
   F(PrepareFunctionForOptimization, -1, 1)    \

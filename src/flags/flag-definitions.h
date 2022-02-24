@@ -513,6 +513,20 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
+#ifdef V8_ENABLE_MAGLEV
+#define V8_ENABLE_MAGLEV_BOOL true
+#else
+#define V8_ENABLE_MAGLEV_BOOL false
+#endif  // V8_ENABLE_MAGLEV
+
+DEFINE_BOOL(maglev, V8_ENABLE_MAGLEV_BOOL,
+            "enable the maglev optimizing compiler")
+DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
+DEFINE_BOOL(maglev_break_on_entry, false, "insert an int3 on maglev entries")
+DEFINE_BOOL(print_maglev_graph, false, "print maglev graph")
+DEFINE_BOOL(print_maglev_code, false, "print maglev code")
+DEFINE_BOOL(trace_maglev_regalloc, false, "trace maglev register allocation")
+
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
@@ -543,6 +557,8 @@ DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 // No Sparkplug compilation.
 DEFINE_NEG_IMPLICATION(jitless, sparkplug)
 DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
+// No Maglev compilation.
+DEFINE_NEG_IMPLICATION(jitless, maglev)
 #endif
 
 #ifndef V8_TARGET_ARCH_ARM

@@ -140,6 +140,9 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
   // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
 
+  bool operator==(InstructionOperand& other) const { return Equals(other); }
+  bool operator!=(InstructionOperand& other) const { return !Equals(other); }
+
  protected:
   explicit InstructionOperand(Kind kind) : value_(KindField::encode(kind)) {}
 

@@ -117,6 +117,7 @@ base::Optional<CodeKind> JSFunction::GetActiveTier() const {
 #ifdef DEBUG
   CHECK(highest_tier == CodeKind::TURBOFAN ||
         highest_tier == CodeKind::BASELINE ||
+        highest_tier == CodeKind::MAGLEV ||
         highest_tier == CodeKind::INTERPRETED_FUNCTION);
 
   if (highest_tier == CodeKind::INTERPRETED_FUNCTION) {
@@ -143,7 +144,9 @@ bool JSFunction::ActiveTierIsBaseline() const {
   return GetActiveTier() == CodeKind::BASELINE;
 }
 
-CodeKind JSFunction::NextTier() const { return CodeKind::TURBOFAN; }
+bool JSFunction::ActiveTierIsMaglev() const {
+  return GetActiveTier() == CodeKind::MAGLEV;
+}
 
 bool JSFunction::CanDiscardCompiled() const {
   // Essentially, what we are asking here is, has this function been compiled
@@ -158,6 +161,62 @@ bool JSFunction::CanDiscardCompiled() const {
   if (CodeKindIsOptimizedJSFunction(code().kind())) return true;
   CodeKinds result = GetAvailableCodeKinds();
   return (result & kJSFunctionCodeKindsMask) != 0;
+}
+
+namespace {
+
+constexpr OptimizationMarker OptimizationMarkerFor(CodeKind target_kind,
+                                                   ConcurrencyMode mode) {
+  DCHECK(target_kind == CodeKind::MAGLEV || target_kind == CodeKind::TURBOFAN);
+  return target_kind == CodeKind::MAGLEV
+             ? (mode == ConcurrencyMode::kConcurrent
+                    ? OptimizationMarker::kCompileMaglev_Concurrent
+                    : OptimizationMarker::kCompileMaglev_NotConcurrent)
+             : (mode == ConcurrencyMode::kConcurrent
+                    ? OptimizationMarker::kCompileTurbofan_Concurrent
+                    : OptimizationMarker::kCompileTurbofan_NotConcurrent);
+}
+
+}  // namespace
+
+void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
+                                     ConcurrencyMode mode) {
+  if (!isolate->concurrent_recompilation_enabled() ||
+      isolate->bootstrapper()->IsActive()) {
+    mode = ConcurrencyMode::kNotConcurrent;
+  }
+
+  DCHECK(CodeKindIsOptimizedJSFunction(target_kind));
+  DCHECK(!is_compiled() || ActiveTierIsIgnition() || ActiveTierIsBaseline() ||
+         ActiveTierIsMaglev());
+  DCHECK(!ActiveTierIsTurbofan());
+  DCHECK(shared().HasBytecodeArray());
+  DCHECK(shared().allows_lazy_compilation() ||
+         !shared().optimization_disabled());
+
+  if (mode == ConcurrencyMode::kConcurrent) {
+    if (IsInOptimizationQueue()) {
+      if (FLAG_trace_concurrent_recompilation) {
+        PrintF("  ** Not marking ");
+        ShortPrint();
+        PrintF(" -- already in optimization queue.\n");
+      }
+      return;
+    }
+    if (FLAG_trace_concurrent_recompilation) {
+      PrintF("  ** Marking ");
+      ShortPrint();
+      PrintF(" for concurrent %s recompilation.\n",
+             CodeKindToString(target_kind));
+    }
+  }
+
+  SetOptimizationMarker(OptimizationMarkerFor(target_kind, mode));
+}
+
+void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
+  Isolate* isolate = GetIsolate();
+  MarkForOptimization(isolate, CodeKind::TURBOFAN, mode);
 }
 
 // static

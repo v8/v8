@@ -77,6 +77,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool Compile(Isolate* isolate, Handle<JSFunction> function,
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
+  static MaybeHandle<SharedFunctionInfo> CompileToplevel(
+      ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
+      IsCompiledScope* is_compiled_scope);
+
   static bool CompileSharedWithBaseline(Isolate* isolate,
                                         Handle<SharedFunctionInfo> shared,
                                         ClearExceptionFlag flag,
@@ -84,28 +88,23 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);
+
+  static bool CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
+                            ConcurrencyMode mode,
+                            IsCompiledScope* is_compiled_scope);
+
   static void CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                                ConcurrencyMode mode, CodeKind code_kind);
-  static MaybeHandle<SharedFunctionInfo> CompileToplevel(
-      ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
-      IsCompiledScope* is_compiled_scope);
 
-  static void LogFunctionCompilation(Isolate* isolate,
-                                     CodeEventListener::LogEventsAndTags tag,
-                                     Handle<Script> script,
-                                     Handle<SharedFunctionInfo> shared,
-                                     Handle<FeedbackVector> feedback_vector,
-                                     Handle<AbstractCode> abstract_code,
-                                     CodeKind kind, double time_taken_ms);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
+  CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
+                     Isolate* isolate);
+
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because
   // they were not immediately needed).
   static bool CollectSourcePositions(Isolate* isolate,
                                      Handle<SharedFunctionInfo> shared);
-
-  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
-  CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
-                     Isolate* isolate);
 
   // Finalize and install code from previously run background compile task.
   static bool FinalizeBackgroundCompileTask(BackgroundCompileTask* task,

@@ -129,8 +129,7 @@ class JSFunction
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsBaseline() const;
-
-  CodeKind NextTier() const;
+  bool ActiveTierIsMaglev() const;
 
   // Similar to SharedFunctionInfo::CanDiscardCompiled. Returns true, if the
   // attached code can be recreated at a later point by replacing it with
@@ -146,7 +145,10 @@ class JSFunction
 
   // Mark this function for lazy recompilation. The function will be recompiled
   // the next time it is executed.
-  inline void MarkForOptimization(ConcurrencyMode mode);
+  void MarkForOptimization(Isolate* isolate, CodeKind target_kind,
+                           ConcurrencyMode mode);
+  // TODO(v8:7700): Remove this function and pass the CodeKind explicitly.
+  void MarkForOptimization(ConcurrencyMode mode);
 
   // Tells whether or not the function is already marked for lazy recompilation.
   inline bool IsMarkedForOptimization();

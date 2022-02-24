@@ -198,6 +198,10 @@ declare_args() {
   # Sets -dV8_EXTERNAL_CODE_SPACE
   v8_enable_external_code_space = ""
 
+  # Enable the Maglev compiler.
+  # Sets -dV8_ENABLE_MAGLEV
+  v8_enable_maglev = ""
+
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
   # tools/gen-postmortem-metadata.py for details.
@@ -424,6 +428,9 @@ if (v8_enable_external_code_space == "") {
       (v8_current_cpu == "x64" ||
        (target_os != "android" && target_os != "fuchsia" &&
         v8_current_cpu == "arm64"))
+}
+if (v8_enable_maglev == "") {
+  v8_enable_maglev = v8_current_cpu == "x64" && v8_enable_pointer_compression
 }
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
@@ -955,6 +962,9 @@ config("features") {
   }
   if (v8_enable_external_code_space) {
     defines += [ "V8_EXTERNAL_CODE_SPACE" ]
+  }
+  if (v8_enable_maglev) {
+    defines += [ "V8_ENABLE_MAGLEV" ]
   }
   if (v8_enable_swiss_name_dictionary) {
     defines += [ "V8_ENABLE_SWISS_NAME_DICTIONARY" ]
@@ -3452,6 +3462,28 @@ v8_header_set("v8_internal_headers") {
     sources -= [ "//base/trace_event/common/trace_event_common.h" ]
   }
 
+  if (v8_enable_maglev) {
+    sources += [
+      "src/maglev/maglev-basic-block.h",
+      "src/maglev/maglev-code-gen-state.h",
+      "src/maglev/maglev-code-generator.h",
+      "src/maglev/maglev-compilation-data.h",
+      "src/maglev/maglev-compiler.h",
+      "src/maglev/maglev-graph-builder.h",
+      "src/maglev/maglev-graph-labeller.h",
+      "src/maglev/maglev-graph-printer.h",
+      "src/maglev/maglev-graph-processor.h",
+      "src/maglev/maglev-graph.h",
+      "src/maglev/maglev-interpreter-frame-state.h",
+      "src/maglev/maglev-ir.h",
+      "src/maglev/maglev-regalloc-data.h",
+      "src/maglev/maglev-regalloc.h",
+      "src/maglev/maglev-register-frame-array.h",
+      "src/maglev/maglev-vreg-allocator.h",
+      "src/maglev/maglev.h",
+    ]
+  }
+
   if (v8_enable_webassembly) {
     sources += [
       "src/asmjs/asm-js.h",
@@ -4452,6 +4484,19 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone-segment.cc",
     "src/zone/zone.cc",
   ]
+
+  if (v8_enable_maglev) {
+    sources += [
+      "src/maglev/maglev-code-generator.cc",
+      "src/maglev/maglev-compilation-data.cc",
+      "src/maglev/maglev-compiler.cc",
+      "src/maglev/maglev-graph-builder.cc",
+      "src/maglev/maglev-graph-printer.cc",
+      "src/maglev/maglev-ir.cc",
+      "src/maglev/maglev-regalloc.cc",
+      "src/maglev/maglev.cc",
+    ]
+  }
 
   if (v8_enable_webassembly) {
     sources += [  ### gcmole(all) ###

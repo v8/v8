@@ -605,6 +605,8 @@ inline bool Code::is_turbofanned() const {
   return IsTurbofannedField::decode(flags);
 }
 
+bool Code::is_maglevved() const { return kind() == CodeKind::MAGLEV; }
+
 inline bool Code::can_have_weak_objects() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
   int32_t flags =
@@ -672,7 +674,7 @@ void Code::set_inlined_bytecode_size(unsigned size) {
 }
 
 bool Code::uses_safepoint_table() const {
-  return is_turbofanned() || is_wasm_code();
+  return is_turbofanned() || is_maglevved() || is_wasm_code();
 }
 
 int Code::stack_slots() const {

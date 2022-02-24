@@ -673,6 +673,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
           }
           return BUILTIN;
         case CodeKind::TURBOFAN:
+        case CodeKind::MAGLEV:
           return OPTIMIZED;
         case CodeKind::BASELINE:
           return Type::BASELINE;
