@@ -897,12 +897,9 @@ inline void AtomicOp32(
   // the same register.
   Register temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
-  // Make sure that {result} is unique.
-  Register result_reg = result.gp();
-  if (result_reg == value.gp() || result_reg == dst_addr ||
-      result_reg == offset_reg) {
-    result_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
-  }
+  // {LiftoffCompiler::AtomicBinop} ensures that {result} is unique.
+  DCHECK(result.gp() != value.gp() && result.gp() != dst_addr &&
+         result.gp() != offset_reg);
 
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
@@ -911,15 +908,12 @@ inline void AtomicOp32(
   __ dmb(ISH);
   Label retry;
   __ bind(&retry);
-  (lasm->*load)(result_reg, actual_addr, al);
-  op(lasm, temp, result_reg, value.gp());
+  (lasm->*load)(result.gp(), actual_addr, al);
+  op(lasm, temp, result.gp(), value.gp());
   (lasm->*store)(store_result, temp, actual_addr, al);
   __ cmp(store_result, Operand(0));
   __ b(ne, &retry);
   __ dmb(ISH);
-  if (result_reg != result.gp()) {
-    __ mov(result.gp(), result_reg);
-  }
 }
 
 inline void Add(LiftoffAssembler* lasm, Register dst, Register lhs,
