@@ -257,22 +257,26 @@ class Input : public ValueLocation {
 // Dummy type for the initial raw allocation.
 struct NodeWithInlineInputs {};
 
-class NodeBase : public ZoneObject {
- private:
-  template <class T>
-  struct opcode_of_helper;
+namespace detail {
+// Helper for getting the static opcode of a Node subclass. This is in a
+// "detail" namespace rather than in NodeBase because we can't template
+// specialize outside of namespace scopes before C++17.
+template <class T>
+struct opcode_of_helper;
 
 #define DEF_OPCODE_OF(Name)                          \
   template <>                                        \
   struct opcode_of_helper<Name> {                    \
     static constexpr Opcode value = Opcode::k##Name; \
   };
-  NODE_BASE_LIST(DEF_OPCODE_OF)
+NODE_BASE_LIST(DEF_OPCODE_OF)
 #undef DEF_OPCODE_OF
+}  // namespace detail
 
+class NodeBase : public ZoneObject {
  protected:
   template <class T>
-  static constexpr Opcode opcode_of = opcode_of_helper<T>::value;
+  static constexpr Opcode opcode_of = detail::opcode_of_helper<T>::value;
 
  public:
   template <class Derived, typename... Args>
@@ -305,9 +309,8 @@ class NodeBase : public ZoneObject {
   constexpr Opcode opcode() const { return OpcodeField::decode(bit_field_); }
 
   template <class T>
-  constexpr bool Is() const {
-    return opcode() == opcode_of<T>;
-  }
+  constexpr bool Is() const;
+
   template <class T>
   constexpr T* Cast() {
     DCHECK(Is<T>());
@@ -321,20 +324,6 @@ class NodeBase : public ZoneObject {
   template <class T>
   constexpr T* TryCast() {
     return Is<T>() ? static_cast<T*>(this) : nullptr;
-  }
-
-  // Specialized sub-hierarchy type checks.
-  template <>
-  constexpr bool Is<ValueNode>() const {
-    return IsValueNode(opcode());
-  }
-  template <>
-  constexpr bool Is<ConditionalControlNode>() const {
-    return IsConditionalControlNode(opcode());
-  }
-  template <>
-  constexpr bool Is<UnconditionalControlNode>() const {
-    return IsUnconditionalControlNode(opcode());
   }
 
   constexpr bool has_inputs() const { return input_count() > 0; }
@@ -463,6 +452,25 @@ class NodeBase : public ZoneObject {
   NodeBase& operator=(const NodeBase&) = delete;
   NodeBase& operator=(NodeBase&&) = delete;
 };
+
+template <class T>
+constexpr bool NodeBase::Is() const {
+  return opcode() == opcode_of<T>;
+}
+
+// Specialized sub-hierarchy type checks.
+template <>
+constexpr bool NodeBase::Is<ValueNode>() const {
+  return IsValueNode(opcode());
+}
+template <>
+constexpr bool NodeBase::Is<ConditionalControlNode>() const {
+  return IsConditionalControlNode(opcode());
+}
+template <>
+constexpr bool NodeBase::Is<UnconditionalControlNode>() const {
+  return IsUnconditionalControlNode(opcode());
+}
 
 // The Node class hierarchy contains all non-control nodes.
 class Node : public NodeBase {
