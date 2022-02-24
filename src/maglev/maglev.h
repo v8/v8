@@ -5,8 +5,6 @@
 #ifndef V8_MAGLEV_MAGLEV_H_
 #define V8_MAGLEV_MAGLEV_H_
 
-// TODO(v8:7700): Remove all references to V8_ENABLE_MAGLEV once maglev ships.
-
 #ifdef V8_ENABLE_MAGLEV
 
 #include "src/handles/handles.h"
@@ -23,9 +21,8 @@ class Maglev : public AllStatic {
                                     Handle<JSFunction> function);
 };
 
-#endif  // V8_ENABLE_MAGLEV
-
 }  // namespace internal
 }  // namespace v8
 
+#endif  // V8_ENABLE_MAGLEV
 #endif  // V8_MAGLEV_MAGLEV_H_
