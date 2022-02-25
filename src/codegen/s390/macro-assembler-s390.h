@@ -1102,33 +1102,43 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I16x8Splat(Simd128Register dst, Register src);
   void I8x16Splat(Simd128Register dst, Register src);
   void F64x2ExtractLane(DoubleRegister dst, Simd128Register src,
-                        uint8_t imm_lane_idx);
+                        uint8_t imm_lane_idx, Register = r0);
   void F32x4ExtractLane(DoubleRegister dst, Simd128Register src,
-                        uint8_t imm_lane_idx);
-  void I64x2ExtractLane(Register dst, Simd128Register src,
-                        uint8_t imm_lane_idx);
-  void I32x4ExtractLane(Register dst, Simd128Register src,
-                        uint8_t imm_lane_idx);
+                        uint8_t imm_lane_idx, Register = r0);
+  void I64x2ExtractLane(Register dst, Simd128Register src, uint8_t imm_lane_idx,
+                        Register = r0);
+  void I32x4ExtractLane(Register dst, Simd128Register src, uint8_t imm_lane_idx,
+                        Register = r0);
   void I16x8ExtractLaneU(Register dst, Simd128Register src,
-                         uint8_t imm_lane_idx);
+                         uint8_t imm_lane_idx, Register = r0);
   void I16x8ExtractLaneS(Register dst, Simd128Register src,
-                         uint8_t imm_lane_idx);
+                         uint8_t imm_lane_idx, Register scratch);
   void I8x16ExtractLaneU(Register dst, Simd128Register src,
-                         uint8_t imm_lane_idx);
+                         uint8_t imm_lane_idx, Register = r0);
   void I8x16ExtractLaneS(Register dst, Simd128Register src,
-                         uint8_t imm_lane_idx);
+                         uint8_t imm_lane_idx, Register scratch);
   void F64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
-                        DoubleRegister src2, uint8_t imm_lane_idx);
+                        DoubleRegister src2, uint8_t imm_lane_idx,
+                        Register scratch);
   void F32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
-                        DoubleRegister src2, uint8_t imm_lane_idx);
+                        DoubleRegister src2, uint8_t imm_lane_idx,
+                        Register scratch);
   void I64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
-                        Register src2, uint8_t imm_lane_idx);
+                        Register src2, uint8_t imm_lane_idx, Register = r0);
   void I32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
-                        Register src2, uint8_t imm_lane_idx);
+                        Register src2, uint8_t imm_lane_idx, Register = r0);
   void I16x8ReplaceLane(Simd128Register dst, Simd128Register src1,
-                        Register src2, uint8_t imm_lane_idx);
+                        Register src2, uint8_t imm_lane_idx, Register = r0);
   void I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
-                        Register src2, uint8_t imm_lane_idx);
+                        Register src2, uint8_t imm_lane_idx, Register = r0);
+  void I64x2Mul(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Register scratch1, Register scratch2, Register scratch3);
+  void I32x4GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+  void I16x8GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
+  void I8x16GeU(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch);
   void I64x2BitMask(Register dst, Simd128Register src, Register scratch1,
                     Simd128Register scratch2);
   void I32x4BitMask(Register dst, Simd128Register src, Register scratch1,
@@ -1165,8 +1175,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I32x4TruncSatF64x2UZero(Simd128Register dst, Simd128Register src,
                                Simd128Register scratch);
   void I8x16Swizzle(Simd128Register dst, Simd128Register src1,
-                    Simd128Register src2, Simd128Register scratch1,
-                    Simd128Register scratch2);
+                    Simd128Register src2, Register scratch1, Register scratch2,
+                    Simd128Register scratch3, Simd128Register scratch4);
   void S128Const(Simd128Register dst, uint64_t high, uint64_t low,
                  Register scratch1, Register scratch2);
   void I8x16Shuffle(Simd128Register dst, Simd128Register src1,
@@ -1180,6 +1190,29 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                         Simd128Register scratch2, Simd128Register scratch3);
   void S128Select(Simd128Register dst, Simd128Register src1,
                   Simd128Register src2, Simd128Register mask);
+
+#define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl)              \
+  V(I64x2ShrS)             \
+  V(I64x2ShrU)             \
+  V(I32x4Shl)              \
+  V(I32x4ShrS)             \
+  V(I32x4ShrU)             \
+  V(I16x8Shl)              \
+  V(I16x8ShrS)             \
+  V(I16x8ShrU)             \
+  V(I8x16Shl)              \
+  V(I8x16ShrS)             \
+  V(I8x16ShrU)
+
+#define PROTOTYPE_SIMD_SHIFT(name)                                          \
+  void name(Simd128Register dst, Simd128Register src1, Register src2,       \
+            Simd128Register scratch);                                       \
+  void name(Simd128Register dst, Simd128Register src1, const Operand& src2, \
+            Register scratch1, Simd128Register scratch2);
+  SIMD_SHIFT_LIST(PROTOTYPE_SIMD_SHIFT)
+#undef PROTOTYPE_SIMD_SHIFT
+#undef SIMD_SHIFT_LIST
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \
@@ -1229,109 +1262,81 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef PROTOTYPE_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_BINOP_LIST(V)                  \
-  V(F64x2Add, Simd128Register)              \
-  V(F64x2Sub, Simd128Register)              \
-  V(F64x2Mul, Simd128Register)              \
-  V(F64x2Div, Simd128Register)              \
-  V(F64x2Min, Simd128Register)              \
-  V(F64x2Max, Simd128Register)              \
-  V(F64x2Eq, Simd128Register)               \
-  V(F64x2Ne, Simd128Register)               \
-  V(F64x2Lt, Simd128Register)               \
-  V(F64x2Le, Simd128Register)               \
-  V(F64x2Pmin, Simd128Register)             \
-  V(F64x2Pmax, Simd128Register)             \
-  V(F32x4Add, Simd128Register)              \
-  V(F32x4Sub, Simd128Register)              \
-  V(F32x4Mul, Simd128Register)              \
-  V(F32x4Div, Simd128Register)              \
-  V(F32x4Min, Simd128Register)              \
-  V(F32x4Max, Simd128Register)              \
-  V(F32x4Eq, Simd128Register)               \
-  V(F32x4Ne, Simd128Register)               \
-  V(F32x4Lt, Simd128Register)               \
-  V(F32x4Le, Simd128Register)               \
-  V(F32x4Pmin, Simd128Register)             \
-  V(F32x4Pmax, Simd128Register)             \
-  V(I64x2Add, Simd128Register)              \
-  V(I64x2Sub, Simd128Register)              \
-  V(I64x2Mul, Simd128Register)              \
-  V(I64x2Eq, Simd128Register)               \
-  V(I64x2Ne, Simd128Register)               \
-  V(I64x2GtS, Simd128Register)              \
-  V(I64x2GeS, Simd128Register)              \
-  V(I64x2Shl, Register)                     \
-  V(I64x2ShrS, Register)                    \
-  V(I64x2ShrU, Register)                    \
-  V(I64x2Shl, const Operand&)               \
-  V(I64x2ShrS, const Operand&)              \
-  V(I64x2ShrU, const Operand&)              \
-  V(I32x4Add, Simd128Register)              \
-  V(I32x4Sub, Simd128Register)              \
-  V(I32x4Mul, Simd128Register)              \
-  V(I32x4Eq, Simd128Register)               \
-  V(I32x4Ne, Simd128Register)               \
-  V(I32x4GtS, Simd128Register)              \
-  V(I32x4GeS, Simd128Register)              \
-  V(I32x4GtU, Simd128Register)              \
-  V(I32x4GeU, Simd128Register)              \
-  V(I32x4MinS, Simd128Register)             \
-  V(I32x4MinU, Simd128Register)             \
-  V(I32x4MaxS, Simd128Register)             \
-  V(I32x4MaxU, Simd128Register)             \
-  V(I32x4Shl, Register)                     \
-  V(I32x4ShrS, Register)                    \
-  V(I32x4ShrU, Register)                    \
-  V(I32x4Shl, const Operand&)               \
-  V(I32x4ShrS, const Operand&)              \
-  V(I32x4ShrU, const Operand&)              \
-  V(I16x8Add, Simd128Register)              \
-  V(I16x8Sub, Simd128Register)              \
-  V(I16x8Mul, Simd128Register)              \
-  V(I16x8Eq, Simd128Register)               \
-  V(I16x8Ne, Simd128Register)               \
-  V(I16x8GtS, Simd128Register)              \
-  V(I16x8GeS, Simd128Register)              \
-  V(I16x8GtU, Simd128Register)              \
-  V(I16x8GeU, Simd128Register)              \
-  V(I16x8MinS, Simd128Register)             \
-  V(I16x8MinU, Simd128Register)             \
-  V(I16x8MaxS, Simd128Register)             \
-  V(I16x8MaxU, Simd128Register)             \
-  V(I16x8Shl, Register)                     \
-  V(I16x8ShrS, Register)                    \
-  V(I16x8ShrU, Register)                    \
-  V(I16x8Shl, const Operand&)               \
-  V(I16x8ShrS, const Operand&)              \
-  V(I16x8ShrU, const Operand&)              \
-  V(I16x8RoundingAverageU, Simd128Register) \
-  V(I8x16Add, Simd128Register)              \
-  V(I8x16Sub, Simd128Register)              \
-  V(I8x16Eq, Simd128Register)               \
-  V(I8x16Ne, Simd128Register)               \
-  V(I8x16GtS, Simd128Register)              \
-  V(I8x16GeS, Simd128Register)              \
-  V(I8x16GtU, Simd128Register)              \
-  V(I8x16GeU, Simd128Register)              \
-  V(I8x16MinS, Simd128Register)             \
-  V(I8x16MinU, Simd128Register)             \
-  V(I8x16MaxS, Simd128Register)             \
-  V(I8x16MaxU, Simd128Register)             \
-  V(I8x16Shl, Register)                     \
-  V(I8x16ShrS, Register)                    \
-  V(I8x16ShrU, Register)                    \
-  V(I8x16Shl, const Operand&)               \
-  V(I8x16ShrS, const Operand&)              \
-  V(I8x16ShrU, const Operand&)              \
-  V(I8x16RoundingAverageU, Simd128Register) \
-  V(S128And, Simd128Register)               \
-  V(S128Or, Simd128Register)                \
-  V(S128Xor, Simd128Register)               \
-  V(S128AndNot, Simd128Register)
+#define SIMD_BINOP_LIST(V) \
+  V(F64x2Add)              \
+  V(F64x2Sub)              \
+  V(F64x2Mul)              \
+  V(F64x2Div)              \
+  V(F64x2Min)              \
+  V(F64x2Max)              \
+  V(F64x2Eq)               \
+  V(F64x2Ne)               \
+  V(F64x2Lt)               \
+  V(F64x2Le)               \
+  V(F64x2Pmin)             \
+  V(F64x2Pmax)             \
+  V(F32x4Add)              \
+  V(F32x4Sub)              \
+  V(F32x4Mul)              \
+  V(F32x4Div)              \
+  V(F32x4Min)              \
+  V(F32x4Max)              \
+  V(F32x4Eq)               \
+  V(F32x4Ne)               \
+  V(F32x4Lt)               \
+  V(F32x4Le)               \
+  V(F32x4Pmin)             \
+  V(F32x4Pmax)             \
+  V(I64x2Add)              \
+  V(I64x2Sub)              \
+  V(I64x2Eq)               \
+  V(I64x2Ne)               \
+  V(I64x2GtS)              \
+  V(I64x2GeS)              \
+  V(I32x4Add)              \
+  V(I32x4Sub)              \
+  V(I32x4Mul)              \
+  V(I32x4Eq)               \
+  V(I32x4Ne)               \
+  V(I32x4GtS)              \
+  V(I32x4GeS)              \
+  V(I32x4GtU)              \
+  V(I32x4MinS)             \
+  V(I32x4MinU)             \
+  V(I32x4MaxS)             \
+  V(I32x4MaxU)             \
+  V(I16x8Add)              \
+  V(I16x8Sub)              \
+  V(I16x8Mul)              \
+  V(I16x8Eq)               \
+  V(I16x8Ne)               \
+  V(I16x8GtS)              \
+  V(I16x8GeS)              \
+  V(I16x8GtU)              \
+  V(I16x8MinS)             \
+  V(I16x8MinU)             \
+  V(I16x8MaxS)             \
+  V(I16x8MaxU)             \
+  V(I16x8RoundingAverageU) \
+  V(I8x16Add)              \
+  V(I8x16Sub)              \
+  V(I8x16Eq)               \
+  V(I8x16Ne)               \
+  V(I8x16GtS)              \
+  V(I8x16GeS)              \
+  V(I8x16GtU)              \
+  V(I8x16MinS)             \
+  V(I8x16MinU)             \
+  V(I8x16MaxS)             \
+  V(I8x16MaxU)             \
+  V(I8x16RoundingAverageU) \
+  V(S128And)               \
+  V(S128Or)                \
+  V(S128Xor)               \
+  V(S128AndNot)
 
-#define PROTOTYPE_SIMD_BINOP(name, stype) \
-  void name(Simd128Register dst, Simd128Register src1, stype src2);
+#define PROTOTYPE_SIMD_BINOP(name) \
+  void name(Simd128Register dst, Simd128Register src1, Simd128Register src2);
   SIMD_BINOP_LIST(PROTOTYPE_SIMD_BINOP)
 #undef PROTOTYPE_SIMD_BINOP
 #undef SIMD_BINOP_LIST
