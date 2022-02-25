@@ -497,8 +497,8 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
   Register object = ToRegister(actual_map_input());
   RegList temps = temporaries();
-  Register map_tmp =
-      Register::from_code(base::bits::CountTrailingZerosNonZero(temps));
+  Register map_tmp = Register::TakeAny(&temps);
+  DCHECK_EQ(kEmptyRegList, temps);
 
   __ LoadMap(map_tmp, object);
   __ Cmp(map_tmp, map().object());

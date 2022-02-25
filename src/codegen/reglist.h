@@ -20,6 +20,8 @@ using RegList = uint64_t;
 using RegList = uint32_t;
 #endif
 
+constexpr RegList kEmptyRegList = 0;
+
 // Get the number of registers in a given register list.
 constexpr int NumRegs(RegList list) {
   return base::bits::CountPopulation(list);

@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_REGISTER_H_
 #define V8_CODEGEN_REGISTER_H_
 
+#include "src/base/bits.h"
 #include "src/base/bounds.h"
 #include "src/codegen/reglist.h"
 
@@ -51,6 +52,13 @@ class RegisterBase {
 
   constexpr RegList bit() const {
     return is_valid() ? RegList{1} << code() : RegList{};
+  }
+
+  static constexpr SubType TakeAny(RegList* list) {
+    RegList& value = *list;
+    SubType result = from_code(base::bits::CountTrailingZerosNonZero(value));
+    *list = value & (value - 1);
+    return result;
   }
 
   inline constexpr bool operator==(SubType other) const {
