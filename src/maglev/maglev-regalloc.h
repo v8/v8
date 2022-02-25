@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_REGALLOC_H_
 #define V8_MAGLEV_MAGLEV_REGALLOC_H_
 
+#include "src/compiler/backend/instruction.h"
 #include "src/maglev/maglev-compilation-data.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
@@ -16,19 +17,11 @@ namespace maglev {
 
 class MaglevPrintingVisitor;
 
-struct StackSlot {
-  StackSlot(MachineRepresentation representation, int index)
-      : slot(compiler::LocationOperand::STACK_SLOT, representation, index) {}
-  compiler::AllocatedOperand slot;
-  StackSlot* next_ = nullptr;
-  StackSlot** next() { return &next_; }
-};
-
 struct LiveNodeInfo {
   ValueNode* node;
   uint32_t last_use = 0;
   uint32_t next_use = 0;
-  StackSlot* stack_slot = nullptr;
+  compiler::InstructionOperand stack_slot = compiler::InstructionOperand();
   Register reg = Register::no_reg();
 
   compiler::AllocatedOperand allocation() const {
@@ -37,8 +30,7 @@ struct LiveNodeInfo {
                                         MachineRepresentation::kTagged,
                                         reg.code());
     }
-    DCHECK_NOT_NULL(stack_slot);
-    return stack_slot->slot;
+    return compiler::AllocatedOperand::cast(stack_slot);
   }
 };
 
@@ -57,12 +49,16 @@ class StraightForwardRegisterAllocator {
   using LiveNodeInfoMap = std::map<ValueNode*, LiveNodeInfo>;
   LiveNodeInfoMap values_;
 
-  base::ThreadedList<StackSlot> free_slots_;
-  int top_of_stack_ = 0;
 #define N(V) nullptr,
   LiveNodeInfo* register_values_[kAllocatableGeneralRegisterCount] = {
       ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(N)};
 #undef N
+
+  int top_of_stack_ = 0;
+  // TODO(verwaest): Make this a RegList.
+  uint8_t free_register_size_ = kAllocatableGeneralRegisterCount;
+  uint8_t free_registers_[kAllocatableGeneralRegisterCount];
+  std::vector<uint32_t> free_slots_;
 
   LiveNodeInfo* MakeLive(ValueNode* node) {
     uint32_t last_use = node->live_range().end;
@@ -85,6 +81,8 @@ class StraightForwardRegisterAllocator {
   void AssignTemporaries(NodeBase* node);
   void TryAllocateToInput(LiveNodeInfo* info, Phi* phi);
 
+  void FreeRegister(int i);
+  void FreeSomeRegister();
   RegList GetFreeRegisters(int count);
   void AddMoveBeforeCurrentNode(compiler::AllocatedOperand source,
                                 compiler::AllocatedOperand target);
@@ -96,12 +94,9 @@ class StraightForwardRegisterAllocator {
 
   compiler::AllocatedOperand AllocateRegister(LiveNodeInfo* info);
   compiler::AllocatedOperand ForceAllocate(const Register& reg,
-                                           LiveNodeInfo* info,
-                                           bool try_move = true);
-  compiler::AllocatedOperand DoAllocate(const Register& reg,
-                                        LiveNodeInfo* info);
+                                           LiveNodeInfo* info);
   void SetRegister(Register reg, LiveNodeInfo* info);
-  void Free(const Register& reg, bool try_move);
+  void Free(const Register& reg);
   compiler::InstructionOperand TryAllocateRegister(LiveNodeInfo* info);
 
   void InitializeRegisterValues(RegisterState* target_state);

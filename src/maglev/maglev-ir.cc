@@ -525,12 +525,14 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
           __ Push(object);
           __ Move(kContextRegister,
                   code_gen_state->broker()->target_native_context().object());
+          // TODO(verwaest): We're calling so we need to spill around it.
           __ CallRuntime(Runtime::kTryMigrateInstance);
           __ cmpl(kReturnRegister0, Immediate(0));
           __ j(equal, &deopt);
 
           // The migrated object is returned on success, retry the map check.
-          __ LoadMap(map_tmp, kReturnRegister0);
+          __ Move(object, kReturnRegister0);
+          __ LoadMap(map_tmp, object);
           __ Cmp(map_tmp, node->map().object());
           __ j(equal, return_label);
 

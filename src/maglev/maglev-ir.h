@@ -818,7 +818,11 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   explicit CheckMaps(size_t input_count, const compiler::MapRef& map)
       : Base(input_count), map_(map) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Deopt();
+  // TODO(verwaest): This just calls in deferred code, so probably we'll need to
+  // mark that to generate stack maps. Mark as call so we at least clear the
+  // registers since we currently don't properly spill either.
+  static constexpr OpProperties kProperties =
+      OpProperties::Deopt() | OpProperties::Call();
 
   compiler::MapRef map() const { return map_; }
 
