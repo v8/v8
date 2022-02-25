@@ -568,29 +568,5 @@ TEST_F(GCTracerTest, RecordScavengerHistograms) {
   GcHistogram::CleanUp();
 }
 
-TEST_F(GCTracerTest, RecordGCSumHistograms) {
-  if (FLAG_stress_incremental_marking) return;
-  isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
-  isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
-  GCTracer* tracer = i_isolate()->heap()->tracer();
-  tracer->ResetForTesting();
-  StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
-               StartTracingMode::kIncrementalStart);
-  tracer->current_
-      .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_START]
-      .duration = 1;
-  tracer->current_
-      .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_SWEEPING]
-      .duration = 2;
-  tracer->AddIncrementalMarkingStep(3.0, 1024);
-  tracer->current_
-      .incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-      .duration = 4;
-  const double atomic_pause_duration = 5.0;
-  tracer->RecordGCSumCounters(atomic_pause_duration);
-  EXPECT_EQ(15, GcHistogram::Get("V8.GCMarkCompactor")->Total());
-  GcHistogram::CleanUp();
-}
-
 }  // namespace internal
 }  // namespace v8

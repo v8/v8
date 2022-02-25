@@ -13,7 +13,6 @@ namespace internal {
 #define HISTOGRAM_RANGE_LIST(HR)                                               \
   /* Generic range histograms: HR(name, caption, min, max, num_buckets) */     \
   HR(background_marking, V8.GCBackgroundMarking, 0, 10000, 101)                \
-  HR(background_scavenger, V8.GCBackgroundScavenger, 0, 10000, 101)            \
   HR(background_sweeping, V8.GCBackgroundSweeping, 0, 10000, 101)              \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
@@ -32,13 +31,10 @@ namespace internal {
   HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
   HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
   HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
-  HR(gc_mark_compactor, V8.GCMarkCompactor, 0, 10000, 101)                     \
   HR(gc_marking_sum, V8.GCMarkingSum, 0, 10000, 101)                           \
   /* Range and bucket matches BlinkGC.MainThreadMarkingThroughput. */          \
   HR(gc_main_thread_marking_throughput, V8.GCMainThreadMarkingThroughput, 0,   \
      100000, 50)                                                               \
-  HR(scavenge_reason, V8.GCScavengeReason, 0,                                  \
-     kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
@@ -172,9 +168,6 @@ namespace internal {
      V8.GCFinalizeMCReduceMemoryBackground, 10000, MILLISECOND)                \
   HT(gc_finalize_reduce_memory_foreground,                                     \
      V8.GCFinalizeMCReduceMemoryForeground, 10000, MILLISECOND)                \
-  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
-  HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
-  HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
   HT(gc_time_to_global_safepoint, V8.GC.TimeToGlobalSafepoint, 10000000,       \

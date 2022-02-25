@@ -201,9 +201,7 @@ GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(Heap* heap,
   const bool in_background = heap->isolate()->IsIsolateInBackground();
   if (Heap::IsYoungGenerationCollector(collector)) {
     mode = Mode::Scavenger;
-    type_timer = counters->gc_scavenger();
-    type_priority_timer = in_background ? counters->gc_scavenger_background()
-                                        : counters->gc_scavenger_foreground();
+    type_timer = type_priority_timer = nullptr;
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     if (heap->incremental_marking()->IsStopped()) {
@@ -530,8 +528,6 @@ void GCTracer::StopCycle(GarbageCollector collector) {
 
   if (Heap::IsYoungGenerationCollector(collector)) {
     ReportYoungCycleToRecorder();
-
-    counters->scavenge_reason()->AddSample(static_cast<int>(gc_reason));
 
     // If a young generation GC interrupted an unfinished full GC cycle, restore
     // the event corresponding to the full GC cycle.
@@ -1287,9 +1283,6 @@ void GCTracer::FetchBackgroundMarkCompactCounters() {
 void GCTracer::FetchBackgroundMinorGCCounters() {
   FetchBackgroundCounters(Scope::FIRST_MINOR_GC_BACKGROUND_SCOPE,
                           Scope::LAST_MINOR_GC_BACKGROUND_SCOPE);
-  heap_->isolate()->counters()->background_scavenger()->AddSample(
-      static_cast<int>(
-          current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]));
 }
 
 void GCTracer::FetchBackgroundGeneralCounters() {
@@ -1403,10 +1396,6 @@ void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
       current_.scopes[Scope::MC_MARK];
   const double marking_background_duration =
       background_counter_[Scope::MC_BACKGROUND_MARKING].total_duration_ms;
-
-  // UMA.
-  heap_->isolate()->counters()->gc_mark_compactor()->AddSample(
-      static_cast<int>(overall_duration));
 
   // Emit trace event counters.
   TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
