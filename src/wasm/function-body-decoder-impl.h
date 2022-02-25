@@ -2790,8 +2790,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       return 0;
     }
     ArgVector let_local_values =
-        PeekArgs(static_cast<uint32_t>(imm.in_arity()),
-                 base::VectorOf(this->local_types_.data(), new_locals_count));
+        PeekArgs(base::VectorOf(this->local_types_.data(), new_locals_count));
     ArgVector args = PeekArgs(imm.sig, new_locals_count);
     Control* let_block = PushControl(kControlLet, new_locals_count,
                                      let_local_values.length() + args.length());
@@ -3680,8 +3679,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     Drop(static_cast<int>(type->field_count()));
   }
 
-  V8_INLINE ArgVector PeekArgs(uint32_t base_index,
-                               base::Vector<ValueType> arg_types) {
+  V8_INLINE ArgVector PeekArgs(base::Vector<ValueType> arg_types) {
     int size = static_cast<int>(arg_types.size());
     EnsureStackArguments(size);
     ArgVector args(stack_value(size), arg_types.size());
