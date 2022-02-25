@@ -45,7 +45,7 @@ class NativeModule;
 // permissions for all code pages.
 class V8_NODISCARD CodeSpaceWriteScope final {
  public:
-  explicit V8_EXPORT_PRIVATE CodeSpaceWriteScope(NativeModule* native_module);
+  explicit V8_EXPORT_PRIVATE CodeSpaceWriteScope(NativeModule*);
   V8_EXPORT_PRIVATE ~CodeSpaceWriteScope();
 
   // Disable copy constructor and copy-assignment operator, since this manages

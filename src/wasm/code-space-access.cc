@@ -18,6 +18,7 @@ thread_local NativeModule* CodeSpaceWriteScope::current_native_module_ =
 // writable mode; only the main thread has to switch back and forth.
 CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
     : previous_native_module_(current_native_module_) {
+  DCHECK_NOT_NULL(native_module);
   if (previous_native_module_ == native_module) return;
   current_native_module_ = native_module;
   if (previous_native_module_ == nullptr || SwitchingPerNativeModule()) {
