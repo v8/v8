@@ -1463,13 +1463,13 @@
   'regress/wasm/regress-9017': [SKIP],
 }],  # variant == slow_path
 
-['((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips) or (arch in [ppc64, s390x])', {
+['((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips) or (arch in [ppc64])', {
   # Requires scalar lowering for 64x2 SIMD instructions, which are not
   # implemented yet.
   # Also skip tests on archs that don't support SIMD and lowering doesn't yet work correctly.
   # Condition copied from cctest.status.
   'regress/wasm/regress-10831': [SKIP],
-}],  # ((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips) or (arch in [ppc64, s390x])
+}],  # ((arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips) or (arch in [ppc64])
 
 ##############################################################################
 ['variant == stress_sampling', {

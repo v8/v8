@@ -519,11 +519,6 @@
 
   'test-wasm-breakpoints/*' : [SKIP],
 
-  # SIMD / Liftoff not fully implemented yet
-  'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
-
   # TODO(11856): Port nondeterminism detection.
   'test-liftoff-for-fuzzing/*': [SKIP],
 
@@ -532,6 +527,11 @@
 ['arch == ppc64', {
   # https://crbug.com/v8/8766
   'test-bytecode-generator/WideRegisters': [SKIP],
+
+  # SIMD / Liftoff not fully implemented yet
+  'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
 }],
 
 ##############################################################################
