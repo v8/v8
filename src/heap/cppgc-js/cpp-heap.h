@@ -129,6 +129,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
 
+  void RunMinorGC();
+
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
   void AllocatedObjectSizeDecreased(size_t) final;

@@ -642,6 +642,28 @@ void CppHeap::TraceEpilogue() {
   sweeper().NotifyDoneIfNeeded();
 }
 
+void CppHeap::RunMinorGC() {
+#if defined(CPPGC_YOUNG_GENERATION)
+  if (in_no_gc_scope()) return;
+  // Minor GC does not support nesting in full GCs.
+  if (IsMarking()) return;
+  // Finish sweeping in case it is still running.
+  sweeper().FinishIfRunning();
+
+  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
+
+  // Perform an atomic GC, with starting incremental/concurrent marking and
+  // immediately finalizing the garbage collection.
+  InitializeTracing(
+      cppgc::internal::GarbageCollector::Config::CollectionType::kMinor,
+      GarbageCollectionFlagValues::kForced);
+  StartTracing();
+  EnterFinalPause(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  AdvanceTracing(std::numeric_limits<double>::infinity());
+  TraceEpilogue();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+}
+
 void CppHeap::AllocatedObjectSizeIncreased(size_t bytes) {
   buffered_allocated_bytes_ += static_cast<int64_t>(bytes);
   ReportBufferedAllocationSizeIfPossible();
