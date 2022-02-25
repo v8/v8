@@ -214,10 +214,28 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     ),
+    #TODO(liviurau): Naming pattern mismatch prevents the use of `_pair` here
+    main_multibranch_builder(
+        name = "V8 Mac - arm64 - release",
+        parent_builder = "V8 Mac - arm64 - release builder",
+        dimensions = {"host_class": "multibot"},
+        execution_timeout = 19800,
+        properties = {"builder_group": "client.v8"},
+        close_tree = True,
+    ),
     main_multibranch_builder(
         name = "V8 Mac - arm64 - debug builder",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+    ),
+    #TODO(liviurau): Naming pattern mismatch prevents the use of `_pair` here
+    main_multibranch_builder(
+        name = "V8 Mac - arm64 - debug",
+        parent_builder = "V8 Mac - arm64 - debug builder",
+        dimensions = {"host_class": "multibot"},
+        execution_timeout = 19800,
+        properties = {"builder_group": "client.v8"},
+        close_tree = True,
     ),
     main_multibranch_builder(
         name = "V8 Mac - arm64 - sim - release builder",

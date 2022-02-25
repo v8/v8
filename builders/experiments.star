@@ -250,30 +250,6 @@ in_category(
         use_goma = GOMA.DEFAULT,
     ),
     experiment_builder(
-        name = "V8 Mac - arm64 - debug",
-        parent_builder = "V8 Mac - arm64 - debug builder",
-        bucket = "ci",
-        dimensions = {"host_class": "multibot"},
-        execution_timeout = 19800,
-        properties = {"builder_group": "client.v8"},
-        to_notify = [
-            "v8-waterfall-sheriff@grotations.appspotmail.com",
-            "mtv-sf-v8-sheriff@grotations.appspotmail.com",
-        ],
-    ),
-    experiment_builder(
-        name = "V8 Mac - arm64 - release",
-        parent_builder = "V8 Mac - arm64 - release builder",
-        bucket = "ci",
-        dimensions = {"host_class": "multibot"},
-        execution_timeout = 19800,
-        properties = {"builder_group": "client.v8"},
-        to_notify = [
-            "v8-waterfall-sheriff@grotations.appspotmail.com",
-            "mtv-sf-v8-sheriff@grotations.appspotmail.com",
-        ],
-    ),
-    experiment_builder(
         name = "V8 Mac - arm64 - sim - debug",
         parent_builder = "V8 Mac - arm64 - sim - debug builder",
         bucket = "ci",
