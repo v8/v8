@@ -479,6 +479,43 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   }
 };
 
+class RegisteredSymbolTableShape : public BaseShape<Handle<String>> {
+ public:
+  static inline bool IsMatch(Handle<String> key, Object other);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Handle<String> key);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+  static const int kPrefixSize = 0;
+  static const int kEntryValueIndex = 1;
+  static const int kEntrySize = 2;
+  static const bool kMatchNeedsHoleCheck = false;
+};
+
+class RegisteredSymbolTable
+    : public HashTable<RegisteredSymbolTable, RegisteredSymbolTableShape> {
+ public:
+  Object SlowReverseLookup(Object value);
+
+  // Returns the value at entry.
+  Object ValueAt(InternalIndex entry);
+
+  inline static Handle<Map> GetMap(ReadOnlyRoots roots);
+
+  static Handle<RegisteredSymbolTable> Add(Isolate* isolate,
+                                           Handle<RegisteredSymbolTable> table,
+                                           Handle<String> key, Handle<Symbol>);
+
+  DECL_CAST(RegisteredSymbolTable)
+  DECL_PRINTER(RegisteredSymbolTable)
+  OBJECT_CONSTRUCTORS(
+      RegisteredSymbolTable,
+      HashTable<RegisteredSymbolTable, RegisteredSymbolTableShape>);
+
+ private:
+  static inline int EntryToValueIndex(InternalIndex entry) {
+    return EntryToIndex(entry) + RegisteredSymbolTableShape::kEntryValueIndex;
+  }
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -141,6 +141,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
       NameToIndexHashTable::cast(*this).NameToIndexHashTablePrint(os);
       break;
+    case REGISTERED_SYMBOL_TABLE_TYPE:
+      RegisteredSymbolTable::cast(*this).RegisteredSymbolTablePrint(os);
+      break;
     case ORDERED_HASH_MAP_TYPE:
       OrderedHashMap::cast(*this).OrderedHashMapPrint(os);
       break;
@@ -966,6 +969,11 @@ void ObjectHashTable::ObjectHashTablePrint(std::ostream& os) {
 
 void NameToIndexHashTable::NameToIndexHashTablePrint(std::ostream& os) {
   PrintHashTableHeader(os, *this, "NameToIndexHashTable");
+  PrintHashMapContentsFull(os, *this);
+}
+
+void RegisteredSymbolTable::RegisteredSymbolTablePrint(std::ostream& os) {
+  PrintHashTableHeader(os, *this, "RegisteredSymbolTable");
   PrintHashMapContentsFull(os, *this);
 }
 

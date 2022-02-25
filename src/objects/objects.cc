@@ -2330,6 +2330,7 @@ bool HeapObject::NeedsRehashing(InstanceType instance_type) const {
       return false;  // We'll rehash from the JSMap or JSSet referencing them.
     case NAME_DICTIONARY_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
+    case REGISTERED_SYMBOL_TABLE_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
@@ -2359,6 +2360,7 @@ bool HeapObject::CanBeRehashed(PtrComprCageBase cage_base) const {
       return false;
     case NAME_DICTIONARY_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
+    case REGISTERED_SYMBOL_TABLE_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
@@ -2390,6 +2392,9 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
       break;
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
       NameToIndexHashTable::cast(*this).Rehash(isolate);
+      break;
+    case REGISTERED_SYMBOL_TABLE_TYPE:
+      RegisteredSymbolTable::cast(*this).Rehash(isolate);
       break;
     case SWISS_NAME_DICTIONARY_TYPE:
       SwissNameDictionary::cast(*this).Rehash(isolate);
@@ -5993,6 +5998,21 @@ bool StringSet::Has(Isolate* isolate, Handle<String> name) {
   return FindEntry(isolate, *name).is_found();
 }
 
+Handle<RegisteredSymbolTable> RegisteredSymbolTable::Add(
+    Isolate* isolate, Handle<RegisteredSymbolTable> table, Handle<String> key,
+    Handle<Symbol> symbol) {
+  // Validate that the key is absent.
+  SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
+
+  table = EnsureCapacity(isolate, table);
+  uint32_t hash = ShapeT::Hash(ReadOnlyRoots(isolate), key);
+  InternalIndex entry = table->FindInsertionEntry(isolate, hash);
+  table->set(EntryToIndex(entry), *key);
+  table->set(EntryToValueIndex(entry), *symbol);
+  table->ElementAdded();
+  return table;
+}
+
 Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
                                          Handle<ObjectHashSet> set,
                                          Handle<Object> key) {
@@ -6319,6 +6339,10 @@ Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key,
 
 template <typename Derived, typename Shape>
 Object ObjectHashTableBase<Derived, Shape>::ValueAt(InternalIndex entry) {
+  return this->get(EntryToValueIndex(entry));
+}
+
+Object RegisteredSymbolTable::ValueAt(InternalIndex entry) {
   return this->get(EntryToValueIndex(entry));
 }
 
@@ -6911,6 +6935,7 @@ EXTERN_DEFINE_HASH_TABLE(StringSet, StringSetShape)
 EXTERN_DEFINE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 EXTERN_DEFINE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
 EXTERN_DEFINE_HASH_TABLE(NameToIndexHashTable, NameToIndexShape)
+EXTERN_DEFINE_HASH_TABLE(RegisteredSymbolTable, RegisteredSymbolTableShape)
 
 EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
 EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable, ObjectHashTableShape)

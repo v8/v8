@@ -4348,6 +4348,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/string-table.cc",
     "src/objects/string.cc",
     "src/objects/swiss-name-dictionary.cc",
+    "src/objects/symbol-table.cc",
     "src/objects/synthetic-module.cc",
     "src/objects/tagged-impl.cc",
     "src/objects/template-objects.cc",

@@ -35,6 +35,11 @@ ObjectHashTable::ObjectHashTable(Address ptr)
   SLOW_DCHECK(IsObjectHashTable());
 }
 
+RegisteredSymbolTable::RegisteredSymbolTable(Address ptr)
+    : HashTable<RegisteredSymbolTable, RegisteredSymbolTableShape>(ptr) {
+  SLOW_DCHECK(IsRegisteredSymbolTable());
+}
+
 EphemeronHashTable::EphemeronHashTable(Address ptr)
     : ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape>(ptr) {
   SLOW_DCHECK(IsEphemeronHashTable());
@@ -51,6 +56,7 @@ NameToIndexHashTable::NameToIndexHashTable(Address ptr)
 }
 
 CAST_ACCESSOR(ObjectHashTable)
+CAST_ACCESSOR(RegisteredSymbolTable)
 CAST_ACCESSOR(EphemeronHashTable)
 CAST_ACCESSOR(ObjectHashSet)
 CAST_ACCESSOR(NameToIndexHashTable)
@@ -133,6 +139,11 @@ Handle<Map> HashTable<Derived, Shape>::GetMap(ReadOnlyRoots roots) {
 // static
 Handle<Map> NameToIndexHashTable::GetMap(ReadOnlyRoots roots) {
   return roots.name_to_index_hash_table_map_handle();
+}
+
+// static
+Handle<Map> RegisteredSymbolTable::GetMap(ReadOnlyRoots roots) {
+  return roots.registered_symbol_table_map_handle();
 }
 
 // static
@@ -263,6 +274,21 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
 
 bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object other) {
   return key->SameValue(other);
+}
+
+bool RegisteredSymbolTableShape::IsMatch(Handle<String> key, Object value) {
+  DCHECK(value.IsString());
+  return key->Equals(String::cast(value));
+}
+
+uint32_t RegisteredSymbolTableShape::Hash(ReadOnlyRoots roots,
+                                          Handle<String> key) {
+  return key->EnsureHash();
+}
+
+uint32_t RegisteredSymbolTableShape::HashForObject(ReadOnlyRoots roots,
+                                                   Object object) {
+  return String::cast(object).EnsureHash();
 }
 
 bool NameToIndexShape::IsMatch(Handle<Name> key, Object other) {

@@ -1751,6 +1751,7 @@ filegroup(
         "src/objects/string-set.h",
         "src/objects/string-table-inl.h",
         "src/objects/string-table.cc",
+        "src/objects/symbol-table.cc",
         "src/objects/string-table.h",
         "src/objects/string.cc",
         "src/objects/string.h",

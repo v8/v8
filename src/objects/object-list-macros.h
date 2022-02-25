@@ -220,6 +220,7 @@ class ZoneForwardList;
   V(StoreHandler)                              \
   V(String)                                    \
   V(StringSet)                                 \
+  V(RegisteredSymbolTable)                     \
   V(StringWrapper)                             \
   V(Struct)                                    \
   V(SwissNameDictionary)                       \
