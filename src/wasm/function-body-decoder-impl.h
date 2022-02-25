@@ -2756,6 +2756,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
           CALL_INTERFACE(Forward, ref_object, stack_value(1));
           CALL_INTERFACE(BrOrRet, imm.depth, 0);
+          // We know that the following code is not reachable, but according
+          // to the spec it technically is. Set it to spec-only reachable.
+          SetSucceedingCodeDynamicallyUnreachable();
           c->br_merge()->reached = true;
         }
         break;
@@ -4533,7 +4536,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
               CALL_INTERFACE(AssertNull, obj, &value);
             } else {
               CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
-              EndControl();
+              // We know that the following code is not reachable, but according
+              // to the spec it technically is. Set it to spec-only reachable.
+              SetSucceedingCodeDynamicallyUnreachable();
             }
           } else {
             CALL_INTERFACE(RefCast, obj, rtt, &value);
@@ -4595,24 +4600,28 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                 ? kWasmBottom
                 : ValueType::Ref(rtt.type.ref_index(), kNonNullable));
         Push(result_on_branch);
+        // The {value_on_branch} parameter we pass to the interface must
+        // be pointer-identical to the object on the stack, so we can't
+        // reuse {result_on_branch} which was passed-by-value to {Push}.
+        Value* value_on_branch = stack_value(1);
         if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
           if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, rtt))) {
             CALL_INTERFACE(Drop);  // rtt
+            CALL_INTERFACE(Forward, obj, value_on_branch);
             // The branch will still not be taken on null.
             if (obj.type.is_nullable()) {
               CALL_INTERFACE(BrOnNonNull, obj, branch_depth.depth);
             } else {
               CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+              // We know that the following code is not reachable, but according
+              // to the spec it technically is. Set it to spec-only reachable.
+              SetSucceedingCodeDynamicallyUnreachable();
             }
             c->br_merge()->reached = true;
           } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, rtt))) {
-            // The {value_on_branch} parameter we pass to the interface must
-            // be pointer-identical to the object on the stack, so we can't
-            // reuse {result_on_branch} which was passed-by-value to {Push}.
-            Value* value_on_branch = stack_value(1);
             CALL_INTERFACE(BrOnCast, obj, rtt, value_on_branch,
                            branch_depth.depth);
             c->br_merge()->reached = true;
@@ -4768,7 +4777,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                   arg.type.heap_representation(),              \
                                   this->module_)) {                            \
         CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);                    \
-        EndControl();                                                          \
+        /* We know that the following code is not reachable, but according */  \
+        /* to the spec it technically is. Set it to spec-only reachable. */    \
+        SetSucceedingCodeDynamicallyUnreachable();                             \
       } else {                                                                 \
         CALL_INTERFACE(RefAs##h_type, arg, &result);                           \
       }                                                                        \
