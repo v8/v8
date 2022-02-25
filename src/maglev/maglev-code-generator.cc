@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-code-generator.h"
 
 #include "src/codegen/code-desc.h"
+#include "src/codegen/register.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-data.h"
@@ -13,6 +14,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-regalloc-data.h"
 
 namespace v8 {
 namespace internal {
@@ -22,6 +24,20 @@ namespace maglev {
 #define __ masm()->
 
 namespace {
+
+template <typename T, size_t... Is>
+std::array<T, sizeof...(Is)> repeat(T value, std::index_sequence<Is...>) {
+  return {((void)Is, value)...};
+}
+
+template <size_t N, typename T>
+std::array<T, N> repeat(T value) {
+  return repeat<T>(value, std::make_index_sequence<N>());
+}
+
+using RegisterMoves = std::array<Register, Register::kNumRegisters>;
+using StackToRegisterMoves =
+    std::array<compiler::InstructionOperand, Register::kNumRegisters>;
 
 class MaglevCodeGeneratingNodeProcessor {
  public:
@@ -93,67 +109,8 @@ class MaglevCodeGeneratingNodeProcessor {
 
     // Emit Phi moves before visiting the control node.
     if (std::is_base_of<UnconditionalControlNode, NodeT>::value) {
-      BasicBlock* target =
-          node->template Cast<UnconditionalControlNode>()->target();
-      if (target->has_state()) {
-        int predecessor_id = state.block()->predecessor_id();
-        __ RecordComment("--   Register merge gap moves:");
-        for (int index = 0; index < kAllocatableGeneralRegisterCount; ++index) {
-          RegisterMerge* merge;
-          if (LoadMergeState(target->state()->register_state()[index],
-                             &merge)) {
-            compiler::AllocatedOperand source = merge->operand(predecessor_id);
-            Register reg = MapIndexToRegister(index);
-
-            if (FLAG_code_comments) {
-              std::stringstream ss;
-              ss << "--   * " << source << " → " << reg;
-              __ RecordComment(ss.str());
-            }
-
-            // TODO(leszeks): Implement parallel moves.
-            if (source.IsStackSlot()) {
-              __ movq(reg, GetStackSlot(source));
-            } else {
-              __ movq(reg, ToRegister(source));
-            }
-          }
-        }
-        if (target->has_phi()) {
-          __ RecordComment("--   Phi gap moves:");
-          Phi::List* phis = target->phis();
-          for (Phi* phi : *phis) {
-            compiler::AllocatedOperand source =
-                compiler::AllocatedOperand::cast(
-                    phi->input(state.block()->predecessor_id()).operand());
-            compiler::AllocatedOperand target =
-                compiler::AllocatedOperand::cast(phi->result().operand());
-            if (FLAG_code_comments) {
-              std::stringstream ss;
-              ss << "--   * " << source << " → " << target << " (n"
-                 << graph_labeller()->NodeId(phi) << ")";
-              __ RecordComment(ss.str());
-            }
-            if (source.IsRegister()) {
-              Register source_reg = ToRegister(source);
-              if (target.IsRegister()) {
-                __ movq(ToRegister(target), source_reg);
-              } else {
-                __ movq(GetStackSlot(target), source_reg);
-              }
-            } else {
-              if (target.IsRegister()) {
-                __ movq(ToRegister(target), GetStackSlot(source));
-              } else {
-                __ movq(kScratchRegister, GetStackSlot(source));
-                __ movq(GetStackSlot(target), kScratchRegister);
-              }
-            }
-          }
-        }
-      } else {
-        __ RecordComment("--   Target has no state, must be a fallthrough");
-      }
+      EmitBlockEndGapMoves(node->template Cast<UnconditionalControlNode>(),
+                           state);
     }
 
     node->GenerateCode(code_gen_state_, state);
@@ -169,6 +126,164 @@ class MaglevCodeGeneratingNodeProcessor {
         __ movq(GetStackSlot(value_node->spill_slot()), ToRegister(source));
       }
     }
+  }
+
+  void EmitSingleParallelMove(Register source, Register target,
+                              RegisterMoves& moves) {
+    DCHECK(!moves[target.code()].is_valid());
+    __ movq(target, source);
+    moves[source.code()] = Register::no_reg();
+  }
+
+  bool RecursivelyEmitParallelMoveChain(Register chain_start, Register source,
+                                        Register target, RegisterMoves& moves) {
+    if (target == chain_start) {
+      // The target of this move is the start of the move chain -- this
+      // means that there is a cycle, and we have to break it by moving
+      // the chain start into a temporary.
+
+      __ RecordComment("--   * Cycle");
+      EmitSingleParallelMove(target, kScratchRegister, moves);
+      EmitSingleParallelMove(source, target, moves);
+      return true;
+    }
+    bool is_cycle = false;
+    if (moves[target.code()].is_valid()) {
+      is_cycle = RecursivelyEmitParallelMoveChain(chain_start, target,
+                                                  moves[target.code()], moves);
+    } else {
+      __ RecordComment("--   * Chain start");
+    }
+    if (is_cycle && source == chain_start) {
+      EmitSingleParallelMove(kScratchRegister, target, moves);
+      __ RecordComment("--   * end cycle");
+    } else {
+      EmitSingleParallelMove(source, target, moves);
+    }
+    return is_cycle;
+  }
+
+  void EmitParallelMoveChain(Register source, RegisterMoves& moves) {
+    Register target = moves[source.code()];
+    if (!target.is_valid()) return;
+
+    DCHECK_NE(source, target);
+    RecursivelyEmitParallelMoveChain(source, source, target, moves);
+  }
+
+  void EmitStackToRegisterGapMove(compiler::InstructionOperand source,
+                                  Register target) {
+    if (!source.IsAllocated()) return;
+    __ movq(target, GetStackSlot(compiler::AllocatedOperand::cast(source)));
+  }
+
+  void RecordGapMove(compiler::AllocatedOperand source, Register target_reg,
+                     RegisterMoves& register_moves,
+                     StackToRegisterMoves& stack_to_register_moves) {
+    if (source.IsStackSlot()) {
+      // For stack->reg moves, don't emit the move yet, but instead record the
+      // move in the set of stack-to-register moves, to be executed after the
+      // reg->reg parallel moves.
+      stack_to_register_moves[target_reg.code()] = source;
+    } else {
+      // For reg->reg moves, don't emit the move yet, but instead record the
+      // move in the set of parallel register moves, to be resolved later.
+      Register source_reg = ToRegister(source);
+      if (target_reg != source_reg) {
+        DCHECK(!register_moves[source_reg.code()].is_valid());
+        register_moves[source_reg.code()] = target_reg;
+      }
+    }
+  }
+
+  void RecordGapMove(compiler::AllocatedOperand source,
+                     compiler::AllocatedOperand target,
+                     RegisterMoves& register_moves,
+                     StackToRegisterMoves& stack_to_register_moves) {
+    if (target.IsRegister()) {
+      RecordGapMove(source, ToRegister(target), register_moves,
+                    stack_to_register_moves);
+      return;
+    }
+
+    // stack->stack and reg->stack moves should be executed before registers are
+    // clobbered by reg->reg or stack->reg, so emit them immediately.
+    if (source.IsRegister()) {
+      Register source_reg = ToRegister(source);
+      __ movq(GetStackSlot(target), source_reg);
+    } else {
+      __ movq(kScratchRegister, GetStackSlot(source));
+      __ movq(GetStackSlot(target), kScratchRegister);
+    }
+  }
+
+  void EmitBlockEndGapMoves(UnconditionalControlNode* node,
+                            const ProcessingState& state) {
+    BasicBlock* target = node->target();
+    if (!target->has_state()) {
+      __ RecordComment("--   Target has no state, must be a fallthrough");
+      return;
+    }
+
+    int predecessor_id = state.block()->predecessor_id();
+
+    // Save register moves in an array, so that we can resolve them as parallel
+    // moves. Note that the mapping is:
+    //
+    //     register_moves[source] = target.
+    RegisterMoves register_moves =
+        repeat<Register::kNumRegisters>(Register::no_reg());
+
+    // Save stack to register moves in an array, so that we can execute them
+    // after the parallel moves have read the register values. Note that the
+    // mapping is:
+    //
+    //     stack_to_register_moves[target] = source.
+    StackToRegisterMoves stack_to_register_moves;
+
+    __ RecordComment("--   Gap moves:");
+
+    for (int index = 0; index < kAllocatableGeneralRegisterCount; ++index) {
+      RegisterMerge* merge;
+      if (LoadMergeState(target->state()->register_state()[index], &merge)) {
+        compiler::AllocatedOperand source = merge->operand(predecessor_id);
+        Register target_reg = MapIndexToRegister(index);
+
+        if (FLAG_code_comments) {
+          std::stringstream ss;
+          ss << "--   * " << source << " → " << target_reg;
+          __ RecordComment(ss.str());
+        }
+        RecordGapMove(source, target_reg, register_moves,
+                      stack_to_register_moves);
+      }
+    }
+
+    if (target->has_phi()) {
+      Phi::List* phis = target->phis();
+      for (Phi* phi : *phis) {
+        compiler::AllocatedOperand source = compiler::AllocatedOperand::cast(
+            phi->input(state.block()->predecessor_id()).operand());
+        compiler::AllocatedOperand target =
+            compiler::AllocatedOperand::cast(phi->result().operand());
+        if (FLAG_code_comments) {
+          std::stringstream ss;
+          ss << "--   * " << source << " → " << target << " (n"
+             << graph_labeller()->NodeId(phi) << ")";
+          __ RecordComment(ss.str());
+        }
+        RecordGapMove(source, target, register_moves, stack_to_register_moves);
+      }
+    }
+
+#define EMIT_MOVE_FOR_REG(Name) EmitParallelMoveChain(Name, register_moves);
+    ALLOCATABLE_GENERAL_REGISTERS(EMIT_MOVE_FOR_REG)
+#undef EMIT_MOVE_FOR_REG
+
+#define EMIT_MOVE_FOR_REG(Name) \
+  EmitStackToRegisterGapMove(stack_to_register_moves[Name.code()], Name);
+    ALLOCATABLE_GENERAL_REGISTERS(EMIT_MOVE_FOR_REG)
+#undef EMIT_MOVE_FOR_REG
   }
 
   Isolate* isolate() const { return code_gen_state_->isolate(); }
