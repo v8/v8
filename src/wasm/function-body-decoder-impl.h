@@ -2700,7 +2700,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
-    Value ref_object = Peek(0, 0);
+    Value ref_object = Peek(0);
     Control* c = control_at(imm.depth);
     if (!VALIDATE(TypeCheckBranch<true>(c, 1))) return 0;
     switch (ref_object.type.kind()) {
@@ -2913,7 +2913,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   DECODE(Select) {
     Value cond = Peek(0, 2, kWasmI32);
-    Value fval = Peek(1, 1);
+    Value fval = Peek(1);
     Value tval = Peek(2, 0, fval.type);
     ValueType type = tval.type == kWasmBottom ? fval.type : tval.type;
     if (!VALIDATE(!type.is_reference())) {
@@ -3076,7 +3076,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   DECODE(RefIsNull) {
     this->detected_->Add(kFeature_reftypes);
-    Value value = Peek(0, 0);
+    Value value = Peek(0);
     Value result = CreateValue(kWasmI32);
     switch (value.type.kind()) {
       case kOptRef:
@@ -3118,7 +3118,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   DECODE(RefAsNonNull) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
-    Value value = Peek(0, 0);
+    Value value = Peek(0);
     switch (value.type.kind()) {
       case kBottom:
         // We are in unreachable code. Forward the bottom value.
@@ -3180,7 +3180,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   DECODE(Drop) {
-    Peek(0, 0);
+    Peek(0);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Drop);
     Drop(1);
     return 1;
@@ -3354,7 +3354,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   DECODE(CallRef) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
-    Value func_ref = Peek(0, 0);
+    Value func_ref = Peek(0);
     ValueType func_type = func_ref.type;
     if (func_type == kWasmBottom) {
       // We are in unreachable code, maintain the polymorphic stack.
@@ -3380,7 +3380,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   DECODE(ReturnCallRef) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     CHECK_PROTOTYPE_OPCODE(return_call);
-    Value func_ref = Peek(0, 0);
+    Value func_ref = Peek(0);
     ValueType func_type = func_ref.type;
     if (func_type == kWasmBottom) {
       // We are in unreachable code, maintain the polymorphic stack.
@@ -4429,7 +4429,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprRefTestStatic: {
         NON_CONST_ONLY
         // "Tests whether {obj}'s runtime type is a runtime subtype of {rtt}."
-        Value rtt = Peek(0, 1);  // This is safe for the ...Static instruction.
+        Value rtt = Peek(0);  // This is safe for the ...Static instruction.
         if (opcode == kExprRefTestStatic) {
           IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                        "type index");
@@ -4445,7 +4445,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             return 0;
           }
         }
-        Value obj = Peek(1, 0);
+        Value obj = Peek(1);
         Value value = CreateValue(kWasmI32);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
                       IsSubtypeOf(obj.type,
@@ -4485,7 +4485,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprRefCast:
       case kExprRefCastStatic: {
         NON_CONST_ONLY
-        Value rtt = Peek(0, 1);  // This is safe for the ...Static instruction.
+        Value rtt = Peek(0);  // This is safe for the ...Static instruction.
         if (opcode == kExprRefCastStatic) {
           IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                        "type index");
@@ -4501,7 +4501,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             return 0;
           }
         }
-        Value obj = Peek(1, 0);
+        Value obj = Peek(1);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
                       IsSubtypeOf(obj.type,
                                   ValueType::Ref(HeapType::kData, kNullable),
@@ -4555,7 +4555,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           return 0;
         }
         uint32_t pc_offset = opcode_length + branch_depth.length;
-        Value rtt = Peek(0, 1);  // This is safe for the ...Static instruction.
+        Value rtt = Peek(0);  // This is safe for the ...Static instruction.
         if (opcode == kExprBrOnCastStatic) {
           IndexImmediate<validate> imm(this, this->pc_ + pc_offset,
                                        "type index");
@@ -4571,7 +4571,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             return 0;
           }
         }
-        Value obj = Peek(1, 0);
+        Value obj = Peek(1);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
                       IsSubtypeOf(obj.type,
                                   ValueType::Ref(HeapType::kData, kNullable),
@@ -4636,7 +4636,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           return 0;
         }
         uint32_t pc_offset = opcode_length + branch_depth.length;
-        Value rtt = Peek(0, 1);  // This is safe for the ...Static instruction.
+        Value rtt = Peek(0);  // This is safe for the ...Static instruction.
         if (opcode == kExprBrOnCastStaticFail) {
           IndexImmediate<validate> imm(this, this->pc_ + pc_offset,
                                        "type index");
@@ -4652,7 +4652,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             return 0;
           }
         }
-        Value obj = Peek(1, 0);
+        Value obj = Peek(1);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
                       IsSubtypeOf(obj.type,
                                   ValueType::Ref(HeapType::kData, kNullable),
@@ -5174,7 +5174,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   V8_INLINE Value Peek(int depth, int index, ValueType expected) {
-    Value val = Peek(depth, index);
+    Value val = Peek(depth);
     if (!VALIDATE(IsSubtypeOf(val.type, expected, this->module_) ||
                   val.type == kWasmBottom || expected == kWasmBottom)) {
       PopTypeError(index, val, expected);
@@ -5182,7 +5182,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return val;
   }
 
-  V8_INLINE Value Peek(int depth, int index) {
+  V8_INLINE Value Peek(int depth) {
     DCHECK(!control_.empty());
     uint32_t limit = control_.back().stack_depth;
     if (V8_UNLIKELY(stack_size() <= limit + depth)) {
