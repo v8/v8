@@ -4300,7 +4300,8 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
 // rest_runtime_callargs[2] = temp1;
 // a() = value[temp1];
 //
-// b.c = %CopyDataPropertiesWithExcludedProperties.call(rest_runtime_callargs);
+// b.c =
+// %CopyDataPropertiesWithExcludedPropertiesOnStack.call(rest_runtime_callargs);
 void BytecodeGenerator::BuildDestructuringObjectAssignment(
     ObjectLiteral* pattern, Token::Value op,
     LookupHoistingMode lookup_hoisting_mode) {
@@ -4406,8 +4407,9 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
       DCHECK_EQ(i, pattern->properties()->length() - 1);
       DCHECK(!value_key.is_valid());
       DCHECK_NULL(value_name);
-      builder()->CallRuntime(Runtime::kCopyDataPropertiesWithExcludedProperties,
-                             rest_runtime_callargs);
+      builder()->CallRuntime(
+          Runtime::kInlineCopyDataPropertiesWithExcludedPropertiesOnStack,
+          rest_runtime_callargs);
     } else if (value_name) {
       builder()->LoadNamedProperty(
           value, value_name, feedback_index(feedback_spec()->AddLoadICSlot()));

@@ -1326,6 +1326,20 @@ void BaselineCompiler::VisitIntrinsicCopyDataProperties(
   CallBuiltin<Builtin::kCopyDataProperties>(args);
 }
 
+void BaselineCompiler::
+    VisitIntrinsicCopyDataPropertiesWithExcludedPropertiesOnStack(
+        interpreter::RegisterList args) {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register rscratch = scratch_scope.AcquireScratch();
+  if (args.register_count() != 1) {
+    basm_.RegisterFrameAddress(args[1], rscratch);
+  } else {
+    basm_.Move(rscratch, 0);
+  }
+  CallBuiltin<Builtin::kCopyDataPropertiesWithExcludedPropertiesOnStack>(
+      args[0], args.register_count() - 1, rscratch);
+}
+
 void BaselineCompiler::VisitIntrinsicCreateIterResultObject(
     interpreter::RegisterList args) {
   CallBuiltin<Builtin::kCreateIterResultObject>(args);

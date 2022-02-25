@@ -220,6 +220,12 @@ RUNTIME_FUNCTION(Runtime_NewError) {
   return *isolate->factory()->NewError(message_template, arg0);
 }
 
+RUNTIME_FUNCTION(Runtime_NewForeign) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  return *isolate->factory()->NewForeign(kNullAddress);
+}
+
 RUNTIME_FUNCTION(Runtime_NewTypeError) {
   HandleScope scope(isolate);
   DCHECK_LE(args.length(), 4);

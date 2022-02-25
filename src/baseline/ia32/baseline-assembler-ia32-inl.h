@@ -84,6 +84,11 @@ MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
   return MemOperand(ebp, interpreter_register.ToOperand() * kSystemPointerSize);
 }
+void BaselineAssembler::RegisterFrameAddress(
+    interpreter::Register interpreter_register, Register rscratch) {
+  return __ lea(rscratch, MemOperand(ebp, interpreter_register.ToOperand() *
+                                              kSystemPointerSize));
+}
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(ebp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }

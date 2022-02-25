@@ -225,6 +225,7 @@ namespace internal {
   F(BytecodeBudgetInterrupt, 1, 1)                   \
   F(BytecodeBudgetInterruptWithStackCheck, 1, 1)     \
   F(NewError, 2, 1)                                  \
+  F(NewForeign, 0, 1)                                \
   F(NewReferenceError, 2, 1)                         \
   F(NewSyntaxError, 2, 1)                            \
   F(NewTypeError, -1 /* [1, 4] */, 1)                \
@@ -286,76 +287,76 @@ namespace internal {
   F(StringToNumber, 1, 1)                \
   F(TypedArrayMaxLength, 0, 1)
 
-#define FOR_EACH_INTRINSIC_OBJECT(F, I)                         \
-  F(AddDictionaryProperty, 3, 1)                                \
-  F(AddPrivateBrand, 4, 1)                                      \
-  F(AllocateHeapNumber, 0, 1)                                   \
-  F(CollectTypeProfile, 3, 1)                                   \
-  F(CompleteInobjectSlackTrackingForMap, 1, 1)                  \
-  I(CopyDataProperties, 2, 1)                                   \
-  F(CopyDataPropertiesWithExcludedProperties, -1 /* >= 1 */, 1) \
-  I(CreateDataProperty, 3, 1)                                   \
-  I(CreateIterResultObject, 2, 1)                               \
-  F(CreatePrivateAccessors, 2, 1)                               \
-  F(DefineAccessorPropertyUnchecked, 5, 1)                      \
-  F(DefineDataPropertyInLiteral, 6, 1)                          \
-  F(DefineGetterPropertyUnchecked, 4, 1)                        \
-  F(DefineSetterPropertyUnchecked, 4, 1)                        \
-  F(DeleteProperty, 3, 1)                                       \
-  F(GetDerivedMap, 2, 1)                                        \
-  F(GetFunctionName, 1, 1)                                      \
-  F(GetOwnPropertyDescriptor, 2, 1)                             \
-  F(GetOwnPropertyKeys, 2, 1)                                   \
-  F(GetProperty, -1 /* [2, 3] */, 1)                            \
-  F(HasFastPackedElements, 1, 1)                                \
-  F(HasInPrototypeChain, 2, 1)                                  \
-  F(HasProperty, 2, 1)                                          \
-  F(InternalSetPrototype, 2, 1)                                 \
-  F(IsJSReceiver, 1, 1)                                         \
-  F(JSReceiverPreventExtensionsDontThrow, 1, 1)                 \
-  F(JSReceiverPreventExtensionsThrow, 1, 1)                     \
-  F(JSReceiverGetPrototypeOf, 1, 1)                             \
-  F(JSReceiverSetPrototypeOfDontThrow, 2, 1)                    \
-  F(JSReceiverSetPrototypeOfThrow, 2, 1)                        \
-  F(LoadPrivateGetter, 1, 1)                                    \
-  F(LoadPrivateSetter, 1, 1)                                    \
-  F(NewObject, 2, 1)                                            \
-  F(ObjectCreate, 2, 1)                                         \
-  F(ObjectEntries, 1, 1)                                        \
-  F(ObjectEntriesSkipFastPath, 1, 1)                            \
-  F(ObjectGetOwnPropertyNames, 1, 1)                            \
-  F(ObjectGetOwnPropertyNamesTryFast, 1, 1)                     \
-  F(ObjectHasOwnProperty, 2, 1)                                 \
-  F(ObjectIsExtensible, 1, 1)                                   \
-  F(ObjectKeys, 1, 1)                                           \
-  F(ObjectValues, 1, 1)                                         \
-  F(ObjectValuesSkipFastPath, 1, 1)                             \
-  F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
-  F(SetDataProperties, 2, 1)                                    \
-  F(SetKeyedProperty, 3, 1)                                     \
-  F(DefineObjectOwnProperty, 3, 1)                              \
-  F(SetNamedProperty, 3, 1)                                     \
-  F(SetOwnPropertyIgnoreAttributes, 4, 1)                       \
-  F(StoreDataPropertyInLiteral, 3, 1)                           \
-  F(ShrinkNameDictionary, 1, 1)                                 \
-  F(ShrinkSwissNameDictionary, 1, 1)                            \
-  F(ToFastProperties, 1, 1)                                     \
-  F(ToLength, 1, 1)                                             \
-  F(ToName, 1, 1)                                               \
-  F(ToNumber, 1, 1)                                             \
-  F(ToNumeric, 1, 1)                                            \
-  F(ToObject, 1, 1)                                             \
-  F(ToString, 1, 1)                                             \
-  F(TryMigrateInstance, 1, 1)                                   \
-  F(SwissTableAdd, 4, 1)                                        \
-  F(SwissTableAllocate, 1, 1)                                   \
-  F(SwissTableDelete, 2, 1)                                     \
-  F(SwissTableDetailsAt, 2, 1)                                  \
-  F(SwissTableElementsCount, 1, 1)                              \
-  F(SwissTableEquals, 2, 1)                                     \
-  F(SwissTableFindEntry, 2, 1)                                  \
-  F(SwissTableUpdate, 4, 1)                                     \
-  F(SwissTableValueAt, 2, 1)                                    \
+#define FOR_EACH_INTRINSIC_OBJECT(F, I)                                \
+  F(AddDictionaryProperty, 3, 1)                                       \
+  F(AddPrivateBrand, 4, 1)                                             \
+  F(AllocateHeapNumber, 0, 1)                                          \
+  F(CollectTypeProfile, 3, 1)                                          \
+  F(CompleteInobjectSlackTrackingForMap, 1, 1)                         \
+  I(CopyDataProperties, 2, 1)                                          \
+  I(CopyDataPropertiesWithExcludedPropertiesOnStack, -1 /* >= 1 */, 1) \
+  I(CreateDataProperty, 3, 1)                                          \
+  I(CreateIterResultObject, 2, 1)                                      \
+  F(CreatePrivateAccessors, 2, 1)                                      \
+  F(DefineAccessorPropertyUnchecked, 5, 1)                             \
+  F(DefineDataPropertyInLiteral, 6, 1)                                 \
+  F(DefineGetterPropertyUnchecked, 4, 1)                               \
+  F(DefineSetterPropertyUnchecked, 4, 1)                               \
+  F(DeleteProperty, 3, 1)                                              \
+  F(GetDerivedMap, 2, 1)                                               \
+  F(GetFunctionName, 1, 1)                                             \
+  F(GetOwnPropertyDescriptor, 2, 1)                                    \
+  F(GetOwnPropertyKeys, 2, 1)                                          \
+  F(GetProperty, -1 /* [2, 3] */, 1)                                   \
+  F(HasFastPackedElements, 1, 1)                                       \
+  F(HasInPrototypeChain, 2, 1)                                         \
+  F(HasProperty, 2, 1)                                                 \
+  F(InternalSetPrototype, 2, 1)                                        \
+  F(IsJSReceiver, 1, 1)                                                \
+  F(JSReceiverPreventExtensionsDontThrow, 1, 1)                        \
+  F(JSReceiverPreventExtensionsThrow, 1, 1)                            \
+  F(JSReceiverGetPrototypeOf, 1, 1)                                    \
+  F(JSReceiverSetPrototypeOfDontThrow, 2, 1)                           \
+  F(JSReceiverSetPrototypeOfThrow, 2, 1)                               \
+  F(LoadPrivateGetter, 1, 1)                                           \
+  F(LoadPrivateSetter, 1, 1)                                           \
+  F(NewObject, 2, 1)                                                   \
+  F(ObjectCreate, 2, 1)                                                \
+  F(ObjectEntries, 1, 1)                                               \
+  F(ObjectEntriesSkipFastPath, 1, 1)                                   \
+  F(ObjectGetOwnPropertyNames, 1, 1)                                   \
+  F(ObjectGetOwnPropertyNamesTryFast, 1, 1)                            \
+  F(ObjectHasOwnProperty, 2, 1)                                        \
+  F(ObjectIsExtensible, 1, 1)                                          \
+  F(ObjectKeys, 1, 1)                                                  \
+  F(ObjectValues, 1, 1)                                                \
+  F(ObjectValuesSkipFastPath, 1, 1)                                    \
+  F(OptimizeObjectForAddingMultipleProperties, 2, 1)                   \
+  F(SetDataProperties, 2, 1)                                           \
+  F(SetKeyedProperty, 3, 1)                                            \
+  F(DefineObjectOwnProperty, 3, 1)                                     \
+  F(SetNamedProperty, 3, 1)                                            \
+  F(SetOwnPropertyIgnoreAttributes, 4, 1)                              \
+  F(StoreDataPropertyInLiteral, 3, 1)                                  \
+  F(ShrinkNameDictionary, 1, 1)                                        \
+  F(ShrinkSwissNameDictionary, 1, 1)                                   \
+  F(ToFastProperties, 1, 1)                                            \
+  F(ToLength, 1, 1)                                                    \
+  F(ToName, 1, 1)                                                      \
+  F(ToNumber, 1, 1)                                                    \
+  F(ToNumeric, 1, 1)                                                   \
+  F(ToObject, 1, 1)                                                    \
+  F(ToString, 1, 1)                                                    \
+  F(TryMigrateInstance, 1, 1)                                          \
+  F(SwissTableAdd, 4, 1)                                               \
+  F(SwissTableAllocate, 1, 1)                                          \
+  F(SwissTableDelete, 2, 1)                                            \
+  F(SwissTableDetailsAt, 2, 1)                                         \
+  F(SwissTableElementsCount, 1, 1)                                     \
+  F(SwissTableEquals, 2, 1)                                            \
+  F(SwissTableFindEntry, 2, 1)                                         \
+  F(SwissTableUpdate, 4, 1)                                            \
+  F(SwissTableValueAt, 2, 1)                                           \
   F(SwissTableKeyAt, 2, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F, I) \

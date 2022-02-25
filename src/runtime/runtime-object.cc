@@ -1291,10 +1291,16 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
+RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
   HandleScope scope(isolate);
   DCHECK_LE(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, excluded_property_count_smi, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Foreign, excluded_property_base_foreign, 2);
+
+  int excluded_property_count = excluded_property_count_smi->value();
+  auto excluded_property_base = reinterpret_cast<Address*>(
+      excluded_property_base_foreign->foreign_address());
 
   // If source is undefined or null, throw a non-coercible error.
   if (source->IsNullOrUndefined(isolate)) {
@@ -1302,9 +1308,12 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
                                                     MaybeHandle<Object>());
   }
 
-  base::ScopedVector<Handle<Object>> excluded_properties(args.length() - 1);
-  for (int i = 1; i < args.length(); i++) {
-    Handle<Object> property = args.at(i);
+  base::ScopedVector<Handle<Object>> excluded_properties(
+      excluded_property_count);
+  for (int i = 0; i < excluded_property_count; i++) {
+    // Because the excluded properties on stack is from high address
+    // to low address, so we need to use sub
+    Handle<Object> property(excluded_property_base - i);
     uint32_t property_num;
     // We convert string to number if possible, in cases of computed
     // properties resolving to numbers, which would've been strings
@@ -1315,7 +1324,7 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
       property = isolate->factory()->NewNumberFromUint(property_num);
     }
 
-    excluded_properties[i - 1] = property;
+    excluded_properties[i] = property;
   }
 
   Handle<JSObject> target =

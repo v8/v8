@@ -317,6 +317,10 @@ namespace internal {
   /* ES #sec-copydataproperties */                                             \
   TFS(CopyDataProperties, kTarget, kSource)                                    \
   TFS(SetDataProperties, kTarget, kSource)                                     \
+  TFC(CopyDataPropertiesWithExcludedPropertiesOnStack,                         \
+      CopyDataPropertiesWithExcludedPropertiesOnStack)                         \
+  TFC(CopyDataPropertiesWithExcludedProperties,                                \
+      CopyDataPropertiesWithExcludedProperties)                                \
                                                                                \
   /* Abort */                                                                  \
   TFC(Abort, Abort)                                                            \

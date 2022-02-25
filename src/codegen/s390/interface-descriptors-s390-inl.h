@@ -150,6 +150,22 @@ constexpr auto CallTrampolineDescriptor::registers() {
 }
 
 // static
+constexpr auto CopyDataPropertiesWithExcludedPropertiesDescriptor::registers() {
+  // r3 : the source
+  // r2 : the excluded property count
+  return RegisterArray(r3, r2);
+}
+
+// static
+constexpr auto
+CopyDataPropertiesWithExcludedPropertiesOnStackDescriptor::registers() {
+  // r3 : the source
+  // r2 : the excluded property count
+  // r4 : the excluded property base
+  return RegisterArray(r3, r2, r4);
+}
+
+// static
 constexpr auto CallVarargsDescriptor::registers() {
   // r2 : number of arguments (on the stack)
   // r3 : the target to call

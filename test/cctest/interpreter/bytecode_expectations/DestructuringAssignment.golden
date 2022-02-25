@@ -380,7 +380,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 28
 bytecodes: [
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star1),
@@ -391,7 +391,7 @@ bytecodes: [
                 B(JumpIfNotUndefined), U8(3),
                 B(LdaZero),
                 B(Star0),
-  /*   71 S> */ B(CallRuntime), U16(Runtime::kCopyDataPropertiesWithExcludedProperties), R(2), U8(2),
+  /*   71 S> */ B(InvokeIntrinsic), U8(Runtime::k_CopyDataPropertiesWithExcludedPropertiesOnStack), R(2), U8(2),
                 B(StaGlobal), U8(2), U8(3),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
