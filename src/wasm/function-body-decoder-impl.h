@@ -2234,6 +2234,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     DCHECK_LE(this->pc_, this->end_);
     DCHECK_EQ(this->num_locals(), 0);
 
+    locals_offset_ = this->pc_offset();
     this->InitializeLocalsFromSig();
     uint32_t params_count = static_cast<uint32_t>(this->num_locals());
     uint32_t locals_length;
@@ -2340,7 +2341,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   uint32_t pc_relative_offset() const {
-    return this->pc_offset() - first_instruction_offset;
+    return this->pc_offset() - locals_offset_;
   }
 
   void DecodeFunctionBody() {
@@ -2374,7 +2375,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StartFunctionBody, c);
     }
 
-    first_instruction_offset = this->pc_offset();
     // Decode the function body.
     while (this->pc_ < this->end_) {
       // Most operations only grow the stack by at least one element (unary and
@@ -2407,7 +2407,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
  private:
-  uint32_t first_instruction_offset = 0;
+  uint32_t locals_offset_ = 0;
   Interface interface_;
 
   // The value stack, stored as individual pointers for maximum performance.

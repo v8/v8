@@ -76,9 +76,11 @@ namespace module_decoder_unittest {
                     'H', 'i', 'n', 't', 's'),                              \
           ADD_COUNT(__VA_ARGS__))
 
-#define SECTION_BRANCH_HINTS(...)                                           \
-  SECTION(Unknown,                                                          \
-          ADD_COUNT('b', 'r', 'a', 'n', 'c', 'h', 'H', 'i', 'n', 't', 's'), \
+#define SECTION_BRANCH_HINTS(...)                                          \
+  SECTION(Unknown,                                                         \
+          ADD_COUNT('m', 'e', 't', 'a', 'd', 'a', 't', 'a', '.', 'c', 'o', \
+                    'd', 'e', '.', 'b', 'r', 'a', 'n', 'c', 'h', '_', 'h', \
+                    'i', 'n', 't'),                                        \
           __VA_ARGS__)
 
 #define FAIL_IF_NO_EXPERIMENTAL_EH(data)                                 \
@@ -2228,10 +2230,10 @@ TEST_F(WasmModuleVerifyTest, BranchHinting) {
   WASM_FEATURE_SCOPE(branch_hinting);
   static const byte data[] = {
       TYPE_SECTION(1, SIG_ENTRY_v_v), FUNCTION_SECTION(2, 0, 0),
-      SECTION_BRANCH_HINTS(ENTRY_COUNT(2), 0 /*func_index*/, 0 /*reserved*/,
-                           ENTRY_COUNT(1), 1 /*likely*/, 2 /* if offset*/,
-                           1 /*func_index*/, 0 /*reserved*/, ENTRY_COUNT(1),
-                           0 /*unlikely*/, 4 /* br_if offset*/),
+      SECTION_BRANCH_HINTS(ENTRY_COUNT(2), 0 /*func_index*/, ENTRY_COUNT(1),
+                           3 /* if offset*/, 1 /*reserved*/, 1 /*likely*/,
+                           1 /*func_index*/, ENTRY_COUNT(1),
+                           5 /* br_if offset*/, 1 /*reserved*/, 0 /*unlikely*/),
       SECTION(Code, ENTRY_COUNT(2),
               ADD_COUNT(0, /*no locals*/
                         WASM_IF(WASM_I32V_1(1), WASM_NOP), WASM_END),
@@ -2243,9 +2245,9 @@ TEST_F(WasmModuleVerifyTest, BranchHinting) {
 
   EXPECT_EQ(2u, result.value()->branch_hints.size());
   EXPECT_EQ(WasmBranchHint::kLikely,
-            result.value()->branch_hints[0].GetHintFor(2));
+            result.value()->branch_hints[0].GetHintFor(3));
   EXPECT_EQ(WasmBranchHint::kUnlikely,
-            result.value()->branch_hints[1].GetHintFor(4));
+            result.value()->branch_hints[1].GetHintFor(5));
 }
 
 class WasmSignatureDecodeTest : public TestWithZone {

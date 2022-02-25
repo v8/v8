@@ -36,7 +36,7 @@ namespace {
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
-constexpr char kBranchHintsString[] = "branchHints";
+constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 
@@ -1345,11 +1345,6 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         last_func_idx = func_idx;
-        uint8_t reserved = inner.consume_u8("reserved byte");
-        if (reserved != 0x0) {
-          inner.errorf("Invalid reserved byte: %#x", reserved);
-          break;
-        }
         uint32_t num_hints = inner.consume_u32v("number of hints");
         BranchHintMap func_branch_hints;
         TRACE("DecodeBranchHints[%d] module+%d\n", func_idx,
@@ -1357,13 +1352,18 @@ class ModuleDecoderImpl : public Decoder {
         // Keep track of the previous branch offset to validate the ordering
         int64_t last_br_off = -1;
         for (uint32_t j = 0; j < num_hints; ++j) {
-          uint32_t br_dir = inner.consume_u32v("branch direction");
           uint32_t br_off = inner.consume_u32v("branch instruction offset");
           if (int64_t(br_off) <= last_br_off) {
             inner.errorf("Invalid branch offset: %d", br_off);
             break;
           }
           last_br_off = br_off;
+          uint32_t data_size = inner.consume_u32v("data size");
+          if (data_size != 1) {
+            inner.errorf("Invalid data size: %#x. Expected 1.", data_size);
+            break;
+          }
+          uint32_t br_dir = inner.consume_u8("branch direction");
           TRACE("DecodeBranchHints[%d][%d] module+%d\n", func_idx, br_off,
                 static_cast<int>(inner.pc() - inner.start()));
           WasmBranchHint hint;
