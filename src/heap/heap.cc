@@ -5538,28 +5538,9 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
         !old_generation_size_configured_ && gc_count_ == 0) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
-      // configured heap any time soon.
-      //
-      // TODO(chromium:1029379): Revisit initial heap configuration when Oilpan
-      // run minor GCs as that would allow using a shrinking logic similar to
-      // V8.
-      if (global_memory_available) {
-        const size_t embedder_allocated_memory =
-            global_memory_available.value() - old_generation_space_available;
-        constexpr size_t kEmbedderMemoryThresholdToForceIncrementalGC =
-            32u * MB;
-        if (embedder_allocated_memory >
-            kEmbedderMemoryThresholdToForceIncrementalGC) {
-          // If we didn't get a garbage collection within allocating
-          // `kEmbedderMemoryThresholdToForceIncrementalGC` of memory this means
-          // that the embedder is still in high allocation rate. We cannot
-          // expect it to run idle soon but need to configure the heap somehow.
-          return IncrementalMarkingLimit::kHardLimit;
-        }
-      }
-      // Start a memory reducer in case the hard limit for embedder allocated
-      // memory has not been hit yet which will wait until the allocation rate
-      // is low to trigger garbage collection.
+      // configured heap any time soon. Start a memory reducer in this case
+      // which will wait until the allocation rate is low to trigger garbage
+      // collection.
       return IncrementalMarkingLimit::kFallbackForEmbedderLimit;
     }
     return IncrementalMarkingLimit::kNoLimit;
