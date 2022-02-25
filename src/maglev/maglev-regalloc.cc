@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-regalloc.h"
 
 #include "src/base/logging.h"
+#include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/maglev/maglev-compilation-data.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -311,78 +312,37 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
   }
 }
 
-class StraightForwardRegisterAllocator::InputsUpdater {
- public:
-  explicit InputsUpdater(StraightForwardRegisterAllocator* allocator,
-                         NodeBase* node)
-      : allocator_(allocator), use_(node->id()) {}
+void StraightForwardRegisterAllocator::UpdateInputUse(uint32_t use,
+                                                      const Input& input) {
+  ValueNode* node = input.node();
+  auto it = values_.find(node);
 
-  void UpdateInputUse(const Input& input) {
-    ValueNode* node = input.node();
-    auto it = allocator_->values_.find(node);
-    // If a value is dead, make sure it's cleared.
-    if (node->live_range().end == use_) {
-      // Mark the info for clearing by clearing the node.
-      if (it->second.node == nullptr) return;
-      if (it->second.reg.is_valid()) {
-        // Collect values in registers for clearing later.
-        it->second.node = nullptr;
-        to_clear_[register_values_to_clear_++] = it;
-      } else {
-        // Immediately clear values in stack slots.
-        Clear(it);
-      }
-    } else {
-      // Otherwise update the next use.
-      DCHECK_NE(it, allocator_->values_.end());
-      it->second.next_use = input.next_use_id();
-    }
-  }
+  // The value was already cleared through a previous input.
+  if (it == values_.end()) return;
 
-  ~InputsUpdater() {
-    // If no values died, simply return.
-    if (register_values_to_clear_ == 0) return;
-    // First clear the registers pointing to to-clear infos.
-    for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-      LiveNodeInfo* value = allocator_->register_values_[i];
-      if (value == nullptr) continue;
-      if (value->node != nullptr) {
-        // The value shouldn't be dead yet.
-        // TODO(verwaest): This won't work yet because of deopt uses.
-        // DCHECK_GT(value->last_use, use_);
-        continue;
-      }
-      allocator_->FreeRegister(i);
-    }
-    // Then clear the infos.
-    for (int i = 0; i < register_values_to_clear_; i++) Clear(to_clear_[i]);
-  }
-
- private:
-  void Clear(LiveNodeInfoMap::iterator& it) {
+  // If a value is dead, make sure it's cleared.
+  if (node->live_range().end == use) {
     LiveNodeInfo& info = it->second;
+    FreeRegisters(&info.registers);
+
     // If the stack slot is a local slot, free it so it can be reused.
     if (info.stack_slot.IsAnyStackSlot()) {
       compiler::AllocatedOperand slot =
           compiler::AllocatedOperand::cast(info.stack_slot);
-      if (slot.index() > 0) allocator_->free_slots_.push_back(slot.index());
+      if (slot.index() > 0) free_slots_.push_back(slot.index());
     }
-    allocator_->values_.erase(it);
+    values_.erase(it);
+    return;
   }
 
-  StraightForwardRegisterAllocator* const allocator_;
-  const uint32_t use_;
-  LiveNodeInfoMap::iterator to_clear_[kAllocatableGeneralRegisterCount];
-  int register_values_to_clear_ = 0;
-};
+  // Otherwise update the next use.
+  it->second.next_use = input.next_use_id();
+}
 
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  {
-    InputsUpdater updater(this, node);
-    for (Input& input : *node) updater.UpdateInputUse(input);
-  }
+  for (Input& input : *node) UpdateInputUse(node->id(), input);
 
   if (node->properties().is_call()) SpillAndClearRegisters();
   // TODO(verwaest): This isn't a good idea :)
@@ -453,10 +413,10 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
   if (!node->has_valid_live_range() &&
       node->result().operand().IsAnyRegister()) {
     auto it = values_.find(node);
-    Register reg = it->second.reg;
-    DCHECK(reg.is_valid());
+    DCHECK(it->second.has_register());
+    FreeRegisters(&it->second.registers);
+    DCHECK(!it->second.has_register());
     values_.erase(it);
-    FreeRegister(MapRegisterToIndex(reg));
   }
 }
 
@@ -470,26 +430,13 @@ void StraightForwardRegisterAllocator::Free(const Register& reg) {
   // Free the register without adding it to the list.
   register_values_[index] = nullptr;
 
-  // If the value we're freeing from the register is already known to be
-  // assigned to a different register as well, simply reeturn.
-  if (reg != info->reg) {
-    DCHECK_EQ(info, register_values_[MapRegisterToIndex(info->reg)]);
-    return;
-  }
-
-  info->reg = Register::no_reg();
+  // Remove the register from the list.
+  reg.RemoveFrom(&info->registers);
+  // Return if the removed value already has another register.
+  if (info->has_register()) return;
 
   // If the value is already spilled, return.
   if (info->stack_slot.IsAnyStackSlot()) return;
-
-  // If the value is already in another register, return.
-  for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    if (register_values_[i] == info) {
-      // Found an existing register.
-      info->reg = MapIndexToRegister(i);
-      return;
-    }
-  }
 
   // Try to move the value to another register.
   if (free_register_size_ > 0) {
@@ -534,8 +481,7 @@ void StraightForwardRegisterAllocator::InitializeConditionalBranchRegisters(
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
     LiveNodeInfo* info = register_values_[i];
     if (info != nullptr && !IsLiveAtTarget(info, node, target)) {
-      info->reg = Register::no_reg();
-      FreeRegister(i);
+      FreeRegisters(&info->registers);
     }
   }
 }
@@ -544,10 +490,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  {
-    InputsUpdater updater(this, node);
-    for (Input& input : *node) updater.UpdateInputUse(input);
-  }
+  for (Input& input : *node) UpdateInputUse(node->id(), input);
 
   if (node->properties().is_call()) SpillAndClearRegisters();
 
@@ -561,9 +504,8 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
         LiveNodeInfo& info = values_[input.node()];
         input.InjectAllocated(info.allocation());
       }
-      InputsUpdater updater(this, node);
       for (Phi* phi : *phis) {
-        updater.UpdateInputUse(phi->input(block->predecessor_id()));
+        UpdateInputUse(phi->id(), phi->input(block->predecessor_id()));
       }
     }
   }
@@ -705,8 +647,7 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
     LiveNodeInfo* info = register_values_[i];
     if (info == nullptr) continue;
     Spill(info);
-    info->reg = Register::no_reg();
-    FreeRegister(i);
+    FreeRegisters(&info->registers);
   }
 }
 
@@ -762,6 +703,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     const Register& reg, LiveNodeInfo* info) {
   if (register_values_[MapRegisterToIndex(reg)] == nullptr) {
     // If it's already free, remove it from the free list.
+    // TODO(verwaest): This should just be a mask.
     for (int i = 0; i < free_register_size_; i++) {
       if (MapRegisterToIndex(reg) == free_registers_[i]) {
         std::swap(free_registers_[i], free_registers_[--free_register_size_]);
@@ -792,7 +734,7 @@ void StraightForwardRegisterAllocator::SetRegister(Register reg,
   DCHECK_IMPLIES(register_values_[index] != info,
                  register_values_[index] == nullptr);
   register_values_[index] = info;
-  info->reg = reg;
+  info->registers = CombineRegLists(info->registers, Register::ListOf(reg));
 }
 
 compiler::InstructionOperand
@@ -815,10 +757,12 @@ void StraightForwardRegisterAllocator::AssignTemporaries(NodeBase* node) {
 void StraightForwardRegisterAllocator::InitializeRegisterValues(
     RegisterState* target_state) {
   // First clear the register state.
+  // TODO(verwaest): We could loop over the list of allocated registers by
+  // deducing it from the free registers.
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
     LiveNodeInfo* info = register_values_[i];
     if (info == nullptr) continue;
-    info->reg = Register::no_reg();
+    info->registers = kEmptyRegList;
   }
 
   // Mark no register as free.
@@ -832,10 +776,9 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
     if (node == nullptr) {
       DCHECK(!target_state[i].GetPayload().is_merge);
       FreeRegister(i);
-      continue;
+    } else {
+      SetRegister(MapIndexToRegister(i), node);
     }
-    register_values_[i] = node;
-    node->reg = MapIndexToRegister(i);
   }
 }
 

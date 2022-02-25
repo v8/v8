@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_REGALLOC_H_
 #define V8_MAGLEV_MAGLEV_REGALLOC_H_
 
+#include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/maglev/maglev-compilation-data.h"
 #include "src/maglev/maglev-graph.h"
@@ -22,13 +23,15 @@ struct LiveNodeInfo {
   uint32_t last_use = 0;
   uint32_t next_use = 0;
   compiler::InstructionOperand stack_slot = compiler::InstructionOperand();
-  Register reg = Register::no_reg();
+  RegList registers = kEmptyRegList;
+
+  bool has_register() const { return registers != kEmptyRegList; }
 
   compiler::AllocatedOperand allocation() const {
-    if (reg.is_valid()) {
+    if (has_register()) {
       return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                         MachineRepresentation::kTagged,
-                                        reg.code());
+                                        Register::AnyOf(registers).code());
     }
     return compiler::AllocatedOperand::cast(stack_slot);
   }
@@ -72,7 +75,7 @@ class StraightForwardRegisterAllocator {
 
   void PrintLiveRegs() const;
 
-  class InputsUpdater;
+  void UpdateInputUse(uint32_t use, const Input& input);
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);
@@ -81,6 +84,12 @@ class StraightForwardRegisterAllocator {
   void AssignTemporaries(NodeBase* node);
   void TryAllocateToInput(LiveNodeInfo* info, Phi* phi);
 
+  void FreeRegisters(RegList* list) {
+    while (*list != kEmptyRegList) {
+      Register reg = Register::TakeAny(list);
+      FreeRegister(MapRegisterToIndex(reg));
+    }
+  }
   void FreeRegister(int i);
   void FreeSomeRegister();
   RegList GetFreeRegisters(int count);

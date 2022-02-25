@@ -54,11 +54,21 @@ class RegisterBase {
     return is_valid() ? RegList{1} << code() : RegList{};
   }
 
+  static constexpr SubType AnyOf(RegList list) {
+    DCHECK_NE(kEmptyRegList, list);
+    return from_code(base::bits::CountTrailingZeros(list));
+  }
+
   static constexpr SubType TakeAny(RegList* list) {
-    RegList& value = *list;
-    SubType result = from_code(base::bits::CountTrailingZerosNonZero(value));
-    *list = value & (value - 1);
+    RegList value = *list;
+    SubType result = AnyOf(value);
+    result.RemoveFrom(list);
     return result;
+  }
+
+  constexpr void RemoveFrom(RegList* list) const {
+    DCHECK_EQ(bit(), (*list) & bit());
+    *list ^= bit();
   }
 
   inline constexpr bool operator==(SubType other) const {
