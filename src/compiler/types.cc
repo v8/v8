@@ -288,6 +288,9 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_BOUND_FUNCTION_TYPE:
       DCHECK(!map.is_undetectable());
       return kBoundFunction;
+    case JS_WRAPPED_FUNCTION_TYPE:
+      DCHECK(!map.is_undetectable());
+      return kOtherCallable;
     case JS_FUNCTION_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:

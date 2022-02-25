@@ -2600,7 +2600,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   StackArgumentsAccessor args(argc);
 
   Label non_callable, non_smi, non_callable_jsfunction, non_jsboundfunction,
-      non_proxy, class_constructor;
+      non_proxy, non_wrapped_function, class_constructor;
   __ JumpIfSmi(target, &non_callable);
   __ bind(&non_smi);
   __ LoadMap(map, target);
@@ -2629,9 +2629,17 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ j(not_equal, &non_proxy);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
 
+  // Check if target is a wrapped function and call CallWrappedFunction external
+  // builtin
+  __ bind(&non_proxy);
+  __ cmpw(instance_type, Immediate(JS_WRAPPED_FUNCTION_TYPE));
+  __ j(not_equal, &non_wrapped_function);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallWrappedFunction),
+          RelocInfo::CODE_TARGET);
+
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // Check that the function is not a "classConstructor".
-  __ bind(&non_proxy);
+  __ bind(&non_wrapped_function);
   __ cmpw(instance_type, Immediate(JS_CLASS_CONSTRUCTOR_TYPE));
   __ j(equal, &class_constructor);
 

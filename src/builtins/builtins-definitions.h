@@ -95,6 +95,8 @@ namespace internal {
   ASM(CallFunction_ReceiverIsAny, CallTrampoline)                              \
   /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */            \
   ASM(CallBoundFunction, CallTrampoline)                                       \
+  /* #sec-wrapped-function-exotic-objects-call-thisargument-argumentslist */   \
+  TFC(CallWrappedFunction, CallTrampoline)                                     \
   /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                         \
   ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
   ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
@@ -874,6 +876,7 @@ namespace internal {
   CPP(ShadowRealmConstructor)                                                  \
   CPP(ShadowRealmPrototypeEvaluate)                                            \
   CPP(ShadowRealmPrototypeImportValue)                                         \
+  TFS(ShadowRealmGetWrappedValue, kCreationContext, kValue)                    \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \

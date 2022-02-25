@@ -2087,8 +2087,9 @@ void Shell::TestVerifySourcePositions(
     return;
   }
   auto arg_handle = Utils::OpenHandle(*args[0]);
-  if (!arg_handle->IsHeapObject() || !i::Handle<i::HeapObject>::cast(arg_handle)
-                                          ->IsJSFunctionOrBoundFunction()) {
+  if (!arg_handle->IsHeapObject() ||
+      !i::Handle<i::HeapObject>::cast(arg_handle)
+           ->IsJSFunctionOrBoundFunctionOrWrappedFunction()) {
     isolate->ThrowError("Expected function as single argument.");
     return;
   }
@@ -2096,18 +2097,21 @@ void Shell::TestVerifySourcePositions(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
 
-  auto callable = i::Handle<i::JSFunctionOrBoundFunction>::cast(arg_handle);
+  auto callable =
+      i::Handle<i::JSFunctionOrBoundFunctionOrWrappedFunction>::cast(
+          arg_handle);
   while (callable->IsJSBoundFunction()) {
     internal::DisallowGarbageCollection no_gc;
     auto bound_function = i::Handle<i::JSBoundFunction>::cast(callable);
     auto bound_target = bound_function->bound_target_function();
-    if (!bound_target.IsJSFunctionOrBoundFunction()) {
+    if (!bound_target.IsJSFunctionOrBoundFunctionOrWrappedFunction()) {
       internal::AllowGarbageCollection allow_gc;
       isolate->ThrowError("Expected function as bound target.");
       return;
     }
-    callable =
-        handle(i::JSFunctionOrBoundFunction::cast(bound_target), i_isolate);
+    callable = handle(
+        i::JSFunctionOrBoundFunctionOrWrappedFunction::cast(bound_target),
+        i_isolate);
   }
 
   i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(callable);

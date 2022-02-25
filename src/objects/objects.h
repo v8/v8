@@ -57,9 +57,10 @@
 //             - JSModuleNamespace
 //           - JSPrimitiveWrapper
 //         - JSDate
-//         - JSFunctionOrBoundFunction
+//         - JSFunctionOrBoundFunctionOrWrappedFunction
 //           - JSBoundFunction
 //           - JSFunction
+//           - JSWrappedFunction
 //         - JSGeneratorObject
 //         - JSMapIterator
 //         - JSMessageObject

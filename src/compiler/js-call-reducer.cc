@@ -2636,7 +2636,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // Check for consistency among the {receiver_maps}.
     if (!map_prototype.equals(prototype) ||
         receiver_map.is_constructor() != is_constructor ||
-        !InstanceTypeChecker::IsJSFunctionOrBoundFunction(
+        !InstanceTypeChecker::IsJSFunctionOrBoundFunctionOrWrappedFunction(
             receiver_map.instance_type())) {
       return inference.NoChange();
     }
@@ -2651,16 +2651,18 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // This mirrors the checks done in builtins-function-gen.cc at
     // runtime otherwise.
     int minimum_nof_descriptors =
-        std::max({JSFunctionOrBoundFunction::kLengthDescriptorIndex,
-                  JSFunctionOrBoundFunction::kNameDescriptorIndex}) +
+        std::max(
+            {JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex,
+             JSFunctionOrBoundFunctionOrWrappedFunction::
+                 kNameDescriptorIndex}) +
         1;
     if (receiver_map.NumberOfOwnDescriptors() < minimum_nof_descriptors) {
       return inference.NoChange();
     }
     const InternalIndex kLengthIndex(
-        JSFunctionOrBoundFunction::kLengthDescriptorIndex);
+        JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex);
     const InternalIndex kNameIndex(
-        JSFunctionOrBoundFunction::kNameDescriptorIndex);
+        JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex);
     ReadOnlyRoots roots(isolate());
     StringRef length_string = MakeRef(broker(), roots.length_string_handle());
     StringRef name_string = MakeRef(broker(), roots.name_string_handle());

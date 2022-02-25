@@ -310,7 +310,8 @@ VisitorId Map::GetVisitorId(Map map) {
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case JS_BOUND_FUNCTION_TYPE: {
+    case JS_BOUND_FUNCTION_TYPE:
+    case JS_WRAPPED_FUNCTION_TYPE: {
       const bool has_raw_data_fields =
           COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0;
       return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;

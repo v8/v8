@@ -19,21 +19,21 @@ namespace internal {
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
-class JSFunctionOrBoundFunction
-    : public TorqueGeneratedJSFunctionOrBoundFunction<JSFunctionOrBoundFunction,
-                                                      JSObject> {
+class JSFunctionOrBoundFunctionOrWrappedFunction
+    : public TorqueGeneratedJSFunctionOrBoundFunctionOrWrappedFunction<
+          JSFunctionOrBoundFunctionOrWrappedFunction, JSObject> {
  public:
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
 
   STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunction)
+  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
 };
 
 // JSBoundFunction describes a bound function exotic object.
 class JSBoundFunction
-    : public TorqueGeneratedJSBoundFunction<JSBoundFunction,
-                                            JSFunctionOrBoundFunction> {
+    : public TorqueGeneratedJSBoundFunction<
+          JSBoundFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);
@@ -51,9 +51,25 @@ class JSBoundFunction
   TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
 
+// JSWrappedFunction describes a wrapped function exotic object.
+class JSWrappedFunction
+    : public TorqueGeneratedJSWrappedFunction<
+          JSWrappedFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+ public:
+  // Dispatched behavior.
+  DECL_PRINTER(JSWrappedFunction)
+  DECL_VERIFIER(JSWrappedFunction)
+
+  // The wrapped function's string representation implemented according
+  // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
+  static Handle<String> ToString(Handle<JSWrappedFunction> function);
+
+  TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
+};
+
 // JSFunction describes JavaScript functions.
-class JSFunction
-    : public TorqueGeneratedJSFunction<JSFunction, JSFunctionOrBoundFunction> {
+class JSFunction : public TorqueGeneratedJSFunction<
+                       JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   // [prototype_or_initial_map]:
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, HeapObject)

@@ -1637,6 +1637,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     function_fun->shared().set_length(1);
     InstallWithIntrinsicDefaultProto(isolate_, function_fun,
                                      Context::FUNCTION_FUNCTION_INDEX);
+    native_context()->set_function_prototype(*prototype);
 
     // Setup the methods on the %FunctionPrototype%.
     JSObject::AddProperty(isolate_, prototype, factory->constructor_string(),
@@ -3786,7 +3787,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // length
-      STATIC_ASSERT(JSFunctionOrBoundFunction::kLengthDescriptorIndex == 0);
+      STATIC_ASSERT(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex ==
+          0);
       Descriptor d = Descriptor::AccessorConstant(
           factory->length_string(), factory->bound_function_length_accessor(),
           roc_attribs);
@@ -3794,7 +3797,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {  // name
-      STATIC_ASSERT(JSFunctionOrBoundFunction::kNameDescriptorIndex == 1);
+      STATIC_ASSERT(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex ==
+          1);
       Descriptor d = Descriptor::AccessorConstant(
           factory->name_string(), factory->bound_function_name_accessor(),
           roc_attribs);
@@ -4449,6 +4454,19 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
                         Builtin::kShadowRealmPrototypeEvaluate, 1, true);
   SimpleInstallFunction(isolate_, prototype, "importValue",
                         Builtin::kShadowRealmPrototypeImportValue, 2, true);
+
+  {  // --- W r a p p e d F u n c t i o n
+    Handle<Map> map = factory()->NewMap(JS_WRAPPED_FUNCTION_TYPE,
+                                        JSWrappedFunction::kHeaderSize,
+                                        TERMINAL_FAST_ELEMENTS_KIND, 0);
+    map->SetConstructor(native_context()->object_function());
+    map->set_is_callable(true);
+    Handle<JSObject> empty_function(native_context()->function_prototype(),
+                                    isolate());
+    Map::SetPrototype(isolate(), map, empty_function);
+
+    native_context()->set_wrapped_function_map(*map);
+  }
 }
 
 void Genesis::InitializeGlobal_harmony_struct() {
@@ -5406,6 +5424,8 @@ bool Genesis::InstallABunchOfRandomThings() {
                                        isolate());
     DCHECK(JSObject::cast(object_function->initial_map().prototype())
                .HasFastProperties());
+    native_context()->set_object_function_prototype(
+        JSObject::cast(object_function->initial_map().prototype()));
     native_context()->set_object_function_prototype_map(
         HeapObject::cast(object_function->initial_map().prototype()).map());
   }

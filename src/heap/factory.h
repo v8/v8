@@ -586,6 +586,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
+  Handle<JSWrappedFunction> NewJSWrappedFunction(
+      Handle<NativeContext> creation_context, Handle<Object> target);
+
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
                                        Handle<Map> opt_parent,

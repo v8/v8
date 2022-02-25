@@ -258,7 +258,8 @@ type CallableApiObject extends JSObject;
 // A JSProxy with the callable bit set.
 type CallableJSProxy extends JSProxy;
 
-type Callable = JSFunction|JSBoundFunction|CallableJSProxy|CallableApiObject;
+type Callable = JSFunction|JSBoundFunction|JSWrappedFunction|CallableJSProxy|
+    CallableApiObject;
 
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';

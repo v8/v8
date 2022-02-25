@@ -2722,6 +2722,12 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ CmpS64(instance_type, Operand(JS_PROXY_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET, eq);
 
+  // Check if target is a wrapped function and call CallWrappedFunction external
+  // builtin
+  __ CmpS64(instance_type, Operand(JS_WRAPPED_FUNCTION_TYPE));
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallWrappedFunction),
+          RelocInfo::CODE_TARGET, eq);
+
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // Check that the function is not a "classConstructor".
   __ CmpS64(instance_type, Operand(JS_CLASS_CONSTRUCTOR_TYPE));

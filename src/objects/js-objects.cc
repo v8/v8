@@ -636,6 +636,11 @@ MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
       current = function.bound_target_function();
       continue;
     }
+    if (current.IsJSWrappedFunction()) {
+      JSWrappedFunction function = JSWrappedFunction::cast(current);
+      current = function.wrapped_target_function();
+      continue;
+    }
     JSObject object = JSObject::cast(current);
     DCHECK(!object.IsJSFunction());
     return object.GetCreationContext();
@@ -2365,6 +2370,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSTemporalTimeZone::kHeaderSize;
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
       return JSTemporalZonedDateTime::kHeaderSize;
+    case JS_WRAPPED_FUNCTION_TYPE:
+      return JSWrappedFunction::kHeaderSize;
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
       return JSV8BreakIterator::kHeaderSize;

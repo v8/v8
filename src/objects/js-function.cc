@@ -278,6 +278,12 @@ Handle<String> JSBoundFunction::ToString(Handle<JSBoundFunction> function) {
 }
 
 // static
+Handle<String> JSWrappedFunction::ToString(Handle<JSWrappedFunction> function) {
+  Isolate* const isolate = function->GetIsolate();
+  return isolate->factory()->function_native_code_string();
+}
+
+// static
 Handle<Object> JSFunction::GetName(Isolate* isolate,
                                    Handle<JSFunction> function) {
   if (function->shared().name_should_print_as_anonymous()) {
@@ -680,6 +686,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_PROXY_TYPE:
+    case JS_WRAPPED_FUNCTION_TYPE:
     case MAP_TYPE:
     case ODDBALL_TYPE:
     case PROPERTY_CELL_TYPE:

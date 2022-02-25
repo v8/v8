@@ -1413,6 +1413,12 @@ void JSShadowRealm::JSShadowRealmPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
+void JSWrappedFunction::JSWrappedFunctionPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSWrappedFunction");
+  os << "\n - wrapped_target_function: " << Brief(wrapped_target_function());
+  JSObjectPrintBody(os, *this);
+}
+
 void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSFinalizationRegistry");
   os << "\n - native_context: " << Brief(native_context());

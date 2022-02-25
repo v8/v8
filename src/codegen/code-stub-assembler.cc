@@ -6542,6 +6542,10 @@ TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperMap(TNode<Map> map) {
   return IsJSPrimitiveWrapperInstanceType(LoadMapInstanceType(map));
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSWrappedFunction(TNode<HeapObject> object) {
+  return HasInstanceType(object, JS_WRAPPED_FUNCTION_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSArrayInstanceType(
     TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_ARRAY_TYPE);
@@ -6815,8 +6819,9 @@ TNode<BoolT> CodeStubAssembler::IsJSGeneratorObject(TNode<HeapObject> object) {
 
 TNode<BoolT> CodeStubAssembler::IsFunctionInstanceType(
     TNode<Int32T> instance_type) {
-  return IsInRange(instance_type, FIRST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE,
-                   LAST_JS_FUNCTION_OR_BOUND_FUNCTION_TYPE);
+  return IsInRange(instance_type,
+                   FIRST_JS_FUNCTION_OR_BOUND_FUNCTION_OR_WRAPPED_FUNCTION_TYPE,
+                   LAST_JS_FUNCTION_OR_BOUND_FUNCTION_OR_WRAPPED_FUNCTION_TYPE);
 }
 TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
     TNode<Int32T> instance_type) {
@@ -9266,6 +9271,70 @@ TNode<NativeContext> CodeStubAssembler::GetCreationContext(
 
   TNode<NativeContext> native_context = LoadNativeContext(context);
   return native_context;
+}
+
+TNode<NativeContext> CodeStubAssembler::GetFunctionRealm(
+    TNode<Context> context, TNode<JSReceiver> receiver, Label* if_bailout) {
+  TVARIABLE(JSReceiver, current);
+  Label loop(this, VariableList({&current}, zone())), is_proxy(this),
+      is_function(this), is_bound_function(this), is_wrapped_function(this),
+      proxy_revoked(this, Label::kDeferred);
+  CSA_DCHECK(this, IsCallable(receiver));
+  current = receiver;
+  Goto(&loop);
+
+  BIND(&loop);
+  {
+    TNode<JSReceiver> current_value = current.value();
+    GotoIf(IsJSProxy(current_value), &is_proxy);
+    GotoIf(IsJSFunction(current_value), &is_function);
+    GotoIf(IsJSBoundFunction(current_value), &is_bound_function);
+    GotoIf(IsJSWrappedFunction(current_value), &is_wrapped_function);
+    Goto(if_bailout);
+  }
+
+  BIND(&is_proxy);
+  {
+    TNode<JSProxy> proxy = CAST(current.value());
+    TNode<HeapObject> handler =
+        CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
+    // Proxy is revoked.
+    GotoIfNot(IsJSReceiver(handler), &proxy_revoked);
+    TNode<JSReceiver> target =
+        CAST(LoadObjectField(proxy, JSProxy::kTargetOffset));
+    current = target;
+    Goto(&loop);
+  }
+
+  BIND(&proxy_revoked);
+  { ThrowTypeError(context, MessageTemplate::kProxyRevoked, "apply"); }
+
+  BIND(&is_bound_function);
+  {
+    TNode<JSBoundFunction> bound_function = CAST(current.value());
+    TNode<JSReceiver> target = CAST(LoadObjectField(
+        bound_function, JSBoundFunction::kBoundTargetFunctionOffset));
+    current = target;
+    Goto(&loop);
+  }
+
+  BIND(&is_wrapped_function);
+  {
+    TNode<JSWrappedFunction> wrapped_function = CAST(current.value());
+    TNode<JSReceiver> target = CAST(LoadObjectField(
+        wrapped_function, JSWrappedFunction::kWrappedTargetFunctionOffset));
+    current = target;
+    Goto(&loop);
+  }
+
+  BIND(&is_function);
+  {
+    TNode<JSFunction> function = CAST(current.value());
+    TNode<Context> context =
+        CAST(LoadObjectField(function, JSFunction::kContextOffset));
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    return native_context;
+  }
 }
 
 void CodeStubAssembler::DescriptorLookup(TNode<Name> unique_name,

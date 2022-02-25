@@ -205,7 +205,7 @@ DEF_GETTER(HeapObject, IsUniqueName, bool) {
 }
 
 DEF_GETTER(HeapObject, IsFunction, bool) {
-  return IsJSFunctionOrBoundFunction();
+  return IsJSFunctionOrBoundFunctionOrWrappedFunction();
 }
 
 DEF_GETTER(HeapObject, IsCallable, bool) {

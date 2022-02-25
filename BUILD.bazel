@@ -2783,6 +2783,7 @@ filegroup(
         "src/builtins/builtins-proxy-gen.h",
         "src/builtins/builtins-regexp-gen.cc",
         "src/builtins/builtins-regexp-gen.h",
+        "src/builtins/builtins-shadowrealm-gen.cc",
         "src/builtins/builtins-sharedarraybuffer-gen.cc",
         "src/builtins/builtins-string-gen.cc",
         "src/builtins/builtins-string-gen.h",

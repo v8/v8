@@ -879,7 +879,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   STATIC_ASSERT(JSFunction::TorqueGeneratedClass::kHeaderSize ==
                 8 * kTaggedSize);
 
-  JSFunctionOrBoundFunctionVerify(isolate);
+  JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
   CHECK(IsJSFunction());
   VerifyPointer(isolate, shared(isolate));
   CHECK(shared(isolate).IsSharedFunctionInfo());
@@ -1194,6 +1194,7 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(JSShadowRealm)
+USE_TORQUE_VERIFIER(JSWrappedFunction)
 
 void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   CHECK(IsJSSharedStruct());

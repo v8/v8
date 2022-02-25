@@ -2722,6 +2722,27 @@ Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
   return module_namespace;
 }
 
+Handle<JSWrappedFunction> Factory::NewJSWrappedFunction(
+    Handle<NativeContext> creation_context, Handle<Object> target) {
+  DCHECK(target->IsCallable());
+  Handle<Map> map(
+      Map::cast(creation_context->get(Context::WRAPPED_FUNCTION_MAP_INDEX)),
+      isolate());
+  // 2. Let wrapped be ! MakeBasicObject(internalSlotsList).
+  // 3. Set wrapped.[[Prototype]] to
+  // callerRealm.[[Intrinsics]].[[%Function.prototype%]].
+  // 4. Set wrapped.[[Call]] as described in 2.1.
+  Handle<JSWrappedFunction> wrapped = Handle<JSWrappedFunction>::cast(
+      isolate()->factory()->NewJSObjectFromMap(map));
+  // 5. Set wrapped.[[WrappedTargetFunction]] to Target.
+  wrapped->set_wrapped_target_function(JSReceiver::cast(*target));
+  // 6. Set wrapped.[[Realm]] to callerRealm.
+  wrapped->set_context(*creation_context);
+  // TODO(v8:11989): https://github.com/tc39/proposal-shadowrealm/pull/348
+
+  return wrapped;
+}
+
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
   DCHECK(IsResumableFunction(function->shared().kind()));
@@ -3679,14 +3700,16 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
   int field_index = 0;
-  STATIC_ASSERT(JSFunctionOrBoundFunction::kLengthDescriptorIndex == 0);
+  STATIC_ASSERT(
+      JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex == 0);
   {  // Add length accessor.
     Descriptor d = Descriptor::AccessorConstant(
         length_string(), function_length_accessor(), roc_attribs);
     map->AppendDescriptor(isolate(), &d);
   }
 
-  STATIC_ASSERT(JSFunctionOrBoundFunction::kNameDescriptorIndex == 1);
+  STATIC_ASSERT(
+      JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex == 1);
   if (IsFunctionModeWithName(function_mode)) {
     // Add name field.
     Handle<Name> name = isolate()->factory()->name_string();

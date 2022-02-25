@@ -2027,6 +2027,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,
                                           Label* if_bailout);
+  TNode<NativeContext> GetFunctionRealm(TNode<Context> context,
+                                        TNode<JSReceiver> receiver,
+                                        Label* if_bailout);
   TNode<Object> GetConstructor(TNode<Map> map);
 
   TNode<Map> GetInstanceTypeMap(InstanceType instance_type);
@@ -2593,6 +2596,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSSharedStructInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSSharedStructMap(TNode<Map> map);
   TNode<BoolT> IsJSSharedStruct(TNode<HeapObject> object);
+  TNode<BoolT> IsJSWrappedFunction(TNode<HeapObject> object);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
   TNode<BoolT> IsName(TNode<HeapObject> object);
   TNode<BoolT> IsNameInstanceType(TNode<Int32T> instance_type);

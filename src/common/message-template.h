@@ -56,6 +56,7 @@ namespace internal {
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
+  T(CallShadowRealmFunctionThrown, "Called throwing ShadowRealm function")     \
   T(CallSiteExpectsFunction,                                                   \
     "CallSite expects wasm object as first or function as second argument, "   \
     "got <%, %>")                                                              \
@@ -150,6 +151,7 @@ namespace internal {
   T(NotConstructor, "% is not a constructor")                                  \
   T(NotDateObject, "this is not a Date object.")                               \
   T(NotGeneric, "% requires that 'this' be a %")                               \
+  T(NotCallable, "% is not a function")                                        \
   T(NotCallableOrIterable,                                                     \
     "% is not a function or its return value is not iterable")                 \
   T(NotCallableOrAsyncIterable,                                                \
@@ -361,6 +363,7 @@ namespace internal {
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
   T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \
+  T(InvalidShadowRealmEvaluateSourceText, "Invalid value used as source text") \
   T(InvalidStringLength, "Invalid string length")                              \
   T(InvalidTimeValue, "Invalid time value")                                    \
   T(InvalidTimeValueForTemporal, "Invalid time value for Temporal %")          \
