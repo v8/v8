@@ -83,9 +83,9 @@ void OldToNewRememberedSet::AddSourceObject(HeapObjectHeader& hoh) {
 }
 
 void OldToNewRememberedSet::AddWeakCallback(WeakCallbackItem item) {
-  DCHECK(!BasePage::FromInnerAddress(&heap_, item.parameter)
-              ->ObjectHeaderFromInnerAddress(item.parameter)
-              .IsYoung());
+  // TODO(1029379): WeakCallbacks are also executed for weak collections.
+  // Consider splitting weak-callbacks in custom weak callbacks and ones for
+  // collections.
   remembered_weak_callbacks_.insert(item);
 }
 
