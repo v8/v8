@@ -520,9 +520,11 @@ void Isolate::InitializeOncePerProcess() {
 }
 
 void Isolate::DisposeOncePerProcess() {
+  base::Thread::DeleteThreadLocalKey(isolate_key_);
   bool expected = true;
   CHECK(isolate_key_created_.compare_exchange_strong(
       expected, false, std::memory_order_relaxed));
+  base::Thread::DeleteThreadLocalKey(per_isolate_thread_data_key_);
 }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
