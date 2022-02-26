@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9e7c4ed7523b9e7e05f307facf3567a96eaad26e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f8bb97876945c30e210e1061bb045400eb2ca4b7',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '893aa038dd17d05f3c5ff5af98daebabc294a948',
   'buildtools/clang_format/script':
@@ -113,7 +113,7 @@ deps = {
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '738dc100c61890744f9e78cac27c71d0a2190781',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '8cd7191937c9341646c88e39eae63ccd692ace91',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '2ea265b95a08e4a98fab16b327119788b8e50a69',
   'buildtools/win': {
     'packages': [
       {
@@ -207,7 +207,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '57a228b23881f4c9a99201a4b463b3afb682344d',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '666eff907b58ca7b4c82c0fae4c6e1d24f223ea0',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -272,9 +272,9 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '27dbe48bd5b44177e48e39cea58a591c086ce9ff',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '5de432790d674b036289085ff6199bede1d6b795',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '3730026620f6de2d26c2ad3f35e21e6982101e5d',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '55aa2020153032da55e969372c1fa76856a3232d',
   'tools/clang/dsymutil': {
     'packages': [
       {
