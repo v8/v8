@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_PRINTER_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_PRINTER_H_
 
+#include <memory>
 #include <ostream>
 #include <set>
 #include <vector>
