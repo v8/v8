@@ -8,14 +8,17 @@
 #include <vector>
 
 #include "src/maglev/maglev-basic-block.h"
+#include "src/zone/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
 
-using BlockConstIterator = std::vector<BasicBlock*>::const_iterator;
+using BlockConstIterator =
+    std::vector<BasicBlock*, ZoneAllocator<BasicBlock*>>::const_iterator;
 using BlockConstReverseIterator =
-    std::vector<BasicBlock*>::const_reverse_iterator;
+    std::vector<BasicBlock*,
+                ZoneAllocator<BasicBlock*>>::const_reverse_iterator;
 
 class Graph {
  public:
