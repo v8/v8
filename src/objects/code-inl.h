@@ -171,11 +171,11 @@ INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
   }
 
 // Same as RELEASE_ACQUIRE_ACCESSORS_CHECKED2 macro but with Code as a host and
-// using main_cage_base() for computing the base.
+// using main_cage_base(kRelaxedLoad) for computing the base.
 #define RELEASE_ACQUIRE_CODE_ACCESSORS_CHECKED2(name, type, offset,           \
                                                 get_condition, set_condition) \
   type Code::name(AcquireLoadTag tag) const {                                 \
-    PtrComprCageBase cage_base = main_cage_base();                            \
+    PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);                \
     return Code::name(cage_base, tag);                                        \
   }                                                                           \
   type Code::name(PtrComprCageBase cage_base, AcquireLoadTag) const {         \
@@ -236,17 +236,27 @@ PtrComprCageBase Code::main_cage_base() const {
 #endif
 }
 
-void Code::set_main_cage_base(Address cage_base) {
+PtrComprCageBase Code::main_cage_base(RelaxedLoadTag) const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  Address cage_base_hi =
+      Relaxed_ReadField<Tagged_t>(kMainCageBaseUpper32BitsOffset);
+  return PtrComprCageBase(cage_base_hi << 32);
+#else
+  return GetPtrComprCageBase(*this);
+#endif
+}
+
+void Code::set_main_cage_base(Address cage_base, RelaxedStoreTag) {
 #ifdef V8_EXTERNAL_CODE_SPACE
   Tagged_t cage_base_hi = static_cast<Tagged_t>(cage_base >> 32);
-  WriteField<Tagged_t>(kMainCageBaseUpper32BitsOffset, cage_base_hi);
+  Relaxed_WriteField<Tagged_t>(kMainCageBaseUpper32BitsOffset, cage_base_hi);
 #else
   UNREACHABLE();
 #endif
 }
 
 CodeDataContainer Code::GCSafeCodeDataContainer(AcquireLoadTag) const {
-  PtrComprCageBase cage_base = main_cage_base();
+  PtrComprCageBase cage_base = main_cage_base(kRelaxedLoad);
   HeapObject object =
       TaggedField<HeapObject, kCodeDataContainerOffset>::Acquire_Load(cage_base,
                                                                       *this);
@@ -318,7 +328,7 @@ void Code::WipeOutHeader() {
   WRITE_FIELD(*this, kPositionTableOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kCodeDataContainerOffset, Smi::FromInt(0));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    set_main_cage_base(kNullAddress);
+    set_main_cage_base(kNullAddress, kRelaxedStore);
   }
 }
 

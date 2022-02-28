@@ -231,7 +231,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     raw_code.clear_padding();
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      raw_code.set_main_cage_base(isolate_->cage_base());
+      raw_code.set_main_cage_base(isolate_->cage_base(), kRelaxedStore);
       data_container->SetCodeAndEntryPoint(isolate_, raw_code);
     }
 #ifdef VERIFY_HEAP

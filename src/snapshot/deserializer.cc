@@ -1140,7 +1140,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
 
         Code code = Code::cast(*slot_accessor.object());
         if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-          code.set_main_cage_base(isolate()->cage_base());
+          code.set_main_cage_base(isolate()->cage_base(), kRelaxedStore);
         }
         DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
         for (RelocIterator it(code, Code::BodyDescriptor::kRelocModeMask);

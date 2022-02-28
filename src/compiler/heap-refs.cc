@@ -66,14 +66,14 @@ enum ObjectDataKind {
 
 namespace {
 
-bool IsReadOnlyHeapObjectForCompiler(HeapObject object) {
+bool IsReadOnlyHeapObjectForCompiler(PtrComprCageBase cage_base,
+                                     HeapObject object) {
   DisallowGarbageCollection no_gc;
   // TODO(jgruber): Remove this compiler-specific predicate and use the plain
   // heap predicate instead. This would involve removing the special cases for
   // builtins.
-  return (object.IsCode() && Code::cast(object).is_builtin()) ||
-         (object.IsHeapObject() &&
-          ReadOnlyHeap::Contains(HeapObject::cast(object)));
+  return (object.IsCode(cage_base) && Code::cast(object).is_builtin()) ||
+         ReadOnlyHeap::Contains(object);
 }
 
 }  // namespace
@@ -103,17 +103,18 @@ class ObjectData : public ZoneObject {
     // handles from read only root table or builtins table which is what
     // canonical scope uses as well. For all other objects we should have
     // created ObjectData in canonical handle scope on the main thread.
-    CHECK_IMPLIES(
-        broker->mode() == JSHeapBroker::kDisabled ||
-            broker->mode() == JSHeapBroker::kSerializing,
-        broker->isolate()->handle_scope_data()->canonical_scope != nullptr);
+    Isolate* isolate = broker->isolate();
+    CHECK_IMPLIES(broker->mode() == JSHeapBroker::kDisabled ||
+                      broker->mode() == JSHeapBroker::kSerializing,
+                  isolate->handle_scope_data()->canonical_scope != nullptr);
     CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                   kind == kUnserializedReadOnlyHeapObject || kind == kSmi ||
                       kind == kNeverSerializedHeapObject ||
                       kind == kBackgroundSerializedHeapObject);
-    CHECK_IMPLIES(kind == kUnserializedReadOnlyHeapObject,
-                  object->IsHeapObject() && IsReadOnlyHeapObjectForCompiler(
-                                                HeapObject::cast(*object)));
+    CHECK_IMPLIES(
+        kind == kUnserializedReadOnlyHeapObject,
+        object->IsHeapObject() && IsReadOnlyHeapObjectForCompiler(
+                                      isolate, HeapObject::cast(*object)));
   }
 
 #define DECLARE_IS(Name) bool Is##Name() const;
@@ -1005,7 +1006,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
     return nullptr;
   }
 
-  if (IsReadOnlyHeapObjectForCompiler(HeapObject::cast(*object))) {
+  if (IsReadOnlyHeapObjectForCompiler(isolate(), HeapObject::cast(*object))) {
     entry = refs_->LookupOrInsert(object.address());
     return zone()->New<ObjectData>(this, &entry->value, object,
                                    kUnserializedReadOnlyHeapObject);

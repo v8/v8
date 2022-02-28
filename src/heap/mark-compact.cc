@@ -4909,8 +4909,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyHeapObjectImpl(target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    PtrComprCageBase cage_base = host.main_cage_base();
-    VerifyHeapObjectImpl(rinfo->target_object(cage_base));
+    VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
