@@ -5984,7 +5984,7 @@ void TurboAssembler::I8x16Swizzle(Simd128Register dst, Simd128Register src1,
                                   Simd128Register src2, Register scratch1,
                                   Register scratch2, Simd128Register scratch3,
                                   Simd128Register scratch4) {
-  DCHECK_NE(src1, scratch2);
+  DCHECK(!AreAliased(src1, src2, scratch3, scratch4));
   // Saturate the indices to 5 bits. Input indices more than 31 should
   // return 0.
   vrepi(scratch3, Operand(31), Condition(0));
