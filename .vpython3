@@ -67,5 +67,5 @@ wheel: <
 
 wheel: <
   name: "infra/python/wheels/numpy/${vpython_platform}"
-  version: "version:1.20.3"
+  version: "version:1.2x.supported.1"
 >
