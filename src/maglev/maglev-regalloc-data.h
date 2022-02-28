@@ -27,7 +27,10 @@ constexpr uint8_t MapRegisterToIndex(Register r) {
   count++;
   ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(EMIT_BRANCH)
 #undef EMIT_BRANCH
-  UNREACHABLE();
+  // TODO(v8:7700): Re-enable UNREACHABLE once we figure out how to to avoid
+  // the gcc error 'call to non-constexpr function'.
+  // UNREACHABLE();
+  return 255;
 }
 
 constexpr Register MapIndexToRegister(int i) {
@@ -37,7 +40,10 @@ constexpr Register MapIndexToRegister(int i) {
   count++;
   ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(EMIT_BRANCH)
 #undef EMIT_BRANCH
-  UNREACHABLE();
+  // TODO(v8:7700): Re-enable UNREACHABLE once we figure out how to to avoid
+  // the gcc error 'call to non-constexpr function'.
+  // UNREACHABLE();
+  return no_reg;
 }
 
 struct RegisterStateFlags {
