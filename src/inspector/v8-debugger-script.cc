@@ -156,7 +156,6 @@ class ActualScript : public V8DebuggerScript {
 #endif  // V8_ENABLE_WEBASSEMBLY
     return 0;
   }
-  bool isSourceLoadedLazily() const override { return false; }
   int length() const override {
     auto script = this->script();
 #if V8_ENABLE_WEBASSEMBLY

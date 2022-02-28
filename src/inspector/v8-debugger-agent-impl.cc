@@ -1588,7 +1588,6 @@ void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
   if (!success) {
-    DCHECK(!script->isSourceLoadedLazily());
     String16 scriptSource = script->source(0);
     script->setSourceURL(findSourceURL(scriptSource, false));
     script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
@@ -1663,23 +1662,14 @@ void V8DebuggerAgentImpl::didParseSource(
     return;
   }
 
-  if (scriptRef->isSourceLoadedLazily()) {
-    m_frontend.scriptParsed(
-        scriptId, scriptURL, 0, 0, 0, 0, contextId, scriptRef->hash(),
-        std::move(executionContextAuxDataParam), isLiveEditParam,
-        std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam, 0,
-        std::move(stackTrace), std::move(codeOffset), std::move(scriptLanguage),
-        std::move(debugSymbols), embedderName);
-  } else {
-    m_frontend.scriptParsed(
-        scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
-        scriptRef->endLine(), scriptRef->endColumn(), contextId,
-        scriptRef->hash(), std::move(executionContextAuxDataParam),
-        isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
-        isModuleParam, scriptRef->length(), std::move(stackTrace),
-        std::move(codeOffset), std::move(scriptLanguage),
-        std::move(debugSymbols), embedderName);
-  }
+  m_frontend.scriptParsed(
+      scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
+      scriptRef->endLine(), scriptRef->endColumn(), contextId,
+      scriptRef->hash(), std::move(executionContextAuxDataParam),
+      isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
+      isModuleParam, scriptRef->length(), std::move(stackTrace),
+      std::move(codeOffset), std::move(scriptLanguage), std::move(debugSymbols),
+      embedderName);
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;
   if (!scriptURL.isEmpty()) {

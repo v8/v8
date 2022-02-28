@@ -76,7 +76,6 @@ class V8DebuggerScript {
   int executionContextId() const { return m_executionContextId; }
   virtual bool isLiveEdit() const = 0;
   virtual bool isModule() const = 0;
-  virtual bool isSourceLoadedLazily() const = 0;
   virtual int length() const = 0;
 
   void setSourceURL(const String16&);
