@@ -881,8 +881,8 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
   const compiler::NameRef name_;
 };
 
-class LoadNamedGeneric : public FixedInputValueNodeT<1, LoadNamedGeneric> {
-  using Base = FixedInputValueNodeT<1, LoadNamedGeneric>;
+class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
+  using Base = FixedInputValueNodeT<2, LoadNamedGeneric>;
 
  public:
   explicit LoadNamedGeneric(size_t input_count, const compiler::NameRef& name)
@@ -893,7 +893,9 @@ class LoadNamedGeneric : public FixedInputValueNodeT<1, LoadNamedGeneric> {
 
   compiler::NameRef name() const { return name_; }
 
-  static constexpr int kObjectIndex = 0;
+  static constexpr int kContextIndex = 0;
+  static constexpr int kObjectIndex = 1;
+  Input& context() { return input(kContextIndex); }
   Input& object_input() { return input(kObjectIndex); }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);

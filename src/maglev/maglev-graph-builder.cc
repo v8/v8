@@ -127,8 +127,9 @@ void MaglevGraphBuilder::VisitLdaNamedProperty() {
     }
   }
 
+  ValueNode* context = GetContext();
   compiler::NameRef name = GetRefOperand<Name>(1);
-  SetAccumulator(AddNewNode<LoadNamedGeneric>({object}, name));
+  SetAccumulator(AddNewNode<LoadNamedGeneric>({context, object}, name));
   MarkPossibleSideEffect();
 }
 void MaglevGraphBuilder::VisitLdaNamedPropertyFromSuper() { UNREACHABLE(); }
