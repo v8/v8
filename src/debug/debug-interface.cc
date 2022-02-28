@@ -347,37 +347,29 @@ std::vector<int> Script::LineEnds() const {
 MaybeLocal<String> Script::Name() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
-  i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> value(script->name(), isolate);
   if (!value->IsString()) return MaybeLocal<String>();
-  return Utils::ToLocal(
-      handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
+  return Utils::ToLocal(i::Handle<i::String>::cast(value));
 }
 
 MaybeLocal<String> Script::SourceURL() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
-  i::HandleScope handle_scope(isolate);
-  i::Handle<i::Object> value(script->source_url(), isolate);
+  i::Handle<i::PrimitiveHeapObject> value(script->source_url(), isolate);
   if (!value->IsString()) return MaybeLocal<String>();
-  return Utils::ToLocal(
-      handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
+  return Utils::ToLocal(i::Handle<i::String>::cast(value));
 }
 
 MaybeLocal<String> Script::SourceMappingURL() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
-  i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> value(script->source_mapping_url(), isolate);
   if (!value->IsString()) return MaybeLocal<String>();
-  return Utils::ToLocal(
-      handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
+  return Utils::ToLocal(i::Handle<i::String>::cast(value));
 }
 
 Maybe<int> Script::ContextId() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  i::Isolate* isolate = script->GetIsolate();
-  i::HandleScope handle_scope(isolate);
   i::Object value = script->context_data();
   if (value.IsSmi()) return Just(i::Smi::ToInt(value));
   return Nothing<int>();
@@ -386,11 +378,9 @@ Maybe<int> Script::ContextId() const {
 MaybeLocal<String> Script::Source() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
-  i::HandleScope handle_scope(isolate);
-  i::Handle<i::Object> value(script->source(), isolate);
+  i::Handle<i::PrimitiveHeapObject> value(script->source(), isolate);
   if (!value->IsString()) return MaybeLocal<String>();
-  return Utils::ToLocal(
-      handle_scope.CloseAndEscape(i::Handle<i::String>::cast(value)));
+  return Utils::ToLocal(i::Handle<i::String>::cast(value));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
