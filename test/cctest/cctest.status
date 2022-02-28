@@ -185,9 +185,6 @@
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
-
-  # https://crbug.com/v8/12637
-  'test-code-generator/FuzzAssemble*': [SKIP],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and system == macos and not simulator_run', {

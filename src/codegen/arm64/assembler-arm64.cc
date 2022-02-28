@@ -3696,9 +3696,12 @@ void Assembler::EmitStringData(const char* string) {
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
   if (options().enable_simulator_code) {
+    size_t size_of_debug_sequence =
+        4 * kInstrSize + RoundUp<kInstrSize>(strlen(message) + 1);
+
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
-    BlockPoolsScope scope(this);
+    BlockPoolsScope scope(this, size_of_debug_sequence);
 
     Label start;
     bind(&start);
@@ -3713,6 +3716,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugMessageOffset);
     EmitStringData(message);
     hlt(kImmExceptionIsUnreachable);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), size_of_debug_sequence);
 
     return;
   }
