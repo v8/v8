@@ -120,8 +120,8 @@ let kWasmI16 = 0x79;
 // indices.
 let kWasmFuncRef = -0x10;
 let kWasmAnyFunc = kWasmFuncRef;  // Alias named as in the JS API spec
-let kWasmExternRef = -0x11;
-let kWasmAnyRef = -0x12;
+let kWasmAnyRef = -0x11;
+let kWasmExternRef = kWasmAnyRef;  // Alias for test backwards compatibility.
 let kWasmEqRef = -0x13;
 let kWasmI31Ref = -0x16;
 let kWasmDataRef = -0x19;

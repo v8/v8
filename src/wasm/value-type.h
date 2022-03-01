@@ -61,12 +61,11 @@ class HeapType {
  public:
   enum Representation : uint32_t {
     kFunc = kV8MaxWasmTypes,  // shorthand: c
-    kExtern,                  // shorthand: e
     kEq,                      // shorthand: q
     kI31,                     // shorthand: j
     kData,                    // shorthand: o
     kArray,                   // shorthand: g
-    kAny,                     // shorthand: a
+    kAny,                     // shorthand: a. Aka kExtern.
     // This value is used to represent failures in the parsing of heap types and
     // does not correspond to a wasm heap type. It has to be last in this list.
     kBottom
@@ -76,13 +75,12 @@ class HeapType {
     switch (code) {
       case ValueTypeCode::kFuncRefCode:
         return HeapType(kFunc);
-      case ValueTypeCode::kExternRefCode:
-        return HeapType(kExtern);
       case ValueTypeCode::kEqRefCode:
         return HeapType(kEq);
       case ValueTypeCode::kI31RefCode:
         return HeapType(kI31);
       case ValueTypeCode::kAnyRefCode:
+      case ValueTypeCode::kAnyRefCodeAlias:
         return HeapType(kAny);
       case ValueTypeCode::kDataRefCode:
         return HeapType(kData);
@@ -132,8 +130,6 @@ class HeapType {
     switch (representation_) {
       case kFunc:
         return std::string("func");
-      case kExtern:
-        return std::string("extern");
       case kEq:
         return std::string("eq");
       case kI31:
@@ -143,7 +139,7 @@ class HeapType {
       case kArray:
         return std::string("array");
       case kAny:
-        return std::string("any");
+        return std::string(FLAG_experimental_wasm_gc ? "any" : "extern");
       default:
         return std::to_string(representation_);
     }
@@ -157,8 +153,6 @@ class HeapType {
     switch (representation_) {
       case kFunc:
         return mask | kFuncRefCode;
-      case kExtern:
-        return mask | kExternRefCode;
       case kEq:
         return mask | kEqRefCode;
       case kI31:
@@ -424,7 +418,7 @@ class ValueType {
       case MachineRepresentation::kFloat64:
         return Primitive(kF64);
       case MachineRepresentation::kTaggedPointer:
-        return Ref(HeapType::kExtern, kNullable);
+        return Ref(HeapType::kAny, kNullable);
       case MachineRepresentation::kSimd128:
         return Primitive(kS128);
       default:
@@ -447,8 +441,6 @@ class ValueType {
         switch (heap_representation()) {
           case HeapType::kFunc:
             return kFuncRefCode;
-          case HeapType::kExtern:
-            return kExternRefCode;
           case HeapType::kEq:
             return kEqRefCode;
           case HeapType::kAny:
@@ -492,7 +484,6 @@ class ValueType {
                heap_representation() != HeapType::kData;
       case kOptRef:
         return heap_representation() != HeapType::kFunc &&
-               heap_representation() != HeapType::kExtern &&
                heap_representation() != HeapType::kEq &&
                heap_representation() != HeapType::kAny;
       default:
@@ -576,24 +567,22 @@ constexpr ValueType kWasmI8 = ValueType::Primitive(kI8);
 constexpr ValueType kWasmI16 = ValueType::Primitive(kI16);
 constexpr ValueType kWasmVoid = ValueType::Primitive(kVoid);
 constexpr ValueType kWasmBottom = ValueType::Primitive(kBottom);
-// Established reference-type proposal shorthands.
+// Established reference-type and wasm-gc proposal shorthands.
 constexpr ValueType kWasmFuncRef = ValueType::Ref(HeapType::kFunc, kNullable);
-constexpr ValueType kWasmExternRef =
-    ValueType::Ref(HeapType::kExtern, kNullable);
+constexpr ValueType kWasmAnyRef = ValueType::Ref(HeapType::kAny, kNullable);
 constexpr ValueType kWasmEqRef = ValueType::Ref(HeapType::kEq, kNullable);
 constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31, kNonNullable);
 constexpr ValueType kWasmDataRef =
     ValueType::Ref(HeapType::kData, kNonNullable);
 constexpr ValueType kWasmArrayRef =
     ValueType::Ref(HeapType::kArray, kNonNullable);
-constexpr ValueType kWasmAnyRef = ValueType::Ref(HeapType::kAny, kNullable);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
 
 // This is used in wasm.tq.
-constexpr ValueType kWasmExternNonNullableRef =
-    ValueType::Ref(HeapType::kExtern, kNonNullable);
+constexpr ValueType kWasmAnyNonNullableRef =
+    ValueType::Ref(HeapType::kAny, kNonNullable);
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \

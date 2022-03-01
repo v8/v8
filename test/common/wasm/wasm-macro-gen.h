@@ -210,7 +210,7 @@
 #define WASM_SELECT_D(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kF64Code
 #define WASM_SELECT_R(tval, fval, cond) \
-  tval, fval, cond, kExprSelectWithType, U32V_1(1), kExternRefCode
+  tval, fval, cond, kExprSelectWithType, U32V_1(1), kAnyRefCode
 #define WASM_SELECT_A(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kFuncRefCode
 

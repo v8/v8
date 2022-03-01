@@ -1161,7 +1161,8 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
       // and anyfunc just becomes an alias for "funcref".
       type = i::wasm::kWasmFuncRef;
     } else if (string->StringEquals(v8_str(isolate, "externref"))) {
-      type = i::wasm::kWasmExternRef;
+      // externref is known as anyref as of wasm-gc.
+      type = i::wasm::kWasmAnyRef;
     } else {
       thrower.TypeError(
           "Descriptor property 'element' must be a WebAssembly reference type");
@@ -1333,7 +1334,7 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (string->StringEquals(v8_str(isolate, "f64"))) {
     *type = i::wasm::kWasmF64;
   } else if (string->StringEquals(v8_str(isolate, "externref"))) {
-    *type = i::wasm::kWasmExternRef;
+    *type = i::wasm::kWasmAnyRef;
   } else if (enabled_features.has_type_reflection() &&
              string->StringEquals(v8_str(isolate, "funcref"))) {
     // The type reflection proposal renames "anyfunc" to "funcref", and makes
@@ -1496,7 +1497,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     case i::wasm::kRef:
     case i::wasm::kOptRef: {
       switch (type.heap_representation()) {
-        case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kAny: {
           if (args.Length() < 2) {
             // When no initial value is provided, we have to use the WebAssembly
@@ -1713,7 +1713,6 @@ void EncodeExceptionValues(v8::Isolate* isolate,
       case i::wasm::kRef:
       case i::wasm::kOptRef:
         switch (type.heap_representation()) {
-          case i::wasm::HeapType::kExtern:
           case i::wasm::HeapType::kFunc:
           case i::wasm::HeapType::kAny:
           case i::wasm::HeapType::kEq:
@@ -1928,7 +1927,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
       for (size_t i = 0; i < param_count; ++i) {
         builder.AddParam(sig->GetParam(0));
       }
-      builder.AddReturn(i::wasm::kWasmExternRef);
+      builder.AddReturn(i::wasm::kWasmAnyRef);
       sig = builder.Build();
     }
   } else if (i::WasmJSFunction::IsWasmJSFunction(*arg0)) {
@@ -2028,7 +2027,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(old_size);
 }
 
-// WebAssembly.Table.get(num) -> JSFunction
+// WebAssembly.Table.get(num) -> any
 void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2058,7 +2057,7 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(Utils::ToLocal(result));
 }
 
-// WebAssembly.Table.set(num, JSFunction)
+// WebAssembly.Table.set(num, any)
 void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -2077,28 +2076,23 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::Object> element;
-  if (args.Length() >= 2) {
-    element = Utils::OpenHandle(*args[1]);
-  } else {
-    element = DefaultReferenceValue(i_isolate, table_object->type());
-  }
+  i::Handle<i::Object> element =
+      args.Length() >= 2
+          ? Utils::OpenHandle(*args[1])
+          : DefaultReferenceValue(i_isolate, table_object->type());
+
   if (!i::WasmTableObject::IsValidElement(i_isolate, table_object, element)) {
-    thrower.TypeError(
-        "Argument 1 must be null or a WebAssembly function of type compatible "
-        "to 'this'");
+    thrower.TypeError("Argument 1 is invalid for table of type %s",
+                      table_object->type().name().c_str());
     return;
   }
 
-  // TODO(7748): Generalize this if other table types are allowed.
-  bool has_function_type = table_object->type() == i::wasm::kWasmFuncRef ||
-                           table_object->type().has_index();
-  if (has_function_type && !element->IsNull()) {
-    element = i::WasmInternalFunction::FromExternal(element, i_isolate)
-                  .ToHandleChecked();
-  }
+  i::Handle<i::Object> external_element;
+  bool is_external = i::WasmInternalFunction::FromExternal(element, i_isolate)
+                         .ToHandle(&external_element);
 
-  i::WasmTableObject::Set(i_isolate, table_object, index, element);
+  i::WasmTableObject::Set(i_isolate, table_object, index,
+                          is_external ? external_element : element);
 }
 
 // WebAssembly.Table.type() -> TableType
@@ -2282,7 +2276,6 @@ void WebAssemblyExceptionGetArg(
       case i::wasm::kRef:
       case i::wasm::kOptRef:
         switch (signature.get(i).heap_representation()) {
-          case i::wasm::HeapType::kExtern:
           case i::wasm::HeapType::kFunc:
           case i::wasm::HeapType::kAny:
           case i::wasm::HeapType::kEq:
@@ -2341,7 +2334,6 @@ void WebAssemblyExceptionGetArg(
     case i::wasm::kRef:
     case i::wasm::kOptRef:
       switch (signature.get(index).heap_representation()) {
-        case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kFunc:
         case i::wasm::HeapType::kAny:
         case i::wasm::HeapType::kEq:
@@ -2425,7 +2417,6 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kRef:
     case i::wasm::kOptRef:
       switch (receiver->type().heap_representation()) {
-        case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kAny:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
@@ -2521,7 +2512,6 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::kRef:
     case i::wasm::kOptRef:
       switch (receiver->type().heap_representation()) {
-        case i::wasm::HeapType::kExtern:
         case i::wasm::HeapType::kAny:
           receiver->SetExternRef(Utils::OpenHandle(*args[0]));
           break;
@@ -2634,10 +2624,9 @@ void WebAssemblySuspenderSuspendOnReturnedPromise(
     return;
   }
   sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
-  if (sig->return_count() != 1 ||
-      sig->GetReturn(0) != i::wasm::kWasmExternRef) {
-    thrower.TypeError(
-        "Expected a WebAssembly.Function with return type externref");
+  if (sig->return_count() != 1 || sig->GetReturn(0) != i::wasm::kWasmAnyRef) {
+    thrower.TypeError("Expected a WebAssembly.Function with return type %s",
+                      i::wasm::kWasmAnyRef.name().c_str());
   }
 
   auto callable = handle(

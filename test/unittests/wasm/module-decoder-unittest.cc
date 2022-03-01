@@ -31,7 +31,7 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_F32(val) WASM_F32(val), kExprEnd
 #define WASM_INIT_EXPR_I64(val) WASM_I64(val), kExprEnd
 #define WASM_INIT_EXPR_F64(val) WASM_F64(val), kExprEnd
-#define WASM_INIT_EXPR_EXTERN_REF_NULL WASM_REF_NULL(kExternRefCode), kExprEnd
+#define WASM_INIT_EXPR_EXTERN_REF_NULL WASM_REF_NULL(kAnyRefCode), kExprEnd
 #define WASM_INIT_EXPR_FUNC_REF_NULL WASM_REF_NULL(kFuncRefCode), kExprEnd
 #define WASM_INIT_EXPR_REF_FUNC(val) WASM_REF_FUNC(val), kExprEnd
 #define WASM_INIT_EXPR_GLOBAL(index) WASM_GLOBAL_GET(index), kExprEnd
@@ -185,12 +185,12 @@ struct ValueTypePair {
   uint8_t code;
   ValueType type;
 } kValueTypes[] = {
-    {kI32Code, kWasmI32},              // --
-    {kI64Code, kWasmI64},              // --
-    {kF32Code, kWasmF32},              // --
-    {kF64Code, kWasmF64},              // --
-    {kFuncRefCode, kWasmFuncRef},      // --
-    {kExternRefCode, kWasmExternRef},  // --
+    {kI32Code, kWasmI32},          // --
+    {kI64Code, kWasmI64},          // --
+    {kF32Code, kWasmF32},          // --
+    {kF64Code, kWasmF64},          // --
+    {kFuncRefCode, kWasmFuncRef},  // --
+    {kAnyRefCode, kWasmAnyRef},    // --
 };
 
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
@@ -309,7 +309,7 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobal) {
       TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
       SECTION(Global,                          // --
               ENTRY_COUNT(2),                  // --
-              kExternRefCode,                  // local type
+              kAnyRefCode,                     // local type
               0,                               // immutable
               WASM_INIT_EXPR_EXTERN_REF_NULL,  // init
               kFuncRefCode,                    // local type
@@ -336,7 +336,7 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobal) {
     EXPECT_EQ(0u, result.value()->data_segments.size());
 
     const WasmGlobal* global = &result.value()->globals[0];
-    EXPECT_EQ(kWasmExternRef, global->type);
+    EXPECT_EQ(kWasmAnyRef, global->type);
     EXPECT_FALSE(global->mutability);
 
     global = &result.value()->globals[1];
@@ -410,12 +410,12 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobalWithGlobalInit) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('f'),   // global name
               kExternalGlobal,  // import kind
-              kExternRefCode,   // type
+              kAnyRefCode,      // type
               0),               // mutability
       SECTION(Global,           // --
               ENTRY_COUNT(1),
-              kExternRefCode,  // local type
-              0,               // immutable
+              kAnyRefCode,  // local type
+              0,            // immutable
               WASM_INIT_EXPR_GLOBAL(0)),
   };
 
@@ -429,7 +429,7 @@ TEST_F(WasmModuleVerifyTest, ExternRefGlobalWithGlobalInit) {
 
     const WasmGlobal* global = &result.value()->globals.back();
 
-    EXPECT_EQ(kWasmExternRef, global->type);
+    EXPECT_EQ(kWasmAnyRef, global->type);
     EXPECT_FALSE(global->mutability);
   }
 }
@@ -441,12 +441,12 @@ TEST_F(WasmModuleVerifyTest, NullGlobalWithGlobalInit) {
               ADD_COUNT('m'),   // module name
               ADD_COUNT('n'),   // global name
               kExternalGlobal,  // import kind
-              kExternRefCode,   // type
+              kAnyRefCode,      // type
               0),               // mutability
       SECTION(Global,           // --
               ENTRY_COUNT(1),
-              kExternRefCode,  // local type
-              0,               // immutable
+              kAnyRefCode,  // local type
+              0,            // immutable
               WASM_INIT_EXPR_GLOBAL(0)),
   };
 
@@ -461,7 +461,7 @@ TEST_F(WasmModuleVerifyTest, NullGlobalWithGlobalInit) {
 
     const WasmGlobal* global = &result.value()->globals.back();
 
-    EXPECT_EQ(kWasmExternRef, global->type);
+    EXPECT_EQ(kWasmAnyRef, global->type);
     EXPECT_FALSE(global->mutability);
   }
 }
@@ -1931,7 +1931,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitExternRefTableWithFuncRef) {
       ONE_EMPTY_FUNCTION(SIG_INDEX(0)),
       // table declaration ---------------------------------------------------
       SECTION(Table, ENTRY_COUNT(2),  // section header
-              kExternRefCode, 0, 5,   // table 0
+              kAnyRefCode, 0, 5,      // table 0
               kFuncRefCode, 0, 9),    // table 1
       // elements ------------------------------------------------------------
       SECTION(Element,
@@ -2011,7 +2011,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
               ADD_COUNT('m'),  // module name
               ADD_COUNT('s'),  // table name
               kExternalTable,  // import kind
-              kExternRefCode,  // elem_type
+              kAnyRefCode,     // elem_type
               0,               // no maximum field
               10),             // initial size
       // funcs ---------------------------------------------------------------
@@ -2077,7 +2077,7 @@ TEST_F(WasmModuleVerifyTest, MultipleTables) {
               kFuncRefCode,    // table 1: type
               0,               // table 1: no maximum
               10,              // table 1: minimum size
-              kExternRefCode,  // table 2: type
+              kAnyRefCode,     // table 2: type
               0,               // table 2: no maximum
               11),             // table 2: minimum size
   };
@@ -2091,7 +2091,7 @@ TEST_F(WasmModuleVerifyTest, MultipleTables) {
   EXPECT_EQ(kWasmFuncRef, result.value()->tables[0].type);
 
   EXPECT_EQ(11u, result.value()->tables[1].initial_size);
-  EXPECT_EQ(kWasmExternRef, result.value()->tables[1].type);
+  EXPECT_EQ(kWasmAnyRef, result.value()->tables[1].type);
 }
 
 TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
@@ -3189,7 +3189,7 @@ TEST_F(WasmModuleVerifyTest, PassiveElementSegmentExternRef) {
       // table declaration -----------------------------------------------------
       SECTION(Table, ENTRY_COUNT(1), kFuncRefCode, 0, 1),
       // element segments  -----------------------------------------------------
-      SECTION(Element, ENTRY_COUNT(1), PASSIVE_WITH_ELEMENTS, kExternRefCode,
+      SECTION(Element, ENTRY_COUNT(1), PASSIVE_WITH_ELEMENTS, kAnyRefCode,
               U32V_1(0)),
       // code ------------------------------------------------------------------
       ONE_EMPTY_BODY};

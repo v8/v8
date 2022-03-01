@@ -84,9 +84,7 @@ ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
       switch (v8_valtype.heap_representation()) {
         case i::wasm::HeapType::kFunc:
           return FUNCREF;
-        case i::wasm::HeapType::kExtern:
-          // TODO(7748): Rename this to EXTERNREF if/when third-party API
-          // changes.
+        case i::wasm::HeapType::kAny:
           return ANYREF;
         default:
           // TODO(wasm+): support new value types
@@ -111,7 +109,7 @@ i::wasm::ValueType WasmValKindToV8(ValKind kind) {
     case FUNCREF:
       return i::wasm::kWasmFuncRef;
     case ANYREF:
-      return i::wasm::kWasmExternRef;
+      return i::wasm::kWasmAnyRef;
     default:
       // TODO(wasm+): support new value types
       UNREACHABLE();
@@ -1928,7 +1926,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       break;
     case ANYREF:
       // See Engine::make().
-      i_type = i::wasm::kWasmExternRef;
+      i_type = i::wasm::kWasmAnyRef;
       break;
     default:
       UNREACHABLE();
@@ -1974,7 +1972,7 @@ auto Table::type() const -> own<TableType> {
     case i::wasm::HeapType::kFunc:
       kind = FUNCREF;
       break;
-    case i::wasm::HeapType::kExtern:
+    case i::wasm::HeapType::kAny:
       kind = ANYREF;
       break;
     default:

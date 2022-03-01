@@ -130,7 +130,7 @@ ValueType GetValueTypeHelper(DataRange* data, bool liftoff_as_reference,
   const bool nullable =
       (allow_non_nullable == kAllowNonNullables) ? data->get<bool>() : true;
   if (nullable) {
-    types.insert(types.end(), {kWasmI31Ref, kWasmExternRef, kWasmFuncRef});
+    types.insert(types.end(), {kWasmI31Ref, kWasmFuncRef});
   }
   if (include_generics == kIncludeGenerics) {
     types.insert(types.end(), {kWasmDataRef, kWasmAnyRef, kWasmEqRef});
@@ -974,10 +974,7 @@ class WasmGenerator {
     table_op<kVoid>({kWasmI32, kWasmFuncRef, kWasmI32}, data, kExprTableFill);
   }
   void table_copy(DataRange* data) {
-    ValueType needed_type =
-        data->get<bool>()
-            ? ValueType::Ref(HeapType(HeapType::kFunc), kNullable)
-            : ValueType::Ref(HeapType(HeapType::kExtern), kNullable);
+    ValueType needed_type = data->get<bool>() ? kWasmFuncRef : kWasmAnyRef;
     int table_count = builder_->builder()->NumTables();
     ZoneVector<uint32_t> table(builder_->builder()->zone());
     for (int i = 0; i < table_count; i++) {
@@ -2083,7 +2080,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       &WasmGenerator::new_object, &WasmGenerator::get_local_ref,
       &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref};
 
-  constexpr GenerateFnWithHeap alternatives_func_extern[] = {
+  constexpr GenerateFnWithHeap alternatives_func_any[] = {
       &WasmGenerator::table_get, &WasmGenerator::get_local_ref,
       &WasmGenerator::array_get_ref, &WasmGenerator::struct_get_ref};
 
@@ -2094,46 +2091,43 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
   switch (type.representation()) {
     // For abstract types, sometimes generate one of their subtypes.
     case HeapType::kAny: {
-      // Note: It is possible we land here even without {liftoff_as_reference_},
-      // because we use anyref as a supertype of all reference types. Therefore,
-      // we have to generate the correct subtypes based on the value of
-      // {liftoff_as_reference_}.
-      // Weighed according to the types in the module. If there are D data types
-      // and F function types, the relative frequencies for dataref is D, for
-      // funcref F, for externref 1, for i31ref 2 if {liftoff_as_reference_}
-      // otherwise 0, and for falling back to anyref 2 or 0.
+      // Note: It is possible we land here even without {liftoff_as_reference_}.
+      // In this case, we do not support any subtyping, and just fall back to
+      // directly generating anyref.
+      if (!liftoff_as_reference_) {
+        DCHECK(nullability);
+        GenerateOneOf(alternatives_func_any, type, data, nullability);
+        return;
+      }
+      // Weighed according to the types in the module:
+      // If there are D data types and F function types, the relative
+      // frequencies for dataref is D, for funcref F, and for i31ref and falling
+      // back to anyref 2.
       const uint8_t num_data_types = num_structs_ + num_arrays_;
       const uint8_t num_function_types = functions_.size();
-      const uint8_t emit_externref = (nullability == kNullable) ? 1 : 0;
-      const uint8_t emit_i31ref = liftoff_as_reference_ ? 2 : 0;
-      const uint8_t fallback_to_anyref = liftoff_as_reference_ ? 2 : 0;
-      uint8_t random = data->get<uint8_t>() %
-                       (num_data_types + num_function_types + emit_externref +
-                        emit_i31ref + fallback_to_anyref);
+      const uint8_t emit_i31ref = 2;
+      const uint8_t fallback_to_anyref = 2;
+      uint8_t random =
+          data->get<uint8_t>() % (num_data_types + num_function_types +
+                                  emit_i31ref + fallback_to_anyref);
       // We have to compute this first so in case GenerateOneOf fails
       // we will continue to fall back on an alternative that is guaranteed
       // to generate a value of the wanted type.
       // In order to know which alternative to fall back to in case
       // GenerateOneOf failed, the random variable is recomputed.
-      if (random >=
-          num_data_types + num_function_types + emit_externref + emit_i31ref) {
+      if (random >= num_data_types + num_function_types + emit_i31ref) {
         DCHECK(liftoff_as_reference_);
-        if (GenerateOneOf(alternatives_other, type, data, nullability)) {
+        if (GenerateOneOf(alternatives_func_any, type, data, nullability)) {
           return;
         }
-        random = data->get<uint8_t>() % (num_data_types + num_function_types +
-                                         emit_externref + emit_i31ref);
+        random = data->get<uint8_t>() %
+                 (num_data_types + num_function_types + emit_i31ref);
       }
       if (random < num_data_types) {
-        DCHECK(liftoff_as_reference_);
         GenerateRef(HeapType(HeapType::kData), data, nullability);
       } else if (random < num_data_types + num_function_types) {
         GenerateRef(HeapType(HeapType::kFunc), data, nullability);
-      } else if (random <
-                 num_data_types + num_function_types + emit_externref) {
-        GenerateRef(HeapType(HeapType::kExtern), data, nullability);
       } else {
-        DCHECK(liftoff_as_reference_);
         GenerateRef(HeapType(HeapType::kI31), data, nullability);
       }
       return;
@@ -2190,17 +2184,12 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       }
       return;
     }
-    case HeapType::kExtern: {
-      DCHECK(nullability);
-      GenerateOneOf(alternatives_func_extern, type, data, nullability);
-      return;
-    }
     case HeapType::kFunc: {
       uint32_t random = data->get<uint32_t>() % (functions_.size() + 1);
       /// Try generating one of the alternatives
       // and continue to the rest of the methods in case it fails.
       if (random >= functions_.size()) {
-        if (GenerateOneOf(alternatives_func_extern, type, data, nullability)) {
+        if (GenerateOneOf(alternatives_func_any, type, data, nullability)) {
           return;
         }
         random = data->get<uint32_t>() % functions_.size();
@@ -2587,7 +2576,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       // other table indices.
       // TODO(11954): Support typed function tables.
       bool use_funcref = i == 0 || range.get<bool>();
-      ValueType type = use_funcref ? kWasmFuncRef : kWasmExternRef;
+      ValueType type = use_funcref ? kWasmFuncRef : kWasmAnyRef;
       uint32_t table_index = builder.AddTable(type, min_size, max_size);
       if (type == kWasmFuncRef) {
         // For function tables, initialize them with functions from the program.

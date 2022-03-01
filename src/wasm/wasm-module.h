@@ -520,7 +520,7 @@ struct WasmTable {
   static bool IsValidTableType(ValueType type, const WasmModule* module) {
     if (!type.is_object_reference()) return false;
     HeapType heap_type = type.heap_type();
-    return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
+    return heap_type == HeapType::kFunc || heap_type == HeapType::kAny ||
            (module != nullptr && heap_type.is_index() &&
             module->has_signature(heap_type.ref_index()));
   }

@@ -380,7 +380,6 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   int entry_index = static_cast<int>(index);
 
   switch (table->type().heap_representation()) {
-    case wasm::HeapType::kExtern:
     case wasm::HeapType::kAny:
       entries->set(entry_index, *entry);
       return;
@@ -423,7 +422,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   }
 
   switch (table->type().heap_representation()) {
-    case wasm::HeapType::kExtern:
+    case wasm::HeapType::kAny:
       return entry;
     case wasm::HeapType::kFunc:
       if (entry->IsWasmInternalFunction()) return entry;
@@ -432,7 +431,6 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     case wasm::HeapType::kI31:
     case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
-    case wasm::HeapType::kAny:
       // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
       // JS.
       UNIMPLEMENTED();
@@ -2170,7 +2168,7 @@ bool WasmJSFunction::MatchesSignatureForSuspend(const wasm::FunctionSig* sig) {
   // This function is only called for functions wrapped by a
   // WebAssembly.Suspender object, so the return type has to be externref.
   CHECK_EQ(function_data.serialized_return_count(), 1);
-  CHECK_EQ(function_data.serialized_signature().get(0), wasm::kWasmExternRef);
+  CHECK_EQ(function_data.serialized_signature().get(0), wasm::kWasmAnyRef);
   const wasm::ValueType* expected = sig->all().begin();
   return function_data.serialized_signature().matches(
       1, expected + return_count, parameter_count);
@@ -2205,9 +2203,6 @@ bool WasmExternalFunction::IsWasmExternalFunction(Object object) {
 // static
 MaybeHandle<WasmInternalFunction> WasmInternalFunction::FromExternal(
     Handle<Object> external, Isolate* isolate) {
-  if (external->IsNull(isolate)) {
-    return MaybeHandle<WasmInternalFunction>();
-  }
   if (WasmExportedFunction::IsWasmExportedFunction(*external) ||
       WasmJSFunction::IsWasmJSFunction(*external) ||
       WasmCapiFunction::IsWasmCapiFunction(*external)) {
@@ -2216,7 +2211,6 @@ MaybeHandle<WasmInternalFunction> WasmInternalFunction::FromExternal(
             kAcquireLoad));
     return handle(data.internal(), isolate);
   }
-  // {external} is not null or a wasm external function.
   return MaybeHandle<WasmInternalFunction>();
 }
 
@@ -2271,7 +2265,6 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           }
           return true;
         }
-        case HeapType::kExtern:
         case HeapType::kAny:
           return true;
         case HeapType::kData:

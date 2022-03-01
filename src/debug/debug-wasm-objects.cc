@@ -980,7 +980,7 @@ Handle<WasmValueObject> WasmValueObject::New(
         v = handle(Handle<WasmInternalFunction>::cast(ref)->external(),
                    isolate);
       } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull() ||
-                 value.type().is_reference_to(wasm::HeapType::kExtern)) {
+                 value.type().is_reference_to(wasm::HeapType::kAny)) {
         v = ref;
       } else {
         // Fail gracefully.

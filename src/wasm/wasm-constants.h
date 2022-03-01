@@ -37,9 +37,10 @@ enum ValueTypeCode : uint8_t {
   kI16Code = 0x79,
   // Current reference types
   kFuncRefCode = 0x70,
-  kExternRefCode = 0x6f,
+  kAnyRefCode = 0x6f,  // aka externref
   // typed-funcref and GC proposal types
-  kAnyRefCode = 0x6e,
+  // TODO(7748): For backwards compatibility only, remove when able.
+  kAnyRefCodeAlias = 0x6e,
   kEqRefCode = 0x6d,
   kOptRefCode = 0x6c,
   kRefCode = 0x6b,

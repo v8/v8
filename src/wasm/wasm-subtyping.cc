@@ -170,7 +170,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
 
   switch (sub_heap.representation()) {
     case HeapType::kFunc:
-    case HeapType::kExtern:
+      // funcref is a subtype of anyref (aka externref) under wasm-gc.
+      return sub_heap == super_heap ||
+             (FLAG_experimental_wasm_gc && super_heap == HeapType::kAny);
     case HeapType::kEq:
       return sub_heap == super_heap || super_heap == HeapType::kAny;
     case HeapType::kAny:
@@ -200,7 +202,6 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
       return !sub_module->has_signature(sub_index);
     case HeapType::kArray:
       return sub_module->has_array(sub_index);
-    case HeapType::kExtern:
     case HeapType::kI31:
       return false;
     case HeapType::kAny:

@@ -51,6 +51,7 @@ void DefineSignature(WasmModule* module,
 }
 
 TEST_F(WasmSubtypingTest, Subtyping) {
+  FLAG_SCOPE(experimental_wasm_gc);
   v8::internal::AccountingAllocator allocator;
   WasmModule module1_(std::make_unique<Zone>(&allocator, ZONE_NAME));
   WasmModule module2_(std::make_unique<Zone>(&allocator, ZONE_NAME));
@@ -82,10 +83,10 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
   constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                          kWasmS128};
-  constexpr ValueType ref_types[] = {
-      kWasmExternRef, kWasmFuncRef, kWasmEqRef, kWasmI31Ref, kWasmDataRef,
-      kWasmArrayRef,  kWasmAnyRef,  optRef(0),  ref(0),      optRef(2),
-      ref(2),         optRef(11),   ref(11)};
+  constexpr ValueType ref_types[] = {kWasmFuncRef, kWasmEqRef,    kWasmI31Ref,
+                                     kWasmDataRef, kWasmArrayRef, kWasmAnyRef,
+                                     optRef(0),    ref(0),        optRef(2),
+                                     ref(2),       optRef(11),    ref(11)};
 
 #define SUBTYPE(type1, type2) \
   EXPECT_TRUE(IsSubtypeOf(type1, type2, module1, module))
@@ -124,9 +125,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       // Concrete reference types, i31ref and dataref are subtypes of eqref,
       // externref/funcref/anyref/functions are not.
       SUBTYPE_IFF(ref_type, kWasmEqRef,
-                  ref_type != kWasmFuncRef && ref_type != kWasmExternRef &&
-                      ref_type != kWasmAnyRef && ref_type != optRef(11) &&
-                      ref_type != ref(11));
+                  ref_type != kWasmFuncRef && ref_type != kWasmAnyRef &&
+                      ref_type != optRef(11) && ref_type != ref(11));
       // Non-nullable struct/array types are subtypes of dataref.
       SUBTYPE_IFF(ref_type, kWasmDataRef,
                   ref_type == kWasmDataRef || ref_type == kWasmArrayRef ||
@@ -147,10 +147,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     }
 
     // The rest of ref. types are unrelated.
-    for (ValueType type_1 :
-         {kWasmExternRef, kWasmFuncRef, kWasmI31Ref, kWasmArrayRef}) {
-      for (ValueType type_2 :
-           {kWasmExternRef, kWasmFuncRef, kWasmI31Ref, kWasmArrayRef}) {
+    for (ValueType type_1 : {kWasmFuncRef, kWasmI31Ref, kWasmArrayRef}) {
+      for (ValueType type_2 : {kWasmFuncRef, kWasmI31Ref, kWasmArrayRef}) {
         SUBTYPE_IFF(type_1, type_2, type_1 == type_2);
       }
     }

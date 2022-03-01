@@ -211,8 +211,6 @@ std::string HeapTypeToConstantName(HeapType heap_type) {
   switch (heap_type.representation()) {
     case HeapType::kFunc:
       return "kWasmFuncRef";
-    case HeapType::kExtern:
-      return "kWasmExternRef";
     case HeapType::kEq:
       return "kWasmEqRef";
     case HeapType::kI31:
@@ -248,8 +246,6 @@ std::string ValueTypeToConstantName(ValueType type) {
       return "kWasmS128";
     case kOptRef:
       switch (type.heap_representation()) {
-        case HeapType::kExtern:
-          return "kWasmExternRef";
         case HeapType::kFunc:
           return "kWasmFuncRef";
         case HeapType::kEq:

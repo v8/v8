@@ -774,7 +774,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
-  V(i_e, kWasmI32, kWasmExternRef)                  \
+  V(i_a, kWasmI32, kWasmAnyRef)                     \
   V(i_ci, kWasmI32, kWasmFuncRef, kWasmI32)         \
   V(i_qq, kWasmI32, kWasmEqRef, kWasmEqRef)
 

@@ -6407,8 +6407,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kRef:
       case wasm::kOptRef:
         switch (type.heap_representation()) {
-          case wasm::HeapType::kExtern:
-            return node;
           case wasm::HeapType::kFunc: {
             if (type.kind() == wasm::kOptRef) {
               auto done =
@@ -6446,6 +6444,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
               return BuildAllocateObjectWrapper(node, context);
             }
           case wasm::HeapType::kAny: {
+            if (!enabled_features_.has_gc()) return node;
             // Wrap {node} in object wrapper if it is an array/struct.
             // Extract external function if this is a WasmInternalFunction.
             // Otherwise (i.e. null and external refs), return input.
@@ -6618,9 +6617,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kRef:
       case wasm::kOptRef: {
         switch (type.heap_representation()) {
-          case wasm::HeapType::kExtern:
-            return input;
           case wasm::HeapType::kAny:
+            if (!enabled_features_.has_gc()) return input;
             // If this is a wrapper for arrays/structs/i31s, unpack it.
             // TODO(7748): Update this when JS interop has settled.
             return BuildUnpackObjectWrapper(input, js_context);

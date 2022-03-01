@@ -48,10 +48,10 @@ extern macro AllocateWasmArray(
 }
 
 namespace wasm {
-const kExternTableType: constexpr int31
-    generates 'wasm::kWasmExternRef.raw_bit_field()';
-const kExternNonNullTableType: constexpr int31
-    generates 'wasm::kWasmExternNonNullableRef.raw_bit_field()';
+const kAnyTableType: constexpr int31
+    generates 'wasm::kWasmAnyRef.raw_bit_field()';
+const kAnyNonNullTableType: constexpr int31
+    generates 'wasm::kWasmAnyNonNullableRef.raw_bit_field()';
 
 extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
 
@@ -213,8 +213,8 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
     // function dispatch tables.
     // TODO(7748): Update this if further table types are supported.
     const tableType: Smi = table.raw_type;
-    if (tableType != SmiConstant(kExternTableType) &&
-        tableType != SmiConstant(kExternNonNullTableType)) {
+    if (tableType != SmiConstant(kAnyTableType) &&
+        tableType != SmiConstant(kAnyNonNullTableType)) {
       goto CallRuntime;
     }
 

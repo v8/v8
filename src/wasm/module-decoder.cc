@@ -803,9 +803,7 @@ class ModuleDecoderImpl : public Decoder {
           const byte* type_position = pc();
           ValueType type = consume_reference_type();
           if (!WasmTable::IsValidTableType(type, module_.get())) {
-            error(type_position,
-                  "Currently, only externref and function references are "
-                  "allowed as table types");
+            errorf(type_position, "Invalid table type %s", type.name().c_str());
             break;
           }
           table->type = type;

@@ -123,7 +123,7 @@ void WasmGlobalObject::set_type(wasm::ValueType value) {
 int WasmGlobalObject::type_size() const { return type().element_size_bytes(); }
 
 Address WasmGlobalObject::address() const {
-  DCHECK_NE(type(), wasm::kWasmExternRef);
+  DCHECK_NE(type(), wasm::kWasmAnyRef);
   DCHECK_LE(offset() + type_size(), untagged_buffer().byte_length());
   return Address(untagged_buffer().backing_store()) + offset();
 }
@@ -167,8 +167,7 @@ void WasmGlobalObject::SetF64(double value) {
 }
 
 void WasmGlobalObject::SetExternRef(Handle<Object> value) {
-  DCHECK(type().is_reference_to(wasm::HeapType::kExtern) ||
-         type().is_reference_to(wasm::HeapType::kAny));
+  DCHECK(type().is_reference_to(wasm::HeapType::kAny));
   tagged_buffer().set(offset(), *value);
 }
 

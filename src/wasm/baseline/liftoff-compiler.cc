@@ -3280,7 +3280,7 @@ class LiftoffCompiler {
         ValueType type =
             index < static_cast<int>(__ num_locals())
                 ? decoder->local_type(index)
-                : exception ? ValueType::Ref(HeapType::kExtern, kNonNullable)
+                : exception ? ValueType::Ref(HeapType::kAny, kNonNullable)
                             : decoder->stack_value(decoder_stack_index--)->type;
         DCHECK(CheckCompatibleStackSlotTypes(slot.kind(), type.kind()));
         value.type = type;
