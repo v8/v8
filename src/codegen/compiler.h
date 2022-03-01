@@ -529,7 +529,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   void AbortFunction();
 
   UnoptimizedCompileFlags flags() const { return flags_; }
-  LanguageMode language_mode() const { return language_mode_; }
 
  private:
   void ReportStatistics(Isolate* isolate);
@@ -561,8 +560,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int start_position_;
   int end_position_;
   int function_literal_id_;
-
-  LanguageMode language_mode_;
 };
 
 // Contains all data which needs to be transmitted between threads for

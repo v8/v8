@@ -1430,8 +1430,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
       timer_(isolate->counters()->compile_script_on_background()),
       start_position_(0),
       end_position_(0),
-      function_literal_id_(kFunctionLiteralIdTopLevel),
-      language_mode_(flags_.outer_language_mode()) {
+      function_literal_id_(kFunctionLiteralIdTopLevel) {
   VMState<PARSER> state(isolate);
 
   LOG(isolate, ScriptEvent(Logger::ScriptEventType::kStreamingCompile,
@@ -1455,8 +1454,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       input_shared_info_(shared_info),
       start_position_(shared_info->StartPosition()),
       end_position_(shared_info->EndPosition()),
-      function_literal_id_(shared_info->function_literal_id()),
-      language_mode_(flags_.outer_language_mode()) {
+      function_literal_id_(shared_info->function_literal_id()) {
   DCHECK(!shared_info->is_toplevel());
 
   character_stream_->Seek(start_position_);
@@ -1594,9 +1592,6 @@ void BackgroundCompileTask::Run(
                            function_literal_id_);
   parser.UpdateStatistics(script_, &use_counts_, &total_preparse_skipped_);
 
-  // Save the language mode.
-  language_mode_ = info.language_mode();
-
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
   RCS_SCOPE(isolate, RuntimeCallCounterIdForCompile(&info),
@@ -1628,9 +1623,6 @@ void BackgroundCompileTask::Run(
   outer_function_sfi_ = isolate->heap()->NewPersistentMaybeHandle(maybe_result);
   DCHECK(isolate->heap()->ContainsPersistentHandle(script_.location()));
   persistent_handles_ = isolate->heap()->DetachPersistentHandles();
-
-  // Make sure the language mode didn't change.
-  DCHECK_EQ(language_mode_, info.language_mode());
 }
 
 MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
@@ -3182,8 +3174,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.StreamingFinalization.CheckCache");
-    maybe_result = compilation_cache->LookupScript(source, script_details,
-                                                   task->language_mode());
+    maybe_result = compilation_cache->LookupScript(
+        source, script_details, task->flags().outer_language_mode());
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     }
@@ -3204,7 +3196,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       // Add compiled code to the isolate cache.
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.StreamingFinalization.AddToCache");
-      compilation_cache->PutScript(source, task->language_mode(), result);
+      compilation_cache->PutScript(source, task->flags().outer_language_mode(),
+                                   result);
     }
   }
 
