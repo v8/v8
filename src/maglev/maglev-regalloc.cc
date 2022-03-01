@@ -665,18 +665,6 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(LiveNodeInfo* info) {
                                  MachineRepresentation::kTagged, free_slot);
 }
 
-RegList StraightForwardRegisterAllocator::GetFreeRegisters(int count) {
-  RegList free_registers = {};
-  while (count > free_register_size_) FreeSomeRegister();
-
-  for (int i = 0; i < count; i++) {
-    Register reg = MapIndexToRegister(free_registers_[--free_register_size_]);
-    free_registers = CombineRegLists(free_registers, Register::ListOf(reg));
-  }
-
-  return free_registers;
-}
-
 void StraightForwardRegisterAllocator::FreeSomeRegister() {
   int furthest_use = 0;
   int longest = -1;
@@ -751,7 +739,17 @@ StraightForwardRegisterAllocator::TryAllocateRegister(LiveNodeInfo* info) {
 }
 
 void StraightForwardRegisterAllocator::AssignTemporaries(NodeBase* node) {
-  node->assign_temporaries(GetFreeRegisters(node->num_temporaries_needed()));
+  int num_temporaries_needed = node->num_temporaries_needed();
+
+  RegList free_registers = kEmptyRegList;
+  while (num_temporaries_needed > free_register_size_) FreeSomeRegister();
+
+  for (int i = 0; i < node->num_temporaries_needed(); i++) {
+    Register reg = MapIndexToRegister(free_registers_[i]);
+    free_registers = CombineRegLists(free_registers, Register::ListOf(reg));
+  }
+
+  node->assign_temporaries(free_registers);
 }
 
 void StraightForwardRegisterAllocator::InitializeRegisterValues(

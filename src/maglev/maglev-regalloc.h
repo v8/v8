@@ -92,7 +92,6 @@ class StraightForwardRegisterAllocator {
   }
   void FreeRegister(int i);
   void FreeSomeRegister();
-  RegList GetFreeRegisters(int count);
   void AddMoveBeforeCurrentNode(compiler::AllocatedOperand source,
                                 compiler::AllocatedOperand target);
 
