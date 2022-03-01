@@ -1222,7 +1222,7 @@ HEAP_TEST(Regress10560) {
     // Allocate feedback vector.
     IsCompiledScope is_compiled_scope(
         function->shared().is_compiled_scope(i_isolate));
-    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    JSFunction::EnsureFeedbackVector(i_isolate, function, &is_compiled_scope);
 
     CHECK(function->has_feedback_vector());
     CHECK(function->shared().is_compiled());

@@ -2029,7 +2029,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
 
   // Install a feedback vector if necessary.
   if (code->kind() == CodeKind::BASELINE) {
-    JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+    JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
   }
 
   // Check postconditions on success.
@@ -2103,7 +2103,7 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
   }
 
   // Baseline code needs a feedback vector.
-  JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
 
   CodeT baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
@@ -2123,7 +2123,7 @@ bool Compiler::CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
 
   // Maglev code needs a feedback vector.
-  JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
 
   MaybeHandle<CodeT> maybe_code = Maglev::Compile(isolate, function);
   Handle<CodeT> code;
@@ -3395,8 +3395,9 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
         !shared->optimization_disabled() &&
         !function->HasAvailableOptimizedCode()) {
       CompilerTracer::TraceMarkForAlwaysOpt(isolate, function);
-      JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-      function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
+      JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+      function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
+                                    ConcurrencyMode::kNotConcurrent);
     }
   }
 

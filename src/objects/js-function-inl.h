@@ -71,7 +71,8 @@ bool JSFunction::IsMarkedForConcurrentOptimization() {
 
 void JSFunction::SetInterruptBudget() {
   if (has_feedback_vector()) {
-    FeedbackVector::SetInterruptBudget(raw_feedback_cell());
+    int budget = FLAG_interrupt_budget;  // For Turbofan.
+    FeedbackVector::SetInterruptBudget(raw_feedback_cell(), budget);
   } else {
     DCHECK(shared().is_compiled());
     raw_feedback_cell().set_interrupt_budget(

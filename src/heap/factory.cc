@@ -3935,7 +3935,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
 
   if (code->kind() == CodeKind::BASELINE) {
     IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
-    JSFunction::EnsureFeedbackVector(result, &is_compiled_scope);
+    JSFunction::EnsureFeedbackVector(isolate_, result, &is_compiled_scope);
   }
 
   Compiler::PostInstantiation(result);

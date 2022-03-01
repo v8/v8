@@ -90,7 +90,8 @@ void TieringManager::Optimize(JSFunction function, OptimizationReason reason,
                               CodeKind code_kind) {
   DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
   TraceRecompile(function, reason, code_kind, isolate_);
-  function.MarkForOptimization(ConcurrencyMode::kConcurrent);
+  function.MarkForOptimization(isolate_, CodeKind::TURBOFAN,
+                               ConcurrencyMode::kConcurrent);
 }
 
 void TieringManager::AttemptOnStackReplacement(UnoptimizedFrame* frame,
@@ -262,7 +263,8 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
   if (had_feedback_vector) {
     function->SetInterruptBudget();
   } else {
-    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    JSFunction::CreateAndAttachFeedbackVector(isolate_, function,
+                                              &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have

@@ -333,8 +333,8 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
     function->set_code(codet);
   }
 
-  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-  function->MarkForOptimization(concurrency_mode);
+  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+  function->MarkForOptimization(isolate, CodeKind::TURBOFAN, concurrency_mode);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -362,7 +362,7 @@ bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
 
   // Ensure function has a feedback vector to hold type feedback for
   // optimization.
-  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
   return true;
 }
 
@@ -457,7 +457,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
            CodeKindToString(kCodeKind));
   }
 
-  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
   function->MarkForOptimization(isolate, kCodeKind, concurrency_mode);
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -581,8 +581,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate));
-  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-  function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
+  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+  function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
+                                ConcurrencyMode::kNotConcurrent);
 
   // Make the profiler arm all back edges in unoptimized code.
   if (it.frame()->is_unoptimized()) {

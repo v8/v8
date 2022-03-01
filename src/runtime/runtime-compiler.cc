@@ -86,7 +86,8 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   DCHECK(!function->HasAvailableOptimizedCode());
   DCHECK(!function->HasOptimizationMarker());
   DCHECK(!function->has_feedback_vector());
-  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  JSFunction::CreateAndAttachFeedbackVector(isolate, function,
+                                            &is_compiled_scope);
   CodeT baseline_code = sfi->baseline_code(kAcquireLoad);
   function->set_code(baseline_code);
   return baseline_code;

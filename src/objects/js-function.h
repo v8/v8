@@ -163,8 +163,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // the next time it is executed.
   void MarkForOptimization(Isolate* isolate, CodeKind target_kind,
                            ConcurrencyMode mode);
-  // TODO(v8:7700): Remove this function and pass the CodeKind explicitly.
-  void MarkForOptimization(ConcurrencyMode mode);
 
   // Tells whether or not the function is already marked for lazy recompilation.
   inline bool IsMarkedForOptimization();
@@ -208,7 +206,11 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline FeedbackVector feedback_vector() const;
   inline bool has_feedback_vector() const;
   V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
-      Handle<JSFunction> function, IsCompiledScope* compiled_scope);
+      Isolate* isolate, Handle<JSFunction> function,
+      IsCompiledScope* compiled_scope);
+  static void CreateAndAttachFeedbackVector(Isolate* isolate,
+                                            Handle<JSFunction> function,
+                                            IsCompiledScope* compiled_scope);
 
   // Functions related to closure feedback cell array that holds feedback cells
   // used to create closures from this function. We allocate closure feedback

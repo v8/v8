@@ -214,11 +214,6 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
   SetOptimizationMarker(OptimizationMarkerFor(target_kind, mode));
 }
 
-void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
-  Isolate* isolate = GetIsolate();
-  MarkForOptimization(isolate, CodeKind::TURBOFAN, mode);
-}
-
 // static
 MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
                                              Handle<JSBoundFunction> function) {
@@ -342,14 +337,28 @@ void JSFunction::EnsureClosureFeedbackCellArray(
 }
 
 // static
-void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
-                                      IsCompiledScope* is_compiled_scope) {
-  Isolate* const isolate = function->GetIsolate();
-  DCHECK(is_compiled_scope->is_compiled());
+void JSFunction::EnsureFeedbackVector(Isolate* isolate,
+                                      Handle<JSFunction> function,
+                                      IsCompiledScope* compiled_scope) {
+  DCHECK(compiled_scope->is_compiled());
   DCHECK(function->shared().HasFeedbackMetadata());
   if (function->has_feedback_vector()) return;
 #if V8_ENABLE_WEBASSEMBLY
   if (function->shared().HasAsmWasmData()) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  CreateAndAttachFeedbackVector(isolate, function, compiled_scope);
+}
+
+// static
+void JSFunction::CreateAndAttachFeedbackVector(
+    Isolate* isolate, Handle<JSFunction> function,
+    IsCompiledScope* compiled_scope) {
+  DCHECK(compiled_scope->is_compiled());
+  DCHECK(function->shared().HasFeedbackMetadata());
+  DCHECK(!function->has_feedback_vector());
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(!function->shared().HasAsmWasmData());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
@@ -359,7 +368,7 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function,
   Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
       handle(function->closure_feedback_cell_array(), isolate);
   Handle<HeapObject> feedback_vector = FeedbackVector::New(
-      isolate, shared, closure_feedback_cell_array, is_compiled_scope);
+      isolate, shared, closure_feedback_cell_array, compiled_scope);
   // EnsureClosureFeedbackCellArray should handle the special case where we need
   // to allocate a new feedback cell. Please look at comment in that function
   // for more details.
@@ -403,7 +412,7 @@ void JSFunction::InitializeFeedbackCell(
       isolate->is_collecting_type_profile();
 
   if (needs_feedback_vector) {
-    EnsureFeedbackVector(function, is_compiled_scope);
+    CreateAndAttachFeedbackVector(isolate, function, is_compiled_scope);
   } else {
     EnsureClosureFeedbackCellArray(function,
                                    reset_budget_for_feedback_allocation);
