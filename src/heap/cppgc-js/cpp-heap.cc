@@ -411,8 +411,10 @@ CppHeap::CppHeap(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          cppgc::internal::HeapBase::MarkingType::kIncrementalAndConcurrent,
-          cppgc::internal::HeapBase::SweepingType::kIncrementalAndConcurrent),
+          FLAG_single_threaded_gc ? MarkingType::kIncremental
+                                  : MarkingType::kIncrementalAndConcurrent,
+          FLAG_single_threaded_gc ? SweepingType::kIncremental
+                                  : SweepingType::kIncrementalAndConcurrent),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -493,6 +495,19 @@ bool ShouldReduceMemory(CppHeap::GarbageCollectionFlags flags) {
 
 }  // namespace
 
+CppHeap::MarkingType CppHeap::SelectMarkingType() const {
+  if (IsForceGC(current_gc_flags_) && !force_incremental_marking_for_testing_)
+    return MarkingType::kAtomic;
+
+  return marking_support();
+}
+
+CppHeap::SweepingType CppHeap::SelectSweepingType() const {
+  if (IsForceGC(current_gc_flags_)) return SweepingType::kAtomic;
+
+  return sweeping_support();
+}
+
 void CppHeap::InitializeTracing(
     cppgc::internal::GarbageCollector::Config::CollectionType collection_type,
     GarbageCollectionFlags gc_flags) {
@@ -515,16 +530,13 @@ void CppHeap::InitializeTracing(
 
   const UnifiedHeapMarker::MarkingConfig marking_config{
       *collection_type_, cppgc::Heap::StackState::kNoHeapPointers,
-      (IsForceGC(current_gc_flags_) && !force_incremental_marking_for_testing_)
-          ? UnifiedHeapMarker::MarkingConfig::MarkingType::kAtomic
-          : UnifiedHeapMarker::MarkingConfig::MarkingType::
-                kIncrementalAndConcurrent,
+      SelectMarkingType(),
       IsForceGC(current_gc_flags_)
           ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
           : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
-  DCHECK_IMPLIES(!isolate_, (cppgc::Heap::MarkingType::kAtomic ==
-                             marking_config.marking_type) ||
-                                force_incremental_marking_for_testing_);
+  DCHECK_IMPLIES(!isolate_,
+                 (MarkingType::kAtomic == marking_config.marking_type) ||
+                     force_incremental_marking_for_testing_);
   if (ShouldReduceMemory(current_gc_flags_)) {
     // Only enable compaction when in a memory reduction garbage collection as
     // it may significantly increase the final garbage collection pause.
@@ -579,8 +591,7 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
                                  ->GetMutatorMarkingState(),
                              wrapper_descriptor_);
   }
-  compactor_.CancelIfShouldNotCompact(cppgc::Heap::MarkingType::kAtomic,
-                                      stack_state);
+  compactor_.CancelIfShouldNotCompact(MarkingType::kAtomic, stack_state);
 }
 
 void CppHeap::TraceEpilogue() {
@@ -619,21 +630,14 @@ void CppHeap::TraceEpilogue() {
     cppgc::internal::Sweeper::SweepingConfig::CompactableSpaceHandling
         compactable_space_handling = compactor_.CompactSpacesIfEnabled();
     const cppgc::internal::Sweeper::SweepingConfig sweeping_config{
-        // In case the GC was forced, also finalize sweeping right away.
-        IsForceGC(current_gc_flags_)
-            ? cppgc::internal::Sweeper::SweepingConfig::SweepingType::kAtomic
-            : cppgc::internal::Sweeper::SweepingConfig::SweepingType::
-                  kIncrementalAndConcurrent,
-        compactable_space_handling,
+        SelectSweepingType(), compactable_space_handling,
         ShouldReduceMemory(current_gc_flags_)
             ? cppgc::internal::Sweeper::SweepingConfig::FreeMemoryHandling::
                   kDiscardWherePossible
             : cppgc::internal::Sweeper::SweepingConfig::FreeMemoryHandling::
                   kDoNotDiscard};
-    DCHECK_IMPLIES(
-        !isolate_,
-        cppgc::internal::Sweeper::SweepingConfig::SweepingType::kAtomic ==
-            sweeping_config.sweeping_type);
+    DCHECK_IMPLIES(!isolate_,
+                   SweepingType::kAtomic == sweeping_config.sweeping_type);
     sweeper().Start(sweeping_config);
   }
   in_atomic_pause_ = false;

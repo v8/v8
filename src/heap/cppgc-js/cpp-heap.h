@@ -157,6 +157,9 @@ class V8_EXPORT_PRIVATE CppHeap final
   void FinalizeIncrementalGarbageCollectionForTesting(
       cppgc::EmbedderStackState) final;
 
+  MarkingType SelectMarkingType() const;
+  SweepingType SelectSweepingType() const;
+
   Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
   // |collection_type_| is initialized when marking is in progress.

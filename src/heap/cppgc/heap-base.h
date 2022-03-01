@@ -212,6 +212,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   int GetCreationThreadId() const { return creation_thread_id_; }
 
   MarkingType marking_support() const { return marking_support_; }
+  SweepingType sweeping_support() const { return sweeping_support_; }
 
  protected:
   // Used by the incremental scheduler to finalize a GC if supported.

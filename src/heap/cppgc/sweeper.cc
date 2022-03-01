@@ -737,8 +737,6 @@ class Sweeper::SweeperImpl final {
     if (config.sweeping_type == SweepingConfig::SweepingType::kAtomic) {
       Finish();
     } else {
-      DCHECK_EQ(SweepingConfig::SweepingType::kIncrementalAndConcurrent,
-                config.sweeping_type);
       ScheduleIncrementalSweeping();
       ScheduleConcurrentSweeping();
     }
@@ -952,6 +950,10 @@ class Sweeper::SweeperImpl final {
 
   void ScheduleConcurrentSweeping() {
     DCHECK(platform_);
+
+    if (config_.sweeping_type !=
+        SweepingConfig::SweepingType::kIncrementalAndConcurrent)
+      return;
 
     concurrent_sweeper_handle_ =
         platform_->PostJob(cppgc::TaskPriority::kUserVisible,
