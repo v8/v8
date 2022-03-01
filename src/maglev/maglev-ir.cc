@@ -258,12 +258,13 @@ void EmitDeopt(MaglevCodeGenState* code_gen_state, Node* node,
   for (int i = 0; i < compilation_unit->register_count(); ++i) {
     ValueNode* node = checkpoint_state->get(interpreter::Register(i));
     if (node == nullptr) continue;
-    __ Push(GetStackSlot(node->spill_slot()));
+    __ Push(ToMemOperand(node->spill_slot()));
     num_saved_slots++;
   }
-  if (checkpoint_state->accumulator()) {
+  ValueNode* accumulator = checkpoint_state->accumulator();
+  if (accumulator) {
     __ movq(kInterpreterAccumulatorRegister,
-            GetStackSlot(checkpoint_state->accumulator()->spill_slot()));
+            ToMemOperand(accumulator->spill_slot()));
   }
 
   __ RecordComment("Load registers from extra pushed slots");
@@ -387,7 +388,7 @@ void Checkpoint::GenerateCode(MaglevCodeGenState* code_gen_state,
                               const ProcessingState& state) {}
 void Checkpoint::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << accumulator() << ")";
+  os << "(" << PrintNodeLabel(graph_labeller, accumulator()) << ")";
 }
 
 void SoftDeopt::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -551,7 +552,7 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
 }
 void CheckMaps::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << map() << ")";
+  os << "(" << *map().object() << ")";
 }
 
 void LoadField::AllocateVreg(MaglevVregAllocationState* vreg_state,

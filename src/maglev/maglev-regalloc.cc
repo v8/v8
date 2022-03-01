@@ -374,10 +374,12 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
     DCHECK(node->Is<InitialValue>());
     DCHECK_LT(operand.fixed_slot_index(), 0);
     // Set the stack slot to exactly where the value is.
-    node->result().SetAllocated(compiler::AllocatedOperand::STACK_SLOT,
-                                MachineRepresentation::kTagged,
-                                operand.fixed_slot_index());
-    info->stack_slot = node->result().operand();
+    compiler::AllocatedOperand location(compiler::AllocatedOperand::STACK_SLOT,
+                                        MachineRepresentation::kTagged,
+                                        operand.fixed_slot_index());
+    node->result().SetAllocated(location);
+    node->Spill(location);
+    info->stack_slot = location;
     return;
   }
 

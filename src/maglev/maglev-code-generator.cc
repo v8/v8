@@ -118,12 +118,18 @@ class MaglevCodeGeneratingNodeProcessor {
     if (std::is_base_of<ValueNode, NodeT>::value) {
       ValueNode* value_node = node->template Cast<ValueNode>();
       if (value_node->is_spilled()) {
-        if (FLAG_code_comments) __ RecordComment("--   Spill:");
         compiler::AllocatedOperand source =
             compiler::AllocatedOperand::cast(value_node->result().operand());
         // We shouldn't spill nodes which already output to the stack.
-        DCHECK(!source.IsStackSlot());
-        __ movq(GetStackSlot(value_node->spill_slot()), ToRegister(source));
+        if (!source.IsStackSlot()) {
+          if (FLAG_code_comments) __ RecordComment("--   Spill:");
+          DCHECK(!source.IsStackSlot());
+          __ movq(GetStackSlot(value_node->spill_slot()), ToRegister(source));
+        } else {
+          // Otherwise, the result source stack slot should be equal to the
+          // spill slot.
+          DCHECK_EQ(source.index(), value_node->spill_slot().index());
+        }
       }
     }
   }
