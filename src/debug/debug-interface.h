@@ -171,9 +171,10 @@ class V8_EXPORT_PRIVATE Script {
   bool WasCompiled() const;
   bool IsEmbedded() const;
   int Id() const;
-  int LineOffset() const;
-  int ColumnOffset() const;
-  std::vector<int> LineEnds() const;
+  int StartLine() const;
+  int StartColumn() const;
+  int EndLine() const;
+  int EndColumn() const;
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;

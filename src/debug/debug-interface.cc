@@ -316,32 +316,44 @@ bool Script::IsEmbedded() const {
 
 int Script::Id() const { return Utils::OpenHandle(this)->id(); }
 
-int Script::LineOffset() const {
-  return Utils::OpenHandle(this)->line_offset();
-}
+int Script::StartLine() const { return Utils::OpenHandle(this)->line_offset(); }
 
-int Script::ColumnOffset() const {
+int Script::StartColumn() const {
   return Utils::OpenHandle(this)->column_offset();
 }
 
-std::vector<int> Script::LineEnds() const {
+int Script::EndLine() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
 #if V8_ENABLE_WEBASSEMBLY
-  if (script->type() == i::Script::TYPE_WASM) return {};
+  if (script->type() == i::Script::TYPE_WASM) return 0;
 #endif  // V8_ENABLE_WEBASSEMBLY
-
+  if (!script->source().IsString()) {
+    return script->line_offset();
+  }
   i::Isolate* isolate = script->GetIsolate();
   i::HandleScope scope(isolate);
-  i::Script::InitLineEnds(isolate, script);
-  CHECK(script->line_ends().IsFixedArray());
-  i::Handle<i::FixedArray> line_ends(i::FixedArray::cast(script->line_ends()),
-                                     isolate);
-  std::vector<int> result(line_ends->length());
-  for (int i = 0; i < line_ends->length(); ++i) {
-    i::Smi line_end = i::Smi::cast(line_ends->get(i));
-    result[i] = line_end.value();
+  i::Script::PositionInfo info;
+  i::Script::GetPositionInfo(script, i::String::cast(script->source()).length(),
+                             &info, i::Script::WITH_OFFSET);
+  return info.line;
+}
+
+int Script::EndColumn() const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+#if V8_ENABLE_WEBASSEMBLY
+  if (script->type() == i::Script::TYPE_WASM) {
+    return script->wasm_native_module()->wire_bytes().length();
   }
-  return result;
+#endif  // V8_ENABLE_WEBASSEMBLY
+  if (!script->source().IsString()) {
+    return script->column_offset();
+  }
+  i::Isolate* isolate = script->GetIsolate();
+  i::HandleScope scope(isolate);
+  i::Script::PositionInfo info;
+  i::Script::GetPositionInfo(script, i::String::cast(script->source()).length(),
+                             &info, i::Script::WITH_OFFSET);
+  return info.column;
 }
 
 MaybeLocal<String> Script::Name() const {

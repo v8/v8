@@ -304,29 +304,10 @@ class ActualScript : public V8DebuggerScript {
         script->SourceURL().ToLocal(&tmp) && tmp->Length() > 0;
     if (script->SourceMappingURL().ToLocal(&tmp))
       m_sourceMappingURL = toProtocolString(m_isolate, tmp);
-    m_startLine = script->LineOffset();
-    m_startColumn = script->ColumnOffset();
-    std::vector<int> lineEnds = script->LineEnds();
-    if (lineEnds.size()) {
-      int source_length = lineEnds[lineEnds.size() - 1];
-      m_endLine = static_cast<int>(lineEnds.size()) + m_startLine - 1;
-      if (lineEnds.size() > 1) {
-        m_endColumn = source_length - lineEnds[lineEnds.size() - 2] - 1;
-      } else {
-        m_endColumn = source_length + m_startColumn;
-      }
-#if V8_ENABLE_WEBASSEMBLY
-    } else if (script->IsWasm()) {
-      DCHECK_EQ(0, m_startLine);
-      DCHECK_EQ(0, m_startColumn);
-      m_endLine = 0;
-      m_endColumn = static_cast<int>(
-          v8::debug::WasmScript::Cast(*script)->Bytecode().size());
-#endif  // V8_ENABLE_WEBASSEMBLY
-    } else {
-      m_endLine = m_startLine;
-      m_endColumn = m_startColumn;
-    }
+    m_startLine = script->StartLine();
+    m_startColumn = script->StartColumn();
+    m_endLine = script->EndLine();
+    m_endColumn = script->EndColumn();
 
     USE(script->ContextId().To(&m_executionContextId));
     m_language = V8DebuggerScript::Language::JavaScript;
