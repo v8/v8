@@ -1702,7 +1702,7 @@ inline std::ostream& operator<<(std::ostream& os,
 
 enum class BlockingBehavior { kBlock, kDontBlock };
 
-enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
+enum class ConcurrencyMode : uint8_t { kNotConcurrent, kConcurrent };
 
 inline const char* ToString(ConcurrencyMode mode) {
   switch (mode) {

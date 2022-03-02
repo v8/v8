@@ -31,7 +31,7 @@ namespace internal {
   V(MAGLEV)                \
   V(TURBOFAN)
 
-enum class CodeKind {
+enum class CodeKind : uint8_t {
 #define DEFINE_CODE_KIND_ENUM(name) name,
   CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
 #undef DEFINE_CODE_KIND_ENUM
@@ -42,6 +42,8 @@ STATIC_ASSERT(CodeKind::BASELINE < CodeKind::TURBOFAN);
 #define V(...) +1
 static constexpr int kCodeKindCount = CODE_KIND_LIST(V);
 #undef V
+// Unlikely, but just to be safe:
+STATIC_ASSERT(kCodeKindCount <= std::numeric_limits<uint8_t>::max());
 
 const char* CodeKindToString(CodeKind kind);
 
