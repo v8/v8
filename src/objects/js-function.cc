@@ -6,6 +6,7 @@
 
 #include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/execution/tiering-manager.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
@@ -214,6 +215,11 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
   SetOptimizationMarker(OptimizationMarkerFor(target_kind, mode));
 }
 
+void JSFunction::SetInterruptBudget(Isolate* isolate) {
+  raw_feedback_cell().set_interrupt_budget(
+      TieringManager::InterruptBudgetFor(isolate, *this));
+}
+
 // static
 MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
                                              Handle<JSBoundFunction> function) {
@@ -310,7 +316,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   // cases.
   if (reset_budget_for_feedback_allocation ||
       !has_closure_feedback_cell_array) {
-    function->SetInterruptBudget();
+    function->SetInterruptBudget(isolate);
   }
 
   if (has_closure_feedback_cell_array) {
@@ -329,7 +335,7 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     Handle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
-    function->SetInterruptBudget();
+    function->SetInterruptBudget(isolate);
   } else {
     function->raw_feedback_cell().set_value(*feedback_cell_array,
                                             kReleaseStore);
@@ -375,7 +381,7 @@ void JSFunction::CreateAndAttachFeedbackVector(
   DCHECK(function->raw_feedback_cell() !=
          isolate->heap()->many_closures_cell());
   function->raw_feedback_cell().set_value(*feedback_vector, kReleaseStore);
-  function->SetInterruptBudget();
+  function->SetInterruptBudget(isolate);
 }
 
 // static

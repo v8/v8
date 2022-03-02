@@ -69,18 +69,6 @@ bool JSFunction::IsMarkedForConcurrentOptimization() {
              OptimizationMarker::kCompileTurbofan_Concurrent;
 }
 
-void JSFunction::SetInterruptBudget() {
-  if (has_feedback_vector()) {
-    int budget = FLAG_interrupt_budget;  // For Turbofan.
-    FeedbackVector::SetInterruptBudget(raw_feedback_cell(), budget);
-  } else {
-    DCHECK(shared().is_compiled());
-    raw_feedback_cell().set_interrupt_budget(
-        shared().GetBytecodeArray(GetIsolate()).length() *
-        FLAG_interrupt_budget_factor_for_feedback_allocation);
-  }
-}
-
 bool JSFunction::IsInOptimizationQueue() {
   if (!has_feedback_vector()) return false;
   return feedback_vector().optimization_marker() ==

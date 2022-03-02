@@ -252,9 +252,6 @@ class FeedbackVector
   // Clears the optimization marker in the feedback vector.
   void ClearOptimizationMarker();
 
-  // This function expects that the feedback cell contains a feedback vector.
-  static void SetInterruptBudget(FeedbackCell feedback_cell, int value);
-
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) { return slot.ToInt(); }
 

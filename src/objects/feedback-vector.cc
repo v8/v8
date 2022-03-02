@@ -407,13 +407,6 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   vector->set_flags(state);
 }
 
-// static
-void FeedbackVector::SetInterruptBudget(FeedbackCell feedback_cell, int value) {
-  DCHECK(feedback_cell.value().IsFeedbackVector());
-  // Set the interrupt budget as required for tiering up to next level.
-  feedback_cell.set_interrupt_budget(value);
-}
-
 void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
   DCHECK(maybe_has_optimized_code());

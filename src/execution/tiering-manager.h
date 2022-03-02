@@ -31,6 +31,11 @@ class TieringManager {
   void AttemptOnStackReplacement(UnoptimizedFrame* frame,
                                  int nesting_levels = 1);
 
+  // For use when a JSFunction is available.
+  static int InterruptBudgetFor(Isolate* isolate, JSFunction function);
+  // For use when no JSFunction is available.
+  static int InitialInterruptBudget();
+
  private:
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
