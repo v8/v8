@@ -1369,10 +1369,10 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
   std::unique_ptr<char[]> name = shared.DebugNameCStr();
   if (name[0] != '\0') {
-    TagObject(shared.GetCode(),
+    TagObject(FromCodeT(shared.GetCode()),
               names_->GetFormatted("(code for %s)", name.get()));
   } else {
-    TagObject(shared.GetCode(),
+    TagObject(FromCodeT(shared.GetCode()),
               names_->GetFormatted("(%s code)",
                                    CodeKindToString(shared.GetCode().kind())));
   }
