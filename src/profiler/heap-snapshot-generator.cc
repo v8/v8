@@ -809,6 +809,8 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
     JSRegExp re = JSRegExp::cast(object);
     return AddEntry(object, HeapEntry::kRegExp, names_->GetName(re.source()));
   } else if (object.IsJSObject()) {
+    // TODO(v8:12674) Fix and run full gcmole.
+    DisableGCMole no_gcmole;
     const char* name = names_->GetName(
         GetConstructorName(heap_->isolate(), JSObject::cast(object)));
     if (object.IsJSGlobalObject()) {
