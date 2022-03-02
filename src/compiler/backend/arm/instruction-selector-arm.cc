@@ -2891,6 +2891,22 @@ void InstructionSelector::VisitS128Select(Node* node) {
        g.UseRegister(node->InputAt(2)));
 }
 
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 namespace {
 
