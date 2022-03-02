@@ -515,12 +515,12 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 
 #ifdef V8_ENABLE_MAGLEV
 #define V8_ENABLE_MAGLEV_BOOL true
+DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
 #else
 #define V8_ENABLE_MAGLEV_BOOL false
+DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")
 #endif  // V8_ENABLE_MAGLEV
 
-DEFINE_BOOL(maglev, V8_ENABLE_MAGLEV_BOOL,
-            "enable the maglev optimizing compiler")
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_BOOL(maglev_break_on_entry, false, "insert an int3 on maglev entries")
 DEFINE_BOOL(print_maglev_graph, false, "print maglev graph")
@@ -557,9 +557,11 @@ DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 // No Sparkplug compilation.
 DEFINE_NEG_IMPLICATION(jitless, sparkplug)
 DEFINE_NEG_IMPLICATION(jitless, always_sparkplug)
+#endif  // ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_MAGLEV
 // No Maglev compilation.
 DEFINE_NEG_IMPLICATION(jitless, maglev)
-#endif
+#endif  // V8_ENABLE_MAGLEV
 
 #ifndef V8_TARGET_ARCH_ARM
 // Unsupported on arm. See https://crbug.com/v8/8713.
@@ -627,6 +629,12 @@ DEFINE_INT(interrupt_budget_for_feedback_allocation, 940,
 DEFINE_INT(interrupt_budget_factor_for_feedback_allocation, 8,
            "The interrupt budget factor (applied to bytecode size) for "
            "allocating feedback vectors, used when bytecode size is known")
+
+// Tiering: Maglev.
+// The Maglev interrupt budget is chosen to be roughly 1/10th of Turbofan's
+// overall budget (including the multiple required ticks).
+DEFINE_INT(interrupt_budget_for_maglev, 40 * KB,
+           "interrupt budget which should be used for the profiler counter")
 
 // Tiering: Turbofan.
 DEFINE_INT(interrupt_budget, 132 * KB,

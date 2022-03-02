@@ -1345,6 +1345,13 @@
 }], # no_harness
 
 ##############################################################################
+['arch != x64 or not pointer_compression or variant in (nooptimization, jitless)', {
+  # Maglev is x64-only for now.
+  # TODO(v8:7700): Update as we extend support.
+  'maglev/*': [SKIP],
+}], # arch != x64 or not pointer_compression or variant in (nooptimization, jitless)
+
+##############################################################################
 ['arch != x64 or deopt_fuzzer', {
     # Skip stress-deopt-count tests since it's in x64 only
     'compiler/stress-deopt-count-*': [SKIP],

@@ -85,18 +85,14 @@ namespace {
 V8_WARN_UNUSED_RESULT bool HighestTierOf(CodeKinds kinds,
                                          CodeKind* highest_tier) {
   DCHECK_EQ((kinds & ~kJSFunctionCodeKindsMask), 0);
-  if ((kinds & CodeKindFlag::TURBOFAN) != 0) {
-    *highest_tier = CodeKind::TURBOFAN;
-    return true;
-  } else if ((kinds & CodeKindFlag::BASELINE) != 0) {
-    *highest_tier = CodeKind::BASELINE;
-    return true;
-  } else if ((kinds & CodeKindFlag::INTERPRETED_FUNCTION) != 0) {
-    *highest_tier = CodeKind::INTERPRETED_FUNCTION;
-    return true;
-  }
-  DCHECK_EQ(kinds, 0);
-  return false;
+  // Higher tiers > lower tiers.
+  STATIC_ASSERT(CodeKind::TURBOFAN > CodeKind::INTERPRETED_FUNCTION);
+  if (kinds == 0) return false;
+  const int highest_tier_log2 =
+      31 - base::bits::CountLeadingZeros(static_cast<uint32_t>(kinds));
+  DCHECK(CodeKindIsJSFunction(static_cast<CodeKind>(highest_tier_log2)));
+  *highest_tier = static_cast<CodeKind>(highest_tier_log2);
+  return true;
 }
 
 }  // namespace
@@ -137,16 +133,16 @@ bool JSFunction::ActiveTierIsIgnition() const {
   return GetActiveTier() == CodeKind::INTERPRETED_FUNCTION;
 }
 
-bool JSFunction::ActiveTierIsTurbofan() const {
-  return GetActiveTier() == CodeKind::TURBOFAN;
-}
-
 bool JSFunction::ActiveTierIsBaseline() const {
   return GetActiveTier() == CodeKind::BASELINE;
 }
 
 bool JSFunction::ActiveTierIsMaglev() const {
   return GetActiveTier() == CodeKind::MAGLEV;
+}
+
+bool JSFunction::ActiveTierIsTurbofan() const {
+  return GetActiveTier() == CodeKind::TURBOFAN;
 }
 
 bool JSFunction::CanDiscardCompiled() const {

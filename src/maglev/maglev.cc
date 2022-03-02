@@ -16,6 +16,8 @@ namespace internal {
 
 MaybeHandle<CodeT> Maglev::Compile(Isolate* isolate,
                                    Handle<JSFunction> function) {
+  DCHECK(FLAG_maglev);
+
   CanonicalHandleScope canonical_handle_scope(isolate);
   Zone broker_zone(isolate->allocator(), "maglev-broker-zone");
   compiler::JSHeapBroker broker(isolate, &broker_zone, FLAG_trace_heap_broker,

@@ -123,10 +123,10 @@ using CodeKinds = base::Flags<CodeKindFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(CodeKinds)
 
 static constexpr CodeKinds kJSFunctionCodeKindsMask{
-    CodeKindFlag::INTERPRETED_FUNCTION | CodeKindFlag::TURBOFAN |
-    CodeKindFlag::BASELINE};
+    CodeKindFlag::INTERPRETED_FUNCTION | CodeKindFlag::BASELINE |
+    CodeKindFlag::MAGLEV | CodeKindFlag::TURBOFAN};
 static constexpr CodeKinds kOptimizedJSFunctionCodeKindsMask{
-    CodeKindFlag::TURBOFAN};
+    CodeKindFlag::MAGLEV | CodeKindFlag::TURBOFAN};
 
 }  // namespace internal
 }  // namespace v8

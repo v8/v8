@@ -431,6 +431,13 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
 }
 #endif  // V8_ENABLE_MAGLEV
 
+RUNTIME_FUNCTION(Runtime_ActiveTierIsMaglev) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return isolate->heap()->ToBoolean(function->ActiveTierIsMaglev());
+}
+
 #ifdef V8_ENABLE_MAGLEV
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
   HandleScope scope(isolate);

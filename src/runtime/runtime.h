@@ -464,6 +464,7 @@ namespace internal {
   F(Abort, 1, 1)                              \
   F(AbortCSADcheck, 1, 1)                     \
   F(AbortJS, 1, 1)                            \
+  F(ActiveTierIsMaglev, 1, 1)                 \
   F(ArrayIteratorProtector, 0, 1)             \
   F(ArraySpeciesProtector, 0, 1)              \
   F(BaselineOsr, -1, 1)                       \

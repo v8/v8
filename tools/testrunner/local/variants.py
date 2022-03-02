@@ -50,36 +50,44 @@ ALL_VARIANT_FLAGS = {
 # variant. This depends on the flags specified in ALL_VARIANT_FLAGS and on the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
-  "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types",
-              "--validate-asm", "--sparkplug", "--concurrent-sparkplug",
-              "--always-sparkplug", "--regexp-tier-up", "--no-regexp-interpret-all"],
-  "nooptimization": ["--always-opt"],
-  "slow_path": ["--no-force-slow-path"],
-  "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
-  "stress_concurrent_inlining": ["--single-threaded", "--predictable",
-                                 "--lazy-feedback-allocation",
-                                 "--assert-types",
-                                 "--no-concurrent-recompilation"],
-  # The fast API tests initialize an embedder object that never needs to be
-  # serialized to the snapshot, so we don't have a
-  # SerializeInternalFieldsCallback for it, so they are incompatible with
-  # stress_snapshot.
-  "stress_snapshot": ["--expose-fast-api"],
-  "stress": ["--always-opt", "--no-always-opt",
-             "--max-inlined-bytecode-size=*",
-             "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
-             "--liftoff-only", "--wasm-speculative-inlining",
-             "--wasm-dynamic-tiering"],
-  "sparkplug": ["--jitless"],
-  "concurrent_sparkplug": ["--jitless"],
-  "always_sparkplug": ["--jitless"],
-  "code_serializer": ["--cache=after-execute", "--cache=full-code-cache",
-                      "--cache=none"],
-  "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
-  # There is a negative implication: --perf-prof disables
-  # --wasm-write-protect-code-memory.
-  "wasm_write_protect_code": ["--perf-prof"],
-  "assert_types": ["--concurrent-recompilation", "--stress_concurrent_inlining", "--no-assert-types"],
+    "jitless": [
+        "--opt", "--always-opt", "--liftoff", "--track-field-types",
+        "--validate-asm", "--sparkplug", "--concurrent-sparkplug",
+        "--always-sparkplug", "--regexp-tier-up", "--no-regexp-interpret-all",
+        "--maglev"
+    ],
+    "nooptimization": ["--always-opt"],
+    "slow_path": ["--no-force-slow-path"],
+    "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
+    "stress_concurrent_inlining": [
+        "--single-threaded", "--predictable", "--lazy-feedback-allocation",
+        "--assert-types", "--no-concurrent-recompilation"
+    ],
+    # The fast API tests initialize an embedder object that never needs to be
+    # serialized to the snapshot, so we don't have a
+    # SerializeInternalFieldsCallback for it, so they are incompatible with
+    # stress_snapshot.
+    "stress_snapshot": ["--expose-fast-api"],
+    "stress": [
+        "--always-opt", "--no-always-opt", "--max-inlined-bytecode-size=*",
+        "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
+        "--liftoff-only", "--wasm-speculative-inlining",
+        "--wasm-dynamic-tiering"
+    ],
+    "sparkplug": ["--jitless"],
+    "concurrent_sparkplug": ["--jitless"],
+    "always_sparkplug": ["--jitless"],
+    "code_serializer": [
+        "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
+    ],
+    "experimental_regexp": ["--no-enable-experimental-regexp-engine"],
+    # There is a negative implication: --perf-prof disables
+    # --wasm-write-protect-code-memory.
+    "wasm_write_protect_code": ["--perf-prof"],
+    "assert_types": [
+        "--concurrent-recompilation", "--stress_concurrent_inlining",
+        "--no-assert-types"
+    ],
 }
 
 # Flags that lead to a contradiction under certain build variables.

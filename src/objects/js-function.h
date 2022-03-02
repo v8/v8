@@ -143,9 +143,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   base::Optional<CodeKind> GetActiveTier() const;
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
-  bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsBaseline() const;
   bool ActiveTierIsMaglev() const;
+  bool ActiveTierIsTurbofan() const;
 
   // Similar to SharedFunctionInfo::CanDiscardCompiled. Returns true, if the
   // attached code can be recreated at a later point by replacing it with
