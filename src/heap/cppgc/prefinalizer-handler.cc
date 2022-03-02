@@ -19,10 +19,9 @@ namespace internal {
 // static
 void PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
     PreFinalizer pre_finalizer) {
-  BasePage::FromPayload(pre_finalizer.object)
-      ->heap()
-      .prefinalizer_handler()
-      ->RegisterPrefinalizer(pre_finalizer);
+  auto* page = BasePage::FromPayload(pre_finalizer.object);
+  DCHECK(!page->space().is_compactable());
+  page->heap().prefinalizer_handler()->RegisterPrefinalizer(pre_finalizer);
 }
 
 bool PreFinalizerRegistrationDispatcher::PreFinalizer::operator==(
