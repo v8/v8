@@ -64,4 +64,13 @@ export function groupBy(array, keyFunction, collect = false) {
   return groups.sort((a, b) => b.length - a.length);
 }
 
+export function arrayEquals(left, right) {
+  if (left == right) return true;
+  if (left.length != right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (left[i] != right[i]) return false;
+  }
+  return true;
+}
+
 export * from '../js/helper.mjs'

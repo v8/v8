@@ -148,29 +148,28 @@ export class FileReader extends V8CustomElement {
 export class DOM {
   static element(type, options) {
     const node = document.createElement(type);
-    if (options !== undefined) {
-      if (typeof options === 'string') {
-        // Old behaviour: options = class string
-        node.className = options;
-      } else if (Array.isArray(options)) {
-        // Old behaviour: options = class array
-        DOM.addClasses(node, options);
-      } else {
-        // New behaviour: options = attribute dict
-        for (const [key, value] of Object.entries(options)) {
-          if (key == 'className') {
-            node.className = value;
-          } else if (key == 'classList') {
-            node.classList = value;
-          } else if (key == 'textContent') {
-            node.textContent = value;
-          } else if (key == 'children') {
-            for (const child of value) {
-              node.appendChild(child);
-            }
-          } else {
-            node.setAttribute(key, value);
+    if (options === undefined) return node;
+    if (typeof options === 'string') {
+      // Old behaviour: options = class string
+      node.className = options;
+    } else if (Array.isArray(options)) {
+      // Old behaviour: options = class array
+      DOM.addClasses(node, options);
+    } else {
+      // New behaviour: options = attribute dict
+      for (const [key, value] of Object.entries(options)) {
+        if (key == 'className') {
+          node.className = value;
+        } else if (key == 'classList') {
+          DOM.addClasses(node, value);
+        } else if (key == 'textContent') {
+          node.textContent = value;
+        } else if (key == 'children') {
+          for (const child of value) {
+            node.appendChild(child);
           }
+        } else {
+          node.setAttribute(key, value);
         }
       }
     }
@@ -196,6 +195,10 @@ export class DOM {
   static button(label, clickHandler) {
     const button = DOM.element('button');
     button.innerText = label;
+    if (typeof clickHandler != 'function') {
+      throw new Error(
+          `DOM.button: Expected function but got clickHandler=${clickHandler}`);
+    }
     button.onclick = clickHandler;
     return button;
   }
