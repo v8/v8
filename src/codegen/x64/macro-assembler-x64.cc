@@ -1468,11 +1468,11 @@ void TurboAssembler::Move(Register dst, Smi source) {
   int value = source.value();
   if (value == 0) {
     xorl(dst, dst);
-  } else if (SmiValuesAre32Bits() || value < 0) {
+  } else if (SmiValuesAre32Bits()) {
     Move(dst, source.ptr(), RelocInfo::NO_INFO);
   } else {
-    uint32_t uvalue = static_cast<uint32_t>(source.ptr());
-    Move(dst, uvalue);
+    intptr_t svalue = static_cast<intptr_t>(source.ptr());
+    Move(dst, svalue);
   }
 }
 
