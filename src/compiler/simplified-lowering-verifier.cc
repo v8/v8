@@ -41,7 +41,10 @@ void SimplifiedLoweringVerifier::CheckAndSet(Node* node, const Type& type,
           node_type_str.str().c_str());
     }
   } else {
-    NodeProperties::SetType(node, type);
+    // We store the type inferred by the verification pass. We do not update
+    // the node's type directly, because following phases might encounter
+    // unsound types as long as the verification is not complete.
+    SetType(node, type);
   }
   SetTruncation(node, GeneralizeTruncation(trunc, type));
 }

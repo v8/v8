@@ -16,6 +16,7 @@ class OperationTyper;
 class SimplifiedLoweringVerifier final {
  public:
   struct PerNodeData {
+    Type type = Type::None();
     Truncation truncation = Truncation::Any(IdentifyZeros::kDistinguishZeros);
   };
 
@@ -38,6 +39,19 @@ class SimplifiedLoweringVerifier final {
     return type_guards_.find(node) != type_guards_.end();
   }
 
+  void ResizeDataIfNecessary(Node* node) {
+    if (data_.size() <= node->id()) {
+      data_.resize(node->id() + 1);
+    }
+    DCHECK_EQ(data_[node->id()].truncation,
+              Truncation::Any(IdentifyZeros::kDistinguishZeros));
+  }
+
+  void SetType(Node* node, const Type& type) {
+    ResizeDataIfNecessary(node);
+    data_[node->id()].type = type;
+  }
+
   Type InputType(Node* node, int input_index) const {
     // TODO(nicohartmann): Check that inputs are typed, once all operators are
     // supported.
@@ -45,15 +59,16 @@ class SimplifiedLoweringVerifier final {
     if (NodeProperties::IsTyped(input)) {
       return NodeProperties::GetType(input);
     }
+    // For nodes that have not been typed before SL, we use the type that has
+    // been inferred by the verifier.
+    if (input->id() < data_.size()) {
+      return data_[input->id()].type;
+    }
     return Type::None();
   }
 
   void SetTruncation(Node* node, const Truncation& truncation) {
-    if (data_.size() <= node->id()) {
-      data_.resize(node->id() + 1);
-    }
-    DCHECK_EQ(data_[node->id()].truncation,
-              Truncation::Any(IdentifyZeros::kDistinguishZeros));
+    ResizeDataIfNecessary(node);
     data_[node->id()].truncation = truncation;
   }
 
