@@ -54,38 +54,6 @@ std::ostream& operator<<(std::ostream& os, OptimizationReason reason) {
   return os << OptimizationReasonToString(reason);
 }
 
-namespace {
-
-void TraceInOptimizationQueue(JSFunction function) {
-  if (FLAG_trace_opt_verbose) {
-    PrintF("[function ");
-    function.PrintName();
-    PrintF(" is already in optimization queue]\n");
-  }
-}
-
-void TraceHeuristicOptimizationDisallowed(JSFunction function) {
-  if (FLAG_trace_opt_verbose) {
-    PrintF("[function ");
-    function.PrintName();
-    PrintF(" has been marked manually for optimization]\n");
-  }
-}
-
-void TraceRecompile(JSFunction function, OptimizationReason reason,
-                    CodeKind code_kind, Isolate* isolate) {
-  if (FLAG_trace_opt) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[marking ");
-    function.ShortPrint(scope.file());
-    PrintF(scope.file(), " for optimized recompilation, reason: %s",
-           OptimizationReasonToString(reason));
-    PrintF(scope.file(), "]\n");
-  }
-}
-
-}  // namespace
-
 class OptimizationDecision {
  public:
   static constexpr OptimizationDecision Maglev() {
@@ -128,10 +96,55 @@ class OptimizationDecision {
 // Since we pass by value:
 STATIC_ASSERT(sizeof(OptimizationDecision) <= kInt32Size);
 
+namespace {
+
+void TraceInOptimizationQueue(JSFunction function) {
+  if (FLAG_trace_opt_verbose) {
+    PrintF("[not marking function ");
+    function.PrintName();
+    PrintF(" for optimization: already queued]\n");
+  }
+}
+
+void TraceHeuristicOptimizationDisallowed(JSFunction function) {
+  if (FLAG_trace_opt_verbose) {
+    PrintF("[not marking function ");
+    function.PrintName();
+    PrintF(
+        " for optimization: marked with "
+        "%%PrepareFunctionForOptimization for manual optimization]\n");
+  }
+}
+
+void TraceRecompile(Isolate* isolate, JSFunction function,
+                    OptimizationDecision d) {
+  if (FLAG_trace_opt) {
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[marking ");
+    function.ShortPrint(scope.file());
+    PrintF(scope.file(), " for optimization to %s, %s, reason: %s",
+           CodeKindToString(d.code_kind), ToString(d.concurrency_mode),
+           OptimizationReasonToString(d.optimization_reason));
+    PrintF(scope.file(), "]\n");
+  }
+}
+
+}  // namespace
+
+void TraceManualRecompile(JSFunction function, CodeKind code_kind,
+                          ConcurrencyMode concurrency_mode) {
+  if (FLAG_trace_opt) {
+    PrintF("[manually marking ");
+    function.ShortPrint();
+    PrintF(" for optimization to %s, %s]\n", CodeKindToString(code_kind),
+           ToString(concurrency_mode));
+  }
+}
+
 void TieringManager::Optimize(JSFunction function, CodeKind code_kind,
                               OptimizationDecision d) {
   DCHECK(d.should_optimize());
-  TraceRecompile(function, d.optimization_reason, code_kind, isolate_);
+  TraceRecompile(isolate_, function, d);
   function.MarkForOptimization(isolate_, d.code_kind, d.concurrency_mode);
 }
 

@@ -315,12 +315,6 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
   }
-  if (FLAG_trace_opt) {
-    PrintF("[manually marking ");
-    function->ShortPrint();
-    PrintF(" for %s %s optimization]\n", ToString(concurrency_mode),
-           CodeKindToString(kCodeKind));
-  }
 
   // This function may not have been lazily compiled yet, even though its shared
   // function has.
@@ -333,6 +327,7 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
     function->set_code(codet);
   }
 
+  TraceManualRecompile(*function, kCodeKind, concurrency_mode);
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
   function->MarkForOptimization(isolate, CodeKind::TURBOFAN, concurrency_mode);
 
@@ -457,13 +452,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
   // TODO(v8:7700): Support concurrent compiles.
   const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
 
-  if (FLAG_trace_opt) {
-    PrintF("[manually marking ");
-    function->ShortPrint();
-    PrintF(" for %s %s optimization]\n", ToString(concurrency_mode),
-           CodeKindToString(kCodeKind));
-  }
-
+  TraceManualRecompile(*function, kCodeKind, concurrency_mode);
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
   function->MarkForOptimization(isolate, kCodeKind, concurrency_mode);
 

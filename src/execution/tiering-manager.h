@@ -21,6 +21,9 @@ class OptimizationDecision;
 enum class CodeKind : uint8_t;
 enum class OptimizationReason : uint8_t;
 
+void TraceManualRecompile(JSFunction function, CodeKind code_kind,
+                          ConcurrencyMode concurrency_mode);
+
 class TieringManager {
  public:
   explicit TieringManager(Isolate* isolate) : isolate_(isolate) {}
