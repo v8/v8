@@ -1846,6 +1846,8 @@ class SetThreadInWasmFlagScope {
 }  // namespace
 
 Object Isolate::UnwindAndFindHandler() {
+  // TODO(v8:12676): Fix gcmole failures in this function.
+  DisableGCMole no_gcmole;
 #if V8_ENABLE_WEBASSEMBLY
   // Create the {SetThreadInWasmFlagScope} first in this function so that its
   // destructor gets called after all the other destructors. It is important
