@@ -16,16 +16,14 @@
 namespace cppgc {
 namespace internal {
 
-// static
-void PreFinalizerRegistrationDispatcher::RegisterPrefinalizer(
-    PreFinalizer pre_finalizer) {
-  auto* page = BasePage::FromPayload(pre_finalizer.object);
+PrefinalizerRegistration::PrefinalizerRegistration(void* object,
+                                                   Callback callback) {
+  auto* page = BasePage::FromPayload(object);
   DCHECK(!page->space().is_compactable());
-  page->heap().prefinalizer_handler()->RegisterPrefinalizer(pre_finalizer);
+  page->heap().prefinalizer_handler()->RegisterPrefinalizer({object, callback});
 }
 
-bool PreFinalizerRegistrationDispatcher::PreFinalizer::operator==(
-    const PreFinalizer& other) const {
+bool PreFinalizer::operator==(const PreFinalizer& other) const {
   return (object == other.object) && (callback == other.callback);
 }
 
@@ -35,7 +33,7 @@ PreFinalizerHandler::PreFinalizerHandler(HeapBase& heap)
 #ifdef DEBUG
       ,
       creation_thread_id_(v8::base::OS::GetCurrentThreadId())
-#endif
+#endif  // DEBUG
 {
 }
 

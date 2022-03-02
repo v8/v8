@@ -409,7 +409,6 @@ filegroup(
         "include/cppgc/internal/name-trait.h",
         "include/cppgc/internal/persistent-node.h",
         "include/cppgc/internal/pointer-policies.h",
-        "include/cppgc/internal/prefinalizer-handler.h",
         "include/cppgc/internal/write-barrier.h",
         "include/cppgc/liveness-broker.h",
         "include/cppgc/macros.h",

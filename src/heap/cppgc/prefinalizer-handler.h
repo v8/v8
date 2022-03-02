@@ -15,11 +15,17 @@ namespace internal {
 
 class HeapBase;
 
+struct PreFinalizer final {
+  using Callback = PrefinalizerRegistration::Callback;
+
+  void* object;
+  Callback callback;
+
+  bool operator==(const PreFinalizer& other) const;
+};
+
 class PreFinalizerHandler final {
  public:
-  using PreFinalizer =
-      cppgc::internal::PreFinalizerRegistrationDispatcher::PreFinalizer;
-
   explicit PreFinalizerHandler(HeapBase& heap);
 
   void RegisterPrefinalizer(PreFinalizer pre_finalizer);
