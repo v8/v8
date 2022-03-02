@@ -15,6 +15,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/flags.h"
 #include "src/base/hashmap.h"
+#include "src/base/pointer-with-payload.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
@@ -28,7 +29,6 @@
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
 #include "src/regexp/regexp.h"
-#include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -482,7 +482,7 @@ class ParserBase {
       }
 
      private:
-      PointerWithPayload<FunctionState, bool, 1> state_and_prev_value_;
+      base::PointerWithPayload<FunctionState, bool, 1> state_and_prev_value_;
     };
 
     class V8_NODISCARD LoopScope final {

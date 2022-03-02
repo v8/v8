@@ -12,6 +12,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/pointer-with-payload.h"
 #include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
@@ -20,7 +21,6 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -51,7 +51,7 @@ struct ParserFormalParameters : FormalParametersBase {
           position(position),
           initializer_end_position(initializer_end_position) {}
 
-    PointerWithPayload<Expression, bool, 1> initializer_and_is_rest;
+    base::PointerWithPayload<Expression, bool, 1> initializer_and_is_rest;
 
     Expression* pattern;
     Expression* initializer() const {

@@ -5,9 +5,9 @@
 #ifndef V8_MAGLEV_MAGLEV_REGALLOC_DATA_H_
 #define V8_MAGLEV_MAGLEV_REGALLOC_DATA_H_
 
+#include "src/base/pointer-with-payload.h"
 #include "src/codegen/register.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/utils/pointer-with-payload.h"
 
 namespace v8 {
 namespace internal {
@@ -70,7 +70,7 @@ constexpr bool operator==(const RegisterStateFlags& left,
          left.is_merge == right.is_merge;
 }
 
-typedef PointerWithPayload<void, RegisterStateFlags, 2> RegisterState;
+typedef base::PointerWithPayload<void, RegisterStateFlags, 2> RegisterState;
 
 struct RegisterMerge {
   compiler::AllocatedOperand* operands() {

@@ -10,16 +10,28 @@
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
+#include "src/base/pointer-with-payload.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
-#include "src/utils/pointer-with-payload.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-hashmap.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
+
+namespace internal {
+class Scope;
+}  // namespace internal
+
+namespace base {
+template <>
+struct PointerWithPayloadTraits<v8::internal::Scope> {
+  static constexpr int kAvailableBits = 1;
+};
+}  // namespace base
+
 namespace internal {
 
 class AstNodeFactory;
@@ -62,13 +74,6 @@ class VariableMap : public ZoneHashMap {
   void Add(Variable* var);
 
   Zone* zone() const { return allocator().zone(); }
-};
-
-class Scope;
-
-template <>
-struct PointerWithPayloadTraits<Scope> {
-  static constexpr int value = 1;
 };
 
 // Global invariants after AST construction: Each reference (i.e. identifier)
@@ -155,7 +160,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     // Upon move assignment we store whether the new inner scope calls eval into
     // the move target calls_eval bit, and restore calls eval on the outer
     // scope.
-    PointerWithPayload<Scope, bool, 1> outer_scope_and_calls_eval_;
+    base::PointerWithPayload<Scope, bool, 1> outer_scope_and_calls_eval_;
     Scope* top_inner_scope_;
     UnresolvedList::Iterator top_unresolved_;
     base::ThreadedList<Variable>::Iterator top_local_;
@@ -1548,7 +1553,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     rare_data_and_is_parsing_heritage_.SetPayload(v);
   }
 
-  PointerWithPayload<RareData, bool, 1> rare_data_and_is_parsing_heritage_;
+  base::PointerWithPayload<RareData, bool, 1>
+      rare_data_and_is_parsing_heritage_;
   Variable* class_variable_ = nullptr;
   // These are only maintained when the scope is parsed, not when the
   // scope is deserialized.

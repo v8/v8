@@ -10,6 +10,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
+#include "src/base/pointer-with-payload.h"
 #include "src/base/threaded-list.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/label.h"
@@ -1185,7 +1186,7 @@ class LiteralProperty : public ZoneObject {
   LiteralProperty(Expression* key, Expression* value, bool is_computed_name)
       : key_and_is_computed_name_(key, is_computed_name), value_(value) {}
 
-  PointerWithPayload<Expression, bool, 1> key_and_is_computed_name_;
+  base::PointerWithPayload<Expression, bool, 1> key_and_is_computed_name_;
   Expression* value_;
 };
 

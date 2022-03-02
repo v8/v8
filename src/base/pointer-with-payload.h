@@ -2,21 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UTILS_POINTER_WITH_PAYLOAD_H_
-#define V8_UTILS_POINTER_WITH_PAYLOAD_H_
+#ifndef V8_BASE_POINTER_WITH_PAYLOAD_H_
+#define V8_BASE_POINTER_WITH_PAYLOAD_H_
 
 #include <cstdint>
 #include <type_traits>
 
-#include "include/v8config.h"
 #include "src/base/logging.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 template <typename PointerType>
 struct PointerWithPayloadTraits {
-  static constexpr int value =
+  static constexpr int kAvailableBits =
       alignof(PointerType) >= 8 ? 3 : alignof(PointerType) >= 4 ? 2 : 1;
 };
 
@@ -37,82 +36,83 @@ struct PointerWithPayloadTraits<void> : public PointerWithPayloadTraits<void*> {
 //
 //   Here we store a bool that needs 1 bit of storage state into the lower bits
 //   of int *, which points to some int data;
-
 template <typename PointerType, typename PayloadType, int NumPayloadBits>
 class PointerWithPayload {
-  // We have log2(ptr alignment) kAvailBits free to use
-  static constexpr int kAvailBits = PointerWithPayloadTraits<
-      typename std::remove_const<PointerType>::type>::value;
-  static_assert(
-      kAvailBits >= NumPayloadBits,
-      "Ptr does not have sufficient alignment for the selected amount of "
-      "storage bits.");
-
-  static constexpr uintptr_t kPayloadMask =
-      (uintptr_t{1} << NumPayloadBits) - 1;
-  static constexpr uintptr_t kPointerMask = ~kPayloadMask;
-
  public:
   PointerWithPayload() = default;
 
   explicit PointerWithPayload(PointerType* pointer)
-      : pointer_(reinterpret_cast<uintptr_t>(pointer)) {
+      : pointer_with_payload_(reinterpret_cast<uintptr_t>(pointer)) {
     DCHECK_EQ(GetPointer(), pointer);
     DCHECK_EQ(GetPayload(), static_cast<PayloadType>(0));
   }
 
   explicit PointerWithPayload(PayloadType payload)
-      : pointer_(static_cast<uintptr_t>(payload)) {
+      : pointer_with_payload_(static_cast<uintptr_t>(payload)) {
     DCHECK_EQ(GetPointer(), nullptr);
     DCHECK_EQ(GetPayload(), payload);
   }
 
   PointerWithPayload(PointerType* pointer, PayloadType payload) {
-    update(pointer, payload);
+    Update(pointer, payload);
   }
 
   V8_INLINE PointerType* GetPointer() const {
-    return reinterpret_cast<PointerType*>(pointer_ & kPointerMask);
+    return reinterpret_cast<PointerType*>(pointer_with_payload_ & kPointerMask);
   }
 
   // An optimized version of GetPointer for when we know the payload value.
   V8_INLINE PointerType* GetPointerWithKnownPayload(PayloadType payload) const {
     DCHECK_EQ(GetPayload(), payload);
-    return reinterpret_cast<PointerType*>(pointer_ -
+    return reinterpret_cast<PointerType*>(pointer_with_payload_ -
                                           static_cast<uintptr_t>(payload));
   }
 
   V8_INLINE PointerType* operator->() const { return GetPointer(); }
 
-  V8_INLINE void update(PointerType* new_pointer, PayloadType new_payload) {
-    pointer_ = reinterpret_cast<uintptr_t>(new_pointer) |
-               static_cast<uintptr_t>(new_payload);
+  V8_INLINE void Update(PointerType* new_pointer, PayloadType new_payload) {
+    pointer_with_payload_ = reinterpret_cast<uintptr_t>(new_pointer) |
+                            static_cast<uintptr_t>(new_payload);
     DCHECK_EQ(GetPayload(), new_payload);
     DCHECK_EQ(GetPointer(), new_pointer);
   }
 
   V8_INLINE void SetPointer(PointerType* newptr) {
     DCHECK_EQ(reinterpret_cast<uintptr_t>(newptr) & kPayloadMask, 0);
-    pointer_ = reinterpret_cast<uintptr_t>(newptr) | (pointer_ & kPayloadMask);
+    pointer_with_payload_ = reinterpret_cast<uintptr_t>(newptr) |
+                            (pointer_with_payload_ & kPayloadMask);
     DCHECK_EQ(GetPointer(), newptr);
   }
 
   V8_INLINE PayloadType GetPayload() const {
-    return static_cast<PayloadType>(pointer_ & kPayloadMask);
+    return static_cast<PayloadType>(pointer_with_payload_ & kPayloadMask);
   }
 
   V8_INLINE void SetPayload(PayloadType new_payload) {
     uintptr_t new_payload_ptr = static_cast<uintptr_t>(new_payload);
     DCHECK_EQ(new_payload_ptr & kPayloadMask, new_payload_ptr);
-    pointer_ = (pointer_ & kPointerMask) | new_payload_ptr;
+    pointer_with_payload_ =
+        (pointer_with_payload_ & kPointerMask) | new_payload_ptr;
     DCHECK_EQ(GetPayload(), new_payload);
   }
 
  private:
-  uintptr_t pointer_ = 0;
+  static constexpr int kAvailableBits = PointerWithPayloadTraits<
+      typename std::remove_const<PointerType>::type>::kAvailableBits;
+  static_assert(
+      kAvailableBits >= NumPayloadBits,
+      "Ptr does not have sufficient alignment for the selected amount of "
+      "storage bits. Override PointerWithPayloadTraits to guarantee available "
+      "bits manually.");
+
+  static constexpr uintptr_t kPayloadMask =
+      (uintptr_t{1} << NumPayloadBits) - 1;
+  static constexpr uintptr_t kPointerMask = ~kPayloadMask;
+
+  uintptr_t pointer_with_payload_ = 0;
 };
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_UTILS_POINTER_WITH_PAYLOAD_H_
+#endif  // V8_BASE_POINTER_WITH_PAYLOAD_H_
