@@ -9170,7 +9170,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
 
             var_value = CallGetterIfAccessor(
                 var_value.value(), object, var_details.value(), context, object,
-                next_key, &slow_load, kCallJSGetter);
+                next_key, &slow_load, kCallJSGetterUseCachedName);
             Goto(&callback);
 
             BIND(&slow_load);
@@ -9705,7 +9705,8 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
 
   // AccessorPair case.
   {
-    if (mode == kCallJSGetter) {
+    if (mode == kCallJSGetterUseCachedName ||
+        mode == kCallJSGetterDontUseCachedName) {
       Label if_callable(this), if_function_template_info(this);
       TNode<AccessorPair> accessor_pair = CAST(value);
       TNode<HeapObject> getter =
@@ -9730,10 +9731,15 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       BIND(&if_function_template_info);
       {
         Label runtime(this, Label::kDeferred);
+        Label use_cached_property(this);
         GotoIf(IsSideEffectFreeDebuggingActive(), &runtime);
         TNode<HeapObject> cached_property_name = LoadObjectField<HeapObject>(
             getter, FunctionTemplateInfo::kCachedPropertyNameOffset);
-        GotoIfNot(IsTheHole(cached_property_name), if_bailout);
+
+        Label* has_cached_property = mode == kCallJSGetterUseCachedName
+                                         ? &use_cached_property
+                                         : if_bailout;
+        GotoIfNot(IsTheHole(cached_property_name), has_cached_property);
 
         TNode<NativeContext> creation_context =
             GetCreationContext(CAST(holder), if_bailout);
@@ -9743,6 +9749,14 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
             receiver);
         Goto(&done);
 
+        if (mode == kCallJSGetterUseCachedName) {
+          Bind(&use_cached_property);
+
+          var_value = GetProperty(context, holder, cached_property_name);
+
+          Goto(&done);
+        }
+
         BIND(&runtime);
         {
           var_value = CallRuntime(Runtime::kGetProperty, context, holder, name,
@@ -9751,6 +9765,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
         }
       }
     } else {
+      DCHECK_EQ(mode, kReturnAccessorPair);
       Goto(&done);
     }
   }
@@ -9822,7 +9837,7 @@ void CodeStubAssembler::TryGetOwnProperty(
     Label* if_bailout) {
   TryGetOwnProperty(context, receiver, object, map, instance_type, unique_name,
                     if_found_value, var_value, nullptr, nullptr, if_not_found,
-                    if_bailout, kCallJSGetter);
+                    if_bailout, kCallJSGetterUseCachedName);
 }
 
 void CodeStubAssembler::TryGetOwnProperty(

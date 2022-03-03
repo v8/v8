@@ -3178,8 +3178,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                          Label* if_bailout);
 
   // Operating mode for TryGetOwnProperty and CallGetterIfAccessor
-  // kReturnAccessorPair is used when we're only getting the property descriptor
-  enum GetOwnPropertyMode { kCallJSGetter, kReturnAccessorPair };
+  enum GetOwnPropertyMode {
+    // kCallJSGetterDontUseCachedName is used when we want to get the result of
+    // the getter call, and don't use cached_name_property when the getter is
+    // the function template and it has cached_property_name, which would just
+    // bailout for the IC system to create a named property handler
+    kCallJSGetterDontUseCachedName,
+    // kCallJSGetterUseCachedName is used when we want to get the result of
+    // the getter call, and use cached_name_property when the getter is
+    // the function template and it has cached_property_name, which would call
+    // GetProperty rather than bailout for Generic/NoFeedback load
+    kCallJSGetterUseCachedName,
+    // kReturnAccessorPair is used when we're only getting the property
+    // descriptor
+    kReturnAccessorPair
+  };
   // Tries to get {object}'s own {unique_name} property value. If the property
   // is an accessor then it also calls a getter. If the property is a double
   // field it re-wraps value in an immutable heap number. {unique_name} must be
@@ -3999,7 +4012,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> CallGetterIfAccessor(
       TNode<Object> value, TNode<HeapObject> holder, TNode<Uint32T> details,
       TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
-      Label* if_bailout, GetOwnPropertyMode mode = kCallJSGetter);
+      Label* if_bailout,
+      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName);
 
   TNode<IntPtrT> TryToIntptr(TNode<Object> key, Label* if_not_intptr,
                              TVariable<Int32T>* var_instance_type = nullptr);
