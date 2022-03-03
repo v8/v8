@@ -2293,12 +2293,20 @@ struct borrowed_vec {
 
 // Vectors
 
+#ifdef V8_GC_MOLE
+#define ASSERT_VEC_BASE_SIZE(name, Name, vec, ptr_or_none)
+
+#else
+#define ASSERT_VEC_BASE_SIZE(name, Name, vec, ptr_or_none)                 \
+  static_assert(sizeof(wasm_##name##_vec_t) == sizeof(vec<Name>),          \
+                "C/C++ incompatibility");                                  \
+  static_assert(                                                           \
+      sizeof(wasm_##name##_t ptr_or_none) == sizeof(vec<Name>::elem_type), \
+      "C/C++ incompatibility");
+#endif
+
 #define WASM_DEFINE_VEC_BASE(name, Name, vec, ptr_or_none)                     \
-  static_assert(sizeof(wasm_##name##_vec_t) == sizeof(vec<Name>),              \
-                "C/C++ incompatibility");                                      \
-  static_assert(                                                               \
-      sizeof(wasm_##name##_t ptr_or_none) == sizeof(vec<Name>::elem_type),     \
-      "C/C++ incompatibility");                                                \
+  ASSERT_VEC_BASE_SIZE(name, Name, vec, ptr_or_none)                           \
   extern "C++" inline auto hide_##name##_vec(vec<Name>& v)                     \
       ->wasm_##name##_vec_t* {                                                 \
     return reinterpret_cast<wasm_##name##_vec_t*>(&v);                         \

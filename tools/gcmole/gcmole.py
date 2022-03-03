@@ -6,7 +6,6 @@
 # This is main driver for gcmole tool. See README for more details.
 # Usage: CLANG_BIN=clang-bin-dir python tools/gcmole/gcmole.py [arm|arm64|ia32|x64]
 
-
 # for py2/py3 compatibility
 from __future__ import print_function
 
@@ -14,13 +13,13 @@ from multiprocessing import cpu_count
 
 import collections
 import difflib
+import json
 import optparse
 import os
 import re
 import subprocess
 import sys
 import threading
-import json
 
 if sys.version_info.major > 2:
   from pathlib import Path
@@ -82,6 +81,15 @@ else:
 ArchCfg = collections.namedtuple(
     "ArchCfg", ["name", "cpu", "triple", "arch_define", "arch_options"])
 
+# TODO(cbruni): use gn desc by default for platform-specific settings
+OPTIONS_64BIT = [
+    "-DV8_COMPRESS_POINTERS",
+    "-DV8_COMPRESS_POINTERS_IN_SHARED_CAGE",
+    "-DV8_EXTERNAL_CODE_SPACE",
+    "-DV8_SHORT_BUILTIN_CALLS",
+    "-DV8_SHARED_RO_HEAP",
+]
+
 ARCHITECTURES = {
     "ia32":
         ArchCfg(
@@ -99,14 +107,15 @@ ARCHITECTURES = {
             arch_define="V8_TARGET_ARCH_ARM",
             arch_options=["-m32"],
         ),
+    # TODO(cbruni): Use detailed settings:
+    #   arch_options = OPTIONS_64BIT + [ "-DV8_WIN64_UNWINDING_INFO" ]
     "x64":
         ArchCfg(
             name="x64",
             cpu="x64",
             triple="x86_64-unknown-linux",
             arch_define="V8_TARGET_ARCH_X64",
-            arch_options=[],
-        ),
+            arch_options=[]),
     "arm64":
         ArchCfg(
             name="arm64",
@@ -148,7 +157,7 @@ def make_clang_command_line(plugin, plugin_args, options):
   icu_src_dir = options.v8_root_dir / 'third_party/icu/source'
   return ([
       options.clang_bin_dir / "clang++",
-      "-std=c++14",
+      "-std=c++17",
       "-c",
       "-Xclang",
       "-load",
@@ -164,11 +173,13 @@ def make_clang_command_line(plugin, plugin_args, options):
       "-Xclang",
       arch_cfg.triple,
       "-fno-exceptions",
+      "-Wno-everything",
       "-D",
       arch_cfg.arch_define,
       "-DENABLE_DEBUGGER_SUPPORT",
-      "-DV8_INTL_SUPPORT",
       "-DV8_ENABLE_WEBASSEMBLY",
+      "-DV8_GC_MOLE",
+      "-DV8_INTL_SUPPORT",
       "-I{}".format(options.v8_root_dir),
       "-I{}".format(options.v8_root_dir / 'include'),
       "-I{}".format(options.v8_build_dir / 'gen'),
@@ -253,7 +264,7 @@ def invoke_clang_plugin_for_each_file(filenames, plugin, plugin_args, options):
           else:
             break
         filename, returncode, stdout, stderr = output
-        log(filename, level=1)
+        log(filename, level=2)
         if returncode != 0:
           sys.stderr.write(stderr)
           sys.exit(returncode)
@@ -439,25 +450,44 @@ def generate_gc_suspects(files, options):
     collector.parse(stdout.splitlines())
   collector.propagate()
   # TODO(cbruni): remove once gcmole.cc is migrated
-  write_gc_suspects(collector, options.v8_root_dir)
-  write_gc_suspects(collector, options.out_dir)
-  log("GCSuspects generated for {}", options.v8_target_cpu)
+  write_gcmole_results(collector, options, options.v8_root_dir)
+  write_gcmole_results(collector, options, options.out_dir)
 
 
-def write_gc_suspects(collector, dst):
+def write_gcmole_results(collector, options, dst):
+  # gcsuspects contains a list("mangled_full_name,name") of all functions that
+  # could cause a gc (directly or indirectly).
+  #
+  # EXAMPLE
+  # _ZN2v88internal4Heap16CreateApiObjectsEv,CreateApiObjects
+  # _ZN2v88internal4Heap17CreateInitialMapsEv,CreateInitialMaps
+  # ...
   with open(dst / "gcsuspects", "w") as out:
-    for name, value in collector.gc.items():
+    for name, value in list(collector.gc.items()):
       if value:
         out.write(name + "\n")
-
+  # gccauses contains a map["mangled_full_name,name"] => list(inner gcsuspects)
+  # Where the inner gcsuspects are functions directly called in the outer
+  # function that can cause a gc. The format is encoded for simplified
+  # deserialization in gcmole.cc.
+  #
+  # EXAMPLE:
+  # _ZN2v88internal4Heap17CreateHeapObjectsEv,CreateHeapObjects
+  # start,nested
+  # _ZN2v88internal4Heap16CreateApiObjectsEv,CreateApiObjects
+  # _ZN2v88internal4Heap17CreateInitialMapsEv,CreateInitialMaps
+  # ...
+  # end,nested
+  # ...
   with open(dst / "gccauses", "w") as out:
-    out.write("GC = {\n")
-    for name, causes in collector.gc_caused.items():
-      out.write("  '{}': [\n".format(name))
+    for name, causes in list(collector.gc_caused.items()):
+      out.write("{}\n".format(name))
+      out.write("start,nested\n")
       for cause in causes:
-        out.write("    '{}',\n".format(cause))
-      out.write("  ],\n")
-    out.write("}\n")
+        out.write("{}\n".format(cause))
+      out.write("end,nested\n")
+  log("GCSuspects and gccauses generated for {} in '{}'", options.v8_target_cpu,
+      dst)
 
 
 # ------------------------------------------------------------------------------
@@ -498,7 +528,7 @@ def check_correctness_for_arch(options, for_test):
       sys.stdout.write(stderr)
 
   log("Done processing {} files.", processed_files)
-  log("Errors found" if errors_found else "## No errors found")
+  log("Errors found" if errors_found else "No errors found")
 
   return errors_found, output
 
@@ -598,7 +628,7 @@ def main(args):
   parser.add_option(
       "--out-dir",
       metavar="DIR",
-      help="Output location for gcsuspect and gcauses file."
+      help="Output location for the gcsuspect and gcauses file."
       "Default: BUILD_DIR/gen/tools/gcmole")
   parser.add_option(
       "--is-bot",
@@ -639,9 +669,9 @@ def main(args):
       action="store_true",
       default=True,
       dest="allowlist",
-      help="""When building gcsuspects allowlist certain functions as if they can be
-  causing GC. Currently used to reduce number of false positives in dead
-  variables analysis. See TODO for ALLOWLIST in gcmole.py""")
+      help="When building gcsuspects allowlist certain functions as if they can be "
+      "causing GC. Currently used to reduce number of false positives in dead "
+      "variables analysis. See TODO for ALLOWLIST in gcmole.py")
   group.add_option(
       "--test-run",
       action="store_true",
