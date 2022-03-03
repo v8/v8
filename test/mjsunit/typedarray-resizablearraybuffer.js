@@ -4422,7 +4422,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
 })();
 
 (function IndexOfParameterConversionShrinks() {
-  // Shinking + fixed-length TA.
+  // Shrinking + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4471,7 +4471,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
 })();
 
 (function LastIndexOfParameterConversionShrinks() {
-  // Shinking + fixed-length TA.
+  // Shrinking + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4713,7 +4713,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
 })();
 
 (function JoinParameterConversionShrinks() {
-  // Shinking + fixed-length TA.
+  // Shrinking + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4778,7 +4778,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   const oldNumberPrototypeToLocaleString = Number.prototype.toLocaleString;
   const oldBigIntPrototypeToLocaleString = BigInt.prototype.toLocaleString;
 
-  // Shinking + fixed-length TA.
+  // Shrinking + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -5999,5 +5999,312 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
         assertEquals([1, 3, 4, 5, 6, 6], ToNumbers(target));
       }
     }
+  }
+})();
+
+(function Subarray() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    const fixedLengthSubFull = fixedLength.subarray(0);
+    assertEquals([0, 2, 4, 6], ToNumbers(fixedLengthSubFull));
+    const fixedLengthWithOffsetSubFull = fixedLengthWithOffset.subarray(0);
+    assertEquals([4, 6], ToNumbers(fixedLengthWithOffsetSubFull));
+    const lengthTrackingSubFull = lengthTracking.subarray(0);
+    assertEquals([0, 2, 4, 6], ToNumbers(lengthTrackingSubFull));
+    const lengthTrackingWithOffsetSubFull =
+        lengthTrackingWithOffset.subarray(0);
+    assertEquals([4, 6], ToNumbers(lengthTrackingWithOffsetSubFull));
+
+    // Relative offsets
+    assertEquals([4, 6], ToNumbers(fixedLength.subarray(-2)));
+    assertEquals([6], ToNumbers(fixedLengthWithOffset.subarray(-1)));
+    assertEquals([4, 6], ToNumbers(lengthTracking.subarray(-2)));
+    assertEquals([6], ToNumbers(lengthTrackingWithOffset.subarray(-1)));
+
+    // Shrink so that fixed length TAs go out of bounds.
+    rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+
+    // Orig. array: [0, 2, 4]
+    //              [0, 2, 4, ...] << lengthTracking
+    //                    [4, ...] << lengthTrackingWithOffset
+
+    // We can create subarrays of OOB arrays (which have length 0), as long as
+    // the new arrays are not OOB.
+    assertEquals([], ToNumbers(fixedLength.subarray(0)));
+    assertEquals([], ToNumbers(fixedLengthWithOffset.subarray(0)));
+
+    assertEquals([0, 2, 4], ToNumbers(lengthTracking.subarray(0)));
+    assertEquals([4], ToNumbers(lengthTrackingWithOffset.subarray(0)));
+
+    // Also the previously created subarrays are OOB.
+    assertEquals(0, fixedLengthSubFull.length);
+    assertEquals(0, fixedLengthWithOffsetSubFull.length);
+
+    // Relative offsets
+    assertEquals([2, 4], ToNumbers(lengthTracking.subarray(-2)));
+    assertEquals([4], ToNumbers(lengthTrackingWithOffset.subarray(-1)));
+
+    // Shrink so that the TAs with offset go out of bounds.
+    rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+
+    assertEquals([], ToNumbers(fixedLength.subarray(0)));
+    assertEquals([0], ToNumbers(lengthTracking.subarray(0)));
+
+    // Even the 0-length subarray of fixedLengthWithOffset would be OOB ->
+    // this throws.
+    assertThrows(() => { fixedLengthWithOffset.subarray(0); }, RangeError);
+
+    // Also the previously created subarrays are OOB.
+    assertEquals(0, fixedLengthSubFull.length);
+    assertEquals(0, fixedLengthWithOffsetSubFull.length);
+    assertEquals(0, lengthTrackingWithOffsetSubFull.length);
+
+    // Shrink to zero.
+    rab.resize(0);
+
+    assertEquals([], ToNumbers(fixedLength.subarray(0)));
+    assertEquals([], ToNumbers(lengthTracking.subarray(0)));
+
+    assertThrows(() => { fixedLengthWithOffset.subarray(0); }, RangeError);
+    assertThrows(() => { lengthTrackingWithOffset.subarray(0); }, RangeError);
+
+    // Also the previously created subarrays are OOB.
+    assertEquals(0, fixedLengthSubFull.length);
+    assertEquals(0, fixedLengthWithOffsetSubFull.length);
+    assertEquals(0, lengthTrackingWithOffsetSubFull.length);
+
+    // Grow so that all TAs are back in-bounds.
+    rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    assertEquals([0, 2, 4, 6], ToNumbers(fixedLength.subarray(0)));
+    assertEquals([4, 6], ToNumbers(fixedLengthWithOffset.subarray(0)));
+    assertEquals([0, 2, 4, 6, 8, 10], ToNumbers(lengthTracking.subarray(0)));
+    assertEquals([4, 6, 8, 10],
+                 ToNumbers(lengthTrackingWithOffset.subarray(0)));
+
+    // Also the previously created subarrays are no longer OOB.
+    assertEquals(4, fixedLengthSubFull.length);
+    assertEquals(2, fixedLengthWithOffsetSubFull.length);
+
+    // TODO(v8:11111): Are subarrays of length-tracking TAs also
+    // length-tracking? See
+    // https://github.com/tc39/proposal-resizablearraybuffer/issues/91
+    assertEquals(4, lengthTrackingSubFull.length);
+    assertEquals(2, lengthTrackingWithOffsetSubFull.length);
+  }
+})();
+
+(function SubarrayParameterConversionShrinks() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  // Fixed-length TA + first parameter conversion shrinks. The old length is
+  // used in the length computation, and the subarray construction fails.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 0;
+    }};
+    assertThrows(() => { fixedLength.subarray(evil); }, RangeError);
+  }
+
+  // Like the previous test, but now we construct a smaller subarray and it
+  // succeeds.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 0;
+    }};
+    assertEquals([0], ToNumbers(fixedLength.subarray(evil, 1)));
+  }
+
+  // Fixed-length TA + second parameter conversion shrinks. The old length is
+  // used in the length computation, and the subarray construction fails.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 3;
+    }};
+    assertThrows(() => { fixedLength.subarray(0, evil); }, RangeError);
+  }
+
+  // Like the previous test, but now we construct a smaller subarray and it
+  // succeeds.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 1;
+    }};
+    assertEquals([0], ToNumbers(fixedLength.subarray(0, evil)));
+  }
+
+  // Shrinking + fixed-length TA, subarray construction succeeds even though the
+  // TA goes OOB.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    const evil = { valueOf: () => { rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+                                    return 0;}};
+
+    assertEquals([0], ToNumbers(fixedLength.subarray(evil, 1)));
+  }
+
+  // Length-tracking TA + first parameter conversion shrinks. The old length is
+  // used in the length computation, and the subarray construction fails.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 0;
+    }};
+    assertThrows(() => { lengthTracking.subarray(evil); });
+  }
+
+  // Like the previous test, but now we construct a smaller subarray and it
+  // succeeds.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 0;
+    }};
+    assertEquals([0], ToNumbers(lengthTracking.subarray(evil, 1)));
+  }
+
+  // Length-tracking TA + first parameter conversion shrinks. The second
+  // parameter is negative -> the relative index is not recomputed, and the
+  // subarray construction fails.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 0;
+    }};
+    assertThrows(() => { lengthTracking.subarray(evil, -1); });
+  }
+
+  // Length-tracking TA + second parameter conversion shrinks. The second
+  // parameter is too large -> the subarray construction fails.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 3;
+    }};
+    assertThrows(() => { lengthTracking.subarray(0, evil); });
+  }
+})();
+
+(function SubarrayParameterConversionGrows() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  // Growing a fixed length TA back in bounds.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    // Make `fixedLength` OOB.
+    rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+
+    const evil = { valueOf: () => { rab.resize(4 * ctor.BYTES_PER_ELEMENT);
+                                    return 0;}};
+
+    // The length computation is done before parameter conversion. At that
+    // point, the length is 0, since the TA is OOB.
+    assertEquals([], ToNumbers(fixedLength.subarray(evil, 0, 1)));
+  }
+
+  // Growing + fixed-length TA. Growing won't affect anything.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    const evil = { valueOf: () => { rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+                                    return 0;}};
+
+    assertEquals([0, 2, 4, 6], ToNumbers(fixedLength.subarray(evil)));
+  }
+
+  // Growing + length-tracking TA. The length computation is done with the
+  // original length.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    const evil = { valueOf: () => { rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+                                    return 0;}};
+
+    assertEquals([0, 2, 4, 6], ToNumbers(lengthTracking.subarray(evil)));
   }
 })();

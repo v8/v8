@@ -1329,3 +1329,118 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
                  TypeError);
   }
 })();
+
+(function Subarray() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    const fixedLengthSubFull = fixedLength.subarray(0);
+    assertEquals([0, 2, 4, 6], ToNumbers(fixedLengthSubFull));
+    const fixedLengthWithOffsetSubFull = fixedLengthWithOffset.subarray(0);
+    assertEquals([4, 6], ToNumbers(fixedLengthWithOffsetSubFull));
+    const lengthTrackingSubFull = lengthTracking.subarray(0);
+    assertEquals([0, 2, 4, 6], ToNumbers(lengthTrackingSubFull));
+    const lengthTrackingWithOffsetSubFull =
+        lengthTrackingWithOffset.subarray(0);
+    assertEquals([4, 6], ToNumbers(lengthTrackingWithOffsetSubFull));
+
+    %ArrayBufferDetach(rab);
+
+    // The previously created subarrays are OOB.
+    assertEquals(0, fixedLengthSubFull.length);
+    assertEquals(0, fixedLengthWithOffsetSubFull.length);
+    assertEquals(0, lengthTrackingSubFull.length);
+    assertEquals(0, lengthTrackingWithOffsetSubFull.length);
+
+    // Trying to create new subarrays fails.
+    assertThrows(() => { fixedLength.subarray(0); }, TypeError);
+    assertThrows(() => { fixedLengthWithOffset.subarray(0); }, TypeError);
+    assertThrows(() => { lengthTracking.subarray(0); }, TypeError);
+    assertThrows(() => { lengthTrackingWithOffset.subarray(0); }, TypeError);
+  }
+})();
+
+(function SubarrayParameterConversionDetaches() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  // Fixed-length TA + first parameter conversion detaches. Can't construct
+  // even zero-length TAs with a detached buffer.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertThrows(() => { fixedLength.subarray(evil, 0); }, TypeError);
+  }
+
+  // Length-tracking TA + first parameter conversion detaches. Can't construct
+  // even zero-length TAs with a detached buffer.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertThrows(() => { fixedLength.subarray(evil, 0); }, TypeError);
+  }
+
+  // Fixed-length TA + second parameter conversion detaches. Can't construct
+  // even zero-length TAs with a detached buffer.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertThrows(() => { fixedLength.subarray(0, evil); }, TypeError);
+  }
+
+  // Length-tracking TA + second parameter conversion detaches. Can't construct
+  // even zero-length TAs with a detached buffer.
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertThrows(() => { fixedLength.subarray(0, evil); }, TypeError);
+  }
+})();

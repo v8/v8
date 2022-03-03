@@ -3260,3 +3260,107 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
     }
   }
 })();
+
+(function Subarray() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    const fixedLengthSubFull = fixedLength.subarray(0);
+    assertEquals([0, 2, 4, 6], ToNumbers(fixedLengthSubFull));
+    const fixedLengthWithOffsetSubFull = fixedLengthWithOffset.subarray(0);
+    assertEquals([4, 6], ToNumbers(fixedLengthWithOffsetSubFull));
+    const lengthTrackingSubFull = lengthTracking.subarray(0);
+    assertEquals([0, 2, 4, 6], ToNumbers(lengthTrackingSubFull));
+    const lengthTrackingWithOffsetSubFull =
+        lengthTrackingWithOffset.subarray(0);
+    assertEquals([4, 6], ToNumbers(lengthTrackingWithOffsetSubFull));
+
+    // Relative offsets
+    assertEquals([4, 6], ToNumbers(fixedLength.subarray(-2)));
+    assertEquals([6], ToNumbers(fixedLengthWithOffset.subarray(-1)));
+    assertEquals([4, 6], ToNumbers(lengthTracking.subarray(-2)));
+    assertEquals([6], ToNumbers(lengthTrackingWithOffset.subarray(-1)));
+
+    // Grow.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    assertEquals([0, 2, 4, 6], ToNumbers(fixedLength.subarray(0)));
+    assertEquals([4, 6], ToNumbers(fixedLengthWithOffset.subarray(0)));
+    assertEquals([0, 2, 4, 6, 8, 10], ToNumbers(lengthTracking.subarray(0)));
+    assertEquals([4, 6, 8, 10],
+                 ToNumbers(lengthTrackingWithOffset.subarray(0)));
+
+    assertEquals(4, fixedLengthSubFull.length);
+    assertEquals(2, fixedLengthWithOffsetSubFull.length);
+
+    // TODO(v8:11111): Are subarrays of length-tracking TAs also
+    // length-tracking? See
+    // https://github.com/tc39/proposal-resizablearraybuffer/issues/91
+    assertEquals(4, lengthTrackingSubFull.length);
+    assertEquals(2, lengthTrackingWithOffsetSubFull.length);
+  }
+})();
+
+(function SubarrayParameterConversionGrows() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  function CreateGsabForTest(ctor) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return gsab;
+  }
+
+  // Growing + fixed-length TA. Growing won't affect anything.
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const fixedLength = new ctor(gsab, 0, 4);
+
+    const evil = { valueOf: () => { gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+                                    return 0;}};
+    assertEquals([0, 2, 4, 6], ToNumbers(fixedLength.subarray(evil)));
+  }
+
+  // Growing + length-tracking TA. The length computation is done with the
+  // original length.
+  for (let ctor of ctors) {
+    const gsab = CreateGsabForTest(ctor);
+    const lengthTracking = new ctor(gsab, 0);
+
+    const evil = { valueOf: () => { gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+                                    return 0;}};
+
+    assertEquals([0, 2, 4, 6], ToNumbers(lengthTracking.subarray(evil)));
+  }
+})();
