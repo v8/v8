@@ -116,7 +116,7 @@ TEST(PageMemoryRegionTest, LargePageMemoryRegion) {
 }
 
 // See the comment in globals.h when setting |kGuardPageSize| for details.
-#if !(defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOSX))
+#if !(defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS))
 TEST(PageMemoryRegionTest, PlatformUsesGuardPages) {
   // This tests that the testing allocator actually uses protected guard
   // regions.
@@ -134,7 +134,7 @@ TEST(PageMemoryRegionTest, PlatformUsesGuardPages) {
   EXPECT_TRUE(SupportsCommittingGuardPages(allocator));
 #endif
 }
-#endif  // !(defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOSX))
+#endif  // !(defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS))
 
 namespace {
 
