@@ -6,7 +6,7 @@
 #define V8_CODEGEN_LOONG64_REGISTER_LOONG64_H_
 
 #include "src/codegen/loong64/constants-loong64.h"
-#include "src/codegen/register.h"
+#include "src/codegen/register-base.h"
 #include "src/codegen/reglist.h"
 
 namespace v8 {

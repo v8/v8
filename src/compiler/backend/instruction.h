@@ -11,7 +11,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/numbers/double.h"
 #include "src/codegen/external-reference.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/codegen/source-position.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"

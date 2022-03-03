@@ -1,109 +1,75 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2018 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef V8_CODEGEN_REGISTER_H_
 #define V8_CODEGEN_REGISTER_H_
 
-#include "src/base/bits.h"
-#include "src/base/bounds.h"
+#include "src/codegen/register-base.h"
 #include "src/codegen/reglist.h"
 
-namespace v8 {
+#if V8_TARGET_ARCH_IA32
+#include "src/codegen/ia32/register-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "src/codegen/x64/register-x64.h"
+#elif V8_TARGET_ARCH_ARM64
+#include "src/codegen/arm64/register-arm64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "src/codegen/arm/register-arm.h"
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#include "src/codegen/ppc/register-ppc.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "src/codegen/mips/register-mips.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/codegen/mips64/register-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/codegen/loong64/register-loong64.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/codegen/s390/register-s390.h"
+#elif V8_TARGET_ARCH_RISCV64
+#include "src/codegen/riscv64/register-riscv64.h"
+#else
+#error Unknown architecture.
+#endif
 
+namespace v8 {
 namespace internal {
 
-// Base type for CPU Registers.
-//
-// 1) We would prefer to use an enum for registers, but enum values are
-// assignment-compatible with int, which has caused code-generation bugs.
-//
-// 2) By not using an enum, we are possibly preventing the compiler from
-// doing certain constant folds, which may significantly reduce the
-// code generated for some assembly instructions (because they boil down
-// to a few constants). If this is a problem, we could change the code
-// such that we use an enum in optimized mode, and the class in debug
-// mode. This way we get the compile-time error checking in debug mode
-// and best performance in optimized code.
-template <typename SubType, int kAfterLastRegister>
-class RegisterBase {
- public:
-  static constexpr int kCode_no_reg = -1;
-  static constexpr int kNumRegisters = kAfterLastRegister;
+#define LIST_REG(V) V,
+static constexpr RegList kAllocatableGeneralRegisters = Register::ListOf(
+    ALLOCATABLE_GENERAL_REGISTERS(LIST_REG) Register::no_reg());
+#undef LIST_REG
 
-  static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
-
-  static constexpr SubType from_code(int code) {
-    DCHECK(base::IsInRange(code, 0, kNumRegisters - 1));
-    return SubType{code};
-  }
-
-  template <typename... Register>
-  static constexpr RegList ListOf(Register... regs) {
-    return CombineRegLists(regs.bit()...);
-  }
-
-  constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
-
-  constexpr int code() const {
-    DCHECK(is_valid());
-    return reg_code_;
-  }
-
-  constexpr RegList bit() const {
-    return is_valid() ? RegList{1} << code() : RegList{};
-  }
-
-  static constexpr SubType AnyOf(RegList list) {
-    DCHECK_NE(kEmptyRegList, list);
-    return from_code(base::bits::CountTrailingZeros(list));
-  }
-
-  static constexpr SubType TakeAny(RegList* list) {
-    RegList value = *list;
-    SubType result = AnyOf(value);
-    result.RemoveFrom(list);
-    return result;
-  }
-
-  constexpr void RemoveFrom(RegList* list) const {
-    DCHECK_EQ(bit(), (*list) & bit());
-    *list ^= bit();
-  }
-
-  inline constexpr bool operator==(SubType other) const {
-    return reg_code_ == other.reg_code_;
-  }
-  inline constexpr bool operator!=(SubType other) const {
-    return reg_code_ != other.reg_code_;
-  }
-
-  // Used to print the name of some special registers.
-  static const char* GetSpecialRegisterName(int code) { return "UNKNOWN"; }
-
- protected:
-  explicit constexpr RegisterBase(int code) : reg_code_(code) {}
-
- private:
-  int reg_code_;
-};
-
-template <typename RegType,
-          typename = decltype(RegisterName(std::declval<RegType>()))>
-inline std::ostream& operator<<(std::ostream& os, RegType reg) {
-  return os << RegisterName(reg);
+constexpr int AddArgumentPaddingSlots(int argument_count) {
+  return argument_count + ArgumentPaddingSlots(argument_count);
 }
 
-// Helper macros to define a {RegisterName} method based on a macro list
-// containing all names.
-#define DEFINE_REGISTER_NAMES_NAME(name) #name,
-#define DEFINE_REGISTER_NAMES(RegType, LIST)                                   \
-  inline const char* RegisterName(RegType reg) {                               \
-    static constexpr const char* Names[] = {LIST(DEFINE_REGISTER_NAMES_NAME)}; \
-    STATIC_ASSERT(arraysize(Names) == RegType::kNumRegisters);                 \
-    return reg.is_valid() ? Names[reg.code()] : "invalid";                     \
+constexpr bool ShouldPadArguments(int argument_count) {
+  return ArgumentPaddingSlots(argument_count) != 0;
+}
+
+#ifdef DEBUG
+struct CountIfValidRegisterFunctor {
+  template <typename RegType>
+  constexpr int operator()(int count, RegType reg) const {
+    return count + (reg.is_valid() ? 1 : 0);
   }
+};
+
+template <typename RegType, typename... RegTypes,
+          // All arguments must be either Register or DoubleRegister.
+          typename = typename std::enable_if<
+              base::is_same<Register, RegType, RegTypes...>::value ||
+              base::is_same<DoubleRegister, RegType, RegTypes...>::value>::type>
+inline constexpr bool AreAliased(RegType first_reg, RegTypes... regs) {
+  int num_different_regs = NumRegs(RegType::ListOf(first_reg, regs...));
+  int num_given_regs =
+      base::fold(CountIfValidRegisterFunctor{}, 0, first_reg, regs...);
+  return num_different_regs < num_given_regs;
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8
+
 #endif  // V8_CODEGEN_REGISTER_H_

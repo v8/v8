@@ -340,7 +340,7 @@ class MergePointInterpreterFrameState {
 
 #define N(V) RegisterState{nullptr},
   RegisterState register_values_[kAllocatableGeneralRegisterCount] = {
-      ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(N)};
+      ALLOCATABLE_GENERAL_REGISTERS(N)};
 #undef N
 };
 

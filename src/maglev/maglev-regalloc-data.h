@@ -17,7 +17,7 @@ class ValueNode;
 
 #define COUNT(V) +1
 static constexpr int kAllocatableGeneralRegisterCount =
-    ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(COUNT);
+    ALLOCATABLE_GENERAL_REGISTERS(COUNT);
 #undef COUNT
 
 constexpr uint8_t MapRegisterToIndex(Register r) {
@@ -25,7 +25,7 @@ constexpr uint8_t MapRegisterToIndex(Register r) {
 #define EMIT_BRANCH(V)      \
   if (r == V) return count; \
   count++;
-  ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(EMIT_BRANCH)
+  ALLOCATABLE_GENERAL_REGISTERS(EMIT_BRANCH)
 #undef EMIT_BRANCH
   // TODO(v8:7700): Re-enable UNREACHABLE once we figure out how to to avoid
   // the gcc error 'call to non-constexpr function'.
@@ -38,7 +38,7 @@ constexpr Register MapIndexToRegister(int i) {
 #define EMIT_BRANCH(V)      \
   if (i == count) return V; \
   count++;
-  ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(EMIT_BRANCH)
+  ALLOCATABLE_GENERAL_REGISTERS(EMIT_BRANCH)
 #undef EMIT_BRANCH
   // TODO(v8:7700): Re-enable UNREACHABLE once we figure out how to to avoid
   // the gcc error 'call to non-constexpr function'.

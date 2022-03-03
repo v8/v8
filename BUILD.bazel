@@ -1115,7 +1115,7 @@ filegroup(
         "src/codegen/optimized-compilation-info.h",
         "src/codegen/pending-optimization-table.cc",
         "src/codegen/pending-optimization-table.h",
-        "src/codegen/register-arch.h",
+        "src/codegen/register-base.h",
         "src/codegen/register-configuration.cc",
         "src/codegen/register-configuration.h",
         "src/codegen/register.h",

@@ -9,7 +9,7 @@
 #include "src/base/flags.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/signature.h"
 #include "src/common/globals.h"

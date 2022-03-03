@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-regalloc.h"
 
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
@@ -81,9 +82,6 @@ StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
     MaglevCompilationUnit* compilation_unit, Graph* graph)
     : compilation_unit_(compilation_unit) {
   ComputePostDominatingHoles(graph);
-  for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    free_registers_[i] = i;
-  }
   AllocateRegisters(graph);
   graph->set_stack_slots(top_of_stack_);
 }
@@ -431,9 +429,8 @@ void StraightForwardRegisterAllocator::Free(const Register& reg) {
   if (node->is_spilled()) return;
 
   // Try to move the value to another register.
-  if (free_register_size_ > 0) {
-    Register target_reg =
-        MapIndexToRegister(free_registers_[--free_register_size_]);
+  if (free_registers_ != kEmptyRegList) {
+    Register target_reg = Register::TakeAny(&free_registers_);
     SetRegister(target_reg, node);
     // Emit a gapmove.
     compiler::AllocatedOperand source(compiler::LocationOperand::REGISTER,
@@ -626,7 +623,7 @@ void StraightForwardRegisterAllocator::SpillRegisters() {
 
 void StraightForwardRegisterAllocator::FreeRegister(int i) {
   register_values_[i] = nullptr;
-  free_registers_[free_register_size_++] = i;
+  MapIndexToRegister(i).InsertInto(&free_registers_);
 }
 
 void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
@@ -668,7 +665,7 @@ void StraightForwardRegisterAllocator::FreeSomeRegister() {
 
 compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
     ValueNode* node) {
-  if (free_register_size_ == 0) FreeSomeRegister();
+  if (free_registers_ == kEmptyRegList) FreeSomeRegister();
   compiler::InstructionOperand allocation = TryAllocateRegister(node);
   DCHECK(allocation.IsAllocated());
   return compiler::AllocatedOperand::cast(allocation);
@@ -678,13 +675,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     const Register& reg, ValueNode* node) {
   if (register_values_[MapRegisterToIndex(reg)] == nullptr) {
     // If it's already free, remove it from the free list.
-    // TODO(verwaest): This should just be a mask.
-    for (int i = 0; i < free_register_size_; i++) {
-      if (MapRegisterToIndex(reg) == free_registers_[i]) {
-        std::swap(free_registers_[i], free_registers_[--free_register_size_]);
-        break;
-      }
-    }
+    reg.RemoveFrom(&free_registers_);
   } else if (register_values_[MapRegisterToIndex(reg)] == node) {
     return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                       MachineRepresentation::kTagged,
@@ -694,9 +685,8 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     DCHECK_NULL(register_values_[MapRegisterToIndex(reg)]);
   }
 #ifdef DEBUG
-  for (int i = 0; i < free_register_size_; i++) {
-    CHECK_NE(MapRegisterToIndex(reg), free_registers_[i]);
-  }
+  DCHECK_NE(free_registers_,
+            CombineRegLists(free_registers_, Register::ListOf(reg)));
 #endif
   SetRegister(reg, node);
   return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
@@ -714,29 +704,28 @@ void StraightForwardRegisterAllocator::SetRegister(Register reg,
 
 compiler::InstructionOperand
 StraightForwardRegisterAllocator::TryAllocateRegister(ValueNode* node) {
-  if (free_register_size_ == 0) return compiler::InstructionOperand();
-  int index = free_registers_[--free_register_size_];
+  if (free_registers_ == kEmptyRegList) return compiler::InstructionOperand();
+  Register reg = Register::TakeAny(&free_registers_);
 
   // Allocation succeeded. This might have found an existing allocation.
   // Simply update the state anyway.
-  SetRegister(MapIndexToRegister(index), node);
+  SetRegister(reg, node);
   return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
-                                    MachineRepresentation::kTagged,
-                                    MapIndexToRegister(index).code());
+                                    MachineRepresentation::kTagged, reg.code());
 }
 
 void StraightForwardRegisterAllocator::AssignTemporaries(NodeBase* node) {
   int num_temporaries_needed = node->num_temporaries_needed();
+  int num_free_registers = base::bits::CountPopulation(free_registers_);
 
-  RegList free_registers = kEmptyRegList;
-  while (num_temporaries_needed > free_register_size_) FreeSomeRegister();
-
-  for (int i = 0; i < node->num_temporaries_needed(); i++) {
-    Register reg = MapIndexToRegister(free_registers_[i]);
-    free_registers = CombineRegLists(free_registers, Register::ListOf(reg));
+  // Free extra registers if necessary.
+  for (int i = num_free_registers; i < num_temporaries_needed; ++i) {
+    FreeSomeRegister();
   }
 
-  node->assign_temporaries(free_registers);
+  DCHECK_GE(base::bits::CountPopulation(free_registers_),
+            num_temporaries_needed);
+  node->assign_temporaries(free_registers_);
 }
 
 void StraightForwardRegisterAllocator::InitializeRegisterValues(
@@ -751,7 +740,7 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
   }
 
   // Mark no register as free.
-  free_register_size_ = 0;
+  free_registers_ = kEmptyRegList;
 
   // Then fill it in with target information.
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {

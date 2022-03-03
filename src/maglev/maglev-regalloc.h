@@ -31,13 +31,11 @@ class StraightForwardRegisterAllocator {
 
 #define N(V) nullptr,
   ValueNode* register_values_[kAllocatableGeneralRegisterCount] = {
-      ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(N)};
+      ALLOCATABLE_GENERAL_REGISTERS(N)};
 #undef N
 
   int top_of_stack_ = 0;
-  // TODO(verwaest): Make this a RegList.
-  uint8_t free_register_size_ = kAllocatableGeneralRegisterCount;
-  uint8_t free_registers_[kAllocatableGeneralRegisterCount];
+  RegList free_registers_ = kAllocatableGeneralRegisters;
   std::vector<uint32_t> free_slots_;
 
   void ComputePostDominatingHoles(Graph* graph);

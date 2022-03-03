@@ -3,9 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/codegen/register-configuration.h"
+
 #include "src/base/lazy-instance.h"
 #include "src/codegen/cpu-features.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/common/globals.h"
 
 namespace v8 {

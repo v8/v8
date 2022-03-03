@@ -5,7 +5,7 @@
 #ifndef V8_CODEGEN_RISCV64_REGISTER_RISCV64_H_
 #define V8_CODEGEN_RISCV64_REGISTER_RISCV64_H_
 
-#include "src/codegen/register.h"
+#include "src/codegen/register-base.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/riscv64/constants-riscv64.h"
 

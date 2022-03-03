@@ -9,7 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/codegen/interface-descriptors.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 
 #if V8_TARGET_ARCH_X64
 #include "src/codegen/x64/interface-descriptors-x64-inl.h"

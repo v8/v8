@@ -5,7 +5,7 @@
 #ifndef V8_CODEGEN_IA32_REGISTER_IA32_H_
 #define V8_CODEGEN_IA32_REGISTER_IA32_H_
 
-#include "src/codegen/register.h"
+#include "src/codegen/register-base.h"
 #include "src/codegen/reglist.h"
 
 namespace v8 {

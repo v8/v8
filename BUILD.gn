@@ -2728,7 +2728,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/macro-assembler.h",
     "src/codegen/optimized-compilation-info.h",
     "src/codegen/pending-optimization-table.h",
-    "src/codegen/register-arch.h",
+    "src/codegen/register-base.h",
     "src/codegen/register-configuration.h",
     "src/codegen/register.h",
     "src/codegen/reglist.h",

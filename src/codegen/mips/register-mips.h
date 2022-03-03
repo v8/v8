@@ -6,7 +6,7 @@
 #define V8_CODEGEN_MIPS_REGISTER_MIPS_H_
 
 #include "src/codegen/mips/constants-mips.h"
-#include "src/codegen/register.h"
+#include "src/codegen/register-base.h"
 #include "src/codegen/reglist.h"
 
 namespace v8 {

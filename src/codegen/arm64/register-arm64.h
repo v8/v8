@@ -6,7 +6,7 @@
 #define V8_CODEGEN_ARM64_REGISTER_ARM64_H_
 
 #include "src/codegen/arm64/utils-arm64.h"
-#include "src/codegen/register.h"
+#include "src/codegen/register-base.h"
 #include "src/codegen/reglist.h"
 #include "src/common/globals.h"
 
