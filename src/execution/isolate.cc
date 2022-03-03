@@ -75,6 +75,7 @@
 #include "src/logging/log.h"
 #include "src/logging/metrics.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/call-site-info-inl.h"
@@ -3366,9 +3367,14 @@ void Isolate::Deinit() {
     cancelable_task_manager()->CancelAndWait();
   }
 
-  // Cancel all baseline compiler tasks.
+  // Cancel all compiler tasks.
   delete baseline_batch_compiler_;
   baseline_batch_compiler_ = nullptr;
+
+#ifdef V8_ENABLE_MAGLEV
+  delete maglev_concurrent_dispatcher_;
+  maglev_concurrent_dispatcher_ = nullptr;
+#endif  // V8_ENABLE_MAGLEV
 
   if (lazy_compile_dispatcher_) {
     lazy_compile_dispatcher_->AbortAll();
@@ -3877,6 +3883,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         this, V8::GetCurrentPlatform(), FLAG_stack_size);
   }
   baseline_batch_compiler_ = new baseline::BaselineBatchCompiler(this);
+#ifdef V8_ENABLE_MAGLEV
+  maglev_concurrent_dispatcher_ = new maglev::MaglevConcurrentDispatcher(this);
+#endif  // V8_ENABLE_MAGLEV
 
 #if USE_SIMULATOR
   simulator_data_ = new SimulatorData;

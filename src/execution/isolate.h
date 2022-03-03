@@ -87,6 +87,10 @@ namespace heap {
 class HeapTester;
 }  // namespace heap
 
+namespace maglev {
+class MaglevConcurrentDispatcher;
+}  // namespace maglev
+
 class AddressToIndexHashMap;
 class AstStringConstants;
 class Bootstrapper;
@@ -103,11 +107,11 @@ class Deoptimizer;
 class DescriptorLookupCache;
 class EmbeddedFileWriterInterface;
 class EternalHandles;
+class GlobalHandles;
+class GlobalSafepoint;
 class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
 class HeapProfiler;
-class GlobalHandles;
-class GlobalSafepoint;
 class InnerPointerToCodeCache;
 class LazyCompileDispatcher;
 class LocalIsolate;
@@ -121,7 +125,6 @@ class PersistentHandlesList;
 class ReadOnlyArtifacts;
 class RegExpStack;
 class RootVisitor;
-class TieringManager;
 class SetupIsolateDelegate;
 class Simulator;
 class SnapshotData;
@@ -130,6 +133,7 @@ class StubCache;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
+class TieringManager;
 class TracingCpuProfilerImpl;
 class UnicodeCache;
 struct ManagedPtrDestructor;
@@ -1463,10 +1467,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsDeferredHandle(Address* location);
 #endif  // DEBUG
 
-  baseline::BaselineBatchCompiler* baseline_batch_compiler() {
+  baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
     DCHECK_NOT_NULL(baseline_batch_compiler_);
     return baseline_batch_compiler_;
   }
+
+#ifdef V8_ENABLE_MAGLEV
+  maglev::MaglevConcurrentDispatcher* maglev_concurrent_dispatcher() {
+    DCHECK_NOT_NULL(maglev_concurrent_dispatcher_);
+    return maglev_concurrent_dispatcher_;
+  }
+#endif  // V8_ENABLE_MAGLEV
 
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
@@ -1731,10 +1742,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   LazyCompileDispatcher* lazy_compile_dispatcher() const {
     return lazy_compile_dispatcher_.get();
-  }
-
-  baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
-    return baseline_batch_compiler_;
   }
 
   bool IsInAnyContext(Object object, uint32_t index);
@@ -2218,6 +2225,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::unique_ptr<LazyCompileDispatcher> lazy_compile_dispatcher_;
   baseline::BaselineBatchCompiler* baseline_batch_compiler_ = nullptr;
+#ifdef V8_ENABLE_MAGLEV
+  maglev::MaglevConcurrentDispatcher* maglev_concurrent_dispatcher_ = nullptr;
+#endif  // V8_ENABLE_MAGLEV
 
   using InterruptEntry = std::pair<InterruptCallback, void*>;
   std::queue<InterruptEntry> api_interrupts_queue_;
