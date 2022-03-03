@@ -2640,7 +2640,9 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4Sub, kArmF32x4Sub)                           \
   V(F32x4Mul, kArmF32x4Mul)                           \
   V(F32x4Min, kArmF32x4Min)                           \
+  V(F32x4RelaxedMin, kArmF32x4Min)                    \
   V(F32x4Max, kArmF32x4Max)                           \
+  V(F32x4RelaxedMax, kArmF32x4Max)                    \
   V(F32x4Eq, kArmF32x4Eq)                             \
   V(F32x4Ne, kArmF32x4Ne)                             \
   V(F32x4Lt, kArmF32x4Lt)                             \
@@ -3146,6 +3148,14 @@ void InstructionSelector::VisitF64x2Pmin(Node* node) {
 
 void InstructionSelector::VisitF64x2Pmax(Node* node) {
   VisitF64x2PminOrPMax(this, kArmF64x2Pmax, node);
+}
+
+void InstructionSelector::VisitF64x2RelaxedMin(Node* node) {
+  VisitF64x2Pmin(node);
+}
+
+void InstructionSelector::VisitF64x2RelaxedMax(Node* node) {
+  VisitF64x2Pmax(node);
 }
 
 #define EXT_MUL_LIST(V)                            \
