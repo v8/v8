@@ -195,13 +195,11 @@ struct MaybeBoolFlag {
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
 #endif
 
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 ||     \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_MIPS64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_S390X
-#define ENABLE_SPARKPLUG true
-#else
-// TODO(v8:11421): Enable Sparkplug for other architectures
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+// TODO(v8:11421): Enable Sparkplug for these architectures.
 #define ENABLE_SPARKPLUG false
+#else
+#define ENABLE_SPARKPLUG true
 #endif
 
 #if ENABLE_SPARKPLUG && !defined(ANDROID)
