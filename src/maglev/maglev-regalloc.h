@@ -18,25 +18,6 @@ namespace maglev {
 
 class MaglevPrintingVisitor;
 
-struct LiveNodeInfo {
-  ValueNode* node;
-  uint32_t last_use = 0;
-  uint32_t next_use = 0;
-  compiler::InstructionOperand stack_slot = compiler::InstructionOperand();
-  RegList registers = kEmptyRegList;
-
-  bool has_register() const { return registers != kEmptyRegList; }
-
-  compiler::AllocatedOperand allocation() const {
-    if (has_register()) {
-      return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
-                                        MachineRepresentation::kTagged,
-                                        Register::AnyOf(registers).code());
-    }
-    return compiler::AllocatedOperand::cast(stack_slot);
-  }
-};
-
 class StraightForwardRegisterAllocator {
  public:
   StraightForwardRegisterAllocator(MaglevCompilationUnit* compilation_unit,
@@ -48,12 +29,8 @@ class StraightForwardRegisterAllocator {
  private:
   std::vector<int> future_register_uses_[kAllocatableGeneralRegisterCount];
 
-  // Currently live values.
-  using LiveNodeInfoMap = std::map<ValueNode*, LiveNodeInfo>;
-  LiveNodeInfoMap values_;
-
 #define N(V) nullptr,
-  LiveNodeInfo* register_values_[kAllocatableGeneralRegisterCount] = {
+  ValueNode* register_values_[kAllocatableGeneralRegisterCount] = {
       ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(N)};
 #undef N
 
@@ -62,13 +39,6 @@ class StraightForwardRegisterAllocator {
   uint8_t free_register_size_ = kAllocatableGeneralRegisterCount;
   uint8_t free_registers_[kAllocatableGeneralRegisterCount];
   std::vector<uint32_t> free_slots_;
-
-  LiveNodeInfo* MakeLive(ValueNode* node) {
-    uint32_t last_use = node->live_range().end;
-    // TODO(verwaest): We don't currently have next_use info...
-    uint32_t next_use = node->next_use();
-    return &(values_[node] = {node, last_use, next_use});
-  }
 
   void ComputePostDominatingHoles(Graph* graph);
   void AllocateRegisters(Graph* graph);
@@ -82,11 +52,12 @@ class StraightForwardRegisterAllocator {
   void AllocateNodeResult(ValueNode* node);
   void AssignInput(Input& input);
   void AssignTemporaries(NodeBase* node);
-  void TryAllocateToInput(LiveNodeInfo* info, Phi* phi);
+  void TryAllocateToInput(Phi* phi);
 
-  void FreeRegisters(RegList* list) {
-    while (*list != kEmptyRegList) {
-      Register reg = Register::TakeAny(list);
+  void FreeRegisters(ValueNode* node) {
+    RegList list = node->ClearRegisters();
+    while (list != kEmptyRegList) {
+      Register reg = Register::TakeAny(&list);
       FreeRegister(MapRegisterToIndex(reg));
     }
   }
@@ -95,20 +66,20 @@ class StraightForwardRegisterAllocator {
   void AddMoveBeforeCurrentNode(compiler::AllocatedOperand source,
                                 compiler::AllocatedOperand target);
 
-  void AllocateSpillSlot(LiveNodeInfo* info);
-  void Spill(LiveNodeInfo* info);
+  void AllocateSpillSlot(ValueNode* node);
+  void Spill(ValueNode* node);
   void SpillAndClearRegisters();
   void SpillRegisters();
 
-  compiler::AllocatedOperand AllocateRegister(LiveNodeInfo* info);
+  compiler::AllocatedOperand AllocateRegister(ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(const Register& reg,
-                                           LiveNodeInfo* info);
-  void SetRegister(Register reg, LiveNodeInfo* info);
+                                           ValueNode* node);
+  void SetRegister(Register reg, ValueNode* node);
   void Free(const Register& reg);
-  compiler::InstructionOperand TryAllocateRegister(LiveNodeInfo* info);
+  compiler::InstructionOperand TryAllocateRegister(ValueNode* node);
 
   void InitializeRegisterValues(RegisterState* target_state);
-  void EnsureInRegister(RegisterState* target_state, LiveNodeInfo* incoming);
+  void EnsureInRegister(RegisterState* target_state, ValueNode* incoming);
 
   void InitializeBranchTargetRegisterValues(ControlNode* source,
                                             BasicBlock* target);

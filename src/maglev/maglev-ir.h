@@ -9,6 +9,7 @@
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
+#include "src/codegen/reglist.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/heap-refs.h"
@@ -431,6 +432,8 @@ class NodeBase : public ZoneObject {
   }
 
   uint32_t bit_field_;
+
+ private:
   NodeIdT id_ = kInvalidNodeId;
 
   union {
@@ -445,7 +448,6 @@ class NodeBase : public ZoneObject {
   } kTemporariesState = kUnset;
 #endif  // DEBUG
 
- private:
   NodeBase() = delete;
   NodeBase(const NodeBase&) = delete;
   NodeBase(NodeBase&&) = delete;
@@ -554,6 +556,33 @@ class ValueNode : public Node {
   LiveRange live_range() const { return {start_id(), end_id_}; }
   NodeIdT next_use() const { return next_use_; }
 
+  // The following metods should only be used during register allocation, to
+  // mark the _current_ state of this Node according to the register allocator.
+  void set_next_use(NodeIdT use) { next_use_ = use; }
+
+  // A node is dead once it has no more upcoming uses.
+  bool is_dead() const { return next_use_ == kInvalidNodeId; }
+
+  void AddRegister(Register reg) {
+    registers_with_result_ =
+        CombineRegLists(registers_with_result_, Register::ListOf(reg));
+  }
+  void RemoveRegister(Register reg) { reg.RemoveFrom(&registers_with_result_); }
+  RegList ClearRegisters() {
+    return std::exchange(registers_with_result_, kEmptyRegList);
+  }
+  bool has_register() const { return registers_with_result_ != kEmptyRegList; }
+
+  compiler::AllocatedOperand allocation() const {
+    if (has_register()) {
+      return compiler::AllocatedOperand(
+          compiler::LocationOperand::REGISTER, MachineRepresentation::kTagged,
+          Register::AnyOf(registers_with_result_).code());
+    }
+    DCHECK(is_spilled());
+    return compiler::AllocatedOperand::cast(spill_or_hint_);
+  }
+
  protected:
   explicit ValueNode(Opcode opcode, size_t input_count)
       : Node(opcode, input_count),
@@ -571,6 +600,7 @@ class ValueNode : public Node {
   NodeIdT end_id_ = kInvalidNodeId;
   NodeIdT next_use_ = kInvalidNodeId;
   ValueLocation result_;
+  RegList registers_with_result_ = kEmptyRegList;
   union {
     // Pointer to the current last use's next_use_id field. Most of the time
     // this will be a pointer to an Input's next_use_id_ field, but it's

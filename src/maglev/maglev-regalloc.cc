@@ -56,21 +56,23 @@ ControlNode* NearestPostDominatingHole(ControlNode* node) {
   return node;
 }
 
-bool IsLiveAtTarget(LiveNodeInfo* info, ControlNode* source,
-                    BasicBlock* target) {
-  if (info == nullptr) return false;
+bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
+  if (!node) return false;
+
+  // TODO(leszeks): We shouldn't have any dead nodes passed into here.
+  if (node->is_dead()) return false;
 
   // If we're looping, a value can only be live if it was live before the loop.
   if (target->control_node()->id() <= source->id()) {
     // Gap moves may already be inserted in the target, so skip over those.
-    return info->node->id() < target->FirstNonGapMoveId();
+    return node->id() < target->FirstNonGapMoveId();
   }
   // TODO(verwaest): This should be true but isn't because we don't yet
   // eliminate dead code.
-  // DCHECK_GT(info->next_use, source->id());
+  // DCHECK_GT(node->next_use, source->id());
   // TODO(verwaest): Since we don't support deopt yet we can only deal with
   // direct branches. Add support for holes.
-  return info->last_use >= target->first_id();
+  return node->live_range().end >= target->first_id();
 }
 
 }  // namespace
@@ -198,15 +200,14 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles(
 void StraightForwardRegisterAllocator::PrintLiveRegs() const {
   bool first = true;
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* info = register_values_[i];
-    if (info == nullptr) continue;
+    ValueNode* node = register_values_[i];
+    if (!node) continue;
     if (first) {
       first = false;
     } else {
       printing_visitor_->os() << ", ";
     }
-    printing_visitor_->os()
-        << MapIndexToRegister(i) << "=v" << info->node->id();
+    printing_visitor_->os() << MapIndexToRegister(i) << "=v" << node->id();
   }
 }
 
@@ -260,14 +261,12 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
       // location.
       for (Phi* phi : *block->phis()) {
         phi->SetNoSpillOrHint();
-        LiveNodeInfo* info = MakeLive(phi);
-        TryAllocateToInput(info, phi);
+        TryAllocateToInput(phi);
       }
       // Secondly try to assign the phi to a free register.
       for (Phi* phi : *block->phis()) {
         if (phi->result().operand().IsAllocated()) continue;
-        compiler::InstructionOperand allocation =
-            TryAllocateRegister(&values_[phi]);
+        compiler::InstructionOperand allocation = TryAllocateRegister(phi);
         if (allocation.IsAllocated()) {
           phi->result().SetAllocated(
               compiler::AllocatedOperand::cast(allocation));
@@ -283,11 +282,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
       // Finally just use a stack slot.
       for (Phi* phi : *block->phis()) {
         if (phi->result().operand().IsAllocated()) continue;
-        LiveNodeInfo& info = values_[phi];
-        AllocateSpillSlot(&info);
+        AllocateSpillSlot(phi);
         // TODO(verwaest): Will this be used at all?
-        phi->result().SetAllocated(
-            compiler::AllocatedOperand::cast(info.stack_slot));
+        phi->result().SetAllocated(phi->spill_slot());
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
               phi, ProcessingState(compilation_unit_, block_it_, nullptr,
@@ -315,28 +312,24 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
 void StraightForwardRegisterAllocator::UpdateInputUse(uint32_t use,
                                                       const Input& input) {
   ValueNode* node = input.node();
-  auto it = values_.find(node);
 
   // The value was already cleared through a previous input.
-  if (it == values_.end()) return;
+  if (node->is_dead()) return;
+
+  // Update the next use.
+  node->set_next_use(input.next_use_id());
 
   // If a value is dead, make sure it's cleared.
-  if (node->live_range().end == use) {
-    LiveNodeInfo& info = it->second;
-    FreeRegisters(&info.registers);
+  if (node->is_dead()) {
+    FreeRegisters(node);
 
     // If the stack slot is a local slot, free it so it can be reused.
-    if (info.stack_slot.IsAnyStackSlot()) {
-      compiler::AllocatedOperand slot =
-          compiler::AllocatedOperand::cast(info.stack_slot);
+    if (node->is_spilled()) {
+      compiler::AllocatedOperand slot = node->spill_slot();
       if (slot.index() > 0) free_slots_.push_back(slot.index());
     }
-    values_.erase(it);
     return;
   }
-
-  // Otherwise update the next use.
-  it->second.next_use = input.next_use_id();
 }
 
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
@@ -362,7 +355,6 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
 }
 
 void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
-  LiveNodeInfo* info = MakeLive(node);
   DCHECK(!node->Is<Phi>());
 
   node->SetNoSpillOrHint();
@@ -379,25 +371,24 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
                                         operand.fixed_slot_index());
     node->result().SetAllocated(location);
     node->Spill(location);
-    info->stack_slot = location;
     return;
   }
 
   switch (operand.extended_policy()) {
     case compiler::UnallocatedOperand::FIXED_REGISTER: {
       Register r = Register::from_code(operand.fixed_register_index());
-      node->result().SetAllocated(ForceAllocate(r, info));
+      node->result().SetAllocated(ForceAllocate(r, node));
       break;
     }
 
     case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
-      node->result().SetAllocated(AllocateRegister(info));
+      node->result().SetAllocated(AllocateRegister(node));
       break;
 
     case compiler::UnallocatedOperand::SAME_AS_INPUT: {
       Input& input = node->input(operand.input_index());
       Register r = input.AssignedRegister();
-      node->result().SetAllocated(ForceAllocate(r, info));
+      node->result().SetAllocated(ForceAllocate(r, node));
       break;
     }
 
@@ -414,37 +405,36 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
   // TODO(verwaest): Remove once we can avoid allocating such registers.
   if (!node->has_valid_live_range() &&
       node->result().operand().IsAnyRegister()) {
-    auto it = values_.find(node);
-    DCHECK(it->second.has_register());
-    FreeRegisters(&it->second.registers);
-    DCHECK(!it->second.has_register());
-    values_.erase(it);
+    DCHECK(node->has_register());
+    FreeRegisters(node);
+    DCHECK(!node->has_register());
+    DCHECK(node->is_dead());
   }
 }
 
 void StraightForwardRegisterAllocator::Free(const Register& reg) {
   int index = MapRegisterToIndex(reg);
-  LiveNodeInfo* info = register_values_[index];
+  ValueNode* node = register_values_[index];
 
   // If the register is already free, return.
-  if (info == nullptr) return;
+  if (!node) return;
 
   // Free the register without adding it to the list.
   register_values_[index] = nullptr;
 
   // Remove the register from the list.
-  reg.RemoveFrom(&info->registers);
+  node->RemoveRegister(reg);
   // Return if the removed value already has another register.
-  if (info->has_register()) return;
+  if (node->has_register()) return;
 
   // If the value is already spilled, return.
-  if (info->stack_slot.IsAnyStackSlot()) return;
+  if (node->is_spilled()) return;
 
   // Try to move the value to another register.
   if (free_register_size_ > 0) {
     Register target_reg =
         MapIndexToRegister(free_registers_[--free_register_size_]);
-    SetRegister(target_reg, info);
+    SetRegister(target_reg, node);
     // Emit a gapmove.
     compiler::AllocatedOperand source(compiler::LocationOperand::REGISTER,
                                       MachineRepresentation::kTagged,
@@ -454,36 +444,36 @@ void StraightForwardRegisterAllocator::Free(const Register& reg) {
                                       target_reg.code());
 
     if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->os() << "gap move: ";
-      graph_labeller()->PrintNodeLabel(std::cout, info->node);
-      printing_visitor_->os() << ": " << target << " ← " << source << std::endl;
+      printing_visitor_->os()
+          << "gap move: " << PrintNodeLabel(graph_labeller(), node) << ": "
+          << target << " ← " << source << std::endl;
     }
     AddMoveBeforeCurrentNode(source, target);
     return;
   }
 
   // If all else fails, spill the value.
-  Spill(info);
+  Spill(node);
 }
 
 void StraightForwardRegisterAllocator::InitializeConditionalBranchRegisters(
-    ConditionalControlNode* node, BasicBlock* target) {
+    ConditionalControlNode* control_node, BasicBlock* target) {
   if (target->is_empty_block()) {
     // Jumping over an empty block, so we're in fact merging.
     Jump* jump = target->control_node()->Cast<Jump>();
     target = jump->target();
-    return MergeRegisterValues(node, target, jump->predecessor_id());
+    return MergeRegisterValues(control_node, target, jump->predecessor_id());
   }
   if (target->has_state()) {
     // Not a fall-through branch, copy the state over.
-    return InitializeBranchTargetRegisterValues(node, target);
+    return InitializeBranchTargetRegisterValues(control_node, target);
   }
   // Clear dead fall-through registers.
-  DCHECK_EQ(node->id() + 1, target->first_id());
+  DCHECK_EQ(control_node->id() + 1, target->first_id());
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* info = register_values_[i];
-    if (info != nullptr && !IsLiveAtTarget(info, node, target)) {
-      FreeRegisters(&info->registers);
+    ValueNode* node = register_values_[i];
+    if (node != nullptr && !IsLiveAtTarget(node, control_node, target)) {
+      FreeRegisters(node);
     }
   }
 }
@@ -503,8 +493,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
       Phi::List* phis = target->phis();
       for (Phi* phi : *phis) {
         Input& input = phi->input(block->predecessor_id());
-        LiveNodeInfo& info = values_[input.node()];
-        input.InjectAllocated(info.allocation());
+        input.InjectAllocated(input.node()->allocation());
       }
       for (Phi* phi : *phis) {
         UpdateInputUse(phi->id(), phi->input(block->predecessor_id()));
@@ -535,18 +524,15 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   }
 }
 
-void StraightForwardRegisterAllocator::TryAllocateToInput(LiveNodeInfo* info,
-                                                          Phi* phi) {
-  DCHECK_EQ(info->node, phi);
+void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
   // Try allocate phis to a register used by any of the inputs.
   for (Input& input : *phi) {
     if (input.operand().IsRegister()) {
       Register reg = input.AssignedRegister();
       int index = MapRegisterToIndex(reg);
       if (register_values_[index] == nullptr) {
-        phi->result().SetAllocated(ForceAllocate(reg, info));
+        phi->result().SetAllocated(ForceAllocate(reg, phi));
         if (FLAG_trace_maglev_regalloc) {
-          Phi* phi = info->node->Cast<Phi>();
           printing_visitor_->Process(
               phi, ProcessingState(compilation_unit_, block_it_, nullptr,
                                    nullptr, nullptr));
@@ -576,22 +562,21 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
   }
 }
 
-void StraightForwardRegisterAllocator::Spill(LiveNodeInfo* info) {
-  if (info->stack_slot.IsAnyStackSlot()) return;
-  AllocateSpillSlot(info);
+void StraightForwardRegisterAllocator::Spill(ValueNode* node) {
+  if (node->is_spilled()) return;
+  AllocateSpillSlot(node);
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->os()
-        << "spill: " << info->stack_slot << " ← v"
-        << graph_labeller()->NodeId(info->node) << std::endl;
+        << "spill: " << node->spill_slot() << " ← "
+        << PrintNodeLabel(graph_labeller(), node) << std::endl;
   }
-  info->node->Spill(compiler::AllocatedOperand::cast(info->stack_slot));
 }
 
 void StraightForwardRegisterAllocator::AssignInput(Input& input) {
   compiler::UnallocatedOperand operand =
       compiler::UnallocatedOperand::cast(input.operand());
-  LiveNodeInfo* info = &values_[input.node()];
-  compiler::AllocatedOperand location = info->allocation();
+  ValueNode* node = input.node();
+  compiler::AllocatedOperand location = node->allocation();
 
   switch (operand.extended_policy()) {
     case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
@@ -601,7 +586,7 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
 
     case compiler::UnallocatedOperand::FIXED_REGISTER: {
       Register reg = Register::from_code(operand.fixed_register_index());
-      input.SetAllocated(ForceAllocate(reg, info));
+      input.SetAllocated(ForceAllocate(reg, node));
       break;
     }
 
@@ -609,7 +594,7 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
       if (location.IsAnyRegister()) {
         input.SetAllocated(location);
       } else {
-        input.SetAllocated(AllocateRegister(info));
+        input.SetAllocated(AllocateRegister(node));
       }
       break;
 
@@ -633,9 +618,9 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
 
 void StraightForwardRegisterAllocator::SpillRegisters() {
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* info = register_values_[i];
-    if (info == nullptr) continue;
-    Spill(info);
+    ValueNode* node = register_values_[i];
+    if (!node) continue;
+    Spill(node);
   }
 }
 
@@ -646,15 +631,15 @@ void StraightForwardRegisterAllocator::FreeRegister(int i) {
 
 void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* info = register_values_[i];
-    if (info == nullptr) continue;
-    Spill(info);
-    FreeRegisters(&info->registers);
+    ValueNode* node = register_values_[i];
+    if (!node) continue;
+    Spill(node);
+    FreeRegisters(node);
   }
 }
 
-void StraightForwardRegisterAllocator::AllocateSpillSlot(LiveNodeInfo* info) {
-  DCHECK(info->stack_slot.IsInvalid());
+void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
+  DCHECK(!node->is_spilled());
   uint32_t free_slot;
   if (free_slots_.empty()) {
     free_slot = top_of_stack_++;
@@ -662,9 +647,9 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(LiveNodeInfo* info) {
     free_slot = free_slots_.back();
     free_slots_.pop_back();
   }
-  info->stack_slot =
-      compiler::AllocatedOperand(compiler::AllocatedOperand::STACK_SLOT,
-                                 MachineRepresentation::kTagged, free_slot);
+  node->Spill(compiler::AllocatedOperand(compiler::AllocatedOperand::STACK_SLOT,
+                                         MachineRepresentation::kTagged,
+                                         free_slot));
 }
 
 void StraightForwardRegisterAllocator::FreeSomeRegister() {
@@ -672,7 +657,7 @@ void StraightForwardRegisterAllocator::FreeSomeRegister() {
   int longest = -1;
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
     if (!register_values_[i]) continue;
-    int use = register_values_[i]->next_use;
+    int use = register_values_[i]->next_use();
     if (use > furthest_use) {
       furthest_use = use;
       longest = i;
@@ -682,15 +667,15 @@ void StraightForwardRegisterAllocator::FreeSomeRegister() {
 }
 
 compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
-    LiveNodeInfo* info) {
+    ValueNode* node) {
   if (free_register_size_ == 0) FreeSomeRegister();
-  compiler::InstructionOperand allocation = TryAllocateRegister(info);
+  compiler::InstructionOperand allocation = TryAllocateRegister(node);
   DCHECK(allocation.IsAllocated());
   return compiler::AllocatedOperand::cast(allocation);
 }
 
 compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
-    const Register& reg, LiveNodeInfo* info) {
+    const Register& reg, ValueNode* node) {
   if (register_values_[MapRegisterToIndex(reg)] == nullptr) {
     // If it's already free, remove it from the free list.
     // TODO(verwaest): This should just be a mask.
@@ -700,7 +685,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
         break;
       }
     }
-  } else if (register_values_[MapRegisterToIndex(reg)] == info) {
+  } else if (register_values_[MapRegisterToIndex(reg)] == node) {
     return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                       MachineRepresentation::kTagged,
                                       reg.code());
@@ -713,28 +698,28 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     CHECK_NE(MapRegisterToIndex(reg), free_registers_[i]);
   }
 #endif
-  SetRegister(reg, info);
+  SetRegister(reg, node);
   return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                     MachineRepresentation::kTagged, reg.code());
 }
 
 void StraightForwardRegisterAllocator::SetRegister(Register reg,
-                                                   LiveNodeInfo* info) {
+                                                   ValueNode* node) {
   int index = MapRegisterToIndex(reg);
-  DCHECK_IMPLIES(register_values_[index] != info,
+  DCHECK_IMPLIES(register_values_[index] != node,
                  register_values_[index] == nullptr);
-  register_values_[index] = info;
-  info->registers = CombineRegLists(info->registers, Register::ListOf(reg));
+  register_values_[index] = node;
+  node->AddRegister(reg);
 }
 
 compiler::InstructionOperand
-StraightForwardRegisterAllocator::TryAllocateRegister(LiveNodeInfo* info) {
+StraightForwardRegisterAllocator::TryAllocateRegister(ValueNode* node) {
   if (free_register_size_ == 0) return compiler::InstructionOperand();
   int index = free_registers_[--free_register_size_];
 
   // Allocation succeeded. This might have found an existing allocation.
   // Simply update the state anyway.
-  SetRegister(MapIndexToRegister(index), info);
+  SetRegister(MapIndexToRegister(index), node);
   return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                     MachineRepresentation::kTagged,
                                     MapIndexToRegister(index).code());
@@ -760,9 +745,9 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
   // TODO(verwaest): We could loop over the list of allocated registers by
   // deducing it from the free registers.
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* info = register_values_[i];
-    if (info == nullptr) continue;
-    info->registers = kEmptyRegList;
+    ValueNode* node = register_values_[i];
+    if (!node) continue;
+    node->ClearRegisters();
   }
 
   // Mark no register as free.
@@ -770,7 +755,7 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
 
   // Then fill it in with target information.
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* node;
+    ValueNode* node;
     RegisterMerge* merge;
     LoadMergeState(target_state[i], &node, &merge);
     if (node == nullptr) {
@@ -783,11 +768,11 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
 }
 
 void StraightForwardRegisterAllocator::EnsureInRegister(
-    RegisterState* target_state, LiveNodeInfo* incoming) {
+    RegisterState* target_state, ValueNode* incoming) {
 #ifdef DEBUG
   int i;
   for (i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* node;
+    ValueNode* node;
     RegisterMerge* merge;
     LoadMergeState(target_state[i], &node, &merge);
     if (node == incoming) break;
@@ -801,9 +786,9 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
   RegisterState* target_state = target->state()->register_state();
   DCHECK(!target_state[0].GetPayload().is_initialized);
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* info = register_values_[i];
-    if (!IsLiveAtTarget(info, source, target)) info = nullptr;
-    target_state[i] = {info, initialized_node};
+    ValueNode* node = register_values_[i];
+    if (!IsLiveAtTarget(node, source, target)) node = nullptr;
+    target_state[i] = {node, initialized_node};
   }
 }
 
@@ -818,7 +803,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
 
   int predecessor_count = target->state()->predecessor_count();
   for (int i = 0; i < kAllocatableGeneralRegisterCount; i++) {
-    LiveNodeInfo* node;
+    ValueNode* node;
     RegisterMerge* merge;
     LoadMergeState(target_state[i], &node, &merge);
 
@@ -826,7 +811,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
         compiler::LocationOperand::REGISTER, MachineRepresentation::kTagged,
         MapIndexToRegister(i).code()};
 
-    LiveNodeInfo* incoming = register_values_[i];
+    ValueNode* incoming = register_values_[i];
     if (!IsLiveAtTarget(incoming, control, target)) incoming = nullptr;
 
     if (incoming == node) {
@@ -843,14 +828,14 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
 
       // If there's a value in the incoming state, that value is either
       // already spilled or in another place in the merge state.
-      if (incoming != nullptr && incoming->stack_slot.IsAnyStackSlot()) {
+      if (incoming != nullptr && incoming->is_spilled()) {
         EnsureInRegister(target_state, incoming);
       }
       continue;
     }
 
     DCHECK_IMPLIES(node == nullptr, incoming != nullptr);
-    if (node == nullptr && !incoming->stack_slot.IsAnyStackSlot()) {
+    if (node == nullptr && !incoming->is_spilled()) {
       // If the register is unallocated at the merge point, and the incoming
       // value isn't spilled, that means we must have seen it already in a
       // different register.
@@ -868,8 +853,9 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     // is the spill slot for the incoming value. Otherwise all incoming
     // branches agree that the current node is in the register info.
     compiler::AllocatedOperand info_so_far =
-        node == nullptr ? compiler::AllocatedOperand::cast(incoming->stack_slot)
-                        : register_info;
+        node == nullptr
+            ? compiler::AllocatedOperand::cast(incoming->spill_slot())
+            : register_info;
 
     // Initialize the entire array with info_so_far since we don't know in
     // which order we've seen the predecessors so far. Predecessors we

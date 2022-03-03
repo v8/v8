@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-struct LiveNodeInfo;
+class ValueNode;
 
 #define COUNT(V) +1
 static constexpr int kAllocatableGeneralRegisterCount =
@@ -78,7 +78,7 @@ struct RegisterMerge {
   }
   compiler::AllocatedOperand& operand(size_t i) { return operands()[i]; }
 
-  LiveNodeInfo* node;
+  ValueNode* node;
 };
 
 inline bool LoadMergeState(RegisterState state, RegisterMerge** merge) {
@@ -91,14 +91,14 @@ inline bool LoadMergeState(RegisterState state, RegisterMerge** merge) {
   return false;
 }
 
-inline bool LoadMergeState(RegisterState state, LiveNodeInfo** node,
+inline bool LoadMergeState(RegisterState state, ValueNode** node,
                            RegisterMerge** merge) {
   DCHECK(state.GetPayload().is_initialized);
   if (LoadMergeState(state, merge)) {
     *node = (*merge)->node;
     return true;
   }
-  *node = static_cast<LiveNodeInfo*>(state.GetPointer());
+  *node = static_cast<ValueNode*>(state.GetPointer());
   return false;
 }
 
