@@ -17,6 +17,15 @@ namespace internal {
 
 namespace maglev {
 
+// TODO(v8:7700): Clean up after all bytecodes are supported.
+#define MAGLEV_UNIMPLEMENTED_BYTECODE(Name)                             \
+  void MaglevGraphBuilder::Visit##Name() {                              \
+    std::cerr << "Maglev: Can't compile, bytecode " #Name               \
+                 " is not supported\n";                                 \
+    found_unsupported_bytecode_ = true;                                 \
+    this_field_will_be_unused_once_all_bytecodes_are_supported_ = true; \
+  }
+
 void MaglevGraphBuilder::VisitLdar() { SetAccumulator(LoadRegister(0)); }
 
 void MaglevGraphBuilder::VisitLdaZero() {
@@ -41,13 +50,11 @@ void MaglevGraphBuilder::VisitLdaTrue() {
 void MaglevGraphBuilder::VisitLdaFalse() {
   SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kFalseValue));
 }
-void MaglevGraphBuilder::VisitLdaConstant() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaContextSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaImmutableContextSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaCurrentContextSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
-  UNREACHABLE();
-}
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaConstant)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaContextSlot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaImmutableContextSlot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaCurrentContextSlot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaImmutableCurrentContextSlot)
 void MaglevGraphBuilder::VisitStar() {
   StoreRegister(
       iterator_.GetRegisterOperand(0), GetAccumulator(),
@@ -58,13 +65,13 @@ void MaglevGraphBuilder::VisitMov() {
       iterator_.GetRegisterOperand(1), LoadRegister(0),
       bytecode_analysis().GetOutLivenessFor(iterator_.current_offset()));
 }
-void MaglevGraphBuilder::VisitPushContext() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitPopContext() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestReferenceEqual() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestUndetectable() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestNull() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestUndefined() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestTypeOf() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(PushContext)
+MAGLEV_UNIMPLEMENTED_BYTECODE(PopContext)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestReferenceEqual)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestUndetectable)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestNull)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestUndefined)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestTypeOf)
 void MaglevGraphBuilder::VisitLdaGlobal() {
   // LdaGlobal <name_index> <slot>
 
@@ -80,21 +87,17 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
   SetAccumulator(AddNewNode<LoadGlobal>({context}, name));
   MarkPossibleSideEffect();
 }
-void MaglevGraphBuilder::VisitLdaGlobalInsideTypeof() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaGlobal() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaContextSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaCurrentContextSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaLookupSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaLookupContextSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaLookupGlobalSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
-  UNREACHABLE();
-}
-void MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
-  UNREACHABLE();
-}
-void MaglevGraphBuilder::VisitStaLookupSlot() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaGlobalInsideTypeof)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaGlobal)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaContextSlot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaCurrentContextSlot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupSlot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupContextSlot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupGlobalSlot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupSlotInsideTypeof)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupContextSlotInsideTypeof)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupGlobalSlotInsideTypeof)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
 void MaglevGraphBuilder::VisitLdaNamedProperty() {
   // LdaNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
@@ -132,41 +135,41 @@ void MaglevGraphBuilder::VisitLdaNamedProperty() {
   SetAccumulator(AddNewNode<LoadNamedGeneric>({context, object}, name));
   MarkPossibleSideEffect();
 }
-void MaglevGraphBuilder::VisitLdaNamedPropertyFromSuper() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaKeyedProperty() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaModuleVariable() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaModuleVariable() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaNamedProperty() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaNamedOwnProperty() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaKeyedProperty() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaKeyedPropertyAsDefine() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaInArrayLiteral() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaDataPropertyInLiteral() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCollectTypeProfile() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitAdd() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitSub() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitMul() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitDiv() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitMod() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitExp() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitBitwiseOr() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitBitwiseXor() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitBitwiseAnd() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitShiftLeft() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitShiftRight() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitShiftRightLogical() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitAddSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitSubSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitMulSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitDivSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitModSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitExpSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitBitwiseOrSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitBitwiseXorSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitBitwiseAndSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitShiftLeftSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitShiftRightSmi() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitShiftRightLogicalSmi() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaNamedPropertyFromSuper)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaKeyedProperty)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LdaModuleVariable)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaModuleVariable)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaNamedProperty)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaNamedOwnProperty)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaKeyedProperty)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaKeyedPropertyAsDefine)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaInArrayLiteral)
+MAGLEV_UNIMPLEMENTED_BYTECODE(StaDataPropertyInLiteral)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CollectTypeProfile)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Add)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Sub)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Mul)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Div)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Mod)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Exp)
+MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseOr)
+MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseXor)
+MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseAnd)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftLeft)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRight)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRightLogical)
+MAGLEV_UNIMPLEMENTED_BYTECODE(AddSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(SubSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(MulSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(DivSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ModSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ExpSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseOrSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseXorSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseAndSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftLeftSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRightSmi)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRightLogicalSmi)
 void MaglevGraphBuilder::VisitInc() {
   // Inc <slot>
 
@@ -178,16 +181,16 @@ void MaglevGraphBuilder::VisitInc() {
   SetAccumulator(node);
   MarkPossibleSideEffect();
 }
-void MaglevGraphBuilder::VisitDec() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitNegate() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitBitwiseNot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitToBooleanLogicalNot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLogicalNot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTypeOf() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitDeletePropertyStrict() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitDeletePropertySloppy() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitGetSuperConstructor() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCallAnyReceiver() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(Dec)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Negate)
+MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseNot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ToBooleanLogicalNot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(LogicalNot)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TypeOf)
+MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertyStrict)
+MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertySloppy)
+MAGLEV_UNIMPLEMENTED_BYTECODE(GetSuperConstructor)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallAnyReceiver)
 
 // TODO(leszeks): For all of these:
 //   a) Read feedback and implement inlining
@@ -236,19 +239,19 @@ void MaglevGraphBuilder::VisitCallProperty2() {
   SetAccumulator(call_property);
   MarkPossibleSideEffect();
 }
-void MaglevGraphBuilder::VisitCallUndefinedReceiver() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCallUndefinedReceiver0() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCallUndefinedReceiver1() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCallUndefinedReceiver2() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCallWithSpread() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCallRuntime() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCallRuntimeForPair() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCallJSRuntime() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitInvokeIntrinsic() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitConstruct() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitConstructWithSpread() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestEqual() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestEqualStrict() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver0)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver1)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver2)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallWithSpread)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntime)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntimeForPair)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CallJSRuntime)
+MAGLEV_UNIMPLEMENTED_BYTECODE(InvokeIntrinsic)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Construct)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ConstructWithSpread)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestEqual)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestEqualStrict)
 void MaglevGraphBuilder::VisitTestLessThan() {
   // TestLessThan <src> <slot>
 
@@ -263,33 +266,33 @@ void MaglevGraphBuilder::VisitTestLessThan() {
   SetAccumulator(node);
   MarkPossibleSideEffect();
 }
-void MaglevGraphBuilder::VisitTestGreaterThan() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestLessThanOrEqual() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestGreaterThanOrEqual() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestInstanceOf() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitTestIn() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitToName() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitToNumber() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitToNumeric() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitToObject() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitToString() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateRegExpLiteral() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateArrayLiteral() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateArrayFromIterable() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateObjectLiteral() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCloneObject() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitGetTemplateObject() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateClosure() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateBlockContext() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateCatchContext() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateFunctionContext() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateEvalContext() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateWithContext() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateMappedArguments() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateUnmappedArguments() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitCreateRestParameter() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestGreaterThan)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestLessThanOrEqual)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestGreaterThanOrEqual)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestInstanceOf)
+MAGLEV_UNIMPLEMENTED_BYTECODE(TestIn)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ToName)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ToNumber)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ToNumeric)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ToObject)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ToString)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateRegExpLiteral)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateArrayLiteral)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateArrayFromIterable)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEmptyArrayLiteral)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateObjectLiteral)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEmptyObjectLiteral)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CloneObject)
+MAGLEV_UNIMPLEMENTED_BYTECODE(GetTemplateObject)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateClosure)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateBlockContext)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateCatchContext)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateFunctionContext)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEvalContext)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateWithContext)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateMappedArguments)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateUnmappedArguments)
+MAGLEV_UNIMPLEMENTED_BYTECODE(CreateRestParameter)
 
 void MaglevGraphBuilder::VisitJumpLoop() {
   int target = iterator_.GetJumpTargetOffset();
@@ -309,7 +312,7 @@ void MaglevGraphBuilder::VisitJump() {
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   DCHECK_LT(next_offset(), bytecode().length());
 }
-void MaglevGraphBuilder::VisitJumpConstant() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(JumpConstant)
 void MaglevGraphBuilder::VisitJumpIfNullConstant() { VisitJumpIfNull(); }
 void MaglevGraphBuilder::VisitJumpIfNotNullConstant() { VisitJumpIfNotNull(); }
 void MaglevGraphBuilder::VisitJumpIfUndefinedConstant() {
@@ -385,37 +388,35 @@ void MaglevGraphBuilder::VisitJumpIfFalse() {
   BuildBranchIfTrue(GetAccumulator(), next_offset(),
                     iterator_.GetJumpTargetOffset());
 }
-void MaglevGraphBuilder::VisitJumpIfNull() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitJumpIfNotNull() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitJumpIfUndefined() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitJumpIfNotUndefined() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitJumpIfJSReceiver() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitForInEnumerate() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitForInPrepare() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitForInContinue() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitForInNext() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitForInStep() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitSetPendingMessage() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitThrow() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitReThrow() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfNull)
+MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfNotNull)
+MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfUndefined)
+MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfNotUndefined)
+MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfUndefinedOrNull)
+MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfJSReceiver)
+MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnSmiNoFeedback)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ForInEnumerate)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ForInPrepare)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ForInContinue)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ForInNext)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ForInStep)
+MAGLEV_UNIMPLEMENTED_BYTECODE(SetPendingMessage)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Throw)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ReThrow)
 void MaglevGraphBuilder::VisitReturn() {
   FinishBlock<Return>(next_offset(), {GetAccumulator()});
 }
-void MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
-  UNREACHABLE();
-}
-void MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitSwitchOnGeneratorState() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitSuspendGenerator() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitResumeGenerator() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitGetIterator() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitDebugger() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitIncBlockCounter() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitAbort() { UNREACHABLE(); }
+MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowReferenceErrorIfHole)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowSuperNotCalledIfHole)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowSuperAlreadyCalledIfNotHole)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowIfNotSuperConstructor)
+MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnGeneratorState)
+MAGLEV_UNIMPLEMENTED_BYTECODE(SuspendGenerator)
+MAGLEV_UNIMPLEMENTED_BYTECODE(ResumeGenerator)
+MAGLEV_UNIMPLEMENTED_BYTECODE(GetIterator)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Debugger)
+MAGLEV_UNIMPLEMENTED_BYTECODE(IncBlockCounter)
+MAGLEV_UNIMPLEMENTED_BYTECODE(Abort)
 #define SHORT_STAR_VISITOR(Name, ...)                                         \
   void MaglevGraphBuilder::Visit##Name() {                                    \
     StoreRegister(                                                            \

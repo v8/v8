@@ -131,7 +131,7 @@ MaglevCompiler::MaglevCompiler(compiler::JSHeapBroker* broker,
     : compilation_data_(broker),
       toplevel_compilation_unit_(&compilation_data_, function) {}
 
-Handle<Code> MaglevCompiler::Compile() {
+MaybeHandle<Code> MaglevCompiler::Compile() {
   // Build graph.
   if (FLAG_print_maglev_code || FLAG_code_comments || FLAG_print_maglev_graph ||
       FLAG_trace_maglev_regalloc) {
@@ -141,6 +141,11 @@ Handle<Code> MaglevCompiler::Compile() {
   MaglevGraphBuilder graph_builder(&toplevel_compilation_unit_);
 
   graph_builder.Build();
+
+  // TODO(v8:7700): Clean up after all bytecodes are supported.
+  if (graph_builder.found_unsupported_bytecode()) {
+    return {};
+  }
 
   if (FLAG_print_maglev_graph) {
     std::cout << "After graph buiding" << std::endl;
@@ -167,8 +172,13 @@ Handle<Code> MaglevCompiler::Compile() {
     PrintGraph(std::cout, &toplevel_compilation_unit_, graph_builder.graph());
   }
 
-  Handle<Code> code = MaglevCodeGenerator::Generate(&toplevel_compilation_unit_,
-                                                    graph_builder.graph());
+  Handle<Code> code;
+
+  if (!MaglevCodeGenerator::Generate(&toplevel_compilation_unit_,
+                                     graph_builder.graph())
+           .ToHandle(&code)) {
+    return {};
+  }
 
   const bool deps_committed_successfully =
       broker()->dependencies()->Commit(code);

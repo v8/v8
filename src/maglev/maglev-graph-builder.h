@@ -111,10 +111,17 @@ class MaglevGraphBuilder {
   void Build() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
       VisitSingleBytecode();
+      // TODO(v8:7700): Clean up after all bytecodes are supported.
+      if (found_unsupported_bytecode()) break;
     }
   }
 
   Graph* graph() { return &graph_; }
+
+  // TODO(v8:7700): Clean up after all bytecodes are supported.
+  bool found_unsupported_bytecode() const {
+    return found_unsupported_bytecode_;
+  }
 
  private:
   BasicBlock* CreateEmptyBlock(int offset, BasicBlock* predecessor) {
@@ -425,6 +432,12 @@ class MaglevGraphBuilder {
 
   Graph graph_;
   InterpreterFrameState current_interpreter_frame_;
+
+  // Allow marking some bytecodes as unsupported during graph building, so that
+  // we can test maglev incrementally.
+  // TODO(v8:7700): Clean up after all bytecodes are supported.
+  bool found_unsupported_bytecode_ = false;
+  bool this_field_will_be_unused_once_all_bytecodes_are_supported_;
 };
 
 }  // namespace maglev

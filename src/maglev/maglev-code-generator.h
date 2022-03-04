@@ -16,8 +16,8 @@ struct MaglevCompilationUnit;
 
 class MaglevCodeGenerator : public AllStatic {
  public:
-  static Handle<Code> Generate(MaglevCompilationUnit* compilation_unit,
-                               Graph* graph);
+  static MaybeHandle<Code> Generate(MaglevCompilationUnit* compilation_unit,
+                                    Graph* graph);
 };
 
 }  // namespace maglev

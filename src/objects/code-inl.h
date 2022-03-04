@@ -284,6 +284,17 @@ inline Handle<CodeT> ToCodeT(Handle<Code> code, Isolate* isolate) {
 #endif
 }
 
+inline MaybeHandle<CodeT> ToCodeT(MaybeHandle<Code> maybe_code,
+                                  Isolate* isolate) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  Handle<Code> code;
+  if (maybe_code.ToHandle(&code)) return ToCodeT(code, isolate);
+  return {};
+#else
+  return maybe_code;
+#endif
+}
+
 inline Code FromCodeT(CodeT code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
   return code.code();

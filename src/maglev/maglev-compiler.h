@@ -24,7 +24,7 @@ class MaglevCompiler {
   explicit MaglevCompiler(compiler::JSHeapBroker* broker,
                           Handle<JSFunction> function);
 
-  Handle<Code> Compile();
+  MaybeHandle<Code> Compile();
 
   compiler::JSHeapBroker* broker() const { return compilation_data_.broker; }
   Zone* zone() { return &compilation_data_.zone; }

@@ -309,8 +309,8 @@ class MaglevCodeGeneratingNodeProcessor {
 
 class MaglevCodeGeneratorImpl final {
  public:
-  static Handle<Code> Generate(MaglevCompilationUnit* compilation_unit,
-                               Graph* graph) {
+  static MaybeHandle<Code> Generate(MaglevCompilationUnit* compilation_unit,
+                                    Graph* graph) {
     return MaglevCodeGeneratorImpl(compilation_unit, graph).Generate();
   }
 
@@ -321,7 +321,7 @@ class MaglevCodeGeneratorImpl final {
         processor_(compilation_unit, &code_gen_state_),
         graph_(graph) {}
 
-  Handle<Code> Generate() {
+  MaybeHandle<Code> Generate() {
     EmitCode();
     EmitMetadata();
     return BuildCodeObject();
@@ -337,14 +337,14 @@ class MaglevCodeGeneratorImpl final {
                                     stack_slot_count_with_fixed_frame());
   }
 
-  Handle<Code> BuildCodeObject() {
+  MaybeHandle<Code> BuildCodeObject() {
     CodeDesc desc;
     static constexpr int kNoHandlerTableOffset = 0;
     masm()->GetCode(isolate(), &desc, safepoint_table_builder(),
                     kNoHandlerTableOffset);
     return Factory::CodeBuilder{isolate(), desc, CodeKind::MAGLEV}
         .set_stack_slots(stack_slot_count_with_fixed_frame())
-        .Build();
+        .TryBuild();
   }
 
   int stack_slot_count() const { return code_gen_state_.vreg_slots(); }
@@ -367,7 +367,7 @@ class MaglevCodeGeneratorImpl final {
 };
 
 // static
-Handle<Code> MaglevCodeGenerator::Generate(
+MaybeHandle<Code> MaglevCodeGenerator::Generate(
     MaglevCompilationUnit* compilation_unit, Graph* graph) {
   return MaglevCodeGeneratorImpl::Generate(compilation_unit, graph);
 }
