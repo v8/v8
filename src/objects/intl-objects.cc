@@ -2916,5 +2916,45 @@ MaybeHandle<Object> Intl::ToIntlMathematicalValueAsNumberBigIntOrString(
   return input;
 }
 
+Intl::FormatRangeSourceTracker::FormatRangeSourceTracker() {
+  start_[0] = start_[1] = limit_[0] = limit_[1] = 0;
+}
+
+void Intl::FormatRangeSourceTracker::Add(int32_t field, int32_t start,
+                                         int32_t limit) {
+  DCHECK_LT(field, 2);
+  start_[field] = start;
+  limit_[field] = limit;
+}
+
+Intl::FormatRangeSource Intl::FormatRangeSourceTracker::GetSource(
+    int32_t start, int32_t limit) const {
+  FormatRangeSource source = FormatRangeSource::kShared;
+  if (FieldContains(0, start, limit)) {
+    source = FormatRangeSource::kStartRange;
+  } else if (FieldContains(1, start, limit)) {
+    source = FormatRangeSource::kEndRange;
+  }
+  return source;
+}
+
+bool Intl::FormatRangeSourceTracker::FieldContains(int32_t field, int32_t start,
+                                                   int32_t limit) const {
+  DCHECK_LT(field, 2);
+  return (start_[field] <= start) && (start <= limit_[field]) &&
+         (start_[field] <= limit) && (limit <= limit_[field]);
+}
+
+Handle<String> Intl::SourceString(Isolate* isolate, FormatRangeSource source) {
+  switch (source) {
+    case FormatRangeSource::kShared:
+      return ReadOnlyRoots(isolate).shared_string_handle();
+    case FormatRangeSource::kStartRange:
+      return ReadOnlyRoots(isolate).startRange_string_handle();
+    case FormatRangeSource::kEndRange:
+      return ReadOnlyRoots(isolate).endRange_string_handle();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

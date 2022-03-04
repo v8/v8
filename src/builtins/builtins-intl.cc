@@ -163,11 +163,10 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
 }
 
 // Common code for DateTimeFormatPrototypeFormtRange(|ToParts)
-template <class T>
+template <class T, MaybeHandle<T> (*F)(Isolate*, Handle<JSDateTimeFormat>,
+                                       double, double)>
 V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
-    BuiltinArguments args, Isolate* isolate, const char* const method_name,
-    MaybeHandle<T> (*format)(Isolate*, Handle<JSDateTimeFormat>, double,
-                             double)) {
+    BuiltinArguments args, Isolate* isolate, const char* const method_name) {
   // 1. Let dtf be this value.
   // 2. If Type(dtf) is not Object, throw a TypeError exception.
   CHECK_RECEIVER(JSObject, date_format_holder, method_name);
@@ -211,22 +210,22 @@ V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
   // 8. Return ? FormatDateTimeRange(dtf, x, y)
   // OR
   // 8. Return ? FormatDateTimeRangeToParts(dtf, x, y).
-  RETURN_RESULT_OR_FAILURE(isolate, format(isolate, dtf, x, y));
+  RETURN_RESULT_OR_FAILURE(isolate, F(isolate, dtf, x, y));
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatRange) {
   const char* const method_name = "Intl.DateTimeFormat.prototype.formatRange";
   HandleScope handle_scope(isolate);
-  return DateTimeFormatRange<String>(args, isolate, method_name,
-                                     JSDateTimeFormat::FormatRange);
+  return DateTimeFormatRange<String, JSDateTimeFormat::FormatRange>(
+      args, isolate, method_name);
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
   const char* const method_name =
       "Intl.DateTimeFormat.prototype.formatRangeToParts";
   HandleScope handle_scope(isolate);
-  return DateTimeFormatRange<JSArray>(args, isolate, method_name,
-                                      JSDateTimeFormat::FormatRangeToParts);
+  return DateTimeFormatRange<JSArray, JSDateTimeFormat::FormatRangeToParts>(
+      args, isolate, method_name);
 }
 
 namespace {
@@ -525,6 +524,63 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSNumberFormat::FormatNumeric(
                    isolate, *icu_localized_number_formatter, numeric_obj));
+}
+
+// Common code for NumberFormatPrototypeFormtRange(|ToParts)
+template <class T, MaybeHandle<T> (*F)(Isolate*, Handle<JSNumberFormat>,
+                                       Handle<Object>, Handle<Object>)>
+V8_WARN_UNUSED_RESULT Object NumberFormatRange(BuiltinArguments args,
+                                               Isolate* isolate,
+                                               const char* const method_name) {
+  // 1. Let nf be this value.
+  // 2. Perform ? RequireInternalSlot(nf, [[InitializedNumberFormat]]).
+  CHECK_RECEIVER(JSNumberFormat, nf, method_name);
+
+  Handle<Object> start = args.atOrUndefined(isolate, 1);
+  Handle<Object> end = args.atOrUndefined(isolate, 2);
+
+  Factory* factory = isolate->factory();
+  // 3. If start is undefined or end is undefined, throw a TypeError exception.
+  if (start->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalid,
+                     factory->NewStringFromStaticChars("start"), start));
+  }
+  if (end->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalid,
+                              factory->NewStringFromStaticChars("end"), end));
+  }
+
+  // 4. Let x be ? ToIntlMathematicalValue(start).
+  Handle<Object> x;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, x,
+      Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, start));
+
+  // 5. Let y be ? ToIntlMathematicalValue(end).
+  Handle<Object> y;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, y,
+      Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, end));
+
+  RETURN_RESULT_OR_FAILURE(isolate, F(isolate, nf, x, y));
+}
+
+BUILTIN(NumberFormatPrototypeFormatRange) {
+  const char* const method_name = "Intl.NumberFormat.prototype.formatRange";
+  HandleScope handle_scope(isolate);
+  return NumberFormatRange<String, JSNumberFormat::FormatNumericRange>(
+      args, isolate, method_name);
+}
+
+BUILTIN(NumberFormatPrototypeFormatRangeToParts) {
+  const char* const method_name =
+      "Intl.NumberFormat.prototype.formatRangeToParts";
+  HandleScope handle_scope(isolate);
+  return NumberFormatRange<JSArray, JSNumberFormat::FormatNumericRangeToParts>(
+      args, isolate, method_name);
 }
 
 BUILTIN(DateTimeFormatConstructor) {

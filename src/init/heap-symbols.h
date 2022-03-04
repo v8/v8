@@ -85,6 +85,7 @@
   V(_, minimumFractionDigits_string, "minimumFractionDigits")       \
   V(_, minimumIntegerDigits_string, "minimumIntegerDigits")         \
   V(_, minimumSignificantDigits_string, "minimumSignificantDigits") \
+  V(_, minus_0, "-0")                                               \
   V(_, minusSign_string, "minusSign")                               \
   V(_, morePrecision_string, "morePrecision")                       \
   V(_, nan_string, "nan")                                           \

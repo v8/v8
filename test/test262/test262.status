@@ -2451,23 +2451,10 @@
   'intl402/NumberFormat/constructor-roundingIncrement': [FAIL],
   'intl402/NumberFormat/test-option-roundingPriority': [FAIL],
   # NumberFormat.prototype.formatRange
-  'intl402/NumberFormat/prototype/formatRange/builtin': [FAIL],
   'intl402/NumberFormat/prototype/formatRange/en-US': [FAIL],
-  'intl402/NumberFormat/prototype/formatRange/invoked-as-func': [FAIL],
-  'intl402/NumberFormat/prototype/formatRange/length': [FAIL],
-  'intl402/NumberFormat/prototype/formatRange/name': [FAIL],
-  'intl402/NumberFormat/prototype/formatRange/nan-arguments-throws': [FAIL],
-  'intl402/NumberFormat/prototype/formatRange/prop-desc': [FAIL],
   'intl402/NumberFormat/prototype/formatRange/pt-PT': [FAIL],
   'intl402/NumberFormat/prototype/formatRange/x-greater-than-y-throws': [FAIL],
   # NumberFormat.prototype.formatRangeToParts
-  'intl402/NumberFormat/prototype/formatRangeToParts/builtin': [FAIL],
-  'intl402/NumberFormat/prototype/formatRangeToParts/en-US': [FAIL],
-  'intl402/NumberFormat/prototype/formatRangeToParts/invoked-as-func': [FAIL],
-  'intl402/NumberFormat/prototype/formatRangeToParts/length': [FAIL],
-  'intl402/NumberFormat/prototype/formatRangeToParts/name': [FAIL],
-  'intl402/NumberFormat/prototype/formatRangeToParts/nan-arguments-throws': [FAIL],
-  'intl402/NumberFormat/prototype/formatRangeToParts/prop-desc': [FAIL],
   'intl402/NumberFormat/prototype/formatRangeToParts/x-greater-than-y-throws': [FAIL],
 
   # PluralRules.prototype.selectRange

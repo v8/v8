@@ -4427,7 +4427,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_error_cause)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_number_format_v3)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
@@ -5333,6 +5332,32 @@ void Genesis::InitializeGlobal_harmony_intl_locale_info() {
                       Builtin::kLocalePrototypeTimeZones, true);
   SimpleInstallGetter(isolate(), prototype, factory()->weekInfo_string(),
                       Builtin::kLocalePrototypeWeekInfo, true);
+}
+
+void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
+  if (!FLAG_harmony_intl_number_format_v3) return;
+
+  Handle<JSObject> intl = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(
+          isolate(),
+          Handle<JSReceiver>(native_context()->global_object(), isolate()),
+          factory()->InternalizeUtf8String("Intl"))
+          .ToHandleChecked());
+
+  Handle<JSFunction> number_format_constructor = Handle<JSFunction>::cast(
+      JSReceiver::GetProperty(
+          isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
+          factory()->InternalizeUtf8String("NumberFormat"))
+          .ToHandleChecked());
+
+  Handle<JSObject> prototype(
+      JSObject::cast(number_format_constructor->prototype()), isolate());
+
+  SimpleInstallFunction(isolate(), prototype, "formatRange",
+                        Builtin::kNumberFormatPrototypeFormatRange, 2, false);
+  SimpleInstallFunction(isolate(), prototype, "formatRangeToParts",
+                        Builtin::kNumberFormatPrototypeFormatRangeToParts, 2,
+                        false);
 }
 
 void Genesis::InitializeGlobal_harmony_intl_enumeration() {

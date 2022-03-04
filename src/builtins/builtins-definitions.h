@@ -1771,6 +1771,10 @@ namespace internal {
   CPP(NumberFormatInternalFormatNumber)                                \
   /* ecma402 #sec-intl.numberformat.prototype.format */                \
   CPP(NumberFormatPrototypeFormatNumber)                               \
+  /* ecma402 #sec-intl.numberformat.prototype.formatrange */           \
+  CPP(NumberFormatPrototypeFormatRange)                                \
+  /* ecma402 #sec-intl.numberformat.prototype.formatrangetoparts */    \
+  CPP(NumberFormatPrototypeFormatRangeToParts)                         \
   /* ecma402 #sec-intl.numberformat.prototype.formattoparts */         \
   CPP(NumberFormatPrototypeFormatToParts)                              \
   /* ecma402 #sec-intl.numberformat.prototype.resolvedoptions */       \

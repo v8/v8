@@ -2101,56 +2101,12 @@ Handle<String> JSDateTimeFormat::HourCycleAsString() const {
   }
 }
 
-enum Source { kShared, kStartRange, kEndRange };
-
 namespace {
 
-class SourceTracker {
- public:
-  SourceTracker() { start_[0] = start_[1] = limit_[0] = limit_[1] = 0; }
-  void Add(int32_t field, int32_t start, int32_t limit) {
-    DCHECK_LT(field, 2);
-    start_[field] = start;
-    limit_[field] = limit;
-  }
-
-  Source GetSource(int32_t start, int32_t limit) const {
-    Source source = Source::kShared;
-    if (FieldContains(0, start, limit)) {
-      source = Source::kStartRange;
-    } else if (FieldContains(1, start, limit)) {
-      source = Source::kEndRange;
-    }
-    return source;
-  }
-
- private:
-  int32_t start_[2];
-  int32_t limit_[2];
-
-  bool FieldContains(int32_t field, int32_t start, int32_t limit) const {
-    DCHECK_LT(field, 2);
-    return (start_[field] <= start) && (start <= limit_[field]) &&
-           (start_[field] <= limit) && (limit <= limit_[field]);
-  }
-};
-
-Handle<String> SourceString(Isolate* isolate, Source source) {
-  switch (source) {
-    case Source::kShared:
-      return ReadOnlyRoots(isolate).shared_string_handle();
-    case Source::kStartRange:
-      return ReadOnlyRoots(isolate).startRange_string_handle();
-    case Source::kEndRange:
-      return ReadOnlyRoots(isolate).endRange_string_handle();
-      UNREACHABLE();
-  }
-}
-
-Maybe<bool> AddPartForFormatRange(Isolate* isolate, Handle<JSArray> array,
-                                  const icu::UnicodeString& string,
-                                  int32_t index, int32_t field, int32_t start,
-                                  int32_t end, const SourceTracker& tracker) {
+Maybe<bool> AddPartForFormatRange(
+    Isolate* isolate, Handle<JSArray> array, const icu::UnicodeString& string,
+    int32_t index, int32_t field, int32_t start, int32_t end,
+    const Intl::FormatRangeSourceTracker& tracker) {
   Handle<String> substring;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, substring,
                                    Intl::ToString(isolate, string, start, end),
@@ -2158,7 +2114,7 @@ Maybe<bool> AddPartForFormatRange(Isolate* isolate, Handle<JSArray> array,
   Intl::AddElement(isolate, array, index,
                    IcuDateFieldIdToDateType(field, isolate), substring,
                    isolate->factory()->source_string(),
-                   SourceString(isolate, tracker.GetSource(start, end)));
+                   Intl::SourceString(isolate, tracker.GetSource(start, end)));
   return Just(true);
 }
 
@@ -2193,7 +2149,7 @@ MaybeHandle<JSArray> FormattedDateIntervalToJSArray(
   icu::ConstrainedFieldPosition cfpos;
   int index = 0;
   int32_t previous_end_pos = 0;
-  SourceTracker tracker;
+  Intl::FormatRangeSourceTracker tracker;
   *outputRange = false;
   while (formatted.nextPosition(cfpos, status)) {
     int32_t category = cfpos.getCategory();
@@ -2241,13 +2197,11 @@ MaybeHandle<JSArray> FormattedDateIntervalToJSArray(
 }
 
 // The shared code between formatRange and formatRangeToParts
-template <typename T>
-MaybeHandle<T> FormatRangeCommon(
-    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
-    double y,
-    const std::function<MaybeHandle<T>(Isolate*, const icu::FormattedValue&,
-                                       bool*)>& formatToResult,
-    bool* outputRange) {
+template <typename T,
+          MaybeHandle<T> (*F)(Isolate*, const icu::FormattedValue&, bool*)>
+MaybeHandle<T> FormatRangeCommon(Isolate* isolate,
+                                 Handle<JSDateTimeFormat> date_time_format,
+                                 double x, double y, bool* outputRange) {
   // Track newer feature formateRange and formatRangeToParts
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);
 
@@ -2290,7 +2244,7 @@ MaybeHandle<T> FormatRangeCommon(
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
   }
-  return formatToResult(isolate, formatted, outputRange);
+  return F(isolate, formatted, outputRange);
 }
 
 }  // namespace
@@ -2299,8 +2253,8 @@ MaybeHandle<String> JSDateTimeFormat::FormatRange(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
     double y) {
   bool outputRange = true;
-  MaybeHandle<String> ret = FormatRangeCommon<String>(
-      isolate, date_time_format, x, y, FormattedToString, &outputRange);
+  MaybeHandle<String> ret = FormatRangeCommon<String, FormattedToString>(
+      isolate, date_time_format, x, y, &outputRange);
   if (outputRange) {
     return ret;
   }
@@ -2313,8 +2267,8 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatRangeToParts(
     double y) {
   bool outputRange = true;
   MaybeHandle<JSArray> ret =
-      FormatRangeCommon<JSArray>(isolate, date_time_format, x, y,
-                                 FormattedDateIntervalToJSArray, &outputRange);
+      FormatRangeCommon<JSArray, FormattedDateIntervalToJSArray>(
+          isolate, date_time_format, x, y, &outputRange);
   if (outputRange) {
     return ret;
   }

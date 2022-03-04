@@ -59,6 +59,24 @@ class Intl {
     kLength
   };
 
+  enum class FormatRangeSource { kShared, kStartRange, kEndRange };
+
+  class FormatRangeSourceTracker {
+   public:
+    FormatRangeSourceTracker();
+    void Add(int32_t field, int32_t start, int32_t limit);
+    FormatRangeSource GetSource(int32_t start, int32_t limit) const;
+
+   private:
+    int32_t start_[2];
+    int32_t limit_[2];
+
+    bool FieldContains(int32_t field, int32_t start, int32_t limit) const;
+  };
+
+  static Handle<String> SourceString(Isolate* isolate,
+                                     FormatRangeSource source);
+
   // Build a set of ICU locales from a list of Locales. If there is a locale
   // with a script tag then the locales also include a locale without the
   // script; eg, pa_Guru_IN (language=Panjabi, script=Gurmukhi, country-India)
