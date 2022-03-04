@@ -124,7 +124,7 @@ def process(filename, lint, should_format):
 
     if should_format:
       output_file = open(filename, 'wb')
-      output_file.write(output);
+      output_file.write(maybe_encode(output))
       output_file.close()
 
 def print_usage():
