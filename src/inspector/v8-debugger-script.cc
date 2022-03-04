@@ -326,11 +326,11 @@ class ActualScript : public V8DebuggerScript {
         [](const v8::WeakCallbackInfo<ActualScript>& data) {
           data.GetParameter()->WeakCallback();
         },
-        v8::WeakCallbackType::kFinalizer);
+        v8::WeakCallbackType::kParameter);
   }
 
   void WeakCallback() {
-    m_script.ClearWeak();
+    m_script.Reset();
     m_agent->ScriptCollected(this);
   }
 
