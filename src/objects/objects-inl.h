@@ -1162,6 +1162,9 @@ Object Object::GetHash() {
 }
 
 bool Object::IsShared() const {
+  // This logic should be kept in sync with fast paths in
+  // CodeStubAssembler::SharedValueBarrier.
+
   // Smis are trivially shared.
   if (IsSmi()) return true;
 
@@ -1186,6 +1189,8 @@ bool Object::IsShared() const {
         return true;
       }
       return false;
+    case HEAP_NUMBER_TYPE:
+      return object.InSharedWritableHeap();
     default:
       return false;
   }

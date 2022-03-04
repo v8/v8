@@ -6991,15 +6991,13 @@ TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
       [=] { return IsHeapNumberUint32(CAST(number)); });
 }
 
-TNode<BoolT> CodeStubAssembler::IsReadOnlyHeapObject(TNode<HeapObject> object) {
+TNode<IntPtrT> CodeStubAssembler::LoadBasicMemoryChunkFlags(
+    TNode<HeapObject> object) {
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   TNode<IntPtrT> page = PageFromAddress(object_word);
-  TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
+  return UncheckedCast<IntPtrT>(
       Load(MachineType::Pointer(), page,
            IntPtrConstant(BasicMemoryChunk::kFlagsOffset)));
-  return WordNotEqual(
-      WordAnd(flags, IntPtrConstant(BasicMemoryChunk::READ_ONLY_HEAP)),
-      IntPtrConstant(0));
 }
 
 template <typename TIndex>
@@ -15935,33 +15933,63 @@ void CodeStubAssembler::SwissNameDictionaryAdd(TNode<SwissNameDictionary> table,
 }
 
 void CodeStubAssembler::SharedValueBarrier(
-    TNode<Context> context, TNode<Object> value,
-    TVariable<Object>* var_shared_value) {
+    TNode<Context> context, TVariable<Object>* var_shared_value) {
   // The barrier ensures that the value can be shared across Isolates.
   // The fast paths should be kept in sync with Object::Share.
 
-  Label skip_barrier(this);
+  TNode<Object> value = var_shared_value->value();
+  Label check_in_shared_heap(this), slow(this), skip_barrier(this), done(this);
 
   // Fast path: Smis are trivially shared.
-  GotoIf(TaggedIsSmi(value), &skip_barrier);
+  GotoIf(TaggedIsSmi(value), &done);
   // Fast path: Shared memory features imply shared RO space, so RO objects are
   // trivially shared.
   DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
-  GotoIf(IsReadOnlyHeapObject(CAST(value)), &skip_barrier);
+  TNode<IntPtrT> page_flags = LoadBasicMemoryChunkFlags(CAST(value));
+  GotoIf(WordNotEqual(WordAnd(page_flags,
+                              IntPtrConstant(BasicMemoryChunk::READ_ONLY_HEAP)),
+                      IntPtrConstant(0)),
+         &skip_barrier);
 
   // Fast path: Check if the HeapObject is already shared.
   TNode<Uint16T> value_instance_type =
       LoadMapInstanceType(LoadMap(CAST(value)));
   GotoIf(IsSharedStringInstanceType(value_instance_type), &skip_barrier);
   GotoIf(IsJSSharedStructInstanceType(value_instance_type), &skip_barrier);
+  GotoIf(IsHeapNumberInstanceType(value_instance_type), &check_in_shared_heap);
+  Goto(&slow);
+
+  BIND(&check_in_shared_heap);
+  {
+    Branch(
+        WordNotEqual(WordAnd(page_flags,
+                             IntPtrConstant(BasicMemoryChunk::IN_SHARED_HEAP)),
+                     IntPtrConstant(0)),
+        &skip_barrier, &slow);
+  }
 
   // Slow path: Call out to runtime to share primitives and to throw on
   // non-shared JS objects.
-  *var_shared_value =
-      CallRuntime(Runtime::kSharedValueBarrierSlow, context, value);
-  Goto(&skip_barrier);
+  BIND(&slow);
+  {
+    *var_shared_value =
+        CallRuntime(Runtime::kSharedValueBarrierSlow, context, value);
+    Goto(&skip_barrier);
+  }
 
   BIND(&skip_barrier);
+  {
+    CSA_DCHECK(
+        this,
+        WordNotEqual(
+            WordAnd(LoadBasicMemoryChunkFlags(CAST(var_shared_value->value())),
+                    IntPtrConstant(BasicMemoryChunk::READ_ONLY_HEAP |
+                                   BasicMemoryChunk::IN_SHARED_HEAP)),
+            IntPtrConstant(0)));
+    Goto(&done);
+  }
+
+  BIND(&done);
 }
 
 }  // namespace internal

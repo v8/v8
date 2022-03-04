@@ -18,7 +18,9 @@ let S = new SharedStructType(['field']);
 (function TestPrimitives() {
   // All primitives can be stored in fields.
   let s = new S();
-  for (let prim of [42, -0, undefined, null, true, false, "foo"]) {
+  for (let prim of [42, -0, Math.random(),
+                    undefined, null, true, false,
+                    "foo"]) {
     s.field = prim;
     assertEquals(s.field, prim);
   }

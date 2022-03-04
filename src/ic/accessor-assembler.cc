@@ -1198,7 +1198,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerJSSharedStructFieldCase(
                   Int32Constant(Representation::kTagged)));
 
   TVARIABLE(Object, shared_value, value);
-  SharedValueBarrier(context, value, &shared_value);
+  SharedValueBarrier(context, &shared_value);
 
   TNode<BoolT> is_inobject =
       IsSetWord32<StoreHandler::IsInobjectBits>(handler_word);
@@ -1720,7 +1720,7 @@ void AccessorAssembler::StoreJSSharedStructField(
       LoadMapInstanceSizeInWords(shared_struct_map);
 
   TVARIABLE(Object, shared_value, maybe_local_value);
-  SharedValueBarrier(context, maybe_local_value, &shared_value);
+  SharedValueBarrier(context, &shared_value);
 
   Label inobject(this), backing_store(this);
   Branch(UintPtrLessThan(field_index, instance_size_in_words), &inobject,

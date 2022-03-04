@@ -2446,8 +2446,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    TVariable<Numeric>* var_numeric,
                                    TVariable<Smi>* var_feedback);
 
-  // Ensures that {value} is shareable across Isolates, and throws if not.
-  void SharedValueBarrier(TNode<Context> context, TNode<Object> value,
+  // Ensures that {var_shared_value} is shareable across Isolates, and throws if
+  // not.
+  void SharedValueBarrier(TNode<Context> context,
                           TVariable<Object>* var_shared_value);
 
   TNode<WordT> TimesSystemPointerSize(TNode<WordT> value);
@@ -2644,7 +2645,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsUndetectableMap(TNode<Map> map);
   TNode<BoolT> IsNotWeakFixedArraySubclass(TNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(TNode<Object> object);
-  TNode<BoolT> IsReadOnlyHeapObject(TNode<HeapObject> object);
 
   TNode<BoolT> IsPromiseResolveProtectorCellInvalid();
   TNode<BoolT> IsPromiseThenProtectorCellInvalid();
@@ -2653,6 +2653,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid();
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
+
+  TNode<IntPtrT> LoadBasicMemoryChunkFlags(TNode<HeapObject> object);
 
   TNode<BoolT> LoadRuntimeFlag(ExternalReference address_of_flag) {
     TNode<Word32T> flag_value = UncheckedCast<Word32T>(
