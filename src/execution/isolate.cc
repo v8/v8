@@ -75,7 +75,6 @@
 #include "src/logging/log.h"
 #include "src/logging/metrics.h"
 #include "src/logging/runtime-call-stats-scope.h"
-#include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/call-site-info-inl.h"
@@ -116,6 +115,10 @@
 #include "unicode/locid.h"
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
+
+#if V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#endif  // V8_ENABLE_MAGLEV
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
