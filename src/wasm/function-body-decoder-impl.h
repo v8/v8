@@ -910,6 +910,8 @@ struct ControlBase : public PcForErrors<validate> {
   F(F32Const, Value* result, float value)                                 \
   F(F64Const, Value* result, double value)                                \
   F(S128Const, Simd128Immediate<validate>& imm, Value* result)            \
+  F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,         \
+    Value* result)                                                        \
   F(RefNull, ValueType type, Value* result)                               \
   F(RefFunc, uint32_t function_index, Value* result)                      \
   F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)  \
@@ -935,8 +937,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(PopControl, Control* block)                                                \
   /* Instructions: */                                                          \
   F(UnOp, WasmOpcode opcode, const Value& value, Value* result)                \
-  F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,              \
-    Value* result)                                                             \
   F(RefAsNonNull, const Value& arg, Value* result)                             \
   F(Drop)                                                                      \
   F(LocalGet, Value* result, const IndexImmediate<validate>& imm)              \
@@ -2560,7 +2560,20 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
 #define BUILD_SIMPLE_OPCODE(op, _, sig) \
   DECODE(op) { return BuildSimpleOperator_##sig(kExpr##op); }
-  FOREACH_SIMPLE_OPCODE(BUILD_SIMPLE_OPCODE)
+  FOREACH_SIMPLE_NON_CONST_OPCODE(BUILD_SIMPLE_OPCODE)
+#undef BUILD_SIMPLE_OPCODE
+
+#define BUILD_SIMPLE_OPCODE(op, _, sig)                     \
+  DECODE(op) {                                              \
+    if (decoding_mode == kInitExpression) {                 \
+      if (!VALIDATE(this->enabled_.has_extended_const())) { \
+        NonConstError(this, kExpr##op);                     \
+        return 0;                                           \
+      }                                                     \
+    }                                                       \
+    return BuildSimpleOperator_##sig(kExpr##op);            \
+  }
+  FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(BUILD_SIMPLE_OPCODE)
 #undef BUILD_SIMPLE_OPCODE
 
   DECODE(Block) {
@@ -3501,8 +3514,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   static constexpr OpcodeHandler GetOpcodeHandlerTableEntry(size_t idx) {
     DECODE_IMPL(Nop);
 #define BUILD_SIMPLE_OPCODE(op, _, sig) DECODE_IMPL(op);
-    FOREACH_SIMPLE_OPCODE(BUILD_SIMPLE_OPCODE)
+    FOREACH_SIMPLE_NON_CONST_OPCODE(BUILD_SIMPLE_OPCODE)
 #undef BUILD_SIMPLE_OPCODE
+#define BUILD_SIMPLE_EXTENDED_CONST_OPCODE(op, _, sig) DECODE_IMPL_CONST(op);
+    FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(BUILD_SIMPLE_EXTENDED_CONST_OPCODE)
+#undef BUILD_SIMPLE_EXTENDED_CONST_OPCODE
     DECODE_IMPL(Block);
     DECODE_IMPL(Rethrow);
     DECODE_IMPL(Throw);

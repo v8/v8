@@ -1016,6 +1016,16 @@ class Binary {
       case kSimdPrefix:
         this.emit_bytes(wasmS128Const(expr.value));
         break;
+      case kExprI32Add:
+      case kExprI32Sub:
+      case kExprI32Mul:
+      case kExprI64Add:
+      case kExprI64Sub:
+      case kExprI64Mul:
+        this.emit_init_expr_recursive(expr.operands[0]);
+        this.emit_init_expr_recursive(expr.operands[1]);
+        this.emit_u8(expr.kind);
+        break;
       case kExprRefFunc:
         this.emit_u8(kExprRefFunc);
         this.emit_u32v(expr.value);
@@ -1191,6 +1201,24 @@ class WasmInitExpr {
   }
   static S128Const(value) {
     return {kind: kSimdPrefix, value: value};
+  }
+  static I32Add(lhs, rhs) {
+    return {kind: kExprI32Add, operands: [lhs, rhs]};
+  }
+  static I32Sub(lhs, rhs) {
+    return {kind: kExprI32Sub, operands: [lhs, rhs]};
+  }
+  static I32Mul(lhs, rhs) {
+    return {kind: kExprI32Mul, operands: [lhs, rhs]};
+  }
+  static I64Add(lhs, rhs) {
+    return {kind: kExprI64Add, operands: [lhs, rhs]};
+  }
+  static I64Sub(lhs, rhs) {
+    return {kind: kExprI64Sub, operands: [lhs, rhs]};
+  }
+  static I64Mul(lhs, rhs) {
+    return {kind: kExprI64Mul, operands: [lhs, rhs]};
   }
   static GlobalGet(index) {
     return {kind: kExprGlobalGet, value: index};

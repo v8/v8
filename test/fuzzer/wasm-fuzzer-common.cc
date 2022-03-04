@@ -339,6 +339,12 @@ class InitExprInterface {
     result->init_expr = WasmInitExpr(imm.value);
   }
 
+  void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
+             const Value& rhs, Value* result) {
+    // TODO(12089): Implement.
+    UNIMPLEMENTED();
+  }
+
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
     result->init_expr = WasmInitExpr::RefNullConst(type.heap_representation());
   }

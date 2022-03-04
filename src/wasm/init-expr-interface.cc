@@ -44,6 +44,40 @@ void InitExprInterface::S128Const(FullDecoder* decoder,
   result->runtime_value = WasmValue(imm.value, kWasmS128);
 }
 
+void InitExprInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
+                              const Value& lhs, const Value& rhs,
+                              Value* result) {
+  if (!generate_result()) return;
+  switch (opcode) {
+    case kExprI32Add:
+      result->runtime_value =
+          WasmValue(lhs.runtime_value.to_i32() + rhs.runtime_value.to_i32());
+      break;
+    case kExprI32Sub:
+      result->runtime_value =
+          WasmValue(lhs.runtime_value.to_i32() - rhs.runtime_value.to_i32());
+      break;
+    case kExprI32Mul:
+      result->runtime_value =
+          WasmValue(lhs.runtime_value.to_i32() * rhs.runtime_value.to_i32());
+      break;
+    case kExprI64Add:
+      result->runtime_value =
+          WasmValue(lhs.runtime_value.to_i64() + rhs.runtime_value.to_i64());
+      break;
+    case kExprI64Sub:
+      result->runtime_value =
+          WasmValue(lhs.runtime_value.to_i64() - rhs.runtime_value.to_i64());
+      break;
+    case kExprI64Mul:
+      result->runtime_value =
+          WasmValue(lhs.runtime_value.to_i64() * rhs.runtime_value.to_i64());
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void InitExprInterface::RefNull(FullDecoder* decoder, ValueType type,
                                 Value* result) {
   if (!generate_result()) return;

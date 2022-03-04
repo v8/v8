@@ -64,7 +64,12 @@
   /* Stack Switching proposal. */                                              \
   /* https://github.com/WebAssembly/stack-switching */                         \
   /* V8 side owner: thibaudm, fgm */                                           \
-  V(stack_switching, "stack switching", false)
+  V(stack_switching, "stack switching", false)                                 \
+                                                                               \
+  /* Extended Constant Expressions Proposal. */                                \
+  /* https://github.com/WebAssembly/extended-const */                          \
+  /* V8 side owner: manoskouk */                                               \
+  V(extended_const, "extended constant expressions", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
