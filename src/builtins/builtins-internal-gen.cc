@@ -888,14 +888,15 @@ TF_BUILTIN(CopyDataPropertiesWithExcludedPropertiesOnStack,
                                  false));
 
   BIND(&if_runtime);
-  TNode<Foreign> excluded_properties_foreign =
-      TNode<Foreign>::UncheckedCast(CallRuntime(Runtime::kNewForeign, context));
-  StoreForeignForeignAddress(
-      excluded_properties_foreign,
-      ReinterpretCast<ExternalPointerT>(excluded_properties));
+  // The excluded_property_base is passed as a raw stack pointer, but is
+  // bitcasted to a Smi . This is safe because the stack pointer is aligned, so
+  // it looks like a Smi to the GC.
+  CSA_DCHECK(this, IntPtrEqual(WordAnd(excluded_properties,
+                                       IntPtrConstant(kSmiTagMask)),
+                               IntPtrConstant(kSmiTag)));
   TailCallRuntime(Runtime::kCopyDataPropertiesWithExcludedPropertiesOnStack,
                   context, source, SmiTag(excluded_property_count),
-                  excluded_properties_foreign);
+                  BitcastWordToTaggedSigned(excluded_properties));
 }
 
 TF_BUILTIN(CopyDataPropertiesWithExcludedProperties,

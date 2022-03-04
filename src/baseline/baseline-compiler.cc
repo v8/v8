@@ -1331,11 +1331,10 @@ void BaselineCompiler::
         interpreter::RegisterList args) {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register rscratch = scratch_scope.AcquireScratch();
-  if (args.register_count() != 1) {
-    basm_.RegisterFrameAddress(args[1], rscratch);
-  } else {
-    basm_.Move(rscratch, 0);
-  }
+  // Use an offset from args[0] instead of args[1] to pass a valid "end of"
+  // pointer in the case where args.register_count() == 1.
+  basm_.RegisterFrameAddress(interpreter::Register(args[0].index() + 1),
+                             rscratch);
   CallBuiltin<Builtin::kCopyDataPropertiesWithExcludedPropertiesOnStack>(
       args[0], args.register_count() - 1, rscratch);
 }

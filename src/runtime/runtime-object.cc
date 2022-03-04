@@ -3,10 +3,13 @@
 // found in the LICENSE file.
 
 #include "src/ast/prettyprinter.h"
+#include "src/base/macros.h"
+#include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/handles/maybe-handles.h"
@@ -1291,16 +1294,55 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+// Check that the excluded properties are within the stack range of the top of
+// the stack, and the start of the JS frame.
+void CheckExcludedPropertiesAreOnCallerStack(Isolate* isolate, Address base,
+                                             int count) {
+#ifdef DEBUG
+  StackFrameIterator it(isolate);
+
+  // Don't need to check when there's no excluded properties.
+  if (count == 0) return;
+
+  DCHECK(!it.done());
+
+  // Properties are pass in order on the stack, which means that their addresses
+  // are in reverse order in memory (because stacks grow backwards). So, we
+  // need to check if the _last_ property address is before the stack end...
+  Address last_property = base - (count - 1) * kSystemPointerSize;
+  DCHECK_GE(last_property, it.frame()->sp());
+
+  // ... and for the first JS frame, make sure the _first_ property address is
+  // after that stack frame's start.
+  for (; !it.done(); it.Advance()) {
+    if (it.frame()->is_java_script()) {
+      DCHECK_LT(base, it.frame()->fp());
+      return;
+    }
+  }
+
+  // We should always find a JS frame.
+  UNREACHABLE();
+#endif
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
   HandleScope scope(isolate);
   DCHECK_LE(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, excluded_property_count_smi, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Foreign, excluded_property_base_foreign, 2);
-
-  int excluded_property_count = excluded_property_count_smi->value();
-  auto excluded_property_base = reinterpret_cast<Address*>(
-      excluded_property_base_foreign->foreign_address());
+  CONVERT_SMI_ARG_CHECKED(excluded_property_count, 1);
+  // The excluded_property_base is passed as a raw stack pointer. This is safe
+  // because the stack pointer is aligned, so it looks like a Smi to the GC.
+  Address* excluded_property_base = reinterpret_cast<Address*>(args[2].ptr());
+  DCHECK(HAS_SMI_TAG(reinterpret_cast<intptr_t>(excluded_property_base)));
+  // Also make sure that the given base pointer points to to on-stack values.
+  CheckExcludedPropertiesAreOnCallerStack(
+      isolate, reinterpret_cast<Address>(excluded_property_base),
+      excluded_property_count);
 
   // If source is undefined or null, throw a non-coercible error.
   if (source->IsNullOrUndefined(isolate)) {
