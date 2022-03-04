@@ -295,6 +295,41 @@ bool CanBreakProgram(Isolate* v8_isolate) {
   return !isolate->debug()->AllFramesOnStackAreBlackboxed();
 }
 
+size_t ScriptSource::Length() const {
+  i::Handle<i::HeapObject> source = Utils::OpenHandle(this);
+  if (source->IsString()) return i::Handle<i::String>::cast(source)->length();
+  return Size();
+}
+
+size_t ScriptSource::Size() const {
+#if V8_ENABLE_WEBASSEMBLY
+  MemorySpan<const uint8_t> wasm_bytecode;
+  if (WasmBytecode().To(&wasm_bytecode)) {
+    return wasm_bytecode.size();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  i::Handle<i::HeapObject> source = Utils::OpenHandle(this);
+  if (!source->IsString()) return 0;
+  i::Handle<i::String> string = i::Handle<i::String>::cast(source);
+  return string->length() * (string->IsTwoByteRepresentation() ? 2 : 1);
+}
+
+MaybeLocal<String> ScriptSource::JavaScriptCode() const {
+  i::Handle<i::HeapObject> source = Utils::OpenHandle(this);
+  if (!source->IsString()) return MaybeLocal<String>();
+  return Utils::ToLocal(i::Handle<i::String>::cast(source));
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+Maybe<MemorySpan<const uint8_t>> ScriptSource::WasmBytecode() const {
+  i::Handle<i::HeapObject> source = Utils::OpenHandle(this);
+  if (!source->IsForeign()) return Nothing<MemorySpan<const uint8_t>>();
+  base::Vector<const uint8_t> wire_bytes =
+      i::Managed<i::wasm::NativeModule>::cast(*source).raw()->wire_bytes();
+  return Just(MemorySpan<const uint8_t>{wire_bytes.begin(), wire_bytes.size()});
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 Isolate* Script::GetIsolate() const {
   return reinterpret_cast<Isolate*>(Utils::OpenHandle(this)->GetIsolate());
 }
@@ -387,12 +422,18 @@ Maybe<int> Script::ContextId() const {
   return Nothing<int>();
 }
 
-MaybeLocal<String> Script::Source() const {
+Local<ScriptSource> Script::Source() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
-  i::Handle<i::PrimitiveHeapObject> value(script->source(), isolate);
-  if (!value->IsString()) return MaybeLocal<String>();
-  return Utils::ToLocal(i::Handle<i::String>::cast(value));
+#if V8_ENABLE_WEBASSEMBLY
+  if (script->type() == i::Script::TYPE_WASM) {
+    i::Handle<i::Object> wasm_native_module(
+        script->wasm_managed_native_module(), isolate);
+    return Utils::Convert<i::Object, ScriptSource>(wasm_native_module);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+  i::Handle<i::PrimitiveHeapObject> source(script->source(), isolate);
+  return Utils::Convert<i::PrimitiveHeapObject, ScriptSource>(source);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -631,13 +672,6 @@ int WasmScript::NumImportedFunctions() const {
   const i::wasm::WasmModule* module = native_module->module();
   DCHECK_GE(i::kMaxInt, module->num_imported_functions);
   return static_cast<int>(module->num_imported_functions);
-}
-
-MemorySpan<const uint8_t> WasmScript::Bytecode() const {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
-  base::Vector<const uint8_t> wire_bytes =
-      script->wasm_native_module()->wire_bytes();
-  return {wire_bytes.begin(), wire_bytes.size()};
 }
 
 std::pair<int, int> WasmScript::GetFunctionRange(int function_index) const {

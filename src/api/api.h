@@ -41,6 +41,7 @@ class JSFinalizationRegistry;
 namespace debug {
 class AccessorPair;
 class GeneratorObject;
+class ScriptSource;
 class Script;
 class EphemeronTable;
 }  // namespace debug
@@ -134,6 +135,7 @@ class RegisteredExtension {
   V(StackFrame, StackFrameInfo)                \
   V(Proxy, JSProxy)                            \
   V(debug::GeneratorObject, JSGeneratorObject) \
+  V(debug::ScriptSource, HeapObject)           \
   V(debug::Script, Script)                     \
   V(debug::EphemeronTable, EphemeronHashTable) \
   V(debug::AccessorPair, AccessorPair)         \

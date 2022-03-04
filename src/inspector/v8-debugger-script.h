@@ -59,6 +59,7 @@ class V8DebuggerScript {
   V8DebuggerScript(const V8DebuggerScript&) = delete;
   V8DebuggerScript& operator=(const V8DebuggerScript&) = delete;
 
+  v8::Local<v8::debug::ScriptSource> scriptSource();
   const String16& scriptId() const { return m_id; }
   bool hasSourceURLComment() const { return m_hasSourceURLComment; }
   const String16& sourceURL() const { return m_url; }

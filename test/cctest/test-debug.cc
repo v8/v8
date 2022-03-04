@@ -4360,6 +4360,7 @@ TEST(DebugCoverage) {
   v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
   v8::Local<v8::debug::Script> script = script_data.GetScript();
   CHECK(script->Source()
+            ->JavaScriptCode()
             .ToLocalChecked()
             ->Equals(env.local(), source)
             .FromMaybe(false));
@@ -4413,6 +4414,7 @@ TEST(DebugCoverageWithCoverageOutOfScope) {
       GetScriptDataAndDeleteCoverage(isolate);
   v8::Local<v8::debug::Script> script = script_data.GetScript();
   CHECK(script->Source()
+            ->JavaScriptCode()
             .ToLocalChecked()
             ->Equals(env.local(), source)
             .FromMaybe(false));

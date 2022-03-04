@@ -161,6 +161,28 @@ struct LiveEditResult {
 };
 
 /**
+ * An internal representation of the source for a given
+ * `v8::debug::Script`, which can be a `v8::String`, in
+ * which case it represents JavaScript source, or it can
+ * be a managed pointer to a native Wasm module, or it
+ * can be undefined to indicate that source is unavailable.
+ */
+class V8_EXPORT_PRIVATE ScriptSource {
+ public:
+  // The number of characters in case of JavaScript or
+  // the size of the memory in case of WebAssembly.
+  size_t Length() const;
+
+  // The actual size of the source in bytes.
+  size_t Size() const;
+
+  MaybeLocal<String> JavaScriptCode() const;
+#if V8_ENABLE_WEBASSEMBLY
+  Maybe<MemorySpan<const uint8_t>> WasmBytecode() const;
+#endif  // V8_ENABLE_WEBASSEMBLY
+};
+
+/**
  * Native wrapper around v8::internal::Script object.
  */
 class V8_EXPORT_PRIVATE Script {
@@ -179,7 +201,7 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
   Maybe<int> ContextId() const;
-  MaybeLocal<String> Source() const;
+  Local<ScriptSource> Source() const;
   bool IsModule() const;
   bool GetPossibleBreakpoints(
       const debug::Location& start, const debug::Location& end,
@@ -209,7 +231,6 @@ class WasmScript : public Script {
   MemorySpan<const char> ExternalSymbolsURL() const;
   int NumFunctions() const;
   int NumImportedFunctions() const;
-  MemorySpan<const uint8_t> Bytecode() const;
 
   std::pair<int, int> GetFunctionRange(int function_index) const;
   int GetContainingFunction(int byte_offset) const;
