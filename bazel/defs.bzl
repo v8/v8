@@ -389,6 +389,7 @@ def _v8_target_cpu_transition_impl(settings, attr):
         "aarch64": "arm64",
         "arm64-v8a": "arm64",
         "arm": "arm64",
+        "darwin_arm64": "arm64",
         "armeabi-v7a": "arm32",
         "s390x": "s390x",
         "riscv64": "riscv64",
