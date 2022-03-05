@@ -2036,7 +2036,7 @@ MaybeHandle<T> PartitionNumberRangePattern(Isolate* isolate,
           MaybeHandle<T>());
     }
     // b. Else if y is -∞, throw a RangeError exception.
-    if (IsNegativeZero(isolate, y)) {
+    if (IsNegativeInfinity(isolate, y)) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate, NewRangeError(MessageTemplate::kInvalid, x, y),
           MaybeHandle<T>());

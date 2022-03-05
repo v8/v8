@@ -2453,8 +2453,9 @@
   # NumberFormat.prototype.formatRange
   'intl402/NumberFormat/prototype/formatRange/en-US': [FAIL],
   'intl402/NumberFormat/prototype/formatRange/pt-PT': [FAIL],
+
+  # https://github.com/tc39/test262/pull/3425
   'intl402/NumberFormat/prototype/formatRange/x-greater-than-y-throws': [FAIL],
-  # NumberFormat.prototype.formatRangeToParts
   'intl402/NumberFormat/prototype/formatRangeToParts/x-greater-than-y-throws': [FAIL],
 
   # PluralRules.prototype.selectRange
