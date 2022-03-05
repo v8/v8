@@ -2449,7 +2449,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10776
   'intl402/NumberFormat/constructor-roundingIncrement': [FAIL],
-  'intl402/NumberFormat/test-option-roundingPriority': [FAIL],
   # NumberFormat.prototype.formatRange
   'intl402/NumberFormat/prototype/formatRange/en-US': [FAIL],
   'intl402/NumberFormat/prototype/formatRange/pt-PT': [FAIL],

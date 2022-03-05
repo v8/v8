@@ -662,7 +662,7 @@ Handle<String> RoundingPriorityString(Isolate* isolate,
   if ((found = skeleton.indexOf("#s")) >= 0 ||
       (found = skeleton.indexOf("@s")) >= 0) {
     if (found + 2 == skeleton.length() || skeleton[found + 2] == ' ') {
-      return ReadOnlyRoots(isolate).morePrecision_string_handle();
+      return ReadOnlyRoots(isolate).lessPrecision_string_handle();
     }
   }
   return ReadOnlyRoots(isolate).auto_string_handle();
