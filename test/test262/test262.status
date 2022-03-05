@@ -2776,15 +2776,6 @@
   'intl402/NumberFormat/prototype/formatRange/x-greater-than-y-throws': [FAIL],
   'intl402/NumberFormat/prototype/formatRangeToParts/x-greater-than-y-throws': [FAIL],
 
-  # PluralRules.prototype.selectRange
-  'intl402/PluralRules/prototype/selectRange/default-en-us': [FAIL],
-  'intl402/PluralRules/prototype/selectRange/invoked-as-func': [FAIL],
-  'intl402/PluralRules/prototype/selectRange/length': [FAIL],
-  'intl402/PluralRules/prototype/selectRange/name': [FAIL],
-  'intl402/PluralRules/prototype/selectRange/prop-desc': [FAIL],
-  'intl402/PluralRules/prototype/selectRange/nan-arguments-throws': [FAIL],
-  'intl402/PluralRules/prototype/selectRange/x-greater-than-y-throws': [FAIL],
-
   # String handling
   'intl402/NumberFormat/prototype/format/format-rounding-increment-1000': [FAIL],
   'intl402/NumberFormat/prototype/format/format-rounding-increment-100': [FAIL],

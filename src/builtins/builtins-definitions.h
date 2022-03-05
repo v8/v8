@@ -1789,6 +1789,8 @@ namespace internal {
   CPP(PluralRulesPrototypeResolvedOptions)                             \
   /* ecma402 #sec-intl.pluralrules.prototype.select */                 \
   CPP(PluralRulesPrototypeSelect)                                      \
+  /* ecma402 #sec-intl.pluralrules.prototype.selectrange */            \
+  CPP(PluralRulesPrototypeSelectRange)                                 \
   /* ecma402 #sec-intl.pluralrules.supportedlocalesof */               \
   CPP(PluralRulesSupportedLocalesOf)                                   \
   /* ecma402 #sec-intl.RelativeTimeFormat.constructor */               \

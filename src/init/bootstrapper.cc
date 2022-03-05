@@ -5351,20 +5351,35 @@ void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
           factory()->InternalizeUtf8String("Intl"))
           .ToHandleChecked());
 
-  Handle<JSFunction> number_format_constructor = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
-          factory()->InternalizeUtf8String("NumberFormat"))
-          .ToHandleChecked());
+  {
+    Handle<JSFunction> number_format_constructor = Handle<JSFunction>::cast(
+        JSReceiver::GetProperty(
+            isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
+            factory()->InternalizeUtf8String("NumberFormat"))
+            .ToHandleChecked());
 
-  Handle<JSObject> prototype(
-      JSObject::cast(number_format_constructor->prototype()), isolate());
+    Handle<JSObject> prototype(
+        JSObject::cast(number_format_constructor->prototype()), isolate());
 
-  SimpleInstallFunction(isolate(), prototype, "formatRange",
-                        Builtin::kNumberFormatPrototypeFormatRange, 2, false);
-  SimpleInstallFunction(isolate(), prototype, "formatRangeToParts",
-                        Builtin::kNumberFormatPrototypeFormatRangeToParts, 2,
-                        false);
+    SimpleInstallFunction(isolate(), prototype, "formatRange",
+                          Builtin::kNumberFormatPrototypeFormatRange, 2, false);
+    SimpleInstallFunction(isolate(), prototype, "formatRangeToParts",
+                          Builtin::kNumberFormatPrototypeFormatRangeToParts, 2,
+                          false);
+  }
+  {
+    Handle<JSFunction> plural_rules_constructor = Handle<JSFunction>::cast(
+        JSReceiver::GetProperty(
+            isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
+            factory()->InternalizeUtf8String("PluralRules"))
+            .ToHandleChecked());
+
+    Handle<JSObject> prototype(
+        JSObject::cast(plural_rules_constructor->prototype()), isolate());
+
+    SimpleInstallFunction(isolate(), prototype, "selectRange",
+                          Builtin::kPluralRulesPrototypeSelectRange, 2, false);
+  }
 }
 
 #endif  // V8_INTL_SUPPORT

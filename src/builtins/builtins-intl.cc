@@ -987,6 +987,64 @@ BUILTIN(PluralRulesPrototypeSelect) {
                                         isolate, plural_rules, number_double));
 }
 
+BUILTIN(PluralRulesPrototypeSelectRange) {
+  HandleScope scope(isolate);
+
+  // 1. Let pr be the this value.
+  // 2. Perform ? RequireInternalSlot(pr, [[InitializedPluralRules]]).
+  CHECK_RECEIVER(JSPluralRules, plural_rules,
+                 "Intl.PluralRules.prototype.selectRange");
+
+  // 3. If start is undefined or end is undefined, throw a TypeError exception.
+  Handle<Object> start = args.atOrUndefined(isolate, 1);
+  Handle<Object> end = args.atOrUndefined(isolate, 2);
+  if (start->IsUndefined()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalid,
+                              isolate->factory()->startRange_string(), start));
+  }
+  if (end->IsUndefined()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalid,
+                              isolate->factory()->endRange_string(), end));
+  }
+
+  // 4. Let x be ? ToNumber(start).
+  Handle<Object> x;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                     Object::ToNumber(isolate, start));
+
+  // 5. Let y be ? ToNumber(end).
+  Handle<Object> y;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, y,
+                                     Object::ToNumber(isolate, end));
+
+  // 6. Return ! ResolvePluralRange(pr, x, y).
+  // Inside ResolvePluralRange
+  // 5. If x is NaN or y is NaN, throw a RangeError exception.
+  if (x->IsNaN()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalid,
+                               isolate->factory()->startRange_string(), x));
+  }
+  if (y->IsNaN()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalid,
+                               isolate->factory()->endRange_string(), y));
+  }
+
+  // 6. If x > y, throw a RangeError exception.
+  double x_double = x->Number();
+  double y_double = y->Number();
+  if (x_double > y_double) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalid, x, y));
+  }
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSPluralRules::ResolvePluralRange(isolate, plural_rules,
+                                                 x_double, y_double));
+}
+
 BUILTIN(PluralRulesSupportedLocalesOf) {
   HandleScope scope(isolate);
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
