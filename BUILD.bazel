@@ -1216,6 +1216,8 @@ filegroup(
         "src/execution/arguments-inl.h",
         "src/execution/arguments.cc",
         "src/execution/arguments.h",
+        "src/execution/clobber-registers.cc",
+        "src/execution/clobber-registers.h",
         "src/execution/encoded-c-signature.cc",
         "src/execution/encoded-c-signature.h",
         "src/execution/embedder-state.h",

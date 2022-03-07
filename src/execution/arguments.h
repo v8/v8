@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_ARGUMENTS_H_
 #define V8_EXECUTION_ARGUMENTS_H_
 
+#include "src/execution/clobber-registers.h"
 #include "src/handles/handles.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects.h"
@@ -104,8 +105,6 @@ Handle<S> Arguments<T>::at(int index) const {
   Handle<Object> obj = Handle<Object>(address_of_arg_at(index));
   return Handle<S>::cast(obj);
 }
-
-double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 
 #ifdef DEBUG
 #define CLOBBER_DOUBLE_REGISTERS() ClobberDoubleRegisters(1, 2, 3, 4);
