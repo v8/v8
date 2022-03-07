@@ -252,8 +252,10 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(Construct)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ConstructWithSpread)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestEqual)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestEqualStrict)
-void MaglevGraphBuilder::VisitTestLessThan() {
-  // TestLessThan <src> <slot>
+
+template <typename RelNodeT>
+void MaglevGraphBuilder::VisitRelNode() {
+  // Test[RelationComparison] <src> <slot>
 
   ValueNode* left = LoadRegister(0);
   FeedbackSlot slot_index = GetSlotOperand(1);
@@ -261,14 +263,21 @@ void MaglevGraphBuilder::VisitTestLessThan() {
 
   USE(slot_index);  // TODO(v8:7700): Use the feedback info.
 
-  ValueNode* node = AddNewNode<LessThan>(
+  ValueNode* node = AddNewNode<RelNodeT>(
       {left, right}, compiler::FeedbackSource{feedback(), slot_index});
   SetAccumulator(node);
   MarkPossibleSideEffect();
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestGreaterThan)
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestLessThanOrEqual)
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestGreaterThanOrEqual)
+
+void MaglevGraphBuilder::VisitTestLessThan() { VisitRelNode<LessThan>(); }
+void MaglevGraphBuilder::VisitTestLessThanOrEqual() {
+  VisitRelNode<LessThanOrEqual>();
+}
+void MaglevGraphBuilder::VisitTestGreaterThan() { VisitRelNode<GreaterThan>(); }
+void MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
+  VisitRelNode<GreaterThanOrEqual>();
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestInstanceOf)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestIn)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToName)

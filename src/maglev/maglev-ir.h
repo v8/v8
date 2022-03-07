@@ -40,9 +40,12 @@ class MaglevVregAllocationState;
   V(CallProperty)          \
   V(CallUndefinedReceiver) \
   V(Constant)              \
+  V(GreaterThan)           \
+  V(GreaterThanOrEqual)    \
   V(Increment)             \
   V(InitialValue)          \
   V(LessThan)              \
+  V(LessThanOrEqual)       \
   V(LoadField)             \
   V(LoadGlobal)            \
   V(LoadNamedGeneric)      \
@@ -705,6 +708,9 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
  public:
   compiler::FeedbackSource feedback() const { return feedback_; }
 
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
   Input& left_input() { return Node::input(kLeftIndex); }
@@ -714,6 +720,12 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   BinaryWithFeedbackNode(size_t input_count,
                          const compiler::FeedbackSource& feedback)
       : Base(input_count), feedback_(feedback) {}
+
+  // Only to be called when Derived is a RelationalComparisonNode.
+  void AllocateRelationalComparisonVreg(MaglevVregAllocationState*,
+                                        const ProcessingState&);
+  void GenerateRelationalComparisonCode(MaglevCodeGenState*,
+                                        const ProcessingState&);
 
  protected:
   const compiler::FeedbackSource feedback_;
@@ -1013,8 +1025,42 @@ class LessThan : public BinaryWithFeedbackNode<LessThan> {
   LessThan(size_t input_count, const compiler::FeedbackSource& feedback)
       : Base(input_count, feedback) {}
 
-  // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class LessThanOrEqual : public BinaryWithFeedbackNode<LessThanOrEqual> {
+  using Base = BinaryWithFeedbackNode<LessThanOrEqual>;
+
+ public:
+  LessThanOrEqual(size_t input_count, const compiler::FeedbackSource& feedback)
+      : Base(input_count, feedback) {}
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class GreaterThan : public BinaryWithFeedbackNode<GreaterThan> {
+  using Base = BinaryWithFeedbackNode<GreaterThan>;
+
+ public:
+  GreaterThan(size_t input_count, const compiler::FeedbackSource& feedback)
+      : Base(input_count, feedback) {}
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class GreaterThanOrEqual : public BinaryWithFeedbackNode<GreaterThanOrEqual> {
+  using Base = BinaryWithFeedbackNode<GreaterThanOrEqual>;
+
+ public:
+  GreaterThanOrEqual(size_t input_count,
+                     const compiler::FeedbackSource& feedback)
+      : Base(input_count, feedback) {}
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
