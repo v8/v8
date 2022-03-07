@@ -211,13 +211,16 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
       function_ids_(isolate_->heap()),
       class_ids_(isolate_->heap()),
       array_ids_(isolate_->heap()),
-      object_ids_(isolate_->heap()) {
+      object_ids_(isolate_->heap()),
+      all_strings_(isolate_->heap()) {
   auto empty_array_list = factory()->empty_array_list();
   contexts_ = empty_array_list;
   functions_ = empty_array_list;
   classes_ = empty_array_list;
   arrays_ = empty_array_list;
   objects_ = empty_array_list;
+  strings_ = empty_array_list;
+  maps_ = empty_array_list;
 }
 
 WebSnapshotSerializer::~WebSnapshotSerializer() {}
@@ -235,7 +238,10 @@ bool WebSnapshotSerializer::TakeSnapshot(
 
   if (object->IsHeapObject()) Discover(Handle<HeapObject>::cast(object));
 
-  SerializeSource();
+  ConstructSource();
+  // The export is serialized with the empty string as name; we need to
+  // "discover" the name here.
+  DiscoverString(factory()->empty_string());
   SerializeExport(object, factory()->empty_string());
 
   WriteSnapshot(data_out.buffer, data_out.buffer_size);
@@ -264,6 +270,8 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
     if (str->Length() == 0) {
       continue;
     }
+    // Discover the export name.
+    DiscoverString(Handle<String>::cast(Utils::OpenHandle(*str)));
     v8::ScriptCompiler::Source source(str);
     auto script = ScriptCompiler::Compile(context, &source).ToLocalChecked();
     v8::MaybeLocal<v8::Value> script_result = script->Run(context);
@@ -278,7 +286,7 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
     Discover(export_objects[i]);
   }
 
-  SerializeSource();
+  ConstructSource();
 
   for (int i = 0, length = exports->Length(); i < length; ++i) {
     v8::Local<v8::String> str =
@@ -300,6 +308,19 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
 }
 
 void WebSnapshotSerializer::SerializePendingItems() {
+  // The information about string reference counts is now complete. The strings
+  // in strings_ are not in place and can be serialized now. The in-place
+  // strings will be serialized as part of their respective objects.
+  for (int i = 0; i < strings_->Length(); ++i) {
+    Handle<String> string = handle(String::cast(strings_->Get(i)), isolate_);
+    SerializeString(string, string_serializer_);
+  }
+
+  for (int i = 0; i < maps_->Length(); ++i) {
+    Handle<Map> map = handle(Map::cast(maps_->Get(i)), isolate_);
+    SerializeMap(map);
+  }
+
   // Serialize the items in the reverse order. The items at the end of the
   // contexts_ etc get lower IDs and vice versa. IDs which items use for
   // referring to each other are reversed by Get<item>Id functions().
@@ -327,8 +348,6 @@ void WebSnapshotSerializer::SerializePendingItems() {
         handle(JSObject::cast(objects_->Get(i)), isolate_);
     SerializeObject(object);
   }
-  // Maps and strings get serialized when they're encountered; we don't need to
-  // serialize them explicitly.
 }
 
 // Format (full snapshot):
@@ -353,6 +372,9 @@ void WebSnapshotSerializer::SerializePendingItems() {
 //   - Serialized export
 void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
                                           size_t& buffer_size) {
+  if (has_error()) {
+    return;
+  }
   SerializePendingItems();
 
   ValueSerializer total_serializer(isolate_, nullptr);
@@ -415,29 +437,22 @@ bool WebSnapshotSerializer::InsertIntoIndexMap(ObjectCacheIndexMap& map,
 // - Length
 // - Raw bytes (data)
 void WebSnapshotSerializer::SerializeString(Handle<String> string,
-                                            uint32_t& id) {
-  if (InsertIntoIndexMap(string_ids_, *string, id)) {
-    return;
-  }
-
-  // TODO(v8:11525): Always write strings as UTF-8.
-  string = String::Flatten(isolate_, string);
+                                            ValueSerializer& serializer) {
   DisallowGarbageCollection no_gc;
   String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
     base::Vector<const uint8_t> chars = flat.ToOneByteVector();
-    string_serializer_.WriteUint32(chars.length());
-    string_serializer_.WriteRawBytes(chars.begin(),
-                                     chars.length() * sizeof(uint8_t));
+    serializer.WriteUint32(chars.length());
+    serializer.WriteRawBytes(chars.begin(), chars.length() * sizeof(uint8_t));
   } else if (flat.IsTwoByte()) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     v8::Local<v8::String> api_string = Utils::ToLocal(string);
     int length = api_string->Utf8Length(v8_isolate);
     std::unique_ptr<char[]> buffer(new char[length]);
     api_string->WriteUtf8(v8_isolate, buffer.get(), length);
-    string_serializer_.WriteUint32(length);
-    string_serializer_.WriteRawBytes(buffer.get(), length * sizeof(uint8_t));
+    serializer.WriteUint32(length);
+    serializer.WriteRawBytes(buffer.get(), length * sizeof(uint8_t));
   } else {
     UNREACHABLE();
   }
@@ -451,23 +466,16 @@ void WebSnapshotSerializer::SerializeString(Handle<String> string,
 // - For each property
 //   - String id (name)
 //   - If the PropertyAttributesType is CUSTOM: attributes
-void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
-  if (InsertIntoIndexMap(map_ids_, *map, id)) {
-    return;
-  }
-
+void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
   int first_custom_index = -1;
-  std::vector<uint32_t> string_ids;
+  std::vector<Handle<String>> keys;
   std::vector<uint32_t> attributes;
-  string_ids.reserve(map->NumberOfOwnDescriptors());
+  keys.reserve(map->NumberOfOwnDescriptors());
   attributes.reserve(map->NumberOfOwnDescriptors());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
                      isolate_);
-    if (!key->IsString()) {
-      Throw("Key is not a string");
-      return;
-    }
+    keys.push_back(Handle<String>::cast(key));
 
     PropertyDetails details =
         map->instance_descriptors(kRelaxedLoad).GetDetails(i);
@@ -481,10 +489,6 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
       if (first_custom_index == -1) first_custom_index = i.as_int();
       attributes.push_back(AttributesToFlags(details));
     }
-
-    uint32_t string_id = 0;
-    SerializeString(Handle<String>::cast(key), string_id);
-    string_ids.push_back(string_id);
   }
 
   map_serializer_.WriteUint32(first_custom_index == -1
@@ -505,10 +509,10 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
     map_serializer_.WriteUint32(prototype_id + 1);
   }
 
-  map_serializer_.WriteUint32(static_cast<uint32_t>(string_ids.size()));
+  map_serializer_.WriteUint32(static_cast<uint32_t>(keys.size()));
 
   uint32_t default_flags = GetDefaultAttributeFlags();
-  for (size_t i = 0; i < string_ids.size(); ++i) {
+  for (size_t i = 0; i < keys.size(); ++i) {
     if (first_custom_index >= 0) {
       if (static_cast<int>(i) < first_custom_index) {
         map_serializer_.WriteUint32(default_flags);
@@ -516,7 +520,7 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
         map_serializer_.WriteUint32(attributes[i - first_custom_index]);
       }
     }
-    map_serializer_.WriteUint32(string_ids[i]);
+    WriteStringId(keys[i], map_serializer_);
   }
 }
 
@@ -531,7 +535,7 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
 // Constructed source:   defghijkstuvwxyzö
 // Functions:            11111111222222223
 // Inner functions        44  55  666
-void WebSnapshotSerializer::SerializeSource() {
+void WebSnapshotSerializer::ConstructSource() {
   if (source_intervals_.empty()) {
     return;
   }
@@ -565,7 +569,10 @@ void WebSnapshotSerializer::SerializeSource() {
       return;
     }
   }
-  SerializeString(source_string, source_id_);
+  DiscoverString(source_string);
+  bool in_place = false;
+  source_id_ = GetStringId(source_string, in_place);
+  DCHECK(!in_place);
 }
 
 void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
@@ -587,7 +594,6 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
     }
   }
 
-  DCHECK_EQ(source_id_, 0);
   serializer->WriteUint32(source_id_);
   int start = function->shared().StartPosition();
   int end = function->shared().EndPosition();
@@ -645,13 +651,31 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
         break;
       case ODDBALL_TYPE:
       case HEAP_NUMBER_TYPE:
-      case JS_PRIMITIVE_WRAPPER_TYPE:
-      case JS_REG_EXP_TYPE:
         // Can't contain references to other objects.
         break;
+      case JS_PRIMITIVE_WRAPPER_TYPE: {
+        Handle<JSPrimitiveWrapper> wrapper =
+            Handle<JSPrimitiveWrapper>::cast(object);
+        Handle<Object> value = handle(wrapper->value(), isolate_);
+        if (value->IsHeapObject()) {
+          discovery_queue_.push(Handle<HeapObject>::cast(value));
+        }
+        break;
+      }
+      case JS_REG_EXP_TYPE: {
+        Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(object);
+        Handle<String> pattern = handle(regexp->source(), isolate_);
+        DiscoverString(pattern);
+        Handle<String> flags_string =
+            JSRegExp::StringFromFlags(isolate_, regexp->flags());
+        DiscoverString(flags_string);
+        break;
+      }
       default:
         if (object->IsString()) {
-          // Can't contain references to other objects.
+          // These are array elements / object properties -> allow in place
+          // strings.
+          DiscoverString(Handle<String>::cast(object), AllowInPlace::Yes);
           break;
         } else if (external_objects_ids_.size() > 0) {
           int unused_id;
@@ -662,6 +686,50 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
     }
     discovery_queue_.pop();
   }
+}
+
+void WebSnapshotSerializer::DiscoverMap(Handle<Map> map) {
+  uint32_t id;
+  if (InsertIntoIndexMap(map_ids_, *map, id)) {
+    return;
+  }
+  DCHECK_EQ(id, maps_->Length());
+  maps_ = ArrayList::Add(isolate_, maps_, map);
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
+                     isolate_);
+    if (!key->IsString()) {
+      Throw("Key is not a string");
+      return;
+    }
+    DiscoverString(Handle<String>::cast(key));
+  }
+}
+
+void WebSnapshotSerializer::DiscoverString(Handle<String> string,
+                                           AllowInPlace can_be_in_place) {
+  // Can't contain references to other objects. We only log the existence of the
+  // string itself. Internalize the strings so that we can properly track which
+  // String objects are the same string.
+  string = factory()->InternalizeString(string);
+  auto result = all_strings_.FindOrInsert(string);
+  if (can_be_in_place == AllowInPlace::Yes && !result.already_exists) {
+    // This is the only reference to the string so far. Don't generate and
+    // ID for it yet; only generate it when another reference to the string is
+    // found.
+    return;
+  }
+  // The string is referred to more than two places, or in-placing not allowed
+  // -> not a candidate for writing it in-place. Generate an ID for it.
+
+  // TODO(v8:11525): Allow in-place strings in more places. Heuristics for
+  // when to make them in place?
+  uint32_t id;
+  if (InsertIntoIndexMap(string_ids_, *string, id)) {
+    return;
+  }
+  DCHECK_EQ(id, strings_->Length());
+  strings_ = ArrayList::Add(isolate_, strings_, string);
 }
 
 void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
@@ -719,14 +787,15 @@ void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
   DCHECK_EQ(id, contexts_->Length());
   contexts_ = ArrayList::Add(isolate_, contexts_, context);
 
-  DisallowGarbageCollection no_gc;
-  ScopeInfo scope_info = context->scope_info();
-  int count = scope_info.ContextLocalCount();
+  Handle<ScopeInfo> scope_info = handle(context->scope_info(), isolate_);
+  int count = scope_info->ContextLocalCount();
 
   for (int i = 0; i < count; ++i) {
     // TODO(v8:11525): support parameters
     // TODO(v8:11525): distinguish variable modes
-    Object value = context->get(scope_info.ContextHeaderLength() + i);
+    Handle<String> name(scope_info->context_local_names(i), isolate_);
+    DiscoverString(name);
+    Object value = context->get(scope_info->ContextHeaderLength() + i);
     if (!value.IsHeapObject()) continue;
     discovery_queue_.push(handle(HeapObject::cast(value), isolate_));
   }
@@ -789,6 +858,7 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   }
 
   Handle<Map> map(object->map(), isolate_);
+  DiscoverMap(map);
 
   // Discover __proto__.
   if (map->prototype() !=
@@ -870,9 +940,7 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
     // TODO(v8:11525): support parameters
     // TODO(v8:11525): distinguish variable modes
     Handle<String> name(scope_info->context_local_names(i), isolate_);
-    uint32_t string_id = 0;
-    SerializeString(name, string_id);
-    context_serializer_.WriteUint32(string_id);
+    WriteStringId(name, context_serializer_);
     Handle<Object> value(context->get(scope_info->ContextHeaderLength() + i),
                          isolate_);
     WriteValue(value, context_serializer_);
@@ -885,14 +953,7 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
 //   - Serialized value
 void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
   Handle<Map> map(object->map(), isolate_);
-  uint32_t map_id = 0;
-  SerializeMap(map, map_id);
-
-  if (*map != object->map()) {
-    Throw("Map changed");
-    return;
-  }
-
+  uint32_t map_id = GetMapId(*map);
   object_serializer_.WriteUint32(map_id);
 
   for (InternalIndex i : map->IterateOwnDescriptors()) {
@@ -932,14 +993,11 @@ void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
 void WebSnapshotSerializer::SerializeExport(Handle<Object> object,
                                             Handle<String> export_name) {
   ++export_count_;
-  uint32_t string_id = 0;
-  SerializeString(export_name, string_id);
-  export_serializer_.WriteUint32(string_id);
+  WriteStringId(export_name, export_serializer_);
   if (object->IsJSPrimitiveWrapper()) {
     Handle<JSPrimitiveWrapper> wrapper =
         Handle<JSPrimitiveWrapper>::cast(object);
-    Handle<Object> export_value =
-        handle(JSPrimitiveWrapper::cast(*wrapper).value(), isolate_);
+    Handle<Object> export_value = handle(wrapper->value(), isolate_);
     WriteValue(export_value, export_serializer_);
   } else {
     WriteValue(object, export_serializer_);
@@ -951,7 +1009,6 @@ void WebSnapshotSerializer::SerializeExport(Handle<Object> object,
 // - Value or id (interpretation depends on the type)
 void WebSnapshotSerializer::WriteValue(Handle<Object> object,
                                        ValueSerializer& serializer) {
-  uint32_t id = 0;
   if (object->IsSmi()) {
     serializer.WriteUint32(ValueType::INTEGER);
     serializer.WriteZigZag<int32_t>(Smi::cast(*object).value());
@@ -1012,27 +1069,69 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
         Throw("Unsupported RegExp map");
         return;
       }
-      uint32_t pattern_id, flags_id;
+      serializer.WriteUint32(ValueType::REGEXP);
       Handle<String> pattern = handle(regexp->source(), isolate_);
+      WriteStringId(pattern, serializer);
       Handle<String> flags_string =
           JSRegExp::StringFromFlags(isolate_, regexp->flags());
-      SerializeString(pattern, pattern_id);
-      SerializeString(flags_string, flags_id);
-      serializer.WriteUint32(ValueType::REGEXP);
-      serializer.WriteUint32(pattern_id);
-      serializer.WriteUint32(flags_id);
+      WriteStringId(flags_string, serializer);
       break;
     }
     default:
       if (heap_object->IsString()) {
-        SerializeString(Handle<String>::cast(heap_object), id);
-        serializer.WriteUint32(ValueType::STRING_ID);
-        serializer.WriteUint32(id);
+        // Write strings which are referred to only once as in-place strings.
+        WriteStringMaybeInPlace(Handle<String>::cast(heap_object), serializer);
       } else {
         Throw("Unsupported object");
       }
   }
   // TODO(v8:11525): Support more types.
+}
+
+void WebSnapshotSerializer::WriteStringMaybeInPlace(
+    Handle<String> string, ValueSerializer& serializer) {
+  // If the string is only referred to by one location, write it in-place.
+  bool in_place = false;
+  uint32_t id = GetStringId(string, in_place);
+  if (in_place) {
+    serializer.WriteUint32(ValueType::IN_PLACE_STRING_ID);
+    SerializeString(string, serializer);
+  } else {
+    serializer.WriteUint32(ValueType::STRING_ID);
+    serializer.WriteUint32(id);
+  }
+}
+
+void WebSnapshotSerializer::WriteStringId(Handle<String> string,
+                                          ValueSerializer& serializer) {
+  bool in_place = false;
+  uint32_t id = GetStringId(string, in_place);
+  CHECK(!in_place);  // The string must have an ID.
+  serializer.WriteUint32(id);
+}
+
+uint32_t WebSnapshotSerializer::GetStringId(Handle<String> string,
+                                            bool& in_place) {
+  // Internalize strings so that they're unique.
+  string = factory()->InternalizeString(string);
+
+  // Strings referred to more than one places are inserted in string_ids_.
+  // Strings referred to by only one place aren't.
+#ifdef DEBUG
+  auto result = all_strings_.FindOrInsert(string);
+  DCHECK(result.already_exists);
+#endif
+  int id = 0;
+  in_place = !string_ids_.Lookup(*string, &id);
+  return static_cast<uint32_t>(id);
+}
+
+uint32_t WebSnapshotSerializer::GetMapId(Map map) {
+  int id;
+  bool return_value = map_ids_.Lookup(map, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(id);
 }
 
 uint32_t WebSnapshotSerializer::GetFunctionId(JSFunction function) {
@@ -1334,6 +1433,20 @@ String WebSnapshotDeserializer::ReadString(bool internalize) {
   return string;
 }
 
+String WebSnapshotDeserializer::ReadInPlaceString(bool internalize) {
+  MaybeHandle<String> maybe_string =
+      deserializer_.ReadUtf8String(AllocationType::kOld);
+  Handle<String> string;
+  if (!maybe_string.ToHandle(&string)) {
+    Throw("Malformed string");
+    return roots_.empty_string();
+  }
+  if (internalize) {
+    string = factory()->InternalizeString(string);
+  }
+  return *string;
+}
+
 void WebSnapshotDeserializer::DeserializeMaps() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Maps);
   if (!deserializer_.ReadUint32(&map_count_) || map_count_ > kMaxItemCount) {
@@ -1391,7 +1504,6 @@ void WebSnapshotDeserializer::DeserializeMaps() {
 
     Handle<DescriptorArray> descriptors =
         factory()->NewDescriptorArray(property_count, 0);
-    // for (uint32_t p = 0; p < property_count; ++p) {
     for (InternalIndex i : InternalIndex::Range(property_count)) {
       PropertyAttributes attributes = PropertyAttributes::NONE;
       if (has_custom_property_attributes) {
@@ -1954,6 +2066,8 @@ Object WebSnapshotDeserializer::ReadValue(Handle<HeapObject> container,
       return ReadRegexp();
     case ValueType::EXTERNAL_ID:
       return ReadExternalReference();
+    case ValueType::IN_PLACE_STRING_ID:
+      return ReadInPlaceString(false);
     default:
       // TODO(v8:11525): Handle other value types.
       Throw("Unsupported value type");

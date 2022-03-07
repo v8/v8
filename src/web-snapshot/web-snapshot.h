@@ -53,7 +53,8 @@ class WebSnapshotSerializerDeserializer {
     FUNCTION_ID,
     CLASS_ID,
     REGEXP,
-    EXTERNAL_ID
+    EXTERNAL_ID,
+    IN_PLACE_STRING_ID
   };
 
   static constexpr uint8_t kMagicNumber[4] = {'+', '+', '+', ';'};
@@ -162,6 +163,11 @@ class V8_EXPORT WebSnapshotSerializer
   WebSnapshotSerializer(const WebSnapshotSerializer&) = delete;
   WebSnapshotSerializer& operator=(const WebSnapshotSerializer&) = delete;
 
+  enum class AllowInPlace {
+    No,   // This reference cannot be replace with an in-place item.
+    Yes,  // This reference can be replaced with an in-place item.
+  };
+
   void SerializePendingItems();
   void WriteSnapshot(uint8_t*& buffer, size_t& buffer_size);
   void WriteObjects(ValueSerializer& destination, size_t count,
@@ -173,21 +179,23 @@ class V8_EXPORT WebSnapshotSerializer
 
   void ShallowDiscoverExternals(FixedArray externals);
   void Discover(Handle<HeapObject> object);
+  void DiscoverString(Handle<String> string,
+                      AllowInPlace can_be_in_place = AllowInPlace::No);
+  void DiscoverMap(Handle<Map> map);
   void DiscoverFunction(Handle<JSFunction> function);
   void DiscoverClass(Handle<JSFunction> function);
   void DiscoverContextAndPrototype(Handle<JSFunction> function);
   void DiscoverContext(Handle<Context> context);
-  void DiscoverSource(Handle<JSFunction> function);
   void DiscoverArray(Handle<JSArray> array);
   void DiscoverObject(Handle<JSObject> object);
+  void DiscoverSource(Handle<JSFunction> function);
+  void ConstructSource();
 
-  void SerializeSource();
   void SerializeFunctionInfo(ValueSerializer* serializer,
                              Handle<JSFunction> function);
 
-  void SerializeString(Handle<String> string, uint32_t& id);
-  void SerializeMap(Handle<Map> map, uint32_t& id);
-
+  void SerializeString(Handle<String> string, ValueSerializer& serializer);
+  void SerializeMap(Handle<Map> map);
   void SerializeFunction(Handle<JSFunction> function);
   void SerializeClass(Handle<JSFunction> function);
   void SerializeContext(Handle<Context> context);
@@ -196,7 +204,12 @@ class V8_EXPORT WebSnapshotSerializer
 
   void SerializeExport(Handle<Object> object, Handle<String> export_name);
   void WriteValue(Handle<Object> object, ValueSerializer& serializer);
+  void WriteStringMaybeInPlace(Handle<String> string,
+                               ValueSerializer& serializer);
+  void WriteStringId(Handle<String> string, ValueSerializer& serializer);
 
+  uint32_t GetStringId(Handle<String> string, bool& in_place);
+  uint32_t GetMapId(Map map);
   uint32_t GetFunctionId(JSFunction function);
   uint32_t GetClassId(JSFunction function);
   uint32_t GetContextId(Context context);
@@ -219,6 +232,8 @@ class V8_EXPORT WebSnapshotSerializer
   Handle<ArrayList> classes_;
   Handle<ArrayList> arrays_;
   Handle<ArrayList> objects_;
+  Handle<ArrayList> strings_;
+  Handle<ArrayList> maps_;
 
   // IndexMap to keep track of explicitly blocked external objects and
   // non-serializable/not-supported objects (e.g. API Objects).
@@ -238,6 +253,12 @@ class V8_EXPORT WebSnapshotSerializer
   uint32_t export_count_ = 0;
 
   std::queue<Handle<HeapObject>> discovery_queue_;
+
+  // For keeping track of which strings have exactly one reference. Strings are
+  // inserted here when the first reference is discovered, and never removed.
+  // Strings which have more than one reference get an ID and are inserted to
+  // strings_.
+  IdentityMap<int, base::DefaultAllocationPolicy> all_strings_;
 
   // For constructing the minimal, "compacted", source string to cover all
   // function bodies.
@@ -311,6 +332,7 @@ class V8_EXPORT WebSnapshotDeserializer
   Object ReadInteger();
   Object ReadNumber();
   String ReadString(bool internalize = false);
+  String ReadInPlaceString(bool internalize = false);
   Object ReadArray(Handle<HeapObject> container, uint32_t container_index);
   Object ReadObject(Handle<HeapObject> container, uint32_t container_index);
   Object ReadFunction(Handle<HeapObject> container, uint32_t container_index);

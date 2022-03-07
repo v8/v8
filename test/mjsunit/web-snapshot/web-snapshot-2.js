@@ -114,6 +114,50 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   assertEquals(5, foo.array[0]());
 })();
 
+(function TestInPlaceStringsInArray() {
+  function createObjects() {
+    globalThis.foo = {
+      array: ['foo', 'bar', 'baz']
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  // We cannot test that the strings are really in-place; that's covered by
+  // cctests.
+  assertEquals('foobarbaz', foo.array.join(''));
+})();
+
+(function TestRepeatedInPlaceStringsInArray() {
+  function createObjects() {
+    globalThis.foo = {
+      array: ['foo', 'bar', 'foo']
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  // We cannot test that the strings are really in-place; that's covered by
+  // cctests.
+  assertEquals('foobarfoo', foo.array.join(''));
+})();
+
+(function TestInPlaceStringsInObject() {
+  function createObjects() {
+    globalThis.foo = {a: 'foo', b: 'bar', c: 'baz'};
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  // We cannot test that the strings are really in-place; that's covered by
+  // cctests.
+  assertEquals('foobarbaz', foo.a + foo.b + foo.c);
+})();
+
+(function TestRepeatedInPlaceStringsInObject() {
+  function createObjects() {
+    globalThis.foo = {a: 'foo', b: 'bar', c: 'foo'};
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  // We cannot test that the strings are really in-place; that's covered by
+  // cctests.
+  assertEquals('foobarfoo', foo.a + foo.b + foo.c);
+})();
+
 (function TestContextReferencingArray() {
   function createObjects() {
     function outer() {
