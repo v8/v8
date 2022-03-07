@@ -30,24 +30,21 @@ class BaselineAssembler::ScratchRegisterScope {
   explicit ScratchRegisterScope(BaselineAssembler* assembler)
       : assembler_(assembler),
         prev_scope_(assembler->scratch_register_scope_),
-        wrapped_scope_(assembler->masm()) {
-    if (!assembler_->scratch_register_scope_) {
-      // If we haven't opened a scratch scope yet, for the first one add a
-      // couple of extra registers.
-      DCHECK(wrapped_scope_.CanAcquire());
-      wrapped_scope_.Include(r8, r9);
-      wrapped_scope_.Include(kInterpreterBytecodeOffsetRegister);
-    }
+        registers_used_(prev_scope_ == nullptr ? 0
+                                               : prev_scope_->registers_used_) {
     assembler_->scratch_register_scope_ = this;
   }
   ~ScratchRegisterScope() { assembler_->scratch_register_scope_ = prev_scope_; }
 
-  Register AcquireScratch() { return wrapped_scope_.Acquire(); }
+  Register AcquireScratch() {
+    DCHECK_LT(registers_used_, detail::kNumScratchRegisters);
+    return detail::kScratchRegisters[registers_used_++];
+  }
 
  private:
   BaselineAssembler* assembler_;
   ScratchRegisterScope* prev_scope_;
-  UseScratchRegisterScope wrapped_scope_;
+  int registers_used_;
 };
 
 // TODO(v8:11429,leszeks): Unify condition names in the MacroAssembler.
