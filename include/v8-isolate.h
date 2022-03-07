@@ -529,6 +529,8 @@ class V8_EXPORT Isolate {
     kWasmMultiValue = 110,
     kWasmExceptionHandling = 111,
     kInvalidatedMegaDOMProtector = 112,
+    kFunctionPrototypeArguments = 113,
+    kFunctionPrototypeCaller = 114,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
