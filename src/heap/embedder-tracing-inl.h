@@ -30,9 +30,8 @@ bool LocalEmbedderHeapTracer::ExtractWrappableInfo(
     Isolate* isolate, const WrapperDescriptor& wrapper_descriptor,
     const EmbedderDataSlot& type_slot, const EmbedderDataSlot& instance_slot,
     WrapperInfo* info) {
-  if (type_slot.ToAlignedPointerSafe(isolate, &info->first) && info->first &&
-      instance_slot.ToAlignedPointerSafe(isolate, &info->second) &&
-      info->second) {
+  if (type_slot.ToAlignedPointer(isolate, &info->first) && info->first &&
+      instance_slot.ToAlignedPointer(isolate, &info->second) && info->second) {
     return (wrapper_descriptor.embedder_id_for_garbage_collected ==
             WrapperDescriptor::kUnknownEmbedderId) ||
            (*static_cast<uint16_t*>(info->first) ==

@@ -441,11 +441,33 @@ void JSObject::InitializeBody(Map map, int start_offset,
                               MapWord filler_map, Object undefined_filler) {
   int size = map.instance_size();
   int offset = start_offset;
+  int embedder_field_start = GetEmbedderFieldsStartOffset(map);
+  int embedder_field_count = GetEmbedderFieldCount(map);
+
+  if (embedder_field_count) {
+    // fill start with references to the undefined value object
+    DCHECK_LE(offset, embedder_field_start);
+    while (offset < embedder_field_start) {
+      WRITE_FIELD(*this, offset, undefined_filler);
+      offset += kTaggedSize;
+    }
+
+    // initialize embedder data slots
+    DCHECK_EQ(offset, embedder_field_start);
+    for (int i = 0; i < embedder_field_count; i++) {
+      // TODO(v8): consider initializing embedded data slots with Smi::zero().
+      EmbedderDataSlot(*this, i).Initialize(undefined_filler);
+      offset += kEmbedderDataSlotSize;
+    }
+  }
+
+  DCHECK_LE(offset, size);
   if (is_slack_tracking_in_progress) {
     int end_of_pre_allocated_offset =
         size - (map.UnusedPropertyFields() * kTaggedSize);
     DCHECK_LE(kHeaderSize, end_of_pre_allocated_offset);
-    // fill start with references to the undefined value object
+    DCHECK_LE(offset, end_of_pre_allocated_offset);
+    // fill pre allocated slots with references to the undefined value object
     while (offset < end_of_pre_allocated_offset) {
       WRITE_FIELD(*this, offset, undefined_filler);
       offset += kTaggedSize;
@@ -458,7 +480,7 @@ void JSObject::InitializeBody(Map map, int start_offset,
     }
   } else {
     while (offset < size) {
-      // fill with references to the undefined value object
+      // fill everything with references to the undefined value object
       WRITE_FIELD(*this, offset, undefined_filler);
       offset += kTaggedSize;
     }

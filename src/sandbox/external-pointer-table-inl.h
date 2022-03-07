@@ -40,9 +40,8 @@ void ExternalPointerTable::Init(Isolate* isolate) {
   base::MutexGuard guard(mutex_);
   Grow();
 
-  // Set up the special null entry. This entry must currently contain nullptr
-  // so that uninitialized EmbedderDataSlots work correctly. TODO(saelo) maybe
-  // make entry non-null once EmbedderDataSlots are properly sandboxified.
+  // Set up the special null entry. This entry must contain nullptr so that
+  // empty EmbedderDataSlots represent nullptr.
   STATIC_ASSERT(kNullExternalPointer == 0);
   store(kNullExternalPointer, kNullAddress);
 }
@@ -79,10 +78,6 @@ void ExternalPointerTable::Set(uint32_t index, Address value,
   DCHECK(is_marked(tag));
 
   store_atomic(index, value | tag);
-}
-
-bool ExternalPointerTable::IsValidIndex(uint32_t index) const {
-  return index < capacity_ && !is_free(load_atomic(index));
 }
 
 uint32_t ExternalPointerTable::Allocate() {

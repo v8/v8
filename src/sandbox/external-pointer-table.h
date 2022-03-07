@@ -83,11 +83,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // This method is atomic and can be called from background threads.
   inline void Set(uint32_t index, Address value, ExternalPointerTag tag);
 
-  // Returns true if the entry exists and isn't free.
-  //
-  // This method is atomic and can be called from background threads.
-  inline bool IsValidIndex(uint32_t index) const;
-
   // Allocates a new entry in the external pointer table. The caller must
   // initialize the entry afterwards through set(). In particular, the caller is
   // responsible for setting the mark bit of the new entry.

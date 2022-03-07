@@ -31,6 +31,17 @@ EmbedderDataSlot::EmbedderDataSlot(JSObject object, int embedder_field_index)
 EmbedderDataSlot::EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot)
     : SlotBase(reinterpret_cast<Address>(&snapshot)) {}
 
+void EmbedderDataSlot::Initialize(Object initial_value) {
+  // TODO(v8) initialize the slot with Smi::zero() instead. This'll also
+  // guarantee that we don't need a write barrier.
+  DCHECK(initial_value.IsSmi() ||
+         ReadOnlyHeap::Contains(HeapObject::cast(initial_value)));
+  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(initial_value);
+#ifdef V8_COMPRESS_POINTERS
+  ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::zero());
+#endif
+}
+
 Object EmbedderDataSlot::load_tagged() const {
   return ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load();
 }
@@ -78,10 +89,10 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
   // phase which is propely synched with GC (concurrent marker may still look
   // at the tagged part of the embedder slot but read-only access is ok).
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  // This might crash if the value is not a valid index.
-  *out_pointer = reinterpret_cast<void*>(ReadExternalPointerField(
-      address() + kRawPayloadOffset, isolate, kEmbedderDataSlotPayloadTag));
-  // We don't actually care if the pointer is aligned or not...
+  // The raw part must always contain a valid external pointer table index.
+  *out_pointer = reinterpret_cast<void*>(
+      ReadExternalPointerField(address() + kExternalPointerOffset, isolate,
+                               kEmbedderDataSlotPayloadTag));
   return true;
 #else
   Address raw_value;
@@ -99,39 +110,13 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
-bool EmbedderDataSlot::ToAlignedPointerSafe(Isolate* isolate,
-                                            void** out_pointer) const {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  uint32_t index = base::Memory<uint32_t>(address() + kRawPayloadOffset);
-  if (!HAS_SMI_TAG(index)) return false;
-  index >>= kExternalPointerIndexShift;
-  Address raw_value;
-  if (isolate->external_pointer_table().IsValidIndex(index)) {
-    raw_value = isolate->external_pointer_table().Get(
-        index, kEmbedderDataSlotPayloadTag);
-    *out_pointer = reinterpret_cast<void*>(raw_value);
-    // The index being valid does not guarantee that this slot contains an
-    // external pointer. After initialization, the raw part will contain the
-    // "undefined" value (see Factory::InitializeJSObjectBody) which could look
-    // like an external pointer table index as well. To deal with that, we also
-    // check that the returned value has the embedder data slot tag, since
-    // otherwise the pointer would be invalid.
-    // TODO(v8:10391) maybe initialize the slot to zero to avoid this issue.
-    return (raw_value & kExternalPointerTagMask) == 0;
-  }
-  return false;
-#else
-  return ToAlignedPointer(isolate, out_pointer);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
-}
-
 bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   DCHECK_EQ(0, value & kExternalPointerTagMask);
   // This also mark the entry as alive until the next GC.
-  InitExternalPointerField(address() + kRawPayloadOffset, isolate, value,
+  InitExternalPointerField(address() + kExternalPointerOffset, isolate, value,
                            kEmbedderDataSlotPayloadTag);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;

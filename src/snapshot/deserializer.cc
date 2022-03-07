@@ -678,8 +678,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
     JSObject js_obj = JSObject::cast(raw_obj);
     for (int i = 0; i < js_obj.GetEmbedderFieldCount(); ++i) {
       void* pointer;
-      CHECK(EmbedderDataSlot(js_obj, i).ToAlignedPointerSafe(
-          main_thread_isolate(), &pointer));
+      CHECK(EmbedderDataSlot(js_obj, i).ToAlignedPointer(main_thread_isolate(),
+                                                         &pointer));
       CHECK_NULL(pointer);
     }
   } else if (raw_obj.IsEmbedderDataArray(cage_base)) {
@@ -688,7 +688,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
     EmbedderDataSlot end(array, array.length());
     for (EmbedderDataSlot slot = start; slot < end; ++slot) {
       void* pointer;
-      CHECK(slot.ToAlignedPointerSafe(main_thread_isolate(), &pointer));
+      CHECK(slot.ToAlignedPointer(main_thread_isolate(), &pointer));
       CHECK_NULL(pointer);
     }
   }

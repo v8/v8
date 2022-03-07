@@ -526,10 +526,10 @@ Handle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
   array.set_length(length);
 
   if (length > 0) {
-    ObjectSlot start(array.slots_start());
-    ObjectSlot end(array.slots_end());
-    size_t slot_count = end - start;
-    MemsetTagged(start, *undefined_value(), slot_count);
+    for (int i = 0; i < length; i++) {
+      // TODO(v8): consider initializing embedded data array with Smi::zero().
+      EmbedderDataSlot(array, i).Initialize(*undefined_value());
+    }
   }
   return handle(array, isolate());
 }
@@ -2010,10 +2010,9 @@ void initialize_length<PropertyArray>(PropertyArray array, int length) {
   array.initialize_length(length);
 }
 
-inline void ZeroEmbedderFields(i::JSObject obj) {
-  int count = obj.GetEmbedderFieldCount();
-  for (int i = 0; i < count; i++) {
-    obj.SetEmbedderField(i, Smi::zero());
+inline void InitEmbedderFields(i::JSObject obj, i::Object initial_value) {
+  for (int i = 0; i < obj.GetEmbedderFieldCount(); i++) {
+    EmbedderDataSlot(obj, i).Initialize(initial_value);
   }
 }
 
@@ -2960,7 +2959,7 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
   raw.set_byte_offset(byte_offset);
   raw.set_byte_length(byte_length);
   raw.set_bit_field(0);
-  ZeroEmbedderFields(raw);
+  InitEmbedderFields(raw, Smi::zero());
   DCHECK_EQ(raw.GetEmbedderFieldCount(),
             v8::ArrayBufferView::kEmbedderFieldCount);
   return array_buffer_view;
@@ -3874,7 +3873,7 @@ Handle<JSPromise> Factory::NewJSPromiseWithoutHook() {
   JSPromise raw = *promise;
   raw.set_reactions_or_result(Smi::zero(), SKIP_WRITE_BARRIER);
   raw.set_flags(0);
-  ZeroEmbedderFields(*promise);
+  InitEmbedderFields(*promise, Smi::zero());
   DCHECK_EQ(raw.GetEmbedderFieldCount(), v8::Promise::kEmbedderFieldCount);
   return promise;
 }

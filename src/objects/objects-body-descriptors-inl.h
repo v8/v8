@@ -84,22 +84,24 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
                                                  ObjectVisitor* v) {
 #ifdef V8_COMPRESS_POINTERS
   STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
-  int header_size = JSObject::GetHeaderSize(map);
-  int inobject_fields_offset = map.GetInObjectPropertyOffset(0);
+  int header_end_offset = JSObject::GetHeaderSize(map);
+  int inobject_fields_start_offset = map.GetInObjectPropertyOffset(0);
   // We are always requested to process header and embedder fields.
-  DCHECK_LE(inobject_fields_offset, end_offset);
+  DCHECK_LE(inobject_fields_start_offset, end_offset);
   // Embedder fields are located between header and inobject properties.
-  if (header_size < inobject_fields_offset) {
+  if (header_end_offset < inobject_fields_start_offset) {
     // There are embedder fields.
-    IteratePointers(obj, start_offset, header_size, v);
-    // Iterate only tagged payload of the embedder slots and skip raw payload.
-    DCHECK_EQ(header_size, JSObject::GetEmbedderFieldsStartOffset(map));
-    for (int offset = header_size + EmbedderDataSlot::kTaggedPayloadOffset;
-         offset < inobject_fields_offset; offset += kEmbedderDataSlotSize) {
-      IteratePointer(obj, offset, v);
+    DCHECK_EQ(header_end_offset, JSObject::GetEmbedderFieldsStartOffset(map));
+    IteratePointers(obj, start_offset, header_end_offset, v);
+    for (int offset = header_end_offset; offset < inobject_fields_start_offset;
+         offset += kEmbedderDataSlotSize) {
+      IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
+      v->VisitExternalPointer(
+          obj, obj.RawExternalPointerField(
+                   offset + EmbedderDataSlot::kExternalPointerOffset));
     }
     // Proceed processing inobject properties.
-    start_offset = inobject_fields_offset;
+    start_offset = inobject_fields_start_offset;
   }
 #else
   // We store raw aligned pointers as Smis, so it's safe to iterate the whole
@@ -107,11 +109,6 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
   STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
 #endif
   IteratePointers(obj, start_offset, end_offset, v);
-
-  JSObject js_obj = JSObject::cast(obj);
-  for (int i = 0; i < js_obj.GetEmbedderFieldCount(); i++) {
-    v->VisitEmbedderDataSlot(obj, EmbedderDataSlot(js_obj, i));
-  }
 }
 
 template <typename ObjectVisitor>
@@ -998,25 +995,20 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
 #ifdef V8_COMPRESS_POINTERS
     STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
-    // Iterate only tagged payload of the embedder slots and skip raw payload.
-    for (int offset = EmbedderDataArray::OffsetOfElementAt(0) +
-                      EmbedderDataSlot::kTaggedPayloadOffset;
+    for (int offset = EmbedderDataArray::OffsetOfElementAt(0);
          offset < object_size; offset += kEmbedderDataSlotSize) {
-      IteratePointer(obj, offset, v);
+      IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
+      v->VisitExternalPointer(
+          obj, obj.RawExternalPointerField(
+                   offset + EmbedderDataSlot::kExternalPointerOffset));
     }
+
 #else
     // We store raw aligned pointers as Smis, so it's safe to iterate the whole
     // array.
     STATIC_ASSERT(kEmbedderDataSlotSize == kTaggedSize);
     IteratePointers(obj, EmbedderDataArray::kHeaderSize, object_size, v);
 #endif
-
-    EmbedderDataArray array = EmbedderDataArray::cast(obj);
-    EmbedderDataSlot start(array, 0);
-    EmbedderDataSlot end(array, array.length());
-    for (EmbedderDataSlot slot = start; slot < end; ++slot) {
-      v->VisitEmbedderDataSlot(obj, slot);
-    }
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
