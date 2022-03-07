@@ -747,14 +747,28 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   DCHECK(is_function_scope());
   DCHECK(!is_arrow_scope());
 
+  // Because when arguments_ is not nullptr, we already declared
+  // "arguments exotic object" to add it into parameters before
+  // impl()->InsertShadowingVarBindingInitializers, so here
+  // only declare "arguments exotic object" when arguments_
+  // is nullptr
+  if (arguments_ != nullptr) {
+    return;
+  }
+
   // Declare 'arguments' variable which exists in all non arrow functions.  Note
   // that it might never be accessed, in which case it won't be allocated during
   // variable allocation.
-  bool was_added;
+  bool was_added = false;
+
   arguments_ =
       Declare(zone(), ast_value_factory->arguments_string(), VariableMode::kVar,
               NORMAL_VARIABLE, kCreatedInitialized, kNotAssigned, &was_added);
-  if (!was_added && IsLexicalVariableMode(arguments_->mode())) {
+  // According to ES#sec-functiondeclarationinstantiation step 18
+  // we should set argumentsObjectNeeded to false if has lexical
+  // declared arguments only when hasParameterExpressions is false
+  if (!was_added && IsLexicalVariableMode(arguments_->mode()) &&
+      has_simple_parameters_) {
     // Check if there's lexically declared variable named arguments to avoid
     // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
     arguments_ = nullptr;

@@ -4405,6 +4405,16 @@ void ParserBase<Impl>::ParseFunctionBody(
           impl()->ReportVarRedeclarationIn(conflict, inner_scope);
         }
       }
+
+      // According to ES#sec-functiondeclarationinstantiation step 27,28
+      // when hasParameterExpressions is true, we need bind var declared
+      // arguments to "arguments exotic object", so we here first declare
+      // "arguments exotic object", then var declared arguments will be
+      // initialized with "arguments exotic object"
+      if (!IsArrowFunction(kind)) {
+        function_scope->DeclareArguments(ast_value_factory());
+      }
+
       impl()->InsertShadowingVarBindingInitializers(inner_block);
     }
   }
@@ -4413,9 +4423,6 @@ void ParserBase<Impl>::ParseFunctionBody(
                            allow_duplicate_parameters);
 
   if (!IsArrowFunction(kind)) {
-    // Declare arguments after parsing the function since lexical 'arguments'
-    // masks the arguments object. Declare arguments before declaring the
-    // function var since the arguments object masks 'function arguments'.
     function_scope->DeclareArguments(ast_value_factory());
   }
 
