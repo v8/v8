@@ -66,18 +66,26 @@ void InitializeMemoryProtectionKeySupport() {
   // Flip {pkey_initialized} (in debug mode) and check the new value.
   DCHECK_EQ(true, pkey_initialized = !pkey_initialized);
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-  // PKU is broken on Linux kernels before 5.13 (see
+  // PKU was broken on Linux kernels before 5.13 (see
   // https://lore.kernel.org/all/20210623121456.399107624@linutronix.de/).
-  // Thus check the kernel version we are running on, and bail out if it's
-  // not at least 5.13.
+  // A fix is also included in the 5.4.182 and 5.10.103 versions ("x86/fpu:
+  // Correct pkru/xstate inconsistency" by Brian Geffon <bgeffon@google.com>).
+  // Thus check the kernel version we are running on, and bail out if does not
+  // contain the fix.
   struct utsname uname_buffer;
   CHECK_EQ(0, uname(&uname_buffer));
-  int major, minor;
+  int kernel, major, minor;
   // Conservatively return if the release does not match the format we expect.
-  if (sscanf(uname_buffer.release, "%d.%d.", &major, &minor) != 2) return;
-  if (major < 5 || (major == 5 && minor < 13)) return;
+  if (sscanf(uname_buffer.release, "%d.%d.%d", &kernel, &major, &minor) != 3) {
+    return;
+  }
+  bool kernel_has_pkru_fix =
+      kernel > 5 || (kernel == 5 && major >= 13) ||   // anything >= 5.13
+      (kernel == 5 && major == 4 && minor >= 182) ||  // 5.4 >= 5.4.182
+      (kernel == 5 && major == 10 && minor >= 103);   // 5.10 >= 5.10.103
+  if (!kernel_has_pkru_fix) return;
 
-  // Try to to find the pkey functions in glibc.
+  // Try to find the pkey functions in glibc.
   void* pkey_alloc_ptr = dlsym(RTLD_DEFAULT, "pkey_alloc");
   if (!pkey_alloc_ptr) return;
 
