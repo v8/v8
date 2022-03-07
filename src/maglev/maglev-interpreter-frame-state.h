@@ -48,6 +48,7 @@ class InterpreterFrameState {
   void set(interpreter::Register reg, ValueNode* value) {
     DCHECK_IMPLIES(reg.is_parameter(),
                    reg == interpreter::Register::current_context() ||
+                       reg == interpreter::Register::function_closure() ||
                        reg.ToParameterIndex() >= 0);
     frame_[reg] = value;
   }

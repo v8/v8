@@ -63,19 +63,14 @@ class MaglevGraphBuilder {
       current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
     }
 
-    // interpreter::Register regs[] = {interpreter::Register::current_context(),
-    //                                 interpreter::Register::function_closure(),
-    //                                 interpreter::Register::bytecode_array(),
-    //                                 interpreter::Register::bytecode_offset()};
-    // for (interpreter::Register& reg : regs) {
-    //   current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
-    // }
-
-    // TODO(leszeks): Extract out a separate "incoming context" node to be able
-    // to read in the context arg but also use the frame-spilled context var.
-    current_interpreter_frame_.set(
-        interpreter::Register::current_context(),
-        AddNewNode<InitialValue>({}, interpreter::Register::current_context()));
+    // TODO(leszeks): Extract out a separate "incoming context/closure" nodes,
+    // to be able to read in the machine register but also use the frame-spilled
+    // slot.
+    interpreter::Register regs[] = {interpreter::Register::current_context(),
+                                    interpreter::Register::function_closure()};
+    for (interpreter::Register& reg : regs) {
+      current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
+    }
 
     interpreter::Register new_target_or_generator_register =
         bytecode().incoming_new_target_or_generator_register();
