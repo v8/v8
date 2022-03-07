@@ -13,6 +13,18 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
+namespace detail {
+
+static constexpr Register kScratchRegisters[] = {r9, r10, ip};
+static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
+
+#ifdef DEBUG
+inline bool Clobbers(Register target, MemOperand op) {
+  return op.rb() == target || op.rx() == target;
+}
+#endif
+}  // namespace detail
+
 class BaselineAssembler::ScratchRegisterScope {
  public:
   explicit ScratchRegisterScope(BaselineAssembler* assembler)
