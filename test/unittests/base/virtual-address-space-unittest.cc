@@ -55,7 +55,7 @@ void TestBasicPageAllocation(v8::VirtualAddressSpace* space) {
   for (Address allocation : allocations) {
     //... and readable
     size_t size = *reinterpret_cast<size_t*>(allocation);
-    EXPECT_TRUE(space->FreePages(allocation, size));
+    space->FreePages(allocation, size);
   }
 }
 
@@ -75,7 +75,7 @@ void TestPageAllocationAlignment(v8::VirtualAddressSpace* space) {
     EXPECT_GE(allocation, space->base());
     EXPECT_LT(allocation, space->base() + space->size());
 
-    EXPECT_TRUE(space->FreePages(allocation, size));
+    space->FreePages(allocation, size);
   }
 }
 
@@ -94,7 +94,8 @@ void TestParentSpaceCannotAllocateInChildSpace(v8::VirtualAddressSpace* parent,
                                                PagePermissions::kNoAccess);
     ASSERT_NE(kNullAddress, allocation);
     EXPECT_TRUE(allocation < start || allocation >= end);
-    EXPECT_TRUE(parent->FreePages(allocation, chunksize));
+
+    parent->FreePages(allocation, chunksize);
   }
 }
 
@@ -120,8 +121,8 @@ void TestSharedPageAllocation(v8::VirtualAddressSpace* space) {
   *reinterpret_cast<int*>(mapping1) = value;
   EXPECT_EQ(value, *reinterpret_cast<int*>(mapping2));
 
-  EXPECT_TRUE(space->FreeSharedPages(mapping1, size));
-  EXPECT_TRUE(space->FreeSharedPages(mapping2, size));
+  space->FreeSharedPages(mapping1, size);
+  space->FreeSharedPages(mapping2, size);
 
   OS::DestroySharedMemoryHandle(handle);
 }
@@ -234,14 +235,14 @@ TEST(VirtualAddressSpaceTest, TestEmulatedSubspace) {
                                           PagePermissions::kNoAccess);
     ASSERT_NE(kNullAddress, reservation);
     hint = reservation;
-    EXPECT_TRUE(rootspace.FreePages(reservation, kSubspaceSize));
+    rootspace.FreePages(reservation, kSubspaceSize);
     reservation =
         rootspace.AllocatePages(hint, kSubspaceMappedSize, subspace_alignment,
                                 PagePermissions::kNoAccess);
     if (reservation == hint) {
       break;
     } else {
-      EXPECT_TRUE(rootspace.FreePages(reservation, kSubspaceMappedSize));
+      rootspace.FreePages(reservation, kSubspaceMappedSize);
       reservation = kNullAddress;
     }
   }

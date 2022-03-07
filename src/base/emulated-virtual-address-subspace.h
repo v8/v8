@@ -48,21 +48,21 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
   Address AllocatePages(Address hint, size_t size, size_t alignment,
                         PagePermissions permissions) override;
 
-  bool FreePages(Address address, size_t size) override;
+  void FreePages(Address address, size_t size) override;
 
   Address AllocateSharedPages(Address hint, size_t size,
                               PagePermissions permissions,
                               PlatformSharedMemoryHandle handle,
                               uint64_t offset) override;
 
-  bool FreeSharedPages(Address address, size_t size) override;
+  void FreeSharedPages(Address address, size_t size) override;
 
   bool SetPagePermissions(Address address, size_t size,
                           PagePermissions permissions) override;
 
   bool AllocateGuardRegion(Address address, size_t size) override;
 
-  bool FreeGuardRegion(Address address, size_t size) override;
+  void FreeGuardRegion(Address address, size_t size) override;
 
   bool CanAllocateSubspaces() override;
 

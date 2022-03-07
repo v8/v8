@@ -120,7 +120,7 @@ void TestPageAllocationInSandbox(Sandbox& sandbox) {
 
   for (int i = 0; i < kNumAllocations; i++) {
     size_t length = allocation_granularity * kAllocatinSizesInPages[i];
-    EXPECT_TRUE(vas->FreePages(allocations[i], length));
+    vas->FreePages(allocations[i], length);
   }
 }
 

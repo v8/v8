@@ -581,6 +581,8 @@ enum class PagePermissions {
  * sub-spaces and (private or shared) memory pages can be allocated, freed, and
  * modified. This interface is meant to eventually replace the PageAllocator
  * interface, and can be used as an alternative in the meantime.
+ *
+ * This API is not yet stable and may change without notice!
  */
 class VirtualAddressSpace {
  public:
@@ -682,16 +684,16 @@ class VirtualAddressSpace {
   /**
    * Frees previously allocated pages.
    *
+   * This function will terminate the process on failure as this implies a bug
+   * in the client. As such, there is no return value.
+   *
    * \param address The start address of the pages to free. This address must
-   * have been obtains from a call to AllocatePages.
+   * have been obtained through a call to AllocatePages.
    *
    * \param size The size in bytes of the region to free. This must match the
    * size passed to AllocatePages when the pages were allocated.
-   *
-   * \returns true on success, false otherwise.
    */
-  virtual V8_WARN_UNUSED_RESULT bool FreePages(Address address,
-                                               size_t size) = 0;
+  virtual void FreePages(Address address, size_t size) = 0;
 
   /**
    * Sets permissions of all allocated pages in the given range.
@@ -731,17 +733,17 @@ class VirtualAddressSpace {
   /**
    * Frees an existing guard region.
    *
+   * This function will terminate the process on failure as this implies a bug
+   * in the client. As such, there is no return value.
+   *
    * \param address The start address of the guard region to free. This address
    * must have previously been used as address parameter in a successful
    * invocation of AllocateGuardRegion.
    *
    * \param size The size in bytes of the guard region to free. This must match
    * the size passed to AllocateGuardRegion when the region was created.
-   *
-   * \returns true on success, false otherwise.
    */
-  virtual V8_WARN_UNUSED_RESULT bool FreeGuardRegion(Address address,
-                                                     size_t size) = 0;
+  virtual void FreeGuardRegion(Address address, size_t size) = 0;
 
   /**
    * Allocates shared memory pages with the given permissions.
@@ -769,16 +771,16 @@ class VirtualAddressSpace {
   /**
    * Frees previously allocated shared pages.
    *
+   * This function will terminate the process on failure as this implies a bug
+   * in the client. As such, there is no return value.
+   *
    * \param address The start address of the pages to free. This address must
-   * have been obtains from a call to AllocateSharedPages.
+   * have been obtained through a call to AllocateSharedPages.
    *
    * \param size The size in bytes of the region to free. This must match the
    * size passed to AllocateSharedPages when the pages were allocated.
-   *
-   * \returns true on success, false otherwise.
    */
-  virtual V8_WARN_UNUSED_RESULT bool FreeSharedPages(Address address,
-                                                     size_t size) = 0;
+  virtual void FreeSharedPages(Address address, size_t size) = 0;
 
   /**
    * Whether this instance can allocate subspaces or not.

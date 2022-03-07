@@ -30,7 +30,7 @@ EmulatedVirtualAddressSubspace::EmulatedVirtualAddressSubspace(
 }
 
 EmulatedVirtualAddressSubspace::~EmulatedVirtualAddressSubspace() {
-  CHECK(parent_space_->FreePages(base(), mapped_size_));
+  parent_space_->FreePages(base(), mapped_size_);
 }
 
 void EmulatedVirtualAddressSubspace::SetRandomSeed(int64_t seed) {
@@ -84,7 +84,7 @@ Address EmulatedVirtualAddressSubspace::AllocatePages(
     if (UnmappedRegionContains(result, size)) {
       return result;
     } else if (result) {
-      CHECK(parent_space_->FreePages(result, size));
+      parent_space_->FreePages(result, size);
     }
 
     // Retry at a different address.
@@ -94,15 +94,15 @@ Address EmulatedVirtualAddressSubspace::AllocatePages(
   return kNullAddress;
 }
 
-bool EmulatedVirtualAddressSubspace::FreePages(Address address, size_t size) {
+void EmulatedVirtualAddressSubspace::FreePages(Address address, size_t size) {
   if (MappedRegionContains(address, size)) {
     MutexGuard guard(&mutex_);
-    if (region_allocator_.FreeRegion(address) != size) return false;
+    CHECK_EQ(size, region_allocator_.FreeRegion(address));
     CHECK(parent_space_->DecommitPages(address, size));
-    return true;
+  } else {
+    DCHECK(UnmappedRegionContains(address, size));
+    parent_space_->FreePages(address, size);
   }
-  if (!UnmappedRegionContains(address, size)) return false;
-  return parent_space_->FreePages(address, size);
 }
 
 Address EmulatedVirtualAddressSubspace::AllocateSharedPages(
@@ -124,7 +124,7 @@ Address EmulatedVirtualAddressSubspace::AllocateSharedPages(
     if (UnmappedRegionContains(region, size)) {
       return region;
     } else if (region) {
-      CHECK(parent_space_->FreeSharedPages(region, size));
+      parent_space_->FreeSharedPages(region, size);
     }
 
     hint = RandomPageAddress();
@@ -133,9 +133,10 @@ Address EmulatedVirtualAddressSubspace::AllocateSharedPages(
   return kNullAddress;
 }
 
-bool EmulatedVirtualAddressSubspace::FreeSharedPages(Address address,
+void EmulatedVirtualAddressSubspace::FreeSharedPages(Address address,
                                                      size_t size) {
-  return parent_space_->FreeSharedPages(address, size);
+  DCHECK(UnmappedRegionContains(address, size));
+  parent_space_->FreeSharedPages(address, size);
 }
 
 bool EmulatedVirtualAddressSubspace::SetPagePermissions(
@@ -154,14 +155,15 @@ bool EmulatedVirtualAddressSubspace::AllocateGuardRegion(Address address,
   return parent_space_->AllocateGuardRegion(address, size);
 }
 
-bool EmulatedVirtualAddressSubspace::FreeGuardRegion(Address address,
+void EmulatedVirtualAddressSubspace::FreeGuardRegion(Address address,
                                                      size_t size) {
   if (MappedRegionContains(address, size)) {
     MutexGuard guard(&mutex_);
-    return region_allocator_.FreeRegion(address) == size;
+    CHECK_EQ(size, region_allocator_.FreeRegion(address));
+  } else {
+    DCHECK(UnmappedRegionContains(address, size));
+    parent_space_->FreeGuardRegion(address, size);
   }
-  if (!UnmappedRegionContains(address, size)) return false;
-  return parent_space_->FreeGuardRegion(address, size);
 }
 
 bool EmulatedVirtualAddressSubspace::CanAllocateSubspaces() {

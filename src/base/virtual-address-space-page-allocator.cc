@@ -28,7 +28,7 @@ bool VirtualAddressSpacePageAllocator::FreePages(void* ptr, size_t size) {
     size = result->second;
     resized_allocations_.erase(result);
   }
-  CHECK(vas_->FreePages(address, size));
+  vas_->FreePages(address, size);
   return true;
 }
 

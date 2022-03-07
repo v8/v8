@@ -273,7 +273,7 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
       break;
 
     // Can't use this base, so free the reservation and try again
-    CHECK(vas->FreePages(reservation_base_, size_to_reserve));
+    vas->FreePages(reservation_base_, size_to_reserve);
     reservation_base_ = kNullAddress;
   }
   DCHECK(reservation_base_);

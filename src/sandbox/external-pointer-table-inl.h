@@ -49,9 +49,8 @@ void ExternalPointerTable::Init(Isolate* isolate) {
 void ExternalPointerTable::TearDown() {
   DCHECK(is_initialized());
 
-  CHECK(GetPlatformVirtualAddressSpace()->FreePages(
-      buffer_, kExternalPointerTableReservationSize));
-
+  GetPlatformVirtualAddressSpace()->FreePages(
+      buffer_, kExternalPointerTableReservationSize);
   delete mutex_;
 
   buffer_ = kNullAddress;

@@ -35,14 +35,11 @@ Address LsanVirtualAddressSpace::AllocatePages(Address hint, size_t size,
   return result;
 }
 
-bool LsanVirtualAddressSpace::FreePages(Address address, size_t size) {
-  bool result = vas_->FreePages(address, size);
+void LsanVirtualAddressSpace::FreePages(Address address, size_t size) {
+  vas_->FreePages(address, size);
 #if defined(LEAK_SANITIZER)
-  if (result) {
-    __lsan_unregister_root_region(reinterpret_cast<void*>(address), size);
-  }
+  __lsan_unregister_root_region(reinterpret_cast<void*>(address), size);
 #endif  // defined(LEAK_SANITIZER)
-  return result;
 }
 
 Address LsanVirtualAddressSpace::AllocateSharedPages(
@@ -58,14 +55,11 @@ Address LsanVirtualAddressSpace::AllocateSharedPages(
   return result;
 }
 
-bool LsanVirtualAddressSpace::FreeSharedPages(Address address, size_t size) {
-  bool result = vas_->FreeSharedPages(address, size);
+void LsanVirtualAddressSpace::FreeSharedPages(Address address, size_t size) {
+  vas_->FreeSharedPages(address, size);
 #if defined(LEAK_SANITIZER)
-  if (result) {
-    __lsan_unregister_root_region(reinterpret_cast<void*>(address), size);
-  }
+  __lsan_unregister_root_region(reinterpret_cast<void*>(address), size);
 #endif  // defined(LEAK_SANITIZER)
-  return result;
 }
 
 std::unique_ptr<VirtualAddressSpace> LsanVirtualAddressSpace::AllocateSubspace(
