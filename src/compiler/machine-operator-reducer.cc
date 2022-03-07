@@ -1354,7 +1354,7 @@ Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
          node->opcode() == IrOpcode::kUint32LessThan ||
          node->opcode() == IrOpcode::kUint32LessThanOrEqual);
   Int32BinopMatcher m(node);
-  // (x >>> K) < (y >>> K) => x < y   if only zeros shifted out
+  // (x >> K) < (y >> K) => x < y   if only zeros shifted out
   if (m.left().op() == machine()->Word32SarShiftOutZeros() &&
       m.right().op() == machine()->Word32SarShiftOutZeros()) {
     Int32BinopMatcher mleft(m.left().node());
@@ -1364,6 +1364,42 @@ Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
       node->ReplaceInput(0, mleft.left().node());
       node->ReplaceInput(1, mright.left().node());
       return Changed(node);
+    }
+  }
+  // Simplifying (x >> n) <= k into x <= (k << n), with "k << n" being
+  // computed here at compile time.
+  if (m.right().HasResolvedValue() &&
+      m.left().op() == machine()->Word32SarShiftOutZeros()) {
+    uint32_t right = m.right().ResolvedValue();
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasResolvedValue()) {
+      auto shift = mleft.right().ResolvedValue();
+      // Making sure that no significant bits will be shifted away.
+      if (shift >= 0 && shift <= 32 &&
+          (static_cast<int32_t>(right) << shift >> shift ==
+           static_cast<int32_t>(right))) {
+        node->ReplaceInput(0, mleft.left().node());
+        node->ReplaceInput(1, Int32Constant(right << shift));
+        return Changed(node);
+      }
+    }
+  }
+  // Simplifying k <= (x >> n) into (k << n) <= x, with "k << n" being
+  // computed here at compile time.
+  if (m.left().HasResolvedValue() &&
+      m.right().op() == machine()->Word32SarShiftOutZeros()) {
+    uint32_t left = m.left().ResolvedValue();
+    Int32BinopMatcher mright(m.right().node());
+    if (mright.right().HasResolvedValue()) {
+      auto shift = mright.right().ResolvedValue();
+      // Making sure that no significant bits will be shifted away.
+      if (shift >= 0 && shift <= 32 &&
+          (static_cast<int32_t>(left) << shift >> shift ==
+           static_cast<int32_t>(left))) {
+        node->ReplaceInput(0, Int32Constant(left << shift));
+        node->ReplaceInput(1, mright.left().node());
+        return Changed(node);
+      }
     }
   }
   return NoChange();
@@ -1405,7 +1441,7 @@ Reduction MachineOperatorReducer::ReduceWord64Comparisons(Node* node) {
     return Changed(node).FollowedBy(Reduce(node));
   }
 
-  // (x >>> K) < (y >>> K) => x < y   if only zeros shifted out
+  // (x >> K) < (y >> K) => x < y   if only zeros shifted out
   // This is useful for Smi untagging, which results in such a shift.
   if (m.left().op() == machine()->Word64SarShiftOutZeros() &&
       m.right().op() == machine()->Word64SarShiftOutZeros()) {
@@ -2199,6 +2235,21 @@ MachineOperatorReducer::ReduceWord32EqualForConstantRhs(Node* lhs,
           }
           return std::make_pair(Word32And(new_input, new_mask), new_rhs);
         }
+      }
+    }
+  }
+  // Replaces (x >> n) == k with x == k << n, with "k << n" being computed
+  // here at compile time.
+  if (lhs->op() == machine()->Word32SarShiftOutZeros() &&
+      lhs->UseCount() == 1) {
+    typename WordNAdapter::UintNBinopMatcher mshift(lhs);
+    if (mshift.right().HasResolvedValue()) {
+      auto shift = mshift.right().ResolvedValue();
+      // Making sure that no significant bits will be shifted away.
+      if (shift > 0 && shift < 32 &&
+          (static_cast<int32_t>(rhs) << shift >> shift ==
+           static_cast<int32_t>(rhs))) {
+        return std::make_pair(mshift.left().node(), rhs << shift);
       }
     }
   }
