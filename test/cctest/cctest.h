@@ -710,55 +710,56 @@ class TestPlatform : public v8::Platform {
 
   // v8::Platform implementation.
   v8::PageAllocator* GetPageAllocator() override {
-    return old_platform_->GetPageAllocator();
+    return old_platform()->GetPageAllocator();
   }
 
   void OnCriticalMemoryPressure() override {
-    old_platform_->OnCriticalMemoryPressure();
+    old_platform()->OnCriticalMemoryPressure();
   }
 
   bool OnCriticalMemoryPressure(size_t length) override {
-    return old_platform_->OnCriticalMemoryPressure(length);
+    return old_platform()->OnCriticalMemoryPressure(length);
   }
 
   int NumberOfWorkerThreads() override {
-    return old_platform_->NumberOfWorkerThreads();
+    return old_platform()->NumberOfWorkerThreads();
   }
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
-    return old_platform_->GetForegroundTaskRunner(isolate);
+    return old_platform()->GetForegroundTaskRunner(isolate);
   }
 
   void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
-    old_platform_->CallOnWorkerThread(std::move(task));
+    old_platform()->CallOnWorkerThread(std::move(task));
   }
 
   void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
                                  double delay_in_seconds) override {
-    old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
+    old_platform()->CallDelayedOnWorkerThread(std::move(task),
+                                              delay_in_seconds);
   }
 
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override {
-    return old_platform_->PostJob(priority, std::move(job_task));
+    return old_platform()->PostJob(priority, std::move(job_task));
   }
 
   double MonotonicallyIncreasingTime() override {
-    return old_platform_->MonotonicallyIncreasingTime();
+    return old_platform()->MonotonicallyIncreasingTime();
   }
 
   double CurrentClockTimeMillis() override {
-    return old_platform_->CurrentClockTimeMillis();
+    return old_platform()->CurrentClockTimeMillis();
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override {
-    return old_platform_->IdleTasksEnabled(isolate);
+    return old_platform()->IdleTasksEnabled(isolate);
   }
 
   v8::TracingController* GetTracingController() override {
-    return old_platform_->GetTracingController();
+    return old_platform()->GetTracingController();
   }
 
  protected:
@@ -768,7 +769,7 @@ class TestPlatform : public v8::Platform {
   v8::Platform* old_platform() const { return old_platform_; }
 
  private:
-  v8::Platform* old_platform_;
+  std::atomic<v8::Platform*> old_platform_;
 };
 
 #if defined(USE_SIMULATOR)
