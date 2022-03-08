@@ -1324,8 +1324,6 @@ class ConditionalControlNode : public ControlNode {
         if_true_(if_true_refs),
         if_false_(if_false_refs) {}
 
-  Input& condition_input() { return input(0); }
-
   BasicBlock* if_true() const { return if_true_.block_ptr(); }
   BasicBlock* if_false() const { return if_false_.block_ptr(); }
 
@@ -1334,10 +1332,10 @@ class ConditionalControlNode : public ControlNode {
   BasicBlockRef if_false_;
 };
 
-template <class Derived>
+template <size_t InputCount, class Derived>
 class ConditionalControlNodeT : public ConditionalControlNode {
   STATIC_ASSERT(IsConditionalControlNode(opcode_of<Derived>));
-  static constexpr size_t kInputCount = 1;
+  static constexpr size_t kInputCount = InputCount;
 
  public:
   // Shadowing for static knowledge.
@@ -1398,13 +1396,15 @@ class Return : public ControlNode {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class BranchIfTrue : public ConditionalControlNodeT<BranchIfTrue> {
-  using Base = ConditionalControlNodeT<BranchIfTrue>;
+class BranchIfTrue : public ConditionalControlNodeT<1, BranchIfTrue> {
+  using Base = ConditionalControlNodeT<1, BranchIfTrue>;
 
  public:
   explicit BranchIfTrue(size_t input_count, BasicBlockRef* if_true_refs,
                         BasicBlockRef* if_false_refs)
       : Base(input_count, if_true_refs, if_false_refs) {}
+
+  Input& condition_input() { return input(0); }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1412,8 +1412,8 @@ class BranchIfTrue : public ConditionalControlNodeT<BranchIfTrue> {
 };
 
 class BranchIfToBooleanTrue
-    : public ConditionalControlNodeT<BranchIfToBooleanTrue> {
-  using Base = ConditionalControlNodeT<BranchIfToBooleanTrue>;
+    : public ConditionalControlNodeT<1, BranchIfToBooleanTrue> {
+  using Base = ConditionalControlNodeT<1, BranchIfToBooleanTrue>;
 
  public:
   explicit BranchIfToBooleanTrue(size_t input_count,
@@ -1423,9 +1423,34 @@ class BranchIfToBooleanTrue
 
   static constexpr OpProperties kProperties = OpProperties::Call();
 
+  Input& condition_input() { return input(0); }
+
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class BranchIfCompare
+    : public ConditionalControlNodeT<2, BranchIfToBooleanTrue> {
+  using Base = ConditionalControlNodeT<2, BranchIfToBooleanTrue>;
+
+ public:
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return NodeBase::input(kLeftIndex); }
+  Input& right_input() { return NodeBase::input(kRightIndex); }
+
+  explicit BranchIfCompare(size_t input_count, Operation operation,
+                           BasicBlockRef* if_true_refs,
+                           BasicBlockRef* if_false_refs)
+      : Base(input_count, if_true_refs, if_false_refs), operation_(operation) {}
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  Operation operation_;
 };
 
 const OpProperties& NodeBase::properties() const {

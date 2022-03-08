@@ -876,6 +876,14 @@ void BranchIfTrue::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
 }
 
+void BranchIfCompare::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {}
+void BranchIfCompare::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  USE(operation_);
+  UNREACHABLE();
+}
+
 void BranchIfToBooleanTrue::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                          const ProcessingState& state) {
   UseFixed(condition_input(),
