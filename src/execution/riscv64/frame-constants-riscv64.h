@@ -24,7 +24,7 @@ class EntryFrameConstants : public AllStatic {
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
   static constexpr int kNumberOfSavedGpParamRegs =
-      arraysize(wasm::kGpParamRegisters);
+      arraysize(wasm::kGpParamRegisters) + 1;
   static constexpr int kNumberOfSavedFpParamRegs =
       arraysize(wasm::kFpParamRegisters);
   static constexpr int kNumberOfSavedAllParamRegs =

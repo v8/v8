@@ -4675,7 +4675,6 @@ void MacroAssembler::AssertFunction(Register object) {
 void MacroAssembler::AssertCallableFunction(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
-  ASM_CODE_COMMENT(this);
   STATIC_ASSERT(kSmiTag == 0);
   AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
   push(object);
