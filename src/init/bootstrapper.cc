@@ -2817,6 +2817,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate(), intl, "getCanonicalLocales",
                           Builtin::kIntlGetCanonicalLocales, 1, false);
 
+    SimpleInstallFunction(isolate(), intl, "supportedValuesOf",
+                          Builtin::kIntlSupportedValuesOf, 1, false);
+
     {  // -- D a t e T i m e F o r m a t
       Handle<JSFunction> date_time_format_constructor = InstallFunction(
           isolate_, intl, "DateTimeFormat", JS_DATE_TIME_FORMAT_TYPE,
@@ -3081,6 +3084,23 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallGetter(isolate(), prototype,
                           factory->numberingSystem_string(),
                           Builtin::kLocalePrototypeNumberingSystem, true);
+
+      // Intl Locale Info functions
+      SimpleInstallGetter(isolate(), prototype, factory->calendars_string(),
+                          Builtin::kLocalePrototypeCalendars, true);
+      SimpleInstallGetter(isolate(), prototype, factory->collations_string(),
+                          Builtin::kLocalePrototypeCollations, true);
+      SimpleInstallGetter(isolate(), prototype, factory->hourCycles_string(),
+                          Builtin::kLocalePrototypeHourCycles, true);
+      SimpleInstallGetter(isolate(), prototype,
+                          factory->numberingSystems_string(),
+                          Builtin::kLocalePrototypeNumberingSystems, true);
+      SimpleInstallGetter(isolate(), prototype, factory->textInfo_string(),
+                          Builtin::kLocalePrototypeTextInfo, true);
+      SimpleInstallGetter(isolate(), prototype, factory->timeZones_string(),
+                          Builtin::kLocalePrototypeTimeZones, true);
+      SimpleInstallGetter(isolate(), prototype, factory->weekInfo_string(),
+                          Builtin::kLocalePrototypeWeekInfo, true);
     }
 
     {  // -- D i s p l a y N a m e s
@@ -5321,28 +5341,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 
 #ifdef V8_INTL_SUPPORT
 
-void Genesis::InitializeGlobal_harmony_intl_locale_info() {
-  if (!FLAG_harmony_intl_locale_info) return;
-  Handle<JSObject> prototype(
-      JSObject::cast(native_context()->intl_locale_function().prototype()),
-      isolate_);
-  SimpleInstallGetter(isolate(), prototype, factory()->calendars_string(),
-                      Builtin::kLocalePrototypeCalendars, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->collations_string(),
-                      Builtin::kLocalePrototypeCollations, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->hourCycles_string(),
-                      Builtin::kLocalePrototypeHourCycles, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->numberingSystems_string(),
-                      Builtin::kLocalePrototypeNumberingSystems, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->textInfo_string(),
-                      Builtin::kLocalePrototypeTextInfo, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->timeZones_string(),
-                      Builtin::kLocalePrototypeTimeZones, true);
-  SimpleInstallGetter(isolate(), prototype, factory()->weekInfo_string(),
-                      Builtin::kLocalePrototypeWeekInfo, true);
-}
-
 void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
   if (!FLAG_harmony_intl_number_format_v3) return;
 
@@ -5367,20 +5365,6 @@ void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
   SimpleInstallFunction(isolate(), prototype, "formatRangeToParts",
                         Builtin::kNumberFormatPrototypeFormatRangeToParts, 2,
                         false);
-}
-
-void Genesis::InitializeGlobal_harmony_intl_enumeration() {
-  if (!FLAG_harmony_intl_enumeration) return;
-
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  SimpleInstallFunction(isolate(), intl, "supportedValuesOf",
-                        Builtin::kIntlSupportedValuesOf, 1, false);
 }
 
 #endif  // V8_INTL_SUPPORT

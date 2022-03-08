@@ -340,10 +340,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_array_find_last, "harmony array find last helpers")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                           \
-  HARMONY_SHIPPING_BASE(V)                            \
-  V(harmony_intl_enumeration, "Intl Enumeration API") \
-  V(harmony_intl_locale_info, "Intl Locale info")
+#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif
