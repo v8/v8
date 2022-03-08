@@ -2588,10 +2588,12 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I64x2UConvertI32x4Low, kArmI64x2UConvertI32x4Low)   \
   V(I64x2UConvertI32x4High, kArmI64x2UConvertI32x4High) \
   V(I32x4SConvertF32x4, kArmI32x4SConvertF32x4)         \
+  V(I32x4RelaxedTruncF32x4S, kArmI32x4SConvertF32x4)    \
   V(I32x4SConvertI16x8Low, kArmI32x4SConvertI16x8Low)   \
   V(I32x4SConvertI16x8High, kArmI32x4SConvertI16x8High) \
   V(I32x4Neg, kArmI32x4Neg)                             \
   V(I32x4UConvertF32x4, kArmI32x4UConvertF32x4)         \
+  V(I32x4RelaxedTruncF32x4U, kArmI32x4UConvertF32x4)    \
   V(I32x4UConvertI16x8Low, kArmI32x4UConvertI16x8Low)   \
   V(I32x4UConvertI16x8High, kArmI32x4UConvertI16x8High) \
   V(I32x4Abs, kArmI32x4Abs)                             \
@@ -3253,6 +3255,14 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmF64x2PromoteLowF32x4, g.DefineAsRegister(node),
        g.UseFixed(node->InputAt(0), q0));
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2SZero(Node* node) {
+  VisitI32x4TruncSatF64x2SZero(node);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2UZero(Node* node) {
+  VisitI32x4TruncSatF64x2UZero(node);
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
