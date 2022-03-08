@@ -2194,7 +2194,13 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   // If we cannot allocate enough code space, fail with an OOM message.
   if (code_vmem_size < min_code_size) {
-    V8::FatalProcessOutOfMemory(isolate, "NewNativeModule");
+    constexpr auto format = base::StaticCharVector(
+        "NewNativeModule cannot allocate required minimum (%zu)");
+    constexpr int kMaxMessageLength =
+        format.size() - 3 + std::numeric_limits<size_t>::digits10;
+    base::EmbeddedVector<char, kMaxMessageLength + 1> message;
+    SNPrintF(message, format.begin(), min_code_size);
+    V8::FatalProcessOutOfMemory(isolate, message.begin());
     UNREACHABLE();
   }
 
@@ -2207,7 +2213,13 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     code_space = TryAllocate(code_vmem_size);
     if (code_space.IsReserved()) break;
     if (retries == kAllocationRetries) {
-      V8::FatalProcessOutOfMemory(isolate, "NewNativeModule");
+      constexpr auto format = base::StaticCharVector(
+          "NewNativeModule cannot allocate code space of %zu bytes");
+      constexpr int kMaxMessageLength =
+          format.size() - 3 + std::numeric_limits<size_t>::digits10;
+      base::EmbeddedVector<char, kMaxMessageLength + 1> message;
+      SNPrintF(message, format.begin(), code_vmem_size);
+      V8::FatalProcessOutOfMemory(isolate, message.begin());
       UNREACHABLE();
     }
     // Run one GC, then try the allocation again.
