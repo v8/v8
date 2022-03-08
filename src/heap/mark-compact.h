@@ -530,10 +530,15 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   bool is_compacting() const { return compacting_; }
   bool is_shared_heap() const { return is_shared_heap_; }
 
+  void FinishSweepingIfOutOfWork();
+
+  enum class SweepingForcedFinalizationMode { kUnifiedHeap, kV8Only };
+
   // Ensures that sweeping is finished.
   //
   // Note: Can only be called safely from main thread.
-  V8_EXPORT_PRIVATE void EnsureSweepingCompleted();
+  V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
+      SweepingForcedFinalizationMode mode);
 
   void EnsurePageIsSwept(Page* page);
 

@@ -2017,11 +2017,9 @@ void Heap::StartIncrementalMarking(int gc_flags,
 
 void Heap::CompleteSweepingFull() {
   array_buffer_sweeper()->EnsureFinished();
-  mark_compact_collector()->EnsureSweepingCompleted();
+  mark_compact_collector()->EnsureSweepingCompleted(
+      MarkCompactCollector::SweepingForcedFinalizationMode::kUnifiedHeap);
   DCHECK(!mark_compact_collector()->sweeping_in_progress());
-  if (cpp_heap()) {
-    CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
-  }
   tracer()->StopCycleIfSweeping();
 }
 
@@ -2412,8 +2410,15 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
       UNREACHABLE();
   }
 
-  TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
-  array_buffer_sweeper()->EnsureFinished();
+  {
+    TRACE_GC_EPOCH(tracer(), scope_id, ThreadKind::kMain);
+    array_buffer_sweeper()->EnsureFinished();
+  }
+
+  // If sweeping is in progress and there are no sweeper tasks running, finish
+  // the sweeping here, to avoid having to pause and resume during the young
+  // generation GC.
+  mark_compact_collector()->FinishSweepingIfOutOfWork();
 }
 
 void Heap::EnsureSweepingCompleted(HeapObject object) {
@@ -3610,7 +3615,8 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
 }
 
 void Heap::MakeHeapIterable() {
-  mark_compact_collector()->EnsureSweepingCompleted();
+  mark_compact_collector()->EnsureSweepingCompleted(
+      MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
 
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MakeLinearAllocationAreaIterable();

@@ -295,16 +295,6 @@ void ScavengerCollector::CollectGarbage() {
   {
     Sweeper* sweeper = heap_->mark_compact_collector()->sweeper();
 
-    // Try to finish sweeping here, such that the following code doesn't need to
-    // pause & resume sweeping.
-    if (sweeper->sweeping_in_progress() && FLAG_concurrent_sweeping &&
-        !sweeper->AreSweeperTasksRunning()) {
-      // At this point we know that all concurrent sweeping tasks have run
-      // out-of-work and quit: all pages are swept. The main thread still needs
-      // to complete sweeping though.
-      heap_->mark_compact_collector()->EnsureSweepingCompleted();
-    }
-
     // Pause the concurrent sweeper.
     Sweeper::PauseOrCompleteScope pause_scope(sweeper);
     // Filter out pages from the sweeper that need to be processed for old to

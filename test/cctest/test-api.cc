@@ -16715,7 +16715,9 @@ TEST(TestIdleNotification) {
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
         IdlePauseInSeconds);
     if (CcTest::heap()->mark_compact_collector()->sweeping_in_progress()) {
-      CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted();
+      CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted(
+          v8::internal::MarkCompactCollector::SweepingForcedFinalizationMode::
+              kV8Only);
     }
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();

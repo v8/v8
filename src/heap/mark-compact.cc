@@ -677,28 +677,51 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 
 #endif  // VERIFY_HEAP
 
-void MarkCompactCollector::EnsureSweepingCompleted() {
-  if (!sweeper()->sweeping_in_progress()) return;
-
-  TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
-                 ThreadKind::kMain);
-
-  sweeper()->EnsureCompleted();
-  heap()->old_space()->RefillFreeList();
-  heap()->code_space()->RefillFreeList();
-  if (heap()->map_space()) {
-    heap()->map_space()->RefillFreeList();
-    heap()->map_space()->SortFreeList();
+void MarkCompactCollector::FinishSweepingIfOutOfWork() {
+  if (sweeper()->sweeping_in_progress() && FLAG_concurrent_sweeping &&
+      !sweeper()->AreSweeperTasksRunning()) {
+    // At this point we know that all concurrent sweeping tasks have run
+    // out of work and quit: all pages are swept. The main thread still needs
+    // to complete sweeping though.
+    EnsureSweepingCompleted(SweepingForcedFinalizationMode::kV8Only);
   }
+  if (heap()->cpp_heap()) {
+    // Ensure that sweeping is also completed for the C++ managed heap, if one
+    // exists and it's out of work.
+    CppHeap::From(heap()->cpp_heap())->FinishSweepingIfOutOfWork();
+  }
+}
 
-  heap()->tracer()->NotifySweepingCompleted();
+void MarkCompactCollector::EnsureSweepingCompleted(
+    SweepingForcedFinalizationMode mode) {
+  if (sweeper()->sweeping_in_progress()) {
+    TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                   ThreadKind::kMain);
+
+    sweeper()->EnsureCompleted();
+    heap()->old_space()->RefillFreeList();
+    heap()->code_space()->RefillFreeList();
+    if (heap()->map_space()) {
+      heap()->map_space()->RefillFreeList();
+      heap()->map_space()->SortFreeList();
+    }
+
+    heap()->tracer()->NotifySweepingCompleted();
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && !evacuation()) {
-    FullEvacuationVerifier verifier(heap());
-    verifier.Run();
-  }
+    if (FLAG_verify_heap && !evacuation()) {
+      FullEvacuationVerifier verifier(heap());
+      verifier.Run();
+    }
 #endif
+  }
+
+  if (mode == SweepingForcedFinalizationMode::kUnifiedHeap &&
+      heap()->cpp_heap()) {
+    // Ensure that sweeping is also completed for the C++ managed heap, if one
+    // exists.
+    CppHeap::From(heap()->cpp_heap())->FinishSweepingIfRunning();
+  }
 }
 
 void MarkCompactCollector::EnsurePageIsSwept(Page* page) {

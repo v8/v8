@@ -36,7 +36,8 @@ Sweeper::PauseOrCompleteScope::PauseOrCompleteScope(Sweeper* sweeper)
 
   // Complete sweeping if there's nothing more to do.
   if (sweeper_->IsDoneSweeping()) {
-    sweeper_->heap_->mark_compact_collector()->EnsureSweepingCompleted();
+    sweeper_->heap_->mark_compact_collector()->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
     DCHECK(!sweeper_->sweeping_in_progress());
   } else {
     // Unless sweeping is complete the flag still indicates that the sweeper

@@ -1622,7 +1622,8 @@ TEST(TestSizeOfRegExpCode) {
   CcTest::CollectAllAvailableGarbage();
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   int initial_size = static_cast<int>(CcTest::heap()->SizeOfObjects());
 
@@ -1663,7 +1664,8 @@ HEAP_TEST(TestSizeOfObjects) {
   // the heap size and return with sweeping finished completely.
   CcTest::CollectAllAvailableGarbage();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   int initial_size = static_cast<int>(heap->SizeOfObjects());
 
@@ -1688,7 +1690,8 @@ HEAP_TEST(TestSizeOfObjects) {
   CHECK_EQ(initial_size, static_cast<int>(heap->SizeOfObjects()));
   // Waiting for sweeper threads should not change heap size.
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   CHECK_EQ(initial_size, static_cast<int>(heap->SizeOfObjects()));
 }
@@ -2321,7 +2324,8 @@ HEAP_TEST(GCFlags) {
 
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
   IncrementalMarking* marking = heap->incremental_marking();
@@ -5419,7 +5423,8 @@ HEAP_TEST(Regress587004) {
   CcTest::CollectGarbage(OLD_SPACE);
   heap::SimulateFullSpace(heap->old_space());
   heap->RightTrimFixedArray(*array, N - 1);
-  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->mark_compact_collector()->EnsureSweepingCompleted(
+      MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   ByteArray byte_array;
   const int M = 256;
   // Don't allow old space expansion. The test works without this flag too,
@@ -5591,7 +5596,8 @@ TEST(Regress598319) {
   CcTest::CollectGarbage(OLD_SPACE);
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
   CHECK(heap->lo_space()->Contains(arr.get()));
@@ -5665,7 +5671,8 @@ Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   for (int i = 0; i < 5; i++) {
     CcTest::CollectAllGarbage();
   }
-  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->mark_compact_collector()->EnsureSweepingCompleted(
+      MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   // Disable LAB, such that calculations with SizeOfObjects() and object size
   // are correct.
   heap->DisableInlineAllocation();
@@ -5680,7 +5687,8 @@ Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   CHECK_EQ(size_after_allocation, size_after_shrinking);
   // GC and sweeping updates the size to acccount for shrinking.
   CcTest::CollectAllGarbage();
-  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->mark_compact_collector()->EnsureSweepingCompleted(
+      MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   intptr_t size_after_gc = heap->SizeOfObjects();
   CHECK_EQ(size_after_gc, size_before_allocation + array->Size());
   return array;
@@ -5717,7 +5725,8 @@ TEST(Regress615489) {
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
@@ -5826,7 +5835,8 @@ TEST(LeftTrimFixedArrayInBlackArea) {
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
@@ -5867,7 +5877,8 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
@@ -5936,7 +5947,8 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
@@ -6386,7 +6398,8 @@ HEAP_TEST(Regress670675) {
   CcTest::CollectAllGarbage();
 
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   heap->tracer()->StopCycleIfSweeping();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
@@ -6440,7 +6453,8 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   CcTest::CollectAllGarbage();
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   CHECK(object->map().IsMap());
 }

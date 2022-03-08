@@ -275,7 +275,8 @@ TEST(FinalizeTracingWhenMarking) {
   // Finalize a potentially running garbage collection.
   heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
   if (heap->mark_compact_collector()->sweeping_in_progress()) {
-    heap->mark_compact_collector()->EnsureSweepingCompleted();
+    heap->mark_compact_collector()->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   heap->tracer()->StopCycleIfSweeping();
   CHECK(heap->incremental_marking()->IsStopped());
