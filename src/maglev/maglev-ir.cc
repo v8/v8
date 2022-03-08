@@ -588,6 +588,32 @@ void LoadField::PrintParams(std::ostream& os,
   os << "(" << std::hex << handler() << std::dec << ")";
 }
 
+void StoreField::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                              const ProcessingState& state) {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreField::GenerateCode(MaglevCodeGenState* code_gen_state,
+                              const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register value = ToRegister(value_input());
+
+  if (StoreHandler::IsInobjectBits::decode(this->handler())) {
+    Operand operand = FieldOperand(
+        object,
+        StoreHandler::FieldIndexBits::decode(this->handler()) * kTaggedSize);
+    __ StoreTaggedField(operand, value);
+  } else {
+    // TODO(victorgomes): Out-of-object properties.
+    UNREACHABLE();
+  }
+}
+
+void StoreField::PrintParams(std::ostream& os,
+                             MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << handler() << std::dec << ")";
+}
+
 void LoadNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                     const ProcessingState& state) {
   using D = LoadNoFeedbackDescriptor;

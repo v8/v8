@@ -101,17 +101,12 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
 void MaglevGraphBuilder::VisitLdaNamedProperty() {
   // LdaNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
-
-  // TODO(leszeks): Use JSHeapBroker here.
-  FeedbackNexus nexus(feedback().object() /* TODO(v8:7700) */,
-                      GetSlotOperand(2));
+  FeedbackNexus nexus = feedback_nexus(2);
 
   if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
     EnsureCheckpoint();
     AddNewNode<SoftDeopt>({});
-  }
-
-  if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
+  } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
     std::vector<MapAndHandler> maps_and_handlers;
     nexus.ExtractMapsAndHandlers(&maps_and_handlers);
     DCHECK_EQ(maps_and_handlers.size(), 1);
@@ -139,7 +134,38 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(LdaNamedPropertyFromSuper)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaKeyedProperty)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaModuleVariable)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaModuleVariable)
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaNamedProperty)
+
+void MaglevGraphBuilder::VisitStaNamedProperty() {
+  // StaNamedProperty <object> <name_index> <slot>
+  ValueNode* object = LoadRegister(0);
+  FeedbackNexus nexus = feedback_nexus(2);
+
+  if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
+    EnsureCheckpoint();
+    AddNewNode<SoftDeopt>({});
+  } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
+    std::vector<MapAndHandler> maps_and_handlers;
+    nexus.ExtractMapsAndHandlers(&maps_and_handlers);
+    DCHECK_EQ(maps_and_handlers.size(), 1);
+    MapAndHandler& map_and_handler = maps_and_handlers[0];
+    if (map_and_handler.second->IsSmi()) {
+      int handler = map_and_handler.second->ToSmi().value();
+      StoreHandler::Kind kind = StoreHandler::KindBits::decode(handler);
+      if (kind == StoreHandler::Kind::kField) {
+        EnsureCheckpoint();
+        AddNewNode<CheckMaps>({object},
+                              MakeRef(broker(), map_and_handler.first));
+        ValueNode* value = GetAccumulator();
+        AddNewNode<StoreField>({object, value}, handler);
+        return;
+      }
+    }
+  }
+
+  // TODO(victorgomes): Generic store.
+  UNREACHABLE();
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaNamedOwnProperty)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaKeyedProperty)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaKeyedPropertyAsDefine)

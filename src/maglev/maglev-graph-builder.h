@@ -237,7 +237,7 @@ class MaglevGraphBuilder {
         interpreter::Register::current_context());
   }
 
-  FeedbackSlot GetSlotOperand(int operand_index) {
+  FeedbackSlot GetSlotOperand(int operand_index) const {
     return iterator_.GetSlotOperand(operand_index);
   }
 
@@ -398,6 +398,11 @@ class MaglevGraphBuilder {
   compiler::JSHeapBroker* broker() const { return compilation_unit_->broker(); }
   const compiler::FeedbackVectorRef& feedback() const {
     return compilation_unit_->feedback;
+  }
+  const FeedbackNexus feedback_nexus(int slot_operand_index) const {
+    // TODO(leszeks): Use JSHeapBroker here.
+    return FeedbackNexus(feedback().object(),
+                         GetSlotOperand(slot_operand_index));
   }
   const compiler::BytecodeArrayRef& bytecode() const {
     return compilation_unit_->bytecode;

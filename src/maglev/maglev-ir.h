@@ -57,9 +57,10 @@ class MaglevVregAllocationState;
 #define NODE_LIST(V) \
   V(Checkpoint)      \
   V(CheckMaps)       \
-  V(SoftDeopt)       \
-  V(StoreToFrame)    \
   V(GapMove)         \
+  V(SoftDeopt)       \
+  V(StoreField)      \
+  V(StoreToFrame)    \
   VALUE_NODE_LIST(V)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -893,6 +894,28 @@ class LoadField : public FixedInputValueNodeT<1, LoadField> {
 
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return input(kObjectIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int handler_;
+};
+
+class StoreField : public FixedInputNodeT<2, StoreField> {
+  using Base = FixedInputNodeT<2, StoreField>;
+
+ public:
+  explicit StoreField(size_t input_count, int handler)
+      : Base(input_count), handler_(handler) {}
+
+  int handler() const { return handler_; }
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& value_input() { return input(kValueIndex); }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
