@@ -440,7 +440,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, IncrementalScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
   FRIEND_TEST(GCTracerTest, MutatorUtilization);
-  FRIEND_TEST(GCTracerTest, RecordGCSumHistograms);
   FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
   FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);
 
@@ -461,10 +460,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   void RecordMutatorUtilization(double mark_compactor_end_time,
                                 double mark_compactor_duration);
 
-  // Overall time spent in mark compact within a given GC cycle. Exact
-  // accounting of events within a GC is not necessary which is why the
-  // recording takes place at the end of the atomic pause.
-  void RecordGCSumCounters(double atomic_pause_duration);
+  // Update counters for an entire full GC cycle. Exact accounting of events
+  // within a GC is not necessary which is why the recording takes place at the
+  // end of the atomic pause.
+  void RecordGCSumCounters();
 
   double MonotonicallyIncreasingTimeInMs();
 

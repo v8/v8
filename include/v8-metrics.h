@@ -35,6 +35,7 @@ struct GarbageCollectionSizes {
 };
 
 struct GarbageCollectionFullCycle {
+  int reason = -1;
   GarbageCollectionPhases total;
   GarbageCollectionPhases total_cpp;
   GarbageCollectionPhases main_thread;

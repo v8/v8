@@ -479,7 +479,7 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
     }
     RecordMutatorUtilization(current_.end_time,
                              duration + current_.incremental_marking_duration);
-    RecordGCSumCounters(duration);
+    RecordGCSumCounters();
     ResetIncrementalMarkingCounters();
     combined_mark_compact_speed_cache_ = 0.0;
     FetchBackgroundMarkCompactCounters();
@@ -1363,20 +1363,23 @@ void GCTracer::RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode) {
   }
 }
 
-void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
+void GCTracer::RecordGCSumCounters() {
   base::MutexGuard guard(&background_counter_mutex_);
 
-  const double overall_duration =
+  const double atomic_pause_duration = current_.scopes[Scope::MARK_COMPACTOR];
+  const double incremental_marking =
       current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
           .duration +
       current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
           .duration +
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_SWEEPING]
-          .duration +
       incremental_marking_duration_ +
       current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE]
-          .duration +
-      atomic_pause_duration;
+          .duration;
+  const double incremental_sweeping =
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_SWEEPING]
+          .duration;
+  const double overall_duration =
+      atomic_pause_duration + incremental_marking + incremental_sweeping;
   const double background_duration =
       background_counter_[Scope::MC_BACKGROUND_EVACUATE_COPY]
           .total_duration_ms +
@@ -1384,16 +1387,9 @@ void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
           .total_duration_ms +
       background_counter_[Scope::MC_BACKGROUND_MARKING].total_duration_ms +
       background_counter_[Scope::MC_BACKGROUND_SWEEPING].total_duration_ms;
-
-  const double marking_duration =
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
-          .duration +
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
-          .duration +
-      incremental_marking_duration_ +
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE]
-          .duration +
-      current_.scopes[Scope::MC_MARK];
+  const double atomic_marking_duration =
+      current_.scopes[Scope::MC_PROLOGUE] + current_.scopes[Scope::MC_MARK];
+  const double marking_duration = atomic_marking_duration + incremental_marking;
   const double marking_background_duration =
       background_counter_[Scope::MC_BACKGROUND_MARKING].total_duration_ms;
 
@@ -1494,7 +1490,11 @@ void GCTracer::ReportFullCycleToRecorder() {
     FlushBatchedIncrementalEvents(incremental_mark_batched_events_,
                                   heap_->isolate());
   }
+
   v8::metrics::GarbageCollectionFullCycle event;
+  event.reason = static_cast<int>(current_.gc_reason);
+
+  // Managed C++ heap statistics:
   if (cpp_heap) {
     cpp_heap->GetMetricRecorder()->FlushBatchedIncrementalEvents();
     const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
@@ -1522,7 +1522,87 @@ void GCTracer::ReportFullCycleToRecorder() {
     event.main_thread_efficiency_cpp_in_bytes_per_us =
         cppgc_event.main_thread_efficiency_in_bytes_per_us;
   }
-  // TODO(chromium:1154636): Populate v8 metrics.
+
+  // Unified heap statistics:
+  const double atomic_pause_duration = current_.scopes[Scope::MARK_COMPACTOR];
+  const double incremental_marking =
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
+          .duration +
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
+          .duration +
+      current_.incremental_marking_duration +
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE]
+          .duration;
+  const double incremental_sweeping =
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_SWEEPING]
+          .duration;
+  const double overall_duration =
+      atomic_pause_duration + incremental_marking + incremental_sweeping;
+  const double marking_background_duration =
+      current_.scopes[Scope::MC_BACKGROUND_MARKING];
+  const double sweeping_background_duration =
+      current_.scopes[Scope::MC_BACKGROUND_SWEEPING];
+  const double compact_background_duration =
+      current_.scopes[Scope::MC_BACKGROUND_EVACUATE_COPY] +
+      current_.scopes[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS];
+  const double background_duration = marking_background_duration +
+                                     sweeping_background_duration +
+                                     compact_background_duration;
+  const double atomic_marking_duration =
+      current_.scopes[Scope::MC_PROLOGUE] + current_.scopes[Scope::MC_MARK];
+  const double marking_duration = atomic_marking_duration + incremental_marking;
+  const double weak_duration = current_.scopes[Scope::MC_CLEAR];
+  const double compact_duration = current_.scopes[Scope::MC_EVACUATE] +
+                                  current_.scopes[Scope::MC_FINISH] +
+                                  current_.scopes[Scope::MC_EPILOGUE];
+  const double atomic_sweeping_duration = current_.scopes[Scope::MC_SWEEP];
+  const double sweeping_duration =
+      atomic_sweeping_duration + incremental_sweeping;
+
+  event.main_thread_atomic.total_wall_clock_duration_in_us =
+      static_cast<int64_t>(atomic_pause_duration *
+                           base::Time::kMicrosecondsPerMillisecond);
+  event.main_thread.total_wall_clock_duration_in_us = static_cast<int64_t>(
+      overall_duration * base::Time::kMicrosecondsPerMillisecond);
+  event.total.total_wall_clock_duration_in_us =
+      static_cast<int64_t>((overall_duration + background_duration) *
+                           base::Time::kMicrosecondsPerMillisecond);
+  event.main_thread_atomic.mark_wall_clock_duration_in_us =
+      static_cast<int64_t>(atomic_marking_duration *
+                           base::Time::kMicrosecondsPerMillisecond);
+  event.main_thread.mark_wall_clock_duration_in_us = static_cast<int64_t>(
+      marking_duration * base::Time::kMicrosecondsPerMillisecond);
+  event.total.mark_wall_clock_duration_in_us =
+      static_cast<int64_t>((marking_duration + marking_background_duration) *
+                           base::Time::kMicrosecondsPerMillisecond);
+  event.main_thread_atomic.weak_wall_clock_duration_in_us =
+      event.main_thread.weak_wall_clock_duration_in_us =
+          event.total.weak_wall_clock_duration_in_us = static_cast<int64_t>(
+              weak_duration * base::Time::kMicrosecondsPerMillisecond);
+  event.main_thread_atomic.compact_wall_clock_duration_in_us =
+      event.main_thread.compact_wall_clock_duration_in_us =
+          static_cast<int64_t>(compact_duration *
+                               base::Time::kMicrosecondsPerMillisecond);
+  event.total.compact_wall_clock_duration_in_us =
+      static_cast<int64_t>((compact_duration + compact_background_duration) *
+                           base::Time::kMicrosecondsPerMillisecond);
+  event.main_thread_atomic.sweep_wall_clock_duration_in_us =
+      static_cast<int64_t>(atomic_sweeping_duration *
+                           base::Time::kMicrosecondsPerMillisecond);
+  event.main_thread.sweep_wall_clock_duration_in_us = static_cast<int64_t>(
+      sweeping_duration * base::Time::kMicrosecondsPerMillisecond);
+  event.total.sweep_wall_clock_duration_in_us =
+      static_cast<int64_t>((sweeping_duration + sweeping_background_duration) *
+                           base::Time::kMicrosecondsPerMillisecond);
+
+  // TODO(chromium:1154636): Populate the following:
+  // - event.main_thread_incremental
+  // - event.objects
+  // - event.memory
+  // - event.collection_rate_in_percent
+  // - event.efficiency_in_bytes_per_us
+  // - event.main_thread_efficiency_in_bytes_per_us
+
   recorder->AddMainThreadEvent(event, GetContextId(heap_->isolate()));
 }
 

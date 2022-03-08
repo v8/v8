@@ -136,7 +136,6 @@ class Sweeper::IncrementalSweeperTask final : public CancelableTask {
   void RunInternal() final {
     VMState<GC> state(isolate_);
     TRACE_EVENT_CALL_STATS_SCOPED(isolate_, "v8", "V8.Task");
-
     sweeper_->incremental_sweeper_pending_ = false;
 
     if (sweeper_->sweeping_in_progress()) {
@@ -441,6 +440,8 @@ bool Sweeper::ConcurrentSweepSpace(AllocationSpace identity,
 }
 
 bool Sweeper::IncrementalSweepSpace(AllocationSpace identity) {
+  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING,
+                 ThreadKind::kMain);
   if (Page* page = GetSweepingPageSafe(identity)) {
     ParallelSweepPage(page, identity);
   }
