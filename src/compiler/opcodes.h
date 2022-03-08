@@ -168,21 +168,21 @@
   V(JSCreateTypedArray)          \
   V(JSGetTemplateObject)
 
-#define JS_OBJECT_OP_LIST(V)      \
-  JS_CREATE_OP_LIST(V)            \
-  V(JSLoadProperty)               \
-  V(JSLoadNamed)                  \
-  V(JSLoadNamedFromSuper)         \
-  V(JSLoadGlobal)                 \
-  V(JSStoreProperty)              \
-  V(JSDefineProperty)             \
-  V(JSStoreNamed)                 \
-  V(JSStoreNamedOwn)              \
-  V(JSStoreGlobal)                \
-  V(JSStoreDataPropertyInLiteral) \
-  V(JSStoreInArrayLiteral)        \
-  V(JSDeleteProperty)             \
-  V(JSHasProperty)                \
+#define JS_OBJECT_OP_LIST(V)           \
+  JS_CREATE_OP_LIST(V)                 \
+  V(JSLoadProperty)                    \
+  V(JSLoadNamed)                       \
+  V(JSLoadNamedFromSuper)              \
+  V(JSLoadGlobal)                      \
+  V(JSSetKeyedProperty)                \
+  V(JSDefineKeyedOwnProperty)          \
+  V(JSSetNamedProperty)                \
+  V(JSDefineNamedOwnProperty)          \
+  V(JSStoreGlobal)                     \
+  V(JSDefineKeyedOwnPropertyInLiteral) \
+  V(JSStoreInArrayLiteral)             \
+  V(JSDeleteProperty)                  \
+  V(JSHasProperty)                     \
   V(JSGetSuperConstructor)
 
 #define JS_CONTEXT_OP_LIST(V) \
@@ -1135,7 +1135,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSCreateLiteralArray:
       case kJSCreateLiteralObject:
       case kJSCreateLiteralRegExp:
-      case kJSDefineProperty:
+      case kJSDefineKeyedOwnProperty:
       case kJSForInNext:
       case kJSForInPrepare:
       case kJSGetIterator:
@@ -1146,12 +1146,12 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSLoadNamed:
       case kJSLoadNamedFromSuper:
       case kJSLoadProperty:
-      case kJSStoreDataPropertyInLiteral:
+      case kJSDefineKeyedOwnPropertyInLiteral:
       case kJSStoreGlobal:
       case kJSStoreInArrayLiteral:
-      case kJSStoreNamed:
-      case kJSStoreNamedOwn:
-      case kJSStoreProperty:
+      case kJSSetNamedProperty:
+      case kJSDefineNamedOwnProperty:
+      case kJSSetKeyedProperty:
         return true;
       default:
         return false;

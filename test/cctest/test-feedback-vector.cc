@@ -666,7 +666,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(2, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreNamedStrict);
+    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kSetNamedStrict);
   }
 
   {
@@ -688,7 +688,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     CHECK_EQ(5, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kCall);
     CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStoreNamedSloppy);
+    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kSetNamedSloppy);
     CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kCall);
     CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kLoadProperty);
   }
@@ -710,7 +710,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreKeyedSloppy);
+    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kSetKeyedSloppy);
     CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kLoadKeyed);
   }
 
@@ -732,7 +732,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreKeyedStrict);
+    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kSetKeyedStrict);
     CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kLoadKeyed);
   }
 
@@ -754,9 +754,9 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(7, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreNamedStrict);
-    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kStoreNamedStrict);
-    CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kStoreNamedStrict);
+    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kSetNamedStrict);
+    CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kSetNamedStrict);
+    CHECK_SLOT_KIND(helper, 3, FeedbackSlotKind::kSetNamedStrict);
     CHECK_SLOT_KIND(helper, 4, FeedbackSlotKind::kBinaryOp);
     CHECK_SLOT_KIND(helper, 5, FeedbackSlotKind::kLoadProperty);
     CHECK_SLOT_KIND(helper, 6, FeedbackSlotKind::kLoadProperty);
@@ -792,7 +792,7 @@ TEST(VectorStoreICBasic) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
-TEST(StoreOwnIC) {
+TEST(DefineNamedOwnIC) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
   FLAG_allow_natives_syntax = true;
@@ -815,7 +815,7 @@ TEST(StoreOwnIC) {
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(2, helper.slot_count());
   CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLiteral);
-  CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreOwnNamed);
+  CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kDefineNamedOwn);
   FeedbackNexus nexus(feedback_vector, helper.slot(1));
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }

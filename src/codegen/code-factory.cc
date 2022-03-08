@@ -95,12 +95,12 @@ Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                                      Builtin::kLoadGlobalICInsideTypeof);
 }
 
-Callable CodeFactory::StoreOwnIC(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kStoreOwnICTrampoline);
+Callable CodeFactory::DefineNamedOwnIC(Isolate* isolate) {
+  return Builtins::CallableFor(isolate, Builtin::kDefineNamedOwnICTrampoline);
 }
 
-Callable CodeFactory::StoreOwnICInOptimizedCode(Isolate* isolate) {
-  return Builtins::CallableFor(isolate, Builtin::kStoreOwnIC);
+Callable CodeFactory::DefineNamedOwnICInOptimizedCode(Isolate* isolate) {
+  return Builtins::CallableFor(isolate, Builtin::kDefineNamedOwnIC);
 }
 
 // static

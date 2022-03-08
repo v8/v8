@@ -180,14 +180,14 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   iterator.Advance();
 
-  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaNamedProperty);
+  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kGetNamedProperty);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
   EXPECT_EQ(iterator.GetIndexOperand(1), name_index);
   EXPECT_EQ(iterator.GetIndexOperand(2), load_feedback_slot);
   CHECK(!iterator.done());
-  offset += Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
+  offset += Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
   iterator.Advance();
 
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kAdd);

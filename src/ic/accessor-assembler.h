@@ -42,9 +42,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
   void GenerateStoreICBaseline();
-  void GenerateStoreOwnIC();
-  void GenerateStoreOwnICTrampoline();
-  void GenerateStoreOwnICBaseline();
+  void GenerateDefineNamedOwnIC();
+  void GenerateDefineNamedOwnICTrampoline();
+  void GenerateDefineNamedOwnICBaseline();
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
   void GenerateStoreGlobalICBaseline();
@@ -66,9 +66,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedStoreICTrampoline();
   void GenerateKeyedStoreICBaseline();
 
-  void GenerateKeyedDefineOwnIC();
-  void GenerateKeyedDefineOwnICTrampoline();
-  void GenerateKeyedDefineOwnICBaseline();
+  void GenerateDefineKeyedOwnIC();
+  void GenerateDefineKeyedOwnICTrampoline();
+  void GenerateDefineKeyedOwnICBaseline();
 
   void GenerateStoreInArrayLiteralIC();
   void GenerateStoreInArrayLiteralICBaseline();
@@ -198,9 +198,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
  protected:
   enum class StoreICMode {
+    // TODO(v8:12548): rename to kDefineKeyedOwnInLiteral
     kDefault,
-    kStoreOwn,
-    kDefineOwn,
+    kDefineNamedOwn,
+    kDefineKeyedOwn,
   };
   struct StoreICParameters {
     StoreICParameters(TNode<Context> context,
@@ -227,9 +228,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
     bool receiver_is_null() const { return !receiver_.has_value(); }
 
-    bool IsStoreOwn() const { return mode_ == StoreICMode::kStoreOwn; }
-    bool IsDefineOwn() const { return mode_ == StoreICMode::kDefineOwn; }
-    bool IsAnyStoreOwn() const { return IsStoreOwn() || IsDefineOwn(); }
+    bool IsDefineNamedOwn() const {
+      return mode_ == StoreICMode::kDefineNamedOwn;
+    }
+    bool IsDefineKeyedOwn() const {
+      return mode_ == StoreICMode::kDefineKeyedOwn;
+    }
+    bool IsAnyDefineOwn() const {
+      return IsDefineNamedOwn() || IsDefineKeyedOwn();
+    }
 
    private:
     TNode<Context> context_;
@@ -323,7 +330,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                       TNode<Object> value,
                                       ExitPoint* exit_point, Label* miss);
   void KeyedStoreIC(const StoreICParameters* p);
-  void KeyedDefineOwnIC(const StoreICParameters* p);
+  void DefineKeyedOwnIC(const StoreICParameters* p);
   void StoreInArrayLiteralIC(const StoreICParameters* p);
 
   // IC dispatcher behavior.

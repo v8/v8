@@ -127,7 +127,8 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   } else if (IsKeyedLoadIC()) {
     KeyedAccessLoadMode mode = nexus()->GetKeyedAccessLoadMode();
     modifier = GetModifier(mode);
-  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralIC() || IsDefineOwnIC()) {
+  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralIC() ||
+             IsDefineKeyedOwnIC()) {
     KeyedAccessStoreMode mode = nexus()->GetKeyedAccessStoreMode();
     modifier = GetModifier(mode);
   }
@@ -846,7 +847,7 @@ StubCache* IC::stub_cache() {
   // HasICs and each of the store own ICs require its own stub cache.
   // Until we create them, don't allow accessing the load/store stub caches.
   DCHECK(!IsAnyHas());
-  DCHECK(!is_any_store_own());
+  DCHECK(!IsAnyDefineOwn());
   if (IsAnyLoad()) {
     return isolate()->load_stub_cache();
   } else {
@@ -857,7 +858,7 @@ StubCache* IC::stub_cache() {
 
 void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                                 const MaybeObjectHandle& handler) {
-  if (!IsAnyHas() && !is_any_store_own()) {
+  if (!IsAnyHas() && !IsAnyDefineOwn()) {
     stub_cache()->Set(*name, *map, *handler);
   }
 }
@@ -1808,12 +1809,11 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     PropertyKey key(isolate(), name);
     LookupIterator it(
         isolate(), object, key,
-        IsAnyStoreOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
-    DCHECK_IMPLIES(IsStoreOwnIC(), it.IsFound() && it.HolderIsReceiver());
-    // TODO(joyee): IsStoreOwnIC() is used in [[DefineOwnProperty]]
-    // operations during initialization of object literals and class
-    // fields. Rename them or separate them out.
-    if (IsStoreOwnIC()) {
+        IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
+    DCHECK_IMPLIES(IsDefineNamedOwnIC(), it.IsFound() && it.HolderIsReceiver());
+    // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
+    // of StoreIC so their logic doesn't get mixed here.
+    if (IsDefineNamedOwnIC()) {
       MAYBE_RETURN_NULL(
           JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
     } else {
@@ -1841,11 +1841,11 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   PropertyKey key(isolate(), name);
   LookupIterator it(
       isolate(), object, key,
-      IsAnyStoreOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
+      IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
 
   if (name->IsPrivate()) {
     bool exists = it.IsFound();
-    if (name->IsPrivateName() && exists == IsDefineOwnIC()) {
+    if (name->IsPrivateName() && exists == IsDefineKeyedOwnIC()) {
       Handle<String> name_string(
           String::cast(Symbol::cast(*name).description()), isolate());
       if (exists) {
@@ -1867,14 +1867,14 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     }
   }
 
-  // For IsStoreOwnIC(), we can't simply do CreateDataProperty below
+  // For IsDefineNamedOwnIC(), we can't simply do CreateDataProperty below
   // because we need to check the attributes before UpdateCaches updates
   // the state of the LookupIterator.
   LookupIterator::State original_state = it.state();
   // We'll defer the check for JSProxy and objects with named interceptors,
   // because the defineProperty traps need to be called first if they are
   // present.
-  if (IsStoreOwnIC() && !object->IsJSProxy() &&
+  if (IsDefineNamedOwnIC() && !object->IsJSProxy() &&
       !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
     Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
         isolate(), &it, value, Nothing<ShouldThrow>());
@@ -1891,15 +1891,13 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                       : TraceIC("StoreIC", name);
   }
 
-  // TODO(joyee): IsStoreOwnIC() is true in [[DefineOwnProperty]]
-  // operations during initialization of object literals and class
-  // fields. In both paths, Rename the operations properly to avoid
-  // confusion.
+  // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
+  // of StoreIC so their logic doesn't get mixed here.
   // ES #sec-definefield
   // ES #sec-runtime-semantics-propertydefinitionevaluation
-  if (IsStoreOwnIC()) {
-    // Private property should be defined via DefineOwnIC (as private names) or
-    // stored via other store ICs through private symbols.
+  if (IsDefineNamedOwnIC()) {
+    // Private property should be defined via DefineKeyedOwnIC or
+    // KeyedStoreIC with private symbols.
     DCHECK(!name->IsPrivate());
     MAYBE_RETURN_NULL(DefineOwnDataProperty(
         &it, original_state, value, Nothing<ShouldThrow>(), store_origin));
@@ -1951,7 +1949,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 #endif
           return StoreHandler::StoreGlobal(lookup->transition_cell());
         }
-        if (IsDefineOwnIC()) {
+        if (IsDefineKeyedOwnIC()) {
           // Private field can't be deleted from this global object and can't
           // be overwritten, so install slow handler in order to make store IC
           // throw if a private name already exists.
@@ -1970,7 +1968,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                      !lookup_start_object_map()->is_dictionary_map());
 
       DCHECK(lookup->IsCacheableTransition());
-      if (IsAnyStoreOwn()) {
+      if (IsAnyDefineOwn()) {
         return StoreHandler::StoreOwnTransition(isolate(),
                                                 lookup->transition_map());
       }
@@ -1984,13 +1982,13 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       // If the interceptor is on the receiver...
       if (lookup->HolderIsReceiverOrHiddenPrototype() && !info.non_masking()) {
         // ...return a store interceptor Smi handler if there is a setter
-        // interceptor and it's not StoreOwnIC (which should call the
+        // interceptor and it's not DefineNamedOwnIC (which should call the
         // definer)...
-        if (!info.setter().IsUndefined(isolate()) && !IsStoreOwnIC()) {
+        if (!info.setter().IsUndefined(isolate()) && !IsDefineNamedOwnIC()) {
           return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
         }
         // ...otherwise return a slow-case Smi handler, which invokes the
-        // definer for StoreOwnIC.
+        // definer for DefineNamedOwnIC.
         return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
 
@@ -2153,9 +2151,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         }
         PropertyConstness constness = lookup->constness();
         if (constness == PropertyConstness::kConst &&
-            IsStoreOwnICKind(nexus()->kind())) {
-          // StoreOwnICs are used for initializing object literals therefore
-          // we must store the value unconditionally even to
+            IsDefineNamedOwnICKind(nexus()->kind())) {
+          // DefineNamedOwnICs are used for initializing object literals
+          // therefore we must store the value unconditionally even to
           // VariableMode::kConst fields.
           constness = PropertyConstness::kMutable;
         }
@@ -2175,9 +2173,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           Handle<JSReceiver>::cast(lookup->GetReceiver());
       Handle<JSProxy> holder = lookup->GetHolder<JSProxy>();
 
-      // IsStoreOwnIC() is true when we are defining public fields on a Proxy.
-      // In that case use the slow stub to invoke the define trap.
-      if (IsStoreOwnIC()) {
+      // IsDefineNamedOwnIC() is true when we are defining public fields on a
+      // Proxy. In that case use the slow stub to invoke the define trap.
+      if (IsDefineNamedOwnIC()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
         return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
@@ -2373,7 +2371,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     code = StoreHandler::StoreSlow(isolate(), store_mode);
   }
 
-  if (is_any_store_own() || IsStoreInArrayLiteralIC()) return code;
+  if (IsAnyDefineOwn() || IsStoreInArrayLiteralIC()) return code;
   Handle<Object> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =
@@ -2491,9 +2489,11 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
     Handle<Object> result;
+    // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of StoreIC
+    // so the logic doesn't get mixed here.
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        IsDefineOwnIC()
+        IsDefineKeyedOwnIC()
             ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
                                                StoreOrigin::kMaybeKeyed)
             : Runtime::SetObjectProperty(isolate(), object, key, value,
@@ -2561,7 +2561,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   DCHECK(store_handle.is_null());
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), store_handle,
-      IsDefineOwnIC()
+      // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of StoreIC
+      // so the logic doesn't get mixed here.
+      IsDefineKeyedOwnIC()
           ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
                                              StoreOrigin::kMaybeKeyed)
           : Runtime::SetObjectProperty(isolate(), object, key, value,
@@ -2832,11 +2834,11 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
 
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
 
-  // When there is no feedback vector it is OK to use the StoreNamedStrict as
-  // the feedback slot kind. We only need if it is StoreOwnICKind when
+  // When there is no feedback vector it is OK to use the SetNamedStrict as
+  // the feedback slot kind. We only reuse this for DefineNamedOwnIC when
   // installing the handler for storing const properties. This will happen only
   // when feedback vector is available.
-  FeedbackSlotKind kind = FeedbackSlotKind::kStoreNamedStrict;
+  FeedbackSlotKind kind = FeedbackSlotKind::kSetNamedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!maybe_vector->IsUndefined()) {
     DCHECK(maybe_vector->IsFeedbackVector());
@@ -2844,13 +2846,13 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
     kind = vector->GetKind(vector_slot);
   }
 
-  DCHECK(IsStoreICKind(kind) || IsStoreOwnICKind(kind));
+  DCHECK(IsStoreICKind(kind) || IsDefineNamedOwnICKind(kind));
   StoreIC ic(isolate, vector, vector_slot, kind);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
-RUNTIME_FUNCTION(Runtime_StoreOwnIC_Miss) {
+RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
@@ -2862,9 +2864,9 @@ RUNTIME_FUNCTION(Runtime_StoreOwnIC_Miss) {
 
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
 
-  // When there is no feedback vector it is OK to use the StoreOwnNamed
+  // When there is no feedback vector it is OK to use the DefineNamedOwn
   // feedback kind. There _should_ be a vector, though.
-  FeedbackSlotKind kind = FeedbackSlotKind::kStoreOwnNamed;
+  FeedbackSlotKind kind = FeedbackSlotKind::kDefineNamedOwn;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!maybe_vector->IsUndefined()) {
     DCHECK(maybe_vector->IsFeedbackVector());
@@ -2872,13 +2874,16 @@ RUNTIME_FUNCTION(Runtime_StoreOwnIC_Miss) {
     kind = vector->GetKind(vector_slot);
   }
 
-  DCHECK(IsStoreOwnICKind(kind));
+  DCHECK(IsDefineNamedOwnICKind(kind));
+
+  // TODO(v8:12548): refactor DefineNamedOwnIC as a subclass of StoreIC, which
+  // can be called here.
   StoreIC ic(isolate, vector, vector_slot, kind);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
-RUNTIME_FUNCTION(Runtime_StoreOwnIC_Slow) {
+RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
@@ -2886,9 +2891,9 @@ RUNTIME_FUNCTION(Runtime_StoreOwnIC_Slow) {
   Handle<Object> object = args.at(1);
   Handle<Object> key = args.at(2);
 
-  // Unlike DefineOwn, StoreOwn doesn't handle private fields and is used for
-  // defining data properties in object literals and defining public class
-  // fields.
+  // Unlike DefineKeyedOwnIC, DefineNamedOwnIC doesn't handle private
+  // fields and is used for defining data properties in object literals
+  // and defining named public class fields.
   DCHECK(!key->IsSymbol() || !Symbol::cast(*key).is_private_name());
 
   PropertyKey lookup_key(isolate, key);
@@ -2924,7 +2929,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalICNoFeedback_Miss) {
   Handle<Object> value = args.at(0);
   Handle<Name> key = args.at<Name>(1);
 
-  // TODO(mythria): Replace StoreGlobalStrict/Sloppy with StoreNamed.
+  // TODO(mythria): Replace StoreGlobalStrict/Sloppy with SetNamedProperty.
   StoreGlobalIC ic(isolate, Handle<FeedbackVector>(), FeedbackSlot(),
                    FeedbackSlotKind::kStoreGlobalStrict);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(key, value));
@@ -3000,7 +3005,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   // installed in feedback vectors. In such cases, we need to get the kind from
   // feedback vector slot since the handlers are used for both for StoreKeyed
   // and StoreInArrayLiteral kinds.
-  FeedbackSlotKind kind = FeedbackSlotKind::kStoreKeyedStrict;
+  FeedbackSlotKind kind = FeedbackSlotKind::kSetKeyedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!maybe_vector->IsUndefined()) {
     DCHECK(maybe_vector->IsFeedbackVector());
@@ -3010,7 +3015,9 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
 
   // The elements store stubs miss into this function, but they are shared by
   // different ICs.
-  if (IsKeyedStoreICKind(kind) || IsKeyedDefineOwnICKind(kind)) {
+  // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of KeyedStoreIC,
+  // which can be called here.
+  if (IsKeyedStoreICKind(kind) || IsDefineKeyedOwnICKind(kind)) {
     KeyedStoreIC ic(isolate, vector, vector_slot, kind);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
@@ -3025,7 +3032,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   }
 }
 
-RUNTIME_FUNCTION(Runtime_KeyedDefineOwnIC_Miss) {
+RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
@@ -3036,17 +3043,17 @@ RUNTIME_FUNCTION(Runtime_KeyedDefineOwnIC_Miss) {
   Handle<Object> key = args.at(4);
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
 
-  FeedbackSlotKind kind = FeedbackSlotKind::kDefineOwnKeyed;
+  FeedbackSlotKind kind = FeedbackSlotKind::kDefineKeyedOwn;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!maybe_vector->IsUndefined()) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
-    DCHECK(IsDefineOwnICKind(kind));
+    DCHECK(IsDefineKeyedOwnICKind(kind));
   }
 
-  // The elements store stubs miss into this function, but they are shared by
-  // different ICs.
+  // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of KeyedStoreIC,
+  // which can be called here.
   KeyedStoreIC ic(isolate, vector, vector_slot, kind);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
@@ -3086,7 +3093,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
                                           StoreOrigin::kMaybeKeyed));
 }
 
-RUNTIME_FUNCTION(Runtime_KeyedDefineOwnIC_Slow) {
+RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
@@ -3132,7 +3139,7 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
     return *value;
   } else {
     DCHECK(IsKeyedStoreICKind(kind) || IsStoreICKind(kind) ||
-           IsKeyedDefineOwnICKind(kind));
+           IsDefineKeyedOwnICKind(kind));
     RETURN_RESULT_OR_FAILURE(
         isolate, Runtime::SetObjectProperty(isolate, object, key, value,
                                             StoreOrigin::kMaybeKeyed));

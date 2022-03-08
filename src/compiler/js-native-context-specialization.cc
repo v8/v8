@@ -96,20 +96,20 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadNamedFromSuper:
       return ReduceJSLoadNamedFromSuper(node);
-    case IrOpcode::kJSStoreNamed:
-      return ReduceJSStoreNamed(node);
+    case IrOpcode::kJSSetNamedProperty:
+      return ReduceJSSetNamedProperty(node);
     case IrOpcode::kJSHasProperty:
       return ReduceJSHasProperty(node);
     case IrOpcode::kJSLoadProperty:
       return ReduceJSLoadProperty(node);
-    case IrOpcode::kJSStoreProperty:
-      return ReduceJSStoreProperty(node);
-    case IrOpcode::kJSDefineProperty:
-      return ReduceJSDefineProperty(node);
-    case IrOpcode::kJSStoreNamedOwn:
-      return ReduceJSStoreNamedOwn(node);
-    case IrOpcode::kJSStoreDataPropertyInLiteral:
-      return ReduceJSStoreDataPropertyInLiteral(node);
+    case IrOpcode::kJSSetKeyedProperty:
+      return ReduceJSSetKeyedProperty(node);
+    case IrOpcode::kJSDefineKeyedOwnProperty:
+      return ReduceJSDefineKeyedOwnProperty(node);
+    case IrOpcode::kJSDefineNamedOwnProperty:
+      return ReduceJSDefineNamedOwnProperty(node);
+    case IrOpcode::kJSDefineKeyedOwnPropertyInLiteral:
+      return ReduceJSDefineKeyedOwnPropertyInLiteral(node);
     case IrOpcode::kJSStoreInArrayLiteral:
       return ReduceJSStoreInArrayLiteral(node);
     case IrOpcode::kJSToObject:
@@ -1090,23 +1090,23 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, NamedAccessFeedback const& feedback,
     AccessMode access_mode, Node* key) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamed ||
+         node->opcode() == IrOpcode::kJSSetNamedProperty ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
-         node->opcode() == IrOpcode::kJSStoreNamedOwn ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
+         node->opcode() == IrOpcode::kJSDefineNamedOwnProperty ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
-         node->opcode() == IrOpcode::kJSDefineProperty);
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   STATIC_ASSERT(JSLoadNamedNode::ObjectIndex() == 0 &&
-                JSStoreNamedNode::ObjectIndex() == 0 &&
+                JSSetNamedPropertyNode::ObjectIndex() == 0 &&
                 JSLoadPropertyNode::ObjectIndex() == 0 &&
-                JSStorePropertyNode::ObjectIndex() == 0 &&
-                JSStoreNamedOwnNode::ObjectIndex() == 0 &&
-                JSStoreNamedNode::ObjectIndex() == 0 &&
-                JSStoreDataPropertyInLiteralNode::ObjectIndex() == 0 &&
+                JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
+                JSDefineNamedOwnPropertyNode::ObjectIndex() == 0 &&
+                JSSetNamedPropertyNode::ObjectIndex() == 0 &&
+                JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
                 JSHasPropertyNode::ObjectIndex() == 0 &&
-                JSDefinePropertyNode::ObjectIndex() == 0);
+                JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
   STATIC_ASSERT(JSLoadNamedFromSuperNode::ReceiverIndex() == 0);
 
   Node* context = NodeProperties::GetContextInput(node);
@@ -1577,17 +1577,18 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   return Replace(call_property);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
-  JSStoreNamedNode n(node);
+Reduction JSNativeContextSpecialization::ReduceJSSetNamedProperty(Node* node) {
+  JSSetNamedPropertyNode n(node);
   NamedAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),
                               FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
-  JSStoreNamedOwnNode n(node);
-  StoreNamedOwnParameters const& p = n.Parameters();
+Reduction JSNativeContextSpecialization::ReduceJSDefineNamedOwnProperty(
+    Node* node) {
+  JSDefineNamedOwnPropertyNode n(node);
+  DefineNamedOwnPropertyParameters const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),
                               FeedbackSource(p.feedback()),
@@ -1675,15 +1676,15 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value,
     ElementAccessFeedback const& feedback) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
-         node->opcode() == IrOpcode::kJSDefineProperty);
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   STATIC_ASSERT(JSLoadPropertyNode::ObjectIndex() == 0 &&
-                JSStorePropertyNode::ObjectIndex() == 0 &&
+                JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
                 JSStoreInArrayLiteralNode::ArrayIndex() == 0 &&
-                JSStoreDataPropertyInLiteralNode::ObjectIndex() == 0 &&
+                JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
                 JSHasPropertyNode::ObjectIndex() == 0);
 
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -1991,15 +1992,15 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     FeedbackSource const& source, AccessMode access_mode) {
   DCHECK_EQ(key == nullptr, static_name.has_value());
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamedOwn ||
+         node->opcode() == IrOpcode::kJSSetNamedProperty ||
+         node->opcode() == IrOpcode::kJSDefineNamedOwnProperty ||
          node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
-         node->opcode() == IrOpcode::kJSDefineProperty);
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   DCHECK_GE(node->op()->ControlOutputCount(), 1);
 
   ProcessedFeedback const& feedback =
@@ -2176,16 +2177,17 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
                               FeedbackSource(p.feedback()), AccessMode::kLoad);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
-  JSStorePropertyNode n(node);
+Reduction JSNativeContextSpecialization::ReduceJSSetKeyedProperty(Node* node) {
+  JSSetKeyedPropertyNode n(node);
   PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSDefineProperty(Node* node) {
-  JSDefinePropertyNode n(node);
+Reduction JSNativeContextSpecialization::ReduceJSDefineKeyedOwnProperty(
+    Node* node) {
+  JSDefineKeyedOwnPropertyNode n(node);
   PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
@@ -2622,17 +2624,19 @@ JSNativeContextSpecialization::BuildPropertyStore(
   return ValueEffectControl(value, effect, control);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
+Reduction
+JSNativeContextSpecialization::ReduceJSDefineKeyedOwnPropertyInLiteral(
     Node* node) {
-  JSStoreDataPropertyInLiteralNode n(node);
+  JSDefineKeyedOwnPropertyInLiteralNode n(node);
   FeedbackParameter const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
 
   NumberMatcher mflags(n.flags());
   CHECK(mflags.HasResolvedValue());
-  DataPropertyInLiteralFlags cflags(mflags.ResolvedValue());
-  DCHECK(!(cflags & DataPropertyInLiteralFlag::kDontEnum));
-  if (cflags & DataPropertyInLiteralFlag::kSetFunctionName) return NoChange();
+  DefineKeyedOwnPropertyInLiteralFlags cflags(mflags.ResolvedValue());
+  DCHECK(!(cflags & DefineKeyedOwnPropertyInLiteralFlag::kDontEnum));
+  if (cflags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName)
+    return NoChange();
 
   return ReducePropertyAccess(node, n.name(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()),

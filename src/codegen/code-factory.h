@@ -37,8 +37,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
                                               TypeofMode typeof_mode);
-  static Callable StoreOwnIC(Isolate* isolate);
-  static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
+  static Callable DefineNamedOwnIC(Isolate* isolate);
+  static Callable DefineNamedOwnICInOptimizedCode(Isolate* isolate);
 
   static Callable ResumeGenerator(Isolate* isolate);
 

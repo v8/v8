@@ -347,7 +347,7 @@ KeyedAccessMode KeyedAccessMode::FromNexus(FeedbackNexus const& nexus) {
   if (IsKeyedHasICKind(kind)) {
     return KeyedAccessMode(AccessMode::kHas, nexus.GetKeyedAccessLoadMode());
   }
-  if (IsDefineOwnICKind(kind)) {
+  if (IsDefineKeyedOwnICKind(kind)) {
     return KeyedAccessMode(AccessMode::kDefine,
                            nexus.GetKeyedAccessStoreMode());
   }
@@ -355,7 +355,7 @@ KeyedAccessMode KeyedAccessMode::FromNexus(FeedbackNexus const& nexus) {
     return KeyedAccessMode(AccessMode::kStore, nexus.GetKeyedAccessStoreMode());
   }
   if (IsStoreInArrayLiteralICKind(kind) ||
-      IsStoreDataPropertyInLiteralKind(kind)) {
+      IsDefineKeyedOwnPropertyInLiteralKind(kind)) {
     return KeyedAccessMode(AccessMode::kStoreInLiteral,
                            nexus.GetKeyedAccessStoreMode());
   }
@@ -408,10 +408,10 @@ ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
       keyed_mode_(keyed_mode),
       transition_groups_(zone) {
   DCHECK(IsKeyedLoadICKind(slot_kind) || IsKeyedHasICKind(slot_kind) ||
-         IsStoreDataPropertyInLiteralKind(slot_kind) ||
+         IsDefineKeyedOwnPropertyInLiteralKind(slot_kind) ||
          IsKeyedStoreICKind(slot_kind) ||
          IsStoreInArrayLiteralICKind(slot_kind) ||
-         IsDefineOwnICKind(slot_kind));
+         IsDefineKeyedOwnICKind(slot_kind));
 }
 
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
@@ -443,11 +443,11 @@ NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
                                          FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kNamedAccess, slot_kind), name_(name), maps_(maps) {
   DCHECK(IsLoadICKind(slot_kind) || IsStoreICKind(slot_kind) ||
-         IsStoreOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
+         IsDefineNamedOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
          IsKeyedHasICKind(slot_kind) || IsKeyedStoreICKind(slot_kind) ||
          IsStoreInArrayLiteralICKind(slot_kind) ||
-         IsStoreDataPropertyInLiteralKind(slot_kind) ||
-         IsDefineOwnICKind(slot_kind));
+         IsDefineKeyedOwnPropertyInLiteralKind(slot_kind) ||
+         IsDefineKeyedOwnICKind(slot_kind));
 }
 
 void JSHeapBroker::SetFeedback(FeedbackSource const& source,

@@ -98,8 +98,8 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupSlotInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupContextSlotInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupGlobalSlotInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
-void MaglevGraphBuilder::VisitLdaNamedProperty() {
-  // LdaNamedProperty <object> <name_index> <slot>
+void MaglevGraphBuilder::VisitGetNamedProperty() {
+  // GetNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
   FeedbackNexus nexus = feedback_nexus(2);
 
@@ -130,13 +130,14 @@ void MaglevGraphBuilder::VisitLdaNamedProperty() {
   SetAccumulator(AddNewNode<LoadNamedGeneric>({context, object}, name));
   MarkPossibleSideEffect();
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaNamedPropertyFromSuper)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaKeyedProperty)
+
+MAGLEV_UNIMPLEMENTED_BYTECODE(GetNamedPropertyFromSuper)
+MAGLEV_UNIMPLEMENTED_BYTECODE(GetKeyedProperty)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaModuleVariable)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaModuleVariable)
 
-void MaglevGraphBuilder::VisitStaNamedProperty() {
-  // StaNamedProperty <object> <name_index> <slot>
+void MaglevGraphBuilder::VisitSetNamedProperty() {
+  // SetNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
   FeedbackNexus nexus = feedback_nexus(2);
 
@@ -166,11 +167,11 @@ void MaglevGraphBuilder::VisitStaNamedProperty() {
   UNREACHABLE();
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaNamedOwnProperty)
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaKeyedProperty)
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaKeyedPropertyAsDefine)
+MAGLEV_UNIMPLEMENTED_BYTECODE(DefineNamedOwnProperty)
+MAGLEV_UNIMPLEMENTED_BYTECODE(SetKeyedProperty)
+MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnProperty)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaInArrayLiteral)
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaDataPropertyInLiteral)
+MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnPropertyInLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CollectTypeProfile)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Add)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Sub)

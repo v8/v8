@@ -1430,17 +1430,17 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
                      typer_->zone());
 }
 
-Type Typer::Visitor::TypeJSStoreProperty(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeJSSetKeyedProperty(Node* node) { UNREACHABLE(); }
 
-Type Typer::Visitor::TypeJSDefineProperty(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeJSDefineKeyedOwnProperty(Node* node) { UNREACHABLE(); }
 
-Type Typer::Visitor::TypeJSStoreNamed(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeJSSetNamedProperty(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeJSStoreGlobal(Node* node) { UNREACHABLE(); }
 
-Type Typer::Visitor::TypeJSStoreNamedOwn(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeJSDefineNamedOwnProperty(Node* node) { UNREACHABLE(); }
 
-Type Typer::Visitor::TypeJSStoreDataPropertyInLiteral(Node* node) {
+Type Typer::Visitor::TypeJSDefineKeyedOwnPropertyInLiteral(Node* node) {
   UNREACHABLE();
 }
 

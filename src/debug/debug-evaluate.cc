@@ -433,8 +433,8 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     // Loads.
     case Bytecode::kLdaLookupSlot:
     case Bytecode::kLdaGlobal:
-    case Bytecode::kLdaNamedProperty:
-    case Bytecode::kLdaKeyedProperty:
+    case Bytecode::kGetNamedProperty:
+    case Bytecode::kGetKeyedProperty:
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
     case Bytecode::kGetIterator:
@@ -985,11 +985,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
 bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
   using interpreter::Bytecode;
   switch (bytecode) {
-    case Bytecode::kStaNamedProperty:
-    case Bytecode::kStaNamedOwnProperty:
-    case Bytecode::kStaKeyedProperty:
+    case Bytecode::kSetNamedProperty:
+    case Bytecode::kDefineNamedOwnProperty:
+    case Bytecode::kSetKeyedProperty:
     case Bytecode::kStaInArrayLiteral:
-    case Bytecode::kStaDataPropertyInLiteral:
+    case Bytecode::kDefineKeyedOwnPropertyInLiteral:
     case Bytecode::kStaCurrentContextSlot:
       return true;
     default:

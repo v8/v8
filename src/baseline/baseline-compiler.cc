@@ -841,13 +841,13 @@ void BaselineCompiler::VisitMov() {
   StoreRegister(1, scratch);
 }
 
-void BaselineCompiler::VisitLdaNamedProperty() {
+void BaselineCompiler::VisitGetNamedProperty() {
   CallBuiltin<Builtin::kLoadICBaseline>(RegisterOperand(0),  // object
                                         Constant<Name>(1),   // name
                                         IndexAsTagged(2));   // slot
 }
 
-void BaselineCompiler::VisitLdaNamedPropertyFromSuper() {
+void BaselineCompiler::VisitGetNamedPropertyFromSuper() {
   __ LoadPrototype(
       LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister(),
       kInterpreterAccumulatorRegister);
@@ -860,7 +860,7 @@ void BaselineCompiler::VisitLdaNamedPropertyFromSuper() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitLdaKeyedProperty() {
+void BaselineCompiler::VisitGetKeyedProperty() {
   CallBuiltin<Builtin::kKeyedLoadICBaseline>(
       RegisterOperand(0),               // object
       kInterpreterAccumulatorRegister,  // key
@@ -921,7 +921,12 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ StoreTaggedFieldWithWriteBarrier(scratch, Cell::kValueOffset, value);
 }
 
-void BaselineCompiler::VisitStaNamedProperty() {
+void BaselineCompiler::VisitSetNamedProperty() {
+  // StoreIC is currently a base class for multiple property store operations
+  // and contains mixed logic for named and keyed, set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can be
+  // called here.
   CallBuiltin<Builtin::kStoreICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
@@ -929,15 +934,20 @@ void BaselineCompiler::VisitStaNamedProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaNamedOwnProperty() {
-  CallBuiltin<Builtin::kStoreOwnICBaseline>(
+void BaselineCompiler::VisitDefineNamedOwnProperty() {
+  CallBuiltin<Builtin::kDefineNamedOwnICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
       kInterpreterAccumulatorRegister,  // value
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaKeyedProperty() {
+void BaselineCompiler::VisitSetKeyedProperty() {
+  // KeyedStoreIC is currently a base class for multiple keyed property store
+  // operations and contains mixed logic for set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(v8:12548): refactor SetKeyedIC as a subclass of KeyedStoreIC, which
+  // can be called here.
   CallBuiltin<Builtin::kKeyedStoreICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
@@ -945,8 +955,8 @@ void BaselineCompiler::VisitStaKeyedProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaKeyedPropertyAsDefine() {
-  CallBuiltin<Builtin::kKeyedDefineOwnICBaseline>(
+void BaselineCompiler::VisitDefineKeyedOwnProperty() {
+  CallBuiltin<Builtin::kDefineKeyedOwnICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
       kInterpreterAccumulatorRegister,  // value
@@ -961,11 +971,12 @@ void BaselineCompiler::VisitStaInArrayLiteral() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaDataPropertyInLiteral() {
-  // Here we should save the accumulator, since StaDataPropertyInLiteral doesn't
-  // write the accumulator, but Runtime::kDefineDataPropertyInLiteral returns
-  // the value that we got from the accumulator so this still works.
-  CallRuntime(Runtime::kDefineDataPropertyInLiteral,
+void BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral() {
+  // Here we should save the accumulator, since
+  // DefineKeyedOwnPropertyInLiteral doesn't write the accumulator, but
+  // Runtime::kDefineKeyedOwnPropertyInLiteral returns the value that we got
+  // from the accumulator so this still works.
+  CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
               RegisterOperand(0),               // object
               RegisterOperand(1),               // name
               kInterpreterAccumulatorRegister,  // value

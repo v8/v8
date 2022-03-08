@@ -1607,16 +1607,17 @@ inline std::ostream& operator<<(std::ostream& os, CollectionKind kind) {
   UNREACHABLE();
 }
 
-// Flags for the runtime function kDefineDataPropertyInLiteral. A property can
-// be enumerable or not, and, in case of functions, the function name
-// can be set or not.
-enum class DataPropertyInLiteralFlag {
+// Flags for the runtime function kDefineKeyedOwnPropertyInLiteral. A property
+// can be enumerable or not, and, in case of functions, the function name can be
+// set or not.
+enum class DefineKeyedOwnPropertyInLiteralFlag {
   kNoFlags = 0,
   kDontEnum = 1 << 0,
   kSetFunctionName = 1 << 1
 };
-using DataPropertyInLiteralFlags = base::Flags<DataPropertyInLiteralFlag>;
-DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
+using DefineKeyedOwnPropertyInLiteralFlags =
+    base::Flags<DefineKeyedOwnPropertyInLiteralFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(DefineKeyedOwnPropertyInLiteralFlags)
 
 enum ExternalArrayType {
   kExternalInt8Array = 1,

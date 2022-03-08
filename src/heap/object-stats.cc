@@ -662,13 +662,13 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_TYPE;
 
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kSetNamedSloppy:
+    case FeedbackSlotKind::kSetNamedStrict:
+    case FeedbackSlotKind::kDefineNamedOwn:
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
       if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE;
       }

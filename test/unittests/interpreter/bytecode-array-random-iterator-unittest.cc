@@ -339,7 +339,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   offset += Bytecodes::Size(Bytecode::kLdar, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kAdd, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
-  offset += Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
+  offset += Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kAdd, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
 
@@ -358,9 +358,9 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   iterator -= 3;
   offset -= Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   offset -= Bytecodes::Size(Bytecode::kAdd, OperandScale::kSingle);
-  offset -= Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
+  offset -= Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
 
-  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaNamedProperty);
+  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kGetNamedProperty);
   EXPECT_EQ(iterator.current_index(), 13);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
@@ -370,7 +370,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   ASSERT_TRUE(iterator.IsValid());
 
   iterator += 2;
-  offset += Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
+  offset += Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kAdd, OperandScale::kSingle);
 
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kStar);
@@ -396,7 +396,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   offset += Bytecodes::Size(Bytecode::kLdar, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kAdd, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
-  offset += Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
+  offset += Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kAdd, OperandScale::kSingle);
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   offset +=
@@ -586,7 +586,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   offset += Bytecodes::Size(Bytecode::kStar, OperandScale::kSingle);
   ++iterator;
 
-  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaNamedProperty);
+  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kGetNamedProperty);
   EXPECT_EQ(iterator.current_index(), 13);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
@@ -594,7 +594,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.GetIndexOperand(1), name_index);
   EXPECT_EQ(iterator.GetIndexOperand(2), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
-  offset += Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
+  offset += Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
   ++iterator;
 
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kAdd);
@@ -796,8 +796,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
-  offset -= Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
-  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaNamedProperty);
+  offset -= Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
+  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kGetNamedProperty);
   EXPECT_EQ(iterator.current_index(), 13);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);

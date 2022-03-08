@@ -1238,7 +1238,7 @@ TEST(InterpreterLoadKeyedProperty) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(789));
 }
 
-TEST(InterpreterStoreNamedProperty) {
+TEST(InterpreterSetNamedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -1256,8 +1256,8 @@ TEST(InterpreterStoreNamedProperty) {
   BytecodeArrayBuilder builder(zone, 1, 0, &feedback_spec);
 
   builder.LoadLiteral(Smi::FromInt(999))
-      .StoreNamedProperty(builder.Receiver(), name, GetIndex(slot),
-                          LanguageMode::kStrict)
+      .SetNamedProperty(builder.Receiver(), name, GetIndex(slot),
+                        LanguageMode::kStrict)
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1301,7 +1301,7 @@ TEST(InterpreterStoreNamedProperty) {
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
 }
 
-TEST(InterpreterStoreKeyedProperty) {
+TEST(InterpreterSetKeyedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -1321,8 +1321,8 @@ TEST(InterpreterStoreKeyedProperty) {
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(999))
-      .StoreKeyedProperty(builder.Receiver(), Register(0), GetIndex(slot),
-                          i::LanguageMode::kSloppy)
+      .SetKeyedProperty(builder.Receiver(), Register(0), GetIndex(slot),
+                        i::LanguageMode::kSloppy)
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
