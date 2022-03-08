@@ -38,8 +38,6 @@ namespace internal {
         JSTemporal##T::NowISO(isolate, args.atOrUndefined(isolate, 1))); \
   }
 
-/* Temporal #sec-temporal.plaindate.from */
-TO_BE_IMPLEMENTED(TemporalPlainDateFrom)
 /* Temporal #sec-temporal.plaindate.compare */
 TO_BE_IMPLEMENTED(TemporalPlainDateCompare)
 /* Temporal #sec-temporal.plaindate.prototype.toplainyearmonth */
@@ -454,6 +452,15 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
                                args.atOrUndefined(isolate, 3)));             \
   }
 
+#define TEMPORAL_METHOD2(T, METHOD)                                     \
+  BUILTIN(Temporal##T##METHOD) {                                        \
+    HandleScope scope(isolate);                                         \
+    RETURN_RESULT_OR_FAILURE(                                           \
+        isolate,                                                        \
+        JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1), \
+                               args.atOrUndefined(isolate, 2)));        \
+  }
+
 #define TEMPORAL_VALUE_OF(T)                                                 \
   BUILTIN(Temporal##T##PrototypeValueOf) {                                   \
     HandleScope scope(isolate);                                              \
@@ -561,6 +568,7 @@ BUILTIN(TemporalPlainDateConstructor) {
                    args.atOrUndefined(isolate, 3),    // iso_day
                    args.atOrUndefined(isolate, 4)));  // calendar_like
 }
+TEMPORAL_METHOD2(PlainDate, From)
 TEMPORAL_GET(PlainDate, Calendar, calendar)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Year, year)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Month, month)

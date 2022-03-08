@@ -31,8 +31,6 @@
   V(_, direction_string, "direction")                               \
   V(_, endRange_string, "endRange")                                 \
   V(_, engineering_string, "engineering")                           \
-  V(_, era_string, "era")                                           \
-  V(_, eraYear_string, "eraYear")                                   \
   V(_, exceptZero_string, "exceptZero")                             \
   V(_, expand_string, "expand")                                     \
   V(_, exponentInteger_string, "exponentInteger")                   \
@@ -228,6 +226,8 @@
   V(_, epochMilliseconds_string, "epochMilliseconds")                 \
   V(_, epochNanoseconds_string, "epochNanoseconds")                   \
   V(_, epochSeconds_string, "epochSeconds")                           \
+  V(_, era_string, "era")                                             \
+  V(_, eraYear_string, "eraYear")                                     \
   V(_, errors_string, "errors")                                       \
   V(_, error_to_string, "[object Error]")                             \
   V(_, eval_string, "eval")                                           \

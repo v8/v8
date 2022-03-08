@@ -123,6 +123,10 @@ class JSTemporalPlainDate
       Isolate* isolate, Handle<JSTemporalPlainDate> plain_date,
       Handle<Object> calendar_like);
 
+  // #sec-temporal.plaindate.from
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> From(
+      Isolate* isolate, Handle<Object> item, Handle<Object> options);
+
   // #sec-temporal.plaindate.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainDate> plain_date);
