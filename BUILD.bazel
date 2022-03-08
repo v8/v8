@@ -980,7 +980,7 @@ filegroup(
     name = "v8_base_without_compiler_files",
     srcs = [
         ":cppgc_base_files",
-        ":v8_cppgc_shared_files",
+        ":v8_heap_base_files",
         ":v8_bigint",
         ":generated_bytecode_builtins_list",
         "include/cppgc/common.h",
@@ -2857,6 +2857,7 @@ filegroup(
         "src/heap/cppgc/gc-info-table.h",
         "src/heap/cppgc/gc-invoker.cc",
         "src/heap/cppgc/gc-invoker.h",
+        "src/heap/cppgc/globals.h",
         "src/heap/cppgc/heap.cc",
         "src/heap/cppgc/heap.h",
         "src/heap/cppgc/heap-base.cc",
@@ -2934,13 +2935,12 @@ filegroup(
 )
 
 filegroup(
-    name = "v8_cppgc_shared_files",
+    name = "v8_heap_base_files",
     srcs = [
         "src/heap/base/stack.cc",
         "src/heap/base/stack.h",
         "src/heap/base/worklist.cc",
         "src/heap/base/worklist.h",
-        "src/heap/cppgc/globals.h",
     ] + select({
         # Note these cannot be v8_target_is_* selects because these contain
         # inline assembly that runs inside the executable. Since these are

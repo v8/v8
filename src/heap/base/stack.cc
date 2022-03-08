@@ -10,7 +10,6 @@
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/base/sanitizer/tsan.h"
-#include "src/heap/cppgc/globals.h"
 
 namespace heap {
 namespace base {

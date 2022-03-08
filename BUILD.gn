@@ -4849,8 +4849,8 @@ v8_source_set("v8_base_without_compiler") {
   deps = [
     ":torque_generated_definitions",
     ":v8_bigint",
-    ":v8_cppgc_shared",
     ":v8_headers",
+    ":v8_heap_base",
     ":v8_libbase",
     ":v8_shared_internal_headers",
     ":v8_tracing",
@@ -5456,13 +5456,12 @@ v8_source_set("v8_bigint") {
   configs = [ ":internal_config" ]
 }
 
-v8_source_set("v8_cppgc_shared") {
+v8_source_set("v8_heap_base") {
   sources = [
     "src/heap/base/stack.cc",
     "src/heap/base/stack.h",
     "src/heap/base/worklist.cc",
     "src/heap/base/worklist.h",
-    "src/heap/cppgc/globals.h",
   ]
 
   if (is_clang || !is_win) {
@@ -5499,10 +5498,7 @@ v8_source_set("v8_cppgc_shared") {
 
   configs = [ ":internal_config" ]
 
-  public_deps = [
-    ":cppgc_headers",
-    ":v8_libbase",
-  ]
+  public_deps = [ ":v8_libbase" ]
 }
 
 # This is split out to be a non-code containing target that the Chromium browser
@@ -5589,6 +5585,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/gc-info.cc",
     "src/heap/cppgc/gc-invoker.cc",
     "src/heap/cppgc/gc-invoker.h",
+    "src/heap/cppgc/globals.h",
     "src/heap/cppgc/heap-base.cc",
     "src/heap/cppgc/heap-base.h",
     "src/heap/cppgc/heap-consistency.cc",
@@ -5683,7 +5680,7 @@ v8_source_set("cppgc_base") {
 
   public_deps = [
     ":cppgc_headers",
-    ":v8_cppgc_shared",
+    ":v8_heap_base",
     ":v8_libbase",
     ":v8_libplatform",
   ]
@@ -6114,10 +6111,10 @@ if (is_component_build) {
     }
   }
 
-  v8_component("v8_cppgc_shared_for_testing") {
+  v8_component("v8_heap_base_for_testing") {
     testonly = true
 
-    public_deps = [ ":v8_cppgc_shared" ]
+    public_deps = [ ":v8_heap_base" ]
 
     configs = []
     public_configs = [ ":external_config" ]
@@ -6166,10 +6163,10 @@ if (is_component_build) {
     }
   }
 
-  group("v8_cppgc_shared_for_testing") {
+  group("v8_heap_base_for_testing") {
     testonly = true
 
-    public_deps = [ ":v8_cppgc_shared" ]
+    public_deps = [ ":v8_heap_base" ]
 
     public_configs = [ ":external_config" ]
   }
