@@ -5835,6 +5835,11 @@ void Heap::InitializeHashSeed() {
       0, reinterpret_cast<byte*>(&new_hash_seed), kInt64Size);
 }
 
+// static
+void Heap::InitializeOncePerProcess() {
+  MemoryAllocator::InitializeOncePerProcess();
+}
+
 void Heap::PrintMaxMarkingLimitReached() {
   PrintF("\n### Maximum marking limit reached = %.02lf\n",
          max_marking_limit_reached_);

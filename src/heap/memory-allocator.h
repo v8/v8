@@ -153,7 +153,18 @@ class MemoryAllocator {
     kConcurrentlyAndPool,
   };
 
-  V8_EXPORT_PRIVATE static intptr_t GetCommitPageSize();
+  // Initialize page sizes field in V8::Initialize.
+  static void InitializeOncePerProcess();
+
+  V8_INLINE static intptr_t GetCommitPageSize() {
+    DCHECK_LT(0, commit_page_size_);
+    return commit_page_size_;
+  }
+
+  V8_INLINE static intptr_t GetCommitPageSizeBits() {
+    DCHECK_LT(0, commit_page_size_bits_);
+    return commit_page_size_bits_;
+  }
 
   // Computes the memory area of discardable memory within a given memory area
   // [addr, addr+size) and returns the result as base::AddressRegion. If the
@@ -382,6 +393,9 @@ class MemoryAllocator {
   std::unordered_set<MemoryChunk*> executable_memory_;
   base::Mutex executable_memory_mutex_;
 #endif  // DEBUG
+
+  V8_EXPORT_PRIVATE static size_t commit_page_size_;
+  V8_EXPORT_PRIVATE static size_t commit_page_size_bits_;
 
   friend class heap::TestCodePageAllocatorScope;
   friend class heap::TestMemoryAllocatorScope;

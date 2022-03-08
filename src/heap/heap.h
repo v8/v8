@@ -808,6 +808,9 @@ class Heap {
   // (Re-)Initialize hash seed from flag or RNG.
   void InitializeHashSeed();
 
+  // Invoked once for the process from V8::Initialize.
+  static void InitializeOncePerProcess();
+
   // Bootstraps the object heap with the core set of objects required to run.
   // Returns whether it succeeded.
   bool CreateHeapObjects();

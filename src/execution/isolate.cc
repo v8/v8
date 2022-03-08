@@ -521,6 +521,8 @@ void Isolate::InitializeOncePerProcess() {
   CHECK(isolate_key_created_.compare_exchange_strong(
       expected, true, std::memory_order_relaxed));
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
+
+  Heap::InitializeOncePerProcess();
 }
 
 void Isolate::DisposeOncePerProcess() {

@@ -857,14 +857,12 @@ TEST(ReadOnlySpaceMetrics_OnePage) {
   faked_space->ShrinkPages();
   faked_space->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
 
-  MemoryAllocator* allocator = heap->memory_allocator();
-
   // Allocated objects size.
   CHECK_EQ(faked_space->Size(), 16);
 
   size_t committed_memory = RoundUp(
       MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space->Size(),
-      allocator->GetCommitPageSize());
+      MemoryAllocator::GetCommitPageSize());
 
   // Amount of OS allocated memory.
   CHECK_EQ(faked_space->CommittedMemory(), committed_memory);
@@ -891,10 +889,9 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
   CHECK_EQ(faked_space->CommittedMemory(), 0);
   CHECK_EQ(faked_space->CommittedPhysicalMemory(), 0);
 
-  MemoryAllocator* allocator = heap->memory_allocator();
   // Allocate an object just under an OS page in size.
   int object_size =
-      static_cast<int>(allocator->GetCommitPageSize() - kApiTaggedSize);
+      static_cast<int>(MemoryAllocator::GetCommitPageSize() - kApiTaggedSize);
 
 // TODO(v8:8875): Pointer compression does not enable aligned memory allocation
 // yet.
@@ -926,7 +923,7 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
 
   size_t committed_memory = RoundUp(
       MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space->Size(),
-      allocator->GetCommitPageSize());
+      MemoryAllocator::GetCommitPageSize());
 
   CHECK_EQ(faked_space->CommittedMemory(), committed_memory);
   CHECK_EQ(faked_space->CommittedPhysicalMemory(), committed_memory);
@@ -952,8 +949,6 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
   CHECK_EQ(faked_space->CommittedMemory(), 0);
   CHECK_EQ(faked_space->CommittedPhysicalMemory(), 0);
 
-  MemoryAllocator* allocator = heap->memory_allocator();
-
   // Allocate an object that's too big to have more than one on a page.
 
   int object_size = RoundUp(
@@ -976,7 +971,7 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
   // Amount of OS allocated memory.
   size_t committed_memory_per_page =
       RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + object_size,
-              allocator->GetCommitPageSize());
+              MemoryAllocator::GetCommitPageSize());
   CHECK_EQ(faked_space->CommittedMemory(), 2 * committed_memory_per_page);
   CHECK_EQ(faked_space->CommittedPhysicalMemory(),
            2 * committed_memory_per_page);
@@ -985,7 +980,7 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
   // page headers.
   size_t capacity_per_page =
       RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + object_size,
-              allocator->GetCommitPageSize()) -
+              MemoryAllocator::GetCommitPageSize()) -
       MemoryChunkLayout::ObjectStartOffsetInDataPage();
   CHECK_EQ(faked_space->Capacity(), 2 * capacity_per_page);
 }

@@ -24,6 +24,9 @@ namespace internal {
 // MemoryAllocator
 //
 
+size_t MemoryAllocator::commit_page_size_ = 0;
+size_t MemoryAllocator::commit_page_size_bits_ = 0;
+
 MemoryAllocator::MemoryAllocator(Isolate* isolate,
                                  v8::PageAllocator* code_page_allocator,
                                  size_t capacity)
@@ -619,18 +622,16 @@ void MemoryAllocator::ZapBlock(Address start, size_t size,
                size >> kTaggedSizeLog2);
 }
 
-intptr_t MemoryAllocator::GetCommitPageSize() {
-  if (FLAG_v8_os_page_size != 0) {
-    DCHECK(base::bits::IsPowerOfTwo(FLAG_v8_os_page_size));
-    return FLAG_v8_os_page_size * KB;
-  } else {
-    return CommitPageSize();
-  }
+void MemoryAllocator::InitializeOncePerProcess() {
+  commit_page_size_ =
+      FLAG_v8_os_page_size > 0 ? FLAG_v8_os_page_size * KB : CommitPageSize();
+  CHECK(base::bits::IsPowerOfTwo(commit_page_size_));
+  commit_page_size_bits_ = base::bits::WhichPowerOfTwo(commit_page_size_);
 }
 
 base::AddressRegion MemoryAllocator::ComputeDiscardMemoryArea(Address addr,
                                                               size_t size) {
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
+  size_t page_size = GetCommitPageSize();
   if (size < page_size + FreeSpace::kSize) {
     return base::AddressRegion(0, 0);
   }
