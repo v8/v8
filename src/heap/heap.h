@@ -1149,8 +1149,6 @@ class Heap {
   EmbedderHeapTracer* GetEmbedderHeapTracer() const;
 
   void RegisterExternallyReferencedObject(Address* location);
-  V8_EXPORT_PRIVATE void SetEmbedderStackStateForNextFinalization(
-      EmbedderHeapTracer::EmbedderStackState stack_state);
 
   EmbedderHeapTracer::TraceFlags flags_for_embedder_tracer() const;
 
@@ -2772,6 +2770,30 @@ struct StrongRootBlockAllocator::rebind {
     // NOLINTNEXTLINE
     other(const StrongRootBlockAllocator&) {}
   };
+};
+
+class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
+ public:
+  enum Origin {
+    kImplicitThroughTask,
+    kExplicitInvocation,
+  };
+
+  // Only used for testing where the Origin is always an explicit invocation.
+  static EmbedderStackStateScope ExplicitScopeForTesting(
+      LocalEmbedderHeapTracer* local_tracer,
+      EmbedderHeapTracer::EmbedderStackState stack_state);
+
+  EmbedderStackStateScope(Heap* heap, Origin origin,
+                          EmbedderHeapTracer::EmbedderStackState stack_state);
+  ~EmbedderStackStateScope();
+
+ private:
+  EmbedderStackStateScope(LocalEmbedderHeapTracer* local_tracer,
+                          EmbedderHeapTracer::EmbedderStackState stack_state);
+
+  LocalEmbedderHeapTracer* const local_tracer_;
+  const EmbedderHeapTracer::EmbedderStackState old_stack_state_;
 };
 
 }  // namespace internal

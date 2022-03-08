@@ -578,9 +578,6 @@ bool CppHeap::IsTracingDone() { return marking_done_; }
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
   in_atomic_pause_ = true;
-  if (override_stack_state_) {
-    stack_state = *override_stack_state_;
-  }
   marker_->EnterAtomicPause(stack_state);
   if (isolate_ &&
       *collection_type_ ==

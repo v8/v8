@@ -1789,7 +1789,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
     // Temporary override any embedder stack state as callbacks may create
     // their own state on the stack and recursively trigger GC.
     EmbedderStackStateScope embedder_scope(
-        local_embedder_heap_tracer(),
+        this, EmbedderStackStateScope::kExplicitInvocation,
         EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
     if (scope.CheckReenter()) {
       AllowGarbageCollection allow_gc;
@@ -7376,12 +7376,6 @@ bool Heap::PageFlagsAreConsistent(HeapObject object) {
   return true;
 }
 
-void Heap::SetEmbedderStackStateForNextFinalization(
-    EmbedderHeapTracer::EmbedderStackState stack_state) {
-  local_embedder_heap_tracer()->SetEmbedderStackStateForNextFinalization(
-      stack_state);
-}
-
 #ifdef DEBUG
 void Heap::IncrementObjectCounters() {
   isolate_->counters()->objs_since_last_full()->Increment();
@@ -7434,6 +7428,41 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
   heap_allocator_.SetAllocationTimeout(allocation_timeout);
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+EmbedderStackStateScope::EmbedderStackStateScope(
+    Heap* heap, Origin origin,
+    EmbedderHeapTracer::EmbedderStackState stack_state)
+    : local_tracer_(heap->local_embedder_heap_tracer()),
+      old_stack_state_(local_tracer_->embedder_stack_state_) {
+  if (origin == kImplicitThroughTask && heap->overriden_stack_state()) {
+    stack_state = *heap->overriden_stack_state();
+  }
+
+  local_tracer_->embedder_stack_state_ = stack_state;
+  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
+    local_tracer_->NotifyEmptyEmbedderStack();
+}
+
+// static
+EmbedderStackStateScope EmbedderStackStateScope::ExplicitScopeForTesting(
+    LocalEmbedderHeapTracer* local_tracer,
+    EmbedderHeapTracer::EmbedderStackState stack_state) {
+  return EmbedderStackStateScope(local_tracer, stack_state);
+}
+
+EmbedderStackStateScope::EmbedderStackStateScope(
+    LocalEmbedderHeapTracer* local_tracer,
+    EmbedderHeapTracer::EmbedderStackState stack_state)
+    : local_tracer_(local_tracer),
+      old_stack_state_(local_tracer_->embedder_stack_state_) {
+  local_tracer_->embedder_stack_state_ = stack_state;
+  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
+    local_tracer_->NotifyEmptyEmbedderStack();
+}
+
+EmbedderStackStateScope::~EmbedderStackStateScope() {
+  local_tracer_->embedder_stack_state_ = old_stack_state_;
+}
 
 }  // namespace internal
 }  // namespace v8

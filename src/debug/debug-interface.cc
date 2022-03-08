@@ -15,6 +15,7 @@
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/heap.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-builder-inl.h"
@@ -613,8 +614,9 @@ Platform* GetCurrentPlatform() { return i::V8::GetCurrentPlatform(); }
 void ForceGarbageCollection(
     Isolate* isolate,
     EmbedderHeapTracer::EmbedderStackState embedder_stack_state) {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  heap->SetEmbedderStackStateForNextFinalization(embedder_stack_state);
+  i::EmbedderStackStateScope stack_scope(
+      reinterpret_cast<i::Isolate*>(isolate)->heap(),
+      i::EmbedderStackStateScope::kImplicitThroughTask, embedder_stack_state);
   isolate->LowMemoryNotification();
 }
 

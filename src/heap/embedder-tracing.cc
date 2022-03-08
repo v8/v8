@@ -113,15 +113,6 @@ bool LocalEmbedderHeapTracer::IsRemoteTracingDone() {
                                 : remote_tracer_->IsTracingDone());
 }
 
-void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
-    EmbedderHeapTracer::EmbedderStackState stack_state) {
-  if (!InUse()) return;
-
-  embedder_stack_state_ = stack_state;
-  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
-    NotifyEmptyEmbedderStack();
-}
-
 LocalEmbedderHeapTracer::ProcessingScope::ProcessingScope(
     LocalEmbedderHeapTracer* tracer)
     : tracer_(tracer), wrapper_descriptor_(tracer->wrapper_descriptor_) {

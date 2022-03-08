@@ -168,9 +168,6 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   DCHECK(!in_no_gc_scope());
   CHECK(!in_disallow_gc_scope());
   config_.stack_state = stack_state;
-  if (override_stack_state_) {
-    config_.stack_state = *override_stack_state_;
-  }
   SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
   in_atomic_pause_ = true;
   {

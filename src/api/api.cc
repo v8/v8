@@ -8531,10 +8531,11 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
 void Isolate::RequestGarbageCollectionForTesting(
     GarbageCollectionType type,
     EmbedderHeapTracer::EmbedderStackState stack_state) {
+  base::Optional<i::EmbedderStackStateScope> stack_scope;
   if (type == kFullGarbageCollection) {
-    reinterpret_cast<i::Isolate*>(this)
-        ->heap()
-        ->SetEmbedderStackStateForNextFinalization(stack_state);
+    stack_scope.emplace(reinterpret_cast<i::Isolate*>(this)->heap(),
+                        i::EmbedderStackStateScope::kExplicitInvocation,
+                        stack_state);
   }
   RequestGarbageCollectionForTesting(type);
 }

@@ -165,7 +165,8 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
   }
   USE(object);
   {
-    js_heap.SetEmbedderStackStateForNextFinalization(
+    EmbedderStackStateScope stack_scope(
+        &js_heap, EmbedderStackStateScope::kExplicitInvocation,
         EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
     CollectGarbage(OLD_SPACE);
     cpp_heap.AsBase().sweeper().FinishIfRunning();
