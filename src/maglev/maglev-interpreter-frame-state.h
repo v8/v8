@@ -67,6 +67,46 @@ class InterpreterFrameState {
   RegisterFrameArray<ValueNode*> frame_;
 };
 
+class MergePointRegisterState {
+ public:
+  class Iterator {
+   public:
+    struct Entry {
+      RegisterState& state;
+      Register reg;
+    };
+    explicit Iterator(RegisterState* value_pointer,
+                      RegListIterator::Iterator reg_iterator)
+        : current_value_(value_pointer), reg_iterator_(reg_iterator) {}
+    Entry operator*() { return {*current_value_, *reg_iterator_}; }
+    void operator++() {
+      ++current_value_;
+      ++reg_iterator_;
+    }
+    bool operator!=(const Iterator& other) const {
+      return current_value_ != other.current_value_;
+    }
+
+   private:
+    RegisterState* current_value_;
+    RegListIterator::Iterator reg_iterator_;
+  };
+
+  bool is_initialized() const { return values_[0].GetPayload().is_initialized; }
+
+  Iterator begin() {
+    return Iterator(values_,
+                    RegListIterator::Iterator(kAllocatableGeneralRegisters));
+  }
+  Iterator end() {
+    return Iterator(values_ + kAllocatableGeneralRegisterCount,
+                    RegListIterator::Iterator(kEmptyRegList));
+  }
+
+ private:
+  RegisterState values_[kAllocatableGeneralRegisterCount] = {{}};
+};
+
 class MergePointInterpreterFrameState {
  public:
   void CheckIsLoopPhiIfNeeded(const MaglevCompilationUnit& compilation_unit,
@@ -161,7 +201,7 @@ class MergePointInterpreterFrameState {
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
   }
 
-  RegisterState* register_state() { return register_values_; }
+  MergePointRegisterState& register_state() { return register_state_; }
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
@@ -340,10 +380,7 @@ class MergePointInterpreterFrameState {
   const compiler::BytecodeLivenessState* liveness_ = nullptr;
   BasicBlock** predecessors_;
 
-#define N(V) RegisterState{nullptr},
-  RegisterState register_values_[kAllocatableGeneralRegisterCount] = {
-      ALLOCATABLE_GENERAL_REGISTERS(N)};
-#undef N
+  MergePointRegisterState register_state_;
 };
 
 void InterpreterFrameState::CopyFrom(

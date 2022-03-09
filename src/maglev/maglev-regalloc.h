@@ -17,6 +17,7 @@ namespace internal {
 namespace maglev {
 
 class MaglevPrintingVisitor;
+class MergePointRegisterState;
 
 class StraightForwardRegisterAllocator {
  public:
@@ -27,16 +28,18 @@ class StraightForwardRegisterAllocator {
   int stack_slots() const { return top_of_stack_; }
 
  private:
-  std::vector<int> future_register_uses_[kAllocatableGeneralRegisterCount];
-
-#define N(V) nullptr,
-  ValueNode* register_values_[kAllocatableGeneralRegisterCount] = {
-      ALLOCATABLE_GENERAL_REGISTERS(N)};
-#undef N
+  std::vector<int> future_register_uses_[Register::kNumRegisters];
+  ValueNode* register_values_[Register::kNumRegisters];
 
   int top_of_stack_ = 0;
   RegList free_registers_ = kAllocatableGeneralRegisters;
   std::vector<uint32_t> free_slots_;
+
+  RegList used_registers() const {
+    // Only allocatable registers should be free.
+    DCHECK_EQ(free_registers_, free_registers_ & kAllocatableGeneralRegisters);
+    return kAllocatableGeneralRegisters ^ free_registers_;
+  }
 
   void ComputePostDominatingHoles(Graph* graph);
   void AllocateRegisters(Graph* graph);
@@ -54,12 +57,23 @@ class StraightForwardRegisterAllocator {
 
   void FreeRegisters(ValueNode* node) {
     RegList list = node->ClearRegisters();
-    while (list != kEmptyRegList) {
-      Register reg = Register::TakeAny(&list);
-      FreeRegister(MapRegisterToIndex(reg));
-    }
+    DCHECK_EQ(free_registers_ & list, kEmptyRegList);
+    free_registers_ |= list;
   }
-  void FreeRegister(int i);
+  void FreeRegister(Register reg) { reg.InsertInto(&free_registers_); }
+
+  ValueNode* GetUsedRegister(Register reg) const {
+    DCHECK(!reg.IsIn(free_registers_));
+    ValueNode* node = register_values_[reg.code()];
+    DCHECK_NOT_NULL(node);
+    return node;
+  }
+
+  ValueNode* GetMaybeUsedRegister(Register reg) const {
+    if (!reg.IsIn(free_registers_)) return nullptr;
+    return GetUsedRegister(reg);
+  }
+
   void FreeSomeRegister();
   void AddMoveBeforeCurrentNode(compiler::AllocatedOperand source,
                                 compiler::AllocatedOperand target);
@@ -70,14 +84,14 @@ class StraightForwardRegisterAllocator {
   void SpillRegisters();
 
   compiler::AllocatedOperand AllocateRegister(ValueNode* node);
-  compiler::AllocatedOperand ForceAllocate(const Register& reg,
-                                           ValueNode* node);
+  compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node);
   void SetRegister(Register reg, ValueNode* node);
-  void Free(const Register& reg);
+  void DropRegisterValue(Register reg);
   compiler::InstructionOperand TryAllocateRegister(ValueNode* node);
 
-  void InitializeRegisterValues(RegisterState* target_state);
-  void EnsureInRegister(RegisterState* target_state, ValueNode* incoming);
+  void InitializeRegisterValues(MergePointRegisterState& target_state);
+  void EnsureInRegister(MergePointRegisterState& target_state,
+                        ValueNode* incoming);
 
   void InitializeBranchTargetRegisterValues(ControlNode* source,
                                             BasicBlock* target);

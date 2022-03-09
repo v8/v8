@@ -55,25 +55,27 @@ class RegisterBase {
     return is_valid() ? RegList{1} << code() : RegList{};
   }
 
-  static constexpr SubType AnyOf(RegList list) {
+  static constexpr SubType FirstOf(RegList list) {
     DCHECK_NE(kEmptyRegList, list);
-    return from_code(base::bits::CountTrailingZeros(list));
+    return SubType::from_code(base::bits::CountTrailingZerosNonZero(list));
   }
 
-  static constexpr SubType TakeAny(RegList* list) {
+  static constexpr SubType TakeFirst(RegList* list) {
     RegList value = *list;
-    SubType result = AnyOf(value);
+    SubType result = FirstOf(value);
     result.RemoveFrom(list);
     return result;
   }
 
+  constexpr bool IsIn(RegList list) const { return list & bit(); }
+
   constexpr void InsertInto(RegList* list) const {
-    DCHECK_NE(bit(), (*list) & bit());
+    DCHECK(!IsIn(*list));
     *list |= bit();
   }
 
   constexpr void RemoveFrom(RegList* list) const {
-    DCHECK_EQ(bit(), (*list) & bit());
+    DCHECK(IsIn(*list));
     *list ^= bit();
   }
 

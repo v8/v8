@@ -567,10 +567,7 @@ class ValueNode : public Node {
   // A node is dead once it has no more upcoming uses.
   bool is_dead() const { return next_use_ == kInvalidNodeId; }
 
-  void AddRegister(Register reg) {
-    registers_with_result_ =
-        CombineRegLists(registers_with_result_, Register::ListOf(reg));
-  }
+  void AddRegister(Register reg) { reg.InsertInto(&registers_with_result_); }
   void RemoveRegister(Register reg) { reg.RemoveFrom(&registers_with_result_); }
   RegList ClearRegisters() {
     return std::exchange(registers_with_result_, kEmptyRegList);
@@ -581,7 +578,7 @@ class ValueNode : public Node {
     if (has_register()) {
       return compiler::AllocatedOperand(
           compiler::LocationOperand::REGISTER, MachineRepresentation::kTagged,
-          Register::AnyOf(registers_with_result_).code());
+          Register::FirstOf(registers_with_result_).code());
     }
     DCHECK(is_spilled());
     return compiler::AllocatedOperand::cast(spill_or_hint_);

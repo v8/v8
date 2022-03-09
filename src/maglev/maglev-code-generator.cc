@@ -249,11 +249,11 @@ class MaglevCodeGeneratingNodeProcessor {
 
     __ RecordComment("--   Gap moves:");
 
-    for (int index = 0; index < kAllocatableGeneralRegisterCount; ++index) {
+    for (auto entry : target->state()->register_state()) {
       RegisterMerge* merge;
-      if (LoadMergeState(target->state()->register_state()[index], &merge)) {
+      if (LoadMergeState(entry.state, &merge)) {
         compiler::AllocatedOperand source = merge->operand(predecessor_id);
-        Register target_reg = MapIndexToRegister(index);
+        Register target_reg = entry.reg;
 
         if (FLAG_code_comments) {
           std::stringstream ss;

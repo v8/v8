@@ -20,32 +20,6 @@ static constexpr int kAllocatableGeneralRegisterCount =
     ALLOCATABLE_GENERAL_REGISTERS(COUNT);
 #undef COUNT
 
-constexpr uint8_t MapRegisterToIndex(Register r) {
-  uint8_t count = 0;
-#define EMIT_BRANCH(V)      \
-  if (r == V) return count; \
-  count++;
-  ALLOCATABLE_GENERAL_REGISTERS(EMIT_BRANCH)
-#undef EMIT_BRANCH
-  // TODO(v8:7700): Re-enable UNREACHABLE once we figure out how to to avoid
-  // the gcc error 'call to non-constexpr function'.
-  // UNREACHABLE();
-  return 255;
-}
-
-constexpr Register MapIndexToRegister(int i) {
-  uint8_t count = 0;
-#define EMIT_BRANCH(V)      \
-  if (i == count) return V; \
-  count++;
-  ALLOCATABLE_GENERAL_REGISTERS(EMIT_BRANCH)
-#undef EMIT_BRANCH
-  // TODO(v8:7700): Re-enable UNREACHABLE once we figure out how to to avoid
-  // the gcc error 'call to non-constexpr function'.
-  // UNREACHABLE();
-  return no_reg;
-}
-
 struct RegisterStateFlags {
   // TODO(v8:7700): Use the good old Flags mechanism.
   static constexpr int kIsMergeShift = 0;

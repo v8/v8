@@ -243,6 +243,19 @@ class Register : public CPURegister {
     return Register::Create(code, kXRegSizeInBits);
   }
 
+  // Copied from RegisterBase since there's no CPURegister::from_code.
+  static constexpr Register FirstOf(RegList list) {
+    DCHECK_NE(kEmptyRegList, list);
+    return from_code(base::bits::CountTrailingZerosNonZero(list));
+  }
+
+  static constexpr Register TakeFirst(RegList* list) {
+    RegList value = *list;
+    Register result = FirstOf(value);
+    result.RemoveFrom(list);
+    return result;
+  }
+
   static const char* GetSpecialRegisterName(int code) {
     return (code == kSPRegInternalCode) ? "sp" : "UNKNOWN";
   }

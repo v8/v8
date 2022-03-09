@@ -69,6 +69,29 @@ inline constexpr bool AreAliased(RegType first_reg, RegTypes... regs) {
 }
 #endif
 
+class RegListIterator {
+ public:
+  class Iterator {
+   public:
+    explicit Iterator(RegList list) : list_(list) {}
+    Register operator*() { return Register::FirstOf(list_); }
+    void operator++() { Register::FirstOf(list_).RemoveFrom(&list_); }
+    bool operator!=(const Iterator& other) const {
+      return list_ != other.list_;
+    }
+
+   private:
+    RegList list_;
+  };
+
+  explicit RegListIterator(RegList list) : list_(list) {}
+  Iterator begin() const { return Iterator(list_); }
+  Iterator end() const { return Iterator(kEmptyRegList); }
+
+ private:
+  RegList list_;
+};
+
 }  // namespace internal
 }  // namespace v8
 
