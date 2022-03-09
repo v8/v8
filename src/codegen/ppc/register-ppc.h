@@ -199,7 +199,7 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
@@ -249,7 +249,7 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
-static_assert(sizeof(DoubleRegister) == sizeof(int),
+static_assert(sizeof(DoubleRegister) <= sizeof(int),
               "DoubleRegister can efficiently be passed by value");
 
 using FloatRegister = DoubleRegister;
@@ -292,7 +292,7 @@ class Simd128Register
   explicit constexpr Simd128Register(int code) : RegisterBase(code) {}
 };
 ASSERT_TRIVIALLY_COPYABLE(Simd128Register);
-static_assert(sizeof(Simd128Register) == sizeof(int),
+static_assert(sizeof(Simd128Register) <= sizeof(int),
               "Simd128Register can efficiently be passed by value");
 
 #define DECLARE_SIMD128_REGISTER(R) \

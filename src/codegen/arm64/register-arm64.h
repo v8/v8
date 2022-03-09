@@ -95,7 +95,7 @@ enum RegisterCode {
 
 class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
  public:
-  enum RegisterType { kRegister, kVRegister, kNoRegister };
+  enum RegisterType : int8_t { kRegister, kVRegister, kNoRegister };
 
   static constexpr CPURegister no_reg() {
     return CPURegister{kCode_no_reg, 0, kNoRegister};
@@ -188,7 +188,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   bool IsSameSizeAndType(const CPURegister& other) const;
 
  protected:
-  int reg_size_;
+  uint8_t reg_size_;
   RegisterType reg_type_;
 
 #if defined(V8_OS_WIN) && !defined(__clang__)
@@ -224,6 +224,8 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(CPURegister);
+static_assert(sizeof(CPURegister) <= sizeof(int),
+              "CPURegister can efficiently be passed by value");
 
 class Register : public CPURegister {
  public:
@@ -250,6 +252,8 @@ class Register : public CPURegister {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
+static_assert(sizeof(Register) <= sizeof(int),
+              "Register can efficiently be passed by value");
 
 // Stack frame alignment and padding.
 constexpr int ArgumentPaddingSlots(int argument_count) {
@@ -419,7 +423,7 @@ class VRegister : public CPURegister {
   }
 
  private:
-  int lane_count_;
+  int8_t lane_count_;
 
   constexpr explicit VRegister(const CPURegister& r, int lane_count)
       : CPURegister(r), lane_count_(lane_count) {}
@@ -430,6 +434,8 @@ class VRegister : public CPURegister {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(VRegister);
+static_assert(sizeof(VRegister) <= sizeof(int),
+              "VRegister can efficiently be passed by value");
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
 // these all compare equal. The Register and VRegister variants are provided for
