@@ -52,6 +52,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
     // Free all overallocated pages which are behind current_page.
     while (current_page) {
       MemoryChunk* next_current = current_page->list_node().next();
+      AccountUncommitted(Page::kPageSize);
       memory_chunk_list_.Remove(current_page);
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
@@ -72,6 +73,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
           NOT_EXECUTABLE);
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
+      AccountCommitted(Page::kPageSize);
       memory_chunk_list_.PushBack(current_page);
       marking_state->ClearLiveness(current_page);
       current_page->SetFlags(first_page()->GetFlags(), Page::kAllFlagsMask);
@@ -103,6 +105,7 @@ void SemiSpace::TearDown() {
 
 bool SemiSpace::Commit() {
   DCHECK(!IsCommitted());
+  DCHECK_EQ(CommittedMemory(), size_t(0));
   const int num_pages = static_cast<int>(target_capacity_ / Page::kPageSize);
   DCHECK(num_pages);
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
@@ -130,7 +133,9 @@ bool SemiSpace::Commit() {
 
 bool SemiSpace::Uncommit() {
   DCHECK(IsCommitted());
+  int actual_pages = 0;
   while (!memory_chunk_list_.Empty()) {
+    actual_pages++;
     MemoryChunk* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
     heap()->memory_allocator()->Free(MemoryAllocator::kConcurrentlyAndPool,
@@ -138,7 +143,10 @@ bool SemiSpace::Uncommit() {
   }
   current_page_ = nullptr;
   current_capacity_ = 0;
-  AccountUncommitted(target_capacity_);
+  size_t removed_page_size =
+      static_cast<size_t>(actual_pages * Page::kPageSize);
+  DCHECK_EQ(CommittedMemory(), removed_page_size);
+  AccountUncommitted(removed_page_size);
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   DCHECK(!IsCommitted());
   return true;
@@ -244,6 +252,7 @@ void SemiSpace::RemovePage(Page* page) {
     }
   }
   memory_chunk_list_.Remove(page);
+  AccountUncommitted(Page::kPageSize);
   for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
@@ -255,6 +264,7 @@ void SemiSpace::PrependPage(Page* page) {
   page->set_owner(this);
   memory_chunk_list_.PushFront(page);
   current_capacity_ += Page::kPageSize;
+  AccountCommitted(Page::kPageSize);
   for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
@@ -316,6 +326,7 @@ void SemiSpace::Verify() {
     external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
   }
 
+  int actual_pages = 0;
   for (Page* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
@@ -341,7 +352,11 @@ void SemiSpace::Verify() {
 
     CHECK_IMPLIES(page->list_node().prev(),
                   page->list_node().prev()->list_node().next() == page);
+
+    actual_pages++;
   }
+  CHECK_EQ(actual_pages * size_t(Page::kPageSize), CommittedMemory());
+
   for (int i = 0; i < kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
