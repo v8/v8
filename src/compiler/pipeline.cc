@@ -1105,15 +1105,14 @@ PipelineCompilationJob::PipelineCompilationJob(
     // we pass it to the CompilationJob constructor, but it is not
     // dereferenced there.
     : OptimizedCompilationJob(&compilation_info_, "TurboFan"),
-      zone_(function->GetIsolate()->allocator(),
-            kPipelineCompilationJobZoneName),
-      zone_stats_(function->GetIsolate()->allocator()),
-      compilation_info_(&zone_, function->GetIsolate(), shared_info, function,
-                        code_kind, osr_offset, osr_frame),
+      zone_(isolate->allocator(), kPipelineCompilationJobZoneName),
+      zone_stats_(isolate->allocator()),
+      compilation_info_(&zone_, isolate, shared_info, function, code_kind,
+                        osr_offset, osr_frame),
       pipeline_statistics_(CreatePipelineStatistics(
           handle(Script::cast(shared_info->script()), isolate),
-          compilation_info(), function->GetIsolate(), &zone_stats_)),
-      data_(&zone_stats_, function->GetIsolate(), compilation_info(),
+          compilation_info(), isolate, &zone_stats_)),
+      data_(&zone_stats_, isolate, compilation_info(),
             pipeline_statistics_.get()),
       pipeline_(&data_),
       linkage_(nullptr) {}
@@ -3310,8 +3309,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
     Isolate* isolate, Handle<JSFunction> function, CodeKind code_kind,
     bool has_script, BytecodeOffset osr_offset, JavaScriptFrame* osr_frame) {
-  Handle<SharedFunctionInfo> shared =
-      handle(function->shared(), function->GetIsolate());
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   return std::make_unique<PipelineCompilationJob>(
       isolate, shared, function, osr_offset, osr_frame, code_kind);
 }
