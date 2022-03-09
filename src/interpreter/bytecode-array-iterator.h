@@ -141,6 +141,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   // bytecode is not a switch.
   JumpTableTargetOffsets GetJumpTableTargetOffsets() const;
 
+  // Returns loop nesting level of current bytecode.
+  // It is an error to call this method if the bytecode is not for a JumpLoop.
+  int GetJumpLoopNestingLevel() const;
+
   // Returns the absolute offset of the bytecode at the given relative offset
   // from the current bytecode.
   int GetAbsoluteOffset(int relative_offset) const;

@@ -244,6 +244,11 @@ int BytecodeArrayIterator::GetJumpTargetOffset() const {
   return GetAbsoluteOffset(GetRelativeJumpTargetOffset());
 }
 
+int BytecodeArrayIterator::GetJumpLoopNestingLevel() const {
+  DCHECK_EQ(current_bytecode(), interpreter::Bytecode::kJumpLoop);
+  return GetImmediateOperand(1);
+}
+
 JumpTableTargetOffsets BytecodeArrayIterator::GetJumpTableTargetOffsets()
     const {
   uint32_t table_start, table_size;

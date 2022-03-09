@@ -180,6 +180,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // this field. We currently assume it's immutable thus a relaxed read (after
     // passing IsPendingAllocation).
     raw_code.set_inlined_bytecode_size(inlined_bytecode_size_);
+    raw_code.set_osr_offset(osr_offset_);
     raw_code.set_code_data_container(*data_container, kReleaseStore);
     if (kind_ == CodeKind::BASELINE) {
       raw_code.set_bytecode_or_interpreter_data(*interpreter_data_);
