@@ -53,6 +53,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
     while (current_page) {
       MemoryChunk* next_current = current_page->list_node().next();
       AccountUncommitted(Page::kPageSize);
+      DecrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
       memory_chunk_list_.Remove(current_page);
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
@@ -74,6 +75,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
       AccountCommitted(Page::kPageSize);
+      IncrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
       memory_chunk_list_.PushBack(current_page);
       marking_state->ClearLiveness(current_page);
       current_page->SetFlags(first_page()->GetFlags(), Page::kAllFlagsMask);
@@ -121,6 +123,7 @@ bool SemiSpace::Commit() {
       return false;
     }
     memory_chunk_list_.PushBack(new_page);
+    IncrementCommittedPhysicalMemory(new_page->CommittedPhysicalMemory());
   }
   Reset();
   AccountCommitted(target_capacity_);
@@ -137,6 +140,7 @@ bool SemiSpace::Uncommit() {
   while (!memory_chunk_list_.Empty()) {
     actual_pages++;
     MemoryChunk* chunk = memory_chunk_list_.front();
+    DecrementCommittedPhysicalMemory(chunk->CommittedPhysicalMemory());
     memory_chunk_list_.Remove(chunk);
     heap()->memory_allocator()->Free(MemoryAllocator::kConcurrentlyAndPool,
                                      chunk);
@@ -146,6 +150,7 @@ bool SemiSpace::Uncommit() {
   size_t removed_page_size =
       static_cast<size_t>(actual_pages * Page::kPageSize);
   DCHECK_EQ(CommittedMemory(), removed_page_size);
+  DCHECK_EQ(CommittedPhysicalMemory(), 0);
   AccountUncommitted(removed_page_size);
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   DCHECK(!IsCommitted());
@@ -154,11 +159,8 @@ bool SemiSpace::Uncommit() {
 
 size_t SemiSpace::CommittedPhysicalMemory() {
   if (!IsCommitted()) return 0;
-  size_t size = 0;
-  for (Page* p : *this) {
-    size += p->CommittedPhysicalMemory();
-  }
-  return size;
+  if (!base::OS::HasLazyCommits()) return CommittedMemory();
+  return committed_physical_memory_;
 }
 
 bool SemiSpace::GrowTo(size_t new_capacity) {
@@ -184,6 +186,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
     }
     memory_chunk_list_.PushBack(new_page);
     marking_state->ClearLiveness(new_page);
+    IncrementCommittedPhysicalMemory(new_page->CommittedPhysicalMemory());
     // Duplicate the flags that was set on the old page.
     new_page->SetFlags(last_page()->GetFlags(), Page::kCopyOnFlipFlagsMask);
   }
@@ -198,6 +201,7 @@ void SemiSpace::RewindPages(int num_pages) {
   while (num_pages > 0) {
     MemoryChunk* last = last_page();
     memory_chunk_list_.Remove(last);
+    DecrementCommittedPhysicalMemory(last->CommittedPhysicalMemory());
     heap()->memory_allocator()->Free(MemoryAllocator::kConcurrentlyAndPool,
                                      last);
     num_pages--;
@@ -253,6 +257,7 @@ void SemiSpace::RemovePage(Page* page) {
   }
   memory_chunk_list_.Remove(page);
   AccountUncommitted(Page::kPageSize);
+  DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
   for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
@@ -265,6 +270,7 @@ void SemiSpace::PrependPage(Page* page) {
   memory_chunk_list_.PushFront(page);
   current_capacity_ += Page::kPageSize;
   AccountCommitted(Page::kPageSize);
+  IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
   for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
@@ -294,9 +300,37 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->current_page_, to->current_page_);
   std::swap(from->external_backing_store_bytes_,
             to->external_backing_store_bytes_);
+  std::swap(from->committed_physical_memory_, to->committed_physical_memory_);
 
   to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
   from->FixPagesFlags(Page::NO_FLAGS, Page::NO_FLAGS);
+}
+
+void SemiSpace::IncrementCommittedPhysicalMemory(size_t increment_value) {
+  if (!base::OS::HasLazyCommits()) return;
+  DCHECK_LE(committed_physical_memory_,
+            committed_physical_memory_ + increment_value);
+  committed_physical_memory_ += increment_value;
+}
+
+void SemiSpace::DecrementCommittedPhysicalMemory(size_t decrement_value) {
+  if (!base::OS::HasLazyCommits()) return;
+  DCHECK_LE(decrement_value, committed_physical_memory_);
+  committed_physical_memory_ -= decrement_value;
+}
+
+void SemiSpace::AddRangeToActiveSystemPages(Address start, Address end) {
+  Page* page = current_page();
+
+  DCHECK_LE(page->address(), start);
+  DCHECK_LT(start, end);
+  DCHECK_LE(end, page->address() + Page::kPageSize);
+
+  const size_t added_pages = page->active_system_pages()->Add(
+      start - page->address(), end - page->address(),
+      MemoryAllocator::GetCommitPageSizeBits());
+  IncrementCommittedPhysicalMemory(added_pages *
+                                   MemoryAllocator::GetCommitPageSize());
 }
 
 void SemiSpace::set_age_mark(Address mark) {
@@ -327,6 +361,8 @@ void SemiSpace::Verify() {
   }
 
   int actual_pages = 0;
+  size_t computed_committed_physical_memory = 0;
+
   for (Page* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
@@ -350,12 +386,14 @@ void SemiSpace::Verify() {
       external_backing_store_bytes[t] += page->ExternalBackingStoreBytes(t);
     }
 
+    computed_committed_physical_memory += page->CommittedPhysicalMemory();
+
     CHECK_IMPLIES(page->list_node().prev(),
                   page->list_node().prev()->list_node().next() == page);
-
     actual_pages++;
   }
   CHECK_EQ(actual_pages * size_t(Page::kPageSize), CommittedMemory());
+  CHECK_EQ(computed_committed_physical_memory, CommittedPhysicalMemory());
 
   for (int i = 0; i < kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
@@ -491,10 +529,8 @@ void NewSpace::UpdateLinearAllocationArea(Address known_top) {
     original_limit_.store(limit(), std::memory_order_relaxed);
     original_top_.store(top(), std::memory_order_release);
   }
-  Page* page = to_space_.current_page();
-  page->active_system_pages()->Add(top() - page->address(),
-                                   limit() - page->address(),
-                                   MemoryAllocator::GetCommitPageSizeBits());
+
+  to_space_.AddRangeToActiveSystemPages(top(), limit());
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   UpdateInlineAllocationLimit(0);

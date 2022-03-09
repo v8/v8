@@ -175,11 +175,16 @@ class SemiSpace : public Space {
   virtual void Verify();
 #endif
 
+  void AddRangeToActiveSystemPages(Address start, Address end);
+
  private:
   void RewindPages(int num_pages);
 
   // Copies the flags into the masked positions on all pages in the space.
   void FixPagesFlags(Page::MainThreadFlags flags, Page::MainThreadFlags mask);
+
+  void IncrementCommittedPhysicalMemory(size_t increment_value);
+  void DecrementCommittedPhysicalMemory(size_t decrement_value);
 
   // The currently committed space capacity.
   size_t current_capacity_;
@@ -196,6 +201,8 @@ class SemiSpace : public Space {
 
   // Used to govern object promotion during mark-compact collection.
   Address age_mark_;
+
+  size_t committed_physical_memory_{0};
 
   SemiSpaceId id_;
 
