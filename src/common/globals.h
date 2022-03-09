@@ -918,6 +918,8 @@ enum class CompactionSpaceKind {
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
+enum PageSize { kRegular, kLarge };
+
 enum class CodeFlushMode {
   kFlushBytecode,
   kFlushBaselineCode,

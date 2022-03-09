@@ -1295,6 +1295,8 @@ filegroup(
         "src/handles/maybe-handles.h",
         "src/handles/persistent-handles.cc",
         "src/handles/persistent-handles.h",
+        "src/heap/base/active-system-pages.cc",
+        "src/heap/base/active-system-pages.h",
         "src/heap/allocation-observer.cc",
         "src/heap/allocation-observer.h",
         "src/heap/allocation-result.h",
@@ -2935,6 +2937,8 @@ filegroup(
 filegroup(
     name = "v8_heap_base_files",
     srcs = [
+        "src/heap/base/active-system-pages.cc",
+        "src/heap/base/active-system-pages.h",
         "src/heap/base/stack.cc",
         "src/heap/base/stack.h",
         "src/heap/base/worklist.cc",

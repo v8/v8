@@ -4569,6 +4569,10 @@ void Heap::Verify() {
   code_lo_space_->Verify(isolate());
   if (new_lo_space_) new_lo_space_->Verify(isolate());
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
+
+#if DEBUG
+  VerifyCommittedPhysicalMemory();
+#endif  // DEBUG
 }
 
 void Heap::VerifyReadOnlyHeap() {
@@ -4760,7 +4764,15 @@ void Heap::VerifyCountersBeforeConcurrentSweeping() {
     space->VerifyCountersBeforeConcurrentSweeping();
   }
 }
-#endif
+
+void Heap::VerifyCommittedPhysicalMemory() {
+  PagedSpaceIterator spaces(this);
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
+    space->VerifyCommittedPhysicalMemory();
+  }
+}
+#endif  // DEBUG
 
 void Heap::ZapFromSpace() {
   if (!new_space_ || !new_space_->IsFromSpaceCommitted()) return;

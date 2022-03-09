@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 #define V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/heap.h"
 #include "src/heap/list.h"
 #include "src/heap/progress-bar.h"
@@ -31,6 +32,8 @@ enum RememberedSetType {
   OLD_TO_CODE = V8_EXTERNAL_CODE_SPACE_BOOL ? OLD_TO_SHARED + 1 : OLD_TO_SHARED,
   NUMBER_OF_REMEMBERED_SET_TYPES
 };
+
+using ActiveSystemPages = ::heap::base::ActiveSystemPages;
 
 class V8_EXPORT_PRIVATE MemoryChunkLayout {
  public:
@@ -68,6 +71,7 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(Bitmap*, YoungGenerationBitmap),
     FIELD(CodeObjectRegistry*, CodeObjectRegistry),
     FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
+    FIELD(ActiveSystemPages, ActiveSystemPages),
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
     FIELD(ObjectStartBitmap, ObjectStartBitmap),
 #endif

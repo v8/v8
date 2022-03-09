@@ -4,6 +4,8 @@
 
 #include "src/heap/paged-spaces.h"
 
+#include <atomic>
+
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
@@ -13,8 +15,10 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/safepoint.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/string.h"
 #include "src/utils/utils.h"
@@ -211,15 +215,42 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
 }
 
 size_t PagedSpace::CommittedPhysicalMemory() {
-  if (!base::OS::HasLazyCommits()) return CommittedMemory();
+  if (!base::OS::HasLazyCommits()) {
+    DCHECK_EQ(0, committed_physical_memory());
+    return CommittedMemory();
+  }
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
-  base::MutexGuard guard(mutex());
+  return committed_physical_memory();
+}
+
+void PagedSpace::IncrementCommittedPhysicalMemory(size_t increment_value) {
+  if (!base::OS::HasLazyCommits() || increment_value == 0) return;
+  size_t old_value = committed_physical_memory_.fetch_add(
+      increment_value, std::memory_order_relaxed);
+  USE(old_value);
+  DCHECK_LT(old_value, old_value + increment_value);
+}
+
+void PagedSpace::DecrementCommittedPhysicalMemory(size_t decrement_value) {
+  if (!base::OS::HasLazyCommits() || decrement_value == 0) return;
+  size_t old_value = committed_physical_memory_.fetch_sub(
+      decrement_value, std::memory_order_relaxed);
+  USE(old_value);
+  DCHECK_GT(old_value, old_value - decrement_value);
+}
+
+#if DEBUG
+void PagedSpace::VerifyCommittedPhysicalMemory() {
+  heap()->safepoint()->AssertActive();
   size_t size = 0;
   for (Page* page : *this) {
+    DCHECK(page->SweepingDone());
     size += page->CommittedPhysicalMemory();
   }
-  return size;
+  // Ensure that the space's counter matches the sum of all page counters.
+  DCHECK_EQ(size, CommittedPhysicalMemory());
 }
+#endif  // DEBUG
 
 bool PagedSpace::ContainsSlow(Address addr) const {
   Page* p = Page::FromAddress(addr);
@@ -264,6 +295,7 @@ size_t PagedSpace::AddPage(Page* page) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
   }
+  IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
   return RelinkFreeListCategories(page);
 }
 
@@ -278,6 +310,7 @@ void PagedSpace::RemovePage(Page* page) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
   }
+  DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
 void PagedSpace::SetTopAndLimit(Address top, Address limit) {
@@ -346,6 +379,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::ExpandBackground(
   CHECK_LE(size_in_bytes, page->area_size());
   Free(page->area_start() + size_in_bytes, page->area_size() - size_in_bytes,
        SpaceAccountingMode::kSpaceAccounted);
+  AddRangeToActiveSystemPages(page, object_start, object_start + size_in_bytes);
   return std::make_pair(object_start, size_in_bytes);
 }
 
@@ -492,6 +526,7 @@ void PagedSpace::ReleasePage(Page* page) {
   }
 
   AccountUncommitted(page->size());
+  DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
   accounting_stats_.DecreaseCapacity(page->area_size());
   heap()->memory_allocator()->Free(MemoryAllocator::kConcurrently, page);
 }
@@ -573,6 +608,7 @@ bool PagedSpace::TryAllocationFromFreeListMain(size_t size_in_bytes,
     Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
   }
   SetLinearAllocationArea(start, limit);
+  AddRangeToActiveSystemPages(page, start, limit);
 
   return true;
 }
@@ -693,6 +729,7 @@ PagedSpace::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
     }
     Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
   }
+  AddRangeToActiveSystemPages(page, start, limit);
 
   return std::make_pair(start, used_size_in_bytes);
 }
@@ -1004,6 +1041,28 @@ AllocationResult PagedSpace::AllocateRawSlow(int size_in_bytes,
           ? AllocateRawAligned(size_in_bytes, alignment, origin)
           : AllocateRawUnaligned(size_in_bytes, origin);
   return result;
+}
+
+void PagedSpace::AddRangeToActiveSystemPages(Page* page, Address start,
+                                             Address end) {
+  DCHECK_LE(page->address(), start);
+  DCHECK_LT(start, end);
+  DCHECK_LE(end, page->address() + Page::kPageSize);
+
+  const size_t added_pages = page->active_system_pages()->Add(
+      start - page->address(), end - page->address(),
+      MemoryAllocator::GetCommitPageSizeBits());
+
+  IncrementCommittedPhysicalMemory(added_pages *
+                                   MemoryAllocator::GetCommitPageSize());
+}
+
+void PagedSpace::ReduceActiveSystemPages(
+    Page* page, ActiveSystemPages active_system_pages) {
+  const size_t reduced_pages =
+      page->active_system_pages()->Reduce(active_system_pages);
+  DecrementCommittedPhysicalMemory(reduced_pages *
+                                   MemoryAllocator::GetCommitPageSize());
 }
 
 // -----------------------------------------------------------------------------

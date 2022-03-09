@@ -114,7 +114,8 @@ class V8_NODISCARD TestCodePageAllocatorScope {
 static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
                               v8::PageAllocator* code_page_allocator,
                               size_t reserve_area_size, size_t commit_area_size,
-                              Executability executable, Space* space) {
+                              Executability executable, PageSize page_size,
+                              Space* space) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
   TestCodePageAllocatorScope test_code_page_allocator_scope(
@@ -129,7 +130,7 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
       (executable == EXECUTABLE) ? MemoryChunkLayout::CodePageGuardSize() : 0;
 
   MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(
-      reserve_area_size, commit_area_size, executable, space);
+      reserve_area_size, commit_area_size, executable, page_size, space);
   size_t reserved_size =
       ((executable == EXECUTABLE))
           ? allocatable_memory_area_offset +
@@ -179,11 +180,12 @@ TEST(MemoryChunk) {
         base::PageInitializationMode::kAllocatedPagesCanBeUninitialized);
 
     VerifyMemoryChunk(isolate, heap, &code_page_allocator, reserve_area_size,
-                      initial_commit_area_size, EXECUTABLE, heap->code_space());
+                      initial_commit_area_size, EXECUTABLE, PageSize::kLarge,
+                      heap->code_space());
 
     VerifyMemoryChunk(isolate, heap, &code_page_allocator, reserve_area_size,
                       initial_commit_area_size, NOT_EXECUTABLE,
-                      heap->old_space());
+                      PageSize::kLarge, heap->old_space());
   }
 }
 

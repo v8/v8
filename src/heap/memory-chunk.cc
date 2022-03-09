@@ -6,6 +6,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/common/globals.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
@@ -118,7 +119,8 @@ PageAllocator::Permission DefaultWritableCodePermissions() {
 }  // namespace
 
 MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
-                                     Executability executable) {
+                                     Executability executable,
+                                     PageSize page_size) {
   MemoryChunk* chunk = static_cast<MemoryChunk*>(basic_chunk);
 
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
@@ -181,6 +183,15 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
 
   chunk->possibly_empty_buckets_.Initialize();
 
+  if (page_size == PageSize::kRegular) {
+    chunk->active_system_pages_.Init(MemoryChunkLayout::kMemoryChunkHeaderSize,
+                                     MemoryAllocator::GetCommitPageSizeBits(),
+                                     chunk->size());
+  } else {
+    // We do not track active system pages for large pages.
+    chunk->active_system_pages_.Clear();
+  }
+
   // All pages of a shared heap need to be marked with this flag.
   if (heap->IsShared()) chunk->SetFlag(IN_SHARED_HEAP);
 
@@ -196,9 +207,8 @@ MemoryChunk* MemoryChunk::Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
 }
 
 size_t MemoryChunk::CommittedPhysicalMemory() {
-  if (!base::OS::HasLazyCommits() || owner_identity() == LO_SPACE)
-    return size();
-  return high_water_mark_;
+  if (!base::OS::HasLazyCommits() || IsLargePage()) return size();
+  return active_system_pages_.Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
 void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {

@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_PAGED_SPACES_H_
 #define V8_HEAP_PAGED_SPACES_H_
 
+#include <atomic>
 #include <memory>
 #include <utility>
 
@@ -15,6 +16,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/allocation-stats.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
 
@@ -107,6 +109,13 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   // Approximate amount of physical memory committed for this space.
   size_t CommittedPhysicalMemory() override;
+
+#if DEBUG
+  void VerifyCommittedPhysicalMemory();
+#endif  // DEBUG
+
+  void IncrementCommittedPhysicalMemory(size_t increment_value);
+  void DecrementCommittedPhysicalMemory(size_t decrement_value);
 
   // Sets the capacity, the available space and the wasted space to zero.
   // The stats are rebuilt during sweeping by adding each page to the
@@ -327,6 +336,10 @@ class V8_EXPORT_PRIVATE PagedSpace
     return &pending_allocation_mutex_;
   }
 
+  void AddRangeToActiveSystemPages(Page* page, Address start, Address end);
+  void ReduceActiveSystemPages(Page* page,
+                               ActiveSystemPages active_system_pages);
+
  private:
   class ConcurrentAllocationMutex {
    public:
@@ -423,6 +436,10 @@ class V8_EXPORT_PRIVATE PagedSpace
   V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,
                                        AllocationOrigin origin);
 
+  size_t committed_physical_memory() const {
+    return committed_physical_memory_.load(std::memory_order_relaxed);
+  }
+
   Executability executable_;
 
   CompactionSpaceKind compaction_space_kind_;
@@ -442,6 +459,8 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   // Protects original_top_ and original_limit_.
   base::SharedMutex pending_allocation_mutex_;
+
+  std::atomic<size_t> committed_physical_memory_{0};
 
   friend class IncrementalMarking;
   friend class MarkCompactCollector;

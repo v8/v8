@@ -6,6 +6,7 @@
 
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -335,6 +336,15 @@ int Sweeper::RawSweep(
   CodeObjectRegistry* code_object_registry = p->GetCodeObjectRegistry();
   if (code_object_registry) code_object_registry->Clear();
 
+  base::Optional<ActiveSystemPages> active_system_pages_after_sweeping;
+  if (should_reduce_memory_) {
+    // Only decrement counter when we discard unused system pages.
+    active_system_pages_after_sweeping = ActiveSystemPages();
+    active_system_pages_after_sweeping->Init(
+        MemoryChunkLayout::kMemoryChunkHeaderSize,
+        MemoryAllocator::GetCommitPageSizeBits(), Page::kPageSize);
+  }
+
   // Phase 2: Free the non-live memory and clean-up the regular remembered set
   // entires.
 
@@ -389,6 +399,12 @@ int Sweeper::RawSweep(
     live_bytes += size;
     free_start = free_end + size;
 
+    if (active_system_pages_after_sweeping) {
+      active_system_pages_after_sweeping->Add(
+          free_end - p->address(), free_start - p->address(),
+          MemoryAllocator::GetCommitPageSizeBits());
+    }
+
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
     p->object_start_bitmap()->SetBit(object.address());
 #endif
@@ -410,6 +426,13 @@ int Sweeper::RawSweep(
   // Phase 3: Post process the page.
   CleanupInvalidTypedSlotsOfFreeRanges(p, free_ranges_map);
   ClearMarkBitsAndHandleLivenessStatistics(p, live_bytes, free_list_mode);
+
+  if (active_system_pages_after_sweeping) {
+    // Decrement accounted memory for discarded memory.
+    PagedSpace* paged_space = static_cast<PagedSpace*>(p->owner());
+    paged_space->ReduceActiveSystemPages(p,
+                                         *active_system_pages_after_sweeping);
+  }
 
   if (code_object_registry) code_object_registry->Finalize();
   p->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);

@@ -222,6 +222,7 @@ class MemoryAllocator {
   V8_EXPORT_PRIVATE MemoryChunk* AllocateChunk(size_t reserve_area_size,
                                                size_t commit_area_size,
                                                Executability executable,
+                                               PageSize page_size,
                                                BaseSpace* space);
 
   // Partially release |bytes_to_free| bytes starting at |start_free|. Note that

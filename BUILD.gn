@@ -3852,6 +3852,7 @@ v8_header_set("v8_internal_headers") {
     ":cppgc_headers",
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_heap_base_headers",
     ":v8_libbase",
   ]
 }
@@ -5454,12 +5455,23 @@ v8_source_set("v8_bigint") {
   configs = [ ":internal_config" ]
 }
 
+v8_source_set("v8_heap_base_headers") {
+  sources = [
+    "src/heap/base/active-system-pages.h",
+    "src/heap/base/stack.h",
+    "src/heap/base/worklist.h",
+  ]
+
+  configs = [ ":internal_config" ]
+
+  public_deps = [ ":v8_libbase" ]
+}
+
 v8_source_set("v8_heap_base") {
   sources = [
+    "src/heap/base/active-system-pages.cc",
     "src/heap/base/stack.cc",
-    "src/heap/base/stack.h",
     "src/heap/base/worklist.cc",
-    "src/heap/base/worklist.h",
   ]
 
   if (is_clang || !is_win) {
@@ -5496,7 +5508,10 @@ v8_source_set("v8_heap_base") {
 
   configs = [ ":internal_config" ]
 
-  public_deps = [ ":v8_libbase" ]
+  public_deps = [
+    ":v8_heap_base_headers",
+    ":v8_libbase",
+  ]
 }
 
 # This is split out to be a non-code containing target that the Chromium browser

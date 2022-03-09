@@ -491,6 +491,10 @@ void NewSpace::UpdateLinearAllocationArea(Address known_top) {
     original_limit_.store(limit(), std::memory_order_relaxed);
     original_top_.store(top(), std::memory_order_release);
   }
+  Page* page = to_space_.current_page();
+  page->active_system_pages()->Add(top() - page->address(),
+                                   limit() - page->address(),
+                                   MemoryAllocator::GetCommitPageSizeBits());
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   UpdateInlineAllocationLimit(0);

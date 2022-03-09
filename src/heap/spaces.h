@@ -13,11 +13,13 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/base-space.h"
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/free-list.h"
 #include "src/heap/heap.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/heap/list.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
@@ -306,6 +308,8 @@ class Page : public MemoryChunk {
 
   void MoveOldToNewRememberedSetForSweeping();
   void MergeOldToNewRememberedSets();
+
+  ActiveSystemPages* active_system_pages() { return &active_system_pages_; }
 
  private:
   friend class MemoryAllocator;
