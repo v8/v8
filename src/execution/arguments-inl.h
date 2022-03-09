@@ -32,6 +32,13 @@ int Arguments<T>::smi_value_at(int index) const {
 }
 
 template <ArgumentsType T>
+uint32_t Arguments<T>::positive_smi_value_at(int index) const {
+  int value = smi_value_at(index);
+  DCHECK_LE(0, value);
+  return value;
+}
+
+template <ArgumentsType T>
 int Arguments<T>::tagged_index_value_at(int index) const {
   return static_cast<int>(TaggedIndex::cast((*this)[index]).value());
 }

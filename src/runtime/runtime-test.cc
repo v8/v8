@@ -1508,8 +1508,7 @@ RUNTIME_FUNCTION(Runtime_NewRegExpWithBacktrackLimit) {
 
   Handle<String> pattern = args.at<String>(0);
   Handle<String> flags_string = args.at<String>(1);
-  uint32_t backtrack_limit = 0;
-  CHECK(args[2].ToUint32(&backtrack_limit));
+  uint32_t backtrack_limit = args.positive_smi_value_at(2);
 
   JSRegExp::Flags flags =
       JSRegExp::FlagsFromString(isolate, flags_string).value();

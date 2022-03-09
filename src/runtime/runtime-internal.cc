@@ -330,8 +330,7 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
 RUNTIME_FUNCTION(Runtime_StackGuardWithGap) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(args.length(), 1);
-  uint32_t gap = 0;
-  CHECK(args[0].ToUint32(&gap));
+  uint32_t gap = args.positive_smi_value_at(0);
   TRACE_EVENT0("v8.execute", "V8.StackGuard");
 
   // First check if this is a real stack overflow.

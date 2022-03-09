@@ -59,6 +59,7 @@ class Arguments {
   V8_INLINE Handle<S> at(int index) const;
 
   V8_INLINE int smi_value_at(int index) const;
+  V8_INLINE uint32_t positive_smi_value_at(int index) const;
 
   V8_INLINE int tagged_index_value_at(int index) const;
 

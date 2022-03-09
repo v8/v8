@@ -133,8 +133,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
   // {delta_pages} is checked to be a positive smi in the WasmMemoryGrow builtin
   // which calls this runtime function.
-  uint32_t delta_pages = 0;
-  CHECK(args[1].ToUint32(&delta_pages));
+  uint32_t delta_pages = args.positive_smi_value_at(1);
 
   int ret = WasmMemoryObject::Grow(
       isolate, handle(instance->memory_object(), isolate), delta_pages);
@@ -405,8 +404,7 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t function_index = 0;
-  CHECK(args[1].ToUint32(&function_index));
+  uint32_t function_index = args.positive_smi_value_at(1);
 
   return *WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
                                                               function_index);
@@ -417,10 +415,8 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t table_index = 0;
-  CHECK(args[1].ToUint32(&table_index));
-  uint32_t entry_index = 0;
-  CHECK(args[2].ToUint32(&entry_index));
+  uint32_t table_index = args.positive_smi_value_at(1);
+  uint32_t entry_index = args.positive_smi_value_at(2);
   DCHECK_LT(table_index, instance->tables().length());
   auto table = handle(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
@@ -443,10 +439,8 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t table_index = 0;
-  CHECK(args[1].ToUint32(&table_index));
-  uint32_t entry_index = 0;
-  CHECK(args[2].ToUint32(&entry_index));
+  uint32_t table_index = args.positive_smi_value_at(1);
+  uint32_t entry_index = args.positive_smi_value_at(2);
   Object element_raw = args[3];
   // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> element(element_raw, isolate);
@@ -472,19 +466,14 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t table_index = 0;
-  CHECK(args[1].ToUint32(&table_index));
-  uint32_t elem_segment_index = 0;
-  CHECK(args[2].ToUint32(&elem_segment_index));
+  uint32_t table_index = args.positive_smi_value_at(1);
+  uint32_t elem_segment_index = args.positive_smi_value_at(2);
   static_assert(
       wasm::kV8MaxWasmTableSize < kSmiMaxValue,
       "Make sure clamping to Smi range doesn't make an invalid call valid");
-  uint32_t dst = 0;
-  CHECK(args[3].ToUint32(&dst));
-  uint32_t src = 0;
-  CHECK(args[4].ToUint32(&src));
-  uint32_t count = 0;
-  CHECK(args[5].ToUint32(&count));
+  uint32_t dst = args.positive_smi_value_at(3);
+  uint32_t src = args.positive_smi_value_at(4);
+  uint32_t count = args.positive_smi_value_at(5);
 
   DCHECK(!isolate->context().is_null());
 
@@ -499,19 +488,14 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t table_dst_index = 0;
-  CHECK(args[1].ToUint32(&table_dst_index));
-  uint32_t table_src_index = 0;
-  CHECK(args[2].ToUint32(&table_src_index));
+  uint32_t table_dst_index = args.positive_smi_value_at(1);
+  uint32_t table_src_index = args.positive_smi_value_at(2);
   static_assert(
       wasm::kV8MaxWasmTableSize < kSmiMaxValue,
       "Make sure clamping to Smi range doesn't make an invalid call valid");
-  uint32_t dst = 0;
-  CHECK(args[3].ToUint32(&dst));
-  uint32_t src = 0;
-  CHECK(args[4].ToUint32(&src));
-  uint32_t count = 0;
-  CHECK(args[5].ToUint32(&count));
+  uint32_t dst = args.positive_smi_value_at(3);
+  uint32_t src = args.positive_smi_value_at(4);
+  uint32_t count = args.positive_smi_value_at(5);
 
   DCHECK(!isolate->context().is_null());
 
@@ -526,13 +510,11 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t table_index = 0;
-  CHECK(args[1].ToUint32(&table_index));
+  uint32_t table_index = args.positive_smi_value_at(1);
   Object value_raw = args[2];
   // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> value(value_raw, isolate);
-  uint32_t delta = 0;
-  CHECK(args[3].ToUint32(&delta));
+  uint32_t delta = args.positive_smi_value_at(3);
 
   Handle<WasmTableObject> table(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
@@ -546,15 +528,12 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t table_index = 0;
-  CHECK(args[1].ToUint32(&table_index));
-  uint32_t start = 0;
-  CHECK(args[2].ToUint32(&start));
+  uint32_t table_index = args.positive_smi_value_at(1);
+  uint32_t start = args.positive_smi_value_at(2);
   Object value_raw = args[3];
   // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<Object> value(value_raw, isolate);
-  uint32_t count = 0;
-  CHECK(args[4].ToUint32(&count));
+  uint32_t count = args.positive_smi_value_at(4);
 
   Handle<WasmTableObject> table(
       WasmTableObject::cast(instance->tables().get(table_index)), isolate);
@@ -676,13 +655,10 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Handle<WasmArray> dst_array = args.at<WasmArray>(0);
-  uint32_t dst_index = 0;
-  CHECK(args[1].ToUint32(&dst_index));
+  uint32_t dst_index = args.positive_smi_value_at(1);
   Handle<WasmArray> src_array = args.at<WasmArray>(2);
-  uint32_t src_index = 0;
-  CHECK(args[3].ToUint32(&src_index));
-  uint32_t length = 0;
-  CHECK(args[4].ToUint32(&length));
+  uint32_t src_index = args.positive_smi_value_at(3);
+  uint32_t length = args.positive_smi_value_at(4);
   DCHECK_GT(length, 0);
   bool overlapping_ranges =
       dst_array->ptr() == src_array->ptr() &&
@@ -722,12 +698,9 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitFromData) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t data_segment = 0;
-  CHECK(args[1].ToUint32(&data_segment));
-  uint32_t offset = 0;
-  CHECK(args[2].ToUint32(&offset));
-  uint32_t length = 0;
-  CHECK(args[3].ToUint32(&length));
+  uint32_t data_segment = args.positive_smi_value_at(1);
+  uint32_t offset = args.positive_smi_value_at(2);
+  uint32_t length = args.positive_smi_value_at(3);
   Handle<Map> rtt = args.at<Map>(4);
   uint32_t element_size = WasmArray::DecodeElementSizeFromMap(*rtt);
   uint32_t length_in_bytes = length * element_size;
