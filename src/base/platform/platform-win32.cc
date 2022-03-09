@@ -722,15 +722,16 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
 }
 
-typedef PVOID (*VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
-                                 MEM_EXTENDED_PARAMETER*, ULONG);
+typedef PVOID(__stdcall* VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
+                                          MEM_EXTENDED_PARAMETER*, ULONG);
 VirtualAlloc2_t VirtualAlloc2 = nullptr;
 
-typedef PVOID (*MapViewOfFile3_t)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG,
-                                  ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
+typedef PVOID(__stdcall* MapViewOfFile3_t)(HANDLE, HANDLE, PVOID, ULONG64,
+                                           SIZE_T, ULONG, ULONG,
+                                           MEM_EXTENDED_PARAMETER*, ULONG);
 MapViewOfFile3_t MapViewOfFile3 = nullptr;
 
-typedef PVOID (*UnmapViewOfFile2_t)(HANDLE, PVOID, ULONG);
+typedef PVOID(__stdcall* UnmapViewOfFile2_t)(HANDLE, PVOID, ULONG);
 UnmapViewOfFile2_t UnmapViewOfFile2 = nullptr;
 
 void OS::EnsureWin32MemoryAPILoaded() {
