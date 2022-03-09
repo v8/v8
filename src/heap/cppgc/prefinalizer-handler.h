@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "include/cppgc/prefinalizer.h"
+#include "src/base/pointer-with-payload.h"
 
 namespace cppgc {
 namespace internal {
@@ -18,7 +19,27 @@ class HeapBase;
 struct PreFinalizer final {
   using Callback = PrefinalizerRegistration::Callback;
 
-  void* object;
+  PreFinalizer(void* object, const void* base_object_payload,
+               Callback callback);
+
+#if defined(CPPGC_CAGED_HEAP)
+
+  uint32_t object_offset;
+  uint32_t base_object_payload_offset;
+
+#else  // !defined(CPPGC_CAGED_HEAP)
+
+  enum class PointerType : uint8_t {
+    kAtBase,
+    kInnerPointer,
+  };
+
+  // Contains the pointer and also an indicator of whether the pointer points to
+  // the base of the object or is an inner pointer.
+  v8::base::PointerWithPayload<void, PointerType, 1> object_and_offset;
+
+#endif  // !defined(CPPGC_CAGED_HEAP)
+
   Callback callback;
 
   bool operator==(const PreFinalizer& other) const;
