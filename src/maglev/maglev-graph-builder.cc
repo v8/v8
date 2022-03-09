@@ -18,13 +18,16 @@ namespace internal {
 namespace maglev {
 
 // TODO(v8:7700): Clean up after all bytecodes are supported.
-#define MAGLEV_UNIMPLEMENTED_BYTECODE(Name)                             \
-  void MaglevGraphBuilder::Visit##Name() {                              \
-    std::cerr << "Maglev: Can't compile, bytecode " #Name               \
+#define MAGLEV_UNIMPLEMENTED(BytecodeName)                              \
+  do {                                                                  \
+    std::cerr << "Maglev: Can't compile, bytecode " #BytecodeName       \
                  " is not supported\n";                                 \
     found_unsupported_bytecode_ = true;                                 \
     this_field_will_be_unused_once_all_bytecodes_are_supported_ = true; \
-  }
+  } while (false)
+
+#define MAGLEV_UNIMPLEMENTED_BYTECODE(Name) \
+  void MaglevGraphBuilder::Visit##Name() { MAGLEV_UNIMPLEMENTED(Name); }
 
 void MaglevGraphBuilder::VisitLdar() { SetAccumulator(LoadRegister(0)); }
 
@@ -164,7 +167,7 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
   }
 
   // TODO(victorgomes): Generic store.
-  UNREACHABLE();
+  MAGLEV_UNIMPLEMENTED(VisitSetNamedProperty);
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(DefineNamedOwnProperty)

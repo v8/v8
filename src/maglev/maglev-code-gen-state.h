@@ -72,6 +72,14 @@ class MaglevCodeGenState {
   }
   MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
 
+  // TODO(v8:7700): Clean up after all code paths are supported.
+  void set_found_unsupported_code_paths(bool val) {
+    found_unsupported_code_paths_ = val;
+  }
+  bool found_unsupported_code_paths() const {
+    return found_unsupported_code_paths_;
+  }
+
  private:
   MaglevCompilationUnit* const compilation_unit_;
   SafepointTableBuilder* const safepoint_table_builder_;
@@ -79,6 +87,11 @@ class MaglevCodeGenState {
   MacroAssembler masm_;
   std::vector<DeferredCodeInfo*> deferred_code_;
   int vreg_slots_ = 0;
+
+  // Allow marking some codegen paths as unsupported, so that we can test maglev
+  // incrementally.
+  // TODO(v8:7700): Clean up after all code paths are supported.
+  bool found_unsupported_code_paths_ = false;
 };
 
 // Some helpers for codegen.

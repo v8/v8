@@ -323,6 +323,7 @@ class MaglevCodeGeneratorImpl final {
 
   MaybeHandle<Code> Generate() {
     EmitCode();
+    if (code_gen_state_.found_unsupported_code_paths()) return {};
     EmitMetadata();
     return BuildCodeObject();
   }
