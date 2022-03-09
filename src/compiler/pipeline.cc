@@ -28,7 +28,6 @@
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/basic-block-instrumentor.h"
-#include "src/compiler/branch-condition-duplicator.h"
 #include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/checkpoint-elimination.h"
@@ -1977,16 +1976,6 @@ struct DecompressionOptimizationPhase {
   }
 };
 
-struct BranchConditionDuplicationPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(BranchConditionDuplication)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    BranchConditionDuplicator compare_zero_branch_optimizer(temp_zone,
-                                                            data->graph());
-    compare_zero_branch_optimizer.Reduce();
-  }
-};
-
 #if V8_ENABLE_WEBASSEMBLY
 struct WasmOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
@@ -2790,9 +2779,6 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   Run<DecompressionOptimizationPhase>();
   RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
-
-  Run<BranchConditionDuplicationPhase>();
-  RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json()) {
