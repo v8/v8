@@ -1099,7 +1099,7 @@ TEST(TransitionLookup) {
 
     if ((i & 2) == 0) {
       for (int j = 0; j < ATTRS_COUNT; j++) {
-        PropertyAttributes attributes = static_cast<PropertyAttributes>(j);
+        auto attributes = PropertyAttributesFromInt(j);
         if (attributes == base_attributes) continue;
         // Don't add private symbols with enumerable attributes.
         if (is_private && ((attributes & DONT_ENUM) == 0)) continue;

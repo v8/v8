@@ -184,10 +184,10 @@ uint32_t WebSnapshotSerializerDeserializer::AttributesToFlags(
 
 PropertyAttributes WebSnapshotSerializerDeserializer::FlagsToAttributes(
     uint32_t flags) {
-  uint32_t attributes = ReadOnlyBitField::decode(flags) * READ_ONLY +
-                        !ConfigurableBitField::decode(flags) * DONT_DELETE +
-                        !EnumerableBitField::decode(flags) * DONT_ENUM;
-  return static_cast<PropertyAttributes>(attributes);
+  int attributes = ReadOnlyBitField::decode(flags) * READ_ONLY +
+                   !ConfigurableBitField::decode(flags) * DONT_DELETE +
+                   !EnumerableBitField::decode(flags) * DONT_ENUM;
+  return PropertyAttributesFromInt(attributes);
 }
 
 WebSnapshotSerializer::WebSnapshotSerializer(v8::Isolate* isolate)

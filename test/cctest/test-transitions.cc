@@ -211,7 +211,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
 
   // Add transitions for same field name but different attributes.
   for (int i = 0; i < ATTRS_COUNT; i++) {
-    PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
+    auto attributes = PropertyAttributesFromInt(i);
 
     Handle<Map> map =
         Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate),
@@ -226,7 +226,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   // Ensure that transitions for |name| field are valid.
   TransitionsAccessor transitions(isolate, *map0);
   for (int i = 0; i < ATTRS_COUNT; i++) {
-    PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
+    auto attributes = PropertyAttributesFromInt(i);
     CHECK_EQ(*attr_maps[i], transitions.SearchTransition(
                                 *name, PropertyKind::kData, attributes));
     // All transitions use the same key, so this check doesn't need to
@@ -274,7 +274,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
 
   // Add transitions for same field name but different attributes.
   for (int i = 0; i < ATTRS_COUNT; i++) {
-    PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
+    auto attributes = PropertyAttributesFromInt(i);
 
     Handle<Map> map =
         Map::CopyWithField(isolate, map0, name, FieldType::Any(isolate),
@@ -289,7 +289,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   // Ensure that transitions for |name| field are valid.
   TransitionsAccessor transitions(isolate, *map0);
   for (int i = 0; i < ATTRS_COUNT; i++) {
-    PropertyAttributes attr = static_cast<PropertyAttributes>(i);
+    auto attr = PropertyAttributesFromInt(i);
     CHECK_EQ(*attr_maps[i],
              transitions.SearchTransition(*name, PropertyKind::kData, attr));
   }

@@ -1203,6 +1203,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     if (!result.is_null()) {
       int32_t value;
       CHECK(result->ToInt32(&value));
+      DCHECK_IMPLIES((value & ~PropertyAttributes::ALL_ATTRIBUTES_MASK) != 0,
+                     value == PropertyAttributes::ABSENT);
       return Just(static_cast<PropertyAttributes>(value));
     }
   } else if (!interceptor->getter().IsUndefined(isolate)) {
@@ -4099,7 +4101,7 @@ void JSObject::ApplyAttributesToDictionary(
       Object v = dictionary->ValueAt(i);
       if (v.IsAccessorPair()) attrs &= ~READ_ONLY;
     }
-    details = details.CopyAddAttributes(static_cast<PropertyAttributes>(attrs));
+    details = details.CopyAddAttributes(PropertyAttributesFromInt(attrs));
     dictionary->DetailsAtPut(i, details);
   }
 }

@@ -396,9 +396,9 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
                                  const char* method_name) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value_obj, 2);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
+  Handle<Object> value_obj = args.at(2);
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -444,8 +444,8 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -464,9 +464,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
 RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value_obj, 2);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
+  Handle<Object> value_obj = args.at(2);
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -496,10 +496,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, old_value_obj, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, new_value_obj, 3);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
+  Handle<Object> old_value_obj = args.at(2);
+  Handle<Object> new_value_obj = args.at(3);
   CHECK_LT(index, sta->length());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +

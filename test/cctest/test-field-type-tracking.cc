@@ -3112,7 +3112,7 @@ TEST(DeletePropertyGeneralizesConstness) {
   std::vector<Handle<Map>> transitions;
   Handle<Object> value = handle(Smi::FromInt(0), isolate);
   for (int i = 0; i < kPropertyAttributesCombinationsCount; i++) {
-    PropertyAttributes attributes = static_cast<PropertyAttributes>(i);
+    auto attributes = PropertyAttributesFromInt(i);
 
     Handle<Map> tmp;
     // Add some transitions to "x" and "y".

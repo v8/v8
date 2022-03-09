@@ -3264,6 +3264,7 @@ Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
 
 Handle<String> Factory::NumberToString(Handle<Object> number,
                                        NumberCacheMode mode) {
+  SLOW_DCHECK(number->IsNumber());
   if (number->IsSmi()) return SmiToString(Smi::cast(*number), mode);
 
   double double_value = Handle<HeapNumber>::cast(number)->value();

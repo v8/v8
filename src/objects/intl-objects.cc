@@ -2012,8 +2012,8 @@ MaybeHandle<JSObject> SupportedLocales(
   }
 
   // 5. Return CreateArrayFromList(supportedLocales).
-  PropertyAttributes attr = static_cast<PropertyAttributes>(NONE);
-  return CreateArrayFromList(isolate, supported_locales, attr);
+  return CreateArrayFromList(isolate, supported_locales,
+                             PropertyAttributes::NONE);
 }
 
 }  // namespace
@@ -2027,8 +2027,8 @@ MaybeHandle<JSArray> Intl::GetCanonicalLocales(Isolate* isolate,
   MAYBE_RETURN(maybe_ll, MaybeHandle<JSArray>());
 
   // 2. Return CreateArrayFromList(ll).
-  PropertyAttributes attr = static_cast<PropertyAttributes>(NONE);
-  return CreateArrayFromList(isolate, maybe_ll.FromJust(), attr);
+  return CreateArrayFromList(isolate, maybe_ll.FromJust(),
+                             PropertyAttributes::NONE);
 }
 
 namespace {

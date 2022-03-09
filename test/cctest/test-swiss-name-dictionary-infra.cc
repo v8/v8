@@ -27,8 +27,7 @@ std::vector<PropertyDetails> MakeDistinctDetails() {
             if (!configurable) {
               attrs |= PropertyAttributes::DONT_DELETE;
             }
-            PropertyAttributes attributes =
-                static_cast<PropertyAttributes>(attrs);
+            auto attributes = PropertyAttributesFromInt(attrs);
             PropertyDetails details(kind, attributes,
                                     PropertyCellType::kNoCell);
             details = details.CopyWithConstness(constness);
