@@ -2100,6 +2100,7 @@ filegroup(
             "src/codegen/ia32/assembler-ia32.cc",
             "src/codegen/ia32/assembler-ia32.h",
             "src/codegen/ia32/constants-ia32.h",
+            "src/codegen/ia32/fma-instr.h",
             "src/codegen/ia32/interface-descriptors-ia32-inl.h",
             "src/codegen/ia32/sse-instr.h",
             "src/codegen/ia32/macro-assembler-ia32.cc",
