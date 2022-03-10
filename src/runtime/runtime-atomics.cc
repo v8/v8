@@ -9,6 +9,7 @@
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-struct-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 // Implement Atomic accesses to ArrayBuffers and SharedArrayBuffers.
@@ -607,5 +608,43 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
         // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
+
+RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructField) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<Name> field_name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
+                                     Object::ToName(isolate, args.at(1)));
+  // Shared structs are prototypeless.
+  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  if (it.IsFound()) return *it.GetDataValue(kSeqCstAccess);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<Name> field_name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
+                                     Object::ToName(isolate, args.at(1)));
+  Handle<Object> shared_value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
+  // Shared structs are prototypeless.
+  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  if (it.IsFound()) {
+    it.WriteDataValue(shared_value, kSeqCstAccess);
+    return *shared_value;
+  }
+  // Shared structs are non-extensible. Instead of duplicating logic, call
+  // Object::AddDataProperty to handle the error case.
+  CHECK(Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
+                                StoreOrigin::kMaybeKeyed)
+            .IsNothing());
+  return ReadOnlyRoots(isolate).exception();
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -679,9 +679,16 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                        Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
+  static Handle<Object> FastPropertyAt(Isolate* isolate,
+                                       Handle<JSObject> object,
+                                       Representation representation,
+                                       FieldIndex index, SeqCstAccessTag tag);
   inline Object RawFastPropertyAt(FieldIndex index) const;
   inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
                                   FieldIndex index) const;
+  inline Object RawFastPropertyAt(FieldIndex index, SeqCstAccessTag tag) const;
+  inline Object RawFastPropertyAt(PtrComprCageBase cage_base, FieldIndex index,
+                                  SeqCstAccessTag tag) const;
 
   // See comment in the body of the method to understand the conditions
   // in which this method is meant to be used, and what guarantees it
@@ -692,9 +699,13 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   inline void FastPropertyAtPut(FieldIndex index, Object value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void FastPropertyAtPut(FieldIndex index, Object value,
+                                SeqCstAccessTag tag);
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
+                                           SeqCstAccessTag tag);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
 

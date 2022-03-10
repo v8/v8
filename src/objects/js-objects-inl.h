@@ -338,6 +338,24 @@ Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base,
   }
 }
 
+// The SeqCst versions of RawFastPropertyAt are used for atomically accessing
+// shared struct fields.
+Object JSObject::RawFastPropertyAt(FieldIndex index,
+                                   SeqCstAccessTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return RawFastPropertyAt(cage_base, index, tag);
+}
+
+Object JSObject::RawFastPropertyAt(PtrComprCageBase cage_base, FieldIndex index,
+                                   SeqCstAccessTag tag) const {
+  if (index.is_inobject()) {
+    return TaggedField<Object>::SeqCst_Load(cage_base, *this, index.offset());
+  } else {
+    return property_array(cage_base).get(cage_base,
+                                         index.outobject_array_index(), tag);
+  }
+}
+
 base::Optional<Object> JSObject::RawInobjectPropertyAt(
     PtrComprCageBase cage_base, Map original_map, FieldIndex index) const {
   CHECK(index.is_inobject());
@@ -381,6 +399,17 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
+void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
+                                            SeqCstAccessTag tag) {
+  DCHECK(index.is_inobject());
+  DCHECK(value.IsShared());
+  SEQ_CST_WRITE_FIELD(*this, index.offset(), value);
+  // JSSharedStructs are allocated in the shared old space, which is currently
+  // collected by stopping the world, so the incremental write barrier is not
+  // needed. They can only store Smis and other HeapObjects in the shared old
+  // space, so the generational write barrier is also not needed.
+}
+
 void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
                                  WriteBarrierMode mode) {
   if (index.is_inobject()) {
@@ -388,6 +417,15 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
   } else {
     DCHECK_EQ(UPDATE_WRITE_BARRIER, mode);
     property_array().set(index.outobject_array_index(), value);
+  }
+}
+
+void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
+                                 SeqCstAccessTag tag) {
+  if (index.is_inobject()) {
+    RawFastInobjectPropertyAtPut(index, value, tag);
+  } else {
+    property_array().set(index.outobject_array_index(), value, tag);
   }
 }
 

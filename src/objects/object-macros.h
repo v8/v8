@@ -412,6 +412,9 @@
 
 #define FIELD_ADDR(p, offset) ((p).ptr() + offset - kHeapObjectTag)
 
+#define SEQ_CST_READ_FIELD(p, offset) \
+  TaggedField<Object>::SeqCst_Load(p, offset)
+
 #define ACQUIRE_READ_FIELD(p, offset) \
   TaggedField<Object>::Acquire_Load(p, offset)
 
@@ -423,6 +426,9 @@
 
 #define WRITE_FIELD(p, offset, value) \
   TaggedField<Object>::store(p, offset, value)
+
+#define SEQ_CST_WRITE_FIELD(p, offset, value) \
+  TaggedField<Object>::SeqCst_Store(p, offset, value)
 
 #define RELEASE_WRITE_FIELD(p, offset, value) \
   TaggedField<Object>::Release_Store(p, offset, value)

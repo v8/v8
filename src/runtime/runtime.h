@@ -65,7 +65,9 @@ namespace internal {
   F(AtomicsOr, 3, 1)                                   \
   F(AtomicsSub, 3, 1)                                  \
   F(AtomicsXor, 3, 1)                                  \
-  F(SetAllowAtomicsWait, 1, 1)
+  F(SetAllowAtomicsWait, 1, 1)                         \
+  F(AtomicsLoadSharedStructField, 2, 1)                \
+  F(AtomicsStoreSharedStructField, 3, 1)
 
 #define FOR_EACH_INTRINSIC_BIGINT(F, I) \
   F(BigIntBinaryOp, 3, 1)               \

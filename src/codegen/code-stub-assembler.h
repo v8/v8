@@ -2597,6 +2597,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSSharedStructInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSSharedStructMap(TNode<Map> map);
   TNode<BoolT> IsJSSharedStruct(TNode<HeapObject> object);
+  TNode<BoolT> IsJSSharedStruct(TNode<Object> object);
   TNode<BoolT> IsJSWrappedFunction(TNode<HeapObject> object);
   TNode<BoolT> IsMap(TNode<HeapObject> object);
   TNode<BoolT> IsName(TNode<HeapObject> object);

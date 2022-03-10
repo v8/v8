@@ -241,6 +241,16 @@ inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {
                                    std::memory_order_acquire);
 }
 
+inline Atomic8 SeqCst_Load(volatile const Atomic8* ptr) {
+  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
+                                   std::memory_order_seq_cst);
+}
+
+inline Atomic32 SeqCst_Load(volatile const Atomic32* ptr) {
+  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
+                                   std::memory_order_seq_cst);
+}
+
 #if defined(V8_HOST_ARCH_64_BIT)
 
 inline Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr,
@@ -312,6 +322,11 @@ inline Atomic64 Relaxed_Load(volatile const Atomic64* ptr) {
 inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
   return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
                                    std::memory_order_acquire);
+}
+
+inline Atomic64 SeqCst_Load(volatile const Atomic64* ptr) {
+  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
+                                   std::memory_order_seq_cst);
 }
 
 #endif  // defined(V8_HOST_ARCH_64_BIT)

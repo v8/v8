@@ -15,6 +15,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-struct-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-details.h"
@@ -1053,6 +1054,18 @@ Handle<Object> LookupIterator::GetDataValue(
   return value;
 }
 
+Handle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
+  DCHECK_EQ(DATA, state_);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  // Currently only shared structs support sequentially consistent access.
+  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  return JSObject::FastPropertyAt(
+      isolate_, holder, property_details_.representation(), field_index, tag);
+}
+
 void LookupIterator::WriteDataValue(Handle<Object> value,
                                     bool initializing_store) {
   DCHECK_EQ(DATA, state_);
@@ -1110,6 +1123,18 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
       dictionary.ValueAtPut(dictionary_entry(), *value);
     }
   }
+}
+
+void LookupIterator::WriteDataValue(Handle<Object> value, SeqCstAccessTag tag) {
+  DCHECK_EQ(DATA, state_);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  // Currently only shared structs support sequentially consistent access.
+  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+  DisallowGarbageCollection no_gc;
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  holder->FastPropertyAtPut(field_index, *value, tag);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

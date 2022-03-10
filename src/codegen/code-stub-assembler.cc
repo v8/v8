@@ -6576,6 +6576,15 @@ TNode<BoolT> CodeStubAssembler::IsJSSharedStruct(TNode<HeapObject> object) {
   return IsJSSharedStructMap(LoadMap(object));
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSSharedStruct(TNode<Object> object) {
+  return Select<BoolT>(
+      TaggedIsSmi(object), [=] { return Int32FalseConstant(); },
+      [=] {
+        TNode<HeapObject> heap_object = CAST(object);
+        return IsJSSharedStruct(heap_object);
+      });
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSAsyncGeneratorObject(
     TNode<HeapObject> object) {
   return HasInstanceType(object, JS_ASYNC_GENERATOR_OBJECT_TYPE);

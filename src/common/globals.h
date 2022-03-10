@@ -1907,15 +1907,17 @@ enum class StringTransitionStrategy {
 
 }  // namespace internal
 
-// Tag dispatching support for acquire loads and release stores.
+// Tag dispatching support for atomic loads and stores.
 struct AcquireLoadTag {};
 struct RelaxedLoadTag {};
 struct ReleaseStoreTag {};
 struct RelaxedStoreTag {};
+struct SeqCstAccessTag {};
 static constexpr AcquireLoadTag kAcquireLoad;
 static constexpr RelaxedLoadTag kRelaxedLoad;
 static constexpr ReleaseStoreTag kReleaseStore;
 static constexpr RelaxedStoreTag kRelaxedStore;
+static constexpr SeqCstAccessTag kSeqCstAccess;
 
 }  // namespace v8
 

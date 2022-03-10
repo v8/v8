@@ -275,6 +275,7 @@
 
   # BUG(v8:12645)
   'shared-memory/shared-struct-workers': [SKIP],
+  'shared-memory/shared-struct-atomics-workers': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

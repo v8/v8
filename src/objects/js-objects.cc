@@ -4323,6 +4323,14 @@ Handle<Object> JSObject::FastPropertyAt(Isolate* isolate,
   return Object::WrapForRead(isolate, raw_value, representation);
 }
 
+Handle<Object> JSObject::FastPropertyAt(Isolate* isolate,
+                                        Handle<JSObject> object,
+                                        Representation representation,
+                                        FieldIndex index, SeqCstAccessTag tag) {
+  Handle<Object> raw_value(object->RawFastPropertyAt(index, tag), isolate);
+  return Object::WrapForRead(isolate, raw_value, representation);
+}
+
 // static
 Handle<Object> JSObject::DictionaryPropertyAt(Isolate* isolate,
                                               Handle<JSObject> object,

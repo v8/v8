@@ -888,9 +888,10 @@ namespace internal {
   /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
   CPP(SharedArrayBufferPrototypeGrow)                                          \
                                                                                \
-  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArray, kIndex)        \
-  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex,       \
-      kValue)                                                                  \
+  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArrayOrSharedStruct,  \
+      kIndexOrFieldName)                                                       \
+  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArrayOrSharedStruct, \
+      kIndexOrFieldName, kValue)                                               \
   TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex,    \
       kValue)                                                                  \
   TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver, kArray,     \
