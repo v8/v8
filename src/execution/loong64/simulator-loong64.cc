@@ -4267,12 +4267,28 @@ void Simulator::DecodeTypeOp17() {
     case FSCALEB_D:
       printf("Sim UNIMPLEMENTED: FSCALEB_D\n");
       UNIMPLEMENTED();
-    case FCOPYSIGN_S:
-      printf("Sim UNIMPLEMENTED: FCOPYSIGN_S\n");
-      UNIMPLEMENTED();
-    case FCOPYSIGN_D:
-      printf("Sim UNIMPLEMENTED: FCOPYSIGN_D\n");
-      UNIMPLEMENTED();
+    case FCOPYSIGN_S: {
+      printf_instr("FCOPYSIGN_S\t %s: %016f, %s, %016f, %s, %016f\n",
+                   FPURegisters::Name(fd_reg()), fd_float(),
+                   FPURegisters::Name(fj_reg()), fj_float(),
+                   FPURegisters::Name(fk_reg()), fk_float());
+      SetFPUFloatResult(fd_reg(), FPUCanonalizeOperation(
+                                      [](float lhs, float rhs) {
+                                        return std::copysign(lhs, rhs);
+                                      },
+                                      fj_float(), fk_float()));
+    } break;
+    case FCOPYSIGN_D: {
+      printf_instr("FCOPYSIGN_d\t %s: %016f, %s, %016f, %s, %016f\n",
+                   FPURegisters::Name(fd_reg()), fd_double(),
+                   FPURegisters::Name(fj_reg()), fj_double(),
+                   FPURegisters::Name(fk_reg()), fk_double());
+      SetFPUDoubleResult(fd_reg(), FPUCanonalizeOperation(
+                                       [](double lhs, double rhs) {
+                                         return std::copysign(lhs, rhs);
+                                       },
+                                       fj_double(), fk_double()));
+    } break;
     default:
       UNREACHABLE();
   }

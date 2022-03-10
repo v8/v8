@@ -457,9 +457,9 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     __ load_linked(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));       \
     __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
                    size, sign_extend);                                         \
-    __ ExtractBits(i.InputRegister(2), i.InputRegister(2), zero_reg, size,     \
+    __ ExtractBits(i.TempRegister(2), i.InputRegister(2), zero_reg, size,      \
                    sign_extend);                                               \
-    __ BranchShort(&exit, ne, i.InputRegister(2),                              \
+    __ BranchShort(&exit, ne, i.TempRegister(2),                               \
                    Operand(i.OutputRegister(0)));                              \
     __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),    \
                   size);                                                       \
