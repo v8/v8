@@ -36,6 +36,7 @@
   'wasm/wasm-module-builder': [SKIP],
   'compiler/fast-api-helpers': [SKIP],
   'typedarray-helpers': [SKIP],
+  'web-snapshot/web-snapshot-helpers': [SKIP],
 
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],

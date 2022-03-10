@@ -876,6 +876,15 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
     if (!value->IsHeapObject()) continue;
     discovery_queue_.push(Handle<HeapObject>::cast(value));
   }
+
+  // Discover elements.
+  Handle<FixedArray> elements =
+      handle(FixedArray::cast(object->elements()), isolate_);
+  for (int i = 0; i < elements->length(); ++i) {
+    Object object = elements->get(i);
+    if (!object.IsHeapObject()) continue;
+    discovery_queue_.push(handle(HeapObject::cast(object), isolate_));
+  }
 }
 
 // Format (serialized function):
@@ -951,11 +960,17 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
 // - Shape id
 // - For each property:
 //   - Serialized value
+// - Max element index + 1 (or 0 if there are no elements)
+// - For each element:
+//   - Index
+//   - Serialized value
+// TODO(v8:11525): Support packed elements with a denser format.
 void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
   Handle<Map> map(object->map(), isolate_);
   uint32_t map_id = GetMapId(*map);
   object_serializer_.WriteUint32(map_id);
 
+  // Properties.
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details =
         map->instance_descriptors(kRelaxedLoad).GetDetails(i);
@@ -963,6 +978,34 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
     Handle<Object> value = JSObject::FastPropertyAt(
         isolate_, object, details.representation(), field_index);
     WriteValue(value, object_serializer_);
+  }
+
+  // Elements.
+  ReadOnlyRoots roots(isolate_);
+  Handle<FixedArray> elements =
+      handle(FixedArray::cast(object->elements()), isolate_);
+  uint32_t max_element_index = 0;
+  for (int i = 0; i < elements->length(); ++i) {
+    DisallowGarbageCollection no_gc;
+    Object value = elements->get(i);
+    if (value != roots.the_hole_value()) {
+      if (i > static_cast<int>(max_element_index)) {
+        max_element_index = i;
+      }
+    }
+  }
+  if (max_element_index == 0) {
+    object_serializer_.WriteUint32(0);
+  } else {
+    object_serializer_.WriteUint32(max_element_index + 1);
+  }
+  for (int i = 0; i < elements->length(); ++i) {
+    Handle<Object> value = handle(elements->get(i), isolate_);
+    if (*value != roots.the_hole_value()) {
+      DCHECK_LE(i, max_element_index);
+      object_serializer_.WriteUint32(i);
+      WriteValue(value, object_serializer_);
+    }
   }
 }
 
@@ -1931,6 +1974,37 @@ void WebSnapshotDeserializer::DeserializeObjects() {
     }
     Handle<JSObject> object = factory()->NewJSObjectFromMap(map);
     object->set_raw_properties_or_hash(*property_array, kRelaxedStore);
+
+    uint32_t max_element_index = 0;
+    if (!deserializer_.ReadUint32(&max_element_index) ||
+        max_element_index > kMaxItemCount + 1) {
+      Throw("Malformed object");
+      return;
+    }
+    if (max_element_index > 0) {
+      --max_element_index;  // Subtract 1 to get the real max_element_index.
+      Handle<FixedArray> elements =
+          factory()->NewFixedArray(max_element_index + 1);
+      // Read (index, value) pairs until we encounter one where index ==
+      // max_element_index.
+      while (true) {
+        uint32_t index;
+        if (!deserializer_.ReadUint32(&index) || index > max_element_index) {
+          Throw("Malformed object");
+          return;
+        }
+        Object value = ReadValue(elements, index);
+        elements->set(index, value);
+        if (index == max_element_index) {
+          break;
+        }
+      }
+      object->set_elements(*elements);
+      // Objects always get HOLEY_ELEMENTS.
+      DCHECK(!IsSmiElementsKind(object->map().elements_kind()));
+      DCHECK(!IsDoubleElementsKind(object->map().elements_kind()));
+      DCHECK(IsHoleyElementsKind(object->map().elements_kind()));
+    }
     objects_.set(static_cast<int>(current_object_count_), *object);
   }
 }

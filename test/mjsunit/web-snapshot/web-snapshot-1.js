@@ -4,27 +4,9 @@
 
 // Flags: --experimental-d8-web-snapshot-api --allow-natives-syntax
 
+'use strict';
 
-function use(exports) {
-  const result = Object.create(null);
-  exports.forEach(x => result[x] = globalThis[x]);
-  return result;
-}
-
-function takeAndUseWebSnapshot(createObjects, exports) {
-  // Take a snapshot in Realm r1.
-  const r1 = Realm.create();
-  Realm.eval(r1, createObjects, { type: 'function' });
-  const snapshot = Realm.takeWebSnapshot(r1, exports);
-  // Use the snapshot in Realm r2.
-  const r2 = Realm.create();
-  const success = Realm.useWebSnapshot(r2, snapshot);
-  assertTrue(success);
-  const result =
-      Realm.eval(r2, use, { type: 'function', arguments: [exports] });
-  %HeapObjectVerify(result);
-  return result;
-}
+d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
 
 (function TestMinimal() {
   function createObjects() {
