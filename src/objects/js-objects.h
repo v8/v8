@@ -890,6 +890,30 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   TQ_OBJECT_CONSTRUCTORS(JSObject)
 };
 
+// A JSObject created through the public api which wraps an external pointer.
+// See v8::External.
+class JSExternalObject
+    : public TorqueGeneratedJSExternalObject<JSExternalObject, JSObject> {
+ public:
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
+
+  // [value]: field containing the pointer value.
+  DECL_GETTER(value, void*)
+
+  inline void set_value(Isolate* isolate, void* value);
+
+  // Used in the serializer/deserializer.
+  inline uint32_t GetValueRefForDeserialization();
+  inline void SetValueRefForSerialization(uint32_t ref);
+
+  static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
+
+  class BodyDescriptor;
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(JSExternalObject)
+};
+
 // An abstract superclass for JSObjects that may have elements while having an
 // empty fixed array as elements backing store. It doesn't carry any
 // functionality but allows function classes to be identified in the type

@@ -472,6 +472,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
+  void SerializeJSExternalObject();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
 

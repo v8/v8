@@ -549,6 +549,26 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   buffer->set_extension(extension);
 }
 
+void Serializer::ObjectSerializer::SerializeJSExternalObject() {
+  Handle<JSExternalObject> obj = Handle<JSExternalObject>::cast(object_);
+  Address value = reinterpret_cast<Address>(obj->value());
+  ExternalReferenceEncoder::Value reference =
+      serializer_->EncodeExternalReference(value);
+  DCHECK(reference.is_from_api());
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  // TODO(saelo) unify this code with the non-sandbox version maybe?
+  STATIC_ASSERT(sizeof(ExternalPointer_t) == sizeof(uint32_t));
+  uint32_t external_pointer_entry = obj->GetValueRefForDeserialization();
+#endif
+  obj->SetValueRefForSerialization(reference.index());
+  SerializeObject();
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  obj->SetValueRefForSerialization(external_pointer_entry);
+#else
+  obj->set_value(isolate(), reinterpret_cast<void*>(value));
+#endif
+}
+
 void Serializer::ObjectSerializer::SerializeExternalString() {
   // For external strings with known resources, we replace the resource field
   // with the encoded external reference, which we restore upon deserialize.
@@ -691,6 +711,9 @@ void Serializer::ObjectSerializer::Serialize() {
   PtrComprCageBase cage_base(isolate());
   if (object_->IsExternalString(cage_base)) {
     SerializeExternalString();
+    return;
+  } else if (object_->IsJSExternalObject(cage_base)) {
+    SerializeJSExternalObject();
     return;
   } else if (!ReadOnlyHeap::Contains(*object_)) {
     // Only clear padding for strings outside the read-only heap. Read-only heap

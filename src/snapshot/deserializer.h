@@ -198,6 +198,7 @@ class Deserializer : public SerializerDeserializer {
   void PostProcessNewJSReceiver(Map map, Handle<JSReceiver> obj,
                                 JSReceiver raw_obj, InstanceType instance_type,
                                 SnapshotSpace space);
+  void PostProcessJSExternalObject(JSExternalObject object, Isolate* isolate);
 
   HeapObject Allocate(AllocationType allocation, int size,
                       AllocationAlignment alignment);

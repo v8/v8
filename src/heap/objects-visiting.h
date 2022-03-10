@@ -30,6 +30,7 @@ namespace internal {
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
   V(JSDataView)                         \
+  V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \

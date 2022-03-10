@@ -584,7 +584,7 @@ Handle<String> JSReceiver::GetConstructorName(Isolate* isolate,
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
   JSReceiver receiver = *this;
   // Externals are JSObjects with null as a constructor.
-  DCHECK(!receiver.IsExternal(GetIsolate()));
+  DCHECK(!receiver.IsJSExternalObject());
   Object constructor = receiver.map().GetConstructor();
   JSFunction function;
   if (constructor.IsJSFunction()) {
@@ -2344,6 +2344,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSObject::kHeaderSize;
     case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
+    case JS_EXTERNAL_OBJECT_TYPE:
+      return JSExternalObject::kHeaderSize;
     case JS_SHADOW_REALM_TYPE:
       return JSShadowRealm::kHeaderSize;
     case JS_STRING_ITERATOR_TYPE:

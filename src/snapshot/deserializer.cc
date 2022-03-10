@@ -380,6 +380,14 @@ template bool StringTableInsertionKey::IsMatch(LocalIsolate* isolate,
 
 namespace {
 
+void NoExternalReferencesCallback() {
+  // The following check will trigger if a function or object template
+  // with references to native functions have been deserialized from
+  // snapshot, but no actual external references were provided when the
+  // isolate was created.
+  FATAL("No external references provided via API");
+}
+
 void PostProcessExternalString(ExternalString string, Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   uint32_t index = string.GetResourceRefForDeserialization();
@@ -448,6 +456,24 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
                                     HeapObject::RequiredAlignment(map)));
+}
+
+template <typename IsolateT>
+void Deserializer<IsolateT>::PostProcessJSExternalObject(
+    JSExternalObject object, Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  uint32_t index = object.GetValueRefForDeserialization();
+  Address address;
+  if (main_thread_isolate()->api_external_references()) {
+    DCHECK_WITH_MSG(index < num_api_references_,
+                    "too few external references provided through the API");
+    address = static_cast<Address>(
+        main_thread_isolate()->api_external_references()[index]);
+  } else {
+    address = reinterpret_cast<Address>(NoExternalReferencesCallback);
+  }
+  object.AllocateExternalPointerEntries(isolate);
+  object.set_value(isolate, reinterpret_cast<void*>(address));
 }
 
 template <typename IsolateT>
@@ -545,6 +571,9 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsExternalString(instance_type)) {
     PostProcessExternalString(ExternalString::cast(raw_obj),
                               main_thread_isolate());
+  } else if (InstanceTypeChecker::IsJSExternalObject(instance_type)) {
+    PostProcessJSExternalObject(JSExternalObject::cast(raw_obj),
+                                main_thread_isolate());
   } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
     return PostProcessNewJSReceiver(raw_map, Handle<JSReceiver>::cast(obj),
                                     JSReceiver::cast(raw_obj), instance_type,
@@ -858,14 +887,6 @@ int Deserializer<IsolateT>::ReadRepeatedObject(SlotAccessor slot_accessor,
 }
 
 namespace {
-
-void NoExternalReferencesCallback() {
-  // The following check will trigger if a function or object template
-  // with references to native functions have been deserialized from
-  // snapshot, but no actual external references were provided when the
-  // isolate was created.
-  FATAL("No external references provided via API");
-}
 
 // Template used by the below CASE_RANGE macro to statically verify that the
 // given number of cases matches the number of expected cases for that bytecode.

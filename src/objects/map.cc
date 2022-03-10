@@ -206,6 +206,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_DATA_VIEW_TYPE:
       return kVisitJSDataView;
 
+    case JS_EXTERNAL_OBJECT_TYPE:
+      return kVisitJSExternalObject;
+
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:

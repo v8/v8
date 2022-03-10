@@ -3415,8 +3415,8 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
           object_template->NewInstance(context).ToLocalChecked();
       v8::Local<v8::Object> c =
           object_template->NewInstance(context).ToLocalChecked();
-      v8::Local<v8::External> null_external =
-          v8::External::New(isolate, nullptr);
+      v8::Local<v8::External> resource_external =
+          v8::External::New(isolate, &serializable_one_byte_resource);
       v8::Local<v8::External> field_external =
           v8::External::New(isolate, &serialized_static_field);
 
@@ -3427,7 +3427,7 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
       b->SetAlignedPointerInInternalField(1, b1);
       c->SetAlignedPointerInInternalField(1, c1);
 
-      a->SetInternalField(2, null_external);
+      a->SetInternalField(2, resource_external);
       b->SetInternalField(2, field_external);
       c->SetInternalField(2, v8_num(35));
       CHECK(context->Global()->Set(context, v8_str("a"), a).FromJust());
@@ -3525,7 +3525,8 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
         CHECK_EQ(30u, c1->data);
 
         CHECK(a2->IsExternal());
-        CHECK_NULL(v8::Local<v8::External>::Cast(a2)->Value());
+        CHECK_EQ(static_cast<void*>(&serializable_one_byte_resource),
+                 v8::Local<v8::External>::Cast(a2)->Value());
         CHECK(b2->IsExternal());
         CHECK_EQ(static_cast<void*>(&serialized_static_field),
                  v8::Local<v8::External>::Cast(b2)->Value());

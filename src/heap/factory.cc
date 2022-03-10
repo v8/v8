@@ -2272,9 +2272,10 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 Handle<JSObject> Factory::NewExternal(void* value) {
-  Handle<Foreign> foreign = NewForeign(reinterpret_cast<Address>(value));
-  Handle<JSObject> external = NewJSObjectFromMap(external_map());
-  external->SetEmbedderField(0, *foreign);
+  auto external =
+      Handle<JSExternalObject>::cast(NewJSObjectFromMap(external_map()));
+  external->AllocateExternalPointerEntries(isolate());
+  external->set_value(isolate(), value);
   return external;
 }
 

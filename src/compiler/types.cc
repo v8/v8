@@ -196,6 +196,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
+    case JS_EXTERNAL_OBJECT_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:

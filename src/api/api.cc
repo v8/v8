@@ -3633,15 +3633,7 @@ bool Value::IsBoolean() const { return Utils::OpenHandle(this)->IsBoolean(); }
 
 bool Value::IsExternal() const {
   i::Object obj = *Utils::OpenHandle(this);
-  if (!obj.IsHeapObject()) return false;
-  i::HeapObject heap_obj = i::HeapObject::cast(obj);
-  // Check the instance type is JS_OBJECT (instance type of Externals) before
-  // attempting to get the Isolate since that guarantees the object is writable
-  // and GetIsolate will work.
-  if (heap_obj.map().instance_type() != i::JS_OBJECT_TYPE) return false;
-  i::Isolate* isolate = i::JSObject::cast(heap_obj).GetIsolate();
-  ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
-  return heap_obj.IsExternal(isolate);
+  return obj.IsJSExternalObject();
 }
 
 bool Value::IsInt32() const {
@@ -5996,15 +5988,6 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 #endif  // VERIFY_HEAP
 }
 
-static void* ExternalValue(i::Object obj) {
-  // Obscure semantics for undefined, but somehow checked in our unit tests...
-  if (obj.IsUndefined()) {
-    return nullptr;
-  }
-  i::Object foreign = i::JSObject::cast(obj).GetEmbedderField(0);
-  return reinterpret_cast<void*>(i::Foreign::cast(foreign).foreign_address());
-}
-
 // --- E n v i r o n m e n t ---
 
 void v8::V8::InitializePlatform(Platform* platform) {
@@ -6732,6 +6715,11 @@ bool FunctionTemplate::IsLeafTemplateForApiObject(
 
 Local<External> v8::External::New(Isolate* isolate, void* value) {
   STATIC_ASSERT(sizeof(value) == sizeof(i::Address));
+  // Nullptr is not allowed here because serialization/deserialization of
+  // nullptr external api references is not possible as nullptr is used as an
+  // external_references table terminator, see v8::SnapshotCreator()
+  // constructors.
+  DCHECK_NOT_NULL(value);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, External, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -6740,7 +6728,8 @@ Local<External> v8::External::New(Isolate* isolate, void* value) {
 }
 
 void* External::Value() const {
-  return ExternalValue(*Utils::OpenHandle(this));
+  auto self = Utils::OpenHandle(this);
+  return i::JSExternalObject::cast(*self).value();
 }
 
 // anonymous namespace for string creation helper functions

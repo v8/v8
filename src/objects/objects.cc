@@ -2448,10 +2448,6 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
 template void HeapObject::RehashBasedOnMap(Isolate* isolate);
 template void HeapObject::RehashBasedOnMap(LocalIsolate* isolate);
 
-bool HeapObject::IsExternal(Isolate* isolate) const {
-  return map(isolate).FindRootMap(isolate) == isolate->heap()->external_map();
-}
-
 void DescriptorArray::GeneralizeAllFields() {
   int length = number_of_descriptors();
   for (InternalIndex i : InternalIndex::Range(length)) {

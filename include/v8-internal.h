@@ -303,6 +303,7 @@ enum ExternalPointerTag : uint64_t {
   kNativeContextMicrotaskQueueTag = 0b1000000111011111ULL << 48,
   kEmbedderDataSlotPayloadTag =     0b1000000111101111ULL << 48,
   kCodeEntryPointTag =              0b1000000111110111ULL << 48,
+  kExternalObjectValueTag =         0b1000000111111011ULL << 48,
 };
 // clang-format on
 

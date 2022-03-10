@@ -527,7 +527,7 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kHeaderSize,
                  message_object)
-    ALLOCATE_MAP(JS_OBJECT_TYPE, JSObject::kHeaderSize + kEmbedderDataSlotSize,
+    ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, JSExternalObject::kHeaderSize,
                  external)
     external_map().set_is_extensible(false);
 #undef ALLOCATE_PRIMITIVE_MAP

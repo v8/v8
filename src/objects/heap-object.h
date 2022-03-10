@@ -96,8 +96,6 @@ class HeapObject : public Object {
   IS_TYPE_FUNCTION_DECL(CodeT)
 #undef IS_TYPE_FUNCTION_DECL
 
-  bool IsExternal(Isolate* isolate) const;
-
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
 #define IS_TYPE_FUNCTION_DECL(Type, Value)              \

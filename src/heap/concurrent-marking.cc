@@ -116,6 +116,10 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclassFast(map, object);
   }
 
+  int VisitJSExternalObject(Map map, JSExternalObject object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
     return VisitJSObjectSubclass(map, object);

@@ -40,6 +40,8 @@ macro NewJSObject(implicit context: Context)(): JSObject {
   return AllocateJSObjectFromMap(map);
 }
 
+extern class JSExternalObject extends JSObject { value: ExternalPointer; }
+
 @abstract
 @lowestInstanceTypeWithinParentClassRange
 extern class JSCustomElementsObject extends JSObject {

@@ -139,6 +139,7 @@ class ZoneForwardList;
   V(JSDataView)                                 \
   V(JSDate)                                     \
   V(JSError)                                    \
+  V(JSExternalObject)                           \
   V(JSFinalizationRegistry)                     \
   V(JSFunction)                                 \
   V(JSFunctionOrBoundFunctionOrWrappedFunction) \
