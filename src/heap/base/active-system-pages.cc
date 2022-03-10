@@ -4,6 +4,8 @@
 
 #include "src/heap/base/active-system-pages.h"
 
+#include <climits>
+
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 
