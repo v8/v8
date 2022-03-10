@@ -265,6 +265,8 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
   // Common operators.
   TNode<Smi> TypeGuardUnsignedSmall(TNode<Object> value);
+  TNode<Number> TypeGuardNumber(TNode<Object> value);
+  TNode<String> TypeGuardString(TNode<Object> value);
   TNode<Object> TypeGuardNonInternal(TNode<Object> value);
   TNode<Number> TypeGuardFixedArrayLength(TNode<Object> value);
   TNode<Object> Call4(const Callable& callable, TNode<Context> context,
@@ -519,12 +521,15 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   };
 
   ForBuilder0 ForZeroUntil(TNode<Number> excluded_limit) {
-    TNode<Number> initial_value = ZeroConstant();
+    return ForStartUntil(ZeroConstant(), excluded_limit);
+  }
+
+  ForBuilder0 ForStartUntil(TNode<Number> start, TNode<Number> excluded_limit) {
     auto cond = [=](TNode<Number> i) {
       return NumberLessThan(i, excluded_limit);
     };
     auto step = [=](TNode<Number> i) { return NumberAdd(i, OneConstant()); };
-    return {this, initial_value, cond, step};
+    return {this, start, cond, step};
   }
 
   ForBuilder0 Forever(TNode<Number> initial_value, const StepFunction1& step) {
@@ -1045,6 +1050,14 @@ TNode<Number> JSCallReducerAssembler::CheckBounds(TNode<Number> value,
 
 TNode<Smi> JSCallReducerAssembler::TypeGuardUnsignedSmall(TNode<Object> value) {
   return TNode<Smi>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), value));
+}
+
+TNode<Number> JSCallReducerAssembler::TypeGuardNumber(TNode<Object> value) {
+  return TNode<Smi>::UncheckedCast(TypeGuard(Type::Number(), value));
+}
+
+TNode<String> JSCallReducerAssembler::TypeGuardString(TNode<Object> value) {
+  return TNode<String>::UncheckedCast(TypeGuard(Type::String(), value));
 }
 
 TNode<Object> JSCallReducerAssembler::TypeGuardNonInternal(
@@ -1983,38 +1996,33 @@ namespace {
 Callable GetCallableForArrayIndexOfIncludes(ArrayIndexOfIncludesVariant variant,
                                             ElementsKind elements_kind,
                                             Isolate* isolate) {
+  DCHECK(IsHoleyElementsKind(elements_kind));
   if (variant == ArrayIndexOfIncludesVariant::kIndexOf) {
     switch (elements_kind) {
-      case PACKED_SMI_ELEMENTS:
       case HOLEY_SMI_ELEMENTS:
-      case PACKED_ELEMENTS:
       case HOLEY_ELEMENTS:
         return Builtins::CallableFor(isolate,
                                      Builtin::kArrayIndexOfSmiOrObject);
-      case PACKED_DOUBLE_ELEMENTS:
-        return Builtins::CallableFor(isolate,
-                                     Builtin::kArrayIndexOfPackedDoubles);
-      default:
-        DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
+      case HOLEY_DOUBLE_ELEMENTS:
         return Builtins::CallableFor(isolate,
                                      Builtin::kArrayIndexOfHoleyDoubles);
+      default: {
+        UNREACHABLE();
+      }
     }
   } else {
     DCHECK_EQ(variant, ArrayIndexOfIncludesVariant::kIncludes);
     switch (elements_kind) {
-      case PACKED_SMI_ELEMENTS:
       case HOLEY_SMI_ELEMENTS:
-      case PACKED_ELEMENTS:
       case HOLEY_ELEMENTS:
         return Builtins::CallableFor(isolate,
                                      Builtin::kArrayIncludesSmiOrObject);
-      case PACKED_DOUBLE_ELEMENTS:
-        return Builtins::CallableFor(isolate,
-                                     Builtin::kArrayIncludesPackedDoubles);
-      default:
-        DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
+      case HOLEY_DOUBLE_ELEMENTS:
         return Builtins::CallableFor(isolate,
                                      Builtin::kArrayIncludesHoleyDoubles);
+      default: {
+        UNREACHABLE();
+      }
     }
   }
   UNREACHABLE();
@@ -2030,13 +2038,7 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeIndexOfIncludes(
   TNode<Object> search_element = ArgumentOrUndefined(0);
   TNode<Object> from_index = ArgumentOrZero(1);
 
-  // TODO(jgruber): This currently only reduces to a stub call. Create a full
-  // reduction (similar to other higher-order array builtins) instead of
-  // lowering to a builtin call. E.g. Array.p.every and Array.p.some have almost
-  // identical functionality.
-
-  TNode<Number> length = LoadJSArrayLength(receiver, kind);
-  TNode<FixedArrayBase> elements = LoadElements(receiver);
+  TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
 
   const bool have_from_index = ArgumentCount() > 1;
   if (have_from_index) {
@@ -2046,18 +2048,279 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeIndexOfIncludes(
     // therefore needs to be added to the length. If the result is still
     // negative, it needs to be clamped to 0.
     TNode<Boolean> cond = NumberLessThan(from_index_smi, ZeroConstant());
-    from_index = SelectIf<Number>(cond)
-                     .Then(_ {
-                       return NumberMax(NumberAdd(length, from_index_smi),
-                                        ZeroConstant());
-                     })
-                     .Else(_ { return from_index_smi; })
-                     .ExpectFalse()
-                     .Value();
+    from_index =
+        SelectIf<Number>(cond)
+            .Then(_ {
+              return NumberMax(NumberAdd(original_length, from_index_smi),
+                               ZeroConstant());
+            })
+            .Else(_ { return from_index_smi; })
+            .ExpectFalse()
+            .Value();
   }
 
-  return Call4(GetCallableForArrayIndexOfIncludes(variant, kind, isolate()),
-               context, elements, search_element, length, from_index);
+  if (IsHoleyElementsKind(kind)) {
+    TNode<FixedArrayBase> elements = LoadElements(receiver);
+    return Call4(GetCallableForArrayIndexOfIncludes(variant, kind, isolate()),
+                 context, elements, search_element, original_length,
+                 from_index);
+  }
+
+  auto out = MakeLabel(MachineRepresentation::kTagged);
+
+  DCHECK(IsFastPackedElementsKind(kind));
+
+  Node* fail_value;
+  if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+    fail_value = FalseConstant();
+  } else {
+    fail_value = NumberConstant(-1);
+  }
+  TNode<FixedArrayBase> elements = LoadElements(receiver);
+
+  switch (kind) {
+    case PACKED_SMI_ELEMENTS: {
+      TNode<Boolean> is_finite_number = AddNode<Boolean>(graph()->NewNode(
+          simplified()->ObjectIsFiniteNumber(), search_element));
+      GotoIfNot(is_finite_number, &out, fail_value);
+
+      TNode<Number> search_element_number = TypeGuardNumber(search_element);
+      ForStartUntil(TNode<Number>::UncheckedCast(from_index), original_length)
+          .Do([&](TNode<Number> k) {
+            // if from_index is not smi, it will early bailout, so here
+            // we could LoadElement directly.
+            TNode<Object> element = LoadElement<Object>(
+                AccessBuilder::ForFixedArrayElement(kind), elements, k);
+
+            auto cond = NumberEqual(search_element_number,
+                                    TNode<Number>::UncheckedCast(element));
+
+            if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+              GotoIf(cond, &out, TrueConstant());
+            } else {
+              GotoIf(cond, &out, k);
+            }
+          });
+      Goto(&out, fail_value);
+      break;
+    }
+    case PACKED_DOUBLE_ELEMENTS: {
+      auto nan_loop = MakeLabel();
+      TNode<Boolean> is_number = AddNode<Boolean>(
+          graph()->NewNode(simplified()->ObjectIsNumber(), search_element));
+      GotoIfNot(is_number, &out, fail_value);
+
+      TNode<Number> search_element_number = TypeGuardNumber(search_element);
+
+      if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+        // https://tc39.es/ecma262/#sec-array.prototype.includes use
+        // SameValueZero, NaN == NaN, so we need to check.
+        TNode<Boolean> is_nan = AddNode<Boolean>(graph()->NewNode(
+            simplified()->NumberIsNaN(), search_element_number));
+        GotoIf(is_nan, &nan_loop);
+      } else {
+        DCHECK(variant == ArrayIndexOfIncludesVariant::kIndexOf);
+        // https://tc39.es/ecma262/#sec-array.prototype.indexOf use
+        // IsStrictEqual, NaN != NaN, NaN compare will be handled by
+        // NumberEqual.
+      }
+
+      ForStartUntil(TNode<Number>::UncheckedCast(from_index), original_length)
+          .Do([&](TNode<Number> k) {
+            TNode<Object> element = LoadElement<Object>(
+                AccessBuilder::ForFixedArrayElement(kind), elements, k);
+
+            auto cond = NumberEqual(search_element_number,
+                                    TNode<Number>::UncheckedCast(element));
+
+            if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+              GotoIf(cond, &out, TrueConstant());
+            } else {
+              GotoIf(cond, &out, k);
+            }
+          });
+      Goto(&out, fail_value);
+
+      // https://tc39.es/ecma262/#sec-array.prototype.includes use
+      // SameValueZero, NaN == NaN, we need to bind nan_loop to check.
+      if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+        Bind(&nan_loop);
+        ForStartUntil(TNode<Number>::UncheckedCast(from_index), original_length)
+            .Do([&](TNode<Number> k) {
+              TNode<Object> element = LoadElement<Object>(
+                  AccessBuilder::ForFixedArrayElement(kind), elements, k);
+
+              auto cond = AddNode<Boolean>(
+                  graph()->NewNode(simplified()->NumberIsNaN(),
+                                   TNode<Number>::UncheckedCast(element)));
+              GotoIf(cond, &out, TrueConstant());
+            });
+        Goto(&out, fail_value);
+      }
+      break;
+    }
+    case PACKED_ELEMENTS: {
+      auto number_loop = MakeLabel();
+      auto not_number = MakeLabel();
+      auto string_loop = MakeLabel();
+      auto bigint_loop = MakeLabel();
+      auto ident_loop = MakeLabel();
+
+      auto is_number = AddNode(
+          graph()->NewNode(simplified()->ObjectIsNumber(), search_element));
+      GotoIf(is_number, &number_loop);
+      Goto(&not_number);
+
+      Bind(&not_number);
+      auto is_string = AddNode(
+          graph()->NewNode(simplified()->ObjectIsString(), search_element));
+      GotoIf(is_string, &string_loop);
+      auto is_bigint = AddNode(
+          graph()->NewNode(simplified()->ObjectIsBigInt(), search_element));
+      GotoIf(is_bigint, &bigint_loop);
+
+      Goto(&ident_loop);
+      Bind(&ident_loop);
+
+      ForStartUntil(TNode<Number>::UncheckedCast(from_index), original_length)
+          .Do([&](TNode<Number> k) {
+            // if from_index is not smi, it will early bailout, so here
+            // we could LoadElement directly.
+            TNode<Object> element = LoadElement<Object>(
+                AccessBuilder::ForFixedArrayElement(kind), elements, k);
+            auto cond = AddNode(graph()->NewNode(simplified()->ReferenceEqual(),
+                                                 search_element, element));
+            if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+              GotoIf(cond, &out, TrueConstant());
+            } else {
+              GotoIf(cond, &out, k);
+            }
+          });
+
+      Goto(&out, fail_value);
+
+      Bind(&number_loop);
+      TNode<Number> search_element_number = TypeGuardNumber(search_element);
+
+      auto nan_loop = MakeLabel();
+
+      if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+        // https://tc39.es/ecma262/#sec-array.prototype.includes use
+        // SameValueZero, NaN == NaN, so we need to check.
+        auto is_nan = AddNode(graph()->NewNode(simplified()->NumberIsNaN(),
+                                               search_element_number));
+        GotoIf(is_nan, &nan_loop);
+      } else {
+        DCHECK(variant == ArrayIndexOfIncludesVariant::kIndexOf);
+        // https://tc39.es/ecma262/#sec-array.prototype.indexOf use
+        // IsStrictEqual, NaN != NaN, NaN compare will be handled by
+        // NumberEqual.
+      }
+
+      ForStartUntil(TNode<Number>::UncheckedCast(from_index), original_length)
+          .Do([&](TNode<Number> k) {
+            auto continue_label = MakeLabel();
+            TNode<Object> element = LoadElement<Object>(
+                AccessBuilder::ForFixedArrayElement(kind), elements, k);
+
+            auto is_number = AddNode(
+                graph()->NewNode(simplified()->ObjectIsNumber(), element));
+
+            GotoIfNot(is_number, &continue_label);
+
+            TNode<Number> element_number = TypeGuardNumber(element);
+            auto cond = NumberEqual(search_element_number, element_number);
+            GotoIfNot(cond, &continue_label);
+            if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+              Goto(&out, TrueConstant());
+            } else {
+              Goto(&out, k);
+            }
+
+            Bind(&continue_label);
+          });
+      Goto(&out, fail_value);
+
+      // https://tc39.es/ecma262/#sec-array.prototype.includes use
+      // SameValueZero, NaN == NaN, we need to bind nan_loop to check.
+      if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+        Bind(&nan_loop);
+        ForStartUntil(TNode<Number>::UncheckedCast(from_index), original_length)
+            .Do([&](TNode<Number> k) {
+              TNode<Object> element = LoadElement<Object>(
+                  AccessBuilder::ForFixedArrayElement(kind), elements, k);
+
+              auto cond = AddNode<Boolean>(
+                  graph()->NewNode(simplified()->ObjectIsNaN(), element));
+              GotoIf(cond, &out, TrueConstant());
+            });
+        Goto(&out, fail_value);
+      }
+
+      Bind(&string_loop);
+      TNode<String> search_element_string = TypeGuardString(search_element);
+      ForStartUntil(TNode<Number>::UncheckedCast(from_index), original_length)
+          .Do([&](TNode<Number> k) {
+            auto continue_label = MakeLabel();
+            TNode<Object> element = LoadElement<Object>(
+                AccessBuilder::ForFixedArrayElement(kind), elements, k);
+            auto is_string = AddNode(
+                graph()->NewNode(simplified()->ObjectIsString(), element));
+
+            GotoIfNot(is_string, &continue_label);
+
+            TNode<String> element_string = TypeGuardString(element);
+            auto cond = AddNode(graph()->NewNode(simplified()->StringEqual(),
+                                                 element_string,
+                                                 search_element_string));
+            GotoIfNot(cond, &continue_label);
+            if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+              Goto(&out, TrueConstant());
+            } else {
+              Goto(&out, k);
+            }
+
+            Bind(&continue_label);
+          });
+      Goto(&out, fail_value);
+
+      Bind(&bigint_loop);
+      ForStartUntil(TNode<Number>::UncheckedCast(from_index), original_length)
+          .Do([&](TNode<Number> k) {
+            auto continue_label = MakeLabel();
+            TNode<Object> element = LoadElement<Object>(
+                AccessBuilder::ForFixedArrayElement(kind), elements, k);
+            auto is_bigint = AddNode(
+                graph()->NewNode(simplified()->ObjectIsBigInt(), element));
+
+            GotoIfNot(is_bigint, &continue_label);
+            auto cond = AddNode<Object>(graph()->NewNode(
+                javascript()->CallRuntime(Runtime::kBigIntEqualToBigInt, 2),
+                search_element, element, context, FrameStateInput(), effect(),
+                control()));
+
+            GotoIfNot(ToBoolean(cond), &continue_label);
+            if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+              Goto(&out, TrueConstant());
+            } else {
+              Goto(&out, k);
+            }
+
+            Bind(&continue_label);
+          });
+      Goto(&out, fail_value);
+      break;
+    }
+    default: {
+      UNREACHABLE();
+    }
+  }
+  Bind(&out);
+  if (variant == ArrayIndexOfIncludesVariant::kIncludes) {
+    return out.PhiAt<Boolean>(0);
+  } else {
+    return out.PhiAt<Number>(0);
+  }
 }
 
 namespace {
