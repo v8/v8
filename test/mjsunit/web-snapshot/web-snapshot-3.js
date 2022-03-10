@@ -93,3 +93,12 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals('00', '' + bar[0] + bar[1]);
   assertEquals('value1value2', bar.prop1 + bar.prop2);
 })();
+
+(function TestObjectWithEmptyMap() {
+  function createObjects() {
+    globalThis.foo = [{a:1}, {}, {b: 2}];
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(1, foo[0].a);
+  assertEquals(2, foo[2].b);
+})();

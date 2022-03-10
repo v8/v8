@@ -1542,7 +1542,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
       Map empty_map =
           isolate_->native_context()->object_function().initial_map();
       maps_.set(i, empty_map);
-      return;
+      continue;
     }
 
     Handle<DescriptorArray> descriptors =
