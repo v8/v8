@@ -519,8 +519,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
   ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>
       native_function_literals_;
-  ZoneVector<std::pair<ObjectLiteral*, size_t>> object_literals_;
-  ZoneVector<std::pair<ArrayLiteral*, size_t>> array_literals_;
+  ZoneVector<std::pair<ObjectLiteralBoilerplateBuilder*, size_t>>
+      object_literals_;
+  ZoneVector<std::pair<ArrayLiteralBoilerplateBuilder*, size_t>>
+      array_literals_;
   ZoneVector<std::pair<ClassLiteral*, size_t>> class_literals_;
   ZoneVector<std::pair<GetTemplateObject*, size_t>> template_objects_;
 
