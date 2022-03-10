@@ -532,13 +532,13 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
       function.shared().internal_formal_parameter_count_with_receiver();
   input_ = new (size) FrameDescription(size, parameter_count);
 
-  DeoptimizationData deopt_data =
-      DeoptimizationData::cast(compiled_code_.deoptimization_data());
   if (kSupportsFixedDeoptExitSizes) {
     DCHECK_EQ(deopt_exit_index_, kFixedExitSizeMarker);
     // Calculate the deopt exit index from return address.
     DCHECK_GT(kNonLazyDeoptExitSize, 0);
     DCHECK_GT(kLazyDeoptExitSize, 0);
+    DeoptimizationData deopt_data =
+        DeoptimizationData::cast(compiled_code_.deoptimization_data());
     Address deopt_start = compiled_code_.raw_instruction_start() +
                           deopt_data.DeoptExitStart().value();
     int eager_soft_and_bailout_deopt_count =
@@ -580,7 +580,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
                           (offset / kEagerWithResumeDeoptExitSize);
     }
   }
-  deopt_exit_bytecode_offset_ = deopt_data.GetBytecodeOffset(deopt_exit_index_);
 }
 
 Code Deoptimizer::FindOptimizedCode() {
@@ -714,7 +713,8 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
 
 }  // namespace
 
-void Deoptimizer::TraceDeoptBegin(int optimization_id) {
+void Deoptimizer::TraceDeoptBegin(int optimization_id,
+                                  BytecodeOffset bytecode_offset) {
   DCHECK(tracing_enabled());
   FILE* file = trace_scope()->file();
   Deoptimizer::DeoptInfo info =
@@ -738,9 +738,8 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id) {
 #ifdef DEBUG
          info.node_id,
 #endif  // DEBUG
-         deopt_exit_bytecode_offset_.ToInt(), deopt_exit_index_,
-         fp_to_sp_delta_, caller_frame_top_,
-         PointerAuthentication::StripPAC(from_));
+         bytecode_offset.ToInt(), deopt_exit_index_, fp_to_sp_delta_,
+         caller_frame_top_, PointerAuthentication::StripPAC(from_));
   if (verbose_tracing_enabled() && deopt_kind_ != DeoptimizeKind::kLazy) {
     PrintF(file, "            ;;; deoptimize at ");
     OFStream outstr(file);
@@ -868,13 +867,15 @@ void Deoptimizer::DoComputeOutputFrames() {
   CHECK_GT(static_cast<uintptr_t>(caller_frame_top_),
            stack_guard->real_jslimit());
 
+  BytecodeOffset bytecode_offset =
+      input_data.GetBytecodeOffset(deopt_exit_index_);
   ByteArray translations = input_data.TranslationByteArray();
   unsigned translation_index =
       input_data.TranslationIndex(deopt_exit_index_).value();
 
   if (tracing_enabled()) {
     timer.Start();
-    TraceDeoptBegin(input_data.OptimizationId().value());
+    TraceDeoptBegin(input_data.OptimizationId().value(), bytecode_offset);
   }
 
   FILE* trace_file =

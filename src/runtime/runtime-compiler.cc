@@ -196,8 +196,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   // Make sure to materialize objects before causing any allocation.
   deoptimizer->MaterializeHeapObjects();
-  BytecodeOffset deopt_exit_bytecode_offset =
-      deoptimizer->deopt_exit_bytecode_offset();
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.
@@ -207,33 +205,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   // Invalidate the underlying optimized code on eager and soft deopts.
   if (type == DeoptimizeKind::kEager || type == DeoptimizeKind::kSoft) {
-    // Non-OSR'd code is deoptimized unconditionally.
-    //
-    // For OSR'd code, we keep the optimized code around if deoptimization
-    // occurs outside the outermost loop (containing the loop that triggered OSR
-    // compilation). The reasoning is that OSR is intended to speed up the
-    // long-running loop; so if the deoptimization occurs outside this loop it
-    // is still worth jumping to the OSR'd code on the next run. The reduced
-    // cost of the loop should pay for the deoptimization costs.
-    if (!optimized_code->osr_offset().IsNone()) {
-      interpreter::BytecodeArrayIterator iterator(
-          Handle<BytecodeArray>(function->shared().GetBytecodeArray(isolate),
-                                isolate),
-          optimized_code->osr_offset().ToInt());
-      // Iterate forward from current JumpLoop to the outermost JumpLoop.
-      for (; !iterator.done(); iterator.Advance()) {
-        if (deopt_exit_bytecode_offset.ToInt() <= iterator.current_offset()) {
-          Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
-          break;
-        }
-        if (iterator.current_bytecode() == interpreter::Bytecode::kJumpLoop &&
-            iterator.GetJumpLoopNestingLevel() == 0) {
-          break;
-        }
-      }
-    } else {
-      Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
-    }
+    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

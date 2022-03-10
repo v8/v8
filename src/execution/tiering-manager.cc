@@ -297,7 +297,7 @@ OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
       int jump_target_offset = iterator.GetJumpTargetOffset();
       if (jump_offset >= current_offset &&
           current_offset >= jump_target_offset) {
-        bytecode.set_osr_loop_nesting_level(iterator.GetJumpLoopNestingLevel() +
+        bytecode.set_osr_loop_nesting_level(iterator.GetImmediateOperand(1) +
                                             1);
         return OptimizationDecision::TurbofanHotAndStable();
       }

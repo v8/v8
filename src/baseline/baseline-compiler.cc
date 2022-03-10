@@ -1934,7 +1934,7 @@ void BaselineCompiler::VisitJumpLoop() {
     __ LoadRegister(osr_level, interpreter::Register::bytecode_array());
     __ LoadByteField(osr_level, osr_level,
                      BytecodeArray::kOsrLoopNestingLevelOffset);
-    int loop_depth = iterator().GetJumpLoopNestingLevel();
+    int loop_depth = iterator().GetImmediateOperand(1);
     __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_level, loop_depth,
                   &osr_not_armed);
     CallBuiltin<Builtin::kBaselineOnStackReplacement>();

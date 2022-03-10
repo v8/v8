@@ -54,9 +54,6 @@ class Deoptimizer : public Malloced {
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
-  BytecodeOffset deopt_exit_bytecode_offset() const {
-    return deopt_exit_bytecode_offset_;
-  }
 
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           unsigned deopt_exit_index, Address from,
@@ -202,7 +199,7 @@ class Deoptimizer : public Malloced {
   CodeTracer::Scope* verbose_trace_scope() const {
     return FLAG_trace_deopt_verbose ? trace_scope() : nullptr;
   }
-  void TraceDeoptBegin(int optimization_id);
+  void TraceDeoptBegin(int optimization_id, BytecodeOffset bytecode_offset);
   void TraceDeoptEnd(double deopt_duration);
 #ifdef DEBUG
   static void TraceFoundActivation(Isolate* isolate, JSFunction function);
@@ -214,7 +211,6 @@ class Deoptimizer : public Malloced {
   JSFunction function_;
   Code compiled_code_;
   unsigned deopt_exit_index_;
-  BytecodeOffset deopt_exit_bytecode_offset_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;
   Address from_;
   int fp_to_sp_delta_;
