@@ -2542,7 +2542,7 @@ void Heap::MarkCompact() {
   SetGCState(MARK_COMPACT);
 
   PROFILE(isolate_, CodeMovingGCEvent());
-  CodeSpaceMemoryModificationScope code_modifcation(this);
+  CodeSpaceMemoryModificationScope code_modification(this);
 
   // Disable soft allocation limits in the shared heap, if one exists, as
   // promotions into the shared heap should always succeed.

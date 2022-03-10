@@ -2559,9 +2559,8 @@ class V8_NODISCARD CodeSpaceMemoryModificationScope {
   Heap* heap_;
 };
 
-// The CodePageCollectionMemoryModificationScope can only be used by the main
-// thread. It will not be enabled if a CodeSpaceMemoryModificationScope is
-// already active.
+// The CodePageCollectionMemoryModificationScope can be used by any thread. It
+// will not be enabled if a CodeSpaceMemoryModificationScope is already active.
 class V8_NODISCARD CodePageCollectionMemoryModificationScope {
  public:
   explicit inline CodePageCollectionMemoryModificationScope(Heap* heap);
