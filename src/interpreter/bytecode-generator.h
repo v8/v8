@@ -128,7 +128,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       return object_;
     }
     Register key() const {
-      DCHECK(assign_type_ == KEYED_PROPERTY ||
+      DCHECK(assign_type_ == KEYED_PROPERTY || assign_type_ == PRIVATE_METHOD ||
+             assign_type_ == PRIVATE_GETTER_ONLY ||
              assign_type_ == PRIVATE_SETTER_ONLY ||
              assign_type_ == PRIVATE_GETTER_AND_SETTER);
       return key_;

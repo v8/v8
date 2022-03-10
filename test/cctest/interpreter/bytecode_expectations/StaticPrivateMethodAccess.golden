@@ -51,25 +51,27 @@ snippet: "
   var test = B.test;
   test();
 "
-frame size: 3
+frame size: 4
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 40
 bytecodes: [
-  /*   56 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   56 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(Star1),
+                B(LdaCurrentContextSlot), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
                 B(Wide), B(LdaSmi), I16(288),
-                B(Star1),
-                B(LdaConstant), U8(0),
                 B(Star2),
-  /*   61 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
+                B(LdaConstant), U8(0),
+                B(Star3),
+  /*   61 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
                 B(Wide), B(LdaSmi), I16(294),
-                B(Star1),
-                B(LdaConstant), U8(1),
                 B(Star2),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
+                B(LdaConstant), U8(1),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [
@@ -280,25 +282,27 @@ snippet: "
   var test = G.test;
   test();
 "
-frame size: 3
+frame size: 4
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 40
 bytecodes: [
-  /*   60 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   60 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(Star1),
+                B(LdaCurrentContextSlot), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
                 B(Wide), B(LdaSmi), I16(288),
-                B(Star1),
-                B(LdaConstant), U8(0),
                 B(Star2),
-  /*   65 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
+                B(LdaConstant), U8(0),
+                B(Star3),
+  /*   65 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
                 B(Wide), B(LdaSmi), I16(296),
-                B(Star1),
-                B(LdaConstant), U8(1),
                 B(Star2),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(1), U8(2),
+                B(LdaConstant), U8(1),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [

@@ -1598,14 +1598,14 @@ class OptionalChain final : public Expression {
 // Otherwise, the assignment is to a non-property (a global, a local slot, a
 // parameter slot, or a destructuring pattern).
 enum AssignType {
-  NON_PROPERTY,              // destructuring
-  NAMED_PROPERTY,            // obj.key
-  KEYED_PROPERTY,            // obj[key]
-  NAMED_SUPER_PROPERTY,      // super.key
-  KEYED_SUPER_PROPERTY,      // super[key]
-  PRIVATE_METHOD,            // obj.#key: #key is a private method
-  PRIVATE_GETTER_ONLY,       // obj.#key: #key only has a getter defined
-  PRIVATE_SETTER_ONLY,       // obj.#key: #key only has a setter defined
+  NON_PROPERTY,          // destructuring
+  NAMED_PROPERTY,        // obj.key
+  KEYED_PROPERTY,        // obj[key] and obj.#key when #key is a private field
+  NAMED_SUPER_PROPERTY,  // super.key
+  KEYED_SUPER_PROPERTY,  // super[key]
+  PRIVATE_METHOD,        // obj.#key: #key is a private method
+  PRIVATE_GETTER_ONLY,   // obj.#key: #key only has a getter defined
+  PRIVATE_SETTER_ONLY,   // obj.#key: #key only has a setter defined
   PRIVATE_GETTER_AND_SETTER  // obj.#key: #key has both accessors defined
 };
 

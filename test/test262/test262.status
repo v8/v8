@@ -2822,13 +2822,6 @@
   'built-ins/Date/prototype/setUTCMonth/arg-coercion-order': [FAIL],
   'built-ins/Date/prototype/setUTCSeconds/arg-coercion-order': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12680
-  'language/expressions/logical-assignment/left-hand-side-private-reference-method-short-circuit-nullish': [FAIL],
-  'language/expressions/logical-assignment/left-hand-side-private-reference-method-short-circuit-or': [FAIL],
-  'language/expressions/logical-assignment/left-hand-side-private-reference-readonly-accessor-property-short-circuit-and': [FAIL],
-  'language/expressions/logical-assignment/left-hand-side-private-reference-readonly-accessor-property-short-circuit-nullish': [FAIL],
-  'language/expressions/logical-assignment/left-hand-side-private-reference-readonly-accessor-property-short-circuit-or': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12044
   'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 

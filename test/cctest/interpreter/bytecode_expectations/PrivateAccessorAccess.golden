@@ -137,21 +137,23 @@ snippet: "
   var test = D;
   new test;
 "
-frame size: 4
+frame size: 5
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 31
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star0),
                 B(Ldar), R(context),
   /*   48 E> */ B(DefineKeyedOwnProperty), R(this), R(0), U8(0),
-  /*   53 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   53 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(Star2),
+                B(LdaImmutableCurrentContextSlot), U8(3),
   /*   58 E> */ B(GetKeyedProperty), R(this), U8(2),
                 B(Wide), B(LdaSmi), I16(296),
-                B(Star2),
-                B(LdaConstant), U8(0),
                 B(Star3),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
+                B(LdaConstant), U8(0),
+                B(Star4),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(3), U8(2),
                 B(Throw),
 ]
 constant pool: [
