@@ -300,7 +300,7 @@ class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
   // this cl, in order to facilitate modification, it is assumed that the vector
   // register and floating point register are shared.
   VRegister toV() const {
-    DCHECK(base::IsInRange(code(), 0, kVRAfterLast - 1));
+    DCHECK(base::IsInRange(static_cast<int>(code()), 0, kVRAfterLast - 1));
     return VRegister(code());
   }
 
