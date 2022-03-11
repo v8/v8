@@ -695,12 +695,19 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAnyLocationOperand()) {
     MachineRepresentation canonical = MachineRepresentation::kNone;
     if (IsFPRegister()) {
-      if (kSimpleFPAliasing) {
+      if (kFPAliasing == AliasingKind::kOverlap) {
         // We treat all FP register operands the same for simple aliasing.
         canonical = MachineRepresentation::kFloat64;
+      } else if (kFPAliasing == AliasingKind::kIndependent) {
+        if (IsSimd128Register()) {
+          canonical = MachineRepresentation::kSimd128;
+        } else {
+          canonical = MachineRepresentation::kFloat64;
+        }
       } else {
         // We need to distinguish FP register operands of different reps when
-        // aliasing is not simple (e.g. ARM).
+        // aliasing is AliasingKind::kCombine (e.g. ARM).
+        DCHECK_EQ(kFPAliasing, AliasingKind::kCombine);
         canonical = LocationOperand::cast(this)->representation();
       }
     }
@@ -1694,6 +1701,12 @@ class V8_EXPORT_PRIVATE InstructionSequence final
         RepresentationBit(MachineRepresentation::kFloat64) |
         RepresentationBit(MachineRepresentation::kSimd128);
     return (representation_mask() & kFPRepMask) != 0;
+  }
+
+  bool HasSimd128VirtualRegisters() const {
+    constexpr int kSimd128RepMask =
+        RepresentationBit(MachineRepresentation::kSimd128);
+    return (representation_mask() & kSimd128RepMask) != 0;
   }
 
   Instruction* GetBlockStart(RpoNumber rpo) const;

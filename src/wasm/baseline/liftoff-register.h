@@ -17,7 +17,7 @@ namespace internal {
 namespace wasm {
 
 static constexpr bool kNeedI64RegPair = kSystemPointerSize == 4;
-static constexpr bool kNeedS128RegPair = !kSimpleFPAliasing;
+static constexpr bool kNeedS128RegPair = kFPAliasing == AliasingKind::kCombine;
 
 enum RegClass : uint8_t {
   kGpReg,
@@ -190,7 +190,7 @@ class LiftoffRegister {
   // LiftoffRegister.
   static LiftoffRegister from_external_code(RegClass rc, ValueKind kind,
                                             int code) {
-    if (!kSimpleFPAliasing && kind == kF32) {
+    if (kFPAliasing == AliasingKind::kCombine && kind == kF32) {
       // Liftoff assumes a one-to-one mapping between float registers and
       // double registers, and so does not distinguish between f32 and f64
       // registers. The f32 register code must therefore be halved in order

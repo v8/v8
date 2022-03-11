@@ -340,6 +340,10 @@ inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kFirstFPRepresentation;
 }
 
+inline bool IsSimd128(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kSimd128;
+}
+
 inline bool CanBeTaggedPointer(MachineRepresentation rep) {
   return rep == MachineRepresentation::kTagged ||
          rep == MachineRepresentation::kTaggedPointer ||

@@ -81,13 +81,13 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
-  const bool kComplexFPAliasing = !kSimpleFPAliasing &&
+  const bool kCombineFPAliasing = kFPAliasing == AliasingKind::kCombine &&
                                   this->IsFPLocationOperand() &&
                                   other.IsFPLocationOperand();
   const bool kComplexS128SlotAliasing =
       (this->IsSimd128StackSlot() && other.IsAnyStackSlot()) ||
       (other.IsSimd128StackSlot() && this->IsAnyStackSlot());
-  if (!kComplexFPAliasing && !kComplexS128SlotAliasing) {
+  if (!kCombineFPAliasing && !kComplexS128SlotAliasing) {
     return EqualsCanonicalized(other);
   }
   const LocationOperand& loc = *LocationOperand::cast(this);
@@ -98,7 +98,7 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
   MachineRepresentation rep = loc.representation();
   MachineRepresentation other_rep = other_loc.representation();
 
-  if (kComplexFPAliasing && !kComplexS128SlotAliasing) {
+  if (kCombineFPAliasing && !kComplexS128SlotAliasing) {
     if (rep == other_rep) return EqualsCanonicalized(other);
     if (kind == LocationOperand::REGISTER) {
       // FP register-register interference.
@@ -126,7 +126,7 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
 bool LocationOperand::IsCompatible(LocationOperand* op) {
   if (IsRegister() || IsStackSlot()) {
     return op->IsRegister() || op->IsStackSlot();
-  } else if (kSimpleFPAliasing) {
+  } else if (kFPAliasing != AliasingKind::kCombine) {
     // A backend may choose to generate the same instruction sequence regardless
     // of the FP representation. As a result, we can relax the compatibility and
     // allow a Double to be moved in a Float for example. However, this is only
@@ -162,8 +162,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
                     << ")";
         case UnallocatedOperand::FIXED_FP_REGISTER:
           return os << "(="
-                    << DoubleRegister::from_code(
-                           unalloc->fixed_register_index())
+                    << (unalloc->IsSimd128Register()
+                            ? i::RegisterName((Simd128Register::from_code(
+                                  unalloc->fixed_register_index())))
+                            : i::RegisterName(DoubleRegister::from_code(
+                                  unalloc->fixed_register_index())))
                     << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
@@ -296,8 +299,8 @@ bool ParallelMove::IsRedundant() const {
 
 void ParallelMove::PrepareInsertAfter(
     MoveOperands* move, ZoneVector<MoveOperands*>* to_eliminate) const {
-  bool no_aliasing =
-      kSimpleFPAliasing || !move->destination().IsFPLocationOperand();
+  bool no_aliasing = kFPAliasing != AliasingKind::kCombine ||
+                     !move->destination().IsFPLocationOperand();
   MoveOperands* replacement = nullptr;
   MoveOperands* eliminated = nullptr;
   for (MoveOperands* curr : *this) {

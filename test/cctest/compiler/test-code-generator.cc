@@ -460,7 +460,7 @@ class TestEnvironment : public HandleAndZoneScope {
         ((kDoubleRegisterCount % 2) == 0) && ((kDoubleRegisterCount % 3) == 0),
         "kDoubleRegisterCount should be a multiple of two and three.");
     for (int i = 0; i < kDoubleRegisterCount; i += 2) {
-      if (kSimpleFPAliasing) {
+      if (kFPAliasing != AliasingKind::kCombine) {
         // Allocate three registers at once if kSimd128 is supported, else
         // allocate in pairs.
         AddRegister(&test_signature, MachineRepresentation::kFloat32,
