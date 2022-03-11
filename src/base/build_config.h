@@ -237,8 +237,9 @@ constexpr int kReturnAddressStackSlotCount =
     V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
 
 // Number of bits to represent the page size for paged spaces.
-#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
-// PPC has large (64KB) physical pages.
+#if defined(V8_HOST_ARCH_PPC) || defined(V8_HOST_ARCH_PPC64)
+// Native PPC has large (64KB) physical pages.
+// Simulator needs to use the same value as x64.
 const int kPageSizeBits = 19;
 #elif defined(ENABLE_HUGEPAGE)
 // When enabling huge pages, adjust V8 page size to take up exactly one huge
