@@ -2387,8 +2387,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, promise_fun, "all", Builtin::kPromiseAll, 1, true);
     native_context()->set_promise_all(*promise_all);
 
-    InstallFunctionWithBuiltinId(isolate_, promise_fun, "allSettled",
-                                 Builtin::kPromiseAllSettled, 1, true);
+    Handle<JSFunction> promise_all_settled =
+        InstallFunctionWithBuiltinId(isolate_, promise_fun, "allSettled",
+                                     Builtin::kPromiseAllSettled, 1, true);
+    native_context()->set_promise_all_settled(*promise_all_settled);
 
     Handle<JSFunction> promise_any = InstallFunctionWithBuiltinId(
         isolate_, promise_fun, "any", Builtin::kPromiseAny, 1, true);

@@ -22,6 +22,12 @@ bool CallSiteInfo::IsPromiseAll() const {
   return fun == fun.native_context().promise_all();
 }
 
+bool CallSiteInfo::IsPromiseAllSettled() const {
+  if (!IsAsync()) return false;
+  JSFunction fun = JSFunction::cast(function());
+  return fun == fun.native_context().promise_all_settled();
+}
+
 bool CallSiteInfo::IsPromiseAny() const {
   if (!IsAsync()) return false;
   JSFunction fun = JSFunction::cast(function());
@@ -507,6 +513,7 @@ int CallSiteInfo::GetSourcePosition(Handle<CallSiteInfo> info) {
     return info->code_offset_or_source_position();
   }
   DCHECK(!info->IsPromiseAll());
+  DCHECK(!info->IsPromiseAllSettled());
   DCHECK(!info->IsPromiseAny());
   int source_position =
       ComputeSourcePosition(info, info->code_offset_or_source_position());
@@ -711,7 +718,8 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
   Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
   if (frame->IsAsync()) {
     builder->AppendCStringLiteral("async ");
-    if (frame->IsPromiseAll() || frame->IsPromiseAny()) {
+    if (frame->IsPromiseAll() || frame->IsPromiseAny() ||
+        frame->IsPromiseAllSettled()) {
       builder->AppendCStringLiteral("Promise.");
       builder->AppendString(Handle<String>::cast(function_name));
       builder->AppendCStringLiteral(" (index ");
