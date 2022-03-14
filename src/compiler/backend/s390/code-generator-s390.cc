@@ -3519,8 +3519,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
-  // We might need r3 for scratch.
-  DCHECK(!call_descriptor->CalleeSavedRegisters().has(r5));
   S390OperandConverter g(this, nullptr);
   const int parameter_slots =
       static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -3572,6 +3570,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // The number of arguments without the receiver is
     // max(argc_reg, parameter_slots-1), and the receiver is added in
     // DropArguments().
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     if (parameter_slots > 1) {
       Label skip;
       __ CmpS64(argc_reg, Operand(parameter_slots));
