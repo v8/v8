@@ -215,6 +215,10 @@ class MaglevGraphBuilder {
     return node;
   }
 
+  template <Operation kOperation, typename... Args>
+  ValueNode* AddNewOperationNode(std::initializer_list<ValueNode*> inputs,
+                                 Args&&... args);
+
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(size_t input_count, Args&&... args) {
     return AddNode(NewNode<NodeT>(input_count, std::forward<Args>(args)...));
@@ -356,8 +360,15 @@ class MaglevGraphBuilder {
     return block;
   }
 
-  template <typename RelNodeT>
-  void VisitRelNode();
+  template <Operation kOperation>
+  void BuildGenericUnaryOperationNode();
+  template <Operation kOperation>
+  void BuildGenericBinaryOperationNode();
+
+  template <Operation kOperation>
+  void VisitUnaryOperation();
+  template <Operation kOperation>
+  void VisitBinaryOperation();
 
   void MergeIntoFrameState(BasicBlock* block, int target);
   void BuildBranchIfTrue(ValueNode* node, int true_target, int false_target);

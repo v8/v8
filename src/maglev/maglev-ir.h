@@ -11,6 +11,7 @@
 #include "src/base/threaded-list.h"
 #include "src/codegen/reglist.h"
 #include "src/common/globals.h"
+#include "src/common/operation.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/heap-refs.h"
 #include "src/interpreter/bytecode-register.h"
@@ -35,24 +36,43 @@ class MaglevVregAllocationState;
 //
 // The macro lists below must match the node class hierarchy.
 
+#define GENERIC_OPERATIONS_NODE_LIST(V) \
+  V(GenericAdd)                         \
+  V(GenericSubtract)                    \
+  V(GenericMultiply)                    \
+  V(GenericDivide)                      \
+  V(GenericModulus)                     \
+  V(GenericExponentiate)                \
+  V(GenericBitwiseAnd)                  \
+  V(GenericBitwiseOr)                   \
+  V(GenericBitwiseXor)                  \
+  V(GenericShiftLeft)                   \
+  V(GenericShiftRight)                  \
+  V(GenericShiftRightLogical)           \
+  V(GenericBitwiseNot)                  \
+  V(GenericNegate)                      \
+  V(GenericIncrement)                   \
+  V(GenericDecrement)                   \
+  V(GenericEqual)                       \
+  V(GenericStrictEqual)                 \
+  V(GenericLessThan)                    \
+  V(GenericLessThanOrEqual)             \
+  V(GenericGreaterThan)                 \
+  V(GenericGreaterThanOrEqual)
+
 #define VALUE_NODE_LIST(V) \
-  V(Add)                   \
   V(CallProperty)          \
   V(CallUndefinedReceiver) \
   V(Constant)              \
-  V(GreaterThan)           \
-  V(GreaterThanOrEqual)    \
-  V(Increment)             \
   V(InitialValue)          \
-  V(LessThan)              \
-  V(LessThanOrEqual)       \
   V(LoadField)             \
   V(LoadGlobal)            \
   V(LoadNamedGeneric)      \
   V(Phi)                   \
   V(RegisterInput)         \
   V(RootConstant)          \
-  V(SmiConstant)
+  V(SmiConstant)           \
+  GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define NODE_LIST(V) \
   V(Checkpoint)      \
@@ -684,11 +704,16 @@ class FixedInputValueNodeT : public ValueNodeT<Derived> {
   }
 };
 
-template <class Derived>
+template <class Derived, Operation kOperation>
 class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   using Base = FixedInputValueNodeT<1, Derived>;
 
  public:
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  static constexpr int kOperandIndex = 0;
+  Input& operand_input() { return Node::input(kOperandIndex); }
   compiler::FeedbackSource feedback() const { return feedback_; }
 
  protected:
@@ -696,16 +721,18 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
                                  const compiler::FeedbackSource& feedback)
       : Base(input_count), feedback_(feedback) {}
 
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
   const compiler::FeedbackSource feedback_;
 };
 
-template <class Derived>
+template <class Derived, Operation kOperation>
 class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
 
  public:
-  compiler::FeedbackSource feedback() const { return feedback_; }
-
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::Call();
 
@@ -713,21 +740,41 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   static constexpr int kRightIndex = 1;
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
  protected:
   BinaryWithFeedbackNode(size_t input_count,
                          const compiler::FeedbackSource& feedback)
       : Base(input_count), feedback_(feedback) {}
 
-  // Only to be called when Derived is a RelationalComparisonNode.
-  void AllocateRelationalComparisonVreg(MaglevVregAllocationState*,
-                                        const ProcessingState&);
-  void GenerateRelationalComparisonCode(MaglevCodeGenState*,
-                                        const ProcessingState&);
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
- protected:
   const compiler::FeedbackSource feedback_;
 };
+
+#define DEF_OPERATION_NODE(Name, Super, OpName)                            \
+  class Name : public Super<Name, Operation::k##OpName> {                  \
+    using Base = Super<Name, Operation::k##OpName>;                        \
+                                                                           \
+   public:                                                                 \
+    Name(size_t input_count, const compiler::FeedbackSource& feedback)     \
+        : Base(input_count, feedback) {}                                   \
+    void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&); \
+    void GenerateCode(MaglevCodeGenState*, const ProcessingState&);        \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+  };
+
+#define DEF_UNARY_WITH_FEEDBACK_NODE(Name) \
+  DEF_OPERATION_NODE(Generic##Name, UnaryWithFeedbackNode, Name)
+#define DEF_BINARY_WITH_FEEDBACK_NODE(Name) \
+  DEF_OPERATION_NODE(Generic##Name, BinaryWithFeedbackNode, Name)
+UNARY_OPERATION_LIST(DEF_UNARY_WITH_FEEDBACK_NODE)
+ARITHMETIC_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
+COMPARISON_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
+#undef DEF_UNARY_WITH_FEEDBACK_NODE
+#undef DEF_BINARY_WITH_FEEDBACK_NODE
 
 class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
   using Base = FixedInputValueNodeT<0, InitialValue>;
@@ -968,24 +1015,6 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   const compiler::NameRef name_;
 };
 
-class Increment : public UnaryWithFeedbackNode<Increment> {
-  using Base = UnaryWithFeedbackNode<Increment>;
-
- public:
-  Increment(size_t input_count, const compiler::FeedbackSource& feedback)
-      : Base(input_count, feedback) {}
-
-  // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
-
-  static constexpr int kOperandIndex = 0;
-  Input& operand_input() { return input(kOperandIndex); }
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
 class StoreToFrame : public FixedInputNodeT<0, StoreToFrame> {
   using Base = FixedInputNodeT<0, StoreToFrame>;
 
@@ -1024,67 +1053,6 @@ class GapMove : public FixedInputNodeT<0, GapMove> {
  private:
   compiler::AllocatedOperand source_;
   compiler::AllocatedOperand target_;
-};
-
-class Add : public BinaryWithFeedbackNode<Add> {
-  using Base = BinaryWithFeedbackNode<Add>;
-
- public:
-  explicit Add(size_t input_count, const compiler::FeedbackSource& feedback)
-      : Base(input_count, feedback) {}
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class LessThan : public BinaryWithFeedbackNode<LessThan> {
-  using Base = BinaryWithFeedbackNode<LessThan>;
-
- public:
-  LessThan(size_t input_count, const compiler::FeedbackSource& feedback)
-      : Base(input_count, feedback) {}
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class LessThanOrEqual : public BinaryWithFeedbackNode<LessThanOrEqual> {
-  using Base = BinaryWithFeedbackNode<LessThanOrEqual>;
-
- public:
-  LessThanOrEqual(size_t input_count, const compiler::FeedbackSource& feedback)
-      : Base(input_count, feedback) {}
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class GreaterThan : public BinaryWithFeedbackNode<GreaterThan> {
-  using Base = BinaryWithFeedbackNode<GreaterThan>;
-
- public:
-  GreaterThan(size_t input_count, const compiler::FeedbackSource& feedback)
-      : Base(input_count, feedback) {}
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class GreaterThanOrEqual : public BinaryWithFeedbackNode<GreaterThanOrEqual> {
-  using Base = BinaryWithFeedbackNode<GreaterThanOrEqual>;
-
- public:
-  GreaterThanOrEqual(size_t input_count,
-                     const compiler::FeedbackSource& feedback)
-      : Base(input_count, feedback) {}
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 // TODO(verwaest): It may make more sense to buffer phis in merged_states until

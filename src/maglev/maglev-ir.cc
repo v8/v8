@@ -63,7 +63,10 @@ void DefineAsFixed(MaglevVregAllocationState* vreg_state, Node* node,
                                 vreg_state->AllocateVirtualRegister());
 }
 
-void DefineSameAsFirst(MaglevVregAllocationState* vreg_state, Node* node) {
+// TODO(victorgomes): Use this for smi binary operation and remove attribute
+// [[maybe_unused]].
+[[maybe_unused]] void DefineSameAsFirst(MaglevVregAllocationState* vreg_state,
+                                        Node* node) {
   node->result().SetUnallocated(vreg_state->AllocateVirtualRegister(), 0);
 }
 
@@ -646,24 +649,6 @@ void LoadNamedGeneric::PrintParams(std::ostream& os,
   os << "(" << name_ << ")";
 }
 
-void Increment::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                             const ProcessingState& state) {
-  using D = UnaryOp_WithFeedbackDescriptor;
-  UseFixed(operand_input(), D::GetRegisterParameter(D::kValue));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
-}
-void Increment::GenerateCode(MaglevCodeGenState* code_gen_state,
-                             const ProcessingState& state) {
-  using D = UnaryOp_WithFeedbackDescriptor;
-  DCHECK_EQ(ToRegister(operand_input()), D::GetRegisterParameter(D::kValue));
-  __ Move(kContextRegister, code_gen_state->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
-
-  // TODO(leszeks): Implement full handling.
-  __ CallBuiltin(Builtin::kIncrement_WithFeedback);
-}
-
 void StoreToFrame::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                 const ProcessingState& state) {}
 void StoreToFrame::GenerateCode(MaglevCodeGenState* code_gen_state,
@@ -702,19 +687,41 @@ void GapMove::PrintParams(std::ostream& os,
   os << "(" << source() << " → " << target() << ")";
 }
 
-void Add::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                       const ProcessingState& state) {
-  UseRegister(left_input());
-  UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
-}
-void Add::GenerateCode(MaglevCodeGenState* code_gen_state,
-                       const ProcessingState& state) {
-  UNREACHABLE();
+namespace {
+
+constexpr Builtin BuiltinFor(Operation operation) {
+  switch (operation) {
+#define CASE(name)         \
+  case Operation::k##name: \
+    return Builtin::k##name##_WithFeedback;
+    OPERATION_LIST(CASE)
+#undef CASE
+  }
 }
 
-template <class Derived>
-void BinaryWithFeedbackNode<Derived>::AllocateRelationalComparisonVreg(
+}  // namespace
+
+template <class Derived, Operation kOperation>
+void UnaryWithFeedbackNode<Derived, kOperation>::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  using D = UnaryOp_WithFeedbackDescriptor;
+  UseFixed(operand_input(), D::GetRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+
+template <class Derived, Operation kOperation>
+void UnaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
+    MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
+  using D = UnaryOp_WithFeedbackDescriptor;
+  DCHECK_EQ(ToRegister(operand_input()), D::GetRegisterParameter(D::kValue));
+  __ Move(kContextRegister, code_gen_state->native_context().object());
+  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+  __ CallBuiltin(BuiltinFor(kOperation));
+}
+
+template <class Derived, Operation kOperation>
+void BinaryWithFeedbackNode<Derived, kOperation>::AllocateVreg(
     MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
   using D = BinaryOp_WithFeedbackDescriptor;
   UseFixed(left_input(), D::GetRegisterParameter(D::kLeft));
@@ -722,8 +729,8 @@ void BinaryWithFeedbackNode<Derived>::AllocateRelationalComparisonVreg(
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
 
-template <class Derived>
-void BinaryWithFeedbackNode<Derived>::GenerateRelationalComparisonCode(
+template <class Derived, Operation kOperation>
+void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
     MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
   using D = BinaryOp_WithFeedbackDescriptor;
   DCHECK_EQ(ToRegister(left_input()), D::GetRegisterParameter(D::kLeft));
@@ -731,62 +738,20 @@ void BinaryWithFeedbackNode<Derived>::GenerateRelationalComparisonCode(
   __ Move(kContextRegister, code_gen_state->native_context().object());
   __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+  __ CallBuiltin(BuiltinFor(kOperation));
+}
 
-  // TODO(jgruber): Implement full handling.
-
-  switch (this->opcode()) {
-    case Opcode::kLessThan:
-      __ CallBuiltin(Builtin::kLessThan_WithFeedback);
-      break;
-    case Opcode::kLessThanOrEqual:
-      __ CallBuiltin(Builtin::kLessThanOrEqual_WithFeedback);
-      break;
-    case Opcode::kGreaterThan:
-      __ CallBuiltin(Builtin::kGreaterThan_WithFeedback);
-      break;
-    case Opcode::kGreaterThanOrEqual:
-      __ CallBuiltin(Builtin::kGreaterThanOrEqual_WithFeedback);
-      break;
-    default:
-      UNREACHABLE();
+#define DEF_OPERATION(Name)                                      \
+  void Name::AllocateVreg(MaglevVregAllocationState* vreg_state, \
+                          const ProcessingState& state) {        \
+    Base::AllocateVreg(vreg_state, state);                       \
+  }                                                              \
+  void Name::GenerateCode(MaglevCodeGenState* code_gen_state,    \
+                          const ProcessingState& state) {        \
+    Base::GenerateCode(code_gen_state, state);                   \
   }
-}
-
-void LessThan::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                            const ProcessingState& state) {
-  Base::AllocateRelationalComparisonVreg(vreg_state, state);
-}
-void LessThan::GenerateCode(MaglevCodeGenState* code_gen_state,
-                            const ProcessingState& state) {
-  Base::GenerateRelationalComparisonCode(code_gen_state, state);
-}
-
-void LessThanOrEqual::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                                   const ProcessingState& state) {
-  Base::AllocateRelationalComparisonVreg(vreg_state, state);
-}
-void LessThanOrEqual::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                   const ProcessingState& state) {
-  Base::GenerateRelationalComparisonCode(code_gen_state, state);
-}
-
-void GreaterThan::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                               const ProcessingState& state) {
-  Base::AllocateRelationalComparisonVreg(vreg_state, state);
-}
-void GreaterThan::GenerateCode(MaglevCodeGenState* code_gen_state,
-                               const ProcessingState& state) {
-  Base::GenerateRelationalComparisonCode(code_gen_state, state);
-}
-
-void GreaterThanOrEqual::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                                      const ProcessingState& state) {
-  Base::AllocateRelationalComparisonVreg(vreg_state, state);
-}
-void GreaterThanOrEqual::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                      const ProcessingState& state) {
-  Base::GenerateRelationalComparisonCode(code_gen_state, state);
-}
+GENERIC_OPERATIONS_NODE_LIST(DEF_OPERATION)
+#undef DEF_OPERATION
 
 void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state,
                        const ProcessingState& state) {

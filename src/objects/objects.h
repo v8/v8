@@ -19,6 +19,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
 #include "src/common/message-template.h"
+#include "src/common/operation.h"
 #include "src/common/ptr-compr.h"
 #include "src/flags/flags.h"
 #include "src/objects/elements-kind.h"

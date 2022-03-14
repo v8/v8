@@ -29,6 +29,51 @@ namespace maglev {
 #define MAGLEV_UNIMPLEMENTED_BYTECODE(Name) \
   void MaglevGraphBuilder::Visit##Name() { MAGLEV_UNIMPLEMENTED(Name); }
 
+template <Operation kOperation, typename... Args>
+ValueNode* MaglevGraphBuilder::AddNewOperationNode(
+    std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  switch (kOperation) {
+#define CASE(Name)         \
+  case Operation::k##Name: \
+    return AddNewNode<Generic##Name>(inputs, std::forward<Args>(args)...);
+    OPERATION_LIST(CASE)
+#undef CASE
+  }
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
+  FeedbackSlot slot_index = GetSlotOperand(0);
+  ValueNode* value = GetAccumulator();
+  ValueNode* node = AddNewOperationNode<kOperation>(
+      {value}, compiler::FeedbackSource{feedback(), slot_index});
+  SetAccumulator(node);
+  MarkPossibleSideEffect();
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
+  ValueNode* left = LoadRegister(0);
+  FeedbackSlot slot_index = GetSlotOperand(1);
+  ValueNode* right = GetAccumulator();
+  ValueNode* node = AddNewOperationNode<kOperation>(
+      {left, right}, compiler::FeedbackSource{feedback(), slot_index});
+  SetAccumulator(node);
+  MarkPossibleSideEffect();
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::VisitUnaryOperation() {
+  // TODO(victorgomes): Use feedback info and create optimized versions.
+  BuildGenericUnaryOperationNode<kOperation>();
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::VisitBinaryOperation() {
+  // TODO(victorgomes): Use feedback info and create optimized versions.
+  BuildGenericBinaryOperationNode<kOperation>();
+}
+
 void MaglevGraphBuilder::VisitLdar() { SetAccumulator(LoadRegister(0)); }
 
 void MaglevGraphBuilder::VisitLdaZero() {
@@ -176,18 +221,42 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnProperty)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaInArrayLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnPropertyInLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CollectTypeProfile)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Add)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Sub)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Mul)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Div)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Mod)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Exp)
-MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseOr)
-MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseXor)
-MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseAnd)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftLeft)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRight)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRightLogical)
+
+void MaglevGraphBuilder::VisitAdd() { VisitBinaryOperation<Operation::kAdd>(); }
+void MaglevGraphBuilder::VisitSub() {
+  VisitBinaryOperation<Operation::kSubtract>();
+}
+void MaglevGraphBuilder::VisitMul() {
+  VisitBinaryOperation<Operation::kMultiply>();
+}
+void MaglevGraphBuilder::VisitDiv() {
+  VisitBinaryOperation<Operation::kDivide>();
+}
+void MaglevGraphBuilder::VisitMod() {
+  VisitBinaryOperation<Operation::kModulus>();
+}
+void MaglevGraphBuilder::VisitExp() {
+  VisitBinaryOperation<Operation::kExponentiate>();
+}
+void MaglevGraphBuilder::VisitBitwiseOr() {
+  VisitBinaryOperation<Operation::kBitwiseOr>();
+}
+void MaglevGraphBuilder::VisitBitwiseXor() {
+  VisitBinaryOperation<Operation::kBitwiseXor>();
+}
+void MaglevGraphBuilder::VisitBitwiseAnd() {
+  VisitBinaryOperation<Operation::kBitwiseAnd>();
+}
+void MaglevGraphBuilder::VisitShiftLeft() {
+  VisitBinaryOperation<Operation::kShiftLeft>();
+}
+void MaglevGraphBuilder::VisitShiftRight() {
+  VisitBinaryOperation<Operation::kShiftRight>();
+}
+void MaglevGraphBuilder::VisitShiftRightLogical() {
+  VisitBinaryOperation<Operation::kShiftRightLogical>();
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(AddSmi)
 MAGLEV_UNIMPLEMENTED_BYTECODE(SubSmi)
 MAGLEV_UNIMPLEMENTED_BYTECODE(MulSmi)
@@ -200,20 +269,20 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseAndSmi)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftLeftSmi)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRightSmi)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRightLogicalSmi)
+
 void MaglevGraphBuilder::VisitInc() {
-  // Inc <slot>
-
-  FeedbackSlot slot_index = GetSlotOperand(0);
-  ValueNode* value = GetAccumulator();
-
-  ValueNode* node = AddNewNode<Increment>(
-      {value}, compiler::FeedbackSource{feedback(), slot_index});
-  SetAccumulator(node);
-  MarkPossibleSideEffect();
+  VisitUnaryOperation<Operation::kIncrement>();
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(Dec)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Negate)
-MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseNot)
+void MaglevGraphBuilder::VisitDec() {
+  VisitUnaryOperation<Operation::kDecrement>();
+}
+void MaglevGraphBuilder::VisitNegate() {
+  VisitUnaryOperation<Operation::kNegate>();
+}
+void MaglevGraphBuilder::VisitBitwiseNot() {
+  VisitUnaryOperation<Operation::kBitwiseNot>();
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToBooleanLogicalNot)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LogicalNot)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TypeOf)
@@ -283,29 +352,17 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(ConstructWithSpread)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestEqual)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestEqualStrict)
 
-template <typename RelNodeT>
-void MaglevGraphBuilder::VisitRelNode() {
-  // Test[RelationComparison] <src> <slot>
-
-  ValueNode* left = LoadRegister(0);
-  FeedbackSlot slot_index = GetSlotOperand(1);
-  ValueNode* right = GetAccumulator();
-
-  USE(slot_index);  // TODO(v8:7700): Use the feedback info.
-
-  ValueNode* node = AddNewNode<RelNodeT>(
-      {left, right}, compiler::FeedbackSource{feedback(), slot_index});
-  SetAccumulator(node);
-  MarkPossibleSideEffect();
+void MaglevGraphBuilder::VisitTestLessThan() {
+  VisitBinaryOperation<Operation::kLessThan>();
 }
-
-void MaglevGraphBuilder::VisitTestLessThan() { VisitRelNode<LessThan>(); }
 void MaglevGraphBuilder::VisitTestLessThanOrEqual() {
-  VisitRelNode<LessThanOrEqual>();
+  VisitBinaryOperation<Operation::kLessThanOrEqual>();
 }
-void MaglevGraphBuilder::VisitTestGreaterThan() { VisitRelNode<GreaterThan>(); }
+void MaglevGraphBuilder::VisitTestGreaterThan() {
+  VisitBinaryOperation<Operation::kGreaterThan>();
+}
 void MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
-  VisitRelNode<GreaterThanOrEqual>();
+  VisitBinaryOperation<Operation::kGreaterThanOrEqual>();
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestInstanceOf)

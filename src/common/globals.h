@@ -1515,34 +1515,6 @@ class CompareOperationFeedback {
   };
 };
 
-enum class Operation {
-  // Binary operations.
-  kAdd,
-  kSubtract,
-  kMultiply,
-  kDivide,
-  kModulus,
-  kExponentiate,
-  kBitwiseAnd,
-  kBitwiseOr,
-  kBitwiseXor,
-  kShiftLeft,
-  kShiftRight,
-  kShiftRightLogical,
-  // Unary operations.
-  kBitwiseNot,
-  kNegate,
-  kIncrement,
-  kDecrement,
-  // Compare operations.
-  kEqual,
-  kStrictEqual,
-  kLessThan,
-  kLessThanOrEqual,
-  kGreaterThan,
-  kGreaterThanOrEqual,
-};
-
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
