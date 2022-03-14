@@ -1972,7 +1972,11 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
     case Token::LPAREN: {
       Consume(Token::LPAREN);
+
       if (Check(Token::RPAREN)) {
+        // clear last next_arrow_function_info tracked strict parameters error.
+        next_arrow_function_info_.ClearStrictParameterError();
+
         // ()=>x.  The continuation that consumes the => is in
         // ParseAssignmentExpressionCoverGrammar.
         if (peek() != Token::ARROW) ReportUnexpectedToken(Token::RPAREN);
