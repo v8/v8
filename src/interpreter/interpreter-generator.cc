@@ -1007,13 +1007,12 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
-    TVARIABLE(Smi, feedback);
-
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
-        bitwise_op, left, right, [=] { return context; }, &feedback, false);
+        bitwise_op, left, right, [=] { return context; }, slot_index,
+        [=] { return maybe_feedback_vector; },
+        UpdateFeedbackMode::kOptionalFeedback, false);
 
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
   }
@@ -1025,13 +1024,12 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
-    TVARIABLE(Smi, feedback);
-
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
-        bitwise_op, left, right, [=] { return context; }, &feedback, true);
+        bitwise_op, left, right, [=] { return context; }, slot_index,
+        [=] { return maybe_feedback_vector; },
+        UpdateFeedbackMode::kOptionalFeedback, true);
 
-    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
   }
@@ -3092,8 +3090,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   compiler::CodeAssemblerState state(
       isolate, &zone, InterpreterDispatchDescriptor{},
-      CodeKind::BYTECODE_HANDLER, debug_name,
-      builtin);
+      CodeKind::BYTECODE_HANDLER, debug_name, builtin);
 
   switch (bytecode) {
 #define CALL_GENERATOR(Name, ...)                     \
