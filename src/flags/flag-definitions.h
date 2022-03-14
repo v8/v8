@@ -316,7 +316,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
 
-// Features that are complete (but still behind --harmony/es-staging flag).
+// Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V) \
   V(harmony_array_grouping, "harmony array grouping")
 

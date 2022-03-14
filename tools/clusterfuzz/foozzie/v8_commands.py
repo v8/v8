@@ -16,16 +16,16 @@ PYTHON3 = sys.version_info >= (3, 0)
 
 # List of default flags passed to each d8 run.
 DEFAULT_FLAGS = [
-  '--correctness-fuzzer-suppressions',
-  '--expose-gc',
-  '--fuzzing',
-  '--allow-natives-for-differential-fuzzing',
-  '--invoke-weak-callbacks',
-  '--omit-quit',
-  '--es-staging',
-  '--wasm-staging',
-  '--no-wasm-async-compilation',
-  '--suppress-asm-messages',
+    '--correctness-fuzzer-suppressions',
+    '--expose-gc',
+    '--fuzzing',
+    '--allow-natives-for-differential-fuzzing',
+    '--invoke-weak-callbacks',
+    '--omit-quit',
+    '--harmony',
+    '--wasm-staging',
+    '--no-wasm-async-compilation',
+    '--suppress-asm-messages',
 ]
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
