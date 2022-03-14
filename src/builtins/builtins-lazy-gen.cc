@@ -67,6 +67,12 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
   TailCallRuntimeIfMarkerEquals(marker,
                                 OptimizationMarker::kCompileTurbofan_Concurrent,
                                 Runtime::kCompileTurbofan_Concurrent, function);
+  TailCallRuntimeIfMarkerEquals(
+      marker, OptimizationMarker::kCompileMaglev_NotConcurrent,
+      Runtime::kCompileMaglev_NotConcurrent, function);
+  TailCallRuntimeIfMarkerEquals(marker,
+                                OptimizationMarker::kCompileMaglev_Concurrent,
+                                Runtime::kCompileMaglev_Concurrent, function);
 
   Unreachable();
   BIND(&may_have_optimized_code);
