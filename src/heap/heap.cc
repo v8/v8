@@ -1910,6 +1910,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
     // interrupted full cycle.
     if (IsYoungGenerationCollector(collector)) {
       tracer()->StopCycle(collector);
+    } else {
+      tracer()->StopCycleIfNeeded();
     }
   }
 
@@ -2019,8 +2021,11 @@ void Heap::CompleteSweepingFull() {
   array_buffer_sweeper()->EnsureFinished();
   mark_compact_collector()->EnsureSweepingCompleted(
       MarkCompactCollector::SweepingForcedFinalizationMode::kUnifiedHeap);
+
   DCHECK(!mark_compact_collector()->sweeping_in_progress());
-  tracer()->StopCycleIfSweeping();
+  DCHECK_IMPLIES(cpp_heap(),
+                 !CppHeap::From(cpp_heap())->sweeper().IsSweepingInProgress());
+  DCHECK(!tracer()->IsSweepingInProgress());
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
@@ -2220,6 +2225,15 @@ size_t Heap::PerformGarbageCollection(
     const char* collector_reason, const v8::GCCallbackFlags gc_callback_flags) {
   DisallowJavascriptExecution no_js(isolate());
 
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    // We don't really perform a GC here but need this scope for the nested
+    // SafepointScope inside Verify().
+    AllowGarbageCollection allow_gc;
+    Verify();
+  }
+#endif  // VERIFY_HEAP
+
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung(collector);
     tracer()->StartCycle(collector, gc_reason, collector_reason,
@@ -2253,15 +2267,6 @@ size_t Heap::PerformGarbageCollection(
   }
 
   collection_barrier_->StopTimeToCollectionTimer();
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    // We don't really perform a GC here but need this scope for the nested
-    // SafepointScope inside Verify().
-    AllowGarbageCollection allow_gc;
-    Verify();
-  }
-#endif
 
   tracer()->StartInSafepoint();
 
@@ -2338,7 +2343,7 @@ size_t Heap::PerformGarbageCollection(
     AllowGarbageCollection allow_gc;
     Verify();
   }
-#endif
+#endif  // VERIFY_HEAP
 
   RecomputeLimits(collector);
 
@@ -2398,6 +2403,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   tracer()->StopAtomicPause();
   tracer()->StopObservablePause();
   tracer()->UpdateStatistics(collector);
+  tracer()->StopCycleIfNeeded();
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {

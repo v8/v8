@@ -101,10 +101,11 @@ void StopTracing(GCTracer* tracer, GarbageCollector collector) {
   tracer->StopAtomicPause();
   tracer->StopObservablePause();
   tracer->UpdateStatistics(collector);
-  if (Heap::IsYoungGenerationCollector(collector))
+  if (Heap::IsYoungGenerationCollector(collector)) {
     tracer->StopCycle(collector);
-  else
-    tracer->StopCycleIfSweeping();
+  } else {
+    tracer->NotifySweepingCompleted();
+  }
 }
 
 }  // namespace

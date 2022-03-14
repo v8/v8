@@ -296,7 +296,7 @@ void ScavengerCollector::CollectGarbage() {
     Sweeper* sweeper = heap_->mark_compact_collector()->sweeper();
 
     // Pause the concurrent sweeper.
-    Sweeper::PauseOrCompleteScope pause_scope(sweeper);
+    Sweeper::PauseScope pause_scope(sweeper);
     // Filter out pages from the sweeper that need to be processed for old to
     // new slots by the Scavenger. After processing, the Scavenger adds back
     // pages that are still unsweeped. This way the Scavenger has exclusive

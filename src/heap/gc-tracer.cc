@@ -273,6 +273,8 @@ void GCTracer::ResetForTesting() {
   current_.end_time = MonotonicallyIncreasingTimeInMs();
   previous_ = current_;
   start_of_observable_pause_ = 0.0;
+  notified_sweeping_completed_ = false;
+  notified_cppgc_completed_ = false;
   young_gc_while_full_gc_ = false;
   ResetIncrementalMarkingCounters();
   allocation_time_ms_ = 0.0;
@@ -548,12 +550,29 @@ void GCTracer::StopCycle(GarbageCollector collector) {
   }
 }
 
-void GCTracer::StopCycleIfSweeping() {
+void GCTracer::StopCycleIfNeeded() {
   if (current_.state != Event::State::SWEEPING) return;
+  if (!notified_sweeping_completed_) return;
+  if (heap_->cpp_heap() && !notified_cppgc_completed_) return;
   StopCycle(GarbageCollector::MARK_COMPACTOR);
+  notified_sweeping_completed_ = false;
+  notified_cppgc_completed_ = false;
 }
 
 void GCTracer::NotifySweepingCompleted() {
+#ifdef VERIFY_HEAP
+  // If heap verification is enabled, sweeping finalization can also be
+  // triggered from inside a full GC cycle's atomic pause.
+  DCHECK((current_.type == Event::MARK_COMPACTOR ||
+          current_.type == Event::INCREMENTAL_MARK_COMPACTOR) &&
+         (current_.state == Event::State::SWEEPING ||
+          (FLAG_verify_heap && current_.state == Event::State::ATOMIC)));
+#else
+  DCHECK(IsSweepingInProgress());
+#endif
+
+  // Stop a full GC cycle only when both v8 and cppgc (if available) GCs have
+  // finished sweeping. This method is invoked by v8.
   if (FLAG_trace_gc_freelists) {
     PrintIsolate(heap_->isolate(),
                  "FreeLists statistics after sweeping completed:\n");
@@ -565,6 +584,21 @@ void GCTracer::NotifySweepingCompleted() {
     heap_->code_space()->PrintAllocationsOrigins();
     heap_->map_space()->PrintAllocationsOrigins();
   }
+  DCHECK(!notified_sweeping_completed_);
+  notified_sweeping_completed_ = true;
+  StopCycleIfNeeded();
+}
+
+void GCTracer::NotifyCppGCCompleted() {
+  // Stop a full GC cycle only when both v8 and cppgc (if available) GCs have
+  // finished sweeping. This method is invoked by cppgc.
+  DCHECK(heap_->cpp_heap());
+  DCHECK(CppHeap::From(heap_->cpp_heap())
+             ->GetMetricRecorder()
+             ->MetricsReportPending());
+  DCHECK(!notified_cppgc_completed_);
+  notified_cppgc_completed_ = true;
+  StopCycleIfNeeded();
 }
 
 void GCTracer::SampleAllocation(double current_ms,

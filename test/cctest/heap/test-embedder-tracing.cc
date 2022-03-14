@@ -278,7 +278,7 @@ TEST(FinalizeTracingWhenMarking) {
     heap->mark_compact_collector()->EnsureSweepingCompleted(
         MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
-  heap->tracer()->StopCycleIfSweeping();
+  heap->tracer()->StopCycleIfNeeded();
   CHECK(heap->incremental_marking()->IsStopped());
 
   i::IncrementalMarking* marking = heap->incremental_marking();

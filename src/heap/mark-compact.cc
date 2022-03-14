@@ -721,7 +721,13 @@ void MarkCompactCollector::EnsureSweepingCompleted(
     // Ensure that sweeping is also completed for the C++ managed heap, if one
     // exists.
     CppHeap::From(heap()->cpp_heap())->FinishSweepingIfRunning();
+    DCHECK(
+        !CppHeap::From(heap()->cpp_heap())->sweeper().IsSweepingInProgress());
   }
+
+  DCHECK_IMPLIES(mode == SweepingForcedFinalizationMode::kUnifiedHeap ||
+                     !heap()->cpp_heap(),
+                 !heap()->tracer()->IsSweepingInProgress());
 }
 
 void MarkCompactCollector::EnsurePageIsSwept(Page* page) {

@@ -28,37 +28,27 @@ Sweeper::Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state)
       iterability_task_started_(false),
       should_reduce_memory_(false) {}
 
-Sweeper::PauseOrCompleteScope::PauseOrCompleteScope(Sweeper* sweeper)
-    : sweeper_(sweeper) {
+Sweeper::PauseScope::PauseScope(Sweeper* sweeper) : sweeper_(sweeper) {
   if (!sweeper_->sweeping_in_progress()) return;
 
   if (sweeper_->job_handle_ && sweeper_->job_handle_->IsValid())
     sweeper_->job_handle_->Cancel();
-
-  // Complete sweeping if there's nothing more to do.
-  if (sweeper_->IsDoneSweeping()) {
-    sweeper_->heap_->mark_compact_collector()->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
-    DCHECK(!sweeper_->sweeping_in_progress());
-  } else {
-    // Unless sweeping is complete the flag still indicates that the sweeper
-    // is enabled. It just cannot use tasks anymore.
-    DCHECK(sweeper_->sweeping_in_progress());
-  }
 }
 
-Sweeper::PauseOrCompleteScope::~PauseOrCompleteScope() {
+Sweeper::PauseScope::~PauseScope() {
   if (!sweeper_->sweeping_in_progress()) return;
 
   sweeper_->StartSweeperTasks();
 }
 
 Sweeper::FilterSweepingPagesScope::FilterSweepingPagesScope(
-    Sweeper* sweeper, const PauseOrCompleteScope& pause_or_complete_scope)
+    Sweeper* sweeper, const PauseScope& pause_scope)
     : sweeper_(sweeper),
-      pause_or_complete_scope_(pause_or_complete_scope),
       sweeping_in_progress_(sweeper_->sweeping_in_progress()) {
-  USE(pause_or_complete_scope_);
+  // The PauseScope here only serves as a witness that concurrent sweeping has
+  // been paused.
+  USE(pause_scope);
+
   if (!sweeping_in_progress_) return;
 
   int old_space_index = GetSweepSpaceIndex(OLD_SPACE);
