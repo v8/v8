@@ -2479,28 +2479,6 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
 
-// Used instead of CanCover in VisitWordCompareZero: even if CanCover(user,
-// node) returns false, if |node| is a comparison, then it does not require any
-// registers, and can thus be covered by |user|.
-bool CanCoverForCompareZero(InstructionSelector* selector, Node* user,
-                            Node* node) {
-  if (selector->CanCover(user, node)) {
-    return true;
-  }
-  // Checking if |node| is a comparison. If so, it doesn't required any
-  // registers, and, as such, it can always be covered by |user|.
-  switch (node->opcode()) {
-#define CHECK_CMP_OP(op) \
-  case IrOpcode::k##op:  \
-    return true;
-    MACHINE_COMPARE_BINOP_LIST(CHECK_CMP_OP)
-#undef CHECK_CMP_OP
-    default:
-      break;
-  }
-  return false;
-}
-
 }  // namespace
 
 // Shared routine for word comparison against zero.
@@ -2516,7 +2494,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
     cont->Negate();
   }
 
-  if (CanCoverForCompareZero(this, user, value)) {
+  if (CanCover(user, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
@@ -2536,7 +2514,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
       case IrOpcode::kWord64Equal: {
         cont->OverwriteAndNegateIfEqual(kEqual);
         Int64BinopMatcher m(value);
-        if (m.right().Is(0) && CanCover(user, value)) {
+        if (m.right().Is(0)) {
           // Try to combine the branch with a comparison.
           Node* const eq_user = m.node();
           Node* const eq_value = m.left().node();
@@ -2646,6 +2624,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         break;
     }
   }
+
   // Branch could not be combined with a compare, emit compare against 0.
   VisitCompareZero(this, user, value, kX64Cmp32, cont);
 }
