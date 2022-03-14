@@ -48,22 +48,13 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion2,
                                                     Register exclusion3) const {
   int bytes = 0;
-  RegList exclusions = 0;
-  if (exclusion1 != no_reg) {
-    exclusions |= exclusion1.bit();
-    if (exclusion2 != no_reg) {
-      exclusions |= exclusion2.bit();
-      if (exclusion3 != no_reg) {
-        exclusions |= exclusion3.bit();
-      }
-    }
-  }
 
-  RegList list = kJSCallerSaved & ~exclusions;
-  bytes += NumRegs(list) * kSystemPointerSize;
+  RegList exclusions = {exclusion1, exclusion2, exclusion3};
+  RegList list = kJSCallerSaved - exclusions;
+  bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += NumRegs(kCallerSavedFPU) * kDoubleSize;
+    bytes += kCallerSavedFPU.Count() * kDoubleSize;
   }
 
   return bytes;
@@ -72,24 +63,15 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                     Register exclusion2, Register exclusion3) {
   int bytes = 0;
-  RegList exclusions = 0;
-  if (exclusion1 != no_reg) {
-    exclusions |= exclusion1.bit();
-    if (exclusion2 != no_reg) {
-      exclusions |= exclusion2.bit();
-      if (exclusion3 != no_reg) {
-        exclusions |= exclusion3.bit();
-      }
-    }
-  }
 
-  RegList list = kJSCallerSaved & ~exclusions;
+  RegList exclusions = {exclusion1, exclusion2, exclusion3};
+  RegList list = kJSCallerSaved - exclusions;
   MultiPush(list);
-  bytes += NumRegs(list) * kSystemPointerSize;
+  bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
     MultiPushFPU(kCallerSavedFPU);
-    bytes += NumRegs(kCallerSavedFPU) * kDoubleSize;
+    bytes += kCallerSavedFPU.Count() * kDoubleSize;
   }
 
   return bytes;
@@ -100,23 +82,13 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
     MultiPopFPU(kCallerSavedFPU);
-    bytes += NumRegs(kCallerSavedFPU) * kDoubleSize;
+    bytes += kCallerSavedFPU.Count() * kDoubleSize;
   }
 
-  RegList exclusions = 0;
-  if (exclusion1 != no_reg) {
-    exclusions |= exclusion1.bit();
-    if (exclusion2 != no_reg) {
-      exclusions |= exclusion2.bit();
-      if (exclusion3 != no_reg) {
-        exclusions |= exclusion3.bit();
-      }
-    }
-  }
-
-  RegList list = kJSCallerSaved & ~exclusions;
+  RegList exclusions = {exclusion1, exclusion2, exclusion3};
+  RegList list = kJSCallerSaved - exclusions;
   MultiPop(list);
-  bytes += NumRegs(list) * kSystemPointerSize;
+  bytes += list.Count() * kSystemPointerSize;
 
   return bytes;
 }
@@ -205,25 +177,13 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {
-  if (registers == 0) return;
-  RegList regs = 0;
-  for (int i = 0; i < Register::kNumRegisters; ++i) {
-    if ((registers >> i) & 1u) {
-      regs |= Register::from_code(i).bit();
-    }
-  }
-  MultiPush(regs);
+  if (registers.is_empty()) return;
+  MultiPush(registers);
 }
 
 void TurboAssembler::MaybeRestoreRegisters(RegList registers) {
-  if (registers == 0) return;
-  RegList regs = 0;
-  for (int i = 0; i < Register::kNumRegisters; ++i) {
-    if ((registers >> i) & 1u) {
-      regs |= Register::from_code(i).bit();
-    }
-  }
-  MultiPop(regs);
+  if (registers.is_empty()) return;
+  MultiPop(registers);
 }
 
 void TurboAssembler::CallEphemeronKeyBarrier(Register object,
@@ -1693,20 +1653,19 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
   }
 }
 
-static RegList t_regs = Register::ListOf(t0, t1, t2, t3, t4, t5, t6);
-static RegList a_regs = Register::ListOf(a0, a1, a2, a3, a4, a5, a6, a7);
-static RegList s_regs =
-    Register::ListOf(s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11);
+static RegList t_regs = {t0, t1, t2, t3, t4, t5, t6};
+static RegList a_regs = {a0, a1, a2, a3, a4, a5, a6, a7};
+static RegList s_regs = {s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11};
 
 void TurboAssembler::MultiPush(RegList regs) {
   int16_t num_to_push = base::bits::CountPopulation(regs);
   int16_t stack_offset = num_to_push * kSystemPointerSize;
 
 #define TEST_AND_PUSH_REG(reg)             \
-  if ((regs & reg.bit()) != 0) {           \
+  if (regs.has(reg)) {                     \
     stack_offset -= kSystemPointerSize;    \
     Sd(reg, MemOperand(sp, stack_offset)); \
-    regs &= ~reg.bit();                    \
+    regs.clear(reg);                       \
   }
 
 #define T_REGS(V) V(t6) V(t5) V(t4) V(t3) V(t2) V(t1) V(t0)
@@ -1746,10 +1705,10 @@ void TurboAssembler::MultiPop(RegList regs) {
   int16_t stack_offset = 0;
 
 #define TEST_AND_POP_REG(reg)              \
-  if ((regs & reg.bit()) != 0) {           \
+  if (regs.has(reg)) {                     \
     Ld(reg, MemOperand(sp, stack_offset)); \
     stack_offset += kSystemPointerSize;    \
-    regs &= ~reg.bit();                    \
+    regs.clear(reg);                       \
   }
 
 #define T_REGS(V) V(t0) V(t1) V(t2) V(t3) V(t4) V(t5) V(t6)
@@ -4993,19 +4952,13 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
                                    Register reg6) {
-  RegList regs = 0;
-  if (reg1.is_valid()) regs |= reg1.bit();
-  if (reg2.is_valid()) regs |= reg2.bit();
-  if (reg3.is_valid()) regs |= reg3.bit();
-  if (reg4.is_valid()) regs |= reg4.bit();
-  if (reg5.is_valid()) regs |= reg5.bit();
-  if (reg6.is_valid()) regs |= reg6.bit();
+  RegList regs = {reg1, reg2, reg3, reg4, reg5, reg6};
 
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
     int code = config->GetAllocatableGeneralCode(i);
     Register candidate = Register::from_code(code);
-    if (regs & candidate.bit()) continue;
+    if (regs.has(candidate)) continue;
     return candidate;
   }
   UNREACHABLE();

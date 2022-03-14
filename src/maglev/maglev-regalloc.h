@@ -60,17 +60,17 @@ class StraightForwardRegisterAllocator {
     DCHECK_EQ(free_registers_ & list, kEmptyRegList);
     free_registers_ |= list;
   }
-  void FreeRegister(Register reg) { reg.InsertInto(&free_registers_); }
+  void FreeRegister(Register reg) { free_registers_.set(reg); }
 
   ValueNode* GetUsedRegister(Register reg) const {
-    DCHECK(!reg.IsIn(free_registers_));
+    DCHECK(!free_registers_.has(reg));
     ValueNode* node = register_values_[reg.code()];
     DCHECK_NOT_NULL(node);
     return node;
   }
 
   ValueNode* GetMaybeUsedRegister(Register reg) const {
-    if (!reg.IsIn(free_registers_)) return nullptr;
+    if (!free_registers_.has(reg)) return nullptr;
     return GetUsedRegister(reg);
   }
 

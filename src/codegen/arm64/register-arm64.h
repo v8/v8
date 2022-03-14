@@ -7,8 +7,6 @@
 
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/codegen/register-base.h"
-#include "src/codegen/register-configuration.h"
-#include "src/codegen/reglist.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -79,8 +77,6 @@ namespace internal {
   R(d17) R(d18) R(d19) R(d20) R(d21) R(d22) R(d23) R(d24) \
   R(d25) R(d26) R(d27) R(d28)
 // clang-format on
-
-constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 
 // Some CPURegister methods can return Register and VRegister types, so we
 // need to declare them in advance.
@@ -242,19 +238,6 @@ class Register : public CPURegister {
   static constexpr Register from_code(int code) {
     // Always return an X register.
     return Register::Create(code, kXRegSizeInBits);
-  }
-
-  // Copied from RegisterBase since there's no CPURegister::from_code.
-  static constexpr Register FirstOf(RegList list) {
-    DCHECK_NE(kEmptyRegList, list);
-    return from_code(base::bits::CountTrailingZerosNonZero(list));
-  }
-
-  static constexpr Register TakeFirst(RegList* list) {
-    RegList value = *list;
-    Register result = FirstOf(value);
-    result.RemoveFrom(list);
-    return result;
   }
 
   static const char* GetSpecialRegisterName(int code) {
@@ -562,150 +545,6 @@ V8_EXPORT_PRIVATE bool AreConsecutive(const VRegister& reg1,
 using FloatRegister = VRegister;
 using DoubleRegister = VRegister;
 using Simd128Register = VRegister;
-
-// -----------------------------------------------------------------------------
-// Lists of registers.
-class V8_EXPORT_PRIVATE CPURegList {
- public:
-  template <typename... CPURegisters>
-  explicit CPURegList(CPURegister reg0, CPURegisters... regs)
-      : list_(CPURegister::ListOf(reg0, regs...)),
-        size_(reg0.SizeInBits()),
-        type_(reg0.type()) {
-    DCHECK(AreSameSizeAndType(reg0, regs...));
-    DCHECK(is_valid());
-  }
-
-  CPURegList(CPURegister::RegisterType type, int size, RegList list)
-      : list_(list), size_(size), type_(type) {
-    DCHECK(is_valid());
-  }
-
-  CPURegList(CPURegister::RegisterType type, int size, int first_reg,
-             int last_reg)
-      : size_(size), type_(type) {
-    DCHECK(
-        ((type == CPURegister::kRegister) && (last_reg < kNumberOfRegisters)) ||
-        ((type == CPURegister::kVRegister) &&
-         (last_reg < kNumberOfVRegisters)));
-    DCHECK(last_reg >= first_reg);
-    list_ = (1ULL << (last_reg + 1)) - 1;
-    list_ &= ~((1ULL << first_reg) - 1);
-    DCHECK(is_valid());
-  }
-
-  CPURegister::RegisterType type() const {
-    return type_;
-  }
-
-  RegList list() const {
-    return list_;
-  }
-
-  inline void set_list(RegList new_list) {
-    list_ = new_list;
-    DCHECK(is_valid());
-  }
-
-  // Combine another CPURegList into this one. Registers that already exist in
-  // this list are left unchanged. The type and size of the registers in the
-  // 'other' list must match those in this list.
-  void Combine(const CPURegList& other);
-
-  // Remove every register in the other CPURegList from this one. Registers that
-  // do not exist in this list are ignored. The type of the registers in the
-  // 'other' list must match those in this list.
-  void Remove(const CPURegList& other);
-
-  // Variants of Combine and Remove which take CPURegisters.
-  void Combine(const CPURegister& other);
-  void Remove(const CPURegister& other1, const CPURegister& other2 = NoCPUReg,
-              const CPURegister& other3 = NoCPUReg,
-              const CPURegister& other4 = NoCPUReg);
-
-  // Variants of Combine and Remove which take a single register by its code;
-  // the type and size of the register is inferred from this list.
-  void Combine(int code);
-  void Remove(int code);
-
-  // Align the list to 16 bytes.
-  void Align();
-
-  CPURegister PopLowestIndex();
-  CPURegister PopHighestIndex();
-
-  // AAPCS64 callee-saved registers.
-  static CPURegList GetCalleeSaved(int size = kXRegSizeInBits);
-  static CPURegList GetCalleeSavedV(int size = kDRegSizeInBits);
-
-  // AAPCS64 caller-saved registers. Note that this includes lr.
-  // TODO(all): Determine how we handle d8-d15 being callee-saved, but the top
-  // 64-bits being caller-saved.
-  static CPURegList GetCallerSaved(int size = kXRegSizeInBits);
-  static CPURegList GetCallerSavedV(int size = kDRegSizeInBits);
-
-  bool IsEmpty() const {
-    return list_ == 0;
-  }
-
-  bool IncludesAliasOf(const CPURegister& other1,
-                       const CPURegister& other2 = NoCPUReg,
-                       const CPURegister& other3 = NoCPUReg,
-                       const CPURegister& other4 = NoCPUReg) const {
-    RegList list = 0;
-    if (!other1.IsNone() && (other1.type() == type_)) list |= other1.bit();
-    if (!other2.IsNone() && (other2.type() == type_)) list |= other2.bit();
-    if (!other3.IsNone() && (other3.type() == type_)) list |= other3.bit();
-    if (!other4.IsNone() && (other4.type() == type_)) list |= other4.bit();
-    return (list_ & list) != 0;
-  }
-
-  int Count() const {
-    return CountSetBits(list_, kRegListSizeInBits);
-  }
-
-  int RegisterSizeInBits() const {
-    return size_;
-  }
-
-  int RegisterSizeInBytes() const {
-    int size_in_bits = RegisterSizeInBits();
-    DCHECK_EQ(size_in_bits % kBitsPerByte, 0);
-    return size_in_bits / kBitsPerByte;
-  }
-
-  int TotalSizeInBytes() const {
-    return RegisterSizeInBytes() * Count();
-  }
-
- private:
-  RegList list_;
-  int size_;
-  CPURegister::RegisterType type_;
-
-  bool is_valid() const {
-    constexpr RegList kValidRegisters{0x8000000ffffffff};
-    constexpr RegList kValidVRegisters{0x0000000ffffffff};
-    switch (type_) {
-      case CPURegister::kRegister:
-        return (list_ & kValidRegisters) == list_;
-      case CPURegister::kVRegister:
-        return (list_ & kValidVRegisters) == list_;
-      case CPURegister::kNoRegister:
-        return list_ == 0;
-      default:
-        UNREACHABLE();
-    }
-  }
-};
-
-// AAPCS64 callee-saved registers.
-#define kCalleeSaved CPURegList::GetCalleeSaved()
-#define kCalleeSavedV CPURegList::GetCalleeSavedV()
-
-// AAPCS64 caller-saved registers. Note that this includes lr.
-#define kCallerSaved CPURegList::GetCallerSaved()
-#define kCallerSavedV CPURegList::GetCallerSavedV()
 
 // Define a {RegisterName} method for {Register} and {VRegister}.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)

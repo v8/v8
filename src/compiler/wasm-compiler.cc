@@ -8606,8 +8606,8 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
 
   int return_slots = rets.NumStackSlots();
 
-  const RegList kCalleeSaveRegisters = 0;
-  const RegList kCalleeSaveFPRegisters = 0;
+  const RegList kCalleeSaveRegisters;
+  const DoubleRegList kCalleeSaveFPRegisters;
 
   // The target for wasm calls is always a code object.
   MachineType target_type = MachineType::Pointer();
@@ -8639,7 +8639,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
       "wasm-call",                        // debug name
       StackArgumentOrder::kDefault,       // order of the arguments in the stack
       fsig,                               // signature
-      0,                                  // allocatable registers
+      RegList{},                          // allocatable registers
       return_slots);                      // return slot count
 }
 

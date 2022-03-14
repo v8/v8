@@ -587,7 +587,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     //   a1: microtask_queue
 
     // Save callee saved registers on the stack.
-    __ MultiPush(kCalleeSaved | ra.bit());
+    __ MultiPush(kCalleeSaved | ra);
 
     // Save callee-saved FPU registers.
     __ MultiPushFPU(kCalleeSavedFPU);
@@ -743,7 +743,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ MultiPopFPU(kCalleeSavedFPU);
 
   // Restore callee saved registers from the stack.
-  __ MultiPop(kCalleeSaved | ra.bit());
+  __ MultiPop(kCalleeSaved | ra);
   // Return.
   __ Jump(ra);
 }
@@ -1121,7 +1121,7 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   UseScratchRegisterScope temps(masm);
-  temps.Include(kScratchReg.bit() | kScratchReg2.bit());
+  temps.Include({kScratchReg, kScratchReg2});
   auto descriptor =
       Builtins::CallInterfaceDescriptorFor(Builtin::kBaselineOutOfLinePrologue);
   Register closure = descriptor.GetRegisterParameter(
@@ -1255,7 +1255,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ Pop(kJavaScriptCallNewTargetRegister);
   }
   __ Ret();
-  temps.Exclude(kScratchReg.bit() | kScratchReg2.bit());
+  temps.Exclude({kScratchReg, kScratchReg2});
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -2766,28 +2766,28 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see kGpParamRegisters in wasm-linkage.cc).
     // They might be overwritten in the runtime call below. We don't have any
     // callee-saved registers in wasm, so no need to store anything else.
-    RegList gp_regs = 0;
+    RegList gp_regs;
     for (Register gp_param_reg : wasm::kGpParamRegisters) {
-      gp_regs |= gp_param_reg.bit();
+      gp_regs.set(gp_param_reg);
     }
     // Also push a1, because we must push multiples of 16 bytes (see
     // {TurboAssembler::PushCPURegList}.
-    CHECK_EQ(1, NumRegs(gp_regs) % 2);
-    gp_regs |= a1.bit();
+    CHECK_EQ(1, gp_regs.Count() % 2);
+    gp_regs.set(a1);
     // Ensure that A1 will not be repeated.
-    CHECK_EQ(0, NumRegs(gp_regs) % 2);
+    CHECK_EQ(0, gp_regs.Count() % 2);
 
-    RegList fp_regs = 0;
+    RegList fp_regs;
     for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
-      fp_regs |= fp_param_reg.bit();
+      fp_regs.set(fp_param_reg);
     }
 
-    CHECK_EQ(NumRegs(gp_regs), arraysize(wasm::kGpParamRegisters) + 1);
-    CHECK_EQ(NumRegs(fp_regs), arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters) + 1);
+    CHECK_EQ(fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
     CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
-             NumRegs(gp_regs));
+             gp_regs.Count());
     CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
-             NumRegs(fp_regs));
+             fp_regs.Count());
     __ MultiPush(gp_regs);
     __ MultiPushFPU(fp_regs);
 
@@ -3486,7 +3486,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   const int kNumberOfRegisters = Register::kNumRegisters;
 
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
-  RegList saved_regs = restored_regs | sp.bit() | ra.bit();
+  RegList saved_regs = restored_regs | sp | ra;
 
   const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
 
@@ -3651,7 +3651,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   // Technically restoring 't3' should work unless zero_reg is also restored
   // but it's safer to check for this.
-  DCHECK(!(t3.bit() & restored_regs));
+  DCHECK(!(restored_regs.has(t3)));
   // Restore the registers from the last output frame.
   __ Move(t3, a2);
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {

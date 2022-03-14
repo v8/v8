@@ -24,8 +24,8 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::
     VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data,
                                 int nof_expected_args) {
   RegList allocatable_regs = data->allocatable_registers();
-  if (nof_expected_args >= 1) DCHECK(allocatable_regs | esi.bit());
-  if (nof_expected_args >= 2) DCHECK(allocatable_regs | edi.bit());
+  if (nof_expected_args >= 1) DCHECK(allocatable_regs.has(esi));
+  if (nof_expected_args >= 2) DCHECK(allocatable_regs.has(edi));
   // Additional arguments are passed on the stack.
 }
 #endif  // DEBUG

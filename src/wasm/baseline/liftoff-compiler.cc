@@ -764,7 +764,7 @@ class LiftoffCompiler {
   bool SpillLocalsInitially(FullDecoder* decoder, uint32_t num_params) {
     int actual_locals = __ num_locals() - num_params;
     DCHECK_LE(0, actual_locals);
-    constexpr int kNumCacheRegisters = NumRegs(kLiftoffAssemblerGpCacheRegs);
+    constexpr int kNumCacheRegisters = kLiftoffAssemblerGpCacheRegs.Count();
     // If we have many locals, we put them on the stack initially. This avoids
     // having to spill them on merge points. Use of these initial values should
     // be rare anyway.

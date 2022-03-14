@@ -442,22 +442,14 @@ void TurboAssembler::LoadExternalPointerField(
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {
-  if (registers == 0) return;
-  DCHECK_GT(NumRegs(registers), 0);
-  for (int i = 0; i < Register::kNumRegisters; ++i) {
-    if ((registers >> i) & 1u) {
-      pushq(Register::from_code(i));
-    }
+  for (Register reg : registers) {
+    pushq(reg);
   }
 }
 
 void TurboAssembler::MaybeRestoreRegisters(RegList registers) {
-  if (registers == 0) return;
-  DCHECK_GT(NumRegs(registers), 0);
-  for (int i = Register::kNumRegisters - 1; i >= 0; --i) {
-    if ((registers >> i) & 1u) {
-      popq(Register::from_code(i));
-    }
+  for (Register reg : base::Reversed(registers)) {
+    popq(reg);
   }
 }
 

@@ -441,12 +441,13 @@ class TestEnvironment : public HandleAndZoneScope {
     DCHECK_LE(kGeneralRegisterCount,
               GetRegConfig()->num_allocatable_general_registers() - 2);
 
-    int32_t general_mask = GetRegConfig()->allocatable_general_codes_mask();
+    RegList general_mask =
+        RegList::FromBits(GetRegConfig()->allocatable_general_codes_mask());
     // kReturnRegister0 is used to hold the "teardown" code object, do not
     // generate moves using it.
+    general_mask.clear(kReturnRegister0);
     std::unique_ptr<const RegisterConfiguration> registers(
-        RegisterConfiguration::RestrictGeneralRegisters(
-            general_mask & ~kReturnRegister0.bit()));
+        RegisterConfiguration::RestrictGeneralRegisters(general_mask));
 
     for (int i = 0; i < kGeneralRegisterCount; i++) {
       int code = registers->GetAllocatableGeneralCode(i);
@@ -577,7 +578,7 @@ class TestEnvironment : public HandleAndZoneScope {
         kTotalStackParameterCount,      // stack_parameter_count
         Operator::kNoProperties,        // properties
         kNoCalleeSaved,                 // callee-saved registers
-        kNoCalleeSaved,                 // callee-saved fp
+        kNoCalleeSavedFp,               // callee-saved fp
         CallDescriptor::kNoFlags);      // flags
   }
 

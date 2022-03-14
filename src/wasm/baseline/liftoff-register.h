@@ -110,13 +110,9 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
 // (not sharing index space with gp), so in this example, it is fp register 2.
 
 // Maximum code of a gp cache register.
-static constexpr int kMaxGpRegCode =
-    8 * sizeof(kLiftoffAssemblerGpCacheRegs) -
-    base::bits::CountLeadingZeros(kLiftoffAssemblerGpCacheRegs) - 1;
+static constexpr int kMaxGpRegCode = kLiftoffAssemblerGpCacheRegs.last().code();
 // Maximum code of an fp cache register.
-static constexpr int kMaxFpRegCode =
-    8 * sizeof(kLiftoffAssemblerFpCacheRegs) -
-    base::bits::CountLeadingZeros(kLiftoffAssemblerFpCacheRegs) - 1;
+static constexpr int kMaxFpRegCode = kLiftoffAssemblerFpCacheRegs.last().code();
 static constexpr int kAfterMaxLiftoffGpRegCode = kMaxGpRegCode + 1;
 static constexpr int kAfterMaxLiftoffFpRegCode =
     kAfterMaxLiftoffGpRegCode + kMaxFpRegCode + 1;
@@ -153,12 +149,12 @@ class LiftoffRegister {
  public:
   constexpr explicit LiftoffRegister(Register reg)
       : LiftoffRegister(reg.code()) {
-    DCHECK_NE(0, kLiftoffAssemblerGpCacheRegs & reg.bit());
+    DCHECK(kLiftoffAssemblerGpCacheRegs.has(reg));
     DCHECK_EQ(reg, gp());
   }
   constexpr explicit LiftoffRegister(DoubleRegister reg)
       : LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code()) {
-    DCHECK_NE(0, kLiftoffAssemblerFpCacheRegs & reg.bit());
+    DCHECK(kLiftoffAssemblerFpCacheRegs.has(reg));
     DCHECK_EQ(reg, fp());
   }
 
@@ -340,9 +336,11 @@ class LiftoffRegList {
       use_u16, uint16_t,
       std::conditional<use_u32, uint32_t, uint64_t>::type>::type;
 
-  static constexpr storage_t kGpMask = storage_t{kLiftoffAssemblerGpCacheRegs};
-  static constexpr storage_t kFpMask = storage_t{kLiftoffAssemblerFpCacheRegs}
-                                       << kAfterMaxLiftoffGpRegCode;
+  static constexpr storage_t kGpMask =
+      storage_t{kLiftoffAssemblerGpCacheRegs.bits()};
+  static constexpr storage_t kFpMask =
+      storage_t{kLiftoffAssemblerFpCacheRegs.bits()}
+      << kAfterMaxLiftoffGpRegCode;
   // Sets all even numbered fp registers.
   static constexpr uint64_t kEvenFpSetMask = uint64_t{0x5555555555555555}
                                              << kAfterMaxLiftoffGpRegCode;
@@ -443,8 +441,11 @@ class LiftoffRegList {
     return FromBits(regs_ & ~mask.regs_);
   }
 
-  RegList GetGpList() { return regs_ & kGpMask; }
-  RegList GetFpList() { return (regs_ & kFpMask) >> kAfterMaxLiftoffGpRegCode; }
+  RegList GetGpList() { return RegList::FromBits(regs_ & kGpMask); }
+  DoubleRegList GetFpList() {
+    return DoubleRegList::FromBits((regs_ & kFpMask) >>
+                                   kAfterMaxLiftoffGpRegCode);
+  }
 
   inline Iterator begin() const;
   inline Iterator end() const;

@@ -228,18 +228,18 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
   int number_of_valid_regs = 0;
   int number_of_valid_fpregs = 0;
 
-  RegList unique_regs = 0;
-  RegList unique_fpregs = 0;
+  uint64_t unique_regs = 0;
+  uint64_t unique_fpregs = 0;
 
   const CPURegister regs[] = {reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8};
 
   for (unsigned i = 0; i < arraysize(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
-      unique_regs |= regs[i].bit();
+      unique_regs |= (uint64_t{1} << regs[i].code());
     } else if (regs[i].IsVRegister()) {
       number_of_valid_fpregs++;
-      unique_fpregs |= regs[i].bit();
+      unique_fpregs |= (uint64_t{1} << regs[i].code());
     } else {
       DCHECK(!regs[i].is_valid());
     }

@@ -3359,10 +3359,10 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 
 void CodeGenerator::FinishFrame(Frame* frame) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
-  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
+  const DoubleRegList double_saves = call_descriptor->CalleeSavedFPRegisters();
 
   // Save callee-saved Double registers.
-  if (double_saves != 0) {
+  if (double_ !saves.is_empty()) {
     frame->AlignSavedCalleeRegisterSlots();
     DCHECK_EQ(kNumCalleeSavedDoubles,
               base::bits::CountPopulation(double_saves));
@@ -3371,7 +3371,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   }
   // Save callee-saved registers.
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     // register save area does not include the fp or constant pool pointer.
     const int num_saves = kNumCalleeSaved - 1;
     frame->AllocateSavedCalleeRegisterSlots(num_saves);
@@ -3433,7 +3433,7 @@ void CodeGenerator::AssembleConstructFrame() {
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   const RegList saves = call_descriptor->CalleeSavedRegisters();
 
   if (required_slots > 0) {
@@ -3473,21 +3473,20 @@ void CodeGenerator::AssembleConstructFrame() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Skip callee-saved and return slots, which are pushed below.
-    required_slots -= base::bits::CountPopulation(saves);
+    required_slots -= saves.Count();
     required_slots -= frame()->GetReturnSlotCount();
-    required_slots -= (kDoubleSize / kSystemPointerSize) *
-                      base::bits::CountPopulation(saves_fp);
+    required_slots -= (kDoubleSize / kSystemPointerSize) * saves_fp.Count();
     __ lay(sp, MemOperand(sp, -required_slots * kSystemPointerSize));
   }
 
   // Save callee-saved Double registers.
-  if (saves_fp != 0) {
+  if (!saves_fp.is_empty()) {
     __ MultiPushDoubles(saves_fp);
-    DCHECK_EQ(kNumCalleeSavedDoubles, base::bits::CountPopulation(saves_fp));
+    DCHECK_EQ(kNumCalleeSavedDoubles, saves_fp.Count());
   }
 
   // Save callee-saved registers.
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     __ MultiPush(saves);
     // register save area does not include the fp or constant pool pointer.
   }
@@ -3508,20 +3507,20 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore registers.
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     __ MultiPop(saves);
   }
 
   // Restore double registers.
-  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
-  if (double_saves != 0) {
+  const DoubleRegList double_saves = call_descriptor->CalleeSavedFPRegisters();
+  if (double_ !saves.is_empty()) {
     __ MultiPopDoubles(double_saves);
   }
 
   unwinding_info_writer_.MarkBlockWillExit();
 
   // We might need r3 for scratch.
-  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & r5.bit());
+  DCHECK(!call_descriptor->CalleeSavedRegisters().has(r5));
   S390OperandConverter g(this, nullptr);
   const int parameter_slots =
       static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -3562,7 +3561,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count.
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+      DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
       __ LoadU64(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();

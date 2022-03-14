@@ -3037,27 +3037,27 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    RegList gp_regs = 0;
+    RegList gp_regs;
     for (Register gp_param_reg : wasm::kGpParamRegisters) {
-      gp_regs |= gp_param_reg.bit();
+      gp_regs.set(gp_param_reg);
     }
     // Also push x1, because we must push multiples of 16 bytes (see
     // {TurboAssembler::PushCPURegList}.
-    CHECK_EQ(1, NumRegs(gp_regs) % 2);
-    gp_regs |= x1.bit();
-    CHECK_EQ(0, NumRegs(gp_regs) % 2);
+    CHECK_EQ(1, gp_regs.Count() % 2);
+    gp_regs.set(x1);
+    CHECK_EQ(0, gp_regs.Count() % 2);
 
-    RegList fp_regs = 0;
+    DoubleRegList fp_regs;
     for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
-      fp_regs |= fp_param_reg.bit();
+      fp_regs.set(fp_param_reg);
     }
 
-    CHECK_EQ(NumRegs(gp_regs), arraysize(wasm::kGpParamRegisters) + 1);
-    CHECK_EQ(NumRegs(fp_regs), arraysize(wasm::kFpParamRegisters));
+    CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters) + 1);
+    CHECK_EQ(fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
     CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
-             NumRegs(gp_regs));
+             gp_regs.Count());
     CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
-             NumRegs(fp_regs));
+             fp_regs.Count());
 
     __ PushXRegList(gp_regs);
     __ PushQRegList(fp_regs);
@@ -3868,8 +3868,9 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   // Save all allocatable double registers.
   CPURegList saved_double_registers(
-      CPURegister::kVRegister, kDRegSizeInBits,
-      RegisterConfiguration::Default()->allocatable_double_codes_mask());
+      kDRegSizeInBits,
+      DoubleRegList::FromBits(
+          RegisterConfiguration::Default()->allocatable_double_codes_mask()));
   DCHECK_EQ(saved_double_registers.Count() % 2, 0);
   __ PushCPURegList(saved_double_registers);
 
@@ -4273,7 +4274,9 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(
   RegList registers = descriptor.allocatable_registers();
   // FLAG_debug_code is enabled CSA checks will call C function and so we need
   // to save all CallerSaved registers too.
-  if (FLAG_debug_code) registers |= kCallerSaved.list();
+  if (FLAG_debug_code) {
+    registers |= RegList::FromBits(static_cast<uint32_t>(kCallerSaved.bits()));
+  }
   __ MaybeSaveRegisters(registers);
 
   // Load the immediate arguments from the deopt exit to pass to the builtin.

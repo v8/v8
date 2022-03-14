@@ -428,22 +428,14 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {
-  if (registers == 0) return;
-  ASM_CODE_COMMENT(this);
-  for (int i = 0; i < Register::kNumRegisters; ++i) {
-    if ((registers >> i) & 1u) {
-      push(Register::from_code(i));
-    }
+  for (Register reg : registers) {
+    push(reg);
   }
 }
 
 void TurboAssembler::MaybeRestoreRegisters(RegList registers) {
-  if (registers == 0) return;
-  ASM_CODE_COMMENT(this);
-  for (int i = Register::kNumRegisters - 1; i >= 0; --i) {
-    if ((registers >> i) & 1u) {
-      pop(Register::from_code(i));
-    }
+  for (Register reg : base::Reversed(registers)) {
+    pop(reg);
   }
 }
 

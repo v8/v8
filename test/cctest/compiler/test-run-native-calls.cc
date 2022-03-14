@@ -182,8 +182,8 @@ class RegisterConfig {
       locations.AddParam(params.Next(msig->GetParam(i)));
     }
 
-    const RegList kCalleeSaveRegisters = 0;
-    const RegList kCalleeSaveFPRegisters = 0;
+    const RegList kCalleeSaveRegisters;
+    const DoubleRegList kCalleeSaveFPRegisters;
 
     MachineType target_type = MachineType::AnyTagged();
     LinkageLocation target_loc = LinkageLocation::ForAnyRegister();

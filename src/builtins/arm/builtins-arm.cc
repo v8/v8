@@ -555,7 +555,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //   r1: microtask_queue
   // Preserve all but r0 and pass them to entry_trampoline.
   Label invoke, handler_entry, exit;
-  const RegList kCalleeSavedWithoutFp = kCalleeSaved & ~fp.bit();
+  const RegList kCalleeSavedWithoutFp = kCalleeSaved - fp;
 
   // Update |pushed_stack_space| when we manipulate the stack.
   int pushed_stack_space = EntryFrameConstants::kCallerFPOffset;
@@ -589,7 +589,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                                         masm->isolate()));
   __ ldr(r5, MemOperand(r4));
 
-  __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, {r5, r6, r7, fp, lr});
   pushed_stack_space += 5 * kPointerSize /* r5, r6, r7, fp, lr */;
 
   // Clear c_entry_fp, now we've pushed its previous value to the stack.
@@ -690,7 +690,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
          Operand(-EntryFrameConstants::kCallerFPOffset -
                  kSystemPointerSize /* already popped one */));
 
-  __ ldm(ia_w, sp, fp.bit() | lr.bit());
+  __ ldm(ia_w, sp, {fp, lr});
 
   // Restore callee-saved vfp registers.
   __ vldm(ia_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
@@ -1202,7 +1202,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     temps.Exclude(optimization_state);
 
     // Drop the frame created by the baseline call.
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    __ ldm(ia_w, sp, {fp, lr});
     MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                  feedback_vector);
     __ Trap();
@@ -2628,9 +2628,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    RegList gp_regs = 0;
+    RegList gp_regs;
     for (Register gp_param_reg : wasm::kGpParamRegisters) {
-      gp_regs |= gp_param_reg.bit();
+      gp_regs.set(gp_param_reg);
     }
     DwVfpRegister lowest_fp_reg = std::begin(wasm::kFpParamRegisters)[0];
     DwVfpRegister highest_fp_reg = std::end(wasm::kFpParamRegisters)[-1];
@@ -2639,10 +2639,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
             fp_param_reg.code() <= highest_fp_reg.code());
     }
 
-    CHECK_EQ(NumRegs(gp_regs), arraysize(wasm::kGpParamRegisters));
+    CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
     CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
              arraysize(wasm::kFpParamRegisters));
-    CHECK_EQ(NumRegs(gp_regs),
+    CHECK_EQ(gp_regs.Count(),
              WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs);
     CHECK_EQ(highest_fp_reg.code() - lowest_fp_reg.code() + 1,
              WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs);
@@ -2675,20 +2675,19 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_DEBUG_BREAK);
 
     STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
-    constexpr uint32_t last =
-        31 - base::bits::CountLeadingZeros32(
-                 WasmDebugBreakFrameConstants::kPushedFpRegs);
-    constexpr uint32_t first = base::bits::CountTrailingZeros32(
-        WasmDebugBreakFrameConstants::kPushedFpRegs);
+    constexpr DwVfpRegister last =
+        WasmDebugBreakFrameConstants::kPushedFpRegs.last();
+    constexpr DwVfpRegister first =
+        WasmDebugBreakFrameConstants::kPushedFpRegs.first();
     static_assert(
-        base::bits::CountPopulation(
-            WasmDebugBreakFrameConstants::kPushedFpRegs) == last - first + 1,
+        WasmDebugBreakFrameConstants::kPushedFpRegs.Count() ==
+            last.code() - first.code() + 1,
         "All registers in the range from first to last have to be set");
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    constexpr DwVfpRegister lowest_fp_reg = DwVfpRegister::from_code(first);
-    constexpr DwVfpRegister highest_fp_reg = DwVfpRegister::from_code(last);
+    constexpr DwVfpRegister lowest_fp_reg = first;
+    constexpr DwVfpRegister highest_fp_reg = last;
 
     // Store gp parameter registers.
     __ stm(db_w, sp, WasmDebugBreakFrameConstants::kPushedGpRegs);
@@ -3340,12 +3339,12 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   STATIC_ASSERT(kNumberOfRegisters == 16);
 
   // Everything but pc, lr and ip which will be saved but not restored.
-  RegList restored_regs = kJSCallerSaved | kCalleeSaved | ip.bit();
+  RegList restored_regs = kJSCallerSaved | kCalleeSaved | RegList{ip};
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
   // TODO(v8:1588): Note that using pc with stm is deprecated, so we should
   // perhaps handle this a bit differently.
-  __ stm(db_w, sp, restored_regs | sp.bit() | lr.bit() | pc.bit());
+  __ stm(db_w, sp, restored_regs | RegList{sp, lr, pc});
 
   {
     UseScratchRegisterScope temps(masm);

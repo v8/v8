@@ -76,7 +76,7 @@ class MergePointRegisterState {
       Register reg;
     };
     explicit Iterator(RegisterState* value_pointer,
-                      RegListIterator::Iterator reg_iterator)
+                      RegList::Iterator reg_iterator)
         : current_value_(value_pointer), reg_iterator_(reg_iterator) {}
     Entry operator*() { return {*current_value_, *reg_iterator_}; }
     void operator++() {
@@ -89,18 +89,17 @@ class MergePointRegisterState {
 
    private:
     RegisterState* current_value_;
-    RegListIterator::Iterator reg_iterator_;
+    RegList::Iterator reg_iterator_;
   };
 
   bool is_initialized() const { return values_[0].GetPayload().is_initialized; }
 
   Iterator begin() {
-    return Iterator(values_,
-                    RegListIterator::Iterator(kAllocatableGeneralRegisters));
+    return Iterator(values_, kAllocatableGeneralRegisters.begin());
   }
   Iterator end() {
     return Iterator(values_ + kAllocatableGeneralRegisterCount,
-                    RegListIterator::Iterator(kEmptyRegList));
+                    kAllocatableGeneralRegisters.end());
   }
 
  private:

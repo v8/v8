@@ -7,8 +7,6 @@
 
 #include "src/codegen/mips/constants-mips.h"
 #include "src/codegen/register-base.h"
-#include "src/codegen/register-configuration.h"
-#include "src/codegen/reglist.h"
 
 namespace v8 {
 namespace internal {
@@ -48,65 +46,9 @@ namespace internal {
 // encoding.
 const int kNumRegs = 32;
 
-const RegList kJSCallerSaved = 1 << 2 |   // v0
-                               1 << 3 |   // v1
-                               1 << 4 |   // a0
-                               1 << 5 |   // a1
-                               1 << 6 |   // a2
-                               1 << 7 |   // a3
-                               1 << 8 |   // t0
-                               1 << 9 |   // t1
-                               1 << 10 |  // t2
-                               1 << 11 |  // t3
-                               1 << 12 |  // t4
-                               1 << 13 |  // t5
-                               1 << 14 |  // t6
-                               1 << 15;   // t7
-
-const int kNumJSCallerSaved = 14;
-
-// Callee-saved registers preserved when switching from C to JavaScript.
-const RegList kCalleeSaved = 1 << 16 |  // s0
-                             1 << 17 |  // s1
-                             1 << 18 |  // s2
-                             1 << 19 |  // s3
-                             1 << 20 |  // s4
-                             1 << 21 |  // s5
-                             1 << 22 |  // s6 (roots in Javascript code)
-                             1 << 23 |  // s7 (cp in Javascript code)
-                             1 << 30;   // fp/s8
-
-const int kNumCalleeSaved = 9;
-
-const RegList kCalleeSavedFPU = 1 << 20 |  // f20
-                                1 << 22 |  // f22
-                                1 << 24 |  // f24
-                                1 << 26 |  // f26
-                                1 << 28 |  // f28
-                                1 << 30;   // f30
-
-const int kNumCalleeSavedFPU = 6;
-
-const RegList kCallerSavedFPU = 1 << 0 |   // f0
-                                1 << 2 |   // f2
-                                1 << 4 |   // f4
-                                1 << 6 |   // f6
-                                1 << 8 |   // f8
-                                1 << 10 |  // f10
-                                1 << 12 |  // f12
-                                1 << 14 |  // f14
-                                1 << 16 |  // f16
-                                1 << 18;   // f18
-
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
 const int kNumSafepointRegisters = 24;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 const int kUndefIndex = -1;
 // Map with indexes on stack that corresponds to codes of saved registers.

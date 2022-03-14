@@ -6,8 +6,6 @@
 #define V8_CODEGEN_IA32_REGISTER_IA32_H_
 
 #include "src/codegen/register-base.h"
-#include "src/codegen/register-configuration.h"
-#include "src/codegen/reglist.h"
 
 namespace v8 {
 namespace internal {
@@ -112,14 +110,6 @@ constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // Note that the bit values must match those used in actual instruction encoding
 constexpr int kNumRegs = 8;
-
-// Caller-saved registers
-constexpr RegList kJSCallerSaved =
-    Register::ListOf(eax, ecx, edx,
-                     ebx,   // used as caller-saved register in JavaScript code
-                     edi);  // callee function
-
-constexpr int kNumJSCallerSaved = 5;
 
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)

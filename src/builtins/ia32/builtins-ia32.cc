@@ -2923,19 +2923,19 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    for (int reg_code : base::bits::IterateBitsBackwards(
-             WasmDebugBreakFrameConstants::kPushedGpRegs)) {
-      __ Push(Register::from_code(reg_code));
+    for (Register reg :
+         base::Reversed(WasmDebugBreakFrameConstants::kPushedGpRegs)) {
+      __ Push(reg);
     }
 
     constexpr int kFpStackSize =
         kSimd128Size * WasmDebugBreakFrameConstants::kNumPushedFpRegisters;
     __ AllocateStackSpace(kFpStackSize);
     int offset = kFpStackSize;
-    for (int reg_code : base::bits::IterateBitsBackwards(
-             WasmDebugBreakFrameConstants::kPushedFpRegs)) {
+    for (DoubleRegister reg :
+         base::Reversed(WasmDebugBreakFrameConstants::kPushedFpRegs)) {
       offset -= kSimd128Size;
-      __ movdqu(Operand(esp, offset), DoubleRegister::from_code(reg_code));
+      __ movdqu(Operand(esp, offset), reg);
     }
 
     // Initialize the JavaScript context with 0. CEntry will use it to
@@ -2944,15 +2944,13 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmDebugBreak, 0);
 
     // Restore registers.
-    for (int reg_code :
-         base::bits::IterateBits(WasmDebugBreakFrameConstants::kPushedFpRegs)) {
-      __ movdqu(DoubleRegister::from_code(reg_code), Operand(esp, offset));
+    for (DoubleRegister reg : WasmDebugBreakFrameConstants::kPushedFpRegs) {
+      __ movdqu(reg, Operand(esp, offset));
       offset += kSimd128Size;
     }
     __ add(esp, Immediate(kFpStackSize));
-    for (int reg_code :
-         base::bits::IterateBits(WasmDebugBreakFrameConstants::kPushedGpRegs)) {
-      __ Pop(Register::from_code(reg_code));
+    for (Register reg : WasmDebugBreakFrameConstants::kPushedGpRegs) {
+      __ Pop(reg);
     }
   }
 

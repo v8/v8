@@ -503,7 +503,7 @@ class PipelineData {
     if (call_descriptor && call_descriptor->RequiresFrameAsIncoming()) {
       sequence_->instruction_blocks()[0]->mark_needs_frame();
     } else {
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedFPRegisters());
+      DCHECK(call_descriptor->CalleeSavedFPRegisters().is_empty());
     }
   }
 
@@ -3474,7 +3474,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
 
   if (call_descriptor->HasRestrictedAllocatableRegisters()) {
     RegList registers = call_descriptor->AllocatableRegisters();
-    DCHECK_LT(0, NumRegs(registers));
+    DCHECK_LT(0, registers.Count());
     restricted_config.reset(
         RegisterConfiguration::RestrictGeneralRegisters(registers));
     config = restricted_config.get();

@@ -1719,6 +1719,17 @@ inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
   return os << ToString(mode);
 }
 
+// An architecture independent representation of the sets of registers available
+// for instruction creation.
+enum class AliasingKind {
+  // Registers alias a single register of every other size (e.g. Intel).
+  kOverlap,
+  // Registers alias two registers of the next smaller size (e.g. ARM).
+  kCombine,
+  // SIMD128 Registers are independent of every other size (e.g Riscv)
+  kIndependent
+};
+
 #define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                            \
   C(Handler, handler)                                               \
   C(CEntryFP, c_entry_fp)                                           \

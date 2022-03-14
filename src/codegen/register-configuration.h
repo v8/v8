@@ -14,17 +14,6 @@
 namespace v8 {
 namespace internal {
 
-// An architecture independent representation of the sets of registers available
-// for instruction creation.
-enum class AliasingKind {
-  // Registers alias a single register of every other size (e.g. Intel).
-  kOverlap,
-  // Registers alias two registers of the next smaller size (e.g. ARM).
-  kCombine,
-  // SIMD128 Registers are independent of every other size (e.g Riscv)
-  kIndependent
-};
-
 class V8_EXPORT_PRIVATE RegisterConfiguration {
  public:
   // Architecture independent maxes.

@@ -190,13 +190,13 @@ const RegisterConfiguration* RegisterConfiguration::Default() {
 
 const RegisterConfiguration* RegisterConfiguration::RestrictGeneralRegisters(
     RegList registers) {
-  int num = NumRegs(registers);
+  int num = registers.Count();
   std::unique_ptr<int[]> codes{new int[num]};
   std::unique_ptr<char const* []> names { new char const*[num] };
   int counter = 0;
   for (int i = 0; i < Default()->num_allocatable_general_registers(); ++i) {
     auto reg = Register::from_code(Default()->GetAllocatableGeneralCode(i));
-    if (reg.bit() & registers) {
+    if (registers.has(reg)) {
       DCHECK(counter < num);
       codes[counter] = reg.code();
       names[counter] = RegisterName(Register::from_code(i));

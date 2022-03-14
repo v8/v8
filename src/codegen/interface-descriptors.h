@@ -213,11 +213,11 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   StackArgumentOrder stack_order() const { return stack_order_; }
 
   void RestrictAllocatableRegisters(const Register* registers, size_t num) {
-    DCHECK_EQ(allocatable_registers_, 0);
+    DCHECK(allocatable_registers_.is_empty());
     for (size_t i = 0; i < num; ++i) {
-      allocatable_registers_ |= registers[i].bit();
+      allocatable_registers_.set(registers[i]);
     }
-    DCHECK_GT(NumRegs(allocatable_registers_), 0);
+    DCHECK(!allocatable_registers_.is_empty());
   }
 
   RegList allocatable_registers() const { return allocatable_registers_; }
@@ -249,7 +249,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
 
   // Specifying the set of registers that could be used by the register
   // allocator. Currently, it's only used by RecordWrite code stub.
-  RegList allocatable_registers_ = 0;
+  RegList allocatable_registers_;
 
   // |registers_params_| defines registers that are used for parameter passing.
   // |machine_types_| defines machine types for resulting values and incomping

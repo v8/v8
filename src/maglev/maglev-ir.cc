@@ -507,7 +507,7 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
   Register object = ToRegister(actual_map_input());
   RegList temps = temporaries();
-  Register map_tmp = Register::TakeFirst(&temps);
+  Register map_tmp = temps.PopFirst();
 
   __ LoadMap(map_tmp, object);
   __ Cmp(map_tmp, map().object());

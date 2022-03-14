@@ -370,7 +370,7 @@ class NodeBase : public ZoneObject {
 
   RegList temporaries() const {
     DCHECK_EQ(kTemporariesState, kHasTemporaries);
-    return num_temporaries_needed_;
+    return temporaries_;
   }
 
   void assign_temporaries(RegList list) {
@@ -567,8 +567,8 @@ class ValueNode : public Node {
   // A node is dead once it has no more upcoming uses.
   bool is_dead() const { return next_use_ == kInvalidNodeId; }
 
-  void AddRegister(Register reg) { reg.InsertInto(&registers_with_result_); }
-  void RemoveRegister(Register reg) { reg.RemoveFrom(&registers_with_result_); }
+  void AddRegister(Register reg) { registers_with_result_.set(reg); }
+  void RemoveRegister(Register reg) { registers_with_result_.clear(reg); }
   RegList ClearRegisters() {
     return std::exchange(registers_with_result_, kEmptyRegList);
   }
@@ -576,9 +576,9 @@ class ValueNode : public Node {
 
   compiler::AllocatedOperand allocation() const {
     if (has_register()) {
-      return compiler::AllocatedOperand(
-          compiler::LocationOperand::REGISTER, MachineRepresentation::kTagged,
-          Register::FirstOf(registers_with_result_).code());
+      return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
+                                        MachineRepresentation::kTagged,
+                                        registers_with_result_.first().code());
     }
     DCHECK(is_spilled());
     return compiler::AllocatedOperand::cast(spill_or_hint_);

@@ -6,8 +6,6 @@
 #define V8_CODEGEN_ARM_REGISTER_ARM_H_
 
 #include "src/codegen/register-base.h"
-#include "src/codegen/register-configuration.h"
-#include "src/codegen/reglist.h"
 
 namespace v8 {
 namespace internal {
@@ -61,40 +59,6 @@ namespace internal {
 // as the static base or thread register on some platforms, in which case we
 // leave it alone. Adjust the value of kR9Available accordingly:
 const int kR9Available = 1;  // 1 if available to us, 0 if reserved
-
-// Register list in load/store instructions
-// Note that the bit values must match those used in actual instruction encoding
-
-// Caller-saved/arguments registers
-const RegList kJSCallerSaved = 1 << 0 |  // r0 a1
-                               1 << 1 |  // r1 a2
-                               1 << 2 |  // r2 a3
-                               1 << 3;   // r3 a4
-
-const int kNumJSCallerSaved = 4;
-
-// Callee-saved registers preserved when switching from C to JavaScript
-const RegList kCalleeSaved = 1 << 4 |  //  r4 v1
-                             1 << 5 |  //  r5 v2
-                             1 << 6 |  //  r6 v3
-                             1 << 7 |  //  r7 v4 (cp in JavaScript code)
-                             1 << 8 |  //  r8 v5 (pp in JavaScript code)
-                             kR9Available << 9 |  //  r9 v6
-                             1 << 10 |            // r10 v7
-                             1 << 11;  // r11 v8 (fp in JavaScript code)
-
-// When calling into C++ (only for C++ calls that can't cause a GC).
-// The call code will take care of lr, fp, etc.
-const RegList kCallerSaved = 1 << 0 |  // r0
-                             1 << 1 |  // r1
-                             1 << 2 |  // r2
-                             1 << 3 |  // r3
-                             1 << 9;   // r9
-
-const int kNumCalleeSaved = 7 + kR9Available;
-
-// Double registers d8 to d15 are callee-saved.
-const int kNumDoubleCalleeSaved = 8;
 
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
@@ -357,6 +321,7 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = r4;
 
 // Give alias names to registers
 constexpr Register cp = r7;              // JavaScript context pointer.
+constexpr Register r11 = fp;
 constexpr Register kRootRegister = r10;  // Roots array pointer.
 
 constexpr DoubleRegister kFPReturnRegister0 = d0;

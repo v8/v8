@@ -290,8 +290,7 @@ const Instr kLwSwOffsetMask = kImm16Mask;
 
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
-    : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(at.bit()) {
+    : AssemblerBase(options, std::move(buffer)), scratch_register_list_({at}) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
   last_trampoline_pool_end_ = 0;

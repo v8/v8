@@ -3452,8 +3452,13 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     // to q14 and q15, which will be unused since they are not allocatable in
     // Liftoff. If the operands are the same, then we build a smaller list
     // operand below.
-    static_assert(!(kLiftoffAssemblerFpCacheRegs &
-                    (d28.bit() | d29.bit() | d30.bit() | d31.bit())),
+    static_assert(!kLiftoffAssemblerFpCacheRegs.has(d28),
+                  "This only works if q14-q15 (d28-d31) are not used.");
+    static_assert(!kLiftoffAssemblerFpCacheRegs.has(d29),
+                  "This only works if q14-q15 (d28-d31) are not used.");
+    static_assert(!kLiftoffAssemblerFpCacheRegs.has(d30),
+                  "This only works if q14-q15 (d28-d31) are not used.");
+    static_assert(!kLiftoffAssemblerFpCacheRegs.has(d31),
                   "This only works if q14-q15 (d28-d31) are not used.");
     vmov(q14, src1);
     src1 = q14;
@@ -4065,7 +4070,7 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   RegList core_regs = regs.GetGpList();
-  if (core_regs != 0) {
+  if (!core_regs.is_empty()) {
     stm(db_w, sp, core_regs);
   }
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
@@ -4104,7 +4109,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     vldm(ia_w, sp, first, last);
   }
   RegList core_regs = regs.GetGpList();
-  if (core_regs != 0) {
+  if (!core_regs.is_empty()) {
     ldm(ia_w, sp, core_regs);
   }
 }

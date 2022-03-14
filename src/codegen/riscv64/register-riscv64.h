@@ -6,8 +6,6 @@
 #define V8_CODEGEN_RISCV64_REGISTER_RISCV64_H_
 
 #include "src/codegen/register-base.h"
-#include "src/codegen/register-configuration.h"
-#include "src/codegen/reglist.h"
 #include "src/codegen/riscv64/constants-riscv64.h"
 
 namespace v8 {
@@ -123,7 +121,7 @@ const RegList kCalleeSavedFPU = 1 << 8 |   // fs0
                                 1 << 26 |  // fs10
                                 1 << 27;   // fs11
 
-const int kNumCalleeSavedFPU = NumRegs(kCalleeSavedFPU);
+const int kNumCalleeSavedFPU = kCalleeSavedFPU.Count();
 
 const RegList kCallerSavedFPU = 1 << 0 |   // ft0
                                 1 << 1 |   // ft1
@@ -146,7 +144,7 @@ const RegList kCallerSavedFPU = 1 << 0 |   // ft0
                                 1 << 30 |  // ft10
                                 1 << 31;   // ft11
 
-const int kNumCallerSavedFPU = NumRegs(kCallerSavedFPU);
+const int kNumCallerSavedFPU = kCallerSavedFPU.Count();
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.

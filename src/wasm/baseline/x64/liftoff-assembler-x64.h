@@ -53,14 +53,15 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 constexpr Register kScratchRegister2 = r11;
 static_assert(kScratchRegister != kScratchRegister2, "collision");
 static_assert((kLiftoffAssemblerGpCacheRegs &
-               Register::ListOf(kScratchRegister, kScratchRegister2)) == 0,
+               RegList{kScratchRegister, kScratchRegister2})
+                  .is_empty(),
               "scratch registers must not be used as cache registers");
 
 constexpr DoubleRegister kScratchDoubleReg2 = xmm14;
 static_assert(kScratchDoubleReg != kScratchDoubleReg2, "collision");
 static_assert((kLiftoffAssemblerFpCacheRegs &
-               DoubleRegister::ListOf(kScratchDoubleReg, kScratchDoubleReg2)) ==
-                  0,
+               DoubleRegList{kScratchDoubleReg, kScratchDoubleReg2})
+                  .is_empty(),
               "scratch registers must not be used as cache registers");
 
 // rbp-8 holds the stack marker, rbp-16 is the instance parameter.

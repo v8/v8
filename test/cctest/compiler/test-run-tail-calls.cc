@@ -104,7 +104,7 @@ CallDescriptor* CreateDescriptorForStackArguments(Zone* zone, int param_slots) {
       param_slots,                    // stack parameter slots
       Operator::kNoProperties,        // properties
       kNoCalleeSaved,                 // callee-saved registers
-      kNoCalleeSaved,                 // callee-saved fp
+      kNoCalleeSavedFp,               // callee-saved fp
       CallDescriptor::kNoFlags);      // flags
 }
 

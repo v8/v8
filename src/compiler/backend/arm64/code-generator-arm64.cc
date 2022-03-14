@@ -3005,17 +3005,17 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   // Save FP registers.
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   call_descriptor->CalleeSavedFPRegisters());
+  CPURegList saves_fp =
+      CPURegList(kDRegSizeInBits, call_descriptor->CalleeSavedFPRegisters());
   int saved_count = saves_fp.Count();
   if (saved_count != 0) {
-    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+    DCHECK(saves_fp.bits() == CPURegList::GetCalleeSavedV().bits());
     frame->AllocateSavedCalleeRegisterSlots(saved_count *
                                             (kDoubleSize / kSystemPointerSize));
   }
 
-  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                call_descriptor->CalleeSavedRegisters());
+  CPURegList saves =
+      CPURegList(kXRegSizeInBits, call_descriptor->CalleeSavedRegisters());
   saved_count = saves.Count();
   if (saved_count != 0) {
     frame->AllocateSavedCalleeRegisterSlots(saved_count);
@@ -3032,11 +3032,11 @@ void CodeGenerator::AssembleConstructFrame() {
   int required_slots =
       frame()->GetTotalFrameSlotCount() - frame()->GetFixedSlotCount();
 
-  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                call_descriptor->CalleeSavedRegisters());
+  CPURegList saves =
+      CPURegList(kXRegSizeInBits, call_descriptor->CalleeSavedRegisters());
   DCHECK_EQ(saves.Count() % 2, 0);
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   call_descriptor->CalleeSavedFPRegisters());
+  CPURegList saves_fp =
+      CPURegList(kDRegSizeInBits, call_descriptor->CalleeSavedFPRegisters());
   DCHECK_EQ(saves_fp.Count() % 2, 0);
   // The number of return slots should be even after aligning the Frame.
   const int returns = frame()->GetReturnSlotCount();
@@ -3191,7 +3191,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Save FP registers.
   DCHECK_IMPLIES(saves_fp.Count() != 0,
-                 saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+                 saves_fp.bits() == CPURegList::GetCalleeSavedV().bits());
   __ PushCPURegList(saves_fp);
 
   // Save registers.
@@ -3211,13 +3211,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   }
 
   // Restore registers.
-  CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                call_descriptor->CalleeSavedRegisters());
+  CPURegList saves =
+      CPURegList(kXRegSizeInBits, call_descriptor->CalleeSavedRegisters());
   __ PopCPURegList<TurboAssembler::kAuthLR>(saves);
 
   // Restore fp registers.
-  CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   call_descriptor->CalleeSavedFPRegisters());
+  CPURegList saves_fp =
+      CPURegList(kDRegSizeInBits, call_descriptor->CalleeSavedFPRegisters());
   __ PopCPURegList(saves_fp);
 
   unwinding_info_writer_.MarkBlockWillExit();
@@ -3261,7 +3261,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count.
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+      DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
       __ Ldr(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();
@@ -3271,7 +3271,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
     Label argc_reg_has_final_count;
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     if (parameter_slots > 1) {
       __ Cmp(argc_reg, Operand(parameter_slots));
       __ B(&argc_reg_has_final_count, ge);

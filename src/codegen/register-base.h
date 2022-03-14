@@ -7,7 +7,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/bounds.h"
-#include "src/codegen/reglist.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -39,44 +38,11 @@ class RegisterBase {
     return SubType{code};
   }
 
-  template <typename... Register>
-  static constexpr RegList ListOf(Register... regs) {
-    return CombineRegLists(regs.bit()...);
-  }
-
   constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
   constexpr int8_t code() const {
     DCHECK(is_valid());
     return reg_code_;
-  }
-
-  constexpr RegList bit() const {
-    return is_valid() ? RegList{1} << code() : RegList{};
-  }
-
-  static constexpr SubType FirstOf(RegList list) {
-    DCHECK_NE(kEmptyRegList, list);
-    return SubType::from_code(base::bits::CountTrailingZerosNonZero(list));
-  }
-
-  static constexpr SubType TakeFirst(RegList* list) {
-    RegList value = *list;
-    SubType result = FirstOf(value);
-    result.RemoveFrom(list);
-    return result;
-  }
-
-  constexpr bool IsIn(RegList list) const { return list & bit(); }
-
-  constexpr void InsertInto(RegList* list) const {
-    DCHECK(!IsIn(*list));
-    *list |= bit();
-  }
-
-  constexpr void RemoveFrom(RegList* list) const {
-    DCHECK(IsIn(*list));
-    *list ^= bit();
   }
 
   inline constexpr bool operator==(SubType other) const {

@@ -25,14 +25,14 @@ template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
     VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data, int argc) {
   RegList allocatable_regs = data->allocatable_registers();
-  if (argc >= 1) DCHECK(allocatable_regs | a0.bit());
-  if (argc >= 2) DCHECK(allocatable_regs | a1.bit());
-  if (argc >= 3) DCHECK(allocatable_regs | a2.bit());
-  if (argc >= 4) DCHECK(allocatable_regs | a3.bit());
-  if (argc >= 5) DCHECK(allocatable_regs | a4.bit());
-  if (argc >= 6) DCHECK(allocatable_regs | a5.bit());
-  if (argc >= 7) DCHECK(allocatable_regs | a6.bit());
-  if (argc >= 8) DCHECK(allocatable_regs | a7.bit());
+  if (argc >= 1) DCHECK(allocatable_regs.has(a0));
+  if (argc >= 2) DCHECK(allocatable_regs.has(a1));
+  if (argc >= 3) DCHECK(allocatable_regs.has(a2));
+  if (argc >= 4) DCHECK(allocatable_regs.has(a3));
+  if (argc >= 5) DCHECK(allocatable_regs.has(a4));
+  if (argc >= 6) DCHECK(allocatable_regs.has(a5));
+  if (argc >= 7) DCHECK(allocatable_regs.has(a6));
+  if (argc >= 8) DCHECK(allocatable_regs.has(a7));
   // Additional arguments are passed on the stack.
 }
 #endif  // DEBUG

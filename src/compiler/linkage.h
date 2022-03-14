@@ -36,7 +36,8 @@ class OptimizedCompilationInfo;
 
 namespace compiler {
 
-const RegList kNoCalleeSaved = 0;
+constexpr RegList kNoCalleeSaved;
+constexpr DoubleRegList kNoCalleeSavedFp;
 
 class OsrHelper;
 
@@ -253,13 +254,13 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  LocationSignature* location_sig, size_t param_slot_count,
                  Operator::Properties properties,
                  RegList callee_saved_registers,
-                 RegList callee_saved_fp_registers, Flags flags,
+                 DoubleRegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "",
                  StackArgumentOrder stack_order = StackArgumentOrder::kDefault,
 #if V8_ENABLE_WEBASSEMBLY
                  const wasm::FunctionSig* wasm_sig = nullptr,
 #endif
-                 const RegList allocatable_registers = 0,
+                 const RegList allocatable_registers = {},
                  size_t return_slot_count = 0)
       : kind_(kind),
         target_type_(target_type),
@@ -414,7 +415,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   RegList CalleeSavedRegisters() const { return callee_saved_registers_; }
 
   // Get the callee-saved FP registers, if any, across this call.
-  RegList CalleeSavedFPRegisters() const { return callee_saved_fp_registers_; }
+  DoubleRegList CalleeSavedFPRegisters() const {
+    return callee_saved_fp_registers_;
+  }
 
   const char* debug_name() const { return debug_name_; }
 
@@ -443,7 +446,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   RegList AllocatableRegisters() const { return allocatable_registers_; }
 
   bool HasRestrictedAllocatableRegisters() const {
-    return allocatable_registers_ != 0;
+    return !allocatable_registers_.is_empty();
   }
 
   EncodedCSignature ToEncodedCSignature() const;
@@ -461,7 +464,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const size_t return_slot_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
-  const RegList callee_saved_fp_registers_;
+  const DoubleRegList callee_saved_fp_registers_;
   // Non-zero value means restricting the set of allocatable registers for
   // register allocator to use.
   const RegList allocatable_registers_;

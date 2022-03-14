@@ -1076,8 +1076,9 @@ void AdjustStackPointerForTailCall(Instruction* instr,
     // value before frame construction.
     // See also: AssembleConstructFrame.
     DCHECK(!info->is_osr());
-    DCHECK_EQ(linkage->GetIncomingDescriptor()->CalleeSavedRegisters(), 0);
-    DCHECK_EQ(linkage->GetIncomingDescriptor()->CalleeSavedFPRegisters(), 0);
+    DCHECK(linkage->GetIncomingDescriptor()->CalleeSavedRegisters().is_empty());
+    DCHECK(
+        linkage->GetIncomingDescriptor()->CalleeSavedFPRegisters().is_empty());
     DCHECK_EQ(state->frame()->GetReturnSlotCount(), 0);
     stack_slot_delta = (state->frame()->GetTotalFrameSlotCount() -
                         kReturnAddressStackSlotCount) *
@@ -4580,22 +4581,16 @@ static const int kQuadWordSize = 16;
 void CodeGenerator::FinishFrame(Frame* frame) {
   CallDescriptor* call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {  // Save callee-saved XMM registers.
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fp.is_empty()) {  // Save callee-saved XMM registers.
     frame->AlignSavedCalleeRegisterSlots();
-    const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
+    const uint32_t saves_fp_count = saves_fp.Count();
     frame->AllocateSavedCalleeRegisterSlots(
         saves_fp_count * (kQuadWordSize / kSystemPointerSize));
   }
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {  // Save callee-saved registers.
-    int count = 0;
-    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-      if (((1 << i) & saves)) {
-        ++count;
-      }
-    }
-    frame->AllocateSavedCalleeRegisterSlots(count);
+  if (!saves.is_empty()) {  // Save callee-saved registers.
+    frame->AllocateSavedCalleeRegisterSlots(saves.Count());
   }
 }
 
@@ -4654,7 +4649,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
 
   if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
@@ -4692,34 +4687,30 @@ void CodeGenerator::AssembleConstructFrame() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Skip callee-saved and return slots, which are created below.
-    required_slots -= base::bits::CountPopulation(saves);
-    required_slots -= base::bits::CountPopulation(saves_fp) *
-                      (kQuadWordSize / kSystemPointerSize);
+    required_slots -= saves.Count();
+    required_slots -= saves_fp.Count() * (kQuadWordSize / kSystemPointerSize);
     required_slots -= frame()->GetReturnSlotCount();
     if (required_slots > 0) {
       __ AllocateStackSpace(required_slots * kSystemPointerSize);
     }
   }
 
-  if (saves_fp != 0) {  // Save callee-saved XMM registers.
-    const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
+  if (!saves_fp.is_empty()) {  // Save callee-saved XMM registers.
+    const uint32_t saves_fp_count = saves_fp.Count();
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Adjust the stack pointer.
     __ AllocateStackSpace(stack_size);
     // Store the registers on the stack.
     int slot_idx = 0;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      if (!((1 << i) & saves_fp)) continue;
-      __ Movdqu(Operand(rsp, kQuadWordSize * slot_idx),
-                XMMRegister::from_code(i));
+    for (XMMRegister reg : saves_fp) {
+      __ Movdqu(Operand(rsp, kQuadWordSize * slot_idx), reg);
       slot_idx++;
     }
   }
 
-  if (saves != 0) {  // Save callee-saved registers.
-    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-      if (!((1 << i) & saves)) continue;
-      __ pushq(Register::from_code(i));
+  if (!saves.is_empty()) {  // Save callee-saved registers.
+    for (Register reg : base::Reversed(saves)) {
+      __ pushq(reg);
     }
   }
 
@@ -4734,26 +4725,23 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore registers.
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     const int returns = frame()->GetReturnSlotCount();
     if (returns != 0) {
       __ addq(rsp, Immediate(returns * kSystemPointerSize));
     }
-    for (int i = 0; i < Register::kNumRegisters; i++) {
-      if (!((1 << i) & saves)) continue;
-      __ popq(Register::from_code(i));
+    for (Register reg : saves) {
+      __ popq(reg);
     }
   }
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {
-    const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fp.is_empty()) {
+    const uint32_t saves_fp_count = saves_fp.Count();
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Load the registers from the stack.
     int slot_idx = 0;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      if (!((1 << i) & saves_fp)) continue;
-      __ Movdqu(XMMRegister::from_code(i),
-                Operand(rsp, kQuadWordSize * slot_idx));
+    for (XMMRegister reg : saves_fp) {
+      __ Movdqu(reg, Operand(rsp, kQuadWordSize * slot_idx));
       slot_idx++;
     }
     // Adjust the stack pointer.
@@ -4799,7 +4787,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count.
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+      DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
       __ movq(argc_reg, Operand(rbp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();
@@ -4813,8 +4801,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     Label mismatch_return;
     Register scratch_reg = r10;
     DCHECK_NE(argc_reg, scratch_reg);
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(scratch_reg));
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     __ cmpq(argc_reg, Immediate(parameter_slots));
     __ j(greater, &mismatch_return, Label::kNear);
     __ Ret(parameter_slots * kSystemPointerSize, scratch_reg);
@@ -4825,7 +4813,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ Ret();
   } else if (additional_pop_count->IsImmediate()) {
     Register scratch_reg = r10;
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(scratch_reg));
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     size_t pop_size = (parameter_slots + additional_count) * kSystemPointerSize;
     CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
@@ -4833,8 +4821,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   } else {
     Register pop_reg = g.ToRegister(additional_pop_count);
     Register scratch_reg = pop_reg == r10 ? rcx : r10;
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & pop_reg.bit());
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(scratch_reg));
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(pop_reg));
     int pop_size = static_cast<int>(parameter_slots * kSystemPointerSize);
     __ PopReturnAddressTo(scratch_reg);
     __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,

@@ -167,7 +167,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(t7.bit() | t6.bit()) {
+      scratch_register_list_({t7, t6}) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
   last_trampoline_pool_end_ = 0;

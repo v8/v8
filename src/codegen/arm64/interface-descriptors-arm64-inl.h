@@ -25,20 +25,21 @@ template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
     VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data, int argc) {
   RegList allocatable_regs = data->allocatable_registers();
-  if (argc >= 1) DCHECK(allocatable_regs | x0.bit());
-  if (argc >= 2) DCHECK(allocatable_regs | x1.bit());
-  if (argc >= 3) DCHECK(allocatable_regs | x2.bit());
-  if (argc >= 4) DCHECK(allocatable_regs | x3.bit());
-  if (argc >= 5) DCHECK(allocatable_regs | x4.bit());
-  if (argc >= 6) DCHECK(allocatable_regs | x5.bit());
-  if (argc >= 7) DCHECK(allocatable_regs | x6.bit());
-  if (argc >= 8) DCHECK(allocatable_regs | x7.bit());
+  if (argc >= 1) DCHECK(allocatable_regs.has(x0));
+  if (argc >= 2) DCHECK(allocatable_regs.has(x1));
+  if (argc >= 3) DCHECK(allocatable_regs.has(x2));
+  if (argc >= 4) DCHECK(allocatable_regs.has(x3));
+  if (argc >= 5) DCHECK(allocatable_regs.has(x4));
+  if (argc >= 6) DCHECK(allocatable_regs.has(x5));
+  if (argc >= 7) DCHECK(allocatable_regs.has(x6));
+  if (argc >= 8) DCHECK(allocatable_regs.has(x7));
 }
 #endif  // DEBUG
 
 // static
 constexpr auto WriteBarrierDescriptor::registers() {
-  return RegisterArray(x1, x5, x4, x2, x0, x3);
+  // TODO(leszeks): Remove x7 which is just there for padding.
+  return RegisterArray(x1, x5, x4, x2, x0, x3, kContextRegister, x7);
 }
 
 // static

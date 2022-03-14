@@ -54,12 +54,12 @@ inline bool CPURegister::IsSP() const {
 inline void CPURegList::Combine(const CPURegList& other) {
   DCHECK(other.type() == type_);
   DCHECK(other.RegisterSizeInBits() == size_);
-  list_ |= other.list();
+  list_ |= other.list_;
 }
 
 inline void CPURegList::Remove(const CPURegList& other) {
   if (other.type() == type_) {
-    list_ &= ~other.list();
+    list_ &= ~other.list_;
   }
 }
 

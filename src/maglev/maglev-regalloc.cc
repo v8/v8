@@ -198,7 +198,7 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles(
 
 void StraightForwardRegisterAllocator::PrintLiveRegs() const {
   bool first = true;
-  for (Register reg : RegListIterator(used_registers())) {
+  for (Register reg : used_registers()) {
     ValueNode* node = GetUsedRegister(reg);
     if (first) {
       first = false;
@@ -412,7 +412,7 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
 
 void StraightForwardRegisterAllocator::DropRegisterValue(Register reg) {
   // The register should not already be free.
-  DCHECK(!reg.IsIn(free_registers_));
+  DCHECK(!free_registers_.has(reg));
 
   ValueNode* node = GetUsedRegister(reg);
 
@@ -424,7 +424,7 @@ void StraightForwardRegisterAllocator::DropRegisterValue(Register reg) {
 
   // Try to move the value to another register.
   if (free_registers_ != kEmptyRegList) {
-    Register target_reg = Register::TakeFirst(&free_registers_);
+    Register target_reg = free_registers_.PopFirst();
     SetRegister(target_reg, node);
     // Emit a gapmove.
     compiler::AllocatedOperand source(compiler::LocationOperand::REGISTER,
@@ -463,12 +463,12 @@ void StraightForwardRegisterAllocator::InitializeConditionalBranchRegisters(
   DCHECK_EQ(control_node->id() + 1, target->first_id());
   RegList registers = used_registers();
   while (registers != kEmptyRegList) {
-    Register reg = Register::TakeFirst(&registers);
+    Register reg = registers.PopFirst();
     ValueNode* node = GetUsedRegister(reg);
     if (!IsLiveAtTarget(node, control_node, target)) {
       FreeRegisters(node);
       // Update the registers we're visiting to avoid revisiting this node.
-      registers &= !free_registers_;
+      registers.clear(free_registers_);
     }
   }
 }
@@ -524,7 +524,7 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
   for (Input& input : *phi) {
     if (input.operand().IsRegister()) {
       Register reg = input.AssignedRegister();
-      if (reg.IsIn(free_registers_)) {
+      if (free_registers_.has(reg)) {
         phi->result().SetAllocated(ForceAllocate(reg, phi));
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
@@ -611,7 +611,7 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
 }
 
 void StraightForwardRegisterAllocator::SpillRegisters() {
-  for (Register reg : RegListIterator(used_registers())) {
+  for (Register reg : used_registers()) {
     ValueNode* node = GetUsedRegister(reg);
     Spill(node);
   }
@@ -619,11 +619,11 @@ void StraightForwardRegisterAllocator::SpillRegisters() {
 
 void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
   while (used_registers() != kEmptyRegList) {
-    Register reg = Register::FirstOf(used_registers());
+    Register reg = used_registers().first();
     ValueNode* node = GetUsedRegister(reg);
     Spill(node);
     FreeRegisters(node);
-    DCHECK(!reg.IsIn(used_registers()));
+    DCHECK(!used_registers().has(reg));
   }
 }
 
@@ -644,7 +644,7 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
 void StraightForwardRegisterAllocator::FreeSomeRegister() {
   int furthest_use = 0;
   Register best = Register::no_reg();
-  for (Register reg : RegListIterator(used_registers())) {
+  for (Register reg : used_registers()) {
     int use = GetUsedRegister(reg)->next_use();
     if (use > furthest_use) {
       furthest_use = use;
@@ -665,9 +665,9 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
 
 compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     Register reg, ValueNode* node) {
-  if (reg.IsIn(free_registers_)) {
+  if (free_registers_.has(reg)) {
     // If it's already free, remove it from the free list.
-    reg.RemoveFrom(&free_registers_);
+    free_registers_.clear(reg);
   } else if (GetUsedRegister(reg) == node) {
     return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                       MachineRepresentation::kTagged,
@@ -676,7 +676,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     DropRegisterValue(reg);
   }
 #ifdef DEBUG
-  DCHECK(!reg.IsIn(free_registers_));
+  DCHECK(!free_registers_.has(reg));
 #endif
   SetRegister(reg, node);
   return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
@@ -685,7 +685,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
 
 void StraightForwardRegisterAllocator::SetRegister(Register reg,
                                                    ValueNode* node) {
-  DCHECK(!reg.IsIn(free_registers_));
+  DCHECK(!free_registers_.has(reg));
   register_values_[reg.code()] = node;
   node->AddRegister(reg);
 }
@@ -693,7 +693,7 @@ void StraightForwardRegisterAllocator::SetRegister(Register reg,
 compiler::InstructionOperand
 StraightForwardRegisterAllocator::TryAllocateRegister(ValueNode* node) {
   if (free_registers_ == kEmptyRegList) return compiler::InstructionOperand();
-  Register reg = Register::TakeFirst(&free_registers_);
+  Register reg = free_registers_.PopFirst();
 
   // Allocation succeeded. This might have found an existing allocation.
   // Simply update the state anyway.
@@ -704,15 +704,14 @@ StraightForwardRegisterAllocator::TryAllocateRegister(ValueNode* node) {
 
 void StraightForwardRegisterAllocator::AssignTemporaries(NodeBase* node) {
   int num_temporaries_needed = node->num_temporaries_needed();
-  int num_free_registers = base::bits::CountPopulation(free_registers_);
+  int num_free_registers = free_registers_.Count();
 
   // Free extra registers if necessary.
   for (int i = num_free_registers; i < num_temporaries_needed; ++i) {
     FreeSomeRegister();
   }
 
-  DCHECK_GE(base::bits::CountPopulation(free_registers_),
-            num_temporaries_needed);
+  DCHECK_GE(free_registers_.Count(), num_temporaries_needed);
   node->assign_temporaries(free_registers_);
 }
 
@@ -720,10 +719,10 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
     MergePointRegisterState& target_state) {
   // First clear the register state.
   while (used_registers() != kEmptyRegList) {
-    Register reg = Register::FirstOf(used_registers());
+    Register reg = used_registers().first();
     ValueNode* node = GetUsedRegister(reg);
     FreeRegisters(node);
-    DCHECK(!reg.IsIn(used_registers()));
+    DCHECK(!used_registers().has(reg));
   }
 
   // All registers should be free by now.
@@ -737,7 +736,7 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
     RegisterMerge* merge;
     LoadMergeState(entry.state, &node, &merge);
     if (node != nullptr) {
-      reg.RemoveFrom(&free_registers_);
+      free_registers_.clear(reg);
       SetRegister(reg, node);
     } else {
       DCHECK(!entry.state.GetPayload().is_merge);
@@ -766,7 +765,7 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
   for (auto entry : target_state) {
     Register reg = entry.reg;
     ValueNode* node = nullptr;
-    if (!reg.IsIn(free_registers_)) {
+    if (!free_registers_.has(reg)) {
       node = GetUsedRegister(reg);
       if (!IsLiveAtTarget(node, source, target)) node = nullptr;
     }
@@ -796,7 +795,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
         reg.code()};
 
     ValueNode* incoming = nullptr;
-    if (!reg.IsIn(free_registers_)) {
+    if (!free_registers_.has(reg)) {
       incoming = GetUsedRegister(reg);
       if (!IsLiveAtTarget(incoming, control, target)) {
         incoming = nullptr;

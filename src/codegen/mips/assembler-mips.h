@@ -1905,11 +1905,11 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   void Include(const RegList& list) { *available_ |= list; }
   void Exclude(const RegList& list) { *available_ &= ~list; }
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
-    RegList list(reg1.bit() | reg2.bit());
+    RegList list({reg1, reg2});
     Include(list);
   }
   void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
-    RegList list(reg1.bit() | reg2.bit());
+    RegList list({reg1, reg2});
     Exclude(list);
   }
 

@@ -66,7 +66,7 @@ inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
 inline Operand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 static constexpr LiftoffRegList kByteRegs =
-    LiftoffRegList::FromBits<Register::ListOf(eax, ecx, edx)>();
+    LiftoffRegList::FromBits<RegList{eax, ecx, edx}.bits()>();
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
                  int32_t offset, ValueKind kind) {
@@ -756,7 +756,7 @@ inline void AtomicBinop32(LiftoffAssembler* lasm, Binop op, Register dst_addr,
   if (is_byte_store) {
     // The scratch register has to be a byte register. As we are already tight
     // on registers, we just use the root register here.
-    static_assert((kLiftoffAssemblerGpCacheRegs & kRootRegister.bit()) == 0,
+    static_assert(!kLiftoffAssemblerGpCacheRegs.has(kRootRegister),
                   "root register is not Liftoff cache register");
     DCHECK(kRootRegister.is_byte_register());
     __ push(kRootRegister);
