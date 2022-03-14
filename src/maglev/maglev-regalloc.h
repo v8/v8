@@ -62,16 +62,11 @@ class StraightForwardRegisterAllocator {
   }
   void FreeRegister(Register reg) { free_registers_.set(reg); }
 
-  ValueNode* GetUsedRegister(Register reg) const {
+  ValueNode* GetRegisterValue(Register reg) const {
     DCHECK(!free_registers_.has(reg));
     ValueNode* node = register_values_[reg.code()];
     DCHECK_NOT_NULL(node);
     return node;
-  }
-
-  ValueNode* GetMaybeUsedRegister(Register reg) const {
-    if (!free_registers_.has(reg)) return nullptr;
-    return GetUsedRegister(reg);
   }
 
   void FreeSomeRegister();

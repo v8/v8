@@ -199,7 +199,7 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles(
 void StraightForwardRegisterAllocator::PrintLiveRegs() const {
   bool first = true;
   for (Register reg : used_registers()) {
-    ValueNode* node = GetUsedRegister(reg);
+    ValueNode* node = GetRegisterValue(reg);
     if (first) {
       first = false;
     } else {
@@ -414,7 +414,7 @@ void StraightForwardRegisterAllocator::DropRegisterValue(Register reg) {
   // The register should not already be free.
   DCHECK(!free_registers_.has(reg));
 
-  ValueNode* node = GetUsedRegister(reg);
+  ValueNode* node = GetRegisterValue(reg);
 
   // Remove the register from the node's list.
   node->RemoveRegister(reg);
@@ -464,7 +464,7 @@ void StraightForwardRegisterAllocator::InitializeConditionalBranchRegisters(
   RegList registers = used_registers();
   while (registers != kEmptyRegList) {
     Register reg = registers.PopFirst();
-    ValueNode* node = GetUsedRegister(reg);
+    ValueNode* node = GetRegisterValue(reg);
     if (!IsLiveAtTarget(node, control_node, target)) {
       FreeRegisters(node);
       // Update the registers we're visiting to avoid revisiting this node.
@@ -612,7 +612,7 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
 
 void StraightForwardRegisterAllocator::SpillRegisters() {
   for (Register reg : used_registers()) {
-    ValueNode* node = GetUsedRegister(reg);
+    ValueNode* node = GetRegisterValue(reg);
     Spill(node);
   }
 }
@@ -620,7 +620,7 @@ void StraightForwardRegisterAllocator::SpillRegisters() {
 void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
   while (used_registers() != kEmptyRegList) {
     Register reg = used_registers().first();
-    ValueNode* node = GetUsedRegister(reg);
+    ValueNode* node = GetRegisterValue(reg);
     Spill(node);
     FreeRegisters(node);
     DCHECK(!used_registers().has(reg));
@@ -645,7 +645,14 @@ void StraightForwardRegisterAllocator::FreeSomeRegister() {
   int furthest_use = 0;
   Register best = Register::no_reg();
   for (Register reg : used_registers()) {
-    int use = GetUsedRegister(reg)->next_use();
+    ValueNode* value = GetRegisterValue(reg);
+    // The cheapest register to clear is a register containing a value that's
+    // contained in another register as well.
+    if (value->num_registers() > 1) {
+      best = reg;
+      break;
+    }
+    int use = value->next_use();
     if (use > furthest_use) {
       furthest_use = use;
       best = reg;
@@ -668,7 +675,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
   if (free_registers_.has(reg)) {
     // If it's already free, remove it from the free list.
     free_registers_.clear(reg);
-  } else if (GetUsedRegister(reg) == node) {
+  } else if (GetRegisterValue(reg) == node) {
     return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                       MachineRepresentation::kTagged,
                                       reg.code());
@@ -720,7 +727,7 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
   // First clear the register state.
   while (used_registers() != kEmptyRegList) {
     Register reg = used_registers().first();
-    ValueNode* node = GetUsedRegister(reg);
+    ValueNode* node = GetRegisterValue(reg);
     FreeRegisters(node);
     DCHECK(!used_registers().has(reg));
   }
@@ -766,7 +773,7 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     Register reg = entry.reg;
     ValueNode* node = nullptr;
     if (!free_registers_.has(reg)) {
-      node = GetUsedRegister(reg);
+      node = GetRegisterValue(reg);
       if (!IsLiveAtTarget(node, source, target)) node = nullptr;
     }
     entry.state = {node, initialized_node};
@@ -796,7 +803,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
 
     ValueNode* incoming = nullptr;
     if (!free_registers_.has(reg)) {
-      incoming = GetUsedRegister(reg);
+      incoming = GetRegisterValue(reg);
       if (!IsLiveAtTarget(incoming, control, target)) {
         incoming = nullptr;
       }

@@ -592,6 +592,8 @@ class ValueNode : public Node {
   RegList ClearRegisters() {
     return std::exchange(registers_with_result_, kEmptyRegList);
   }
+
+  int num_registers() const { return registers_with_result_.Count(); }
   bool has_register() const { return registers_with_result_ != kEmptyRegList; }
 
   compiler::AllocatedOperand allocation() const {
