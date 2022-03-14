@@ -14,6 +14,9 @@ load(
 # Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
 lucicfg.enable_experiment("crbug.com/1182002")
 
+V8_TRY_ACCOUNT = "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com"
+V8_CI_ACCOUNT = "v8-ci-builder@chops-service-accounts.iam.gserviceaccount.com"
+
 luci.builder.defaults.experiments.set(
     {
         # Use python3 in recipes for all builds.
@@ -83,9 +86,7 @@ luci.project(
     bindings = [
         luci.binding(
             roles = "role/configs.validator",
-            users = [
-                "v8-try-builder@chops-service-accounts.iam.gserviceaccount.com",
-            ],
+            users = [V8_TRY_ACCOUNT],
         ),
         luci.binding(
             roles = "role/swarming.poolOwner",
@@ -130,6 +131,7 @@ def led_users(*, pool_realm, builder_realms, groups):
         bindings = [luci.binding(
             roles = "role/swarming.poolUser",
             groups = groups,
+            users = [V8_TRY_ACCOUNT, V8_CI_ACCOUNT],
         )],
     )
     for br in builder_realms:
@@ -137,6 +139,7 @@ def led_users(*, pool_realm, builder_realms, groups):
             realm = br,
             roles = "role/swarming.taskTriggerer",
             groups = groups,
+            users = [V8_TRY_ACCOUNT, V8_CI_ACCOUNT],
         )
 
 led_users(
