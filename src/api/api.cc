@@ -5092,7 +5092,8 @@ bool v8::Object::IsConstructor() const {
 
 bool v8::Object::IsApiWrapper() const {
   auto self = i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  return self->IsApiWrapper();
+  // Objects with embedder fields can wrap API objects.
+  return self->MayHaveEmbedderFields();
 }
 
 bool v8::Object::IsUndetectable() const {

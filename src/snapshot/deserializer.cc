@@ -682,7 +682,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 #ifdef DEBUG
   PtrComprCageBase cage_base(isolate());
   // We want to make sure that all embedder pointers are initialized to null.
-  if (raw_obj.IsJSObject(cage_base) && JSObject::cast(raw_obj).IsApiWrapper()) {
+  if (raw_obj.IsJSObject(cage_base) &&
+      JSObject::cast(raw_obj).MayHaveEmbedderFields()) {
     JSObject js_obj = JSObject::cast(raw_obj);
     for (int i = 0; i < js_obj.GetEmbedderFieldCount(); ++i) {
       void* pointer;

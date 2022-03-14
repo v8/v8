@@ -79,7 +79,7 @@ class V8ToCppGCReferencesVisitor final
 
     const internal::JSObject js_object =
         *reinterpret_cast<const internal::JSObject* const&>(value);
-    if (!js_object.ptr() || !js_object.IsApiWrapper()) return;
+    if (!js_object.ptr() || !js_object.MayHaveEmbedderFields()) return;
 
     internal::LocalEmbedderHeapTracer::WrapperInfo info;
     if (!internal::LocalEmbedderHeapTracer::ExtractWrappableInfo(

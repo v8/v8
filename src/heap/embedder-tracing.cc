@@ -139,7 +139,7 @@ LocalEmbedderHeapTracer::ExtractWrapperInfo(Isolate* isolate,
 
 void LocalEmbedderHeapTracer::ProcessingScope::TracePossibleWrapper(
     JSObject js_object) {
-  DCHECK(js_object.IsApiWrapper());
+  DCHECK(js_object.MayHaveEmbedderFields());
   WrapperInfo info;
   if (ExtractWrappableInfo(tracer_->isolate_, js_object, wrapper_descriptor_,
                            &info)) {
@@ -189,7 +189,7 @@ void LocalEmbedderHeapTracer::NotifyEmptyEmbedderStack() {
 void LocalEmbedderHeapTracer::EmbedderWriteBarrier(Heap* heap,
                                                    JSObject js_object) {
   DCHECK(InUse());
-  DCHECK(js_object.IsApiWrapper());
+  DCHECK(js_object.MayHaveEmbedderFields());
   if (cpp_heap_) {
     DCHECK_NOT_NULL(heap->mark_compact_collector());
     const EmbedderDataSlot type_slot(js_object,

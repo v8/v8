@@ -15,7 +15,7 @@ namespace internal {
 bool LocalEmbedderHeapTracer::ExtractWrappableInfo(
     Isolate* isolate, JSObject js_object,
     const WrapperDescriptor& wrapper_descriptor, WrapperInfo* info) {
-  DCHECK(js_object.IsApiWrapper());
+  DCHECK(js_object.MayHaveEmbedderFields());
   if (js_object.GetEmbedderFieldCount() < 2) return false;
 
   return ExtractWrappableInfo(

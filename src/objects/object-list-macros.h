@@ -151,6 +151,7 @@ class ZoneForwardList;
   V(JSMessageObject)                            \
   V(JSModuleNamespace)                          \
   V(JSObject)                                   \
+  V(JSObjectWithEmbedderSlots)                  \
   V(JSPrimitiveWrapper)                         \
   V(JSPromise)                                  \
   V(JSProxy)                                    \

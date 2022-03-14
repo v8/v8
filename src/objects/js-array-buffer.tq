@@ -11,7 +11,7 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   is_resizable: bool: 1 bit;
 }
 
-extern class JSArrayBuffer extends JSObject {
+extern class JSArrayBuffer extends JSObjectWithEmbedderSlots {
   byte_length: uintptr;
   max_byte_length: uintptr;
   // A SandboxedPtr if the sandbox is enabled
@@ -53,7 +53,7 @@ bitfield struct JSArrayBufferViewFlags extends uint32 {
 }
 
 @abstract
-extern class JSArrayBufferView extends JSObject {
+extern class JSArrayBufferView extends JSObjectWithEmbedderSlots {
   buffer: JSArrayBuffer;
   byte_offset: uintptr;
   byte_length: uintptr;

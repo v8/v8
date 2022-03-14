@@ -2960,6 +2960,7 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
   raw.set_byte_offset(byte_offset);
   raw.set_byte_length(byte_length);
   raw.set_bit_field(0);
+  // TODO(v8) remove once embedder data slots are always zero-initialized.
   InitEmbedderFields(raw, Smi::zero());
   DCHECK_EQ(raw.GetEmbedderFieldCount(),
             v8::ArrayBufferView::kEmbedderFieldCount);
@@ -3875,6 +3876,7 @@ Handle<JSPromise> Factory::NewJSPromiseWithoutHook() {
   JSPromise raw = *promise;
   raw.set_reactions_or_result(Smi::zero(), SKIP_WRITE_BARRIER);
   raw.set_flags(0);
+  // TODO(v8) remove once embedder data slots are always zero-initialized.
   InitEmbedderFields(*promise, Smi::zero());
   DCHECK_EQ(raw.GetEmbedderFieldCount(), v8::Promise::kEmbedderFieldCount);
   return promise;

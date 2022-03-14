@@ -301,7 +301,7 @@ template <typename T>
 int MarkingVisitorBase<ConcreteVisitor,
                        MarkingState>::VisitEmbedderTracingSubclass(Map map,
                                                                    T object) {
-  DCHECK(object.IsApiWrapper());
+  DCHECK(object.MayHaveEmbedderFields());
   if (V8_LIKELY(is_embedder_tracing_enabled_)) {
     return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
   }

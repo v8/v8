@@ -2830,7 +2830,7 @@ bool JSObject::IsUnmodifiedApiObject(FullObjectSlot o) {
   HeapObject heap_object = HeapObject::cast(object);
   if (!object.IsJSObject()) return false;
   JSObject js_object = JSObject::cast(object);
-  if (!js_object.IsDroppableApiWrapper()) return false;
+  if (!js_object.IsDroppableApiObject()) return false;
   Object maybe_constructor = js_object.map().GetConstructor();
   if (!maybe_constructor.IsJSFunction()) return false;
   JSFunction constructor = JSFunction::cast(maybe_constructor);
@@ -5267,26 +5267,6 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Isolate* isolate,
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   return maybe_result.IsJust() ? Just(it.state() == LookupIterator::ACCESSOR)
                                : Nothing<bool>();
-}
-
-bool JSObject::IsApiWrapper() const {
-  // These object types can carry information relevant for embedders. The
-  // *_API_* types are generated through templates which can have embedder
-  // fields. The other types have their embedder fields added at compile time.
-  auto instance_type = map().instance_type();
-  return instance_type == JS_ARRAY_BUFFER_TYPE ||
-         instance_type == JS_DATA_VIEW_TYPE ||
-         instance_type == JS_GLOBAL_OBJECT_TYPE ||
-         instance_type == JS_GLOBAL_PROXY_TYPE ||
-         instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
-         instance_type == JS_TYPED_ARRAY_TYPE ||
-         InstanceTypeChecker::IsJSApiObject(instance_type);
-}
-
-bool JSObject::IsDroppableApiWrapper() const {
-  auto instance_type = map().instance_type();
-  return InstanceTypeChecker::IsJSApiObject(instance_type) ||
-         instance_type == JS_SPECIAL_API_OBJECT_TYPE;
 }
 
 bool JSGlobalProxy::IsDetached() const {
