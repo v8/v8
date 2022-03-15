@@ -78,7 +78,6 @@ luci.cq_group(
         luci.cq_tryjob_verifier(
             "node-ci:try/node_ci_linux64_rel",
             cancel_stale = False,
-            experiment_percentage = 100,
         ),
     ],
 )
