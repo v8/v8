@@ -578,6 +578,8 @@ void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 // macOS specific implementation in platform-macos.cc.
 #if !defined(V8_OS_MACOS)
 // static
+// Need to disable CFI_ICALL due to the indirect call to memfd_create.
+DISABLE_CFI_ICALL
 PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
 #if V8_OS_LINUX && !V8_OS_ANDROID
   // Use memfd_create if available, otherwise mkstemp.
