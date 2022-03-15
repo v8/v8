@@ -8,6 +8,15 @@ found in the LICENSE file. -->
   :host {
     position: absolute;
     z-index: 100;
+    will-change: transform;
+  }
+
+  #body {
+    display: none;
+    position: absolute;
+    --tip-offset: 10px;
+    --tip-width: 10px;
+    --tip-height: 40px;
   }
 
   #content {
@@ -34,15 +43,6 @@ found in the LICENSE file. -->
     overflow-wrap: anywhere;
     overflow-x: hidden;
     max-width: 500px;
-  }
-
-  #body {
-    display: none;
-    position: absolute;
-    z-index: 99999;
-    --tip-offset: 10px;
-    --tip-width: 10px;
-    --tip-height: 40px;
   }
 
   #body.top {

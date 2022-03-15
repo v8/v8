@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 import {App} from '../index.mjs'
+
 import {FocusEvent, SelectRelatedEvent} from './events.mjs';
-import {DOM, ExpandableText, V8CustomElement} from './helper.mjs';
+import {DOM, entriesEquals, ExpandableText, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement('view/property-link-table',
                         template =>
@@ -27,7 +28,7 @@ DOM.defineCustomElement('view/property-link-table',
   }
 
   set propertyDict(propertyDict) {
-    if (this._propertyDict === propertyDict) return;
+    if (entriesEquals(this._propertyDict, propertyDict)) return;
     if (typeof propertyDict !== 'object') {
       throw new Error(
           `Invalid property dict, expected object: ${propertyDict}`);

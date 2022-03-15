@@ -73,4 +73,25 @@ export function arrayEquals(left, right) {
   return true;
 }
 
+export function entriesEquals(left, right) {
+  if (left == right) return true;
+  if (left == undefined) return right == undefined;
+  const leftEntries = Object.entries(left);
+  const rightEntries = Object.entries(right);
+  if (leftEntries.length !== rightEntries.length) return false;
+  for (let i = 0; i < leftEntries.length; i++) {
+    const l = leftEntries[i];
+    const r = rightEntries[i];
+    if (l[0] != r[0]) return false;
+    if (l[1] != r[1]) return false;
+  }
+  return true;
+}
+
+export function keysEquals(left, right) {
+  if (left == right) return true;
+  if (left == undefined) return right == undefined;
+  return arrayEquals(Object.keys(left), Object.keys(right));
+}
+
 export * from '../js/helper.mjs'

@@ -510,6 +510,7 @@ class SelectionHandler {
 
 class Legend {
   _timeline;
+  _lastSelection;
   _typesFilters = new Map();
   _typeClickHandler = this._handleTypeClick.bind(this);
   _filterPredicate = this.filter.bind(this);
@@ -553,6 +554,8 @@ class Legend {
   }
 
   update() {
+    if (this._lastSelection === this.selection) return;
+    this._lastSelection = this.selection;
     const tbody = DOM.tbody();
     const missingTypes = new Set(this._typesFilters.keys());
     this._checkDurationField();
