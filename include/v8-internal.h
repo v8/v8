@@ -217,7 +217,7 @@ static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
 // the virtual memory reservation for the sandbox fails, its size is currently
 // halved until either the reservation succeeds or the minimum size is reached.
 // A minimum of 32GB allows the 4GB pointer compression region as well as the
-// ArrayBuffer partition and two 10GB WASM memory cages to fit into the
+// ArrayBuffer partition and two 10GB Wasm memory cages to fit into the
 // sandbox. 32GB should also be the minimum possible size of the userspace
 // address space as there are some machine configurations with only 36 virtual
 // address bits.

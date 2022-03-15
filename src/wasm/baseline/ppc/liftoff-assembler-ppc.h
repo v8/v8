@@ -31,8 +31,8 @@ namespace liftoff {
 //   1   | previous frame (fp)|
 //   0   | const pool (r28)   | if const pool is enabled
 //  -----+--------------------+  <-- frame ptr (fp) or cp
-//  -1   | 0xa: WASM          |
-//  -2   |     instance       |
+//  -1   | StackFrame::WASM   |
+//  -2   |    instance        |
 //  -3   |    feedback vector |
 //  -4   |    tiering budget  |
 //  -----+--------------------+---------------------------

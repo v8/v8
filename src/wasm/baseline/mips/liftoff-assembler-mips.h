@@ -53,8 +53,8 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //   1   | return addr (ra)   |
 //   0   | previous frame (fp)|
 //  -----+--------------------+  <-- frame ptr (fp)
-//  -1   | 0xa: WASM          |
-//  -2   |     instance       |
+//  -1   | StackFrame::WASM   |
+//  -2   |    instance        |
 //  -3   |    feedback vector |
 //  -4   |    tiering budget  |
 //  -----+--------------------+---------------------------

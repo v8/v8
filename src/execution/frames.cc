@@ -2053,7 +2053,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
     return;
   }
   wasm::WasmCodeRefScope code_ref_scope;
-  accumulator->Add("WASM [");
+  accumulator->Add("Wasm [");
   accumulator->PrintName(script().name());
   Address instruction_start = wasm_code()->instruction_start();
   base::Vector<const uint8_t> raw_func_name =
@@ -2180,7 +2180,7 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
 void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
                                 int index) const {
   PrintIndex(accumulator, mode, index);
-  accumulator->Add("WASM DEBUG BREAK");
+  accumulator->Add("WasmDebugBreak");
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
