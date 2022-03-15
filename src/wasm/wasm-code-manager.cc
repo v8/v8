@@ -599,28 +599,39 @@ size_t OverheadPerCodeSpace(uint32_t num_declared_functions) {
   return overhead;
 }
 
-// Returns both the minimum size to reserve, and an estimate how much should be
-// reserved.
-std::pair<size_t, size_t> ReservationSize(size_t code_size_estimate,
-                                          int num_declared_functions,
-                                          size_t total_reserved) {
+// Returns an estimate how much code space should be reserved.
+size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
+                       size_t total_reserved) {
   size_t overhead = OverheadPerCodeSpace(num_declared_functions);
 
-  // Reserve a power of two at least as big as any of
+  // Reserve the maximum of
   //   a) needed size + overhead (this is the minimum needed)
   //   b) 2 * overhead (to not waste too much space by overhead)
   //   c) 1/4 of current total reservation size (to grow exponentially)
   size_t minimum_size = 2 * overhead;
-  size_t suggested_size = base::bits::RoundUpToPowerOfTwo(
+  size_t suggested_size =
       std::max(std::max(RoundUp<kCodeAlignment>(code_size_estimate) + overhead,
                         minimum_size),
-               total_reserved / 4));
+               total_reserved / 4);
+
+  if (V8_UNLIKELY(minimum_size > WasmCodeAllocator::kMaxCodeSpaceSize)) {
+    constexpr auto format = base::StaticCharVector(
+        "wasm code reservation: required minimum (%zu) is bigger than "
+        "supported maximum (%zu)");
+    constexpr int kMaxMessageLength =
+        format.size() - 6 + 2 * std::numeric_limits<size_t>::digits10;
+    base::EmbeddedVector<char, kMaxMessageLength + 1> message;
+    SNPrintF(message, format.begin(), minimum_size,
+             WasmCodeAllocator::kMaxCodeSpaceSize);
+    V8::FatalProcessOutOfMemory(nullptr, message.begin());
+    UNREACHABLE();
+  }
 
   // Limit by the maximum supported code space size.
   size_t reserve_size =
       std::min(WasmCodeAllocator::kMaxCodeSpaceSize, suggested_size);
 
-  return {minimum_size, reserve_size};
+  return reserve_size;
 }
 
 #ifdef DEBUG
@@ -709,14 +720,18 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
 
     size_t total_reserved = 0;
     for (auto& vmem : owned_code_space_) total_reserved += vmem.size();
-    size_t min_reservation;
-    size_t reserve_size;
-    std::tie(min_reservation, reserve_size) = ReservationSize(
+    size_t reserve_size = ReservationSize(
         size, native_module->module()->num_declared_functions, total_reserved);
     VirtualMemory new_mem =
         code_manager->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
-    if (!new_mem.IsReserved() || new_mem.size() < min_reservation) {
-      V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
+    if (!new_mem.IsReserved()) {
+      constexpr auto format = base::StaticCharVector(
+          "Cannot allocate more code space (%zu bytes, currently %zu)");
+      constexpr int kMaxMessageLength =
+          format.size() - 6 + 2 * std::numeric_limits<size_t>::digits10;
+      base::EmbeddedVector<char, kMaxMessageLength + 1> message;
+      SNPrintF(message, format.begin(), total_reserved, reserve_size);
+      V8::FatalProcessOutOfMemory(nullptr, message.begin());
       UNREACHABLE();
     }
 
@@ -2000,47 +2015,43 @@ namespace {
 // separate code spaces being allocated (compile time and runtime overhead),
 // choosing them too large results in over-reservation (virtual address space
 // only).
-// The current numbers have been determined on 2019-11-11 by clemensb@, based
-// on one small and one large module compiled from C++ by Emscripten. If in
-// doubt, they where chosen slightly larger than required, as over-reservation
-// is not a big issue currently.
-// Numbers will change when Liftoff or TurboFan evolve, other toolchains are
-// used to produce the wasm code, or characteristics of wasm modules on the
-// web change. They might require occasional tuning.
-// This patch might help to find reasonable numbers for any future adaptation:
-// https://crrev.com/c/1910945
+// In doubt, choose the numbers slightly too large, because over-reservation is
+// less critical than multiple separate code spaces (especially on 64-bit).
+// Numbers can be determined by running benchmarks with
+// --trace-wasm-compilation-times, and piping the output through
+// tools/wasm/code-size-factors.py.
 #if V8_TARGET_ARCH_X64
-constexpr size_t kTurbofanFunctionOverhead = 20;
+constexpr size_t kTurbofanFunctionOverhead = 24;
 constexpr size_t kTurbofanCodeSizeMultiplier = 3;
-constexpr size_t kLiftoffFunctionOverhead = 60;
+constexpr size_t kLiftoffFunctionOverhead = 56;
 constexpr size_t kLiftoffCodeSizeMultiplier = 4;
-constexpr size_t kImportSize = 350;
+constexpr size_t kImportSize = 640;
 #elif V8_TARGET_ARCH_IA32
 constexpr size_t kTurbofanFunctionOverhead = 20;
 constexpr size_t kTurbofanCodeSizeMultiplier = 4;
-constexpr size_t kLiftoffFunctionOverhead = 60;
+constexpr size_t kLiftoffFunctionOverhead = 48;
 constexpr size_t kLiftoffCodeSizeMultiplier = 5;
-constexpr size_t kImportSize = 480;
+constexpr size_t kImportSize = 320;
 #elif V8_TARGET_ARCH_ARM
-constexpr size_t kTurbofanFunctionOverhead = 40;
+constexpr size_t kTurbofanFunctionOverhead = 44;
 constexpr size_t kTurbofanCodeSizeMultiplier = 4;
-constexpr size_t kLiftoffFunctionOverhead = 108;
-constexpr size_t kLiftoffCodeSizeMultiplier = 7;
-constexpr size_t kImportSize = 750;
+constexpr size_t kLiftoffFunctionOverhead = 96;
+constexpr size_t kLiftoffCodeSizeMultiplier = 5;
+constexpr size_t kImportSize = 550;
 #elif V8_TARGET_ARCH_ARM64
-constexpr size_t kTurbofanFunctionOverhead = 60;
-constexpr size_t kTurbofanCodeSizeMultiplier = 4;
-constexpr size_t kLiftoffFunctionOverhead = 80;
-constexpr size_t kLiftoffCodeSizeMultiplier = 7;
+constexpr size_t kTurbofanFunctionOverhead = 40;
+constexpr size_t kTurbofanCodeSizeMultiplier = 3;
+constexpr size_t kLiftoffFunctionOverhead = 68;
+constexpr size_t kLiftoffCodeSizeMultiplier = 4;
 constexpr size_t kImportSize = 750;
 #else
-// Other platforms should add their own estimates if needed. Numbers below are
-// the minimum of other architectures.
-constexpr size_t kTurbofanFunctionOverhead = 20;
-constexpr size_t kTurbofanCodeSizeMultiplier = 3;
-constexpr size_t kLiftoffFunctionOverhead = 60;
-constexpr size_t kLiftoffCodeSizeMultiplier = 4;
-constexpr size_t kImportSize = 350;
+// Other platforms should add their own estimates for best performance. Numbers
+// below are the maximum of other architectures.
+constexpr size_t kTurbofanFunctionOverhead = 44;
+constexpr size_t kTurbofanCodeSizeMultiplier = 4;
+constexpr size_t kLiftoffFunctionOverhead = 96;
+constexpr size_t kLiftoffCodeSizeMultiplier = 5;
+constexpr size_t kImportSize = 750;
 #endif
 }  // namespace
 
@@ -2179,9 +2190,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
         committed + (max_committed_code_space_ - committed) / 2);
   }
 
-  size_t min_code_size;
-  size_t code_vmem_size;
-  std::tie(min_code_size, code_vmem_size) =
+  size_t code_vmem_size =
       ReservationSize(code_size_estimate, module->num_declared_functions, 0);
 
   // The '--wasm-max-initial-code-space-reservation' testing flag can be used to
@@ -2190,18 +2199,6 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     size_t flag_max_bytes =
         static_cast<size_t>(FLAG_wasm_max_initial_code_space_reservation) * MB;
     if (flag_max_bytes < code_vmem_size) code_vmem_size = flag_max_bytes;
-  }
-
-  // If we cannot allocate enough code space, fail with an OOM message.
-  if (code_vmem_size < min_code_size) {
-    constexpr auto format = base::StaticCharVector(
-        "NewNativeModule cannot allocate required minimum (%zu)");
-    constexpr int kMaxMessageLength =
-        format.size() - 3 + std::numeric_limits<size_t>::digits10;
-    base::EmbeddedVector<char, kMaxMessageLength + 1> message;
-    SNPrintF(message, format.begin(), min_code_size);
-    V8::FatalProcessOutOfMemory(isolate, message.begin());
-    UNREACHABLE();
   }
 
   // Try up to two times; getting rid of dead JSArrayBuffer allocations might

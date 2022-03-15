@@ -3217,8 +3217,10 @@ void Pipeline::GenerateCodeForWasmFunction(
                    << time.InMilliseconds() << " ms and "
                    << zone_stats.GetMaxAllocatedBytes() << " / "
                    << zone_stats.GetTotalAllocatedBytes()
-                   << " max/total bytes, codesize " << codesize << " name "
-                   << data.info()->GetDebugName().get() << std::endl;
+                   << " max/total bytes; bodysize "
+                   << function_body.end - function_body.start << " codesize "
+                   << codesize << " name " << data.info()->GetDebugName().get()
+                   << std::endl;
   }
 
   DCHECK(result->succeeded());
