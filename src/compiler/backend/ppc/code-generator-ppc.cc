@@ -3986,10 +3986,9 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   const DoubleRegList double_saves = call_descriptor->CalleeSavedFPRegisters();
 
   // Save callee-saved Double registers.
-  if (double_ !saves.is_empty()) {
+  if (!double_saves.is_empty()) {
     frame->AlignSavedCalleeRegisterSlots();
-    DCHECK_EQ(kNumCalleeSavedDoubles,
-              base::bits::CountPopulation(double_saves));
+    DCHECK_EQ(kNumCalleeSavedDoubles, double_saves.Count());
     frame->AllocateSavedCalleeRegisterSlots(kNumCalleeSavedDoubles *
                                             (kDoubleSize / kSystemPointerSize));
   }
@@ -4155,7 +4154,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore double registers.
   const DoubleRegList double_saves = call_descriptor->CalleeSavedFPRegisters();
-  if (double_ !saves.is_empty()) {
+  if (!double_saves.is_empty()) {
     __ MultiPopDoubles(double_saves);
   }
 

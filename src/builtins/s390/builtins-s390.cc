@@ -2904,7 +2904,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       gp_regs.set(gp_param_reg);
     }
 
-    RegList fp_regs;
+    DoubleRegList fp_regs;
     for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
       fp_regs.set(fp_param_reg);
     }
@@ -3820,7 +3820,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   for (int i = kNumberOfRegisters - 1; i > 0; i--) {
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
-    if ((restored_regs & (1 << i)) != 0) {
+    if ((restored_regs.bits() & (1 << i)) != 0) {
       __ LoadU64(ToRegister(i), MemOperand(r1, offset));
     }
   }

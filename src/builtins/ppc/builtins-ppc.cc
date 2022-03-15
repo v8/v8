@@ -2475,13 +2475,13 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       gp_regs.set(gp_param_reg);
     }
 
-    RegList fp_regs;
+    DoubleRegList fp_regs;
     for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
       fp_regs.set(fp_param_reg);
     }
 
     // List must match register numbers under kFpParamRegisters.
-    constexpr RegList simd_regs = {v1, v2, v3, v4, v5, v6, v7, v8};
+    constexpr Simd128RegList simd_regs = {v1, v2, v3, v4, v5, v6, v7, v8};
 
     CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
     CHECK_EQ(fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
@@ -2523,7 +2523,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     // them after the runtime call.
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     __ MultiPushF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
-                           WasmDebugBreakFrameConstants::kPushedFpRegs);
+                           WasmDebugBreakFrameConstants::kPushedSimd128Regs);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -2532,7 +2532,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Restore registers.
     __ MultiPopF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
-                          WasmDebugBreakFrameConstants::kPushedFpRegs);
+                          WasmDebugBreakFrameConstants::kPushedSimd128Regs);
     __ MultiPop(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();
@@ -3263,7 +3263,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Leave gaps for other registers.
   __ subi(sp, sp, Operand(kNumberOfRegisters * kSystemPointerSize));
   for (int16_t i = kNumberOfRegisters - 1; i >= 0; i--) {
-    if ((saved_regs & (1 << i)) != 0) {
+    if ((saved_regs.bits() & (1 << i)) != 0) {
       __ StoreU64(ToRegister(i), MemOperand(sp, kSystemPointerSize * i));
     }
   }
@@ -3433,7 +3433,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
       int offset =
           (i * kSystemPointerSize) + FrameDescription::registers_offset();
-      if ((restored_regs & (1 << i)) != 0) {
+      if ((restored_regs.bits() & (1 << i)) != 0) {
         __ LoadU64(ToRegister(i), MemOperand(scratch, offset));
       }
     }

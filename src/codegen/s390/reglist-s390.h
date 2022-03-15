@@ -36,18 +36,19 @@ const RegList kCalleeSaved = {r6,    // r6 (argument passing in CEntryStub)
                                      //    (HandleScope logic in MacroAssembler)
                               r9,    // r9 (HandleScope logic in MacroAssembler)
                               r10,   // r10 (Roots register in Javascript)
-                              r11,   // r11 (fp in Javascript)
-                              r12,   // r12 (ip in Javascript)
+                              fp,    // r11 (fp in Javascript)
+                              ip,    // r12 (ip in Javascript)
                               r13};  // r13 (cp in Javascript)
 // r15;   // r15 (sp in Javascript)
 
 const int kNumCalleeSaved = 8;
 
-const RegList kCallerSavedDoubles = {d0, d1, d2, d3, d4, d5, d6, d7};
+const DoubleRegList kCallerSavedDoubles = {d0, d1, d2, d3, d4, d5, d6, d7};
 
 const int kNumCallerSavedDoubles = 8;
 
-const RegList kCalleeSavedDoubles = {d8, d9, d10, d11, d12, d13, d14, d15};
+const DoubleRegList kCalleeSavedDoubles = {d8,  d9,  d10, d11,
+                                           d12, d13, d14, d15};
 
 const int kNumCalleeSavedDoubles = 8;
 

@@ -60,8 +60,6 @@ namespace internal {
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
 
-const int kNumCalleeSavedDoubles = 18;
-
 // The following constants describe the stack frame linkage area as
 // defined by the ABI.  Note that kNumRequiredStackFrameSlots must
 // satisfy alignment requirements (rounding up if required).

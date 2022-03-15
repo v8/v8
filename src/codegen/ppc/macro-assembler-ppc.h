@@ -557,15 +557,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
 
-  void MultiPushDoubles(RegList dregs, Register location = sp);
-  void MultiPopDoubles(RegList dregs, Register location = sp);
+  void MultiPushDoubles(DoubleRegList dregs, Register location = sp);
+  void MultiPopDoubles(DoubleRegList dregs, Register location = sp);
 
-  void MultiPushV128(RegList dregs, Register location = sp);
-  void MultiPopV128(RegList dregs, Register location = sp);
+  void MultiPushV128(Simd128RegList dregs, Register location = sp);
+  void MultiPopV128(Simd128RegList dregs, Register location = sp);
 
-  void MultiPushF64AndV128(RegList dregs, RegList simd_regs,
+  void MultiPushF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
                            Register location = sp);
-  void MultiPopF64AndV128(RegList dregs, RegList simd_regs,
+  void MultiPopF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
                           Register location = sp);
 
   // Calculate how much stack space (in bytes) are required to store caller

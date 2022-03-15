@@ -629,12 +629,12 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
 }
 
 void TurboAssembler::MultiPush(RegList regs, Register location) {
-  int16_t num_to_push = base::bits::CountPopulation(regs);
+  int16_t num_to_push = regs.Count();
   int16_t stack_offset = num_to_push * kSystemPointerSize;
 
   SubS64(location, location, Operand(stack_offset));
   for (int16_t i = Register::kNumRegisters - 1; i >= 0; i--) {
-    if ((regs & (1 << i)) != 0) {
+    if ((regs.bits() & (1 << i)) != 0) {
       stack_offset -= kSystemPointerSize;
       StoreU64(ToRegister(i), MemOperand(location, stack_offset));
     }
@@ -645,7 +645,7 @@ void TurboAssembler::MultiPop(RegList regs, Register location) {
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < Register::kNumRegisters; i++) {
-    if ((regs & (1 << i)) != 0) {
+    if ((regs.bits() & (1 << i)) != 0) {
       LoadU64(ToRegister(i), MemOperand(location, stack_offset));
       stack_offset += kSystemPointerSize;
     }
@@ -653,13 +653,13 @@ void TurboAssembler::MultiPop(RegList regs, Register location) {
   AddS64(location, location, Operand(stack_offset));
 }
 
-void TurboAssembler::MultiPushDoubles(RegList dregs, Register location) {
-  int16_t num_to_push = base::bits::CountPopulation(dregs);
+void TurboAssembler::MultiPushDoubles(DoubleRegList dregs, Register location) {
+  int16_t num_to_push = dregs.Count();
   int16_t stack_offset = num_to_push * kDoubleSize;
 
   SubS64(location, location, Operand(stack_offset));
   for (int16_t i = DoubleRegister::kNumRegisters - 1; i >= 0; i--) {
-    if ((dregs & (1 << i)) != 0) {
+    if ((dregs.bits() & (1 << i)) != 0) {
       DoubleRegister dreg = DoubleRegister::from_code(i);
       stack_offset -= kDoubleSize;
       StoreF64(dreg, MemOperand(location, stack_offset));
@@ -667,13 +667,13 @@ void TurboAssembler::MultiPushDoubles(RegList dregs, Register location) {
   }
 }
 
-void TurboAssembler::MultiPushV128(RegList dregs, Register location) {
-  int16_t num_to_push = base::bits::CountPopulation(dregs);
+void TurboAssembler::MultiPushV128(DoubleRegList dregs, Register location) {
+  int16_t num_to_push = dregs.Count();
   int16_t stack_offset = num_to_push * kSimd128Size;
 
   SubS64(location, location, Operand(stack_offset));
   for (int16_t i = Simd128Register::kNumRegisters - 1; i >= 0; i--) {
-    if ((dregs & (1 << i)) != 0) {
+    if ((dregs.bits() & (1 << i)) != 0) {
       Simd128Register dreg = Simd128Register::from_code(i);
       stack_offset -= kSimd128Size;
       StoreV128(dreg, MemOperand(location, stack_offset), r0);
@@ -681,11 +681,11 @@ void TurboAssembler::MultiPushV128(RegList dregs, Register location) {
   }
 }
 
-void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
+void TurboAssembler::MultiPopDoubles(DoubleRegList dregs, Register location) {
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < DoubleRegister::kNumRegisters; i++) {
-    if ((dregs & (1 << i)) != 0) {
+    if ((dregs.bits() & (1 << i)) != 0) {
       DoubleRegister dreg = DoubleRegister::from_code(i);
       LoadF64(dreg, MemOperand(location, stack_offset));
       stack_offset += kDoubleSize;
@@ -694,11 +694,11 @@ void TurboAssembler::MultiPopDoubles(RegList dregs, Register location) {
   AddS64(location, location, Operand(stack_offset));
 }
 
-void TurboAssembler::MultiPopV128(RegList dregs, Register location) {
+void TurboAssembler::MultiPopV128(DoubleRegList dregs, Register location) {
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < Simd128Register::kNumRegisters; i++) {
-    if ((dregs & (1 << i)) != 0) {
+    if ((dregs.bits() & (1 << i)) != 0) {
       Simd128Register dreg = Simd128Register::from_code(i);
       LoadV128(dreg, MemOperand(location, stack_offset), r0);
       stack_offset += kSimd128Size;
@@ -707,7 +707,8 @@ void TurboAssembler::MultiPopV128(RegList dregs, Register location) {
   AddS64(location, location, Operand(stack_offset));
 }
 
-void TurboAssembler::MultiPushF64OrV128(RegList dregs, Register location) {
+void TurboAssembler::MultiPushF64OrV128(DoubleRegList dregs,
+                                        Register location) {
 #if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
@@ -740,7 +741,7 @@ void TurboAssembler::MultiPushF64OrV128(RegList dregs, Register location) {
 #endif
 }
 
-void TurboAssembler::MultiPopF64OrV128(RegList dregs, Register location) {
+void TurboAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register location) {
 #if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();

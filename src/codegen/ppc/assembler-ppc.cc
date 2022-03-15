@@ -2109,7 +2109,7 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 Register UseScratchRegisterScope::Acquire() {
   RegList* available = assembler_->GetScratchRegisterList();
   DCHECK_NOT_NULL(available);
-  return available->PopFront();
+  return available->PopFirst();
 }
 
 }  // namespace internal
