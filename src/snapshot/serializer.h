@@ -450,6 +450,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void VisitEmbeddedPointer(Code host, RelocInfo* target) override;
   void VisitExternalReference(Foreign host, Address* p) override;
   void VisitExternalReference(Code host, RelocInfo* rinfo) override;
+  void VisitExternalPointer(HeapObject host, ExternalPointer_t ptr) override;
   void VisitInternalReference(Code host, RelocInfo* rinfo) override;
   void VisitCodeTarget(Code host, RelocInfo* target) override;
   void VisitRuntimeEntry(Code host, RelocInfo* reloc) override;
@@ -465,14 +466,13 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.
   void SerializeContent(Map map, int size);
-  void OutputExternalReference(Address target, int target_size,
-                               bool sandboxify);
+  void OutputExternalReference(Address target, int target_size, bool sandboxify,
+                               ExternalPointerTag tag);
   void OutputRawData(Address up_to);
   void SerializeCode(Map map, int size);
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
-  void SerializeJSExternalObject();
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
 

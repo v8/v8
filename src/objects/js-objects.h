@@ -902,10 +902,6 @@ class JSExternalObject
 
   inline void set_value(Isolate* isolate, void* value);
 
-  // Used in the serializer/deserializer.
-  inline uint32_t GetValueRefForDeserialization();
-  inline void SetValueRefForSerialization(uint32_t ref);
-
   static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
 
   class BodyDescriptor;

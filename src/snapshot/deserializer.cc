@@ -459,24 +459,6 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
 }
 
 template <typename IsolateT>
-void Deserializer<IsolateT>::PostProcessJSExternalObject(
-    JSExternalObject object, Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  uint32_t index = object.GetValueRefForDeserialization();
-  Address address;
-  if (main_thread_isolate()->api_external_references()) {
-    DCHECK_WITH_MSG(index < num_api_references_,
-                    "too few external references provided through the API");
-    address = static_cast<Address>(
-        main_thread_isolate()->api_external_references()[index]);
-  } else {
-    address = reinterpret_cast<Address>(NoExternalReferencesCallback);
-  }
-  object.AllocateExternalPointerEntries(isolate);
-  object.set_value(isolate, reinterpret_cast<void*>(address));
-}
-
-template <typename IsolateT>
 void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
                                                   Handle<HeapObject> obj,
                                                   SnapshotSpace space) {
@@ -571,9 +553,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsExternalString(instance_type)) {
     PostProcessExternalString(ExternalString::cast(raw_obj),
                               main_thread_isolate());
-  } else if (InstanceTypeChecker::IsJSExternalObject(instance_type)) {
-    PostProcessJSExternalObject(JSExternalObject::cast(raw_obj),
-                                main_thread_isolate());
   } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
     return PostProcessNewJSReceiver(raw_map, Handle<JSReceiver>::cast(obj),
                                     JSReceiver::cast(raw_obj), instance_type,
@@ -1041,8 +1020,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       Address address = ReadExternalReferenceCase();
       if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
           data == kSandboxedExternalReference) {
-        return WriteExternalPointer(slot_accessor.slot(), address,
-                                    kForeignForeignAddressTag);
+        ExternalPointerTag tag = ReadExternalPointerTag();
+        return WriteExternalPointer(slot_accessor.slot(), address, tag);
       } else {
         DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
         return WriteAddress(slot_accessor.slot(), address);
@@ -1205,8 +1184,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       }
       if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
           data == kSandboxedApiReference) {
-        return WriteExternalPointer(slot_accessor.slot(), address,
-                                    kForeignForeignAddressTag);
+        ExternalPointerTag tag = ReadExternalPointerTag();
+        return WriteExternalPointer(slot_accessor.slot(), address, tag);
       } else {
         DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
         return WriteAddress(slot_accessor.slot(), address);
@@ -1296,6 +1275,13 @@ Address Deserializer<IsolateT>::ReadExternalReferenceCase() {
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
   return main_thread_isolate()->external_reference_table()->address(
       reference_id);
+}
+
+template <typename IsolateT>
+ExternalPointerTag Deserializer<IsolateT>::ReadExternalPointerTag() {
+  uint64_t shifted_tag = static_cast<uint64_t>(source_.GetInt());
+  return static_cast<ExternalPointerTag>(shifted_tag
+                                         << kExternalPointerTagShift);
 }
 
 template <typename IsolateT>

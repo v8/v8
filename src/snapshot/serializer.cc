@@ -549,26 +549,6 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   buffer->set_extension(extension);
 }
 
-void Serializer::ObjectSerializer::SerializeJSExternalObject() {
-  Handle<JSExternalObject> obj = Handle<JSExternalObject>::cast(object_);
-  Address value = reinterpret_cast<Address>(obj->value());
-  ExternalReferenceEncoder::Value reference =
-      serializer_->EncodeExternalReference(value);
-  DCHECK(reference.is_from_api());
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  // TODO(saelo) unify this code with the non-sandbox version maybe?
-  STATIC_ASSERT(sizeof(ExternalPointer_t) == sizeof(uint32_t));
-  uint32_t external_pointer_entry = obj->GetValueRefForDeserialization();
-#endif
-  obj->SetValueRefForSerialization(reference.index());
-  SerializeObject();
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  obj->SetValueRefForSerialization(external_pointer_entry);
-#else
-  obj->set_value(isolate(), reinterpret_cast<void*>(value));
-#endif
-}
-
 void Serializer::ObjectSerializer::SerializeExternalString() {
   // For external strings with known resources, we replace the resource field
   // with the encoded external reference, which we restore upon deserialize.
@@ -711,9 +691,6 @@ void Serializer::ObjectSerializer::Serialize() {
   PtrComprCageBase cage_base(isolate());
   if (object_->IsExternalString(cage_base)) {
     SerializeExternalString();
-    return;
-  } else if (object_->IsJSExternalObject(cage_base)) {
-    SerializeJSExternalObject();
     return;
   } else if (!ReadOnlyHeap::Contains(*object_)) {
     // Only clear padding for strings outside the read-only heap. Read-only heap
@@ -942,10 +919,10 @@ void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
   bytes_processed_so_far_ += kTaggedSize;
 }
 
-void Serializer::ObjectSerializer::OutputExternalReference(Address target,
-                                                           int target_size,
-                                                           bool sandboxify) {
+void Serializer::ObjectSerializer::OutputExternalReference(
+    Address target, int target_size, bool sandboxify, ExternalPointerTag tag) {
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
+  DCHECK_IMPLIES(sandboxify, tag != kExternalPointerNullTag);
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
 
@@ -983,12 +960,17 @@ void Serializer::ObjectSerializer::OutputExternalReference(Address target,
     }
     sink_->PutInt(encoded_reference.index(), "reference index");
   }
+  if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
+    sink_->PutInt(static_cast<uint32_t>(tag >> kExternalPointerTagShift),
+                  "external pointer tag");
+  }
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
   // "Sandboxify" external reference.
-  OutputExternalReference(host.foreign_address(), kSystemPointerSize, true);
+  OutputExternalReference(host.foreign_address(), kSystemPointerSize, true,
+                          kForeignForeignAddressTag);
   bytes_processed_so_far_ += kExternalPointerSize;
 }
 
@@ -1042,7 +1024,33 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
   DCHECK_IMPLIES(serializer_->EncodeExternalReference(target).is_from_api(),
                  !rinfo->IsCodedSpecially());
   // Don't "sandboxify" external references embedded in the code.
-  OutputExternalReference(target, rinfo->target_address_size(), false);
+  OutputExternalReference(target, rinfo->target_address_size(), false,
+                          kExternalPointerNullTag);
+}
+
+void Serializer::ObjectSerializer::VisitExternalPointer(HeapObject host,
+                                                        ExternalPointer_t ptr) {
+  // TODO(v8:12700) handle other external references here as well. This should
+  // allow removing some of the other Visit* methods, should unify the sandbox
+  // vs no-sandbox implementation, and should allow removing various
+  // XYZForSerialization methods throughout the codebase.
+  if (host.IsJSExternalObject()) {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+    // TODO(saelo) maybe add a helper method for this conversion if also needed
+    // in other places? This might require a ExternalPointerTable::Get variant
+    // that drops the pointer tag completely.
+    uint32_t index = ptr >> kExternalPointerIndexShift;
+    Address value =
+        isolate()->external_pointer_table().Get(index, kExternalObjectValueTag);
+#else
+    Address value = ptr;
+#endif
+    // TODO(v8:12700) should we specify here whether we expect the references to
+    // be internal or external (or either)?
+    OutputExternalReference(value, kSystemPointerSize, true,
+                            kExternalObjectValueTag);
+    bytes_processed_so_far_ += kExternalPointerSize;
+  }
 }
 
 void Serializer::ObjectSerializer::VisitInternalReference(Code host,

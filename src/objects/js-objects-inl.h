@@ -543,17 +543,6 @@ void JSExternalObject::set_value(Isolate* isolate, void* value) {
                             kExternalObjectValueTag);
 }
 
-uint32_t JSExternalObject::GetValueRefForDeserialization() {
-  ExternalPointer_t encoded_address =
-      ReadField<ExternalPointer_t>(kValueOffset);
-  return static_cast<uint32_t>(encoded_address);
-}
-
-void JSExternalObject::SetValueRefForSerialization(uint32_t ref) {
-  WriteField<ExternalPointer_t>(kValueOffset,
-                                static_cast<ExternalPointer_t>(ref));
-}
-
 DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
   return TaggedField<Object, kNativeContextOffset>::Relaxed_Load(cage_base,
                                                                  *this);

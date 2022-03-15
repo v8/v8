@@ -184,6 +184,9 @@ class Deserializer : public SerializerDeserializer {
   // A helper function for ReadData for reading external references.
   inline Address ReadExternalReferenceCase();
 
+  // A helper function for reading external pointer tags.
+  ExternalPointerTag ReadExternalPointerTag();
+
   Handle<HeapObject> ReadObject(SnapshotSpace space_number);
   Handle<HeapObject> ReadMetaMap();
 
@@ -198,7 +201,6 @@ class Deserializer : public SerializerDeserializer {
   void PostProcessNewJSReceiver(Map map, Handle<JSReceiver> obj,
                                 JSReceiver raw_obj, InstanceType instance_type,
                                 SnapshotSpace space);
-  void PostProcessJSExternalObject(JSExternalObject object, Isolate* isolate);
 
   HeapObject Allocate(AllocationType allocation, int size,
                       AllocationAlignment alignment);
