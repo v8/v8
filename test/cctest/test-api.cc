@@ -53,6 +53,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/compiler/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments.h"
 #include "src/execution/execution.h"
@@ -28294,30 +28295,28 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
   return try_catch.HasCaught();
 }
 
-template <typename T>
-void CheckEqual(T actual, T expected) {
-  CHECK_EQ(actual, expected);
-}
-
-template <>
-void CheckEqual<float>(float actual, float expected) {
-  if (std::isnan(expected)) {
-    CHECK(std::isnan(actual));
-  } else {
-    // This differentiates between -0 and +0.
-    CHECK_EQ(std::signbit(actual), std::signbit(expected));
-    CHECK_EQ(actual, expected);
+template <typename I, std::enable_if_t<std::is_integral<I>::value, bool> = true>
+void CheckEqual(I actual, I expected, std::ostringstream& error_msg) {
+  if (actual != expected) {
+    error_msg << "Value mismatch (expected: " << expected
+              << ", actual: " << actual << ")";
   }
 }
 
-template <>
-void CheckEqual<double>(double actual, double expected) {
+template <typename F,
+          std::enable_if_t<std::is_floating_point<F>::value, bool> = true>
+void CheckEqual(F actual, F expected, std::ostringstream& error_msg) {
   if (std::isnan(expected)) {
-    CHECK(std::isnan(actual));
+    if (!std::isnan(actual)) {
+      error_msg << "Value mismatch (expected: " << expected
+                << ", actual: " << actual << ")";
+    }
   } else {
     // This differentiates between -0 and +0.
-    CHECK_EQ(std::signbit(actual), std::signbit(expected));
-    CHECK_EQ(actual, expected);
+    if (std::signbit(actual) != std::signbit(expected) || actual != expected) {
+      error_msg << "Value mismatch (expected: " << expected
+                << ", actual: " << actual << ")";
+    }
   }
 }
 
@@ -28348,20 +28347,45 @@ void CallAndCheck(
   }
 
   CHECK_EQ(expected_behavior == Behavior::kException, has_caught);
-  CHECK_EQ(expected_path == ApiCheckerResult::kSlowCalled,
-           !checker.DidCallFast());
-  CHECK_EQ(expected_path == ApiCheckerResult::kFastCalled,
-           !checker.DidCallSlow());
+
+  std::ostringstream error_msg;
+  if (expected_path == ApiCheckerResult::kSlowCalled) {
+    if (checker.DidCallFast()) {
+      error_msg << "Fast path was called when only the default was expected. ";
+    }
+  }
+  if (expected_path == ApiCheckerResult::kFastCalled) {
+    if (checker.DidCallSlow()) {
+      error_msg << "Default path was called when no fallback was expected. ";
+    }
+  }
+  if (error_msg.str().length() > 0) {
+    error_msg << "Expected value was: " << expected_value;
+    CHECK_WITH_MSG(false, error_msg.str().c_str());
+  }
 
   if (expected_path & ApiCheckerResult::kSlowCalled) {
-    CHECK(checker.DidCallSlow());
+    if (!checker.DidCallSlow()) {
+      error_msg << "Default path was expected, but wasn't called. ";
+    }
     if (expected_behavior != Behavior::kException) {
-      CheckEqual(checker.slow_value_.ToChecked(), expected_value);
+      CheckEqual(checker.slow_value_.ToChecked(), expected_value, error_msg);
+    }
+    if (error_msg.str().length() > 0) {
+      error_msg << " from default path. ";
     }
   }
   if (expected_path & ApiCheckerResult::kFastCalled) {
-    CHECK(checker.DidCallFast());
-    CheckEqual(checker.fast_value_, expected_value);
+    if (!checker.DidCallFast()) {
+      error_msg << "Fast path was expected, but wasn't called. ";
+    }
+    CheckEqual(checker.fast_value_, expected_value, error_msg);
+    if (error_msg.str().length() > 0) {
+      error_msg << " from fast path";
+    }
+  }
+  if (error_msg.str().length() > 0) {
+    CHECK_WITH_MSG(false, error_msg.str().c_str());
   }
 }
 
@@ -29129,13 +29153,13 @@ TEST(FastApiCalls) {
 
   // Fallback to slow call and don't throw an exception.
   CallAndCheck<int32_t>(
-      42, Behavior::kNoException,
-      ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(42),
+      43, Behavior::kNoException,
+      ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(43),
       Behavior::kNoException, FallbackPolicy::kRequestFallback);
 
   // Doesn't fallback to slow call, so don't throw an exception.
   CallAndCheck<int32_t>(
-      42, Behavior::kNoException, ApiCheckerResult::kFastCalled, v8_num(42),
+      44, Behavior::kNoException, ApiCheckerResult::kFastCalled, v8_num(44),
       Behavior::kNoException, FallbackPolicy::kDontRequestFallback);
 
   // Wrong number of arguments
