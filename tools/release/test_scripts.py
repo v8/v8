@@ -42,7 +42,6 @@ import create_release
 from create_release import *
 import merge_to_branch
 from merge_to_branch import MergeToBranch
-from auto_tag import AutoTag
 import roll_merge
 from roll_merge import RollMerge
 
