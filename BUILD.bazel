@@ -1149,6 +1149,7 @@ filegroup(
         "src/common/checks.h",
         "src/common/high-allocation-throughput-scope.h",
         "src/common/message-template.h",
+        "src/common/operation.h",
         "src/common/ptr-compr-inl.h",
         "src/common/ptr-compr.h",
         "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
