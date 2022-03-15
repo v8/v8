@@ -515,8 +515,7 @@ def _CheckNoexceptAnnotations(input_api, output_api):
                                    include_deletes=False):
     with open(f.LocalPath()) as fh:
       for match in re.finditer(regexp, fh.read()):
-        errors.append('in {}: {}'.format(f.LocalPath(),
-                                         match.group().strip()))
+        errors.append(f'in {f.LocalPath()}: {match.group().strip()}')
 
   if errors:
     return [output_api.PresubmitPromptOrNotify(
