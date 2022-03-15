@@ -9,7 +9,8 @@ USE_PYTHON3 = True
 
 def _CommonChecks(input_api, output_api):
   tests = input_api.canned_checks.GetUnitTestsInDirectory(
-      input_api, output_api, '.', files_to_check=['test_scripts.py$'])
+      input_api, output_api, '.', files_to_check=['test_scripts.py$'],
+      run_on_python2=False)
   return input_api.RunTests(tests)
 
 def CheckChangeOnUpload(input_api, output_api):

@@ -1,10 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2015 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
-# for py2/py3 compatibility
-from __future__ import print_function
 
 import argparse
 import os
@@ -13,12 +10,7 @@ import tempfile
 
 from common_includes import *
 
-PYTHON3 = sys.version_info >= (3, 0)
-
-if PYTHON3:
-  import urllib.request as urllib2
-else:
-  import urllib2
+import urllib.request as urllib2
 
 
 class Preparation(Step):

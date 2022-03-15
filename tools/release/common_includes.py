@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2013 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,9 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import argparse
 import datetime
 from distutils.version import LooseVersion
@@ -47,14 +44,8 @@ import urllib
 from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
-PYTHON3 = sys.version_info >= (3, 0)
-
-if PYTHON3:
-  import http.client as httplib
-  import urllib.request as urllib2
-else:
-  import httplib
-  import urllib2
+import http.client as httplib
+import urllib.request as urllib2
 
 
 DAY_IN_SECONDS = 24 * 60 * 60
@@ -74,10 +65,6 @@ V8_BASE = os.path.dirname(
 path_to_depot_tools = os.path.join(V8_BASE, 'third_party', 'depot_tools')
 new_path = path_to_depot_tools + os.pathsep + os.environ.get('PATH')
 os.environ['PATH'] = new_path
-
-
-def maybe_decode(obj):
-  return obj.decode('utf-8') if PYTHON3 else obj
 
 
 def TextToFile(text, file_name):
@@ -116,7 +103,7 @@ def Command(cmd, args="", prefix="", pipe=True, cwd=None):
   sys.stdout.flush()
   try:
     if pipe:
-      return maybe_decode(subprocess.check_output(cmd_line, shell=True, cwd=cwd))
+      return subprocess.check_output(cmd_line, shell=True, cwd=cwd).decode('utf-8')
     else:
       return subprocess.check_call(cmd_line, shell=True, cwd=cwd)
   except subprocess.CalledProcessError:
