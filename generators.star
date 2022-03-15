@@ -172,7 +172,7 @@ def ensure_forward_triggering_properties(ctx):
 def python3_scripts(ctx):
     build_bucket = ctx.output["cr-buildbucket.cfg"]
     for bucket in build_bucket.buckets:
-        if bucket.name != "ci":
+        if bucket.name not in ["ci", "try"]:
             # We switch tryserver and branches last.
             continue
         for builder in bucket.swarming.builders:
