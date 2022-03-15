@@ -57,14 +57,14 @@ def check_keys(error_msg, src_dict, supported_keys):
   errors = []
   for key in src_dict.keys():
     if key not in supported_keys:
-      errors += error_msg('Key "%s" must be one of %s' % (key, supported_keys))
+      errors += error_msg(f'Key "{key}" must be one of {supported_keys}')
   return errors
 
 
 def _check_properties(error_msg, src_dict, prop_name, supported_keys):
   properties = src_dict.get(prop_name, {})
   if not isinstance(properties, dict):
-    return error_msg('Value for %s must be a dict' % prop_name)
+    return error_msg(f'Value for {prop_name} must be a dict')
   return check_keys(error_msg, properties, supported_keys)
 
 
@@ -76,11 +76,11 @@ def _check_int_range(error_msg, src_dict, prop_name, lower_bound=None,
   try:
     value = int(src_dict[prop_name])
   except ValueError:
-    return error_msg('If specified, %s must be an int' % prop_name)
+    return error_msg(f'If specified, {prop_name} must be an int')
   if lower_bound is not None and value < lower_bound:
-    return error_msg('If specified, %s must be >=%d' % (prop_name, lower_bound))
+    return error_msg(f'If specified, {prop_name} must be >={lower_bound}')
   if upper_bound is not None and value > upper_bound:
-    return error_msg('If specified, %s must be <=%d' % (prop_name, upper_bound))
+    return error_msg(f'If specified, {prop_name} must be <={upper_bound}')
   return []
 
 
@@ -135,13 +135,13 @@ def _check_test(error_msg, test):
 
 def _check_test_spec(file_path, raw_pyl):
   def error_msg(msg):
-    return ['Error in %s:\n%s' % (file_path, msg)]
+    return [f'Error in {file_path}:\n{msg}']
 
   try:
     # Eval python literal file.
     full_test_spec = ast.literal_eval(raw_pyl)
   except SyntaxError as e:
-    return error_msg('Pyl parsing failed with:\n%s' % e)
+    return error_msg(f'Pyl parsing failed with:\n{e}')
 
   if not isinstance(full_test_spec, dict):
     return error_msg('Test spec must be a dict')
@@ -149,7 +149,7 @@ def _check_test_spec(file_path, raw_pyl):
   errors = []
   for buildername, builder_spec in full_test_spec.items():
     def error_msg(msg):
-      return ['Error in %s for builder %s:\n%s' % (file_path, buildername, msg)]
+      return [f'Error in {file_path} for builder {buildername}:\n{msg}']
 
     if not isinstance(buildername, str) or not buildername:
       errors += error_msg('Buildername must be a non-empty string')
