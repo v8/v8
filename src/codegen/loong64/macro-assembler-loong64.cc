@@ -1256,7 +1256,7 @@ void TurboAssembler::MultiPush(RegList regs) {
   int16_t stack_offset = 0;
 
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs & (1 << i)) != 0) {
+    if ((regs.bits() & (1 << i)) != 0) {
       stack_offset -= kPointerSize;
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
@@ -1265,17 +1265,17 @@ void TurboAssembler::MultiPush(RegList regs) {
 }
 
 void TurboAssembler::MultiPush(RegList regs1, RegList regs2) {
-  DCHECK_EQ(regs1 & regs2, 0);
+  DCHECK((regs1 & regs2).is_empty());
   int16_t stack_offset = 0;
 
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs1 & (1 << i)) != 0) {
+    if ((regs1.bits() & (1 << i)) != 0) {
       stack_offset -= kPointerSize;
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
   }
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs2 & (1 << i)) != 0) {
+    if ((regs2.bits() & (1 << i)) != 0) {
       stack_offset -= kPointerSize;
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
@@ -1284,25 +1284,25 @@ void TurboAssembler::MultiPush(RegList regs1, RegList regs2) {
 }
 
 void TurboAssembler::MultiPush(RegList regs1, RegList regs2, RegList regs3) {
-  DCHECK_EQ(regs1 & regs2, 0);
-  DCHECK_EQ(regs1 & regs3, 0);
-  DCHECK_EQ(regs2 & regs3, 0);
+  DCHECK((regs1 & regs2).is_empty());
+  DCHECK((regs1 & regs3).is_empty());
+  DCHECK((regs2 & regs3).is_empty());
   int16_t stack_offset = 0;
 
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs1 & (1 << i)) != 0) {
+    if ((regs1.bits() & (1 << i)) != 0) {
       stack_offset -= kPointerSize;
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
   }
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs2 & (1 << i)) != 0) {
+    if ((regs2.bits() & (1 << i)) != 0) {
       stack_offset -= kPointerSize;
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
   }
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs3 & (1 << i)) != 0) {
+    if ((regs3.bits() & (1 << i)) != 0) {
       stack_offset -= kPointerSize;
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
@@ -1314,7 +1314,7 @@ void TurboAssembler::MultiPop(RegList regs) {
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs & (1 << i)) != 0) {
+    if ((regs.bits() & (1 << i)) != 0) {
       Ld_d(ToRegister(i), MemOperand(sp, stack_offset));
       stack_offset += kPointerSize;
     }
@@ -1323,17 +1323,17 @@ void TurboAssembler::MultiPop(RegList regs) {
 }
 
 void TurboAssembler::MultiPop(RegList regs1, RegList regs2) {
-  DCHECK_EQ(regs1 & regs2, 0);
+  DCHECK((regs1 & regs2).is_empty());
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs2 & (1 << i)) != 0) {
+    if ((regs2.bits() & (1 << i)) != 0) {
       Ld_d(ToRegister(i), MemOperand(sp, stack_offset));
       stack_offset += kPointerSize;
     }
   }
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs1 & (1 << i)) != 0) {
+    if ((regs1.bits() & (1 << i)) != 0) {
       Ld_d(ToRegister(i), MemOperand(sp, stack_offset));
       stack_offset += kPointerSize;
     }
@@ -1342,25 +1342,25 @@ void TurboAssembler::MultiPop(RegList regs1, RegList regs2) {
 }
 
 void TurboAssembler::MultiPop(RegList regs1, RegList regs2, RegList regs3) {
-  DCHECK_EQ(regs1 & regs2, 0);
-  DCHECK_EQ(regs1 & regs3, 0);
-  DCHECK_EQ(regs2 & regs3, 0);
+  DCHECK((regs1 & regs2).is_empty());
+  DCHECK((regs1 & regs3).is_empty());
+  DCHECK((regs2 & regs3).is_empty());
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs3 & (1 << i)) != 0) {
+    if ((regs3.bits() & (1 << i)) != 0) {
       Ld_d(ToRegister(i), MemOperand(sp, stack_offset));
       stack_offset += kPointerSize;
     }
   }
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs2 & (1 << i)) != 0) {
+    if ((regs2.bits() & (1 << i)) != 0) {
       Ld_d(ToRegister(i), MemOperand(sp, stack_offset));
       stack_offset += kPointerSize;
     }
   }
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs1 & (1 << i)) != 0) {
+    if ((regs1.bits() & (1 << i)) != 0) {
       Ld_d(ToRegister(i), MemOperand(sp, stack_offset));
       stack_offset += kPointerSize;
     }
@@ -1368,24 +1368,24 @@ void TurboAssembler::MultiPop(RegList regs1, RegList regs2, RegList regs3) {
   addi_d(sp, sp, stack_offset);
 }
 
-void TurboAssembler::MultiPushFPU(RegList regs) {
-  int16_t num_to_push = base::bits::CountPopulation(regs);
+void TurboAssembler::MultiPushFPU(DoubleRegList regs) {
+  int16_t num_to_push = regs.Count();
   int16_t stack_offset = num_to_push * kDoubleSize;
 
   Sub_d(sp, sp, Operand(stack_offset));
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs & (1 << i)) != 0) {
+    if ((regs.bits() & (1 << i)) != 0) {
       stack_offset -= kDoubleSize;
       Fst_d(FPURegister::from_code(i), MemOperand(sp, stack_offset));
     }
   }
 }
 
-void TurboAssembler::MultiPopFPU(RegList regs) {
+void TurboAssembler::MultiPopFPU(DoubleRegList regs) {
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs & (1 << i)) != 0) {
+    if ((regs.bits() & (1 << i)) != 0) {
       Fld_d(FPURegister::from_code(i), MemOperand(sp, stack_offset));
       stack_offset += kDoubleSize;
     }

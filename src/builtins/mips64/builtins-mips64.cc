@@ -2663,7 +2663,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
       gp_regs.set(gp_param_reg);
     }
 
-    RegList fp_regs;
+    DoubleRegList fp_regs;
     for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
       fp_regs.set(fp_param_reg);
     }
@@ -2695,7 +2695,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // kFixedFrameSizeFromFp is hard coded to include space for Simd
     // registers, so we still need to allocate extra (unused) space on the stack
     // as if they were saved.
-    __ Dsubu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    __ Dsubu(sp, sp, fp_regs.Count() * kDoubleSize);
     __ bind(&simd_pushed);
     // Pass instance and function index as an explicit arguments to the runtime
     // function.
@@ -2719,7 +2719,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     }
     __ Branch(&simd_popped);
     __ bind(&pop_doubles);
-    __ Daddu(sp, sp, base::bits::CountPopulation(fp_regs) * kDoubleSize);
+    __ Daddu(sp, sp, fp_regs.Count() * kDoubleSize);
     __ MultiPopFPU(fp_regs);
     __ bind(&simd_popped);
     __ MultiPop(gp_regs);
@@ -3418,7 +3418,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Leave gaps for other registers.
   __ Dsubu(sp, sp, kNumberOfRegisters * kPointerSize);
   for (int16_t i = kNumberOfRegisters - 1; i >= 0; i--) {
-    if ((saved_regs & (1 << i)) != 0) {
+    if ((saved_regs.bits() & (1 << i)) != 0) {
       __ Sd(ToRegister(i), MemOperand(sp, kPointerSize * i));
     }
   }
@@ -3470,7 +3470,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   DCHECK_EQ(Register::kNumRegisters, kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    if ((saved_regs & (1 << i)) != 0) {
+    if ((saved_regs.bits() & (1 << i)) != 0) {
       __ Ld(a2, MemOperand(sp, i * kPointerSize));
       __ Sd(a2, MemOperand(a1, offset));
     } else if (FLAG_debug_code) {
@@ -3570,7 +3570,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ mov(at, a2);
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
-    if ((restored_regs & (1 << i)) != 0) {
+    if ((restored_regs.bits() & (1 << i)) != 0) {
       __ Ld(ToRegister(i), MemOperand(at, offset));
     }
   }

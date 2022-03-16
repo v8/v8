@@ -46,45 +46,6 @@ namespace internal {
 // encoding.
 const int kNumRegs = 32;
 
-// Number of registers for which space is reserved in safepoints. Must be a
-// multiple of 8.
-const int kNumSafepointRegisters = 24;
-
-const int kUndefIndex = -1;
-// Map with indexes on stack that corresponds to codes of saved registers.
-const int kSafepointRegisterStackIndexMap[kNumRegs] = {kUndefIndex,  // zero_reg
-                                                       kUndefIndex,  // at
-                                                       0,            // v0
-                                                       1,            // v1
-                                                       2,            // a0
-                                                       3,            // a1
-                                                       4,            // a2
-                                                       5,            // a3
-                                                       6,            // t0
-                                                       7,            // t1
-                                                       8,            // t2
-                                                       9,            // t3
-                                                       10,           // t4
-                                                       11,           // t5
-                                                       12,           // t6
-                                                       13,           // t7
-                                                       14,           // s0
-                                                       15,           // s1
-                                                       16,           // s2
-                                                       17,           // s3
-                                                       18,           // s4
-                                                       19,           // s5
-                                                       20,           // s6
-                                                       21,           // s7
-                                                       kUndefIndex,  // t8
-                                                       kUndefIndex,  // t9
-                                                       kUndefIndex,  // k0
-                                                       kUndefIndex,  // k1
-                                                       kUndefIndex,  // gp
-                                                       kUndefIndex,  // sp
-                                                       22,           // fp
-                                                       kUndefIndex};
-
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-

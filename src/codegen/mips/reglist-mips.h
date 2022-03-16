@@ -18,7 +18,7 @@ ASSERT_TRIVIALLY_COPYABLE(RegList);
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegList);
 
 const RegList kJSCallerSaved = {v0, v1, a0, a1, a2, a3, t0,
-                                t1, t2, t3, t4, t5, t6, t7}
+                                t1, t2, t3, t4, t5, t6, t7};
 
 const int kNumJSCallerSaved = 14;
 
@@ -35,21 +35,12 @@ const RegList kCalleeSaved = {s0,   // s0
 
 const int kNumCalleeSaved = 9;
 
-const RegList kCalleeSavedFPU = {f20, f22, f24, f26, f28, f30};
+const DoubleRegList kCalleeSavedFPU = {f20, f22, f24, f26, f28, f30};
 
 const int kNumCalleeSavedFPU = 6;
 
-const RegList kCallerSavedFPU = {f0, f2, f4, f6, f8, f10, f12, f14, f16, f18};
-
-// Number of registers for which space is reserved in safepoints. Must be a
-// multiple of 8.
-const int kNumSafepointRegisters = 24;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
+const DoubleRegList kCallerSavedFPU = {f0,  f2,  f4,  f6,  f8,
+                                       f10, f12, f14, f16, f18};
 
 }  // namespace internal
 }  // namespace v8

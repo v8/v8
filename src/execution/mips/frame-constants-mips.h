@@ -7,6 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/codegen/register.h"
 #include "src/execution/frame-constants.h"
 
 namespace v8 {
@@ -45,9 +46,11 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
   // {v0, v1, a0, a1, a2, a3, t0, t1, t2, t3, t4, t5, t6, s7}
-  static constexpr uint32_t kPushedGpRegs = 0b111111111111100 + (1 << 23);
+  static constexpr RegList kPushedGpRegs = {v0, v1, a0, a1, a2, a3, t0,
+                                            t1, t2, t3, t4, t5, t6, s7};
   // {f0, f2, f4, f6, f8, f10, f12, f14, f16, f18, f20, f22, f24}
-  static constexpr uint32_t kPushedFpRegs = 0b1010101010101010101010101;
+  static constexpr DoubleRegList kPushedFpRegs = {
+      f0, f2, f4, f6, f8, f10, f12, f14, f16, f18, f20, f22, f24};
 
   static constexpr int kNumPushedGpRegisters = kPushedGpRegs.Count();
   static constexpr int kNumPushedFpRegisters = kPushedFpRegs.Count();
@@ -71,7 +74,7 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
     uint32_t lower_regs =
         kPushedFpRegs.bits() & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedFpRegisterOffset +
-           base::bits::CountPopulation(lower_regs) * kSimd128Size;
+           base::bits::CountPopulation(lower_regs) * kDoubleSize;
   }
 };
 

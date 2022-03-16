@@ -36,13 +36,13 @@ const RegList kCalleeSaved = {fp,   // fp
 
 const int kNumCalleeSaved = 10;
 
-const RegList kCalleeSavedFPU = {f24, f25, f26, f27, f28, f29, f30, f31};
+const DoubleRegList kCalleeSavedFPU = {f24, f25, f26, f27, f28, f29, f30, f31};
 
 const int kNumCalleeSavedFPU = 8;
 
-const RegList kCallerSavedFPU = {f0,  f1,  f2,  f3,  f4,  f5,  f6,  f7,
-                                 f8,  f9,  f10, f11, f12, f13, f14, f15,
-                                 f16, f17, f18, f19, f20, f21, f22, f23};
+const DoubleRegList kCallerSavedFPU = {f0,  f1,  f2,  f3,  f4,  f5,  f6,  f7,
+                                       f8,  f9,  f10, f11, f12, f13, f14, f15,
+                                       f16, f17, f18, f19, f20, f21, f22, f23};
 
 }  // namespace internal
 }  // namespace v8
