@@ -269,16 +269,8 @@ TEST(DispatchableTest, FaultyCBORTrailingJunk) {
 // Helpers for creating protocol cresponses and notifications.
 // =============================================================================
 TEST(CreateErrorResponseTest, SmokeTest) {
-  ErrorSupport errors;
-  errors.Push();
-  errors.SetName("foo");
-  errors.Push();
-  errors.SetName("bar");
-  errors.AddError("expected a string");
-  errors.SetName("baz");
-  errors.AddError("expected a surprise");
   auto serializable = CreateErrorResponse(
-      42, DispatchResponse::InvalidParams("invalid params message"), &errors);
+      42, DispatchResponse::InvalidParams("invalid params message"));
   std::string json;
   auto status =
       json::ConvertCBORToJSON(SpanFrom(serializable->Serialize()), &json);
@@ -286,9 +278,7 @@ TEST(CreateErrorResponseTest, SmokeTest) {
   EXPECT_EQ(
       "{\"id\":42,\"error\":"
       "{\"code\":-32602,"
-      "\"message\":\"invalid params message\","
-      "\"data\":\"foo.bar: expected a string; "
-      "foo.baz: expected a surprise\"}}",
+      "\"message\":\"invalid params message\"}}",
       json);
 }
 

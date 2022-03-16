@@ -310,15 +310,10 @@ class ProtocolError : public Serializable {
 
 std::unique_ptr<Serializable> CreateErrorResponse(
     int call_id,
-    DispatchResponse dispatch_response,
-    const ErrorSupport* errors) {
+    DispatchResponse dispatch_response) {
   auto protocol_error =
       std::make_unique<ProtocolError>(std::move(dispatch_response));
   protocol_error->SetCallId(call_id);
-  if (errors && !errors->Errors().empty()) {
-    protocol_error->SetData(
-        std::string(errors->Errors().begin(), errors->Errors().end()));
-  }
   return protocol_error;
 }
 
@@ -473,26 +468,9 @@ void DomainDispatcher::sendResponse(int call_id,
   frontend_channel_->SendProtocolResponse(call_id, std::move(serializable));
 }
 
-bool DomainDispatcher::MaybeReportInvalidParams(
-    const Dispatchable& dispatchable,
-    const ErrorSupport& errors) {
-  if (errors.Errors().empty())
-    return false;
-  if (frontend_channel_) {
-    frontend_channel_->SendProtocolResponse(
-        dispatchable.CallId(),
-        CreateErrorResponse(
-            dispatchable.CallId(),
-            DispatchResponse::InvalidParams("Invalid parameters"), &errors));
-  }
-  return true;
-}
-
-bool DomainDispatcher::MaybeReportInvalidParams(
-    const Dispatchable& dispatchable,
-    const DeserializerState& state) {
-  if (state.status().ok())
-    return false;
+void DomainDispatcher::ReportInvalidParams(const Dispatchable& dispatchable,
+                                           const DeserializerState& state) {
+  assert(!state.status().ok());
   if (frontend_channel_) {
     frontend_channel_->SendProtocolResponse(
         dispatchable.CallId(),
@@ -500,7 +478,6 @@ bool DomainDispatcher::MaybeReportInvalidParams(
             dispatchable.CallId(),
             DispatchResponse::InvalidParams("Invalid parameters"), state));
   }
-  return true;
 }
 
 void DomainDispatcher::clearFrontend() {

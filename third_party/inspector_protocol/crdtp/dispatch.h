@@ -31,7 +31,7 @@ enum class DispatchCode {
   FALL_THROUGH = 2,
   // For historical reasons, these error codes correspond to commonly used
   // XMLRPC codes (e.g. see METHOD_NOT_FOUND in
-  // https://github.com/python/cpython/blob/master/Lib/xmlrpc/client.py).
+  // https://github.com/python/cpython/blob/main/Lib/xmlrpc/client.py).
   PARSE_ERROR = -32700,
   INVALID_REQUEST = -32600,
   METHOD_NOT_FOUND = -32601,
@@ -150,8 +150,7 @@ class Dispatchable {
 
 std::unique_ptr<Serializable> CreateErrorResponse(
     int callId,
-    DispatchResponse dispatch_response,
-    const ErrorSupport* errors = nullptr);
+    DispatchResponse dispatch_response);
 
 std::unique_ptr<Serializable> CreateErrorNotification(
     DispatchResponse dispatch_response);
@@ -230,13 +229,8 @@ class DomainDispatcher {
                     const DispatchResponse&,
                     std::unique_ptr<Serializable> result = nullptr);
 
-  // Returns true if |errors| contains errors *and* reports these errors
-  // as a response on the frontend channel. Called from generated code,
-  // optimized for code size of the callee.
-  bool MaybeReportInvalidParams(const Dispatchable& dispatchable,
-                                const ErrorSupport& errors);
-  bool MaybeReportInvalidParams(const Dispatchable& dispatchable,
-                                const DeserializerState& state);
+  void ReportInvalidParams(const Dispatchable& dispatchable,
+                           const DeserializerState& state);
 
   FrontendChannel* channel() { return frontend_channel_; }
 

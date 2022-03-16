@@ -115,6 +115,8 @@ std::string Status::Message() const {
       return "BINDINGS: binary value expected";
     case Error::BINDINGS_DICTIONARY_VALUE_EXPECTED:
       return "BINDINGS: dictionary value expected";
+    case Error::BINDINGS_INVALID_BASE64_STRING:
+      return "BINDINGS: invalid base64 string";
   }
   // Some compilers can't figure out that we can't get here.
   return "INVALID ERROR CODE";
