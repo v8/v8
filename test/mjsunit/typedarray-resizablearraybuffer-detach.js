@@ -1444,3 +1444,39 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertThrows(() => { fixedLength.subarray(0, evil); }, TypeError);
   }
 })();
+
+(function SortCallbackDetaches() {
+  function WriteUnsortedData(taFull) {
+    for (let i = 0; i < taFull.length; ++i) {
+      WriteToTypedArray(taFull, i, 10 - i);
+    }
+  }
+
+  let rab;
+  function CustomComparison(a, b) {
+    %ArrayBufferDetach(rab);
+    return 0;
+  }
+
+  // Fixed length TA.
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const taFull = new ctor(rab, 0);
+    WriteUnsortedData(taFull);
+
+    assertThrows(() => { fixedLength.sort(CustomComparison); });
+  }
+
+  // Length-tracking TA.
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, 0);
+    const taFull = new ctor(rab, 0);
+    WriteUnsortedData(taFull);
+
+    assertThrows(() => { lengthTracking.sort(CustomComparison); });
+  }
+})();

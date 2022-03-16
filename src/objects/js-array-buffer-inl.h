@@ -235,6 +235,16 @@ size_t JSTypedArray::GetLength() const {
   return GetLengthOrOutOfBounds(out_of_bounds);
 }
 
+size_t JSTypedArray::GetByteLength() const {
+  return GetLength() * element_size();
+}
+
+bool JSTypedArray::IsOutOfBounds() const {
+  bool out_of_bounds = false;
+  GetLengthOrOutOfBounds(out_of_bounds);
+  return out_of_bounds;
+}
+
 size_t JSTypedArray::length() const {
   DCHECK(!is_length_tracking());
   DCHECK(!is_backed_by_rab());
@@ -347,15 +357,11 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
   }
 
-  if (V8_UNLIKELY(array->IsVariableLength())) {
-    bool out_of_bounds = false;
-    array->GetLengthOrOutOfBounds(out_of_bounds);
-    if (out_of_bounds) {
-      const MessageTemplate message = MessageTemplate::kDetachedOperation;
-      Handle<String> operation =
-          isolate->factory()->NewStringFromAsciiChecked(method_name);
-      THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
-    }
+  if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
+    const MessageTemplate message = MessageTemplate::kDetachedOperation;
+    Handle<String> operation =
+        isolate->factory()->NewStringFromAsciiChecked(method_name);
+    THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
   }
 
   // spec describes to return `buffer`, but it may disrupt current

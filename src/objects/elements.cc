@@ -3471,11 +3471,7 @@ class TypedElementsAccessor
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
     DCHECK(!typed_array.WasDetached());
-#if DEBUG
-    bool out_of_bounds = false;
-    typed_array.GetLengthOrOutOfBounds(out_of_bounds);
-    DCHECK(!out_of_bounds);
-#endif
+    DCHECK(!typed_array.IsOutOfBounds());
 
     ElementType typed_search_value;
 

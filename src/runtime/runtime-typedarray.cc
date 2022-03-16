@@ -90,6 +90,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   // Validation is handled in the Torque builtin.
   Handle<JSTypedArray> array = args.at<JSTypedArray>(0);
   DCHECK(!array->WasDetached());
+  DCHECK(!array->IsOutOfBounds());
 
 #if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   if (FLAG_multi_mapped_mock_allocator) {
@@ -99,7 +100,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   }
 #endif
 
-  size_t length = array->length();
+  size_t length = array->GetLength();
   DCHECK_LT(1, length);
 
   // In case of a SAB, the data is copied into temporary memory, as
@@ -113,7 +114,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   std::vector<uint8_t> offheap_copy;
   void* data_copy_ptr = nullptr;
   if (copy_data) {
-    const size_t bytes = array->byte_length();
+    const size_t bytes = array->GetByteLength();
     if (bytes <= static_cast<unsigned>(
                      ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
       array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
@@ -162,7 +163,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   if (copy_data) {
     DCHECK_NOT_NULL(data_copy_ptr);
     DCHECK_NE(array_copy.is_null(), offheap_copy.empty());
-    const size_t bytes = array->byte_length();
+    const size_t bytes = array->GetByteLength();
     base::Relaxed_Memcpy(static_cast<base::Atomic8*>(array->DataPtr()),
                          static_cast<base::Atomic8*>(data_copy_ptr), bytes);
   }

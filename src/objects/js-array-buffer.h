@@ -296,6 +296,8 @@ class JSTypedArray
 
   inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
   inline size_t GetLength() const;
+  inline size_t GetByteLength() const;
+  inline bool IsOutOfBounds() const;
 
   static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
                                                          Address raw_array);
