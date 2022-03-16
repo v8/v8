@@ -477,6 +477,23 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   }
 }
 
+Object JSObject::RawFastPropertyAtSwap(FieldIndex index, Object value,
+                                       SeqCstAccessTag tag) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return RawFastPropertyAtSwap(cage_base, index, value, tag);
+}
+
+Object JSObject::RawFastPropertyAtSwap(PtrComprCageBase cage_base,
+                                       FieldIndex index, Object value,
+                                       SeqCstAccessTag tag) {
+  if (index.is_inobject()) {
+    return TaggedField<Object>::SeqCst_Swap(cage_base, *this, index.offset(),
+                                            value);
+  }
+  return property_array().Swap(cage_base, index.outobject_array_index(), value,
+                               tag);
+}
+
 int JSObject::GetInObjectPropertyOffset(int index) {
   return map().GetInObjectPropertyOffset(index);
 }

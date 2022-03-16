@@ -112,6 +112,14 @@ class AsAtomicImpl {
   }
 
   template <typename T>
+  static T SeqCst_Swap(T* addr,
+                       typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return base::SeqCst_AtomicExchange(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(new_value));
+  }
+
+  template <typename T>
   static T Release_CompareAndSwap(
       T* addr, typename std::remove_reference<T>::type old_value,
       typename std::remove_reference<T>::type new_value) {

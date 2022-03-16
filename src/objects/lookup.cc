@@ -1137,6 +1137,20 @@ void LookupIterator::WriteDataValue(Handle<Object> value, SeqCstAccessTag tag) {
   holder->FastPropertyAtPut(field_index, *value, tag);
 }
 
+Handle<Object> LookupIterator::SwapDataValue(Handle<Object> value,
+                                             SeqCstAccessTag tag) {
+  DCHECK_EQ(DATA, state_);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  // Currently only shared structs support sequentially consistent access.
+  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+  DisallowGarbageCollection no_gc;
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  return handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
+                isolate_);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 wasm::ValueType LookupIterator::wasm_value_type() const {
