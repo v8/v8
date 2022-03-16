@@ -1389,7 +1389,8 @@ Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
   // Simplifying (x >> n) <= k into x <= (k << n), with "k << n" being
   // computed here at compile time.
   if (m.right().HasResolvedValue() &&
-      m.left().op() == machine()->Word32SarShiftOutZeros()) {
+      m.left().op() == machine()->Word32SarShiftOutZeros() &&
+      m.left().node()->UseCount() == 1) {
     uint32_t right = m.right().ResolvedValue();
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasResolvedValue()) {
@@ -1404,7 +1405,8 @@ Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
   // Simplifying k <= (x >> n) into (k << n) <= x, with "k << n" being
   // computed here at compile time.
   if (m.left().HasResolvedValue() &&
-      m.right().op() == machine()->Word32SarShiftOutZeros()) {
+      m.right().op() == machine()->Word32SarShiftOutZeros() &&
+      m.right().node()->UseCount() == 1) {
     uint32_t left = m.left().ResolvedValue();
     Int32BinopMatcher mright(m.right().node());
     if (mright.right().HasResolvedValue()) {
