@@ -3851,8 +3851,8 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fpu != 0) {
-    int count = base::bits::CountPopulation(saves_fpu);
+  if (!saves_fpu.is_empty()) {
+    int count = saves_fpu.Count();
     DCHECK_EQ(kNumCalleeSavedFPU, count);
     frame->AllocateSavedCalleeRegisterSlots(count *
                                             (kDoubleSize / kSystemPointerSize));
@@ -3952,16 +3952,16 @@ void CodeGenerator::AssembleConstructFrame() {
 
   // Skip callee-saved and return slots, which are pushed below.
   required_slots -= saves.Count();
-  required_slots -= base::bits::CountPopulation(saves_fpu);
+  required_slots -= saves_fpu.Count();
   required_slots -= returns;
   if (required_slots > 0) {
     __ Sub64(sp, sp, Operand(required_slots * kSystemPointerSize));
   }
 
-  if (saves_fpu != 0) {
+  if (!saves_fpu.is_empty()) {
     // Save callee-saved FPU registers.
     __ MultiPushFPU(saves_fpu);
-    DCHECK_EQ(kNumCalleeSavedFPU, base::bits::CountPopulation(saves_fpu));
+    DCHECK_EQ(kNumCalleeSavedFPU, saves_fpu.Count());
   }
 
   if (!saves.is_empty()) {
@@ -3991,7 +3991,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore FPU registers.
   const DoubleRegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fpu != 0) {
+  if (!saves_fpu.is_empty()) {
     __ MultiPopFPU(saves_fpu);
   }
 

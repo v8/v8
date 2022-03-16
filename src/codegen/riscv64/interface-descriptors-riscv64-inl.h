@@ -39,7 +39,8 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::
 
 // static
 constexpr auto WriteBarrierDescriptor::registers() {
-  return RegisterArray(a1, a5, a4, a2, a0, a3);
+  // TODO(Yuxiang): Remove a7 which is just there for padding.
+  return RegisterArray(a1, a5, a4, a2, a0, a3, kContextRegister, a7);
 }
 
 // static

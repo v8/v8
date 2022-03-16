@@ -2777,7 +2777,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Ensure that A1 will not be repeated.
     CHECK_EQ(0, gp_regs.Count() % 2);
 
-    RegList fp_regs;
+    DoubleRegList fp_regs;
     for (DoubleRegister fp_param_reg : wasm::kFpParamRegisters) {
       fp_regs.set(fp_param_reg);
     }
@@ -3504,7 +3504,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Leave gaps for other registers.
   __ Sub64(sp, sp, kNumberOfRegisters * kSystemPointerSize);
   for (int16_t i = kNumberOfRegisters - 1; i >= 0; i--) {
-    if ((saved_regs & (1 << i)) != 0) {
+    if ((saved_regs.bits() & (1 << i)) != 0) {
       __ Sd(ToRegister(i), MemOperand(sp, kSystemPointerSize * i));
     }
   }
@@ -3555,7 +3555,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
-    if ((saved_regs & (1 << i)) != 0) {
+    if ((saved_regs.bits() & (1 << i)) != 0) {
       __ Ld(a2, MemOperand(sp, i * kSystemPointerSize));
       __ Sd(a2, MemOperand(a1, offset));
     } else if (FLAG_debug_code) {
@@ -3657,7 +3657,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
-    if ((restored_regs & (1 << i)) != 0) {
+    if ((restored_regs.bits() & (1 << i)) != 0) {
       __ Ld(ToRegister(i), MemOperand(t3, offset));
     }
   }

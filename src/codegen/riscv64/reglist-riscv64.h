@@ -37,14 +37,14 @@ const RegList kCalleeSaved = {fp,    // fp/s0
 
 const int kNumCalleeSaved = 12;
 
-const RegList kCalleeSavedFPU = {fs0, fs1, fs2, fs3, fs4,  fs5,
-                                 fs6, fs7, fs8, fs9, fs10, fs11};
+const DoubleRegList kCalleeSavedFPU = {fs0, fs1, fs2, fs3, fs4,  fs5,
+                                       fs6, fs7, fs8, fs9, fs10, fs11};
 
 const int kNumCalleeSavedFPU = kCalleeSavedFPU.Count();
 
-const RegList kCallerSavedFPU = {ft0, ft1, ft2, ft3, ft4,  ft5, ft6,
-                                 ft7, fa0, fa1, fa2, fa3,  fa4, fa5,
-                                 fa6, fa7, ft8, ft9, ft10, ft11};
+const DoubleRegList kCallerSavedFPU = {ft0, ft1, ft2, ft3, ft4,  ft5, ft6,
+                                       ft7, fa0, fa1, fa2, fa3,  fa4, fa5,
+                                       fa6, fa7, ft8, ft9, ft10, ft11};
 
 const int kNumCallerSavedFPU = kCallerSavedFPU.Count();
 

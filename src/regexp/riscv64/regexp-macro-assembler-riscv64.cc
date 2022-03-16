@@ -716,7 +716,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
 
     // According to MultiPush implementation, registers will be pushed in the
     // order of ra, fp, then s8, ..., s1, and finally a7,...a0
-    __ MultiPush({ra}, registers_to_retain | argument_registers);
+    __ MultiPush(RegList{ra} | registers_to_retain | argument_registers);
 
     // Set frame pointer in space for it if this is not a direct call
     // from generated code.

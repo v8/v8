@@ -45,14 +45,10 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  // constexpr RegList kLiftoffAssemblerGpCacheRegs =
-  //    {a0, a1, a2, a3, a4, a5, a6, a7, t0, t1, t2, s7};
-  static constexpr uint32_t kPushedGpRegs = wasm::kLiftoffAssemblerGpCacheRegs;
+  static constexpr RegList kPushedGpRegs = wasm::kLiftoffAssemblerGpCacheRegs;
 
-  //   constexpr RegList kLiftoffAssemblerFpCacheRegs = {
-  //       ft0, ft1, ft2, ft3, ft4, ft5, ft6, ft7, fa0, fa1, fa2, fa3, fa4, fa5,
-  //       fa6, fa7, ft8, ft9, ft10, ft11};
-  static constexpr uint32_t kPushedFpRegs = wasm::kLiftoffAssemblerFpCacheRegs;
+  static constexpr DoubleRegList kPushedFpRegs =
+      wasm::kLiftoffAssemblerFpCacheRegs;
 
   static constexpr int kNumPushedGpRegisters = kPushedGpRegs.Count();
   static constexpr int kNumPushedFpRegisters = kPushedFpRegs.Count();
@@ -76,7 +72,7 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
     uint32_t lower_regs =
         kPushedFpRegs.bits() & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedFpRegisterOffset +
-           base::bits::CountPopulation(lower_regs) * kSimd128Size;
+           base::bits::CountPopulation(lower_regs) * kDoubleSize;
   }
 };
 

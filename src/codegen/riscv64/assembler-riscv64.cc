@@ -3928,14 +3928,17 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 
 Register UseScratchRegisterScope::Acquire() {
   DCHECK_NOT_NULL(available_);
-  DCHECK_NE(*available_, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available_));
-  *available_ &= ~(1UL << index);
+  DCHECK(!available_->is_empty());
+  int index =
+      static_cast<int>(base::bits::CountTrailingZeros32(available_->bits()));
+  *available_ &= RegList::FromBits(~(1U << index));
 
   return Register::from_code(index);
 }
 
-bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
+bool UseScratchRegisterScope::hasAvailable() const {
+  return !available_->is_empty();
+}
 
 bool Assembler::IsConstantPoolAt(Instruction* instr) {
   // The constant pool marker is made of two instructions. These instructions

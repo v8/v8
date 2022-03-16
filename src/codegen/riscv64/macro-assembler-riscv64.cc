@@ -1658,7 +1658,7 @@ static RegList a_regs = {a0, a1, a2, a3, a4, a5, a6, a7};
 static RegList s_regs = {s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11};
 
 void TurboAssembler::MultiPush(RegList regs) {
-  int16_t num_to_push = base::bits::CountPopulation(regs);
+  int16_t num_to_push = regs.Count();
   int16_t stack_offset = num_to_push * kSystemPointerSize;
 
 #define TEST_AND_PUSH_REG(reg)             \
@@ -1683,17 +1683,17 @@ void TurboAssembler::MultiPush(RegList regs) {
   TEST_AND_PUSH_REG(sp);
   TEST_AND_PUSH_REG(gp);
   TEST_AND_PUSH_REG(tp);
-  if ((regs & s_regs) != 0) {
+  if (!(regs & s_regs).is_empty()) {
     S_REGS(TEST_AND_PUSH_REG)
   }
-  if ((regs & a_regs) != 0) {
+  if (!(regs & a_regs).is_empty()) {
     A_REGS(TEST_AND_PUSH_REG)
   }
-  if ((regs & t_regs) != 0) {
+  if (!(regs & t_regs).is_empty()) {
     T_REGS(TEST_AND_PUSH_REG)
   }
 
-  DCHECK_EQ(regs, 0);
+  DCHECK(regs.is_empty());
 
 #undef TEST_AND_PUSH_REG
 #undef T_REGS
@@ -1717,13 +1717,13 @@ void TurboAssembler::MultiPop(RegList regs) {
   V(s1) V(s2) V(s3) V(s4) V(s5) V(s6) V(s7) V(s8) V(s9) V(s10) V(s11)
 
   // MultiPop pops from the stack in reverse order as MultiPush
-  if ((regs & t_regs) != 0) {
+  if (!(regs & t_regs).is_empty()) {
     T_REGS(TEST_AND_POP_REG)
   }
-  if ((regs & a_regs) != 0) {
+  if (!(regs & a_regs).is_empty()) {
     A_REGS(TEST_AND_POP_REG)
   }
-  if ((regs & s_regs) != 0) {
+  if (!(regs & s_regs).is_empty()) {
     S_REGS(TEST_AND_POP_REG)
   }
   TEST_AND_POP_REG(tp);
@@ -1732,7 +1732,7 @@ void TurboAssembler::MultiPop(RegList regs) {
   TEST_AND_POP_REG(fp);
   TEST_AND_POP_REG(ra);
 
-  DCHECK_EQ(regs, 0);
+  DCHECK(regs.is_empty());
 
   addi(sp, sp, stack_offset);
 
@@ -1742,24 +1742,24 @@ void TurboAssembler::MultiPop(RegList regs) {
 #undef A_REGS
 }
 
-void TurboAssembler::MultiPushFPU(RegList regs) {
-  int16_t num_to_push = base::bits::CountPopulation(regs);
+void TurboAssembler::MultiPushFPU(DoubleRegList regs) {
+  int16_t num_to_push = regs.Count();
   int16_t stack_offset = num_to_push * kDoubleSize;
 
   Sub64(sp, sp, Operand(stack_offset));
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
-    if ((regs & (1 << i)) != 0) {
+    if ((regs.bits() & (1 << i)) != 0) {
       stack_offset -= kDoubleSize;
       StoreDouble(FPURegister::from_code(i), MemOperand(sp, stack_offset));
     }
   }
 }
 
-void TurboAssembler::MultiPopFPU(RegList regs) {
+void TurboAssembler::MultiPopFPU(DoubleRegList regs) {
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < kNumRegisters; i++) {
-    if ((regs & (1 << i)) != 0) {
+    if ((regs.bits() & (1 << i)) != 0) {
       LoadDouble(FPURegister::from_code(i), MemOperand(sp, stack_offset));
       stack_offset += kDoubleSize;
     }
@@ -4407,7 +4407,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     Sub64(sp, sp, Operand(space));
     int count = 0;
     for (int i = 0; i < kNumFPURegisters; i++) {
-      if (kCallerSavedFPU & (1 << i)) {
+      if (kCallerSavedFPU.bits() & (1 << i)) {
         FPURegister reg = FPURegister::from_code(i);
         StoreDouble(reg, MemOperand(sp, count * kDoubleSize));
         count++;
@@ -4448,7 +4448,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
                   kNumCallerSavedFPU * kDoubleSize));
     int cout = 0;
     for (int i = 0; i < kNumFPURegisters; i++) {
-      if (kCalleeSavedFPU & (1 << i)) {
+      if (kCalleeSavedFPU.bits() & (1 << i)) {
         FPURegister reg = FPURegister::from_code(i);
         LoadDouble(reg, MemOperand(scratch, cout * kDoubleSize));
         cout++;
