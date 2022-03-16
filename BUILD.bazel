@@ -2551,6 +2551,8 @@ filegroup(
         "src/compiler/backend/unwinding-info-writer.h",
         "src/compiler/basic-block-instrumentor.cc",
         "src/compiler/basic-block-instrumentor.h",
+        "src/compiler/branch-condition-duplicator.cc",
+        "src/compiler/branch-condition-duplicator.h",
         "src/compiler/branch-elimination.cc",
         "src/compiler/branch-elimination.h",
         "src/compiler/bytecode-analysis.cc",

@@ -32,6 +32,13 @@ class Operator;
 class Type;
 class Node;
 
+// The semantics of IrOpcode::kBranch changes throughout the pipeline, and in
+// particular is not the same before SimplifiedLowering (JS semantics) and after
+// (machine branch semantics). Some passes are applied both before and after
+// SimplifiedLowering, and use the BranchSemantics enum to know how branches
+// should be treated.
+enum class BranchSemantics { kJS, kMachine };
+
 // Prediction hint for branches.
 enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
 
