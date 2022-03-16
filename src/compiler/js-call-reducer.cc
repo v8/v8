@@ -5820,18 +5820,23 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
             graph()->NewNode(common()->EffectPhi(2), etrue1, etrue1, loop);
         Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
         NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-        Node* index = graph()->NewNode(
+
+        Node* iloop = graph()->NewNode(
             common()->Phi(MachineRepresentation::kTagged, 2),
             jsgraph()->OneConstant(),
             jsgraph()->Constant(JSArray::kMaxCopyElements - 1), loop);
 
+        STATIC_ASSERT(JSArray::kMaxCopyElements <
+                      std::numeric_limits<uint32_t>::max());
+
+        Node* index = etrue1 = graph()->NewNode(
+            common()->TypeGuard(Type::Unsigned32()), iloop, eloop, if_true1);
         {
           Node* check2 =
               graph()->NewNode(simplified()->NumberLessThan(), index, length);
           Node* branch2 = graph()->NewNode(common()->Branch(), check2, loop);
 
           if_true1 = graph()->NewNode(common()->IfFalse(), branch2);
-          etrue1 = eloop;
 
           Node* control2 = graph()->NewNode(common()->IfTrue(), branch2);
           Node* effect2 = etrue1;
@@ -5849,7 +5854,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
           loop->ReplaceInput(1, control2);
           eloop->ReplaceInput(1, effect2);
-          index->ReplaceInput(1,
+          iloop->ReplaceInput(1,
                               graph()->NewNode(simplified()->NumberAdd(), index,
                                                jsgraph()->OneConstant()));
         }
