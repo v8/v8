@@ -9,7 +9,7 @@
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/maglev/maglev-compilation-data.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"

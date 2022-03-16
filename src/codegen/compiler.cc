@@ -48,6 +48,7 @@
 #include "src/logging/counters-scopes.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/map.h"
@@ -910,7 +911,7 @@ void InsertCodeIntoOptimizedCodeCache(
 bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
                                OptimizedCompilationInfo* compilation_info) {
   CompilationHandleScope compilation(isolate, compilation_info);
-  CanonicalHandleScope canonical(isolate, compilation_info);
+  CanonicalHandleScopeForTurbofan canonical(isolate, compilation_info);
   compilation_info->ReopenHandlesInNewHandleScope(isolate);
   return job->PrepareJob(isolate) == CompilationJob::SUCCEEDED;
 }
@@ -1085,8 +1086,9 @@ MaybeHandle<CodeT> CompileMaglev(
     Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
     BytecodeOffset osr_offset, JavaScriptFrame* osr_frame,
     GetOptimizedCodeResultHandling result_handling) {
+#ifdef V8_ENABLE_MAGLEV
+  DCHECK(FLAG_maglev);
   // TODO(v8:7700): Add missing support.
-  CHECK(mode == ConcurrencyMode::kNotConcurrent);
   CHECK(osr_offset.IsNone());
   CHECK(osr_frame == nullptr);
   CHECK(result_handling == GetOptimizedCodeResultHandling::kDefault);
@@ -1096,11 +1098,35 @@ MaybeHandle<CodeT> CompileMaglev(
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
 
-#ifdef V8_ENABLE_MAGLEV
-  return Maglev::Compile(isolate, function);
-#else
-  return {};
-#endif
+  if (mode == ConcurrencyMode::kNotConcurrent) {
+    function->ClearOptimizationMarker();
+    return Maglev::Compile(isolate, function);
+  }
+
+  DCHECK_EQ(mode, ConcurrencyMode::kConcurrent);
+
+  // TODO(v8:7700): See everything in GetOptimizedCodeLater.
+  // - Tracing,
+  // - timers,
+  // - aborts on memory pressure,
+  // ...
+
+  // Prepare the job.
+  auto job = maglev::MaglevCompilationJob::New(isolate, function);
+  CompilationJob::Status status = job->PrepareJob(isolate);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
+
+  // Enqueue it.
+  isolate->maglev_concurrent_dispatcher()->EnqueueJob(std::move(job));
+
+  // Remember that the function is currently being processed.
+  function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
+
+  // The code that triggered optimization continues execution here.
+  return ContinuationForConcurrentOptimization(isolate, function);
+#else   // V8_ENABLE_MAGLEV
+  UNREACHABLE();
+#endif  // V8_ENABLE_MAGLEV
 }
 
 MaybeHandle<CodeT> GetOptimizedCode(

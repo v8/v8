@@ -32,6 +32,11 @@
 
 namespace v8 {
 namespace internal {
+
+namespace maglev {
+class MaglevCompilationInfo;
+}
+
 namespace compiler {
 
 class ObjectRef;
@@ -149,6 +154,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // handles provided back to {info}. {info} is responsible for disposing of
   // them.
   void DetachLocalIsolate(OptimizedCompilationInfo* info);
+
+  // TODO(v8:7700): Refactor this once the broker is no longer
+  // Turbofan-specific.
+  void AttachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info,
+                                   LocalIsolate* local_isolate);
+  void DetachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info);
 
   bool StackHasOverflowed() const;
 

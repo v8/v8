@@ -3244,7 +3244,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
   {
     CompilationHandleScope compilation_scope(isolate, info);
-    CanonicalHandleScope canonical(isolate, info);
+    CanonicalHandleScopeForTurbofan canonical(isolate, info);
     info->ReopenHandlesInNewHandleScope(isolate);
     pipeline.InitializeHeapBroker();
   }

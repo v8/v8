@@ -12,7 +12,7 @@ namespace internal {
 namespace maglev {
 
 class Graph;
-struct MaglevCompilationUnit;
+class MaglevCompilationUnit;
 
 class MaglevCodeGenerator : public AllStatic {
  public:

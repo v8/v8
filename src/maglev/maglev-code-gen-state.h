@@ -12,7 +12,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/maglev/maglev-compilation-data.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
@@ -56,11 +56,11 @@ class MaglevCodeGenState {
   int parameter_count() const { return compilation_unit_->parameter_count(); }
   int register_count() const { return compilation_unit_->register_count(); }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return compilation_unit_->bytecode_analysis;
+    return compilation_unit_->bytecode_analysis();
   }
   compiler::JSHeapBroker* broker() const { return compilation_unit_->broker(); }
   const compiler::BytecodeArrayRef& bytecode() const {
-    return compilation_unit_->bytecode;
+    return compilation_unit_->bytecode();
   }
   MaglevGraphLabeller* graph_labeller() const {
     return compilation_unit_->graph_labeller();

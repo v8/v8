@@ -6,7 +6,7 @@
 #define V8_MAGLEV_MAGLEV_REGISTER_FRAME_ARRAY_H_
 
 #include "src/interpreter/bytecode-register.h"
-#include "src/maglev/maglev-compilation-data.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

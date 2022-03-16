@@ -26,7 +26,7 @@
 #include "src/ic/handler-configuration.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-code-generator.h"
-#include "src/maglev/maglev-compilation-data.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -126,69 +126,82 @@ class UseMarkingProcessor {
   }
 };
 
-MaglevCompiler::MaglevCompiler(compiler::JSHeapBroker* broker,
-                               Handle<JSFunction> function)
-    : compilation_data_(broker),
-      toplevel_compilation_unit_(&compilation_data_, function) {}
+// static
+void MaglevCompiler::Compile(MaglevCompilationUnit* toplevel_compilation_unit) {
+  MaglevCompiler compiler(toplevel_compilation_unit);
+  compiler.Compile();
+}
 
-MaybeHandle<Code> MaglevCompiler::Compile() {
+void MaglevCompiler::Compile() {
+  compiler::UnparkedScopeIfNeeded unparked_scope(broker());
+
   // Build graph.
   if (FLAG_print_maglev_code || FLAG_code_comments || FLAG_print_maglev_graph ||
       FLAG_trace_maglev_regalloc) {
-    compilation_data_.graph_labeller.reset(new MaglevGraphLabeller());
+    toplevel_compilation_unit_->info()->set_graph_labeller(
+        new MaglevGraphLabeller());
   }
 
-  MaglevGraphBuilder graph_builder(&toplevel_compilation_unit_);
+  MaglevGraphBuilder graph_builder(toplevel_compilation_unit_);
 
   graph_builder.Build();
 
   // TODO(v8:7700): Clean up after all bytecodes are supported.
   if (graph_builder.found_unsupported_bytecode()) {
-    return {};
+    return;
   }
 
   if (FLAG_print_maglev_graph) {
     std::cout << "After graph buiding" << std::endl;
-    PrintGraph(std::cout, &toplevel_compilation_unit_, graph_builder.graph());
+    PrintGraph(std::cout, toplevel_compilation_unit_, graph_builder.graph());
   }
 
   {
     GraphMultiProcessor<NumberingProcessor, UseMarkingProcessor,
                         MaglevVregAllocator>
-        processor(&toplevel_compilation_unit_);
+        processor(toplevel_compilation_unit_);
     processor.ProcessGraph(graph_builder.graph());
   }
 
   if (FLAG_print_maglev_graph) {
     std::cout << "After node processor" << std::endl;
-    PrintGraph(std::cout, &toplevel_compilation_unit_, graph_builder.graph());
+    PrintGraph(std::cout, toplevel_compilation_unit_, graph_builder.graph());
   }
 
-  StraightForwardRegisterAllocator allocator(&toplevel_compilation_unit_,
+  StraightForwardRegisterAllocator allocator(toplevel_compilation_unit_,
                                              graph_builder.graph());
 
   if (FLAG_print_maglev_graph) {
     std::cout << "After register allocation" << std::endl;
-    PrintGraph(std::cout, &toplevel_compilation_unit_, graph_builder.graph());
+    PrintGraph(std::cout, toplevel_compilation_unit_, graph_builder.graph());
   }
 
-  Handle<Code> code;
+  // Stash the compiled graph on the compilation info.
+  toplevel_compilation_unit_->info()->set_graph(graph_builder.graph());
+}
 
-  if (!MaglevCodeGenerator::Generate(&toplevel_compilation_unit_,
-                                     graph_builder.graph())
+// static
+MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
+    MaglevCompilationUnit* toplevel_compilation_unit) {
+  Graph* const graph = toplevel_compilation_unit->info()->graph();
+  if (graph == nullptr) return {};  // Compilation failed.
+
+  Handle<Code> code;
+  if (!MaglevCodeGenerator::Generate(toplevel_compilation_unit, graph)
            .ToHandle(&code)) {
     return {};
   }
 
-  const bool deps_committed_successfully =
-      broker()->dependencies()->Commit(code);
+  compiler::JSHeapBroker* const broker = toplevel_compilation_unit->broker();
+  const bool deps_committed_successfully = broker->dependencies()->Commit(code);
   CHECK(deps_committed_successfully);
 
   if (FLAG_print_maglev_code) {
     code->Print();
   }
 
-  return code;
+  Isolate* const isolate = toplevel_compilation_unit->isolate();
+  return ToCodeT(code, isolate);
 }
 
 }  // namespace maglev

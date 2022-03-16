@@ -7,7 +7,6 @@
 
 #include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/maglev/maglev-compilation-data.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
@@ -16,6 +15,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+class MaglevCompilationUnit;
 class MaglevPrintingVisitor;
 class MergePointRegisterState;
 

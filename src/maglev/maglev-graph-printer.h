@@ -17,10 +17,10 @@ namespace maglev {
 class BasicBlock;
 class ControlNode;
 class Graph;
-struct MaglevCompilationUnit;
+class MaglevCompilationUnit;
 class MaglevGraphLabeller;
-class NodeBase;
 class Node;
+class NodeBase;
 class Phi;
 class ProcessingState;
 

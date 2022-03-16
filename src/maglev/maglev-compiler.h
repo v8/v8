@@ -8,7 +8,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/heap-refs.h"
-#include "src/maglev/maglev-compilation-data.h"
+#include "src/maglev/maglev-compilation-unit.h"
 
 namespace v8 {
 namespace internal {
@@ -19,20 +19,31 @@ class JSHeapBroker;
 
 namespace maglev {
 
+class Graph;
+
 class MaglevCompiler {
  public:
-  explicit MaglevCompiler(compiler::JSHeapBroker* broker,
-                          Handle<JSFunction> function);
+  // May be called from any thread.
+  static void Compile(MaglevCompilationUnit* toplevel_compilation_unit);
 
-  MaybeHandle<Code> Compile();
-
-  compiler::JSHeapBroker* broker() const { return compilation_data_.broker; }
-  Zone* zone() { return &compilation_data_.zone; }
-  Isolate* isolate() { return compilation_data_.isolate; }
+  // Called on the main thread after Compile has completed.
+  // TODO(v8:7700): Move this to a different class?
+  static MaybeHandle<CodeT> GenerateCode(
+      MaglevCompilationUnit* toplevel_compilation_unit);
 
  private:
-  MaglevCompilationData compilation_data_;
-  MaglevCompilationUnit toplevel_compilation_unit_;
+  explicit MaglevCompiler(MaglevCompilationUnit* toplevel_compilation_unit)
+      : toplevel_compilation_unit_(toplevel_compilation_unit) {}
+
+  void Compile();
+
+  compiler::JSHeapBroker* broker() const {
+    return toplevel_compilation_unit_->broker();
+  }
+  Zone* zone() { return toplevel_compilation_unit_->zone(); }
+  Isolate* isolate() { return toplevel_compilation_unit_->isolate(); }
+
+  MaglevCompilationUnit* const toplevel_compilation_unit_;
 };
 
 }  // namespace maglev

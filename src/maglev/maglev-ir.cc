@@ -294,7 +294,7 @@ void EmitDeopt(MaglevCodeGenState* code_gen_state, Node* node,
 
   __ RecordComment("Materialize bytecode array and offset");
   __ Move(MemOperand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp),
-          compilation_unit->bytecode.object());
+          compilation_unit->bytecode().object());
   __ Move(MemOperand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
           Smi::FromInt(deopt_bytecode_position +
                        (BytecodeArray::kHeaderSize - kHeapObjectTag)));

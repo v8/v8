@@ -11,7 +11,7 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/maglev/maglev-compilation-data.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
@@ -23,85 +23,7 @@ namespace maglev {
 
 class MaglevGraphBuilder {
  public:
-  explicit MaglevGraphBuilder(MaglevCompilationUnit* compilation_unit)
-      : compilation_unit_(compilation_unit),
-        iterator_(bytecode().object()),
-        jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length())),
-        // Overallocate merge_states_ by one to allow always looking up the
-        // next offset.
-        merge_states_(zone()->NewArray<MergePointInterpreterFrameState*>(
-            bytecode().length() + 1)),
-        graph_(zone()),
-        current_interpreter_frame_(*compilation_unit_) {
-    memset(merge_states_, 0,
-           bytecode().length() * sizeof(InterpreterFrameState*));
-    // Default construct basic block refs.
-    // TODO(leszeks): This could be a memset of nullptr to ..._jump_targets_.
-    for (int i = 0; i < bytecode().length(); ++i) {
-      new (&jump_targets_[i]) BasicBlockRef();
-    }
-
-    CalculatePredecessorCounts();
-
-    for (auto& offset_and_info : bytecode_analysis().GetLoopInfos()) {
-      int offset = offset_and_info.first;
-      const compiler::LoopInfo& loop_info = offset_and_info.second;
-
-      const compiler::BytecodeLivenessState* liveness =
-          bytecode_analysis().GetInLivenessFor(offset);
-
-      merge_states_[offset] = zone()->New<MergePointInterpreterFrameState>(
-          *compilation_unit_, offset, NumPredecessors(offset), liveness,
-          &loop_info);
-    }
-
-    current_block_ = zone()->New<BasicBlock>(nullptr);
-    block_offset_ = -1;
-
-    for (int i = 0; i < parameter_count(); i++) {
-      interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
-      current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
-    }
-
-    // TODO(leszeks): Extract out a separate "incoming context/closure" nodes,
-    // to be able to read in the machine register but also use the frame-spilled
-    // slot.
-    interpreter::Register regs[] = {interpreter::Register::current_context(),
-                                    interpreter::Register::function_closure()};
-    for (interpreter::Register& reg : regs) {
-      current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
-    }
-
-    interpreter::Register new_target_or_generator_register =
-        bytecode().incoming_new_target_or_generator_register();
-
-    const compiler::BytecodeLivenessState* liveness =
-        bytecode_analysis().GetInLivenessFor(0);
-    int register_index = 0;
-    // TODO(leszeks): Don't emit if not needed.
-    ValueNode* undefined_value =
-        AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
-    if (new_target_or_generator_register.is_valid()) {
-      int new_target_index = new_target_or_generator_register.index();
-      for (; register_index < new_target_index; register_index++) {
-        StoreRegister(interpreter::Register(register_index), undefined_value,
-                      liveness);
-      }
-      StoreRegister(
-          new_target_or_generator_register,
-          // TODO(leszeks): Expose in Graph.
-          AddNewNode<RegisterInput>({}, kJavaScriptCallNewTargetRegister),
-          liveness);
-      register_index++;
-    }
-    for (; register_index < register_count(); register_index++) {
-      StoreRegister(interpreter::Register(register_index), undefined_value,
-                    liveness);
-    }
-
-    BasicBlock* first_block = CreateBlock<Jump>({}, &jump_targets_[0]);
-    MergeIntoFrameState(first_block, 0);
-  }
+  explicit MaglevGraphBuilder(MaglevCompilationUnit* compilation_unit);
 
   void Build() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
@@ -111,7 +33,7 @@ class MaglevGraphBuilder {
     }
   }
 
-  Graph* graph() { return &graph_; }
+  Graph* graph() const { return graph_; }
 
   // TODO(v8:7700): Clean up after all bytecodes are supported.
   bool found_unsupported_bytecode() const {
@@ -181,7 +103,7 @@ class MaglevGraphBuilder {
 
         merge_states_[offset]->Merge(*compilation_unit_,
                                      current_interpreter_frame_,
-                                     graph_.last_block(), offset);
+                                     graph()->last_block(), offset);
       }
       ProcessMergePoint(offset);
       StartNewBlock(offset);
@@ -317,7 +239,7 @@ class MaglevGraphBuilder {
     BasicBlock* block = current_block_;
     current_block_ = nullptr;
 
-    graph_.Add(block);
+    graph()->Add(block);
     if (has_graph_labeller()) {
       graph_labeller()->RegisterBasicBlock(block);
     }
@@ -408,7 +330,7 @@ class MaglevGraphBuilder {
 
   compiler::JSHeapBroker* broker() const { return compilation_unit_->broker(); }
   const compiler::FeedbackVectorRef& feedback() const {
-    return compilation_unit_->feedback;
+    return compilation_unit_->feedback();
   }
   const FeedbackNexus feedback_nexus(int slot_operand_index) const {
     // TODO(leszeks): Use JSHeapBroker here.
@@ -416,10 +338,10 @@ class MaglevGraphBuilder {
                          GetSlotOperand(slot_operand_index));
   }
   const compiler::BytecodeArrayRef& bytecode() const {
-    return compilation_unit_->bytecode;
+    return compilation_unit_->bytecode();
   }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return compilation_unit_->bytecode_analysis;
+    return compilation_unit_->bytecode_analysis();
   }
   Isolate* isolate() const { return compilation_unit_->isolate(); }
   Zone* zone() const { return compilation_unit_->zone(); }
@@ -444,7 +366,7 @@ class MaglevGraphBuilder {
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
-  Graph graph_;
+  Graph* const graph_;
   InterpreterFrameState current_interpreter_frame_;
 
   // Allow marking some bytecodes as unsupported during graph building, so that

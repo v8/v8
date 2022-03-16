@@ -20,8 +20,11 @@ using BlockConstReverseIterator =
     std::vector<BasicBlock*,
                 ZoneAllocator<BasicBlock*>>::const_reverse_iterator;
 
-class Graph {
+class Graph final : public ZoneObject {
  public:
+  static Graph* New(Zone* zone) { return zone->New<Graph>(zone); }
+
+  // Shouldn't be used directly; public so that Zone::New can access it.
   explicit Graph(Zone* zone) : blocks_(zone) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }

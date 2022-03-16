@@ -8,7 +8,7 @@
 #include "src/codegen/register.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/maglev/maglev-code-gen-state.h"
-#include "src/maglev/maglev-compilation-data.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"

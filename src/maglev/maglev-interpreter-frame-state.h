@@ -112,15 +112,14 @@ class MergePointInterpreterFrameState {
                               int merge_offset, interpreter::Register reg,
                               ValueNode* value) {
 #ifdef DEBUG
-    if (!compilation_unit.bytecode_analysis.IsLoopHeader(merge_offset)) return;
-    auto& assignments =
-        compilation_unit.bytecode_analysis.GetLoopInfoFor(merge_offset)
-            .assignments();
+    const auto& analysis = compilation_unit.bytecode_analysis();
+    if (!analysis.IsLoopHeader(merge_offset)) return;
+    auto& assignments = analysis.GetLoopInfoFor(merge_offset).assignments();
     if (reg.is_parameter()) {
       if (!assignments.ContainsParameter(reg.ToParameterIndex())) return;
     } else {
-      DCHECK(compilation_unit.bytecode_analysis.GetInLivenessFor(merge_offset)
-                 ->RegisterIsLive(reg.index()));
+      DCHECK(
+          analysis.GetInLivenessFor(merge_offset)->RegisterIsLive(reg.index()));
       if (!assignments.ContainsLocal(reg.index())) return;
     }
     DCHECK(value->Is<Phi>());

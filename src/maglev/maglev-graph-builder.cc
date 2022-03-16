@@ -17,6 +17,86 @@ namespace internal {
 
 namespace maglev {
 
+MaglevGraphBuilder::MaglevGraphBuilder(MaglevCompilationUnit* compilation_unit)
+    : compilation_unit_(compilation_unit),
+      iterator_(bytecode().object()),
+      jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length())),
+      // Overallocate merge_states_ by one to allow always looking up the
+      // next offset.
+      merge_states_(zone()->NewArray<MergePointInterpreterFrameState*>(
+          bytecode().length() + 1)),
+      graph_(Graph::New(zone())),
+      current_interpreter_frame_(*compilation_unit_) {
+  memset(merge_states_, 0,
+         bytecode().length() * sizeof(InterpreterFrameState*));
+  // Default construct basic block refs.
+  // TODO(leszeks): This could be a memset of nullptr to ..._jump_targets_.
+  for (int i = 0; i < bytecode().length(); ++i) {
+    new (&jump_targets_[i]) BasicBlockRef();
+  }
+
+  CalculatePredecessorCounts();
+
+  for (auto& offset_and_info : bytecode_analysis().GetLoopInfos()) {
+    int offset = offset_and_info.first;
+    const compiler::LoopInfo& loop_info = offset_and_info.second;
+
+    const compiler::BytecodeLivenessState* liveness =
+        bytecode_analysis().GetInLivenessFor(offset);
+
+    merge_states_[offset] = zone()->New<MergePointInterpreterFrameState>(
+        *compilation_unit_, offset, NumPredecessors(offset), liveness,
+        &loop_info);
+  }
+
+  current_block_ = zone()->New<BasicBlock>(nullptr);
+  block_offset_ = -1;
+
+  for (int i = 0; i < parameter_count(); i++) {
+    interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
+    current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
+  }
+
+  // TODO(leszeks): Extract out a separate "incoming context/closure" nodes,
+  // to be able to read in the machine register but also use the frame-spilled
+  // slot.
+  interpreter::Register regs[] = {interpreter::Register::current_context(),
+                                  interpreter::Register::function_closure()};
+  for (interpreter::Register& reg : regs) {
+    current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
+  }
+
+  interpreter::Register new_target_or_generator_register =
+      bytecode().incoming_new_target_or_generator_register();
+
+  const compiler::BytecodeLivenessState* liveness =
+      bytecode_analysis().GetInLivenessFor(0);
+  int register_index = 0;
+  // TODO(leszeks): Don't emit if not needed.
+  ValueNode* undefined_value =
+      AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
+  if (new_target_or_generator_register.is_valid()) {
+    int new_target_index = new_target_or_generator_register.index();
+    for (; register_index < new_target_index; register_index++) {
+      StoreRegister(interpreter::Register(register_index), undefined_value,
+                    liveness);
+    }
+    StoreRegister(
+        new_target_or_generator_register,
+        // TODO(leszeks): Expose in Graph.
+        AddNewNode<RegisterInput>({}, kJavaScriptCallNewTargetRegister),
+        liveness);
+    register_index++;
+  }
+  for (; register_index < register_count(); register_index++) {
+    StoreRegister(interpreter::Register(register_index), undefined_value,
+                  liveness);
+  }
+
+  BasicBlock* first_block = CreateBlock<Jump>({}, &jump_targets_[0]);
+  MergeIntoFrameState(first_block, 0);
+}
+
 // TODO(v8:7700): Clean up after all bytecodes are supported.
 #define MAGLEV_UNIMPLEMENTED(BytecodeName)                              \
   do {                                                                  \

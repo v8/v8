@@ -3472,7 +3472,8 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-basic-block.h",
       "src/maglev/maglev-code-gen-state.h",
       "src/maglev/maglev-code-generator.h",
-      "src/maglev/maglev-compilation-data.h",
+      "src/maglev/maglev-compilation-info.h",
+      "src/maglev/maglev-compilation-unit.h",
       "src/maglev/maglev-compiler.h",
       "src/maglev/maglev-concurrent-dispatcher.h",
       "src/maglev/maglev-graph-builder.h",
@@ -4509,7 +4510,8 @@ v8_source_set("v8_base_without_compiler") {
   if (v8_enable_maglev) {
     sources += [
       "src/maglev/maglev-code-generator.cc",
-      "src/maglev/maglev-compilation-data.cc",
+      "src/maglev/maglev-compilation-info.cc",
+      "src/maglev/maglev-compilation-unit.cc",
       "src/maglev/maglev-compiler.cc",
       "src/maglev/maglev-concurrent-dispatcher.cc",
       "src/maglev/maglev-graph-builder.cc",

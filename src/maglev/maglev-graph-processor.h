@@ -342,7 +342,7 @@ class GraphProcessor {
 
   int register_count() const { return compilation_unit_->register_count(); }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return compilation_unit_->bytecode_analysis;
+    return compilation_unit_->bytecode_analysis();
   }
 
   MaglevCompilationUnit* const compilation_unit_;
