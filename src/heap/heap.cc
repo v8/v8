@@ -5879,6 +5879,9 @@ void Heap::PrintMaxNewSpaceSizeReached() {
 }
 
 int Heap::NextStressMarkingLimit() {
+  // Reuse Heap-global mutex as this getter is called from different threads on
+  // allocation slow paths.
+  base::MutexGuard guard(relocation_mutex());
   return isolate()->fuzzer_rng()->NextInt(FLAG_stress_marking + 1);
 }
 
