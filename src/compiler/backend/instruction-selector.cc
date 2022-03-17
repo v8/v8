@@ -30,6 +30,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+Smi NumberConstantToSmi(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
+  const double d = OpParameter<double>(node->op());
+  Smi smi = Smi::FromInt(static_cast<int32_t>(d));
+  CHECK_EQ(smi.value(), d);
+  return smi;
+}
+
 InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
@@ -501,11 +509,17 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
-    case IrOpcode::kNumberConstant:
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kDelayedStringConstant:
       return g->UseImmediate(input);
+    case IrOpcode::kNumberConstant:
+      if (rep == MachineRepresentation::kWord32) {
+        Smi smi = NumberConstantToSmi(input);
+        return g->UseImmediate(static_cast<int32_t>(smi.ptr()));
+      } else {
+        return g->UseImmediate(input);
+      }
     case IrOpcode::kCompressedHeapConstant:
     case IrOpcode::kHeapConstant: {
       if (!CanBeTaggedOrCompressedPointer(rep)) {
