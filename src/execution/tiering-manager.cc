@@ -59,8 +59,9 @@ class OptimizationDecision {
  public:
   static constexpr OptimizationDecision Maglev() {
     // TODO(v8:7700): Consider using another reason here.
+    // TODO(v8:7700): Support concurrency.
     return {OptimizationReason::kHotAndStable, CodeKind::MAGLEV,
-            ConcurrencyMode::kConcurrent};
+            ConcurrencyMode::kNotConcurrent};
   }
   static constexpr OptimizationDecision TurbofanHotAndStable() {
     return {OptimizationReason::kHotAndStable, CodeKind::TURBOFAN,

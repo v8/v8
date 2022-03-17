@@ -10,7 +10,6 @@
 #include "src/execution/isolate.h"
 #include "src/execution/simulator.h"
 #include "src/logging/counters.h"
-#include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/objects/backing-store.h"
 #include "src/roots/roots-inl.h"
 #include "src/tracing/trace-event.h"
@@ -325,14 +324,6 @@ Object StackGuard::HandleInterrupts() {
                  "V8.FinalizeBaselineConcurrentCompilation");
     isolate_->baseline_batch_compiler()->InstallBatch();
   }
-
-#ifdef V8_ENABLE_MAGLEV
-  if (TestAndClear(&interrupt_flags, INSTALL_MAGLEV_CODE)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                 "V8.FinalizeMaglevConcurrentCompilation");
-    isolate_->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
-  }
-#endif  // V8_ENABLE_MAGLEV
 
   if (TestAndClear(&interrupt_flags, API_INTERRUPT)) {
     TRACE_EVENT0("v8.execute", "V8.InvokeApiInterruptCallbacks");

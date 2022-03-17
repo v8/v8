@@ -106,12 +106,9 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
 }
 
 CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
-  Handle<CodeT> codet;
-  if (!maglev::MaglevCompiler::GenerateCode(info()->toplevel_compilation_unit())
-           .ToHandle(&codet)) {
-    return CompilationJob::FAILED;
-  }
-  info()->function()->set_code(*codet);
+  info()->set_codet(maglev::MaglevCompiler::GenerateCode(
+      info()->toplevel_compilation_unit()));
+  // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
 
@@ -135,7 +132,8 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       CHECK_EQ(status, CompilationJob::SUCCEEDED);
       outgoing_queue()->Enqueue(std::move(job));
     }
-    isolate()->stack_guard()->RequestInstallMaglevCode();
+    // TODO(v8:7700):
+    // isolate_->stack_guard()->RequestInstallMaglevCode();
   }
 
   size_t GetMaxConcurrency(size_t) const override {
@@ -180,7 +178,6 @@ void MaglevConcurrentDispatcher::EnqueueJob(
 }
 
 void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
-  HandleScope handle_scope(isolate_);
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);

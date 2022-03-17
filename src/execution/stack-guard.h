@@ -54,8 +54,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 5) \
   V(GROW_SHARED_MEMORY, GrowSharedMemory, 6)                      \
   V(LOG_WASM_CODE, LogWasmCode, 7)                                \
-  V(WASM_CODE_GC, WasmCodeGC, 8)                                  \
-  V(INSTALL_MAGLEV_CODE, InstallMaglevCode, 9)
+  V(WASM_CODE_GC, WasmCodeGC, 8)
 
 #define V(NAME, Name, id)                                    \
   inline bool Check##Name() { return CheckInterrupt(NAME); } \

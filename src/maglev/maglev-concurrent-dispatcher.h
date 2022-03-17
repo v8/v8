@@ -21,13 +21,6 @@ namespace maglev {
 
 class MaglevCompilationInfo;
 
-// TODO(v8:7700): While basic infrastructure now exists, there are many TODOs
-// that should still be addressed soon:
-// - Full tracing support through --trace-opt.
-// - Concurrent codegen.
-// - Concurrent Code object creation (optional?).
-// - Test support for concurrency (see %FinalizeOptimization).
-
 // Exports needed functionality without exposing implementation details.
 class ExportedMaglevCompilationInfo final {
  public:
