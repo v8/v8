@@ -2629,7 +2629,6 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   int exit_code = (*args)[0]
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
-  WaitForRunningWorkers();
   Isolate* isolate = args->GetIsolate();
   isolate->Exit();
 
