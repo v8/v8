@@ -29,8 +29,7 @@ namespace baseline {
 
 static bool CanCompileWithConcurrentBaseline(SharedFunctionInfo shared,
                                              Isolate* isolate) {
-  return !shared.is_compiled() || shared.HasBaselineCode() ||
-         !CanCompileWithBaseline(isolate, shared);
+  return !shared.HasBaselineCode() && CanCompileWithBaseline(isolate, shared);
 }
 
 class BaselineCompilerTask {
@@ -106,7 +105,7 @@ class BaselineBatchCompilerJob {
       if (!maybe_sfi.GetHeapObjectIfWeak(&obj)) continue;
       // Skip functions where the bytecode has been flushed.
       SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
-      if (CanCompileWithConcurrentBaseline(shared, isolate)) continue;
+      if (!CanCompileWithConcurrentBaseline(shared, isolate)) continue;
       tasks_.emplace_back(isolate, handles_.get(), shared);
     }
     if (FLAG_trace_baseline_concurrent_compilation) {
