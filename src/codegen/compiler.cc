@@ -386,7 +386,6 @@ void RecordUnoptimizedFunctionCompilation(
 CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DisallowJavascriptExecution no_js(isolate);
-  CompilerTracer::TracePrepareJob(isolate, compilation_info(), compiler_name_);
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToPrepare);
@@ -414,22 +413,22 @@ CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
   return UpdateState(FinalizeJobImpl(isolate), State::kSucceeded);
 }
 
-CompilationJob::Status OptimizedCompilationJob::RetryOptimization(
+CompilationJob::Status TurbofanCompilationJob::RetryOptimization(
     BailoutReason reason) {
   DCHECK(compilation_info_->IsOptimizing());
   compilation_info_->RetryOptimization(reason);
   return UpdateState(FAILED, State::kFailed);
 }
 
-CompilationJob::Status OptimizedCompilationJob::AbortOptimization(
+CompilationJob::Status TurbofanCompilationJob::AbortOptimization(
     BailoutReason reason) {
   DCHECK(compilation_info_->IsOptimizing());
   compilation_info_->AbortOptimization(reason);
   return UpdateState(FAILED, State::kFailed);
 }
 
-void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
-                                                     Isolate* isolate) const {
+void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
+                                                    Isolate* isolate) const {
   DCHECK(compilation_info()->IsOptimizing());
   Handle<JSFunction> function = compilation_info()->closure();
   double ms_creategraph = time_taken_to_prepare_.InMillisecondsF();
@@ -477,12 +476,12 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
       base::TimeDelta time_foreground =
           time_taken_to_prepare_ + time_taken_to_finalize_;
       switch (mode) {
-        case OptimizedCompilationJob::kConcurrent:
+        case ConcurrencyMode::kConcurrent:
           time_background += time_taken_to_execute_;
           counters->turbofan_optimize_concurrent_total_time()->AddSample(
               static_cast<int>(ElapsedTime().InMicroseconds()));
           break;
-        case OptimizedCompilationJob::kSynchronous:
+        case ConcurrencyMode::kNotConcurrent:
           counters->turbofan_optimize_non_concurrent_total_time()->AddSample(
               static_cast<int>(ElapsedTime().InMicroseconds()));
           time_foreground += time_taken_to_execute_;
@@ -498,7 +497,7 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
   }
 }
 
-void OptimizedCompilationJob::RecordFunctionCompilation(
+void TurbofanCompilationJob::RecordFunctionCompilation(
     CodeEventListener::LogEventsAndTags tag, Isolate* isolate) const {
   Handle<AbstractCode> abstract_code =
       Handle<AbstractCode>::cast(compilation_info()->code());
@@ -912,11 +911,13 @@ bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
                                OptimizedCompilationInfo* compilation_info) {
   CompilationHandleScope compilation(isolate, compilation_info);
   CanonicalHandleScopeForTurbofan canonical(isolate, compilation_info);
+  CompilerTracer::TracePrepareJob(isolate, compilation_info,
+                                  job->compiler_name());
   compilation_info->ReopenHandlesInNewHandleScope(isolate);
   return job->PrepareJob(isolate) == CompilationJob::SUCCEEDED;
 }
 
-bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
+bool GetOptimizedCodeNow(TurbofanCompilationJob* job, Isolate* isolate,
                          OptimizedCompilationInfo* compilation_info) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
@@ -945,14 +946,14 @@ bool GetOptimizedCodeNow(OptimizedCompilationJob* job, Isolate* isolate,
   }
 
   // Success!
-  job->RecordCompilationStats(OptimizedCompilationJob::kSynchronous, isolate);
+  job->RecordCompilationStats(ConcurrencyMode::kNotConcurrent, isolate);
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeCache(compilation_info);
   job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, isolate);
   return true;
 }
 
-bool GetOptimizedCodeLater(std::unique_ptr<OptimizedCompilationJob> job,
+bool GetOptimizedCodeLater(std::unique_ptr<TurbofanCompilationJob> job,
                            Isolate* isolate,
                            OptimizedCompilationInfo* compilation_info,
                            CodeKind code_kind, Handle<JSFunction> function) {
@@ -1056,7 +1057,7 @@ MaybeHandle<CodeT> CompileTurbofan(
   // BUG(5946): This DCHECK is necessary to make certain that we won't
   // tolerate the lack of a script without bytecode.
   DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
-  std::unique_ptr<OptimizedCompilationJob> job(
+  std::unique_ptr<TurbofanCompilationJob> job(
       compiler::Pipeline::NewCompilationJob(isolate, function, kCodeKind,
                                             has_script, osr_offset, osr_frame));
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
@@ -3317,8 +3318,8 @@ MaybeHandle<CodeT> Compiler::GetOptimizedCodeForOSR(
 }
 
 // static
-bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
-                                               Isolate* isolate) {
+bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
+                                              Isolate* isolate) {
   VMState<COMPILER> state(isolate);
   // Take ownership of the job. Deleting the job also tears down the zone.
   std::unique_ptr<OptimizedCompilationJob> job_scope(job);
@@ -3348,8 +3349,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
     if (shared->optimization_disabled()) {
       job->RetryOptimization(BailoutReason::kOptimizationDisabled);
     } else if (job->FinalizeJob(isolate) == CompilationJob::SUCCEEDED) {
-      job->RecordCompilationStats(OptimizedCompilationJob::kConcurrent,
-                                  isolate);
+      job->RecordCompilationStats(ConcurrencyMode::kConcurrent, isolate);
       job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
                                      isolate);
       if (V8_LIKELY(use_result)) {

@@ -40,6 +40,7 @@ class ParseInfo;
 class Parser;
 class RuntimeCallStats;
 class TimedHistogram;
+class TurbofanCompilationJob;
 class UnoptimizedCompilationInfo;
 class UnoptimizedCompilationJob;
 class WorkerThreadRuntimeCallStats;
@@ -111,9 +112,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                             Isolate* isolate,
                                             ClearExceptionFlag flag);
 
-  // Finalize and install optimized code from previously run job.
-  static bool FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
-                                              Isolate* isolate);
+  // Finalize and install Turbofan code from a previously run job.
+  static bool FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
+                                             Isolate* isolate);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -364,23 +365,47 @@ class UnoptimizedCompilationJob : public CompilationJob {
 // Each of the three phases can either fail or succeed.
 class OptimizedCompilationJob : public CompilationJob {
  public:
-  OptimizedCompilationJob(OptimizedCompilationInfo* compilation_info,
-                          const char* compiler_name,
-                          State initial_state = State::kReadyToPrepare)
-      : CompilationJob(initial_state),
-        compilation_info_(compilation_info),
-        compiler_name_(compiler_name) {}
+  OptimizedCompilationJob(const char* compiler_name, State initial_state)
+      : CompilationJob(initial_state), compiler_name_(compiler_name) {}
 
   // Prepare the compile job. Must be called on the main thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status PrepareJob(Isolate* isolate);
 
-  // Executes the compile job. Can be called on a background thread if
-  // can_execute_on_background_thread() returns true.
+  // Executes the compile job. Can be called on a background thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status
   ExecuteJob(RuntimeCallStats* stats, LocalIsolate* local_isolate = nullptr);
 
   // Finalizes the compile job. Must be called on the main thread.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Status FinalizeJob(Isolate* isolate);
+
+  const char* compiler_name() const { return compiler_name_; }
+
+ protected:
+  // Overridden by the actual implementation.
+  virtual Status PrepareJobImpl(Isolate* isolate) = 0;
+  virtual Status ExecuteJobImpl(RuntimeCallStats* stats,
+                                LocalIsolate* local_heap) = 0;
+  virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
+
+  base::TimeDelta time_taken_to_prepare_;
+  base::TimeDelta time_taken_to_execute_;
+  base::TimeDelta time_taken_to_finalize_;
+
+ private:
+  const char* const compiler_name_;
+};
+
+// Thin wrapper to split off Turbofan-specific parts.
+class TurbofanCompilationJob : public OptimizedCompilationJob {
+ public:
+  TurbofanCompilationJob(OptimizedCompilationInfo* compilation_info,
+                         State initial_state)
+      : OptimizedCompilationJob("Turbofan", initial_state),
+        compilation_info_(compilation_info) {}
+
+  OptimizedCompilationInfo* compilation_info() const {
+    return compilation_info_;
+  }
 
   // Report a transient failure, try again next time. Should only be called on
   // optimization compilation jobs.
@@ -390,28 +415,12 @@ class OptimizedCompilationJob : public CompilationJob {
   // Should only be called on optimization compilation jobs.
   Status AbortOptimization(BailoutReason reason);
 
-  enum CompilationMode { kConcurrent, kSynchronous };
-  void RecordCompilationStats(CompilationMode mode, Isolate* isolate) const;
+  void RecordCompilationStats(ConcurrencyMode mode, Isolate* isolate) const;
   void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                                  Isolate* isolate) const;
 
-  OptimizedCompilationInfo* compilation_info() const {
-    return compilation_info_;
-  }
-
- protected:
-  // Overridden by the actual implementation.
-  virtual Status PrepareJobImpl(Isolate* isolate) = 0;
-  virtual Status ExecuteJobImpl(RuntimeCallStats* stats,
-                                LocalIsolate* local_heap) = 0;
-  virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
-
  private:
-  OptimizedCompilationInfo* compilation_info_;
-  base::TimeDelta time_taken_to_prepare_;
-  base::TimeDelta time_taken_to_execute_;
-  base::TimeDelta time_taken_to_finalize_;
-  const char* compiler_name_;
+  OptimizedCompilationInfo* const compilation_info_;
 };
 
 class FinalizeUnoptimizedCompilationData {

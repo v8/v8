@@ -7661,7 +7661,7 @@ void BuildInlinedJSToWasmWrapper(
   builder.BuildJSToWasmWrapper(false, js_wasm_call_data, frame_state);
 }
 
-std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
+std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
     const wasm::WasmFeatures& enabled_features) {
@@ -8256,7 +8256,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
       GetWasmCallDescriptor(zone.get(), sig, WasmCallKind::kWasmImportWrapper);
 
   // Run the compilation job synchronously.
-  std::unique_ptr<OptimizedCompilationJob> job(
+  std::unique_ptr<TurbofanCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
           isolate, incoming, std::move(zone), graph,
           CodeKind::WASM_TO_JS_FUNCTION, std::move(name_buffer),
@@ -8305,7 +8305,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
       base::VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen, sig);
 
   // Run the compilation job synchronously.
-  std::unique_ptr<OptimizedCompilationJob> job(
+  std::unique_ptr<TurbofanCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
           isolate, incoming, std::move(zone), graph,
           CodeKind::JS_TO_JS_FUNCTION, std::move(name_buffer),
@@ -8362,7 +8362,7 @@ Handle<CodeT> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
       base::VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen, sig);
 
   // Run the compilation job synchronously.
-  std::unique_ptr<OptimizedCompilationJob> job(
+  std::unique_ptr<TurbofanCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
           isolate, incoming, std::move(zone), graph, CodeKind::C_WASM_ENTRY,
           std::move(name_buffer), AssemblerOptions::Default(isolate)));

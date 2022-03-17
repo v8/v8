@@ -85,10 +85,8 @@ std::unique_ptr<MaglevCompilationJob> MaglevCompilationJob::New(
 
 MaglevCompilationJob::MaglevCompilationJob(
     std::unique_ptr<MaglevCompilationInfo>&& info)
-    : OptimizedCompilationJob(nullptr, kMaglevCompilerName),
+    : OptimizedCompilationJob(kMaglevCompilerName, State::kReadyToPrepare),
       info_(std::move(info)) {
-  // TODO(jgruber, v8:7700): Remove the OptimizedCompilationInfo (which should
-  // be renamed to TurbofanCompilationInfo) from OptimizedCompilationJob.
   DCHECK(FLAG_maglev);
 }
 

@@ -1066,7 +1066,7 @@ PipelineStatistics* CreatePipelineStatistics(
 
 }  // namespace
 
-class PipelineCompilationJob final : public OptimizedCompilationJob {
+class PipelineCompilationJob final : public TurbofanCompilationJob {
  public:
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
@@ -1104,7 +1104,8 @@ PipelineCompilationJob::PipelineCompilationJob(
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
     // dereferenced there.
-    : OptimizedCompilationJob(&compilation_info_, "TurboFan"),
+    : TurbofanCompilationJob(&compilation_info_,
+                             CompilationJob::State::kReadyToPrepare),
       zone_(isolate->allocator(), kPipelineCompilationJobZoneName),
       zone_stats_(isolate->allocator()),
       compilation_info_(&zone_, isolate, shared_info, function, code_kind,
@@ -2481,7 +2482,7 @@ struct VerifyGraphPhase {
 #undef DECL_PIPELINE_PHASE_CONSTANTS_HELPER
 
 #if V8_ENABLE_WEBASSEMBLY
-class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
+class WasmHeapStubCompilationJob final : public TurbofanCompilationJob {
  public:
   WasmHeapStubCompilationJob(Isolate* isolate, CallDescriptor* call_descriptor,
                              std::unique_ptr<Zone> zone, Graph* graph,
@@ -2491,8 +2492,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
       // Note that the OptimizedCompilationInfo is not initialized at the time
       // we pass it to the CompilationJob constructor, but it is not
       // dereferenced there.
-      : OptimizedCompilationJob(&info_, "TurboFan",
-                                CompilationJob::State::kReadyToExecute),
+      : TurbofanCompilationJob(&info_, CompilationJob::State::kReadyToExecute),
         debug_name_(std::move(debug_name)),
         info_(base::CStrVector(debug_name_.get()), graph->zone(), kind),
         call_descriptor_(call_descriptor),
@@ -2526,14 +2526,11 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
 };
 
 // static
-std::unique_ptr<OptimizedCompilationJob>
-Pipeline::NewWasmHeapStubCompilationJob(Isolate* isolate,
-                                        CallDescriptor* call_descriptor,
-                                        std::unique_ptr<Zone> zone,
-                                        Graph* graph, CodeKind kind,
-                                        std::unique_ptr<char[]> debug_name,
-                                        const AssemblerOptions& options,
-                                        SourcePositionTable* source_positions) {
+std::unique_ptr<TurbofanCompilationJob> Pipeline::NewWasmHeapStubCompilationJob(
+    Isolate* isolate, CallDescriptor* call_descriptor,
+    std::unique_ptr<Zone> zone, Graph* graph, CodeKind kind,
+    std::unique_ptr<char[]> debug_name, const AssemblerOptions& options,
+    SourcePositionTable* source_positions) {
   return std::make_unique<WasmHeapStubCompilationJob>(
       isolate, call_descriptor, std::move(zone), graph, kind,
       std::move(debug_name), options, source_positions);
@@ -3319,7 +3316,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 }
 
 // static
-std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
+std::unique_ptr<TurbofanCompilationJob> Pipeline::NewCompilationJob(
     Isolate* isolate, Handle<JSFunction> function, CodeKind code_kind,
     bool has_script, BytecodeOffset osr_offset, JavaScriptFrame* osr_frame) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
