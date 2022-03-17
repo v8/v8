@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
@@ -27,17 +27,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-# for py2/py3 compatibility
-from __future__ import absolute_import
-from __future__ import print_function
-
-try:
-  import hashlib
-  md5er = hashlib.md5
-except ImportError as e:
-  import md5
-  md5er = md5.new
+import hashlib
+md5er = hashlib.md5
 
 
 import json
@@ -55,13 +46,11 @@ from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
 
-PYTHON3 = sys.version_info >= (3, 0)
+def decode(arg, encoding="utf-8"):
+  return arg.decode(encoding)
 
-def maybe_decode(arg, encoding="utf-8"):
-  return arg.decode(encoding) if PYTHON3 else arg
-
-def maybe_encode(arg, encoding="utf-8"):
-  return arg.encode(encoding) if PYTHON3 else arg
+def encode(arg, encoding="utf-8"):
+  return arg.encode(encoding)
 
 # Special LINT rules diverging from default and reason.
 # build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
@@ -100,7 +89,7 @@ def CppLintWorker(command):
     out_lines = ""
     error_count = -1
     while True:
-      out_line = maybe_decode(process.stderr.readline())
+      out_line = decode(process.stderr.readline())
       if out_line == '' and process.poll() != None:
         if error_count == -1:
           print("Failed to process %s" % command.pop())
@@ -126,7 +115,7 @@ def TorqueLintWorker(command):
     out_lines = ""
     error_count = 0
     while True:
-      out_line = maybe_decode(process.stderr.readline())
+      out_line = decode(process.stderr.readline())
       if out_line == '' and process.poll() != None:
         break
       out_lines += out_line
@@ -156,7 +145,7 @@ def JSLintWorker(command):
         sys.stdout.write("error code " + str(rc) + " running clang-format.\n")
         return rc
 
-      if maybe_decode(output) != contents:
+      if decode(output) != contents:
         return 1
 
       return 0
@@ -214,7 +203,7 @@ class FileContentsCache(object):
     for file in files:
       try:
         handle = open(file, "r")
-        file_sum = md5er(maybe_encode(handle.read())).digest()
+        file_sum = md5er(encode(handle.read())).digest()
         if not file in self.sums or self.sums[file] != file_sum:
           changed_or_new.append(file)
           self.sums[file] = file_sum
@@ -498,7 +487,7 @@ class SourceProcessor(SourceFileProcessor):
       output = subprocess.Popen('git ls-files --full-name',
                                 stdout=PIPE, cwd=path, shell=True)
       result = []
-      for file in maybe_decode(output.stdout.read()).split():
+      for file in decode(output.stdout.read()).split():
         for dir_part in os.path.dirname(file).replace(os.sep, '/').split('/'):
           if self.IgnoreDir(dir_part):
             break
@@ -632,7 +621,7 @@ class SourceProcessor(SourceFileProcessor):
     for file in files:
       try:
         handle = open(file, "rb")
-        contents = maybe_decode(handle.read(), "ISO-8859-1")
+        contents = decode(handle.read(), "ISO-8859-1")
         if len(contents) > 0 and not self.ProcessContents(file, contents):
           success = False
           violations += 1
