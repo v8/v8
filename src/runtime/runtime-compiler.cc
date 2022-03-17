@@ -228,18 +228,23 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
   return *obj;
 }
 
-static bool IsSuitableForOnStackReplacement(Isolate* isolate,
-                                            Handle<JSFunction> function) {
+namespace {
+
+bool IsSuitableForOnStackReplacement(Isolate* isolate,
+                                     Handle<JSFunction> function) {
   // Don't OSR during serialization.
   if (isolate->serializer_enabled()) return false;
+
   // Keep track of whether we've succeeded in optimizing.
   if (function->shared().optimization_disabled()) return false;
+
   // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
   // bytecode array. So, it might be possible to mark closure in one native
   // context and optimize a closure from a different native context. So check if
   // there is a feedback vector before OSRing. We don't expect this to happen
   // often.
   if (!function->has_feedback_vector()) return false;
+
   // If we are trying to do OSR when there are already optimized
   // activations of the function, it means (a) the function is directly or
   // indirectly recursive and (b) an optimized invocation has been
@@ -252,8 +257,6 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
 
   return true;
 }
-
-namespace {
 
 BytecodeOffset DetermineEntryAndDisarmOSRForUnoptimized(
     JavaScriptFrame* js_frame) {
@@ -273,8 +276,8 @@ BytecodeOffset DetermineEntryAndDisarmOSRForUnoptimized(
   DCHECK(frame->is_unoptimized());
   DCHECK(frame->function().shared().HasBytecodeArray());
 
-  // Reset the OSR loop nesting depth to disarm back edges.
-  bytecode->set_osr_loop_nesting_level(0);
+  // Disarm all back edges.
+  bytecode->reset_osr_urgency();
 
   // Return a BytecodeOffset representing the bytecode offset of the back
   // branch.
@@ -286,11 +289,9 @@ BytecodeOffset DetermineEntryAndDisarmOSRForUnoptimized(
 RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
+  DCHECK(FLAG_use_osr);
 
-  // Only reachable when OST is enabled.
-  CHECK(FLAG_use_osr);
-
-  // Determine frame triggering OSR request.
+  // Determine the frame that triggered the OSR request.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
   DCHECK(frame->is_unoptimized());
@@ -313,72 +314,75 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
         Compiler::GetOptimizedCodeForOSR(isolate, function, osr_offset, frame);
   }
 
-  // Check whether we ended up with usable optimized code.
   Handle<CodeT> result;
-  if (maybe_result.ToHandle(&result) &&
-      CodeKindIsOptimizedJSFunction(result->kind())) {
-    DeoptimizationData data =
-        DeoptimizationData::cast(result->deoptimization_data());
-
-    if (data.OsrPcOffset().value() >= 0) {
-      DCHECK(BytecodeOffset(data.OsrBytecodeOffset().value()) == osr_offset);
-      if (FLAG_trace_osr) {
-        CodeTracer::Scope scope(isolate->GetCodeTracer());
-        PrintF(scope.file(),
-               "[OSR - Entry at OSR bytecode offset %d, offset %d in optimized "
-               "code]\n",
-               osr_offset.ToInt(), data.OsrPcOffset().value());
-      }
-
-      DCHECK(result->is_turbofanned());
-      if (function->feedback_vector().invocation_count() <= 1 &&
-          function->HasOptimizationMarker()) {
-        // With lazy feedback allocation we may not have feedback for the
-        // initial part of the function that was executed before we allocated a
-        // feedback vector. Reset any optimization markers for such functions.
-        //
-        // TODO(mythria): Instead of resetting the optimization marker here we
-        // should only mark a function for optimization if it has sufficient
-        // feedback. We cannot do this currently since we OSR only after we mark
-        // a function for optimization. We should instead change it to be based
-        // based on number of ticks.
-        DCHECK(!function->IsInOptimizationQueue());
-        function->ClearOptimizationMarker();
-      }
-      // TODO(mythria): Once we have OSR code cache we may not need to mark
-      // the function for non-concurrent compilation. We could arm the loops
-      // early so the second execution uses the already compiled OSR code and
-      // the optimization occurs concurrently off main thread.
-      if (!function->HasAvailableOptimizedCode() &&
-          function->feedback_vector().invocation_count() > 1) {
-        // If we're not already optimized, set to optimize non-concurrently on
-        // the next call, otherwise we'd run unoptimized once more and
-        // potentially compile for OSR again.
-        if (FLAG_trace_osr) {
-          CodeTracer::Scope scope(isolate->GetCodeTracer());
-          PrintF(scope.file(), "[OSR - Re-marking ");
-          function->PrintName(scope.file());
-          PrintF(scope.file(), " for non-concurrent optimization]\n");
-        }
-        function->SetOptimizationMarker(
-            OptimizationMarker::kCompileTurbofan_NotConcurrent);
-      }
-      return *result;
+  if (!maybe_result.ToHandle(&result)) {
+    // No OSR'd code available.
+    if (FLAG_trace_osr) {
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(), "[OSR - Failed: ");
+      function->PrintName(scope.file());
+      PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
     }
+
+    if (!function->HasAttachedOptimizedCode()) {
+      function->set_code(function->shared().GetCode(), kReleaseStore);
+    }
+
+    return {};
   }
 
-  // Failed.
+  DCHECK(!result.is_null());
+  DCHECK(result->is_turbofanned());
+  DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
+
+  DeoptimizationData data =
+      DeoptimizationData::cast(result->deoptimization_data());
+  DCHECK_EQ(BytecodeOffset(data.OsrBytecodeOffset().value()), osr_offset);
+  DCHECK_GE(data.OsrPcOffset().value(), 0);
+
   if (FLAG_trace_osr) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[OSR - Failed: ");
-    function->PrintName(scope.file());
-    PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
+    PrintF(scope.file(),
+           "[OSR - Entry at OSR bytecode offset %d, offset %d in optimized "
+           "code]\n",
+           osr_offset.ToInt(), data.OsrPcOffset().value());
   }
 
-  if (!function->HasAttachedOptimizedCode()) {
-    function->set_code(function->shared().GetCode(), kReleaseStore);
+  if (function->feedback_vector().invocation_count() <= 1 &&
+      function->HasOptimizationMarker()) {
+    // With lazy feedback allocation we may not have feedback for the
+    // initial part of the function that was executed before we allocated a
+    // feedback vector. Reset any optimization markers for such functions.
+    //
+    // TODO(mythria): Instead of resetting the optimization marker here we
+    // should only mark a function for optimization if it has sufficient
+    // feedback. We cannot do this currently since we OSR only after we mark
+    // a function for optimization. We should instead change it to be based
+    // based on number of ticks.
+    DCHECK(!function->IsInOptimizationQueue());
+    function->ClearOptimizationMarker();
   }
-  return Object();
+
+  // TODO(mythria): Once we have OSR code cache we may not need to mark
+  // the function for non-concurrent compilation. We could arm the loops
+  // early so the second execution uses the already compiled OSR code and
+  // the optimization occurs concurrently off main thread.
+  if (!function->HasAvailableOptimizedCode() &&
+      function->feedback_vector().invocation_count() > 1) {
+    // If we're not already optimized, set to optimize non-concurrently on the
+    // next call, otherwise we'd run unoptimized once more and potentially
+    // compile for OSR again.
+    if (FLAG_trace_osr) {
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(), "[OSR - Re-marking ");
+      function->PrintName(scope.file());
+      PrintF(scope.file(), " for non-concurrent optimization]\n");
+    }
+    function->SetOptimizationMarker(
+        OptimizationMarker::kCompileTurbofan_NotConcurrent);
+  }
+
+  return *result;
 }
 
 static Object CompileGlobalEval(Isolate* isolate,

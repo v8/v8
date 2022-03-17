@@ -2416,7 +2416,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
   copy.set_handler_table(raw_source.handler_table());
   copy.set_source_position_table(raw_source.source_position_table(kAcquireLoad),
                                  kReleaseStore);
-  copy.set_osr_loop_nesting_level(raw_source.osr_loop_nesting_level());
+  copy.set_osr_urgency(raw_source.osr_urgency());
   copy.set_bytecode_age(raw_source.bytecode_age());
   raw_source.CopyBytecodesTo(copy);
   return handle(copy, isolate());

@@ -1314,9 +1314,9 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   UpdateInterruptBudget(profiling_weight, true);
 }
 
-TNode<Int8T> InterpreterAssembler::LoadOsrNestingLevel() {
+TNode<Int8T> InterpreterAssembler::LoadOsrUrgency() {
   return LoadObjectField<Int8T>(BytecodeArrayTaggedPointer(),
-                                BytecodeArray::kOsrLoopNestingLevelOffset);
+                                BytecodeArray::kOsrUrgencyOffset);
 }
 
 void InterpreterAssembler::Abort(AbortReason abort_reason) {

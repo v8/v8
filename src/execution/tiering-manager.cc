@@ -170,9 +170,9 @@ void TieringManager::AttemptOnStackReplacement(UnoptimizedFrame* frame,
   }
 
   DCHECK(frame->is_unoptimized());
-  int level = frame->GetBytecodeArray().osr_loop_nesting_level();
-  frame->GetBytecodeArray().set_osr_loop_nesting_level(std::min(
-      {level + loop_nesting_levels, AbstractCode::kMaxLoopNestingMarker}));
+  const int urgency = frame->GetBytecodeArray().osr_urgency();
+  frame->GetBytecodeArray().set_osr_urgency(
+      std::min({urgency + loop_nesting_levels, BytecodeArray::kMaxOsrUrgency}));
 }
 
 namespace {
@@ -230,7 +230,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
   if (frame->is_unoptimized()) {
     if (V8_UNLIKELY(FLAG_always_osr)) {
       AttemptOnStackReplacement(UnoptimizedFrame::cast(frame),
-                                AbstractCode::kMaxLoopNestingMarker);
+                                BytecodeArray::kMaxOsrUrgency);
       // Fall through and do a normal optimized compile as well.
     } else if (MaybeOSR(function, UnoptimizedFrame::cast(frame))) {
       return;
@@ -297,8 +297,7 @@ OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
       int jump_target_offset = iterator.GetJumpTargetOffset();
       if (jump_offset >= current_offset &&
           current_offset >= jump_target_offset) {
-        bytecode.set_osr_loop_nesting_level(iterator.GetImmediateOperand(1) +
-                                            1);
+        bytecode.set_osr_urgency(iterator.GetImmediateOperand(1) + 1);
         return OptimizationDecision::TurbofanHotAndStable();
       }
     }

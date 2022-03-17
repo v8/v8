@@ -1320,10 +1320,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // are 8-bit fields next to each other, so we could just optimize by writing
     // a 16-bit. These static asserts guard our assumption is valid.
     STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                  BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
+                  BytecodeArray::kOsrUrgencyOffset + kCharSize);
     STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-    __ Strh(wzr, FieldMemOperand(bytecode_array,
-                                 BytecodeArray::kOsrLoopNestingLevelOffset));
+    __ Strh(wzr,
+            FieldMemOperand(bytecode_array, BytecodeArray::kOsrUrgencyOffset));
 
     __ Push(argc, bytecode_array);
 
@@ -1479,10 +1479,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrUrgencyOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ Strh(wzr, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                               BytecodeArray::kOsrLoopNestingLevelOffset));
+                               BytecodeArray::kOsrUrgencyOffset));
 
   // Load the initial bytecode offset.
   __ Mov(kInterpreterBytecodeOffsetRegister,
@@ -4202,7 +4202,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
     // Sparkplug here.
     __ Strh(wzr, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                 BytecodeArray::kOsrLoopNestingLevelOffset));
+                                 BytecodeArray::kOsrUrgencyOffset));
     Generate_OSREntry(masm, code_obj, Code::kHeaderSize - kHeapObjectTag);
   } else {
     __ Add(code_obj, code_obj, Code::kHeaderSize - kHeapObjectTag);

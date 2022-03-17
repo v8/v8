@@ -817,10 +817,6 @@ class AbstractCode : public HeapObject {
   inline Code GetCode();
   inline BytecodeArray GetBytecodeArray();
 
-  // Max loop nesting marker used to postpose OSR. We don't take loop
-  // nesting that is deeper than 5 levels into account.
-  static const int kMaxLoopNestingMarker = 6;
-
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 
  private:
@@ -953,36 +949,35 @@ class BytecodeArray
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
 
-  // Setter and getter
   inline byte get(int index) const;
   inline void set(int index, byte value);
 
-  // Returns data start address.
   inline Address GetFirstBytecodeAddress();
 
-  // Accessors for frame size.
   inline int32_t frame_size() const;
   inline void set_frame_size(int32_t frame_size);
 
-  // Accessor for register count (derived from frame_size).
+  // Note: The register count is derived from frame_size.
   inline int register_count() const;
 
-  // Accessors for parameter count (including implicit 'this' receiver).
+  // Note: the parameter count includes the implicit 'this' receiver.
   inline int32_t parameter_count() const;
   inline void set_parameter_count(int32_t number_of_parameters);
 
-  // Register used to pass the incoming new.target or generator object from the
-  // fucntion call.
   inline interpreter::Register incoming_new_target_or_generator_register()
       const;
   inline void set_incoming_new_target_or_generator_register(
       interpreter::Register incoming_new_target_or_generator_register);
 
-  // Accessors for OSR loop nesting level.
-  inline int osr_loop_nesting_level() const;
-  inline void set_osr_loop_nesting_level(int depth);
+  // The [osr_urgency] controls when OSR is attempted, and is incremented as
+  // the function becomes hotter. When the current loop depth is less than the
+  // osr_urgency, JumpLoop calls into runtime to attempt OSR optimization.
+  static constexpr int kMaxOsrUrgency = 6;
+  inline int osr_urgency() const;
+  inline void set_osr_urgency(int urgency);
+  inline void reset_osr_urgency();
+  inline void RequestOsrAtNextOpportunity();
 
-  // Accessors for bytecode's code age.
   inline Age bytecode_age() const;
   inline void set_bytecode_age(Age age);
 
@@ -999,7 +994,6 @@ class BytecodeArray
   // as it would if no attempt was ever made to collect source positions.
   inline void SetSourcePositionsFailedToCollect();
 
-  // Dispatched behavior.
   inline int BytecodeArraySize();
 
   inline int raw_instruction_size();
@@ -1026,7 +1020,7 @@ class BytecodeArray
   // InterpreterEntryTrampoline expects these fields to be next to each other
   // and writes a 16-bit value to reset them.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                kOsrLoopNestingLevelOffset + kCharSize);
+                kOsrUrgencyOffset + kCharSize);
 
   // Maximal memory consumption for a single BytecodeArray.
   static const int kMaxSize = 512 * MB;

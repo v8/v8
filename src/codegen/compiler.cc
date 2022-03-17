@@ -2092,9 +2092,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
     shared->set_baseline_code(ToCodeT(*code), kReleaseStore);
 
     if (V8_LIKELY(FLAG_use_osr)) {
-      // Arm back edges for OSR
-      shared->GetBytecodeArray(isolate).set_osr_loop_nesting_level(
-          AbstractCode::kMaxLoopNestingMarker);
+      shared->GetBytecodeArray(isolate).RequestOsrAtNextOpportunity();
     }
   }
   double time_taken_ms = time_taken.InMillisecondsF();

@@ -1930,12 +1930,12 @@ void BaselineCompiler::VisitJumpLoop() {
   Label osr_not_armed;
   {
     ASM_CODE_COMMENT_STRING(&masm_, "OSR Check Armed");
-    Register osr_level = scratch;
-    __ LoadRegister(osr_level, interpreter::Register::bytecode_array());
-    __ LoadByteField(osr_level, osr_level,
-                     BytecodeArray::kOsrLoopNestingLevelOffset);
+    Register osr_urgency = scratch;
+    __ LoadRegister(osr_urgency, interpreter::Register::bytecode_array());
+    __ LoadByteField(osr_urgency, osr_urgency,
+                     BytecodeArray::kOsrUrgencyOffset);
     int loop_depth = iterator().GetImmediateOperand(1);
-    __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_level, loop_depth,
+    __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_urgency, loop_depth,
                   &osr_not_armed);
     CallBuiltin<Builtin::kBaselineOnStackReplacement>();
   }

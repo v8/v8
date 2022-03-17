@@ -1138,12 +1138,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrUrgencyOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ li(r8, Operand(0));
   __ StoreU16(r8,
               FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                              BytecodeArray::kOsrLoopNestingLevelOffset),
+                              BytecodeArray::kOsrUrgencyOffset),
               r0);
 
   // Load initial bytecode offset.

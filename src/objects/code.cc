@@ -623,8 +623,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
-  os << "OSR nesting level: " << osr_loop_nesting_level() << "\n";
-  os << "Bytecode Age: " << bytecode_age() << "\n";
+  os << "OSR urgency: " << osr_urgency() << "\n";
+  os << "Bytecode age: " << bytecode_age() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());

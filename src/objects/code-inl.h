@@ -1156,19 +1156,25 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
   }
 }
 
-int BytecodeArray::osr_loop_nesting_level() const {
-  return ACQUIRE_READ_INT8_FIELD(*this, kOsrLoopNestingLevelOffset);
+int BytecodeArray::osr_urgency() const {
+  return ACQUIRE_READ_INT8_FIELD(*this, kOsrUrgencyOffset);
 }
 
-void BytecodeArray::set_osr_loop_nesting_level(int depth) {
-  DCHECK(0 <= depth && depth <= AbstractCode::kMaxLoopNestingMarker);
-  STATIC_ASSERT(AbstractCode::kMaxLoopNestingMarker < kMaxInt8);
-  RELEASE_WRITE_INT8_FIELD(*this, kOsrLoopNestingLevelOffset, depth);
+void BytecodeArray::set_osr_urgency(int urgency) {
+  DCHECK(0 <= urgency && urgency <= BytecodeArray::kMaxOsrUrgency);
+  STATIC_ASSERT(BytecodeArray::kMaxOsrUrgency < kMaxInt8);
+  RELEASE_WRITE_INT8_FIELD(*this, kOsrUrgencyOffset, urgency);
 }
 
 BytecodeArray::Age BytecodeArray::bytecode_age() const {
   // Bytecode is aged by the concurrent marker.
   return static_cast<Age>(RELAXED_READ_INT8_FIELD(*this, kBytecodeAgeOffset));
+}
+
+void BytecodeArray::reset_osr_urgency() { set_osr_urgency(0); }
+
+void BytecodeArray::RequestOsrAtNextOpportunity() {
+  set_osr_urgency(kMaxOsrUrgency);
 }
 
 void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {

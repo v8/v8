@@ -584,8 +584,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // Make the profiler arm all back edges in unoptimized code.
   if (it.frame()->is_unoptimized()) {
     isolate->tiering_manager()->AttemptOnStackReplacement(
-        UnoptimizedFrame::cast(it.frame()),
-        AbstractCode::kMaxLoopNestingMarker);
+        UnoptimizedFrame::cast(it.frame()), BytecodeArray::kMaxOsrUrgency);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

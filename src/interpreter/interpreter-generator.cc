@@ -2166,18 +2166,18 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 // JumpLoop <imm> <loop_depth>
 //
 // Jump by the number of bytes represented by the immediate operand |imm|. Also
-// performs a loop nesting check, a stack check, and potentially triggers OSR in
-// case the current OSR level matches (or exceeds) the specified |loop_depth|.
+// performs a loop nesting check, a stack check, and potentially triggers OSR
+// in case `loop_depth < osr_urgency`.
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   TNode<Int32T> loop_depth = BytecodeOperandImm(1);
-  TNode<Int8T> osr_level = LoadOsrNestingLevel();
+  TNode<Int8T> osr_urgency = LoadOsrUrgency();
   TNode<Context> context = GetContext();
 
   // Check if OSR points at the given {loop_depth} are armed by comparing it to
-  // the current {osr_level} loaded from the header of the BytecodeArray.
+  // the current {osr_urgency} loaded from the header of the BytecodeArray.
   Label ok(this), osr_armed(this, Label::kDeferred);
-  TNode<BoolT> condition = Int32GreaterThanOrEqual(loop_depth, osr_level);
+  TNode<BoolT> condition = Int32GreaterThanOrEqual(loop_depth, osr_urgency);
   Branch(condition, &ok, &osr_armed);
 
   BIND(&ok);

@@ -206,9 +206,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (is_osr) {
     Register scratch = r1;
     __ mov(scratch, Operand(0));
-    __ StoreU16(scratch,
-                FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                BytecodeArray::kOsrLoopNestingLevelOffset));
+    __ StoreU16(scratch, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                         BytecodeArray::kOsrUrgencyOffset));
     Generate_OSREntry(masm, code_obj, Code::kHeaderSize - kHeapObjectTag);
   } else {
     __ AddS64(code_obj, code_obj, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -1420,14 +1419,13 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // are 8-bit fields next to each other, so we could just optimize by writing
     // a 16-bit. These static asserts guard our assumption is valid.
     STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                  BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
+                  BytecodeArray::kOsrUrgencyOffset + kCharSize);
     STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
     {
       Register scratch = r0;
       __ mov(scratch, Operand(0));
-      __ StoreU16(scratch,
-                  FieldMemOperand(bytecodeArray,
-                                  BytecodeArray::kOsrLoopNestingLevelOffset));
+      __ StoreU16(scratch, FieldMemOperand(bytecodeArray,
+                                           BytecodeArray::kOsrUrgencyOffset));
     }
 
     __ Push(argc, bytecodeArray);
@@ -1584,12 +1582,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrUrgencyOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ mov(r1, Operand(0));
   __ StoreU16(r1,
               FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                              BytecodeArray::kOsrLoopNestingLevelOffset),
+                              BytecodeArray::kOsrUrgencyOffset),
               r0);
 
   // Load the initial bytecode offset.
