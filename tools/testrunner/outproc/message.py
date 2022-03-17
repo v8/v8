@@ -5,7 +5,10 @@
 import os
 import re
 
-from itertools import zip_longest
+try: # Python3
+  from itertools import zip_longest
+except ImportError: # Python2
+  from itertools import izip_longest as zip_longest
 
 from . import base
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -28,7 +28,7 @@ class PoolTest(unittest.TestCase):
         # Any result can be a heartbeat due to timings.
         continue
       results.add(result.value)
-    self.assertEqual(set(range(0, 10)), results)
+    self.assertEquals(set(range(0, 10)), results)
 
   def testException(self):
     results = set()
@@ -42,7 +42,7 @@ class PoolTest(unittest.TestCase):
         results.add(result.value)
     expect = set(range(0, 12))
     expect.remove(10)
-    self.assertEqual(expect, results)
+    self.assertEquals(expect, results)
 
   def testAdd(self):
     results = set()
@@ -54,9 +54,8 @@ class PoolTest(unittest.TestCase):
       results.add(result.value)
       if result.value < 30:
         pool.add([result.value + 20])
-    self.assertEqual(
-        set(range(0, 10)) | set(range(20, 30)) | set(range(40, 50)),
-        results)
+    self.assertEquals(set(range(0, 10) + range(20, 30) + range(40, 50)),
+                      results)
 
 
 if __name__ == '__main__':

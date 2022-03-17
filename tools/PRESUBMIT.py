@@ -9,6 +9,5 @@ USE_PYTHON3 = True
 
 def CheckChangeOnCommit(input_api, output_api):
   tests = input_api.canned_checks.GetUnitTestsInDirectory(
-      input_api, output_api, 'unittests', files_to_check=[r'.+_test\.py$'],
-      run_on_python2=False)
+      input_api, output_api, 'unittests', files_to_check=[r'.+_test\.py$'])
   return input_api.RunTests(tests)
