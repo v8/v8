@@ -12,15 +12,13 @@
 namespace v8 {
 namespace internal {
 
-// This enum are states that how many OSR code caches belong to a SFI. Without
-// this enum, need to check all OSR code cache entries to know whether a
-// JSFunction's SFI has OSR code cache. The enum value kCachedMultiple is for
-// doing time-consuming loop check only when the very unlikely state change
-// kCachedMultiple -> { kCachedOnce | kCachedMultiple }.
+// This enum is a performance optimization for accessing the OSR code cache -
+// we can skip cache iteration in many cases unless there are multiple entries
+// for a particular SharedFunctionInfo.
 enum OSRCodeCacheStateOfSFI : uint8_t {
-  kNotCached,       // Likely state, no OSR code cache
-  kCachedOnce,      // Unlikely state, one OSR code cache
-  kCachedMultiple,  // Very unlikely state, multiple OSR code caches
+  kNotCached,       // Likely state.
+  kCachedOnce,      // Unlikely state, one entry.
+  kCachedMultiple,  // Very unlikely state, multiple entries.
 };
 
 class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {

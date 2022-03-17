@@ -581,10 +581,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
                                 ConcurrencyMode::kNotConcurrent);
 
-  // Make the profiler arm all back edges in unoptimized code.
   if (it.frame()->is_unoptimized()) {
-    isolate->tiering_manager()->AttemptOnStackReplacement(
-        UnoptimizedFrame::cast(it.frame()), BytecodeArray::kMaxOsrUrgency);
+    isolate->tiering_manager()->RequestOsrAtNextOpportunity(*function);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
