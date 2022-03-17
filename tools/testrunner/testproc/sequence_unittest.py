@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2021 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -87,7 +87,8 @@ class TestSequenceProc(unittest.TestCase):
     self.assertEqual(set(test.n for test in tests), results.tests)
 
   def test_wrong_usage(self):
-    self.assertRaises(lambda: SequenceProc(0))
+    with self.assertRaises(Exception):
+      SequenceProc(0)
 
   def test_no_tests(self):
     self._test([], 1, 1)
