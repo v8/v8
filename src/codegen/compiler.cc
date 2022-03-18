@@ -48,7 +48,6 @@
 #include "src/logging/counters-scopes.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
-#include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/map.h"
@@ -66,6 +65,7 @@
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 #ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/maglev/maglev.h"
 #endif  // V8_ENABLE_MAGLEV
 
