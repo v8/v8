@@ -225,6 +225,10 @@ class JSTemporalPlainTime
       Handle<Object> second, Handle<Object> millisecond,
       Handle<Object> microsecond, Handle<Object> nanosecond);
 
+  // #sec-temporal.plaintime.from
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> From(
+      Isolate* isolate, Handle<Object> item, Handle<Object> options);
+
   // #sec-temporal.plaintime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainTime> plain_time);

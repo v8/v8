@@ -93,6 +93,16 @@ struct DurationRecord {
   int64_t nanoseconds;
 };
 
+struct TimeRecord {
+  int32_t hour;
+  int32_t minute;
+  int32_t second;
+  int32_t millisecond;
+  int32_t microsecond;
+  int32_t nanosecond;
+  Handle<String> calendar;
+};
+
 struct TimeZoneRecord {
   bool z;
   Handle<String> offset_string;
@@ -118,6 +128,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> ParseTemporalCalendarString(
 // #sec-temporal-parsetemporaldatestring
 V8_WARN_UNUSED_RESULT Maybe<DateRecord> ParseTemporalDateString(
     Isolate* isolate, Handle<String> iso_string);
+
+// #sec-temporal-parsetemporaltimestring
+Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
+                                          Handle<String> iso_string);
 
 // #sec-temporal-parsetemporaltimezone
 V8_WARN_UNUSED_RESULT MaybeHandle<String> ParseTemporalTimeZone(
@@ -245,6 +259,10 @@ int64_t TotalDurationNanoseconds(Isolate* isolate, int64_t days, int64_t hours,
                                  int64_t milliseconds, int64_t microseconds,
                                  int64_t nanoseconds, int64_t offset_shift);
 
+// #sec-temporal-totemporaltimerecord
+Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
+                                       Handle<JSReceiver> temporal_time_like,
+                                       const char* method_name);
 // Calendar Operations
 
 // #sec-temporal-calendardateadd
@@ -643,6 +661,7 @@ MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(
   // 12. Return object.
   return object;
 }
+
 MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(
     Isolate* isolate, int32_t hour, int32_t minute, int32_t second,
     int32_t millisecond, int32_t microsecond, int32_t nanosecond) {
@@ -1818,6 +1837,167 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
 
 namespace temporal {
 
+// #sec-temporal-regulatetime
+Maybe<bool> RegulateTime(Isolate* isolate, TimeRecord* time,
+                         ShowOverflow overflow) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: hour, minute, second, millisecond, microsecond and nanosecond
+  // are integers.
+  // 2. Assert: overflow is either "constrain" or "reject".
+  switch (overflow) {
+    case ShowOverflow::kConstrain:
+      // 3. If overflow is "constrain", then
+      // a. Return ! ConstrainTime(hour, minute, second, millisecond,
+      // microsecond, nanosecond).
+      time->hour = std::max(std::min(time->hour, 23), 0);
+      time->minute = std::max(std::min(time->minute, 59), 0);
+      time->second = std::max(std::min(time->second, 59), 0);
+      time->millisecond = std::max(std::min(time->millisecond, 999), 0);
+      time->microsecond = std::max(std::min(time->microsecond, 999), 0);
+      time->nanosecond = std::max(std::min(time->nanosecond, 999), 0);
+      return Just(true);
+    case ShowOverflow::kReject:
+      // 4. If overflow is "reject", then
+      // a. If ! IsValidTime(hour, minute, second, millisecond, microsecond,
+      // nanosecond) is false, throw a RangeError exception.
+      if (!IsValidTime(isolate, time->hour, time->minute, time->second,
+                       time->millisecond, time->microsecond,
+                       time->nanosecond)) {
+        THROW_NEW_ERROR_RETURN_VALUE(
+            isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Nothing<bool>());
+      }
+      // b. Return the new Record { [[Hour]]: hour, [[Minute]]: minute,
+      // [[Second]]: second, [[Millisecond]]: millisecond, [[Microsecond]]:
+      // microsecond, [[Nanosecond]]: nanosecond }.
+      return Just(true);
+  }
+}
+
+// #sec-temporal-totemporaltime
+MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
+                                                Handle<Object> item_obj,
+                                                ShowOverflow overflow,
+                                                const char* method_name) {
+  Factory* factory = isolate->factory();
+  TimeRecord result;
+  // 2. Assert: overflow is either "constrain" or "reject".
+  // 3. If Type(item) is Object, then
+  if (item_obj->IsJSReceiver()) {
+    Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
+    // a. If item has an [[InitializedTemporalTime]] internal slot, then
+    // i. Return item.
+    if (item->IsJSTemporalPlainTime()) {
+      return Handle<JSTemporalPlainTime>::cast(item);
+    }
+    // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
+    // then
+    if (item->IsJSTemporalZonedDateTime()) {
+      // i. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
+      Handle<JSTemporalZonedDateTime> zoned_date_time =
+          Handle<JSTemporalZonedDateTime>::cast(item);
+      Handle<JSTemporalInstant> instant;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, instant,
+          CreateTemporalInstant(
+              isolate, Handle<BigInt>(zoned_date_time->nanoseconds(), isolate)),
+          JSTemporalPlainTime);
+      // ii. Set plainDateTime to ?
+      // BuiltinTimeZoneGetPlainDateTimeFor(item.[[TimeZone]],
+      // instant, item.[[Calendar]]).
+      Handle<JSTemporalPlainDateTime> plain_date_time;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, plain_date_time,
+          BuiltinTimeZoneGetPlainDateTimeFor(
+              isolate,
+              Handle<JSReceiver>(zoned_date_time->time_zone(), isolate),
+              instant, Handle<JSReceiver>(zoned_date_time->calendar(), isolate),
+              method_name),
+          JSTemporalPlainTime);
+      // iii. Return !
+      // CreateTemporalTime(plainDateTime.[[ISOHour]],
+      // plainDateTime.[[ISOMinute]], plainDateTime.[[ISOSecond]],
+      // plainDateTime.[[ISOMillisecond]], plainDateTime.[[ISOMicrosecond]],
+      // plainDateTime.[[ISONanosecond]]).
+      return CreateTemporalTime(
+          isolate, plain_date_time->iso_hour(), plain_date_time->iso_minute(),
+          plain_date_time->iso_second(), plain_date_time->iso_millisecond(),
+          plain_date_time->iso_microsecond(),
+          plain_date_time->iso_nanosecond());
+    }
+    // c. If item has an [[InitializedTemporalDateTime]] internal slot, then
+    if (item->IsJSTemporalPlainDateTime()) {
+      // i. Return ! CreateTemporalTime(item.[[ISOHour]], item.[[ISOMinute]],
+      // item.[[ISOSecond]], item.[[ISOMillisecond]], item.[[ISOMicrosecond]],
+      // item.[[ISONanosecond]]).
+      Handle<JSTemporalPlainDateTime> date_time =
+          Handle<JSTemporalPlainDateTime>::cast(item);
+      return CreateTemporalTime(
+          isolate, date_time->iso_hour(), date_time->iso_minute(),
+          date_time->iso_second(), date_time->iso_millisecond(),
+          date_time->iso_microsecond(), date_time->iso_nanosecond());
+    }
+    // d. Let calendar be ? GetTemporalCalendarWithISODefault(item).
+    Handle<JSReceiver> calendar;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, calendar,
+        GetTemporalCalendarWithISODefault(isolate, item, method_name),
+        JSTemporalPlainTime);
+    // e. If ? ToString(calendar) is not "iso8601", then
+    Handle<String> identifier;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, identifier,
+                               Object::ToString(isolate, calendar),
+                               JSTemporalPlainTime);
+    if (!String::Equals(isolate, factory->iso8601_string(), identifier)) {
+      // i. Throw a RangeError exception.
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                      JSTemporalPlainTime);
+    }
+    // f. Let result be ? ToTemporalTimeRecord(item).
+    Maybe<TimeRecord> maybe_time_result =
+        ToTemporalTimeRecord(isolate, item, method_name);
+    MAYBE_RETURN(maybe_time_result, Handle<JSTemporalPlainTime>());
+    result = maybe_time_result.FromJust();
+    // g. Set result to ? RegulateTime(result.[[Hour]], result.[[Minute]],
+    // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+    // result.[[Nanosecond]], overflow).
+    Maybe<bool> maybe_regulate_time = RegulateTime(isolate, &result, overflow);
+    MAYBE_RETURN(maybe_regulate_time, Handle<JSTemporalPlainTime>());
+    DCHECK(maybe_regulate_time.FromJust());
+  } else {
+    // 4. Else,
+    // a. Let string be ? ToString(item).
+    Handle<String> string;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, string,
+                               Object::ToString(isolate, item_obj),
+                               JSTemporalPlainTime);
+    // b. Let result be ? ParseTemporalTimeString(string).
+    Maybe<TimeRecord> maybe_result = ParseTemporalTimeString(isolate, string);
+    MAYBE_RETURN(maybe_result, MaybeHandle<JSTemporalPlainTime>());
+    result = maybe_result.FromJust();
+    // c. Assert: ! IsValidTime(result.[[Hour]], result.[[Minute]],
+    // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+    // result.[[Nanosecond]]) is true.
+    DCHECK(IsValidTime(isolate, result.hour, result.minute, result.second,
+                       result.millisecond, result.microsecond,
+                       result.nanosecond));
+    // d. If result.[[Calendar]] is not one of undefined or "iso8601", then
+    if ((result.calendar->length() > 0) /* not undefined */ &&
+        !String::Equals(isolate, result.calendar,
+                        isolate->factory()->iso8601_string())) {
+      // i. Throw a RangeError exception.
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                      JSTemporalPlainTime);
+    }
+  }
+  // 5. Return ? CreateTemporalTime(result.[[Hour]], result.[[Minute]],
+  // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+  // result.[[Nanosecond]]).
+  return CreateTemporalTime(isolate, result.hour, result.minute, result.second,
+                            result.millisecond, result.microsecond,
+                            result.nanosecond);
+}
+
 // #sec-temporal-totemporaltimezone
 MaybeHandle<JSReceiver> ToTemporalTimeZone(
     Isolate* isolate, Handle<Object> temporal_time_zone_like,
@@ -2150,6 +2330,45 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
   // result.[[Month]], [[Day]]: result.[[Day]], [[Calendar]]:
   // result.[[Calendar]] }.
   DateRecord ret = {result.year, result.month, result.day, result.calendar};
+  return Just(ret);
+}
+
+// #sec-temporal-parsetemporaltimestring
+Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
+                                          Handle<String> iso_string) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: Type(isoString) is String.
+  // 2. If isoString does not satisfy the syntax of a TemporalTimeString
+  // (see 13.33), then
+  Maybe<ParsedISO8601Result> maybe_parsed =
+      TemporalParser::ParseTemporalTimeString(isolate, iso_string);
+  ParsedISO8601Result parsed;
+  if (!maybe_parsed.To(&parsed)) {
+    // a. Throw a *RangeError* exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<TimeRecord>());
+  }
+
+  // 3. If _isoString_ contains a |UTCDesignator|, then
+  if (parsed.utc_designator) {
+    // a. Throw a *RangeError* exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<TimeRecord>());
+  }
+
+  // 3. Let result be ? ParseISODateTime(isoString).
+  Maybe<DateTimeRecord> maybe_result =
+      ParseISODateTime(isolate, iso_string, parsed);
+  MAYBE_RETURN(maybe_result, Nothing<TimeRecord>());
+  DateTimeRecord result = maybe_result.FromJust();
+  // 4. Return the Record { [[Hour]]: result.[[Hour]], [[Minute]]:
+  // result.[[Minute]], [[Second]]: result.[[Second]], [[Millisecond]]:
+  // result.[[Millisecond]], [[Microsecond]]: result.[[Microsecond]],
+  // [[Nanosecond]]: result.[[Nanosecond]], [[Calendar]]: result.[[Calendar]] }.
+  TimeRecord ret = {result.hour,        result.minute,      result.second,
+                    result.millisecond, result.microsecond, result.nanosecond,
+                    result.calendar};
   return Just(ret);
 }
 
@@ -2814,6 +3033,61 @@ MaybeHandle<String> CanonicalizeTimeZoneName(Isolate* isolate,
   return isolate->factory()->UTC_string();
 }
 #endif  // V8_INTL_SUPPORT
+
+// #sec-temporal-totemporaltimerecord
+Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
+                                       Handle<JSReceiver> temporal_time_like,
+                                       const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  TimeRecord result;
+  Factory* factory = isolate->factory();
+  // 1. Assert: Type(temporalTimeLike) is Object.
+  // 2. Let result be the new Record { [[Hour]]: undefined, [[Minute]]:
+  // undefined, [[Second]]: undefined, [[Millisecond]]: undefined,
+  // [[Microsecond]]: undefined, [[Nanosecond]]: undefined }.
+  // See https://github.com/tc39/proposal-temporal/pull/1862
+  // 3. Let _any_ be *false*.
+  bool any = false;
+  // 4. For each row of Table 3, except the header row, in table order, do
+  std::array<std::pair<Handle<String>, int32_t*>, 6> table3 = {
+      {{factory->hour_string(), &result.hour},
+       {factory->microsecond_string(), &result.microsecond},
+       {factory->millisecond_string(), &result.millisecond},
+       {factory->minute_string(), &result.minute},
+       {factory->nanosecond_string(), &result.nanosecond},
+       {factory->second_string(), &result.second}}};
+  for (const auto& row : table3) {
+    Handle<Object> value;
+    // a. Let property be the Property value of the current row.
+    // b. Let value be ? Get(temporalTimeLike, property).
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, value,
+        Object::GetPropertyOrElement(isolate, temporal_time_like, row.first),
+        Nothing<TimeRecord>());
+    // c. If value is not undefined, then
+    if (!value->IsUndefined()) {
+      // i. Set _any_ to *true*.
+      any = true;
+    }
+    // d. Set value to ? ToIntegerThrowOnOInfinity(value).
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
+                                     ToIntegerThrowOnInfinity(isolate, value),
+                                     Nothing<TimeRecord>());
+    // e. Set result's internal slot whose name is the Internal Slot value of
+    // the current row to value.
+    *(row.second) = value->Number();
+  }
+
+  // 5. If _any_ is *false*, then
+  if (!any) {
+    // a. Throw a *TypeError* exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+                                 Nothing<TimeRecord>());
+  }
+  // 4. Return result.
+  return Just(result);
+}
 
 // #sec-temporal-mergelargestunitoption
 MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
@@ -4907,6 +5181,36 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::NowISO(
       isolate, date_time->iso_hour(), date_time->iso_minute(),
       date_time->iso_second(), date_time->iso_millisecond(),
       date_time->iso_microsecond(), date_time->iso_nanosecond());
+}
+
+// #sec-temporal.plaintime.from
+MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
+    Isolate* isolate, Handle<Object> item_obj, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainTime.from";
+  // 1. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainTime);
+  // 2. Let overflow be ? ToTemporalOverflow(options).
+  Maybe<ShowOverflow> maybe_overflow =
+      ToTemporalOverflow(isolate, options, method_name);
+  MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainTime>());
+  ShowOverflow overflow = maybe_overflow.FromJust();
+  // 3. If Type(item) is Object and item has an [[InitializedTemporalTime]]
+  // internal slot, then
+  if (item_obj->IsJSTemporalPlainTime()) {
+    // a. Return ? CreateTemporalTime(item.[[ISOHour]], item.[[ISOMinute]],
+    // item.[[ISOSecond]], item.[[ISOMillisecond]], item.[[ISOMicrosecond]],
+    // item.[[ISONanosecond]]).
+    Handle<JSTemporalPlainTime> item =
+        Handle<JSTemporalPlainTime>::cast(item_obj);
+    return CreateTemporalTime(isolate, item->iso_hour(), item->iso_minute(),
+                              item->iso_second(), item->iso_millisecond(),
+                              item->iso_microsecond(), item->iso_nanosecond());
+  }
+  // 4. Return ? ToTemporalTime(item, overflow).
+  return temporal::ToTemporalTime(isolate, item_obj, overflow, method_name);
 }
 
 // #sec-temporal.plaintime.prototype.getisofields
