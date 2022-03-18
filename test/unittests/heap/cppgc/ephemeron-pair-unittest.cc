@@ -222,6 +222,7 @@ TEST_F(EphemeronPairTest, EphemeronPairWithMixinKey) {
                                                       key, value);
   EXPECT_NE(static_cast<void*>(key), holder->ephemeron_pair().key.Get());
   EXPECT_NE(static_cast<void*>(value), holder->ephemeron_pair().value.Get());
+  testing::AllowLookupOfObjectStartInBitmap allow_access(*GetHeap());
   InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get());
   FinishSteps();
   EXPECT_FALSE(HeapObjectHeader::FromObject(value).IsMarked());
@@ -238,6 +239,7 @@ TEST_F(EphemeronPairTest, EphemeronPairWithEmptyMixinValue) {
                                                       key, nullptr);
   EXPECT_NE(static_cast<void*>(key), holder->ephemeron_pair().key.Get());
   EXPECT_TRUE(HeapObjectHeader::FromObject(key).TryMarkAtomic());
+  testing::AllowLookupOfObjectStartInBitmap allow_access(*GetHeap());
   InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get());
   FinishSteps();
   FinishMarking();

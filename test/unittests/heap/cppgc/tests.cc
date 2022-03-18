@@ -38,6 +38,21 @@ void TestWithHeap::ResetLinearAllocationBuffers() {
 TestSupportingAllocationOnly::TestSupportingAllocationOnly()
     : no_gc_scope_(GetHeap()->GetHeapHandle()) {}
 
+AllowLookupOfObjectStartInBitmap::AllowLookupOfObjectStartInBitmap(
+    cppgc::Heap& heap)
+    : AllowLookupOfObjectStartInBitmap(
+          *static_cast<HeapBase*>(Heap::From(&heap))) {}
+
+AllowLookupOfObjectStartInBitmap::AllowLookupOfObjectStartInBitmap(
+    HeapBase& heap)
+    : heap_(heap) {
+  heap_.set_allow_lookup_of_object_start_in_bitmap(true);
+}
+
+AllowLookupOfObjectStartInBitmap::~AllowLookupOfObjectStartInBitmap() {
+  heap_.set_allow_lookup_of_object_start_in_bitmap(false);
+}
+
 }  // namespace testing
 }  // namespace internal
 }  // namespace cppgc

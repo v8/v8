@@ -99,6 +99,7 @@ TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCurrentAddress) {
   GCed* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCedWithMixin* gced_with_mixin =
       MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
+  testing::AllowLookupOfObjectStartInBitmap allow_access(*GetHeap());
   const void* base_object_payload = TraceTrait<Mixin>::GetTraceDescriptor(
                                         static_cast<Mixin*>(gced_with_mixin))
                                         .base_object_payload;

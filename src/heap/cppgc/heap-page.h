@@ -90,6 +90,10 @@ class V8_EXPORT_PRIVATE BasePage {
   BasePage(HeapBase&, BaseSpace&, PageType);
 
  private:
+  template <AccessMode mode = AccessMode::kNonAtomic>
+  const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(
+      const void* address) const;
+
   HeapBase& heap_;
   BaseSpace& space_;
   PageType type_;
@@ -271,14 +275,14 @@ const BasePage* BasePage::FromPayload(const void* payload) {
       kGuardPageSize);
 }
 
-template <AccessMode mode = AccessMode::kNonAtomic>
-const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
-                                                         const void* address) {
-  if (page->is_large()) {
-    return LargePage::From(page)->ObjectHeader();
+template <AccessMode mode>
+const HeapObjectHeader* BasePage::ObjectHeaderFromInnerAddressImpl(
+    const void* address) const {
+  if (is_large()) {
+    return LargePage::From(this)->ObjectHeader();
   }
   const PlatformAwareObjectStartBitmap& bitmap =
-      NormalPage::From(page)->object_start_bitmap();
+      NormalPage::From(this)->object_start_bitmap();
   const HeapObjectHeader* header =
       bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
   DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
@@ -303,7 +307,7 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
   // reference to a mixin type
   SynchronizedLoad();
   const HeapObjectHeader* header =
-      ObjectHeaderFromInnerAddressImpl<mode>(this, address);
+      ObjectHeaderFromInnerAddressImpl<mode>(address);
   DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
   return *header;
 }
