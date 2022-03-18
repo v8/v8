@@ -474,7 +474,8 @@ if (v8_multi_arch_build &&
 # Check if it is a Chromium build and activate PAC/BTI if needed.
 # TODO(cavalcantii): have a single point of integration with PAC/BTI flags.
 if (build_with_chromium && v8_current_cpu == "arm64" &&
-    arm_control_flow_integrity == "standard") {
+    (arm_control_flow_integrity == "standard" ||
+     arm_control_flow_integrity == "pac")) {
   v8_control_flow_integrity = true
 }
 
@@ -1044,8 +1045,8 @@ config("toolchain") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
     if (current_cpu == "arm64") {
       # This will enable PAC+BTI in code generation and static code.
-      if (v8_control_flow_integrity) {
-        # TODO(v8:10026): Enable this in src/build.
+      if (v8_control_flow_integrity &&
+          (!build_with_chromium || arm_control_flow_integrity == "standard")) {
         cflags += [ "-mbranch-protection=standard" ]
         asmflags = [ "-mmark-bti-property" ]
       } else if (build_with_chromium && arm_control_flow_integrity == "pac") {
