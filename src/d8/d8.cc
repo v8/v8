@@ -1441,9 +1441,12 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   if (length == 0) {
     isolate->ThrowError("Could not read the web snapshot file");
   } else {
-    i::WebSnapshotDeserializer deserializer(isolate, snapshot_data.get(),
-                                            static_cast<size_t>(length));
-    success = deserializer.Deserialize();
+    for (int r = 0; r < DeserializationRunCount(); ++r) {
+      bool skip_exports = r > 0;
+      i::WebSnapshotDeserializer deserializer(isolate, snapshot_data.get(),
+                                              static_cast<size_t>(length));
+      success = deserializer.Deserialize({}, skip_exports);
+    }
   }
   if (!success) {
     CHECK(try_catch.HasCaught());
@@ -1471,14 +1474,17 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
   std::stringstream stream(data.get());
   std::string line;
   while (std::getline(stream, line, '\n')) {
-    Local<String> source =
-        String::NewFromUtf8(isolate, line.c_str()).ToLocalChecked();
-    MaybeLocal<Value> maybe_value = JSON::Parse(realm, source);
-    Local<Value> value;
-    if (!maybe_value.ToLocal(&value)) {
-      DCHECK(try_catch.HasCaught());
-      ReportException(isolate, &try_catch);
-      return false;
+    for (int r = 0; r < DeserializationRunCount(); ++r) {
+      Local<String> source =
+          String::NewFromUtf8(isolate, line.c_str()).ToLocalChecked();
+      MaybeLocal<Value> maybe_value = JSON::Parse(realm, source);
+
+      Local<Value> value;
+      if (!maybe_value.ToLocal(&value)) {
+        DCHECK(try_catch.HasCaught());
+        ReportException(isolate, &try_catch);
+        return false;
+      }
     }
   }
   return true;
@@ -4516,6 +4522,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--cpu-profiler-print") == 0) {
       options.cpu_profiler = true;
       options.cpu_profiler_print = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--stress-deserialize") == 0) {
+      options.stress_deserialize = true;
       argv[i] = nullptr;
     } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
       options.web_snapshot_config = argv[i] + 22;

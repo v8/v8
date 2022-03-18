@@ -464,6 +464,8 @@ class ShellOptions {
       "web-snapshot-output", nullptr};
   DisallowReassignment<bool> d8_web_snapshot_api = {
       "experimental-d8-web-snapshot-api", false};
+  // Applies to web snapshot and JSON deserialization.
+  DisallowReassignment<bool> stress_deserialize = {"stress-deserialize", false};
   DisallowReassignment<bool> compile_only = {"compile-only", false};
   DisallowReassignment<int> repeat_compile = {"repeat-compile", 1};
 #if V8_ENABLE_WEBASSEMBLY
@@ -691,6 +693,10 @@ class Shell : public i::AllStatic {
   static Local<FunctionTemplate> CreateSnapshotTemplate(Isolate* isolate);
 
  private:
+  static inline int DeserializationRunCount() {
+    return options.stress_deserialize ? 1000 : 1;
+  }
+
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
   static Global<Function> stringify_function_;
