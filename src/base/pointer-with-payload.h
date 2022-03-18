@@ -43,7 +43,6 @@ class PointerWithPayload {
 
   explicit PointerWithPayload(PointerType* pointer)
       : pointer_with_payload_(reinterpret_cast<uintptr_t>(pointer)) {
-    DCHECK_EQ(reinterpret_cast<uintptr_t>(pointer) & kPayloadMask, 0);
     DCHECK_EQ(GetPointer(), pointer);
     DCHECK_EQ(GetPayload(), static_cast<PayloadType>(0));
   }
@@ -57,11 +56,6 @@ class PointerWithPayload {
   PointerWithPayload(PointerType* pointer, PayloadType payload) {
     Update(pointer, payload);
   }
-
-  PointerWithPayload(const PointerWithPayload& other) V8_NOEXCEPT = default;
-
-  PointerWithPayload& operator=(const PointerWithPayload& other)
-      V8_NOEXCEPT = default;
 
   V8_INLINE PointerType* GetPointer() const {
     return reinterpret_cast<PointerType*>(pointer_with_payload_ & kPointerMask);
@@ -77,18 +71,17 @@ class PointerWithPayload {
   V8_INLINE PointerType* operator->() const { return GetPointer(); }
 
   V8_INLINE void Update(PointerType* new_pointer, PayloadType new_payload) {
-    DCHECK_EQ(reinterpret_cast<uintptr_t>(new_pointer) & kPayloadMask, 0);
     pointer_with_payload_ = reinterpret_cast<uintptr_t>(new_pointer) |
                             static_cast<uintptr_t>(new_payload);
     DCHECK_EQ(GetPayload(), new_payload);
     DCHECK_EQ(GetPointer(), new_pointer);
   }
 
-  V8_INLINE void SetPointer(PointerType* new_pointer) {
-    DCHECK_EQ(reinterpret_cast<uintptr_t>(new_pointer) & kPayloadMask, 0);
-    pointer_with_payload_ = reinterpret_cast<uintptr_t>(new_pointer) |
+  V8_INLINE void SetPointer(PointerType* newptr) {
+    DCHECK_EQ(reinterpret_cast<uintptr_t>(newptr) & kPayloadMask, 0);
+    pointer_with_payload_ = reinterpret_cast<uintptr_t>(newptr) |
                             (pointer_with_payload_ & kPayloadMask);
-    DCHECK_EQ(GetPointer(), new_pointer);
+    DCHECK_EQ(GetPointer(), newptr);
   }
 
   V8_INLINE PayloadType GetPayload() const {
@@ -117,15 +110,6 @@ class PointerWithPayload {
   static constexpr uintptr_t kPointerMask = ~kPayloadMask;
 
   uintptr_t pointer_with_payload_ = 0;
-
-  friend bool operator==(const PointerWithPayload& p1,
-                         const PointerWithPayload& p2) {
-    return p1.pointer_with_payload_ == p2.pointer_with_payload_;
-  }
-  friend bool operator!=(const PointerWithPayload& p1,
-                         const PointerWithPayload& p2) {
-    return !(p1 == p2);
-  }
 };
 
 }  // namespace base
