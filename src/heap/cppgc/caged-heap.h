@@ -10,7 +10,6 @@
 
 #include "include/cppgc/platform.h"
 #include "src/base/bounded-page-allocator.h"
-#include "src/base/logging.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/virtual-memory.h"
 
@@ -31,12 +30,6 @@ class CagedHeap final {
         "The return type should be large enough");
     return reinterpret_cast<uintptr_t>(address) &
            (kCagedHeapReservationAlignment - 1);
-  }
-
-  static void* AddressFromOffset(void* base, size_t offset) {
-    DCHECK_LT(offset, kCagedHeapReservationSize);
-    DCHECK_NOT_NULL(base);
-    return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(base) + offset);
   }
 
   static uintptr_t BaseFromAddress(const void* address) {
