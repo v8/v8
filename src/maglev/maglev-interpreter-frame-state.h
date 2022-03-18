@@ -29,26 +29,30 @@ class InterpreterFrameState {
 
   InterpreterFrameState(const MaglevCompilationUnit& info,
                         const InterpreterFrameState& state)
-      : accumulator_(state.accumulator_), frame_(info) {
+      : frame_(info) {
     frame_.CopyFrom(info, state.frame_, nullptr);
   }
 
   void CopyFrom(const MaglevCompilationUnit& info,
                 const InterpreterFrameState& state) {
-    accumulator_ = state.accumulator_;
     frame_.CopyFrom(info, state.frame_, nullptr);
   }
 
   inline void CopyFrom(const MaglevCompilationUnit& info,
                        const MergePointInterpreterFrameState& state);
 
-  void set_accumulator(ValueNode* value) { accumulator_ = value; }
-  ValueNode* accumulator() const { return accumulator_; }
+  void set_accumulator(ValueNode* value) {
+    frame_[interpreter::Register::virtual_accumulator()] = value;
+  }
+  ValueNode* accumulator() const {
+    return frame_[interpreter::Register::virtual_accumulator()];
+  }
 
   void set(interpreter::Register reg, ValueNode* value) {
     DCHECK_IMPLIES(reg.is_parameter(),
                    reg == interpreter::Register::current_context() ||
                        reg == interpreter::Register::function_closure() ||
+                       reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
     frame_[reg] = value;
   }
@@ -56,6 +60,7 @@ class InterpreterFrameState {
     DCHECK_IMPLIES(reg.is_parameter(),
                    reg == interpreter::Register::current_context() ||
                        reg == interpreter::Register::function_closure() ||
+                       reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
     return frame_[reg];
   }
@@ -63,7 +68,6 @@ class InterpreterFrameState {
   const RegisterFrameArray<ValueNode*>& frame() const { return frame_; }
 
  private:
-  ValueNode* accumulator_ = nullptr;
   RegisterFrameArray<ValueNode*> frame_;
 };
 
@@ -366,7 +370,6 @@ class MergePointInterpreterFrameState {
     if (liveness_->AccumulatorIsLive()) {
       f(interpreter::Register::virtual_accumulator(),
         live_registers_and_accumulator_[live_index++]);
-      live_index++;
     }
     DCHECK_EQ(live_index, SizeFor(info, liveness_));
   }
@@ -389,7 +392,7 @@ void InterpreterFrameState::CopyFrom(
     frame_[reg] = state.live_registers_and_accumulator_[live_index++];
   });
   if (state.liveness_->AccumulatorIsLive()) {
-    accumulator_ = state.live_registers_and_accumulator_[live_index++];
+    set_accumulator(state.live_registers_and_accumulator_[live_index++]);
   }
 }
 
