@@ -784,7 +784,21 @@ void InstructionSelector::VisitWord32And(Node* node) {
 }
 
 void InstructionSelector::VisitWord64And(Node* node) {
-  VisitBinop(this, node, kX64And);
+  X64OperandGenerator g(this);
+  Uint64BinopMatcher m(node);
+  if (m.right().Is(0xFF)) {
+    Emit(kX64Movzxbq, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else if (m.right().Is(0xFFFF)) {
+    Emit(kX64Movzxwq, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else if (m.right().Is(0xFFFFFFFF)) {
+    Emit(kX64Movl, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else if (m.right().IsInRange(std::numeric_limits<uint32_t>::min(),
+                                 std::numeric_limits<uint32_t>::max())) {
+    Emit(kX64And32, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
+         g.UseImmediate(static_cast<int32_t>(m.right().ResolvedValue())));
+  } else {
+    VisitBinop(this, node, kX64And);
+  }
 }
 
 void InstructionSelector::VisitWord32Or(Node* node) {
