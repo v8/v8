@@ -334,8 +334,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDaysInWeek)
 /* Temporal #sec-temporal.calendar.prototype.daysinmonth */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDaysInMonth)
-/* Temporal #sec-temporal.calendar.prototype.daysinyear */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDaysInYear)
 /* Temporal #sec-temporal.calendar.prototype.monthsinyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthsInYear)
 /* Temporal #sec-temporal.calendar.prototype.inleapyear */
@@ -804,6 +802,7 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
 TEMPORAL_ID_BY_TO_STRING(Calendar)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInYear, daysInYear)
 TEMPORAL_TO_STRING(Calendar)
 // #sec-temporal.calendar.from
 BUILTIN(TemporalCalendarFrom) {
