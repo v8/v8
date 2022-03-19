@@ -360,6 +360,8 @@
   'built-ins/Temporal/Duration/prototype/round/timezone-getpossibleinstantsfor-iterable': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/timezone-getpossibleinstantsfor-iterable': [FAIL],
 
+  'built-ins/Temporal/Instant/from/instant-string-multiple-offsets': [SKIP],
+
   # Valid calendar in the test
   # https://github.com/tc39/test262/pull/3261
   'built-ins/Temporal/Calendar/from/calendar-string-not-builtin': [FAIL],
@@ -812,10 +814,7 @@
   'built-ins/Temporal/Instant/compare/argument-zoneddatetime': [FAIL],
   'built-ins/Temporal/Instant/compare/instant-string': [FAIL],
   'built-ins/Temporal/Instant/compare/instant-string-multiple-offsets': [FAIL],
-  'built-ins/Temporal/Instant/from/argument-zoneddatetime': [FAIL],
   'built-ins/Temporal/Instant/from/instant-string': [FAIL],
-  'built-ins/Temporal/Instant/from/instant-string-multiple-offsets': [FAIL],
-  'built-ins/Temporal/Instant/from/subclassing-ignored': [FAIL],
   'built-ins/Temporal/Instant/from/timezone-custom': [FAIL],
   'built-ins/Temporal/Instant/prototype/add/argument-string': [FAIL],
   'built-ins/Temporal/Instant/prototype/add/argument-string-negative-fractional-units': [FAIL],

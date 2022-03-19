@@ -226,8 +226,6 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeToString)
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeToJSON)
 
 /* Temporal.Instant */
-/* Temporal #sec-temporal.instant.from */
-TO_BE_IMPLEMENTED(TemporalInstantFrom)
 /* Temporal #sec-temporal.instant.compare */
 TO_BE_IMPLEMENTED(TemporalInstantCompare)
 /* Temporal #sec-temporal.instant.prototype.add */
@@ -795,6 +793,7 @@ TEMPORAL_METHOD1(Instant, FromEpochSeconds)
 TEMPORAL_METHOD1(Instant, FromEpochMilliseconds)
 TEMPORAL_METHOD1(Instant, FromEpochMicroseconds)
 TEMPORAL_METHOD1(Instant, FromEpochNanoseconds)
+TEMPORAL_METHOD1(Instant, From)
 TEMPORAL_VALUE_OF(Instant)
 TEMPORAL_GET(Instant, EpochNanoseconds, nanoseconds)
 TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochSeconds, nanoseconds, 1000000000,

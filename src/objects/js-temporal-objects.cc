@@ -76,6 +76,10 @@ struct DateRecord {
   Handle<String> calendar;
 };
 
+struct InstantRecord : public DateTimeRecordCommon {
+  Handle<String> offset_string;
+};
+
 struct DateTimeRecord : public DateTimeRecordCommon {
   Handle<String> calendar;
 };
@@ -137,9 +141,18 @@ Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
 V8_WARN_UNUSED_RESULT MaybeHandle<String> ParseTemporalTimeZone(
     Isolate* isolate, Handle<String> string);
 
+// #sec-temporal-parsetemporaltimezonestring
+V8_WARN_UNUSED_RESULT Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(
+    Isolate* isolate, Handle<String> iso_string);
+
+// #sec-temporal-parsetimezoneoffsetstring
 V8_WARN_UNUSED_RESULT Maybe<int64_t> ParseTimeZoneOffsetString(
     Isolate* isolate, Handle<String> offset_string,
     bool throwIfNotSatisfy = true);
+
+// #sec-temporal-parsetemporalinstant
+V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> ParseTemporalInstant(
+    Isolate* isolate, Handle<String> iso_string);
 
 void BalanceISODate(Isolate* isolate, int32_t* year, int32_t* month,
                     int32_t* day);
@@ -1616,9 +1629,44 @@ MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantFor(
                                       date_time, disambiguation, method_name);
 }
 
+// #sec-temporal-totemporalinstant
+MaybeHandle<JSTemporalInstant> ToTemporalInstant(Isolate* isolate,
+                                                 Handle<Object> item,
+                                                 const char* method) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. If Type(item) is Object, then
+  // a. If item has an [[InitializedTemporalInstant]] internal slot, then
+  if (item->IsJSTemporalInstant()) {
+    // i. Return item.
+    return Handle<JSTemporalInstant>::cast(item);
+  }
+  // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+  if (item->IsJSTemporalZonedDateTime()) {
+    // i. Return ! CreateTemporalInstant(item.[[Nanoseconds]]).
+    Handle<BigInt> nanoseconds =
+        handle(JSTemporalZonedDateTime::cast(*item).nanoseconds(), isolate);
+    return temporal::CreateTemporalInstant(isolate, nanoseconds);
+  }
+  // 2. Let string be ? ToString(item).
+  Handle<String> string;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, string, Object::ToString(isolate, item),
+                             JSTemporalInstant);
+
+  // 3. Let epochNanoseconds be ? ParseTemporalInstant(string).
+  Handle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, epoch_nanoseconds,
+                             ParseTemporalInstant(isolate, string),
+                             JSTemporalInstant);
+
+  // 4. Return ? CreateTemporalInstant(ℤ(epochNanoseconds)).
+  return temporal::CreateTemporalInstant(isolate, epoch_nanoseconds);
+}
+
 }  // namespace
 
 namespace temporal {
+
 // #sec-temporal-totemporalcalendar
 MaybeHandle<JSReceiver> ToTemporalCalendar(
     Isolate* isolate, Handle<Object> temporal_calendar_like,
@@ -2370,6 +2418,113 @@ Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
                     result.millisecond, result.microsecond, result.nanosecond,
                     result.calendar};
   return Just(ret);
+}
+
+// #sec-temporal-parsetemporalinstantstring
+Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
+                                                Handle<String> iso_string) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: Type(isoString) is String.
+  // 2. If isoString does not satisfy the syntax of a TemporalInstantString
+  // (see 13.33), then
+  Maybe<ParsedISO8601Result> maybe_parsed =
+      TemporalParser::ParseTemporalInstantString(isolate, iso_string);
+  if (maybe_parsed.IsNothing()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<InstantRecord>());
+  }
+
+  // 3. Let result be ! ParseISODateTime(isoString).
+  Maybe<DateTimeRecord> maybe_result =
+      ParseISODateTime(isolate, iso_string, maybe_parsed.FromJust());
+
+  MAYBE_RETURN(maybe_result, Nothing<InstantRecord>());
+  DateTimeRecord result = maybe_result.FromJust();
+
+  // 4. Let timeZoneResult be ? ParseTemporalTimeZoneString(isoString).
+  Maybe<TimeZoneRecord> maybe_time_zone_result =
+      ParseTemporalTimeZoneString(isolate, iso_string);
+  MAYBE_RETURN(maybe_time_zone_result, Nothing<InstantRecord>());
+  TimeZoneRecord time_zone_result = maybe_time_zone_result.FromJust();
+  // 5. Let offsetString be timeZoneResult.[[OffsetString]].
+  Handle<String> offset_string = time_zone_result.offset_string;
+  // 6. If timeZoneResult.[[Z]] is true, then
+  if (time_zone_result.z) {
+    // a. Set offsetString to "+00:00".
+    offset_string = isolate->factory()->NewStringFromStaticChars("+00:00");
+  }
+  // 7. Assert: offsetString is not undefined.
+  DCHECK_GT(offset_string->length(), 0);
+
+  // 6. Return the new Record { [[Year]]: result.[[Year]],
+  // [[Month]]: result.[[Month]], [[Day]]: result.[[Day]],
+  // [[Hour]]: result.[[Hour]], [[Minute]]: result.[[Minute]],
+  // [[Second]]: result.[[Second]],
+  // [[Millisecond]]: result.[[Millisecond]],
+  // [[Microsecond]]: result.[[Microsecond]],
+  // [[Nanosecond]]: result.[[Nanosecond]],
+  // [[TimeZoneOffsetString]]: offsetString }.
+  InstantRecord record;
+  record.year = result.year;
+  record.month = result.month;
+  record.day = result.day;
+  record.hour = result.hour;
+  record.minute = result.minute;
+  record.second = result.second;
+  record.millisecond = result.millisecond;
+  record.microsecond = result.microsecond;
+  record.nanosecond = result.nanosecond;
+  record.offset_string = offset_string;
+  return Just(record);
+}
+
+// #sec-temporal-parsetemporalinstant
+MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
+                                         Handle<String> iso_string) {
+  TEMPORAL_ENTER_FUNC();
+
+  Factory* factory = isolate->factory();
+  // 1. Assert: Type(isoString) is String.
+  // 2. Let result be ? ParseTemporalInstantString(isoString).
+  Maybe<InstantRecord> maybe_result =
+      ParseTemporalInstantString(isolate, iso_string);
+  MAYBE_RETURN(maybe_result, Handle<BigInt>());
+  InstantRecord result = maybe_result.FromJust();
+
+  // 3. Let offsetString be result.[[TimeZoneOffsetString]].
+  // 4. Assert: offsetString is not undefined.
+  DCHECK_NE(result.offset_string->length(), 0);
+
+  // 5. Let utc be ? GetEpochFromISOParts(result.[[Year]], result.[[Month]],
+  // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
+  // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]]).
+  Handle<BigInt> utc;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, utc,
+      GetEpochFromISOParts(isolate, result.year, result.month, result.day,
+                           result.hour, result.minute, result.second,
+                           result.millisecond, result.microsecond,
+                           result.nanosecond),
+      BigInt);
+
+  // 6. If utc < −8.64 × 10^21 or utc > 8.64 × 10^21, then
+  if ((BigInt::CompareToNumber(utc, factory->NewNumber(-8.64e21)) ==
+       ComparisonResult::kLessThan) ||
+      (BigInt::CompareToNumber(utc, factory->NewNumber(8.64e21)) ==
+       ComparisonResult::kGreaterThan)) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), BigInt);
+  }
+  // 7. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(offsetString).
+  Maybe<int64_t> maybe_offset_nanoseconds =
+      ParseTimeZoneOffsetString(isolate, result.offset_string);
+  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<BigInt>());
+  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+
+  // 8. Return utc − offsetNanoseconds.
+  return BigInt::Subtract(isolate, utc,
+                          BigInt::FromInt64(isolate, offset_nanoseconds));
 }
 
 // #sec-temporal-parsetemporaltimezonestring
@@ -5581,6 +5736,22 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
     Isolate* isolate, Handle<Object> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   return ScaleToNanosecondsVerifyAndMake(isolate, epoch_nanoseconds, 1);
+}
+
+// #sec-temporal.instant.from
+MaybeHandle<JSTemporalInstant> JSTemporalInstant::From(Isolate* isolate,
+                                                       Handle<Object> item) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.Instant.from";
+  //  1. If Type(item) is Object and item has an [[InitializedTemporalInstant]]
+  //  internal slot, then
+  if (item->IsJSTemporalInstant()) {
+    // a. Return ? CreateTemporalInstant(item.[[Nanoseconds]]).
+    return temporal::CreateTemporalInstant(
+        isolate, handle(JSTemporalInstant::cast(*item).nanoseconds(), isolate));
+  }
+  // 2. Return ? ToTemporalInstant(item).
+  return ToTemporalInstant(isolate, item, method_name);
 }
 
 }  // namespace internal
