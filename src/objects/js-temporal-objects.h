@@ -103,6 +103,19 @@ class JSTemporalInstant
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> Now(
       Isolate* isolate);
 
+  // #sec-temporal.instant.fromepochseconds
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> FromEpochSeconds(
+      Isolate* isolate, Handle<Object> epoch_seconds);
+  // #sec-temporal.instant.fromepochmilliseconds
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant>
+  FromEpochMilliseconds(Isolate* isolate, Handle<Object> epoch_milliseconds);
+  // #sec-temporal.instant.fromepochmicroseconds
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant>
+  FromEpochMicroseconds(Isolate* isolate, Handle<Object> epoch_microseconds);
+  // #sec-temporal.instant.fromepochnanoeconds
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant>
+  FromEpochNanoseconds(Isolate* isolate, Handle<Object> epoch_nanoseconds);
+
   DECL_PRINTER(JSTemporalInstant)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)

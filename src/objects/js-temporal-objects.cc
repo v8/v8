@@ -5496,5 +5496,92 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
                                          epoch_nanoseconds);
 }
 
+namespace {
+
+// The logic in Temporal.Instant.fromEpochSeconds and fromEpochMilliseconds,
+// are the same except a scaling factor, code all of them into the follow
+// function.
+MaybeHandle<JSTemporalInstant> ScaleNumberToNanosecondsVerifyAndMake(
+    Isolate* isolate, Handle<BigInt> bigint, uint32_t scale) {
+  TEMPORAL_ENTER_FUNC();
+  DCHECK(scale == 1 || scale == 1000 || scale == 1000000 ||
+         scale == 1000000000);
+  // 2. Let epochNanoseconds be epochXseconds × scaleℤ.
+  Handle<BigInt> epoch_nanoseconds;
+  if (scale == 1) {
+    epoch_nanoseconds = bigint;
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, epoch_nanoseconds,
+        BigInt::Multiply(isolate, BigInt::FromUint64(isolate, scale), bigint),
+        JSTemporalInstant);
+  }
+  // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+  // RangeError exception.
+  if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                    JSTemporalInstant);
+  }
+  return temporal::CreateTemporalInstant(isolate, epoch_nanoseconds);
+}
+
+MaybeHandle<JSTemporalInstant> ScaleNumberToNanosecondsVerifyAndMake(
+    Isolate* isolate, Handle<Object> epoch_Xseconds, uint32_t scale) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Set epochXseconds to ? ToNumber(epochXseconds).
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, epoch_Xseconds,
+                             Object::ToNumber(isolate, epoch_Xseconds),
+                             JSTemporalInstant);
+  // 2. Set epochMilliseconds to ? NumberToBigInt(epochMilliseconds).
+  Handle<BigInt> bigint;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, bigint,
+                             BigInt::FromNumber(isolate, epoch_Xseconds),
+                             JSTemporalInstant);
+  return ScaleNumberToNanosecondsVerifyAndMake(isolate, bigint, scale);
+}
+
+MaybeHandle<JSTemporalInstant> ScaleToNanosecondsVerifyAndMake(
+    Isolate* isolate, Handle<Object> epoch_Xseconds, uint32_t scale) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Set epochMicroseconds to ? ToBigInt(epochMicroseconds).
+  Handle<BigInt> bigint;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, bigint,
+                             BigInt::FromObject(isolate, epoch_Xseconds),
+                             JSTemporalInstant);
+  return ScaleNumberToNanosecondsVerifyAndMake(isolate, bigint, scale);
+}
+
+}  // namespace
+
+// #sec-temporal.instant.fromepochseconds
+MaybeHandle<JSTemporalInstant> JSTemporalInstant::FromEpochSeconds(
+    Isolate* isolate, Handle<Object> epoch_seconds) {
+  TEMPORAL_ENTER_FUNC();
+  return ScaleNumberToNanosecondsVerifyAndMake(isolate, epoch_seconds,
+                                               1000000000);
+}
+
+// #sec-temporal.instant.fromepochmilliseconds
+MaybeHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMilliseconds(
+    Isolate* isolate, Handle<Object> epoch_milliseconds) {
+  TEMPORAL_ENTER_FUNC();
+  return ScaleNumberToNanosecondsVerifyAndMake(isolate, epoch_milliseconds,
+                                               1000000);
+}
+
+// #sec-temporal.instant.fromepochmicroseconds
+MaybeHandle<JSTemporalInstant> JSTemporalInstant::FromEpochMicroseconds(
+    Isolate* isolate, Handle<Object> epoch_microseconds) {
+  TEMPORAL_ENTER_FUNC();
+  return ScaleToNanosecondsVerifyAndMake(isolate, epoch_microseconds, 1000);
+}
+
+// #sec-temporal.instant.fromepochnanoeconds
+MaybeHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
+    Isolate* isolate, Handle<Object> epoch_nanoseconds) {
+  TEMPORAL_ENTER_FUNC();
+  return ScaleToNanosecondsVerifyAndMake(isolate, epoch_nanoseconds, 1);
+}
+
 }  // namespace internal
 }  // namespace v8

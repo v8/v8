@@ -228,14 +228,6 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeToJSON)
 /* Temporal.Instant */
 /* Temporal #sec-temporal.instant.from */
 TO_BE_IMPLEMENTED(TemporalInstantFrom)
-/* Temporal #sec-temporal.instant.fromepochseconds */
-TO_BE_IMPLEMENTED(TemporalInstantFromEpochSeconds)
-/* Temporal #sec-temporal.instant.fromepochmilliseconds */
-TO_BE_IMPLEMENTED(TemporalInstantFromEpochMilliseconds)
-/* Temporal #sec-temporal.instant.fromepochmicroseconds */
-TO_BE_IMPLEMENTED(TemporalInstantFromEpochMicroseconds)
-/* Temporal #sec-temporal.instant.fromepochnanoseconds */
-TO_BE_IMPLEMENTED(TemporalInstantFromEpochNanoseconds)
 /* Temporal #sec-temporal.instant.compare */
 TO_BE_IMPLEMENTED(TemporalInstantCompare)
 /* Temporal #sec-temporal.instant.prototype.add */
@@ -477,6 +469,14 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
     const char* method = "get Temporal." #T ".prototype." #field; \
     CHECK_RECEIVER(JSTemporal##T, obj, method);                   \
     return Smi::FromInt(obj->field());                            \
+  }
+
+#define TEMPORAL_METHOD1(T, METHOD)                                       \
+  BUILTIN(Temporal##T##METHOD) {                                          \
+    HandleScope scope(isolate);                                           \
+    RETURN_RESULT_OR_FAILURE(                                             \
+        isolate,                                                          \
+        JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1))); \
   }
 
 #define TEMPORAL_GET(T, METHOD, field)                            \
@@ -791,6 +791,10 @@ TEMPORAL_VALUE_OF(Duration)
 
 // Instant
 TEMPORAL_CONSTRUCTOR1(Instant)
+TEMPORAL_METHOD1(Instant, FromEpochSeconds)
+TEMPORAL_METHOD1(Instant, FromEpochMilliseconds)
+TEMPORAL_METHOD1(Instant, FromEpochMicroseconds)
+TEMPORAL_METHOD1(Instant, FromEpochNanoseconds)
 TEMPORAL_VALUE_OF(Instant)
 TEMPORAL_GET(Instant, EpochNanoseconds, nanoseconds)
 TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochSeconds, nanoseconds, 1000000000,
