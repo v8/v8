@@ -208,10 +208,6 @@ TO_BE_IMPLEMENTED(TemporalDurationFrom)
 TO_BE_IMPLEMENTED(TemporalDurationCompare)
 /* Temporal #sec-temporal.duration.prototype.with */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeWith)
-/* Temporal #sec-temporal.duration.prototype.negated */
-TO_BE_IMPLEMENTED(TemporalDurationPrototypeNegated)
-/* Temporal #sec-temporal.duration.prototype.abs */
-TO_BE_IMPLEMENTED(TemporalDurationPrototypeAbs)
 /* Temporal #sec-temporal.duration.prototype.add */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeAdd)
 /* Temporal #sec-temporal.duration.prototype.subtract */
@@ -785,6 +781,8 @@ TEMPORAL_GET(Duration, Microseconds, microseconds)
 TEMPORAL_GET(Duration, Nanoseconds, nanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Sign, sign)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Blank, blank)
+TEMPORAL_PROTOTYPE_METHOD0(Duration, Negated, negated)
+TEMPORAL_PROTOTYPE_METHOD0(Duration, Abs, abs)
 TEMPORAL_VALUE_OF(Duration)
 
 // Instant

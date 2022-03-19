@@ -312,7 +312,6 @@
   'built-ins/Temporal/PlainDate/prototype/since/smallestunit-wrong-type': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/argument-string-negative-fractional-units': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/balance-negative-result': [FAIL],
-  'built-ins/Temporal/Duration/prototype/negated/subclassing-ignored': [FAIL],
 
   'built-ins/Temporal/TimeZone/from/argument-valid': [SKIP],
 
@@ -687,8 +686,6 @@
   'built-ins/Temporal/Duration/from/order-of-operations': [FAIL],
   'built-ins/Temporal/Duration/from/string-with-skipped-units': [FAIL],
   'built-ins/Temporal/Duration/from/subclassing-ignored': [FAIL],
-  'built-ins/Temporal/Duration/prototype/abs/branding': [FAIL],
-  'built-ins/Temporal/Duration/prototype/abs/subclassing-ignored': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/branding': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/calendar-dateadd-called-with-plaindate-instance': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/infinity-throws-rangeerror': [FAIL],
@@ -708,7 +705,6 @@
   'built-ins/Temporal/Duration/prototype/add/relativeto-zoneddatetime-timezone-getoffsetnanosecondsfor-out-of-range': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/relativeto-zoneddatetime-timezone-getoffsetnanosecondsfor-wrong-type': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/subclassing-ignored': [FAIL],
-  'built-ins/Temporal/Duration/prototype/negated/branding': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/branding': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/calendar-dateadd-called-with-plaindate-instance': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/dateuntil-field': [FAIL],

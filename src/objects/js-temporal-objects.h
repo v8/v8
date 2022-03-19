@@ -86,6 +86,14 @@ class JSTemporalDuration
   V8_WARN_UNUSED_RESULT static MaybeHandle<Oddball> Blank(
       Isolate* isolate, Handle<JSTemporalDuration> duration);
 
+  // #sec-temporal.duration.prototype.negated
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Negated(
+      Isolate* isolate, Handle<JSTemporalDuration> duration);
+
+  // #sec-temporal.duration.prototype.abs
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Abs(
+      Isolate* isolate, Handle<JSTemporalDuration> duration);
+
   DECL_PRINTER(JSTemporalDuration)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalDuration)
