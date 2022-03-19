@@ -160,10 +160,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDaysInYear)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMonthsInYear)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.inleapyear */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeInLeapYear)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeOffsetNanoseconds)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.offset */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeOffset)
 /* Temporal #sec-temporal.zoneddatetime.prototype.with */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWith)
 /* Temporal #sec-temporal.zoneddatetime.prototype.withplaintime */
@@ -739,6 +735,8 @@ TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithTimeZone, withTimeZone)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainYearMonth, toPlainYearMonth)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainMonthDay, toPlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, GetISOFields, getISOFields)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, OffsetNanoseconds, offsetNanoseconds)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, Offset, offset)
 TEMPORAL_VALUE_OF(ZonedDateTime)
 
 // Duration
