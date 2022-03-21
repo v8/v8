@@ -35,8 +35,7 @@ class SimplifiedOperatorReducerTest : public GraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
     GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
-    SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph, broker(),
-                                      BranchSemantics::kJS);
+    SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph, broker());
     return reducer.Reduce(node);
   }
 

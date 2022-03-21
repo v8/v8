@@ -4025,8 +4025,7 @@ class RepresentationSelector {
         ProcessInput<T>(node, 0, UseInfo::Any());
         return SetOutput<T>(node, MachineRepresentation::kNone);
       case IrOpcode::kStaticAssert:
-        DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
-        return VisitUnop<T>(node, UseInfo::Bool(),
+        return VisitUnop<T>(node, UseInfo::Any(),
                             MachineRepresentation::kTagged);
       case IrOpcode::kAssertType:
         return VisitUnop<T>(node, UseInfo::AnyTagged(),

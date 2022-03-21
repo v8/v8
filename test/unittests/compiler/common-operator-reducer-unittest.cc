@@ -28,21 +28,19 @@ class CommonOperatorReducerTest : public GraphTest {
  protected:
   Reduction Reduce(
       AdvancedReducer::Editor* editor, Node* node,
-      BranchSemantics branch_semantics,
       MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags) {
     JSHeapBroker broker(isolate(), zone());
     MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
                                    flags);
     CommonOperatorReducer reducer(editor, graph(), &broker, common(), &machine,
-                                  zone(), branch_semantics);
+                                  zone());
     return reducer.Reduce(node);
   }
 
-  Reduction Reduce(
-      Node* node, BranchSemantics branch_semantics,
-      MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags) {
+  Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
+                                   MachineOperatorBuilder::kNoFlags) {
     StrictMock<MockAdvancedReducerEditor> editor;
-    return Reduce(&editor, node, branch_semantics, flags);
+    return Reduce(&editor, node, flags);
   }
 
   MachineOperatorBuilder* machine() { return &machine_; }
@@ -86,7 +84,7 @@ TEST_F(CommonOperatorReducerTest, BranchWithInt32ZeroConstant) {
     StrictMock<MockAdvancedReducerEditor> editor;
     EXPECT_CALL(editor, Replace(if_true, IsDead()));
     EXPECT_CALL(editor, Replace(if_false, control));
-    Reduction const r = Reduce(&editor, branch, BranchSemantics::kMachine);
+    Reduction const r = Reduce(&editor, branch);
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsDead());
   }
@@ -103,7 +101,7 @@ TEST_F(CommonOperatorReducerTest, BranchWithInt32OneConstant) {
     StrictMock<MockAdvancedReducerEditor> editor;
     EXPECT_CALL(editor, Replace(if_true, control));
     EXPECT_CALL(editor, Replace(if_false, IsDead()));
-    Reduction const r = Reduce(&editor, branch, BranchSemantics::kMachine);
+    Reduction const r = Reduce(&editor, branch);
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsDead());
   }
@@ -120,7 +118,7 @@ TEST_F(CommonOperatorReducerTest, BranchWithFalseConstant) {
     StrictMock<MockAdvancedReducerEditor> editor;
     EXPECT_CALL(editor, Replace(if_true, IsDead()));
     EXPECT_CALL(editor, Replace(if_false, control));
-    Reduction const r = Reduce(&editor, branch, BranchSemantics::kJS);
+    Reduction const r = Reduce(&editor, branch);
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsDead());
   }
@@ -137,7 +135,7 @@ TEST_F(CommonOperatorReducerTest, BranchWithTrueConstant) {
     StrictMock<MockAdvancedReducerEditor> editor;
     EXPECT_CALL(editor, Replace(if_true, control));
     EXPECT_CALL(editor, Replace(if_false, IsDead()));
-    Reduction const r = Reduce(&editor, branch, BranchSemantics::kJS);
+    Reduction const r = Reduce(&editor, branch);
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsDead());
   }
@@ -153,7 +151,7 @@ TEST_F(CommonOperatorReducerTest, BranchWithBooleanNot) {
         graph()->NewNode(simplified()->BooleanNot(), value), control);
     Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Reduction const r = Reduce(branch, BranchSemantics::kJS);
+    Reduction const r = Reduce(branch);
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(branch, r.replacement());
     EXPECT_THAT(branch, IsBranch(value, control));
@@ -174,7 +172,7 @@ TEST_F(CommonOperatorReducerTest, BranchWithSelect) {
         control);
     Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Reduction const r = Reduce(branch, BranchSemantics::kJS);
+    Reduction const r = Reduce(branch);
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(branch, r.replacement());
     EXPECT_THAT(branch, IsBranch(value, control));
@@ -195,8 +193,7 @@ TEST_F(CommonOperatorReducerTest, MergeOfUnusedDiamond0) {
   Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
   Reduction const r =
-      Reduce(graph()->NewNode(common()->Merge(2), if_true, if_false),
-             BranchSemantics::kJS);
+      Reduce(graph()->NewNode(common()->Merge(2), if_true, if_false));
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(control, r.replacement());
   EXPECT_THAT(branch, IsDead());
@@ -210,8 +207,7 @@ TEST_F(CommonOperatorReducerTest, MergeOfUnusedDiamond1) {
   Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
   Reduction const r =
-      Reduce(graph()->NewNode(common()->Merge(2), if_false, if_true),
-             BranchSemantics::kJS);
+      Reduce(graph()->NewNode(common()->Merge(2), if_false, if_true));
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(control, r.replacement());
   EXPECT_THAT(branch, IsDead());
@@ -240,10 +236,8 @@ TEST_F(CommonOperatorReducerTest, EffectPhiWithMerge) {
     StrictMock<MockAdvancedReducerEditor> editor;
     EXPECT_CALL(editor, Revisit(merge));
     Reduction r =
-        Reduce(&editor,
-               graph()->NewNode(common()->EffectPhi(value_input_count),
-                                input_count, inputs),
-               BranchSemantics::kJS);
+        Reduce(&editor, graph()->NewNode(common()->EffectPhi(value_input_count),
+                                         input_count, inputs));
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(input, r.replacement());
   }
@@ -259,7 +253,7 @@ TEST_F(CommonOperatorReducerTest, EffectPhiWithLoop) {
   ephi->ReplaceInput(1, ephi);
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Revisit(loop));
-  Reduction const r = Reduce(&editor, ephi, BranchSemantics::kJS);
+  Reduction const r = Reduce(&editor, ephi);
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(e0, r.replacement());
 }
@@ -287,11 +281,9 @@ TEST_F(CommonOperatorReducerTest, PhiWithMerge) {
       inputs[value_input_count] = merge;
       StrictMock<MockAdvancedReducerEditor> editor;
       EXPECT_CALL(editor, Revisit(merge));
-      Reduction r =
-          Reduce(&editor,
-                 graph()->NewNode(common()->Phi(rep, value_input_count),
-                                  input_count, inputs),
-                 BranchSemantics::kJS);
+      Reduction r = Reduce(
+          &editor, graph()->NewNode(common()->Phi(rep, value_input_count),
+                                    input_count, inputs));
       ASSERT_TRUE(r.Changed());
       EXPECT_EQ(input, r.replacement());
     }
@@ -309,7 +301,7 @@ TEST_F(CommonOperatorReducerTest, PhiWithLoop) {
   phi->ReplaceInput(1, phi);
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Revisit(loop));
-  Reduction const r = Reduce(&editor, phi, BranchSemantics::kMachine);
+  Reduction const r = Reduce(&editor, phi);
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(p0, r.replacement());
 }
@@ -329,7 +321,7 @@ TEST_F(CommonOperatorReducerTest, PhiToFloat32Abs) {
       common()->Phi(MachineRepresentation::kFloat32, 2), vtrue, vfalse, merge);
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Revisit(merge));
-  Reduction r = Reduce(&editor, phi, BranchSemantics::kMachine);
+  Reduction r = Reduce(&editor, phi);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat32Abs(p0));
 }
@@ -349,7 +341,7 @@ TEST_F(CommonOperatorReducerTest, PhiToFloat64Abs) {
       common()->Phi(MachineRepresentation::kFloat64, 2), vtrue, vfalse, merge);
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Revisit(merge));
-  Reduction r = Reduce(&editor, phi, BranchSemantics::kMachine);
+  Reduction r = Reduce(&editor, phi);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat64Abs(p0));
 }
@@ -378,7 +370,7 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(merge, IsDead()));
-  Reduction const r = Reduce(&editor, ret, BranchSemantics::kJS);
+  Reduction const r = Reduce(&editor, ret);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsDead());
   EXPECT_THAT(graph()->end(), IsEnd(ret, IsReturn(vtrue, etrue, if_true),
@@ -408,7 +400,7 @@ TEST_F(CommonOperatorReducerTest, MultiReturnWithPhiAndEffectPhiAndMerge) {
       graph()->NewNode(common()->Return(2), zero, phi1, phi2, ephi, merge);
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
   StrictMock<MockAdvancedReducerEditor> editor;
-  Reduction const r = Reduce(&editor, ret, BranchSemantics::kJS);
+  Reduction const r = Reduce(&editor, ret);
   // For now a return with multiple return values should not be reduced.
   ASSERT_TRUE(!r.Changed());
 }
@@ -422,8 +414,7 @@ TEST_F(CommonOperatorReducerTest, SelectWithSameThenAndElse) {
   TRACED_FOREACH(BranchHint, hint, kBranchHints) {
     TRACED_FOREACH(MachineRepresentation, rep, kMachineRepresentations) {
       Reduction r = Reduce(
-          graph()->NewNode(common()->Select(rep, hint), input, input, input),
-          BranchSemantics::kJS);
+          graph()->NewNode(common()->Select(rep, hint), input, input, input));
       ASSERT_TRUE(r.Changed());
       EXPECT_EQ(input, r.replacement());
     }
@@ -437,7 +428,7 @@ TEST_F(CommonOperatorReducerTest, SelectWithInt32ZeroConstant) {
   Node* select =
       graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                        Int32Constant(0), p0, p1);
-  Reduction r = Reduce(select, BranchSemantics::kMachine);
+  Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(p1, r.replacement());
 }
@@ -449,7 +440,7 @@ TEST_F(CommonOperatorReducerTest, SelectWithInt32OneConstant) {
   Node* select =
       graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                        Int32Constant(1), p0, p1);
-  Reduction r = Reduce(select, BranchSemantics::kMachine);
+  Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(p0, r.replacement());
 }
@@ -461,7 +452,7 @@ TEST_F(CommonOperatorReducerTest, SelectWithFalseConstant) {
   Node* select =
       graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                        FalseConstant(), p0, p1);
-  Reduction r = Reduce(select, BranchSemantics::kJS);
+  Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(p1, r.replacement());
 }
@@ -472,7 +463,7 @@ TEST_F(CommonOperatorReducerTest, SelectWithTrueConstant) {
   Node* p1 = Parameter(1);
   Node* select = graph()->NewNode(
       common()->Select(MachineRepresentation::kTagged), TrueConstant(), p0, p1);
-  Reduction r = Reduce(select, BranchSemantics::kJS);
+  Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(p0, r.replacement());
 }
@@ -485,7 +476,7 @@ TEST_F(CommonOperatorReducerTest, SelectToFloat32Abs) {
   Node* select =
       graph()->NewNode(common()->Select(MachineRepresentation::kFloat32), check,
                        p0, graph()->NewNode(machine()->Float32Sub(), c0, p0));
-  Reduction r = Reduce(select, BranchSemantics::kMachine);
+  Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat32Abs(p0));
 }
@@ -498,7 +489,7 @@ TEST_F(CommonOperatorReducerTest, SelectToFloat64Abs) {
   Node* select =
       graph()->NewNode(common()->Select(MachineRepresentation::kFloat64), check,
                        p0, graph()->NewNode(machine()->Float64Sub(), c0, p0));
-  Reduction r = Reduce(select, BranchSemantics::kMachine);
+  Reduction r = Reduce(select);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFloat64Abs(p0));
 }
@@ -515,7 +506,7 @@ TEST_F(CommonOperatorReducerTest, SwitchInputMatchesCaseWithDefault) {
 
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(if_1, control));
-  Reduction r = Reduce(&editor, sw, BranchSemantics::kMachine);
+  Reduction r = Reduce(&editor, sw);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsDead());
 }
@@ -529,7 +520,7 @@ TEST_F(CommonOperatorReducerTest, SwitchInputMatchesDefaultWithCase) {
 
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(if_default, control));
-  Reduction r = Reduce(&editor, sw, BranchSemantics::kMachine);
+  Reduction r = Reduce(&editor, sw);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsDead());
 }
@@ -544,7 +535,7 @@ TEST_F(CommonOperatorReducerTest, SwitchInputMatchesCaseExtraCaseWithDefault) {
 
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(if_0, control));
-  Reduction r = Reduce(&editor, sw, BranchSemantics::kMachine);
+  Reduction r = Reduce(&editor, sw);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsDead());
 }
