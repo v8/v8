@@ -4060,6 +4060,8 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   Handle<Map> rab_gsab_initial_map = factory()->NewMap(
       JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
       GetCorrespondingRabGsabElementsKind(elements_kind), 0);
+  rab_gsab_initial_map->SetConstructor(*result);
+
   native_context()->set(rab_gsab_initial_map_index, *rab_gsab_initial_map,
                         UPDATE_WRITE_BARRIER, kReleaseStore);
   Map::SetPrototype(isolate(), rab_gsab_initial_map, prototype);
