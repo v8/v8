@@ -147,7 +147,8 @@ namespace internal {
   T(NonStringImportAssertionValue, "Import assertion value must be a string")  \
   T(NoSetterInCallback, "Cannot set property % of % which has only a getter")  \
   T(NotAnIterator, "% is not an iterator")                                     \
-  T(NotAPromise, "% is not a promise")                                         \
+  T(PromiseNewTargetUndefined,                                                 \
+    "Promise constructor cannot be invoked without 'new'")                     \
   T(NotConstructor, "% is not a constructor")                                  \
   T(NotDateObject, "this is not a Date object.")                               \
   T(NotGeneric, "% requires that 'this' be a %")                               \

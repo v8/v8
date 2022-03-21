@@ -402,7 +402,7 @@ extern enum MessageTemplate {
   kRegExpNonRegExp,
   kRegExpNonObject,
   kPromiseNonCallable,
-  kNotAPromise,
+  kPromiseNewTargetUndefined,
   kResolverNotAFunction,
   kTooManyElementsInPromiseCombinator,
   kToRadixFormatRange,
