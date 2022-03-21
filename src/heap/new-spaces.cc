@@ -39,6 +39,8 @@ bool SemiSpace::EnsureCurrentCapacity() {
   if (IsCommitted()) {
     const int expected_pages =
         static_cast<int>(target_capacity_ / Page::kPageSize);
+    // `target_capacity_` is a multiple of `Page::kPageSize`.
+    DCHECK_EQ(target_capacity_, expected_pages * Page::kPageSize);
     MemoryChunk* current_page = first_page();
     int actual_pages = 0;
 
@@ -49,9 +51,19 @@ bool SemiSpace::EnsureCurrentCapacity() {
       current_page = current_page->list_node().next();
     }
 
+    DCHECK_LE(actual_pages, expected_pages);
+
     // Free all overallocated pages which are behind current_page.
     while (current_page) {
+      DCHECK_EQ(actual_pages, expected_pages);
       MemoryChunk* next_current = current_page->list_node().next();
+      // Promoted pages contain live objects and should not be discarded.
+      DCHECK(!current_page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+      // `current_page_` contains the current allocation area. Thus, we should
+      // never free the `current_page_`. Furthermore, live objects generally
+      // reside before the current allocation area, so `current_page_` also
+      // serves as a guard against freeing pages with live objects on them.
+      DCHECK_NE(current_page, current_page_);
       AccountUncommitted(Page::kPageSize);
       DecrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
       memory_chunk_list_.Remove(current_page);
@@ -83,6 +95,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
                                    static_cast<int>(current_page->area_size()),
                                    ClearRecordedSlots::kNo);
     }
+    DCHECK_EQ(expected_pages, actual_pages);
   }
   return true;
 }
