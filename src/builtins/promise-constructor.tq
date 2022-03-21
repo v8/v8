@@ -60,11 +60,11 @@ PromiseConstructor(
 
   const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
 
-  // Silently fail if the stack looks fishy.
+  // Throw no access type error if the stack looks fishy.
   if (HasAccessCheckFailed(context, promiseFun, executor)) {
     IncrementUseCounter(
         context, SmiConstant(kPromiseConstructorReturnedUndefined));
-    return Undefined;
+    runtime::ThrowNoAccess();
   }
 
   let result: JSPromise;

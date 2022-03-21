@@ -252,6 +252,7 @@ namespace internal {
   F(ThrowIteratorError, 1, 1)                        \
   F(ThrowSpreadArgError, 2, 1)                       \
   F(ThrowIteratorResultNotAnObject, 1, 1)            \
+  F(ThrowNoAccess, 0, 1)                             \
   F(ThrowNotConstructor, 1, 1)                       \
   F(ThrowPatternAssignmentNonCoercible, 1, 1)        \
   F(ThrowRangeError, -1 /* >= 1 */, 1)               \
