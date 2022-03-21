@@ -412,8 +412,8 @@ TEST_F(PrefinalizerTest, GCBeforePrefinalizerRegistration) {
     internal::Heap::From(GetHeap())->CollectGarbage(
         {internal::GarbageCollector::Config::CollectionType::kMajor,
          cppgc::Heap::StackState::kMayContainHeapPointers,
-         Heap::MarkingType::kAtomic,
-         Heap::SweepingType::kIncrementalAndConcurrent,
+         cppgc::Heap::MarkingType::kAtomic,
+         cppgc::Heap::SweepingType::kIncrementalAndConcurrent,
          internal::GarbageCollector::Config::FreeMemoryHandling::
              kDiscardWherePossible,
          internal::GarbageCollector::Config::IsForcedGC::kForced});
