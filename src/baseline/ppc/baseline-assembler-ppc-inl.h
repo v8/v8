@@ -110,12 +110,43 @@ inline internal::Condition AsMasmCondition(Condition cond) {
 
 namespace detail {
 
-#ifdef DEBUG
-inline bool Clobbers(Register target, MemOperand op) {
-  UNIMPLEMENTED();
-  return false;
+inline bool IsSignedCondition(Condition cond) {
+  switch (cond) {
+    case Condition::kEqual:
+    case Condition::kNotEqual:
+    case Condition::kLessThan:
+    case Condition::kGreaterThan:
+    case Condition::kLessThanEqual:
+    case Condition::kGreaterThanEqual:
+    case Condition::kOverflow:
+    case Condition::kNoOverflow:
+    case Condition::kZero:
+    case Condition::kNotZero:
+      return true;
+
+    case Condition::kUnsignedLessThan:
+    case Condition::kUnsignedGreaterThan:
+    case Condition::kUnsignedLessThanEqual:
+    case Condition::kUnsignedGreaterThanEqual:
+      return false;
+
+    default:
+      UNREACHABLE();
+  }
 }
-#endif
+
+#define __ assm->
+// ppc helper
+static void JumpIfHelper(MacroAssembler* assm, Condition cc, Register lhs,
+                         Register rhs, Label* target) {
+  if (IsSignedCondition(cc)) {
+    __ CmpS64(lhs, rhs);
+  } else {
+    __ CmpU64(lhs, rhs);
+  }
+  __ b(AsMasmCondition(cc), target);
+}
+#undef __
 
 }  // namespace detail
 
