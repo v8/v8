@@ -34,6 +34,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -4563,6 +4564,21 @@ TEST(DebugEvaluateNoSideEffect) {
     if (failed) isolate->clear_pending_exception();
   }
   DisableDebugger(env->GetIsolate());
+}
+
+TEST(DebugEvaluateSharedCrossOrigin) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+  v8::TryCatch tryCatch(env->GetIsolate());
+  tryCatch.SetCaptureMessage(true);
+  i::MaybeHandle<i::Object> result = i::DebugEvaluate::Global(
+      isolate,
+      isolate->factory()->NewStringFromStaticChars("throw new Error()"),
+      v8::debug::EvaluateGlobalMode::kDefault);
+  CHECK(result.is_null());
+  CHECK(tryCatch.HasCaught());
+  CHECK(tryCatch.Message()->IsSharedCrossOrigin());
 }
 
 namespace {
