@@ -408,6 +408,39 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   return OpParameter<IfValueParameters>(op);
 }
 
+V8_EXPORT_PRIVATE bool operator==(const SLVerifierHintParameters& p1,
+                                  const SLVerifierHintParameters& p2) {
+  return p1.semantics() == p2.semantics() &&
+         p1.override_output_type() == p2.override_output_type();
+}
+
+size_t hash_value(const SLVerifierHintParameters& p) {
+  return base::hash_combine(
+      p.semantics(),
+      p.override_output_type() ? hash_value(*p.override_output_type()) : 0);
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                           const SLVerifierHintParameters& p) {
+  if (p.semantics()) {
+    p.semantics()->PrintTo(out);
+  } else {
+    out << "nullptr";
+  }
+  out << ", ";
+  if (const auto& t = p.override_output_type()) {
+    t->PrintTo(out);
+  } else {
+    out << ", nullopt";
+  }
+  return out;
+}
+
+const SLVerifierHintParameters& SLVerifierHintParametersOf(const Operator* op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kSLVerifierHint);
+  return OpParameter<SLVerifierHintParameters>(op);
+}
+
 #define COMMON_CACHED_OP_LIST(V)                          \
   V(Plug, Operator::kNoProperties, 0, 0, 0, 1, 0, 0)      \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)          \
@@ -890,6 +923,14 @@ const Operator* CommonOperatorBuilder::StaticAssert(const char* source) {
   return zone()->New<Operator1<const char*>>(
       IrOpcode::kStaticAssert, Operator::kFoldable, "StaticAssert", 1, 1, 0, 0,
       1, 0, source);
+}
+
+const Operator* CommonOperatorBuilder::SLVerifierHint(
+    const Operator* semantics,
+    const base::Optional<Type>& override_output_type) {
+  return zone()->New<Operator1<SLVerifierHintParameters>>(
+      IrOpcode::kSLVerifierHint, Operator::kNoProperties, "SLVerifierHint", 1,
+      0, 0, 1, 0, 0, SLVerifierHintParameters(semantics, override_output_type));
 }
 
 const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {

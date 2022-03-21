@@ -16,26 +16,33 @@ class OperationTyper;
 class SimplifiedLoweringVerifier final {
  public:
   struct PerNodeData {
+    Type type = Type::None();
     Truncation truncation = Truncation::Any(IdentifyZeros::kDistinguishZeros);
   };
 
   SimplifiedLoweringVerifier(Zone* zone, Graph* graph)
-      : type_guards_(zone), data_(zone), graph_(graph) {}
+      : hints_(zone), data_(zone), graph_(graph) {}
 
   void VisitNode(Node* node, OperationTyper& op_typer);
 
-  void RecordTypeGuard(Node* node) {
-    DCHECK_EQ(node->opcode(), IrOpcode::kTypeGuard);
-    DCHECK(!is_recorded_type_guard(node));
-    type_guards_.insert(node);
+  void RecordHint(Node* node) {
+    DCHECK_EQ(node->opcode(), IrOpcode::kSLVerifierHint);
+    hints_.push_back(node);
   }
-  const ZoneUnorderedSet<Node*>& recorded_type_guards() const {
-    return type_guards_;
-  }
+  const ZoneVector<Node*>& inserted_hints() const { return hints_; }
 
  private:
-  bool is_recorded_type_guard(Node* node) const {
-    return type_guards_.find(node) != type_guards_.end();
+  void ResizeDataIfNecessary(Node* node) {
+    if (data_.size() <= node->id()) {
+      data_.resize(node->id() + 1);
+    }
+    DCHECK_EQ(data_[node->id()].truncation,
+              Truncation::Any(IdentifyZeros::kDistinguishZeros));
+  }
+
+  void SetType(Node* node, const Type& type) {
+    ResizeDataIfNecessary(node);
+    data_[node->id()].type = type;
   }
 
   Type InputType(Node* node, int input_index) const {
@@ -45,15 +52,16 @@ class SimplifiedLoweringVerifier final {
     if (NodeProperties::IsTyped(input)) {
       return NodeProperties::GetType(input);
     }
+    // For nodes that have not been typed before SL, we use the type that has
+    // been inferred by the verifier.
+    if (input->id() < data_.size()) {
+      return data_[input->id()].type;
+    }
     return Type::None();
   }
 
   void SetTruncation(Node* node, const Truncation& truncation) {
-    if (data_.size() <= node->id()) {
-      data_.resize(node->id() + 1);
-    }
-    DCHECK_EQ(data_[node->id()].truncation,
-              Truncation::Any(IdentifyZeros::kDistinguishZeros));
+    ResizeDataIfNecessary(node);
     data_[node->id()].truncation = truncation;
   }
 
@@ -68,6 +76,7 @@ class SimplifiedLoweringVerifier final {
     return any_truncation;
   }
 
+  void CheckType(Node* node, const Type& type);
   void CheckAndSet(Node* node, const Type& type, const Truncation& trunc);
 
   // Generalize to a less strict truncation in the context of a given type. For
@@ -81,7 +90,7 @@ class SimplifiedLoweringVerifier final {
 
   Zone* graph_zone() const { return graph_->zone(); }
 
-  ZoneUnorderedSet<Node*> type_guards_;
+  ZoneVector<Node*> hints_;
   ZoneVector<PerNodeData> data_;
   Graph* graph_;
 };

@@ -1628,6 +1628,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK_GE(value_count, 1);
       CheckValueInputIs(node, 0, Type::Any());  // receiver
       break;
+    case IrOpcode::kSLVerifierHint:
+      // SLVerifierHint is internal to SimplifiedLowering and should never be
+      // seen by the verifier.
+      UNREACHABLE();
 #if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kJSWasmCall:
       CHECK_GE(value_count, 3);

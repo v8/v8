@@ -741,12 +741,9 @@ class RepresentationSelector {
     // Verify all nodes.
     for (Node* node : traversal_nodes_) verifier_->VisitNode(node, op_typer_);
 
-    // Eliminate all introduced TypeGuard nodes.
-    for (Node* node : verifier_->recorded_type_guards()) {
+    // Eliminate all introduced hints.
+    for (Node* node : verifier_->inserted_hints()) {
       Node* input = node->InputAt(0);
-      DCHECK_EQ(node->InputAt(1), graph()->start());
-      DCHECK_EQ(node->InputAt(2), graph()->start());
-      DisconnectFromEffectAndControl(node);
       node->ReplaceUses(input);
       node->Kill();
     }
@@ -2106,7 +2103,7 @@ class RepresentationSelector {
           VisitLeaf<T>(node, MachineRepresentation::kTaggedSigned);
           if (lower<T>()) {
             intptr_t smi = bit_cast<intptr_t>(Smi::FromInt(value_as_int));
-            Node* constant = InsertTypeGuardForVerifier(
+            Node* constant = InsertTypeOverrideForVerifier(
                 NodeProperties::GetType(node),
                 lowering->jsgraph()->IntPtrConstant(smi));
             DeferReplacement(node, constant);
@@ -3549,7 +3546,9 @@ class RepresentationSelector {
       case IrOpcode::kPlainPrimitiveToNumber: {
         if (InputIs(node, Type::Boolean())) {
           VisitUnop<T>(node, UseInfo::Bool(), MachineRepresentation::kWord32);
-          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+          if (lower<T>()) {
+            ChangeToSemanticsHintForVerifier(node, node->op());
+          }
         } else if (InputIs(node, Type::String())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
                        MachineRepresentation::kTagged);
@@ -3560,7 +3559,9 @@ class RepresentationSelector {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                          MachineRepresentation::kWord32);
-            if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+            if (lower<T>()) {
+              ChangeToSemanticsHintForVerifier(node, node->op());
+            }
           } else {
             VisitUnop<T>(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kWord32);
@@ -3572,7 +3573,9 @@ class RepresentationSelector {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kFloat64);
-            if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+            if (lower<T>()) {
+              ChangeToSemanticsHintForVerifier(node, node->op());
+            }
           } else {
             VisitUnop<T>(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kFloat64);
@@ -4086,14 +4089,25 @@ class RepresentationSelector {
     NotifyNodeReplaced(node, replacement);
   }
 
-  Node* InsertTypeGuardForVerifier(const Type& type, Node* node) {
+  Node* InsertTypeOverrideForVerifier(const Type& type, Node* node) {
     if (verification_enabled()) {
       DCHECK(!type.IsInvalid());
-      node = graph()->NewNode(common()->TypeGuard(type), node, graph()->start(),
-                              graph()->start());
-      verifier_->RecordTypeGuard(node);
+      node = graph()->NewNode(common()->SLVerifierHint(nullptr, type), node);
+      verifier_->RecordHint(node);
     }
     return node;
+  }
+
+  void ChangeToSemanticsHintForVerifier(Node* node, const Operator* semantics) {
+    DCHECK_EQ(node->op()->ValueInputCount(), 1);
+    DCHECK_EQ(node->op()->EffectInputCount(), 0);
+    DCHECK_EQ(node->op()->ControlInputCount(), 0);
+    if (verification_enabled()) {
+      ChangeOp(node, common()->SLVerifierHint(semantics, base::nullopt));
+      verifier_->RecordHint(node);
+    } else {
+      DeferReplacement(node, node->InputAt(0));
+    }
   }
 
  private:
