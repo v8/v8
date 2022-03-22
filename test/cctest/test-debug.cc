@@ -34,7 +34,6 @@
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -4566,19 +4565,46 @@ TEST(DebugEvaluateNoSideEffect) {
   DisableDebugger(env->GetIsolate());
 }
 
-TEST(DebugEvaluateSharedCrossOrigin) {
+TEST(DebugEvaluateGlobalSharedCrossOrigin) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  i::Isolate* isolate = CcTest::i_isolate();
-  v8::TryCatch tryCatch(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::TryCatch tryCatch(isolate);
   tryCatch.SetCaptureMessage(true);
-  i::MaybeHandle<i::Object> result = i::DebugEvaluate::Global(
-      isolate,
-      isolate->factory()->NewStringFromStaticChars("throw new Error()"),
-      v8::debug::EvaluateGlobalMode::kDefault);
-  CHECK(result.is_null());
+  v8::MaybeLocal<v8::Value> result =
+      v8::debug::EvaluateGlobal(isolate, v8_str(isolate, "throw new Error()"),
+                                v8::debug::EvaluateGlobalMode::kDefault);
+  CHECK(result.IsEmpty());
   CHECK(tryCatch.HasCaught());
   CHECK(tryCatch.Message()->IsSharedCrossOrigin());
+}
+
+TEST(DebugEvaluateLocalSharedCrossOrigin) {
+  struct BreakProgramDelegate : public v8::debug::DebugDelegate {
+    void BreakProgramRequested(v8::Local<v8::Context> context,
+                               std::vector<v8::debug::BreakpointId> const&,
+                               v8::debug::BreakReasons) final {
+      v8::Isolate* isolate = context->GetIsolate();
+      v8::TryCatch tryCatch(isolate);
+      tryCatch.SetCaptureMessage(true);
+      std::unique_ptr<v8::debug::StackTraceIterator> it =
+          v8::debug::StackTraceIterator::Create(isolate);
+      v8::MaybeLocal<v8::Value> result =
+          it->Evaluate(v8_str(isolate, "throw new Error()"), false);
+      CHECK(result.IsEmpty());
+      CHECK(tryCatch.HasCaught());
+      CHECK(tryCatch.Message()->IsSharedCrossOrigin());
+    }
+  } delegate;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::SetDebugDelegate(isolate, &delegate);
+  v8::Script::Compile(env.local(), v8_str(isolate, "debugger;"))
+      .ToLocalChecked()
+      ->Run(env.local())
+      .ToLocalChecked();
+  v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
 namespace {

@@ -288,12 +288,21 @@ struct ScopedTimer {
 
 namespace {
 
-ScriptOriginOptions OriginOptionsForEval(Object script) {
-  if (!script.IsScript()) return ScriptOriginOptions();
-
-  const auto outer_origin_options = Script::cast(script).origin_options();
-  return ScriptOriginOptions(outer_origin_options.IsSharedCrossOrigin(),
-                             outer_origin_options.IsOpaque());
+ScriptOriginOptions OriginOptionsForEval(
+    Object script, ParsingWhileDebugging parsing_while_debugging) {
+  bool is_shared_cross_origin =
+      parsing_while_debugging == ParsingWhileDebugging::kYes;
+  bool is_opaque = false;
+  if (script.IsScript()) {
+    auto script_origin_options = Script::cast(script).origin_options();
+    if (script_origin_options.IsSharedCrossOrigin()) {
+      is_shared_cross_origin = true;
+    }
+    if (script_origin_options.IsOpaque()) {
+      is_opaque = true;
+    }
+  }
+  return ScriptOriginOptions(is_shared_cross_origin, is_opaque);
 }
 
 }  // namespace
@@ -2289,9 +2298,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     if (!context->IsNativeContext()) {
       maybe_outer_scope_info = handle(context->scope_info(), isolate);
     }
-    script =
-        parse_info.CreateScript(isolate, source, kNullMaybeHandle,
-                                OriginOptionsForEval(outer_info->script()));
+    script = parse_info.CreateScript(
+        isolate, source, kNullMaybeHandle,
+        OriginOptionsForEval(outer_info->script(), parsing_while_debugging));
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {
       // If the position is missing, attempt to get the code offset by
@@ -2302,7 +2311,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
         FrameSummary summary = it.GetTopValidFrame();
         script->set_eval_from_shared(
             summary.AsJavaScript().function()->shared());
-        script->set_origin_options(OriginOptionsForEval(*summary.script()));
+        script->set_origin_options(
+            OriginOptionsForEval(*summary.script(), parsing_while_debugging));
         eval_position = -summary.code_offset();
       } else {
         eval_position = 0;
