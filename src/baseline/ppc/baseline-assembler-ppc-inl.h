@@ -20,7 +20,7 @@ static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
 
 #ifdef DEBUG
 inline bool Clobbers(Register target, MemOperand op) {
-  return op.rb() == target || op.rx() == target;
+  return op.rb() == target || op.ra() == target;
 }
 #endif
 }  // namespace detail
@@ -158,8 +158,9 @@ MemOperand BaselineAssembler::RegisterFrameOperand(
 }
 void BaselineAssembler::RegisterFrameAddress(
     interpreter::Register interpreter_register, Register rscratch) {
-  return __ AddS64(rscratch, fp,
-                   interpreter_register.ToOperand() * kSystemPointerSize);
+  return __ AddS64(
+      rscratch, fp,
+      Operand(interpreter_register.ToOperand() * kSystemPointerSize));
 }
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
@@ -211,6 +212,7 @@ void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
+  USE(detail::JumpIfHelper);
   UNIMPLEMENTED();
 }
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
@@ -283,7 +285,8 @@ template <typename Arg>
 inline Register ToRegister(BaselineAssembler* basm,
                            BaselineAssembler::ScratchRegisterScope* scope,
                            Arg arg) {
-  UNIMPLEMENTED();
+  Register reg = scope->AcquireScratch();
+  basm->Move(reg, arg);
   return reg;
 }
 inline Register ToRegister(BaselineAssembler* basm,
