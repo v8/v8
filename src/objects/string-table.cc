@@ -719,9 +719,8 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
   }
   if (source.IsThinString()) {
     source = ThinString::cast(source).actual();
-    if (string.length() == source.length()) {
-      return source.ptr();
-    }
+    DCHECK_EQ(string.length(), source.length());
+    return source.ptr();
   }
 
   if (source.IsOneByteRepresentation()) {
