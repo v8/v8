@@ -154,15 +154,14 @@ static void JumpIfHelper(MacroAssembler* assm, Condition cc, Register lhs,
 
 MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
-  UNIMPLEMENTED();
   return MemOperand(fp, interpreter_register.ToOperand() * kSystemPointerSize);
 }
 void BaselineAssembler::RegisterFrameAddress(
     interpreter::Register interpreter_register, Register rscratch) {
-  UNIMPLEMENTED();
+  return __ AddS64(rscratch, fp,
+                   interpreter_register.ToOperand() * kSystemPointerSize);
 }
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
-  UNIMPLEMENTED();
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
 
@@ -171,27 +170,30 @@ void BaselineAssembler::BindWithoutJumpTarget(Label* label) { __ bind(label); }
 
 void BaselineAssembler::JumpTarget() {
   // NOP on arm.
-  UNIMPLEMENTED();
 }
 
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
-  UNIMPLEMENTED();
+  __ b(target);
 }
+
 void BaselineAssembler::JumpIfRoot(Register value, RootIndex index,
                                    Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ JumpIfRoot(value, index, target);
 }
+
 void BaselineAssembler::JumpIfNotRoot(Register value, RootIndex index,
                                       Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ JumpIfNotRoot(value, index, target);
 }
+
 void BaselineAssembler::JumpIfSmi(Register value, Label* target,
                                   Label::Distance) {
-  UNIMPLEMENTED();
+  __ JumpIfSmi(value, target);
 }
+
 void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance) {
-  UNIMPLEMENTED();
+  __ JumpIfNotSmi(value, target);
 }
 
 void BaselineAssembler::CallBuiltin(Builtin builtin) { UNIMPLEMENTED(); }
