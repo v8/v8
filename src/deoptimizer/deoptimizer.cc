@@ -178,7 +178,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
   if (function_.IsHeapObject()) {
     // Search all deoptimizing code in the native context of the function.
     Isolate* isolate = isolate_;
-    NativeContext native_context = function_.context().native_context();
+    NativeContext native_context = function_.native_context();
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
       Code code = FromCodeT(CodeT::cast(element));
@@ -445,14 +445,14 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
     if (!code.deopt_already_counted()) {
       code.set_deopt_already_counted(true);
     }
-    DeoptimizeMarkedCodeForContext(function.context().native_context());
+    DeoptimizeMarkedCodeForContext(function.native_context());
     // TODO(mythria): Ideally EvictMarkCode should compact the cache without
     // having to explicitly call this. We don't do this currently because
     // compacting causes GC and DeoptimizeMarkedCodeForContext uses raw
     // pointers. Update DeoptimizeMarkedCodeForContext to use handles and remove
     // this call from here.
     OSROptimizedCodeCache::Compact(
-        Handle<NativeContext>(function.context().native_context(), isolate));
+        Handle<NativeContext>(function.native_context(), isolate));
   }
 }
 

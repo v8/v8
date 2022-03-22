@@ -1875,8 +1875,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
         !JSFunction::cast(*maybe_constructor).shared().native()) {
       Handle<JSFunction> constructor =
           Handle<JSFunction>::cast(maybe_constructor);
-      DCHECK_NE(*constructor,
-                constructor->context().native_context().object_function());
+      DCHECK_NE(*constructor, constructor->native_context().object_function());
       Handle<Map> initial_map(constructor->initial_map(), isolate);
       result = Map::Normalize(isolate, initial_map, CLEAR_INOBJECT_PROPERTIES,
                               reason);

@@ -646,8 +646,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
 
       // If the function is used as the global Array function, cache the
       // updated initial maps (and transitioned versions) in the native context.
-      Handle<Context> native_context(function->context().native_context(),
-                                     isolate);
+      Handle<Context> native_context(function->native_context(), isolate);
       Handle<Object> array_function(
           native_context->get(Context::ARRAY_FUNCTION_INDEX), isolate);
       if (array_function->IsJSFunction() &&
@@ -696,8 +695,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     JSObject::MigrateToMap(isolate, function, new_map);
 
     FunctionKind kind = function->shared().kind();
-    Handle<Context> native_context(function->context().native_context(),
-                                   isolate);
+    Handle<Context> native_context(function->native_context(), isolate);
 
     construct_prototype = Handle<JSReceiver>(
         IsGeneratorFunction(kind)

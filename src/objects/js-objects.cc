@@ -601,7 +601,7 @@ MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
   }
 
   return function.has_context()
-             ? Handle<NativeContext>(function.context().native_context(),
+             ? Handle<NativeContext>(function.native_context(),
                                      receiver.GetIsolate())
              : MaybeHandle<NativeContext>();
 }
@@ -629,7 +629,7 @@ MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
     }
     if (current.IsJSFunction()) {
       JSFunction function = JSFunction::cast(current);
-      return handle(function.context().native_context(), isolate);
+      return handle(function.native_context(), isolate);
     }
     if (current.IsJSBoundFunction()) {
       JSBoundFunction function = JSBoundFunction::cast(current);
@@ -4688,7 +4688,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
     if (maybe_constructor.IsJSFunction()) {
       JSFunction constructor = JSFunction::cast(maybe_constructor);
       if (!constructor.shared().IsApiFunction()) {
-        Context context = constructor.context().native_context();
+        Context context = constructor.native_context();
         JSFunction object_function = context.object_function();
         new_map->SetConstructor(object_function);
       }

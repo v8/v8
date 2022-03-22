@@ -2240,8 +2240,7 @@ DEFINE_ERROR(WasmExceptionError, wasm_exception_error)
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
-  Handle<NativeContext> native_context(function->context().native_context(),
-                                       isolate());
+  Handle<NativeContext> native_context(function->native_context(), isolate());
   Handle<Map> new_map;
   if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared().kind()))) {
     new_map = handle(native_context->async_generator_object_prototype_map(),

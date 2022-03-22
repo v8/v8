@@ -791,7 +791,7 @@ bool InstanceBuilder::ExecuteStartFunction() {
   // v8::Context::Enter() and must happen in addition to the function call
   // sequence doing the compiled version of "isolate->set_context(...)".
   HandleScopeImplementer* hsi = isolate_->handle_scope_implementer();
-  hsi->EnterContext(start_function_->context().native_context());
+  hsi->EnterContext(start_function_->native_context());
 
   // Call the JS function.
   Handle<Object> undefined = isolate_->factory()->undefined_value();

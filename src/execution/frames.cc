@@ -1608,7 +1608,7 @@ Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
 }
 
 Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
-  return handle(function_->context().native_context(), isolate());
+  return handle(function_->native_context(), isolate());
 }
 
 Handle<StackFrameInfo>

@@ -900,8 +900,7 @@ void InsertCodeIntoOptimizedCodeCache(
   Isolate* isolate = function->GetIsolate();
   Handle<CodeT> code = ToCodeT(compilation_info->code(), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<NativeContext> native_context(function->context().native_context(),
-                                       isolate);
+  Handle<NativeContext> native_context(function->native_context(), isolate);
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
         handle(function->feedback_vector(), isolate);
