@@ -362,7 +362,7 @@ class MergePointInterpreterFrameState {
   }
 
   template <typename Function>
-  void ForEachValue(const MaglevCompilationUnit& info, Function&& f) {
+  void ForEachValue(const MaglevCompilationUnit& info, Function&& f) const {
     int live_index = 0;
     ForEachRegister(info, [&](interpreter::Register reg) {
       f(reg, live_registers_and_accumulator_[live_index++]);
@@ -387,13 +387,9 @@ class MergePointInterpreterFrameState {
 void InterpreterFrameState::CopyFrom(
     const MaglevCompilationUnit& info,
     const MergePointInterpreterFrameState& state) {
-  int live_index = 0;
-  state.ForEachRegister(info, [&](interpreter::Register reg) {
-    frame_[reg] = state.live_registers_and_accumulator_[live_index++];
+  state.ForEachValue(info, [&](interpreter::Register reg, ValueNode*& value) {
+    frame_[reg] = value;
   });
-  if (state.liveness_->AccumulatorIsLive()) {
-    set_accumulator(state.live_registers_and_accumulator_[live_index++]);
-  }
 }
 
 }  // namespace maglev
