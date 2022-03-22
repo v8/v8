@@ -69,7 +69,7 @@ void AdvanceStartupState(V8StartupState expected_next_state) {
     // isolate->Dispose();
     // v8::V8::Dispose();
     // v8::V8::DisposePlatform();
-    FATAL("Wrong intialization order: got %d expected %d!",
+    FATAL("Wrong initialization order: got %d expected %d!",
           static_cast<int>(current_state), static_cast<int>(next_state));
   }
   if (!v8_startup_state_.compare_exchange_strong(current_state, next_state)) {
