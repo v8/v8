@@ -380,9 +380,9 @@ void MaglevGraphBuilder::VisitCallProperty() {
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   ValueNode* context = GetContext();
 
-  static constexpr int kTheContext = 1;
+  static constexpr int kTheContextAndTheFunction = 2;
   CallProperty* call_property = AddNewNode<CallProperty>(
-      args.register_count() + kTheContext, function, context);
+      args.register_count() + kTheContextAndTheFunction, function, context);
   // TODO(leszeks): Move this for loop into the CallProperty constructor,
   // pre-size the args array.
   for (int i = 0; i < args.register_count(); ++i) {
