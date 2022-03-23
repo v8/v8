@@ -50,14 +50,10 @@ class TestMarkingVisitor : public MutatorMarkingVisitor {
  public:
   explicit TestMarkingVisitor(Marker* marker)
       : MutatorMarkingVisitor(marker->heap(),
-                              marker->MutatorMarkingStateForTesting()),
-        allow_access_(marker->heap()) {}
+                              marker->MutatorMarkingStateForTesting()) {}
   ~TestMarkingVisitor() { marking_state_.Publish(); }
 
   BasicMarkingState& marking_state() { return marking_state_; }
-
- private:
-  testing::AllowLookupOfObjectStartInBitmap allow_access_;
 };
 
 }  // namespace

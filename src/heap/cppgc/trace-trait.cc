@@ -5,7 +5,6 @@
 #include "include/cppgc/trace-trait.h"
 
 #include "src/heap/cppgc/gc-info-table.h"
-#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-page.h"
 
 namespace cppgc {
@@ -16,7 +15,6 @@ TraceDescriptor TraceTraitFromInnerAddressImpl::GetTraceDescriptor(
   // address is guaranteed to be on a normal page because this is used only for
   // mixins.
   const BasePage* page = BasePage::FromPayload(address);
-  DCHECK(page->heap().CanLookupObjectStartInBitmap());
   page->SynchronizedLoad();
   const HeapObjectHeader& header =
       page->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(address);

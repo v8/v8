@@ -195,15 +195,6 @@ void HeapBase::Terminate() {
   CHECK_EQ(0u, weak_cross_thread_persistent_region_.NodesInUse());
 }
 
-bool HeapBase::CanLookupObjectStartInBitmap() const {
-  // Object start bitmap access is only safe during marking and until the
-  // sweeper has been started. User code cannot distinguish between sweeping or
-  // not sweeping, which is why it's only valid to use the bitmap during
-  // marking.
-  return marker() || (in_atomic_pause() && !sweeper().IsSweepingInProgress()) ||
-         allow_lookup_of_object_start_in_bitmap_;
-}
-
 HeapStatistics HeapBase::CollectStatistics(
     HeapStatistics::DetailLevel detail_level) {
   if (detail_level == HeapStatistics::DetailLevel::kBrief) {

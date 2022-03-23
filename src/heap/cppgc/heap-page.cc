@@ -106,7 +106,8 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
   }
 
   // |address| is on the heap, so we FromInnerAddress can get the header.
-  const HeapObjectHeader* header = ObjectHeaderFromInnerAddressImpl(address);
+  const HeapObjectHeader* header =
+      ObjectHeaderFromInnerAddressImpl(this, address);
   if (header->IsFree()) return nullptr;
   DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
   return header;

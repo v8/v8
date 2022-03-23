@@ -125,16 +125,6 @@ class TestSupportingAllocationOnly : public TestWithHeap {
   subtle::NoGarbageCollectionScope no_gc_scope_;
 };
 
-class AllowLookupOfObjectStartInBitmap final {
- public:
-  explicit AllowLookupOfObjectStartInBitmap(cppgc::Heap&);
-  explicit AllowLookupOfObjectStartInBitmap(HeapBase&);
-  ~AllowLookupOfObjectStartInBitmap();
-
- private:
-  HeapBase& heap_;
-};
-
 }  // namespace testing
 }  // namespace internal
 }  // namespace cppgc

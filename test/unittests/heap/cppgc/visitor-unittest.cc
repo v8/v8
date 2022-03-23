@@ -68,7 +68,6 @@ TEST_F(TraceTraitTest, GetObjectStartGCedMixin) {
   auto* gced_mixin_app =
       MakeGarbageCollected<GCedMixinApplication>(GetAllocationHandle());
   auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
-  testing::AllowLookupOfObjectStartInBitmap allow_access(*GetHeap());
   EXPECT_EQ(gced_mixin_app,
             TraceTrait<GCedMixin>::GetTraceDescriptor(gced_mixin)
                 .base_object_payload);
@@ -103,7 +102,6 @@ TEST_F(TraceTraitTest, TraceGCedMixinThroughTraceDescriptor) {
       MakeGarbageCollected<GCedMixinApplication>(GetAllocationHandle());
   auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   EXPECT_EQ(0u, GCed::trace_callcount);
-  testing::AllowLookupOfObjectStartInBitmap allow_access(*GetHeap());
   TraceDescriptor desc = TraceTrait<GCedMixin>::GetTraceDescriptor(gced_mixin);
   desc.callback(nullptr, desc.base_object_payload);
   EXPECT_EQ(1u, GCed::trace_callcount);
@@ -121,7 +119,6 @@ TEST_F(TraceTraitTest, MixinInstanceWithoutTrace) {
   auto* mixin_without_trace =
       MakeGarbageCollected<MixinInstanceWithoutTrace>(GetAllocationHandle());
   auto* mixin = static_cast<GCedMixin*>(mixin_without_trace);
-  testing::AllowLookupOfObjectStartInBitmap allow_access(*GetHeap());
   EXPECT_EQ(0u, GCedMixin::trace_callcount);
   TraceDescriptor mixin_without_trace_desc =
       TraceTrait<MixinInstanceWithoutTrace>::GetTraceDescriptor(
@@ -141,8 +138,8 @@ namespace {
 
 class DispatchingVisitor final : public VisitorBase {
  public:
-  DispatchingVisitor(cppgc::Heap& heap, const void* object, const void* payload)
-      : allow_access_(heap), object_(object), payload_(payload) {}
+  DispatchingVisitor(const void* object, const void* payload)
+      : object_(object), payload_(payload) {}
 
  protected:
   void Visit(const void* t, TraceDescriptor desc) final {
@@ -160,7 +157,6 @@ class DispatchingVisitor final : public VisitorBase {
   }
 
  private:
-  testing::AllowLookupOfObjectStartInBitmap allow_access_;
   const void* object_;
   const void* payload_;
 };
@@ -169,7 +165,7 @@ class DispatchingVisitor final : public VisitorBase {
 
 TEST_F(VisitorTest, DispatchTraceGCed) {
   Member<GCed> ref = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  DispatchingVisitor visitor(*GetHeap(), ref, ref);
+  DispatchingVisitor visitor(ref, ref);
   EXPECT_EQ(0u, GCed::trace_callcount);
   visitor.Trace(ref);
   EXPECT_EQ(1u, GCed::trace_callcount);
@@ -182,7 +178,7 @@ TEST_F(VisitorTest, DispatchTraceGCedMixin) {
   // Ensure that we indeed test dispatching an inner object.
   EXPECT_NE(static_cast<void*>(gced_mixin_app), static_cast<void*>(gced_mixin));
   Member<GCedMixin> ref = gced_mixin;
-  DispatchingVisitor visitor(*GetHeap(), gced_mixin, gced_mixin_app);
+  DispatchingVisitor visitor(gced_mixin, gced_mixin_app);
   EXPECT_EQ(0u, GCed::trace_callcount);
   visitor.Trace(ref);
   EXPECT_EQ(1u, GCed::trace_callcount);
@@ -190,7 +186,7 @@ TEST_F(VisitorTest, DispatchTraceGCedMixin) {
 
 TEST_F(VisitorTest, DispatchTraceWeakGCed) {
   WeakMember<GCed> ref = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  DispatchingVisitor visitor(*GetHeap(), ref, ref);
+  DispatchingVisitor visitor(ref, ref);
   visitor.Trace(ref);
   // No marking, so reference should be cleared.
   EXPECT_EQ(nullptr, ref.Get());
@@ -203,7 +199,7 @@ TEST_F(VisitorTest, DispatchTraceWeakGCedMixin) {
   // Ensure that we indeed test dispatching an inner object.
   EXPECT_NE(static_cast<void*>(gced_mixin_app), static_cast<void*>(gced_mixin));
   WeakMember<GCedMixin> ref = gced_mixin;
-  DispatchingVisitor visitor(*GetHeap(), gced_mixin, gced_mixin_app);
+  DispatchingVisitor visitor(gced_mixin, gced_mixin_app);
   visitor.Trace(ref);
   // No marking, so reference should be cleared.
   EXPECT_EQ(nullptr, ref.Get());
@@ -294,7 +290,7 @@ class GCedWithComposite final : public GarbageCollected<GCedWithComposite> {
 TEST_F(VisitorTest, DispatchToCompositeObject) {
   Member<GCedWithComposite> ref =
       MakeGarbageCollected<GCedWithComposite>(GetAllocationHandle());
-  DispatchingVisitor visitor(*GetHeap(), ref, ref);
+  DispatchingVisitor visitor(ref, ref);
   EXPECT_EQ(0u, Composite::callback_callcount);
   visitor.Trace(ref);
   EXPECT_EQ(1u, Composite::callback_callcount);

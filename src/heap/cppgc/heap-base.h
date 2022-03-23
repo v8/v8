@@ -214,11 +214,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   MarkingType marking_support() const { return marking_support_; }
   SweepingType sweeping_support() const { return sweeping_support_; }
 
-  bool CanLookupObjectStartInBitmap() const;
-  void set_allow_lookup_of_object_start_in_bitmap(bool value) {
-    allow_lookup_of_object_start_in_bitmap_ = value;
-  }
-
  protected:
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
@@ -288,10 +283,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   bool in_atomic_pause_ = false;
 
   int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
-
-  // Used to explicitly allow lookups to the object start bitmap for testing
-  // code or internal code that otherwise verifies that access is safe.
-  bool allow_lookup_of_object_start_in_bitmap_ = false;
 
   const MarkingType marking_support_;
   const SweepingType sweeping_support_;

@@ -369,56 +369,5 @@ TEST_F(PrefinalizerTest, VirtualPrefinalizer) {
   EXPECT_LT(0u, GCedInherited::prefinalizer_count_);
 }
 
-namespace {
-
-class MixinCallingGC : public GarbageCollectedMixin {
- public:
-  template <typename GCFunction>
-  explicit MixinCallingGC(GCFunction gc) {
-    gc();
-  }
-
-  void Trace(Visitor*) const override {}
-};
-
-class MixinWithPrefinalizer : public GarbageCollectedMixin {
-  CPPGC_USING_PRE_FINALIZER(MixinWithPrefinalizer, PreFinalize);
-
- public:
-  MixinWithPrefinalizer() = default;
-  void PreFinalize() {}
-
-  void Trace(Visitor*) const override {}
-};
-
-class BaseWithMixins : public GarbageCollected<BaseWithMixins>,
-                       public MixinCallingGC,
-                       public MixinWithPrefinalizer {
- public:
-  template <typename GCFunction>
-  explicit BaseWithMixins(GCFunction gc) : MixinCallingGC(gc) {}
-
-  void Trace(Visitor* v) const override {
-    MixinCallingGC::Trace(v);
-    MixinWithPrefinalizer::Trace(v);
-  }
-};
-
-}  // namespace
-
-TEST_F(PrefinalizerTest, GCBeforePrefinalizerRegistration) {
-  // Regression test: https://crbug.com/1307471
-  MakeGarbageCollected<BaseWithMixins>(GetAllocationHandle(), [this]() {
-    internal::Heap::From(GetHeap())->CollectGarbage(
-        {internal::GarbageCollector::Config::CollectionType::kMajor,
-         cppgc::Heap::StackState::kMayContainHeapPointers,
-         cppgc::Heap::MarkingType::kAtomic,
-         cppgc::Heap::SweepingType::kIncrementalAndConcurrent,
-         internal::GarbageCollector::Config::FreeMemoryHandling::
-             kDiscardWherePossible,
-         internal::GarbageCollector::Config::IsForcedGC::kForced});
-  });
-}
-
 }  // namespace internal
 }  // namespace cppgc
