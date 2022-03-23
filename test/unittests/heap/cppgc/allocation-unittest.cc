@@ -184,9 +184,11 @@ TEST_F(CppgcAllocationTest, LargeDoubleWordAlignedAllocation) {
 TEST_F(CppgcAllocationTest, AlignToDoubleWordFromUnaligned) {
   static constexpr size_t kAlignmentMask = kDoubleWord - 1;
   auto* padding_object =
-      MakeGarbageCollected<CustomPadding<kWord>>(GetAllocationHandle());
-  // The address from which the next object can be allocated, i.e. the end of
-  // |padding_object|, should not be properly aligned.
+      MakeGarbageCollected<CustomPadding<16>>(GetAllocationHandle());
+  // First allocation is not aligned.
+  ASSERT_EQ(kWord,
+            reinterpret_cast<uintptr_t>(padding_object) & kAlignmentMask);
+  // The end should also not be properly aligned.
   ASSERT_EQ(kWord, (reinterpret_cast<uintptr_t>(padding_object) +
                     sizeof(*padding_object)) &
                        kAlignmentMask);
@@ -202,9 +204,11 @@ TEST_F(CppgcAllocationTest, AlignToDoubleWordFromUnaligned) {
 TEST_F(CppgcAllocationTest, AlignToDoubleWordFromAligned) {
   static constexpr size_t kAlignmentMask = kDoubleWord - 1;
   auto* padding_object =
-      MakeGarbageCollected<CustomPadding<16>>(GetAllocationHandle());
-  // The address from which the next object can be allocated, i.e. the end of
-  // |padding_object|, should be properly aligned.
+      MakeGarbageCollected<CustomPadding<kWord>>(GetAllocationHandle());
+  // First allocation is not aligned.
+  ASSERT_EQ(kWord,
+            reinterpret_cast<uintptr_t>(padding_object) & kAlignmentMask);
+  // The end should be properly aligned.
   ASSERT_EQ(0u, (reinterpret_cast<uintptr_t>(padding_object) +
                  sizeof(*padding_object)) &
                     kAlignmentMask);

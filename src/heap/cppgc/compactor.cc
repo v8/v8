@@ -292,7 +292,6 @@ class CompactionState final {
                 page->PayloadSize() - used_bytes_in_current_page_);
     }
 #endif
-    page->object_start_bitmap().MarkAsFullyPopulated();
   }
 
  private:

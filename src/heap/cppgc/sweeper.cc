@@ -335,7 +335,6 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
     bitmap.SetBit(start_of_gap);
   }
   page->SetAllocatedBytesAtLastGC(live_bytes);
-  bitmap.MarkAsFullyPopulated();
 
   const bool is_empty = (start_of_gap == page->PayloadStart());
   return builder.GetResult(is_empty, largest_new_free_list_entry);
