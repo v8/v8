@@ -18,15 +18,29 @@ namespace {
 bool IsBranch(Node* node) { return node->opcode() == IrOpcode::kBranch; }
 
 bool CanDuplicate(Node* node) {
-  // We only allow duplication of comparisons. Duplicating other nodes makes
-  // little sense, because a "== 0" need to be inserted in branches anyways
-  // (except for some binops, but duplicating binops might increase the live
-  // range  of the operands, thus increasing register pressure).
+  // We only allow duplication of comparisons and "cheap" binary operations
+  // (cheap = not multiplication or division). The idea is that those
+  // instructions set the ZF flag, and thus do not require a "== 0" to be added
+  // before the branch. Duplicating other nodes, on the other hand, makes little
+  // sense, because a "== 0" would need to be inserted in branches anyways.
   switch (node->opcode()) {
 #define BRANCH_CASE(op) \
   case IrOpcode::k##op: \
     break;
     MACHINE_COMPARE_BINOP_LIST(BRANCH_CASE)
+    case IrOpcode::kInt32Add:
+    case IrOpcode::kInt32Sub:
+    case IrOpcode::kWord32And:
+    case IrOpcode::kWord32Or:
+    case IrOpcode::kInt64Add:
+    case IrOpcode::kInt64Sub:
+    case IrOpcode::kWord64And:
+    case IrOpcode::kWord64Or:
+    case IrOpcode::kWord32Shl:
+    case IrOpcode::kWord32Shr:
+    case IrOpcode::kWord64Shl:
+    case IrOpcode::kWord64Shr:
+      break;
     default:
       return false;
   }
