@@ -2127,7 +2127,8 @@ DEFINE_BOOL(interpreted_frames_native_stack, false,
 
 DEFINE_BOOL(enable_system_instrumentation, false,
             "Enable platform-specific profiling.")
-
+// Don't move code objects.
+DEFINE_NEG_IMPLICATION(enable_system_instrumentation, compact_code_space)
 #ifndef V8_TARGET_ARCH_ARM
 DEFINE_IMPLICATION(enable_system_instrumentation,
                    interpreted_frames_native_stack)
