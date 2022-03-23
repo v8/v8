@@ -281,9 +281,15 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // bytes and the bytes allocated since last marking.
   size_t allocated_object_size() const;
 
-  // Returns the most recent marked bytes count. Should not be called during
+  // Returns the overall marked bytes count, i.e. if young generation is
+  // enabled, it returns the accumulated number. Should not be called during
   // marking.
   size_t marked_bytes() const;
+
+  // Returns the marked bytes for the current cycle. Should only be called
+  // within GC cycle.
+  size_t marked_bytes_on_current_cycle() const;
+
   // Returns the overall duration of the most recent marking phase. Should not
   // be called during marking.
   v8::base::TimeDelta marking_time() const;
@@ -339,6 +345,10 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   // Tracks live bytes for overflows.
   size_t tracked_live_bytes_ = 0;
 #endif  // CPPGC_VERIFY_HEAP
+
+  // The number of bytes marked so far. For young generation (with sticky bits)
+  // keeps track of marked bytes across multiple GC cycles.
+  size_t marked_bytes_so_far_ = 0;
 
   int64_t memory_allocated_bytes_ = 0;
   int64_t memory_freed_bytes_since_end_of_marking_ = 0;
