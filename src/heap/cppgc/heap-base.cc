@@ -164,6 +164,7 @@ void HeapBase::Terminate() {
       weak_cross_thread_persistent_region_.ClearAllUsedNodes();
     }
 
+    in_atomic_pause_ = true;
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
         GarbageCollector::Config::IsForcedGC::kForced);
@@ -173,6 +174,8 @@ void HeapBase::Terminate() {
     sweeper().Start(
         {Sweeper::SweepingConfig::SweepingType::kAtomic,
          Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
+    in_atomic_pause_ = false;
+
     sweeper().NotifyDoneIfNeeded();
     more_termination_gcs_needed =
         strong_persistent_region_.NodesInUse() ||
