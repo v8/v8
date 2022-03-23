@@ -1514,6 +1514,14 @@
 }],  # variant == stress_concurrent_allocation
 
 ##############################################################################
+['variant == maglev', {
+  # TODO(v8:7700): These tests assume that optimization always succeed.
+  # Change this when maglev support all bytecodes.
+  'interrupt-budget-override': [SKIP],
+  'never-optimize': [SKIP],
+}],  # variant == maglev
+
+##############################################################################
 ['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
