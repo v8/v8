@@ -269,7 +269,9 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
   SharedFunctionInfo::ScriptIterator iter(isolate, *script);
   for (SharedFunctionInfo shared_info = iter.Next(); !shared_info.is_null();
        shared_info = iter.Next()) {
-    if (!shared_info.HasBytecodeArray()) continue;
+    IsCompiledScope is_compiled(shared_info, isolate);
+    if (!is_compiled.is_compiled()) continue;
+    DCHECK(shared_info.HasBytecodeArray());
     Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
     Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
         isolate->factory()->interpreter_entry_trampoline_for_profiling()));
@@ -280,8 +282,12 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 
     interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
     interpreter_data->set_interpreter_trampoline(ToCodeT(*code));
-
-    info->set_interpreter_data(*interpreter_data);
+    if (info->HasBaselineCode()) {
+      FromCodeT(info->baseline_code(kAcquireLoad))
+          .set_bytecode_or_interpreter_data(*interpreter_data);
+    } else {
+      info->set_interpreter_data(*interpreter_data);
+    }
 
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
