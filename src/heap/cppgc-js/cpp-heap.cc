@@ -317,7 +317,6 @@ void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
   incremental_mark_batched_events_.events.emplace_back();
   incremental_mark_batched_events_.events.back().cpp_wall_clock_duration_in_us =
       cppgc_event.duration_us;
-  // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
   if (incremental_mark_batched_events_.events.size() == kMaxBatchedEvents) {
     recorder->AddMainThreadEvent(std::move(incremental_mark_batched_events_),
                                  GetContextId());
@@ -336,7 +335,6 @@ void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
   incremental_sweep_batched_events_.events.emplace_back();
   incremental_sweep_batched_events_.events.back()
       .cpp_wall_clock_duration_in_us = cppgc_event.duration_us;
-  // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
   if (incremental_sweep_batched_events_.events.size() == kMaxBatchedEvents) {
     recorder->AddMainThreadEvent(std::move(incremental_sweep_batched_events_),
                                  GetContextId());

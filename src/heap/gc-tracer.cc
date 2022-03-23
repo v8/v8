@@ -666,7 +666,11 @@ void GCTracer::AddIncrementalMarkingStep(double duration, size_t bytes) {
     incremental_marking_bytes_ += bytes;
     incremental_marking_duration_ += duration;
   }
-  ReportIncrementalMarkingStepToRecorder();
+  ReportIncrementalMarkingStepToRecorder(duration);
+}
+
+void GCTracer::AddIncrementalSweepingStep(double duration) {
+  ReportIncrementalSweepingStepToRecorder(duration);
 }
 
 void GCTracer::Output(const char* format, ...) const {
@@ -1491,9 +1495,9 @@ void CopySizeMetrics(
   return isolate->GetOrRegisterRecorderContextId(isolate->native_context());
 }
 
-void FlushBatchedIncrementalEvents(
-    v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalMark&
-        batched_events,
+template <typename EventType>
+void FlushBatchedEvents(
+    v8::metrics::GarbageCollectionBatchedEvents<EventType>& batched_events,
     Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->metrics_recorder());
   DCHECK(!batched_events.events.empty());
@@ -1515,14 +1519,17 @@ void GCTracer::ReportFullCycleToRecorder() {
   DCHECK_NOT_NULL(recorder);
   if (!recorder->HasEmbedderRecorder()) {
     incremental_mark_batched_events_ = {};
+    incremental_sweep_batched_events_ = {};
     if (cpp_heap) {
       cpp_heap->GetMetricRecorder()->ClearCachedEvents();
     }
     return;
   }
   if (!incremental_mark_batched_events_.events.empty()) {
-    FlushBatchedIncrementalEvents(incremental_mark_batched_events_,
-                                  heap_->isolate());
+    FlushBatchedEvents(incremental_mark_batched_events_, heap_->isolate());
+  }
+  if (!incremental_sweep_batched_events_.events.empty()) {
+    FlushBatchedEvents(incremental_sweep_batched_events_, heap_->isolate());
   }
 
   v8::metrics::GarbageCollectionFullCycle event;
@@ -1640,7 +1647,7 @@ void GCTracer::ReportFullCycleToRecorder() {
   recorder->AddMainThreadEvent(event, GetContextId(heap_->isolate()));
 }
 
-void GCTracer::ReportIncrementalMarkingStepToRecorder() {
+void GCTracer::ReportIncrementalMarkingStepToRecorder(double v8_duration) {
   DCHECK_EQ(Event::Type::INCREMENTAL_MARK_COMPACTOR, current_.type);
   static constexpr int kMaxBatchedEvents =
       CppHeap::MetricRecorderAdapter::kMaxBatchedEvents;
@@ -1661,10 +1668,27 @@ void GCTracer::ReportIncrementalMarkingStepToRecorder() {
           .cpp_wall_clock_duration_in_us = cppgc_event.value().duration_us;
     }
   }
-  // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
+  incremental_mark_batched_events_.events.back().wall_clock_duration_in_us =
+      static_cast<int64_t>(v8_duration *
+                           base::Time::kMicrosecondsPerMillisecond);
   if (incremental_mark_batched_events_.events.size() == kMaxBatchedEvents) {
-    FlushBatchedIncrementalEvents(incremental_mark_batched_events_,
-                                  heap_->isolate());
+    FlushBatchedEvents(incremental_mark_batched_events_, heap_->isolate());
+  }
+}
+
+void GCTracer::ReportIncrementalSweepingStepToRecorder(double v8_duration) {
+  static constexpr int kMaxBatchedEvents =
+      CppHeap::MetricRecorderAdapter::kMaxBatchedEvents;
+  const std::shared_ptr<metrics::Recorder>& recorder =
+      heap_->isolate()->metrics_recorder();
+  DCHECK_NOT_NULL(recorder);
+  if (!recorder->HasEmbedderRecorder()) return;
+  incremental_sweep_batched_events_.events.emplace_back();
+  incremental_sweep_batched_events_.events.back().wall_clock_duration_in_us =
+      static_cast<int64_t>(v8_duration *
+                           base::Time::kMicrosecondsPerMillisecond);
+  if (incremental_sweep_batched_events_.events.size() == kMaxBatchedEvents) {
+    FlushBatchedEvents(incremental_sweep_batched_events_, heap_->isolate());
   }
 }
 

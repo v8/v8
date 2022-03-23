@@ -138,9 +138,7 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
   Heap* heap_;
 };
 
-
 bool IncrementalMarking::WasActivated() { return was_activated_; }
-
 
 bool IncrementalMarking::CanBeActivated() {
   // Only start incremental marking in a safe state:
@@ -359,7 +357,6 @@ bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
   }
   return true;
 }
-
 
 void IncrementalMarking::RetainMaps() {
   // Do not retain dead maps if flag disables it or there is

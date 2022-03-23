@@ -455,9 +455,12 @@ bool Sweeper::ConcurrentSweepSpace(AllocationSpace identity,
 bool Sweeper::IncrementalSweepSpace(AllocationSpace identity) {
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL_SWEEPING,
                  ThreadKind::kMain);
+  const double start = heap_->MonotonicallyIncreasingTimeInMs();
   if (Page* page = GetSweepingPageSafe(identity)) {
     ParallelSweepPage(page, identity);
   }
+  const double duration = heap_->MonotonicallyIncreasingTimeInMs() - start;
+  heap_->tracer()->AddIncrementalSweepingStep(duration);
   return sweeping_list_[GetSweepSpaceIndex(identity)].empty();
 }
 

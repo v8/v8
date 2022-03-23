@@ -322,6 +322,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, size_t bytes);
 
+  // Log an incremental marking step.
+  void AddIncrementalSweepingStep(double duration);
+
   // Compute the average incremental marking speed in bytes/millisecond.
   // Returns a conservative value if no events have been recorded.
   double IncrementalMarkingSpeedInBytesPerMillisecond() const;
@@ -502,7 +505,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   void FetchBackgroundGeneralCounters();
 
   void ReportFullCycleToRecorder();
-  void ReportIncrementalMarkingStepToRecorder();
+  void ReportIncrementalMarkingStepToRecorder(double v8_duration);
+  void ReportIncrementalSweepingStepToRecorder(double v8_duration);
   void ReportYoungCycleToRecorder();
 
   // Pointer to the heap that owns this tracer.
@@ -589,6 +593,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalMark
       incremental_mark_batched_events_;
+  v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalSweep
+      incremental_sweep_batched_events_;
 
   base::Mutex background_counter_mutex_;
   BackgroundCounter background_counter_[Scope::NUMBER_OF_SCOPES];

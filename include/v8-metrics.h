@@ -61,18 +61,22 @@ struct GarbageCollectionFullMainThreadIncrementalMark {
   int64_t cpp_wall_clock_duration_in_us = -1;
 };
 
-struct GarbageCollectionFullMainThreadBatchedIncrementalMark {
-  std::vector<GarbageCollectionFullMainThreadIncrementalMark> events;
-};
-
 struct GarbageCollectionFullMainThreadIncrementalSweep {
   int64_t wall_clock_duration_in_us = -1;
   int64_t cpp_wall_clock_duration_in_us = -1;
 };
 
-struct GarbageCollectionFullMainThreadBatchedIncrementalSweep {
-  std::vector<GarbageCollectionFullMainThreadIncrementalSweep> events;
+template <typename EventType>
+struct GarbageCollectionBatchedEvents {
+  std::vector<EventType> events;
 };
+
+using GarbageCollectionFullMainThreadBatchedIncrementalMark =
+    GarbageCollectionBatchedEvents<
+        GarbageCollectionFullMainThreadIncrementalMark>;
+using GarbageCollectionFullMainThreadBatchedIncrementalSweep =
+    GarbageCollectionBatchedEvents<
+        GarbageCollectionFullMainThreadIncrementalSweep>;
 
 struct GarbageCollectionYoungCycle {
   int reason = -1;
