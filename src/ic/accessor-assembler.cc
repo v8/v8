@@ -283,7 +283,8 @@ void AccessorAssembler::HandleLoadAccessor(
   BIND(&load);
   TNode<IntPtrT> argc = IntPtrConstant(0);
   exit_point->Return(CallApiCallback(context, callback, argc, data,
-                                     api_holder.value(), p->receiver()));
+                                     api_holder.value(),
+                                     p->lookup_start_object()));
 }
 
 void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
