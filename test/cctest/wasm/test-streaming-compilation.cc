@@ -30,11 +30,11 @@ namespace wasm {
 class MockPlatform final : public TestPlatform {
  public:
   MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
+    NotifyPlatformReady();
   }
 
   ~MockPlatform() {
+    RemovePlatform();
     for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
   }
 

@@ -35,16 +35,11 @@ namespace heap {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform()
-      : taskrunner_(new MockTaskRunner()),
-        old_platform_(i::V8::GetCurrentPlatform()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
+  MockPlatform() : taskrunner_(new MockTaskRunner()) { NotifyPlatformReady(); }
   ~MockPlatform() override {
-    i::V8::SetPlatformForTesting(old_platform_);
+    RemovePlatform();
     for (auto& task : worker_tasks_) {
-      old_platform_->CallOnWorkerThread(std::move(task));
+      old_platform()->CallOnWorkerThread(std::move(task));
     }
     worker_tasks_.clear();
   }
@@ -106,7 +101,6 @@ class MockPlatform : public TestPlatform {
 
   std::shared_ptr<MockTaskRunner> taskrunner_;
   std::vector<std::unique_ptr<Task>> worker_tasks_;
-  v8::Platform* old_platform_;
 };
 
 UNINITIALIZED_TEST(IncrementalMarkingUsingTasks) {

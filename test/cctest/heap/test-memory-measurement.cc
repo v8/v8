@@ -132,10 +132,10 @@ namespace {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform() : TestPlatform(), mock_task_runner_(new MockTaskRunner()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
+  MockPlatform() : mock_task_runner_(new MockTaskRunner()) {
+    NotifyPlatformReady();
   }
+  ~MockPlatform() override { RemovePlatform(); }
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate*) override {

@@ -34,10 +34,9 @@ class AllocationPlatform : public TestPlatform {
  public:
   AllocationPlatform() {
     current_platform = this;
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
+    NotifyPlatformReady();
   }
-  ~AllocationPlatform() override = default;
+  ~AllocationPlatform() override { RemovePlatform(); }
 
   void OnCriticalMemoryPressure() override { oom_callback_called = true; }
 

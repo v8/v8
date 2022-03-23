@@ -35,6 +35,9 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-locker.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 #include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -458,3 +461,137 @@ ManualGCScope::~ManualGCScope() {
   i::FLAG_detect_ineffective_gcs_near_heap_limit =
       flag_detect_ineffective_gcs_near_heap_limit_;
 }
+
+TestPlatform::TestPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {}
+
+void TestPlatform::NotifyPlatformReady() {
+  i::V8::SetPlatformForTesting(this);
+  CHECK(!active_);
+  active_ = true;
+}
+
+v8::PageAllocator* TestPlatform::GetPageAllocator() {
+  return old_platform()->GetPageAllocator();
+}
+
+void TestPlatform::OnCriticalMemoryPressure() {
+  old_platform()->OnCriticalMemoryPressure();
+}
+
+bool TestPlatform::OnCriticalMemoryPressure(size_t length) {
+  return old_platform()->OnCriticalMemoryPressure(length);
+}
+
+int TestPlatform::NumberOfWorkerThreads() {
+  return old_platform()->NumberOfWorkerThreads();
+}
+
+std::shared_ptr<v8::TaskRunner> TestPlatform::GetForegroundTaskRunner(
+    v8::Isolate* isolate) {
+  return old_platform()->GetForegroundTaskRunner(isolate);
+}
+
+void TestPlatform::CallOnWorkerThread(std::unique_ptr<v8::Task> task) {
+  old_platform()->CallOnWorkerThread(std::move(task));
+}
+
+void TestPlatform::CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
+                                             double delay_in_seconds) {
+  old_platform()->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
+}
+
+std::unique_ptr<v8::JobHandle> TestPlatform::PostJob(
+    v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task) {
+  return old_platform()->PostJob(priority, std::move(job_task));
+}
+
+double TestPlatform::MonotonicallyIncreasingTime() {
+  return old_platform()->MonotonicallyIncreasingTime();
+}
+
+double TestPlatform::CurrentClockTimeMillis() {
+  return old_platform()->CurrentClockTimeMillis();
+}
+
+bool TestPlatform::IdleTasksEnabled(v8::Isolate* isolate) {
+  return old_platform()->IdleTasksEnabled(isolate);
+}
+
+v8::TracingController* TestPlatform::GetTracingController() {
+  return old_platform()->GetTracingController();
+}
+
+namespace {
+
+class ShutdownTask final : public v8::Task {
+ public:
+  ShutdownTask(v8::base::Semaphore* destruction_barrier,
+               v8::base::Mutex* destruction_mutex,
+               v8::base::ConditionVariable* destruction_condition,
+               bool* can_destruct)
+      : destruction_barrier_(destruction_barrier),
+        destruction_mutex_(destruction_mutex),
+        destruction_condition_(destruction_condition),
+        can_destruct_(can_destruct)
+
+  {}
+
+  void Run() final {
+    destruction_barrier_->Signal();
+    {
+      v8::base::MutexGuard guard(destruction_mutex_);
+      while (!*can_destruct_) {
+        destruction_condition_->Wait(destruction_mutex_);
+      }
+    }
+    destruction_barrier_->Signal();
+  }
+
+ private:
+  v8::base::Semaphore* const destruction_barrier_;
+  v8::base::Mutex* const destruction_mutex_;
+  v8::base::ConditionVariable* const destruction_condition_;
+  bool* const can_destruct_;
+};
+
+}  // namespace
+
+void TestPlatform::RemovePlatform() {
+  DCHECK_EQ(i::V8::GetCurrentPlatform(), this);
+  // Destruction helpers.
+  // Barrier to wait until all shutdown tasks actually run (and subsequently
+  // block).
+  v8::base::Semaphore destruction_barrier{0};
+  // Primitives for blocking until `can_destruct` is true.
+  v8::base::Mutex destruction_mutex;
+  v8::base::ConditionVariable destruction_condition;
+  bool can_destruct = false;
+
+  for (int i = 0; i < NumberOfWorkerThreads(); i++) {
+    old_platform()->CallOnWorkerThread(
+        std::make_unique<ShutdownTask>(&destruction_barrier, &destruction_mutex,
+                                       &destruction_condition, &can_destruct));
+  }
+  // Wait till all worker threads reach the barrier.
+  for (int i = 0; i < NumberOfWorkerThreads(); i++) {
+    destruction_barrier.Wait();
+  }
+  // At this point all worker threads are blocked, so the platform can be
+  // swapped back.
+  i::V8::SetPlatformForTesting(old_platform_);
+  CHECK(active_);
+  active_ = false;
+  // Release all worker threads again.
+  {
+    v8::base::MutexGuard guard(&destruction_mutex);
+    can_destruct = true;
+    destruction_condition.NotifyAll();
+  }
+  // Wait till all worker threads resume. This is necessary as the threads would
+  // otherwise try to unlock `destruction_mutex` which may already be gone.
+  for (int i = 0; i < NumberOfWorkerThreads(); i++) {
+    destruction_barrier.Wait();
+  }
+}
+
+TestPlatform::~TestPlatform() { CHECK(!active_); }

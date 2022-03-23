@@ -700,76 +700,48 @@ class V8_NODISCARD ManualGCScope {
   const bool flag_detect_ineffective_gcs_near_heap_limit_;
 };
 
-// This is an abstract base class that can be overridden to implement a test
-// platform. It delegates all operations to a given platform at the time
-// of construction.
+// This is a base class that can be overridden to implement a test platform. It
+// delegates all operations to a given platform at the time of construction.
+// Breaks if tasks cache the platform themselves.
 class TestPlatform : public v8::Platform {
  public:
+  // Users inheriting from `TestPlatform` need to invoke `NotifyPlatformReady()`
+  // at the end of their constructor.
+  void NotifyPlatformReady();
+
+  // Eagerly removes the platform from being used by V8.
+  void RemovePlatform();
+
   TestPlatform(const TestPlatform&) = delete;
   TestPlatform& operator=(const TestPlatform&) = delete;
 
   // v8::Platform implementation.
-  v8::PageAllocator* GetPageAllocator() override {
-    return old_platform()->GetPageAllocator();
-  }
-
-  void OnCriticalMemoryPressure() override {
-    old_platform()->OnCriticalMemoryPressure();
-  }
-
-  bool OnCriticalMemoryPressure(size_t length) override {
-    return old_platform()->OnCriticalMemoryPressure(length);
-  }
-
-  int NumberOfWorkerThreads() override {
-    return old_platform()->NumberOfWorkerThreads();
-  }
-
+  v8::PageAllocator* GetPageAllocator() override;
+  void OnCriticalMemoryPressure() override;
+  bool OnCriticalMemoryPressure(size_t length) override;
+  int NumberOfWorkerThreads() override;
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override {
-    return old_platform()->GetForegroundTaskRunner(isolate);
-  }
-
-  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
-    old_platform()->CallOnWorkerThread(std::move(task));
-  }
-
+      v8::Isolate* isolate) override;
+  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override;
   void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                 double delay_in_seconds) override {
-    old_platform()->CallDelayedOnWorkerThread(std::move(task),
-                                              delay_in_seconds);
-  }
-
+                                 double delay_in_seconds) override;
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override {
-    return old_platform()->PostJob(priority, std::move(job_task));
-  }
-
-  double MonotonicallyIncreasingTime() override {
-    return old_platform()->MonotonicallyIncreasingTime();
-  }
-
-  double CurrentClockTimeMillis() override {
-    return old_platform()->CurrentClockTimeMillis();
-  }
-
-  bool IdleTasksEnabled(v8::Isolate* isolate) override {
-    return old_platform()->IdleTasksEnabled(isolate);
-  }
-
-  v8::TracingController* GetTracingController() override {
-    return old_platform()->GetTracingController();
-  }
+      std::unique_ptr<v8::JobTask> job_task) override;
+  double MonotonicallyIncreasingTime() override;
+  double CurrentClockTimeMillis() override;
+  bool IdleTasksEnabled(v8::Isolate* isolate) override;
+  v8::TracingController* GetTracingController() override;
 
  protected:
-  TestPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {}
-  ~TestPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
+  TestPlatform();
+  ~TestPlatform() override;
 
   v8::Platform* old_platform() const { return old_platform_; }
 
  private:
   std::atomic<v8::Platform*> old_platform_;
+  bool active_ = false;
 };
 
 #if defined(USE_SIMULATOR)
