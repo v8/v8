@@ -1480,3 +1480,59 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertThrows(() => { lengthTracking.sort(CustomComparison); });
   }
 })();
+
+(function ObjectDefineProperty() {
+  for (let helper of
+      [ObjectDefinePropertyHelper, ObjectDefinePropertiesHelper]) {
+    for (let ctor of ctors) {
+      const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                             8 * ctor.BYTES_PER_ELEMENT);
+      const fixedLength = new ctor(rab, 0, 4);
+      const fixedLengthWithOffset = new ctor(
+          rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+      const lengthTracking = new ctor(rab, 0);
+      const lengthTrackingWithOffset = new ctor(
+          rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+      // Orig. array: [0, 0, 0, 0]
+      //              [0, 0, 0, 0] << fixedLength
+      //                    [0, 0] << fixedLengthWithOffset
+      //              [0, 0, 0, 0, ...] << lengthTracking
+      //                    [0, 0, ...] << lengthTrackingWithOffset
+
+      %ArrayBufferDetach(rab);
+
+      assertThrows(() => { helper(fixedLength, 0, 8); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 0, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTracking, 0, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTrackingWithOffset, 0, 8); },
+                   TypeError);
+    }
+  }
+})();
+
+(function ObjectDefinePropertyParameterConversionDetaches() {
+  const helper = ObjectDefinePropertyHelper;
+  // Fixed length.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const evil = {toString: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertThrows(() => { helper(fixedLength, evil, 8); }, TypeError);
+  }
+  // Length tracking.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, 0);
+    const evil = {toString: () => {
+        %ArrayBufferDetach(rab);
+        return 0;
+    }};
+    assertThrows(() => { helper(lengthTracking, evil, 8); }, TypeError);
+  }
+})();

@@ -6674,3 +6674,157 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     assertEquals([7, 8, 9, 10, 0, 0], ToNumbers(taFull));
   }
 })();
+
+(function ObjectDefinePropertyDefineProperties() {
+  for (let helper of
+      [ObjectDefinePropertyHelper, ObjectDefinePropertiesHelper]) {
+    for (let ctor of ctors) {
+      const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                             8 * ctor.BYTES_PER_ELEMENT);
+      const fixedLength = new ctor(rab, 0, 4);
+      const fixedLengthWithOffset = new ctor(
+          rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+      const lengthTracking = new ctor(rab, 0);
+      const lengthTrackingWithOffset = new ctor(
+          rab, 2 * ctor.BYTES_PER_ELEMENT);
+      const taFull = new ctor(rab, 0);
+
+      // Orig. array: [0, 0, 0, 0]
+      //              [0, 0, 0, 0] << fixedLength
+      //                    [0, 0] << fixedLengthWithOffset
+      //              [0, 0, 0, 0, ...] << lengthTracking
+      //                    [0, 0, ...] << lengthTrackingWithOffset
+
+      helper(fixedLength, 0, 1);
+      assertEquals([1, 0, 0, 0], ToNumbers(taFull));
+      helper(fixedLengthWithOffset, 0, 2);
+      assertEquals([1, 0, 2, 0], ToNumbers(taFull));
+      helper(lengthTracking, 1, 3);
+      assertEquals([1, 3, 2, 0], ToNumbers(taFull));
+      helper(lengthTrackingWithOffset, 1, 4);
+      assertEquals([1, 3, 2, 4], ToNumbers(taFull));
+
+      assertThrows(() => { helper(fixedLength, 4, 8); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 2, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTracking, 4, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTrackingWithOffset, 2, 8); },
+                   TypeError);
+
+      // Shrink so that fixed length TAs go out of bounds.
+      rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+
+      // Orig. array: [1, 3, 2]
+      //              [1, 3, 2, ...] << lengthTracking
+      //                    [2, ...] << lengthTrackingWithOffset
+
+      assertThrows(() => { helper(fixedLength, 0, 8); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 0, 8); }, TypeError);
+      assertEquals([1, 3, 2], ToNumbers(taFull));
+
+      helper(lengthTracking, 0, 5);
+      assertEquals([5, 3, 2], ToNumbers(taFull));
+      helper(lengthTrackingWithOffset, 0, 6);
+      assertEquals([5, 3, 6], ToNumbers(taFull));
+
+      // Shrink so that the TAs with offset go out of bounds.
+      rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+
+      assertThrows(() => { helper(fixedLength, 0, 8); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 0, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTrackingWithOffset, 0, 8); },
+                   TypeError);
+      assertEquals([5], ToNumbers(taFull));
+
+      helper(lengthTracking, 0, 7);
+      assertEquals([7], ToNumbers(taFull));
+
+      // Shrink to zero.
+      rab.resize(0);
+
+      assertThrows(() => { helper(fixedLength, 0, 8); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 0, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTracking, 0, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTrackingWithOffset, 0, 8); },
+                   TypeError);
+      assertEquals([], ToNumbers(taFull));
+
+      // Grow so that all TAs are back in-bounds.
+      rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+
+      helper(fixedLength, 0, 9);
+      assertEquals([9, 0, 0, 0, 0, 0], ToNumbers(taFull));
+      helper(fixedLengthWithOffset, 0, 10);
+      assertEquals([9, 0, 10, 0, 0, 0], ToNumbers(taFull));
+      helper(lengthTracking, 1, 11);
+      assertEquals([9, 11, 10, 0, 0, 0], ToNumbers(taFull));
+      helper(lengthTrackingWithOffset, 2, 12);
+      assertEquals([9, 11, 10, 0, 12, 0], ToNumbers(taFull));
+
+      // Trying to define properties out of the fixed-length bounds throws.
+      assertThrows(() => { helper(fixedLength, 5, 13); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 3, 13); }, TypeError);
+      assertEquals([9, 11, 10, 0, 12, 0], ToNumbers(taFull));
+
+      helper(lengthTracking, 4, 14);
+      assertEquals([9, 11, 10, 0, 14, 0], ToNumbers(taFull));
+      helper(lengthTrackingWithOffset, 3, 15);
+      assertEquals([9, 11, 10, 0, 14, 15], ToNumbers(taFull));
+    }
+  }
+})();
+
+(function ObjectDefinePropertyParameterConversionShrinks() {
+  const helper = ObjectDefinePropertyHelper;
+  // Fixed length.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const evil = {toString: () => {
+      rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+      return 0;
+    }};
+    assertThrows(() => { helper(fixedLength, evil, 8); }, TypeError);
+  }
+  // Length tracking.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, 0);
+    const evil = {toString: () => {
+        rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+        return 3;  // Index too large after resize.
+    }};
+    assertThrows(() => { helper(lengthTracking, evil, 8); }, TypeError);
+  }
+})();
+
+(function ObjectDefinePropertyParameterConversionGrows() {
+  const helper = ObjectDefinePropertyHelper;
+  // Fixed length.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    // Make fixedLength go OOB.
+    rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+    const evil = {toString: () => {
+        rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+        return 0;
+    }};
+    helper(fixedLength, evil, 8);
+    assertEquals([8, 0, 0, 0], ToNumbers(fixedLength));
+  }
+  // Length tracking.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, 0);
+    const evil = {toString: () => {
+        rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+        return 4;  // Index valid after resize.
+    }};
+    helper(lengthTracking, evil, 8);
+    assertEquals([0, 0, 0, 0, 8, 0], ToNumbers(lengthTracking));
+  }
+})();
