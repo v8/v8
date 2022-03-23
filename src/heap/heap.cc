@@ -34,7 +34,6 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/barrier.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"

@@ -313,7 +313,6 @@ v8_source_set("unittests_sources") {
     "diagnostics/gdb-jit-unittest.cc",
     "execution/microtask-queue-unittest.cc",
     "heap/allocation-observer-unittest.cc",
-    "heap/barrier-unittest.cc",
     "heap/bitmap-test-utils.h",
     "heap/bitmap-unittest.cc",
     "heap/code-object-registry-unittest.cc",

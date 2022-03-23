@@ -7,7 +7,6 @@
 #include "src/common/globals.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/barrier.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
