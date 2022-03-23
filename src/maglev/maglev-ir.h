@@ -189,6 +189,10 @@ class OpProperties {
   static constexpr OpProperties Call() {
     return OpProperties(kIsCallBit::encode(true));
   }
+  static constexpr OpProperties JSCall() {
+    return OpProperties(kIsCallBit::encode(true) |
+                        kNonMemorySideEffectsBit::encode(true));
+  }
   static constexpr OpProperties Deopt() {
     return OpProperties(kCanDeoptBit::encode(true));
   }
@@ -712,7 +716,7 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
 
  public:
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
 
   static constexpr int kOperandIndex = 0;
   Input& operand_input() { return Node::input(kOperandIndex); }
@@ -736,7 +740,7 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
 
  public:
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
@@ -933,8 +937,7 @@ class LoadField : public FixedInputValueNodeT<1, LoadField> {
   explicit LoadField(size_t input_count, int handler)
       : Base(input_count), handler_(handler) {}
 
-  // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties = OpProperties::Reading();
 
   int handler() const { return handler_; }
 
@@ -955,6 +958,8 @@ class StoreField : public FixedInputNodeT<2, StoreField> {
  public:
   explicit StoreField(size_t input_count, int handler)
       : Base(input_count), handler_(handler) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
 
   int handler() const { return handler_; }
 
@@ -979,7 +984,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
       : Base(input_count), name_(name) {}
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
 
   Input& context() { return input(0); }
   const compiler::NameRef& name() const { return name_; }
@@ -1000,7 +1005,7 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
       : Base(input_count), name_(name) {}
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
 
   compiler::NameRef name() const { return name_; }
 
@@ -1104,7 +1109,7 @@ class CallProperty : public ValueNodeT<CallProperty> {
     set_input(1, context);
   }
 
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
 
   Input& function() { return input(0); }
   const Input& function() const { return input(0); }
@@ -1125,7 +1130,7 @@ class CallUndefinedReceiver : public ValueNodeT<CallUndefinedReceiver> {
  public:
   explicit CallUndefinedReceiver(size_t input_count) : Base(input_count) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
 
   Input& function() { return input(0); }
   const Input& function() const { return input(0); }

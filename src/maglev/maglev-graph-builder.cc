@@ -128,7 +128,6 @@ void MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
   ValueNode* node = AddNewOperationNode<kOperation>(
       {value}, compiler::FeedbackSource{feedback(), slot_index});
   SetAccumulator(node);
-  MarkPossibleSideEffect();
 }
 
 template <Operation kOperation>
@@ -139,7 +138,6 @@ void MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
   ValueNode* node = AddNewOperationNode<kOperation>(
       {left, right}, compiler::FeedbackSource{feedback(), slot_index});
   SetAccumulator(node);
-  MarkPossibleSideEffect();
 }
 
 template <Operation kOperation>
@@ -213,7 +211,6 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
   USE(slot_index);  // TODO(v8:7700): Use the feedback info.
 
   SetAccumulator(AddNewNode<LoadGlobal>({context}, name));
-  MarkPossibleSideEffect();
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaGlobalInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaGlobal)
@@ -232,7 +229,6 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
   FeedbackNexus nexus = feedback_nexus(2);
 
   if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
-    EnsureCheckpoint();
     AddNewNode<SoftDeopt>({});
   } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
     std::vector<MapAndHandler> maps_and_handlers;
@@ -244,7 +240,6 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       LoadHandler::Kind kind = LoadHandler::KindBits::decode(handler);
       if (kind == LoadHandler::Kind::kField &&
           !LoadHandler::IsWasmStructBits::decode(handler)) {
-        EnsureCheckpoint();
         AddNewNode<CheckMaps>({object},
                               MakeRef(broker(), map_and_handler.first));
         SetAccumulator(AddNewNode<LoadField>({object}, handler));
@@ -256,7 +251,6 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
   ValueNode* context = GetContext();
   compiler::NameRef name = GetRefOperand<Name>(1);
   SetAccumulator(AddNewNode<LoadNamedGeneric>({context, object}, name));
-  MarkPossibleSideEffect();
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetNamedPropertyFromSuper)
@@ -270,7 +264,6 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
   FeedbackNexus nexus = feedback_nexus(2);
 
   if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
-    EnsureCheckpoint();
     AddNewNode<SoftDeopt>({});
   } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
     std::vector<MapAndHandler> maps_and_handlers;
@@ -281,7 +274,6 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
       int handler = map_and_handler.second->ToSmi().value();
       StoreHandler::Kind kind = StoreHandler::KindBits::decode(handler);
       if (kind == StoreHandler::Kind::kField) {
-        EnsureCheckpoint();
         AddNewNode<CheckMaps>({object},
                               MakeRef(broker(), map_and_handler.first));
         ValueNode* value = GetAccumulator();
@@ -389,7 +381,6 @@ void MaglevGraphBuilder::VisitCallProperty() {
     call_property->set_arg(i, current_interpreter_frame_.get(args[i]));
   }
   SetAccumulator(call_property);
-  MarkPossibleSideEffect();
 }
 void MaglevGraphBuilder::VisitCallProperty0() {
   ValueNode* function = LoadRegister(0);
@@ -398,7 +389,6 @@ void MaglevGraphBuilder::VisitCallProperty0() {
   CallProperty* call_property =
       AddNewNode<CallProperty>({function, context, LoadRegister(1)});
   SetAccumulator(call_property);
-  MarkPossibleSideEffect();
 }
 void MaglevGraphBuilder::VisitCallProperty1() {
   ValueNode* function = LoadRegister(0);
@@ -407,7 +397,6 @@ void MaglevGraphBuilder::VisitCallProperty1() {
   CallProperty* call_property = AddNewNode<CallProperty>(
       {function, context, LoadRegister(1), LoadRegister(2)});
   SetAccumulator(call_property);
-  MarkPossibleSideEffect();
 }
 void MaglevGraphBuilder::VisitCallProperty2() {
   ValueNode* function = LoadRegister(0);
@@ -416,7 +405,6 @@ void MaglevGraphBuilder::VisitCallProperty2() {
   CallProperty* call_property = AddNewNode<CallProperty>(
       {function, context, LoadRegister(1), LoadRegister(2), LoadRegister(3)});
   SetAccumulator(call_property);
-  MarkPossibleSideEffect();
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver0)

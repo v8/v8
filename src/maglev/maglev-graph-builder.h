@@ -125,14 +125,13 @@ class MaglevGraphBuilder {
 
   template <typename NodeT>
   NodeT* AddNode(NodeT* node) {
+    if (node->properties().can_deopt()) {
+      EnsureCheckpoint();
+    }
+    if (node->properties().is_required_when_unused()) {
+      MarkPossibleSideEffect();
+    }
     current_block_->nodes().Add(node);
-    return node;
-  }
-
-  template <typename NodeT, typename... Args>
-  NodeT* NewNode(size_t input_count, Args&&... args) {
-    NodeT* node =
-        Node::New<NodeT>(zone(), input_count, std::forward<Args>(args)...);
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
     return node;
   }
@@ -143,19 +142,14 @@ class MaglevGraphBuilder {
 
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(size_t input_count, Args&&... args) {
-    return AddNode(NewNode<NodeT>(input_count, std::forward<Args>(args)...));
-  }
-
-  template <typename NodeT, typename... Args>
-  NodeT* NewNode(std::initializer_list<ValueNode*> inputs, Args&&... args) {
-    NodeT* node = Node::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
-    if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-    return node;
+    return AddNode(
+        Node::New<NodeT>(zone(), input_count, std::forward<Args>(args)...));
   }
 
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args) {
-    return AddNode(NewNode<NodeT>(inputs, std::forward<Args>(args)...));
+    return AddNode(
+        Node::New<NodeT>(zone(), inputs, std::forward<Args>(args)...));
   }
 
   ValueNode* GetContext() const {
