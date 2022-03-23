@@ -264,7 +264,7 @@ size_t StatsCollector::marked_bytes() const {
 
 size_t StatsCollector::marked_bytes_on_current_cycle() const {
   DCHECK_NE(GarbageCollectionState::kNotRunning, gc_state_);
-  return marked_bytes_so_far_;
+  return current_.marked_bytes;
 }
 
 v8::base::TimeDelta StatsCollector::marking_time() const {
