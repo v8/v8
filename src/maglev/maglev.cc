@@ -16,6 +16,9 @@ MaybeHandle<CodeT> Maglev::Compile(Isolate* isolate,
   DCHECK(FLAG_maglev);
   auto info = maglev::MaglevCompilationInfo::New(isolate, function);
   maglev::MaglevCompilationUnit* const unit = info->toplevel_compilation_unit();
+  // TODO(v8:7700): Support exceptions in maglev. We currently bail if exception
+  // handler table is non-empty.
+  if (unit->bytecode().handler_table_size() > 0) return {};
   maglev::MaglevCompiler::Compile(unit);
   return maglev::MaglevCompiler::GenerateCode(unit);
 }
