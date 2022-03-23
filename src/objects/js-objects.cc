@@ -1656,6 +1656,49 @@ Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
 }
 
 // static
+Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
+                                        Handle<Object> value,
+                                        Maybe<ShouldThrow> should_throw) {
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
+  Isolate* isolate = receiver->GetIsolate();
+  DCHECK(it->GetName()->IsPrivateName());
+  Handle<Symbol> symbol = Handle<Symbol>::cast(it->GetName());
+
+  switch (it->state()) {
+    case LookupIterator::JSPROXY: {
+      PropertyDescriptor new_desc;
+      new_desc.set_value(value);
+      new_desc.set_writable(true);
+      new_desc.set_enumerable(true);
+      new_desc.set_configurable(true);
+      return JSProxy::SetPrivateSymbol(isolate, Handle<JSProxy>::cast(receiver),
+                                       symbol, &new_desc, should_throw);
+    }
+    case LookupIterator::DATA:
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::ACCESSOR:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      UNREACHABLE();
+
+    case LookupIterator::ACCESS_CHECK: {
+      if (!it->HasAccess()) {
+        it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>());
+        RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
+        return Just(true);
+      }
+      break;
+    }
+
+    case LookupIterator::TRANSITION:
+    case LookupIterator::NOT_FOUND:
+      break;
+  }
+
+  return Object::TransitionAndWriteDataProperty(it, value, NONE, should_throw,
+                                                StoreOrigin::kMaybeKeyed);
+}
+
+// static
 Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(Isolate* isolate,
                                                  Handle<JSReceiver> object,
                                                  Handle<Object> key,
@@ -3417,7 +3460,7 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
 Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
     Maybe<ShouldThrow> should_throw, AccessorInfoHandling handling,
-    EnforceDefineSemantics semantics) {
+    EnforceDefineSemantics semantics, StoreOrigin store_origin) {
   it->UpdateProtector();
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
 
@@ -3523,7 +3566,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
   }
 
   return Object::AddDataProperty(it, value, attributes, should_throw,
-                                 StoreOrigin::kNamed);
+                                 store_origin, semantics);
 }
 
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(

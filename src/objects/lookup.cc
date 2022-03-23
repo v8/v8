@@ -559,13 +559,15 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 #endif
 }
 
-// Can only be called when the receiver is a JSObject. JSProxy has to be handled
-// via a trap. Adding properties to primitive values is not observable.
+// Can only be called when the receiver is a JSObject, or when the name is a
+// private field, otherwise JSProxy has to be handled via a trap.
+// Adding properties to primitive values is not observable.
 void LookupIterator::PrepareTransitionToDataProperty(
     Handle<JSReceiver> receiver, Handle<Object> value,
     PropertyAttributes attributes, StoreOrigin store_origin) {
   DCHECK_IMPLIES(receiver->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
-  DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
+  DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
+                 name()->IsPrivateName());
   if (state_ == TRANSITION) return;
 
   if (!IsElement() && name()->IsPrivate(isolate_)) {
@@ -624,7 +626,8 @@ void LookupIterator::ApplyTransitionToDataProperty(
     Handle<JSReceiver> receiver) {
   DCHECK_EQ(TRANSITION, state_);
 
-  DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
+  DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
+                 name()->IsPrivateName());
   holder_ = receiver;
   if (receiver->IsJSGlobalObject(isolate_)) {
     JSObject::InvalidatePrototypeChains(receiver->map(isolate_));

@@ -1261,44 +1261,47 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
     NameDictionaryLookup<PropertyDictionary>(
-        properties, CAST(p->name()), &dictionary_found, &var_name_index, miss);
-    BIND(&dictionary_found);
-    {
-      if (p->IsDefineKeyedOwn()) {
-        // Take slow path to throw if a private name already exists.
-        GotoIf(IsPrivateSymbol(CAST(p->name())), &if_slow);
-      }
-      Label if_constant(this), done(this);
-      TNode<Uint32T> details =
-          LoadDetailsByKeyIndex(properties, var_name_index.value());
-      // Check that the property is a writable data property (no accessor).
-      const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
-                                       PropertyDetails::kAttributesReadOnlyMask;
-      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
-      GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
+        properties, CAST(p->name()),
+        p->IsAnyDefineOwn() ? &if_slow : &dictionary_found, &var_name_index,
+        miss);
 
-      if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-        GotoIf(IsPropertyDetailsConst(details), &if_constant);
-      }
+    // When dealing with class fields defined with DefineKeyedOwnIC or
+    // DefineNamedOwnIC, use the slow path to check the existing property.
+    if (!p->IsAnyDefineOwn()) {
+      BIND(&dictionary_found);
+      {
+        Label if_constant(this), done(this);
+        TNode<Uint32T> details =
+            LoadDetailsByKeyIndex(properties, var_name_index.value());
+        // Check that the property is a writable data property (no accessor).
+        const int kTypeAndReadOnlyMask =
+            PropertyDetails::KindField::kMask |
+            PropertyDetails::kAttributesReadOnlyMask;
+        STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
+        GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
-      StoreValueByKeyIndex<PropertyDictionary>(
-          properties, var_name_index.value(), p->value());
-      Return(p->value());
-
-      if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-        BIND(&if_constant);
-        {
-          TNode<Object> prev_value =
-              LoadValueByKeyIndex(properties, var_name_index.value());
-          BranchIfSameValue(prev_value, p->value(), &done, miss,
-                            SameValueMode::kNumbersOnly);
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          GotoIf(IsPropertyDetailsConst(details), &if_constant);
         }
 
-        BIND(&done);
+        StoreValueByKeyIndex<PropertyDictionary>(
+            properties, var_name_index.value(), p->value());
         Return(p->value());
+
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          BIND(&if_constant);
+          {
+            TNode<Object> prev_value =
+                LoadValueByKeyIndex(properties, var_name_index.value());
+            BranchIfSameValue(prev_value, p->value(), &done, miss,
+                              SameValueMode::kNumbersOnly);
+          }
+
+          BIND(&done);
+          Return(p->value());
+        }
       }
     }
-
     BIND(&if_fast_smi);
     {
       Label data(this), accessor(this), shared_struct_field(this),

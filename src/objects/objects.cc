@@ -2853,7 +2853,8 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
 Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                                     PropertyAttributes attributes,
                                     Maybe<ShouldThrow> should_throw,
-                                    StoreOrigin store_origin) {
+                                    StoreOrigin store_origin,
+                                    EnforceDefineSemantics semantics) {
   if (!it->GetReceiver()->IsJSReceiver()) {
     return CannotCreateProperty(it->isolate(), it->GetReceiver(), it->GetName(),
                                 value, should_throw);
@@ -2881,9 +2882,11 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   Isolate* isolate = it->isolate();
 
   if (it->ExtendingNonExtensible(receiver)) {
-    RETURN_FAILURE(
-        isolate, GetShouldThrow(it->isolate(), should_throw),
-        NewTypeError(MessageTemplate::kObjectNotExtensible, it->GetName()));
+    RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
+                   NewTypeError(semantics == EnforceDefineSemantics::kDefine
+                                    ? MessageTemplate::kDefineDisallowed
+                                    : MessageTemplate::kObjectNotExtensible,
+                                it->GetName()));
   }
 
   if (it->IsElement(*receiver)) {
@@ -2903,28 +2906,36 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                  Nothing<bool>());
     JSObject::ValidateElements(*receiver_obj);
     return Just(true);
-  } else {
-    it->UpdateProtector();
-    // Migrate to the most up-to-date map that will be able to store |value|
-    // under it->name() with |attributes|.
-    it->PrepareTransitionToDataProperty(receiver, value, attributes,
-                                        store_origin);
-    DCHECK_EQ(LookupIterator::TRANSITION, it->state());
-    it->ApplyTransitionToDataProperty(receiver);
+  }
 
-    // Write the property value.
-    it->WriteDataValue(value, true);
+  return Object::TransitionAndWriteDataProperty(it, value, attributes,
+                                                should_throw, store_origin);
+}
+
+// static
+Maybe<bool> Object::TransitionAndWriteDataProperty(
+    LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+    Maybe<ShouldThrow> should_throw, StoreOrigin store_origin) {
+  Handle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
+  it->UpdateProtector();
+  // Migrate to the most up-to-date map that will be able to store |value|
+  // under it->name() with |attributes|.
+  it->PrepareTransitionToDataProperty(receiver, value, attributes,
+                                      store_origin);
+  DCHECK_EQ(LookupIterator::TRANSITION, it->state());
+  it->ApplyTransitionToDataProperty(receiver);
+
+  // Write the property value.
+  it->WriteDataValue(value, true);
 
 #if VERIFY_HEAP
     if (FLAG_verify_heap) {
-      receiver->HeapObjectVerify(isolate);
+      receiver->HeapObjectVerify(it->isolate());
     }
 #endif
-  }
 
-  return Just(true);
+    return Just(true);
 }
-
 // static
 MaybeHandle<Object> Object::ShareSlow(Isolate* isolate,
                                       Handle<HeapObject> value,
@@ -3586,7 +3597,6 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
                                       Handle<Symbol> private_name,
                                       PropertyDescriptor* desc,
                                       Maybe<ShouldThrow> should_throw) {
-  DCHECK(!private_name->IsPrivateName());
   // Despite the generic name, this can only add private data properties.
   if (!PropertyDescriptor::IsDataDescriptor(desc) ||
       desc->ToAttributes() != DONT_ENUM) {

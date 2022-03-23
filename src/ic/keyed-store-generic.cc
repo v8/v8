@@ -151,6 +151,9 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   bool IsStoreInLiteral() const { return mode_ == StoreMode::kInLiteral; }
   bool IsDefineNamedOwn() const { return mode_ == StoreMode::kDefineNamedOwn; }
   bool IsDefineKeyedOwn() const { return mode_ == StoreMode::kDefineKeyedOwn; }
+  bool IsAnyDefineOwn() const {
+    return IsDefineNamedOwn() || IsDefineKeyedOwn();
+  }
 
   bool ShouldCheckPrototype() const { return IsKeyedStore(); }
   bool ShouldReconfigureExisting() const { return IsStoreInLiteral(); }
@@ -818,53 +821,56 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
     Label descriptor_found(this), lookup_transition(this);
     TVARIABLE(IntPtrT, var_name_index);
-    DescriptorLookup(name, descriptors, bitfield3, &descriptor_found,
+    DescriptorLookup(name, descriptors, bitfield3,
+                     IsAnyDefineOwn() ? slow : &descriptor_found,
                      &var_name_index, &lookup_transition);
 
-    BIND(&descriptor_found);
-    {
-      if (IsDefineKeyedOwn()) {
-        // Take slow path to throw if a private name already exists.
-        GotoIf(IsPrivateSymbol(name), slow);
-      }
-      TNode<IntPtrT> name_index = var_name_index.value();
-      TNode<Uint32T> details = LoadDetailsByKeyIndex(descriptors, name_index);
-      Label data_property(this);
-      JumpIfDataProperty(details, &data_property,
-                         ShouldReconfigureExisting() ? nullptr : &readonly);
-
-      if (ShouldCallSetter()) {
-        // Accessor case.
-        // TODO(jkummerow): Implement a trimmed-down LoadAccessorFromFastObject.
-        LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
-                                   name_index, details, &var_accessor_pair);
-        var_accessor_holder = receiver;
-        Goto(&accessor);
-      } else {
-        // Handle accessor to data property reconfiguration in runtime.
-        Goto(slow);
-      }
-
-      BIND(&data_property);
+    // When dealing with class fields defined with DefineKeyedOwnIC or
+    // DefineNamedOwnIC, use the slow path to check the existing property.
+    if (!IsAnyDefineOwn()) {
+      BIND(&descriptor_found);
       {
-        Label shared(this);
-        GotoIf(IsJSSharedStructInstanceType(instance_type), &shared);
+        TNode<IntPtrT> name_index = var_name_index.value();
+        TNode<Uint32T> details = LoadDetailsByKeyIndex(descriptors, name_index);
+        Label data_property(this);
+        JumpIfDataProperty(details, &data_property,
+                           ShouldReconfigureExisting() ? nullptr : &readonly);
 
-        CheckForAssociatedProtector(name, slow);
-        OverwriteExistingFastDataProperty(receiver, receiver_map, descriptors,
-                                          name_index, details, p->value(), slow,
-                                          false);
-        exit_point->Return(p->value());
+        if (ShouldCallSetter()) {
+          // Accessor case.
+          // TODO(jkummerow): Implement a trimmed-down
+          // LoadAccessorFromFastObject.
+          LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
+                                     name_index, details, &var_accessor_pair);
+          var_accessor_holder = receiver;
+          Goto(&accessor);
+        } else {
+          // Handle accessor to data property reconfiguration in runtime.
+          Goto(slow);
+        }
 
-        BIND(&shared);
+        BIND(&data_property);
         {
-          StoreJSSharedStructField(p->context(), receiver, receiver_map,
-                                   descriptors, name_index, details,
-                                   p->value());
+          Label shared(this);
+          GotoIf(IsJSSharedStructInstanceType(instance_type), &shared);
+
+          CheckForAssociatedProtector(name, slow);
+          OverwriteExistingFastDataProperty(receiver, receiver_map, descriptors,
+                                            name_index, details, p->value(),
+                                            slow, false);
           exit_point->Return(p->value());
+
+          BIND(&shared);
+          {
+            StoreJSSharedStructField(p->context(), receiver, receiver_map,
+                                     descriptors, name_index, details,
+                                     p->value());
+            exit_point->Return(p->value());
+          }
         }
       }
     }
+
     BIND(&lookup_transition);
     {
       Comment("lookup transition");
@@ -891,56 +897,59 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index), not_found(this);
     TNode<PropertyDictionary> properties = CAST(LoadSlowProperties(receiver));
+
+    // When dealing with class fields defined with DefineKeyedOwnIC or
+    // DefineNamedOwnIC, use the slow path to check the existing property.
     NameDictionaryLookup<PropertyDictionary>(
-        properties, name, &dictionary_found, &var_name_index, &not_found);
-    BIND(&dictionary_found);
-    {
-      Label check_const(this), overwrite(this), done(this);
-      if (IsDefineKeyedOwn()) {
-        // Take slow path to throw if a private name already exists.
-        GotoIf(IsPrivateSymbol(name), slow);
-      }
-      TNode<Uint32T> details =
-          LoadDetailsByKeyIndex(properties, var_name_index.value());
-      JumpIfDataProperty(details, &check_const,
-                         ShouldReconfigureExisting() ? nullptr : &readonly);
+        properties, name, IsAnyDefineOwn() ? slow : &dictionary_found,
+        &var_name_index, &not_found);
 
-      if (ShouldCallSetter()) {
-        // Accessor case.
-        var_accessor_pair =
-            LoadValueByKeyIndex(properties, var_name_index.value());
-        var_accessor_holder = receiver;
-        Goto(&accessor);
-      } else {
-        // We must reconfigure an accessor property to a data property
-        // here, let the runtime take care of that.
-        Goto(slow);
-      }
-
-      BIND(&check_const);
+    if (!IsAnyDefineOwn()) {
+      BIND(&dictionary_found);
       {
-        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-          GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
-          TNode<Object> prev_value =
+        Label check_const(this), overwrite(this), done(this);
+        TNode<Uint32T> details =
+            LoadDetailsByKeyIndex(properties, var_name_index.value());
+        JumpIfDataProperty(details, &check_const,
+                           ShouldReconfigureExisting() ? nullptr : &readonly);
+
+        if (ShouldCallSetter()) {
+          // Accessor case.
+          var_accessor_pair =
               LoadValueByKeyIndex(properties, var_name_index.value());
-
-          BranchIfSameValue(prev_value, p->value(), &done, slow,
-                            SameValueMode::kNumbersOnly);
+          var_accessor_holder = receiver;
+          Goto(&accessor);
         } else {
-          Goto(&overwrite);
+          // We must reconfigure an accessor property to a data property
+          // here, let the runtime take care of that.
+          Goto(slow);
         }
-      }
 
-      BIND(&overwrite);
-      {
-        CheckForAssociatedProtector(name, slow);
-        StoreValueByKeyIndex<PropertyDictionary>(
-            properties, var_name_index.value(), p->value());
-        Goto(&done);
-      }
+        BIND(&check_const);
+        {
+          if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+            GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
+            TNode<Object> prev_value =
+                LoadValueByKeyIndex(properties, var_name_index.value());
 
-      BIND(&done);
-      exit_point->Return(p->value());
+            BranchIfSameValue(prev_value, p->value(), &done, slow,
+                              SameValueMode::kNumbersOnly);
+          } else {
+            Goto(&overwrite);
+          }
+        }
+
+        BIND(&overwrite);
+        {
+          CheckForAssociatedProtector(name, slow);
+          StoreValueByKeyIndex<PropertyDictionary>(
+              properties, var_name_index.value(), p->value());
+          Goto(&done);
+        }
+
+        BIND(&done);
+        exit_point->Return(p->value());
+      }
     }
 
     BIND(&not_found);
@@ -1022,28 +1031,23 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     }
   }
 
-  if (!ShouldReconfigureExisting()) {
+  if (!ShouldReconfigureExisting() && !IsAnyDefineOwn()) {
     BIND(&readonly);
     {
-      if (IsDefineKeyedOwn() || IsDefineNamedOwn()) {
-        Goto(slow);
-      } else {
-        LanguageMode language_mode;
-        if (maybe_language_mode.To(&language_mode)) {
-          if (language_mode == LanguageMode::kStrict) {
-            TNode<String> type = Typeof(p->receiver());
-            ThrowTypeError(p->context(),
-                           MessageTemplate::kStrictReadOnlyProperty, name, type,
-                           p->receiver());
-          } else {
-            exit_point->Return(p->value());
-          }
+      LanguageMode language_mode;
+      if (maybe_language_mode.To(&language_mode)) {
+        if (language_mode == LanguageMode::kStrict) {
+          TNode<String> type = Typeof(p->receiver());
+          ThrowTypeError(p->context(), MessageTemplate::kStrictReadOnlyProperty,
+                         name, type, p->receiver());
         } else {
-          CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context(),
-                      SmiConstant(MessageTemplate::kStrictReadOnlyProperty),
-                      name, Typeof(p->receiver()), p->receiver());
           exit_point->Return(p->value());
         }
+      } else {
+        CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context(),
+                    SmiConstant(MessageTemplate::kStrictReadOnlyProperty), name,
+                    Typeof(p->receiver()), p->receiver());
+        exit_point->Return(p->value());
       }
     }
   }
