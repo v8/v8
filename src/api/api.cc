@@ -807,17 +807,16 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
 namespace internal {
 
-i::Address* GlobalizeTracedReference(
-    i::Isolate* isolate, i::Address* obj, internal::Address* slot,
-    GlobalHandleDestructionMode destruction_mode,
-    GlobalHandleStoreMode store_mode) {
+i::Address* GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
+                                     internal::Address* slot,
+                                     GlobalHandleStoreMode store_mode) {
   LOG_API(isolate, TracedGlobal, New);
 #ifdef DEBUG
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
                   "the address slot must be not null");
 #endif
-  i::Handle<i::Object> result = isolate->global_handles()->CreateTraced(
-      *obj, slot, destruction_mode, store_mode);
+  i::Handle<i::Object> result =
+      isolate->global_handles()->CreateTraced(*obj, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
     i::Object(*obj).ObjectVerify(isolate);
@@ -826,24 +825,17 @@ i::Address* GlobalizeTracedReference(
   return result.location();
 }
 
-void MoveTracedGlobalReference(internal::Address** from,
-                               internal::Address** to) {
-  GlobalHandles::MoveTracedGlobal(from, to);
+void MoveTracedReference(internal::Address** from, internal::Address** to) {
+  GlobalHandles::MoveTracedReference(from, to);
 }
 
-void CopyTracedGlobalReference(const internal::Address* const* from,
-                               internal::Address** to) {
-  GlobalHandles::CopyTracedGlobal(from, to);
+void CopyTracedReference(const internal::Address* const* from,
+                         internal::Address** to) {
+  GlobalHandles::CopyTracedReference(from, to);
 }
 
-void DisposeTracedGlobal(internal::Address* location) {
-  GlobalHandles::DestroyTraced(location);
-}
-
-void SetFinalizationCallbackTraced(internal::Address* location, void* parameter,
-                                   WeakCallbackInfo<void>::Callback callback) {
-  GlobalHandles::SetFinalizationCallbackForTraced(location, parameter,
-                                                  callback);
+void DisposeTracedReference(internal::Address* location) {
+  GlobalHandles::DestroyTracedReference(location);
 }
 
 }  // namespace internal
@@ -10274,11 +10266,6 @@ void EmbedderHeapTracer::IterateTracedGlobalHandles(
 
 bool EmbedderHeapTracer::IsRootForNonTracingGC(
     const v8::TracedReference<v8::Value>& handle) {
-  return true;
-}
-
-bool EmbedderHeapTracer::IsRootForNonTracingGC(
-    const v8::TracedGlobal<v8::Value>& handle) {
   return true;
 }
 
