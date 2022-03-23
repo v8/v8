@@ -1290,14 +1290,31 @@ class ModuleDecoderImpl : public Decoder {
       uint8_t hint_byte = decoder.consume_u8("compilation hint");
       if (!decoder.ok()) break;
 
+      // Validate the hint_byte.
+      // For the compilation strategy, all 2-bit values are valid. For the tier,
+      // only 0x0, 0x1, and 0x2 are allowed.
+      static_assert(
+          static_cast<int>(WasmCompilationHintTier::kDefault) == 0 &&
+              static_cast<int>(WasmCompilationHintTier::kBaseline) == 1 &&
+              static_cast<int>(WasmCompilationHintTier::kOptimized) == 2,
+          "The check below assumes that 0x03 is the only invalid 2-bit number "
+          "for a compilation tier");
+      if (((hint_byte >> 2) & 0x03) == 0x03 ||
+          ((hint_byte >> 4) & 0x03) == 0x03) {
+        decoder.errorf(decoder.pc(),
+                       "Invalid compilation hint %#04x (invalid tier 0x03)",
+                       hint_byte);
+        break;
+      }
+
       // Decode compilation hint.
       WasmCompilationHint hint;
       hint.strategy =
           static_cast<WasmCompilationHintStrategy>(hint_byte & 0x03);
       hint.baseline_tier =
-          static_cast<WasmCompilationHintTier>(hint_byte >> 2 & 0x3);
+          static_cast<WasmCompilationHintTier>((hint_byte >> 2) & 0x03);
       hint.top_tier =
-          static_cast<WasmCompilationHintTier>(hint_byte >> 4 & 0x3);
+          static_cast<WasmCompilationHintTier>((hint_byte >> 4) & 0x03);
 
       // Ensure that the top tier never downgrades a compilation result. If
       // baseline and top tier are the same compilation will be invoked only
@@ -1305,7 +1322,7 @@ class ModuleDecoderImpl : public Decoder {
       if (hint.top_tier < hint.baseline_tier &&
           hint.top_tier != WasmCompilationHintTier::kDefault) {
         decoder.errorf(decoder.pc(),
-                       "Invalid compilation hint %#x (forbidden downgrade)",
+                       "Invalid compilation hint %#04x (forbidden downgrade)",
                        hint_byte);
       }
 
