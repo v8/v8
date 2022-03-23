@@ -1164,22 +1164,12 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   DCHECK_EQ(0, element_size_bytes(kind) % kSystemPointerSize);
   int words = element_size_bytes(kind) / kSystemPointerSize;
   DCHECK_LE(1, words);
-  // Make sure we move the words in the correct order in case there is an
-  // overlap between src and dst.
-  if (src_offset < dst_offset) {
-    do {
-      liftoff::MoveStackValue(this, liftoff::GetStackSlot(src_offset),
-                              liftoff::GetStackSlot(dst_offset));
-      dst_offset -= kSystemPointerSize;
-      src_offset -= kSystemPointerSize;
-    } while (--words);
-  } else {
-    while (words--) {
-      liftoff::MoveStackValue(
-          this, liftoff::GetStackSlot(src_offset - words * kSystemPointerSize),
-          liftoff::GetStackSlot(dst_offset - words * kSystemPointerSize));
-    }
-  }
+  do {
+    liftoff::MoveStackValue(this, liftoff::GetStackSlot(src_offset),
+                            liftoff::GetStackSlot(dst_offset));
+    dst_offset -= kSystemPointerSize;
+    src_offset -= kSystemPointerSize;
+  } while (--words);
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
