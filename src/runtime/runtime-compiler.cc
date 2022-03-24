@@ -178,7 +178,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   DCHECK_EQ(0, args.length());
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
-  DCHECK(deoptimizer->compiled_code()->is_turbofanned());
   DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK(isolate->context().is_null());
 

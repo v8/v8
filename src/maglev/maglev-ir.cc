@@ -12,9 +12,11 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/ic/handler-configuration.h"
 #include "src/maglev/maglev-code-gen-state.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-vreg-allocator.h"
 
 namespace v8 {
@@ -147,6 +149,10 @@ struct CopyForDeferredHelper<MaglevCompilationUnit*>
 template <>
 struct CopyForDeferredHelper<Register>
     : public CopyForDeferredByValue<Register> {};
+// Bytecode offsets are copied by value.
+template <>
+struct CopyForDeferredHelper<BytecodeOffset>
+    : public CopyForDeferredByValue<BytecodeOffset> {};
 
 // InterpreterFrameState is cloned.
 template <>
@@ -196,7 +202,7 @@ struct StripFirstTwoTupleArgs<std::tuple<T1, T2, T...>> {
 };
 
 template <typename Function>
-class DeferredCodeInfoImpl final : public MaglevCodeGenState::DeferredCodeInfo {
+class DeferredCodeInfoImpl final : public DeferredCodeInfo {
  public:
   using FunctionPointer =
       typename FunctionArgumentsTupleHelper<Function>::FunctionPointer;
@@ -252,64 +258,36 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
 // Deopt
 // ---
 
-void EmitDeopt(MaglevCodeGenState* code_gen_state, Node* node,
-               int deopt_bytecode_position,
-               const InterpreterFrameState* checkpoint_state) {
-  DCHECK(node->properties().can_deopt());
-  // TODO(leszeks): Extract to separate call, or at the very least defer.
+DeoptimizationInfo* CreateEagerDeopt(
+    MaglevCodeGenState* code_gen_state, BytecodeOffset bytecode_position,
+    const InterpreterFrameState* checkpoint_state) {
+  Zone* zone = code_gen_state->compilation_unit()->zone();
+  DeoptimizationInfo* deopt_info = zone->New<DeoptimizationInfo>(
+      bytecode_position,
+      // TODO(leszeks): Right now we unconditionally copy the IFS. If we made
+      // checkpoint states already always be copies, we could remove this copy.
+      zone->New<InterpreterFrameState>(*code_gen_state->compilation_unit(),
+                                       *checkpoint_state));
 
-  // TODO(leszeks): Stack check.
-  MaglevCompilationUnit* compilation_unit = code_gen_state->compilation_unit();
-  int maglev_frame_size = code_gen_state->vreg_slots();
-
-  ASM_CODE_COMMENT_STRING(code_gen_state->masm(), "Deoptimize");
-  __ RecordComment("Push registers and load accumulator");
-  int num_saved_slots = 0;
-  // TODO(verwaest): We probably shouldn't be spilling all values that go
-  // through deopt :)
-  for (int i = 0; i < compilation_unit->register_count(); ++i) {
-    ValueNode* node = checkpoint_state->get(interpreter::Register(i));
-    if (node == nullptr) continue;
-    __ Push(ToMemOperand(node->spill_slot()));
-    num_saved_slots++;
-  }
-  ValueNode* accumulator = checkpoint_state->accumulator();
-  if (accumulator) {
-    __ movq(kInterpreterAccumulatorRegister,
-            ToMemOperand(accumulator->spill_slot()));
-  }
-
-  __ RecordComment("Load registers from extra pushed slots");
-  int slot = 0;
-  for (int i = 0; i < compilation_unit->register_count(); ++i) {
-    ValueNode* node = checkpoint_state->get(interpreter::Register(i));
-    if (node == nullptr) continue;
-    __ movq(kScratchRegister, MemOperand(rsp, (num_saved_slots - slot++ - 1) *
-                                                  kSystemPointerSize));
-    __ movq(MemOperand(rbp, InterpreterFrameConstants::kRegisterFileFromFp -
-                                i * kSystemPointerSize),
-            kScratchRegister);
-  }
-  DCHECK_EQ(slot, num_saved_slots);
-
-  __ RecordComment("Materialize bytecode array and offset");
-  __ Move(MemOperand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp),
-          compilation_unit->bytecode().object());
-  __ Move(MemOperand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
-          Smi::FromInt(deopt_bytecode_position +
-                       (BytecodeArray::kHeaderSize - kHeapObjectTag)));
-
-  // Reset rsp to bytecode sized frame.
-  __ addq(rsp, Immediate((maglev_frame_size + num_saved_slots -
-                          (2 + compilation_unit->register_count())) *
-                         kSystemPointerSize));
-  __ TailCallBuiltin(Builtin::kBaselineOrInterpreterEnterAtBytecode);
+  code_gen_state->PushNonLazyDeopt(deopt_info);
+  return deopt_info;
 }
 
-void EmitDeopt(MaglevCodeGenState* code_gen_state, Node* node,
-               const ProcessingState& state) {
-  EmitDeopt(code_gen_state, node, state.checkpoint()->bytecode_position(),
-            state.checkpoint_frame_state());
+void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
+                      BytecodeOffset bytecode_position,
+                      const InterpreterFrameState* checkpoint_state) {
+  DeoptimizationInfo* deopt_info =
+      CreateEagerDeopt(code_gen_state, bytecode_position, checkpoint_state);
+  __ RecordComment("-- Jump to eager deopt");
+  __ j(cond, &deopt_info->entry_label);
+}
+
+void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
+                      Node* node, const ProcessingState& state) {
+  DCHECK(node->properties().can_deopt());
+  EmitEagerDeoptIf(cond, code_gen_state,
+                   state.checkpoint()->bytecode_position(),
+                   state.checkpoint_frame_state());
 }
 
 // ---
@@ -407,7 +385,8 @@ void SoftDeopt::AllocateVreg(MaglevVregAllocationState* vreg_state,
                              const ProcessingState& state) {}
 void SoftDeopt::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
-  EmitDeopt(code_gen_state, this, state);
+  // TODO(leszeks): Make this a soft deopt.
+  EmitEagerDeoptIf(always, code_gen_state, this, state);
 }
 
 void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -520,17 +499,18 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
     JumpToDeferredIf(
         not_equal, code_gen_state,
         [](MaglevCodeGenState* code_gen_state, Label* return_label,
-           Register object, CheckMaps* node, int checkpoint_position,
+           Register object, CheckMaps* node, BytecodeOffset checkpoint_position,
            const InterpreterFrameState* checkpoint_state_snapshot,
            Register map_tmp) {
-          Label deopt;
+          DeoptimizationInfo* deopt = CreateEagerDeopt(
+              code_gen_state, checkpoint_position, checkpoint_state_snapshot);
 
           // If the map is not deprecated, deopt straight away.
           __ movl(kScratchRegister,
                   FieldOperand(map_tmp, Map::kBitField3Offset));
           __ testl(kScratchRegister,
                    Immediate(Map::Bits3::IsDeprecatedBit::kMask));
-          __ j(zero, &deopt);
+          __ j(zero, &deopt->entry_label);
 
           // Otherwise, try migrating the object. If the migration returns Smi
           // zero, then it failed and we should deopt.
@@ -540,25 +520,19 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
           // TODO(verwaest): We're calling so we need to spill around it.
           __ CallRuntime(Runtime::kTryMigrateInstance);
           __ cmpl(kReturnRegister0, Immediate(0));
-          __ j(equal, &deopt);
+          __ j(equal, &deopt->entry_label);
 
           // The migrated object is returned on success, retry the map check.
           __ Move(object, kReturnRegister0);
           __ LoadMap(map_tmp, object);
           __ Cmp(map_tmp, node->map().object());
           __ j(equal, return_label);
-
-          __ bind(&deopt);
-          EmitDeopt(code_gen_state, node, checkpoint_position,
-                    checkpoint_state_snapshot);
+          __ jmp(&deopt->entry_label);
         },
         object, this, state.checkpoint()->bytecode_position(),
         state.checkpoint_frame_state(), map_tmp);
   } else {
-    Label is_ok;
-    __ j(equal, &is_ok);
-    EmitDeopt(code_gen_state, this, state);
-    __ bind(&is_ok);
+    EmitEagerDeoptIf(not_equal, code_gen_state, this, state);
   }
 }
 void CheckMaps::PrintParams(std::ostream& os,

@@ -325,7 +325,7 @@ class GraphProcessor {
   void ClearDeadCheckpointNodes() {
     const compiler::BytecodeLivenessState* liveness =
         bytecode_analysis().GetInLivenessFor(
-            checkpoint_state_->latest_checkpoint->bytecode_position());
+            checkpoint_state_->latest_checkpoint->bytecode_position().ToInt());
     for (int i = 0; i < register_count(); ++i) {
       if (!liveness->RegisterIsLive(i)) {
         checkpoint_state_->checkpoint_frame_state.set(interpreter::Register(i),

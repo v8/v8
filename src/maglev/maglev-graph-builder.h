@@ -193,7 +193,7 @@ class MaglevGraphBuilder {
 
   void AddCheckpoint() {
     // TODO(v8:7700): Verify this calls the initializer list overload.
-    AddNewNode<Checkpoint>({}, iterator_.current_offset(),
+    AddNewNode<Checkpoint>({}, BytecodeOffset(iterator_.current_offset()),
                            GetInLiveness()->AccumulatorIsLive(),
                            GetAccumulator());
     has_valid_checkpoint_ = true;

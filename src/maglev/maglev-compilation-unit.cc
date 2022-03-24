@@ -15,8 +15,8 @@ namespace maglev {
 MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
                                              Handle<JSFunction> function)
     : info_(info),
-      bytecode_(
-          MakeRef(broker(), function->shared().GetBytecodeArray(isolate()))),
+      shared_function_info_(MakeRef(broker(), function->shared())),
+      bytecode_(shared_function_info_.GetBytecodeArray()),
       feedback_(MakeRef(broker(), function->feedback_vector())),
       bytecode_analysis_(bytecode_.object(), zone(), BytecodeOffset::None(),
                          true),

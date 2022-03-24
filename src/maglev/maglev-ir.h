@@ -869,13 +869,13 @@ class Checkpoint : public FixedInputNodeT<0, Checkpoint> {
   using Base = FixedInputNodeT<0, Checkpoint>;
 
  public:
-  explicit Checkpoint(size_t input_count, int bytecode_position,
+  explicit Checkpoint(size_t input_count, BytecodeOffset bytecode_position,
                       bool accumulator_is_live, ValueNode* accumulator)
       : Base(input_count),
         bytecode_position_(bytecode_position),
         accumulator_(accumulator_is_live ? accumulator : nullptr) {}
 
-  int bytecode_position() const { return bytecode_position_; }
+  BytecodeOffset bytecode_position() const { return bytecode_position_; }
   bool is_used() const { return IsUsedBit::decode(bit_field_); }
   void SetUsed() { bit_field_ = IsUsedBit::update(bit_field_, true); }
   ValueNode* accumulator() const { return accumulator_; }
@@ -887,7 +887,7 @@ class Checkpoint : public FixedInputNodeT<0, Checkpoint> {
  private:
   using IsUsedBit = NextBitField<bool, 1>;
 
-  const int bytecode_position_;
+  const BytecodeOffset bytecode_position_;
   ValueNode* const accumulator_;
 };
 
