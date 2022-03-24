@@ -41,6 +41,7 @@ namespace internal {
   V(Map)                                \
   V(NativeContext)                      \
   V(PreparseData)                       \
+  V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \

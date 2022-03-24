@@ -606,6 +606,25 @@ class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class PromiseOnStack::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return offset >= HeapObject::kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, Struct::kHeaderSize, kPromiseOffset, v);
+    IterateMaybeWeakPointer(obj, kPromiseOffset, v);
+    STATIC_ASSERT(kPromiseOffset + kTaggedSize == kHeaderSize);
+  }
+
+  static inline int SizeOf(Map map, HeapObject obj) {
+    return obj.SizeFromMap(map);
+  }
+};
+
 class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {

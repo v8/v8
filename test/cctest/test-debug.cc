@@ -5764,7 +5764,7 @@ TEST(AwaitCleansUpGlobalPromiseStack) {
       "})();\n");
   CompileRun(source);
 
-  CHECK_EQ(CcTest::i_isolate()->thread_local_top()->promise_on_stack_, nullptr);
+  CHECK(CcTest::i_isolate()->IsPromiseStackEmpty());
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();

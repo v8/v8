@@ -3460,6 +3460,16 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   return handle(info, isolate());
 }
 
+Handle<PromiseOnStack> Factory::NewPromiseOnStack(Handle<Object> prev,
+                                                  Handle<JSObject> promise) {
+  PromiseOnStack promise_on_stack = NewStructInternal<PromiseOnStack>(
+      PROMISE_ON_STACK_TYPE, AllocationType::kYoung);
+  DisallowGarbageCollection no_gc;
+  promise_on_stack.set_prev(*prev, SKIP_WRITE_BARRIER);
+  promise_on_stack.set_promise(*MaybeObjectHandle::Weak(promise));
+  return handle(promise_on_stack, isolate());
+}
+
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
   bool strict_mode_callee = is_strict(callee->shared().language_mode()) ||

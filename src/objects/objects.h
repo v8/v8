@@ -183,6 +183,7 @@
 //       - CallSiteInfo
 //       - CodeCache
 //       - PropertyDescriptorObject
+//       - PromiseOnStack
 //       - PrototypeInfo
 //       - Microtask
 //         - CallbackTask
