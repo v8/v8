@@ -2511,6 +2511,12 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           Maybe<bool> result =
               JSObject::SetPropertyWithInterceptor(it, should_throw, value);
           if (result.IsNothing() || result.FromJust()) return result;
+          // Assuming that the callback have side effects, we use
+          // Object::SetSuperProperty() which works properly regardless on
+          // whether the property was present on the receiver or not when
+          // storing to the receiver.
+          // Proceed lookup from the next state.
+          it->Next();
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(it);
@@ -2531,10 +2537,8 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
             // property to the receiver.
             it->NotFound();
           }
-          return Object::SetSuperProperty(it, value, store_origin,
-                                          should_throw);
         }
-        break;
+        return Object::SetSuperProperty(it, value, store_origin, should_throw);
       }
 
       case LookupIterator::ACCESSOR: {
