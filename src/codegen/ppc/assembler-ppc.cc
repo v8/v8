@@ -1135,6 +1135,30 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 }
 #endif
 
+// Prefixed instructions.
+void Assembler::paddi(Register dst, Register src, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  CHECK(is_int34(imm.immediate()));
+  DCHECK(src != r0);  // use pli instead to show intent.
+  int32_t hi = (imm.immediate() >> 16) & kImm18Mask;  // 18 bits.
+  int16_t lo = imm.immediate() & kImm16Mask;          // 16 bits.
+  ppaddi(Operand(hi));
+  addi(dst, src, Operand(lo));
+}
+
+void Assembler::pli(Register dst, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  CHECK(is_int34(imm.immediate()));
+  int32_t hi = (imm.immediate() >> 16) & kImm18Mask;  // 18 bits.
+  int16_t lo = imm.immediate() & kImm16Mask;          // 16 bits.
+  ppaddi(Operand(hi));
+  li(dst, Operand(lo));
+}
+
+void Assembler::psubi(Register dst, Register src, const Operand& imm) {
+  paddi(dst, src, Operand(-(imm.immediate())));
+}
+
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {
   bool canOptimize =
@@ -1162,7 +1186,9 @@ bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
 #else
   bool allowOverflow = !(canOptimize || dst == r0);
 #endif
-  if (canOptimize && is_int16(value)) {
+  if (canOptimize &&
+      (is_int16(value) ||
+       (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))) {
     // Prefer a single-instruction load-immediate.
     return false;
   }
@@ -1209,7 +1235,10 @@ void Assembler::mov(Register dst, const Operand& src) {
   bool canOptimize;
 
   canOptimize =
-      !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
+      !(relocatable ||
+        (is_trampoline_pool_blocked() &&
+         (!is_int16(value) ||
+          !(CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))));
 
   if (!src.IsHeapObjectRequest() &&
       use_constant_pool_for_mov(dst, src, canOptimize)) {
@@ -1239,6 +1268,8 @@ void Assembler::mov(Register dst, const Operand& src) {
   if (canOptimize) {
     if (is_int16(value)) {
       li(dst, Operand(value));
+    } else if (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)) {
+      pli(dst, Operand(value));
     } else {
       uint16_t u16;
 #if V8_TARGET_ARCH_PPC64

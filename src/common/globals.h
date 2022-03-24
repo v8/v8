@@ -597,6 +597,10 @@ constexpr intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 // other architectures.
 #if V8_TARGET_ARCH_X64
 constexpr int kCodeAlignmentBits = 6;
+#elif V8_TARGET_ARCH_PPC64
+// 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
+// don't cross 64-byte boundaries.
+constexpr int kCodeAlignmentBits = 6;
 #else
 constexpr int kCodeAlignmentBits = 5;
 #endif
