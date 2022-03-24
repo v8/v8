@@ -2931,7 +2931,9 @@ class RepresentationSelector {
             is_asuintn ? Type::UnsignedBigInt64() : Type::SignedBigInt64());
         if (lower<T>()) {
           if (p.bits() == 0) {
-            DeferReplacement(node, jsgraph_->ZeroConstant());
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(Type::UnsignedBigInt63(),
+                                                    jsgraph_->ZeroConstant()));
           } else if (p.bits() == 64) {
             DeferReplacement(node, node->InputAt(0));
           } else {
