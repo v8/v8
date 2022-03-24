@@ -5833,10 +5833,10 @@ void DatabaseGetter(Local<Name> name,
                     const v8::PropertyCallbackInfo<Value>& info) {
   ApiTestFuzzer::Fuzz();
   auto context = info.GetIsolate()->GetCurrentContext();
-  Local<v8::Object> db = info.Holder()
-                             ->GetRealNamedProperty(context, v8_str("db"))
-                             .ToLocalChecked()
-                             .As<v8::Object>();
+  v8::MaybeLocal<Value> maybe_db =
+      info.Holder()->GetRealNamedProperty(context, v8_str("db"));
+  if (maybe_db.IsEmpty()) return;
+  Local<v8::Object> db = maybe_db.ToLocalChecked().As<v8::Object>();
   if (!db->Has(context, name).FromJust()) return;
   info.GetReturnValue().Set(db->Get(context, name).ToLocalChecked());
 }
