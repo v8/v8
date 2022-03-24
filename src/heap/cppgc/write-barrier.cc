@@ -149,7 +149,7 @@ void WriteBarrier::GenerationalBarrierForSourceObjectSlow(
 
   auto& object_header =
       BasePage::FromInnerAddress(&local_data.heap_base, inner_pointer)
-          ->ObjectHeaderFromInnerAddress(inner_pointer);
+          ->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(inner_pointer);
 
   // Record the source object.
   local_data.heap_base.remembered_set().AddSourceObject(
