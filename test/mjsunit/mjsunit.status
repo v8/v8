@@ -1468,6 +1468,9 @@
   # Script referenced only through context-dependent SourceTextModule
   # https://bugs.chromium.org/p/v8/issues/detail?id=11073
   'tools/processor': [SKIP],
+  # TODO(v8:11111) and
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12731
+  'regress/regress-crbug-1306929': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
 
 ##############################################################################
