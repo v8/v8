@@ -46,8 +46,6 @@ namespace maglev {
 
 class NumberingProcessor {
  public:
-  static constexpr bool kNeedsCheckpointStates = false;
-
   void PreProcessGraph(MaglevCompilationUnit*, Graph* graph) { node_id_ = 1; }
   void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
@@ -62,8 +60,6 @@ class NumberingProcessor {
 
 class UseMarkingProcessor {
  public:
-  static constexpr bool kNeedsCheckpointStates = true;
-
   void PreProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
@@ -106,23 +102,15 @@ class UseMarkingProcessor {
 
  private:
   void MarkCheckpointNodes(NodeBase* node, const ProcessingState& state) {
-    const InterpreterFrameState* checkpoint_state =
-        state.checkpoint_frame_state();
+    const CompactInterpreterFrameState* checkpoint_state =
+        state.checkpoint()->frame();
     int use_id = node->id();
 
-    for (int i = 0; i < state.parameter_count(); i++) {
-      interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
-      ValueNode* node = checkpoint_state->get(reg);
-      if (node) node->mark_use(use_id, nullptr);
-    }
-    for (int i = 0; i < state.register_count(); i++) {
-      interpreter::Register reg = interpreter::Register(i);
-      ValueNode* node = checkpoint_state->get(reg);
-      if (node) node->mark_use(use_id, nullptr);
-    }
-    if (checkpoint_state->accumulator()) {
-      checkpoint_state->accumulator()->mark_use(use_id, nullptr);
-    }
+    checkpoint_state->ForEachValue(
+        *state.compilation_unit(),
+        [use_id](ValueNode* node, interpreter::Register reg) {
+          if (node) node->mark_use(use_id, nullptr);
+        });
   }
 };
 

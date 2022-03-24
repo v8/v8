@@ -188,14 +188,14 @@ class MaglevGraphBuilder {
       return;
     }
     current_interpreter_frame_.set(target, value);
-    AddNewNode<StoreToFrame>({}, value, target);
   }
 
   void AddCheckpoint() {
     // TODO(v8:7700): Verify this calls the initializer list overload.
-    AddNewNode<Checkpoint>({}, BytecodeOffset(iterator_.current_offset()),
-                           GetInLiveness()->AccumulatorIsLive(),
-                           GetAccumulator());
+    AddNewNode<Checkpoint>(
+        {}, BytecodeOffset(iterator_.current_offset()),
+        zone()->New<CompactInterpreterFrameState>(
+            *compilation_unit_, GetInLiveness(), current_interpreter_frame_));
     has_valid_checkpoint_ = true;
   }
 

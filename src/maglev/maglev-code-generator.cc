@@ -43,8 +43,6 @@ using StackToRegisterMoves =
 
 class MaglevCodeGeneratingNodeProcessor {
  public:
-  static constexpr bool kNeedsCheckpointStates = true;
-
   explicit MaglevCodeGeneratingNodeProcessor(MaglevCodeGenState* code_gen_state)
       : code_gen_state_(code_gen_state) {}
 
@@ -397,19 +395,22 @@ class MaglevCodeGeneratorImpl final {
         deopt_info->bytecode_position, kFunctionLiteralIndex,
         code_gen_state_.register_count(), return_offset, return_count);
 
-    auto* liveness = code_gen_state_.bytecode_analysis().GetInLivenessFor(
-        deopt_info->bytecode_position.ToInt());
-
     // Closure
     int closure_index = DeoptStackSlotIndexFromFPOffset(
         StandardFrameConstants::kFunctionOffset);
     translation_array_builder_.StoreStackSlot(closure_index);
 
     // Parameters
-    for (int i = 0; i < code_gen_state_.parameter_count(); ++i) {
-      interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
-      translation_array_builder_.StoreStackSlot(DeoptStackSlotFromStackSlot(
-          deopt_info->checkpoint_state->get(reg)->spill_slot()));
+    {
+      int i = 0;
+      deopt_info->checkpoint_state->ForEachParameter(
+          *code_gen_state_.compilation_unit(),
+          [&](ValueNode* value, interpreter::Register reg) {
+            DCHECK_EQ(reg.ToParameterIndex(), i);
+            translation_array_builder_.StoreStackSlot(
+                DeoptStackSlotFromStackSlot(value->spill_slot()));
+            i++;
+          });
     }
 
     // Context
@@ -418,22 +419,42 @@ class MaglevCodeGeneratorImpl final {
     translation_array_builder_.StoreStackSlot(context_index);
 
     // Locals
-    for (int i = 0; i < code_gen_state_.register_count(); ++i) {
-      interpreter::Register reg(i);
-      if (liveness->RegisterIsLive(i)) {
-        translation_array_builder_.StoreStackSlot(DeoptStackSlotFromStackSlot(
-            deopt_info->checkpoint_state->get(reg)->spill_slot()));
-      } else {
+    {
+      int i = 0;
+      deopt_info->checkpoint_state->ForEachLocal(
+          *code_gen_state_.compilation_unit(),
+          [&](ValueNode* value, interpreter::Register reg) {
+            DCHECK_LE(i, reg.index());
+            while (i < reg.index()) {
+              translation_array_builder_.StoreLiteral(
+                  kOptimizedOutConstantIndex);
+              i++;
+            }
+            DCHECK_EQ(i, reg.index());
+            translation_array_builder_.StoreStackSlot(
+                DeoptStackSlotFromStackSlot(value->spill_slot()));
+            i++;
+          });
+      while (i < code_gen_state_.register_count()) {
         translation_array_builder_.StoreLiteral(kOptimizedOutConstantIndex);
+        i++;
       }
     }
 
     // Accumulator
-    if (liveness->AccumulatorIsLive()) {
-      translation_array_builder_.StoreStackSlot(
-          deopt_info->checkpoint_state->accumulator()->spill_slot().index());
-    } else {
-      translation_array_builder_.StoreLiteral(kOptimizedOutConstantIndex);
+    {
+      // TODO(leszeks): Bit ugly to use a did_emit boolean here rather than
+      // explicitly checking for accumulator liveness.
+      bool did_emit = false;
+      deopt_info->checkpoint_state->ForAccumulator(
+          *code_gen_state_.compilation_unit(), [&](ValueNode* value) {
+            translation_array_builder_.StoreStackSlot(
+                DeoptStackSlotFromStackSlot(value->spill_slot()));
+            did_emit = true;
+          });
+      if (!did_emit) {
+        translation_array_builder_.StoreLiteral(kOptimizedOutConstantIndex);
+      }
     }
   }
 

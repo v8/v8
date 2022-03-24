@@ -26,9 +26,6 @@ class ProcessingState;
 
 class MaglevPrintingVisitor {
  public:
-  // Could be interesting to print checkpoints too.
-  static constexpr bool kNeedsCheckpointStates = false;
-
   explicit MaglevPrintingVisitor(std::ostream& os);
 
   void PreProcessGraph(MaglevCompilationUnit*, Graph* graph);

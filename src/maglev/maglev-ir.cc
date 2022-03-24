@@ -164,6 +164,10 @@ struct CopyForDeferredHelper<const InterpreterFrameState*> {
         *compilation_unit, *frame_state);
   }
 };
+// CompactInterpreterFrameState is copied by value.
+template <>
+struct CopyForDeferredHelper<const CompactInterpreterFrameState*>
+    : public CopyForDeferredByValue<const CompactInterpreterFrameState*> {};
 
 template <typename T>
 T CopyForDeferred(MaglevCompilationUnit* compilation_unit, T&& value) {
@@ -260,14 +264,10 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
 
 DeoptimizationInfo* CreateEagerDeopt(
     MaglevCodeGenState* code_gen_state, BytecodeOffset bytecode_position,
-    const InterpreterFrameState* checkpoint_state) {
+    const CompactInterpreterFrameState* checkpoint_state) {
   Zone* zone = code_gen_state->compilation_unit()->zone();
-  DeoptimizationInfo* deopt_info = zone->New<DeoptimizationInfo>(
-      bytecode_position,
-      // TODO(leszeks): Right now we unconditionally copy the IFS. If we made
-      // checkpoint states already always be copies, we could remove this copy.
-      zone->New<InterpreterFrameState>(*code_gen_state->compilation_unit(),
-                                       *checkpoint_state));
+  DeoptimizationInfo* deopt_info =
+      zone->New<DeoptimizationInfo>(bytecode_position, checkpoint_state);
 
   code_gen_state->PushNonLazyDeopt(deopt_info);
   return deopt_info;
@@ -275,7 +275,7 @@ DeoptimizationInfo* CreateEagerDeopt(
 
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
                       BytecodeOffset bytecode_position,
-                      const InterpreterFrameState* checkpoint_state) {
+                      const CompactInterpreterFrameState* checkpoint_state) {
   DeoptimizationInfo* deopt_info =
       CreateEagerDeopt(code_gen_state, bytecode_position, checkpoint_state);
   __ RecordComment("-- Jump to eager deopt");
@@ -287,7 +287,7 @@ void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
   DCHECK(node->properties().can_deopt());
   EmitEagerDeoptIf(cond, code_gen_state,
                    state.checkpoint()->bytecode_position(),
-                   state.checkpoint_frame_state());
+                   state.checkpoint()->frame());
 }
 
 // ---
@@ -378,7 +378,7 @@ void Checkpoint::GenerateCode(MaglevCodeGenState* code_gen_state,
                               const ProcessingState& state) {}
 void Checkpoint::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << PrintNodeLabel(graph_labeller, accumulator()) << ")";
+  os << "(" << ToString(*frame()->liveness()) << ")";
 }
 
 void SoftDeopt::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -500,7 +500,7 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
         not_equal, code_gen_state,
         [](MaglevCodeGenState* code_gen_state, Label* return_label,
            Register object, CheckMaps* node, BytecodeOffset checkpoint_position,
-           const InterpreterFrameState* checkpoint_state_snapshot,
+           const CompactInterpreterFrameState* checkpoint_state_snapshot,
            Register map_tmp) {
           DeoptimizationInfo* deopt = CreateEagerDeopt(
               code_gen_state, checkpoint_position, checkpoint_state_snapshot);
@@ -530,7 +530,7 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
           __ jmp(&deopt->entry_label);
         },
         object, this, state.checkpoint()->bytecode_position(),
-        state.checkpoint_frame_state(), map_tmp);
+        state.checkpoint()->frame(), map_tmp);
   } else {
     EmitEagerDeoptIf(not_equal, code_gen_state, this, state);
   }
@@ -621,16 +621,6 @@ void LoadNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
 void LoadNamedGeneric::PrintParams(std::ostream& os,
                                    MaglevGraphLabeller* graph_labeller) const {
   os << "(" << name_ << ")";
-}
-
-void StoreToFrame::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                                const ProcessingState& state) {}
-void StoreToFrame::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                const ProcessingState& state) {}
-void StoreToFrame::PrintParams(std::ostream& os,
-                               MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << target().ToString() << " ← "
-     << PrintNodeLabel(graph_labeller, value()) << ")";
 }
 
 void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -742,9 +732,7 @@ void Phi::AllocateVregInPostProcess(MaglevVregAllocationState* vreg_state) {
   }
 }
 void Phi::GenerateCode(MaglevCodeGenState* code_gen_state,
-                       const ProcessingState& state) {
-  DCHECK_EQ(state.interpreter_frame_state()->get(owner()), this);
-}
+                       const ProcessingState& state) {}
 void Phi::PrintParams(std::ostream& os,
                       MaglevGraphLabeller* graph_labeller) const {
   os << "(" << owner().ToString() << ")";

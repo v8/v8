@@ -28,6 +28,7 @@ class ProcessingState;
 class MaglevCodeGenState;
 class MaglevGraphLabeller;
 class MaglevVregAllocationState;
+class CompactInterpreterFrameState;
 
 // Nodes are either
 // 1. side-effecting or value-holding SSA nodes in the body of basic blocks, or
@@ -80,7 +81,6 @@ class MaglevVregAllocationState;
   V(GapMove)         \
   V(SoftDeopt)       \
   V(StoreField)      \
-  V(StoreToFrame)    \
   VALUE_NODE_LIST(V)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -870,25 +870,21 @@ class Checkpoint : public FixedInputNodeT<0, Checkpoint> {
 
  public:
   explicit Checkpoint(size_t input_count, BytecodeOffset bytecode_position,
-                      bool accumulator_is_live, ValueNode* accumulator)
+                      CompactInterpreterFrameState* frame)
       : Base(input_count),
         bytecode_position_(bytecode_position),
-        accumulator_(accumulator_is_live ? accumulator : nullptr) {}
+        frame_(frame) {}
 
   BytecodeOffset bytecode_position() const { return bytecode_position_; }
-  bool is_used() const { return IsUsedBit::decode(bit_field_); }
-  void SetUsed() { bit_field_ = IsUsedBit::update(bit_field_, true); }
-  ValueNode* accumulator() const { return accumulator_; }
+  const CompactInterpreterFrameState* frame() const { return frame_; }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  using IsUsedBit = NextBitField<bool, 1>;
-
   const BytecodeOffset bytecode_position_;
-  ValueNode* const accumulator_;
+  const CompactInterpreterFrameState* const frame_;
 };
 
 class SoftDeopt : public FixedInputNodeT<0, SoftDeopt> {
@@ -1020,26 +1016,6 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
 
  private:
   const compiler::NameRef name_;
-};
-
-class StoreToFrame : public FixedInputNodeT<0, StoreToFrame> {
-  using Base = FixedInputNodeT<0, StoreToFrame>;
-
- public:
-  StoreToFrame(size_t input_count, ValueNode* value,
-               interpreter::Register target)
-      : Base(input_count), value_(value), target_(target) {}
-
-  interpreter::Register target() const { return target_; }
-  ValueNode* value() const { return value_; }
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  ValueNode* const value_;
-  const interpreter::Register target_;
 };
 
 class GapMove : public FixedInputNodeT<0, GapMove> {

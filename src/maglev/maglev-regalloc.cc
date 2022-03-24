@@ -270,8 +270,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
               compiler::AllocatedOperand::cast(allocation));
           if (FLAG_trace_maglev_regalloc) {
             printing_visitor_->Process(
-                phi, ProcessingState(compilation_unit_, block_it_, nullptr,
-                                     nullptr, nullptr));
+                phi, ProcessingState(compilation_unit_, block_it_, nullptr));
             printing_visitor_->os()
                 << "phi (new reg) " << phi->result().operand() << std::endl;
           }
@@ -285,8 +284,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
         phi->result().SetAllocated(phi->spill_slot());
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
-              phi, ProcessingState(compilation_unit_, block_it_, nullptr,
-                                   nullptr, nullptr));
+              phi, ProcessingState(compilation_unit_, block_it_, nullptr));
           printing_visitor_->os()
               << "phi (stack) " << phi->result().operand() << std::endl;
         }
@@ -344,8 +342,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
 
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->Process(
-        node, ProcessingState(compilation_unit_, block_it_, nullptr, nullptr,
-                              nullptr));
+        node, ProcessingState(compilation_unit_, block_it_, nullptr));
     printing_visitor_->os() << "live regs: ";
     PrintLiveRegs();
     printing_visitor_->os() << "\n";
@@ -514,8 +511,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->Process(
-        node, ProcessingState(compilation_unit_, block_it_, nullptr, nullptr,
-                              nullptr));
+        node, ProcessingState(compilation_unit_, block_it_, nullptr));
   }
 }
 
@@ -528,8 +524,7 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
         phi->result().SetAllocated(ForceAllocate(reg, phi));
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
-              phi, ProcessingState(compilation_unit_, block_it_, nullptr,
-                                   nullptr, nullptr));
+              phi, ProcessingState(compilation_unit_, block_it_, nullptr));
           printing_visitor_->os()
               << "phi (reuse) " << input.operand() << std::endl;
         }

@@ -24,12 +24,12 @@ class InterpreterFrameState;
 class DeoptimizationInfo {
  public:
   DeoptimizationInfo(BytecodeOffset bytecode_position,
-                     InterpreterFrameState* checkpoint_state)
+                     const CompactInterpreterFrameState* checkpoint_state)
       : bytecode_position(bytecode_position),
         checkpoint_state(checkpoint_state) {}
 
   BytecodeOffset bytecode_position;
-  InterpreterFrameState* checkpoint_state;
+  const CompactInterpreterFrameState* checkpoint_state;
   Label entry_label;
   int index = -1;
 };
