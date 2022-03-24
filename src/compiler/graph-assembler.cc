@@ -377,6 +377,12 @@ TNode<FixedArrayBase> JSGraphAssembler::MaybeGrowFastElements(
       new_length, old_length, effect(), control()));
 }
 
+Node* JSGraphAssembler::StringCharCodeAt(TNode<String> string,
+                                         TNode<Number> position) {
+  return AddNode(graph()->NewNode(simplified()->StringCharCodeAt(), string,
+                                  position, effect(), control()));
+}
+
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
   return AddNode(
       graph()->NewNode(common()->TypeGuard(type), value, effect(), control()));

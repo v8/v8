@@ -86,6 +86,9 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Object> ReduceMathUnary(const Operator* op);
   TNode<Object> ReduceMathBinary(const Operator* op);
   TNode<String> ReduceStringPrototypeSubstring();
+  TNode<Boolean> ReduceStringPrototypeStartsWith();
+  TNode<Boolean> ReduceStringPrototypeStartsWith(
+      const StringRef& search_element_string);
   TNode<String> ReduceStringPrototypeSlice();
 
   TNode<Object> TargetInput() const { return JSCallNode{node_ptr()}.target(); }
@@ -1192,6 +1195,91 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSubstring() {
   TNode<Number> to = NumberMax(finalStart, finalEnd);
 
   return StringSubstring(receiver_string, from, to);
+}
+
+TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith(
+    const StringRef& search_element_string) {
+  TNode<Object> receiver = ReceiverInput();
+  TNode<Object> start = ArgumentOrZero(1);
+
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<Smi> start_smi = CheckSmi(start);
+  TNode<Number> length = StringLength(receiver_string);
+
+  TNode<Number> zero = ZeroConstant();
+  TNode<Number> clamped_start = NumberMin(NumberMax(start_smi, zero), length);
+
+  int search_string_length = search_element_string.length().value();
+  DCHECK(search_string_length <= JSCallReducer::kMaxInlineMatchSequence);
+
+  auto out = MakeLabel(MachineRepresentation::kTagged);
+
+  auto search_string_too_long =
+      NumberLessThan(NumberSubtract(length, clamped_start),
+                     NumberConstant(search_string_length));
+
+  GotoIf(search_string_too_long, &out, BranchHint::kFalse, FalseConstant());
+
+  STATIC_ASSERT(String::kMaxLength <= kSmiMaxValue);
+
+  for (int i = 0; i < search_string_length; i++) {
+    TNode<Number> k = NumberConstant(i);
+    TNode<Number> receiver_string_position = TNode<Number>::UncheckedCast(
+        TypeGuard(Type::UnsignedSmall(), NumberAdd(k, clamped_start)));
+    Node* receiver_string_char =
+        StringCharCodeAt(receiver_string, receiver_string_position);
+    Node* search_string_char =
+        jsgraph()->Constant(search_element_string.GetChar(i).value());
+    auto is_equal = graph()->NewNode(simplified()->NumberEqual(),
+                                     search_string_char, receiver_string_char);
+    GotoIfNot(is_equal, &out, FalseConstant());
+  }
+
+  Goto(&out, TrueConstant());
+
+  Bind(&out);
+  return out.PhiAt<Boolean>(0);
+}
+
+TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith() {
+  TNode<Object> receiver = ReceiverInput();
+  TNode<Object> search_element = ArgumentOrUndefined(0);
+  TNode<Object> start = ArgumentOrZero(1);
+
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<String> search_string = CheckString(search_element);
+  TNode<Smi> start_smi = CheckSmi(start);
+  TNode<Number> length = StringLength(receiver_string);
+
+  TNode<Number> zero = ZeroConstant();
+  TNode<Number> clamped_start = NumberMin(NumberMax(start_smi, zero), length);
+
+  TNode<Number> search_string_length = StringLength(search_string);
+
+  auto out = MakeLabel(MachineRepresentation::kTagged);
+
+  auto search_string_too_long = NumberLessThan(
+      NumberSubtract(length, clamped_start), search_string_length);
+
+  GotoIf(search_string_too_long, &out, BranchHint::kFalse, FalseConstant());
+
+  STATIC_ASSERT(String::kMaxLength <= kSmiMaxValue);
+
+  ForZeroUntil(search_string_length).Do([&](TNode<Number> k) {
+    TNode<Number> receiver_string_position = TNode<Number>::UncheckedCast(
+        TypeGuard(Type::UnsignedSmall(), NumberAdd(k, clamped_start)));
+    Node* receiver_string_char =
+        StringCharCodeAt(receiver_string, receiver_string_position);
+    Node* search_string_char = StringCharCodeAt(search_string, k);
+    auto is_equal = graph()->NewNode(simplified()->NumberEqual(),
+                                     receiver_string_char, search_string_char);
+    GotoIfNot(is_equal, &out, FalseConstant());
+  });
+
+  Goto(&out, TrueConstant());
+
+  Bind(&out);
+  return out.PhiAt<Boolean>(0);
 }
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
@@ -6403,74 +6491,37 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
     return NoChange();
   }
 
-  Node* receiver = n.receiver();
-  Effect effect = n.effect();
-  Control control = n.control();
+  TNode<Object> search_element = n.ArgumentOrUndefined(0, jsgraph());
 
-  Node* search_string = n.ArgumentOr(0, jsgraph()->UndefinedConstant());
-  Node* position = n.ArgumentOr(1, jsgraph()->ZeroConstant());
-
-  HeapObjectMatcher m(search_string);
-  if (m.HasResolvedValue()) {
-    ObjectRef target_ref = m.Ref(broker());
-    if (target_ref.IsString()) {
-      StringRef str = target_ref.AsString();
-      if (str.length().has_value()) {
-        receiver = effect = graph()->NewNode(
-            simplified()->CheckString(p.feedback()), receiver, effect, control);
-
-        position = effect = graph()->NewNode(
-            simplified()->CheckSmi(p.feedback()), position, effect, control);
-
-        if (str.length().value() == 0) {
-          Node* value = jsgraph()->TrueConstant();
-          ReplaceWithValue(node, value, effect, control);
-          return Replace(value);
-        }
-        if (str.length().value() == 1) {
-          Node* string_length =
-              graph()->NewNode(simplified()->StringLength(), receiver);
-          Node* unsigned_position = graph()->NewNode(
-              simplified()->NumberMax(), position, jsgraph()->ZeroConstant());
-
-          Node* check = graph()->NewNode(simplified()->NumberLessThan(),
-                                         unsigned_position, string_length);
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
-                                          check, control);
-
-          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-          Node* efalse = effect;
-          Node* vfalse = jsgraph()->FalseConstant();
-
-          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-          Node* etrue = effect;
-          Node* vtrue;
-          {
-            Node* string_first = etrue =
-                graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                                 unsigned_position, etrue, if_true);
-
-            Node* search_first =
-                jsgraph()->Constant(str.GetFirstChar().value());
-            vtrue = graph()->NewNode(simplified()->NumberEqual(), string_first,
-                                     search_first);
-          }
-
-          control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-          Node* value =
-              graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                               vtrue, vfalse, control);
-          effect =
-              graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-
-          ReplaceWithValue(node, value, effect, control);
-          return Replace(value);
-        }
+  // Here are three conditions:
+  // First, If search_element is definitely not a string, we make no change.
+  // Second, If search_element is definitely a string and its length is less
+  // or equal than max inline matching sequence threshold, we could inline
+  // the entire matching sequence.
+  // Third, we try to inline, and have a runtime deopt if search_element is
+  // not a string.
+  HeapObjectMatcher search_element_matcher(search_element);
+  if (search_element_matcher.HasResolvedValue()) {
+    ObjectRef target_ref = search_element_matcher.Ref(broker());
+    if (!target_ref.IsString()) return NoChange();
+    StringRef search_element_string = target_ref.AsString();
+    if (search_element_string.length().has_value()) {
+      int length = search_element_string.length().value();
+      // If search_element's length is less or equal than
+      // kMaxInlineMatchSequence, we inline the entire
+      // matching sequence.
+      if (length <= kMaxInlineMatchSequence) {
+        JSCallReducerAssembler a(this, node);
+        Node* subgraph =
+            a.ReduceStringPrototypeStartsWith(search_element_string);
+        return ReplaceWithSubgraph(&a, subgraph);
       }
     }
   }
 
-  return NoChange();
+  JSCallReducerAssembler a(this, node);
+  Node* subgraph = a.ReduceStringPrototypeStartsWith();
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 // ES section 21.1.3.1 String.prototype.charAt ( pos )

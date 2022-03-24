@@ -55,6 +55,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
         temp_zone_(temp_zone),
         flags_(flags) {}
 
+  // Max string length for inlining entire match sequence for
+  // String.prototype.startsWith in JSCallReducer.
+  static constexpr int kMaxInlineMatchSequence = 3;
+
   const char* reducer_name() const override { return "JSCallReducer"; }
 
   Reduction Reduce(Node* node) final;

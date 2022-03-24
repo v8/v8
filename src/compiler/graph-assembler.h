@@ -878,6 +878,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
                                               TNode<FixedArrayBase> elements,
                                               TNode<Number> new_length,
                                               TNode<Number> old_length);
+  Node* StringCharCodeAt(TNode<String> string, TNode<Number> position);
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const { return jsgraph()->isolate(); }
