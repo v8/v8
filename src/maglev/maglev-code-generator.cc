@@ -307,8 +307,7 @@ constexpr int DeoptStackSlotIndexFromFPOffset(int offset) {
   return 1 - offset / kSystemPointerSize;
 }
 
-constexpr int DeoptStackSlotFromStackSlot(
-    const compiler::AllocatedOperand& operand) {
+int DeoptStackSlotFromStackSlot(const compiler::AllocatedOperand& operand) {
   return DeoptStackSlotIndexFromFPOffset(
       GetFramePointerOffsetForStackSlot(operand));
 }
@@ -359,32 +358,32 @@ class MaglevCodeGeneratorImpl final {
     deopt_exit_start_offset_ = __ pc_offset();
 
     __ RecordComment("-- Non-lazy deopts");
-    for (DeoptimizationInfo* deopt_info : code_gen_state_.non_lazy_deopts()) {
-      EmitDeopt(deopt_info);
+    for (Checkpoint* checkpoint : code_gen_state_.non_lazy_deopts()) {
+      EmitDeopt(checkpoint);
 
-      __ bind(&deopt_info->entry_label);
+      __ bind(&checkpoint->deopt_entry_label);
       // TODO(leszeks): Add soft deopt entry.
       __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, 0,
-                               &deopt_info->entry_label, DeoptimizeKind::kEager,
-                               nullptr, nullptr);
+                               &checkpoint->deopt_entry_label,
+                               DeoptimizeKind::kEager, nullptr, nullptr);
     }
 
     __ RecordComment("-- Lazy deopts");
-    for (DeoptimizationInfo* deopt_info : code_gen_state_.lazy_deopts()) {
+    for (Checkpoint* deopt_info : code_gen_state_.lazy_deopts()) {
       EmitDeopt(deopt_info);
 
-      __ bind(&deopt_info->entry_label);
+      __ bind(&deopt_info->deopt_entry_label);
       __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, 0,
-                               &deopt_info->entry_label, DeoptimizeKind::kLazy,
-                               nullptr, nullptr);
+                               &deopt_info->deopt_entry_label,
+                               DeoptimizeKind::kLazy, nullptr, nullptr);
     }
   }
 
-  void EmitDeopt(DeoptimizationInfo* deopt_info) {
+  void EmitDeopt(Checkpoint* checkpoint) {
     int frame_count = 1;
     int jsframe_count = 1;
     int update_feedback_count = 0;
-    deopt_info->index = translation_array_builder_.BeginTranslation(
+    checkpoint->deopt_index = translation_array_builder_.BeginTranslation(
         frame_count, jsframe_count, update_feedback_count);
 
     // Returns are used for updating an accumulator or register after a lazy
@@ -392,7 +391,7 @@ class MaglevCodeGeneratorImpl final {
     int return_offset = 0;
     int return_count = 0;
     translation_array_builder_.BeginInterpretedFrame(
-        deopt_info->bytecode_position, kFunctionLiteralIndex,
+        checkpoint->bytecode_position, kFunctionLiteralIndex,
         code_gen_state_.register_count(), return_offset, return_count);
 
     // Closure
@@ -403,7 +402,7 @@ class MaglevCodeGeneratorImpl final {
     // Parameters
     {
       int i = 0;
-      deopt_info->checkpoint_state->ForEachParameter(
+      checkpoint->state->ForEachParameter(
           *code_gen_state_.compilation_unit(),
           [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_EQ(reg.ToParameterIndex(), i);
@@ -421,7 +420,7 @@ class MaglevCodeGeneratorImpl final {
     // Locals
     {
       int i = 0;
-      deopt_info->checkpoint_state->ForEachLocal(
+      checkpoint->state->ForEachLocal(
           *code_gen_state_.compilation_unit(),
           [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
@@ -446,7 +445,7 @@ class MaglevCodeGeneratorImpl final {
       // TODO(leszeks): Bit ugly to use a did_emit boolean here rather than
       // explicitly checking for accumulator liveness.
       bool did_emit = false;
-      deopt_info->checkpoint_state->ForAccumulator(
+      checkpoint->state->ForAccumulator(
           *code_gen_state_.compilation_unit(), [&](ValueNode* value) {
             translation_array_builder_.StoreStackSlot(
                 DeoptStackSlotFromStackSlot(value->spill_slot()));
@@ -527,21 +526,21 @@ class MaglevCodeGeneratorImpl final {
 
     // Populate deoptimization entries.
     int i = 0;
-    for (DeoptimizationInfo* deopt_info : code_gen_state_.non_lazy_deopts()) {
-      DCHECK_NE(deopt_info->index, -1);
-      data->SetBytecodeOffset(i, deopt_info->bytecode_position);
-      data->SetTranslationIndex(i, Smi::FromInt(deopt_info->index));
-      data->SetPc(i, Smi::FromInt(deopt_info->entry_label.pos()));
+    for (Checkpoint* checkpoint : code_gen_state_.non_lazy_deopts()) {
+      DCHECK_NE(checkpoint->deopt_index, -1);
+      data->SetBytecodeOffset(i, checkpoint->bytecode_position);
+      data->SetTranslationIndex(i, Smi::FromInt(checkpoint->deopt_index));
+      data->SetPc(i, Smi::FromInt(checkpoint->deopt_entry_label.pos()));
 #ifdef DEBUG
       data->SetNodeId(i, Smi::FromInt(i));
 #endif  // DEBUG
       i++;
     }
-    for (DeoptimizationInfo* deopt_info : code_gen_state_.lazy_deopts()) {
-      DCHECK_NE(deopt_info->index, -1);
-      data->SetBytecodeOffset(i, deopt_info->bytecode_position);
-      data->SetTranslationIndex(i, Smi::FromInt(deopt_info->index));
-      data->SetPc(i, Smi::FromInt(deopt_info->entry_label.pos()));
+    for (Checkpoint* checkpoint : code_gen_state_.lazy_deopts()) {
+      DCHECK_NE(checkpoint->deopt_index, -1);
+      data->SetBytecodeOffset(i, checkpoint->bytecode_position);
+      data->SetTranslationIndex(i, Smi::FromInt(checkpoint->deopt_index));
+      data->SetPc(i, Smi::FromInt(checkpoint->deopt_entry_label.pos()));
 #ifdef DEBUG
       data->SetNodeId(i, Smi::FromInt(i));
 #endif  // DEBUG

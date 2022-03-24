@@ -164,10 +164,10 @@ struct CopyForDeferredHelper<const InterpreterFrameState*> {
         *compilation_unit, *frame_state);
   }
 };
-// CompactInterpreterFrameState is copied by value.
+// Checkpoint is copied by value.
 template <>
-struct CopyForDeferredHelper<const CompactInterpreterFrameState*>
-    : public CopyForDeferredByValue<const CompactInterpreterFrameState*> {};
+struct CopyForDeferredHelper<Checkpoint*>
+    : public CopyForDeferredByValue<Checkpoint*> {};
 
 template <typename T>
 T CopyForDeferred(MaglevCompilationUnit* compilation_unit, T&& value) {
@@ -262,32 +262,25 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
 // Deopt
 // ---
 
-DeoptimizationInfo* CreateEagerDeopt(
-    MaglevCodeGenState* code_gen_state, BytecodeOffset bytecode_position,
-    const CompactInterpreterFrameState* checkpoint_state) {
-  Zone* zone = code_gen_state->compilation_unit()->zone();
-  DeoptimizationInfo* deopt_info =
-      zone->New<DeoptimizationInfo>(bytecode_position, checkpoint_state);
-
-  code_gen_state->PushNonLazyDeopt(deopt_info);
-  return deopt_info;
+void RegisterEagerDeoptCheckpoint(MaglevCodeGenState* code_gen_state,
+                                  Checkpoint* checkpoint) {
+  if (checkpoint->deopt_entry_label.is_unused()) {
+    code_gen_state->PushNonLazyDeopt(checkpoint);
+  }
 }
 
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
-                      BytecodeOffset bytecode_position,
-                      const CompactInterpreterFrameState* checkpoint_state) {
-  DeoptimizationInfo* deopt_info =
-      CreateEagerDeopt(code_gen_state, bytecode_position, checkpoint_state);
+                      Checkpoint* checkpoint) {
+  RegisterEagerDeoptCheckpoint(code_gen_state, checkpoint);
   __ RecordComment("-- Jump to eager deopt");
-  __ j(cond, &deopt_info->entry_label);
+  __ j(cond, &checkpoint->deopt_entry_label);
 }
 
+template <typename NodeT>
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
-                      Node* node, const ProcessingState& state) {
-  DCHECK(node->properties().can_deopt());
-  EmitEagerDeoptIf(cond, code_gen_state,
-                   state.checkpoint()->bytecode_position(),
-                   state.checkpoint()->frame());
+                      NodeT* node) {
+  STATIC_ASSERT(NodeT::kProperties.can_deopt());
+  EmitEagerDeoptIf(cond, code_gen_state, node->checkpoint());
 }
 
 // ---
@@ -372,21 +365,12 @@ void SmiConstant::PrintParams(std::ostream& os,
   os << "(" << value() << ")";
 }
 
-void Checkpoint::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                              const ProcessingState& state) {}
-void Checkpoint::GenerateCode(MaglevCodeGenState* code_gen_state,
-                              const ProcessingState& state) {}
-void Checkpoint::PrintParams(std::ostream& os,
-                             MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << ToString(*frame()->liveness()) << ")";
-}
-
 void SoftDeopt::AllocateVreg(MaglevVregAllocationState* vreg_state,
                              const ProcessingState& state) {}
 void SoftDeopt::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
   // TODO(leszeks): Make this a soft deopt.
-  EmitEagerDeoptIf(always, code_gen_state, this, state);
+  EmitEagerDeoptIf(always, code_gen_state, this);
 }
 
 void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -499,18 +483,16 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
     JumpToDeferredIf(
         not_equal, code_gen_state,
         [](MaglevCodeGenState* code_gen_state, Label* return_label,
-           Register object, CheckMaps* node, BytecodeOffset checkpoint_position,
-           const CompactInterpreterFrameState* checkpoint_state_snapshot,
+           Register object, CheckMaps* node, Checkpoint* checkpoint,
            Register map_tmp) {
-          DeoptimizationInfo* deopt = CreateEagerDeopt(
-              code_gen_state, checkpoint_position, checkpoint_state_snapshot);
+          RegisterEagerDeoptCheckpoint(code_gen_state, checkpoint);
 
           // If the map is not deprecated, deopt straight away.
           __ movl(kScratchRegister,
                   FieldOperand(map_tmp, Map::kBitField3Offset));
           __ testl(kScratchRegister,
                    Immediate(Map::Bits3::IsDeprecatedBit::kMask));
-          __ j(zero, &deopt->entry_label);
+          __ j(zero, &checkpoint->deopt_entry_label);
 
           // Otherwise, try migrating the object. If the migration returns Smi
           // zero, then it failed and we should deopt.
@@ -520,19 +502,18 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
           // TODO(verwaest): We're calling so we need to spill around it.
           __ CallRuntime(Runtime::kTryMigrateInstance);
           __ cmpl(kReturnRegister0, Immediate(0));
-          __ j(equal, &deopt->entry_label);
+          __ j(equal, &checkpoint->deopt_entry_label);
 
           // The migrated object is returned on success, retry the map check.
           __ Move(object, kReturnRegister0);
           __ LoadMap(map_tmp, object);
           __ Cmp(map_tmp, node->map().object());
           __ j(equal, return_label);
-          __ jmp(&deopt->entry_label);
+          __ jmp(&checkpoint->deopt_entry_label);
         },
-        object, this, state.checkpoint()->bytecode_position(),
-        state.checkpoint()->frame(), map_tmp);
+        object, this, checkpoint(), map_tmp);
   } else {
-    EmitEagerDeoptIf(not_equal, code_gen_state, this, state);
+    EmitEagerDeoptIf(not_equal, code_gen_state, this);
   }
 }
 void CheckMaps::PrintParams(std::ostream& os,

@@ -21,19 +21,6 @@ namespace maglev {
 
 class InterpreterFrameState;
 
-class DeoptimizationInfo {
- public:
-  DeoptimizationInfo(BytecodeOffset bytecode_position,
-                     const CompactInterpreterFrameState* checkpoint_state)
-      : bytecode_position(bytecode_position),
-        checkpoint_state(checkpoint_state) {}
-
-  BytecodeOffset bytecode_position;
-  const CompactInterpreterFrameState* checkpoint_state;
-  Label entry_label;
-  int index = -1;
-};
-
 class DeferredCodeInfo {
  public:
   virtual void Generate(MaglevCodeGenState* code_gen_state,
@@ -58,18 +45,12 @@ class MaglevCodeGenState {
   const std::vector<DeferredCodeInfo*>& deferred_code() const {
     return deferred_code_;
   }
-  void PushNonLazyDeopt(DeoptimizationInfo* info) {
-    non_lazy_deopts_.push_back(info);
-  }
-  void PushLazyDeopt(DeoptimizationInfo* info) {
-    non_lazy_deopts_.push_back(info);
-  }
-  const std::vector<DeoptimizationInfo*> non_lazy_deopts() const {
+  void PushNonLazyDeopt(Checkpoint* info) { non_lazy_deopts_.push_back(info); }
+  void PushLazyDeopt(Checkpoint* info) { non_lazy_deopts_.push_back(info); }
+  const std::vector<Checkpoint*> non_lazy_deopts() const {
     return non_lazy_deopts_;
   }
-  const std::vector<DeoptimizationInfo*> lazy_deopts() const {
-    return lazy_deopts_;
-  }
+  const std::vector<Checkpoint*> lazy_deopts() const { return lazy_deopts_; }
 
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
@@ -108,8 +89,8 @@ class MaglevCodeGenState {
 
   MacroAssembler masm_;
   std::vector<DeferredCodeInfo*> deferred_code_;
-  std::vector<DeoptimizationInfo*> non_lazy_deopts_;
-  std::vector<DeoptimizationInfo*> lazy_deopts_;
+  std::vector<Checkpoint*> non_lazy_deopts_;
+  std::vector<Checkpoint*> lazy_deopts_;
   int vreg_slots_ = 0;
 
   // Allow marking some codegen paths as unsupported, so that we can test maglev
@@ -126,7 +107,7 @@ inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
          index * kSystemPointerSize;
 }
 
-inline constexpr int GetFramePointerOffsetForStackSlot(
+inline int GetFramePointerOffsetForStackSlot(
     const compiler::AllocatedOperand& operand) {
   return GetFramePointerOffsetForStackSlot(operand.index());
 }

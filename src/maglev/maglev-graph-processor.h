@@ -46,11 +46,8 @@ class GraphProcessor;
 class ProcessingState {
  public:
   explicit ProcessingState(MaglevCompilationUnit* compilation_unit,
-                           BlockConstIterator block_it,
-                           const Checkpoint* checkpoint)
-      : compilation_unit_(compilation_unit),
-        block_it_(block_it),
-        checkpoint_(checkpoint) {}
+                           BlockConstIterator block_it)
+      : compilation_unit_(compilation_unit), block_it_(block_it) {}
 
   // Disallow copies, since the underlying frame states stay mutable.
   ProcessingState(const ProcessingState&) = delete;
@@ -58,11 +55,6 @@ class ProcessingState {
 
   BasicBlock* block() const { return *block_it_; }
   BasicBlock* next_block() const { return *(block_it_ + 1); }
-
-  const Checkpoint* checkpoint() const {
-    DCHECK_NOT_NULL(checkpoint_);
-    return checkpoint_;
-  }
 
   MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
 
@@ -76,7 +68,6 @@ class ProcessingState {
  private:
   MaglevCompilationUnit* compilation_unit_;
   BlockConstIterator block_it_;
-  const Checkpoint* checkpoint_;
 };
 
 template <typename NodeProcessor>
@@ -121,7 +112,7 @@ class GraphProcessor {
 
  private:
   ProcessingState GetCurrentState() {
-    return ProcessingState(compilation_unit_, block_it_, latest_checkpoint_);
+    return ProcessingState(compilation_unit_, block_it_);
   }
 
   void ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
@@ -138,10 +129,6 @@ class GraphProcessor {
 
   void PreProcess(NodeBase* node, const ProcessingState& state) {}
 
-  void PreProcess(Checkpoint* checkpoint, const ProcessingState& state) {
-    latest_checkpoint_ = checkpoint;
-  }
-
   int register_count() const { return compilation_unit_->register_count(); }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
     return compilation_unit_->bytecode_analysis();
@@ -152,7 +139,6 @@ class GraphProcessor {
   Graph* graph_;
   BlockConstIterator block_it_;
   NodeConstIterator node_it_;
-  Checkpoint* latest_checkpoint_ = nullptr;
 };
 
 // A NodeProcessor that wraps multiple NodeProcessors, and forwards to each of

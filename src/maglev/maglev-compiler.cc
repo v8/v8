@@ -64,8 +64,11 @@ class UseMarkingProcessor {
   void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
 
-  void Process(NodeBase* node, const ProcessingState& state) {
-    if (node->properties().can_deopt()) MarkCheckpointNodes(node, state);
+  template <typename NodeT>
+  void Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.can_deopt()) {
+      MarkCheckpointNodes(node, node->checkpoint(), state);
+    }
     for (Input& input : *node) {
       input.node()->mark_use(node->id(), &input);
     }
@@ -101,9 +104,9 @@ class UseMarkingProcessor {
   }
 
  private:
-  void MarkCheckpointNodes(NodeBase* node, const ProcessingState& state) {
-    const CompactInterpreterFrameState* checkpoint_state =
-        state.checkpoint()->frame();
+  void MarkCheckpointNodes(NodeBase* node, Checkpoint* checkpoint,
+                           const ProcessingState& state) {
+    const CompactInterpreterFrameState* checkpoint_state = checkpoint->state;
     int use_id = node->id();
 
     checkpoint_state->ForEachValue(

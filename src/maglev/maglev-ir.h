@@ -9,6 +9,7 @@
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
+#include "src/codegen/label.h"
 #include "src/codegen/reglist.h"
 #include "src/common/globals.h"
 #include "src/common/operation.h"
@@ -76,7 +77,6 @@ class CompactInterpreterFrameState;
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define NODE_LIST(V) \
-  V(Checkpoint)      \
   V(CheckMaps)       \
   V(GapMove)         \
   V(SoftDeopt)       \
@@ -168,16 +168,18 @@ static constexpr uint32_t kInvalidNodeId = 0;
 
 class OpProperties {
  public:
-  bool is_call() const { return kIsCallBit::decode(bitfield_); }
-  bool can_deopt() const { return kCanDeoptBit::decode(bitfield_); }
-  bool can_read() const { return kCanReadBit::decode(bitfield_); }
-  bool can_write() const { return kCanWriteBit::decode(bitfield_); }
-  bool non_memory_side_effects() const {
+  constexpr bool is_call() const { return kIsCallBit::decode(bitfield_); }
+  constexpr bool can_deopt() const { return kCanDeoptBit::decode(bitfield_); }
+  constexpr bool can_read() const { return kCanReadBit::decode(bitfield_); }
+  constexpr bool can_write() const { return kCanWriteBit::decode(bitfield_); }
+  constexpr bool non_memory_side_effects() const {
     return kNonMemorySideEffectsBit::decode(bitfield_);
   }
 
-  bool is_pure() const { return (bitfield_ | kPureMask) == kPureValue; }
-  bool is_required_when_unused() const {
+  constexpr bool is_pure() const {
+    return (bitfield_ | kPureMask) == kPureValue;
+  }
+  constexpr bool is_required_when_unused() const {
     return can_write() || non_memory_side_effects();
   }
 
@@ -224,7 +226,7 @@ class OpProperties {
 
   constexpr explicit OpProperties(uint32_t bitfield) : bitfield_(bitfield) {}
 
-  uint32_t bitfield_;
+  const uint32_t bitfield_;
 };
 
 class ValueLocation {
@@ -283,6 +285,18 @@ class Input : public ValueLocation {
   NodeIdT next_use_id_ = kInvalidNodeId;
 };
 
+class Checkpoint {
+ public:
+  Checkpoint(BytecodeOffset bytecode_position,
+             const CompactInterpreterFrameState* state)
+      : bytecode_position(bytecode_position), state(state) {}
+
+  BytecodeOffset bytecode_position;
+  const CompactInterpreterFrameState* state;
+  Label deopt_entry_label;
+  int deopt_index = -1;
+};
+
 // Dummy type for the initial raw allocation.
 struct NodeWithInlineInputs {};
 
@@ -300,6 +314,7 @@ struct opcode_of_helper;
   };
 NODE_BASE_LIST(DEF_OPCODE_OF)
 #undef DEF_OPCODE_OF
+
 }  // namespace detail
 
 class NodeBase : public ZoneObject {
@@ -865,47 +880,32 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   const RootIndex index_;
 };
 
-class Checkpoint : public FixedInputNodeT<0, Checkpoint> {
-  using Base = FixedInputNodeT<0, Checkpoint>;
-
- public:
-  explicit Checkpoint(size_t input_count, BytecodeOffset bytecode_position,
-                      CompactInterpreterFrameState* frame)
-      : Base(input_count),
-        bytecode_position_(bytecode_position),
-        frame_(frame) {}
-
-  BytecodeOffset bytecode_position() const { return bytecode_position_; }
-  const CompactInterpreterFrameState* frame() const { return frame_; }
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  const BytecodeOffset bytecode_position_;
-  const CompactInterpreterFrameState* const frame_;
-};
-
 class SoftDeopt : public FixedInputNodeT<0, SoftDeopt> {
   using Base = FixedInputNodeT<0, SoftDeopt>;
 
  public:
-  explicit SoftDeopt(size_t input_count) : Base(input_count) {}
+  explicit SoftDeopt(size_t input_count, Checkpoint* checkpoint)
+      : Base(input_count), checkpoint_(checkpoint) {}
 
   static constexpr OpProperties kProperties = OpProperties::Deopt();
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  Checkpoint* checkpoint() { return checkpoint_; }
+
+ private:
+  Checkpoint* const checkpoint_;
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
  public:
-  explicit CheckMaps(size_t input_count, const compiler::MapRef& map)
-      : Base(input_count), map_(map) {}
+  explicit CheckMaps(size_t input_count, const compiler::MapRef& map,
+                     Checkpoint* checkpoint)
+      : Base(input_count), map_(map), checkpoint_(checkpoint) {}
 
   // TODO(verwaest): This just calls in deferred code, so probably we'll need to
   // mark that to generate stack maps. Mark as call so we at least clear the
@@ -922,8 +922,11 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  Checkpoint* checkpoint() { return checkpoint_; }
+
  private:
   const compiler::MapRef map_;
+  Checkpoint* checkpoint_;
 };
 
 class LoadField : public FixedInputValueNodeT<1, LoadField> {

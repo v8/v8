@@ -125,9 +125,6 @@ class MaglevGraphBuilder {
 
   template <typename NodeT>
   NodeT* AddNode(NodeT* node) {
-    if (node->properties().can_deopt()) {
-      EnsureCheckpoint();
-    }
     if (node->properties().is_required_when_unused()) {
       MarkPossibleSideEffect();
     }
@@ -143,13 +140,22 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(size_t input_count, Args&&... args) {
     return AddNode(
-        Node::New<NodeT>(zone(), input_count, std::forward<Args>(args)...));
+        CreateNewNode<NodeT>(input_count, std::forward<Args>(args)...));
   }
 
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(std::initializer_list<ValueNode*> inputs, Args&&... args) {
-    return AddNode(
-        Node::New<NodeT>(zone(), inputs, std::forward<Args>(args)...));
+    return AddNode(CreateNewNode<NodeT>(inputs, std::forward<Args>(args)...));
+  }
+
+  template <typename NodeT, typename... Args>
+  NodeT* CreateNewNode(Args&&... args) {
+    if constexpr (NodeT::kProperties.can_deopt()) {
+      return Node::New<NodeT>(zone(), std::forward<Args>(args)...,
+                              GetCheckpoint());
+    } else {
+      return Node::New<NodeT>(zone(), std::forward<Args>(args)...);
+    }
   }
 
   ValueNode* GetContext() const {
@@ -191,21 +197,24 @@ class MaglevGraphBuilder {
   }
 
   void AddCheckpoint() {
-    // TODO(v8:7700): Verify this calls the initializer list overload.
-    AddNewNode<Checkpoint>(
-        {}, BytecodeOffset(iterator_.current_offset()),
+    latest_checkpoint_ = zone()->New<Checkpoint>(
+        BytecodeOffset(iterator_.current_offset()),
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetInLiveness(), current_interpreter_frame_));
-    has_valid_checkpoint_ = true;
   }
 
   void EnsureCheckpoint() {
-    if (!has_valid_checkpoint_) AddCheckpoint();
+    if (!latest_checkpoint_) AddCheckpoint();
+  }
+
+  Checkpoint* GetCheckpoint() {
+    EnsureCheckpoint();
+    return latest_checkpoint_;
   }
 
   void MarkPossibleSideEffect() {
     // If there was a potential side effect, invalidate the previous checkpoint.
-    has_valid_checkpoint_ = false;
+    latest_checkpoint_ = nullptr;
   }
 
   int next_offset() const {
@@ -259,7 +268,7 @@ class MaglevGraphBuilder {
     // If the next block has merge states, then it's not a simple fallthrough,
     // and we should reset the checkpoint validity.
     if (merge_states_[next_block_offset] != nullptr) {
-      has_valid_checkpoint_ = false;
+      latest_checkpoint_ = nullptr;
     }
     // Start a new block for the fallthrough path, unless it's a merge point, in
     // which case we merge our state into it. That merge-point could also be a
@@ -355,7 +364,7 @@ class MaglevGraphBuilder {
   // Current block information.
   BasicBlock* current_block_ = nullptr;
   int block_offset_ = 0;
-  bool has_valid_checkpoint_ = false;
+  Checkpoint* latest_checkpoint_ = nullptr;
 
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
