@@ -95,7 +95,7 @@ class FrameWriter {
                            const char* debug_hint = "") {
     Object obj = iterator->GetRawValue();
     PushRawObject(obj, debug_hint);
-    if (trace_scope_) {
+    if (trace_scope_ != nullptr) {
       PrintF(trace_scope_->file(), " (input #%d)\n", iterator.input_index());
     }
     deoptimizer_->QueueValueForMaterialization(output_address(top_offset_), obj,
@@ -580,6 +580,7 @@ Handle<Code> Deoptimizer::compiled_code() const {
 Deoptimizer::~Deoptimizer() {
   DCHECK(input_ == nullptr && output_ == nullptr);
   DCHECK_NULL(disallow_garbage_collection_);
+  delete trace_scope_;
 }
 
 void Deoptimizer::DeleteFrameDescriptions() {

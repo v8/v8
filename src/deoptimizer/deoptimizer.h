@@ -182,11 +182,11 @@ class Deoptimizer : public Malloced {
   Code FindDeoptimizingCode(Address addr);
 
   // Tracing.
-  bool tracing_enabled() const { return static_cast<bool>(trace_scope_); }
+  bool tracing_enabled() const { return trace_scope_ != nullptr; }
   bool verbose_tracing_enabled() const {
-    return FLAG_trace_deopt_verbose && trace_scope_;
+    return FLAG_trace_deopt_verbose && tracing_enabled();
   }
-  CodeTracer::Scope* trace_scope() const { return trace_scope_.get(); }
+  CodeTracer::Scope* trace_scope() const { return trace_scope_; }
   CodeTracer::Scope* verbose_trace_scope() const {
     return FLAG_trace_deopt_verbose ? trace_scope() : nullptr;
   }
@@ -239,7 +239,9 @@ class Deoptimizer : public Malloced {
   DisallowGarbageCollection* disallow_garbage_collection_;
 #endif  // DEBUG
 
-  std::unique_ptr<CodeTracer::Scope> trace_scope_;
+  // Note: This is intentionally not a unique_ptr s.t. the Deoptimizer
+  // satisfies is_standard_layout, needed for offsetof().
+  CodeTracer::Scope* const trace_scope_;
 
   friend class DeoptimizedFrameInfo;
   friend class FrameDescription;
