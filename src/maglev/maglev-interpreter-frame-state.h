@@ -113,20 +113,20 @@ class CompactInterpreterFrameState {
 
   template <typename Function>
   void ForEachLocal(const MaglevCompilationUnit& info, Function&& f) const {
+    int live_reg = 0;
     for (int register_index : *liveness_) {
       interpreter::Register reg = interpreter::Register(register_index);
-      f(live_registers_and_accumulator_[info.parameter_count() +
-                                        register_index],
+      f(live_registers_and_accumulator_[info.parameter_count() + live_reg++],
         reg);
     }
   }
 
   template <typename Function>
   void ForEachLocal(const MaglevCompilationUnit& info, Function&& f) {
+    int live_reg = 0;
     for (int register_index : *liveness_) {
       interpreter::Register reg = interpreter::Register(register_index);
-      f(live_registers_and_accumulator_[info.parameter_count() +
-                                        register_index],
+      f(live_registers_and_accumulator_[info.parameter_count() + live_reg++],
         reg);
     }
   }
@@ -134,7 +134,7 @@ class CompactInterpreterFrameState {
   template <typename Function>
   void ForAccumulator(const MaglevCompilationUnit& info, Function&& f) {
     if (liveness_->AccumulatorIsLive()) {
-      f(live_registers_and_accumulator_[0]);
+      f(live_registers_and_accumulator_[SizeFor(info, liveness_) - 1]);
     }
   }
 
