@@ -6506,7 +6506,7 @@ void OOMCallback(const char* location, bool is_heap_oom) {
   Heap* heap = oom_isolate->heap();
   size_t kSlack = heap->new_space() ? heap->new_space()->Capacity() : 0;
   CHECK_LE(heap->OldGenerationCapacity(), kHeapLimit + kSlack);
-  CHECK_LE(heap->memory_allocator()->Size(), heap->CommittedMemory());
+  CHECK_LE(heap->memory_allocator()->Size(), heap->MaxReserved() + kSlack);
   base::OS::ExitProcess(0);
 }
 

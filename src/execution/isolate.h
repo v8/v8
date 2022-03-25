@@ -1334,14 +1334,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   THREAD_LOCAL_TOP_ACCESSOR(ExternalCallbackScope*, external_callback_scope)
 
+  THREAD_LOCAL_TOP_ACCESSOR(StateTag, current_vm_state)
   THREAD_LOCAL_TOP_ACCESSOR(EmbedderState*, current_embedder_state)
-
-  inline void set_current_vm_state(StateTag state_tag) {
-    current_vm_state_.store(state_tag, std::memory_order_relaxed);
-  }
-  inline StateTag current_vm_state() const {
-    return current_vm_state_.load(std::memory_order_relaxed);
-  }
 
   void SetData(uint32_t slot, void* data) {
     DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
@@ -2086,7 +2080,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
   std::shared_ptr<StringTable> string_table_;
-  std::atomic<StateTag> current_vm_state_{EXTERNAL};
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;

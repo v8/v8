@@ -1064,9 +1064,7 @@ class Heap {
 
   // Starts incremental marking assuming incremental marking is currently
   // stopped.
-  // Returns true if starting was successful. Returns false if marking cannot be
-  // activated.
-  V8_EXPORT_PRIVATE bool StartIncrementalMarking(
+  V8_EXPORT_PRIVATE void StartIncrementalMarking(
       int gc_flags, GarbageCollectionReason gc_reason,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
@@ -1311,7 +1309,7 @@ class Heap {
   size_t CommittedMemoryOfUnmapper();
 
   // Returns the amount of memory currently committed for the heap.
-  V8_EXPORT_PRIVATE size_t CommittedMemory();
+  size_t CommittedMemory();
 
   // Returns the amount of memory currently committed for the old space.
   size_t CommittedOldGenerationMemory();

@@ -1698,10 +1698,11 @@ void Heap::ReportExternalMemoryPressure() {
     return;
   }
   if (incremental_marking()->IsStopped()) {
-    if (!StartIncrementalMarking(
-            GCFlagsForIncrementalMarking(),
-            GarbageCollectionReason::kExternalMemoryPressure,
-            kGCCallbackFlagsForExternalMemory)) {
+    if (incremental_marking()->CanBeActivated()) {
+      StartIncrementalMarking(GCFlagsForIncrementalMarking(),
+                              GarbageCollectionReason::kExternalMemoryPressure,
+                              kGCCallbackFlagsForExternalMemory);
+    } else {
       CollectAllGarbage(i::Heap::kNoGCFlags,
                         GarbageCollectionReason::kExternalMemoryPressure,
                         kGCCallbackFlagsForExternalMemory);
@@ -1985,11 +1986,10 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   return ++contexts_disposed_;
 }
 
-bool Heap::StartIncrementalMarking(int gc_flags,
+void Heap::StartIncrementalMarking(int gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags) {
   DCHECK(incremental_marking()->IsStopped());
-  if (!incremental_marking()->CanBeActivated()) return false;
 
   // Sweeping needs to be completed such that markbits are all cleared before
   // starting marking again.
@@ -2014,7 +2014,6 @@ bool Heap::StartIncrementalMarking(int gc_flags,
   set_current_gc_flags(gc_flags);
   current_gc_callback_flags_ = gc_callback_flags;
   incremental_marking()->Start(gc_reason);
-  return true;
 }
 
 void Heap::CompleteSweepingFull() {
@@ -4169,7 +4168,7 @@ void Heap::CheckMemoryPressure() {
     TRACE_EVENT0("devtools.timeline,v8", "V8.CheckMemoryPressure");
     CollectGarbageOnMemoryPressure();
   } else if (memory_pressure_level == MemoryPressureLevel::kModerate) {
-    if (incremental_marking()->IsStopped()) {
+    if (FLAG_incremental_marking && incremental_marking()->IsStopped()) {
       TRACE_EVENT0("devtools.timeline,v8", "V8.CheckMemoryPressure");
       StartIncrementalMarking(kReduceMemoryFootprintMask,
                               GarbageCollectionReason::kMemoryPressure);
