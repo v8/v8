@@ -146,7 +146,8 @@ bool IncrementalMarking::CanBeActivated() {
   //   2) when we are currently not in a GC, and
   //   3) when we are currently not serializing or deserializing the heap, and
   //   4) not a shared heap.
-  return FLAG_incremental_marking && heap_->gc_state() == Heap::NOT_IN_GC &&
+  return FLAG_incremental_marking &&
+         heap_->isolate()->current_vm_state() != GC &&
          heap_->deserialization_complete() &&
          !heap_->isolate()->serializer_enabled() && !heap_->IsShared();
 }
