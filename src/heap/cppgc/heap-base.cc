@@ -130,7 +130,8 @@ void HeapBase::ResetRememberedSet() {
 
    protected:
     bool VisitNormalPageSpace(NormalPageSpace& space) {
-      some_lab_is_set_ |= space.linear_allocation_buffer().size();
+      some_lab_is_set_ |=
+          static_cast<bool>(space.linear_allocation_buffer().size());
       return true;
     }
 
