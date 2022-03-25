@@ -382,6 +382,14 @@ class StackMemory;
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
+#define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
+  do {                                                                    \
+    if (!(call).To(&dst)) {                                               \
+      DCHECK((isolate)->has_pending_exception());                         \
+      return value;                                                       \
+    }                                                                     \
+  } while (false)
+
 #define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
   do {                                                               \
     Isolate* __isolate__ = (isolate);                                \

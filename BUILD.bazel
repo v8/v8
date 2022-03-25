@@ -1989,6 +1989,7 @@ filegroup(
         "src/runtime/runtime-proxy.cc",
         "src/runtime/runtime-regexp.cc",
         "src/runtime/runtime-scopes.cc",
+        "src/runtime/runtime-shadow-realm.cc",
         "src/runtime/runtime-strings.cc",
         "src/runtime/runtime-symbol.cc",
         "src/runtime/runtime-test.cc",

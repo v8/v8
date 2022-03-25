@@ -439,6 +439,9 @@ namespace internal {
   F(StoreLookupSlot_Strict, 2, 1)                  \
   F(ThrowConstAssignError, 0, 1)
 
+#define FOR_EACH_INTRINSIC_SHADOW_REALM(F, I) \
+  F(ShadowRealmWrappedFunctionCreate, 2, 1)
+
 #define FOR_EACH_INTRINSIC_STRINGS(F, I)  \
   F(FlattenString, 1, 1)                  \
   F(GetSubstitution, 5, 1)                \
@@ -696,6 +699,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_PROXY(F, I)                    \
   FOR_EACH_INTRINSIC_REGEXP(F, I)                   \
   FOR_EACH_INTRINSIC_SCOPES(F, I)                   \
+  FOR_EACH_INTRINSIC_SHADOW_REALM(F, I)             \
   FOR_EACH_INTRINSIC_STRINGS(F, I)                  \
   FOR_EACH_INTRINSIC_SYMBOL(F, I)                   \
   FOR_EACH_INTRINSIC_TEST(F, I)                     \

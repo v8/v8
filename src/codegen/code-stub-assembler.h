@@ -3996,6 +3996,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> LoadDetailsByDescriptorEntry(
       TNode<DescriptorArray> descriptors, int descriptor);
   TNode<Object> LoadValueByDescriptorEntry(TNode<DescriptorArray> descriptors,
+                                           TNode<IntPtrT> descriptor);
+  TNode<Object> LoadValueByDescriptorEntry(TNode<DescriptorArray> descriptors,
                                            int descriptor);
   TNode<MaybeObject> LoadFieldTypeByDescriptorEntry(
       TNode<DescriptorArray> descriptors, TNode<IntPtrT> descriptor);

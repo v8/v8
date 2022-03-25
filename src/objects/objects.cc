@@ -494,6 +494,9 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     Handle<String> fun_str;
     if (input->IsJSBoundFunction()) {
       fun_str = JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(input));
+    } else if (input->IsJSWrappedFunction()) {
+      fun_str =
+          JSWrappedFunction::ToString(Handle<JSWrappedFunction>::cast(input));
     } else {
       DCHECK(input->IsJSFunction());
       fun_str = JSFunction::ToString(Handle<JSFunction>::cast(input));
@@ -549,9 +552,8 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
                           isolate, Handle<JSBoundFunction>::cast(ctor))
                           .ToHandleChecked();
         } else if (ctor->IsJSFunction()) {
-          Handle<Object> ctor_name_obj =
+          ctor_name =
               JSFunction::GetName(isolate, Handle<JSFunction>::cast(ctor));
-          ctor_name = AsStringOrEmpty(isolate, ctor_name_obj);
         }
 
         if (ctor_name->length() != 0) {

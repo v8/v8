@@ -4453,13 +4453,14 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
   if (!FLAG_harmony_shadow_realm) return;
+  Factory* factory = isolate()->factory();
   // -- S h a d o w R e a l m
   // #sec-shadowrealm-objects
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<JSFunction> shadow_realm_fun = InstallFunction(
-      isolate_, global, "ShadowRealm", JS_SHADOW_REALM_TYPE,
-      JSShadowRealm::kHeaderSize, 0, factory()->the_hole_value(),
-      Builtin::kShadowRealmConstructor);
+  Handle<JSFunction> shadow_realm_fun =
+      InstallFunction(isolate_, global, "ShadowRealm", JS_SHADOW_REALM_TYPE,
+                      JSShadowRealm::kHeaderSize, 0, factory->the_hole_value(),
+                      Builtin::kShadowRealmConstructor);
   shadow_realm_fun->shared().set_length(0);
   shadow_realm_fun->shared().DontAdaptArguments();
 
@@ -4467,7 +4468,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
   Handle<JSObject> prototype(
       JSObject::cast(shadow_realm_fun->instance_prototype()), isolate());
 
-  InstallToStringTag(isolate_, prototype, factory()->ShadowRealm_string());
+  InstallToStringTag(isolate_, prototype, factory->ShadowRealm_string());
 
   SimpleInstallFunction(isolate_, prototype, "evaluate",
                         Builtin::kShadowRealmPrototypeEvaluate, 1, true);
@@ -4475,14 +4476,37 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
                         Builtin::kShadowRealmPrototypeImportValue, 2, true);
 
   {  // --- W r a p p e d F u n c t i o n
-    Handle<Map> map = factory()->NewMap(JS_WRAPPED_FUNCTION_TYPE,
-                                        JSWrappedFunction::kHeaderSize,
-                                        TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Handle<Map> map = factory->NewMap(JS_WRAPPED_FUNCTION_TYPE,
+                                      JSWrappedFunction::kHeaderSize,
+                                      TERMINAL_FAST_ELEMENTS_KIND, 0);
     map->SetConstructor(native_context()->object_function());
     map->set_is_callable(true);
     Handle<JSObject> empty_function(native_context()->function_prototype(),
                                     isolate());
     Map::SetPrototype(isolate(), map, empty_function);
+
+    PropertyAttributes roc_attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+    Map::EnsureDescriptorSlack(isolate_, map, 2);
+    {  // length
+      STATIC_ASSERT(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex ==
+          0);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->length_string(), factory->wrapped_function_length_accessor(),
+          roc_attribs);
+      map->AppendDescriptor(isolate(), &d);
+    }
+
+    {  // name
+      STATIC_ASSERT(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex ==
+          1);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->name_string(), factory->wrapped_function_name_accessor(),
+          roc_attribs);
+      map->AppendDescriptor(isolate(), &d);
+    }
 
     native_context()->set_wrapped_function_map(*map);
   }

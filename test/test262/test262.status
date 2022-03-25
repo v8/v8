@@ -2800,10 +2800,6 @@
   'built-ins/ShadowRealm/prototype/importValue/throws-typeerror-import-syntax-error': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/throws-typeerror-import-throws': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/validates-realm-object': [FAIL],
-  'built-ins/ShadowRealm/WrappedFunction/length': [FAIL],
-  'built-ins/ShadowRealm/WrappedFunction/length-throws-typeerror': [FAIL],
-  'built-ins/ShadowRealm/WrappedFunction/name': [FAIL],
-  'built-ins/ShadowRealm/WrappedFunction/name-throws-typeerror': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12085
   'language/statements/class/subclass/derived-class-return-override-catch-finally': [FAIL],

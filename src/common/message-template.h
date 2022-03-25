@@ -68,6 +68,7 @@ namespace internal {
   T(CannotFreezeArrayBufferView,                                               \
     "Cannot freeze array buffer views with elements")                          \
   T(CannotSeal, "Cannot seal")                                                 \
+  T(CannotWrap, "Cannot wrap target callable")                                 \
   T(CircularStructure, "Converting circular structure to JSON%")               \
   T(ConstructAbstractClass, "Abstract class % not directly constructable")     \
   T(ConstAssign, "Assignment to constant variable.")                           \

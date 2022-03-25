@@ -487,7 +487,9 @@ class RuntimeCallTimer final {
   V(WebSnapshotDeserialize_Functions)          \
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
-  V(WebSnapshotDeserialize_Strings)
+  V(WebSnapshotDeserialize_Strings)            \
+  V(WrappedFunctionLengthGetter)               \
+  V(WrappedFunctionNameGetter)
 
 #define FOR_EACH_HANDLER_COUNTER(V)               \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
