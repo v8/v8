@@ -872,7 +872,12 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   DCHECK_NE(dst_offset, src_offset);
   Operand dst = liftoff::GetStackSlot(dst_offset);
   Operand src = liftoff::GetStackSlot(src_offset);
-  switch (element_size_log2(kind)) {
+  size_t size = element_size_log2(kind);
+  if (kind == kRef || kind == kOptRef || kind == kRtt) {
+    // Pointers are uncompressed on the stack!
+    size = kSystemPointerSizeLog2;
+  }
+  switch (size) {
     case 2:
       movl(kScratchRegister, src);
       movl(dst, kScratchRegister);
