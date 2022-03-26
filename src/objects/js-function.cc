@@ -457,8 +457,6 @@ MaybeHandle<Object> JSWrappedFunction::Create(
   // 8. If result is an Abrupt Completion, throw a TypeError exception.
   if (is_abrupt.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
-    Handle<Object> pending_exception =
-        Handle<Object>(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
     // TODO(v8:11989): provide a non-observable inspection on the
     // pending_exception to the newly created TypeError.
