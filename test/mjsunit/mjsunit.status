@@ -60,7 +60,6 @@
   'temporal/calendar-month-day-from-fields': [FAIL],
   'temporal/calendar-months-in-year': [FAIL],
   'temporal/calendar-week-of-year': [FAIL],
-  'temporal/calendar-year': [FAIL],
   'temporal/calendar-year-month-from-fields': [FAIL],
   'temporal/duration-add': [FAIL],
   'temporal/duration-from': [FAIL],

@@ -52,6 +52,11 @@ class JSTemporalCalendar
       Isolate* isolate, Handle<JSFunction> target,
       Handle<HeapObject> new_target, Handle<Object> identifier);
 
+  // #sec-temporal.calendar.prototype.year
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Year(
+      Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+      Handle<Object> temporal_date_like);
+
   // #sec-temporal.calendar.prototype.daysinyear
   V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> DaysInYear(
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,

@@ -316,8 +316,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthDayFromFields)
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateAdd)
 /* Temporal #sec-temporal.calendar.prototype.dateuntil */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateUntil)
-/* Temporal #sec-temporal.calendar.prototype.year */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeYear)
 /* Temporal #sec-temporal.calendar.prototype.month */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonth)
 /* Temporal #sec-temporal.calendar.prototype.monthcode */
@@ -802,6 +800,7 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
 TEMPORAL_ID_BY_TO_STRING(Calendar)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInYear, daysInYear)
 TEMPORAL_TO_STRING(Calendar)
 // #sec-temporal.calendar.from
