@@ -4789,6 +4789,24 @@ MaybeHandle<JSTemporalCalendar> JSTemporalCalendar::Constructor(
   return CreateTemporalCalendar(isolate, target, new_target, identifier);
 }
 
+namespace {
+
+// #sec-temporal-toisodayofyear
+int32_t ToISODayOfYear(Isolate* isolate, int32_t year, int32_t month,
+                       int32_t day) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: year is an integer.
+  // 2. Assert: month is an integer.
+  // 3. Assert: day is an integer.
+  // 4. Let date be the date given by year, month, and day.
+  // 5. Return date's ordinal date in the year according to ISO-8601.
+  return day + isolate->date_cache()->DaysFromYearMonth(year, month - 1) -
+         isolate->date_cache()->DaysFromYearMonth(year, 0);
+}
+
+}  // namespace
+
 // #sec-temporal.calendar.prototype.daysinyear
 MaybeHandle<Smi> JSTemporalCalendar::DaysInYear(
     Isolate* isolate, Handle<JSTemporalCalendar> calendar,
@@ -4868,6 +4886,30 @@ MaybeHandle<Smi> JSTemporalCalendar::Year(Isolate* isolate,
 
   // 6. Return 𝔽(year).
   return handle(Smi::FromInt(year), isolate);
+}
+
+// #sec-temporal.calendar.prototype.dayofyear
+MaybeHandle<Smi> JSTemporalCalendar::DayOfYear(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. Let temporalDate be ? ToTemporalDate(temporalDateLike).
+  Handle<JSTemporalPlainDate> temporal_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date,
+      ToTemporalDate(isolate, temporal_date_like,
+                     isolate->factory()->NewJSObjectWithNullProto(),
+                     "Temporal.Calendar.prototype.dayOfYear"),
+      Smi);
+  // a. Let value be ! ToISODayOfYear(temporalDate.[[ISOYear]],
+  // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]]).
+  int32_t value =
+      ToISODayOfYear(isolate, temporal_date->iso_year(),
+                     temporal_date->iso_month(), temporal_date->iso_day());
+  return handle(Smi::FromInt(value), isolate);
 }
 
 // #sec-temporal.calendar.prototype.tostring
