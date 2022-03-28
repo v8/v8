@@ -197,12 +197,30 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
   __ JumpIfNotSmi(value, target);
 }
 
-void BaselineAssembler::CallBuiltin(Builtin builtin) { UNIMPLEMENTED(); }
+void BaselineAssembler::CallBuiltin(Builtin builtin) {
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative call.
+    __ CallBuiltin(builtin, al);
+  } else {
+    ScratchRegisterScope temps(this);
+    Register temp = temps.AcquireScratch();
+    __ LoadEntryFromBuiltin(builtin, temp);
+    __ Call(temp);
+  }
+}
 
 void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(masm_,
                           __ CommentForOffHeapTrampoline("tail call", builtin));
-  UNIMPLEMENTED();
+  if (masm()->options().short_builtin_calls) {
+    // Generate pc-relative call.
+    __ TailCallBuiltin(builtin);
+  } else {
+    ScratchRegisterScope temps(this);
+    Register temp = temps.AcquireScratch();
+    __ LoadEntryFromBuiltin(builtin, temp);
+    __ Jump(temp);
+  }
 }
 
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,

@@ -279,6 +279,13 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
   bind(&skip);
 }
 
+void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+  ASM_CODE_COMMENT_STRING(this,
+                          CommentForOffHeapTrampoline("tail call", builtin));
+  mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  Jump(ip);
+}
+
 void TurboAssembler::Drop(int count) {
   if (count > 0) {
     AddS64(sp, sp, Operand(count * kSystemPointerSize), r0);
@@ -3601,6 +3608,19 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   LoadEntryFromBuiltinIndex(builtin_index);
   Call(builtin_index);
+}
+
+void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin,
+                                          Register destination) {
+  ASM_CODE_COMMENT(this);
+  LoadU64(destination, EntryFromBuiltinAsOperand(builtin));
+}
+
+MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(root_array_available());
+  return MemOperand(kRootRegister,
+                    IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
