@@ -8634,7 +8634,8 @@ void Isolate::Initialize(Isolate* isolate,
 #endif  // defined(V8_OS_WIN)
 
     if (code_event_handler) {
-      isolate->SetJitCodeEventHandler(kJitCodeEventDefault, code_event_handler);
+      isolate->SetJitCodeEventHandler(kJitCodeEventEnumExisting,
+                                      code_event_handler);
     }
   }
 
