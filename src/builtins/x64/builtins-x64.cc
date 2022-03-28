@@ -4035,6 +4035,7 @@ void Builtins::Generate_WasmResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::STACK_SWITCH);
 
   Register param_count = rax;
+  __ decq(param_count);                    // Exclude receiver.
   Register closure = kJSFunctionRegister;  // rdi
 
   // These slots are not used in this builtin. But when we return from the
