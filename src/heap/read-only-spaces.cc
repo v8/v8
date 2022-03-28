@@ -329,6 +329,19 @@ void ReadOnlySpace::DetachPagesAndAddToArtifacts(
   artifacts->Initialize(heap->isolate(), std::move(pages_), accounting_stats_);
 }
 
+ReadOnlyPage::ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+                           Address area_start, Address area_end,
+                           VirtualMemory reservation)
+    : BasicMemoryChunk(heap, space, chunk_size, area_start, area_end,
+                       std::move(reservation)) {
+  allocated_bytes_ = 0;
+  SetFlags(Flag::NEVER_EVACUATE | Flag::READ_ONLY_HEAP);
+  heap->incremental_marking()
+      ->non_atomic_marking_state()
+      ->bitmap(this)
+      ->MarkAllBits();
+}
+
 void ReadOnlyPage::MakeHeaderRelocatable() {
   heap_ = nullptr;
   owner_ = nullptr;
@@ -612,7 +625,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
   FreeLinearAllocationArea();
 
   BasicMemoryChunk* chunk =
-      heap()->memory_allocator()->AllocateReadOnlyPage(AreaSize(), this);
+      heap()->memory_allocator()->AllocateReadOnlyPage(this);
   capacity_ += AreaSize();
 
   accounting_stats_.IncreaseCapacity(chunk->area_size());
@@ -752,20 +765,6 @@ void ReadOnlySpace::ShrinkPages() {
     AccountUncommitted(unused);
   }
   limit_ = pages_.back()->area_end();
-}
-
-ReadOnlyPage* ReadOnlySpace::InitializePage(BasicMemoryChunk* chunk) {
-  ReadOnlyPage* page = reinterpret_cast<ReadOnlyPage*>(chunk);
-  page->allocated_bytes_ = 0;
-  page->SetFlag(BasicMemoryChunk::Flag::NEVER_EVACUATE);
-  heap()
-      ->incremental_marking()
-      ->non_atomic_marking_state()
-      ->bitmap(chunk)
-      ->MarkAllBits();
-  chunk->SetFlag(BasicMemoryChunk::READ_ONLY_HEAP);
-
-  return page;
 }
 
 SharedReadOnlySpace::SharedReadOnlySpace(

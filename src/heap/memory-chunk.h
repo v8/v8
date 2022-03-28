@@ -53,6 +53,10 @@ class MemoryChunk : public BasicMemoryChunk {
   // Maximum number of nested code memory modification scopes.
   static const int kMaxWriteUnprotectCounter = 3;
 
+  MemoryChunk(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+              Address area_end, VirtualMemory reservation,
+              Executability executable, PageSize page_size);
+
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
     return cast(BasicMemoryChunk::FromAddress(a));
@@ -219,9 +223,6 @@ class MemoryChunk : public BasicMemoryChunk {
 #endif
 
  protected:
-  static MemoryChunk* Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
-                                 Executability executable, PageSize page_size);
-
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
   void ReleaseAllAllocatedMemory();

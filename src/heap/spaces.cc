@@ -50,6 +50,12 @@ STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
 // static
 constexpr Page::MainThreadFlags Page::kCopyOnFlipFlagsMask;
 
+Page::Page(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+           Address area_end, VirtualMemory reservation,
+           Executability executable)
+    : MemoryChunk(heap, space, size, area_start, area_end,
+                  std::move(reservation), executable, PageSize::kRegular) {}
+
 void Page::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
   categories_ =

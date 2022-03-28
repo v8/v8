@@ -70,8 +70,8 @@ bool SemiSpace::EnsureCurrentCapacity() {
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
       current_page->ClearFlags(Page::kIsInYoungGenerationMask);
-      heap()->memory_allocator()->Free(MemoryAllocator::kConcurrentlyAndPool,
-                                       current_page);
+      heap()->memory_allocator()->Free(
+          MemoryAllocator::FreeMode::kConcurrentlyAndPool, current_page);
       current_page = next_current;
     }
 
@@ -81,16 +81,14 @@ bool SemiSpace::EnsureCurrentCapacity() {
     while (actual_pages < expected_pages) {
       actual_pages++;
       current_page = heap()->memory_allocator()->AllocatePage(
-          MemoryAllocator::kUsePool,
-          MemoryChunkLayout::AllocatableMemoryInDataPage(), this,
-          NOT_EXECUTABLE);
+          MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
       AccountCommitted(Page::kPageSize);
       IncrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
       memory_chunk_list_.PushBack(current_page);
       marking_state->ClearLiveness(current_page);
-      current_page->SetFlags(first_page()->GetFlags(), Page::kAllFlagsMask);
+      current_page->SetFlags(first_page()->GetFlags());
       heap()->CreateFillerObjectAt(current_page->area_start(),
                                    static_cast<int>(current_page->area_size()),
                                    ClearRecordedSlots::kNo);
@@ -128,8 +126,7 @@ bool SemiSpace::Commit() {
     // collector. Therefore, they must be initialized with the same FreeList as
     // old pages.
     Page* new_page = heap()->memory_allocator()->AllocatePage(
-        MemoryAllocator::kUsePool,
-        MemoryChunkLayout::AllocatableMemoryInDataPage(), this, NOT_EXECUTABLE);
+        MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
       if (pages_added) RewindPages(pages_added);
       DCHECK(!IsCommitted());
@@ -155,8 +152,8 @@ bool SemiSpace::Uncommit() {
     MemoryChunk* chunk = memory_chunk_list_.front();
     DecrementCommittedPhysicalMemory(chunk->CommittedPhysicalMemory());
     memory_chunk_list_.Remove(chunk);
-    heap()->memory_allocator()->Free(MemoryAllocator::kConcurrentlyAndPool,
-                                     chunk);
+    heap()->memory_allocator()->Free(
+        MemoryAllocator::FreeMode::kConcurrentlyAndPool, chunk);
   }
   current_page_ = nullptr;
   current_capacity_ = 0;
@@ -191,8 +188,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
       heap()->incremental_marking()->non_atomic_marking_state();
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     Page* new_page = heap()->memory_allocator()->AllocatePage(
-        MemoryAllocator::kUsePool,
-        MemoryChunkLayout::AllocatableMemoryInDataPage(), this, NOT_EXECUTABLE);
+        MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
     if (new_page == nullptr) {
       if (pages_added) RewindPages(pages_added);
       return false;
@@ -215,8 +211,8 @@ void SemiSpace::RewindPages(int num_pages) {
     MemoryChunk* last = last_page();
     memory_chunk_list_.Remove(last);
     DecrementCommittedPhysicalMemory(last->CommittedPhysicalMemory());
-    heap()->memory_allocator()->Free(MemoryAllocator::kConcurrentlyAndPool,
-                                     last);
+    heap()->memory_allocator()->Free(
+        MemoryAllocator::FreeMode::kConcurrentlyAndPool, last);
     num_pages--;
   }
 }
@@ -278,7 +274,7 @@ void SemiSpace::RemovePage(Page* page) {
 }
 
 void SemiSpace::PrependPage(Page* page) {
-  page->SetFlags(current_page()->GetFlags(), Page::kAllFlagsMask);
+  page->SetFlags(current_page()->GetFlags());
   page->set_owner(this);
   memory_chunk_list_.PushFront(page);
   current_capacity_ += Page::kPageSize;

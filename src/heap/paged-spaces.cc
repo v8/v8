@@ -107,7 +107,8 @@ void PagedSpace::TearDown() {
   while (!memory_chunk_list_.Empty()) {
     MemoryChunk* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
-    heap()->memory_allocator()->Free(MemoryAllocator::kImmediately, chunk);
+    heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
+                                     chunk);
   }
   accounting_stats_.Clear();
 }
@@ -351,13 +352,9 @@ void PagedSpace::ShrinkImmortalImmovablePages() {
   }
 }
 
-Page* PagedSpace::AllocatePage() {
-  return heap()->memory_allocator()->AllocatePage(
-      MemoryAllocator::kRegular, AreaSize(), this, executable());
-}
-
 Page* PagedSpace::Expand() {
-  Page* page = AllocatePage();
+  Page* page = heap()->memory_allocator()->AllocatePage(
+      MemoryAllocator::AllocationMode::kRegular, this, executable());
   if (page == nullptr) return nullptr;
   ConcurrentAllocationMutex guard(this);
   AddPage(page);
@@ -368,7 +365,8 @@ Page* PagedSpace::Expand() {
 
 base::Optional<std::pair<Address, size_t>> PagedSpace::ExpandBackground(
     size_t size_in_bytes) {
-  Page* page = AllocatePage();
+  Page* page = heap()->memory_allocator()->AllocatePage(
+      MemoryAllocator::AllocationMode::kRegular, this, executable());
   if (page == nullptr) return {};
   base::MutexGuard lock(&space_mutex_);
   AddPage(page);
@@ -528,7 +526,8 @@ void PagedSpace::ReleasePage(Page* page) {
   AccountUncommitted(page->size());
   DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
   accounting_stats_.DecreaseCapacity(page->area_size());
-  heap()->memory_allocator()->Free(MemoryAllocator::kConcurrently, page);
+  heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
+                                   page);
 }
 
 void PagedSpace::SetReadable() {

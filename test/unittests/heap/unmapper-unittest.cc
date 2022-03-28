@@ -311,16 +311,15 @@ bool SequentialUnmapperTest::old_flag_;
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
   if (FLAG_enable_third_party_heap) return;
-  Page* page = allocator()->AllocatePage(
-      MemoryAllocator::kRegular,
-      MemoryChunkLayout::AllocatableMemoryInDataPage(),
-      static_cast<PagedSpace*>(heap()->old_space()),
-      Executability::NOT_EXECUTABLE);
+  Page* page =
+      allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
+                                static_cast<PagedSpace*>(heap()->old_space()),
+                                Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const size_t page_size = tracking_page_allocator()->AllocatePageSize();
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
-  allocator()->Free(MemoryAllocator::kConcurrentlyAndPool, page);
+  allocator()->Free(MemoryAllocator::FreeMode::kConcurrentlyAndPool, page);
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
   unmapper()->FreeQueuedChunks();
@@ -341,17 +340,16 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   if (FLAG_enable_third_party_heap) return;
-  Page* page = allocator()->AllocatePage(
-      MemoryAllocator::kRegular,
-      MemoryChunkLayout::AllocatableMemoryInDataPage(),
-      static_cast<PagedSpace*>(heap()->old_space()),
-      Executability::NOT_EXECUTABLE);
+  Page* page =
+      allocator()->AllocatePage(MemoryAllocator::AllocationMode::kRegular,
+                                static_cast<PagedSpace*>(heap()->old_space()),
+                                Executability::NOT_EXECUTABLE);
   EXPECT_NE(nullptr, page);
   const size_t page_size = tracking_page_allocator()->AllocatePageSize();
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
 
-  allocator()->Free(MemoryAllocator::kConcurrentlyAndPool, page);
+  allocator()->Free(MemoryAllocator::FreeMode::kConcurrentlyAndPool, page);
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
   unmapper()->TearDown();

@@ -224,6 +224,9 @@ class Page : public MemoryChunk {
       MainThreadFlags(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
       MainThreadFlags(MemoryChunk::INCREMENTAL_MARKING);
 
+  Page(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+       Address area_end, VirtualMemory reservation, Executability executable);
+
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
   // is in fact in a page.

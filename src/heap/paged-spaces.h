@@ -391,8 +391,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   base::Optional<std::pair<Address, size_t>> ExpandBackground(
       size_t size_in_bytes);
 
-  Page* AllocatePage();
-
   // Sets up a linear allocation area that fits the given number of bytes.
   // Returns false if there is not enough space and the caller has to retry
   // after collecting garbage.

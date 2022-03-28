@@ -129,7 +129,9 @@ class BasicMemoryChunk {
 
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
-  BasicMemoryChunk(size_t size, Address area_start, Address area_end);
+  BasicMemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
+                   Address area_start, Address area_end,
+                   VirtualMemory reservation);
 
   static Address BaseAddress(Address a) { return a & ~kAlignmentMask; }
 
@@ -178,7 +180,7 @@ class BasicMemoryChunk {
   void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
   // Set or clear multiple flags at a time. `mask` indicates which flags are
   // should be replaced with new `flags`.
-  void SetFlags(MainThreadFlags flags, MainThreadFlags mask) {
+  void SetFlags(MainThreadFlags flags, MainThreadFlags mask = kAllFlagsMask) {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
 
@@ -253,11 +255,6 @@ class BasicMemoryChunk {
   bool ContainsLimit(Address addr) const {
     return addr >= area_start() && addr <= area_end();
   }
-
-  static BasicMemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                      Address area_start, Address area_end,
-                                      BaseSpace* owner,
-                                      VirtualMemory reservation);
 
   size_t wasted_memory() const { return wasted_memory_; }
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }

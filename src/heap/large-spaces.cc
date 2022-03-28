@@ -30,6 +30,21 @@ namespace internal {
 // order to figure out if it's a cleared weak reference or not.
 STATIC_ASSERT(kClearedWeakHeapObjectLower32 < LargePage::kHeaderSize);
 
+LargePage::LargePage(Heap* heap, BaseSpace* space, size_t chunk_size,
+                     Address area_start, Address area_end,
+                     VirtualMemory reservation, Executability executable)
+    : MemoryChunk(heap, space, chunk_size, area_start, area_end,
+                  std::move(reservation), executable, PageSize::kLarge) {
+  STATIC_ASSERT(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
+
+  if (executable && chunk_size > LargePage::kMaxCodePageSize) {
+    FATAL("Code page is too large.");
+  }
+
+  SetFlag(MemoryChunk::LARGE_PAGE);
+  list_node().Initialize();
+}
+
 LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
                                  Executability executable) {
   if (executable && chunk->size() > LargePage::kMaxCodePageSize) {
@@ -107,7 +122,8 @@ void LargeObjectSpace::TearDown() {
         DeleteEvent("LargeObjectChunk",
                     reinterpret_cast<void*>(page->address())));
     memory_chunk_list_.Remove(page);
-    heap()->memory_allocator()->Free(MemoryAllocator::kImmediately, page);
+    heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
+                                     page);
   }
 }
 
@@ -195,7 +211,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
 LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
                                                Executability executable) {
   LargePage* page = heap()->memory_allocator()->AllocateLargePage(
-      object_size, this, executable);
+      this, object_size, executable);
   if (page == nullptr) return nullptr;
   DCHECK_GE(page->area_size(), static_cast<size_t>(object_size));
 
@@ -324,7 +340,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
     } else {
       RemovePage(current, size);
-      heap()->memory_allocator()->Free(MemoryAllocator::kConcurrently, current);
+      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
+                                       current);
     }
     current = next_current;
   }
@@ -544,7 +561,8 @@ void NewLargeObjectSpace::FreeDeadObjects(
     if (is_dead(object)) {
       freed_pages = true;
       RemovePage(page, size);
-      heap()->memory_allocator()->Free(MemoryAllocator::kConcurrently, page);
+      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
+                                       page);
       if (FLAG_concurrent_marking && is_marking) {
         heap()->concurrent_marking()->ClearMemoryChunkData(page);
       }
