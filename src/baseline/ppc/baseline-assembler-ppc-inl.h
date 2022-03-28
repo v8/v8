@@ -225,29 +225,51 @@ void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
 
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ AndU64(r0, value, Operand(mask), ip, SetRC);
+  __ b(AsMasmCondition(cc), target);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
-  USE(detail::JumpIfHelper);
-  UNIMPLEMENTED();
+  if (detail::IsSignedCondition(cc)) {
+    __ CmpS64(lhs, rhs, r0);
+  } else {
+    __ CmpU64(lhs, rhs, r0);
+  }
+  __ b(AsMasmCondition(cc), target);
 }
 void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
                                          InstanceType instance_type,
                                          Register map, Label* target,
                                          Label::Distance) {
-  UNIMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  Register type = temps.AcquireScratch();
+  __ LoadMap(map, object);
+  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  JumpIf(cc, type, Operand(instance_type), target);
 }
+
 void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            InstanceType instance_type,
                                            Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  Register type = temps.AcquireScratch();
+  if (FLAG_debug_code) {
+    __ AssertNotSmi(map);
+    __ CompareObjectType(map, type, type, MAP_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  JumpIf(cc, type, Operand(instance_type), target);
 }
+
 void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
                                       MemOperand operand, Label* target,
                                       Label::Distance) {
-  UNIMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireScratch();
+  __ LoadU64(tmp, operand);
+  detail::JumpIfHelper(masm_, cc, value, tmp, target);
 }
 void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
                                   Label* target, Label::Distance) {
