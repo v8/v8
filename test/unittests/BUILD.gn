@@ -7,18 +7,24 @@ import("../../gni/v8.gni")
 if (is_fuchsia) {
   import("//build/config/fuchsia/rules.gni")
 
-  cr_fuchsia_package("v8_unittests_pkg") {
+  fuchsia_component("v8_unittests_component") {
     testonly = true
-    binary = ":unittests"
-    manifest = "../../gni/v8.cmx"
-    package_name_override = "v8_unittests"
+    manifest = "v8_unittests.cmx"
+    data_deps = [ ":unittests" ]
+    visibility = [ ":*" ]
+  }
+
+  fuchsia_package("v8_unittests_pkg") {
+    testonly = true
+    package_name = "v8_unittests"
+    deps = [ ":v8_unittests_component" ]
   }
 
   fuchsia_package_runner("v8_unittests_fuchsia") {
     testonly = true
     use_cfv2 = false
     package = ":v8_unittests_pkg"
-    package_name_override = "v8_unittests"
+    package_name = "v8_unittests"
   }
 }
 
