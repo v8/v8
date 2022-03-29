@@ -1300,23 +1300,41 @@ I64_BINOP_I(xor, Xor)
       LiftoffRegister dst, LiftoffRegister src, Register amount) { \
     instruction(dst.gp(), src.gp(), amount);                       \
   }
-#define I64_SHIFTOP_I(name, instruction)                                       \
-  void LiftoffAssembler::emit_i64_##name##i(LiftoffRegister dst,               \
-                                            LiftoffRegister src, int amount) { \
-    DCHECK(is_uint6(amount));                                                  \
-    instruction(dst.gp(), src.gp(), amount);                                   \
-  }
 
 I64_SHIFTOP(shl, sll)
 I64_SHIFTOP(sar, sra)
 I64_SHIFTOP(shr, srl)
-
-I64_SHIFTOP_I(shl, slli)
-I64_SHIFTOP_I(sar, srai)
-I64_SHIFTOP_I(shr, srli)
-
 #undef I64_SHIFTOP
-#undef I64_SHIFTOP_I
+
+void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
+                                     int amount) {
+  if (is_uint6(amount)) {
+    slli(dst.gp(), src.gp(), amount);
+  } else {
+    li(kScratchReg, amount);
+    sll(dst.gp(), src.gp(), kScratchReg);
+  }
+}
+
+void LiftoffAssembler::emit_i64_sari(LiftoffRegister dst, LiftoffRegister src,
+                                     int amount) {
+  if (is_uint6(amount)) {
+    srai(dst.gp(), src.gp(), amount);
+  } else {
+    li(kScratchReg, amount);
+    sra(dst.gp(), src.gp(), kScratchReg);
+  }
+}
+
+void LiftoffAssembler::emit_i64_shri(LiftoffRegister dst, LiftoffRegister src,
+                                     int amount) {
+  if (is_uint6(amount)) {
+    srli(dst.gp(), src.gp(), amount);
+  } else {
+    li(kScratchReg, amount);
+    srl(dst.gp(), src.gp(), kScratchReg);
+  }
+}
 
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                                      int64_t imm) {
