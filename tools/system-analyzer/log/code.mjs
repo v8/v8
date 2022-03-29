@@ -2,8 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {formatBytes} from '../helper.mjs';
-
 import {LogEntry} from './log.mjs';
+
+class CodeString {
+  constructor(string) {
+    if (typeof string !== 'string') {
+      throw new Error('Expected string');
+    }
+    this.string = string;
+  }
+
+  get isCode() {
+    return true;
+  }
+
+  toString() {
+    return this.string;
+  }
+}
 
 export class DeoptLogEntry extends LogEntry {
   constructor(
@@ -117,6 +133,8 @@ export class CodeLogEntry extends LogEntry {
   get toolTipDict() {
     const dict = super.toolTipDict;
     dict.size = formatBytes(dict.size);
+    dict.source = new CodeString(dict.source);
+    dict.code = new CodeString(dict.code);
     return dict;
   }
 
