@@ -73,7 +73,7 @@ LINT_RULES = """
 -whitespace/comments
 """.split()
 
-LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
+LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]')
 FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
 ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
 FLAGS_ENABLE_OPT = re.compile("//\s*Flags:.*--opt[^-].*\n")
@@ -95,10 +95,14 @@ def CppLintWorker(command):
           print("Failed to process %s" % command.pop())
           return 1
         break
-      m = LINT_OUTPUT_PATTERN.match(out_line)
-      if m:
-        out_lines += out_line
+      if out_line.strip() == 'Total errors found: 0':
+        out_lines += "Done processing %s\n" % command.pop()
         error_count += 1
+      else:
+        m = LINT_OUTPUT_PATTERN.match(out_line)
+        if m:
+          out_lines += out_line
+          error_count += 1
     sys.stdout.write(out_lines)
     return error_count
   except KeyboardInterrupt:
