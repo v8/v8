@@ -8,6 +8,7 @@
 #include "src/compiler/heap-refs.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration.h"
+#include "src/maglev/maglev-ir.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/slots-inl.h"
@@ -395,13 +396,19 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
   int argc_count_with_recv = argc_count + 1;
   size_t input_count = argc_count_with_recv + Call::kFixedInputCount;
 
+  // The undefined constant node has to be created before the call node.
+  RootConstant* undefined_constant;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    undefined_constant =
+        AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
+  }
+
   Call* call = AddNewNode<Call>(input_count, receiver_mode, function, context);
   int arg_index = 0;
   int reg_count = argc_count_with_recv;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     reg_count = argc_count;
-    call->set_arg(arg_index++,
-                  AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
+    call->set_arg(arg_index++, undefined_constant);
   }
   for (int i = 0; i < reg_count; i++) {
     call->set_arg(arg_index++, LoadRegister(i + 1));
