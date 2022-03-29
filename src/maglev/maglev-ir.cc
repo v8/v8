@@ -772,9 +772,35 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
                           const ProcessingState& state) {
   DCHECK_EQ(ToRegister(value_input()), kReturnRegister0);
 
+  // We're not going to continue execution, so we can use an arbitrary register
+  // here instead of relying on temporaries from the register allocator.
+  Register actual_params_size = r8;
+
+  // Compute the size of the actual parameters + receiver (in bytes).
+  // TODO(leszeks): Consider making this an input into Return to re-use the
+  // incoming argc's register (if it's still valid).
+  __ movq(actual_params_size,
+          MemOperand(rbp, StandardFrameConstants::kArgCOffset));
+
+  // Leave the frame.
+  // TODO(leszeks): Add a new frame maker for Maglev.
   __ LeaveFrame(StackFrame::BASELINE);
+
+  // If actual is bigger than formal, then we should use it to free up the stack
+  // arguments.
+  Label drop_dynamic_arg_size;
+  __ cmpq(actual_params_size, Immediate(code_gen_state->parameter_count()));
+  __ j(greater, &drop_dynamic_arg_size);
+
+  // Drop receiver + arguments according to static formal arguments size.
   __ Ret(code_gen_state->parameter_count() * kSystemPointerSize,
          kScratchRegister);
+
+  __ bind(&drop_dynamic_arg_size);
+  // Drop receiver + arguments according to dynamic arguments size.
+  __ DropArguments(actual_params_size, r9, TurboAssembler::kCountIsInteger,
+                   TurboAssembler::kCountIncludesReceiver);
+  __ Ret();
 }
 
 void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state,
