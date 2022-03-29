@@ -145,7 +145,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceRegExpPrototypeTest(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
-  Reduction ReduceStringPrototypeIndexOf(Node* node);
+
+  enum class StringIndexOfIncludesVariant { kIncludes, kIndexOf };
+  Reduction ReduceStringPrototypeIndexOfIncludes(
+      Node* node, StringIndexOfIncludesVariant variant);
   Reduction ReduceStringPrototypeSubstring(Node* node);
   Reduction ReduceStringPrototypeSlice(Node* node);
   Reduction ReduceStringPrototypeSubstr(Node* node);

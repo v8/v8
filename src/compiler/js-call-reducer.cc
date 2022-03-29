@@ -4791,7 +4791,11 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kReturnReceiver:
       return ReduceReturnReceiver(node);
     case Builtin::kStringPrototypeIndexOf:
-      return ReduceStringPrototypeIndexOf(node);
+      return ReduceStringPrototypeIndexOfIncludes(
+          node, StringIndexOfIncludesVariant::kIndexOf);
+    case Builtin::kStringPrototypeIncludes:
+      return ReduceStringPrototypeIndexOfIncludes(
+          node, StringIndexOfIncludesVariant::kIncludes);
     case Builtin::kStringPrototypeCharAt:
       return ReduceStringPrototypeCharAt(node);
     case Builtin::kStringPrototypeCharCodeAt:
@@ -5248,7 +5252,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 }
 
 // ES #sec-string.prototype.indexof
-Reduction JSCallReducer::ReduceStringPrototypeIndexOf(Node* node) {
+// ES #sec-string.prototype.includes
+Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
+    Node* node, StringIndexOfIncludesVariant variant) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -5289,7 +5295,17 @@ Reduction JSCallReducer::ReduceStringPrototypeIndexOf(Node* node) {
     node->ReplaceInput(2, new_position);
     node->TrimInputCount(3);
     NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
-    return Changed(node);
+
+    if (variant == StringIndexOfIncludesVariant::kIndexOf) {
+      return Changed(node);
+    } else {
+      DCHECK(variant == StringIndexOfIncludesVariant::kIncludes);
+      Node* result =
+          graph()->NewNode(simplified()->BooleanNot(),
+                           graph()->NewNode(simplified()->NumberEqual(), node,
+                                            jsgraph()->SmiConstant(-1)));
+      return Replace(result);
+    }
   }
   return NoChange();
 }
