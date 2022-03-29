@@ -1467,6 +1467,8 @@
   # TODO(v8:11111) and
   # https://bugs.chromium.org/p/v8/issues/detail?id=12731
   'regress/regress-crbug-1306929': [SKIP],
+  # https://crbug.com/v8/12742
+  'regress/regress-crbug-1307310': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
 
 ##############################################################################
