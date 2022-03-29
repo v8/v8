@@ -122,7 +122,7 @@ def TorqueLintWorker(command):
       error_count += 1
     sys.stdout.write(out_lines)
     if error_count != 0:
-        sys.stdout.write(
+      sys.stdout.write(
           "warning: formatting and overwriting unformatted Torque files\n")
     return error_count
   except KeyboardInterrupt:
@@ -727,16 +727,35 @@ def CheckDeps(workspace):
   return subprocess.call([sys.executable, checkdeps_py, workspace]) == 0
 
 
+def FindTests(workspace):
+  scripts = []
+  # TODO(almuthanna): unskip valid tests when they are properly migrated
+  exclude = [
+      'tools/clang',
+      'tools/unittests/v8_presubmit_test.py',
+      'tools/testrunner/local/pool_test.py',
+      'tools/testrunner/testproc/sequence_test.py',
+      'tools/mb/mb_test.py',
+      'tools/cppgc/gen_cmake_test.py',
+      'tools/ignition/linux_perf_report_test.py',
+      'tools/ignition/bytecode_dispatches_report_test.py',
+      'tools/ignition/linux_perf_bytecode_annotate_test.py',
+  ]
+  scripts_without_excluded = []
+  for root, dirs, files in os.walk(join(workspace, 'tools')):
+    for f in files:
+      if f.endswith('_test.py'):
+        fullpath = os.path.join(root, f)
+        scripts.append(fullpath)
+  for script in scripts:
+    if not any(exc_dir in script for exc_dir in exclude):
+      scripts_without_excluded.append(script)
+  return scripts_without_excluded
+
+
 def PyTests(workspace):
   result = True
-  for script in [
-      join(workspace, 'tools', 'clusterfuzz', 'foozzie', 'v8_foozzie_test.py'),
-      join(workspace, 'tools', 'release', 'test_scripts.py'),
-      join(workspace, 'tools', 'unittests', 'predictable_wrapper_test.py'),
-      join(workspace, 'tools', 'unittests', 'run_tests_test.py'),
-      join(workspace, 'tools', 'unittests', 'run_perf_test.py'),
-      join(workspace, 'tools', 'testrunner', 'testproc', 'variant_unittest.py'),
-    ]:
+  for script in FindTests(workspace):
     print('Running ' + script)
     result &= subprocess.call(
         [sys.executable, script], stdout=subprocess.PIPE) == 0

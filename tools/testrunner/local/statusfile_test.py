@@ -7,19 +7,17 @@ import os
 import sys
 import unittest
 
-TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
+TOOLS_PATH = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
 from testrunner.local import statusfile
 from testrunner.local.utils import Freeze
 
-
 TEST_VARIABLES = {
-  'system': 'linux',
-  'mode': 'release',
+    'system': 'linux',
+    'mode': 'release',
 }
-
 
 TEST_STATUS_FILE = """
 [
@@ -44,6 +42,7 @@ def make_variables():
 
 
 class UtilsTest(unittest.TestCase):
+
   def test_freeze(self):
     self.assertEqual(2, Freeze({1: [2]})[1][0])
     self.assertEqual(set([3]), Freeze({1: [2], 2: set([3])})[2])
@@ -65,32 +64,29 @@ class UtilsTest(unittest.TestCase):
 
 
 class StatusFileTest(unittest.TestCase):
+
   def test_eval_expression(self):
     variables = make_variables()
     variables.update(statusfile.VARIABLES)
 
     self.assertTrue(
-        statusfile._EvalExpression(
-            'system==linux and mode==release', variables))
+        statusfile._EvalExpression('system==linux and mode==release',
+                                   variables))
     self.assertTrue(
-        statusfile._EvalExpression(
-            'system==linux or variant==default', variables))
+        statusfile._EvalExpression('system==linux or variant==default',
+                                   variables))
     self.assertFalse(
-        statusfile._EvalExpression(
-            'system==linux and mode==debug', variables))
+        statusfile._EvalExpression('system==linux and mode==debug', variables))
     self.assertRaises(
-        AssertionError,
-        lambda: statusfile._EvalExpression(
+        AssertionError, lambda: statusfile._EvalExpression(
             'system==linux and mode==foo', variables))
     self.assertRaises(
-        SyntaxError,
-        lambda: statusfile._EvalExpression(
+        SyntaxError, lambda: statusfile._EvalExpression(
             'system==linux and mode=release', variables))
     self.assertEquals(
         statusfile.VARIANT_EXPRESSION,
-        statusfile._EvalExpression(
-            'system==linux and variant==default', variables)
-    )
+        statusfile._EvalExpression('system==linux and variant==default',
+                                   variables))
 
   def test_read_statusfile_section_true(self):
     rules, prefix_rules = statusfile.ReadStatusFile(
@@ -98,14 +94,14 @@ class StatusFileTest(unittest.TestCase):
 
     self.assertEquals(
         {
-          'foo/bar': set(['PASS', 'SKIP']),
-          'baz/bar': set(['PASS', 'FAIL', 'SLOW']),
+            'foo/bar': set(['PASS', 'SKIP']),
+            'baz/bar': set(['PASS', 'FAIL', 'SLOW']),
         },
         rules[''],
     )
     self.assertEquals(
         {
-          'foo/': set(['SLOW', 'FAIL']),
+            'foo/': set(['SLOW', 'FAIL']),
         },
         prefix_rules[''],
     )
@@ -118,14 +114,14 @@ class StatusFileTest(unittest.TestCase):
 
     self.assertEquals(
         {
-          'foo/bar': set(['PASS', 'SKIP']),
-          'baz/bar': set(['PASS', 'FAIL']),
+            'foo/bar': set(['PASS', 'SKIP']),
+            'baz/bar': set(['PASS', 'FAIL']),
         },
         rules[''],
     )
     self.assertEquals(
         {
-          'foo/': set(['PASS', 'SLOW']),
+            'foo/': set(['PASS', 'SLOW']),
         },
         prefix_rules[''],
     )
@@ -140,30 +136,30 @@ class StatusFileTest(unittest.TestCase):
 
     self.assertEquals(
         {
-          'foo/bar': set(['PASS', 'SKIP']),
-          'baz/bar': set(['PASS', 'FAIL']),
+            'foo/bar': set(['PASS', 'SKIP']),
+            'baz/bar': set(['PASS', 'FAIL']),
         },
         rules[''],
     )
     self.assertEquals(
         {
-          'foo/': set(['PASS', 'SLOW']),
+            'foo/': set(['PASS', 'SLOW']),
         },
         prefix_rules[''],
     )
     self.assertEquals(
         {
-          'baz/bar': set(['PASS', 'SLOW']),
+            'baz/bar': set(['PASS', 'SLOW']),
         },
         rules['default'],
     )
     self.assertEquals(
         {
-          'foo/': set(['FAIL']),
+            'foo/': set(['FAIL']),
         },
         prefix_rules['default'],
     )
 
 
 if __name__ == '__main__':
-    unittest.main()
+  unittest.main()

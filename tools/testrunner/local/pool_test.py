@@ -8,18 +8,21 @@ import sys
 import unittest
 
 # Needed because the test runner contains relative imports.
-TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
+TOOLS_PATH = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
 from testrunner.local.pool import Pool
+
 
 def Run(x):
   if x == 10:
     raise Exception("Expected exception triggered by test.")
   return x
 
+
 class PoolTest(unittest.TestCase):
+
   def testNormal(self):
     results = set()
     pool = Pool(3)
@@ -55,9 +58,8 @@ class PoolTest(unittest.TestCase):
       if result.value < 30:
         pool.add([result.value + 20])
     self.assertEqual(
-        set(range(0, 10)) | set(range(20, 30)) | set(range(40, 50)),
-        results)
+        set(range(0, 10)) | set(range(20, 30)) | set(range(40, 50)), results)
 
 
 if __name__ == '__main__':
-    unittest.main()
+  unittest.main()

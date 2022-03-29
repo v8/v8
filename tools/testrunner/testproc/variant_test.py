@@ -9,8 +9,8 @@ import tempfile
 import unittest
 
 # Needed because the test runner contains relative imports.
-TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
+TOOLS_PATH = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
 from testrunner.testproc import base
@@ -18,6 +18,7 @@ from testrunner.testproc.variant import VariantProc
 
 
 class FakeResultObserver(base.TestProcObserver):
+
   def __init__(self):
     super(FakeResultObserver, self).__init__()
 
@@ -28,6 +29,7 @@ class FakeResultObserver(base.TestProcObserver):
 
 
 class FakeFilter(base.TestProcFilter):
+
   def __init__(self, filter_predicate):
     super(FakeFilter, self).__init__()
 
@@ -47,11 +49,13 @@ class FakeFilter(base.TestProcFilter):
 
 
 class FakeSuite(object):
+
   def __init__(self, name):
     self.name = name
 
 
 class FakeTest(object):
+
   def __init__(self, procid):
     self.suite = FakeSuite("fake_suite")
     self.procid = procid
@@ -66,6 +70,7 @@ class FakeTest(object):
 
 
 class FakeVariantGen(object):
+
   def __init__(self, variants):
     self._variants = variants
 
@@ -75,6 +80,7 @@ class FakeVariantGen(object):
 
 
 class TestVariantProcLoading(unittest.TestCase):
+
   def setUp(self):
     self.test = FakeTest("test")
 
@@ -86,12 +92,11 @@ class TestVariantProcLoading(unittest.TestCase):
     # Creates a Variant processor containing the possible types of test
     # variants.
     self.variant_proc = VariantProc(variants=["to_filter", "to_load"])
-    self.variant_proc._variant_gens = {
-      "fake_suite": FakeVariantGen(variants)}
+    self.variant_proc._variant_gens = {"fake_suite": FakeVariantGen(variants)}
 
     # FakeFilter only lets tests passing the predicate to be loaded.
     self.fake_filter = FakeFilter(
-      filter_predicate=(lambda t: t.procid == "to_filter"))
+        filter_predicate=(lambda t: t.procid == "to_filter"))
 
     # FakeResultObserver to verify that VariantProc calls result_for correctly.
     self.fake_result_observer = FakeResultObserver()
@@ -112,10 +117,10 @@ class TestVariantProcLoading(unittest.TestCase):
 
   def test_filters_first_two_variants(self):
     variants = [
-      FakeTest('to_filter'),
-      FakeTest('to_filter'),
-      FakeTest('to_load'),
-      FakeTest('to_load'),
+        FakeTest('to_filter'),
+        FakeTest('to_filter'),
+        FakeTest('to_load'),
+        FakeTest('to_load'),
     ]
     expected_load_results = {variants[2]}
 
@@ -126,9 +131,9 @@ class TestVariantProcLoading(unittest.TestCase):
 
   def test_stops_loading_after_first_successful_load(self):
     variants = [
-      FakeTest('to_load'),
-      FakeTest('to_load'),
-      FakeTest('to_filter'),
+        FakeTest('to_load'),
+        FakeTest('to_load'),
+        FakeTest('to_filter'),
     ]
     expected_load_results = {variants[0]}
 
@@ -139,8 +144,8 @@ class TestVariantProcLoading(unittest.TestCase):
 
   def test_return_result_when_out_of_variants(self):
     variants = [
-      FakeTest('to_filter'),
-      FakeTest('to_load'),
+        FakeTest('to_filter'),
+        FakeTest('to_load'),
     ]
 
     self._simulate_proc(variants)
@@ -153,9 +158,9 @@ class TestVariantProcLoading(unittest.TestCase):
 
   def test_return_result_after_running_variants(self):
     variants = [
-      FakeTest('to_filter'),
-      FakeTest('to_load'),
-      FakeTest('to_load'),
+        FakeTest('to_filter'),
+        FakeTest('to_load'),
+        FakeTest('to_load'),
     ]
 
     self._simulate_proc(variants)
@@ -167,6 +172,7 @@ class TestVariantProcLoading(unittest.TestCase):
 
     expected_results = {(self.test, None)}
     self.assertSetEqual(expected_results, self.fake_result_observer.results)
+
 
 if __name__ == '__main__':
   unittest.main()

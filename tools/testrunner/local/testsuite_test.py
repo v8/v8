@@ -10,8 +10,8 @@ import tempfile
 import unittest
 
 # Needed because the test runner contains relative imports.
-TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
+TOOLS_PATH = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
 from testrunner.local.testsuite import TestSuite, TestGenerator
@@ -20,6 +20,7 @@ from testrunner.test_config import TestConfig
 
 
 class TestSuiteTest(unittest.TestCase):
+
   def setUp(self):
     test_dir = os.path.dirname(__file__)
     self.test_root = os.path.join(test_dir, "fake_testsuite")
@@ -37,8 +38,8 @@ class TestSuiteTest(unittest.TestCase):
         verbose=False,
     )
 
-    self.suite = TestSuite.Load(
-        self.test_root, self.test_config, "standard_runner")
+    self.suite = TestSuite.Load(self.test_root, self.test_config,
+                                "standard_runner")
 
   def testLoadingTestSuites(self):
     self.assertEquals(self.suite.name, "fake_testsuite")
@@ -49,8 +50,8 @@ class TestSuiteTest(unittest.TestCase):
     self.assertIsNone(self.suite.statusfile)
 
   def testLoadingTestsFromDisk(self):
-    tests = self.suite.load_tests_from_disk(
-      statusfile_variables={})
+    tests = self.suite.load_tests_from_disk(statusfile_variables={})
+
     def is_generator(iterator):
       return iterator == iter(iterator)
 
@@ -65,10 +66,8 @@ class TestSuiteTest(unittest.TestCase):
     self.assertIsNotNone(self.suite.statusfile)
 
   def testMergingTestGenerators(self):
-    tests = self.suite.load_tests_from_disk(
-      statusfile_variables={})
-    more_tests = self.suite.load_tests_from_disk(
-      statusfile_variables={})
+    tests = self.suite.load_tests_from_disk(statusfile_variables={})
+    more_tests = self.suite.load_tests_from_disk(statusfile_variables={})
 
     # Merge the test generators
     tests.merge(more_tests)
@@ -83,4 +82,4 @@ class TestSuiteTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+  unittest.main()

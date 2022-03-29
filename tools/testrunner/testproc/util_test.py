@@ -7,13 +7,15 @@ import os
 import sys
 import unittest
 
-TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
+TOOLS_PATH = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
 from testrunner.testproc.util import FixedSizeTopList
 
+
 class TestOrderedFixedSizeList(unittest.TestCase):
+
   def test_empty(self):
     ofsl = FixedSizeTopList(3)
     self.assertEqual(ofsl.as_list(), [])
@@ -22,7 +24,7 @@ class TestOrderedFixedSizeList(unittest.TestCase):
     ofsl = FixedSizeTopList(3)
     ofsl.add(1)
     ofsl.add(2)
-    self.assertEqual(ofsl.as_list(), [2,1])
+    self.assertEqual(ofsl.as_list(), [2, 1])
 
   def test_4321(self):
     ofsl = FixedSizeTopList(3)
@@ -31,7 +33,7 @@ class TestOrderedFixedSizeList(unittest.TestCase):
     ofsl.add(2)
     ofsl.add(1)
     data = ofsl.as_list()
-    self.assertEqual(data, [4,3,2])
+    self.assertEqual(data, [4, 3, 2])
 
   def test_544321(self):
     ofsl = FixedSizeTopList(4)
@@ -45,21 +47,21 @@ class TestOrderedFixedSizeList(unittest.TestCase):
     self.assertEqual(data, [5, 4, 4, 3])
 
   def test_withkey(self):
-    ofsl = FixedSizeTopList(3,key=lambda x: x['val'])
-    ofsl.add({'val':4, 'something': 'four'})
-    ofsl.add({'val':3, 'something': 'three'})
-    ofsl.add({'val':-1, 'something': 'minusone'})
-    ofsl.add({'val':5, 'something': 'five'})
-    ofsl.add({'val':0, 'something': 'zero'})
+    ofsl = FixedSizeTopList(3, key=lambda x: x['val'])
+    ofsl.add({'val': 4, 'something': 'four'})
+    ofsl.add({'val': 3, 'something': 'three'})
+    ofsl.add({'val': -1, 'something': 'minusone'})
+    ofsl.add({'val': 5, 'something': 'five'})
+    ofsl.add({'val': 0, 'something': 'zero'})
     data = [e['something'] for e in ofsl.as_list()]
     self.assertEqual(data, ['five', 'four', 'three'])
 
   def test_withkeyclash(self):
     # Test that a key clash does not throw exeption
-    ofsl = FixedSizeTopList(2,key=lambda x: x['val'])
-    ofsl.add({'val':2, 'something': 'two'})
-    ofsl.add({'val':2, 'something': 'two'})
-    ofsl.add({'val':0, 'something': 'zero'})
+    ofsl = FixedSizeTopList(2, key=lambda x: x['val'])
+    ofsl.add({'val': 2, 'something': 'two'})
+    ofsl.add({'val': 2, 'something': 'two'})
+    ofsl.add({'val': 0, 'something': 'zero'})
     data = [e['something'] for e in ofsl.as_list()]
     self.assertEqual(data, ['two', 'two'])
 
