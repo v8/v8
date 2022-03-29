@@ -94,7 +94,7 @@ inline bool IsStoreGlobalICKind(FeedbackSlotKind kind) {
          kind == FeedbackSlotKind::kStoreGlobalStrict;
 }
 
-inline bool IsStoreICKind(FeedbackSlotKind kind) {
+inline bool IsSetNamedICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kSetNamedSloppy ||
          kind == FeedbackSlotKind::kSetNamedStrict;
 }
@@ -140,7 +140,7 @@ inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
 }
 
 inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
-  DCHECK(IsStoreICKind(kind) || IsDefineNamedOwnICKind(kind) ||
+  DCHECK(IsSetNamedICKind(kind) || IsDefineNamedOwnICKind(kind) ||
          IsStoreGlobalICKind(kind) || IsKeyedStoreICKind(kind) ||
          IsDefineKeyedOwnICKind(kind));
   STATIC_ASSERT(FeedbackSlotKind::kStoreGlobalSloppy <=
@@ -290,7 +290,7 @@ class FeedbackVector
   DEFINE_SLOT_KIND_PREDICATE(IsLoadIC)
   DEFINE_SLOT_KIND_PREDICATE(IsLoadGlobalIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedLoadIC)
-  DEFINE_SLOT_KIND_PREDICATE(IsStoreIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsSetNamedIC)
   DEFINE_SLOT_KIND_PREDICATE(IsDefineNamedOwnIC)
   DEFINE_SLOT_KIND_PREDICATE(IsStoreGlobalIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)

@@ -17,16 +17,28 @@ namespace v8 {
 namespace internal {
 
 enum class StoreMode {
-  // TODO(v8:12548): rename to kSet and kDefineKeyedOwnInLiteral
-  kOrdinary,
-  kInLiteral,
-
-  // kDefineNamedOwn performs an ordinary property store without traversing the
-  // prototype chain. In the case of private fields, it will throw if the
-  // field does not already exist.
-  // kDefineKeyedOwn is similar to kDefineNamedOwn, but for private class
-  // fields, it will throw if the field does already exist.
+  // kSet implements [[Set]] in the spec and traverses the prototype
+  // chain to invoke setters. it's used by KeyedStoreIC and StoreIC to
+  // set the properties when there is no feedback.
+  kSet,
+  // kDefineKeyedOwnInLiteral implements [[CreateDataProperty]] in the spec,
+  // and it assumes that the receiver is a JSObject that is created by us.
+  // It is used by Object.fromEntries(), CloneObjectIC and
+  // StoreInArrayLiteralIC to define a property in an object without
+  // traversing the prototype chain.
+  // TODO(v8:12548): merge this into the more generic kDefineKeyedOwn.
+  kDefineKeyedOwnInLiteral,
+  // kDefineNamedOwn implements [[CreateDataProperty]] but it can deal with
+  // user-defined receivers such as a JSProxy. It also assumes that the key
+  // is statically known. It's used to initialize named roperties in object
+  // literals and named public class fields.
   kDefineNamedOwn,
+  // kDefineKeyedOwn implements [[CreateDataProperty]], but it can deal with
+  // user-defined receivers such as a JSProxy, and for private class fields,
+  // it will throw if the field does already exist. It's different from
+  // kDefineNamedOwn in that it does not assume the key is statically known.
+  // It's used to initialized computed public class fields and private
+  // class fields.
   kDefineKeyedOwn
 };
 
@@ -44,19 +56,20 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   void StoreIC_NoFeedback();
 
-  // Generates code for [[Set]] operation, the |unique_name| is supposed to be
-  // unique otherwise this code will always go to runtime.
-  void SetProperty(TNode<Context> context, TNode<JSReceiver> receiver,
-                   TNode<BoolT> is_simple_receiver, TNode<Name> unique_name,
-                   TNode<Object> value, LanguageMode language_mode);
+  // Generates code for [[Set]] or [[CreateDataProperty]] operation,
+  // the |unique_name| is supposed to be unique otherwise this code will
+  // always go to runtime.
+  void StoreProperty(TNode<Context> context, TNode<JSReceiver> receiver,
+                     TNode<BoolT> is_simple_receiver, TNode<Name> unique_name,
+                     TNode<Object> value, LanguageMode language_mode);
 
-  // [[Set]], but more generic than the above. This impl does essentially the
-  // same as "KeyedStoreGeneric" but does not use feedback slot and uses a
-  // hardcoded LanguageMode instead of trying to deduce it from the feedback
-  // slot's kind.
-  void SetProperty(TNode<Context> context, TNode<Object> receiver,
-                   TNode<Object> key, TNode<Object> value,
-                   LanguageMode language_mode);
+  // This does [[Set]] or [[CreateDataProperty]] but it's more generic than
+  // the above. It is essentially the same as "KeyedStoreGeneric" but does not
+  // use feedback slot and uses a hardcoded LanguageMode instead of trying
+  // to deduce it from the feedback slot's kind.
+  void StoreProperty(TNode<Context> context, TNode<Object> receiver,
+                     TNode<Object> key, TNode<Object> value,
+                     LanguageMode language_mode);
 
  private:
   StoreMode mode_;
@@ -69,7 +82,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
 
-  // Helper that is used by the public KeyedStoreGeneric and by SetProperty.
+  // Helper that is used by the public KeyedStoreGeneric and by StoreProperty.
   void KeyedStoreGeneric(TNode<Context> context, TNode<Object> receiver,
                          TNode<Object> key, TNode<Object> value,
                          Maybe<LanguageMode> language_mode);
@@ -147,31 +160,33 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                                       TNode<Name> name,
                                                       Label* slow);
 
-  bool IsKeyedStore() const { return mode_ == StoreMode::kOrdinary; }
-  bool IsStoreInLiteral() const { return mode_ == StoreMode::kInLiteral; }
+  bool IsSet() const { return mode_ == StoreMode::kSet; }
+  bool IsDefineKeyedOwnInLiteral() const {
+    return mode_ == StoreMode::kDefineKeyedOwnInLiteral;
+  }
   bool IsDefineNamedOwn() const { return mode_ == StoreMode::kDefineNamedOwn; }
   bool IsDefineKeyedOwn() const { return mode_ == StoreMode::kDefineKeyedOwn; }
   bool IsAnyDefineOwn() const {
     return IsDefineNamedOwn() || IsDefineKeyedOwn();
   }
 
-  bool ShouldCheckPrototype() const { return IsKeyedStore(); }
-  bool ShouldReconfigureExisting() const { return IsStoreInLiteral(); }
-  bool ShouldCallSetter() const { return IsKeyedStore(); }
+  bool ShouldCheckPrototype() const { return IsSet(); }
+  bool ShouldReconfigureExisting() const { return IsDefineKeyedOwnInLiteral(); }
+  bool ShouldCallSetter() const { return IsSet(); }
   bool ShouldCheckPrototypeValidity() const {
     // We don't do this for "in-literal" stores, because it is impossible for
     // the target object to be a "prototype".
     // We don't need the prototype validity check for "own" stores, because
     // we don't care about the prototype chain.
     // Thus, we need the prototype check only for ordinary stores.
-    DCHECK_IMPLIES(!IsKeyedStore(), IsStoreInLiteral() || IsDefineNamedOwn() ||
-                                        IsDefineKeyedOwn());
-    return IsKeyedStore();
+    DCHECK_IMPLIES(!IsSet(), IsDefineKeyedOwnInLiteral() ||
+                                 IsDefineNamedOwn() || IsDefineKeyedOwn());
+    return IsSet();
   }
 };
 
 void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kSet);
   assembler.KeyedStoreGeneric();
 }
 
@@ -182,7 +197,7 @@ void DefineKeyedOwnGenericGenerator::Generate(
 }
 
 void StoreICNoFeedbackGenerator::Generate(compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kSet);
   assembler.StoreIC_NoFeedback();
 }
 
@@ -198,24 +213,25 @@ void KeyedStoreGenericGenerator::SetProperty(
     compiler::CodeAssemblerState* state, TNode<Context> context,
     TNode<JSReceiver> receiver, TNode<BoolT> is_simple_receiver,
     TNode<Name> name, TNode<Object> value, LanguageMode language_mode) {
-  KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
-  assembler.SetProperty(context, receiver, is_simple_receiver, name, value,
-                        language_mode);
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kSet);
+  assembler.StoreProperty(context, receiver, is_simple_receiver, name, value,
+                          language_mode);
 }
 
 void KeyedStoreGenericGenerator::SetProperty(
     compiler::CodeAssemblerState* state, TNode<Context> context,
     TNode<Object> receiver, TNode<Object> key, TNode<Object> value,
     LanguageMode language_mode) {
-  KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
-  assembler.SetProperty(context, receiver, key, value, language_mode);
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kSet);
+  assembler.StoreProperty(context, receiver, key, value, language_mode);
 }
 
-void KeyedStoreGenericGenerator::SetPropertyInLiteral(
+void KeyedStoreGenericGenerator::CreateDataProperty(
     compiler::CodeAssemblerState* state, TNode<Context> context,
     TNode<JSObject> receiver, TNode<Object> key, TNode<Object> value) {
-  KeyedStoreGenericAssembler assembler(state, StoreMode::kInLiteral);
-  assembler.SetProperty(context, receiver, key, value, LanguageMode::kStrict);
+  KeyedStoreGenericAssembler assembler(state,
+                                       StoreMode::kDefineKeyedOwnInLiteral);
+  assembler.StoreProperty(context, receiver, key, value, LanguageMode::kStrict);
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesMayHaveReadOnlyElements(
@@ -381,7 +397,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   {
     TNode<IntPtrT> offset =
         ElementOffsetFromIndex(index, PACKED_ELEMENTS, kHeaderSize);
-    if (!IsStoreInLiteral()) {
+    if (!IsDefineKeyedOwnInLiteral()) {
       // Check if we're about to overwrite the hole. We can safely do that
       // only if there can be no setters on the prototype chain.
       // If we know that we're storing beyond the previous array length, we
@@ -484,7 +500,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   {
     TNode<IntPtrT> offset =
         ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
-    if (!IsStoreInLiteral()) {
+    if (!IsDefineKeyedOwnInLiteral()) {
       // Check if we're about to overwrite the hole. We can safely do that
       // only if there can be no setters on the prototype chain.
       {
@@ -1053,7 +1069,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   }
 }
 
-// Helper that is used by the public KeyedStoreGeneric and by SetProperty.
+// Helper that is used by the public KeyedStoreGeneric and by StoreProperty.
 void KeyedStoreGenericAssembler::KeyedStoreGeneric(
     TNode<Context> context, TNode<Object> receiver_maybe_smi, TNode<Object> key,
     TNode<Object> value, Maybe<LanguageMode> language_mode) {
@@ -1102,7 +1118,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 
   BIND(&slow);
   {
-    if (IsKeyedStore() || IsDefineNamedOwn()) {
+    if (IsSet() || IsDefineNamedOwn()) {
       // The DefineNamedOwnIC hacky reuse should never reach here.
       CSA_DCHECK(this, BoolConstant(!IsDefineNamedOwn()));
       Comment("KeyedStoreGeneric_slow");
@@ -1112,7 +1128,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
       TailCallRuntime(Runtime::kDefineObjectOwnProperty, context, receiver, key,
                       value);
     } else {
-      DCHECK(IsStoreInLiteral());
+      DCHECK(IsDefineKeyedOwnInLiteral());
       TailCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral_Simple, context,
                       receiver, key, value);
     }
@@ -1130,11 +1146,11 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
   KeyedStoreGeneric(context, receiver, name, value, Nothing<LanguageMode>());
 }
 
-void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
-                                             TNode<Object> receiver,
-                                             TNode<Object> key,
-                                             TNode<Object> value,
-                                             LanguageMode language_mode) {
+void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
+                                               TNode<Object> receiver,
+                                               TNode<Object> key,
+                                               TNode<Object> value,
+                                               LanguageMode language_mode) {
   KeyedStoreGeneric(context, receiver, key, value, Just(language_mode));
 }
 
@@ -1177,12 +1193,12 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   }
 }
 
-void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
-                                             TNode<JSReceiver> receiver,
-                                             TNode<BoolT> is_simple_receiver,
-                                             TNode<Name> unique_name,
-                                             TNode<Object> value,
-                                             LanguageMode language_mode) {
+void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
+                                               TNode<JSReceiver> receiver,
+                                               TNode<BoolT> is_simple_receiver,
+                                               TNode<Name> unique_name,
+                                               TNode<Object> value,
+                                               LanguageMode language_mode) {
   StoreICParameters p(context, receiver, unique_name, value, {},
                       UndefinedConstant(), StoreICMode::kDefault);
 
@@ -1200,7 +1216,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
 
   BIND(&slow);
   {
-    if (IsStoreInLiteral()) {
+    if (IsDefineKeyedOwnInLiteral()) {
       CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral_Simple, context,
                   receiver, unique_name, value);
     } else {

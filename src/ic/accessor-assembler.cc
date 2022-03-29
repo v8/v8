@@ -4134,7 +4134,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
   BIND(&no_feedback);
   {
     Comment("StoreInArrayLiteralIC_NoFeedback");
-    TailCallBuiltin(Builtin::kSetPropertyInLiteral, p->context(), p->receiver(),
+    TailCallBuiltin(Builtin::kCreateDataProperty, p->context(), p->receiver(),
                     p->name(), p->value());
   }
 
@@ -4782,7 +4782,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   ForEachEnumerableOwnProperty(
       context, source_map, CAST(source), kPropertyAdditionOrder,
       [=](TNode<Name> key, TNode<Object> value) {
-        SetPropertyInLiteral(context, result, key, value);
+        CreateDataProperty(context, result, key, value);
       },
       &call_runtime);
   Goto(&done);

@@ -1427,7 +1427,7 @@ void FeedbackNexus::ResetTypeProfile() {
 FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)
     : done_(false), index_(-1), state_(kOther) {
   DCHECK(
-      IsLoadICKind(nexus->kind()) || IsStoreICKind(nexus->kind()) ||
+      IsLoadICKind(nexus->kind()) || IsSetNamedICKind(nexus->kind()) ||
       IsKeyedLoadICKind(nexus->kind()) || IsKeyedStoreICKind(nexus->kind()) ||
       IsDefineNamedOwnICKind(nexus->kind()) ||
       IsDefineKeyedOwnPropertyInLiteralKind(nexus->kind()) ||

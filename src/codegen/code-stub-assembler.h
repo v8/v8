@@ -3229,10 +3229,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CallBuiltin(Builtin::kSetProperty, context, receiver, key, value);
   }
 
-  TNode<Object> SetPropertyInLiteral(TNode<Context> context,
-                                     TNode<JSObject> receiver,
-                                     TNode<Object> key, TNode<Object> value) {
-    return CallBuiltin(Builtin::kSetPropertyInLiteral, context, receiver, key,
+  TNode<Object> CreateDataProperty(TNode<Context> context,
+                                   TNode<JSObject> receiver, TNode<Object> key,
+                                   TNode<Object> value) {
+    return CallBuiltin(Builtin::kCreateDataProperty, context, receiver, key,
                        value);
   }
 

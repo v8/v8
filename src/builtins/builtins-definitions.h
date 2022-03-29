@@ -1062,7 +1062,7 @@ namespace internal {
   TFC(GetProperty, GetProperty)                                                \
   TFS(GetPropertyWithReceiver, kObject, kKey, kReceiver, kOnNonExistent)       \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
-  TFS(SetPropertyInLiteral, kReceiver, kKey, kValue)                           \
+  TFS(CreateDataProperty, kReceiver, kKey, kValue)                             \
   ASM(MemCopyUint8Uint8, CCall)                                                \
   ASM(MemMove, CCall)                                                          \
                                                                                \
