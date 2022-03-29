@@ -4008,7 +4008,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ neg(edx);
 
   // Allocate a new deoptimizer object.
-  __ PrepareCallCFunction(6, eax);
+  __ PrepareCallCFunction(5, eax);
   __ mov(eax, Immediate(0));
   Label context_check;
   __ mov(edi, Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset));
@@ -4018,15 +4018,13 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ mov(Operand(esp, 0 * kSystemPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kSystemPointerSize),
          Immediate(static_cast<int>(deopt_kind)));
-  __ mov(Operand(esp, 2 * kSystemPointerSize),
-         Immediate(Deoptimizer::kFixedExitSizeMarker));  // Bailout id.
-  __ mov(Operand(esp, 3 * kSystemPointerSize), ecx);     // Code address or 0.
-  __ mov(Operand(esp, 4 * kSystemPointerSize), edx);     // Fp-to-sp delta.
-  __ Move(Operand(esp, 5 * kSystemPointerSize),
+  __ mov(Operand(esp, 2 * kSystemPointerSize), ecx);  // Code address or 0.
+  __ mov(Operand(esp, 3 * kSystemPointerSize), edx);  // Fp-to-sp delta.
+  __ Move(Operand(esp, 4 * kSystemPointerSize),
           Immediate(ExternalReference::isolate_address(masm->isolate())));
   {
     AllowExternalCallThatCantCauseGC scope(masm);
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
   }
 
   // Preserve deoptimizer object in register eax and get the input

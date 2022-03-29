@@ -4247,7 +4247,6 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   }
 
   __ CheckTrampolinePoolQuick(total_size);
-  DCHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
 }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,

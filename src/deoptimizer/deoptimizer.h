@@ -56,8 +56,7 @@ class Deoptimizer : public Malloced {
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
 
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
-                          unsigned deopt_exit_index, Address from,
-                          int fp_to_sp_delta, Isolate* isolate);
+                          Address from, int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
 
   // The returned object with information on the optimized frame needs to be
@@ -118,20 +117,11 @@ class Deoptimizer : public Malloced {
   static constexpr int kMaxNumberOfEntries = 16384;
 
   // This marker is passed to Deoptimizer::New as {deopt_exit_index} on
-  // platforms that have fixed deopt sizes (see also
-  // kSupportsFixedDeoptExitSizes). The actual deoptimization id is then
+  // platforms that have fixed deopt sizes. The actual deoptimization id is then
   // calculated from the return address.
   static constexpr unsigned kFixedExitSizeMarker = kMaxUInt32;
 
-  // Set to true when the architecture supports deoptimization exit sequences
-  // of a fixed size, that can be sorted so that the deoptimization index is
-  // deduced from the address of the deoptimization exit.
-  // TODO(jgruber): Remove this, and support for variable deopt exit sizes,
-  // once all architectures use fixed exit sizes.
-  V8_EXPORT_PRIVATE static const bool kSupportsFixedDeoptExitSizes;
-
-  // Size of deoptimization exit sequence. This is only meaningful when
-  // kSupportsFixedDeoptExitSizes is true.
+  // Size of deoptimization exit sequence.
   V8_EXPORT_PRIVATE static const int kNonLazyDeoptExitSize;
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
 
@@ -145,7 +135,7 @@ class Deoptimizer : public Malloced {
                                     const TranslatedFrame::iterator& iterator);
 
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
-              unsigned deopt_exit_index, Address from, int fp_to_sp_delta);
+              Address from, int fp_to_sp_delta);
   Code FindOptimizedCode();
   void DeleteFrameDescriptions();
 

@@ -9,7 +9,6 @@
 namespace v8 {
 namespace internal {
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
 const int Deoptimizer::kNonLazyDeoptExitSize = 5;
 const int Deoptimizer::kLazyDeoptExitSize = 5;
 

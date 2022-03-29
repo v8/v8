@@ -3896,10 +3896,8 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Floating point registers are saved on the stack above core registers.
   const int kDoubleRegistersOffset = saved_registers.Count() * kXRegSize;
 
-  Register bailout_id = x2;
-  Register code_object = x3;
-  Register fp_to_sp = x4;
-  __ Mov(bailout_id, Deoptimizer::kFixedExitSizeMarker);
+  Register code_object = x2;
+  Register fp_to_sp = x3;
   // Get the address of the location in the code object. This is the return
   // address for lazy deoptimization.
   __ Mov(code_object, lr);
@@ -3920,15 +3918,14 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   __ Mov(x1, static_cast<int>(deopt_kind));
   // Following arguments are already loaded:
-  //  - x2: bailout id
-  //  - x3: code object address
-  //  - x4: fp-to-sp delta
-  __ Mov(x5, ExternalReference::isolate_address(isolate));
+  //  - x2: code object address
+  //  - x3: fp-to-sp delta
+  __ Mov(x4, ExternalReference::isolate_address(isolate));
 
   {
     // Call Deoptimizer::New().
     AllowExternalCallThatCantCauseGC scope(masm);
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
   }
 
   // Preserve "deoptimizer" object in register x0.

@@ -193,11 +193,11 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
 // We rely on this function not causing a GC. It is called from generated code
 // without having a real stack frame in place.
 Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
-                              unsigned deopt_exit_index, Address from,
-                              int fp_to_sp_delta, Isolate* isolate) {
+                              Address from, int fp_to_sp_delta,
+                              Isolate* isolate) {
   JSFunction function = JSFunction::cast(Object(raw_function));
-  Deoptimizer* deoptimizer = new Deoptimizer(
-      isolate, function, kind, deopt_exit_index, from, fp_to_sp_delta);
+  Deoptimizer* deoptimizer =
+      new Deoptimizer(isolate, function, kind, from, fp_to_sp_delta);
   isolate->set_current_deoptimizer(deoptimizer);
   return deoptimizer;
 }
@@ -472,11 +472,10 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
 }
 
 Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
-                         DeoptimizeKind kind, unsigned deopt_exit_index,
-                         Address from, int fp_to_sp_delta)
+                         DeoptimizeKind kind, Address from, int fp_to_sp_delta)
     : isolate_(isolate),
       function_(function),
-      deopt_exit_index_(deopt_exit_index),
+      deopt_exit_index_(kFixedExitSizeMarker),
       deopt_kind_(kind),
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
@@ -499,9 +498,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
     isolate->set_deoptimizer_lazy_throw(false);
     deoptimizing_throw_ = true;
   }
-
-  DCHECK(deopt_exit_index_ == kFixedExitSizeMarker ||
-         deopt_exit_index_ < kMaxNumberOfEntries);
 
   DCHECK_NE(from, kNullAddress);
   compiled_code_ = FindOptimizedCode();
@@ -528,38 +524,35 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
       function.shared().internal_formal_parameter_count_with_receiver();
   input_ = new (size) FrameDescription(size, parameter_count);
 
-  if (kSupportsFixedDeoptExitSizes) {
-    DCHECK_EQ(deopt_exit_index_, kFixedExitSizeMarker);
-    // Calculate the deopt exit index from return address.
-    DCHECK_GT(kNonLazyDeoptExitSize, 0);
-    DCHECK_GT(kLazyDeoptExitSize, 0);
-    DeoptimizationData deopt_data =
-        DeoptimizationData::cast(compiled_code_.deoptimization_data());
-    Address deopt_start = compiled_code_.raw_instruction_start() +
-                          deopt_data.DeoptExitStart().value();
-    int non_lazy_deopt_count = deopt_data.NonLazyDeoptCount().value();
-    Address lazy_deopt_start =
-        deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
-    // The deoptimization exits are sorted so that lazy deopt exits appear after
-    // eager deopts.
-    static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
-                      static_cast<int>(kLastDeoptimizeKind),
-                  "lazy deopts are expected to be emitted last");
-    // from_ is the value of the link register after the call to the
-    // deoptimizer, so for the last lazy deopt, from_ points to the first
-    // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
-    // the first deopt with resume entry.
-    if (from_ <= lazy_deopt_start) {
-      int offset =
-          static_cast<int>(from_ - kNonLazyDeoptExitSize - deopt_start);
-      DCHECK_EQ(0, offset % kNonLazyDeoptExitSize);
-      deopt_exit_index_ = offset / kNonLazyDeoptExitSize;
-    } else {
-      int offset =
-          static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
-      DCHECK_EQ(0, offset % kLazyDeoptExitSize);
-      deopt_exit_index_ = non_lazy_deopt_count + (offset / kLazyDeoptExitSize);
-    }
+  DCHECK_EQ(deopt_exit_index_, kFixedExitSizeMarker);
+  // Calculate the deopt exit index from return address.
+  DCHECK_GT(kNonLazyDeoptExitSize, 0);
+  DCHECK_GT(kLazyDeoptExitSize, 0);
+  DeoptimizationData deopt_data =
+      DeoptimizationData::cast(compiled_code_.deoptimization_data());
+  Address deopt_start = compiled_code_.raw_instruction_start() +
+                        deopt_data.DeoptExitStart().value();
+  int non_lazy_deopt_count = deopt_data.NonLazyDeoptCount().value();
+  Address lazy_deopt_start =
+      deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
+  // The deoptimization exits are sorted so that lazy deopt exits appear after
+  // eager deopts.
+  static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
+                    static_cast<int>(kLastDeoptimizeKind),
+                "lazy deopts are expected to be emitted last");
+  // from_ is the value of the link register after the call to the
+  // deoptimizer, so for the last lazy deopt, from_ points to the first
+  // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
+  // the first deopt with resume entry.
+  if (from_ <= lazy_deopt_start) {
+    int offset = static_cast<int>(from_ - kNonLazyDeoptExitSize - deopt_start);
+    DCHECK_EQ(0, offset % kNonLazyDeoptExitSize);
+    deopt_exit_index_ = offset / kNonLazyDeoptExitSize;
+  } else {
+    int offset =
+        static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
+    DCHECK_EQ(0, offset % kLazyDeoptExitSize);
+    deopt_exit_index_ = non_lazy_deopt_count + (offset / kLazyDeoptExitSize);
   }
 }
 

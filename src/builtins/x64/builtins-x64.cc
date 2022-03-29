@@ -4816,22 +4816,16 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate),
       rbp);
 
-  // We use this to keep the value of the fifth argument temporarily.
-  // Unfortunately we can't store it directly in r8 (used for passing
-  // this on linux), since it is another parameter passing register on windows.
-  Register arg5 = r15;
-
-  __ Move(arg_reg_3, Deoptimizer::kFixedExitSizeMarker);
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movq(arg_reg_4, Operand(rsp, kCurrentOffsetToReturnAddress));
+  __ movq(arg_reg_3, Operand(rsp, kCurrentOffsetToReturnAddress));
   // Load the fp-to-sp-delta.
-  __ leaq(arg5, Operand(rsp, kCurrentOffsetToParentSP));
-  __ subq(arg5, rbp);
-  __ negq(arg5);
+  __ leaq(arg_reg_4, Operand(rsp, kCurrentOffsetToParentSP));
+  __ subq(arg_reg_4, rbp);
+  __ negq(arg_reg_4);
 
   // Allocate a new deoptimizer object.
-  __ PrepareCallCFunction(6);
+  __ PrepareCallCFunction(5);
   __ Move(rax, 0);
   Label context_check;
   __ movq(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
@@ -4843,19 +4837,19 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction
-  // has created space for this). On linux pass the arguments in r8 and r9.
+  // has created space for this). On linux pass the arguments in r8.
 #ifdef V8_TARGET_OS_WIN
-  __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
+  Register arg5 = r15;
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
-  __ movq(Operand(rsp, 5 * kSystemPointerSize), arg5);
+  __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
 #else
-  __ movq(r8, arg5);
-  __ LoadAddress(r9, ExternalReference::isolate_address(isolate));
+  // r8 is arg_reg_5 on Linux
+  __ LoadAddress(r8, ExternalReference::isolate_address(isolate));
 #endif
 
   {
     AllowExternalCallThatCantCauseGC scope(masm);
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
   }
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
