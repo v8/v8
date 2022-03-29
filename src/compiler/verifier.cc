@@ -2138,7 +2138,6 @@ void Verifier::VerifyNode(Node* node) {
   bool check_no_control = node->op()->ControlOutputCount() == 0;
   bool check_no_effect = node->op()->EffectOutputCount() == 0;
   bool check_no_frame_state = node->opcode() != IrOpcode::kFrameState;
-  int effect_edges = 0;
   if (check_no_effect || check_no_control) {
     for (Edge edge : node->use_edges()) {
       Node* const user = edge.from();
@@ -2147,7 +2146,6 @@ void Verifier::VerifyNode(Node* node) {
         DCHECK(!check_no_control);
       } else if (NodeProperties::IsEffectEdge(edge)) {
         DCHECK(!check_no_effect);
-        effect_edges++;
       } else if (NodeProperties::IsFrameStateEdge(edge)) {
         DCHECK(!check_no_frame_state);
       }
