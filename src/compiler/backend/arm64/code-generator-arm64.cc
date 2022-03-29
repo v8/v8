@@ -2657,7 +2657,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64S128Select, Bsl, 16B);
-      SIMD_BINOP_CASE(kArm64S128AndNot, Bic, 16B);
+    case kArm64S128AndNot:
+      if (instr->InputAt(1)->IsImmediate()) {
+        VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
+        VRegister dst = i.OutputSimd128Register().Format(f);
+        DCHECK_EQ(dst, i.InputSimd128Register(0).Format(f));
+        __ Bic(dst, i.InputInt32(1), i.InputInt8(2));
+      } else {
+        __ Bic(i.OutputSimd128Register().V16B(),
+               i.InputSimd128Register(0).V16B(),
+               i.InputSimd128Register(1).V16B());
+      }
+      break;
     case kArm64Ssra: {
       int8_t laneSize = LaneSizeField::decode(opcode);
       VectorFormat f = VectorFormatFillQ(laneSize);
