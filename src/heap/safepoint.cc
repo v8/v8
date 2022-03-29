@@ -84,18 +84,43 @@ void IsolateSafepoint::TryInitiateGlobalSafepointScope(
   InitiateGlobalSafepointScopeRaw(initiator, client_data);
 }
 
+class GlobalSafepointInterruptTask : public CancelableTask {
+ public:
+  explicit GlobalSafepointInterruptTask(Heap* heap)
+      : CancelableTask(heap->isolate()), heap_(heap) {}
+
+  ~GlobalSafepointInterruptTask() override = default;
+  GlobalSafepointInterruptTask(const GlobalSafepointInterruptTask&) = delete;
+  GlobalSafepointInterruptTask& operator=(const GlobalSafepointInterruptTask&) =
+      delete;
+
+ private:
+  // v8::internal::CancelableTask overrides.
+  void RunInternal() override { heap_->main_thread_local_heap()->Safepoint(); }
+
+  Heap* heap_;
+};
+
 void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
     Isolate* initiator, PerClientSafepointData* client_data) {
   CHECK_EQ(++active_safepoint_scopes_, 1);
   barrier_.Arm();
 
   size_t running =
-      SetSafepointRequestedFlags(IncludeMainThreadUnlessInitiator(initiator));
+      SetSafepointRequestedFlags(ShouldIncludeMainThread(initiator));
   client_data->set_locked_and_running(running);
+
+  if (isolate() != initiator) {
+    // An isolate might be waiting in the event loop. Post a task in order to
+    // wake it up.
+    V8::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(reinterpret_cast<v8::Isolate*>(isolate()))
+        ->PostTask(std::make_unique<GlobalSafepointInterruptTask>(heap_));
+  }
 }
 
-IsolateSafepoint::IncludeMainThread
-IsolateSafepoint::IncludeMainThreadUnlessInitiator(Isolate* initiator) {
+IsolateSafepoint::IncludeMainThread IsolateSafepoint::ShouldIncludeMainThread(
+    Isolate* initiator) {
   const bool is_initiator = isolate() == initiator;
   return is_initiator ? IncludeMainThread::kNo : IncludeMainThread::kYes;
 }
@@ -136,7 +161,7 @@ void IsolateSafepoint::LockMutex(LocalHeap* local_heap) {
 void IsolateSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
   local_heaps_mutex_.AssertHeld();
   CHECK_EQ(--active_safepoint_scopes_, 0);
-  ClearSafepointRequestedFlags(IncludeMainThreadUnlessInitiator(initiator));
+  ClearSafepointRequestedFlags(ShouldIncludeMainThread(initiator));
   barrier_.Disarm();
   local_heaps_mutex_.Unlock();
 }

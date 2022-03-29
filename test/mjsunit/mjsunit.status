@@ -273,10 +273,6 @@
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
 
-  # BUG(v8:12645)
-  'shared-memory/shared-struct-workers': [SKIP],
-  'shared-memory/shared-struct-atomics-workers': [SKIP],
-
   # Needs deterministic test helpers for concurrent maglev tiering.
   # TODO(jgruber,v8:7700): Implement ASAP.
   'maglev/18': [SKIP],
