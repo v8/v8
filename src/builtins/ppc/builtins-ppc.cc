@@ -3277,17 +3277,16 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kSystemPointerSize) + kDoubleRegsSize;
 
-  __ mov(r5, Operand(Deoptimizer::kFixedExitSizeMarker));
   // Get the address of the location in the code object (r6) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register r7.
-  __ mflr(r6);
-  __ addi(r7, sp, Operand(kSavedRegistersAreaSize));
-  __ sub(r7, fp, r7);
+  __ mflr(r5);
+  __ addi(r6, sp, Operand(kSavedRegistersAreaSize));
+  __ sub(r6, fp, r6);
 
   // Allocate a new deoptimizer object.
   // Pass six arguments in r3 to r8.
-  __ PrepareCallCFunction(6, r8);
+  __ PrepareCallCFunction(5, r8);
   __ li(r3, Operand::Zero());
   Label context_check;
   __ LoadU64(r4,
@@ -3296,14 +3295,13 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ LoadU64(r3, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ bind(&context_check);
   __ li(r4, Operand(static_cast<int>(deopt_kind)));
-  // r5: bailout id already loaded.
-  // r6: code address or 0 already loaded.
-  // r7: Fp-to-sp delta.
-  __ Move(r8, ExternalReference::isolate_address(isolate));
+  // r5: code address or 0 already loaded.
+  // r6: Fp-to-sp delta already loaded.
+  __ Move(r7, ExternalReference::isolate_address(isolate));
   // Call Deoptimizer::New().
   {
     AllowExternalCallThatCantCauseGC scope(masm);
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
   }
 
   // Preserve "deoptimizer" object in register r3 and get the input
