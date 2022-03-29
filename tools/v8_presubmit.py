@@ -737,8 +737,6 @@ def FindTests(workspace):
   exclude = [
       'tools/clang',
       'tools/unittests/v8_presubmit_test.py',
-      'tools/testrunner/local/pool_test.py',
-      'tools/testrunner/testproc/sequence_test.py',
       'tools/mb/mb_test.py',
       'tools/cppgc/gen_cmake_test.py',
       'tools/ignition/linux_perf_report_test.py',
