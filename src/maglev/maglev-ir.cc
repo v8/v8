@@ -719,8 +719,8 @@ void Phi::PrintParams(std::ostream& os,
   os << "(" << owner().ToString() << ")";
 }
 
-void CallProperty::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                                const ProcessingState& state) {
+void Call::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                        const ProcessingState& state) {
   UseFixed(function(), CallTrampolineDescriptor::GetRegisterParameter(
                            CallTrampolineDescriptor::kFunction));
   UseFixed(context(), kContextRegister);
@@ -729,8 +729,8 @@ void CallProperty::AllocateVreg(MaglevVregAllocationState* vreg_state,
   }
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
-void CallProperty::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                const ProcessingState& state) {
+void Call::GenerateCode(MaglevCodeGenState* code_gen_state,
+                        const ProcessingState& state) {
   // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
 
   DCHECK_EQ(ToRegister(function()),
@@ -749,16 +749,17 @@ void CallProperty::GenerateCode(MaglevCodeGenState* code_gen_state,
 
   // TODO(leszeks): This doesn't collect feedback yet, either pass in the
   // feedback vector by Handle.
-  __ CallBuiltin(Builtin::kCall_ReceiverIsNotNullOrUndefined);
-}
-
-void CallUndefinedReceiver::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                                         const ProcessingState& state) {
-  UNREACHABLE();
-}
-void CallUndefinedReceiver::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                         const ProcessingState& state) {
-  UNREACHABLE();
+  switch (receiver_mode_) {
+    case ConvertReceiverMode::kNullOrUndefined:
+      __ CallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined);
+      break;
+    case ConvertReceiverMode::kNotNullOrUndefined:
+      __ CallBuiltin(Builtin::kCall_ReceiverIsNotNullOrUndefined);
+      break;
+    case ConvertReceiverMode::kAny:
+      __ CallBuiltin(Builtin::kCall_ReceiverIsAny);
+      break;
+  }
 }
 
 // ---

@@ -361,55 +361,83 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(TypeOf)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertyStrict)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertySloppy)
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetSuperConstructor)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallAnyReceiver)
 
-// TODO(leszeks): For all of these:
-//   a) Read feedback and implement inlining
-//   b) Wrap in a helper.
-void MaglevGraphBuilder::VisitCallProperty() {
+// TODO(v8:7700): Read feedback and implement inlining
+void MaglevGraphBuilder::BuildCallFromRegisterList(
+    ConvertReceiverMode receiver_mode) {
   ValueNode* function = LoadRegister(0);
 
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   ValueNode* context = GetContext();
 
-  static constexpr int kTheContextAndTheFunction = 2;
-  CallProperty* call_property = AddNewNode<CallProperty>(
-      args.register_count() + kTheContextAndTheFunction, function, context);
-  // TODO(leszeks): Move this for loop into the CallProperty constructor,
-  // pre-size the args array.
-  for (int i = 0; i < args.register_count(); ++i) {
-    call_property->set_arg(i, current_interpreter_frame_.get(args[i]));
+  size_t input_count = args.register_count() + Call::kFixedInputCount;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) input_count++;
+
+  Call* call = AddNewNode<Call>(input_count, receiver_mode, function, context);
+  int arg_index = 0;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    call->set_arg(arg_index++,
+                  AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
   }
-  SetAccumulator(call_property);
+  for (int i = 0; i < args.register_count(); ++i) {
+    call->set_arg(arg_index++, current_interpreter_frame_.get(args[i]));
+  }
+
+  SetAccumulator(call);
+}
+
+void MaglevGraphBuilder::BuildCallFromRegisters(
+    int argc_count, ConvertReceiverMode receiver_mode) {
+  DCHECK_LE(argc_count, 2);
+  ValueNode* function = LoadRegister(0);
+  ValueNode* context = GetContext();
+
+  int argc_count_with_recv = argc_count + 1;
+  size_t input_count = argc_count_with_recv + Call::kFixedInputCount;
+
+  Call* call = AddNewNode<Call>(input_count, receiver_mode, function, context);
+  int arg_index = 0;
+  int reg_count = argc_count_with_recv;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    reg_count = argc_count;
+    call->set_arg(arg_index++,
+                  AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
+  }
+  for (int i = 0; i < reg_count; i++) {
+    call->set_arg(arg_index++, LoadRegister(i + 1));
+  }
+
+  SetAccumulator(call);
+}
+
+void MaglevGraphBuilder::VisitCallAnyReceiver() {
+  BuildCallFromRegisterList(ConvertReceiverMode::kAny);
+}
+void MaglevGraphBuilder::VisitCallProperty() {
+  BuildCallFromRegisterList(ConvertReceiverMode::kNotNullOrUndefined);
 }
 void MaglevGraphBuilder::VisitCallProperty0() {
-  ValueNode* function = LoadRegister(0);
-  ValueNode* context = GetContext();
-
-  CallProperty* call_property =
-      AddNewNode<CallProperty>({function, context, LoadRegister(1)});
-  SetAccumulator(call_property);
+  BuildCallFromRegisters(0, ConvertReceiverMode::kNotNullOrUndefined);
 }
 void MaglevGraphBuilder::VisitCallProperty1() {
-  ValueNode* function = LoadRegister(0);
-  ValueNode* context = GetContext();
-
-  CallProperty* call_property = AddNewNode<CallProperty>(
-      {function, context, LoadRegister(1), LoadRegister(2)});
-  SetAccumulator(call_property);
+  BuildCallFromRegisters(1, ConvertReceiverMode::kNotNullOrUndefined);
 }
 void MaglevGraphBuilder::VisitCallProperty2() {
-  ValueNode* function = LoadRegister(0);
-  ValueNode* context = GetContext();
-
-  CallProperty* call_property = AddNewNode<CallProperty>(
-      {function, context, LoadRegister(1), LoadRegister(2), LoadRegister(3)});
-  SetAccumulator(call_property);
+  BuildCallFromRegisters(2, ConvertReceiverMode::kNotNullOrUndefined);
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver0)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver1)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallUndefinedReceiver2)
+void MaglevGraphBuilder::VisitCallUndefinedReceiver() {
+  BuildCallFromRegisterList(ConvertReceiverMode::kNullOrUndefined);
+}
+void MaglevGraphBuilder::VisitCallUndefinedReceiver0() {
+  BuildCallFromRegisters(0, ConvertReceiverMode::kNullOrUndefined);
+}
+void MaglevGraphBuilder::VisitCallUndefinedReceiver1() {
+  BuildCallFromRegisters(1, ConvertReceiverMode::kNullOrUndefined);
+}
+void MaglevGraphBuilder::VisitCallUndefinedReceiver2() {
+  BuildCallFromRegisters(2, ConvertReceiverMode::kNullOrUndefined);
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallWithSpread)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntime)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntimeForPair)

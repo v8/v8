@@ -63,8 +63,7 @@ class CompactInterpreterFrameState;
   V(GenericGreaterThanOrEqual)
 
 #define VALUE_NODE_LIST(V) \
-  V(CallProperty)          \
-  V(CallUndefinedReceiver) \
+  V(Call)                  \
   V(Constant)              \
   V(InitialValue)          \
   V(LoadField)             \
@@ -1074,54 +1073,42 @@ class Phi : public ValueNodeT<Phi> {
   friend base::ThreadedListTraits<Phi>;
 };
 
-class CallProperty : public ValueNodeT<CallProperty> {
-  using Base = ValueNodeT<CallProperty>;
+class Call : public ValueNodeT<Call> {
+  using Base = ValueNodeT<Call>;
 
  public:
-  explicit CallProperty(size_t input_count) : Base(input_count) {}
+  // We assume function and context as fixed inputs.
+  static constexpr int kFunctionIndex = 0;
+  static constexpr int kContextIndex = 1;
+  static constexpr int kFixedInputCount = 2;
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallProperty(size_t input_count, ValueNode* function, ValueNode* context)
-      : Base(input_count) {
-    set_input(0, function);
-    set_input(1, context);
+  Call(size_t input_count, ConvertReceiverMode mode, ValueNode* function,
+       ValueNode* context)
+      : Base(input_count), receiver_mode_(mode) {
+    set_input(kFunctionIndex, function);
+    set_input(kContextIndex, context);
   }
 
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
-  Input& function() { return input(0); }
-  const Input& function() const { return input(0); }
-  Input& context() { return input(1); }
-  const Input& context() const { return input(1); }
-  int num_args() const { return input_count() - 2; }
-  Input& arg(int i) { return input(i + 2); }
-  void set_arg(int i, ValueNode* node) { set_input(i + 2, node); }
+  Input& function() { return input(kFunctionIndex); }
+  const Input& function() const { return input(kFunctionIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
 
-class CallUndefinedReceiver : public ValueNodeT<CallUndefinedReceiver> {
-  using Base = ValueNodeT<CallUndefinedReceiver>;
-
- public:
-  explicit CallUndefinedReceiver(size_t input_count) : Base(input_count) {}
-
-  static constexpr OpProperties kProperties = OpProperties::JSCall();
-
-  Input& function() { return input(0); }
-  const Input& function() const { return input(0); }
-  Input& context() { return input(1); }
-  const Input& context() const { return input(1); }
-  int num_args() const { return input_count() - 2; }
-  Input& arg(int i) { return input(i + 2); }
-  void set_arg(int i, ValueNode* node) { set_input(i + 2, node); }
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+ private:
+  ConvertReceiverMode receiver_mode_;
 };
 
 // Represents either a direct BasicBlock pointer, or an entry in a list of

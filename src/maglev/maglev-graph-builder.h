@@ -285,6 +285,10 @@ class MaglevGraphBuilder {
     return block;
   }
 
+  void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
+  void BuildCallFromRegisters(int argc_count,
+                              ConvertReceiverMode receiver_mode);
+
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
   template <Operation kOperation>
