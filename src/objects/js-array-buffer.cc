@@ -147,6 +147,36 @@ size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
   return buffer.GetBackingStore()->byte_length(std::memory_order_seq_cst);
 }
 
+// static
+Maybe<bool> JSArrayBuffer::GetResizableBackingStorePageConfiguration(
+    Isolate* isolate, size_t byte_length, size_t max_byte_length,
+    ShouldThrow should_throw, size_t* page_size, size_t* initial_pages,
+    size_t* max_pages) {
+  DCHECK_NOT_NULL(page_size);
+  DCHECK_NOT_NULL(initial_pages);
+  DCHECK_NOT_NULL(max_pages);
+
+  *page_size = AllocatePageSize();
+
+  if (!RoundUpToPageSize(byte_length, *page_size, JSArrayBuffer::kMaxByteLength,
+                         initial_pages)) {
+    if (should_throw == kDontThrow) return Nothing<bool>();
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength),
+        Nothing<bool>());
+  }
+
+  if (!RoundUpToPageSize(max_byte_length, *page_size,
+                         JSArrayBuffer::kMaxByteLength, max_pages)) {
+    if (should_throw == kDontThrow) return Nothing<bool>();
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength),
+        Nothing<bool>());
+  }
+
+  return Just(true);
+}
+
 ArrayBufferExtension* JSArrayBuffer::EnsureExtension() {
   ArrayBufferExtension* extension = this->extension();
   if (extension != nullptr) return extension;

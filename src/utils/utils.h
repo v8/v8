@@ -659,6 +659,16 @@ V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
   std::memset(reinterpret_cast<void*>(addr), kZapByte, size_in_bytes);
 }
 
+inline bool RoundUpToPageSize(size_t byte_length, size_t page_size,
+                              size_t max_allowed_byte_length, size_t* pages) {
+  size_t bytes_wanted = RoundUp(byte_length, page_size);
+  if (bytes_wanted > max_allowed_byte_length) {
+    return false;
+  }
+  *pages = bytes_wanted / page_size;
+  return true;
+}
+
 }  // namespace internal
 }  // namespace v8
 

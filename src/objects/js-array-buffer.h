@@ -114,6 +114,11 @@ class JSArrayBuffer
 
   static size_t GsabByteLength(Isolate* isolate, Address raw_array_buffer);
 
+  static Maybe<bool> GetResizableBackingStorePageConfiguration(
+      Isolate* isolate, size_t byte_length, size_t max_byte_length,
+      ShouldThrow should_throw, size_t* page_size, size_t* initial_pages,
+      size_t* max_pages);
+
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.
   ArrayBufferExtension* EnsureExtension();

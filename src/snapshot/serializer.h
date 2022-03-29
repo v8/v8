@@ -470,7 +470,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                                ExternalPointerTag tag);
   void OutputRawData(Address up_to);
   void SerializeCode(Map map, int size);
-  uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
+  uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length,
+                                 Maybe<int32_t> max_byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
   void SerializeExternalString();

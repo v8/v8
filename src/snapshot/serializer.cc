@@ -474,14 +474,22 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
 }
 
 uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
-    void* backing_store, int32_t byte_length) {
+    void* backing_store, int32_t byte_length, Maybe<int32_t> max_byte_length) {
   const SerializerReference* reference_ptr =
       serializer_->reference_map()->LookupBackingStore(backing_store);
 
   // Serialize the off-heap backing store.
   if (!reference_ptr) {
-    sink_->Put(kOffHeapBackingStore, "Off-heap backing store");
+    if (max_byte_length.IsJust()) {
+      sink_->Put(kOffHeapResizableBackingStore,
+                 "Off-heap resizable backing store");
+    } else {
+      sink_->Put(kOffHeapBackingStore, "Off-heap backing store");
+    }
     sink_->PutInt(byte_length, "length");
+    if (max_byte_length.IsJust()) {
+      sink_->PutInt(max_byte_length.FromJust(), "max length");
+    }
     sink_->PutRaw(static_cast<byte*>(backing_store), byte_length,
                   "BackingStore");
     DCHECK_NE(0, serializer_->seen_backing_stores_index_);
@@ -504,9 +512,15 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
     if (!typed_array->WasDetached()) {
       // Explicitly serialize the backing store now.
       JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array->buffer());
-      // We cannot store byte_length larger than int32 range in the snapshot.
+      // We cannot store byte_length or max_byte_length larger than int32 range
+      // in the snapshot.
       CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
       int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
+      Maybe<int32_t> max_byte_length = Nothing<int32_t>();
+      if (buffer.is_resizable()) {
+        CHECK_LE(buffer.max_byte_length(), std::numeric_limits<int32_t>::max());
+        max_byte_length = Just(static_cast<int32_t>(buffer.max_byte_length()));
+      }
       size_t byte_offset = typed_array->byte_offset();
 
       // We need to calculate the backing store from the data pointer
@@ -514,7 +528,8 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
       void* backing_store = reinterpret_cast<void*>(
           reinterpret_cast<Address>(typed_array->DataPtr()) - byte_offset);
 
-      uint32_t ref = SerializeBackingStore(backing_store, byte_length);
+      uint32_t ref =
+          SerializeBackingStore(backing_store, byte_length, max_byte_length);
       typed_array->SetExternalBackingStoreRefForSerialization(ref);
     } else {
       typed_array->SetExternalBackingStoreRefForSerialization(0);
@@ -526,16 +541,23 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
 void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(object_);
   void* backing_store = buffer->backing_store();
-  // We cannot store byte_length larger than int32 range in the snapshot.
+  // We cannot store byte_length or max_byte_length larger than int32 range in
+  // the snapshot.
   CHECK_LE(buffer->byte_length(), std::numeric_limits<int32_t>::max());
   int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
+  Maybe<int32_t> max_byte_length = Nothing<int32_t>();
+  if (buffer->is_resizable()) {
+    CHECK_LE(buffer->max_byte_length(), std::numeric_limits<int32_t>::max());
+    max_byte_length = Just(static_cast<int32_t>(buffer->max_byte_length()));
+  }
   ArrayBufferExtension* extension = buffer->extension();
 
   // Only serialize non-empty backing stores.
   if (buffer->IsEmpty()) {
     buffer->SetBackingStoreRefForSerialization(kEmptyBackingStoreRefSentinel);
   } else {
-    uint32_t ref = SerializeBackingStore(backing_store, byte_length);
+    uint32_t ref =
+        SerializeBackingStore(backing_store, byte_length, max_byte_length);
     buffer->SetBackingStoreRefForSerialization(ref);
 
     // Ensure deterministic output by setting extension to null during
