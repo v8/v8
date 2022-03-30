@@ -2142,9 +2142,10 @@ Reduction JSNativeContextSpecialization::ReduceJSDefineKeyedOwnProperty(
 }
 
 Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
-    Node* receiver, ConvertReceiverMode receiver_mode, Node* context,
-    Node* frame_state, Node** effect, Node** control,
-    ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info) {
+    Node* receiver, ConvertReceiverMode receiver_mode,
+    Node* lookup_start_object, Node* context, Node* frame_state, Node** effect,
+    Node** control, ZoneVector<Node*>* if_exceptions,
+    PropertyAccessInfo const& access_info) {
   ObjectRef constant = access_info.constant().value();
 
   if (access_info.IsDictionaryProtoAccessorConstant()) {
@@ -2166,6 +2167,11 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
                                       receiver_mode),
         target, receiver, feedback, context, frame_state, *effect, *control);
   } else {
+    // Disable optimizations for super ICs using API getters, so that we get
+    // the correct receiver checks.
+    if (receiver != lookup_start_object) {
+      return nullptr;
+    }
     Node* holder = access_info.holder().has_value()
                        ? jsgraph()->Constant(access_info.holder().value())
                        : receiver;
@@ -2289,9 +2295,9 @@ JSNativeContextSpecialization::BuildPropertyLoad(
         receiver == lookup_start_object
             ? ConvertReceiverMode::kNotNullOrUndefined
             : ConvertReceiverMode::kAny;
-    value =
-        InlinePropertyGetterCall(receiver, receiver_mode, context, frame_state,
-                                 &effect, &control, if_exceptions, access_info);
+    value = InlinePropertyGetterCall(
+        receiver, receiver_mode, lookup_start_object, context, frame_state,
+        &effect, &control, if_exceptions, access_info);
   } else if (access_info.IsModuleExport()) {
     Node* cell = jsgraph()->Constant(access_info.constant().value().AsCell());
     value = effect =
@@ -2314,8 +2320,10 @@ JSNativeContextSpecialization::BuildPropertyLoad(
           name, access_info, lookup_start_object, &effect, &control);
     }
   }
-
-  return ValueEffectControl(value, effect, control);
+  if (value != nullptr) {
+    return ValueEffectControl(value, effect, control);
+  }
+  return base::Optional<ValueEffectControl>();
 }
 
 JSNativeContextSpecialization::ValueEffectControl

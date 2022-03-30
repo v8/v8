@@ -170,8 +170,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Helpers for accessor inlining.
   Node* InlinePropertyGetterCall(Node* receiver,
                                  ConvertReceiverMode receiver_mode,
-                                 Node* context, Node* frame_state,
-                                 Node** effect, Node** control,
+                                 Node* lookup_start_object, Node* context,
+                                 Node* frame_state, Node** effect,
+                                 Node** control,
                                  ZoneVector<Node*>* if_exceptions,
                                  PropertyAccessInfo const& access_info);
   void InlinePropertySetterCall(Node* receiver, Node* value, Node* context,

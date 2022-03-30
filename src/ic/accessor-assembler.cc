@@ -751,9 +751,15 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   BIND(&api_getter);
   {
-    GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
-    HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
-                       handler_kind, exit_point);
+    if (p->receiver() != p->lookup_start_object()) {
+      // Force super ICs using API getters into the slow path, so that we get
+      // the correct receiver checks.
+      Goto(&slow);
+    } else {
+      GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
+      HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
+                         handler_kind, exit_point);
+    }
   }
 
   BIND(&proxy);
