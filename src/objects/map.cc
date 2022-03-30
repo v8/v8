@@ -499,10 +499,10 @@ bool Map::InstancesNeedRewriting(Map target, int target_number_of_fields,
   if (target_number_of_fields != *old_number_of_fields) return true;
 
   // If smi descriptors were replaced by double descriptors, rewrite.
-  DescriptorArray old_desc = cmode == ConcurrencyMode::kConcurrent
+  DescriptorArray old_desc = IsConcurrent(cmode)
                                  ? instance_descriptors(kAcquireLoad)
                                  : instance_descriptors();
-  DescriptorArray new_desc = cmode == ConcurrencyMode::kConcurrent
+  DescriptorArray new_desc = IsConcurrent(cmode)
                                  ? target.instance_descriptors(kAcquireLoad)
                                  : target.instance_descriptors();
   for (InternalIndex i : IterateOwnDescriptors()) {
@@ -528,7 +528,7 @@ bool Map::InstancesNeedRewriting(Map target, int target_number_of_fields,
 }
 
 int Map::NumberOfFields(ConcurrencyMode cmode) const {
-  DescriptorArray descriptors = cmode == ConcurrencyMode::kConcurrent
+  DescriptorArray descriptors = IsConcurrent(cmode)
                                     ? instance_descriptors(kAcquireLoad)
                                     : instance_descriptors();
   int result = 0;
@@ -561,7 +561,7 @@ Map::FieldCounts Map::GetFieldCounts() const {
 
 bool Map::HasOutOfObjectProperties() const {
   return GetInObjectProperties() <
-         NumberOfFields(ConcurrencyMode::kNotConcurrent);
+         NumberOfFields(ConcurrencyMode::kSynchronous);
 }
 
 void Map::DeprecateTransitionTree(Isolate* isolate) {
@@ -678,7 +678,7 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
   }
 
   SLOW_DCHECK(MapUpdater::TryUpdateNoLock(
-                  isolate, old_map, ConcurrencyMode::kNotConcurrent) == target);
+                  isolate, old_map, ConcurrencyMode::kSynchronous) == target);
   return target;
 }
 }  // namespace
@@ -698,7 +698,7 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
   }
 
   base::Optional<Map> new_map = MapUpdater::TryUpdateNoLock(
-      isolate, *old_map, ConcurrencyMode::kNotConcurrent);
+      isolate, *old_map, ConcurrencyMode::kSynchronous);
   if (!new_map.has_value()) return MaybeHandle<Map>();
   if (FLAG_fast_map_update) {
     TransitionsAccessor::SetMigrationTarget(isolate, old_map, new_map.value());
@@ -710,7 +710,6 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
                                       ConcurrencyMode cmode) {
   DisallowGarbageCollection no_gc;
 
-  const bool is_concurrent = cmode == ConcurrencyMode::kConcurrent;
   const int root_nof = NumberOfOwnDescriptors();
   const int old_nof = old_map.NumberOfOwnDescriptors();
   // TODO(jgruber,chromium:1239009): The main thread should use non-atomic
@@ -723,7 +722,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
   for (InternalIndex i : InternalIndex::Range(root_nof, old_nof)) {
     PropertyDetails old_details = old_descriptors.GetDetails(i);
     Map transition =
-        TransitionsAccessor(isolate, new_map, is_concurrent)
+        TransitionsAccessor(isolate, new_map, IsConcurrent(cmode))
             .SearchTransition(old_descriptors.GetKey(i), old_details.kind(),
                               old_details.attributes());
     if (transition.is_null()) return Map();
@@ -1067,7 +1066,7 @@ Handle<Map> Map::AsElementsKind(Isolate* isolate, Handle<Map> map,
                                 ElementsKind kind) {
   Handle<Map> closest_map(
       FindClosestElementsTransition(isolate, *map, kind,
-                                    ConcurrencyMode::kNotConcurrent),
+                                    ConcurrencyMode::kSynchronous),
       isolate);
 
   if (closest_map->elements_kind() == kind) {
@@ -1343,7 +1342,7 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
     result->set_owns_descriptors(false);
     result->UpdateDescriptors(isolate, descriptors, number_of_own_descriptors);
 
-    DCHECK_EQ(result->NumberOfFields(ConcurrencyMode::kNotConcurrent),
+    DCHECK_EQ(result->NumberOfFields(ConcurrencyMode::kSynchronous),
               result->GetInObjectProperties() - result->UnusedPropertyFields());
   }
 
@@ -1553,7 +1552,7 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
               map->NumberOfOwnDescriptors());
 
     maybe_elements_transition_map =
-        map->ElementsTransitionMap(isolate, ConcurrencyMode::kNotConcurrent);
+        map->ElementsTransitionMap(isolate, ConcurrencyMode::kSynchronous);
     DCHECK(
         maybe_elements_transition_map.is_null() ||
         (maybe_elements_transition_map.elements_kind() == DICTIONARY_ELEMENTS &&
@@ -2122,13 +2121,12 @@ bool Map::EquivalentToForTransition(const Map other,
     // not equivalent to strict function.
     int nof =
         std::min(NumberOfOwnDescriptors(), other.NumberOfOwnDescriptors());
-    DescriptorArray this_descriptors = cmode == ConcurrencyMode::kConcurrent
+    DescriptorArray this_descriptors = IsConcurrent(cmode)
                                            ? instance_descriptors(kAcquireLoad)
                                            : instance_descriptors();
     DescriptorArray that_descriptors =
-        cmode == ConcurrencyMode::kConcurrent
-            ? other.instance_descriptors(kAcquireLoad)
-            : other.instance_descriptors();
+        IsConcurrent(cmode) ? other.instance_descriptors(kAcquireLoad)
+                            : other.instance_descriptors();
     return this_descriptors.IsEqualUpTo(that_descriptors, nof);
   }
   return true;
@@ -2141,7 +2139,7 @@ bool Map::EquivalentToForElementsKindTransition(const Map other,
   // Ensure that we don't try to generate elements kind transitions from maps
   // with fields that may be generalized in-place. This must already be handled
   // during addition of a new field.
-  DescriptorArray descriptors = cmode == ConcurrencyMode::kConcurrent
+  DescriptorArray descriptors = IsConcurrent(cmode)
                                     ? instance_descriptors(kAcquireLoad)
                                     : instance_descriptors();
   for (InternalIndex i : IterateOwnDescriptors()) {

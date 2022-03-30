@@ -262,7 +262,7 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
   if (function->HasAvailableOptimizedCode() ||
       function->HasAvailableCodeKind(kind)) {
     DCHECK(function->HasAttachedOptimizedCode() ||
-           function->ChecksOptimizationMarker());
+           function->ChecksTieringState());
     if (FLAG_testing_d8_test_runner) {
       PendingOptimizationTable::FunctionWasOptimized(isolate, function);
     }
@@ -305,7 +305,7 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
+  ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
   if (args.length() == 2) {
     Handle<Object> type = args.at(1);
     if (!type->IsString()) return CrashUnlessFuzzing(isolate);
@@ -450,7 +450,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
   DCHECK(function->is_compiled());
 
   // TODO(v8:7700): Support concurrent compiles.
-  const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
+  const ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
 
   TraceManualRecompile(*function, kCodeKind, concurrency_mode);
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
@@ -558,7 +558,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   if (function->HasAvailableOptimizedCode()) {
     DCHECK(function->HasAttachedOptimizedCode() ||
-           function->ChecksOptimizationMarker());
+           function->ChecksTieringState());
     // If function is already optimized, remove the bytecode array from the
     // pending optimize for test table and return.
     if (FLAG_testing_d8_test_runner) {
@@ -579,7 +579,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
       function->shared().is_compiled_scope(isolate));
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
   function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
-                                ConcurrencyMode::kNotConcurrent);
+                                ConcurrencyMode::kSynchronous);
 
   if (it.frame()->is_unoptimized()) {
     isolate->tiering_manager()->RequestOsrAtNextOpportunity(*function);
@@ -637,6 +637,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
 RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
+
   int status = 0;
   if (FLAG_lite_mode || FLAG_jitless) {
     // Both jitless and lite modes cannot optimize. Unit tests should handle
@@ -656,16 +657,26 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   Handle<Object> function_object = args.at(0);
   if (function_object->IsUndefined()) return Smi::FromInt(status);
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
+
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   status |= static_cast<int>(OptimizationStatus::kIsFunction);
 
-  if (function->IsMarkedForOptimization()) {
-    status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
-  } else if (function->IsMarkedForConcurrentOptimization()) {
-    status |=
-        static_cast<int>(OptimizationStatus::kMarkedForConcurrentOptimization);
-  } else if (function->IsInOptimizationQueue()) {
-    status |= static_cast<int>(OptimizationStatus::kOptimizingConcurrently);
+  switch (function->tiering_state()) {
+    case TieringState::kRequestTurbofan_Synchronous:
+      status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
+      break;
+    case TieringState::kRequestTurbofan_Concurrent:
+      status |= static_cast<int>(
+          OptimizationStatus::kMarkedForConcurrentOptimization);
+      break;
+    case TieringState::kInProgress:
+      status |= static_cast<int>(OptimizationStatus::kOptimizingConcurrently);
+      break;
+    case TieringState::kNone:
+    case TieringState::kRequestMaglev_Synchronous:
+    case TieringState::kRequestMaglev_Concurrent:
+      // TODO(v8:7700): Maglev support.
+      break;
   }
 
   if (function->HasAttachedOptimizedCode()) {

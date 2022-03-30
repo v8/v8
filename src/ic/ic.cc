@@ -759,7 +759,7 @@ bool IC::IsTransitionOfMonomorphicTarget(Map source_map, Map target_map) {
     MapHandles map_list;
     map_list.push_back(handle(target_map, isolate_));
     transitioned_map = source_map.FindElementsKindTransitionedMap(
-        isolate(), map_list, ConcurrencyMode::kNotConcurrent);
+        isolate(), map_list, ConcurrencyMode::kSynchronous);
   }
   return transitioned_map == target_map;
 }
@@ -1425,7 +1425,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
       Map tmap = receiver_map->FindElementsKindTransitionedMap(
-          isolate(), *receiver_maps, ConcurrencyMode::kNotConcurrent);
+          isolate(), *receiver_maps, ConcurrencyMode::kSynchronous);
       if (!tmap.is_null()) {
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
@@ -2425,7 +2425,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     } else {
       {
         Map tmap = receiver_map->FindElementsKindTransitionedMap(
-            isolate(), receiver_maps, ConcurrencyMode::kNotConcurrent);
+            isolate(), receiver_maps, ConcurrencyMode::kSynchronous);
         if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());

@@ -167,30 +167,18 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // CompileLazy.
   bool CanDiscardCompiled() const;
 
-  // Tells whether or not this function checks its optimization marker in its
-  // feedback vector.
-  inline bool ChecksOptimizationMarker();
+  // Tells whether function's code object checks its tiering state (some code
+  // kinds, e.g. TURBOFAN, ignore the tiering state).
+  inline bool ChecksTieringState();
 
-  // Tells whether or not this function has a (non-zero) optimization marker.
-  inline bool HasOptimizationMarker();
+  inline TieringState tiering_state() const;
+  inline void set_tiering_state(TieringState state);
+  inline void reset_tiering_state();
 
   // Mark this function for lazy recompilation. The function will be recompiled
   // the next time it is executed.
   void MarkForOptimization(Isolate* isolate, CodeKind target_kind,
                            ConcurrencyMode mode);
-
-  // Tells whether or not the function is already marked for lazy recompilation.
-  inline bool IsMarkedForOptimization();
-  inline bool IsMarkedForConcurrentOptimization();
-
-  // Tells whether or not the function is on the concurrent recompilation queue.
-  inline bool IsInOptimizationQueue();
-
-  // Sets the optimization marker in the function's feedback vector.
-  inline void SetOptimizationMarker(OptimizationMarker marker);
-
-  // Clears the optimization marker in the function's feedback vector.
-  inline void ClearOptimizationMarker();
 
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.

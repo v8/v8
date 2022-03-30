@@ -29,8 +29,8 @@ void DisposeCompilationJob(TurbofanCompilationJob* job,
   if (restore_function_code) {
     Handle<JSFunction> function = job->compilation_info()->closure();
     function->set_code(function->shared().GetCode(), kReleaseStore);
-    if (function->IsInOptimizationQueue()) {
-      function->ClearOptimizationMarker();
+    if (IsInProgress(function->tiering_state())) {
+      function->reset_tiering_state();
     }
   }
   delete job;

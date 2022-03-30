@@ -163,16 +163,15 @@ bool JSFunction::CanDiscardCompiled() const {
 
 namespace {
 
-constexpr OptimizationMarker OptimizationMarkerFor(CodeKind target_kind,
-                                                   ConcurrencyMode mode) {
+constexpr TieringState TieringStateFor(CodeKind target_kind,
+                                       ConcurrencyMode mode) {
   DCHECK(target_kind == CodeKind::MAGLEV || target_kind == CodeKind::TURBOFAN);
   return target_kind == CodeKind::MAGLEV
-             ? (mode == ConcurrencyMode::kConcurrent
-                    ? OptimizationMarker::kCompileMaglev_Concurrent
-                    : OptimizationMarker::kCompileMaglev_NotConcurrent)
-             : (mode == ConcurrencyMode::kConcurrent
-                    ? OptimizationMarker::kCompileTurbofan_Concurrent
-                    : OptimizationMarker::kCompileTurbofan_NotConcurrent);
+             ? (IsConcurrent(mode) ? TieringState::kRequestMaglev_Concurrent
+                                   : TieringState::kRequestMaglev_Synchronous)
+             : (IsConcurrent(mode)
+                    ? TieringState::kRequestTurbofan_Concurrent
+                    : TieringState::kRequestTurbofan_Synchronous);
 }
 
 }  // namespace
@@ -181,7 +180,7 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
                                      ConcurrencyMode mode) {
   if (!isolate->concurrent_recompilation_enabled() ||
       isolate->bootstrapper()->IsActive()) {
-    mode = ConcurrencyMode::kNotConcurrent;
+    mode = ConcurrencyMode::kSynchronous;
   }
 
   DCHECK(CodeKindIsOptimizedJSFunction(target_kind));
@@ -192,8 +191,8 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
   DCHECK(shared().allows_lazy_compilation() ||
          !shared().optimization_disabled());
 
-  if (mode == ConcurrencyMode::kConcurrent) {
-    if (IsInOptimizationQueue()) {
+  if (IsConcurrent(mode)) {
+    if (IsInProgress(tiering_state())) {
       if (FLAG_trace_concurrent_recompilation) {
         PrintF("  ** Not marking ");
         ShortPrint();
@@ -209,7 +208,7 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
     }
   }
 
-  SetOptimizationMarker(OptimizationMarkerFor(target_kind, mode));
+  set_tiering_state(TieringStateFor(target_kind, mode));
 }
 
 void JSFunction::SetInterruptBudget(Isolate* isolate) {

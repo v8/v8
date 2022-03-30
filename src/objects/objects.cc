@@ -4789,7 +4789,7 @@ Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
     Handle<Map> new_map;
     ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
     Map maybe_elements_transition = current_map->ElementsTransitionMap(
-        isolate, ConcurrencyMode::kNotConcurrent);
+        isolate, ConcurrencyMode::kSynchronous);
     if (!maybe_elements_transition.is_null()) {
       new_map = handle(maybe_elements_transition, isolate);
     } else {

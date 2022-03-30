@@ -33,9 +33,8 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                         CodeKind target_kind, ConcurrencyMode mode) {
   StackLimitCheck check(isolate);
   // Concurrent optimization runs on another thread, thus no additional gap.
-  const int gap = mode == ConcurrencyMode::kConcurrent
-                      ? 0
-                      : kStackSpaceRequiredForCompilation * KB;
+  const int gap =
+      IsConcurrent(mode) ? 0 : kStackSpaceRequiredForCompilation * KB;
   if (check.JsHasOverflowed(gap)) return isolate->StackOverflow();
 
   Compiler::CompileOptimized(isolate, function, mode, target_kind);
@@ -84,7 +83,6 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   DCHECK(sfi->HasBaselineCode());
   IsCompiledScope is_compiled_scope(*sfi, isolate);
   DCHECK(!function->HasAvailableOptimizedCode());
-  DCHECK(!function->HasOptimizationMarker());
   DCHECK(!function->has_feedback_vector());
   JSFunction::CreateAndAttachFeedbackVector(isolate, function,
                                             &is_compiled_scope);
@@ -101,12 +99,12 @@ RUNTIME_FUNCTION(Runtime_CompileMaglev_Concurrent) {
                           ConcurrencyMode::kConcurrent);
 }
 
-RUNTIME_FUNCTION(Runtime_CompileMaglev_NotConcurrent) {
+RUNTIME_FUNCTION(Runtime_CompileMaglev_Synchronous) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
   return CompileOptimized(isolate, function, CodeKind::MAGLEV,
-                          ConcurrencyMode::kNotConcurrent);
+                          ConcurrencyMode::kSynchronous);
 }
 
 RUNTIME_FUNCTION(Runtime_CompileTurbofan_Concurrent) {
@@ -117,12 +115,12 @@ RUNTIME_FUNCTION(Runtime_CompileTurbofan_Concurrent) {
                           ConcurrencyMode::kConcurrent);
 }
 
-RUNTIME_FUNCTION(Runtime_CompileTurbofan_NotConcurrent) {
+RUNTIME_FUNCTION(Runtime_CompileTurbofan_Synchronous) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
   return CompileOptimized(isolate, function, CodeKind::TURBOFAN,
-                          ConcurrencyMode::kNotConcurrent);
+                          ConcurrencyMode::kSynchronous);
 }
 
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
@@ -348,18 +346,18 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   }
 
   if (function->feedback_vector().invocation_count() <= 1 &&
-      function->HasOptimizationMarker()) {
+      function->tiering_state() != TieringState::kNone) {
     // With lazy feedback allocation we may not have feedback for the
     // initial part of the function that was executed before we allocated a
-    // feedback vector. Reset any optimization markers for such functions.
+    // feedback vector. Reset any tiering states for such functions.
     //
-    // TODO(mythria): Instead of resetting the optimization marker here we
+    // TODO(mythria): Instead of resetting the tiering state here we
     // should only mark a function for optimization if it has sufficient
     // feedback. We cannot do this currently since we OSR only after we mark
     // a function for optimization. We should instead change it to be based
     // based on number of ticks.
-    DCHECK(!function->IsInOptimizationQueue());
-    function->ClearOptimizationMarker();
+    DCHECK(!IsInProgress(function->tiering_state()));
+    function->reset_tiering_state();
   }
 
   // TODO(mythria): Once we have OSR code cache we may not need to mark
@@ -377,8 +375,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       function->PrintName(scope.file());
       PrintF(scope.file(), " for non-concurrent optimization]\n");
     }
-    function->SetOptimizationMarker(
-        OptimizationMarker::kCompileTurbofan_NotConcurrent);
+    function->set_tiering_state(TieringState::kRequestTurbofan_Synchronous);
   }
 
   return *result;

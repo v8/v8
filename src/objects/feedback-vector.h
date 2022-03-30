@@ -187,30 +187,24 @@ class ClosureFeedbackCellArray : public FixedArray {
 
 class NexusConfig;
 
-// A FeedbackVector has a fixed header with:
-//  - shared function info (which includes feedback metadata)
-//  - invocation count
-//  - runtime profiler ticks
-//  - optimized code cell (weak cell or Smi marker)
-// followed by an array of feedback slots, of length determined by the feedback
-// metadata.
+// A FeedbackVector has a fixed header followed by an array of feedback slots,
+// of length determined by the feedback metadata.
 class FeedbackVector
     : public TorqueGeneratedFeedbackVector<FeedbackVector, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
-  STATIC_ASSERT(OptimizationMarker::kLastOptimizationMarker <=
-                OptimizationMarkerBits::kMax);
+  STATIC_ASSERT(TieringState::kLastTieringState <= TieringStateBits::kMax);
 
   static const bool kFeedbackVectorMaybeOptimizedCodeIsStoreRelease = true;
   using TorqueGeneratedFeedbackVector<FeedbackVector,
                                       HeapObject>::maybe_optimized_code;
   DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(maybe_optimized_code)
 
-  static constexpr uint32_t kHasCompileOptimizedMarker =
-      kNoneOrInOptimizationQueueMask << OptimizationMarkerBits::kShift;
-  static constexpr uint32_t kHasOptimizedCodeOrCompileOptimizedMarkerMask =
-      MaybeHasOptimizedCodeBit::kMask | kHasCompileOptimizedMarker;
+  static constexpr uint32_t kTieringStateIsAnyRequestMask =
+      kNoneOrInProgressMask << TieringStateBits::kShift;
+  static constexpr uint32_t kHasOptimizedCodeOrTieringStateIsAnyRequestMask =
+      MaybeHasOptimizedCodeBit::kMask | kTieringStateIsAnyRequestMask;
 
   inline bool is_empty() const;
 
@@ -234,19 +228,18 @@ class FeedbackVector
   // the world, thus 'maybe'.
   inline bool maybe_has_optimized_code() const;
   inline void set_maybe_has_optimized_code(bool value);
-
-  inline bool has_optimization_marker() const;
-  inline OptimizationMarker optimization_marker() const;
-  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
-                                                 const char* reason);
   static void SetOptimizedCode(Handle<FeedbackVector> vector,
                                Handle<CodeT> code);
+  void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
+                                                 const char* reason);
   void ClearOptimizedCode();
-  void SetOptimizationMarker(OptimizationMarker marker);
-  void InitializeOptimizationState();
 
-  // Clears the optimization marker in the feedback vector.
-  void ClearOptimizationMarker();
+  inline bool has_tiering_state() const;
+  inline TieringState tiering_state() const;
+  void set_tiering_state(TieringState state);
+  void reset_tiering_state();
+
+  void reset_flags();
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) { return slot.ToInt(); }

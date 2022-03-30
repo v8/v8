@@ -274,9 +274,8 @@ void TieringManager::RequestOsrAtNextOpportunity(JSFunction function) {
 void TieringManager::MaybeOptimizeFrame(JSFunction function,
                                         UnoptimizedFrame* frame,
                                         CodeKind code_kind) {
-  const OptimizationMarker opt_marker =
-      function.feedback_vector().optimization_marker();
-  if (V8_UNLIKELY(opt_marker == OptimizationMarker::kInOptimizationQueue)) {
+  const TieringState tiering_state = function.feedback_vector().tiering_state();
+  if (V8_UNLIKELY(IsInProgress(tiering_state))) {
     // Note: This effectively disables OSR for the function while it is being
     // compiled.
     TraceInOptimizationQueue(function);
@@ -307,7 +306,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
   }
 
   const bool is_marked_for_any_optimization =
-      (static_cast<uint32_t>(opt_marker) & kNoneOrInOptimizationQueueMask) != 0;
+      (static_cast<uint32_t>(tiering_state) & kNoneOrInProgressMask) != 0;
   if (is_marked_for_any_optimization || function.HasAvailableOptimizedCode()) {
     // OSR kicks in only once we've previously decided to tier up, but we are
     // still in the unoptimized frame (this implies a long-running loop).
@@ -405,7 +404,7 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
   DCHECK(function->shared().HasBytecodeArray());
 
   // TODO(jgruber): Consider integrating this into a linear tiering system
-  // controlled by OptimizationMarker in which the order is always
+  // controlled by TieringState in which the order is always
   // Ignition-Sparkplug-Turbofan, and only a single tierup is requested at
   // once.
   // It's unclear whether this is possible and/or makes sense - for example,

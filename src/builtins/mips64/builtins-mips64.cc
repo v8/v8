@@ -852,14 +852,14 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
                    TurboAssembler::kCountIncludesReceiver);
 }
 
-// Tail-call |function_id| if |actual_marker| == |expected_marker|
-static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
-                                          Register actual_marker,
-                                          OptimizationMarker expected_marker,
-                                          Runtime::FunctionId function_id) {
+// Tail-call |function_id| if |actual_state| == |expected_state|
+static void TailCallRuntimeIfStateEquals(MacroAssembler* masm,
+                                         Register actual_state,
+                                         TieringState expected_state,
+                                         Runtime::FunctionId function_id) {
   Label no_match;
-  __ Branch(&no_match, ne, actual_marker,
-            Operand(static_cast<int>(expected_marker)));
+  __ Branch(&no_match, ne, actual_state,
+            Operand(static_cast<int>(expected_state)));
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }
@@ -911,30 +911,25 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 }
 
 static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
-                              Register optimization_marker) {
+                              Register tiering_state) {
   // ----------- S t a t e -------------
   //  -- a0 : actual argument count
   //  -- a3 : new target (preserved for callee if needed, and caller)
   //  -- a1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
-  //  -- optimization_marker : a int32 containing a non-zero optimization
+  //  -- tiering_state : a int32 containing a non-zero optimization
   //  marker.
   // -----------------------------------
-  DCHECK(!AreAliased(feedback_vector, a1, a3, optimization_marker));
+  DCHECK(!AreAliased(feedback_vector, a1, a3, tiering_state));
 
-  TailCallRuntimeIfMarkerEquals(
-      masm, optimization_marker,
-      OptimizationMarker::kCompileTurbofan_NotConcurrent,
-      Runtime::kCompileTurbofan_NotConcurrent);
-  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kCompileTurbofan_Concurrent,
-                                Runtime::kCompileTurbofan_Concurrent);
+  TailCallRuntimeIfStateEquals(masm, tiering_state,
+                               TieringState::kRequestTurbofan_Synchronous,
+                               Runtime::kCompileTurbofan_Synchronous);
+  TailCallRuntimeIfStateEquals(masm, tiering_state,
+                               TieringState::kRequestTurbofan_Concurrent,
+                               Runtime::kCompileTurbofan_Concurrent);
 
-  // Marker should be one of CompileOptimized / CompileOptimizedConcurrent.
-  // InOptimizationQueue and None shouldn't reach here.
-  if (FLAG_debug_code) {
-    __ stop();
-  }
+  __ stop();
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -1016,18 +1011,18 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 }
 
 // Read off the optimization state in the feedback vector and check if there
-// is optimized code or a optimization marker that needs to be processed.
-static void LoadOptimizationStateAndJumpIfNeedsProcessing(
+// is optimized code or a tiering state that needs to be processed.
+static void LoadTieringStateAndJumpIfNeedsProcessing(
     MacroAssembler* masm, Register optimization_state, Register feedback_vector,
-    Label* has_optimized_code_or_marker) {
+    Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(masm);
   Register scratch = t2;
   __ Lw(optimization_state,
         FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ And(
       scratch, optimization_state,
-      Operand(FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask));
-  __ Branch(has_optimized_code_or_marker, ne, scratch, Operand(zero_reg));
+      Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+  __ Branch(has_optimized_code_or_state, ne, scratch, Operand(zero_reg));
 }
 
 static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
@@ -1040,17 +1035,17 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ And(scratch, optimization_state,
-           Operand(FeedbackVector::kHasCompileOptimizedMarker));
+           Operand(FeedbackVector::kTieringStateIsAnyRequestMask));
     __ Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg));
   }
 
-  Register optimization_marker = optimization_state;
-  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
-  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
+  Register tiering_state = optimization_state;
+  __ DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
+  MaybeOptimizeCode(masm, feedback_vector, tiering_state);
 
   __ bind(&maybe_has_optimized_code);
   Register optimized_code_entry = optimization_state;
-  __ Ld(optimization_marker,
+  __ Ld(tiering_state,
         FieldMemOperand(feedback_vector,
                         FeedbackVector::kMaybeOptimizedCodeOffset));
   TailCallOptimizedCodeSlot(masm, optimized_code_entry, t3, a5);
@@ -1076,17 +1071,17 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ Assert(eq, AbortReason::kExpectedFeedbackVector, scratch,
               Operand(FEEDBACK_VECTOR_TYPE));
   }
-  // Check for an optimization marker.
-  Label has_optimized_code_or_marker;
+  // Check for an tiering state.
+  Label has_optimized_code_or_state;
   Register optimization_state = no_reg;
   {
     UseScratchRegisterScope temps(masm);
     optimization_state = temps.Acquire();
-    // optimization_state will be used only in |has_optimized_code_or_marker|
+    // optimization_state will be used only in |has_optimized_code_or_state|
     // and outside it can be reused.
-    LoadOptimizationStateAndJumpIfNeedsProcessing(
-        masm, optimization_state, feedback_vector,
-        &has_optimized_code_or_marker);
+    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
+                                             feedback_vector,
+                                             &has_optimized_code_or_state);
   }
   // Increment invocation count for the function.
   {
@@ -1175,7 +1170,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
-  __ bind(&has_optimized_code_or_marker);
+  __ bind(&has_optimized_code_or_state);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     UseScratchRegisterScope temps(masm);
@@ -1251,17 +1246,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Branch(&push_stack_frame, ne, a4, Operand(FEEDBACK_VECTOR_TYPE));
 
   // Read off the optimization state in the feedback vector, and if there
-  // is optimized code or an optimization marker, call that instead.
+  // is optimized code or an tiering state, call that instead.
   Register optimization_state = a4;
   __ Lw(optimization_state,
         FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
 
-  // Check if the optimized code slot is not empty or has a optimization marker.
-  Label has_optimized_code_or_marker;
+  // Check if the optimized code slot is not empty or has a tiering state.
+  Label has_optimized_code_or_state;
 
   __ andi(t0, optimization_state,
-          FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask);
-  __ Branch(&has_optimized_code_or_marker, ne, t0, Operand(zero_reg));
+          FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask);
+  __ Branch(&has_optimized_code_or_state, ne, t0, Operand(zero_reg));
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1407,7 +1402,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ jmp(&after_stack_check_interrupt);
 
-  __ bind(&has_optimized_code_or_marker);
+  __ bind(&has_optimized_code_or_state);
   MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                feedback_vector);
   __ bind(&is_baseline);
@@ -1425,10 +1420,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ Lhu(t0, FieldMemOperand(t0, Map::kInstanceTypeOffset));
     __ Branch(&install_baseline_code, ne, t0, Operand(FEEDBACK_VECTOR_TYPE));
 
-    // Check for an optimization marker.
-    LoadOptimizationStateAndJumpIfNeedsProcessing(
-        masm, optimization_state, feedback_vector,
-        &has_optimized_code_or_marker);
+    // Check for an tiering state.
+    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
+                                             feedback_vector,
+                                             &has_optimized_code_or_state);
 
     // Load the baseline code into the closure.
     __ Move(a2, kInterpreterBytecodeArrayRegister);

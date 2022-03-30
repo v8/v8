@@ -490,7 +490,7 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
           counters->turbofan_optimize_concurrent_total_time()->AddSample(
               static_cast<int>(ElapsedTime().InMicroseconds()));
           break;
-        case ConcurrencyMode::kNotConcurrent:
+        case ConcurrencyMode::kSynchronous:
           counters->turbofan_optimize_non_concurrent_total_time()->AddSample(
               static_cast<int>(ElapsedTime().InMicroseconds()));
           time_foreground += time_taken_to_execute_;
@@ -879,7 +879,7 @@ void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
         handle(function->feedback_vector(), function->GetIsolate());
-    vector->ClearOptimizationMarker();
+    vector->reset_tiering_state();
   }
 }
 
@@ -954,7 +954,7 @@ bool GetOptimizedCodeNow(TurbofanCompilationJob* job, Isolate* isolate,
   }
 
   // Success!
-  job->RecordCompilationStats(ConcurrencyMode::kNotConcurrent, isolate);
+  job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeCache(compilation_info);
   job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, isolate);
@@ -1003,7 +1003,7 @@ bool GetOptimizedCodeLater(std::unique_ptr<TurbofanCompilationJob> job,
   }
 
   if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
-    function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
+    function->set_tiering_state(TieringState::kInProgress);
   }
 
   // Note: Usually the active tier is expected to be Ignition at this point (in
@@ -1075,13 +1075,13 @@ MaybeHandle<CodeT> CompileTurbofan(
   }
 
   // Prepare the job and launch concurrent compilation, or compile now.
-  if (mode == ConcurrencyMode::kConcurrent) {
+  if (IsConcurrent(mode)) {
     if (GetOptimizedCodeLater(std::move(job), isolate, compilation_info,
                               kCodeKind, function)) {
       return ContinuationForConcurrentOptimization(isolate, function);
     }
   } else {
-    DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
+    DCHECK(IsSynchronous(mode));
     if (GetOptimizedCodeNow(job.get(), isolate, compilation_info)) {
       return ToCodeT(compilation_info->code(), isolate);
     }
@@ -1107,12 +1107,12 @@ MaybeHandle<CodeT> CompileMaglev(
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
 
-  if (mode == ConcurrencyMode::kNotConcurrent) {
-    function->ClearOptimizationMarker();
+  if (IsSynchronous(mode)) {
+    function->reset_tiering_state();
     return Maglev::Compile(isolate, function);
   }
 
-  DCHECK_EQ(mode, ConcurrencyMode::kConcurrent);
+  DCHECK(IsConcurrent(mode));
 
   // TODO(v8:7700): See everything in GetOptimizedCodeLater.
   // - Tracing,
@@ -1129,7 +1129,7 @@ MaybeHandle<CodeT> CompileMaglev(
   isolate->maglev_concurrent_dispatcher()->EnqueueJob(std::move(job));
 
   // Remember that the function is currently being processed.
-  function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
+  function->set_tiering_state(TieringState::kInProgress);
 
   // The code that triggered optimization continues execution here.
   return ContinuationForConcurrentOptimization(isolate, function);
@@ -1148,9 +1148,9 @@ MaybeHandle<CodeT> GetOptimizedCode(
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
 
-  // Make sure we clear the optimization marker on the function so that we
+  // Make sure we clear the tiering state on the function so that we
   // don't try to re-optimize.
-  if (function->HasOptimizationMarker()) function->ClearOptimizationMarker();
+  if (function->has_feedback_vector()) function->reset_tiering_state();
 
   // TODO(v8:7700): Distinguish between Maglev and Turbofan.
   if (shared->optimization_disabled() &&
@@ -1212,8 +1212,7 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
   if (code_kind == CodeKind::MAGLEV) return;
 
   DCHECK(FLAG_stress_concurrent_inlining &&
-         isolate->concurrent_recompilation_enabled() &&
-         mode == ConcurrencyMode::kNotConcurrent &&
+         isolate->concurrent_recompilation_enabled() && IsSynchronous(mode) &&
          isolate->node_observer() == nullptr);
   GetOptimizedCodeResultHandling result_handling =
       FLAG_stress_concurrent_inlining_attach_code
@@ -1997,7 +1996,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // We should never reach here if the function is already compiled or
   // optimized.
   DCHECK(!function->is_compiled());
-  DCHECK(!function->HasOptimizationMarker());
+  DCHECK(IsNone(function->tiering_state()));
   DCHECK(!function->HasAvailableOptimizedCode());
 
   // Reset the JSFunction if we are recompiling due to the bytecode having been
@@ -2034,11 +2033,10 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
                                               CodeKindForTopTier());
 
     const CodeKind code_kind = CodeKindForTopTier();
-    const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
+    const ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
 
     if (FLAG_stress_concurrent_inlining &&
         isolate->concurrent_recompilation_enabled() &&
-        concurrency_mode == ConcurrencyMode::kNotConcurrent &&
         isolate->node_observer() == nullptr) {
       SpawnDuplicateConcurrentJobForStressTesting(isolate, function,
                                                   concurrency_mode, code_kind);
@@ -2145,7 +2143,7 @@ bool Compiler::CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   // Bytecode must be available for maglev compilation.
   DCHECK(is_compiled_scope->is_compiled());
   // TODO(v8:7700): Support concurrent compilation.
-  DCHECK_EQ(mode, ConcurrencyMode::kNotConcurrent);
+  DCHECK(IsSynchronous(mode));
 
   // Maglev code needs a feedback vector.
   JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
@@ -2195,8 +2193,7 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   if (FLAG_stress_concurrent_inlining &&
-      isolate->concurrent_recompilation_enabled() &&
-      mode == ConcurrencyMode::kNotConcurrent &&
+      isolate->concurrent_recompilation_enabled() && IsSynchronous(mode) &&
       isolate->node_observer() == nullptr) {
     SpawnDuplicateConcurrentJobForStressTesting(isolate, function, mode,
                                                 code_kind);
@@ -2215,16 +2212,16 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
 
   function->set_code(*code, kReleaseStore);
 
+#ifdef DEBUG
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
   DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
-  DCHECK_IMPLIES(function->HasOptimizationMarker(),
-                 function->IsInOptimizationQueue());
-  DCHECK_IMPLIES(function->HasOptimizationMarker(),
-                 function->ChecksOptimizationMarker());
-  DCHECK_IMPLIES(function->IsInOptimizationQueue(),
-                 mode == ConcurrencyMode::kConcurrent);
+  const TieringState tiering_state = function->tiering_state();
+  DCHECK(IsNone(tiering_state) || IsInProgress(tiering_state));
+  DCHECK_IMPLIES(IsInProgress(tiering_state), function->ChecksTieringState());
+  DCHECK_IMPLIES(IsInProgress(tiering_state), IsConcurrent(mode));
+#endif  // DEBUG
 }
 
 // static
@@ -3322,7 +3319,7 @@ MaybeHandle<CodeT> Compiler::GetOptimizedCodeForOSR(
     JavaScriptFrame* osr_frame) {
   DCHECK(!osr_offset.IsNone());
   DCHECK_NOT_NULL(osr_frame);
-  return GetOptimizedCode(isolate, function, ConcurrencyMode::kNotConcurrent,
+  return GetOptimizedCode(isolate, function, ConcurrencyMode::kSynchronous,
                           CodeKindForOSR(), osr_offset, osr_frame);
 }
 
@@ -3375,9 +3372,8 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   CompilerTracer::TraceAbortedJob(isolate, compilation_info);
   if (V8_LIKELY(use_result)) {
     compilation_info->closure()->set_code(shared->GetCode(), kReleaseStore);
-    // Clear the InOptimizationQueue marker, if it exists.
-    if (compilation_info->closure()->IsInOptimizationQueue()) {
-      compilation_info->closure()->ClearOptimizationMarker();
+    if (IsInProgress(compilation_info->closure()->tiering_state())) {
+      compilation_info->closure()->reset_tiering_state();
     }
   }
   return CompilationJob::FAILED;
@@ -3423,7 +3419,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
       CompilerTracer::TraceMarkForAlwaysOpt(isolate, function);
       JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
       function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
-                                    ConcurrencyMode::kNotConcurrent);
+                                    ConcurrencyMode::kSynchronous);
     }
   }
 

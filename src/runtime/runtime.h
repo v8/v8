@@ -111,9 +111,9 @@ namespace internal {
   F(CompileLazy, 1, 1)                    \
   F(CompileBaseline, 1, 1)                \
   F(CompileMaglev_Concurrent, 1, 1)       \
-  F(CompileMaglev_NotConcurrent, 1, 1)    \
+  F(CompileMaglev_Synchronous, 1, 1)      \
   F(CompileTurbofan_Concurrent, 1, 1)     \
-  F(CompileTurbofan_NotConcurrent, 1, 1)  \
+  F(CompileTurbofan_Synchronous, 1, 1)    \
   F(InstallBaselineCode, 1, 1)            \
   F(HealOptimizedCodeSlot, 1, 1)          \
   F(InstantiateAsmJs, 4, 1)               \

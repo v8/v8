@@ -596,23 +596,23 @@ inline bool Code::is_baseline_leave_frame_builtin() const {
 }
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-// Note, must be in sync with Code::checks_optimization_marker().
-inline bool CodeDataContainer::checks_optimization_marker() const {
+// Note, must be in sync with Code::checks_tiering_state().
+inline bool CodeDataContainer::checks_tiering_state() const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  bool checks_marker = (builtin_id() == Builtin::kCompileLazy ||
-                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
-                        CodeKindCanTierUp(kind()));
-  return checks_marker ||
+  bool checks_state = (builtin_id() == Builtin::kCompileLazy ||
+                       builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+                       CodeKindCanTierUp(kind()));
+  return checks_state ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
-// Note, must be in sync with CodeDataContainer::checks_optimization_marker().
-inline bool Code::checks_optimization_marker() const {
-  bool checks_marker = (builtin_id() == Builtin::kCompileLazy ||
-                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
-                        CodeKindCanTierUp(kind()));
-  return checks_marker ||
+// Note, must be in sync with CodeDataContainer::checks_tiering_state().
+inline bool Code::checks_tiering_state() const {
+  bool checks_state = (builtin_id() == Builtin::kCompileLazy ||
+                       builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+                       CodeKindCanTierUp(kind()));
+  return checks_state ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 

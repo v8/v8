@@ -4139,9 +4139,9 @@ TEST(WeakReference) {
   // to the FOR_TESTING code kind).
   fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(ToCodeT(*code)),
                                v8::kReleaseStore);
-  fv->set_flags(i::FeedbackVector::MaybeHasOptimizedCodeBit::encode(true) |
-                i::FeedbackVector::OptimizationMarkerBits::encode(
-                    i::OptimizationMarker::kNone));
+  fv->set_flags(
+      i::FeedbackVector::MaybeHasOptimizedCodeBit::encode(true) |
+      i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();

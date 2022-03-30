@@ -130,9 +130,9 @@ class CodeDataContainer : public HeapObject {
   inline bool is_baseline_trampoline_builtin() const;
   inline bool is_baseline_leave_frame_builtin() const;
 
-  // Tells whether the code checks the optimization marker in the function's
+  // Tells whether the code checks the tiering state in the function's
   // feedback vector.
-  inline bool checks_optimization_marker() const;
+  inline bool checks_tiering_state() const;
 
   // Tells whether the outgoing parameters of this code are tagged pointers.
   inline bool has_tagged_outgoing_params() const;
@@ -425,9 +425,9 @@ class Code : public HeapObject {
   inline bool is_baseline_trampoline_builtin() const;
   inline bool is_baseline_leave_frame_builtin() const;
 
-  // Tells whether the code checks the optimization marker in the function's
+  // Tells whether the code checks the tiering state in the function's
   // feedback vector.
-  inline bool checks_optimization_marker() const;
+  inline bool checks_tiering_state() const;
 
   // Tells whether the outgoing parameters of this code are tagged pointers.
   inline bool has_tagged_outgoing_params() const;

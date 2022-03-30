@@ -3006,8 +3006,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   }
 
   int old_number_of_fields;
-  int number_of_fields =
-      new_map->NumberOfFields(ConcurrencyMode::kNotConcurrent);
+  int number_of_fields = new_map->NumberOfFields(ConcurrencyMode::kSynchronous);
   int inobject = new_map->GetInObjectProperties();
   int unused = new_map->UnusedPropertyFields();
 
@@ -3015,7 +3014,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   // converted to doubles.
   if (!old_map->InstancesNeedRewriting(*new_map, number_of_fields, inobject,
                                        unused, &old_number_of_fields,
-                                       ConcurrencyMode::kNotConcurrent)) {
+                                       ConcurrencyMode::kSynchronous)) {
     object->set_map(*new_map, kReleaseStore);
     return;
   }
@@ -3343,7 +3342,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     }
     map = MapUpdater{isolate, map}.ReconfigureElementsKind(to_kind);
   }
-  int number_of_fields = map->NumberOfFields(ConcurrencyMode::kNotConcurrent);
+  int number_of_fields = map->NumberOfFields(ConcurrencyMode::kSynchronous);
   int inobject = map->GetInObjectProperties();
   int unused = map->UnusedPropertyFields();
   int total_size = number_of_fields + unused;
