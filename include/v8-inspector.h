@@ -270,6 +270,9 @@ class V8_EXPORT V8InspectorClient {
   // The caller would defer to generating a random 64 bit integer if
   // this method returns 0.
   virtual int64_t generateUniqueId() { return 0; }
+
+  virtual void dispatchError(v8::Local<v8::Context>, v8::Local<v8::Message>,
+                             v8::Local<v8::Value>) {}
 };
 
 // These stack trace ids are intended to be passed between debuggers and be
