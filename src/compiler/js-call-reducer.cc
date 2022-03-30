@@ -5925,40 +5925,49 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
         NodeProperties::MergeControlToEnd(graph(), common(), terminate);
 
-        Node* iloop = graph()->NewNode(
+        Node* index = graph()->NewNode(
             common()->Phi(MachineRepresentation::kTagged, 2),
             jsgraph()->OneConstant(),
             jsgraph()->Constant(JSArray::kMaxCopyElements - 1), loop);
 
-        STATIC_ASSERT(JSArray::kMaxCopyElements <
-                      std::numeric_limits<uint32_t>::max());
-
-        Node* index = etrue1 = graph()->NewNode(
-            common()->TypeGuard(Type::Unsigned32()), iloop, eloop, if_true1);
         {
           Node* check2 =
               graph()->NewNode(simplified()->NumberLessThan(), index, length);
           Node* branch2 = graph()->NewNode(common()->Branch(), check2, loop);
 
           if_true1 = graph()->NewNode(common()->IfFalse(), branch2);
+          etrue1 = eloop;
 
           Node* control2 = graph()->NewNode(common()->IfTrue(), branch2);
           Node* effect2 = etrue1;
 
           ElementAccess const access =
               AccessBuilder::ForFixedArrayElement(kind);
+
+          // When disable FLAG_turbo_loop_variable, typer cannot infer index
+          // is in [1, kMaxCopyElements-1], and will break in representing
+          // kRepFloat64 (Range(1, inf)) to kRepWord64 when converting
+          // input for kLoadElement. So we need to add type guard here.
+          // And we need to use index when using NumberLessThan to check
+          // terminate and updating index, otherwise which will break inducing
+          // variables in LoopVariableOptimizer.
+          STATIC_ASSERT(JSArray::kMaxCopyElements < kSmiMaxValue);
+          Node* index_retyped = effect2 =
+              graph()->NewNode(common()->TypeGuard(Type::UnsignedSmall()),
+                               index, effect2, control2);
+
           Node* value2 = effect2 =
               graph()->NewNode(simplified()->LoadElement(access), elements,
-                               index, effect2, control2);
+                               index_retyped, effect2, control2);
           effect2 = graph()->NewNode(
               simplified()->StoreElement(access), elements,
-              graph()->NewNode(simplified()->NumberSubtract(), index,
+              graph()->NewNode(simplified()->NumberSubtract(), index_retyped,
                                jsgraph()->OneConstant()),
               value2, effect2, control2);
 
           loop->ReplaceInput(1, control2);
           eloop->ReplaceInput(1, effect2);
-          iloop->ReplaceInput(1,
+          index->ReplaceInput(1,
                               graph()->NewNode(simplified()->NumberAdd(), index,
                                                jsgraph()->OneConstant()));
         }
