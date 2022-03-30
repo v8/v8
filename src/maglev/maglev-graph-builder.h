@@ -151,8 +151,8 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* CreateNewNode(Args&&... args) {
     if constexpr (NodeT::kProperties.can_deopt()) {
-      return Node::New<NodeT>(zone(), std::forward<Args>(args)...,
-                              GetCheckpoint());
+      return Node::New<NodeT>(zone(), *compilation_unit_, GetCheckpoint(),
+                              std::forward<Args>(args)...);
     } else {
       return Node::New<NodeT>(zone(), std::forward<Args>(args)...);
     }

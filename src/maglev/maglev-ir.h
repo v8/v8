@@ -16,6 +16,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/heap-refs.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
 #include "src/zone/zone.h"
@@ -27,6 +28,7 @@ namespace maglev {
 class BasicBlock;
 class ProcessingState;
 class MaglevCodeGenState;
+class MaglevCompilationUnit;
 class MaglevGraphLabeller;
 class MaglevVregAllocationState;
 class CompactInterpreterFrameState;
@@ -272,20 +274,23 @@ class ValueLocation {
   compiler::InstructionOperand operand_;
 };
 
-class Input : public ValueLocation {
+class InputLocation : public ValueLocation {
  public:
-  explicit Input(ValueNode* node) : node_(node) {}
-
-  ValueNode* node() const { return node_; }
-
   NodeIdT next_use_id() const { return next_use_id_; }
-
   // Used in ValueNode::mark_use
   NodeIdT* get_next_use_id_address() { return &next_use_id_; }
 
  private:
-  ValueNode* node_;
   NodeIdT next_use_id_ = kInvalidNodeId;
+};
+
+class Input : public InputLocation {
+ public:
+  explicit Input(ValueNode* node) : node_(node) {}
+  ValueNode* node() const { return node_; }
+
+ private:
+  ValueNode* node_;
 };
 
 class Checkpoint {
@@ -298,6 +303,15 @@ class Checkpoint {
   const CompactInterpreterFrameState* state;
   Label deopt_entry_label;
   int deopt_index = -1;
+};
+
+class EagerDeoptInfo {
+ public:
+  EagerDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit_,
+                 Checkpoint* checkpoint);
+
+  Checkpoint* const checkpoint;
+  InputLocation* const input_locations;
 };
 
 // Dummy type for the initial raw allocation.
@@ -350,6 +364,15 @@ class NodeBase : public ZoneObject {
       node->set_input(i++, input);
     }
 
+    return node;
+  }
+
+  template <class Derived, typename... Args>
+  static Derived* New(Zone* zone, const MaglevCompilationUnit& compilation_unit,
+                      Checkpoint* checkpoint, Args&&... args) {
+    Derived* node = New<Derived>(zone, std::forward<Args>(args)...);
+    new (node->eager_deopt_info_address())
+        EagerDeoptInfo(zone, compilation_unit, checkpoint);
     return node;
   }
 
@@ -443,6 +466,15 @@ class NodeBase : public ZoneObject {
 
   void Print(std::ostream& os, MaglevGraphLabeller*) const;
 
+  const EagerDeoptInfo* eager_deopt_info() const {
+    DCHECK(properties().can_deopt());
+    return (reinterpret_cast<const EagerDeoptInfo*>(
+                input_address(input_count() - 1)) -
+            1);
+  }
+
+  Checkpoint* checkpoint() const { return eager_deopt_info()->checkpoint; }
+
  protected:
   explicit NodeBase(uint32_t bitfield) : bit_field_(bitfield) {}
 
@@ -450,6 +482,7 @@ class NodeBase : public ZoneObject {
     DCHECK_LT(index, input_count());
     return reinterpret_cast<Input*>(this) - (index + 1);
   }
+
   const Input* input_address(int index) const {
     DCHECK_LT(index, input_count());
     return reinterpret_cast<const Input*>(this) - (index + 1);
@@ -467,14 +500,22 @@ class NodeBase : public ZoneObject {
     num_temporaries_needed_ = value;
   }
 
+  EagerDeoptInfo* eager_deopt_info_address() {
+    DCHECK(properties().can_deopt());
+    return reinterpret_cast<EagerDeoptInfo*>(input_address(input_count() - 1)) -
+           1;
+  }
+
  private:
   template <class Derived, typename... Args>
   static Derived* Allocate(Zone* zone, size_t input_count, Args&&... args) {
-    const size_t size = sizeof(Derived) + input_count * sizeof(Input);
+    const size_t size_before_node =
+        input_count * sizeof(Input) +
+        (Derived::kProperties.can_deopt() ? sizeof(EagerDeoptInfo) : 0);
+    const size_t size = size_before_node + sizeof(Derived);
     intptr_t raw_buffer =
         reinterpret_cast<intptr_t>(zone->Allocate<NodeWithInlineInputs>(size));
-    void* node_buffer =
-        reinterpret_cast<void*>(raw_buffer + input_count * sizeof(Input));
+    void* node_buffer = reinterpret_cast<void*>(raw_buffer + size_before_node);
     uint32_t bitfield = OpcodeField::encode(opcode_of<Derived>) |
                         OpPropertiesField::encode(Derived::kProperties) |
                         InputCountField::encode(input_count);
@@ -586,16 +627,14 @@ class ValueNode : public Node {
     return compiler::AllocatedOperand::cast(spill_or_hint_);
   }
 
-  void mark_use(NodeIdT id, Input* use) {
+  void mark_use(NodeIdT id, InputLocation* input_location) {
     DCHECK_EQ(state_, kLastUse);
     DCHECK_NE(id, kInvalidNodeId);
     DCHECK_LT(start_id(), id);
     DCHECK_IMPLIES(has_valid_live_range(), id >= end_id_);
     end_id_ = id;
     *last_uses_next_use_id_ = id;
-    if (use) {
-      last_uses_next_use_id_ = use->get_next_use_id_address();
-    }
+    last_uses_next_use_id_ = input_location->get_next_use_id_address();
   }
 
   struct LiveRange {
@@ -893,28 +932,21 @@ class SoftDeopt : public FixedInputNodeT<0, SoftDeopt> {
   using Base = FixedInputNodeT<0, SoftDeopt>;
 
  public:
-  explicit SoftDeopt(uint32_t bitfield, Checkpoint* checkpoint)
-      : Base(bitfield), checkpoint_(checkpoint) {}
+  explicit SoftDeopt(uint32_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Deopt();
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
-  Checkpoint* checkpoint() { return checkpoint_; }
-
- private:
-  Checkpoint* const checkpoint_;
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
  public:
-  explicit CheckMaps(uint32_t bitfield, const compiler::MapRef& map,
-                     Checkpoint* checkpoint)
-      : Base(bitfield), map_(map), checkpoint_(checkpoint) {}
+  explicit CheckMaps(uint32_t bitfield, const compiler::MapRef& map)
+      : Base(bitfield), map_(map) {}
 
   // TODO(verwaest): This just calls in deferred code, so probably we'll need to
   // mark that to generate stack maps. Mark as call so we at least clear the
@@ -931,11 +963,8 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  Checkpoint* checkpoint() { return checkpoint_; }
-
  private:
   const compiler::MapRef map_;
-  Checkpoint* checkpoint_;
 };
 
 class LoadField : public FixedInputValueNodeT<1, LoadField> {

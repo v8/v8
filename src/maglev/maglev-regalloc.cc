@@ -60,9 +60,7 @@ ControlNode* NearestPostDominatingHole(ControlNode* node) {
 
 bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
   DCHECK_NOT_NULL(node);
-
-  // TODO(leszeks): We shouldn't have any dead nodes passed into here.
-  if (node->is_dead()) return false;
+  DCHECK(!node->is_dead());
 
   // If we're looping, a value can only be live if it was live before the loop.
   if (target->control_node()->id() <= source->id()) {
@@ -305,33 +303,43 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
   }
 }
 
-void StraightForwardRegisterAllocator::UpdateInputUse(uint32_t use,
-                                                      const Input& input) {
-  ValueNode* node = input.node();
-
-  // The value was already cleared through a previous input.
-  if (node->is_dead()) return;
+void StraightForwardRegisterAllocator::UpdateUse(
+    ValueNode* node, InputLocation* input_location) {
+  DCHECK(!node->is_dead());
 
   // Update the next use.
-  node->set_next_use(input.next_use_id());
+  node->set_next_use(input_location->next_use_id());
+
+  if (!node->is_dead()) return;
 
   // If a value is dead, make sure it's cleared.
-  if (node->is_dead()) {
-    FreeRegisters(node);
+  FreeRegisters(node);
 
-    // If the stack slot is a local slot, free it so it can be reused.
-    if (node->is_spilled()) {
-      compiler::AllocatedOperand slot = node->spill_slot();
-      if (slot.index() > 0) free_slots_.push_back(slot.index());
-    }
-    return;
+  // If the stack slot is a local slot, free it so it can be reused.
+  if (node->is_spilled()) {
+    compiler::AllocatedOperand slot = node->spill_slot();
+    if (slot.index() > 0) free_slots_.push_back(slot.index());
   }
+}
+
+void StraightForwardRegisterAllocator::UpdateUse(
+    const EagerDeoptInfo& eager_deopt_info) {
+  const CompactInterpreterFrameState* checkpoint_state =
+      eager_deopt_info.checkpoint->state;
+  int index = 0;
+  checkpoint_state->ForEachValue(
+      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
+        InputLocation* input = &eager_deopt_info.input_locations[index++];
+        input->InjectAllocated(node->allocation());
+        UpdateUse(node, input);
+      });
 }
 
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  for (Input& input : *node) UpdateInputUse(node->id(), input);
+  for (Input& input : *node) UpdateUse(&input);
+  if (node->properties().can_deopt()) UpdateUse(*node->eager_deopt_info());
 
   if (node->properties().is_call()) SpillAndClearRegisters();
   // TODO(verwaest): This isn't a good idea :)
@@ -474,7 +482,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  for (Input& input : *node) UpdateInputUse(node->id(), input);
+  for (Input& input : *node) UpdateUse(&input);
 
   if (node->properties().is_call()) SpillAndClearRegisters();
 
@@ -487,9 +495,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
         Input& input = phi->input(block->predecessor_id());
         input.InjectAllocated(input.node()->allocation());
       }
-      for (Phi* phi : *phis) {
-        UpdateInputUse(phi->id(), phi->input(block->predecessor_id()));
-      }
+      for (Phi* phi : *phis) UpdateUse(&phi->input(block->predecessor_id()));
     }
   }
 

@@ -67,7 +67,7 @@ class UseMarkingProcessor {
   template <typename NodeT>
   void Process(NodeT* node, const ProcessingState& state) {
     if constexpr (NodeT::kProperties.can_deopt()) {
-      MarkCheckpointNodes(node, node->checkpoint(), state);
+      MarkCheckpointNodes(node, node->eager_deopt_info(), state);
     }
     for (Input& input : *node) {
       input.node()->mark_use(node->id(), &input);
@@ -104,15 +104,18 @@ class UseMarkingProcessor {
   }
 
  private:
-  void MarkCheckpointNodes(NodeBase* node, Checkpoint* checkpoint,
+  void MarkCheckpointNodes(NodeBase* node,
+                           const EagerDeoptInfo* eager_deopt_info,
                            const ProcessingState& state) {
-    const CompactInterpreterFrameState* checkpoint_state = checkpoint->state;
+    const CompactInterpreterFrameState* checkpoint_state =
+        eager_deopt_info->checkpoint->state;
     int use_id = node->id();
+    int index = 0;
 
     checkpoint_state->ForEachValue(
         *state.compilation_unit(),
-        [use_id](ValueNode* node, interpreter::Register reg) {
-          if (node) node->mark_use(use_id, nullptr);
+        [&](ValueNode* node, interpreter::Register reg) {
+          node->mark_use(use_id, &eager_deopt_info->input_locations[index++]);
         });
   }
 };

@@ -349,6 +349,13 @@ void NodeBase::Print(std::ostream& os,
   UNREACHABLE();
 }
 
+EagerDeoptInfo::EagerDeoptInfo(Zone* zone,
+                               const MaglevCompilationUnit& compilation_unit,
+                               Checkpoint* checkpoint)
+    : checkpoint(checkpoint),
+      input_locations(zone->NewArray<InputLocation>(
+          checkpoint->state->size(compilation_unit))) {}
+
 // ---
 // Nodes
 // ---

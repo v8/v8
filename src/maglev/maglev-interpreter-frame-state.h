@@ -10,6 +10,7 @@
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/maglev/maglev-register-frame-array.h"
@@ -175,9 +176,13 @@ class CompactInterpreterFrameState {
 
   const compiler::BytecodeLivenessState* liveness() const { return liveness_; }
 
+  size_t size(const MaglevCompilationUnit& info) const {
+    return SizeFor(info, liveness_);
+  }
+
  private:
-  static int SizeFor(const MaglevCompilationUnit& info,
-                     const compiler::BytecodeLivenessState* liveness) {
+  static size_t SizeFor(const MaglevCompilationUnit& info,
+                        const compiler::BytecodeLivenessState* liveness) {
     return info.parameter_count() + liveness->live_value_count();
   }
 

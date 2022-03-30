@@ -46,7 +46,9 @@ class StraightForwardRegisterAllocator {
 
   void PrintLiveRegs() const;
 
-  void UpdateInputUse(uint32_t use, const Input& input);
+  void UpdateUse(Input* input) { return UpdateUse(input->node(), input); }
+  void UpdateUse(ValueNode* node, InputLocation* input_location);
+  void UpdateUse(const EagerDeoptInfo& eager_deopt_info);
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);
