@@ -132,12 +132,8 @@ class ArrayType : public ZoneObject {
   ValueType element_type() const { return rep_; }
   bool mutability() const { return mutability_; }
 
-  bool operator==(const ArrayType& other) const {
-    return rep_ == other.rep_ && mutability_ == other.mutability_;
-  }
-  bool operator!=(const ArrayType& other) const {
-    return rep_ != other.rep_ || mutability_ != other.mutability_;
-  }
+  bool operator==(const ArrayType& other) const { return rep_ == other.rep_; }
+  bool operator!=(const ArrayType& other) const { return rep_ != other.rep_; }
 
  private:
   const ValueType rep_;

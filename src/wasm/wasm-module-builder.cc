@@ -274,8 +274,6 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       globals_(zone),
       exceptions_(zone),
       signature_map_(zone),
-      current_recursive_group_start_(-1),
-      recursive_groups_(zone),
       start_function_index_(-1),
       min_memory_size_(16),
       max_memory_size_(0),
@@ -595,24 +593,10 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   // == Emit types =============================================================
   if (types_.size() > 0) {
     size_t start = EmitSection(kTypeSectionCode, buffer);
-    size_t type_count = types_.size();
-    for (auto pair : recursive_groups_) {
-      // Every rec. group counts as one type entry.
-      type_count -= pair.second - 1;
-    }
+    buffer->write_size(types_.size());
 
-    buffer->write_size(type_count);
-
-    for (uint32_t i = 0; i < types_.size(); i++) {
-      auto recursive_group = recursive_groups_.find(i);
-
-      if (recursive_group != recursive_groups_.end()) {
-        buffer->write_u8(kWasmRecursiveTypeGroupCode);
-        buffer->write_u32v(recursive_group->second);
-      }
-
-      const TypeDefinition& type = types_[i];
-
+    // TODO(7748): Add support for recursive groups.
+    for (const TypeDefinition& type : types_) {
       if (type.supertype != kNoSuperType) {
         buffer->write_u8(kWasmSubtypeCode);
         buffer->write_u8(1);  // The supertype count is always 1.

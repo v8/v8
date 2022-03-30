@@ -279,14 +279,12 @@ constexpr bool is_defaultable(ValueKind kind) {
   return kind != kRef && !is_rtt(kind);
 }
 
-// A ValueType is encoded by two components: a ValueKind and a heap
-// representation (for reference types/rtts). Those are encoded into 32 bits
-// using base::BitField. The underlying ValueKind enumeration includes four
-// elements which do not strictly correspond to value types: the two packed
-// types i8 and i16, the void type (for control structures), and a bottom value
-// (for internal use).
-// ValueType encoding includes an additional bit marking the index of a type as
-// relative. This should only be used during type canonicalization.
+// A ValueType is encoded by three components: A ValueKind, a heap
+// representation (for reference types), and an inheritance depth (for rtts
+// only). Those are encoded into 32 bits using base::BitField. The underlying
+// ValueKind enumeration includes four elements which do not strictly correspond
+// to value types: the two packed types i8 and i16, the void type (for control
+// structures), and a bottom value (for internal use).
 class ValueType {
  public:
   /******************************* Constructors *******************************/
@@ -309,11 +307,6 @@ class ValueType {
     DCHECK(HeapType(type_index).is_index());
     return ValueType(KindField::encode(kRtt) |
                      HeapTypeField::encode(type_index));
-  }
-
-  static constexpr ValueType FromIndex(ValueKind kind, uint32_t index) {
-    DCHECK(kind == kOptRef || kind == kRef || kind == kRtt);
-    return ValueType(KindField::encode(kind) | HeapTypeField::encode(index));
   }
 
   // Useful when deserializing a type stored in a runtime object.
@@ -498,6 +491,8 @@ class ValueType {
     }
   }
 
+  static constexpr int kLastUsedBit = 24;
+
   /****************************** Pretty-printing *****************************/
   constexpr char short_name() const { return wasm::short_name(kind()); }
 
@@ -522,40 +517,23 @@ class ValueType {
     return buf.str();
   }
 
-  /********************** Type canonicalization utilities *********************/
-  static constexpr ValueType CanonicalWithRelativeIndex(ValueKind kind,
-                                                        uint32_t index) {
-    return ValueType(KindField::encode(kind) | HeapTypeField::encode(index) |
-                     CanonicalRelativeField::encode(true));
-  }
-
-  constexpr bool is_canonical_relative() const {
-    return has_index() && CanonicalRelativeField::decode(bit_field_);
-  }
-
-  /**************************** Static constants ******************************/
-  static constexpr int kLastUsedBit = 25;
+  // We only use 31 bits so ValueType fits in a Smi. This can be changed if
+  // needed.
   static constexpr int kKindBits = 5;
   static constexpr int kHeapTypeBits = 20;
 
  private:
+  STATIC_ASSERT(kV8MaxWasmTypes < (1u << kHeapTypeBits));
+
   // {hash_value} directly reads {bit_field_}.
   friend size_t hash_value(ValueType type);
 
   using KindField = base::BitField<ValueKind, 0, kKindBits>;
   using HeapTypeField = KindField::Next<uint32_t, kHeapTypeBits>;
-  // Marks a type as a canonical type which uses an index relative to its
-  // recursive group start. Used only during type canonicalization.
-  using CanonicalRelativeField = HeapTypeField::Next<bool, 1>;
 
-  static_assert(kV8MaxWasmTypes < (1u << kHeapTypeBits),
-                "Type indices fit in kHeapTypeBits");
   // This is implemented defensively against field order changes.
-  static_assert(kLastUsedBit ==
-                    std::max(KindField::kLastUsedBit,
-                             std::max(HeapTypeField::kLastUsedBit,
-                                      CanonicalRelativeField::kLastUsedBit)),
-                "kLastUsedBit is consistent");
+  STATIC_ASSERT(kLastUsedBit ==
+                std::max(KindField::kLastUsedBit, HeapTypeField::kLastUsedBit));
 
   constexpr explicit ValueType(uint32_t bit_field) : bit_field_(bit_field) {}
 
