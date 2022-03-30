@@ -6602,7 +6602,8 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.source_positions = compiler->GetSourcePositionTable();
   result.protected_instructions_data = compiler->GetProtectedInstructionsData();
   result.frame_slot_count = compiler->GetTotalFrameSlotCountForGC();
-  result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
+  auto* lowered_call_desc = GetLoweredCallDescriptor(&zone, call_descriptor);
+  result.tagged_parameter_slots = lowered_call_desc->GetTaggedParameterSlots();
   result.func_index = func_index;
   result.result_tier = ExecutionTier::kLiftoff;
   result.for_debugging = for_debugging;
