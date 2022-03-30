@@ -10,7 +10,9 @@ bitfield struct FeedbackVectorFlags extends uint32 {
   // because they flag may lag behind the actual state of the world (it will be
   // updated in time).
   maybe_has_optimized_code: bool: 1 bit;
-  all_your_bits_are_belong_to_jgruber: uint32: 28 bit;
+  // Just one bit, since only {kNone,kInProgress} are relevant for OSR.
+  osr_tiering_state: TieringState: 1 bit;
+  all_your_bits_are_belong_to_jgruber: uint32: 27 bit;
 }
 
 @generateBodyDescriptor

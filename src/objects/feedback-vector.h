@@ -234,10 +234,12 @@ class FeedbackVector
                                                  const char* reason);
   void ClearOptimizedCode();
 
-  inline bool has_tiering_state() const;
   inline TieringState tiering_state() const;
   void set_tiering_state(TieringState state);
   void reset_tiering_state();
+
+  TieringState osr_tiering_state();
+  void set_osr_tiering_state(TieringState marker);
 
   void reset_flags();
 

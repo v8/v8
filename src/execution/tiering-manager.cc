@@ -275,7 +275,10 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
                                         UnoptimizedFrame* frame,
                                         CodeKind code_kind) {
   const TieringState tiering_state = function.feedback_vector().tiering_state();
-  if (V8_UNLIKELY(IsInProgress(tiering_state))) {
+  const TieringState osr_tiering_state =
+      function.feedback_vector().osr_tiering_state();
+  if (V8_UNLIKELY(IsInProgress(tiering_state)) ||
+      V8_UNLIKELY(IsInProgress(osr_tiering_state))) {
     // Note: This effectively disables OSR for the function while it is being
     // compiled.
     TraceInOptimizationQueue(function);

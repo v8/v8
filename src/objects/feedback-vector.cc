@@ -427,7 +427,21 @@ void FeedbackVector::set_tiering_state(TieringState state) {
 
 void FeedbackVector::reset_flags() {
   set_flags(TieringStateBits::encode(TieringState::kNone) |
+            OsrTieringStateBit::encode(TieringState::kNone) |
             MaybeHasOptimizedCodeBit::encode(false));
+}
+
+TieringState FeedbackVector::osr_tiering_state() {
+  return OsrTieringStateBit::decode(flags());
+}
+
+void FeedbackVector::set_osr_tiering_state(TieringState marker) {
+  DCHECK(marker == TieringState::kNone || marker == TieringState::kInProgress);
+  STATIC_ASSERT(TieringState::kNone <= OsrTieringStateBit::kMax);
+  STATIC_ASSERT(TieringState::kInProgress <= OsrTieringStateBit::kMax);
+  int32_t state = flags();
+  state = OsrTieringStateBit::update(state, marker);
+  set_flags(state);
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(

@@ -26,6 +26,7 @@ extern class BytecodeArray extends FixedArrayBase {
   // into other fields.
   osr_urgency: int8;
   bytecode_age: int8;
+  todo_use_me: int16;  // Placeholder for osr bytecode offset bits.
 }
 
 extern class CodeDataContainer extends HeapObject;

@@ -109,10 +109,18 @@ TieringState JSFunction::tiering_state() const {
 
 void JSFunction::set_tiering_state(TieringState state) {
   DCHECK(has_feedback_vector());
-  DCHECK(ChecksTieringState());
-  DCHECK(!ActiveTierIsTurbofan());
-
+  DCHECK(IsNone(state) || ChecksTieringState());
   feedback_vector().set_tiering_state(state);
+}
+
+TieringState JSFunction::osr_tiering_state() {
+  DCHECK(has_feedback_vector());
+  return feedback_vector().osr_tiering_state();
+}
+
+void JSFunction::set_osr_tiering_state(TieringState marker) {
+  DCHECK(has_feedback_vector());
+  feedback_vector().set_osr_tiering_state(marker);
 }
 
 bool JSFunction::has_feedback_vector() const {
