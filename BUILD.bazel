@@ -2434,6 +2434,8 @@ filegroup(
             "src/wasm/baseline/liftoff-compiler.h",
             "src/wasm/baseline/liftoff-register.h",
             "src/wasm/branch-hint-map.h",
+            "src/wasm/canonical-types.cc",
+            "src/wasm/canonical-types.h",
             "src/wasm/code-space-access.cc",
             "src/wasm/code-space-access.h",
             "src/wasm/compilation-environment.h",

@@ -1095,10 +1095,14 @@ DEFINE_BOOL(wasm_speculative_inlining, false,
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_speculative_inlining, false,
             "trace wasm speculative inlining")
+DEFINE_BOOL(wasm_type_canonicalization, false,
+            "apply isorecursive canonicalization on wasm types")
 DEFINE_IMPLICATION(wasm_speculative_inlining, experimental_wasm_typed_funcref)
 DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_dynamic_tiering)
 DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, wasm_speculative_inlining)
+DEFINE_WEAK_IMPLICATION(experimental_wasm_typed_funcref,
+                        wasm_type_canonicalization)
 // Speculative inlining needs type feedback from Liftoff and compilation in
 // Turbofan.
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_speculative_inlining)
