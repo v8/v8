@@ -330,8 +330,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDaysInWeek)
 /* Temporal #sec-temporal.calendar.prototype.daysinmonth */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDaysInMonth)
-/* Temporal #sec-temporal.calendar.prototype.monthsinyear */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthsInYear)
 /* Temporal #sec-temporal.calendar.prototype.inleapyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeInLeapYear)
 /* Temporal #sec-temporal.calendar.prototype.mergefields */
@@ -801,6 +799,7 @@ TEMPORAL_ID_BY_TO_STRING(Calendar)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInYear, daysInYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfYear, dayOfYear)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthsInYear, monthsInYear)
 TEMPORAL_TO_STRING(Calendar)
 // #sec-temporal.calendar.from
 BUILTIN(TemporalCalendarFrom) {
