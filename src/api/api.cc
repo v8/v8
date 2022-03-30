@@ -1630,6 +1630,19 @@ static void TemplateSetAccessor(
   i::ApiNatives::AddNativeDataProperty(isolate, info, accessor_info);
 }
 
+void Template::SetNativeDataProperty(v8::Local<String> name,
+                                     AccessorGetterCallback getter,
+                                     AccessorSetterCallback setter,
+                                     v8::Local<Value> data,
+                                     PropertyAttribute attribute,
+                                     AccessControl settings,
+                                     SideEffectType getter_side_effect_type,
+                                     SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      Local<AccessorSignature>(), true, false,
+                      getter_side_effect_type, setter_side_effect_type);
+}
+
 void Template::SetNativeDataProperty(
     v8::Local<String> name, AccessorGetterCallback getter,
     AccessorSetterCallback setter, v8::Local<Value> data,
@@ -1639,6 +1652,19 @@ void Template::SetNativeDataProperty(
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
                       signature, true, false, getter_side_effect_type,
                       setter_side_effect_type);
+}
+
+void Template::SetNativeDataProperty(v8::Local<Name> name,
+                                     AccessorNameGetterCallback getter,
+                                     AccessorNameSetterCallback setter,
+                                     v8::Local<Value> data,
+                                     PropertyAttribute attribute,
+                                     AccessControl settings,
+                                     SideEffectType getter_side_effect_type,
+                                     SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      Local<AccessorSignature>(), true, false,
+                      getter_side_effect_type, setter_side_effect_type);
 }
 
 void Template::SetNativeDataProperty(
@@ -1673,6 +1699,32 @@ void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  intrinsic,
                                  static_cast<i::PropertyAttributes>(attribute));
+}
+
+void ObjectTemplate::SetAccessor(v8::Local<String> name,
+                                 AccessorGetterCallback getter,
+                                 AccessorSetterCallback setter,
+                                 v8::Local<Value> data, AccessControl settings,
+                                 PropertyAttribute attribute,
+                                 SideEffectType getter_side_effect_type,
+                                 SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      Local<AccessorSignature>(),
+                      i::FLAG_disable_old_api_accessors, false,
+                      getter_side_effect_type, setter_side_effect_type);
+}
+
+void ObjectTemplate::SetAccessor(v8::Local<Name> name,
+                                 AccessorNameGetterCallback getter,
+                                 AccessorNameSetterCallback setter,
+                                 v8::Local<Value> data, AccessControl settings,
+                                 PropertyAttribute attribute,
+                                 SideEffectType getter_side_effect_type,
+                                 SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      Local<AccessorSignature>(),
+                      i::FLAG_disable_old_api_accessors, false,
+                      getter_side_effect_type, setter_side_effect_type);
 }
 
 void ObjectTemplate::SetAccessor(v8::Local<String> name,
