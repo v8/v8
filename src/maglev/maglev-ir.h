@@ -210,6 +210,9 @@ class OpProperties {
     return Reading() | Writing() | NonMemorySideEffects();
   }
 
+  constexpr explicit OpProperties(uint32_t bitfield) : bitfield_(bitfield) {}
+  operator uint32_t() const { return bitfield_; }
+
  private:
   using kIsCallBit = base::BitField<bool, 0, 1>;
   using kCanDeoptBit = kIsCallBit::Next<bool, 1>;
@@ -223,9 +226,10 @@ class OpProperties {
                                      kCanWriteBit::encode(false) |
                                      kNonMemorySideEffectsBit::encode(false);
 
-  constexpr explicit OpProperties(uint32_t bitfield) : bitfield_(bitfield) {}
-
   const uint32_t bitfield_;
+
+ public:
+  static const size_t kSize = kNonMemorySideEffectsBit::kLastUsedBit + 1;
 };
 
 class ValueLocation {
@@ -321,7 +325,9 @@ class NodeBase : public ZoneObject {
   // Bitfield specification.
   using OpcodeField = base::BitField<Opcode, 0, 6>;
   STATIC_ASSERT(OpcodeField::is_valid(kLastOpcode));
-  using InputCountField = OpcodeField::Next<uint16_t, 16>;
+  using OpPropertiesField =
+      OpcodeField::Next<OpProperties, OpProperties::kSize>;
+  using InputCountField = OpPropertiesField::Next<uint16_t, 16>;
 
  protected:
   // Subclasses may use the remaining bitfield bits.
@@ -357,9 +363,11 @@ class NodeBase : public ZoneObject {
 
   // Overwritten by subclasses.
   static constexpr OpProperties kProperties = OpProperties::Pure();
-  inline const OpProperties& properties() const;
 
   constexpr Opcode opcode() const { return OpcodeField::decode(bit_field_); }
+  OpProperties properties() const {
+    return OpPropertiesField::decode(bit_field_);
+  }
 
   template <class T>
   constexpr bool Is() const;
@@ -468,6 +476,7 @@ class NodeBase : public ZoneObject {
     void* node_buffer =
         reinterpret_cast<void*>(raw_buffer + input_count * sizeof(Input));
     uint32_t bitfield = OpcodeField::encode(opcode_of<Derived>) |
+                        OpPropertiesField::encode(Derived::kProperties) |
                         InputCountField::encode(input_count);
     Derived* node =
         new (node_buffer) Derived(bitfield, std::forward<Args>(args)...);
@@ -1410,17 +1419,6 @@ class BranchIfCompare
  private:
   Operation operation_;
 };
-
-const OpProperties& NodeBase::properties() const {
-  switch (opcode()) {
-#define V(Name)         \
-  case Opcode::k##Name: \
-    return Name::kProperties;
-    NODE_BASE_LIST(V)
-#undef V
-  }
-  UNREACHABLE();
-}
 
 }  // namespace maglev
 }  // namespace internal
