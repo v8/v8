@@ -161,7 +161,7 @@ class CompactInterpreterFrameState {
   template <typename Function>
   void ForEachValue(const MaglevCompilationUnit& info, Function&& f) {
     ForEachRegister(info, f);
-    ForAccumulator(info, [&](ValueNode* value) {
+    ForAccumulator(info, [&](ValueNode*& value) {
       f(value, interpreter::Register::virtual_accumulator());
     });
   }
@@ -169,7 +169,7 @@ class CompactInterpreterFrameState {
   template <typename Function>
   void ForEachValue(const MaglevCompilationUnit& info, Function&& f) const {
     ForEachRegister(info, f);
-    ForAccumulator(info, [&](ValueNode*& value) {
+    ForAccumulator(info, [&](ValueNode* value) {
       f(value, interpreter::Register::virtual_accumulator());
     });
   }
