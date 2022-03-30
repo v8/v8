@@ -372,13 +372,19 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
   ValueNode* context = GetContext();
 
   size_t input_count = args.register_count() + Call::kFixedInputCount;
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) input_count++;
+
+  RootConstant* undefined_constant;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    // The undefined constant node has to be created before the call node.
+    undefined_constant =
+        AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
+    input_count++;
+  }
 
   Call* call = AddNewNode<Call>(input_count, receiver_mode, function, context);
   int arg_index = 0;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    call->set_arg(arg_index++,
-                  AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
+    call->set_arg(arg_index++, undefined_constant);
   }
   for (int i = 0; i < args.register_count(); ++i) {
     call->set_arg(arg_index++, current_interpreter_frame_.get(args[i]));
