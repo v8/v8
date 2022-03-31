@@ -1112,6 +1112,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch1 = i.TempRegister(1);
       OutOfLineRecordWrite* ool;
 
+      if (FLAG_debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32), kScratchReg);
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
       if (addressing_mode == kMode_MRI) {
