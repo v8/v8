@@ -1304,11 +1304,14 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   tester.CheckResult(kZeroLength, 0);  // Does not throw.
 }
 
-/* TODO(7748): This test requires for recursive groups.
 WASM_COMPILED_EXEC_TEST(NewDefault) {
   WasmGCTester tester(execution_tier);
+
+  tester.builder()->StartRecursiveTypeGroup();
   const byte struct_type = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmF64, true), F(optref(0), true)});
+  tester.builder()->EndRecursiveTypeGroup();
+
   const byte array_type = tester.DefineArray(wasm::kWasmI32, true);
   // Returns: struct[0] + f64_to_i32(struct[1]) + (struct[2].is_null ^ 1) == 0.
   const byte allocate_struct = tester.DefineFunction(
@@ -1338,7 +1341,6 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
   tester.CheckResult(allocate_struct, 0);
   tester.CheckResult(allocate_array, 0);
 }
-*/
 
 WASM_COMPILED_EXEC_TEST(BasicRtt) {
   WasmGCTester tester(execution_tier);

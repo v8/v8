@@ -13,6 +13,7 @@
 #include "src/logging/metrics.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/init-expr-interface.h"
@@ -669,17 +670,21 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeTypeSection() {
+    TypeCanonicalizer* type_canon = GetTypeCanonicalizer();
     uint32_t types_count = consume_count("types count", kV8MaxWasmTypes);
 
     // Non wasm-gc type section decoding.
     if (!enabled_features_.has_gc()) {
-      for (uint32_t i = 0; ok() && i < types_count; ++i) {
+      for (uint32_t i = 0; i < types_count; ++i) {
         TRACE("DecodeSignature[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
         expect_u8("signature definition", kWasmFunctionTypeCode);
         const FunctionSig* sig = consume_sig(module_->signature_zone.get());
         if (!ok()) break;
         module_->add_signature(sig, kNoSuperType);
+        if (FLAG_wasm_type_canonicalization) {
+          type_canon->AddRecursiveGroup(module_.get(), 1);
+        }
       }
       return;
     }
@@ -699,6 +704,9 @@ class ModuleDecoderImpl : public Decoder {
                 static_cast<int>(pc_ - start_));
           TypeDefinition type = consume_nominal_type_definition();
           if (ok()) module_->add_type(type);
+        }
+        if (ok() && FLAG_wasm_type_canonicalization) {
+          type_canon->AddRecursiveGroup(module_.get(), types_count);
         }
       } else {
         // wasm-gc isorecursive type section decoding.
@@ -722,9 +730,17 @@ class ModuleDecoderImpl : public Decoder {
               TypeDefinition type = consume_subtype_definition();
               if (ok()) module_->add_type(type);
             }
+            if (ok() && FLAG_wasm_type_canonicalization) {
+              type_canon->AddRecursiveGroup(module_.get(), group_size);
+            }
           } else {
             TypeDefinition type = consume_subtype_definition();
-            if (ok()) module_->add_type(type);
+            if (ok()) {
+              module_->add_type(type);
+              if (FLAG_wasm_type_canonicalization) {
+                type_canon->AddRecursiveGroup(module_.get(), 1);
+              }
+            }
           }
         }
       }
