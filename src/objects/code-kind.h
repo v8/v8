@@ -104,6 +104,7 @@ inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
 }
 
 inline CodeKind CodeKindForTopTier() { return CodeKind::TURBOFAN; }
+inline CodeKind CodeKindForOSR() { return CodeKind::TURBOFAN; }
 
 // The dedicated CodeKindFlag enum represents all code kinds in a format
 // suitable for bit sets.

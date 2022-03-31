@@ -74,31 +74,6 @@ namespace internal {
 
 namespace {
 
-constexpr bool IsOSR(BytecodeOffset osr_offset) { return !osr_offset.IsNone(); }
-
-void SetTieringState(JSFunction function, BytecodeOffset osr_offset,
-                     TieringState value) {
-  if (IsOSR(osr_offset)) {
-    function.set_osr_tiering_state(value);
-  } else {
-    function.set_tiering_state(value);
-  }
-}
-
-void ResetTieringState(JSFunction function, BytecodeOffset osr_offset) {
-  if (function.has_feedback_vector()) {
-    SetTieringState(function, osr_offset, TieringState::kNone);
-  }
-}
-
-void ResetProfilerTicks(JSFunction function, BytecodeOffset osr_offset) {
-  if (!IsOSR(osr_offset)) {
-    // Reset profiler ticks, the function is no longer considered hot.
-    // TODO(v8:7700): Update for Maglev tiering.
-    function.feedback_vector().set_profiler_ticks(0);
-  }
-}
-
 class CompilerTracer : public AllStatic {
  public:
   static void TracePrepareJob(Isolate* isolate, OptimizedCompilationInfo* info,
@@ -118,25 +93,6 @@ class CompilerTracer : public AllStatic {
     PrintTracePrefix(scope, "compiling method", shared, CodeKind::BASELINE);
     PrintF(scope.file(), " using Sparkplug");
     PrintTraceSuffix(scope);
-  }
-
-  static void TraceOptimizeOSR(Isolate* isolate, Handle<JSFunction> function,
-                               BytecodeOffset osr_offset) {
-    if (!FLAG_trace_osr) return;
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[OSR - Started: ");
-    function->PrintName(scope.file());
-    PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
-  }
-
-  static void TraceOptimizeOSRUnavailable(Isolate* isolate,
-                                          Handle<JSFunction> function,
-                                          BytecodeOffset osr_offset) {
-    if (!FLAG_trace_osr) return;
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[OSR - Unavailable (failed or in progress): ");
-    function->PrintName(scope.file());
-    PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
   }
 
   static void TraceCompilationStats(Isolate* isolate,
@@ -186,7 +142,7 @@ class CompilerTracer : public AllStatic {
     if (!FLAG_trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "found optimized code for", function, code_kind);
-    if (IsOSR(osr_offset)) {
+    if (!osr_offset.IsNone()) {
       PrintF(scope.file(), " at OSR bytecode offset %d", osr_offset.ToInt());
     }
     PrintTraceSuffix(scope);
@@ -887,84 +843,74 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
   return true;
 }
 
-// A wrapper to access either the OSR optimized code cache (one per native
-// context), or the optimized code cache slot on the feedback vector.
-class OptimizedCodeCache : public AllStatic {
- public:
-  static V8_WARN_UNUSED_RESULT MaybeHandle<CodeT> Get(
-      Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-      CodeKind code_kind) {
-    if (!CodeKindIsStoredInOptimizedCodeCache(code_kind)) return {};
-
-    DisallowGarbageCollection no_gc;
-    SharedFunctionInfo shared = function->shared();
-    RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
-
-    CodeT code;
-    if (IsOSR(osr_offset)) {
-      // For OSR, check the OSR optimized code cache.
-      code =
-          function->native_context()
-              .GetOSROptimizedCodeCache()
-              .GetOptimizedCode(handle(shared, isolate), osr_offset, isolate);
-    } else {
-      // Non-OSR code may be cached on the feedback vector.
-      if (function->has_feedback_vector()) {
-        FeedbackVector feedback_vector = function->feedback_vector();
-        feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
-            shared, "OptimizedCodeCache::Get");
-        code = feedback_vector.optimized_code();
-      }
-    }
-
-    DCHECK_IMPLIES(!code.is_null(), code.kind() <= code_kind);
-    if (code.is_null() || code.kind() != code_kind) return {};
-
+V8_WARN_UNUSED_RESULT MaybeHandle<CodeT> GetCodeFromOptimizedCodeCache(
+    Handle<JSFunction> function, BytecodeOffset osr_offset,
+    CodeKind code_kind) {
+  Isolate* isolate = function->GetIsolate();
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  DisallowGarbageCollection no_gc;
+  CodeT code;
+  if (osr_offset.IsNone() && function->has_feedback_vector()) {
+    FeedbackVector feedback_vector = function->feedback_vector();
+    feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
+        function->shared(), "GetCodeFromOptimizedCodeCache");
+    code = feedback_vector.optimized_code();
+  } else if (!osr_offset.IsNone()) {
+    code = function->context()
+               .native_context()
+               .GetOSROptimizedCodeCache()
+               .GetOptimizedCode(shared, osr_offset, isolate);
+  }
+  DCHECK_IMPLIES(!code.is_null(), code.kind() <= code_kind);
+  if (!code.is_null() && code.kind() == code_kind) {
+    // Caching of optimized code enabled and optimized code found.
     DCHECK(!code.marked_for_deoptimization());
-    DCHECK(shared.is_compiled());
+    DCHECK(function->shared().is_compiled());
     DCHECK(CodeKindIsStoredInOptimizedCodeCache(code.kind()));
-    DCHECK_IMPLIES(IsOSR(osr_offset), CodeKindCanOSR(code.kind()));
+    DCHECK_IMPLIES(!osr_offset.IsNone(), CodeKindCanOSR(code.kind()));
+    return Handle<CodeT>(code, isolate);
+  }
+  return MaybeHandle<CodeT>();
+}
 
-    CompilerTracer::TraceOptimizedCodeCacheHit(isolate, function, osr_offset,
-                                               code_kind);
-    return handle(code, isolate);
+void ClearOptimizedCodeCache(OptimizedCompilationInfo* compilation_info) {
+  Handle<JSFunction> function = compilation_info->closure();
+  if (compilation_info->osr_offset().IsNone()) {
+    Handle<FeedbackVector> vector =
+        handle(function->feedback_vector(), function->GetIsolate());
+    vector->reset_tiering_state();
+  }
+}
+
+void InsertCodeIntoOptimizedCodeCache(
+    OptimizedCompilationInfo* compilation_info) {
+  const CodeKind kind = compilation_info->code_kind();
+  if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
+
+  if (compilation_info->function_context_specializing()) {
+    // Function context specialization folds-in the function context, so no
+    // sharing can occur. Make sure the optimized code cache is cleared.
+    ClearOptimizedCodeCache(compilation_info);
+    return;
   }
 
-  static void Insert(OptimizedCompilationInfo* compilation_info) {
-    const CodeKind kind = compilation_info->code_kind();
-    if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
-
-    // Cache optimized code.
-    Handle<JSFunction> function = compilation_info->closure();
-    Isolate* isolate = function->GetIsolate();
-    Handle<CodeT> code = ToCodeT(compilation_info->code(), isolate);
-    const BytecodeOffset osr_offset = compilation_info->osr_offset();
-
-    if (IsOSR(osr_offset)) {
-      DCHECK(CodeKindCanOSR(kind));
-      Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-      Handle<NativeContext> native_context(function->native_context(), isolate);
-      OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                              osr_offset);
-      return;
-    }
-
-    DCHECK(!IsOSR(osr_offset));
-
-    if (compilation_info->function_context_specializing()) {
-      // Function context specialization folds-in the function context, so no
-      // sharing can occur. Make sure the optimized code cache is cleared.
-      if (function->feedback_vector().has_optimized_code()) {
-        function->feedback_vector().ClearOptimizedCode();
-      }
-      return;
-    }
-
+  // Cache optimized code.
+  Handle<JSFunction> function = compilation_info->closure();
+  Isolate* isolate = function->GetIsolate();
+  Handle<CodeT> code = ToCodeT(compilation_info->code(), isolate);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  Handle<NativeContext> native_context(function->native_context(), isolate);
+  if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
         handle(function->feedback_vector(), isolate);
     FeedbackVector::SetOptimizedCode(vector, code);
+  } else {
+    DCHECK(CodeKindCanOSR(kind));
+    OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
+                                            compilation_info->osr_offset());
   }
-};
+}
 
 // Runs PrepareJob in the proper compilation & canonical scopes. Handles will be
 // allocated in a persistent handle scope that is detached and handed off to the
@@ -979,11 +925,8 @@ bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
   return job->PrepareJob(isolate) == CompilationJob::SUCCEEDED;
 }
 
-bool CompileTurbofan_NotConcurrent(Isolate* isolate,
-                                   TurbofanCompilationJob* job) {
-  OptimizedCompilationInfo* const compilation_info = job->compilation_info();
-  DCHECK_EQ(compilation_info->code_kind(), CodeKind::TURBOFAN);
-
+bool GetOptimizedCodeNow(TurbofanCompilationJob* job, Isolate* isolate,
+                         OptimizedCompilationInfo* compilation_info) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeNonConcurrent);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -1013,21 +956,19 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   // Success!
   job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
   DCHECK(!isolate->has_pending_exception());
-  OptimizedCodeCache::Insert(compilation_info);
+  InsertCodeIntoOptimizedCodeCache(compilation_info);
   job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, isolate);
   return true;
 }
 
-bool CompileTurbofan_Concurrent(Isolate* isolate,
-                                std::unique_ptr<TurbofanCompilationJob> job) {
-  OptimizedCompilationInfo* const compilation_info = job->compilation_info();
-  DCHECK_EQ(compilation_info->code_kind(), CodeKind::TURBOFAN);
-  Handle<JSFunction> function = compilation_info->closure();
-
+bool GetOptimizedCodeLater(std::unique_ptr<TurbofanCompilationJob> job,
+                           Isolate* isolate,
+                           OptimizedCompilationInfo* compilation_info,
+                           CodeKind code_kind, Handle<JSFunction> function) {
   if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
-      function->ShortPrint();
+      compilation_info->closure()->ShortPrint();
       PrintF(" later.\n");
     }
     return false;
@@ -1036,7 +977,7 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   if (isolate->heap()->HighMemoryPressure()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** High memory pressure, will retry optimizing ");
-      function->ShortPrint();
+      compilation_info->closure()->ShortPrint();
       PrintF(" later.\n");
     }
     return false;
@@ -1052,33 +993,31 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   }
 
   // The background recompile will own this job.
-  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.release());
+  isolate->optimizing_compile_dispatcher()->QueueForOptimization(job.get());
+  job.release();
 
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
-    function->ShortPrint();
+    compilation_info->closure()->ShortPrint();
     PrintF(" for concurrent optimization.\n");
   }
 
-  SetTieringState(*function, compilation_info->osr_offset(),
-                  TieringState::kInProgress);
+  if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
+    function->set_tiering_state(TieringState::kInProgress);
+  }
 
-  DCHECK(compilation_info->shared_info()->HasBytecodeArray());
+  // Note: Usually the active tier is expected to be Ignition at this point (in
+  // other words we don't expect to optimize if the function is already
+  // TF-optimized). There is a special case for OSR though, for which we *can*
+  // reach this point even if we've already generated non-OSR'd TF code.
+  DCHECK(function->shared().HasBytecodeArray());
   return true;
 }
 
 // Returns the code object at which execution continues after a concurrent
 // optimization job has been started (but not finished).
-MaybeHandle<CodeT> ContinuationForConcurrentOptimization(
-    Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset) {
-  if (IsOSR(osr_offset)) {
-    // OSR tierup differs from plain tierup in that we don't simply continue
-    // execution at the returned code. Instead, we must signal unavailability
-    // of OSR'd code by returning the empty handle.
-    return {};
-  }
-
-  DCHECK(!IsOSR(osr_offset));
+Handle<CodeT> ContinuationForConcurrentOptimization(
+    Isolate* isolate, Handle<JSFunction> function) {
   if (function->shared().HasBaselineCode()) {
     CodeT baseline_code = function->shared().baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
@@ -1088,7 +1027,7 @@ MaybeHandle<CodeT> ContinuationForConcurrentOptimization(
   return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
 }
 
-enum class CompileResultBehavior {
+enum class GetOptimizedCodeResultHandling {
   // Default behavior, i.e. install the result, insert into caches, etc.
   kDefault,
   // Used only for stress testing. The compilation result should be discarded.
@@ -1108,17 +1047,17 @@ bool ShouldOptimize(CodeKind code_kind, Handle<SharedFunctionInfo> shared) {
   }
 }
 
-MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
-                                   Handle<JSFunction> function,
-                                   Handle<SharedFunctionInfo> shared,
-                                   ConcurrencyMode mode,
-                                   BytecodeOffset osr_offset,
-                                   JavaScriptFrame* osr_frame,
-                                   CompileResultBehavior result_behavior) {
+MaybeHandle<CodeT> CompileTurbofan(
+    Isolate* isolate, Handle<JSFunction> function,
+    Handle<SharedFunctionInfo> shared, ConcurrencyMode mode,
+    BytecodeOffset osr_offset, JavaScriptFrame* osr_frame,
+    GetOptimizedCodeResultHandling result_handling) {
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
+
+  static constexpr CodeKind kCodeKind = CodeKind::TURBOFAN;
 
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
@@ -1127,24 +1066,24 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
   // tolerate the lack of a script without bytecode.
   DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
   std::unique_ptr<TurbofanCompilationJob> job(
-      compiler::Pipeline::NewCompilationJob(isolate, function,
-                                            CodeKind::TURBOFAN, has_script,
-                                            osr_offset, osr_frame));
+      compiler::Pipeline::NewCompilationJob(isolate, function, kCodeKind,
+                                            has_script, osr_offset, osr_frame));
+  OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
-  if (result_behavior == CompileResultBehavior::kDiscardForTesting) {
-    job->compilation_info()->set_discard_result_for_testing();
+  if (result_handling == GetOptimizedCodeResultHandling::kDiscardForTesting) {
+    compilation_info->set_discard_result_for_testing();
   }
 
   // Prepare the job and launch concurrent compilation, or compile now.
   if (IsConcurrent(mode)) {
-    if (CompileTurbofan_Concurrent(isolate, std::move(job))) {
-      return ContinuationForConcurrentOptimization(isolate, function,
-                                                   osr_offset);
+    if (GetOptimizedCodeLater(std::move(job), isolate, compilation_info,
+                              kCodeKind, function)) {
+      return ContinuationForConcurrentOptimization(isolate, function);
     }
   } else {
     DCHECK(IsSynchronous(mode));
-    if (CompileTurbofan_NotConcurrent(isolate, job.get())) {
-      return ToCodeT(job->compilation_info()->code(), isolate);
+    if (GetOptimizedCodeNow(job.get(), isolate, compilation_info)) {
+      return ToCodeT(compilation_info->code(), isolate);
     }
   }
 
@@ -1152,17 +1091,16 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
   return {};
 }
 
-MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
-                                 ConcurrencyMode mode,
-                                 BytecodeOffset osr_offset,
-                                 JavaScriptFrame* osr_frame,
-                                 CompileResultBehavior result_behavior) {
+MaybeHandle<CodeT> CompileMaglev(
+    Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
+    BytecodeOffset osr_offset, JavaScriptFrame* osr_frame,
+    GetOptimizedCodeResultHandling result_handling) {
 #ifdef V8_ENABLE_MAGLEV
   DCHECK(FLAG_maglev);
   // TODO(v8:7700): Add missing support.
-  CHECK(!IsOSR(osr_offset));
+  CHECK(osr_offset.IsNone());
   CHECK(osr_frame == nullptr);
-  CHECK(result_behavior == CompileResultBehavior::kDefault);
+  CHECK(result_handling == GetOptimizedCodeResultHandling::kDefault);
 
   // TODO(v8:7700): Tracing, see CompileTurbofan.
 
@@ -1176,7 +1114,7 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
 
   DCHECK(IsConcurrent(mode));
 
-  // TODO(v8:7700): See everything in CompileTurbofan_Concurrent.
+  // TODO(v8:7700): See everything in GetOptimizedCodeLater.
   // - Tracing,
   // - timers,
   // - aborts on memory pressure,
@@ -1191,29 +1129,28 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   isolate->maglev_concurrent_dispatcher()->EnqueueJob(std::move(job));
 
   // Remember that the function is currently being processed.
-  SetTieringState(*function, osr_offset, TieringState::kInProgress);
+  function->set_tiering_state(TieringState::kInProgress);
 
   // The code that triggered optimization continues execution here.
-  return ContinuationForConcurrentOptimization(isolate, function, osr_offset);
+  return ContinuationForConcurrentOptimization(isolate, function);
 #else   // V8_ENABLE_MAGLEV
   UNREACHABLE();
 #endif  // V8_ENABLE_MAGLEV
 }
 
-MaybeHandle<CodeT> GetOrCompileOptimized(
+MaybeHandle<CodeT> GetOptimizedCode(
     Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
     JavaScriptFrame* osr_frame = nullptr,
-    CompileResultBehavior result_behavior = CompileResultBehavior::kDefault) {
+    GetOptimizedCodeResultHandling result_handling =
+        GetOptimizedCodeResultHandling::kDefault) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
 
-  // Clear the optimization marker on the function so that we don't try to
-  // re-optimize.
-  if (!IsOSR(osr_offset)) {
-    ResetTieringState(*function, osr_offset);
-  }
+  // Make sure we clear the tiering state on the function so that we
+  // don't try to re-optimize.
+  if (function->has_feedback_vector()) function->reset_tiering_state();
 
   // TODO(v8:7700): Distinguish between Maglev and Turbofan.
   if (shared->optimization_disabled() &&
@@ -1237,23 +1174,29 @@ MaybeHandle<CodeT> GetOrCompileOptimized(
     PendingOptimizationTable::FunctionWasOptimized(isolate, function);
   }
 
-  Handle<CodeT> cached_code;
-  if (OptimizedCodeCache::Get(isolate, function, osr_offset, code_kind)
-          .ToHandle(&cached_code)) {
-    return cached_code;
+  // Check the optimized code cache (stored on the SharedFunctionInfo).
+  if (CodeKindIsStoredInOptimizedCodeCache(code_kind)) {
+    Handle<CodeT> cached_code;
+    if (GetCodeFromOptimizedCodeCache(function, osr_offset, code_kind)
+            .ToHandle(&cached_code)) {
+      CompilerTracer::TraceOptimizedCodeCacheHit(isolate, function, osr_offset,
+                                                 code_kind);
+      return cached_code;
+    }
   }
 
+  // Reset profiler ticks, the function is no longer considered hot.
+  // TODO(v8:7700): Update for Maglev tiering.
   DCHECK(shared->is_compiled());
-
-  ResetProfilerTicks(*function, osr_offset);
+  function->feedback_vector().set_profiler_ticks(0);
 
   if (code_kind == CodeKind::TURBOFAN) {
     return CompileTurbofan(isolate, function, shared, mode, osr_offset,
-                           osr_frame, result_behavior);
+                           osr_frame, result_handling);
   } else {
     DCHECK_EQ(code_kind, CodeKind::MAGLEV);
     return CompileMaglev(isolate, function, mode, osr_offset, osr_frame,
-                         result_behavior);
+                         result_handling);
   }
 }
 
@@ -1271,13 +1214,13 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
   DCHECK(FLAG_stress_concurrent_inlining &&
          isolate->concurrent_recompilation_enabled() && IsSynchronous(mode) &&
          isolate->node_observer() == nullptr);
-  CompileResultBehavior result_behavior =
+  GetOptimizedCodeResultHandling result_handling =
       FLAG_stress_concurrent_inlining_attach_code
-          ? CompileResultBehavior::kDefault
-          : CompileResultBehavior::kDiscardForTesting;
-  USE(GetOrCompileOptimized(isolate, function, ConcurrencyMode::kConcurrent,
-                            code_kind, BytecodeOffset::None(), nullptr,
-                            result_behavior));
+          ? GetOptimizedCodeResultHandling::kDefault
+          : GetOptimizedCodeResultHandling::kDiscardForTesting;
+  USE(GetOptimizedCode(isolate, function, ConcurrencyMode::kConcurrent,
+                       code_kind, BytecodeOffset::None(), nullptr,
+                       result_handling));
 }
 
 bool FailAndClearPendingException(Isolate* isolate) {
@@ -2100,7 +2043,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
     }
 
     Handle<CodeT> maybe_code;
-    if (GetOrCompileOptimized(isolate, function, concurrency_mode, code_kind)
+    if (GetOptimizedCode(isolate, function, concurrency_mode, code_kind)
             .ToHandle(&maybe_code)) {
       code = maybe_code;
     }
@@ -2257,17 +2200,14 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   }
 
   Handle<CodeT> code;
-  if (!GetOrCompileOptimized(isolate, function, mode, code_kind)
-           .ToHandle(&code)) {
+  if (!GetOptimizedCode(isolate, function, mode, code_kind).ToHandle(&code)) {
     // Optimization failed, get the existing code. We could have optimized code
     // from a lower tier here. Unoptimized code must exist already if we are
     // optimizing.
     DCHECK(!isolate->has_pending_exception());
     DCHECK(function->shared().is_compiled());
     DCHECK(function->shared().HasBytecodeArray());
-    code = ContinuationForConcurrentOptimization(isolate, function,
-                                                 BytecodeOffset::None())
-               .ToHandleChecked();
+    code = ContinuationForConcurrentOptimization(isolate, function);
   }
 
   function->set_code(*code, kReleaseStore);
@@ -3374,75 +3314,21 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script, LocalIsolate* isolate);
 
 // static
-MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
-                                                 Handle<JSFunction> function,
-                                                 BytecodeOffset osr_offset,
-                                                 UnoptimizedFrame* frame,
-                                                 ConcurrencyMode mode) {
-  DCHECK(IsOSR(osr_offset));
-  DCHECK_NOT_NULL(frame);
-
-  if (V8_UNLIKELY(isolate->serializer_enabled())) return {};
-  if (V8_UNLIKELY(function->shared().optimization_disabled())) return {};
-
-  // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
-  // bytecode array. So, it might be possible to mark closure in one native
-  // context and optimize a closure from a different native context. So check if
-  // there is a feedback vector before OSRing. We don't expect this to happen
-  // often.
-  if (V8_UNLIKELY(!function->has_feedback_vector())) return {};
-
-  // One OSR job per function at a time.
-  if (IsInProgress(function->osr_tiering_state())) {
-    return {};
-  }
-
-  // If we are trying to do OSR when there are already optimized activations of
-  // the function, it means (a) the function is directly or indirectly
-  // recursive and (b) an optimized invocation has been deoptimized so that we
-  // are currently in an unoptimized activation.
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (frame->is_optimized() && frame->function() == *function) return {};
-  }
-
-  // -- Alright, decided to proceed. --
-
-  // Disarm all back edges, i.e. reset the OSR urgency.
-  //
-  // Note that the bytecode array active on the stack might be different from
-  // the one installed on the function (e.g. patched by debugger). This however
-  // is fine because we guarantee the layout to be in sync, hence any
-  // BytecodeOffset representing the entry point will be valid for any copy of
-  // the bytecode.
-  Handle<BytecodeArray> bytecode(frame->GetBytecodeArray(), isolate);
-  bytecode->reset_osr_urgency();
-
-  CompilerTracer::TraceOptimizeOSR(isolate, function, osr_offset);
-  MaybeHandle<CodeT> result = GetOrCompileOptimized(
-      isolate, function, mode, CodeKind::TURBOFAN, osr_offset, frame);
-
-  if (result.is_null()) {
-    CompilerTracer::TraceOptimizeOSRUnavailable(isolate, function, osr_offset);
-  }
-
-  return result;
-}
-
-// static
-void Compiler::DisposeTurbofanCompilationJob(TurbofanCompilationJob* job,
-                                             bool restore_function_code) {
-  Handle<JSFunction> function = job->compilation_info()->closure();
-  ResetTieringState(*function, job->compilation_info()->osr_offset());
-  if (restore_function_code) {
-    function->set_code(function->shared().GetCode(), kReleaseStore);
-  }
+MaybeHandle<CodeT> Compiler::GetOptimizedCodeForOSR(
+    Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
+    JavaScriptFrame* osr_frame) {
+  DCHECK(!osr_offset.IsNone());
+  DCHECK_NOT_NULL(osr_frame);
+  return GetOptimizedCode(isolate, function, ConcurrencyMode::kSynchronous,
+                          CodeKindForOSR(), osr_offset, osr_frame);
 }
 
 // static
 bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
                                               Isolate* isolate) {
   VMState<COMPILER> state(isolate);
+  // Take ownership of the job. Deleting the job also tears down the zone.
+  std::unique_ptr<OptimizedCompilationJob> job_scope(job);
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
@@ -3450,14 +3336,12 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeConcurrentFinalize");
 
-  Handle<JSFunction> function = compilation_info->closure();
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 
   const bool use_result = !compilation_info->discard_result_for_testing();
-  const BytecodeOffset osr_offset = compilation_info->osr_offset();
-
   if (V8_LIKELY(use_result)) {
-    ResetProfilerTicks(*function, osr_offset);
+    // Reset profiler ticks, function is no longer considered hot.
+    compilation_info->closure()->feedback_vector().set_profiler_ticks(0);
   }
 
   DCHECK(!shared->HasBreakInfo());
@@ -3475,16 +3359,10 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
       job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
                                      isolate);
       if (V8_LIKELY(use_result)) {
-        ResetTieringState(*function, osr_offset);
-        OptimizedCodeCache::Insert(compilation_info);
+        InsertCodeIntoOptimizedCodeCache(compilation_info);
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
-        if (IsOSR(osr_offset)) {
-          // TODO(jgruber): Implement a targeted install request for the
-          // specific osr_offset.
-          shared->GetBytecodeArray(isolate).RequestOsrAtNextOpportunity();
-        } else {
-          function->set_code(*compilation_info->code(), kReleaseStore);
-        }
+        compilation_info->closure()->set_code(*compilation_info->code(),
+                                              kReleaseStore);
       }
       return CompilationJob::SUCCEEDED;
     }
@@ -3493,9 +3371,9 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   DCHECK_EQ(job->state(), CompilationJob::State::kFailed);
   CompilerTracer::TraceAbortedJob(isolate, compilation_info);
   if (V8_LIKELY(use_result)) {
-    ResetTieringState(*function, osr_offset);
-    if (!IsOSR(osr_offset)) {
-      function->set_code(shared->GetCode(), kReleaseStore);
+    compilation_info->closure()->set_code(shared->GetCode(), kReleaseStore);
+    if (IsInProgress(compilation_info->closure()->tiering_state())) {
+      compilation_info->closure()->reset_tiering_state();
     }
   }
   return CompilationJob::FAILED;
