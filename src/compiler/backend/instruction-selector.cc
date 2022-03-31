@@ -1170,6 +1170,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
   DCHECK_EQ(input_count, buffer->instruction_args.size() + pushed_count -
                              frame_state_entries);
+  USE(pushed_count);
   if (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK && is_tail_call &&
       stack_param_delta != 0) {
     // For tail calls that change the size of their parameter list and keep

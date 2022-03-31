@@ -155,6 +155,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   // consumed as an effect input somewhere else.
   // TODO(mvstanton): support this kind of verification for Wasm compiles, too.
   if (code_type != kWasm && node->op()->EffectOutputCount() > 0) {
+#ifdef DEBUG
     int effect_edges = 0;
     for (Edge edge : node->use_edges()) {
       if (all.IsLive(edge.from()) && NodeProperties::IsEffectEdge(edge)) {
@@ -162,6 +163,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       }
     }
     DCHECK_GT(effect_edges, 0);
+#endif
   }
 
   // Verify that frame state has been inserted for the nodes that need it.

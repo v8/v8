@@ -1637,6 +1637,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           return -1;
         }
         num_imported_tables++;
+        USE(num_imported_tables);
         break;
       }
       case kExternalMemory: {

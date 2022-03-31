@@ -4804,6 +4804,7 @@ size_t MarkCompactCollector::PostProcessEvacuationCandidates() {
     }
   }
   DCHECK_EQ(aborted_pages_verified, aborted_pages);
+  USE(aborted_pages_verified);
   return aborted_pages;
 }
 
