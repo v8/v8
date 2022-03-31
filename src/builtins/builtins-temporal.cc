@@ -322,8 +322,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonth)
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthCode)
 /* Temporal #sec-temporal.calendar.prototype.day */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDay)
-/* Temporal #sec-temporal.calendar.prototype.dayofweek */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDayOfWeek)
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 /* Temporal #sec-temporal.calendar.prototype.daysinweek */
@@ -798,6 +796,7 @@ TEMPORAL_CONSTRUCTOR1(Calendar)
 TEMPORAL_ID_BY_TO_STRING(Calendar)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInYear, daysInYear)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfWeek, dayOfWeek)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfYear, dayOfYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthsInYear, monthsInYear)
 TEMPORAL_TO_STRING(Calendar)
