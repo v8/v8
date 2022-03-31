@@ -56,9 +56,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 
 #ifdef DEBUG
   if (FLAG_trace_lazy && !sfi->is_compiled()) {
-    PrintF("[unoptimized: ");
-    function->PrintName();
-    PrintF("]\n");
+    PrintF("[unoptimized: %s]\n", function->DebugNameCStr().get());
   }
 #endif
 
@@ -225,7 +223,7 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
   return *obj;
 }
 
-RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
+RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
   DCHECK(FLAG_use_osr);
@@ -244,21 +242,40 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   BytecodeOffset osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
   DCHECK(!osr_offset.IsNone());
 
-  // TODO(v8:12161): If cache exists with different offset: kSynchronous.
   ConcurrencyMode mode =
-      isolate->concurrent_recompilation_enabled() && FLAG_concurrent_osr
+      V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
+                FLAG_concurrent_osr)
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
+  // The synchronous fallback mechanism triggers if we've already got OSR'd
+  // code for the current function but at a different OSR offset - that may
+  // indicate we're having trouble hitting the correct JumpLoop for code
+  // installation. In this case, fall back to synchronous OSR.
   Handle<JSFunction> function(frame->function(), isolate);
-  MaybeHandle<CodeT> maybe_result =
-      Compiler::CompileOptimizedOSR(isolate, function, osr_offset, frame, mode);
+  base::Optional<BytecodeOffset> cached_osr_offset =
+      function->native_context().osr_code_cache().FirstOsrOffsetFor(
+          function->shared());
+  if (cached_osr_offset.has_value() &&
+      cached_osr_offset.value() != osr_offset) {
+    if (V8_UNLIKELY(FLAG_trace_osr)) {
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(),
+             "[OSR - falling back to synchronous compilation due to mismatched "
+             "cached entry. function: %s, requested: %d, cached: %d]\n",
+             function->DebugNameCStr().get(), osr_offset.ToInt(),
+             cached_osr_offset.value().ToInt());
+    }
+    mode = ConcurrencyMode::kSynchronous;
+  }
 
   Handle<CodeT> result;
-  if (!maybe_result.ToHandle(&result)) {
-    // No OSR'd code available.
-    // TODO(v8:12161): Distinguish between actual failure and scheduling a
-    // concurrent job.
+  if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, frame, mode)
+           .ToHandle(&result)) {
+    // An empty result can mean one of two things:
+    // 1) we've started a concurrent compilation job - everything is fine.
+    // 2) synchronous compilation failed for some reason.
+
     if (!function->HasAttachedOptimizedCode()) {
       function->set_code(function->shared().GetCode(), kReleaseStore);
     }
@@ -278,9 +295,9 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   if (FLAG_trace_osr) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(),
-           "[OSR - Entry at OSR bytecode offset %d, offset %d in optimized "
-           "code]\n",
-           osr_offset.ToInt(), data.OsrPcOffset().value());
+           "[OSR - entry. function: %s, osr offset: %d, pc offset: %d]\n",
+           function->DebugNameCStr().get(), osr_offset.ToInt(),
+           data.OsrPcOffset().value());
   }
 
   if (function->feedback_vector().invocation_count() <= 1 &&
@@ -313,9 +330,10 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     // compile for OSR again.
     if (FLAG_trace_osr) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(), "[OSR - Re-marking ");
-      function->PrintName(scope.file());
-      PrintF(scope.file(), " for non-concurrent optimization]\n");
+      PrintF(scope.file(),
+             "[OSR - forcing synchronous optimization on next entry. function: "
+             "%s]\n",
+             function->DebugNameCStr().get());
     }
     function->set_tiering_state(TieringState::kRequestTurbofan_Synchronous);
   }

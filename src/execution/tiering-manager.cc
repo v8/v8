@@ -100,19 +100,17 @@ namespace {
 
 void TraceInOptimizationQueue(JSFunction function) {
   if (FLAG_trace_opt_verbose) {
-    PrintF("[not marking function ");
-    function.PrintName();
-    PrintF(" for optimization: already queued]\n");
+    PrintF("[not marking function %s for optimization: already queued]\n",
+           function.DebugNameCStr().get());
   }
 }
 
 void TraceHeuristicOptimizationDisallowed(JSFunction function) {
   if (FLAG_trace_opt_verbose) {
-    PrintF("[not marking function ");
-    function.PrintName();
     PrintF(
-        " for optimization: marked with "
-        "%%PrepareFunctionForOptimization for manual optimization]\n");
+        "[not marking function %s for optimization: marked with "
+        "%%PrepareFunctionForOptimization for manual optimization]\n",
+        function.DebugNameCStr().get());
   }
 }
 
@@ -153,21 +151,19 @@ namespace {
 bool HaveCachedOSRCodeForCurrentBytecodeOffset(UnoptimizedFrame* frame,
                                                int* osr_urgency_out) {
   JSFunction function = frame->function();
-  BytecodeArray bytecode = frame->GetBytecodeArray();
-  const int bytecode_offset = frame->GetBytecodeOffset();
-  if (V8_UNLIKELY(function.shared().osr_code_cache_state() != kNotCached)) {
-    OSROptimizedCodeCache cache = function.native_context().osr_code_cache();
-    interpreter::BytecodeArrayIterator iterator(
-        handle(bytecode, frame->isolate()));
-    for (int jump_offset : cache.GetBytecodeOffsetsFromSFI(function.shared())) {
-      iterator.SetOffset(jump_offset);
-      if (base::IsInRange(bytecode_offset, iterator.GetJumpTargetOffset(),
-                          jump_offset)) {
-        int loop_depth = iterator.GetImmediateOperand(1);
-        // `+ 1` because osr_urgency is an exclusive upper limit on the depth.
-        *osr_urgency_out = loop_depth + 1;
-        return true;
-      }
+  const int current_offset = frame->GetBytecodeOffset();
+  OSROptimizedCodeCache cache = function.native_context().osr_code_cache();
+  interpreter::BytecodeArrayIterator iterator(
+      handle(frame->GetBytecodeArray(), frame->isolate()));
+  for (BytecodeOffset osr_offset : cache.OsrOffsetsFor(function.shared())) {
+    DCHECK(!osr_offset.IsNone());
+    iterator.SetOffset(osr_offset.ToInt());
+    if (base::IsInRange(current_offset, iterator.GetJumpTargetOffset(),
+                        osr_offset.ToInt())) {
+      int loop_depth = iterator.GetImmediateOperand(1);
+      // `+ 1` because osr_urgency is an exclusive upper limit on the depth.
+      *osr_urgency_out = loop_depth + 1;
+      return true;
     }
   }
   return false;
@@ -227,14 +223,15 @@ void TrySetOsrUrgency(Isolate* isolate, JSFunction function, int osr_urgency) {
 
   // We've passed all checks - bump the OSR urgency.
 
+  BytecodeArray bytecode = shared.GetBytecodeArray(isolate);
   if (V8_UNLIKELY(FLAG_trace_osr)) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[OSR - arming back edges in ");
-    function.PrintName(scope.file());
-    PrintF(scope.file(), "]\n");
+    PrintF(scope.file(),
+           "[OSR - setting osr urgency. function: %s, old urgency: %d, new "
+           "urgency: %d]\n",
+           function.DebugNameCStr().get(), bytecode.osr_urgency(), osr_urgency);
   }
 
-  BytecodeArray bytecode = shared.GetBytecodeArray(isolate);
   DCHECK_GE(osr_urgency, bytecode.osr_urgency());  // Never lower urgency here.
   bytecode.set_osr_urgency(osr_urgency);
 }
@@ -352,9 +349,8 @@ OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
     // small, optimistically optimize it now.
     return OptimizationDecision::TurbofanSmallFunction();
   } else if (FLAG_trace_opt_verbose) {
-    PrintF("[not yet optimizing ");
-    function.PrintName();
-    PrintF(", not enough ticks: %d/%d and ", ticks, ticks_for_optimization);
+    PrintF("[not yet optimizing %s, not enough ticks: %d/%d and ",
+           function.DebugNameCStr().get(), ticks, ticks_for_optimization);
     if (any_ic_changed_) {
       PrintF("ICs changed]\n");
     } else {

@@ -133,16 +133,36 @@ void OSROptimizedCodeCache::EvictDeoptimizedCode(Isolate* isolate) {
   }
 }
 
-std::vector<int> OSROptimizedCodeCache::GetBytecodeOffsetsFromSFI(
+std::vector<BytecodeOffset> OSROptimizedCodeCache::OsrOffsetsFor(
     SharedFunctionInfo shared) {
-  std::vector<int> bytecode_offsets;
   DisallowGarbageCollection gc;
+
+  const OSRCodeCacheStateOfSFI state = shared.osr_code_cache_state();
+  if (state == kNotCached) return {};
+
+  std::vector<BytecodeOffset> offsets;
   for (int index = 0; index < length(); index += kEntryLength) {
-    if (GetSFIFromEntry(index) == shared) {
-      bytecode_offsets.push_back(GetBytecodeOffsetFromEntry(index).ToInt());
-    }
+    if (GetSFIFromEntry(index) != shared) continue;
+    offsets.emplace_back(GetBytecodeOffsetFromEntry(index));
+    if (state == kCachedOnce) return offsets;
   }
-  return bytecode_offsets;
+
+  return offsets;
+}
+
+base::Optional<BytecodeOffset> OSROptimizedCodeCache::FirstOsrOffsetFor(
+    SharedFunctionInfo shared) {
+  DisallowGarbageCollection gc;
+
+  const OSRCodeCacheStateOfSFI state = shared.osr_code_cache_state();
+  if (state == kNotCached) return {};
+
+  for (int index = 0; index < length(); index += kEntryLength) {
+    if (GetSFIFromEntry(index) != shared) continue;
+    return GetBytecodeOffsetFromEntry(index);
+  }
+
+  return {};
 }
 
 int OSROptimizedCodeCache::GrowOSRCache(

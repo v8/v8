@@ -661,7 +661,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     USE(unused_result);
 
     // Finalize again to finish the queued job. The next call into
-    // CompileForOnStackReplacement will pick up the cached Code object.
+    // Runtime::kCompileOptimizedOSR will pick up the cached Code object.
     FinalizeOptimization(isolate);
   }
 

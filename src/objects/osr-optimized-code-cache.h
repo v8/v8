@@ -57,6 +57,9 @@ class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
   CodeT TryGet(SharedFunctionInfo shared, BytecodeOffset osr_offset,
                Isolate* isolate);
 
+  std::vector<BytecodeOffset> OsrOffsetsFor(SharedFunctionInfo shared);
+  base::Optional<BytecodeOffset> FirstOsrOffsetFor(SharedFunctionInfo shared);
+
   // Remove all code objects marked for deoptimization from OSR code cache.
   void EvictDeoptimizedCode(Isolate* isolate);
 
@@ -66,10 +69,6 @@ class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
 
   // Sets the OSR optimized code cache to an empty array.
   static void Clear(Isolate* isolate, NativeContext context);
-
-  // Returns vector of bytecode offsets corresponding to the shared function
-  // |shared|
-  std::vector<int> GetBytecodeOffsetsFromSFI(SharedFunctionInfo shared);
 
   enum OSRCodeCacheConstants {
     kSharedOffset,

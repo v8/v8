@@ -1673,7 +1673,7 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement);
+    __ CallRuntime(Runtime::kCompileOptimizedOSR);
   }
 
   // If the code object is null, just return to the caller.

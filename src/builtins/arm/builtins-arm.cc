@@ -1824,7 +1824,7 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
   ASM_CODE_COMMENT(masm);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement);
+    __ CallRuntime(Runtime::kCompileOptimizedOSR);
   }
 
   // If the code object is null, just return to the caller.

@@ -107,7 +107,7 @@ namespace internal {
   F(WeakCollectionSet, 4, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I) \
-  F(CompileForOnStackReplacement, 0, 1)   \
+  F(CompileOptimizedOSR, 0, 1)            \
   F(CompileLazy, 1, 1)                    \
   F(CompileBaseline, 1, 1)                \
   F(CompileMaglev_Concurrent, 1, 1)       \

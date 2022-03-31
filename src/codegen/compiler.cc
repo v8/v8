@@ -121,22 +121,25 @@ class CompilerTracer : public AllStatic {
   }
 
   static void TraceOptimizeOSR(Isolate* isolate, Handle<JSFunction> function,
-                               BytecodeOffset osr_offset) {
+                               BytecodeOffset osr_offset,
+                               ConcurrencyMode mode) {
     if (!FLAG_trace_osr) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[OSR - Started: ");
-    function->PrintName(scope.file());
-    PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
+    PrintF(scope.file(),
+           "[OSR - started. function: %s, osr offset: %d, mode: %s]\n",
+           function->DebugNameCStr().get(), osr_offset.ToInt(), ToString(mode));
   }
 
   static void TraceOptimizeOSRUnavailable(Isolate* isolate,
                                           Handle<JSFunction> function,
-                                          BytecodeOffset osr_offset) {
+                                          BytecodeOffset osr_offset,
+                                          ConcurrencyMode mode) {
     if (!FLAG_trace_osr) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[OSR - Unavailable (failed or in progress): ");
-    function->PrintName(scope.file());
-    PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
+    PrintF(scope.file(),
+           "[OSR - unavailable (failed or in progress). function: %s, osr "
+           "offset: %d, mode: %s]\n",
+           function->DebugNameCStr().get(), osr_offset.ToInt(), ToString(mode));
   }
 
   static void TraceCompilationStats(Isolate* isolate,
@@ -3405,12 +3408,13 @@ MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
   Handle<BytecodeArray> bytecode(frame->GetBytecodeArray(), isolate);
   bytecode->reset_osr_urgency();
 
-  CompilerTracer::TraceOptimizeOSR(isolate, function, osr_offset);
+  CompilerTracer::TraceOptimizeOSR(isolate, function, osr_offset, mode);
   MaybeHandle<CodeT> result = GetOrCompileOptimized(
       isolate, function, mode, CodeKind::TURBOFAN, osr_offset, frame);
 
   if (result.is_null()) {
-    CompilerTracer::TraceOptimizeOSRUnavailable(isolate, function, osr_offset);
+    CompilerTracer::TraceOptimizeOSRUnavailable(isolate, function, osr_offset,
+                                                mode);
   }
 
   return result;

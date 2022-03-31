@@ -15,7 +15,6 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
 #include "src/objects/objects.h"
-#include "src/objects/osr-optimized-code-cache.h"
 #include "src/objects/script.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
@@ -41,6 +40,8 @@ class Signature;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
+
+enum OSRCodeCacheStateOfSFI : uint8_t;
 
 namespace wasm {
 struct WasmModule;

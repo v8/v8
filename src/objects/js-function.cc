@@ -1110,8 +1110,12 @@ int JSFunction::ComputeInstanceSizeWithMinSlack(Isolate* isolate) {
   return initial_map().instance_size();
 }
 
+std::unique_ptr<char[]> JSFunction::DebugNameCStr() {
+  return shared().DebugNameCStr();
+}
+
 void JSFunction::PrintName(FILE* out) {
-  PrintF(out, "%s", shared().DebugNameCStr().get());
+  PrintF(out, "%s", DebugNameCStr().get());
 }
 
 namespace {

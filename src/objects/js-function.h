@@ -300,7 +300,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
                                        : JSFunction::kSizeWithoutPrototype;
   }
 
-  // Prints the name of the function using PrintF.
+  std::unique_ptr<char[]> DebugNameCStr();
   void PrintName(FILE* out = stdout);
 
   // Calculate the instance size and in-object properties count.

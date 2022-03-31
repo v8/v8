@@ -1803,7 +1803,7 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
 void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement);
+    __ CallRuntime(Runtime::kCompileOptimizedOSR);
   }
 
   // If the code object is null, just return to the caller.
