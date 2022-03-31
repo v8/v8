@@ -172,6 +172,8 @@
 
 namespace v8 {
 
+static OOMErrorCallback g_oom_error_callback = nullptr;
+
 static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
                                              i::Handle<i::Script> script) {
   i::Handle<i::Object> scriptName(script->GetNameOrSourceURL(), isolate);
@@ -228,8 +230,9 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
     memset(last_few_messages, 0x0BADC0DE, Heap::kTraceRingBufferSize + 1);
     memset(js_stacktrace, 0x0BADC0DE, Heap::kStacktraceBufferSize + 1);
     memset(&heap_stats, 0xBADC0DE, sizeof(heap_stats));
-    // Note that the embedder's oom handler is also not available and therefore
-    // won't be called in this case. We just crash.
+    // Give the embedder a chance to handle the condition. If it doesn't,
+    // just crash.
+    if (g_oom_error_callback) g_oom_error_callback(location, is_heap_oom);
     FATAL("Fatal process out of memory: %s", location);
     UNREACHABLE();
   }
@@ -304,6 +307,7 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
     }
   }
   Utils::ReportOOMFailure(isolate, location, is_heap_oom);
+  if (g_oom_error_callback) g_oom_error_callback(location, is_heap_oom);
   // If the fatal error handler returns, we stop execution.
   FATAL("API fatal error handler returned after process out of memory");
 }
@@ -6105,6 +6109,11 @@ void V8::SetUnhandledExceptionCallback(
 #endif  // V8_OS_WIN64
 }
 #endif  // V8_OS_WIN
+
+void v8::V8::SetFatalMemoryErrorCallback(
+    v8::OOMErrorCallback oom_error_callback) {
+  g_oom_error_callback = oom_error_callback;
+}
 
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);
