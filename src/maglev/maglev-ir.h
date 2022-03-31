@@ -352,6 +352,21 @@ struct opcode_of_helper;
 NODE_BASE_LIST(DEF_OPCODE_OF)
 #undef DEF_OPCODE_OF
 
+class LazyDeoptMixin {
+ public:
+  LazyDeoptSafepoint* lazy_deopt() const {
+    DCHECK_NOT_NULL(lazy_deopt_);
+    return lazy_deopt_;
+  }
+  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
+    DCHECK_NULL(lazy_deopt_);
+    lazy_deopt_ = safepoint;
+  }
+
+ private:
+  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
+};
+
 }  // namespace detail
 
 class NodeBase : public ZoneObject {
@@ -794,7 +809,8 @@ class FixedInputValueNodeT : public ValueNodeT<Derived> {
 };
 
 template <class Derived, Operation kOperation>
-class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
+class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived>,
+                              public detail::LazyDeoptMixin {
   using Base = FixedInputValueNodeT<1, Derived>;
 
  public:
@@ -804,14 +820,6 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   static constexpr int kOperandIndex = 0;
   Input& operand_input() { return Node::input(kOperandIndex); }
   compiler::FeedbackSource feedback() const { return feedback_; }
-  LazyDeoptSafepoint* lazy_deopt() const {
-    DCHECK_NOT_NULL(lazy_deopt_);
-    return lazy_deopt_;
-  }
-  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
-    DCHECK_NULL(lazy_deopt_);
-    lazy_deopt_ = safepoint;
-  }
 
  protected:
   explicit UnaryWithFeedbackNode(uint32_t bitfield,
@@ -823,11 +831,11 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
   const compiler::FeedbackSource feedback_;
-  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
 };
 
 template <class Derived, Operation kOperation>
-class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
+class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived>,
+                               public detail::LazyDeoptMixin {
   using Base = FixedInputValueNodeT<2, Derived>;
 
  public:
@@ -839,14 +847,6 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
   compiler::FeedbackSource feedback() const { return feedback_; }
-  LazyDeoptSafepoint* lazy_deopt() const {
-    DCHECK_NOT_NULL(lazy_deopt_);
-    return lazy_deopt_;
-  }
-  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
-    DCHECK_NULL(lazy_deopt_);
-    lazy_deopt_ = safepoint;
-  }
 
  protected:
   BinaryWithFeedbackNode(uint32_t bitfield,
@@ -858,7 +858,6 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
   const compiler::FeedbackSource feedback_;
-  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
 };
 
 #define DEF_OPERATION_NODE(Name, Super, OpName)                            \
@@ -1051,7 +1050,8 @@ class StoreField : public FixedInputNodeT<2, StoreField> {
   const int handler_;
 };
 
-class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
+class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal>,
+                   public detail::LazyDeoptMixin {
   using Base = FixedInputValueNodeT<1, LoadGlobal>;
 
  public:
@@ -1063,14 +1063,6 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
 
   Input& context() { return input(0); }
   const compiler::NameRef& name() const { return name_; }
-  LazyDeoptSafepoint* lazy_deopt() const {
-    DCHECK_NOT_NULL(lazy_deopt_);
-    return lazy_deopt_;
-  }
-  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
-    DCHECK_NULL(lazy_deopt_);
-    lazy_deopt_ = safepoint;
-  }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1078,10 +1070,10 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
 
  private:
   const compiler::NameRef name_;
-  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
 };
 
-class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
+class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric>,
+                         public detail::LazyDeoptMixin {
   using Base = FixedInputValueNodeT<2, LoadNamedGeneric>;
 
  public:
@@ -1097,14 +1089,6 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   static constexpr int kObjectIndex = 1;
   Input& context() { return input(kContextIndex); }
   Input& object_input() { return input(kObjectIndex); }
-  LazyDeoptSafepoint* lazy_deopt() const {
-    DCHECK_NOT_NULL(lazy_deopt_);
-    return lazy_deopt_;
-  }
-  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
-    DCHECK_NULL(lazy_deopt_);
-    lazy_deopt_ = safepoint;
-  }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1112,7 +1096,6 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
 
  private:
   const compiler::NameRef name_;
-  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
 };
 
 class GapMove : public FixedInputNodeT<0, GapMove> {
@@ -1168,7 +1151,7 @@ class Phi : public ValueNodeT<Phi> {
   friend base::ThreadedListTraits<Phi>;
 };
 
-class Call : public ValueNodeT<Call> {
+class Call : public ValueNodeT<Call>, public detail::LazyDeoptMixin {
   using Base = ValueNodeT<Call>;
 
  public:
@@ -1197,21 +1180,12 @@ class Call : public ValueNodeT<Call> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
-  LazyDeoptSafepoint* lazy_deopt() const {
-    DCHECK_NOT_NULL(lazy_deopt_);
-    return lazy_deopt_;
-  }
-  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
-    DCHECK_NULL(lazy_deopt_);
-    lazy_deopt_ = safepoint;
-  }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
   ConvertReceiverMode receiver_mode_;
 };
 
