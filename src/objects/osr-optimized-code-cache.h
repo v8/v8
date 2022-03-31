@@ -51,8 +51,8 @@ class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
   // Returns the code corresponding to the shared function |shared| and
   // BytecodeOffset |offset| if an entry exists in the cache. Returns an empty
   // object otherwise.
-  CodeT GetOptimizedCode(Handle<SharedFunctionInfo> shared,
-                         BytecodeOffset osr_offset, Isolate* isolate);
+  CodeT GetOptimizedCode(SharedFunctionInfo shared, BytecodeOffset osr_offset,
+                         Isolate* isolate);
 
   // Remove all code objects marked for deoptimization from OSR code cache.
   void EvictMarkedCode(Isolate* isolate);
@@ -73,8 +73,7 @@ class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
   SharedFunctionInfo GetSFIFromEntry(int index);
   BytecodeOffset GetBytecodeOffsetFromEntry(int index);
 
-  inline int FindEntry(Handle<SharedFunctionInfo> shared,
-                       BytecodeOffset osr_offset);
+  inline int FindEntry(SharedFunctionInfo shared, BytecodeOffset osr_offset);
   inline void ClearEntry(int src, Isolate* isolate);
   inline void InitializeEntry(int entry, SharedFunctionInfo shared, CodeT code,
                               BytecodeOffset osr_offset);

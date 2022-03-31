@@ -386,25 +386,22 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
   if (ticks < Smi::kMaxValue) set_profiler_ticks(ticks + 1);
 }
 
-// static
-void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
-                                      Handle<CodeT> code) {
+void FeedbackVector::SetOptimizedCode(Handle<CodeT> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   // We should set optimized code only when there is no valid optimized code.
-  DCHECK(!vector->has_optimized_code() ||
-         vector->optimized_code().marked_for_deoptimization() ||
+  DCHECK(!has_optimized_code() ||
+         optimized_code().marked_for_deoptimization() ||
          FLAG_stress_concurrent_inlining_attach_code);
   // TODO(mythria): We could see a CompileOptimized state here either from
   // tests that use %OptimizeFunctionOnNextCall, --always-opt or because we
   // re-mark the function for non-concurrent optimization after an OSR. We
-  // should avoid these cases and also check that state isn't
+  // should avoid these cases and also check that marker isn't
   // TieringState::kRequestTurbofan*.
-  vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code),
-                                   kReleaseStore);
-  int32_t state = vector->flags();
+  set_maybe_optimized_code(HeapObjectReference::Weak(*code), kReleaseStore);
+  int32_t state = flags();
   state = TieringStateBits::update(state, TieringState::kNone);
   state = MaybeHasOptimizedCodeBit::update(state, true);
-  vector->set_flags(state);
+  set_flags(state);
 }
 
 void FeedbackVector::ClearOptimizedCode() {
