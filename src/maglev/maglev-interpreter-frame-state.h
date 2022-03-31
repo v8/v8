@@ -133,20 +133,6 @@ class CompactInterpreterFrameState {
   }
 
   template <typename Function>
-  void ForAccumulator(const MaglevCompilationUnit& info, Function&& f) {
-    if (liveness_->AccumulatorIsLive()) {
-      f(live_registers_and_accumulator_[SizeFor(info, liveness_) - 1]);
-    }
-  }
-
-  template <typename Function>
-  void ForAccumulator(const MaglevCompilationUnit& info, Function&& f) const {
-    if (liveness_->AccumulatorIsLive()) {
-      f(live_registers_and_accumulator_[SizeFor(info, liveness_) - 1]);
-    }
-  }
-
-  template <typename Function>
   void ForEachRegister(const MaglevCompilationUnit& info, Function&& f) {
     ForEachParameter(info, f);
     ForEachLocal(info, f);
@@ -161,20 +147,27 @@ class CompactInterpreterFrameState {
   template <typename Function>
   void ForEachValue(const MaglevCompilationUnit& info, Function&& f) {
     ForEachRegister(info, f);
-    ForAccumulator(info, [&](ValueNode*& value) {
-      f(value, interpreter::Register::virtual_accumulator());
-    });
+    if (liveness_->AccumulatorIsLive()) {
+      f(accumulator(info), interpreter::Register::virtual_accumulator());
+    }
   }
 
   template <typename Function>
   void ForEachValue(const MaglevCompilationUnit& info, Function&& f) const {
     ForEachRegister(info, f);
-    ForAccumulator(info, [&](ValueNode* value) {
-      f(value, interpreter::Register::virtual_accumulator());
-    });
+    if (liveness_->AccumulatorIsLive()) {
+      f(accumulator(info), interpreter::Register::virtual_accumulator());
+    }
   }
 
   const compiler::BytecodeLivenessState* liveness() const { return liveness_; }
+
+  ValueNode*& accumulator(const MaglevCompilationUnit& info) {
+    return live_registers_and_accumulator_[size(info) - 1];
+  }
+  ValueNode* accumulator(const MaglevCompilationUnit& info) const {
+    return live_registers_and_accumulator_[size(info) - 1];
+  }
 
   size_t size(const MaglevCompilationUnit& info) const {
     return SizeFor(info, liveness_);

@@ -1087,6 +1087,7 @@ inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {
     return FromCodeT(*this).name(cage_base);  \
   }
 
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_maglevved, bool)
 DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_turbofanned, bool)
 DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_off_heap_trampoline, bool)
 

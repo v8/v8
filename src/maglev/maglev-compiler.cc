@@ -66,7 +66,7 @@ class UseMarkingProcessor {
 
   template <typename NodeT>
   void Process(NodeT* node, const ProcessingState& state) {
-    if constexpr (NodeT::kProperties.can_deopt()) {
+    if constexpr (NodeT::kProperties.can_eager_deopt()) {
       MarkCheckpointNodes(node, node->eager_deopt_info(), state);
     }
     for (Input& input : *node) {
@@ -195,6 +195,7 @@ MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
   }
 
   Isolate* const isolate = toplevel_compilation_unit->isolate();
+  isolate->native_context()->AddOptimizedCode(ToCodeT(*code));
   return ToCodeT(code, isolate);
 }
 

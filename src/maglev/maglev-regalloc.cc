@@ -339,11 +339,13 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
   for (Input& input : *node) UpdateUse(&input);
-  if (node->properties().can_deopt()) UpdateUse(*node->eager_deopt_info());
+  if (node->properties().can_eager_deopt()) {
+    UpdateUse(*node->eager_deopt_info());
+  }
 
   if (node->properties().is_call()) SpillAndClearRegisters();
   // TODO(verwaest): This isn't a good idea :)
-  if (node->properties().can_deopt()) SpillRegisters();
+  if (node->properties().can_eager_deopt()) SpillRegisters();
 
   // Allocate node output.
   if (node->Is<ValueNode>()) AllocateNodeResult(node->Cast<ValueNode>());
@@ -500,7 +502,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   }
 
   // TODO(verwaest): This isn't a good idea :)
-  if (node->properties().can_deopt()) SpillRegisters();
+  if (node->properties().can_eager_deopt()) SpillRegisters();
 
   // Merge register values. Values only flowing into phis and not being
   // independently live will be killed as part of the merge.

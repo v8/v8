@@ -170,7 +170,12 @@ static constexpr uint32_t kInvalidNodeId = 0;
 class OpProperties {
  public:
   constexpr bool is_call() const { return kIsCallBit::decode(bitfield_); }
-  constexpr bool can_deopt() const { return kCanDeoptBit::decode(bitfield_); }
+  constexpr bool can_eager_deopt() const {
+    return kCanEagerDeoptBit::decode(bitfield_);
+  }
+  constexpr bool can_lazy_deopt() const {
+    return kCanLazyDeoptBit::decode(bitfield_);
+  }
   constexpr bool can_read() const { return kCanReadBit::decode(bitfield_); }
   constexpr bool can_write() const { return kCanWriteBit::decode(bitfield_); }
   constexpr bool non_memory_side_effects() const {
@@ -192,12 +197,11 @@ class OpProperties {
   static constexpr OpProperties Call() {
     return OpProperties(kIsCallBit::encode(true));
   }
-  static constexpr OpProperties JSCall() {
-    return OpProperties(kIsCallBit::encode(true) |
-                        kNonMemorySideEffectsBit::encode(true));
+  static constexpr OpProperties EagerDeopt() {
+    return OpProperties(kCanEagerDeoptBit::encode(true));
   }
-  static constexpr OpProperties Deopt() {
-    return OpProperties(kCanDeoptBit::encode(true));
+  static constexpr OpProperties LazyDeopt() {
+    return OpProperties(kCanLazyDeoptBit::encode(true));
   }
   static constexpr OpProperties Reading() {
     return OpProperties(kCanReadBit::encode(true));
@@ -208,6 +212,9 @@ class OpProperties {
   static constexpr OpProperties NonMemorySideEffects() {
     return OpProperties(kNonMemorySideEffectsBit::encode(true));
   }
+  static constexpr OpProperties JSCall() {
+    return Call() | NonMemorySideEffects() | LazyDeopt();
+  }
   static constexpr OpProperties AnySideEffects() {
     return Reading() | Writing() | NonMemorySideEffects();
   }
@@ -217,8 +224,9 @@ class OpProperties {
 
  private:
   using kIsCallBit = base::BitField<bool, 0, 1>;
-  using kCanDeoptBit = kIsCallBit::Next<bool, 1>;
-  using kCanReadBit = kCanDeoptBit::Next<bool, 1>;
+  using kCanEagerDeoptBit = kIsCallBit::Next<bool, 1>;
+  using kCanLazyDeoptBit = kCanEagerDeoptBit::Next<bool, 1>;
+  using kCanReadBit = kCanLazyDeoptBit::Next<bool, 1>;
   using kCanWriteBit = kCanReadBit::Next<bool, 1>;
   using kNonMemorySideEffectsBit = kCanWriteBit::Next<bool, 1>;
 
@@ -293,14 +301,14 @@ class Input : public InputLocation {
   ValueNode* node_;
 };
 
-class Checkpoint {
+class Checkpoint : public ZoneObject {
  public:
   Checkpoint(BytecodeOffset bytecode_position,
              const CompactInterpreterFrameState* state)
       : bytecode_position(bytecode_position), state(state) {}
 
-  BytecodeOffset bytecode_position;
-  const CompactInterpreterFrameState* state;
+  const BytecodeOffset bytecode_position;
+  const CompactInterpreterFrameState* const state;
   Label deopt_entry_label;
   int deopt_index = -1;
 };
@@ -312,6 +320,18 @@ class EagerDeoptInfo {
 
   Checkpoint* const checkpoint;
   InputLocation* const input_locations;
+};
+
+class LazyDeoptSafepoint : public Checkpoint {
+ public:
+  LazyDeoptSafepoint(BytecodeOffset bytecode_position,
+                     const CompactInterpreterFrameState* state,
+                     interpreter::Register result_location)
+      : Checkpoint(bytecode_position, state),
+        result_location(result_location) {}
+
+  int deopting_call_return_pc = -1;
+  const interpreter::Register result_location;
 };
 
 // Dummy type for the initial raw allocation.
@@ -467,7 +487,7 @@ class NodeBase : public ZoneObject {
   void Print(std::ostream& os, MaglevGraphLabeller*) const;
 
   const EagerDeoptInfo* eager_deopt_info() const {
-    DCHECK(properties().can_deopt());
+    DCHECK(properties().can_eager_deopt());
     return (reinterpret_cast<const EagerDeoptInfo*>(
                 input_address(input_count() - 1)) -
             1);
@@ -501,7 +521,7 @@ class NodeBase : public ZoneObject {
   }
 
   EagerDeoptInfo* eager_deopt_info_address() {
-    DCHECK(properties().can_deopt());
+    DCHECK(properties().can_eager_deopt());
     return reinterpret_cast<EagerDeoptInfo*>(input_address(input_count() - 1)) -
            1;
   }
@@ -511,7 +531,7 @@ class NodeBase : public ZoneObject {
   static Derived* Allocate(Zone* zone, size_t input_count, Args&&... args) {
     const size_t size_before_node =
         input_count * sizeof(Input) +
-        (Derived::kProperties.can_deopt() ? sizeof(EagerDeoptInfo) : 0);
+        (Derived::kProperties.can_eager_deopt() ? sizeof(EagerDeoptInfo) : 0);
     const size_t size = size_before_node + sizeof(Derived);
     intptr_t raw_buffer =
         reinterpret_cast<intptr_t>(zone->Allocate<NodeWithInlineInputs>(size));
@@ -784,6 +804,14 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   static constexpr int kOperandIndex = 0;
   Input& operand_input() { return Node::input(kOperandIndex); }
   compiler::FeedbackSource feedback() const { return feedback_; }
+  LazyDeoptSafepoint* lazy_deopt() const {
+    DCHECK_NOT_NULL(lazy_deopt_);
+    return lazy_deopt_;
+  }
+  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
+    DCHECK_NULL(lazy_deopt_);
+    lazy_deopt_ = safepoint;
+  }
 
  protected:
   explicit UnaryWithFeedbackNode(uint32_t bitfield,
@@ -795,6 +823,7 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
   const compiler::FeedbackSource feedback_;
+  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
 };
 
 template <class Derived, Operation kOperation>
@@ -810,6 +839,14 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
   compiler::FeedbackSource feedback() const { return feedback_; }
+  LazyDeoptSafepoint* lazy_deopt() const {
+    DCHECK_NOT_NULL(lazy_deopt_);
+    return lazy_deopt_;
+  }
+  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
+    DCHECK_NULL(lazy_deopt_);
+    lazy_deopt_ = safepoint;
+  }
 
  protected:
   BinaryWithFeedbackNode(uint32_t bitfield,
@@ -821,6 +858,7 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
   const compiler::FeedbackSource feedback_;
+  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
 };
 
 #define DEF_OPERATION_NODE(Name, Super, OpName)                            \
@@ -934,7 +972,7 @@ class SoftDeopt : public FixedInputNodeT<0, SoftDeopt> {
  public:
   explicit SoftDeopt(uint32_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Deopt();
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -952,7 +990,7 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   // mark that to generate stack maps. Mark as call so we at least clear the
   // registers since we currently don't properly spill either.
   static constexpr OpProperties kProperties =
-      OpProperties::Deopt() | OpProperties::Call();
+      OpProperties::EagerDeopt() | OpProperties::Call();
 
   compiler::MapRef map() const { return map_; }
 
@@ -1025,6 +1063,14 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
 
   Input& context() { return input(0); }
   const compiler::NameRef& name() const { return name_; }
+  LazyDeoptSafepoint* lazy_deopt() const {
+    DCHECK_NOT_NULL(lazy_deopt_);
+    return lazy_deopt_;
+  }
+  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
+    DCHECK_NULL(lazy_deopt_);
+    lazy_deopt_ = safepoint;
+  }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1032,6 +1078,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
 
  private:
   const compiler::NameRef name_;
+  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
 };
 
 class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
@@ -1050,6 +1097,14 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   static constexpr int kObjectIndex = 1;
   Input& context() { return input(kContextIndex); }
   Input& object_input() { return input(kObjectIndex); }
+  LazyDeoptSafepoint* lazy_deopt() const {
+    DCHECK_NOT_NULL(lazy_deopt_);
+    return lazy_deopt_;
+  }
+  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
+    DCHECK_NULL(lazy_deopt_);
+    lazy_deopt_ = safepoint;
+  }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1057,6 +1112,7 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
 
  private:
   const compiler::NameRef name_;
+  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
 };
 
 class GapMove : public FixedInputNodeT<0, GapMove> {
@@ -1141,12 +1197,21 @@ class Call : public ValueNodeT<Call> {
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
   }
+  LazyDeoptSafepoint* lazy_deopt() const {
+    DCHECK_NOT_NULL(lazy_deopt_);
+    return lazy_deopt_;
+  }
+  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
+    DCHECK_NULL(lazy_deopt_);
+    lazy_deopt_ = safepoint;
+  }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
+  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
   ConvertReceiverMode receiver_mode_;
 };
 

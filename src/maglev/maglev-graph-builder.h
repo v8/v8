@@ -11,6 +11,7 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph.h"
@@ -133,10 +134,6 @@ class MaglevGraphBuilder {
     return node;
   }
 
-  template <Operation kOperation, typename... Args>
-  ValueNode* AddNewOperationNode(std::initializer_list<ValueNode*> inputs,
-                                 Args&&... args);
-
   template <typename NodeT, typename... Args>
   NodeT* AddNewNode(size_t input_count, Args&&... args) {
     return AddNode(
@@ -150,7 +147,7 @@ class MaglevGraphBuilder {
 
   template <typename NodeT, typename... Args>
   NodeT* CreateNewNode(Args&&... args) {
-    if constexpr (NodeT::kProperties.can_deopt()) {
+    if constexpr (NodeT::kProperties.can_eager_deopt()) {
       return Node::New<NodeT>(zone(), *compilation_unit_, GetCheckpoint(),
                               std::forward<Args>(args)...);
     } else {
@@ -175,8 +172,38 @@ class MaglevGraphBuilder {
                        operand_index, isolate())));
   }
 
-  void SetAccumulator(ValueNode* node) {
+  // For cases where we're setting the accumulator to a previously created node
+  // (e.g. moving an interpreter register to the accumulator).
+  // TODO(leszeks): Somehow DCHECK that this isn't a new node.
+  void SetAccumulatorToExistingNode(ValueNode* node) {
     current_interpreter_frame_.set_accumulator(node);
+  }
+
+  template <typename NodeT>
+  void SetAccumulatorToNewNode(NodeT* node) {
+    DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
+              node->properties().can_lazy_deopt());
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      node->AttachLazyDeopt(
+          GetLazyDeopt(interpreter::Register::virtual_accumulator()));
+    }
+    SetAccumulatorToExistingNode(node);
+  }
+
+  template <typename NodeT, typename... Args>
+  void SetAccumulatorToNewNode(std::initializer_list<ValueNode*> inputs,
+                               Args&&... args) {
+    NodeT* node = AddNewNode<NodeT>(inputs, args...);
+    SetAccumulatorToNewNode(node);
+  }
+
+  void SetAccumulatorToConstant(const compiler::ObjectRef& ref) {
+    if (ref.IsSmi()) {
+      return SetAccumulatorToNewNode<SmiConstant>({},
+                                                  Smi::FromInt(ref.AsSmi()));
+    }
+    // TODO(leszeks): Detect roots and use RootConstant.
+    SetAccumulatorToNewNode<Constant>({}, ref.AsHeapObject());
   }
 
   ValueNode* GetAccumulator() const {
@@ -210,6 +237,14 @@ class MaglevGraphBuilder {
   Checkpoint* GetCheckpoint() {
     EnsureCheckpoint();
     return latest_checkpoint_;
+  }
+
+  LazyDeoptSafepoint* GetLazyDeopt(interpreter::Register result_location) {
+    return zone()->New<LazyDeoptSafepoint>(
+        BytecodeOffset(iterator_.current_offset()),
+        zone()->New<CompactInterpreterFrameState>(
+            *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
+        result_location);
   }
 
   void MarkPossibleSideEffect() {
@@ -288,6 +323,8 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
+
+  void BuildPropertyCellAccess(const compiler::PropertyCellRef& property_cell);
 
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();

@@ -46,11 +46,13 @@ class MaglevCodeGenState {
     return deferred_code_;
   }
   void PushNonLazyDeopt(Checkpoint* info) { non_lazy_deopts_.push_back(info); }
-  void PushLazyDeopt(Checkpoint* info) { non_lazy_deopts_.push_back(info); }
-  const std::vector<Checkpoint*> non_lazy_deopts() const {
+  void PushLazyDeopt(LazyDeoptSafepoint* info) { lazy_deopts_.push_back(info); }
+  const std::vector<Checkpoint*>& non_lazy_deopts() const {
     return non_lazy_deopts_;
   }
-  const std::vector<Checkpoint*> lazy_deopts() const { return lazy_deopts_; }
+  const std::vector<LazyDeoptSafepoint*>& lazy_deopts() const {
+    return lazy_deopts_;
+  }
 
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
@@ -90,7 +92,7 @@ class MaglevCodeGenState {
   MacroAssembler masm_;
   std::vector<DeferredCodeInfo*> deferred_code_;
   std::vector<Checkpoint*> non_lazy_deopts_;
-  std::vector<Checkpoint*> lazy_deopts_;
+  std::vector<LazyDeoptSafepoint*> lazy_deopts_;
   int vreg_slots_ = 0;
 
   // Allow marking some codegen paths as unsupported, so that we can test maglev

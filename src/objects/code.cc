@@ -513,7 +513,9 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "compiler = "
      << (is_turbofanned()
              ? "turbofan"
-             : kind() == CodeKind::BASELINE ? "baseline" : "unknown")
+             : is_maglevved()
+                   ? "turbofan"
+                   : kind() == CodeKind::BASELINE ? "baseline" : "unknown")
      << "\n";
   os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 

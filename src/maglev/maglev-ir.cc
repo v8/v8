@@ -279,7 +279,7 @@ void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
 template <typename NodeT>
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
                       NodeT* node) {
-  STATIC_ASSERT(NodeT::kProperties.can_deopt());
+  STATIC_ASSERT(NodeT::kProperties.can_eager_deopt());
   EmitEagerDeoptIf(cond, code_gen_state, node->checkpoint());
 }
 
@@ -386,7 +386,7 @@ void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
                             const ProcessingState& state) {
-  UNREACHABLE();
+  __ Move(ToRegister(result()), object_.object());
 }
 void Constant::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {
@@ -766,6 +766,16 @@ void Call::GenerateCode(MaglevCodeGenState* code_gen_state,
     case ConvertReceiverMode::kAny:
       __ CallBuiltin(Builtin::kCall_ReceiverIsAny);
       break;
+  }
+
+  lazy_deopt()->deopting_call_return_pc = __ pc_offset_for_safepoint();
+  code_gen_state->PushLazyDeopt(lazy_deopt());
+
+  SafepointTableBuilder::Safepoint safepoint =
+      code_gen_state->safepoint_table_builder()->DefineSafepoint(
+          code_gen_state->masm());
+  for (int i = 0; i < code_gen_state->vreg_slots(); i++) {
+    safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(i));
   }
 }
 

@@ -766,7 +766,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     } else {
       status |= static_cast<int>(OptimizationStatus::kOptimized);
     }
-    if (code.is_turbofanned()) {
+    if (code.is_maglevved()) {
+      status |= static_cast<int>(OptimizationStatus::kMaglevved);
+    } else if (code.is_turbofanned()) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
   }

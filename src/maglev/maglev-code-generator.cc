@@ -9,6 +9,7 @@
 #include "src/codegen/safepoint-table.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/execution/frame-constants.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -50,6 +51,8 @@ class MaglevCodeGeneratingNodeProcessor {
     if (FLAG_maglev_break_on_entry) {
       __ int3();
     }
+
+    __ BailoutIfDeoptimized(rbx);
 
     __ EnterFrame(StackFrame::BASELINE);
 
@@ -359,7 +362,7 @@ class MaglevCodeGeneratorImpl final {
 
     __ RecordComment("-- Non-lazy deopts");
     for (Checkpoint* checkpoint : code_gen_state_.non_lazy_deopts()) {
-      EmitDeopt(checkpoint);
+      EmitEagerDeopt(checkpoint);
 
       __ bind(&checkpoint->deopt_entry_label);
       // TODO(leszeks): Add soft deopt entry.
@@ -369,17 +372,24 @@ class MaglevCodeGeneratorImpl final {
     }
 
     __ RecordComment("-- Lazy deopts");
-    for (Checkpoint* deopt_info : code_gen_state_.lazy_deopts()) {
-      EmitDeopt(deopt_info);
+    int last_updated_safepoint = 0;
+    for (LazyDeoptSafepoint* deopt_info : code_gen_state_.lazy_deopts()) {
+      EmitLazyDeopt(deopt_info);
 
       __ bind(&deopt_info->deopt_entry_label);
       __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, 0,
                                &deopt_info->deopt_entry_label,
                                DeoptimizeKind::kLazy, nullptr, nullptr);
+
+      last_updated_safepoint =
+          safepoint_table_builder_.UpdateDeoptimizationInfo(
+              deopt_info->deopting_call_return_pc,
+              deopt_info->deopt_entry_label.pos(), last_updated_safepoint,
+              deopt_info->deopt_index);
     }
   }
 
-  void EmitDeopt(Checkpoint* checkpoint) {
+  void EmitEagerDeopt(Checkpoint* checkpoint) {
     int frame_count = 1;
     int jsframe_count = 1;
     int update_feedback_count = 0;
@@ -388,12 +398,59 @@ class MaglevCodeGeneratorImpl final {
 
     // Returns are used for updating an accumulator or register after a lazy
     // deopt.
-    int return_offset = 0;
-    int return_count = 0;
+    const int return_offset = 0;
+    const int return_count = 0;
     translation_array_builder_.BeginInterpretedFrame(
         checkpoint->bytecode_position, kFunctionLiteralIndex,
         code_gen_state_.register_count(), return_offset, return_count);
 
+    EmitDeoptFrameValues(*code_gen_state_.compilation_unit(), checkpoint->state,
+                         interpreter::Register::invalid_value());
+  }
+
+  void EmitLazyDeopt(LazyDeoptSafepoint* safepoint) {
+    int frame_count = 1;
+    int jsframe_count = 1;
+    int update_feedback_count = 0;
+    safepoint->deopt_index = translation_array_builder_.BeginTranslation(
+        frame_count, jsframe_count, update_feedback_count);
+
+    // Return offsets are counted from the end of the translation frame, which
+    // is the array [parameters..., locals..., accumulator].
+    int return_offset;
+    if (safepoint->result_location ==
+        interpreter::Register::virtual_accumulator()) {
+      return_offset = 0;
+    } else if (safepoint->result_location.is_parameter()) {
+      // This is slightly tricky to reason about because of zero indexing and
+      // fence post errors. As an example, consider a frame with 2 locals and
+      // 2 parameters, where we want argument index 1 -- looking at the array
+      // in reverse order we have:
+      //   [acc, r1, r0, a1, a0]
+      //                  ^
+      // and this calculation gives, correctly:
+      //   2 + 2 - 1 = 3
+      return_offset = code_gen_state_.register_count() +
+                      code_gen_state_.parameter_count() -
+                      safepoint->result_location.ToParameterIndex();
+    } else {
+      return_offset =
+          code_gen_state_.register_count() - safepoint->result_location.index();
+    }
+    // TODO(leszeks): Support lazy deopts with multiple return values.
+    int return_count = 1;
+    translation_array_builder_.BeginInterpretedFrame(
+        safepoint->bytecode_position, kFunctionLiteralIndex,
+        code_gen_state_.register_count(), return_offset, return_count);
+
+    EmitDeoptFrameValues(*code_gen_state_.compilation_unit(), safepoint->state,
+                         safepoint->result_location);
+  }
+
+  void EmitDeoptFrameValues(
+      const MaglevCompilationUnit& compilation_unit,
+      const CompactInterpreterFrameState* checkpoint_state,
+      interpreter::Register result_location) {
     // Closure
     int closure_index = DeoptStackSlotIndexFromFPOffset(
         StandardFrameConstants::kFunctionOffset);
@@ -402,12 +459,16 @@ class MaglevCodeGeneratorImpl final {
     // Parameters
     {
       int i = 0;
-      checkpoint->state->ForEachParameter(
-          *code_gen_state_.compilation_unit(),
-          [&](ValueNode* value, interpreter::Register reg) {
+      checkpoint_state->ForEachParameter(
+          compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_EQ(reg.ToParameterIndex(), i);
-            translation_array_builder_.StoreStackSlot(
-                DeoptStackSlotFromStackSlot(value->spill_slot()));
+            if (reg != result_location) {
+              translation_array_builder_.StoreStackSlot(
+                  DeoptStackSlotFromStackSlot(value->spill_slot()));
+            } else {
+              translation_array_builder_.StoreLiteral(
+                  kOptimizedOutConstantIndex);
+            }
             i++;
           });
     }
@@ -420,10 +481,10 @@ class MaglevCodeGeneratorImpl final {
     // Locals
     {
       int i = 0;
-      checkpoint->state->ForEachLocal(
-          *code_gen_state_.compilation_unit(),
-          [&](ValueNode* value, interpreter::Register reg) {
+      checkpoint_state->ForEachLocal(
+          compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
+            if (reg == result_location) return;
             while (i < reg.index()) {
               translation_array_builder_.StoreLiteral(
                   kOptimizedOutConstantIndex);
@@ -442,16 +503,13 @@ class MaglevCodeGeneratorImpl final {
 
     // Accumulator
     {
-      // TODO(leszeks): Bit ugly to use a did_emit boolean here rather than
-      // explicitly checking for accumulator liveness.
-      bool did_emit = false;
-      checkpoint->state->ForAccumulator(
-          *code_gen_state_.compilation_unit(), [&](ValueNode* value) {
-            translation_array_builder_.StoreStackSlot(
-                DeoptStackSlotFromStackSlot(value->spill_slot()));
-            did_emit = true;
-          });
-      if (!did_emit) {
+      if (checkpoint_state->liveness()->AccumulatorIsLive() &&
+          result_location != interpreter::Register::virtual_accumulator()) {
+        ValueNode* value = checkpoint_state->accumulator(compilation_unit);
+        translation_array_builder_.StoreStackSlot(
+            DeoptStackSlotFromStackSlot(value->spill_slot()));
+
+      } else {
         translation_array_builder_.StoreLiteral(kOptimizedOutConstantIndex);
       }
     }
