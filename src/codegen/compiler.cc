@@ -1066,27 +1066,6 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   return true;
 }
 
-// Returns the code object at which execution continues after a concurrent
-// optimization job has been started (but not finished).
-MaybeHandle<CodeT> ContinuationForConcurrentOptimization(
-    Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset) {
-  if (IsOSR(osr_offset)) {
-    // OSR tierup differs from plain tierup in that we don't simply continue
-    // execution at the returned code. Instead, we must signal unavailability
-    // of OSR'd code by returning the empty handle.
-    return {};
-  }
-
-  DCHECK(!IsOSR(osr_offset));
-  if (function->shared().HasBaselineCode()) {
-    CodeT baseline_code = function->shared().baseline_code(kAcquireLoad);
-    function->set_code(baseline_code);
-    return handle(baseline_code, isolate);
-  }
-  DCHECK(function->ActiveTierIsIgnition());
-  return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
-}
-
 enum class CompileResultBehavior {
   // Default behavior, i.e. install the result, insert into caches, etc.
   kDefault,
@@ -1136,10 +1115,7 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
 
   // Prepare the job and launch concurrent compilation, or compile now.
   if (IsConcurrent(mode)) {
-    if (CompileTurbofan_Concurrent(isolate, std::move(job))) {
-      return ContinuationForConcurrentOptimization(isolate, function,
-                                                   osr_offset);
-    }
+    if (CompileTurbofan_Concurrent(isolate, std::move(job))) return {};
   } else {
     DCHECK(IsSynchronous(mode));
     if (CompileTurbofan_NotConcurrent(isolate, job.get())) {
@@ -1192,8 +1168,7 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   // Remember that the function is currently being processed.
   SetTieringState(*function, osr_offset, TieringState::kInProgress);
 
-  // The code that triggered optimization continues execution here.
-  return ContinuationForConcurrentOptimization(isolate, function, osr_offset);
+  return {};
 #else   // V8_ENABLE_MAGLEV
   UNREACHABLE();
 #endif  // V8_ENABLE_MAGLEV
@@ -2256,26 +2231,15 @@ void Compiler::CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   }
 
   Handle<CodeT> code;
-  if (!GetOrCompileOptimized(isolate, function, mode, code_kind)
-           .ToHandle(&code)) {
-    // Optimization failed, get the existing code. We could have optimized code
-    // from a lower tier here. Unoptimized code must exist already if we are
-    // optimizing.
-    DCHECK(!isolate->has_pending_exception());
-    DCHECK(function->shared().is_compiled());
-    DCHECK(function->shared().HasBytecodeArray());
-    code = ContinuationForConcurrentOptimization(isolate, function,
-                                                 BytecodeOffset::None())
-               .ToHandleChecked();
+  if (GetOrCompileOptimized(isolate, function, mode, code_kind)
+          .ToHandle(&code)) {
+    function->set_code(*code, kReleaseStore);
   }
 
-  function->set_code(*code, kReleaseStore);
-
 #ifdef DEBUG
-  // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
-  DCHECK(function->shared().is_compiled());
   DCHECK(function->is_compiled());
+  DCHECK(function->shared().HasBytecodeArray());
   const TieringState tiering_state = function->tiering_state();
   DCHECK(IsNone(tiering_state) || IsInProgress(tiering_state));
   DCHECK_IMPLIES(IsInProgress(tiering_state), function->ChecksTieringState());

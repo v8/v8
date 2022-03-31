@@ -31,6 +31,11 @@ namespace {
 
 Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
                         CodeKind target_kind, ConcurrencyMode mode) {
+  // As a pre- and post-condition of CompileOptimized, the function *must* be
+  // compiled, i.e. the installed Code object must not be CompileLazy.
+  IsCompiledScope is_compiled_scope(function->shared(), isolate);
+  DCHECK(is_compiled_scope.is_compiled());
+
   StackLimitCheck check(isolate);
   // Concurrent optimization runs on another thread, thus no additional gap.
   const int gap =
@@ -39,8 +44,6 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
 
   Compiler::CompileOptimized(isolate, function, mode, target_kind);
 
-  // As a post-condition of CompileOptimized, the function *must* be compiled,
-  // i.e. the installed Code object must not be the CompileLazy builtin.
   DCHECK(function->is_compiled());
   return function->code();
 }

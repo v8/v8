@@ -129,6 +129,10 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // If feedback cell isn't initialized, compile function
   GotoIf(IsUndefined(feedback_cell_value), &compile_function);
 
+  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
+                                                isolate(), CompileLazy))));
+  StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
+
   Label maybe_use_sfi_code(this);
   // If there is no feedback, don't check for optimized code.
   GotoIf(HasInstanceType(feedback_cell_value, CLOSURE_FEEDBACK_CELL_ARRAY_TYPE),
@@ -145,13 +149,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // optimized Code object (we'd have tail-called it above). A usual case would
   // be the InterpreterEntryTrampoline to start executing existing bytecode.
   BIND(&maybe_use_sfi_code);
-  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
-                                                isolate(), CompileLazy))));
-  StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
-
-  Label tailcall_code(this);
-  Label baseline(this);
-
+  Label tailcall_code(this), baseline(this);
   TVARIABLE(CodeT, code);
 
   // Check if we have baseline code.
@@ -170,8 +168,8 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
                                 function));
       });
   Goto(&tailcall_code);
+
   BIND(&tailcall_code);
-  // Jump to the selected code entry.
   GenerateTailCallToJSCode(code.value(), function);
 
   BIND(&compile_function);
