@@ -156,8 +156,7 @@ bool HaveCachedOSRCodeForCurrentBytecodeOffset(UnoptimizedFrame* frame,
   BytecodeArray bytecode = frame->GetBytecodeArray();
   const int bytecode_offset = frame->GetBytecodeOffset();
   if (V8_UNLIKELY(function.shared().osr_code_cache_state() != kNotCached)) {
-    OSROptimizedCodeCache cache =
-        function.native_context().GetOSROptimizedCodeCache();
+    OSROptimizedCodeCache cache = function.native_context().osr_code_cache();
     interpreter::BytecodeArrayIterator iterator(
         handle(bytecode, frame->isolate()));
     for (int jump_offset : cache.GetBytecodeOffsetsFromSFI(function.shared())) {

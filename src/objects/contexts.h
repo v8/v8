@@ -369,7 +369,7 @@ enum ContextLookupFlags {
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
   V(RETAINED_MAPS, Object, retained_maps)                                      \
-  V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)
+  V(OSR_CODE_CACHE_INDEX, OSROptimizedCodeCache, osr_code_cache)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
 
@@ -776,8 +776,6 @@ class NativeContext : public Context {
   inline Object OptimizedCodeListHead();
   inline void SetDeoptimizedCodeListHead(Object head);
   inline Object DeoptimizedCodeListHead();
-
-  inline OSROptimizedCodeCache GetOSROptimizedCodeCache();
 
   void ResetErrorsThrown();
   void IncrementErrorsThrown();
