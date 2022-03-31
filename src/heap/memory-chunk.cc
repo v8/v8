@@ -138,6 +138,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                                        nullptr);
   invalidated_slots_[OLD_TO_NEW] = nullptr;
   invalidated_slots_[OLD_TO_OLD] = nullptr;
+  invalidated_slots_[OLD_TO_SHARED] = nullptr;
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // Not actually used but initialize anyway for predictability.
     invalidated_slots_[OLD_TO_CODE] = nullptr;
