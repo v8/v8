@@ -76,7 +76,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #else
   base::CPU cpu;
   if (cpu.part() == base::CPU::kPPCPower10) {
+// IBMi does not yet support prefixed instructions introduced on Power10.
+// Run on P9 mode until OS adds support.
+#if defined(__PASE__)
+    supported_ |= (1u << PPC_9_PLUS);
+#else
     supported_ |= (1u << PPC_10_PLUS);
+#endif
   } else if (cpu.part() == base::CPU::kPPCPower9) {
     supported_ |= (1u << PPC_9_PLUS);
   } else if (cpu.part() == base::CPU::kPPCPower8) {
