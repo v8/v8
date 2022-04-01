@@ -164,10 +164,10 @@ struct CopyForDeferredHelper<const InterpreterFrameState*> {
         *compilation_unit, *frame_state);
   }
 };
-// Checkpoint is copied by value.
+// EagerDeoptInfo pointers are copied by value.
 template <>
-struct CopyForDeferredHelper<Checkpoint*>
-    : public CopyForDeferredByValue<Checkpoint*> {};
+struct CopyForDeferredHelper<EagerDeoptInfo*>
+    : public CopyForDeferredByValue<EagerDeoptInfo*> {};
 
 template <typename T>
 T CopyForDeferred(MaglevCompilationUnit* compilation_unit, T&& value) {
@@ -262,25 +262,25 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
 // Deopt
 // ---
 
-void RegisterEagerDeoptCheckpoint(MaglevCodeGenState* code_gen_state,
-                                  Checkpoint* checkpoint) {
-  if (checkpoint->deopt_entry_label.is_unused()) {
-    code_gen_state->PushNonLazyDeopt(checkpoint);
+void RegisterEagerDeopt(MaglevCodeGenState* code_gen_state,
+                        EagerDeoptInfo* deopt_info) {
+  if (deopt_info->deopt_entry_label.is_unused()) {
+    code_gen_state->PushEagerDeopt(deopt_info);
   }
 }
 
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
-                      Checkpoint* checkpoint) {
-  RegisterEagerDeoptCheckpoint(code_gen_state, checkpoint);
+                      EagerDeoptInfo* deopt_info) {
+  RegisterEagerDeopt(code_gen_state, deopt_info);
   __ RecordComment("-- Jump to eager deopt");
-  __ j(cond, &checkpoint->deopt_entry_label);
+  __ j(cond, &deopt_info->deopt_entry_label);
 }
 
 template <typename NodeT>
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
                       NodeT* node) {
   STATIC_ASSERT(NodeT::kProperties.can_eager_deopt());
-  EmitEagerDeoptIf(cond, code_gen_state, node->checkpoint());
+  EmitEagerDeoptIf(cond, code_gen_state, node->eager_deopt_info());
 }
 
 // ---
@@ -349,12 +349,11 @@ void NodeBase::Print(std::ostream& os,
   UNREACHABLE();
 }
 
-EagerDeoptInfo::EagerDeoptInfo(Zone* zone,
-                               const MaglevCompilationUnit& compilation_unit,
-                               Checkpoint* checkpoint)
-    : checkpoint(checkpoint),
+DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
+                     CheckpointedInterpreterState state)
+    : state(state),
       input_locations(zone->NewArray<InputLocation>(
-          checkpoint->state->size(compilation_unit))) {}
+          state.register_frame->size(compilation_unit))) {}
 
 // ---
 // Nodes
@@ -490,16 +489,16 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
     JumpToDeferredIf(
         not_equal, code_gen_state,
         [](MaglevCodeGenState* code_gen_state, Label* return_label,
-           Register object, CheckMaps* node, Checkpoint* checkpoint,
+           Register object, CheckMaps* node, EagerDeoptInfo* deopt_info,
            Register map_tmp) {
-          RegisterEagerDeoptCheckpoint(code_gen_state, checkpoint);
+          RegisterEagerDeopt(code_gen_state, deopt_info);
 
           // If the map is not deprecated, deopt straight away.
           __ movl(kScratchRegister,
                   FieldOperand(map_tmp, Map::kBitField3Offset));
           __ testl(kScratchRegister,
                    Immediate(Map::Bits3::IsDeprecatedBit::kMask));
-          __ j(zero, &checkpoint->deopt_entry_label);
+          __ j(zero, &deopt_info->deopt_entry_label);
 
           // Otherwise, try migrating the object. If the migration returns Smi
           // zero, then it failed and we should deopt.
@@ -509,16 +508,16 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
           // TODO(verwaest): We're calling so we need to spill around it.
           __ CallRuntime(Runtime::kTryMigrateInstance);
           __ cmpl(kReturnRegister0, Immediate(0));
-          __ j(equal, &checkpoint->deopt_entry_label);
+          __ j(equal, &deopt_info->deopt_entry_label);
 
           // The migrated object is returned on success, retry the map check.
           __ Move(object, kReturnRegister0);
           __ LoadMap(map_tmp, object);
           __ Cmp(map_tmp, node->map().object());
           __ j(equal, return_label);
-          __ jmp(&checkpoint->deopt_entry_label);
+          __ jmp(&deopt_info->deopt_entry_label);
         },
-        object, this, checkpoint(), map_tmp);
+        object, this, eager_deopt_info(), map_tmp);
   } else {
     EmitEagerDeoptIf(not_equal, code_gen_state, this);
   }

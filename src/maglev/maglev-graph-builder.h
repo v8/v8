@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "src/base/optional.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
@@ -148,7 +149,8 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* CreateNewNode(Args&&... args) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      return Node::New<NodeT>(zone(), *compilation_unit_, GetCheckpoint(),
+      return Node::New<NodeT>(zone(), *compilation_unit_,
+                              GetLatestCheckpointedState(),
                               std::forward<Args>(args)...);
     } else {
       return Node::New<NodeT>(zone(), std::forward<Args>(args)...);
@@ -185,7 +187,7 @@ class MaglevGraphBuilder {
               node->properties().can_lazy_deopt());
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       node->AttachLazyDeopt(
-          GetLazyDeopt(interpreter::Register::virtual_accumulator()));
+          GetLazyDeoptInfo(interpreter::Register::virtual_accumulator()));
     }
     SetAccumulatorToExistingNode(node);
   }
@@ -223,33 +225,29 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(target, value);
   }
 
-  void AddCheckpoint() {
-    latest_checkpoint_ = zone()->New<Checkpoint>(
-        BytecodeOffset(iterator_.current_offset()),
-        zone()->New<CompactInterpreterFrameState>(
-            *compilation_unit_, GetInLiveness(), current_interpreter_frame_));
+  CheckpointedInterpreterState GetLatestCheckpointedState() {
+    if (!latest_checkpointed_state_) {
+      latest_checkpointed_state_.emplace(
+          BytecodeOffset(iterator_.current_offset()),
+          zone()->New<CompactInterpreterFrameState>(
+              *compilation_unit_, GetInLiveness(), current_interpreter_frame_));
+    }
+    return *latest_checkpointed_state_;
   }
 
-  void EnsureCheckpoint() {
-    if (!latest_checkpoint_) AddCheckpoint();
-  }
-
-  Checkpoint* GetCheckpoint() {
-    EnsureCheckpoint();
-    return latest_checkpoint_;
-  }
-
-  LazyDeoptSafepoint* GetLazyDeopt(interpreter::Register result_location) {
-    return zone()->New<LazyDeoptSafepoint>(
-        BytecodeOffset(iterator_.current_offset()),
-        zone()->New<CompactInterpreterFrameState>(
-            *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
+  LazyDeoptInfo GetLazyDeoptInfo(interpreter::Register result_location) {
+    return LazyDeoptInfo(
+        zone(), *compilation_unit_,
+        CheckpointedInterpreterState(BytecodeOffset(iterator_.current_offset()),
+                                     zone()->New<CompactInterpreterFrameState>(
+                                         *compilation_unit_, GetOutLiveness(),
+                                         current_interpreter_frame_)),
         result_location);
   }
 
   void MarkPossibleSideEffect() {
     // If there was a potential side effect, invalidate the previous checkpoint.
-    latest_checkpoint_ = nullptr;
+    latest_checkpointed_state_.reset();
   }
 
   int next_offset() const {
@@ -303,7 +301,7 @@ class MaglevGraphBuilder {
     // If the next block has merge states, then it's not a simple fallthrough,
     // and we should reset the checkpoint validity.
     if (merge_states_[next_block_offset] != nullptr) {
-      latest_checkpoint_ = nullptr;
+      latest_checkpointed_state_.reset();
     }
     // Start a new block for the fallthrough path, unless it's a merge point, in
     // which case we merge our state into it. That merge-point could also be a
@@ -405,7 +403,7 @@ class MaglevGraphBuilder {
   // Current block information.
   BasicBlock* current_block_ = nullptr;
   int block_offset_ = 0;
-  Checkpoint* latest_checkpoint_ = nullptr;
+  base::Optional<CheckpointedInterpreterState> latest_checkpointed_state_;
 
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;

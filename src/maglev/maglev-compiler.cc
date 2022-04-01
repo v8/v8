@@ -107,12 +107,12 @@ class UseMarkingProcessor {
   void MarkCheckpointNodes(NodeBase* node,
                            const EagerDeoptInfo* eager_deopt_info,
                            const ProcessingState& state) {
-    const CompactInterpreterFrameState* checkpoint_state =
-        eager_deopt_info->checkpoint->state;
+    const CompactInterpreterFrameState* register_frame =
+        eager_deopt_info->state.register_frame;
     int use_id = node->id();
     int index = 0;
 
-    checkpoint_state->ForEachValue(
+    register_frame->ForEachValue(
         *state.compilation_unit(),
         [&](ValueNode* node, interpreter::Register reg) {
           node->mark_use(use_id, &eager_deopt_info->input_locations[index++]);

@@ -325,7 +325,7 @@ void StraightForwardRegisterAllocator::UpdateUse(
 void StraightForwardRegisterAllocator::UpdateUse(
     const EagerDeoptInfo& eager_deopt_info) {
   const CompactInterpreterFrameState* checkpoint_state =
-      eager_deopt_info.checkpoint->state;
+      eager_deopt_info.state.register_frame;
   int index = 0;
   checkpoint_state->ForEachValue(
       *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {

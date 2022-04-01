@@ -311,10 +311,10 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, 0);
 
-  Checkpoint* checkpoint = node->checkpoint();
-  os << "  ↱ eager: {";
+  EagerDeoptInfo* deopt_info = node->eager_deopt_info();
+  os << "  ↱ eager @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
-  checkpoint->state->ForEachValue(
+  deopt_info->state.register_frame->ForEachValue(
       *state.compilation_unit(),
       [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
@@ -348,10 +348,10 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, 0);
 
-  LazyDeoptSafepoint* safepoint = node->lazy_deopt();
-  os << "  ↳ lazy: {";
+  LazyDeoptInfo* deopt_info = node->lazy_deopt();
+  os << "  ↳ lazy @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
-  safepoint->state->ForEachValue(
+  deopt_info->state.register_frame->ForEachValue(
       *state.compilation_unit(),
       [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
@@ -360,7 +360,7 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
           os << ", ";
         }
         os << reg.ToString() << ":";
-        if (reg == safepoint->result_location) {
+        if (reg == deopt_info->result_location) {
           os << "<result>";
         } else {
           os << PrintNodeLabel(graph_labeller, node);

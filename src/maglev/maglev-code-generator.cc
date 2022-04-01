@@ -361,19 +361,19 @@ class MaglevCodeGeneratorImpl final {
     deopt_exit_start_offset_ = __ pc_offset();
 
     __ RecordComment("-- Non-lazy deopts");
-    for (Checkpoint* checkpoint : code_gen_state_.non_lazy_deopts()) {
-      EmitEagerDeopt(checkpoint);
+    for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
+      EmitEagerDeopt(deopt_info);
 
-      __ bind(&checkpoint->deopt_entry_label);
+      __ bind(&deopt_info->deopt_entry_label);
       // TODO(leszeks): Add soft deopt entry.
       __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, 0,
-                               &checkpoint->deopt_entry_label,
+                               &deopt_info->deopt_entry_label,
                                DeoptimizeKind::kEager, nullptr, nullptr);
     }
 
     __ RecordComment("-- Lazy deopts");
     int last_updated_safepoint = 0;
-    for (LazyDeoptSafepoint* deopt_info : code_gen_state_.lazy_deopts()) {
+    for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
       EmitLazyDeopt(deopt_info);
 
       __ bind(&deopt_info->deopt_entry_label);
@@ -389,11 +389,11 @@ class MaglevCodeGeneratorImpl final {
     }
   }
 
-  void EmitEagerDeopt(Checkpoint* checkpoint) {
+  void EmitEagerDeopt(EagerDeoptInfo* deopt_info) {
     int frame_count = 1;
     int jsframe_count = 1;
     int update_feedback_count = 0;
-    checkpoint->deopt_index = translation_array_builder_.BeginTranslation(
+    deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
         frame_count, jsframe_count, update_feedback_count);
 
     // Returns are used for updating an accumulator or register after a lazy
@@ -401,27 +401,28 @@ class MaglevCodeGeneratorImpl final {
     const int return_offset = 0;
     const int return_count = 0;
     translation_array_builder_.BeginInterpretedFrame(
-        checkpoint->bytecode_position, kFunctionLiteralIndex,
+        deopt_info->state.bytecode_position, kFunctionLiteralIndex,
         code_gen_state_.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(*code_gen_state_.compilation_unit(), checkpoint->state,
+    EmitDeoptFrameValues(*code_gen_state_.compilation_unit(),
+                         deopt_info->state.register_frame,
                          interpreter::Register::invalid_value());
   }
 
-  void EmitLazyDeopt(LazyDeoptSafepoint* safepoint) {
+  void EmitLazyDeopt(LazyDeoptInfo* deopt_info) {
     int frame_count = 1;
     int jsframe_count = 1;
     int update_feedback_count = 0;
-    safepoint->deopt_index = translation_array_builder_.BeginTranslation(
+    deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
         frame_count, jsframe_count, update_feedback_count);
 
     // Return offsets are counted from the end of the translation frame, which
     // is the array [parameters..., locals..., accumulator].
     int return_offset;
-    if (safepoint->result_location ==
+    if (deopt_info->result_location ==
         interpreter::Register::virtual_accumulator()) {
       return_offset = 0;
-    } else if (safepoint->result_location.is_parameter()) {
+    } else if (deopt_info->result_location.is_parameter()) {
       // This is slightly tricky to reason about because of zero indexing and
       // fence post errors. As an example, consider a frame with 2 locals and
       // 2 parameters, where we want argument index 1 -- looking at the array
@@ -432,19 +433,20 @@ class MaglevCodeGeneratorImpl final {
       //   2 + 2 - 1 = 3
       return_offset = code_gen_state_.register_count() +
                       code_gen_state_.parameter_count() -
-                      safepoint->result_location.ToParameterIndex();
+                      deopt_info->result_location.ToParameterIndex();
     } else {
-      return_offset =
-          code_gen_state_.register_count() - safepoint->result_location.index();
+      return_offset = code_gen_state_.register_count() -
+                      deopt_info->result_location.index();
     }
     // TODO(leszeks): Support lazy deopts with multiple return values.
     int return_count = 1;
     translation_array_builder_.BeginInterpretedFrame(
-        safepoint->bytecode_position, kFunctionLiteralIndex,
+        deopt_info->state.bytecode_position, kFunctionLiteralIndex,
         code_gen_state_.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(*code_gen_state_.compilation_unit(), safepoint->state,
-                         safepoint->result_location);
+    EmitDeoptFrameValues(*code_gen_state_.compilation_unit(),
+                         deopt_info->state.register_frame,
+                         deopt_info->result_location);
   }
 
   void EmitDeoptFrameValues(
@@ -536,7 +538,7 @@ class MaglevCodeGeneratorImpl final {
 
   Handle<DeoptimizationData> GenerateDeoptimizationData() {
     int non_lazy_deopt_count =
-        static_cast<int>(code_gen_state_.non_lazy_deopts().size());
+        static_cast<int>(code_gen_state_.eager_deopts().size());
     int lazy_deopt_count =
         static_cast<int>(code_gen_state_.lazy_deopts().size());
     int deopt_count = lazy_deopt_count + non_lazy_deopt_count;
@@ -584,21 +586,21 @@ class MaglevCodeGeneratorImpl final {
 
     // Populate deoptimization entries.
     int i = 0;
-    for (Checkpoint* checkpoint : code_gen_state_.non_lazy_deopts()) {
-      DCHECK_NE(checkpoint->deopt_index, -1);
-      data->SetBytecodeOffset(i, checkpoint->bytecode_position);
-      data->SetTranslationIndex(i, Smi::FromInt(checkpoint->deopt_index));
-      data->SetPc(i, Smi::FromInt(checkpoint->deopt_entry_label.pos()));
+    for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
+      DCHECK_NE(deopt_info->deopt_index, -1);
+      data->SetBytecodeOffset(i, deopt_info->state.bytecode_position);
+      data->SetTranslationIndex(i, Smi::FromInt(deopt_info->deopt_index));
+      data->SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label.pos()));
 #ifdef DEBUG
       data->SetNodeId(i, Smi::FromInt(i));
 #endif  // DEBUG
       i++;
     }
-    for (Checkpoint* checkpoint : code_gen_state_.lazy_deopts()) {
-      DCHECK_NE(checkpoint->deopt_index, -1);
-      data->SetBytecodeOffset(i, checkpoint->bytecode_position);
-      data->SetTranslationIndex(i, Smi::FromInt(checkpoint->deopt_index));
-      data->SetPc(i, Smi::FromInt(checkpoint->deopt_entry_label.pos()));
+    for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
+      DCHECK_NE(deopt_info->deopt_index, -1);
+      data->SetBytecodeOffset(i, deopt_info->state.bytecode_position);
+      data->SetTranslationIndex(i, Smi::FromInt(deopt_info->deopt_index));
+      data->SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label.pos()));
 #ifdef DEBUG
       data->SetNodeId(i, Smi::FromInt(i));
 #endif  // DEBUG

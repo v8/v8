@@ -19,6 +19,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -301,37 +302,50 @@ class Input : public InputLocation {
   ValueNode* node_;
 };
 
-class Checkpoint : public ZoneObject {
+class CheckpointedInterpreterState {
  public:
-  Checkpoint(BytecodeOffset bytecode_position,
-             const CompactInterpreterFrameState* state)
-      : bytecode_position(bytecode_position), state(state) {}
+  CheckpointedInterpreterState() = default;
+  CheckpointedInterpreterState(BytecodeOffset bytecode_position,
+                               const CompactInterpreterFrameState* state)
+      : bytecode_position(bytecode_position), register_frame(state) {}
 
-  const BytecodeOffset bytecode_position;
-  const CompactInterpreterFrameState* const state;
+  BytecodeOffset bytecode_position = BytecodeOffset::None();
+  const CompactInterpreterFrameState* register_frame = nullptr;
+};
+
+class DeoptInfo {
+ protected:
+  DeoptInfo() = default;
+  DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
+            CheckpointedInterpreterState checkpoint);
+
+ public:
+  CheckpointedInterpreterState state;
+  InputLocation* input_locations = nullptr;
   Label deopt_entry_label;
   int deopt_index = -1;
 };
 
-class EagerDeoptInfo {
+class EagerDeoptInfo : public DeoptInfo {
  public:
-  EagerDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit_,
-                 Checkpoint* checkpoint);
+  EagerDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
+                 CheckpointedInterpreterState checkpoint)
+      : DeoptInfo(zone, compilation_unit, checkpoint) {}
 
-  Checkpoint* const checkpoint;
-  InputLocation* const input_locations;
+  EagerDeoptInfo() = delete;
 };
 
-class LazyDeoptSafepoint : public Checkpoint {
+class LazyDeoptInfo : public DeoptInfo {
  public:
-  LazyDeoptSafepoint(BytecodeOffset bytecode_position,
-                     const CompactInterpreterFrameState* state,
-                     interpreter::Register result_location)
-      : Checkpoint(bytecode_position, state),
+  LazyDeoptInfo() = default;
+  LazyDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
+                CheckpointedInterpreterState checkpoint,
+                interpreter::Register result_location)
+      : DeoptInfo(zone, compilation_unit, checkpoint),
         result_location(result_location) {}
 
   int deopting_call_return_pc = -1;
-  const interpreter::Register result_location;
+  interpreter::Register result_location;
 };
 
 // Dummy type for the initial raw allocation.
@@ -354,17 +368,17 @@ NODE_BASE_LIST(DEF_OPCODE_OF)
 
 class LazyDeoptMixin {
  public:
-  LazyDeoptSafepoint* lazy_deopt() const {
-    DCHECK_NOT_NULL(lazy_deopt_);
-    return lazy_deopt_;
+  LazyDeoptInfo* lazy_deopt() {
+    DCHECK_NOT_NULL(lazy_deopt_.state.register_frame);
+    return &lazy_deopt_;
   }
-  void AttachLazyDeopt(LazyDeoptSafepoint* safepoint) {
-    DCHECK_NULL(lazy_deopt_);
-    lazy_deopt_ = safepoint;
+  void AttachLazyDeopt(LazyDeoptInfo&& lazy_deopt) {
+    DCHECK_NULL(lazy_deopt_.state.register_frame);
+    lazy_deopt_ = std::move(lazy_deopt);
   }
 
  private:
-  LazyDeoptSafepoint* lazy_deopt_ = nullptr;
+  LazyDeoptInfo lazy_deopt_;
 };
 
 }  // namespace detail
@@ -404,7 +418,7 @@ class NodeBase : public ZoneObject {
 
   template <class Derived, typename... Args>
   static Derived* New(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                      Checkpoint* checkpoint, Args&&... args) {
+                      CheckpointedInterpreterState checkpoint, Args&&... args) {
     Derived* node = New<Derived>(zone, std::forward<Args>(args)...);
     new (node->eager_deopt_info_address())
         EagerDeoptInfo(zone, compilation_unit, checkpoint);
@@ -501,14 +515,19 @@ class NodeBase : public ZoneObject {
 
   void Print(std::ostream& os, MaglevGraphLabeller*) const;
 
+  EagerDeoptInfo* eager_deopt_info() {
+    DCHECK(properties().can_eager_deopt());
+    return (
+        reinterpret_cast<EagerDeoptInfo*>(input_address(input_count() - 1)) -
+        1);
+  }
+
   const EagerDeoptInfo* eager_deopt_info() const {
     DCHECK(properties().can_eager_deopt());
     return (reinterpret_cast<const EagerDeoptInfo*>(
                 input_address(input_count() - 1)) -
             1);
   }
-
-  Checkpoint* checkpoint() const { return eager_deopt_info()->checkpoint; }
 
  protected:
   explicit NodeBase(uint32_t bitfield) : bit_field_(bitfield) {}
