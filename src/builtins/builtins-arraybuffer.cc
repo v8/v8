@@ -416,7 +416,7 @@ static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
   // [GSAB] Let hostHandled be ? HostGrowArrayBuffer(O, newByteLength).
   // If hostHandled is handled, return undefined.
 
-  // TODO(v8:11111): Wasm integration.
+  // TODO(v8:11111, v8:12746): Wasm integration.
 
   if (!is_shared) {
     // [RAB] Let oldBlock be O.[[ArrayBufferData]].
