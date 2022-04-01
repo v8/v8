@@ -3456,9 +3456,18 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
           if (can_define.IsNothing() || !can_define.FromJust()) {
             return can_define;
           }
-          it->Restart();
         }
-        break;
+
+        // The interceptor declined to handle the operation, so proceed defining
+        // own property without the interceptor.
+        Isolate* isolate = it->isolate();
+        Handle<Object> receiver = it->GetReceiver();
+        LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
+        LookupIterator own_lookup =
+            it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
+                            : LookupIterator(isolate, receiver, it->name(), c);
+        return JSObject::DefineOwnPropertyIgnoreAttributes(
+            &own_lookup, value, attributes, should_throw, handling, semantics);
       }
 
       case LookupIterator::ACCESSOR: {
