@@ -903,8 +903,9 @@ class OptimizedCodeCache : public AllStatic {
     CodeT code;
     if (IsOSR(osr_offset)) {
       // For OSR, check the OSR optimized code cache.
-      code = function->native_context().osr_code_cache().TryGet(
-          shared, osr_offset, isolate);
+      code = function->native_context()
+                 .GetOSROptimizedCodeCache()
+                 .GetOptimizedCode(shared, osr_offset, isolate);
     } else {
       // Non-OSR code may be cached on the feedback vector.
       if (function->has_feedback_vector()) {
@@ -942,8 +943,8 @@ class OptimizedCodeCache : public AllStatic {
       DCHECK(CodeKindCanOSR(kind));
       Handle<SharedFunctionInfo> shared(function->shared(), isolate);
       Handle<NativeContext> native_context(function->native_context(), isolate);
-      OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
-                                    osr_offset);
+      OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
+                                              osr_offset);
       return;
     }
 

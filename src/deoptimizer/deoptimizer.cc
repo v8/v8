@@ -377,7 +377,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
     isolate->heap()->InvalidateCodeDeoptimizationData(code);
   }
 
-  native_context.osr_code_cache().EvictDeoptimizedCode(isolate);
+  native_context.GetOSROptimizedCodeCache().EvictMarkedCode(
+      native_context.GetIsolate());
 }
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
@@ -392,7 +393,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   while (!context.IsUndefined(isolate)) {
     NativeContext native_context = NativeContext::cast(context);
     MarkAllCodeForContext(native_context);
-    OSROptimizedCodeCache::Clear(isolate, native_context);
+    OSROptimizedCodeCache::Clear(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context.next_context_link();
   }
@@ -451,7 +452,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
     // pointers. Update DeoptimizeMarkedCodeForContext to use handles and remove
     // this call from here.
     OSROptimizedCodeCache::Compact(
-        isolate, Handle<NativeContext>(function.native_context(), isolate));
+        Handle<NativeContext>(function.native_context(), isolate));
   }
 }
 
