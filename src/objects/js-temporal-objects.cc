@@ -1590,6 +1590,7 @@ MaybeHandle<T> FromFields(Isolate* isolate, Handle<JSReceiver> calendar,
   return Handle<T>::cast(result);
 }
 
+// #sec-temporal-datefromfields
 MaybeHandle<JSTemporalPlainDate> DateFromFields(Isolate* isolate,
                                                 Handle<JSReceiver> calendar,
                                                 Handle<JSReceiver> fields,
@@ -1597,6 +1598,26 @@ MaybeHandle<JSTemporalPlainDate> DateFromFields(Isolate* isolate,
   return FromFields<JSTemporalPlainDate>(
       isolate, calendar, fields, options,
       isolate->factory()->dateFromFields_string(), JS_TEMPORAL_PLAIN_DATE_TYPE);
+}
+
+// #sec-temporal-yearmonthfromfields
+MaybeHandle<JSTemporalPlainYearMonth> YearMonthFromFields(
+    Isolate* isolate, Handle<JSReceiver> calendar, Handle<JSReceiver> fields,
+    Handle<Object> options) {
+  return FromFields<JSTemporalPlainYearMonth>(
+      isolate, calendar, fields, options,
+      isolate->factory()->yearMonthFromFields_string(),
+      JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE);
+}
+
+// #sec-temporal-monthdayfromfields
+MaybeHandle<JSTemporalPlainMonthDay> MonthDayFromFields(
+    Isolate* isolate, Handle<JSReceiver> calendar, Handle<JSReceiver> fields,
+    Handle<Object> options) {
+  return FromFields<JSTemporalPlainMonthDay>(
+      isolate, calendar, fields, options,
+      isolate->factory()->monthDayFromFields_string(),
+      JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE);
 }
 
 // IMPL_FROM_FIELDS_ABSTRACT_OPERATION(Date, date, JS_TEMPORAL_PLAIN_DATE_TYPE)
@@ -5797,11 +5818,81 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithTimeZone(
 
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // timeZone, zonedDateTime.[[Calendar]]).
-  Handle<BigInt> nanoseconds =
-      Handle<BigInt>(zoned_date_time->nanoseconds(), isolate);
-  Handle<JSReceiver> calendar =
-      Handle<JSReceiver>(zoned_date_time->calendar(), isolate);
+  Handle<BigInt> nanoseconds = handle(zoned_date_time->nanoseconds(), isolate);
+  Handle<JSReceiver> calendar = handle(zoned_date_time->calendar(), isolate);
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
+}
+
+// Common code shared by ZonedDateTime.prototype.toPlainYearMonth and
+// toPlainMonthDay
+template <typename T,
+          MaybeHandle<T> (*from_fields_func)(
+              Isolate*, Handle<JSReceiver>, Handle<JSReceiver>, Handle<Object>)>
+MaybeHandle<T> ZonedDateTimeToPlainYearMonthOrMonthDay(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<String> field_name_1, Handle<String> field_name_2,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  Factory* factory = isolate->factory();
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Let timeZone be zonedDateTime.[[TimeZone]].
+  Handle<JSReceiver> time_zone = handle(zoned_date_time->time_zone(), isolate);
+  // 4. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      temporal::CreateTemporalInstant(
+          isolate, Handle<BigInt>(zoned_date_time->nanoseconds(), isolate)),
+      T);
+  // 5. Let calendar be zonedDateTime.[[Calendar]].
+  Handle<JSReceiver> calendar = handle(zoned_date_time->calendar(), isolate);
+  // 6. Let temporalDateTime be ?
+  // temporal::BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant, calendar).
+  Handle<JSTemporalPlainDateTime> temporal_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date_time,
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, instant,
+                                                   calendar, method_name),
+      T);
+  // 7. Let fieldNames be ? CalendarFields(calendar, « field_name_1,
+  // field_name_2 »).
+  Handle<FixedArray> field_names = factory->NewFixedArray(2);
+  field_names->set(0, *field_name_1);
+  field_names->set(1, *field_name_2);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
+                             CalendarFields(isolate, calendar, field_names), T);
+  // 8. Let fields be ? PrepareTemporalFields(temporalDateTime, fieldNames, «»).
+  Handle<JSReceiver> fields;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, fields,
+      PrepareTemporalFields(isolate, temporal_date_time, field_names,
+                            RequiredFields::kNone),
+      T);
+  // 9. Return ? XxxFromFields(calendar, fields).
+  return from_fields_func(isolate, calendar, fields,
+                          factory->undefined_value());
+}
+
+// #sec-temporal.zoneddatetime.prototype.toplainyearmonth
+MaybeHandle<JSTemporalPlainYearMonth> JSTemporalZonedDateTime::ToPlainYearMonth(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+  return ZonedDateTimeToPlainYearMonthOrMonthDay<JSTemporalPlainYearMonth,
+                                                 YearMonthFromFields>(
+      isolate, zoned_date_time, isolate->factory()->monthCode_string(),
+      isolate->factory()->year_string(),
+      "Temporal.ZonedDateTime.prototype.toPlainYearMonth");
+}
+
+// #sec-temporal.zoneddatetime.prototype.toplainmonthday
+MaybeHandle<JSTemporalPlainMonthDay> JSTemporalZonedDateTime::ToPlainMonthDay(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+  return ZonedDateTimeToPlainYearMonthOrMonthDay<JSTemporalPlainMonthDay,
+                                                 MonthDayFromFields>(
+      isolate, zoned_date_time, isolate->factory()->day_string(),
+      isolate->factory()->monthCode_string(),
+      "Temporal.ZonedDateTime.prototype.toPlainMonthDay");
 }
 
 // #sec-temporal.now.zoneddatetime

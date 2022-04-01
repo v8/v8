@@ -391,6 +391,16 @@ class JSTemporalZonedDateTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
 
+  // #sec-temporal.zoneddatetime.prototype.toplainyearmonth
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainYearMonth>
+  ToPlainYearMonth(Isolate* isolate,
+                   Handle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.zoneddatetime.prototype.toplainmonthday
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainMonthDay>
+  ToPlainMonthDay(Isolate* isolate,
+                  Handle<JSTemporalZonedDateTime> zoned_date_time);
+
   // #sec-temporal.now.zoneddatetime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> Now(
       Isolate* isolate, Handle<Object> calendar_like,
