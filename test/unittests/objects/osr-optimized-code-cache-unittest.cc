@@ -144,20 +144,20 @@ TEST_F(TestWithNativeContext, FindCachedEntry) {
 
   Handle<OSROptimizedCodeCache> osr_cache(
       native_context->GetOSROptimizedCodeCache(), isolate);
-  EXPECT_EQ(osr_cache->GetOptimizedCode(*shared, BytecodeOffset(0), isolate),
+  EXPECT_EQ(osr_cache->GetOptimizedCode(shared, BytecodeOffset(0), isolate),
             *code);
-  EXPECT_EQ(osr_cache->GetOptimizedCode(*shared1, BytecodeOffset(bailout_id),
-                                        isolate),
-            *code1);
+  EXPECT_EQ(
+      osr_cache->GetOptimizedCode(shared1, BytecodeOffset(bailout_id), isolate),
+      *code1);
 
   RunJS("%DeoptimizeFunction(f1)");
   EXPECT_TRUE(
-      osr_cache->GetOptimizedCode(*shared1, BytecodeOffset(bailout_id), isolate)
+      osr_cache->GetOptimizedCode(shared1, BytecodeOffset(bailout_id), isolate)
           .is_null());
 
   osr_cache->Set(OSROptimizedCodeCache::kCachedCodeOffset,
                  HeapObjectReference::ClearedValue(isolate));
-  EXPECT_TRUE(osr_cache->GetOptimizedCode(*shared, BytecodeOffset(0), isolate)
+  EXPECT_TRUE(osr_cache->GetOptimizedCode(shared, BytecodeOffset(0), isolate)
                   .is_null());
 }
 

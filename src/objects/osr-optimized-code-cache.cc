@@ -27,7 +27,7 @@ void OSROptimizedCodeCache::AddOptimizedCode(
   Handle<OSROptimizedCodeCache> osr_cache(
       native_context->GetOSROptimizedCodeCache(), isolate);
 
-  DCHECK_EQ(osr_cache->FindEntry(*shared, osr_offset), -1);
+  DCHECK_EQ(osr_cache->FindEntry(shared, osr_offset), -1);
   int entry = -1;
   for (int index = 0; index < osr_cache->length(); index += kEntryLength) {
     if (osr_cache->Get(index + kSharedOffset)->IsCleared() ||
@@ -90,7 +90,7 @@ void OSROptimizedCodeCache::Compact(Handle<NativeContext> native_context) {
   native_context->set_osr_code_cache(*new_osr_cache);
 }
 
-CodeT OSROptimizedCodeCache::GetOptimizedCode(SharedFunctionInfo shared,
+CodeT OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
                                               BytecodeOffset osr_offset,
                                               Isolate* isolate) {
   DisallowGarbageCollection no_gc;
@@ -178,12 +178,12 @@ BytecodeOffset OSROptimizedCodeCache::GetBytecodeOffsetFromEntry(int index) {
   return BytecodeOffset(osr_offset_entry.value());
 }
 
-int OSROptimizedCodeCache::FindEntry(SharedFunctionInfo shared,
+int OSROptimizedCodeCache::FindEntry(Handle<SharedFunctionInfo> shared,
                                      BytecodeOffset osr_offset) {
   DisallowGarbageCollection no_gc;
   DCHECK(!osr_offset.IsNone());
   for (int index = 0; index < length(); index += kEntryLength) {
-    if (GetSFIFromEntry(index) != shared) continue;
+    if (GetSFIFromEntry(index) != *shared) continue;
     if (GetBytecodeOffsetFromEntry(index) != osr_offset) continue;
     return index;
   }
