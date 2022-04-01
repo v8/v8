@@ -99,33 +99,6 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   return new_page;
 }
 
-void Page::MoveOldToNewRememberedSetForSweeping() {
-  CHECK_NULL(sweeping_slot_set_);
-  sweeping_slot_set_ = slot_set_[OLD_TO_NEW];
-  slot_set_[OLD_TO_NEW] = nullptr;
-}
-
-void Page::MergeOldToNewRememberedSets() {
-  if (sweeping_slot_set_ == nullptr) return;
-
-  if (slot_set_[OLD_TO_NEW]) {
-    RememberedSet<OLD_TO_NEW>::Iterate(
-        this,
-        [this](MaybeObjectSlot slot) {
-          Address address = slot.address();
-          RememberedSetSweeping::Insert<AccessMode::NON_ATOMIC>(this, address);
-          return KEEP_SLOT;
-        },
-        SlotSet::KEEP_EMPTY_BUCKETS);
-
-    ReleaseSlotSet<OLD_TO_NEW>();
-  }
-
-  CHECK_NULL(slot_set_[OLD_TO_NEW]);
-  slot_set_[OLD_TO_NEW] = sweeping_slot_set_;
-  sweeping_slot_set_ = nullptr;
-}
-
 size_t Page::AvailableInFreeList() {
   size_t sum = 0;
   ForAllFreeListCategories([&sum](FreeListCategory* category) {
@@ -172,7 +145,6 @@ size_t Page::ShrinkToHighWaterMark() {
   // area would not be freed when deallocating this page.
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
-  DCHECK_NULL(sweeping_slot_set());
 
   size_t unused = RoundDown(static_cast<size_t>(area_end() - filler.address()),
                             MemoryAllocator::GetCommitPageSize());

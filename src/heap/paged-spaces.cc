@@ -134,14 +134,6 @@ void PagedSpace::RefillFreeList() {
         });
       }
 
-      // Also merge old-to-new remembered sets if not scavenging because of
-      // data races: One thread might iterate remembered set, while another
-      // thread merges them.
-      if (compaction_space_kind() !=
-          CompactionSpaceKind::kCompactionSpaceForScavenge) {
-        p->MergeOldToNewRememberedSets();
-      }
-
       // Only during compaction pages can actually change ownership. This is
       // safe because there exists no other competing action on the page links
       // during compaction.
@@ -186,8 +178,6 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
     Page* p = *(it++);
-
-      p->MergeOldToNewRememberedSets();
 
     // Ensure that pages are initialized before objects on it are discovered by
     // concurrent markers.
@@ -642,14 +632,10 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
     if (IsSweepingAllowedOnThread(local_heap)) {
       // Now contribute to sweeping from background thread and then try to
       // reallocate.
-      Sweeper::FreeSpaceMayContainInvalidatedSlots
-          invalidated_slots_in_free_space =
-              Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
-
       const int kMaxPagesToSweep = 1;
       int max_freed = collector->sweeper()->ParallelSweepSpace(
-          identity(), static_cast<int>(min_size_in_bytes), kMaxPagesToSweep,
-          invalidated_slots_in_free_space);
+          identity(), Sweeper::SweepingMode::kLazyOrConcurrent,
+          static_cast<int>(min_size_in_bytes), kMaxPagesToSweep);
 
       RefillFreeList();
 
@@ -1008,15 +994,14 @@ bool PagedSpace::ContributeToSweepingMain(int required_freed_bytes,
                                           AllocationOrigin origin) {
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
-  Sweeper::FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space =
-      is_compaction_space() ? Sweeper::FreeSpaceMayContainInvalidatedSlots::kYes
-                            : Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
+  Sweeper::SweepingMode sweeping_mode =
+      is_compaction_space() ? Sweeper::SweepingMode::kEagerDuringGC
+                            : Sweeper::SweepingMode::kLazyOrConcurrent;
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->sweeper()->ParallelSweepSpace(identity(), required_freed_bytes,
-                                             max_pages,
-                                             invalidated_slots_in_free_space);
+    collector->sweeper()->ParallelSweepSpace(identity(), sweeping_mode,
+                                             required_freed_bytes, max_pages);
     RefillFreeList();
     return TryAllocationFromFreeListMain(size_in_bytes, origin);
   }

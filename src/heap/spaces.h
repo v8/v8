@@ -309,9 +309,6 @@ class Page : public MemoryChunk {
   void AllocateFreeListCategories();
   void ReleaseFreeListCategories();
 
-  void MoveOldToNewRememberedSetForSweeping();
-  void MergeOldToNewRememberedSets();
-
   ActiveSystemPages* active_system_pages() { return &active_system_pages_; }
 
  private:

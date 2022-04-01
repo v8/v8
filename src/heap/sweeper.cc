@@ -189,15 +189,6 @@ Page* Sweeper::GetSweptPageSafe(PagedSpace* space) {
   return nullptr;
 }
 
-void Sweeper::MergeOldToNewRememberedSetsForSweptPages() {
-  base::MutexGuard guard(&mutex_);
-
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    SweptList& swept_list = swept_list_[GetSweepSpaceIndex(space)];
-    for (Page* p : swept_list) p->MergeOldToNewRememberedSets();
-  });
-}
-
 void Sweeper::EnsureCompleted() {
   if (!sweeping_in_progress_) return;
 
@@ -205,8 +196,9 @@ void Sweeper::EnsureCompleted() {
 
   // If sweeping is not completed or not running at all, we try to complete it
   // here.
-  ForAllSweepingSpaces(
-      [this](AllocationSpace space) { ParallelSweepSpace(space, 0); });
+  ForAllSweepingSpaces([this](AllocationSpace space) {
+    ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0);
+  });
 
   if (job_handle_ && job_handle_->IsValid()) job_handle_->Join();
 
@@ -218,13 +210,14 @@ void Sweeper::EnsureCompleted() {
 
 void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
   if (!sweeping_in_progress_) return;
-  ParallelSweepSpace(space, 0);
+  ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0);
 }
 
 void Sweeper::SupportConcurrentSweeping() {
   ForAllSweepingSpaces([this](AllocationSpace space) {
     const int kMaxPagesToSweepPerSpace = 1;
-    ParallelSweepSpace(space, 0, kMaxPagesToSweepPerSpace);
+    ParallelSweepSpace(space, SweepingMode::kLazyOrConcurrent, 0,
+                       kMaxPagesToSweepPerSpace);
   });
 }
 
@@ -260,10 +253,17 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
 V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
     Address free_start, Address free_end, Page* page,
     bool non_empty_typed_slots, FreeRangesMap* free_ranges_map,
-    InvalidatedSlotsCleanup* old_to_new_cleanup) {
+    SweepingMode sweeping_mode, InvalidatedSlotsCleanup* old_to_new_cleanup) {
   DCHECK_LE(free_start, free_end);
-  RememberedSetSweeping::RemoveRange(page, free_start, free_end,
-                                     SlotSet::KEEP_EMPTY_BUCKETS);
+  if (sweeping_mode == SweepingMode::kEagerDuringGC) {
+    // New space and in consequence the old-to-new remembered set is always
+    // empty after a full GC, so we do not need to remove from it after the full
+    // GC. However, we wouldn't even be allowed to do that, since the main
+    // thread then owns the old-to-new remembered set. Removing from it from a
+    // sweeper thread would race with the main thread.
+    RememberedSet<OLD_TO_NEW>::RemoveRange(page, free_start, free_end,
+                                           SlotSet::KEEP_EMPTY_BUCKETS);
+  }
   RememberedSet<OLD_TO_OLD>::RemoveRange(page, free_start, free_end,
                                          SlotSet::KEEP_EMPTY_BUCKETS);
   if (non_empty_typed_slots) {
@@ -305,11 +305,10 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(
   }
 }
 
-int Sweeper::RawSweep(
-    Page* p, FreeListRebuildingMode free_list_mode,
-    FreeSpaceTreatmentMode free_space_mode,
-    FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space,
-    const base::MutexGuard& page_guard) {
+int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
+                      FreeSpaceTreatmentMode free_space_mode,
+                      SweepingMode sweeping_mode,
+                      const base::MutexGuard& page_guard) {
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(free_list_mode == IGNORE_FREE_LIST || space->identity() == OLD_SPACE ||
@@ -350,8 +349,7 @@ int Sweeper::RawSweep(
   // removed by mark compact's update pointers phase.
   InvalidatedSlotsCleanup old_to_new_cleanup =
       InvalidatedSlotsCleanup::NoCleanup(p);
-  if (invalidated_slots_in_free_space ==
-      FreeSpaceMayContainInvalidatedSlots::kYes)
+  if (sweeping_mode == SweepingMode::kEagerDuringGC)
     old_to_new_cleanup = InvalidatedSlotsCleanup::OldToNew(p);
 
   // The free ranges map is used for filtering typed slots.
@@ -380,7 +378,7 @@ int Sweeper::RawSweep(
                                              free_list_mode, free_space_mode));
       CleanupRememberedSetEntriesForFreedMemory(
           free_start, free_end, p, non_empty_typed_slots, &free_ranges_map,
-          &old_to_new_cleanup);
+          sweeping_mode, &old_to_new_cleanup);
     }
     Map map = object.map(cage_base, kAcquireLoad);
     // Map might be forwarded during GC.
@@ -410,7 +408,7 @@ int Sweeper::RawSweep(
                                            free_list_mode, free_space_mode));
     CleanupRememberedSetEntriesForFreedMemory(
         free_start, free_end, p, non_empty_typed_slots, &free_ranges_map,
-        &old_to_new_cleanup);
+        sweeping_mode, &old_to_new_cleanup);
   }
 
   // Phase 3: Post process the page.
@@ -445,9 +443,9 @@ bool Sweeper::ConcurrentSweepSpace(AllocationSpace identity,
     if (page == nullptr) return true;
     // Typed slot sets are only recorded on code pages. Code pages
     // are not swept concurrently to the application to ensure W^X.
-    DCHECK(!page->typed_slot_set<OLD_TO_NEW>() &&
-           !page->typed_slot_set<OLD_TO_OLD>());
-    ParallelSweepPage(page, identity);
+    DCHECK_NULL((page->typed_slot_set<OLD_TO_NEW>()));
+    DCHECK_NULL((page->typed_slot_set<OLD_TO_OLD>()));
+    ParallelSweepPage(page, identity, SweepingMode::kLazyOrConcurrent);
   }
   return false;
 }
@@ -457,22 +455,21 @@ bool Sweeper::IncrementalSweepSpace(AllocationSpace identity) {
                  ThreadKind::kMain);
   const double start = heap_->MonotonicallyIncreasingTimeInMs();
   if (Page* page = GetSweepingPageSafe(identity)) {
-    ParallelSweepPage(page, identity);
+    ParallelSweepPage(page, identity, SweepingMode::kLazyOrConcurrent);
   }
   const double duration = heap_->MonotonicallyIncreasingTimeInMs() - start;
   heap_->tracer()->AddIncrementalSweepingStep(duration);
   return sweeping_list_[GetSweepSpaceIndex(identity)].empty();
 }
 
-int Sweeper::ParallelSweepSpace(
-    AllocationSpace identity, int required_freed_bytes, int max_pages,
-    FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space) {
+int Sweeper::ParallelSweepSpace(AllocationSpace identity,
+                                SweepingMode sweeping_mode,
+                                int required_freed_bytes, int max_pages) {
   int max_freed = 0;
   int pages_freed = 0;
   Page* page = nullptr;
   while ((page = GetSweepingPageSafe(identity)) != nullptr) {
-    int freed =
-        ParallelSweepPage(page, identity, invalidated_slots_in_free_space);
+    int freed = ParallelSweepPage(page, identity, sweeping_mode);
     ++pages_freed;
     if (page->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
       // Free list of a never-allocate page will be dropped later on.
@@ -487,9 +484,8 @@ int Sweeper::ParallelSweepSpace(
   return max_freed;
 }
 
-int Sweeper::ParallelSweepPage(
-    Page* page, AllocationSpace identity,
-    FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space) {
+int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity,
+                               SweepingMode sweeping_mode) {
   DCHECK(IsValidSweepingSpace(identity));
 
   // The Scavenger may add already swept pages back.
@@ -510,7 +506,7 @@ int Sweeper::ParallelSweepPage(
     const FreeSpaceTreatmentMode free_space_mode =
         Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
     max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode,
-                         invalidated_slots_in_free_space, guard);
+                         sweeping_mode, guard);
     DCHECK(page->SweepingDone());
   }
 
@@ -529,7 +525,7 @@ void Sweeper::EnsurePageIsSwept(Page* page) {
   if (IsValidSweepingSpace(space)) {
     if (TryRemoveSweepingPageSafe(space, page)) {
       // Page was successfully removed and can now be swept.
-      ParallelSweepPage(page, space);
+      ParallelSweepPage(page, space, SweepingMode::kLazyOrConcurrent);
     } else {
       // Some sweeper task already took ownership of that page, wait until
       // sweeping is finished.
@@ -596,7 +592,6 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
     DCHECK(!category->is_linked(page->owner()->free_list()));
   });
 #endif  // DEBUG
-  page->MoveOldToNewRememberedSetForSweeping();
   page->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kPending);
   heap_->paged_space(space)->IncreaseAllocatedBytes(
       marking_state_->live_bytes(page), page);
@@ -693,7 +688,7 @@ void Sweeper::MakeIterable(Page* page) {
   const FreeSpaceTreatmentMode free_space_mode =
       Heap::ShouldZapGarbage() ? ZAP_FREE_SPACE : IGNORE_FREE_SPACE;
   RawSweep(page, IGNORE_FREE_LIST, free_space_mode,
-           FreeSpaceMayContainInvalidatedSlots::kNo, guard);
+           SweepingMode::kLazyOrConcurrent, guard);
 }
 
 }  // namespace internal

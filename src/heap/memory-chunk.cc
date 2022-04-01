@@ -131,14 +131,12 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_CODE], nullptr);
   }
-  base::AsAtomicPointer::Release_Store(&sweeping_slot_set_, nullptr);
   base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_OLD], nullptr);
   base::AsAtomicPointer::Release_Store(&typed_slot_set_[OLD_TO_SHARED],
                                        nullptr);
   invalidated_slots_[OLD_TO_NEW] = nullptr;
   invalidated_slots_[OLD_TO_OLD] = nullptr;
-  invalidated_slots_[OLD_TO_SHARED] = nullptr;
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // Not actually used but initialize anyway for predictability.
     invalidated_slots_[OLD_TO_CODE] = nullptr;
@@ -245,7 +243,6 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
 
   possibly_empty_buckets_.Release();
   ReleaseSlotSet<OLD_TO_NEW>();
-  ReleaseSweepingSlotSet();
   ReleaseSlotSet<OLD_TO_OLD>();
   if (V8_EXTERNAL_CODE_SPACE_BOOL) ReleaseSlotSet<OLD_TO_CODE>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
@@ -278,10 +275,6 @@ SlotSet* MemoryChunk::AllocateSlotSet() {
   return AllocateSlotSet(&slot_set_[type]);
 }
 
-SlotSet* MemoryChunk::AllocateSweepingSlotSet() {
-  return AllocateSlotSet(&sweeping_slot_set_);
-}
-
 SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
   SlotSet* new_slot_set = SlotSet::Allocate(buckets());
   SlotSet* old_slot_set = base::AsAtomicPointer::AcquireRelease_CompareAndSwap(
@@ -304,10 +297,6 @@ template void MemoryChunk::ReleaseSlotSet<OLD_TO_CODE>();
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {
   ReleaseSlotSet(&slot_set_[type]);
-}
-
-void MemoryChunk::ReleaseSweepingSlotSet() {
-  ReleaseSlotSet(&sweeping_slot_set_);
 }
 
 void MemoryChunk::ReleaseSlotSet(SlotSet** slot_set) {
@@ -442,9 +431,6 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(
       reinterpret_cast<Address>(&chunk->live_byte_count_) - chunk->address(),
       MemoryChunkLayout::kLiveByteCountOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->sweeping_slot_set_) - chunk->address(),
-      MemoryChunkLayout::kSweepingSlotSetOffset);
   DCHECK_EQ(
       reinterpret_cast<Address>(&chunk->typed_slot_set_) - chunk->address(),
       MemoryChunkLayout::kTypedSlotSetOffset);

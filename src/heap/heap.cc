@@ -4724,18 +4724,6 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
         return KEEP_SLOT;
       },
       SlotSet::FREE_EMPTY_BUCKETS);
-  if (direction == OLD_TO_NEW) {
-    CHECK(chunk->SweepingDone());
-    RememberedSetSweeping::Iterate(
-        chunk,
-        [start, end, untyped](MaybeObjectSlot slot) {
-          if (start <= slot.address() && slot.address() < end) {
-            untyped->insert(slot.address());
-          }
-          return KEEP_SLOT;
-        },
-        SlotSet::FREE_EMPTY_BUCKETS);
-  }
   RememberedSet<direction>::IterateTyped(
       chunk, [=](SlotType type, Address slot) {
         if (start <= slot && slot < end) {
