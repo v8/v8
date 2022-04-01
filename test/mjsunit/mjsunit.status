@@ -48,7 +48,6 @@
   'temporal/calendar-date-from-fields': [FAIL],
   'temporal/calendar-date-until': [FAIL],
   'temporal/calendar-day': [FAIL],
-  'temporal/calendar-days-in-month': [FAIL],
   'temporal/calendar-days-in-week': [FAIL],
   'temporal/calendar-fields': [FAIL],
   'temporal/calendar-merge-fields': [FAIL],

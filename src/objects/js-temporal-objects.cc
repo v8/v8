@@ -1620,8 +1620,6 @@ MaybeHandle<JSTemporalPlainMonthDay> MonthDayFromFields(
       JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE);
 }
 
-// IMPL_FROM_FIELDS_ABSTRACT_OPERATION(Date, date, JS_TEMPORAL_PLAIN_DATE_TYPE)
-#undef IMPL_FROM_FIELDS_ABSTRACT_OPERATION
 // #sec-temporal-totemporaloverflow
 Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate,
                                        Handle<JSReceiver> options,
@@ -4896,6 +4894,49 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInYear(
   int32_t days_in_year = ISODaysInYear(isolate, year);
   // 6. Return 𝔽(daysInYear).
   return handle(Smi::FromInt(days_in_year), isolate);
+}
+
+// #sec-temporal.calendar.prototype.daysinmonth
+MaybeHandle<Smi> JSTemporalCalendar::DaysInMonth(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
+  // 1 Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]] or
+  // [[InitializedTemporalYearMonth]] internal slot, then
+  if (!IsPlainDatePlainDateTimeOrPlainYearMonth(temporal_date_like)) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       isolate->factory()->NewJSObjectWithNullProto(),
+                       "Temporal.Calendar.prototype.daysInMonth"),
+        Smi);
+  }
+
+  // 5. Return 𝔽(! ISODaysInMonth(temporalDateLike.[[ISOYear]],
+  // temporalDateLike.[[ISOMonth]])).
+  int32_t year;
+  int32_t month;
+  if (temporal_date_like->IsJSTemporalPlainDate()) {
+    year = Handle<JSTemporalPlainDate>::cast(temporal_date_like)->iso_year();
+    month = Handle<JSTemporalPlainDate>::cast(temporal_date_like)->iso_month();
+  } else if (temporal_date_like->IsJSTemporalPlainDateTime()) {
+    year =
+        Handle<JSTemporalPlainDateTime>::cast(temporal_date_like)->iso_year();
+    month =
+        Handle<JSTemporalPlainDateTime>::cast(temporal_date_like)->iso_month();
+  } else {
+    DCHECK(temporal_date_like->IsJSTemporalPlainYearMonth());
+    year =
+        Handle<JSTemporalPlainYearMonth>::cast(temporal_date_like)->iso_year();
+    month =
+        Handle<JSTemporalPlainYearMonth>::cast(temporal_date_like)->iso_month();
+  }
+  return handle(Smi::FromInt(ISODaysInMonth(isolate, year, month)), isolate);
 }
 
 // #sec-temporal.calendar.prototype.year
