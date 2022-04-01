@@ -783,6 +783,12 @@ class Heap {
         std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(manoskouk): Inline this if STRONG_MUTABLE_MOVABLE_ROOT_LIST setters
+  // become public.
+  void EnsureWasmCanonicalRttsSize(int length);
+#endif
+
   // ===========================================================================
   // Initialization. ===========================================================
   // ===========================================================================

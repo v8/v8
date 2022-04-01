@@ -1036,14 +1036,6 @@ class WasmSuspenderObject
 #undef DECL_OPTIONAL_ACCESSORS
 
 namespace wasm {
-
-Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index, MaybeHandle<Map> rtt_parent,
-                            Handle<WasmInstanceObject> instance);
-Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index, MaybeHandle<Map> rtt_parent,
-                           Handle<WasmInstanceObject> instance);
-
 bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                        Handle<Object> value, ValueType expected,
                        const char** error_message);

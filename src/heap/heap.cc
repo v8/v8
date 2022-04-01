@@ -2183,6 +2183,17 @@ void Heap::CheckCollectionRequested() {
                     current_gc_callback_flags_);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+void Heap::EnsureWasmCanonicalRttsSize(int length) {
+  Handle<WeakArrayList> current_rtts = handle(wasm_canonical_rtts(), isolate_);
+  if (length <= current_rtts->length()) return;
+  Handle<WeakArrayList> result = WeakArrayList::EnsureSpace(
+      isolate(), current_rtts, length, AllocationType::kOld);
+  result->set_length(length);
+  set_wasm_canonical_rtts(*result);
+}
+#endif
+
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   if (start_new_space_size == 0) return;
 

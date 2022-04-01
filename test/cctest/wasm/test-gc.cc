@@ -39,6 +39,9 @@ class WasmGCTester {
                      execution_tier == TestExecutionTier::kLiftoff),
         flag_liftoff_only(&v8::internal::FLAG_liftoff_only,
                           execution_tier == TestExecutionTier::kLiftoff),
+        // Test both setups with canonicalization and without.
+        flag_canonicalization(&v8::internal::FLAG_wasm_type_canonicalization,
+                              execution_tier == TestExecutionTier::kTurbofan),
         flag_tierup(&v8::internal::FLAG_wasm_tier_up, false),
         zone_(&allocator, ZONE_NAME),
         builder_(&zone_),
@@ -181,6 +184,7 @@ class WasmGCTester {
   const FlagScope<bool> flag_typedfuns;
   const FlagScope<bool> flag_liftoff;
   const FlagScope<bool> flag_liftoff_only;
+  const FlagScope<bool> flag_canonicalization;
   const FlagScope<bool> flag_tierup;
 
   byte DefineFunctionImpl(WasmFunctionBuilder* fun,

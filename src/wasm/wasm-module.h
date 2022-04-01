@@ -443,7 +443,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
                                 ? signature_map.FindOrInsert(*type.function_sig)
                                 : 0;
     canonicalized_type_ids.push_back(canonical_id);
-    isorecursive_canonical_type_ids.push_back(-1);  // Will be computed later.
+    // Canonical type will be computed later.
+    isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
 
   bool has_type(uint32_t index) const { return index < types.size(); }
