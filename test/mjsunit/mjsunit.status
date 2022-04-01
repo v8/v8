@@ -1456,8 +1456,6 @@
   # Script referenced only through context-dependent SourceTextModule
   # https://bugs.chromium.org/p/v8/issues/detail?id=11073
   'tools/processor': [SKIP],
-  # https://crbug.com/v8/12749
-  'shared-memory/shared-struct-atomics-workers': [SKIP],
 }],  # variant == stress_snapshot and arch == x64
 
 ##############################################################################
