@@ -1116,6 +1116,9 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   // Get the function and make sure it is compiled.
   Handle<JSFunction> func = args.at<JSFunction>(0);
   IsCompiledScope is_compiled_scope;
+  if (!func->is_compiled() && func->HasAvailableOptimizedCode()) {
+    func->set_code(func->feedback_vector().optimized_code());
+  }
   CHECK(func->is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,
                           &is_compiled_scope));
