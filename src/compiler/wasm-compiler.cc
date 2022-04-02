@@ -8420,10 +8420,12 @@ base::Vector<const char> GetDebugName(Zone* zone,
        FLAG_trace_turbo_graph || FLAG_print_wasm_code)) {
     wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
         module_bytes.value(), index);
-    int name_len = name.length();
-    char* index_name = zone->NewArray<char>(name_len);
-    memcpy(index_name, module_bytes->start() + name.offset(), name.length());
-    return base::Vector<const char>(index_name, name_len);
+    if (!name.is_empty()) {
+      int name_len = name.length();
+      char* index_name = zone->NewArray<char>(name_len);
+      memcpy(index_name, module_bytes->start() + name.offset(), name_len);
+      return base::Vector<const char>(index_name, name_len);
+    }
   }
 
   constexpr int kBufferLength = 24;
