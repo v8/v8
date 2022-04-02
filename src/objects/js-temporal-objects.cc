@@ -5089,6 +5089,26 @@ MaybeHandle<Oddball> JSTemporalCalendar::InLeapYear(
   return isolate->factory()->ToBoolean(IsISOLeapYear(isolate, year));
 }
 
+// #sec-temporal.calendar.prototype.daysinweek
+MaybeHandle<Smi> JSTemporalCalendar::DaysInWeek(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. Perform ? ToTemporalDate(temporalDateLike).
+  Handle<JSTemporalPlainDate> date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date,
+      ToTemporalDate(isolate, temporal_date_like,
+                     isolate->factory()->NewJSObjectWithNullProto(),
+                     "Temporal.Calendar.prototype.daysInWeek"),
+      Smi);
+  // 5. Return 7𝔽.
+  return handle(Smi::FromInt(7), isolate);
+}
+
 // #sec-temporal.calendar.prototype.tostring
 MaybeHandle<String> JSTemporalCalendar::ToString(
     Isolate* isolate, Handle<JSTemporalCalendar> calendar,
