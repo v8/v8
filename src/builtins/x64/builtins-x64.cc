@@ -3409,6 +3409,8 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // reference parameters at the end of the integer parameters section.
   Label ref_params_done;
   // We check if we have seen a reference in the first parameter loop.
+  Register ref_param_count = param_count;
+  __ movq(ref_param_count, Immediate(0));
   __ cmpq(MemOperand(rbp, kHasRefTypesOffset), Immediate(0));
   __ j(equal, &ref_params_done);
   // We re-calculate the beginning of the value-types array and the beginning of
@@ -3447,6 +3449,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   // Place the param into the proper slot in Integer section.
   __ bind(&move_ref_to_slot);
+  __ addq(ref_param_count, Immediate(1));
   __ movq(MemOperand(current_int_param_slot, 0), param);
   __ subq(current_int_param_slot, Immediate(kSystemPointerSize));
 
@@ -3460,6 +3463,9 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ j(not_equal, &ref_loop_through_params);
 
   __ bind(&ref_params_done);
+  __ movq(valuetype, ref_param_count);
+  ref_param_count = valuetype;
+  valuetype = no_reg;
   // -------------------------------------------
   // Move the parameters into the proper param registers.
   // -------------------------------------------
@@ -3536,6 +3542,22 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // params that didn't fit into param registers are pushed again.
 
   Label loop_through_valuetypes;
+  Label loop_place_ref_params;
+  __ bind(&loop_place_ref_params);
+  __ testq(ref_param_count, ref_param_count);
+  __ j(zero, &loop_through_valuetypes);
+
+  __ cmpq(start_int_section, current_int_param_slot);
+  // if no int or ref param remains, directly iterate valuetypes
+  __ j(less_equal, &loop_through_valuetypes);
+
+  __ pushq(MemOperand(current_int_param_slot, 0));
+  __ addq(current_int_param_slot, Immediate(kSystemPointerSize));
+  __ subq(ref_param_count, Immediate(1));
+  __ jmp(&loop_place_ref_params);
+
+  valuetype = ref_param_count;
+  ref_param_count = no_reg;
   __ bind(&loop_through_valuetypes);
 
   // We iterated through the valuetypes array, we are one field over the end in
@@ -3570,6 +3592,10 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &place_float_param);
+
+  // ref params have already been pushed, so go through directly
+  __ addq(current_int_param_slot, Immediate(kSystemPointerSize));
+  __ jmp(&loop_through_valuetypes);
 
   // All other types are reference types. We can just fall through to place them
   // in the integer section.
