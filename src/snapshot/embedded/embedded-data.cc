@@ -10,6 +10,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
+#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -295,12 +296,26 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     uint32_t metadata_size = static_cast<uint32_t>(code.raw_metadata_size());
 
     DCHECK_EQ(0, raw_code_size % kCodeAlignment);
-    const int builtin_index = static_cast<int>(builtin);
-    layout_descriptions[builtin_index].instruction_offset = raw_code_size;
-    layout_descriptions[builtin_index].instruction_length = instruction_size;
-    layout_descriptions[builtin_index].metadata_offset = raw_data_size;
-    layout_descriptions[builtin_index].metadata_length = metadata_size;
+    {
+      const int builtin_index = static_cast<int>(builtin);
+      struct LayoutDescription& layout_desc =
+          layout_descriptions[builtin_index];
+      layout_desc.instruction_offset = raw_code_size;
+      layout_desc.instruction_length = instruction_size;
+      layout_desc.metadata_offset = raw_data_size;
+      layout_desc.metadata_length = metadata_size;
 
+      layout_desc.handler_table_offset =
+          raw_data_size + static_cast<uint32_t>(code.handler_table_offset());
+#if V8_EMBEDDED_CONSTANT_POOL
+      layout_desc.constant_pool_offset =
+          raw_data_size + static_cast<uint32_t>(code.constant_pool_offset());
+#endif
+      layout_desc.code_comments_offset_offset =
+          raw_data_size + static_cast<uint32_t>(code.code_comments_offset());
+      layout_desc.unwinding_info_offset_offset =
+          raw_data_size + static_cast<uint32_t>(code.unwinding_info_offset());
+    }
     // Align the start of each section.
     raw_code_size += PadAndAlignCode(instruction_size);
     raw_data_size += PadAndAlignData(metadata_size);
@@ -398,32 +413,123 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 
 Address EmbeddedData::InstructionStartOfBuiltin(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
-  const struct LayoutDescription* descs = LayoutDescription();
-  const uint8_t* result =
-      RawCode() + descs[static_cast<int>(builtin)].instruction_offset;
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result = RawCode() + desc.instruction_offset;
   DCHECK_LT(result, code_ + code_size_);
   return reinterpret_cast<Address>(result);
 }
 
 uint32_t EmbeddedData::InstructionSizeOfBuiltin(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
-  const struct LayoutDescription* descs = LayoutDescription();
-  return descs[static_cast<int>(builtin)].instruction_length;
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  return desc.instruction_length;
 }
 
 Address EmbeddedData::MetadataStartOfBuiltin(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
-  const struct LayoutDescription* descs = LayoutDescription();
-  const uint8_t* result =
-      RawMetadata() + descs[static_cast<int>(builtin)].metadata_offset;
-  DCHECK_LE(descs[static_cast<int>(builtin)].metadata_offset, data_size_);
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result = RawMetadata() + desc.metadata_offset;
+  DCHECK_LE(desc.metadata_offset, data_size_);
   return reinterpret_cast<Address>(result);
 }
 
 uint32_t EmbeddedData::MetadataSizeOfBuiltin(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
-  const struct LayoutDescription* descs = LayoutDescription();
-  return descs[static_cast<int>(builtin)].metadata_length;
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  return desc.metadata_length;
+}
+
+Address EmbeddedData::SafepointTableStartOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result = RawMetadata() + desc.metadata_offset;
+  DCHECK_LE(desc.handler_table_offset, data_size_);
+  return reinterpret_cast<Address>(result);
+}
+
+uint32_t EmbeddedData::SafepointTableSizeOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+#if V8_EMBEDDED_CONSTANT_POOL
+  DCHECK_LE(desc.handler_table_offset, desc.constant_pool_offset);
+#else
+  DCHECK_LE(desc.handler_table_offset, desc.code_comments_offset_offset);
+#endif
+  return desc.handler_table_offset;
+}
+
+Address EmbeddedData::HandlerTableStartOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result = RawMetadata() + desc.handler_table_offset;
+  DCHECK_LE(desc.handler_table_offset, data_size_);
+  return reinterpret_cast<Address>(result);
+}
+
+uint32_t EmbeddedData::HandlerTableSizeOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+#if V8_EMBEDDED_CONSTANT_POOL
+  DCHECK_LE(desc.handler_table_offset, desc.constant_pool_offset);
+  return desc.constant_pool_offset - desc.handler_table_offset;
+#else
+  DCHECK_LE(desc.handler_table_offset, desc.code_comments_offset_offset);
+  return desc.code_comments_offset_offset - desc.handler_table_offset;
+#endif
+}
+
+Address EmbeddedData::ConstantPoolStartOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+#if V8_EMBEDDED_CONSTANT_POOL
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result = RawMetadata() + desc.constant_pool_offset;
+  DCHECK_LE(desc.constant_pool_offset, data_size_);
+  return reinterpret_cast<Address>(result);
+#else
+  return kNullAddress;
+#endif
+}
+
+uint32_t EmbeddedData::ConstantPoolSizeOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+#if V8_EMBEDDED_CONSTANT_POOL
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  DCHECK_LE(desc.constant_pool_offset, desc.code_comments_offset_offset);
+  return desc.code_comments_offset_offset - desc.constant_pool_offset;
+#else
+  return 0;
+#endif
+}
+
+Address EmbeddedData::CodeCommentsStartOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result = RawMetadata() + desc.code_comments_offset_offset;
+  DCHECK_LE(desc.code_comments_offset_offset, data_size_);
+  return reinterpret_cast<Address>(result);
+}
+
+uint32_t EmbeddedData::CodeCommentsSizeOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  DCHECK_LE(desc.code_comments_offset_offset,
+            desc.unwinding_info_offset_offset);
+  return desc.unwinding_info_offset_offset - desc.code_comments_offset_offset;
+}
+
+Address EmbeddedData::UnwindingInfoStartOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result = RawMetadata() + desc.unwinding_info_offset_offset;
+  DCHECK_LE(desc.unwinding_info_offset_offset, data_size_);
+  return reinterpret_cast<Address>(result);
+}
+
+uint32_t EmbeddedData::UnwindingInfoSizeOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  DCHECK_LE(desc.unwinding_info_offset_offset, desc.metadata_length);
+  return desc.metadata_length - desc.unwinding_info_offset_offset;
 }
 
 Address EmbeddedData::InstructionStartOfBytecodeHandlers() const {

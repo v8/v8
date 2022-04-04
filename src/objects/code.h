@@ -289,11 +289,9 @@ class Code : public HeapObject {
 
   inline Address raw_instruction_start() const;
   inline Address InstructionStart() const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionStart() const;
 
   inline Address raw_instruction_end() const;
   inline Address InstructionEnd() const;
-  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd() const;
 
   // When builtins un-embedding is enabled for the Isolate
   // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
@@ -320,49 +318,43 @@ class Code : public HeapObject {
   inline int raw_instruction_size() const;
   inline void set_raw_instruction_size(int value);
   inline int InstructionSize() const;
-  V8_EXPORT_PRIVATE int OffHeapInstructionSize() const;
 
   inline Address raw_metadata_start() const;
-  inline Address MetadataStart() const;
-  V8_EXPORT_PRIVATE Address OffHeapMetadataStart() const;
   inline Address raw_metadata_end() const;
-  inline Address MetadataEnd() const;
-  V8_EXPORT_PRIVATE Address OffHeapMetadataEnd() const;
   inline int raw_metadata_size() const;
   inline void set_raw_metadata_size(int value);
   inline int MetadataSize() const;
-  int OffHeapMetadataSize() const;
 
   // The metadata section is aligned to this value.
   static constexpr int kMetadataAlignment = kIntSize;
 
   // [safepoint_table_offset]: The offset where the safepoint table starts.
   inline int safepoint_table_offset() const { return 0; }
-  Address SafepointTableAddress() const;
-  int safepoint_table_size() const;
-  bool has_safepoint_table() const;
+  inline Address SafepointTableAddress() const;
+  inline int safepoint_table_size() const;
+  inline bool has_safepoint_table() const;
 
   // [handler_table_offset]: The offset where the exception handler table
   // starts.
   inline int handler_table_offset() const;
   inline void set_handler_table_offset(int offset);
-  Address HandlerTableAddress() const;
-  int handler_table_size() const;
-  bool has_handler_table() const;
+  inline Address HandlerTableAddress() const;
+  inline int handler_table_size() const;
+  inline bool has_handler_table() const;
 
   // [constant_pool offset]: Offset of the constant pool.
   inline int constant_pool_offset() const;
   inline void set_constant_pool_offset(int offset);
   inline Address constant_pool() const;
-  int constant_pool_size() const;
-  bool has_constant_pool() const;
+  inline int constant_pool_size() const;
+  inline bool has_constant_pool() const;
 
   // [code_comments_offset]: Offset of the code comment section.
   inline int code_comments_offset() const;
   inline void set_code_comments_offset(int offset);
   inline Address code_comments() const;
-  V8_EXPORT_PRIVATE int code_comments_size() const;
-  V8_EXPORT_PRIVATE bool has_code_comments() const;
+  inline int code_comments_size() const;
+  inline bool has_code_comments() const;
 
   // [unwinding_info_offset]: Offset of the unwinding info section.
   inline int32_t unwinding_info_offset() const;
@@ -735,6 +727,37 @@ class Code : public HeapObject {
 
   OBJECT_CONSTRUCTORS(Code, HeapObject);
 };
+
+// TODO(v8:11880): move these functions to CodeDataContainer once they are no
+// longer used from Code.
+V8_EXPORT_PRIVATE Address OffHeapInstructionStart(HeapObject code,
+                                                  Builtin builtin);
+V8_EXPORT_PRIVATE Address OffHeapInstructionEnd(HeapObject code,
+                                                Builtin builtin);
+V8_EXPORT_PRIVATE int OffHeapInstructionSize(HeapObject code, Builtin builtin);
+
+V8_EXPORT_PRIVATE Address OffHeapMetadataStart(HeapObject code,
+                                               Builtin builtin);
+V8_EXPORT_PRIVATE Address OffHeapMetadataEnd(HeapObject code, Builtin builtin);
+V8_EXPORT_PRIVATE int OffHeapMetadataSize(HeapObject code, Builtin builtin);
+
+V8_EXPORT_PRIVATE Address OffHeapSafepointTableAddress(HeapObject code,
+                                                       Builtin builtin);
+V8_EXPORT_PRIVATE int OffHeapSafepointTableSize(HeapObject code,
+                                                Builtin builtin);
+V8_EXPORT_PRIVATE Address OffHeapHandlerTableAddress(HeapObject code,
+                                                     Builtin builtin);
+V8_EXPORT_PRIVATE int OffHeapHandlerTableSize(HeapObject code, Builtin builtin);
+V8_EXPORT_PRIVATE Address OffHeapConstantPoolAddress(HeapObject code,
+                                                     Builtin builtin);
+V8_EXPORT_PRIVATE int OffHeapConstantPoolSize(HeapObject code, Builtin builtin);
+V8_EXPORT_PRIVATE Address OffHeapCodeCommentsAddress(HeapObject code,
+                                                     Builtin builtin);
+V8_EXPORT_PRIVATE int OffHeapCodeCommentsSize(HeapObject code, Builtin builtin);
+V8_EXPORT_PRIVATE Address OffHeapUnwindingInfoAddress(HeapObject code,
+                                                      Builtin builtin);
+V8_EXPORT_PRIVATE int OffHeapUnwindingInfoSize(HeapObject code,
+                                               Builtin builtin);
 
 class Code::OptimizedCodeIterator {
  public:

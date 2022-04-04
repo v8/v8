@@ -383,8 +383,9 @@ int Code::raw_body_size() const {
 }
 
 int Code::InstructionSize() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionSize()
-                                               : raw_instruction_size();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionSize(*this, builtin_id())
+             : raw_instruction_size();
 }
 
 Address Code::raw_instruction_start() const {
@@ -392,8 +393,9 @@ Address Code::raw_instruction_start() const {
 }
 
 Address Code::InstructionStart() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionStart()
-                                               : raw_instruction_start();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? i::OffHeapInstructionStart(*this, builtin_id())
+             : raw_instruction_start();
 }
 
 Address Code::raw_instruction_end() const {
@@ -401,8 +403,9 @@ Address Code::raw_instruction_end() const {
 }
 
 Address Code::InstructionEnd() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionEnd()
-                                               : raw_instruction_end();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? i::OffHeapInstructionEnd(*this, builtin_id())
+             : raw_instruction_end();
 }
 
 Address Code::raw_metadata_start() const {
@@ -428,24 +431,14 @@ int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
   return static_cast<int>(offset);
 }
 
-Address Code::MetadataStart() const {
-  STATIC_ASSERT(kOnHeapBodyIsContiguous);
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataStart()
-                                               : raw_metadata_start();
-}
-
 Address Code::raw_metadata_end() const {
   return raw_metadata_start() + raw_metadata_size();
 }
 
-Address Code::MetadataEnd() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataEnd()
-                                               : raw_metadata_end();
-}
-
 int Code::MetadataSize() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataSize()
-                                               : raw_metadata_size();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapMetadataSize(*this, builtin_id())
+             : raw_metadata_size();
 }
 
 int Code::SizeIncludingMetadata() const {
@@ -456,6 +449,48 @@ int Code::SizeIncludingMetadata() const {
   }
   return size;
 }
+
+Address Code::SafepointTableAddress() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapSafepointTableAddress(*this, builtin_id())
+             : raw_metadata_start() + safepoint_table_offset();
+}
+
+int Code::safepoint_table_size() const {
+  DCHECK_GE(handler_table_offset() - safepoint_table_offset(), 0);
+  return handler_table_offset() - safepoint_table_offset();
+}
+
+bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
+
+Address Code::HandlerTableAddress() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapHandlerTableAddress(*this, builtin_id())
+             : raw_metadata_start() + handler_table_offset();
+}
+
+int Code::handler_table_size() const {
+  DCHECK_GE(constant_pool_offset() - handler_table_offset(), 0);
+  return constant_pool_offset() - handler_table_offset();
+}
+
+bool Code::has_handler_table() const { return handler_table_size() > 0; }
+
+int Code::constant_pool_size() const {
+  const int size = code_comments_offset() - constant_pool_offset();
+  DCHECK_IMPLIES(!FLAG_enable_embedded_constant_pool, size == 0);
+  DCHECK_GE(size, 0);
+  return size;
+}
+
+bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
+
+int Code::code_comments_size() const {
+  DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
+  return unwinding_info_offset() - code_comments_offset();
+}
+
+bool Code::has_code_comments() const { return code_comments_size() > 0; }
 
 ByteArray Code::unchecked_relocation_info() const {
   PtrComprCageBase cage_base = main_cage_base();
@@ -777,18 +812,28 @@ void Code::set_constant_pool_offset(int value) {
 
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
-  return MetadataStart() + constant_pool_offset();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapConstantPoolAddress(*this, builtin_id())
+             : raw_metadata_start() + constant_pool_offset();
 }
 
 Address Code::code_comments() const {
-  return MetadataStart() + code_comments_offset();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapCodeCommentsAddress(*this, builtin_id())
+             : raw_metadata_start() + code_comments_offset();
 }
 
 Address Code::unwinding_info_start() const {
-  return MetadataStart() + unwinding_info_offset();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapUnwindingInfoAddress(*this, builtin_id())
+             : raw_metadata_start() + unwinding_info_offset();
 }
 
-Address Code::unwinding_info_end() const { return MetadataEnd(); }
+Address Code::unwinding_info_end() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapMetadataEnd(*this, builtin_id())
+             : raw_metadata_end();
+}
 
 int Code::unwinding_info_size() const {
   DCHECK_GE(unwinding_info_end(), unwinding_info_start());
