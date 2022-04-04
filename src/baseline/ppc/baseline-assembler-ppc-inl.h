@@ -108,8 +108,6 @@ inline internal::Condition AsMasmCondition(Condition cond) {
   }
 }
 
-namespace detail {
-
 inline bool IsSignedCondition(Condition cond) {
   switch (cond) {
     case Condition::kEqual:
@@ -147,8 +145,6 @@ static void JumpIfHelper(MacroAssembler* assm, Condition cc, Register lhs,
   __ b(AsMasmCondition(cc), target);
 }
 #undef __
-
-}  // namespace detail
 
 #define __ masm_->
 
@@ -231,7 +227,7 @@ void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
-  if (detail::IsSignedCondition(cc)) {
+  if (IsSignedCondition(cc)) {
     __ CmpS64(lhs, rhs, r0);
   } else {
     __ CmpU64(lhs, rhs, r0);
@@ -269,54 +265,72 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
   __ LoadU64(tmp, operand);
-  detail::JumpIfHelper(masm_, cc, value, tmp, target);
+  JumpIfHelper(masm_, cc, value, tmp, target);
 }
+
 void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
                                   Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ AssertSmi(value);
+  __ LoadSmiLiteral(r0, smi);
+  JumpIfHelper(masm_, cc, value, r0, target);
 }
+
 void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
                                   Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  __ AssertSmi(lhs);
+  __ AssertSmi(rhs);
+  JumpIfHelper(masm_, cc, lhs, rhs, target);
 }
+
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {
-  UNIMPLEMENTED();
+  __ LoadU64(r0, operand);
+  JumpIfHelper(masm_, cc, value, r0, target);
 }
+
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance) {
-  UNIMPLEMENTED();
+  __ LoadU64(r0, operand);
+  JumpIfHelper(masm_, cc, r0, value, target);
 }
+
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance) {
-  UNIMPLEMENTED();
+  JumpIf(cc, value, Operand(byte), target);
 }
 
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
-  UNIMPLEMENTED();
+  Move(RegisterFrameOperand(output), source);
 }
+
 void BaselineAssembler::Move(Register output, TaggedIndex value) {
-  UNIMPLEMENTED();
+  __ mov(output, Operand(value.ptr()));
 }
+
 void BaselineAssembler::Move(MemOperand output, Register source) {
-  UNIMPLEMENTED();
+  __ StoreU64(source, output);
 }
+
 void BaselineAssembler::Move(Register output, ExternalReference reference) {
-  UNIMPLEMENTED();
+  __ Move(output, reference);
 }
+
 void BaselineAssembler::Move(Register output, Handle<HeapObject> value) {
-  UNIMPLEMENTED();
+  __ Move(output, value);
 }
+
 void BaselineAssembler::Move(Register output, int32_t value) {
-  UNIMPLEMENTED();
+  __ mov(output, Operand(value));
 }
+
 void BaselineAssembler::MoveMaybeSmi(Register output, Register source) {
-  UNIMPLEMENTED();
+  __ mov(output, source);
 }
+
 void BaselineAssembler::MoveSmi(Register output, Register source) {
-  UNIMPLEMENTED();
+  __ mov(output, source);
 }
 
 namespace detail {
