@@ -465,7 +465,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = compiled_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = compiled_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kHidden &&
+    if (node->GetType() == v8::HeapGraphNode::kCode &&
         !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         compiled_references_x = true;
@@ -476,7 +476,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = lazy_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = lazy_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kHidden &&
+    if (node->GetType() == v8::HeapGraphNode::kCode &&
         !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         lazy_references_x = true;
@@ -2680,7 +2680,7 @@ TEST(AllocationSitesAreVisible) {
   CHECK(feedback_cell);
   const v8::HeapGraphNode* vector = GetProperty(
       env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
-  CHECK_EQ(v8::HeapGraphNode::kHidden, vector->GetType());
+  CHECK_EQ(v8::HeapGraphNode::kCode, vector->GetType());
   CHECK_EQ(4, vector->GetChildrenCount());
 
   // The last value in the feedback vector should be the boilerplate,
@@ -2698,7 +2698,7 @@ TEST(AllocationSitesAreVisible) {
       GetProperty(env->GetIsolate(), transition_info,
                   v8::HeapGraphEdge::kInternal, "elements");
   CHECK(elements);
-  CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
+  CHECK_EQ(v8::HeapGraphNode::kCode, elements->GetType());
   CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
            static_cast<int>(elements->GetShallowSize()));
 
