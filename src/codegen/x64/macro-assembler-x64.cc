@@ -1215,6 +1215,23 @@ void TurboAssembler::Cvttss2uiq(Register dst, XMMRegister src, Label* fail) {
   ConvertFloatToUint64<XMMRegister, false>(this, dst, src, fail);
 }
 
+void TurboAssembler::Cmpeqss(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vcmpeqss(dst, src);
+  } else {
+    cmpeqss(dst, src);
+  }
+}
+
+void TurboAssembler::Cmpeqsd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vcmpeqsd(dst, src);
+  } else {
+    cmpeqsd(dst, src);
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.

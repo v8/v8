@@ -2011,64 +2011,68 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEFloat32ToInt64:
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
-      } else {
-        __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
-      }
-      if (instr->OutputCount() > 1) {
-        __ Move(i.OutputRegister(1), 1);
-        Label done;
-        Label fail;
-        __ Move(kScratchDoubleReg, static_cast<float>(INT64_MIN));
+    case kSSEFloat32ToInt64: {
+      Register output_reg = i.OutputRegister(0);
+      if (instr->OutputCount() == 1) {
         if (instr->InputAt(0)->IsFPRegister()) {
-          __ Ucomiss(kScratchDoubleReg, i.InputDoubleRegister(0));
+          __ Cvttss2siq(output_reg, i.InputDoubleRegister(0));
         } else {
-          __ Ucomiss(kScratchDoubleReg, i.InputOperand(0));
+          __ Cvttss2siq(output_reg, i.InputOperand(0));
         }
-        // If the input is NaN, then the conversion fails.
-        __ j(parity_even, &fail, Label::kNear);
-        // If the input is INT64_MIN, then the conversion succeeds.
-        __ j(equal, &done, Label::kNear);
-        __ cmpq(i.OutputRegister(0), Immediate(1));
-        // If the conversion results in INT64_MIN, but the input was not
-        // INT64_MIN, then the conversion fails.
-        __ j(no_overflow, &done, Label::kNear);
-        __ bind(&fail);
-        __ Move(i.OutputRegister(1), 0);
-        __ bind(&done);
+        break;
       }
-      break;
-    case kSSEFloat64ToInt64:
+      DCHECK_EQ(2, instr->OutputCount());
+      Register success_reg = i.OutputRegister(1);
+      DoubleRegister rounded = kScratchDoubleReg;
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttsd2siq(i.OutputRegister(0), i.InputDoubleRegister(0));
+        __ Roundss(rounded, i.InputDoubleRegister(0), kRoundToZero);
+        __ Cvttss2siq(output_reg, i.InputDoubleRegister(0));
       } else {
-        __ Cvttsd2siq(i.OutputRegister(0), i.InputOperand(0));
+        __ Roundss(rounded, i.InputOperand(0), kRoundToZero);
+        // Convert {rounded} instead of the input operand, to avoid another
+        // load.
+        __ Cvttss2siq(output_reg, rounded);
       }
-      if (instr->OutputCount() > 1) {
-        __ Move(i.OutputRegister(1), 1);
-        Label done;
-        Label fail;
-        __ Move(kScratchDoubleReg, static_cast<double>(INT64_MIN));
-        if (instr->InputAt(0)->IsFPRegister()) {
-          __ Ucomisd(kScratchDoubleReg, i.InputDoubleRegister(0));
-        } else {
-          __ Ucomisd(kScratchDoubleReg, i.InputOperand(0));
-        }
-        // If the input is NaN, then the conversion fails.
-        __ j(parity_even, &fail, Label::kNear);
-        // If the input is INT64_MIN, then the conversion succeeds.
-        __ j(equal, &done, Label::kNear);
-        __ cmpq(i.OutputRegister(0), Immediate(1));
-        // If the conversion results in INT64_MIN, but the input was not
-        // INT64_MIN, then the conversion fails.
-        __ j(no_overflow, &done, Label::kNear);
-        __ bind(&fail);
-        __ Move(i.OutputRegister(1), 0);
-        __ bind(&done);
-      }
+      DoubleRegister converted_back = i.TempSimd128Register(0);
+      __ Cvtqsi2ss(converted_back, output_reg);
+      // Compare the converted back value to the rounded value, set success_reg
+      // to 0 if they differ, or 1 on success.
+      __ Cmpeqss(converted_back, rounded);
+      __ Movq(success_reg, converted_back);
+      __ And(success_reg, Immediate(1));
       break;
+    }
+    case kSSEFloat64ToInt64: {
+      Register output_reg = i.OutputRegister(0);
+      if (instr->OutputCount() == 1) {
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Cvttsd2siq(output_reg, i.InputDoubleRegister(0));
+        } else {
+          __ Cvttsd2siq(output_reg, i.InputOperand(0));
+        }
+        break;
+      }
+      DCHECK_EQ(2, instr->OutputCount());
+      Register success_reg = i.OutputRegister(1);
+      DoubleRegister rounded = kScratchDoubleReg;
+      if (instr->InputAt(0)->IsFPRegister()) {
+        __ Roundsd(rounded, i.InputDoubleRegister(0), kRoundToZero);
+        __ Cvttsd2siq(output_reg, i.InputDoubleRegister(0));
+      } else {
+        __ Roundsd(rounded, i.InputOperand(0), kRoundToZero);
+        // Convert {rounded} instead of the input operand, to avoid another
+        // load.
+        __ Cvttsd2siq(output_reg, rounded);
+      }
+      DoubleRegister converted_back = i.TempSimd128Register(0);
+      __ Cvtqsi2sd(converted_back, output_reg);
+      // Compare the converted back value to the rounded value, set success_reg
+      // to 0 if they differ, or 1 on success.
+      __ Cmpeqsd(converted_back, rounded);
+      __ Movq(success_reg, converted_back);
+      __ And(success_reg, Immediate(1));
+      break;
+    }
     case kSSEFloat32ToUint64: {
       Label fail;
       if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 0);

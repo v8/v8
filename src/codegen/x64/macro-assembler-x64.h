@@ -169,6 +169,9 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Cvtlsi2sd(XMMRegister dst, Register src);
   void Cvtlsi2sd(XMMRegister dst, Operand src);
 
+  void Cmpeqss(XMMRegister dst, XMMRegister src);
+  void Cmpeqsd(XMMRegister dst, XMMRegister src);
+
   void PextrdPreSse41(Register dst, XMMRegister src, uint8_t imm8);
   void Pextrq(Register dst, XMMRegister src, int8_t imm8);
 
