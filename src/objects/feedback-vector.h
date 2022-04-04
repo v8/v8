@@ -228,8 +228,7 @@ class FeedbackVector
   // the world, thus 'maybe'.
   inline bool maybe_has_optimized_code() const;
   inline void set_maybe_has_optimized_code(bool value);
-  static void SetOptimizedCode(Handle<FeedbackVector> vector,
-                               Handle<CodeT> code);
+  void SetOptimizedCode(Handle<CodeT> code);
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
                                                  const char* reason);
   void ClearOptimizedCode();

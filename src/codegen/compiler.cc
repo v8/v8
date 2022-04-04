@@ -903,10 +903,9 @@ class OptimizedCodeCache : public AllStatic {
     CodeT code;
     if (IsOSR(osr_offset)) {
       // For OSR, check the OSR optimized code cache.
-      code =
-          function->native_context()
-              .GetOSROptimizedCodeCache()
-              .GetOptimizedCode(handle(shared, isolate), osr_offset, isolate);
+      code = function->native_context()
+                 .GetOSROptimizedCodeCache()
+                 .GetOptimizedCode(shared, osr_offset, isolate);
     } else {
       // Non-OSR code may be cached on the feedback vector.
       if (function->has_feedback_vector()) {
@@ -960,9 +959,7 @@ class OptimizedCodeCache : public AllStatic {
       return;
     }
 
-    Handle<FeedbackVector> vector =
-        handle(function->feedback_vector(), isolate);
-    FeedbackVector::SetOptimizedCode(vector, code);
+    function->feedback_vector().SetOptimizedCode(code);
   }
 };
 
@@ -3395,15 +3392,6 @@ MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
   // One OSR job per function at a time.
   if (IsInProgress(function->osr_tiering_state())) {
     return {};
-  }
-
-  // If we are trying to do OSR when there are already optimized activations of
-  // the function, it means (a) the function is directly or indirectly
-  // recursive and (b) an optimized invocation has been deoptimized so that we
-  // are currently in an unoptimized activation.
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (frame->is_optimized() && frame->function() == *function) return {};
   }
 
   // -- Alright, decided to proceed. --
