@@ -64,14 +64,33 @@ export class DeoptLogEntry extends LogEntry {
   }
 }
 
-export class CodeLogEntry extends LogEntry {
-  constructor(type, time, kindName, kind, entry) {
+class CodeLikeLogEntry extends LogEntry {
+  constructor(type, time, profilerEntry) {
     super(type, time);
+    this._entry = profilerEntry;
+    profilerEntry.logEntry = this;
+    this._relatedEntries = [];
+  }
+
+  get entry() {
+    return this._entry;
+  }
+
+  add(entry) {
+    this._relatedEntries.push(entry);
+  }
+
+  relatedEntries() {
+    return this._relatedEntries;
+  }
+}
+
+export class CodeLogEntry extends CodeLikeLogEntry {
+  constructor(type, time, kindName, kind, profilerEntry) {
+    super(type, time, profilerEntry);
     this._kind = kind;
     this._kindName = kindName;
-    this._entry = entry;
     this._feedbackVector = undefined;
-    entry.logEntry = this;
   }
 
   get kind() {
@@ -88,10 +107,6 @@ export class CodeLogEntry extends LogEntry {
 
   get kindName() {
     return this._kindName;
-  }
-
-  get entry() {
-    return this._entry;
   }
 
   get functionName() {
@@ -200,18 +215,13 @@ export class FeedbackVectorEntry extends LogEntry {
   }
 }
 
-export class SharedLibLogEntry extends LogEntry {
-  constructor(entry) {
-    super('SHARED_LIB', 0);
-    this._entry = entry;
+export class SharedLibLogEntry extends CodeLikeLogEntry {
+  constructor(profilerEntry) {
+    super('SHARED_LIB', 0, profilerEntry);
   }
 
   get name() {
     return this._entry.name;
-  }
-
-  get entry() {
-    return this._entry;
   }
 
   toString() {
