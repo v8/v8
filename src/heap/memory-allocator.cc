@@ -244,7 +244,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
   DCHECK_LT(area_size, chunk_size);
 
   VirtualMemory reservation(page_allocator, chunk_size, hint, alignment);
-  if (!reservation.IsReserved()) return kNullAddress;
+  if (!reservation.IsReserved()) return HandleAllocationFailure();
 
   // We cannot use the last chunk in the address space because we would
   // overflow when comparing top and limit if this chunk is used for a
@@ -256,7 +256,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
 
     // Retry reserve virtual memory.
     reservation = VirtualMemory(page_allocator, chunk_size, hint, alignment);
-    if (!reservation.IsReserved()) return kNullAddress;
+    if (!reservation.IsReserved()) return HandleAllocationFailure();
   }
 
   Address base = reservation.address();
@@ -265,7 +265,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
     const size_t aligned_area_size = ::RoundUp(area_size, GetCommitPageSize());
     if (!SetPermissionsOnExecutableMemoryChunk(&reservation, base,
                                                aligned_area_size, chunk_size)) {
-      base = kNullAddress;
+      return HandleAllocationFailure();
     }
   } else {
     // No guard page between page header and object area. This allows us to make
@@ -278,19 +278,21 @@ Address MemoryAllocator::AllocateAlignedMemory(
                                    PageAllocator::kReadWrite)) {
       UpdateAllocatedSpaceLimits(base, base + commit_size);
     } else {
-      base = kNullAddress;
+      return HandleAllocationFailure();
     }
-  }
-
-  if (base == kNullAddress) {
-    // Failed to commit the body. Free the mapping and any partially committed
-    // regions inside it.
-    reservation.Free();
-    return kNullAddress;
   }
 
   *controller = std::move(reservation);
   return base;
+}
+
+Address MemoryAllocator::HandleAllocationFailure() {
+  Heap* heap = isolate_->heap();
+  if (!heap->deserialization_complete()) {
+    heap->FatalProcessOutOfMemory(
+        "MemoryChunk allocation failed during deserialization.");
+  }
+  return kNullAddress;
 }
 
 size_t MemoryAllocator::ComputeChunkSize(size_t area_size,

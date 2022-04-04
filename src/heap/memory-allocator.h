@@ -258,6 +258,8 @@ class MemoryAllocator {
 
   void UnregisterReadOnlyPage(ReadOnlyPage* page);
 
+  Address HandleAllocationFailure();
+
  private:
   // Used to store all data about MemoryChunk allocation, e.g. in
   // AllocateUninitializedChunk.
