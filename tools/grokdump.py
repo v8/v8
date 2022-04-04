@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
@@ -30,12 +30,9 @@
 # flake8: noqa  # https://bugs.chromium.org/p/v8/issues/detail?id=8784
 
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
-import BaseHTTPServer
+import http.server as http_server
 import bisect
-import cgi
+import html
 import cmd
 import codecs
 import ctypes
@@ -46,11 +43,10 @@ import mmap
 import optparse
 import os
 import re
-import StringIO
+import io
 import sys
 import types
-import urllib
-import urlparse
+import urllib.parse
 import v8heapconst
 import webbrowser
 
@@ -838,7 +834,7 @@ class MinidumpReader(object):
 
   def ReadAsciiPtr(self, address):
     ascii_content = [
-        c if c >= '\x20' and c < '\x7f' else '.'
+        chr(c) if c >= 0x20 and c < 0x7f else '.'
         for c in self.ReadBytes(address, self.MachinePointerSize())
     ]
     return ''.join(ascii_content)
@@ -2306,7 +2302,7 @@ class InspectionPadawan(object):
       count += 1
     if count <= 5 or len(possible_context) == 0: return
     # Find entry with highest count
-    possible_context = possible_context.items()
+    possible_context = list(possible_context.items())
     possible_context.sort(key=lambda pair: pair[1])
     address,count = possible_context[-1]
     if count <= 4: return
@@ -2615,11 +2611,11 @@ WEB_FOOTER = """
 
 
 class WebParameterError(Exception):
-  def __init__(self, message):
-    Exception.__init__(self, message)
+  pass
 
 
-class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class InspectionWebHandler(http_server.BaseHTTPRequestHandler):
+
   def formatter(self, query_components):
     name = query_components.get("dump", [None])[0]
     return self.server.get_dump_formatter(name)
@@ -2633,40 +2629,39 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.end_headers()
     return
 
+  def write(self, string):
+    self.wfile.write(string.encode('utf-8'))
+
   def do_GET(self):
     try:
-      parsedurl = urlparse.urlparse(self.path)
-      query_components = urlparse.parse_qs(parsedurl.query)
+      parsedurl = urllib.parse.urlparse(self.path)
+      query_components = urllib.parse.parse_qs(parsedurl.query)
+      out_buffer = io.StringIO()
       if parsedurl.path == "/dumps.html":
         self.send_success_html_headers()
-        out_buffer = StringIO.StringIO()
         self.server.output_dumps(out_buffer)
-        self.wfile.write(out_buffer.getvalue())
+        self.write(out_buffer.getvalue())
       elif parsedurl.path == "/summary.html":
         self.send_success_html_headers()
-        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_summary(out_buffer)
-        self.wfile.write(out_buffer.getvalue())
+        self.write(out_buffer.getvalue())
       elif parsedurl.path == "/info.html":
         self.send_success_html_headers()
-        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_info(out_buffer)
-        self.wfile.write(out_buffer.getvalue())
+        self.write(out_buffer.getvalue())
       elif parsedurl.path == "/modules.html":
         self.send_success_html_headers()
-        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_modules(out_buffer)
-        self.wfile.write(out_buffer.getvalue())
+        self.write(out_buffer.getvalue())
       elif parsedurl.path == "/search.html" or parsedurl.path == "/s":
         address = query_components.get("val", [])
         if len(address) != 1:
           self.send_error(404, "Invalid params")
           return
         self.send_success_html_headers()
-        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_search_res(
             out_buffer, address[0])
-        self.wfile.write(out_buffer.getvalue())
+        self.write(out_buffer.getvalue())
       elif parsedurl.path == "/disasm.html":
         address = query_components.get("val", [])
         exact = query_components.get("exact", ["on"])
@@ -2674,19 +2669,17 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           self.send_error(404, "Invalid params")
           return
         self.send_success_html_headers()
-        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_disasm(
             out_buffer, address[0], exact[0])
-        self.wfile.write(out_buffer.getvalue())
+        self.write(out_buffer.getvalue())
       elif parsedurl.path == "/data.html":
         address = query_components.get("val", [])
         datakind = query_components.get("type", ["address"])
         if len(address) == 1 and len(datakind) == 1:
           self.send_success_html_headers()
-          out_buffer = StringIO.StringIO()
           self.formatter(query_components).output_data(
               out_buffer, address[0], datakind[0])
-          self.wfile.write(out_buffer.getvalue())
+          self.write(out_buffer.getvalue())
         else:
           self.send_error(404,'Invalid params')
       elif parsedurl.path == "/setdumpdesc":
@@ -2697,7 +2690,7 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           description = description[0]
           if self.server.set_dump_desc(name, description):
             self.send_success_html_headers()
-            self.wfile.write("OK")
+            self.write("OK")
             return
         self.send_error(404,'Invalid params')
       elif parsedurl.path == "/setcomment":
@@ -2708,7 +2701,7 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           comment = comment[0]
           self.formatter(query_components).set_comment(address, comment)
           self.send_success_html_headers()
-          self.wfile.write("OK")
+          self.write("OK")
         else:
           self.send_error(404,'Invalid params')
       elif parsedurl.path == "/setpageaddress":
@@ -2719,7 +2712,7 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           address = address[0]
           self.formatter(query_components).set_page_address(kind, address)
           self.send_success_html_headers()
-          self.wfile.write("OK")
+          self.write("OK")
         else:
           self.send_error(404,'Invalid params')
       else:
@@ -2741,7 +2734,7 @@ class InspectionWebFormatter(object):
 
   def __init__(self, switches, minidump_name, http_server):
     self.dumpfilename = os.path.split(minidump_name)[1]
-    self.encfilename = urllib.urlencode({ 'dump' : self.dumpfilename })
+    self.encfilename = urllib.parse.urlencode({'dump': self.dumpfilename})
     self.reader = MinidumpReader(switches, minidump_name)
     self.server = http_server
 
@@ -2811,9 +2804,10 @@ class InspectionWebFormatter(object):
               (style_class, self.encfilename, struncompressed, straddress))
 
   def output_header(self, f):
-    f.write(WEB_HEADER %
-        { "query_dump" : self.encfilename,
-          "dump_name"  : cgi.escape(self.dumpfilename) })
+    f.write(WEB_HEADER % {
+        "query_dump": self.encfilename,
+        "dump_name": html.escape(self.dumpfilename)
+    })
 
   def output_footer(self, f):
     f.write(WEB_FOOTER)
@@ -2943,7 +2937,7 @@ class InspectionWebFormatter(object):
 
   def format_object(self, address):
     heap_object = self.padawan.SenseObject(address)
-    return cgi.escape(str(heap_object or ""))
+    return html.escape(str(heap_object or ""))
 
   def output_data(self, f, straddress, datakind):
     try:
@@ -3172,7 +3166,7 @@ class InspectionWebFormatter(object):
       object_info = self.padawan.SenseObject(maybe_address)
       if not object_info:
         continue
-      extra.append(cgi.escape(str(object_info)))
+        extra.append(html.escape(str(object_info)))
     if len(extra) == 0:
       return line
     return ("%s <span class=disasmcomment>;; %s</span>" %
@@ -3236,7 +3230,7 @@ class InspectionWebFormatter(object):
     comment = self.comments.get_comment(address)
     value = ""
     if comment:
-      value = " value=\"%s\"" % cgi.escape(comment)
+      value = " value=\"%s\"" % html.escape(comment)
     f.write("<input type=text class=ci "
             "id=%s-address-0x%s onchange=c()%s>" %
             (prefix,
@@ -3400,10 +3394,10 @@ WEB_DUMPS_FOOTER = """
 DUMP_FILE_RE = re.compile(r"[-_0-9a-zA-Z][-\._0-9a-zA-Z]*\.dmp$")
 
 
-class InspectionWebServer(BaseHTTPServer.HTTPServer):
+class InspectionWebServer(http_server.HTTPServer):
+
   def __init__(self, port_number, switches, minidump_name):
-    BaseHTTPServer.HTTPServer.__init__(
-        self, ('localhost', port_number), InspectionWebHandler)
+    super().__init__(('localhost', port_number), InspectionWebHandler)
     splitpath = os.path.split(minidump_name)
     self.dumppath = splitpath[0]
     self.dumpfilename = splitpath[1]
@@ -3421,7 +3415,7 @@ class InspectionWebServer(BaseHTTPServer.HTTPServer):
       desc = ""
     f.write("<input type=\"text\" class=\"dumpcomments\" "
             "id=\"dump-%s\" onchange=\"dump_comment()\" value=\"%s\">\n" %
-            (cgi.escape(name), desc))
+            (html.escape(name), desc))
 
   def set_dump_desc(self, name, description):
     if not DUMP_FILE_RE.match(name):
@@ -3472,8 +3466,8 @@ class InspectionWebServer(BaseHTTPServer.HTTPServer):
       fnames = dumps_by_time[mtime]
       for fname in fnames:
         f.write("<tr>\n")
-        f.write("<td><a href=\"summary.html?%s\">%s</a></td>\n" % (
-            (urllib.urlencode({ 'dump' : fname }), fname)))
+        f.write("<td><a href=\"summary.html?%s\">%s</a></td>\n" %
+                ((urllib.parse.urlencode({'dump': fname}), fname)))
         f.write("<td>&nbsp;&nbsp;&nbsp;")
         f.write(datetime.datetime.fromtimestamp(mtime))
         f.write("</td>")
