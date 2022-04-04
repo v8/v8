@@ -376,6 +376,57 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 }
 
+void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
+  ASM_CODE_COMMENT(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement);
+  }
+
+  // If the code object is null, just return to the caller.
+  Label skip;
+  __ CmpSmiLiteral(r3, Smi::zero(), r0);
+  __ bne(&skip);
+  __ Ret();
+
+  __ bind(&skip);
+
+  if (is_interpreter) {
+    // Drop the handler frame that is be sitting on top of the actual
+    // JavaScript frame. This is the case then OSR is triggered from bytecode.
+    __ LeaveFrame(StackFrame::STUB);
+  }
+
+  // Load deoptimization data from the code object.
+  // <deopt_data> = <code>[#deoptimization_data_offset]
+  __ LoadTaggedPointerField(
+      r4, FieldMemOperand(r3, Code::kDeoptimizationDataOrInterpreterDataOffset),
+      r0);
+
+  {
+    ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+    __ addi(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
+
+    if (FLAG_enable_embedded_constant_pool) {
+      __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3);
+    }
+
+    // Load the OSR entrypoint offset from the deoptimization data.
+    // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
+    __ SmiUntag(r4,
+                FieldMemOperand(r4, FixedArray::OffsetOfElementAt(
+                                        DeoptimizationData::kOsrPcOffsetIndex)),
+                LeaveRC, r0);
+
+    // Compute the target address = code start + osr_offset
+    __ add(r0, r3, r4);
+
+    // And "return" to the OSR entry point of the function.
+    __ mtlr(r0);
+    __ blr();
+  }
+}
+
 }  // namespace
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
@@ -1841,52 +1892,16 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kCompileOptimizedOSR);
-  }
-
-  // If the code object is null, just return to the caller.
-  Label skip;
-  __ CmpSmiLiteral(r3, Smi::zero(), r0);
-  __ bne(&skip);
-  __ Ret();
-
-  __ bind(&skip);
-
-  // Drop the handler frame that is be sitting on top of the actual
-  // JavaScript frame. This is the case then OSR is triggered from bytecode.
-  __ LeaveFrame(StackFrame::STUB);
-
-  // Load deoptimization data from the code object.
-  // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ LoadTaggedPointerField(
-      r4, FieldMemOperand(r3, Code::kDeoptimizationDataOrInterpreterDataOffset),
-      r0);
-
-  {
-    ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-    __ addi(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
-
-    if (FLAG_enable_embedded_constant_pool) {
-      __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r3);
-    }
-
-    // Load the OSR entrypoint offset from the deoptimization data.
-    // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-    __ SmiUntag(r4,
-                FieldMemOperand(r4, FixedArray::OffsetOfElementAt(
-                                        DeoptimizationData::kOsrPcOffsetIndex)),
-                LeaveRC, r0);
-
-    // Compute the target address = code start + osr_offset
-    __ add(r0, r3, r4);
-
-    // And "return" to the OSR entry point of the function.
-    __ mtlr(r0);
-    __ blr();
-  }
+  return OnStackReplacement(masm, true);
 }
+
+#if ENABLE_SPARKPLUG
+void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  __ LoadU64(kContextRegister,
+             MemOperand(fp, BaselineFrameConstants::kContextOffset), r0);
+  return OnStackReplacement(masm, false);
+}
+#endif
 
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
