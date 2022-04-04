@@ -605,12 +605,14 @@ class FuncSymbol:
   def Covers(self, addr):
     return (self.start <= addr) and (addr < self.end)
 
+
 class MinidumpReader(object):
   """Minidump (.dmp) reader."""
 
   _HEADER_MAGIC = 0x504d444d
 
   def __init__(self, options, minidump_name):
+    self._reset()
     self.minidump_name = minidump_name
     if sys.platform == 'win32':
       self.minidump_file = open(minidump_name, "a+")
@@ -622,11 +624,19 @@ class MinidumpReader(object):
     if self.header.signature != MinidumpReader._HEADER_MAGIC:
       print("Warning: Unsupported minidump header magic!", file=sys.stderr)
     DebugPrint(self.header)
-    directories = []
     offset = self.header.stream_directories_rva
+    directories = []
     for _ in range(self.header.stream_count):
       directories.append(MINIDUMP_DIRECTORY.Read(self.minidump, offset))
       offset += MINIDUMP_DIRECTORY.size
+
+    self.symdir = options.symdir
+    self._ReadArchitecture(directories)
+    self._ReadDirectories(directories)
+    self._FindObjdump(options)
+
+  def _reset(self):
+    self.header = None
     self.arch = None
     self.exception = None
     self.exception_context = None
@@ -635,13 +645,9 @@ class MinidumpReader(object):
     self.module_list = None
     self.thread_map = {}
 
-    self.symdir = options.symdir
     self.modules_with_symbols = []
     self.symbols = []
 
-    self._ReadArchitecture(directories)
-    self._ReadDirectories(directories)
-    self._FindObjdump(options)
 
   def _ReadArchitecture(self, directories):
     # Find MDRawSystemInfo stream and determine arch.
@@ -735,7 +741,7 @@ class MinidumpReader(object):
       return None
     print(("# Looking for platform specific (%s) objdump in "
            "third_party directory.") % platform_filter)
-    objdumps = filter(lambda file: platform_filter in file >= 0, objdumps)
+    objdumps = list(filter(lambda file: platform_filter in file >= 0, objdumps))
     if len(objdumps) == 0:
       print("# Could not find platform specific objdump in third_party.")
       print("# Make sure you installed the correct SDK.")
@@ -990,6 +996,7 @@ class MinidumpReader(object):
 
 
   def Dispose(self):
+    self._reset()
     self.minidump.close()
     self.minidump_file.close()
 
@@ -3890,6 +3897,13 @@ def PrintModuleDetails(reader, module):
 
 def AnalyzeMinidump(options, minidump_name):
   reader = MinidumpReader(options, minidump_name)
+  # Use a separate function to prevent leaking the minidump buffer through
+  # ctypes in local variables.
+  _AnalyzeMinidump(options, reader)
+  reader.Dispose()
+
+
+def _AnalyzeMinidump(options, reader):
   heap = None
 
   stack_top = reader.ExceptionSP()
@@ -3987,7 +4001,6 @@ def AnalyzeMinidump(options, minidump_name):
       print("Annotated stack (from exception.esp to bottom):")
       stack_start = padawan.PrintStackTraceMessage()
       padawan.InterpretMemory(stack_start, stack_bottom)
-  reader.Dispose()
 
 
 if __name__ == "__main__":
