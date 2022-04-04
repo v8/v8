@@ -607,7 +607,7 @@ void MarkCompactCollector::StartMarking() {
   if (FLAG_verify_heap) {
     VerifyMarkbitsAreClean();
   }
-#endif
+#endif  // VERIFY_HEAP
 }
 
 void MarkCompactCollector::CollectGarbage() {
@@ -976,16 +976,21 @@ void MarkCompactCollector::Prepare() {
   DCHECK(!sweeping_in_progress());
 
   if (!was_marked_incrementally_) {
+    auto embedder_flags = heap_->flags_for_embedder_tracer();
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
-      auto embedder_flags = heap_->flags_for_embedder_tracer();
       // PrepareForTrace should be called before visitor initialization in
       // StartMarking.
       heap_->local_embedder_heap_tracer()->PrepareForTrace(embedder_flags);
-      heap_->local_embedder_heap_tracer()->TracePrologue(embedder_flags);
     }
     StartCompaction(StartCompactionMode::kAtomic);
     StartMarking();
+    {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
+      // TracePrologue immediately starts marking which requires V8 worklists to
+      // be set up.
+      heap_->local_embedder_heap_tracer()->TracePrologue(embedder_flags);
+    }
   }
 
   heap_->FreeLinearAllocationAreas();

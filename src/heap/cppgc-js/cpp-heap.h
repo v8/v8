@@ -17,6 +17,7 @@ static_assert(
 #include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/heap/cppgc/heap-base.h"
+#include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/logging/metrics.h"
 
@@ -81,6 +82,15 @@ class V8_EXPORT_PRIVATE CppHeap final
         last_full_gc_event_;
     base::Optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
         last_incremental_mark_event_;
+  };
+
+  class PauseConcurrentMarkingScope final {
+   public:
+    explicit PauseConcurrentMarkingScope(CppHeap*);
+
+   private:
+    base::Optional<cppgc::internal::MarkerBase::PauseConcurrentMarkingScope>
+        pause_scope_;
   };
 
   static CppHeap* From(v8::CppHeap* heap) {
