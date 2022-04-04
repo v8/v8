@@ -359,7 +359,6 @@
   'compiler/array-multiple-receiver-maps': [SKIP],
   # Tests taking too long
   'regress/regress-1122': [SKIP],
-  'regress/regress-331444': [SKIP],
   'regress/regress-353551': [SKIP],
   'regress/regress-crbug-119926': [SKIP],
   'regress/short-circuit': [SKIP],
@@ -519,7 +518,6 @@
 ['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
   'regress/regress-2790': [SKIP],
-  'regress/regress-331444': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-992389': [SKIP],
 }],  # 'is_full_debug'
@@ -594,7 +592,6 @@
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'messages': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
-  'regress/regress-331444': [PASS, SLOW],
   'regress/regress-490': [PASS, SLOW],
   'regress/regress-crbug-217858': [PASS, SLOW],
   'regress/regress-create-exception': [PASS, SLOW],
@@ -1210,7 +1207,6 @@
   'regress/regress-crbug-482998': [SKIP],
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-779407': [PASS, SLOW],
-  'regress/regress-331444': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
@@ -1695,7 +1691,6 @@
   'wasm/memory_2gb_oob': [SKIP],
   'wasm/memory_1gb_oob': [SKIP],
   'wasm/memory_4gb_oob': [SKIP],
-  'regress/regress-331444': [SKIP],
   'regress/regress-708247': [SKIP],
   # Performs GC
   'code-coverage-precise': [SKIP],
