@@ -69,9 +69,9 @@ luci.cq_group(
             "chromium:try/linux-rel",
             location_regexp = [
                 ".+/[+]/include/.+\\.h",
-                ".+/[+]/src/api\\.cc",
+                ".+/[+]/src/api/api\\.cc",
                 ".+/[+]/src/inspector/.+",
-                ".+/[+]/src/message-template\\.h",
+                ".+/[+]/src/common/message-template\\.h",
                 ".+/[+]/test/inspector/.+",
             ],
         ),
