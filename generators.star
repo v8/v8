@@ -172,8 +172,8 @@ def ensure_forward_triggering_properties(ctx):
 def python3_scripts(ctx):
     build_bucket = ctx.output["cr-buildbucket.cfg"]
     for bucket in build_bucket.buckets:
-        if bucket.name not in ["ci", "try", "try.triggered"]:
-            # We switch tryserver and branches last.
+        if bucket.name not in ["ci", "ci.br.beta", "try", "try.triggered"]:
+            # TODO(https://crbug.com/1292013): Switch stable and extended.
             continue
         for builder in bucket.swarming.builders:
             if not builder.experiments.get("v8.scripts.use_python3"):
