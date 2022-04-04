@@ -32,6 +32,45 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm)
+namespace {
+
+static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
+                                 Register scratch) {
+  DCHECK(!AreAliased(code, scratch));
+  // Verify that the code kind is baseline code via the CodeKind.
+  __ LoadU32(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  __ DecodeField<Code::KindField>(scratch);
+  __ CmpS64(scratch, Operand(static_cast<int>(CodeKind::BASELINE)), r0);
+  __ Assert(eq, AbortReason::kExpectedBaselineData);
+}
+
+static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
+                                                    Register sfi_data,
+                                                    Register scratch1,
+                                                    Label* is_baseline) {
+  USE(GetSharedFunctionInfoBytecodeOrBaseline);
+  ASM_CODE_COMMENT(masm);
+  Label done;
+  __ CompareObjectType(sfi_data, scratch1, scratch1, CODET_TYPE);
+  if (FLAG_debug_code) {
+    Label not_baseline;
+    __ b(ne, &not_baseline);
+    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    __ beq(is_baseline);
+    __ bind(&not_baseline);
+  } else {
+    __ beq(is_baseline);
+  }
+  __ CmpS32(scratch1, Operand(INTERPRETER_DATA_TYPE), r0);
+  __ bne(&done);
+  __ LoadTaggedPointerField(
+      sfi_data,
+      FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
+
+  __ bind(&done);
+}
+
+}  // namespace
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
   __ Move(kJavaScriptCallExtraArg1Register, ExternalReference::Create(address));
