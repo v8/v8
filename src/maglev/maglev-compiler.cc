@@ -72,6 +72,9 @@ class UseMarkingProcessor {
     for (Input& input : *node) {
       input.node()->mark_use(node->id(), &input);
     }
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      MarkCheckpointNodes(node, node->lazy_deopt_info(), state);
+    }
   }
 
   void Process(Phi* node, const ProcessingState& state) {
@@ -104,18 +107,32 @@ class UseMarkingProcessor {
   }
 
  private:
-  void MarkCheckpointNodes(NodeBase* node,
-                           const EagerDeoptInfo* eager_deopt_info,
+  void MarkCheckpointNodes(NodeBase* node, const EagerDeoptInfo* deopt_info,
                            const ProcessingState& state) {
     const CompactInterpreterFrameState* register_frame =
-        eager_deopt_info->state.register_frame;
+        deopt_info->state.register_frame;
     int use_id = node->id();
     int index = 0;
 
     register_frame->ForEachValue(
         *state.compilation_unit(),
         [&](ValueNode* node, interpreter::Register reg) {
-          node->mark_use(use_id, &eager_deopt_info->input_locations[index++]);
+          node->mark_use(use_id, &deopt_info->input_locations[index++]);
+        });
+  }
+  void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
+                           const ProcessingState& state) {
+    const CompactInterpreterFrameState* register_frame =
+        deopt_info->state.register_frame;
+    int use_id = node->id();
+    int index = 0;
+
+    register_frame->ForEachValue(
+        *state.compilation_unit(),
+        [&](ValueNode* node, interpreter::Register reg) {
+          // Skip over the result location.
+          if (reg == deopt_info->result_location) return;
+          node->mark_use(use_id, &deopt_info->input_locations[index++]);
         });
   }
 };

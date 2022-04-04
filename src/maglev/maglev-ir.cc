@@ -766,8 +766,8 @@ void Call::GenerateCode(MaglevCodeGenState* code_gen_state,
       break;
   }
 
-  lazy_deopt()->deopting_call_return_pc = __ pc_offset_for_safepoint();
-  code_gen_state->PushLazyDeopt(lazy_deopt());
+  lazy_deopt_info()->deopting_call_return_pc = __ pc_offset_for_safepoint();
+  code_gen_state->PushLazyDeopt(lazy_deopt_info());
 
   SafepointTableBuilder::Safepoint safepoint =
       code_gen_state->safepoint_table_builder()->DefineSafepoint(

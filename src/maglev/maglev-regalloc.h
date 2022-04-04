@@ -47,7 +47,8 @@ class StraightForwardRegisterAllocator {
 
   void UpdateUse(Input* input) { return UpdateUse(input->node(), input); }
   void UpdateUse(ValueNode* node, InputLocation* input_location);
-  void UpdateUse(const EagerDeoptInfo& eager_deopt_info);
+  void UpdateUse(const EagerDeoptInfo& deopt_info);
+  void UpdateUse(const LazyDeoptInfo& deopt_info);
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);

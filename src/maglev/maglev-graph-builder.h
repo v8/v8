@@ -152,6 +152,10 @@ class MaglevGraphBuilder {
       return Node::New<NodeT>(zone(), *compilation_unit_,
                               GetLatestCheckpointedState(),
                               std::forward<Args>(args)...);
+    } else if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      return Node::New<NodeT>(zone(), *compilation_unit_,
+                              GetCheckpointedStateForLazyDeopt(),
+                              std::forward<Args>(args)...);
     } else {
       return Node::New<NodeT>(zone(), std::forward<Args>(args)...);
     }
@@ -186,8 +190,9 @@ class MaglevGraphBuilder {
     DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
               node->properties().can_lazy_deopt());
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      node->AttachLazyDeopt(
-          GetLazyDeoptInfo(interpreter::Register::virtual_accumulator()));
+      DCHECK(!node->lazy_deopt_info()->result_location.is_valid());
+      node->lazy_deopt_info()->result_location =
+          interpreter::Register::virtual_accumulator();
     }
     SetAccumulatorToExistingNode(node);
   }
@@ -235,14 +240,11 @@ class MaglevGraphBuilder {
     return *latest_checkpointed_state_;
   }
 
-  LazyDeoptInfo GetLazyDeoptInfo(interpreter::Register result_location) {
-    return LazyDeoptInfo(
-        zone(), *compilation_unit_,
-        CheckpointedInterpreterState(BytecodeOffset(iterator_.current_offset()),
-                                     zone()->New<CompactInterpreterFrameState>(
-                                         *compilation_unit_, GetOutLiveness(),
-                                         current_interpreter_frame_)),
-        result_location);
+  CheckpointedInterpreterState GetCheckpointedStateForLazyDeopt() {
+    return CheckpointedInterpreterState(
+        BytecodeOffset(iterator_.current_offset()),
+        zone()->New<CompactInterpreterFrameState>(
+            *compilation_unit_, GetOutLiveness(), current_interpreter_frame_));
   }
 
   void MarkPossibleSideEffect() {

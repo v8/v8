@@ -317,13 +317,28 @@ void StraightForwardRegisterAllocator::UpdateUse(
 }
 
 void StraightForwardRegisterAllocator::UpdateUse(
-    const EagerDeoptInfo& eager_deopt_info) {
+    const EagerDeoptInfo& deopt_info) {
   const CompactInterpreterFrameState* checkpoint_state =
-      eager_deopt_info.state.register_frame;
+      deopt_info.state.register_frame;
   int index = 0;
   checkpoint_state->ForEachValue(
       *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
-        InputLocation* input = &eager_deopt_info.input_locations[index++];
+        InputLocation* input = &deopt_info.input_locations[index++];
+        input->InjectAllocated(node->allocation());
+        UpdateUse(node, input);
+      });
+}
+
+void StraightForwardRegisterAllocator::UpdateUse(
+    const LazyDeoptInfo& deopt_info) {
+  const CompactInterpreterFrameState* checkpoint_state =
+      deopt_info.state.register_frame;
+  int index = 0;
+  checkpoint_state->ForEachValue(
+      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
+        // Skip over the result location.
+        if (reg == deopt_info.result_location) return;
+        InputLocation* input = &deopt_info.input_locations[index++];
         input->InjectAllocated(node->allocation());
         UpdateUse(node, input);
       });
@@ -339,10 +354,17 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
 
   if (node->properties().is_call()) SpillAndClearRegisters();
   // TODO(verwaest): This isn't a good idea :)
-  if (node->properties().can_eager_deopt()) SpillRegisters();
+  if (node->properties().can_eager_deopt() ||
+      node->properties().can_lazy_deopt())
+    SpillRegisters();
 
   // Allocate node output.
   if (node->Is<ValueNode>()) AllocateNodeResult(node->Cast<ValueNode>());
+
+  // Lazy deopts are semantically after the node, so update them last.
+  if (node->properties().can_lazy_deopt()) {
+    UpdateUse(*node->lazy_deopt_info());
+  }
 
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->Process(node,

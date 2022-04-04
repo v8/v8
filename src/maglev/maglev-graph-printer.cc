@@ -348,7 +348,7 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, 0);
 
-  LazyDeoptInfo* deopt_info = node->lazy_deopt();
+  LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
   os << "  ↳ lazy @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
   deopt_info->state.register_frame->ForEachValue(

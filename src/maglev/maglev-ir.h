@@ -315,7 +315,6 @@ class CheckpointedInterpreterState {
 
 class DeoptInfo {
  protected:
-  DeoptInfo() = default;
   DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
             CheckpointedInterpreterState checkpoint);
 
@@ -331,21 +330,17 @@ class EagerDeoptInfo : public DeoptInfo {
   EagerDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
                  CheckpointedInterpreterState checkpoint)
       : DeoptInfo(zone, compilation_unit, checkpoint) {}
-
-  EagerDeoptInfo() = delete;
 };
 
 class LazyDeoptInfo : public DeoptInfo {
  public:
-  LazyDeoptInfo() = default;
   LazyDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
-                CheckpointedInterpreterState checkpoint,
-                interpreter::Register result_location)
-      : DeoptInfo(zone, compilation_unit, checkpoint),
-        result_location(result_location) {}
+                CheckpointedInterpreterState checkpoint)
+      : DeoptInfo(zone, compilation_unit, checkpoint) {}
 
   int deopting_call_return_pc = -1;
-  interpreter::Register result_location;
+  interpreter::Register result_location =
+      interpreter::Register::invalid_value();
 };
 
 // Dummy type for the initial raw allocation.
@@ -365,21 +360,6 @@ struct opcode_of_helper;
   };
 NODE_BASE_LIST(DEF_OPCODE_OF)
 #undef DEF_OPCODE_OF
-
-class LazyDeoptMixin {
- public:
-  LazyDeoptInfo* lazy_deopt() {
-    DCHECK_NOT_NULL(lazy_deopt_.state.register_frame);
-    return &lazy_deopt_;
-  }
-  void AttachLazyDeopt(LazyDeoptInfo&& lazy_deopt) {
-    DCHECK_NULL(lazy_deopt_.state.register_frame);
-    lazy_deopt_ = std::move(lazy_deopt);
-  }
-
- private:
-  LazyDeoptInfo lazy_deopt_;
-};
 
 }  // namespace detail
 
@@ -420,8 +400,14 @@ class NodeBase : public ZoneObject {
   static Derived* New(Zone* zone, const MaglevCompilationUnit& compilation_unit,
                       CheckpointedInterpreterState checkpoint, Args&&... args) {
     Derived* node = New<Derived>(zone, std::forward<Args>(args)...);
-    new (node->eager_deopt_info_address())
-        EagerDeoptInfo(zone, compilation_unit, checkpoint);
+    if constexpr (Derived::kProperties.can_eager_deopt()) {
+      new (node->eager_deopt_info_address())
+          EagerDeoptInfo(zone, compilation_unit, checkpoint);
+    } else {
+      STATIC_ASSERT(Derived::kProperties.can_lazy_deopt());
+      new (node->lazy_deopt_info_address())
+          LazyDeoptInfo(zone, compilation_unit, checkpoint);
+    }
     return node;
   }
 
@@ -517,6 +503,7 @@ class NodeBase : public ZoneObject {
 
   EagerDeoptInfo* eager_deopt_info() {
     DCHECK(properties().can_eager_deopt());
+    DCHECK(!properties().can_lazy_deopt());
     return (
         reinterpret_cast<EagerDeoptInfo*>(input_address(input_count() - 1)) -
         1);
@@ -524,7 +511,23 @@ class NodeBase : public ZoneObject {
 
   const EagerDeoptInfo* eager_deopt_info() const {
     DCHECK(properties().can_eager_deopt());
+    DCHECK(!properties().can_lazy_deopt());
     return (reinterpret_cast<const EagerDeoptInfo*>(
+                input_address(input_count() - 1)) -
+            1);
+  }
+
+  LazyDeoptInfo* lazy_deopt_info() {
+    DCHECK(properties().can_lazy_deopt());
+    DCHECK(!properties().can_eager_deopt());
+    return (reinterpret_cast<LazyDeoptInfo*>(input_address(input_count() - 1)) -
+            1);
+  }
+
+  const LazyDeoptInfo* lazy_deopt_info() const {
+    DCHECK(properties().can_lazy_deopt());
+    DCHECK(!properties().can_eager_deopt());
+    return (reinterpret_cast<const LazyDeoptInfo*>(
                 input_address(input_count() - 1)) -
             1);
   }
@@ -556,16 +559,32 @@ class NodeBase : public ZoneObject {
 
   EagerDeoptInfo* eager_deopt_info_address() {
     DCHECK(properties().can_eager_deopt());
+    DCHECK(!properties().can_lazy_deopt());
     return reinterpret_cast<EagerDeoptInfo*>(input_address(input_count() - 1)) -
+           1;
+  }
+
+  LazyDeoptInfo* lazy_deopt_info_address() {
+    DCHECK(!properties().can_eager_deopt());
+    DCHECK(properties().can_lazy_deopt());
+    return reinterpret_cast<LazyDeoptInfo*>(input_address(input_count() - 1)) -
            1;
   }
 
  private:
   template <class Derived, typename... Args>
   static Derived* Allocate(Zone* zone, size_t input_count, Args&&... args) {
+    static_assert(
+        !Derived::kProperties.can_eager_deopt() ||
+            !Derived::kProperties.can_lazy_deopt(),
+        "The current deopt info representation, at the end of inputs, requires "
+        "that we cannot have both lazy and eager deopts on a node. If we ever "
+        "need this, we have to update accessors to check node->properties() "
+        "for which deopts are active.");
     const size_t size_before_node =
         input_count * sizeof(Input) +
-        (Derived::kProperties.can_eager_deopt() ? sizeof(EagerDeoptInfo) : 0);
+        (Derived::kProperties.can_eager_deopt() ? sizeof(EagerDeoptInfo) : 0) +
+        (Derived::kProperties.can_lazy_deopt() ? sizeof(LazyDeoptInfo) : 0);
     const size_t size = size_before_node + sizeof(Derived);
     intptr_t raw_buffer =
         reinterpret_cast<intptr_t>(zone->Allocate<NodeWithInlineInputs>(size));
@@ -828,8 +847,7 @@ class FixedInputValueNodeT : public ValueNodeT<Derived> {
 };
 
 template <class Derived, Operation kOperation>
-class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived>,
-                              public detail::LazyDeoptMixin {
+class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   using Base = FixedInputValueNodeT<1, Derived>;
 
  public:
@@ -853,8 +871,7 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived>,
 };
 
 template <class Derived, Operation kOperation>
-class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived>,
-                               public detail::LazyDeoptMixin {
+class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
 
  public:
@@ -1069,8 +1086,7 @@ class StoreField : public FixedInputNodeT<2, StoreField> {
   const int handler_;
 };
 
-class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal>,
-                   public detail::LazyDeoptMixin {
+class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
   using Base = FixedInputValueNodeT<1, LoadGlobal>;
 
  public:
@@ -1091,8 +1107,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal>,
   const compiler::NameRef name_;
 };
 
-class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric>,
-                         public detail::LazyDeoptMixin {
+class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   using Base = FixedInputValueNodeT<2, LoadNamedGeneric>;
 
  public:
@@ -1170,7 +1185,7 @@ class Phi : public ValueNodeT<Phi> {
   friend base::ThreadedListTraits<Phi>;
 };
 
-class Call : public ValueNodeT<Call>, public detail::LazyDeoptMixin {
+class Call : public ValueNodeT<Call> {
   using Base = ValueNodeT<Call>;
 
  public:
