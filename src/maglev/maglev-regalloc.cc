@@ -314,12 +314,6 @@ void StraightForwardRegisterAllocator::UpdateUse(
 
   // If a value is dead, make sure it's cleared.
   FreeRegisters(node);
-
-  // If the stack slot is a local slot, free it so it can be reused.
-  if (node->is_spilled()) {
-    compiler::AllocatedOperand slot = node->spill_slot();
-    if (slot.index() > 0) free_slots_.push_back(slot.index());
-  }
 }
 
 void StraightForwardRegisterAllocator::UpdateUse(
@@ -632,13 +626,7 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
 
 void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
   DCHECK(!node->is_spilled());
-  uint32_t free_slot;
-  if (free_slots_.empty()) {
-    free_slot = top_of_stack_++;
-  } else {
-    free_slot = free_slots_.back();
-    free_slots_.pop_back();
-  }
+  uint32_t free_slot = top_of_stack_++;
   node->Spill(compiler::AllocatedOperand(compiler::AllocatedOperand::STACK_SLOT,
                                          MachineRepresentation::kTagged,
                                          free_slot));

@@ -33,7 +33,6 @@ class StraightForwardRegisterAllocator {
 
   int top_of_stack_ = 0;
   RegList free_registers_ = kAllocatableGeneralRegisters;
-  std::vector<uint32_t> free_slots_;
 
   RegList used_registers() const {
     // Only allocatable registers should be free.
