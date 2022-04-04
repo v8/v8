@@ -32,7 +32,6 @@ def experiment_builder(**kwargs):
         )
 
     return v8_builder(
-        experiments = {"v8.scripts.use_python3": 100},
         **kwargs
     )
 
@@ -190,16 +189,6 @@ in_category(
             "v8-waterfall-sheriff@grotations.appspotmail.com",
             "mtv-sf-v8-sheriff@grotations.appspotmail.com",
         ],
-    ),
-    experiment_builder_pair(
-        name = "V8 Linux64 - python3",
-        bucket = "ci",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8"},
-        use_goma = GOMA.DEFAULT,
-        to_notify = ["machenbach@chromium.org"],
-        gclient_vars = [GCLIENT_VARS.GCMOLE],
     ),
 )
 

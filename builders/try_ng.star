@@ -213,15 +213,6 @@ try_ng_pair(
 )
 
 try_ng_pair(
-    name = "v8_linux64_python3_rel",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    use_goma = GOMA.DEFAULT,
-    experiments = {"v8.scripts.use_python3": 100},
-    gclient_vars = [GCLIENT_VARS.GCMOLE],
-)
-
-try_ng_pair(
     name = "v8_linux64_single_generation_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
