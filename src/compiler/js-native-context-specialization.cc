@@ -1958,7 +1958,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
       broker()->GetFeedbackForPropertyAccess(source, access_mode, static_name);
   switch (feedback.kind()) {
     case ProcessedFeedback::kInsufficient:
-      return ReduceSoftDeoptimize(
+      return ReduceEagerDeoptimize(
           node,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     case ProcessedFeedback::kNamedAccess:
@@ -1974,7 +1974,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
   }
 }
 
-Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
+Reduction JSNativeContextSpecialization::ReduceEagerDeoptimize(
     Node* node, DeoptimizeReason reason) {
   if (!(flags() & kBailoutOnUninitialized)) return NoChange();
 
@@ -1983,7 +1983,7 @@ Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
   Node* deoptimize = graph()->NewNode(
-      common()->Deoptimize(DeoptimizeKind::kSoft, reason, FeedbackSource()),
+      common()->Deoptimize(DeoptimizeKind::kEager, reason, FeedbackSource()),
       frame_state, effect, control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);

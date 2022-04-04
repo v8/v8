@@ -3727,9 +3727,8 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                          IsolateData::BuiltinEntrySlotOffset(target)));
   Call(ip);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy)
-                ? Deoptimizer::kLazyDeoptExitSize
-                : Deoptimizer::kNonLazyDeoptExitSize);
+            (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
+                                            : Deoptimizer::kEagerDeoptExitSize);
 }
 
 void TurboAssembler::ZeroExtByte(Register dst, Register src) {

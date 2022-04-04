@@ -752,25 +752,10 @@ void Code::set_embedded_objects_cleared(bool flag) {
   container.set_kind_specific_flags(updated, kRelaxedStore);
 }
 
-bool Code::deopt_already_counted() const {
-  DCHECK(CodeKindCanDeoptimize(kind()));
-  int32_t flags =
-      code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad);
-  return DeoptAlreadyCountedField::decode(flags);
-}
-
-void Code::set_deopt_already_counted(bool flag) {
-  DCHECK(CodeKindCanDeoptimize(kind()));
-  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  CodeDataContainer container = code_data_container(kAcquireLoad);
-  int32_t previous = container.kind_specific_flags(kRelaxedLoad);
-  int32_t updated = DeoptAlreadyCountedField::update(previous, flag);
-  container.set_kind_specific_flags(updated, kRelaxedStore);
-}
-
 bool Code::is_optimized_code() const {
   return CodeKindIsOptimizedJSFunction(kind());
 }
+
 bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
@@ -1246,7 +1231,7 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(NonLazyDeoptCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(EagerDeoptCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LazyDeoptCount, Smi)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)

@@ -518,11 +518,8 @@ constexpr int kNoDeoptimizationId = -1;
 // - Lazy: the code has been marked as dependent on some assumption which
 //   is checked elsewhere and can trigger deoptimization the next time the
 //   code is executed.
-// - Soft: similar to lazy deoptimization, but does not contribute to the
-//   total deopt count which can lead to disabling optimization for a function.
 enum class DeoptimizeKind : uint8_t {
   kEager,
-  kSoft,
   kLazy,
 };
 constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
@@ -532,15 +529,16 @@ constexpr int kDeoptimizeKindCount = static_cast<int>(kLastDeoptimizeKind) + 1;
 inline size_t hash_value(DeoptimizeKind kind) {
   return static_cast<size_t>(kind);
 }
-inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+constexpr const char* ToString(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
-      return os << "Eager";
-    case DeoptimizeKind::kSoft:
-      return os << "Soft";
+      return "Eager";
     case DeoptimizeKind::kLazy:
-      return os << "Lazy";
+      return "Lazy";
   }
+}
+inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+  return os << ToString(kind);
 }
 
 // Indicates whether the lookup is related to sloppy-mode block-scoped

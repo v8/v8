@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::kNonLazyDeoptExitSize = kInstrSize;
+const int Deoptimizer::kEagerDeoptExitSize = kInstrSize;
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
 const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
 #else

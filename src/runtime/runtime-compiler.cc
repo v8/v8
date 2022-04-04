@@ -200,8 +200,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   JavaScriptFrame* top_frame = top_it.frame();
   isolate->set_context(Context::cast(top_frame->context()));
 
-  // Invalidate the underlying optimized code on eager and soft deopts.
-  if (type == DeoptimizeKind::kEager || type == DeoptimizeKind::kSoft) {
+  // Invalidate the underlying optimized code on eager deopts.
+  if (type == DeoptimizeKind::kEager) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
 

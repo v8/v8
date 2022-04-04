@@ -4075,7 +4075,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     total_size += (exit->kind() == DeoptimizeKind::kLazy)
                       ? Deoptimizer::kLazyDeoptExitSize
-                      : Deoptimizer::kNonLazyDeoptExitSize;
+                      : Deoptimizer::kEagerDeoptExitSize;
   }
 
   __ CheckTrampolinePoolQuick(total_size);

@@ -3308,8 +3308,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   __ ForceConstantPoolEmissionWithoutJump();
   // We are conservative here, reserving sufficient space for the largest deopt
   // kind.
-  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize,
-            Deoptimizer::kNonLazyDeoptExitSize);
+  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize, Deoptimizer::kEagerDeoptExitSize);
   __ CheckVeneerPool(
       false, false,
       static_cast<int>(exits->size()) * Deoptimizer::kLazyDeoptExitSize);

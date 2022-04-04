@@ -45,7 +45,6 @@ namespace internal {
 #define BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM) \
   /* Deoptimization entries. */                               \
   ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)         \
-  ASM(DeoptimizationEntry_Soft, DeoptimizationEntry)          \
   ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)          \
                                                               \
   /* GC write barrier. */                                     \

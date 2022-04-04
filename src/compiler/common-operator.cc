@@ -510,28 +510,28 @@ const SLVerifierHintParameters& SLVerifierHintParametersOf(const Operator* op) {
   V(7)                       \
   V(8)
 
-#define CACHED_DEOPTIMIZE_LIST(V)                        \
-  V(Eager, MinusZero)                                    \
-  V(Eager, WrongMap)                                     \
-  V(Soft, InsufficientTypeFeedbackForGenericKeyedAccess) \
-  V(Soft, InsufficientTypeFeedbackForGenericNamedAccess)
+#define CACHED_DEOPTIMIZE_LIST(V)                  \
+  V(MinusZero)                                     \
+  V(WrongMap)                                      \
+  V(InsufficientTypeFeedbackForGenericKeyedAccess) \
+  V(InsufficientTypeFeedbackForGenericNamedAccess)
 
 #define CACHED_DEOPTIMIZE_IF_LIST(V) \
-  V(Eager, DivisionByZero)           \
-  V(Eager, Hole)                     \
-  V(Eager, MinusZero)                \
-  V(Eager, Overflow)                 \
-  V(Eager, Smi)
+  V(DivisionByZero)                  \
+  V(Hole)                            \
+  V(MinusZero)                       \
+  V(Overflow)                        \
+  V(Smi)
 
 #define CACHED_DEOPTIMIZE_UNLESS_LIST(V) \
-  V(Eager, LostPrecision)                \
-  V(Eager, LostPrecisionOrNaN)           \
-  V(Eager, NotAHeapNumber)               \
-  V(Eager, NotANumberOrOddball)          \
-  V(Eager, NotASmi)                      \
-  V(Eager, OutOfBounds)                  \
-  V(Eager, WrongInstanceType)            \
-  V(Eager, WrongMap)
+  V(LostPrecision)                       \
+  V(LostPrecisionOrNaN)                  \
+  V(NotAHeapNumber)                      \
+  V(NotANumberOrOddball)                 \
+  V(NotASmi)                             \
+  V(OutOfBounds)                         \
+  V(WrongInstanceType)                   \
+  V(WrongMap)
 
 #define CACHED_TRAP_IF_LIST(V) \
   V(TrapDivUnrepresentable)    \
@@ -723,9 +723,9 @@ struct CommonOperatorGlobalCache final {
               1, 1, 1, 0, 0, 1,                          // counts
               DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
   };
-#define CACHED_DEOPTIMIZE(Kind, Reason)                                    \
-  DeoptimizeOperator<DeoptimizeKind::k##Kind, DeoptimizeReason::k##Reason> \
-      kDeoptimize##Kind##Reason##Operator;
+#define CACHED_DEOPTIMIZE(Reason)                                         \
+  DeoptimizeOperator<DeoptimizeKind::kEager, DeoptimizeReason::k##Reason> \
+      kDeoptimizeEager##Reason##Operator;
   CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
 #undef CACHED_DEOPTIMIZE
 
@@ -739,9 +739,9 @@ struct CommonOperatorGlobalCache final {
               2, 1, 1, 0, 1, 1,                          // counts
               DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
   };
-#define CACHED_DEOPTIMIZE_IF(Kind, Reason)                                   \
-  DeoptimizeIfOperator<DeoptimizeKind::k##Kind, DeoptimizeReason::k##Reason> \
-      kDeoptimizeIf##Kind##Reason##Operator;
+#define CACHED_DEOPTIMIZE_IF(Reason)                                        \
+  DeoptimizeIfOperator<DeoptimizeKind::kEager, DeoptimizeReason::k##Reason> \
+      kDeoptimizeIfEager##Reason##Operator;
   CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
 #undef CACHED_DEOPTIMIZE_IF
 
@@ -756,10 +756,10 @@ struct CommonOperatorGlobalCache final {
               2, 1, 1, 0, 1, 1,                          // counts
               DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
   };
-#define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason)          \
-  DeoptimizeUnlessOperator<DeoptimizeKind::k##Kind,     \
+#define CACHED_DEOPTIMIZE_UNLESS(Reason)                \
+  DeoptimizeUnlessOperator<DeoptimizeKind::kEager,      \
                            DeoptimizeReason::k##Reason> \
-      kDeoptimizeUnless##Kind##Reason##Operator;
+      kDeoptimizeUnlessEager##Reason##Operator;
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
@@ -946,10 +946,10 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
 const Operator* CommonOperatorBuilder::Deoptimize(
     DeoptimizeKind kind, DeoptimizeReason reason,
     FeedbackSource const& feedback) {
-#define CACHED_DEOPTIMIZE(Kind, Reason)                               \
-  if (kind == DeoptimizeKind::k##Kind &&                              \
+#define CACHED_DEOPTIMIZE(Reason)                                     \
+  if (kind == DeoptimizeKind::kEager &&                               \
       reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimize##Kind##Reason##Operator;               \
+    return &cache_.kDeoptimizeEager##Reason##Operator;                \
   }
   CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
 #undef CACHED_DEOPTIMIZE
@@ -966,10 +966,10 @@ const Operator* CommonOperatorBuilder::Deoptimize(
 const Operator* CommonOperatorBuilder::DeoptimizeIf(
     DeoptimizeKind kind, DeoptimizeReason reason,
     FeedbackSource const& feedback) {
-#define CACHED_DEOPTIMIZE_IF(Kind, Reason)                            \
-  if (kind == DeoptimizeKind::k##Kind &&                              \
+#define CACHED_DEOPTIMIZE_IF(Reason)                                  \
+  if (kind == DeoptimizeKind::kEager &&                               \
       reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimizeIf##Kind##Reason##Operator;             \
+    return &cache_.kDeoptimizeIfEager##Reason##Operator;              \
   }
   CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
 #undef CACHED_DEOPTIMIZE_IF
@@ -986,10 +986,10 @@ const Operator* CommonOperatorBuilder::DeoptimizeIf(
 const Operator* CommonOperatorBuilder::DeoptimizeUnless(
     DeoptimizeKind kind, DeoptimizeReason reason,
     FeedbackSource const& feedback) {
-#define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason)                        \
-  if (kind == DeoptimizeKind::k##Kind &&                              \
+#define CACHED_DEOPTIMIZE_UNLESS(Reason)                              \
+  if (kind == DeoptimizeKind::kEager &&                               \
       reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimizeUnless##Kind##Reason##Operator;         \
+    return &cache_.kDeoptimizeUnlessEager##Reason##Operator;          \
   }
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS

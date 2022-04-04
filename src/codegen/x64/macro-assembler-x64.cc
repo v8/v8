@@ -3125,9 +3125,8 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
   // performance tuning which emits a different instruction sequence.
   call(EntryFromBuiltinAsOperand(target));
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy)
-                ? Deoptimizer::kLazyDeoptExitSize
-                : Deoptimizer::kNonLazyDeoptExitSize);
+            (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
+                                            : Deoptimizer::kEagerDeoptExitSize);
 }
 
 void TurboAssembler::Trap() { int3(); }

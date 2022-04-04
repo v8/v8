@@ -219,7 +219,7 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
   compiler::ObjectRef property_cell_value = property_cell.value();
   if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
-    AddNewNode<SoftDeopt>({});
+    AddNewNode<EagerDeopt>({});
     return;
   }
 
@@ -271,7 +271,7 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
           feedback(), GetSlotOperand(kSlotOperandIndex)));
 
   if (access_feedback.IsInsufficient()) {
-    AddNewNode<SoftDeopt>({});
+    AddNewNode<EagerDeopt>({});
     return;
   }
 
@@ -304,7 +304,7 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
   FeedbackNexus nexus = feedback_nexus(2);
 
   if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
-    AddNewNode<SoftDeopt>({});
+    AddNewNode<EagerDeopt>({});
     return;
   } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
     std::vector<MapAndHandler> maps_and_handlers;
@@ -340,7 +340,7 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
   FeedbackNexus nexus = feedback_nexus(2);
 
   if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
-    AddNewNode<SoftDeopt>({});
+    AddNewNode<EagerDeopt>({});
     return;
   } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
     std::vector<MapAndHandler> maps_and_handlers;

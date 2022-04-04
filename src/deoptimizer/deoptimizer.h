@@ -122,7 +122,7 @@ class Deoptimizer : public Malloced {
   static constexpr unsigned kFixedExitSizeMarker = kMaxUInt32;
 
   // Size of deoptimization exit sequence.
-  V8_EXPORT_PRIVATE static const int kNonLazyDeoptExitSize;
+  V8_EXPORT_PRIVATE static const int kEagerDeoptExitSize;
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
 
   // Tracing.

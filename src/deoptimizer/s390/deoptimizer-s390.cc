@@ -19,7 +19,7 @@ ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Soft);
 #undef ASSERT_OFFSET
 
-const int Deoptimizer::kNonLazyDeoptExitSize = 6 + 2;
+const int Deoptimizer::kEagerDeoptExitSize = 6 + 2;
 const int Deoptimizer::kLazyDeoptExitSize = 6 + 2;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {

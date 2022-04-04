@@ -442,9 +442,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
     // be different from the code on the function - evict it if necessary.
     function.feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
         function.shared(), "unlinking code marked for deopt");
-    if (!code.deopt_already_counted()) {
-      code.set_deopt_already_counted(true);
-    }
     DeoptimizeMarkedCodeForContext(function.native_context());
     // TODO(mythria): Ideally EvictMarkCode should compact the cache without
     // having to explicitly call this. We don't do this currently because
@@ -464,8 +461,6 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return "deopt-eager";
-    case DeoptimizeKind::kSoft:
-      return "deopt-soft";
     case DeoptimizeKind::kLazy:
       return "deopt-lazy";
   }
@@ -509,11 +504,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   disallow_garbage_collection_ = new DisallowGarbageCollection();
 #endif  // DEBUG
   CHECK(CodeKindCanDeoptimize(compiled_code_.kind()));
-  if (!compiled_code_.deopt_already_counted() &&
-      deopt_kind_ == DeoptimizeKind::kSoft) {
-    isolate->counters()->soft_deopts_executed()->Increment();
-  }
-  compiled_code_.set_deopt_already_counted(true);
   {
     HandleScope scope(isolate_);
     PROFILE(isolate_, CodeDeoptEvent(handle(compiled_code_, isolate_), kind,
@@ -526,15 +516,15 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
 
   DCHECK_EQ(deopt_exit_index_, kFixedExitSizeMarker);
   // Calculate the deopt exit index from return address.
-  DCHECK_GT(kNonLazyDeoptExitSize, 0);
+  DCHECK_GT(kEagerDeoptExitSize, 0);
   DCHECK_GT(kLazyDeoptExitSize, 0);
   DeoptimizationData deopt_data =
       DeoptimizationData::cast(compiled_code_.deoptimization_data());
   Address deopt_start = compiled_code_.raw_instruction_start() +
                         deopt_data.DeoptExitStart().value();
-  int non_lazy_deopt_count = deopt_data.NonLazyDeoptCount().value();
+  int eager_deopt_count = deopt_data.EagerDeoptCount().value();
   Address lazy_deopt_start =
-      deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
+      deopt_start + eager_deopt_count * kEagerDeoptExitSize;
   // The deoptimization exits are sorted so that lazy deopt exits appear after
   // eager deopts.
   static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
@@ -545,14 +535,14 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
   // the first deopt with resume entry.
   if (from_ <= lazy_deopt_start) {
-    int offset = static_cast<int>(from_ - kNonLazyDeoptExitSize - deopt_start);
-    DCHECK_EQ(0, offset % kNonLazyDeoptExitSize);
-    deopt_exit_index_ = offset / kNonLazyDeoptExitSize;
+    int offset = static_cast<int>(from_ - kEagerDeoptExitSize - deopt_start);
+    DCHECK_EQ(0, offset % kEagerDeoptExitSize);
+    deopt_exit_index_ = offset / kEagerDeoptExitSize;
   } else {
     int offset =
         static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
     DCHECK_EQ(0, offset % kLazyDeoptExitSize);
-    deopt_exit_index_ = non_lazy_deopt_count + (offset / kLazyDeoptExitSize);
+    deopt_exit_index_ = eager_deopt_count + (offset / kLazyDeoptExitSize);
   }
 }
 
@@ -596,8 +586,6 @@ Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return Builtin::kDeoptimizationEntry_Eager;
-    case DeoptimizeKind::kSoft:
-      return Builtin::kDeoptimizationEntry_Soft;
     case DeoptimizeKind::kLazy:
       return Builtin::kDeoptimizationEntry_Lazy;
   }
@@ -611,9 +599,6 @@ bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
   switch (builtin) {
     case Builtin::kDeoptimizationEntry_Eager:
       *type_out = DeoptimizeKind::kEager;
-      return true;
-    case Builtin::kDeoptimizationEntry_Soft:
-      *type_out = DeoptimizeKind::kSoft;
       return true;
     case Builtin::kDeoptimizationEntry_Lazy:
       *type_out = DeoptimizeKind::kLazy;

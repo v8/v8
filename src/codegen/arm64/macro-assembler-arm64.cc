@@ -2219,9 +2219,8 @@ void TurboAssembler::CallForDeoptimization(
   BlockPoolsScope scope(this);
   bl(jump_deoptimization_entry_label);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy)
-                ? Deoptimizer::kLazyDeoptExitSize
-                : Deoptimizer::kNonLazyDeoptExitSize);
+            (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
+                                            : Deoptimizer::kEagerDeoptExitSize);
 }
 
 void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {

@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::kNonLazyDeoptExitSize = 5;
+const int Deoptimizer::kEagerDeoptExitSize = 5;
 const int Deoptimizer::kLazyDeoptExitSize = 5;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {

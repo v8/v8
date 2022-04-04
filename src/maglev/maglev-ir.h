@@ -81,7 +81,7 @@ class CompactInterpreterFrameState;
 #define NODE_LIST(V) \
   V(CheckMaps)       \
   V(GapMove)         \
-  V(SoftDeopt)       \
+  V(EagerDeopt)      \
   V(StoreField)      \
   VALUE_NODE_LIST(V)
 
@@ -984,11 +984,11 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   const RootIndex index_;
 };
 
-class SoftDeopt : public FixedInputNodeT<0, SoftDeopt> {
-  using Base = FixedInputNodeT<0, SoftDeopt>;
+class EagerDeopt : public FixedInputNodeT<0, EagerDeopt> {
+  using Base = FixedInputNodeT<0, EagerDeopt>;
 
  public:
-  explicit SoftDeopt(uint32_t bitfield) : Base(bitfield) {}
+  explicit EagerDeopt(uint32_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 

@@ -171,7 +171,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     ++lazy_deopt_count_;
     tasm()->BindExceptionHandler(exit->label());
   } else {
-    ++non_lazy_deopt_count_;
+    ++eager_deopt_count_;
     tasm()->bind(exit->label());
   }
   Builtin target = Deoptimizer::GetDeoptimizationEntry(deopt_kind);
@@ -898,7 +898,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
 
   data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
-  data->SetNonLazyDeoptCount(Smi::FromInt(non_lazy_deopt_count_));
+  data->SetEagerDeoptCount(Smi::FromInt(eager_deopt_count_));
   data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count_));
 
   if (info->has_shared_info()) {

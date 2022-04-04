@@ -365,7 +365,6 @@ class MaglevCodeGeneratorImpl final {
       EmitEagerDeopt(deopt_info);
 
       __ bind(&deopt_info->deopt_entry_label);
-      // TODO(leszeks): Add soft deopt entry.
       __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, 0,
                                &deopt_info->deopt_entry_label,
                                DeoptimizeKind::kEager, nullptr, nullptr);
@@ -537,11 +536,11 @@ class MaglevCodeGeneratorImpl final {
   }
 
   Handle<DeoptimizationData> GenerateDeoptimizationData() {
-    int non_lazy_deopt_count =
+    int eager_deopt_count =
         static_cast<int>(code_gen_state_.eager_deopts().size());
     int lazy_deopt_count =
         static_cast<int>(code_gen_state_.lazy_deopts().size());
-    int deopt_count = lazy_deopt_count + non_lazy_deopt_count;
+    int deopt_count = lazy_deopt_count + eager_deopt_count;
     if (deopt_count == 0) {
       return DeoptimizationData::Empty(isolate());
     }
@@ -558,7 +557,7 @@ class MaglevCodeGeneratorImpl final {
 
     DCHECK_NE(deopt_exit_start_offset_, -1);
     data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
-    data->SetNonLazyDeoptCount(Smi::FromInt(non_lazy_deopt_count));
+    data->SetEagerDeoptCount(Smi::FromInt(eager_deopt_count));
     data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count));
 
     data->SetSharedFunctionInfo(
