@@ -569,8 +569,7 @@ Node* JSTypeHintLowering::BuildDeoptIfFeedbackIsInsufficient(
   if (!broker()->FeedbackIsInsufficient(source)) return nullptr;
 
   Node* deoptimize = jsgraph()->graph()->NewNode(
-      jsgraph()->common()->Deoptimize(DeoptimizeKind::kEager, reason,
-                                      FeedbackSource()),
+      jsgraph()->common()->Deoptimize(reason, FeedbackSource()),
       jsgraph()->Dead(), effect, control);
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(deoptimize, jsgraph()->Dead());

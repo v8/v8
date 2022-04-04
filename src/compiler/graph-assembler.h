@@ -325,12 +325,6 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Node* DeoptimizeIf(DeoptimizeReason reason, FeedbackSource const& feedback,
                      Node* condition, Node* frame_state);
-  Node* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
-                     FeedbackSource const& feedback, Node* condition,
-                     Node* frame_state);
-  Node* DeoptimizeIfNot(DeoptimizeKind kind, DeoptimizeReason reason,
-                        FeedbackSource const& feedback, Node* condition,
-                        Node* frame_state);
   Node* DeoptimizeIfNot(DeoptimizeReason reason, FeedbackSource const& feedback,
                         Node* condition, Node* frame_state);
   TNode<Object> Call(const CallDescriptor* call_descriptor, int inputs_size,

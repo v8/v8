@@ -80,16 +80,13 @@ int ValueInputCountOfReturn(Operator const* const op);
 // Parameters for the {Deoptimize} operator.
 class DeoptimizeParameters final {
  public:
-  DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason,
-                       FeedbackSource const& feedback)
-      : kind_(kind), reason_(reason), feedback_(feedback) {}
+  DeoptimizeParameters(DeoptimizeReason reason, FeedbackSource const& feedback)
+      : reason_(reason), feedback_(feedback) {}
 
-  DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
   const FeedbackSource& feedback() const { return feedback_; }
 
  private:
-  DeoptimizeKind const kind_;
   DeoptimizeReason const reason_;
   FeedbackSource const feedback_;
 };
@@ -489,11 +486,11 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                           BranchHint hint = BranchHint::kNone);
   const Operator* IfDefault(BranchHint hint = BranchHint::kNone);
   const Operator* Throw();
-  const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
+  const Operator* Deoptimize(DeoptimizeReason reason,
                              FeedbackSource const& feedback);
-  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
+  const Operator* DeoptimizeIf(DeoptimizeReason reason,
                                FeedbackSource const& feedback);
-  const Operator* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
+  const Operator* DeoptimizeUnless(DeoptimizeReason reason,
                                    FeedbackSource const& feedback);
   const Operator* TrapIf(TrapId trap_id);
   const Operator* TrapUnless(TrapId trap_id);

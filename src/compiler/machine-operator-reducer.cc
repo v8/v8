@@ -2289,14 +2289,13 @@ Reduction MachineOperatorReducer::SimplifyBranch(Node* node) {
         case IrOpcode::kDeoptimizeIf: {
           DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
           NodeProperties::ChangeOp(
-              node,
-              common()->DeoptimizeUnless(p.kind(), p.reason(), p.feedback()));
+              node, common()->DeoptimizeUnless(p.reason(), p.feedback()));
           break;
         }
         case IrOpcode::kDeoptimizeUnless: {
           DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
           NodeProperties::ChangeOp(
-              node, common()->DeoptimizeIf(p.kind(), p.reason(), p.feedback()));
+              node, common()->DeoptimizeIf(p.reason(), p.feedback()));
           break;
         }
         default:

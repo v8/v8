@@ -67,8 +67,7 @@ int ValueInputCountOfReturn(Operator const* const op) {
 }
 
 bool operator==(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
-  return lhs.kind() == rhs.kind() && lhs.reason() == rhs.reason() &&
-         lhs.feedback() == rhs.feedback();
+  return lhs.reason() == rhs.reason() && lhs.feedback() == rhs.feedback();
 }
 
 bool operator!=(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
@@ -77,11 +76,11 @@ bool operator!=(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
 
 size_t hash_value(DeoptimizeParameters p) {
   FeedbackSource::Hash feebdack_hash;
-  return base::hash_combine(p.kind(), p.reason(), feebdack_hash(p.feedback()));
+  return base::hash_combine(p.reason(), feebdack_hash(p.feedback()));
 }
 
 std::ostream& operator<<(std::ostream& os, DeoptimizeParameters p) {
-  return os << p.kind() << ", " << p.reason() << ", " << p.feedback();
+  return os << p.reason() << ", " << p.feedback();
 }
 
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
@@ -713,7 +712,7 @@ struct CommonOperatorGlobalCache final {
   CACHED_LOOP_EXIT_VALUE_LIST(CACHED_LOOP_EXIT_VALUE)
 #undef CACHED_LOOP_EXIT_VALUE
 
-  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  template <DeoptimizeReason kReason>
   struct DeoptimizeOperator final : public Operator1<DeoptimizeParameters> {
     DeoptimizeOperator()
         : Operator1<DeoptimizeParameters>(               // --
@@ -721,15 +720,14 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "Deoptimize",                              // name
               1, 1, 1, 0, 0, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
+              DeoptimizeParameters(kReason, FeedbackSource())) {}
   };
-#define CACHED_DEOPTIMIZE(Reason)                                         \
-  DeoptimizeOperator<DeoptimizeKind::kEager, DeoptimizeReason::k##Reason> \
-      kDeoptimizeEager##Reason##Operator;
+#define CACHED_DEOPTIMIZE(Reason) \
+  DeoptimizeOperator<DeoptimizeReason::k##Reason> kDeoptimize##Reason##Operator;
   CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
 #undef CACHED_DEOPTIMIZE
 
-  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  template <DeoptimizeReason kReason>
   struct DeoptimizeIfOperator final : public Operator1<DeoptimizeParameters> {
     DeoptimizeIfOperator()
         : Operator1<DeoptimizeParameters>(               // --
@@ -737,15 +735,15 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "DeoptimizeIf",                            // name
               2, 1, 1, 0, 1, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
+              DeoptimizeParameters(kReason, FeedbackSource())) {}
   };
-#define CACHED_DEOPTIMIZE_IF(Reason)                                        \
-  DeoptimizeIfOperator<DeoptimizeKind::kEager, DeoptimizeReason::k##Reason> \
-      kDeoptimizeIfEager##Reason##Operator;
+#define CACHED_DEOPTIMIZE_IF(Reason)                \
+  DeoptimizeIfOperator<DeoptimizeReason::k##Reason> \
+      kDeoptimizeIf##Reason##Operator;
   CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
 #undef CACHED_DEOPTIMIZE_IF
 
-  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  template <DeoptimizeReason kReason>
   struct DeoptimizeUnlessOperator final
       : public Operator1<DeoptimizeParameters> {
     DeoptimizeUnlessOperator()
@@ -754,12 +752,11 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "DeoptimizeUnless",                        // name
               2, 1, 1, 0, 1, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, FeedbackSource())) {}
+              DeoptimizeParameters(kReason, FeedbackSource())) {}
   };
 #define CACHED_DEOPTIMIZE_UNLESS(Reason)                \
-  DeoptimizeUnlessOperator<DeoptimizeKind::kEager,      \
-                           DeoptimizeReason::k##Reason> \
-      kDeoptimizeUnlessEager##Reason##Operator;
+  DeoptimizeUnlessOperator<DeoptimizeReason::k##Reason> \
+      kDeoptimizeUnless##Reason##Operator;
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
@@ -944,17 +941,15 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
 }
 
 const Operator* CommonOperatorBuilder::Deoptimize(
-    DeoptimizeKind kind, DeoptimizeReason reason,
-    FeedbackSource const& feedback) {
+    DeoptimizeReason reason, FeedbackSource const& feedback) {
 #define CACHED_DEOPTIMIZE(Reason)                                     \
-  if (kind == DeoptimizeKind::kEager &&                               \
-      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimizeEager##Reason##Operator;                \
+  if (reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimize##Reason##Operator;                     \
   }
   CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
 #undef CACHED_DEOPTIMIZE
   // Uncached
-  DeoptimizeParameters parameter(kind, reason, feedback);
+  DeoptimizeParameters parameter(reason, feedback);
   return zone()->New<Operator1<DeoptimizeParameters>>(  // --
       IrOpcode::kDeoptimize,                            // opcodes
       Operator::kFoldable | Operator::kNoThrow,         // properties
@@ -964,17 +959,15 @@ const Operator* CommonOperatorBuilder::Deoptimize(
 }
 
 const Operator* CommonOperatorBuilder::DeoptimizeIf(
-    DeoptimizeKind kind, DeoptimizeReason reason,
-    FeedbackSource const& feedback) {
+    DeoptimizeReason reason, FeedbackSource const& feedback) {
 #define CACHED_DEOPTIMIZE_IF(Reason)                                  \
-  if (kind == DeoptimizeKind::kEager &&                               \
-      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimizeIfEager##Reason##Operator;              \
+  if (reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimizeIf##Reason##Operator;                   \
   }
   CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
 #undef CACHED_DEOPTIMIZE_IF
   // Uncached
-  DeoptimizeParameters parameter(kind, reason, feedback);
+  DeoptimizeParameters parameter(reason, feedback);
   return zone()->New<Operator1<DeoptimizeParameters>>(  // --
       IrOpcode::kDeoptimizeIf,                          // opcode
       Operator::kFoldable | Operator::kNoThrow,         // properties
@@ -984,17 +977,15 @@ const Operator* CommonOperatorBuilder::DeoptimizeIf(
 }
 
 const Operator* CommonOperatorBuilder::DeoptimizeUnless(
-    DeoptimizeKind kind, DeoptimizeReason reason,
-    FeedbackSource const& feedback) {
+    DeoptimizeReason reason, FeedbackSource const& feedback) {
 #define CACHED_DEOPTIMIZE_UNLESS(Reason)                              \
-  if (kind == DeoptimizeKind::kEager &&                               \
-      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
-    return &cache_.kDeoptimizeUnlessEager##Reason##Operator;          \
+  if (reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimizeUnless##Reason##Operator;               \
   }
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
   // Uncached
-  DeoptimizeParameters parameter(kind, reason, feedback);
+  DeoptimizeParameters parameter(reason, feedback);
   return zone()->New<Operator1<DeoptimizeParameters>>(  // --
       IrOpcode::kDeoptimizeUnless,                      // opcode
       Operator::kFoldable | Operator::kNoThrow,         // properties
