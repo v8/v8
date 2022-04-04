@@ -16,7 +16,6 @@ namespace internal {
                 0x1000)
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
-ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Soft);
 #undef ASSERT_OFFSET
 
 const int Deoptimizer::kEagerDeoptExitSize = 6 + 2;
