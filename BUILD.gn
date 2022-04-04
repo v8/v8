@@ -3394,6 +3394,7 @@ v8_header_set("v8_internal_headers") {
     "src/snapshot/context-deserializer.h",
     "src/snapshot/context-serializer.h",
     "src/snapshot/deserializer.h",
+    "src/snapshot/embedded/embedded-data-inl.h",
     "src/snapshot/embedded/embedded-data.h",
     "src/snapshot/embedded/embedded-file-writer-interface.h",
     "src/snapshot/object-deserializer.h",

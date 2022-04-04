@@ -33,7 +33,7 @@
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/external-pointer.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/references.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/shared-heap-serializer.h"

@@ -128,29 +128,29 @@ class EmbeddedData final {
   }
 
   // TODO(ishell): rename XyzOfBuiltin() to XyzOf().
-  Address InstructionStartOfBuiltin(Builtin builtin) const;
-  uint32_t InstructionSizeOfBuiltin(Builtin builtin) const;
+  inline Address InstructionStartOfBuiltin(Builtin builtin) const;
+  inline uint32_t InstructionSizeOfBuiltin(Builtin builtin) const;
 
-  Address InstructionStartOfBytecodeHandlers() const;
-  Address InstructionEndOfBytecodeHandlers() const;
+  inline Address InstructionStartOfBytecodeHandlers() const;
+  inline Address InstructionEndOfBytecodeHandlers() const;
 
-  Address MetadataStartOfBuiltin(Builtin builtin) const;
-  uint32_t MetadataSizeOfBuiltin(Builtin builtin) const;
+  inline Address MetadataStartOfBuiltin(Builtin builtin) const;
+  inline uint32_t MetadataSizeOfBuiltin(Builtin builtin) const;
 
-  Address SafepointTableStartOf(Builtin builtin) const;
-  uint32_t SafepointTableSizeOf(Builtin builtin) const;
+  inline Address SafepointTableStartOf(Builtin builtin) const;
+  inline uint32_t SafepointTableSizeOf(Builtin builtin) const;
 
-  Address HandlerTableStartOf(Builtin builtin) const;
-  uint32_t HandlerTableSizeOf(Builtin builtin) const;
+  inline Address HandlerTableStartOf(Builtin builtin) const;
+  inline uint32_t HandlerTableSizeOf(Builtin builtin) const;
 
-  Address ConstantPoolStartOf(Builtin builtin) const;
-  uint32_t ConstantPoolSizeOf(Builtin builtin) const;
+  inline Address ConstantPoolStartOf(Builtin builtin) const;
+  inline uint32_t ConstantPoolSizeOf(Builtin builtin) const;
 
-  Address CodeCommentsStartOf(Builtin builtin) const;
-  uint32_t CodeCommentsSizeOf(Builtin builtin) const;
+  inline Address CodeCommentsStartOf(Builtin builtin) const;
+  inline uint32_t CodeCommentsSizeOf(Builtin builtin) const;
 
-  Address UnwindingInfoStartOf(Builtin builtin) const;
-  uint32_t UnwindingInfoSizeOf(Builtin builtin) const;
+  inline Address UnwindingInfoStartOf(Builtin builtin) const;
+  inline uint32_t UnwindingInfoSizeOf(Builtin builtin) const;
 
   uint32_t AddressForHashing(Address addr) {
     DCHECK(IsInCodeRange(addr));
@@ -160,11 +160,7 @@ class EmbeddedData final {
 
   // Padded with kCodeAlignment.
   // TODO(v8:11045): Consider removing code alignment.
-  uint32_t PaddedInstructionSizeOfBuiltin(Builtin builtin) const {
-    uint32_t size = InstructionSizeOfBuiltin(builtin);
-    CHECK_NE(size, 0);
-    return PadAndAlignCode(size);
-  }
+  inline uint32_t PaddedInstructionSizeOfBuiltin(Builtin builtin) const;
 
   size_t CreateEmbeddedBlobDataHash() const;
   size_t CreateEmbeddedBlobCodeHash() const;

@@ -2026,6 +2026,7 @@ filegroup(
         "src/snapshot/deserializer.cc",
         "src/snapshot/deserializer.h",
         "src/snapshot/embedded/embedded-data.cc",
+        "src/snapshot/embedded/embedded-data-inl.h",
         "src/snapshot/embedded/embedded-data.h",
         "src/snapshot/embedded/embedded-file-writer-interface.h",
         "src/snapshot/object-deserializer.cc",

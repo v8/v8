@@ -20,7 +20,7 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/fixed-array.h"
 #include "src/roots/roots-inl.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/ostreams.h"
 
 #ifdef ENABLE_DISASSEMBLER
