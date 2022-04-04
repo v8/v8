@@ -3568,32 +3568,12 @@ V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
 #endif
 }
 
-static FILE* FOpen(const char* path, const char* mode) {
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
-  FILE* result;
-  if (fopen_s(&result, path, mode) == 0) {
-    return result;
-  } else {
-    return nullptr;
-  }
-#else
-  FILE* file = base::Fopen(path, mode);
-  if (file == nullptr) return nullptr;
-  struct stat file_stat;
-  if (fstat(fileno(file), &file_stat) != 0) return nullptr;
-  bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
-  if (is_regular_file) return file;
-  base::Fclose(file);
-  return nullptr;
-#endif
-}
-
 char* Shell::ReadChars(const char* name, int* size_out) {
   if (options.read_from_tcp_port >= 0) {
     return ReadCharsFromTcpPort(name, size_out);
   }
 
-  FILE* file = FOpen(name, "rb");
+  FILE* file = base::OS::FOpen(name, "rb");
   if (file == nullptr) return nullptr;
 
   fseek(file, 0, SEEK_END);
