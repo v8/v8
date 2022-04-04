@@ -49,19 +49,22 @@ class V8_EXPORT_PRIVATE CppHeap final
 
     explicit MetricRecorderAdapter(CppHeap& cpp_heap) : cpp_heap_(cpp_heap) {}
 
-    void AddMainThreadEvent(const FullCycle& cppgc_event) final;
+    void AddMainThreadEvent(const GCCycle& cppgc_event) final;
     void AddMainThreadEvent(const MainThreadIncrementalMark& cppgc_event) final;
     void AddMainThreadEvent(
         const MainThreadIncrementalSweep& cppgc_event) final;
 
     void FlushBatchedIncrementalEvents();
 
-    // The following 3 methods are only used for reporting nested cpp events
+    // The following methods are only used for reporting nested cpp events
     // through V8. Standalone events are reported directly.
-    bool MetricsReportPending() const;
+    bool FullGCMetricsReportPending() const;
+    bool YoungGCMetricsReportPending() const;
 
-    const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
+    const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
     ExtractLastFullGcEvent();
+    const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+    ExtractLastYoungGcEvent();
     const base::Optional<
         cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
     ExtractLastIncrementalMarkEvent();
@@ -78,8 +81,10 @@ class V8_EXPORT_PRIVATE CppHeap final
         incremental_mark_batched_events_;
     v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalSweep
         incremental_sweep_batched_events_;
-    base::Optional<cppgc::internal::MetricRecorder::FullCycle>
+    base::Optional<cppgc::internal::MetricRecorder::GCCycle>
         last_full_gc_event_;
+    base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+        last_young_gc_event_;
     base::Optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
         last_incremental_mark_event_;
   };

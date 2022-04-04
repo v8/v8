@@ -159,20 +159,23 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
 
 namespace {
 
-int64_t SumPhases(const MetricRecorder::FullCycle::Phases& phases) {
+int64_t SumPhases(const MetricRecorder::GCCycle::Phases& phases) {
   return phases.mark_duration_us + phases.weak_duration_us +
          phases.compact_duration_us + phases.sweep_duration_us;
 }
 
-MetricRecorder::FullCycle GetFullCycleEventForMetricRecorder(
-    int64_t atomic_mark_us, int64_t atomic_weak_us, int64_t atomic_compact_us,
-    int64_t atomic_sweep_us, int64_t incremental_mark_us,
-    int64_t incremental_sweep_us, int64_t concurrent_mark_us,
-    int64_t concurrent_sweep_us, int64_t objects_before_bytes,
-    int64_t objects_after_bytes, int64_t objects_freed_bytes,
-    int64_t memory_before_bytes, int64_t memory_after_bytes,
-    int64_t memory_freed_bytes) {
-  MetricRecorder::FullCycle event;
+MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
+    StatsCollector::CollectionType type, int64_t atomic_mark_us,
+    int64_t atomic_weak_us, int64_t atomic_compact_us, int64_t atomic_sweep_us,
+    int64_t incremental_mark_us, int64_t incremental_sweep_us,
+    int64_t concurrent_mark_us, int64_t concurrent_sweep_us,
+    int64_t objects_before_bytes, int64_t objects_after_bytes,
+    int64_t objects_freed_bytes, int64_t memory_before_bytes,
+    int64_t memory_after_bytes, int64_t memory_freed_bytes) {
+  MetricRecorder::GCCycle event;
+  event.type = (type == StatsCollector::CollectionType::kMajor)
+                   ? MetricRecorder::GCCycle::Type::kMajor
+                   : MetricRecorder::GCCycle::Type::kMinor;
   // MainThread.Incremental:
   event.main_thread_incremental.mark_duration_us = incremental_mark_us;
   event.main_thread_incremental.sweep_duration_us = incremental_sweep_us;
@@ -228,7 +231,8 @@ void StatsCollector::NotifySweepingCompleted() {
   previous_ = std::move(current_);
   current_ = Event();
   if (metric_recorder_) {
-    MetricRecorder::FullCycle event = GetFullCycleEventForMetricRecorder(
+    MetricRecorder::GCCycle event = GetCycleEventForMetricRecorder(
+        previous_.collection_type,
         previous_.scope_data[kAtomicMark].InMicroseconds(),
         previous_.scope_data[kAtomicWeak].InMicroseconds(),
         previous_.scope_data[kAtomicCompact].InMicroseconds(),

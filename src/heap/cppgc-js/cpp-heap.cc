@@ -302,10 +302,16 @@ void UnifiedHeapMarker::AddObject(void* object) {
 }
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
-    const FullCycle& cppgc_event) {
-  DCHECK(!last_full_gc_event_.has_value());
-  last_full_gc_event_ = cppgc_event;
-  GetIsolate()->heap()->tracer()->NotifyCppGCCompleted();
+    const GCCycle& cppgc_event) {
+  if (cppgc_event.type == MetricRecorder::GCCycle::Type::kMinor) {
+    last_young_gc_event_ = cppgc_event;
+  } else {
+    last_full_gc_event_ = cppgc_event;
+  }
+  GetIsolate()->heap()->tracer()->NotifyCppGCCompleted(
+      cppgc_event.type == MetricRecorder::GCCycle::Type::kMinor
+          ? GCTracer::CppType::kMinor
+          : GCTracer::CppType::kMajor);
 }
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
@@ -366,14 +372,25 @@ void CppHeap::MetricRecorderAdapter::FlushBatchedIncrementalEvents() {
   }
 }
 
-bool CppHeap::MetricRecorderAdapter::MetricsReportPending() const {
+bool CppHeap::MetricRecorderAdapter::FullGCMetricsReportPending() const {
   return last_full_gc_event_.has_value();
 }
 
-const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
+bool CppHeap::MetricRecorderAdapter::YoungGCMetricsReportPending() const {
+  return last_young_gc_event_.has_value();
+}
+
+const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
 CppHeap::MetricRecorderAdapter::ExtractLastFullGcEvent() {
   auto res = std::move(last_full_gc_event_);
   last_full_gc_event_.reset();
+  return res;
+}
+
+const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+CppHeap::MetricRecorderAdapter::ExtractLastYoungGcEvent() {
+  auto res = std::move(last_young_gc_event_);
+  last_young_gc_event_.reset();
   return res;
 }
 
@@ -389,6 +406,7 @@ void CppHeap::MetricRecorderAdapter::ClearCachedEvents() {
   incremental_sweep_batched_events_.events.clear();
   last_incremental_mark_event_.reset();
   last_full_gc_event_.reset();
+  last_young_gc_event_.reset();
 }
 
 Isolate* CppHeap::MetricRecorderAdapter::GetIsolate() const {
@@ -516,9 +534,15 @@ void CppHeap::InitializeTracing(
     GarbageCollectionFlags gc_flags) {
   CHECK(!sweeper_.IsSweepingInProgress());
 
-  // Check that previous cycle metrics have been reported.
-  DCHECK_IMPLIES(GetMetricRecorder(),
-                 !GetMetricRecorder()->MetricsReportPending());
+  // Check that previous cycle metrics for the same collection type have been
+  // reported.
+  if (GetMetricRecorder()) {
+    if (collection_type ==
+        cppgc::internal::GarbageCollector::Config::CollectionType::kMajor)
+      DCHECK(!GetMetricRecorder()->FullGCMetricsReportPending());
+    else
+      DCHECK(!GetMetricRecorder()->YoungGCMetricsReportPending());
+  }
 
   DCHECK(!collection_type_);
   collection_type_ = collection_type;

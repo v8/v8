@@ -589,13 +589,23 @@ void GCTracer::NotifySweepingCompleted() {
   StopCycleIfNeeded();
 }
 
-void GCTracer::NotifyCppGCCompleted() {
+void GCTracer::NotifyCppGCCompleted(CppType collection_type) {
   // Stop a full GC cycle only when both v8 and cppgc (if available) GCs have
   // finished sweeping. This method is invoked by cppgc.
   DCHECK(heap_->cpp_heap());
-  DCHECK(CppHeap::From(heap_->cpp_heap())
-             ->GetMetricRecorder()
-             ->MetricsReportPending());
+  const auto* metric_recorder =
+      CppHeap::From(heap_->cpp_heap())->GetMetricRecorder();
+  USE(metric_recorder);
+  if (collection_type == CppType::kMinor) {
+    DCHECK(metric_recorder->YoungGCMetricsReportPending());
+    // Young generation GCs in Oilpan run together with Scavenger. Check that
+    // collection types are in sync.
+    DCHECK(Event::IsYoungGenerationEvent(current_.type));
+    // Don't stop the cycle (i.e. call StopCycle/StopCycleIfNeeded) for young
+    // generation events - this is performed later in Heap::CollectGarbage().
+    return;
+  }
+  DCHECK(metric_recorder->FullGCMetricsReportPending());
   DCHECK(!notified_cppgc_completed_);
   notified_cppgc_completed_ = true;
   StopCycleIfNeeded();
@@ -1446,7 +1456,7 @@ namespace {
 
 void CopyTimeMetrics(
     ::v8::metrics::GarbageCollectionPhases& metrics,
-    const cppgc::internal::MetricRecorder::FullCycle::IncrementalPhases&
+    const cppgc::internal::MetricRecorder::GCCycle::IncrementalPhases&
         cppgc_metrics) {
   DCHECK_NE(-1, cppgc_metrics.mark_duration_us);
   metrics.mark_wall_clock_duration_in_us = cppgc_metrics.mark_duration_us;
@@ -1459,7 +1469,7 @@ void CopyTimeMetrics(
 
 void CopyTimeMetrics(
     ::v8::metrics::GarbageCollectionPhases& metrics,
-    const cppgc::internal::MetricRecorder::FullCycle::Phases& cppgc_metrics) {
+    const cppgc::internal::MetricRecorder::GCCycle::Phases& cppgc_metrics) {
   DCHECK_NE(-1, cppgc_metrics.compact_duration_us);
   metrics.compact_wall_clock_duration_in_us = cppgc_metrics.compact_duration_us;
   DCHECK_NE(-1, cppgc_metrics.mark_duration_us);
@@ -1477,7 +1487,7 @@ void CopyTimeMetrics(
 
 void CopySizeMetrics(
     ::v8::metrics::GarbageCollectionSizes& metrics,
-    const cppgc::internal::MetricRecorder::FullCycle::Sizes& cppgc_metrics) {
+    const cppgc::internal::MetricRecorder::GCCycle::Sizes& cppgc_metrics) {
   DCHECK_NE(-1, cppgc_metrics.after_bytes);
   metrics.bytes_after = cppgc_metrics.after_bytes;
   DCHECK_NE(-1, cppgc_metrics.before_bytes);
@@ -1513,7 +1523,7 @@ void GCTracer::ReportFullCycleToRecorder() {
   DCHECK_EQ(Event::State::NOT_RUNNING, current_.state);
   auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
   DCHECK_IMPLIES(cpp_heap,
-                 cpp_heap->GetMetricRecorder()->MetricsReportPending());
+                 cpp_heap->GetMetricRecorder()->FullGCMetricsReportPending());
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
@@ -1538,13 +1548,15 @@ void GCTracer::ReportFullCycleToRecorder() {
   // Managed C++ heap statistics:
   if (cpp_heap) {
     cpp_heap->GetMetricRecorder()->FlushBatchedIncrementalEvents();
-    const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
+    const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
         optional_cppgc_event =
             cpp_heap->GetMetricRecorder()->ExtractLastFullGcEvent();
     DCHECK(optional_cppgc_event.has_value());
-    DCHECK(!cpp_heap->GetMetricRecorder()->MetricsReportPending());
-    const cppgc::internal::MetricRecorder::FullCycle& cppgc_event =
+    DCHECK(!cpp_heap->GetMetricRecorder()->FullGCMetricsReportPending());
+    const cppgc::internal::MetricRecorder::GCCycle& cppgc_event =
         optional_cppgc_event.value();
+    DCHECK_EQ(cppgc_event.type,
+              cppgc::internal::MetricRecorder::GCCycle::Type::kMajor);
     CopyTimeMetrics(event.total_cpp, cppgc_event.total);
     CopyTimeMetrics(event.main_thread_cpp, cppgc_event.main_thread);
     CopyTimeMetrics(event.main_thread_atomic_cpp,
@@ -1699,9 +1711,41 @@ void GCTracer::ReportYoungCycleToRecorder() {
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
   if (!recorder->HasEmbedderRecorder()) return;
+
   v8::metrics::GarbageCollectionYoungCycle event;
   // Reason:
   event.reason = static_cast<int>(current_.gc_reason);
+#if defined(CPPGC_YOUNG_GENERATION)
+  // Managed C++ heap statistics:
+  auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
+  if (cpp_heap) {
+    auto* metric_recorder = cpp_heap->GetMetricRecorder();
+    const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+        optional_cppgc_event = metric_recorder->ExtractLastYoungGcEvent();
+    // We bail out from Oilpan's young GC if the full GC is already in progress.
+    // Check here if the young generation event was reported.
+    if (optional_cppgc_event) {
+      DCHECK(!metric_recorder->YoungGCMetricsReportPending());
+      const cppgc::internal::MetricRecorder::GCCycle& cppgc_event =
+          optional_cppgc_event.value();
+      DCHECK_EQ(cppgc_event.type,
+                cppgc::internal::MetricRecorder::GCCycle::Type::kMinor);
+      CopyTimeMetrics(event.total_cpp, cppgc_event.total);
+      CopySizeMetrics(event.objects_cpp, cppgc_event.objects);
+      CopySizeMetrics(event.memory_cpp, cppgc_event.memory);
+      DCHECK_NE(-1, cppgc_event.collection_rate_in_percent);
+      event.collection_rate_cpp_in_percent =
+          cppgc_event.collection_rate_in_percent;
+      DCHECK_NE(-1, cppgc_event.efficiency_in_bytes_per_us);
+      event.efficiency_cpp_in_bytes_per_us =
+          cppgc_event.efficiency_in_bytes_per_us;
+      DCHECK_NE(-1, cppgc_event.main_thread_efficiency_in_bytes_per_us);
+      event.main_thread_efficiency_cpp_in_bytes_per_us =
+          cppgc_event.main_thread_efficiency_in_bytes_per_us;
+    }
+  }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
   // Total:
   const double total_wall_clock_duration_in_us =
       (current_.scopes[Scope::SCAVENGER] +

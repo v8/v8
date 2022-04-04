@@ -66,10 +66,11 @@ namespace internal {
 
 // Sink for various time and memory statistics.
 class V8_EXPORT_PRIVATE StatsCollector final {
-  using CollectionType = GarbageCollector::Config::CollectionType;
   using IsForcedGC = GarbageCollector::Config::IsForcedGC;
 
  public:
+  using CollectionType = GarbageCollector::Config::CollectionType;
+
 #if defined(CPPGC_DECLARE_ENUM)
   static_assert(false, "CPPGC_DECLARE_ENUM macro is already defined");
 #endif

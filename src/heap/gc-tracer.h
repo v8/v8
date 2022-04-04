@@ -139,13 +139,11 @@ class V8_EXPORT_PRIVATE GCTracer {
       START = 4
     };
 
-#ifdef DEBUG
     // Returns true if the event corresponds to a young generation GC.
     static constexpr bool IsYoungGenerationEvent(Type type) {
       DCHECK_NE(START, type);
       return type == SCAVENGER || type == MINOR_MARK_COMPACTOR;
     }
-#endif
 
     // The state diagram for a GC cycle:
     //   (NOT_RUNNING) -----(StartCycle)----->
@@ -237,6 +235,11 @@ class V8_EXPORT_PRIVATE GCTracer {
     TimedHistogram* type_priority_timer;
   };
 
+  enum class CppType {
+    kMinor,
+    kMajor,
+  };
+
   static const int kThroughputTimeFrameMs = 5000;
   static constexpr double kConservativeSpeedInBytesPerMillisecond = 128 * KB;
 
@@ -279,7 +282,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StopInSafepoint();
 
   void NotifySweepingCompleted();
-  void NotifyCppGCCompleted();
+  void NotifyCppGCCompleted(CppType);
 
   void NotifyYoungGenerationHandling(
       YoungGenerationHandling young_generation_handling);
