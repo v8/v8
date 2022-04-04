@@ -60,6 +60,16 @@ void EmptyInterceptorDeleter(
 void EmptyInterceptorEnumerator(
     const v8::PropertyCallbackInfo<v8::Array>& info) {}
 
+void EmptyInterceptorDefinerWithSideEffect(
+    Local<Name> name, const v8::PropertyDescriptor& desc,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Local<v8::Value> result = CompileRun("interceptor_definer_side_effect()");
+  if (!result->IsNull()) {
+    info.GetReturnValue().Set(result);
+  }
+}
+
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   Local<Object> self = info.This().As<Object>();
@@ -869,13 +879,17 @@ THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
 namespace {
 
 void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
+                        v8::GenericNamedPropertySetterCallback setter,
                         v8::GenericNamedPropertyQueryCallback query,
-                        const char* source, int expected) {
+                        v8::GenericNamedPropertyDefinerCallback definer,
+                        v8::PropertyHandlerFlags flags, const char* source,
+                        int expected) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      getter, nullptr, query, nullptr, nullptr, v8_str("data")));
+      getter, setter, query, nullptr /* deleter */, nullptr /* enumerator */,
+      definer, nullptr /* descriptor */, v8_str("data"), flags));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("o"),
@@ -885,9 +899,17 @@ void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
   CHECK_EQ(expected, value->Int32Value(context.local()).FromJust());
 }
 
+void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
+                        v8::GenericNamedPropertyQueryCallback query,
+                        const char* source, int expected) {
+  CheckInterceptorIC(getter, nullptr, query, nullptr,
+                     v8::PropertyHandlerFlags::kNone, source, expected);
+}
+
 void CheckInterceptorLoadIC(v8::GenericNamedPropertyGetterCallback getter,
                             const char* source, int expected) {
-  CheckInterceptorIC(getter, nullptr, source, expected);
+  CheckInterceptorIC(getter, nullptr, nullptr, nullptr,
+                     v8::PropertyHandlerFlags::kNone, source, expected);
 }
 
 void InterceptorLoadICGetter(Local<Name> name,
@@ -1579,6 +1601,38 @@ THREADED_TEST(InterceptorStoreICWithSideEffectfulCallbacks) {
                      "  r.y = i;"
                      "}",
                      19);
+}
+
+THREADED_TEST(InterceptorDefineICWithSideEffectfulCallbacks) {
+  CheckInterceptorIC(EmptyInterceptorGetter, EmptyInterceptorSetter,
+                     EmptyInterceptorQuery,
+                     EmptyInterceptorDefinerWithSideEffect,
+                     v8::PropertyHandlerFlags::kNonMasking,
+                     "let inside_side_effect = false;"
+                     "let interceptor_definer_side_effect = function() {"
+                     "  if (!inside_side_effect) {"
+                     "    inside_side_effect = true;"
+                     "    o.y = 153;"
+                     "    inside_side_effect = false;"
+                     "  }"
+                     "  return null;"
+                     "};"
+                     "class Base {"
+                     "  constructor(arg) {"
+                     "    return arg;"
+                     "  }"
+                     "}"
+                     "class ClassWithField extends Base {"
+                     "  y = (() => {"
+                     "    return 42;"
+                     "  })();"
+                     "  constructor(arg) {"
+                     "    super(arg);"
+                     "  }"
+                     "}"
+                     "new ClassWithField(o);"
+                     "o.y",
+                     42);
 }
 
 static void InterceptorStoreICSetter(

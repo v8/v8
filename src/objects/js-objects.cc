@@ -3352,13 +3352,24 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
       // TODO(verwaest): JSProxy afterwards verify the attributes that the
       // JSProxy claims it has, and verifies that they are compatible. If not,
       // they throw. Here we should do the same.
-      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::INTERCEPTOR: {
         if (handling == DONT_FORCE_FIELD) {
           Maybe<bool> result =
               JSObject::SetPropertyWithInterceptor(it, should_throw, value);
           if (result.IsNothing() || result.FromJust()) return result;
         }
-        break;
+
+        // The interceptor declined to handle the operation, so proceed defining
+        // own property without the interceptor.
+        Isolate* isolate = it->isolate();
+        Handle<Object> receiver = it->GetReceiver();
+        LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
+        LookupIterator own_lookup =
+            it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
+                            : LookupIterator(isolate, receiver, it->name(), c);
+        return JSObject::DefineOwnPropertyIgnoreAttributes(
+            &own_lookup, value, attributes, should_throw, handling);
+      }
 
       case LookupIterator::ACCESSOR: {
         Handle<Object> accessors = it->GetAccessors();
