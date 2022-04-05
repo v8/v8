@@ -298,8 +298,10 @@ void UnifiedHeapMarker::AddObject(void* object) {
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
     const GCCycle& cppgc_event) {
   if (cppgc_event.type == MetricRecorder::GCCycle::Type::kMinor) {
+    DCHECK(!last_young_gc_event_);
     last_young_gc_event_ = cppgc_event;
   } else {
+    DCHECK(!last_full_gc_event_);
     last_full_gc_event_ = cppgc_event;
   }
   GetIsolate()->heap()->tracer()->NotifyCppGCCompleted(
