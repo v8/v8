@@ -797,11 +797,6 @@ RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForWasmOnFulfilled(
           function_data);
-  Handle<WasmInstanceObject> instance(
-      GetWasmInstanceOnStackTop(isolate,
-                                {StackFrame::EXIT, StackFrame::WASM_TO_JS}),
-      isolate);
-  isolate->set_context(instance->native_context());
   Handle<Context> context(isolate->native_context());
   Handle<Map> function_map = isolate->strict_function_map();
   Handle<JSObject> on_fulfilled =

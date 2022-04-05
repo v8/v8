@@ -7070,13 +7070,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* suspender = gasm_->Load(
         MachineType::TaggedPointer(), api_function_ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kSuspenderOffset));
+    Node* native_context = gasm_->Load(
+        MachineType::TaggedPointer(), api_function_ref,
+        wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
     auto* call_descriptor = GetBuiltinCallDescriptor(
         Builtin::kWasmSuspend, zone_, StubCallMode::kCallWasmRuntimeStub);
     Node* call_target = mcgraph()->RelocatableIntPtrConstant(
         wasm::WasmCode::kWasmSuspend, RelocInfo::WASM_STUB_CALL);
     Node* args[] = {value, suspender};
-    Node* chained_promise =
-        BuildCallToRuntime(Runtime::kWasmCreateResumePromise, args, 2);
+    Node* chained_promise = BuildCallToRuntimeWithContext(
+        Runtime::kWasmCreateResumePromise, native_context, args, 2);
     Node* resolved =
         gasm_->Call(call_descriptor, call_target, chained_promise, suspender);
     gasm_->Goto(&resume, resolved);
