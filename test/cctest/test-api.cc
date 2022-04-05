@@ -7897,6 +7897,7 @@ static void ResetUseValueAndSetFlag(
 }
 
 void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
+  if (FLAG_stress_incremental_marking) return;
   using v8::Context;
   using v8::Local;
   using v8::Object;

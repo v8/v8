@@ -472,6 +472,12 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return GarbageCollector::MARK_COMPACTOR;
   }
 
+  if (FLAG_separate_gc_phases && incremental_marking()->IsMarking()) {
+    // TODO(v8:12503): Remove previous condition when flag gets removed.
+    *reason = "Incremental marking forced finalization";
+    return GarbageCollector::MARK_COMPACTOR;
+  }
+
   if (!CanPromoteYoungAndExpandOldGeneration(0)) {
     isolate_->counters()
         ->gc_compactor_caused_by_oldspace_exhaustion()
@@ -2702,6 +2708,7 @@ void Heap::EvacuateYoungGeneration() {
 
 void Heap::Scavenge() {
   DCHECK_NOT_NULL(new_space());
+  DCHECK_IMPLIES(FLAG_separate_gc_phases, !incremental_marking()->IsMarking());
 
   if (FLAG_trace_incremental_marking && !incremental_marking()->IsStopped()) {
     isolate()->PrintWithTimestamp(
