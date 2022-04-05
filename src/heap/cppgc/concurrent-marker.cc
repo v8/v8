@@ -203,12 +203,9 @@ void ConcurrentMarkerBase::Start() {
                          std::make_unique<ConcurrentMarkingTask>(*this));
 }
 
-bool ConcurrentMarkerBase::Cancel() {
-  if (!concurrent_marking_handle_ || !concurrent_marking_handle_->IsValid())
-    return false;
-
-  concurrent_marking_handle_->Cancel();
-  return true;
+void ConcurrentMarkerBase::Cancel() {
+  if (concurrent_marking_handle_ && concurrent_marking_handle_->IsValid())
+    concurrent_marking_handle_->Cancel();
 }
 
 void ConcurrentMarkerBase::JoinForTesting() {
