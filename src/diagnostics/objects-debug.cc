@@ -990,9 +990,23 @@ void JSGlobalObject::JSGlobalObjectVerify(Isolate* isolate) {
 }
 
 void Oddball::OddballVerify(Isolate* isolate) {
-  TorqueGeneratedOddball::OddballVerify(isolate);
+  PrimitiveHeapObjectVerify(isolate);
+  CHECK(IsOddball(isolate));
+
   Heap* heap = isolate->heap();
+  Object string = to_string();
+  VerifyPointer(isolate, string);
+  CHECK(string.IsString());
+  Object type = type_of();
+  VerifyPointer(isolate, type);
+  CHECK(type.IsString());
+  Object kind_value = TaggedField<Object>::load(*this, kKindOffset);
+  VerifyPointer(isolate, kind_value);
+  CHECK(kind_value.IsSmi());
+
   Object number = to_number();
+  VerifyPointer(isolate, number);
+  CHECK(number.IsSmi() || number.IsHeapNumber());
   if (number.IsHeapObject()) {
     CHECK(number == ReadOnlyRoots(heap).nan_value() ||
           number == ReadOnlyRoots(heap).hole_nan_value());

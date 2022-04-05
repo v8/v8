@@ -1283,11 +1283,13 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case HEAP_NUMBER_TYPE:
       return CALL_APPLY(HeapNumber);
     case BYTE_ARRAY_TYPE:
-      return CALL_APPLY(BigInt);
+      return CALL_APPLY(ByteArray);
     case BIGINT_TYPE:
       return CALL_APPLY(BigInt);
     case ALLOCATION_SITE_TYPE:
       return CALL_APPLY(AllocationSite);
+    case ODDBALL_TYPE:
+      return CALL_APPLY(Oddball);
 
 #define MAKE_STRUCT_CASE(TYPE, Name, name) \
   case TYPE:                               \

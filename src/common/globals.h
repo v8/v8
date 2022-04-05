@@ -434,6 +434,13 @@ F FUNCTION_CAST(Address addr) {
 #define USES_FUNCTION_DESCRIPTORS 0
 #endif
 
+constexpr bool StaticStringsEqual(const char* s1, const char* s2) {
+  for (;; ++s1, ++s2) {
+    if (*s1 != *s2) return false;
+    if (*s1 == '\0') return true;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
 
