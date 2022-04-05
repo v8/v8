@@ -263,9 +263,14 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
     // sweeper thread would race with the main thread.
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, free_start, free_end,
                                            SlotSet::KEEP_EMPTY_BUCKETS);
+
+    // While we only add old-to-old slots on live objects, we can still end up
+    // with old-to-old slots in free memory with e.g. right-trimming of objects.
+    RememberedSet<OLD_TO_OLD>::RemoveRange(page, free_start, free_end,
+                                           SlotSet::KEEP_EMPTY_BUCKETS);
+  } else {
+    DCHECK_NULL(page->slot_set<OLD_TO_OLD>());
   }
-  RememberedSet<OLD_TO_OLD>::RemoveRange(page, free_start, free_end,
-                                         SlotSet::KEEP_EMPTY_BUCKETS);
   if (non_empty_typed_slots) {
     free_ranges_map->insert(std::pair<uint32_t, uint32_t>(
         static_cast<uint32_t>(free_start - page->address()),
