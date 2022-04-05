@@ -41,6 +41,10 @@ export class V8CustomElement extends HTMLElement {
   _update() {
     throw Error('Subclass responsibility');
   }
+
+  get isFocused() {
+    return document.activeElement === this;
+  }
 }
 
 export class FileReader extends V8CustomElement {

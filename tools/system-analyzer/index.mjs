@@ -231,10 +231,10 @@ class App {
 
   handleTimeRangeSelect(e) {
     e.stopImmediatePropagation();
-    this.selectTimeRange(e.start, e.end);
+    this.selectTimeRange(e.start, e.end, e.focus, e.zoom);
   }
 
-  selectTimeRange(start, end) {
+  selectTimeRange(start, end, focus = false, zoom = false) {
     this._state.selectTimeRange(start, end);
     this.showMapEntries(this._state.mapTimeline.selectionOrSelf, false);
     this.showIcEntries(this._state.icTimeline.selectionOrSelf, false);
@@ -243,7 +243,7 @@ class App {
     this.showApiEntries(this._state.apiTimeline.selectionOrSelf, false);
     this.showTickEntries(this._state.tickTimeline.selectionOrSelf, false);
     this.showTimerEntries(this._state.timerTimeline.selectionOrSelf, false);
-    this._view.timelinePanel.timeSelection = {start, end};
+    this._view.timelinePanel.timeSelection = {start, end, focus, zoom};
   }
 
   handleFocusLogEntry(e) {
@@ -421,115 +421,53 @@ class Navigation {
     this.state = state;
     this._view = view;
   }
+
   get map() {
     return this.state.map
   }
+
   set map(value) {
     this.state.map = value
   }
+
   get chunks() {
     return this.state.mapTimeline.chunks;
   }
+
   increaseTimelineResolution() {
     this._view.timelinePanel.nofChunks *= 1.5;
     this.state.nofChunks *= 1.5;
   }
+
   decreaseTimelineResolution() {
     this._view.timelinePanel.nofChunks /= 1.5;
     this.state.nofChunks /= 1.5;
   }
-  selectNextEdge() {
-    if (!this.map) return;
-    if (this.map.children.length != 1) return;
-    this.map = this.map.children[0].to;
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
-  selectPrevEdge() {
-    if (!this.map) return;
-    if (!this.map.parent) return;
-    this.map = this.map.parent;
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
-  selectDefaultMap() {
-    this.map = this.chunks[0].at(0);
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
-  moveInChunks(next) {
-    if (!this.map) return this.selectDefaultMap();
-    let chunkIndex = this.map.chunkIndex(this.chunks);
-    let chunk = this.chunks[chunkIndex];
-    let index = chunk.indexOf(this.map);
-    if (next) {
-      chunk = chunk.next(this.chunks);
-    } else {
-      chunk = chunk.prev(this.chunks);
-    }
-    if (!chunk) return;
-    index = Math.min(index, chunk.size() - 1);
-    this.map = chunk.at(index);
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
-  moveInChunk(delta) {
-    if (!this.map) return this.selectDefaultMap();
-    let chunkIndex = this.map.chunkIndex(this.chunks)
-    let chunk = this.chunks[chunkIndex];
-    let index = chunk.indexOf(this.map) + delta;
-    let map;
-    if (index < 0) {
-      map = chunk.prev(this.chunks).last();
-    } else if (index >= chunk.size()) {
-      map = chunk.next(this.chunks).first()
-    } else {
-      map = chunk.at(index);
-    }
-    this.map = map;
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
+
   updateUrl() {
     let entries = this.state.entries;
     let params = new URLSearchParams(entries);
     window.history.pushState(entries, '', '?' + params.toString());
   }
+
+  scrollLeft() {}
+
+  scrollRight() {}
+
   handleKeyDown(event) {
     switch (event.key) {
-      case 'ArrowUp':
-        event.preventDefault();
-        if (event.shiftKey) {
-          this.selectPrevEdge();
-        } else {
-          this.moveInChunk(-1);
-        }
+      case 'd':
+        this.scrollLeft();
         return false;
-      case 'ArrowDown':
-        event.preventDefault();
-        if (event.shiftKey) {
-          this.selectNextEdge();
-        } else {
-          this.moveInChunk(1);
-        }
+      case 'a':
+        this.scrollRight();
         return false;
-      case 'ArrowLeft':
-        this.moveInChunks(false);
-        break;
-      case 'ArrowRight':
-        this.moveInChunks(true);
-        break;
       case '+':
         this.increaseTimelineResolution();
-        break;
+        return false;
       case '-':
         this.decreaseTimelineResolution();
-        break;
+        return false;
     }
   }
 }

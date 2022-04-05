@@ -37,6 +37,7 @@ export class TimelineTrackBase extends V8CustomElement {
     this.timelineMarkersNode = this.$('#timelineMarkers');
     this._scalableContentNode = this.$('#scalableContent');
     this.isLocked = false;
+    this.setAttribute('tabindex', 0);
   }
 
   _initEventListeners() {
@@ -46,6 +47,8 @@ export class TimelineTrackBase extends V8CustomElement {
     this.hitPanelNode.onclick = this._handleClick.bind(this);
     this.hitPanelNode.ondblclick = this._handleDoubleClick.bind(this);
     this.hitPanelNode.onmousemove = this._handleMouseMove.bind(this);
+    this.$('#selectionForeground')
+        .addEventListener('mousemove', this._handleMouseMove.bind(this));
     window.addEventListener('resize', () => this._resetCachedDimensions());
   }
 
@@ -72,9 +75,24 @@ export class TimelineTrackBase extends V8CustomElement {
     this._updateChunks();
   }
 
-  set timeSelection(selection) {
-    this._selectionHandler.timeSelection = selection;
+  set timeSelection({start, end, focus = false, zoom = false}) {
+    this._selectionHandler.timeSelection = {start, end};
     this.updateSelection();
+    if (focus || zoom) {
+      if (!Number.isFinite(start) || !Number.isFinite(end)) {
+        throw new Error('Invalid number ranges');
+      }
+      if (focus) {
+        this.currentTime = (start + end) / 2;
+      }
+      if (zoom) {
+        const margin = 0.2;
+        const newVisibleTime = (end - start) * (1 + 2 * margin);
+        const currentVisibleTime =
+            this._cachedTimelineBoundingClientRect.width / this._timeToPixel;
+        this.nofChunks = this.nofChunks * (currentVisibleTime / newVisibleTime);
+      }
+    }
   }
 
   updateSelection() {
@@ -125,8 +143,14 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   set nofChunks(count) {
+    const centerTime = this.currentTime;
+    const kMinNofChunks = 100;
+    if (count < kMinNofChunks) count = kMinNofChunks;
+    const kMaxNofChunks = 10 * 1000;
+    if (count > kMaxNofChunks) count = kMaxNofChunks;
     this._nofChunks = count | 0;
     this._updateChunks();
+    this.currentTime = centerTime;
   }
 
   get nofChunks() {
@@ -150,16 +174,40 @@ export class TimelineTrackBase extends V8CustomElement {
 
   set selectedEntry(value) {
     this._selectedEntry = value;
-    this.drawAnnotations(value);
   }
 
   get selectedEntry() {
     return this._selectedEntry;
   }
 
+  get focusedEntry() {
+    return this._focusedEntry;
+  }
+
+  set focusedEntry(entry) {
+    this._focusedEntry = entry;
+    if (entry) this._drawAnnotations(entry);
+  }
+
   set scrollLeft(offset) {
     this.timelineNode.scrollLeft = offset;
     this._cachedTimelineScrollLeft = offset;
+  }
+
+  get scrollLeft() {
+    return this._cachedTimelineScrollLeft;
+  }
+
+  set currentTime(time) {
+    const position = this.timeToPosition(time);
+    const centerOffset = this._timelineBoundingClientRect.width / 2;
+    this.scrollLeft = Math.max(0, position - centerOffset);
+  }
+
+  get currentTime() {
+    const centerOffset =
+        this._timelineBoundingClientRect.width / 2 + this.scrollLeft;
+    return this.relativePositionToTime(centerOffset);
   }
 
   handleEntryTypeDoubleClick(e) {
@@ -387,12 +435,20 @@ class SelectionHandler {
 
   constructor(timeline) {
     this._timeline = timeline;
+    this._timelineNode = this._timeline.$('#timeline');
     this._timelineNode.addEventListener(
-        'mousedown', e => this._handleTimeSelectionMouseDown(e));
+        'mousedown', this._handleMouseDown.bind(this));
     this._timelineNode.addEventListener(
-        'mouseup', e => this._handleTimeSelectionMouseUp(e));
+        'mouseup', this._handleMouseUp.bind(this));
     this._timelineNode.addEventListener(
-        'mousemove', e => this._handleTimeSelectionMouseMove(e));
+        'mousemove', this._handleMouseMove.bind(this));
+    this._selectionNode = this._timeline.$('#selection');
+    this._selectionForegroundNode = this._timeline.$('#selectionForeground');
+    this._selectionForegroundNode.addEventListener(
+        'dblclick', this._handleDoubleClick.bind(this));
+    this._selectionBackgroundNode = this._timeline.$('#selectionBackground');
+    this._leftHandleNode = this._timeline.$('#leftHandle');
+    this._rightHandleNode = this._timeline.$('#rightHandle');
   }
 
   update() {
@@ -406,9 +462,10 @@ class SelectionHandler {
     this._leftHandleNode.style.left = startPosition + 'px';
     this._rightHandleNode.style.left = endPosition + 'px';
     const delta = endPosition - startPosition;
-    const selectionNode = this._selectionBackgroundNode;
-    selectionNode.style.left = startPosition + 'px';
-    selectionNode.style.width = delta + 'px';
+    this._selectionForegroundNode.style.left = startPosition + 'px';
+    this._selectionForegroundNode.style.width = delta + 'px';
+    this._selectionBackgroundNode.style.left = startPosition + 'px';
+    this._selectionBackgroundNode.style.width = delta + 'px';
   }
 
   set timeSelection(selection) {
@@ -437,26 +494,6 @@ class SelectionHandler {
         this._timeSelection.end != Infinity;
   }
 
-  get _timelineNode() {
-    return this._timeline.$('#timeline');
-  }
-
-  get _selectionNode() {
-    return this._timeline.$('#selection');
-  }
-
-  get _selectionBackgroundNode() {
-    return this._timeline.$('#selectionBackground');
-  }
-
-  get _leftHandleNode() {
-    return this._timeline.$('#leftHandle');
-  }
-
-  get _rightHandleNode() {
-    return this._timeline.$('#rightHandle');
-  }
-
   get _leftHandlePosX() {
     return this._leftHandleNode.getBoundingClientRect().x;
   }
@@ -475,7 +512,7 @@ class SelectionHandler {
         SelectionHandler.SELECTION_OFFSET;
   }
 
-  _handleTimeSelectionMouseDown(event) {
+  _handleMouseDown(event) {
     if (event.button !== 0) return;
     let xPosition = event.clientX
     // Update origin time in case we click on a handle.
@@ -488,7 +525,7 @@ class SelectionHandler {
     this._selectionOriginTime = this.positionToTime(xPosition);
   }
 
-  _handleTimeSelectionMouseMove(event) {
+  _handleMouseMove(event) {
     if (event.button !== 0) return;
     if (!this.isSelecting) return;
     const currentTime = this.positionToTime(event.clientX);
@@ -497,7 +534,7 @@ class SelectionHandler {
         Math.max(this._selectionOriginTime, currentTime)));
   }
 
-  _handleTimeSelectionMouseUp(event) {
+  _handleMouseUp(event) {
     if (event.button !== 0) return;
     this._selectionOriginTime = -1;
     if (this._timeSelection.start === -1) return;
@@ -505,6 +542,13 @@ class SelectionHandler {
     if (delta <= 1 || isNaN(delta)) return;
     this._timeline.dispatchEvent(new SelectTimeEvent(
         this._timeSelection.start, this._timeSelection.end));
+  }
+
+  _handleDoubleClick(event) {
+    if (!this.hasSelection) return;
+    // Focus and zoom to the current selection.
+    this._timeline.dispatchEvent(new SelectTimeEvent(
+        this._timeSelection.start, this._timeSelection.end, true, true));
   }
 }
 
