@@ -69,23 +69,40 @@ class JSHeapBroker;
 }  // namespace v8
 
 #ifndef TEST
-#define TEST(Name)                                                      \
-  static void Test##Name();                                             \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true); \
+#define TEST(Name)                                                     \
+  static void Test##Name();                                            \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true, \
+                              nullptr);                                \
   static void Test##Name()
 #endif
 
 #ifndef UNINITIALIZED_TEST
-#define UNINITIALIZED_TEST(Name)                                         \
-  static void Test##Name();                                              \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false); \
+#define UNINITIALIZED_TEST(Name)                                        \
+  static void Test##Name();                                             \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false, \
+                              nullptr);                                 \
   static void Test##Name()
 #endif
 
+#ifndef TEST_WITH_PLATFORM
+#define TEST_WITH_PLATFORM(Name, PlatformClass)                            \
+  static void Test##Name(PlatformClass& platform);                         \
+  static void TestWithoutPlatform##Name() {                                \
+    Test##Name(*static_cast<PlatformClass*>(i::V8::GetCurrentPlatform())); \
+  }                                                                        \
+  CcTest register_test_##Name(TestWithoutPlatform##Name, __FILE__, #Name,  \
+                              true, true,                                  \
+                              []() -> std::unique_ptr<TestPlatform> {      \
+                                return std::make_unique<PlatformClass>();  \
+                              });                                          \
+  static void Test##Name(PlatformClass& platform)
+#endif
+
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                              \
-  static void Test##Name();                                              \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true); \
+#define DISABLED_TEST(Name)                                             \
+  static void Test##Name();                                             \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true, \
+                              nullptr);                                 \
   static void Test##Name()
 #endif
 
@@ -97,9 +114,9 @@ class JSHeapBroker;
 //      to correctly associate the tests with the test suite using them.
 //   2. To actually execute the tests, create an instance of the class
 //      containing the MEMBER_TESTs.
-#define MEMBER_TEST(Name)                                   \
-  CcTest register_test_##Name =                             \
-      CcTest(Test##Name, kTestFileName, #Name, true, true); \
+#define MEMBER_TEST(Name)                                            \
+  CcTest register_test_##Name =                                      \
+      CcTest(Test##Name, kTestFileName, #Name, true, true, nullptr); \
   static void Test##Name()
 
 #define EXTENSION_LIST(V)                                                      \
@@ -119,18 +136,19 @@ static constexpr const char* kExtensionName[kMaxExtensions] = {
     EXTENSION_LIST(DEFINE_EXTENSION_NAME)};
 #undef DEFINE_EXTENSION_NAME
 
+class CcTest;
+class TestPlatform;
+
+using CcTestMapType = std::map<std::string, CcTest*>;
+
 class CcTest {
  public:
   using TestFunction = void();
+  using TestPlatformFactory = std::unique_ptr<TestPlatform>();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         bool enabled, bool initialize);
-  ~CcTest() { i::DeleteArray(file_); }
-  void Run();
-  static CcTest* last() { return last_; }
-  CcTest* prev() { return prev_; }
-  const char* file() { return file_; }
-  const char* name() { return name_; }
-  bool enabled() { return enabled_; }
+         bool enabled, bool initialize,
+         TestPlatformFactory* platform_factory = nullptr);
+  void Run(const char* argv0);
 
   static v8::Isolate* isolate() {
     CHECK_NOT_NULL(isolate_);
@@ -149,6 +167,8 @@ class CcTest {
 
   static i::Heap* heap();
   static i::ReadOnlyHeap* read_only_heap();
+
+  static v8::Platform* default_platform() { return default_platform_; }
 
   static void AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
                                 v8::FunctionCallback callback);
@@ -178,9 +198,6 @@ class CcTest {
   // This must be called first in a test.
   static void InitializeVM();
 
-  // Only for UNINITIALIZED_TESTs
-  static void DisableAutomaticDispose();
-
   // Helper function to configure a context.
   // Must be in a HandleScope.
   static v8::Local<v8::Context> NewContext(
@@ -196,21 +213,17 @@ class CcTest {
     return NewContext(CcTestExtensionFlags{extensions}, isolate);
   }
 
-  static void TearDown();
-
  private:
-  static CcTest* last_;
+  static std::unordered_map<std::string, CcTest*>* tests_;
   static v8::ArrayBuffer::Allocator* allocator_;
   static v8::Isolate* isolate_;
+  static v8::Platform* default_platform_;
   static bool initialize_called_;
   static v8::base::Atomic32 isolate_used_;
 
   TestFunction* callback_;
-  const char* file_;
-  const char* name_;
-  bool enabled_;
   bool initialize_;
-  CcTest* prev_;
+  TestPlatformFactory* test_platform_factory_;
 
   friend int main(int argc, char** argv);
   friend class ManualGCScope;
@@ -632,8 +645,7 @@ static inline void DisableDebugger(v8::Isolate* isolate) {
 
 
 static inline void EmptyMessageQueues(v8::Isolate* isolate) {
-  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
-                                       isolate)) {
+  while (v8::platform::PumpMessageLoop(CcTest::default_platform(), isolate)) {
   }
 }
 
@@ -701,19 +713,10 @@ class V8_NODISCARD ManualGCScope {
 };
 
 // This is a base class that can be overridden to implement a test platform. It
-// delegates all operations to a given platform at the time of construction.
-// Breaks if tasks cache the platform themselves.
+// delegates all operations to the default platform.
 class TestPlatform : public v8::Platform {
  public:
-  // Users inheriting from `TestPlatform` need to invoke `NotifyPlatformReady()`
-  // at the end of their constructor.
-  void NotifyPlatformReady();
-
-  // Eagerly removes the platform from being used by V8.
-  void RemovePlatform();
-
-  TestPlatform(const TestPlatform&) = delete;
-  TestPlatform& operator=(const TestPlatform&) = delete;
+  ~TestPlatform() override = default;
 
   // v8::Platform implementation.
   v8::PageAllocator* GetPageAllocator() override;
@@ -734,14 +737,7 @@ class TestPlatform : public v8::Platform {
   v8::TracingController* GetTracingController() override;
 
  protected:
-  TestPlatform();
-  ~TestPlatform() override;
-
-  v8::Platform* old_platform() const { return old_platform_; }
-
- private:
-  std::atomic<v8::Platform*> old_platform_;
-  bool active_ = false;
+  TestPlatform() = default;
 };
 
 #if defined(USE_SIMULATOR)

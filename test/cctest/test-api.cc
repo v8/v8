@@ -33,6 +33,8 @@
 #include <memory>
 #include <string>
 
+#include "test/cctest/cctest.h"
+
 #if V8_OS_POSIX
 #include <unistd.h>
 #endif
@@ -23104,9 +23106,6 @@ namespace {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() { NotifyPlatformReady(); }
-  ~MockPlatform() final { RemovePlatform(); }
-
   bool dump_without_crashing_called() const {
     return dump_without_crashing_called_;
   }
@@ -23119,9 +23118,7 @@ class MockPlatform final : public TestPlatform {
 
 }  // namespace
 
-TEST(DumpOnJavascriptExecution) {
-  MockPlatform platform;
-
+TEST_WITH_PLATFORM(DumpOnJavascriptExecution, MockPlatform) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);

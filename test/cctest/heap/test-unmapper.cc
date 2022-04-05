@@ -20,11 +20,9 @@ namespace heap {
 
 class MockPlatformForUnmapper : public TestPlatform {
  public:
-  MockPlatformForUnmapper() { NotifyPlatformReady(); }
   ~MockPlatformForUnmapper() override {
-    RemovePlatform();
     for (auto& task : worker_tasks_) {
-      old_platform()->CallOnWorkerThread(std::move(task));
+      CcTest::default_platform()->CallOnWorkerThread(std::move(task));
     }
     worker_tasks_.clear();
   }
