@@ -169,16 +169,6 @@ def ensure_forward_triggering_properties(ctx):
                 properties["triggers"] = tlist
                 builder.properties = json.encode(properties)
 
-def python3_scripts(ctx):
-    build_bucket = ctx.output["cr-buildbucket.cfg"]
-    for bucket in build_bucket.buckets:
-        if bucket.name not in ["ci", "ci.br.beta", "try", "try.triggered"]:
-            # TODO(https://crbug.com/1292013): Switch stable and extended.
-            continue
-        for builder in bucket.swarming.builders:
-            if not builder.experiments.get("v8.scripts.use_python3"):
-                builder.experiments["v8.scripts.use_python3"] = 100
-
 lucicfg.generator(aggregate_builder_tester_console)
 
 lucicfg.generator(separate_builder_tester_console)
@@ -188,5 +178,3 @@ lucicfg.generator(headless_consoles)
 lucicfg.generator(mirror_dev_consoles)
 
 lucicfg.generator(ensure_forward_triggering_properties)
-
-lucicfg.generator(python3_scripts)
