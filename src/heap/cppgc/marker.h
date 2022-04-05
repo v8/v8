@@ -61,17 +61,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
     kSteele,
   };
 
-  // Pauses concurrent marking if running while this scope is active.
-  class PauseConcurrentMarkingScope final {
-   public:
-    explicit PauseConcurrentMarkingScope(MarkerBase&);
-    ~PauseConcurrentMarkingScope();
-
-   private:
-    MarkerBase& marker_;
-    const bool resume_on_exit_;
-  };
-
   virtual ~MarkerBase();
 
   MarkerBase(const MarkerBase&) = delete;
@@ -194,6 +183,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   IncrementalMarkingSchedule schedule_;
 
   std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
+  bool concurrent_marking_active_ = false;
 
   bool main_marking_disabled_for_testing_{false};
   bool visited_cross_thread_persistents_in_atomic_pause_{false};

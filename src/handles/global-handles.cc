@@ -5,7 +5,6 @@
 #include "src/handles/global-handles.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cstdint>
 #include <map>
 
@@ -14,7 +13,6 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/common/allow-deprecated.h"
-#include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/embedder-tracing.h"
@@ -657,21 +655,9 @@ class GlobalHandles::TracedNode final
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
 
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  void set_markbit() {
-    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
-      flags_ = Markbit::update(flags_, true);
-      return;
-    }
-    std::atomic<uint8_t>& atomic_flags =
-        reinterpret_cast<std::atomic<uint8_t>&>(flags_);
-    const uint8_t new_value =
-        Markbit::update(atomic_flags.load(std::memory_order_relaxed), true);
-    atomic_flags.fetch_or(new_value, std::memory_order_relaxed);
-  }
-
   bool markbit() const { return Markbit::decode(flags_); }
   void clear_markbit() { flags_ = Markbit::update(flags_, false); }
+  void set_markbit() { flags_ = Markbit::update(flags_, true); }
 
   bool is_on_stack() const { return IsOnStack::decode(flags_); }
   void set_is_on_stack(bool v) { flags_ = IsOnStack::update(flags_, v); }
@@ -689,19 +675,11 @@ class GlobalHandles::TracedNode final
   static void Verify(GlobalHandles* global_handles, const Address* const* slot);
 
  protected:
-  // Various state is managed in a bit field where some of the state is managed
-  // concurrently, whereas other state is managed only on the main thread when
-  // no concurrent thread has access to flags, e.g., in the atomic pause of the
-  // garbage collector.
-  //
-  // The following state is managed only on the main thread.
   using NodeState = base::BitField8<State, 0, 2>;
   using IsInYoungList = NodeState::Next<bool, 1>;
   using IsRoot = IsInYoungList::Next<bool, 1>;
-  using IsOnStack = IsRoot::Next<bool, 1>;
-  // The markbit is the exception as it can be set from the main and marker
-  // threads at the same time.
-  using Markbit = IsOnStack::Next<bool, 1>;
+  using Markbit = IsRoot::Next<bool, 1>;
+  using IsOnStack = Markbit::Next<bool, 1>;
 
   void ClearImplFields() {
     set_root(true);
@@ -1103,7 +1081,7 @@ GlobalHandles* GlobalHandles::From(const TracedNode* node) {
 
 void GlobalHandles::MarkTraced(Address* location) {
   TracedNode* node = TracedNode::FromLocation(location);
-  node->set_markbit<AccessMode::ATOMIC>();
+  node->set_markbit();
   DCHECK(node->IsInUse());
 }
 
