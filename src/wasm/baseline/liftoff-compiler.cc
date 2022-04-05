@@ -293,15 +293,15 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   // Decode errors are ok.
   if (reason == kDecodeError) return;
 
-  // Missing CPU features are also generally OK for now.
-  if (reason == kMissingCPUFeature) return;
-
   // --liftoff-only ensures that tests actually exercise the Liftoff path
-  // without bailing out. Bailing out due to (simulated) lack of CPU support
-  // is okay though (see above).
+  // without bailing out. We also fail for missing CPU support, to avoid
+  // running any TurboFan code under --liftoff-only.
   if (FLAG_liftoff_only) {
     FATAL("--liftoff-only: treating bailout as fatal error. Cause: %s", detail);
   }
+
+  // Missing CPU features are generally OK, except with --liftoff-only.
+  if (reason == kMissingCPUFeature) return;
 
   // If --enable-testing-opcode-in-wasm is set, we are expected to bailout with
   // "testing opcode".

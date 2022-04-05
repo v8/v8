@@ -172,6 +172,19 @@ class WasmGCTester {
     CheckHasThrownImpl(function_index, sig, &packer, expected);
   }
 
+  bool HasSimdSupport(TestExecutionTier tier) const {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+    // Liftoff does not have a fallback for executing SIMD instructions if
+    // SSE4_1 is not available.
+    if (tier == TestExecutionTier::kLiftoff &&
+        !CpuFeatures::IsSupported(SSE4_1)) {
+      return false;
+    }
+#endif
+    USE(tier);
+    return true;
+  }
+
   Handle<WasmInstanceObject> instance() { return instance_; }
   Isolate* isolate() { return isolate_; }
   WasmModuleBuilder* builder() { return &builder_; }
@@ -920,6 +933,7 @@ TEST(WasmLetInstruction) {
 
 WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   WasmGCTester tester(execution_tier);
+  if (!tester.HasSimdSupport(execution_tier)) return;
 
   const byte type_index = tester.DefineArray(wasm::kWasmI32, true);
   const byte fp_type_index = tester.DefineArray(wasm::kWasmF64, true);
@@ -1310,6 +1324,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
 
 WASM_COMPILED_EXEC_TEST(NewDefault) {
   WasmGCTester tester(execution_tier);
+  if (!tester.HasSimdSupport(execution_tier)) return;
 
   tester.builder()->StartRecursiveTypeGroup();
   const byte struct_type = tester.DefineStruct(
