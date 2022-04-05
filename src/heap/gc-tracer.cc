@@ -1647,9 +1647,12 @@ void GCTracer::ReportFullCycleToRecorder() {
   event.total.sweep_wall_clock_duration_in_us =
       static_cast<int64_t>((sweeping_duration + sweeping_background_duration) *
                            base::Time::kMicrosecondsPerMillisecond);
+  event.main_thread_incremental.mark_wall_clock_duration_in_us =
+      incremental_marking;
+  event.main_thread_incremental.sweep_wall_clock_duration_in_us =
+      incremental_sweeping;
 
   // TODO(chromium:1154636): Populate the following:
-  // - event.main_thread_incremental
   // - event.objects
   // - event.memory
   // - event.collection_rate_in_percent
