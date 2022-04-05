@@ -9932,15 +9932,22 @@ void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
       use_precise_sampling);
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
+CpuProfilingResult CpuProfiler::Start(
+    CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+      options, std::move(delegate));
+}
+
+CpuProfilingResult CpuProfiler::Start(
     Local<String> title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options, std::move(delegate));
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
-                                               bool record_samples) {
+CpuProfilingResult CpuProfiler::Start(Local<String> title,
+                                      bool record_samples) {
   CpuProfilingOptions options(
       kLeafNodeLineNumbers,
       record_samples ? CpuProfilingOptions::kNoSampleLimit : 0);
@@ -9948,19 +9955,42 @@ CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
       *Utils::OpenHandle(*title), options);
 }
 
+CpuProfilingResult CpuProfiler::Start(Local<String> title,
+                                      CpuProfilingMode mode,
+                                      bool record_samples,
+                                      unsigned max_samples) {
+  CpuProfilingOptions options(mode, record_samples ? max_samples : 0);
+  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+      *Utils::OpenHandle(*title), options);
+}
+
+CpuProfilingStatus CpuProfiler::StartProfiling(
+    Local<String> title, CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+  return Start(title, options, std::move(delegate)).status;
+}
+
+CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
+                                               bool record_samples) {
+  return Start(title, record_samples).status;
+}
+
 CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
                                                CpuProfilingMode mode,
                                                bool record_samples,
                                                unsigned max_samples) {
-  CpuProfilingOptions options(mode, record_samples ? max_samples : 0);
-  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), options);
+  return Start(title, mode, record_samples, max_samples).status;
 }
 
 CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
   return reinterpret_cast<CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           *Utils::OpenHandle(*title)));
+}
+
+CpuProfile* CpuProfiler::Stop(ProfilerId id) {
+  return reinterpret_cast<CpuProfile*>(
+      reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(id));
 }
 
 void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
