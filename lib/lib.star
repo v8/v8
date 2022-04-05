@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 load("//definitions.star", "versions")
+load("//lib/description.star", "to_html")
 
 V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
 
@@ -339,6 +340,14 @@ def v8_basic_builder(defaults, **kwargs):
     kwargs["properties"] = properties
     kwargs.setdefault("resultdb_settings", resultdb.settings(enable = True))
     kwargs = fix_args(defaults, **kwargs)
+
+    description = kwargs.pop("description", None)
+    if description:
+        kwargs["description_html"] = to_html(
+            kwargs["name"],
+            kwargs["bucket"],
+            description,
+        )
     luci.builder(**kwargs)
 
 def multibranch_builder(**kwargs):
@@ -517,6 +526,13 @@ def ci_pair_factory(func):
 
         if not type(tester_close) == "NoneType":
             tester_kwargs["close_tree"] = tester_close
+
+        description = kwargs.pop("description", None)
+        if description:
+            builder_kwargs["description"] = dict(description)
+            builder_kwargs["description"]["triggers"] = tester_kwargs["name"]
+            tester_kwargs["description"] = dict(description)
+            tester_kwargs["description"]["triggered by"] = builder_kwargs["name"]
 
         return [
             func(**builder_kwargs),

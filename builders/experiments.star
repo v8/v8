@@ -206,6 +206,11 @@ in_category(
             "v8-waterfall-sheriff@grotations.appspotmail.com",
             "mtv-sf-v8-sheriff@grotations.appspotmail.com",
         ],
+        description = {
+            "purpose": "Arm64 simulator heap sandbox",
+            "request": "https://crbug.com/v8/12257",
+            "cq_base": "v8_linux_arm64_sim_heap_sandbox_dbg",
+        },
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - heap sandbox - debug",

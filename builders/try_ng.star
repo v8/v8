@@ -44,6 +44,14 @@ def try_ng_pair(
             prop.pop("experiment_percentage")
             prop["includable_only"] = "true"
 
+    description = kwargs.pop("description", None)
+    compiler_description, tester_description = None, None
+    if description:
+        compiler_description = dict(description)
+        tester_description = dict(description)
+        compiler_description["triggers"] = name + "_ng_triggered"
+        tester_description["triggered by"] = name + "_ng"
+
     v8_builder(
         defaults_try,
         name = name + "_ng",
@@ -52,8 +60,10 @@ def try_ng_pair(
         cq_branch_properties = cq_branch_tg,
         in_list = "tryserver",
         experiments = experiments,
+        description = compiler_description,
         **kwargs
     )
+
     v8_builder(
         defaults_triggered,
         name = name + "_ng_triggered",
@@ -63,6 +73,7 @@ def try_ng_pair(
         cq_branch_properties = cq_branch_td,
         in_list = "tryserver",
         experiments = experiments,
+        description = tester_description,
     )
     if "experiment_percentage" in cq_properties:
         kwargs["properties"]["triggers"] = None
@@ -303,6 +314,11 @@ try_ng_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
+    description = {
+        "purpose": "Arm64 simulator heap sandbox",
+        "request": "https://crbug.com/v8/12257",
+        "ci_base": "V8 Linux64 - arm64 - sim - heap sandbox - debug",
+    },
 )
 
 try_ng_pair(
