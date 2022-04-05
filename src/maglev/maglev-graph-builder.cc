@@ -155,6 +155,25 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
 
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinaryOperation() {
+  FeedbackNexus nexus = feedback_nexus(1);
+
+  if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
+    if (nexus.kind() == FeedbackSlotKind::kBinaryOp) {
+      BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
+
+      if (hint == BinaryOperationHint::kSignedSmall) {
+        ValueNode* left = AddNewNode<CheckedSmiUntag>({LoadRegister(0)});
+        ValueNode* right = AddNewNode<CheckedSmiUntag>({GetAccumulator()});
+
+        if (kOperation == Operation::kAdd) {
+          ValueNode* result = AddNewNode<Int32AddWithOverflow>({left, right});
+          SetAccumulatorToNewNode<CheckedSmiTag>({result});
+          return;
+        }
+      }
+    }
+  }
+
   // TODO(victorgomes): Use feedback info and create optimized versions.
   BuildGenericBinaryOperationNode<kOperation>();
 }

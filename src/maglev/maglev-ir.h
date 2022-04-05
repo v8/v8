@@ -76,6 +76,9 @@ class CompactInterpreterFrameState;
   V(RegisterInput)         \
   V(RootConstant)          \
   V(SmiConstant)           \
+  V(CheckedSmiTag)         \
+  V(CheckedSmiUntag)       \
+  V(Int32AddWithOverflow)  \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define NODE_LIST(V) \
@@ -917,6 +920,55 @@ ARITHMETIC_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
 COMPARISON_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
 #undef DEF_UNARY_WITH_FEEDBACK_NODE
 #undef DEF_BINARY_WITH_FEEDBACK_NODE
+
+class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiTag>;
+
+ public:
+  explicit CheckedSmiTag(uint32_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiUntag>;
+
+ public:
+  explicit CheckedSmiUntag(uint32_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Int32AddWithOverflow
+    : public FixedInputValueNodeT<2, Int32AddWithOverflow> {
+  using Base = FixedInputValueNodeT<2, Int32AddWithOverflow>;
+
+ public:
+  explicit Int32AddWithOverflow(uint32_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
 
 class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
   using Base = FixedInputValueNodeT<0, InitialValue>;

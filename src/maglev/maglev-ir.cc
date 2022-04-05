@@ -65,10 +65,7 @@ void DefineAsFixed(MaglevVregAllocationState* vreg_state, Node* node,
                                 vreg_state->AllocateVirtualRegister());
 }
 
-// TODO(victorgomes): Use this for smi binary operation and remove attribute
-// [[maybe_unused]].
-[[maybe_unused]] void DefineSameAsFirst(MaglevVregAllocationState* vreg_state,
-                                        Node* node) {
+void DefineSameAsFirst(MaglevVregAllocationState* vreg_state, Node* node) {
   node->result().SetUnallocated(vreg_state->AllocateVirtualRegister(), 0);
 }
 
@@ -702,6 +699,46 @@ void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
   }
 GENERIC_OPERATIONS_NODE_LIST(DEF_OPERATION)
 #undef DEF_OPERATION
+
+void CheckedSmiUntag::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void CheckedSmiUntag::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  __ sarl(ToRegister(input()), Immediate(1));
+  EmitEagerDeoptIf(carry, code_gen_state, this);
+}
+
+void CheckedSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                 const ProcessingState& state) {
+  UseRegister(input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void CheckedSmiTag::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                 const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  __ addl(reg, reg);
+  EmitEagerDeoptIf(overflow, code_gen_state, this);
+}
+
+void Int32AddWithOverflow::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                        const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32AddWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                        const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ addl(left, right);
+  EmitEagerDeoptIf(overflow, code_gen_state, this);
+}
 
 void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state,
                        const ProcessingState& state) {
