@@ -103,41 +103,6 @@ void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
   DCHECK(marking_state()->IsBlack(to));
 }
 
-class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
- public:
-  explicit IncrementalMarkingRootMarkingVisitor(
-      IncrementalMarking* incremental_marking)
-      : heap_(incremental_marking->heap()) {}
-
-  void VisitRootPointer(Root root, const char* description,
-                        FullObjectSlot p) override {
-    DCHECK(!MapWord::IsPacked((*p).ptr()));
-    MarkObjectByPointer(root, p);
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
-    for (FullObjectSlot p = start; p < end; ++p) {
-      DCHECK(!MapWord::IsPacked((*p).ptr()));
-      MarkObjectByPointer(root, p);
-    }
-  }
-
- private:
-  void MarkObjectByPointer(Root root, FullObjectSlot p) {
-    Object object = *p;
-    if (!object.IsHeapObject()) return;
-    DCHECK(!MapWord::IsPacked(object.ptr()));
-    HeapObject heap_object = HeapObject::cast(object);
-    BasicMemoryChunk* target_page =
-        BasicMemoryChunk::FromHeapObject(heap_object);
-    if (target_page->InSharedHeap()) return;
-    heap_->incremental_marking()->MarkRootObject(root, heap_object);
-  }
-
-  Heap* heap_;
-};
-
 bool IncrementalMarking::WasActivated() { return was_activated_; }
 
 bool IncrementalMarking::CanBeActivated() {
@@ -214,6 +179,58 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   incremental_marking_job()->Start(heap_);
 }
 
+class IncrementalMarkingRootMarkingVisitor final : public RootVisitor {
+ public:
+  explicit IncrementalMarkingRootMarkingVisitor(Heap* heap)
+      : heap_(heap), incremental_marking_(heap->incremental_marking()) {}
+
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) override {
+    DCHECK(!MapWord::IsPacked((*p).ptr()));
+    MarkObjectByPointer(root, p);
+  }
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot p = start; p < end; ++p) {
+      DCHECK(!MapWord::IsPacked((*p).ptr()));
+      MarkObjectByPointer(root, p);
+    }
+  }
+
+ private:
+  void MarkObjectByPointer(Root root, FullObjectSlot p) {
+    Object object = *p;
+    if (!object.IsHeapObject()) return;
+    DCHECK(!MapWord::IsPacked(object.ptr()));
+    HeapObject heap_object = HeapObject::cast(object);
+
+    if (heap_object.InSharedHeap()) return;
+
+    if (incremental_marking_->WhiteToGreyAndPush(heap_object)) {
+      if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+        heap_->AddRetainingRoot(root, heap_object);
+      }
+    }
+  }
+
+  Heap* const heap_;
+  IncrementalMarking* const incremental_marking_;
+};
+
+namespace {
+
+void MarkRoots(Heap* heap) {
+  IncrementalMarkingRootMarkingVisitor visitor(heap);
+  heap->IterateRoots(
+      &visitor,
+      base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
+                              SkipRoot::kWeak});
+}
+
+}  // namespace
+
+void IncrementalMarking::MarkRootsForTesting() { MarkRoots(heap_); }
 
 void IncrementalMarking::StartMarking() {
   if (heap_->isolate()->serializer_enabled()) {
@@ -256,7 +273,7 @@ void IncrementalMarking::StartMarking() {
 
   StartBlackAllocation();
 
-  MarkRoots();
+  MarkRoots(heap_);
 
   if (FLAG_concurrent_marking && !heap_->IsTearingDown()) {
     heap_->concurrent_marking()->ScheduleJob();
@@ -332,17 +349,6 @@ void IncrementalMarking::EnsureBlackAllocated(Address allocated, size_t size) {
   }
 }
 
-void IncrementalMarking::MarkRoots() {
-  DCHECK(!finalize_marking_completed_);
-  DCHECK(IsMarking());
-
-  IncrementalMarkingRootMarkingVisitor visitor(this);
-  heap_->IterateRoots(
-      &visitor,
-      base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
-                              SkipRoot::kWeak});
-}
-
 bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
   if (age == 0) {
     // The map has aged. Do not retain this map.
@@ -412,12 +418,6 @@ void IncrementalMarking::FinalizeIncrementally() {
   DCHECK(IsMarking());
 
   double start = heap_->MonotonicallyIncreasingTimeInMs();
-
-  // After finishing incremental marking, we try to discover all unmarked
-  // objects to reduce the marking load in the final pause.
-  // 1) We scan and mark the roots again to find all changes to the root set.
-  // 2) Age and retain maps embedded in optimized code.
-  MarkRoots();
 
   // Map retaining is needed for performance, not correctness,
   // so we can do it only once at the beginning of the finalization.

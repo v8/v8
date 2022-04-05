@@ -176,9 +176,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // from white to grey.
   V8_INLINE bool WhiteToGreyAndPush(HeapObject obj);
 
-  // Marks object referenced from roots.
-  V8_INLINE void MarkRootObject(Root root, HeapObject obj);
-
   // This function is used to color the object black before it undergoes an
   // unsafe layout change. This is a part of synchronization protocol with
   // the concurrent marker.
@@ -221,6 +218,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     background_live_bytes_[chunk] += by;
   }
 
+  void MarkRootsForTesting();
+
  private:
   class Observer : public AllocationObserver {
    public:
@@ -240,7 +239,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void PauseBlackAllocation();
   void FinishBlackAllocation();
 
-  void MarkRoots();
   bool ShouldRetainMap(Map map, int age);
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.

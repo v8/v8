@@ -189,6 +189,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
                   i::StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       SafepointScope scope(heap);
+      marking->MarkRootsForTesting();
       marking->FinalizeIncrementally();
     }
   }
