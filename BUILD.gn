@@ -6055,23 +6055,17 @@ group("v8_archive") {
 if (is_fuchsia && !build_with_chromium) {
   import("//build/config/fuchsia/rules.gni")
 
-  fuchsia_component("d8_fuchsia_component") {
+  cr_fuchsia_package("d8_fuchsia_pkg") {
     testonly = true
-    manifest = "src/d8/d8.cmx"
-    data_deps = [ ":d8" ]
-    visibility = [ ":*" ]
-  }
-
-  fuchsia_package("d8_fuchsia_pkg") {
-    testonly = true
-    package_name = "d8"
-    deps = [ ":d8_fuchsia_component" ]
+    binary = ":d8"
+    manifest = "gni/v8.cmx"
+    package_name_override = "d8"
   }
 
   fuchsia_package_runner("d8_fuchsia") {
     testonly = true
     package = ":d8_fuchsia_pkg"
-    package_name = "d8"
+    package_name_override = "d8"
   }
 }
 
