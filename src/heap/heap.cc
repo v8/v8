@@ -2348,7 +2348,11 @@ size_t Heap::PerformGarbageCollection(
     local_embedder_heap_tracer()->TraceEpilogue();
   }
 
-  if (collector == GarbageCollector::SCAVENGER && cpp_heap()) {
+  // Schedule Oilpan's Minor GC. Since the minor GC doesn't support conservative
+  // stack scanning, do it only when Scavenger runs from task, which is
+  // non-nestable.
+  if (cpp_heap() && collector == GarbageCollector::SCAVENGER &&
+      gc_reason == GarbageCollectionReason::kTask) {
     CppHeap::From(cpp_heap())->RunMinorGC();
   }
 
