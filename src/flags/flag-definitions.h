@@ -1011,7 +1011,6 @@ DEFINE_BOOL(liftoff_only, false,
             "disallow TurboFan compilation for WebAssembly (for testing)")
 DEFINE_IMPLICATION(liftoff_only, liftoff)
 DEFINE_NEG_IMPLICATION(liftoff_only, wasm_tier_up)
-DEFINE_NEG_IMPLICATION(liftoff_only, wasm_dynamic_tiering)
 DEFINE_NEG_IMPLICATION(fuzzing, liftoff_only)
 DEFINE_DEBUG_BOOL(
     enable_testing_opcode_in_wasm, false,
