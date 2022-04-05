@@ -259,8 +259,11 @@ class Worker : public std::enable_shared_from_this<Worker> {
   // need locking, but accessing the Worker's data member does.)
   base::Mutex worker_mutex_;
 
-  // Only accessed by the worker thread.
+  // The isolate should only be accessed by the worker itself, or when holding
+  // the worker_mutex_ and after checking the worker state.
   Isolate* isolate_ = nullptr;
+
+  // Only accessed by the worker thread.
   v8::Persistent<v8::Context> context_;
 };
 

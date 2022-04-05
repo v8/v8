@@ -3280,7 +3280,8 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, nullptr, global_template);
-  DCHECK(!context.IsEmpty());
+  DCHECK_IMPLIES(context.IsEmpty(), isolate->IsExecutionTerminating());
+  if (context.IsEmpty()) return {};
   if (i::FLAG_perf_prof_annotate_wasm || i::FLAG_vtune_prof_annotate_wasm) {
     isolate->SetWasmLoadSourceMapCallback(Shell::WasmLoadSourceMapCallback);
   }
@@ -4180,6 +4181,10 @@ void Worker::Terminate() {
   std::unique_ptr<v8::Task> task(
       new TerminateTask(task_manager_, shared_from_this()));
   task_runner_->PostTask(std::move(task));
+  // Also schedule an interrupt in case the worker is running code and never
+  // returning to the event queue. Since we checked the state before, and we are
+  // holding the {worker_mutex_}, it's safe to access the isolate.
+  isolate_->TerminateExecution();
 }
 
 void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
@@ -4239,12 +4244,15 @@ void Worker::ExecuteInThread() {
 
   D8Console console(isolate_);
   Shell::Initialize(isolate_, &console, false);
-  {
+  // This is not really a loop, but the loop allows us to break out of this
+  // block easily.
+  for (bool execute = true; execute; execute = false) {
     Isolate::Scope iscope(isolate_);
     {
       HandleScope scope(isolate_);
       PerIsolateData data(isolate_);
       Local<Context> context = Shell::CreateEvaluationContext(isolate_);
+      if (context.IsEmpty()) break;
       context_.Reset(isolate_, context);
       {
         Context::Scope cscope(context);
