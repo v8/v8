@@ -598,8 +598,8 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  LiftoffRegList dont_overwrite = cache_state()->used_registers |
-                                  LiftoffRegList::ForRegs(dst_addr, offset_reg);
+  LiftoffRegList dont_overwrite =
+      cache_state()->used_registers | LiftoffRegList{dst_addr, offset_reg};
   DCHECK(!dont_overwrite.has(result));
   if (dont_overwrite.has(value)) {
     // We cannot overwrite {value}, but the {value} register is changed in the
@@ -660,8 +660,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
   // The cmpxchg instruction uses rax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, value_reg);
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, offset_reg, value_reg};
   __ ClearRegister(rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   Operand dst_op = liftoff::GetMemOp(lasm, dst_addr, offset_reg, offset_imm);
 
@@ -798,7 +797,7 @@ void LiftoffAssembler::AtomicCompareExchange(
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
   LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, value_reg);
+      LiftoffRegList{dst_addr, offset_reg, expected, value_reg};
   ClearRegister(rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   if (expected.gp() != rax) {
     movq(rax, expected.gp());
@@ -3429,9 +3428,9 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   static constexpr RegClass tmp_rc = reg_class_for(kS128);
   LiftoffRegister tmp1 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs));
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs});
   LiftoffRegister tmp2 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs, tmp1));
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, tmp1});
   I64x2Mul(dst.fp(), lhs.fp(), rhs.fp(), tmp1.fp(), tmp2.fp());
 }
 

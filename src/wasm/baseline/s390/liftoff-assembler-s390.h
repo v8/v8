@@ -561,14 +561,12 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  Register tmp1 =
-      GetUnusedRegister(
-          kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result))
-          .gp();
-  Register tmp2 =
-      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg,
-                                                        value, result, tmp1))
-          .gp();
+  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result})
+                      .gp();
+  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result, tmp1})
+                      .gp();
 
   if (!is_int20(offset_imm)) {
     mov(ip, Operand(offset_imm));
@@ -663,14 +661,12 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  Register tmp1 =
-      GetUnusedRegister(
-          kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result))
-          .gp();
-  Register tmp2 =
-      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg,
-                                                        value, result, tmp1))
-          .gp();
+  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result})
+                      .gp();
+  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result, tmp1})
+                      .gp();
 
   if (!is_int20(offset_imm)) {
     mov(ip, Operand(offset_imm));
@@ -765,14 +761,12 @@ void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  Register tmp1 =
-      GetUnusedRegister(
-          kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result))
-          .gp();
-  Register tmp2 =
-      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg,
-                                                        value, result, tmp1))
-          .gp();
+  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result})
+                      .gp();
+  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result, tmp1})
+                      .gp();
 
   if (!is_int20(offset_imm)) {
     mov(ip, Operand(offset_imm));
@@ -867,14 +861,12 @@ void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type) {
-  Register tmp1 =
-      GetUnusedRegister(
-          kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result))
-          .gp();
-  Register tmp2 =
-      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg,
-                                                        value, result, tmp1))
-          .gp();
+  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result})
+                      .gp();
+  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result, tmp1})
+                      .gp();
 
   if (!is_int20(offset_imm)) {
     mov(ip, Operand(offset_imm));
@@ -969,14 +961,12 @@ void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  Register tmp1 =
-      GetUnusedRegister(
-          kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result))
-          .gp();
-  Register tmp2 =
-      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst_addr, offset_reg,
-                                                        value, result, tmp1))
-          .gp();
+  Register tmp1 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result})
+                      .gp();
+  Register tmp2 = GetUnusedRegister(kGpReg, LiftoffRegList{dst_addr, offset_reg,
+                                                           value, result, tmp1})
+                      .gp();
 
   if (!is_int20(offset_imm)) {
     mov(ip, Operand(offset_imm));
@@ -2532,12 +2522,10 @@ SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
      * `EmitBinOp`. */                                                         \
     /* Make sure dst and temp are also unique. */                              \
     if (dest == src1 || dest == src2) {                                        \
-      dest =                                                                   \
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src1, src2)).fp(); \
+      dest = GetUnusedRegister(kFpReg, LiftoffRegList{src1, src2}).fp();       \
     }                                                                          \
     Simd128Register temp =                                                     \
-        GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dest, src1, src2))   \
-            .fp();                                                             \
+        GetUnusedRegister(kFpReg, LiftoffRegList{dest, src1, src2}).fp();      \
     op(dest, src1, src2, kScratchDoubleReg, temp);                             \
     /* Original dst register needs to be populated. */                         \
     if (dest != dst.fp()) {                                                    \
@@ -2554,21 +2542,21 @@ SIMD_ADD_SUB_SAT_LIST(EMIT_SIMD_ADD_SUB_SAT)
   V(i16x8_extadd_pairwise_i8x16_s, I16x8ExtAddPairwiseI8x16S) \
   V(i16x8_extadd_pairwise_i8x16_u, I16x8ExtAddPairwiseI8x16U)
 
-#define EMIT_SIMD_EXT_ADD_PAIRWISE(name, op)                                 \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst,                    \
-                                     LiftoffRegister src) {                  \
-    Simd128Register src1 = src.fp();                                         \
-    Simd128Register dest = dst.fp();                                         \
-    /* Make sure dst and temp are unique. */                                 \
-    if (dest == src1) {                                                      \
-      dest = GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src1)).fp();  \
-    }                                                                        \
-    Simd128Register temp =                                                   \
-        GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dest, src1)).fp(); \
-    op(dest, src1, kScratchDoubleReg, temp);                                 \
-    if (dest != dst.fp()) {                                                  \
-      vlr(dst.fp(), dest, Condition(0), Condition(0), Condition(0));         \
-    }                                                                        \
+#define EMIT_SIMD_EXT_ADD_PAIRWISE(name, op)                         \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst,            \
+                                     LiftoffRegister src) {          \
+    Simd128Register src1 = src.fp();                                 \
+    Simd128Register dest = dst.fp();                                 \
+    /* Make sure dst and temp are unique. */                         \
+    if (dest == src1) {                                              \
+      dest = GetUnusedRegister(kFpReg, LiftoffRegList{src1}).fp();   \
+    }                                                                \
+    Simd128Register temp =                                           \
+        GetUnusedRegister(kFpReg, LiftoffRegList{dest, src1}).fp();  \
+    op(dest, src1, kScratchDoubleReg, temp);                         \
+    if (dest != dst.fp()) {                                          \
+      vlr(dst.fp(), dest, Condition(0), Condition(0), Condition(0)); \
+    }                                                                \
   }
 SIMD_EXT_ADD_PAIRWISE_LIST(EMIT_SIMD_EXT_ADD_PAIRWISE)
 #undef EMIT_SIMD_EXT_ADD_PAIRWISE
@@ -2716,7 +2704,7 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   Simd128Register src2 = rhs.fp();
   Simd128Register dest = dst.fp();
   Simd128Register temp =
-      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dest, src1, src2)).fp();
+      GetUnusedRegister(kFpReg, LiftoffRegList{dest, src1, src2}).fp();
   I8x16Swizzle(dest, src1, src2, r0, r1, kScratchDoubleReg, temp);
 }
 
@@ -2764,10 +2752,9 @@ void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
   Simd128Register dest = dst.fp();
   // Make sure temp registers are unique.
   Simd128Register temp1 =
-      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dest, s1, s2)).fp();
+      GetUnusedRegister(kFpReg, LiftoffRegList{dest, s1, s2}).fp();
   Simd128Register temp2 =
-      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dest, s1, s2, temp1))
-          .fp();
+      GetUnusedRegister(kFpReg, LiftoffRegList{dest, s1, s2, temp1}).fp();
   I16x8Q15MulRSatS(dest, s1, s2, kScratchDoubleReg, temp1, temp2);
 }
 

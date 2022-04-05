@@ -738,8 +738,7 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   void LiftoffAssembler::Atomic##name(                                   \
       Register dst_addr, Register offset_reg, uintptr_t offset_imm,      \
       LiftoffRegister value, LiftoffRegister result, StoreType type) {   \
-    LiftoffRegList pinned =                                              \
-        LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result);    \
+    LiftoffRegList pinned = {dst_addr, offset_reg, value, result};       \
     Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp(); \
     Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp(); \
     Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp(); \
@@ -816,8 +815,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result);
+  LiftoffRegList pinned = {dst_addr, offset_reg, value, result};
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
@@ -893,8 +891,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst_addr, offset_reg,
-                                                  expected, new_value, result);
+  LiftoffRegList pinned = {dst_addr, offset_reg, expected, new_value, result};
   Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
@@ -1463,10 +1460,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::Ext(dst.gp(), src.gp(), 0, 32);
       return true;
     case kExprI32SConvertF32: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister rounded = GetUnusedRegister(kFpReg, LiftoffRegList{src});
       LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+          GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
       // Real conversion.
       TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
@@ -1486,10 +1482,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32UConvertF32: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister rounded = GetUnusedRegister(kFpReg, LiftoffRegList{src});
       LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+          GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
       // Real conversion.
       TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
@@ -1507,10 +1502,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32SConvertF64: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister rounded = GetUnusedRegister(kFpReg, LiftoffRegList{src});
       LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+          GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
       // Real conversion.
       TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
@@ -1524,10 +1518,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32UConvertF64: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister rounded = GetUnusedRegister(kFpReg, LiftoffRegList{src});
       LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+          GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
       // Real conversion.
       TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
@@ -1549,10 +1542,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::Dext(dst.gp(), src.gp(), 0, 32);
       return true;
     case kExprI64SConvertF32: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister rounded = GetUnusedRegister(kFpReg, LiftoffRegList{src});
       LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+          GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
       // Real conversion.
       TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
@@ -1581,10 +1573,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI64SConvertF64: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister rounded = GetUnusedRegister(kFpReg, LiftoffRegList{src});
       LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+          GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
       // Real conversion.
       TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
@@ -1616,8 +1607,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       dmfc1(dst.gp(), src.fp());
       return true;
     case kExprF32SConvertI32: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      LiftoffRegister scratch = GetUnusedRegister(kFpReg, LiftoffRegList{dst});
       mtc1(src.gp(), scratch.fp());
       cvt_s_w(dst.fp(), scratch.fp());
       return true;
@@ -1632,8 +1622,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::FmoveLow(dst.fp(), src.gp());
       return true;
     case kExprF64SConvertI32: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      LiftoffRegister scratch = GetUnusedRegister(kFpReg, LiftoffRegList{dst});
       mtc1(src.gp(), scratch.fp());
       cvt_d_w(dst.fp(), scratch.fp());
       return true;
@@ -1847,7 +1836,7 @@ void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   Register tmp = dst;
   if (dst == lhs || dst == rhs) {
-    tmp = GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(lhs, rhs)).gp();
+    tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
   }
   // Write 1 as result.
   TurboAssembler::li(tmp, 1);
@@ -1870,7 +1859,7 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   Register tmp = dst;
   if (dst == lhs.gp() || dst == rhs.gp()) {
-    tmp = GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(lhs, rhs)).gp();
+    tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
   }
   // Write 1 as result.
   TurboAssembler::li(tmp, 1);

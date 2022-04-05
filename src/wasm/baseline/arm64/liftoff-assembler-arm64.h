@@ -636,8 +636,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
                         Register offset_reg, uintptr_t offset_imm,
                         LiftoffRegister value, LiftoffRegister result,
                         StoreType type, Binop op) {
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result);
+  LiftoffRegList pinned = {dst_addr, offset_reg, value, result};
   Register store_result = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
   // {LiftoffCompiler::AtomicBinop} ensures that {result} is unique.
@@ -823,8 +822,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, new_value);
+  LiftoffRegList pinned = {dst_addr, offset_reg, expected, new_value};
 
   Register result_reg = result.gp();
   if (pinned.has(result)) {
@@ -2511,7 +2509,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   VRegister temp = dst.fp();
   if (dst == lhs || dst == rhs) {
     // dst overlaps with lhs or rhs, so we need a temporary.
-    temp = GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(lhs, rhs)).fp();
+    temp = GetUnusedRegister(kFpReg, LiftoffRegList{lhs, rhs}).fp();
   }
 
   UseScratchRegisterScope scope(this);
