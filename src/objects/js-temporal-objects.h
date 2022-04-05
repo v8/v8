@@ -92,6 +92,11 @@ class JSTemporalCalendar
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
       Handle<Object> temporal_date_like);
 
+  // #sec-temporal.calendar.prototype.datefromfields
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> DateFromFields(
+      Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+      Handle<Object> fields, Handle<Object> options);
+
   // #sec-temporal.calendar.prototype.tostring
   static MaybeHandle<String> ToString(Isolate* isolate,
                                       Handle<JSTemporalCalendar> calendar,

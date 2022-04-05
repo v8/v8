@@ -1847,10 +1847,10 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
     // e. Let fieldNames be ? CalendarFields(calendar, « "day", "month",
     // "monthCode", "year" »).
     Handle<FixedArray> field_names = factory->NewFixedArray(4);
-    field_names->set(0, *(factory->day_string()));
-    field_names->set(1, *(factory->month_string()));
-    field_names->set(2, *(factory->monthCode_string()));
-    field_names->set(3, *(factory->year_string()));
+    field_names->set(0, ReadOnlyRoots(isolate).day_string());
+    field_names->set(1, ReadOnlyRoots(isolate).month_string());
+    field_names->set(2, ReadOnlyRoots(isolate).monthCode_string());
+    field_names->set(3, ReadOnlyRoots(isolate).year_string());
     ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
                                CalendarFields(isolate, calendar, field_names),
                                JSTemporalPlainDate);
@@ -4856,6 +4856,186 @@ int32_t ToISODayOfWeek(Isolate* isolate, int32_t year, int32_t month,
   return weekday == 0 ? 7 : weekday;
 }
 
+// #sec-temporal-regulateisodate
+Maybe<bool> RegulateISODate(Isolate* isolate, ShowOverflow overflow,
+                            int32_t year, int32_t* month, int32_t* day) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: year, month, and day are integers.
+  // 2. Assert: overflow is either "constrain" or "reject".
+  switch (overflow) {
+    // 3. If overflow is "reject", then
+    case ShowOverflow::kReject:
+      // a. If ! IsValidISODate(year, month, day) is false, throw a RangeError
+      // exception.
+      if (!IsValidISODate(isolate, year, *month, *day)) {
+        THROW_NEW_ERROR_RETURN_VALUE(
+            isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Nothing<bool>());
+      }
+      // b. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day
+      // }.
+      return Just(true);
+    // 4. If overflow is "constrain", then
+    case ShowOverflow::kConstrain:
+      // a. Set month to ! ConstrainToRange(month, 1, 12).
+      *month = std::max(std::min(*month, 12), 1);
+      // b. Set day to ! ConstrainToRange(day, 1, ! ISODaysInMonth(year,
+      // month)).
+      *day = std::max(std::min(*day, ISODaysInMonth(isolate, year, *month)), 1);
+      // c. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day
+      // }.
+      return Just(true);
+  }
+}
+
+// #sec-temporal-resolveisomonth
+Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
+  Factory* factory = isolate->factory();
+  // 1. Let month be ? Get(fields, "month").
+  Handle<Object> month_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, month_obj,
+      Object::GetPropertyOrElement(isolate, fields, factory->month_string()),
+      Nothing<int32_t>());
+  // 2. Let monthCode be ? Get(fields, "monthCode").
+  Handle<Object> month_code_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, month_code_obj,
+      Object::GetPropertyOrElement(isolate, fields,
+                                   factory->monthCode_string()),
+      Nothing<int32_t>());
+  // 3. If monthCode is undefined, then
+  if (month_code_obj->IsUndefined(isolate)) {
+    // a. If month is undefined, throw a TypeError exception.
+    if (month_obj->IsUndefined(isolate)) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(), Nothing<int32_t>());
+    }
+    // b. Return month.
+    // Note: In Temporal spec, "month" in fields is always converted by
+    // ToPositiveInteger inside PrepareTemporalFields before calling
+    // ResolveISOMonth. Therefore the month_obj is always a positive integer.
+    DCHECK(month_obj->IsSmi() || month_obj->IsHeapNumber());
+    return Just(FastD2I(month_obj->Number()));
+  }
+  // 4. Assert: Type(monthCode) is String.
+  DCHECK(month_code_obj->IsString());
+  Handle<String> month_code;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, month_code,
+                                   Object::ToString(isolate, month_code_obj),
+                                   Nothing<int32_t>());
+  // 5. Let monthLength be the length of monthCode.
+  // 6. If monthLength is not 3, throw a RangeError exception.
+  if (month_code->length() != 3) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                      factory->monthCode_string()),
+        Nothing<int32_t>());
+  }
+  // 7. Let numberPart be the substring of monthCode from 1.
+  // 8. Set numberPart to ! ToIntegerOrInfinity(numberPart).
+  // 9. If numberPart < 1 or numberPart > 12, throw a RangeError exception.
+  uint16_t m0 = month_code->Get(0);
+  uint16_t m1 = month_code->Get(1);
+  uint16_t m2 = month_code->Get(2);
+  if (!((m0 == 'M') && ((m1 == '0' && '1' <= m2 && m2 <= '9') ||
+                        (m1 == '1' && '0' <= m2 && m2 <= '2')))) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                      factory->monthCode_string()),
+        Nothing<int32_t>());
+  }
+  int32_t number_part =
+      10 * static_cast<int32_t>(m1 - '0') + static_cast<int32_t>(m2 - '0');
+  // 10. If month is not undefined, and month ≠ numberPart, then
+  // 11. If ! SameValueNonNumeric(monthCode, ! BuildISOMonthCode(numberPart)) is
+  // false, then a. Throw a RangeError exception.
+  // Note: In Temporal spec, "month" in fields is always converted by
+  // ToPositiveInteger inside PrepareTemporalFields before calling
+  // ResolveISOMonth. Therefore the month_obj is always a positive integer.
+  if (!month_obj->IsUndefined() &&
+      FastD2I(month_obj->Number()) != number_part) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                      factory->month_string()),
+        Nothing<int32_t>());
+  }
+
+  // 12. Return numberPart.
+  return Just(number_part);
+}
+
+// #sec-temporal-isodatefromfields
+Maybe<bool> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
+                              Handle<JSReceiver> options,
+                              const char* method_name, int32_t* year,
+                              int32_t* month, int32_t* day) {
+  Factory* factory = isolate->factory();
+
+  // 1. Assert: Type(fields) is Object.
+  // 2. Let overflow be ? ToTemporalOverflow(options).
+  Maybe<ShowOverflow> maybe_overflow =
+      ToTemporalOverflow(isolate, options, method_name);
+  MAYBE_RETURN(maybe_overflow, Nothing<bool>());
+  // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
+  // "monthCode", "year" », «»).
+  Handle<FixedArray> field_names = factory->NewFixedArray(4);
+  field_names->set(0, ReadOnlyRoots(isolate).day_string());
+  field_names->set(1, ReadOnlyRoots(isolate).month_string());
+  field_names->set(2, ReadOnlyRoots(isolate).monthCode_string());
+  field_names->set(3, ReadOnlyRoots(isolate).year_string());
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, fields,
+      PrepareTemporalFields(isolate, fields, field_names,
+                            RequiredFields::kNone),
+      Nothing<bool>());
+
+  // 4. Let year be ? Get(fields, "year").
+  Handle<Object> year_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, year_obj,
+      Object::GetPropertyOrElement(isolate, fields, factory->year_string()),
+      Nothing<bool>());
+  // 5. If year is undefined, throw a TypeError exception.
+  if (year_obj->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+                                 Nothing<bool>());
+  }
+  // Note: "year" in fields is always converted by
+  // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
+  // Therefore the year_obj is always an integer.
+  DCHECK(year_obj->IsSmi() || year_obj->IsHeapNumber());
+  *year = FastD2I(year_obj->Number());
+
+  // 6. Let month be ? ResolveISOMonth(fields).
+  Maybe<int32_t> maybe_month = ResolveISOMonth(isolate, fields);
+  MAYBE_RETURN(maybe_month, Nothing<bool>());
+  *month = maybe_month.FromJust();
+
+  // 7. Let day be ? Get(fields, "day").
+  Handle<Object> day_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, day_obj,
+      Object::GetPropertyOrElement(isolate, fields, factory->day_string()),
+      Nothing<bool>());
+  // 8. If day is undefined, throw a TypeError exception.
+  if (day_obj->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+                                 Nothing<bool>());
+  }
+  // Note: "day" in fields is always converted by
+  // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
+  // Therefore the day_obj is always an integer.
+  DCHECK(day_obj->IsSmi() || day_obj->IsHeapNumber());
+  *day = FastD2I(day_obj->Number());
+  // 9. Return ? RegulateISODate(year, month, day, overflow).
+  return RegulateISODate(isolate, maybe_overflow.FromJust(), *year, month, day);
+}
+
 }  // namespace
 
 // #sec-temporal.calendar.prototype.daysinyear
@@ -5107,6 +5287,47 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInWeek(
       Smi);
   // 5. Return 7𝔽.
   return handle(Smi::FromInt(7), isolate);
+}
+
+// #sec-temporal.calendar.prototype.datefromfields
+MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateFromFields(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> fields_obj, Handle<Object> options_obj) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. If Type(fields) is not Object, throw a TypeError exception.
+  const char* method_name = "Temporal.Calendar.prototype.dateFromFields";
+  if (!fields_obj->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCalledOnNonObject,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     method_name)),
+                    JSTemporalPlainDate);
+  }
+  Handle<JSReceiver> fields = Handle<JSReceiver>::cast(fields_obj);
+
+  // 5. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainDate);
+  if (calendar->calendar_index() == 0) {
+    int32_t year;
+    int32_t month;
+    int32_t day;
+    // 6. Let result be ? ISODateFromFields(fields, options).
+    Maybe<bool> maybe_result = ISODateFromFields(
+        isolate, fields, options, method_name, &year, &month, &day);
+    MAYBE_RETURN(maybe_result, Handle<JSTemporalPlainDate>());
+    DCHECK(maybe_result.FromJust());
+    // 7. Return ? CreateTemporalDate(result.[[Year]], result.[[Month]],
+    // result.[[Day]], calendar).
+    return CreateTemporalDate(isolate, year, month, day, calendar);
+  }
+  // TODO(ftang) add intl implementation inside #ifdef V8_INTL_SUPPORT
+  UNREACHABLE();
 }
 
 // #sec-temporal.calendar.prototype.tostring

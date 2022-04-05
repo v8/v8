@@ -302,8 +302,6 @@ TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPreviousTransition)
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeToJSON)
 
 /* Temporal.Calendar */
-/* Temporal #sec-temporal.calendar.prototype.datefromfields */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateFromFields)
 /* Temporal #sec-temporal.calendar.prototype.yearmonthfromfields */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeYearMonthFromFields)
 /* Temporal #sec-temporal.calendar.prototype.monthdayfromfields */
@@ -402,6 +400,17 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
     RETURN_RESULT_OR_FAILURE(                                                  \
         isolate,                                                               \
         JSTemporal##T ::METHOD(isolate, obj, args.atOrUndefined(isolate, 1))); \
+  }
+
+#define TEMPORAL_PROTOTYPE_METHOD2(T, METHOD, name)                          \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
+    HandleScope scope(isolate);                                              \
+    const char* method = "Temporal." #T ".prototype." #name;                 \
+    CHECK_RECEIVER(JSTemporal##T, obj, method);                              \
+    RETURN_RESULT_OR_FAILURE(                                                \
+        isolate,                                                             \
+        JSTemporal##T ::METHOD(isolate, obj, args.atOrUndefined(isolate, 1), \
+                               args.atOrUndefined(isolate, 2)));             \
   }
 
 #define TEMPORAL_PROTOTYPE_METHOD3(T, METHOD, name)                          \
@@ -785,6 +794,7 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
 
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
+TEMPORAL_PROTOTYPE_METHOD2(Calendar, DateFromFields, dateFromFields)
 TEMPORAL_ID_BY_TO_STRING(Calendar)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInMonth, daysInMonth)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInWeek, daysInWeek)
