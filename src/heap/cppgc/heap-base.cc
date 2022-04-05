@@ -19,6 +19,7 @@
 #include "src/heap/cppgc/platform.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc/unmarker.h"
 
 namespace cppgc {
 namespace internal {
@@ -153,6 +154,7 @@ void HeapBase::Terminate() {
   constexpr size_t kMaxTerminationGCs = 20;
   size_t gc_count = 0;
   bool more_termination_gcs_needed = false;
+
   do {
     CHECK_LT(gc_count++, kMaxTerminationGCs);
 
@@ -165,6 +167,13 @@ void HeapBase::Terminate() {
       weak_cross_thread_persistent_region_.ClearAllUsedNodes();
     }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+    // Unmark the heap so that the sweeper destructs all objects.
+    // TODO(chromium:1029379): Merge two heap iterations (unmarking + sweeping)
+    // into forced finalization.
+    SequentialUnmarker unmarker(raw_heap());
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
     in_atomic_pause_ = true;
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
@@ -172,6 +181,8 @@ void HeapBase::Terminate() {
     object_allocator().ResetLinearAllocationBuffers();
     stats_collector()->NotifyMarkingCompleted(0);
     ExecutePreFinalizers();
+    // TODO(chromium:1029379): Prefinalizers may black-allocate objects (under a
+    // compile-time option). Run sweeping with forced finalization here.
     sweeper().Start(
         {Sweeper::SweepingConfig::SweepingType::kAtomic,
          Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
