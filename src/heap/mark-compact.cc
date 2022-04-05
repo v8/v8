@@ -395,6 +395,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   explicit FullEvacuationVerifier(Heap* heap) : EvacuationVerifier(heap) {}
 
   void Run() override {
+    DCHECK(!heap_->mark_compact_collector()->sweeping_in_progress());
     VerifyRoots();
     VerifyEvacuation(heap_->new_space());
     VerifyEvacuation(heap_->old_space());
@@ -4929,6 +4930,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
       : EvacuationVerifier(heap) {}
 
   void Run() override {
+    DCHECK(!heap_->mark_compact_collector()->sweeping_in_progress());
     VerifyRoots();
     VerifyEvacuation(heap_->new_space());
     VerifyEvacuation(heap_->old_space());
