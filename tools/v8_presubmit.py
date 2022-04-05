@@ -49,9 +49,6 @@ from testrunner.local import utils
 def decode(arg, encoding="utf-8"):
   return arg.decode(encoding)
 
-def encode(arg, encoding="utf-8"):
-  return arg.encode(encoding)
-
 # Special LINT rules diverging from default and reason.
 # build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
 #   We now run our own header guard check in PRESUBMIT.py.
@@ -178,7 +175,7 @@ class FileContentsCache(object):
     try:
       sums_file = None
       try:
-        sums_file = open(self.sums_file_name, 'r')
+        sums_file = open(self.sums_file_name, 'rb')
         self.sums = pickle.load(sums_file)
       except:
         # Cannot parse pickle for any reason. Not much we can do about it.
@@ -189,7 +186,7 @@ class FileContentsCache(object):
 
   def Save(self):
     try:
-      sums_file = open(self.sums_file_name, 'w')
+      sums_file = open(self.sums_file_name, 'wb')
       pickle.dump(self.sums, sums_file)
     except:
       # Failed to write pickle. Try to clean-up behind us.
@@ -206,8 +203,8 @@ class FileContentsCache(object):
     changed_or_new = []
     for file in files:
       try:
-        handle = open(file, "r")
-        file_sum = md5er(encode(handle.read())).digest()
+        handle = open(file, "rb")
+        file_sum = md5er(handle.read()).digest()
         if not file in self.sums or self.sums[file] != file_sum:
           changed_or_new.append(file)
           self.sums[file] = file_sum
@@ -736,7 +733,6 @@ def FindTests(workspace):
   # TODO(almuthanna): unskip valid tests when they are properly migrated
   exclude = [
       'tools/clang',
-      'tools/unittests/v8_presubmit_test.py',
       'tools/mb/mb_test.py',
       'tools/cppgc/gen_cmake_test.py',
       'tools/ignition/linux_perf_report_test.py',
