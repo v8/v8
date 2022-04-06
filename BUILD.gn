@@ -5193,7 +5193,6 @@ v8_component("v8_libbase") {
     "src/base/template-utils.h",
     "src/base/threaded-list.h",
     "src/base/timezone-cache.h",
-    "src/base/type-traits.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
     "src/base/v8-fallthrough.h",

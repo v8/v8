@@ -666,7 +666,6 @@ filegroup(
         "src/base/template-utils.h",
         "src/base/timezone-cache.h",
         "src/base/threaded-list.h",
-        "src/base/type-traits.h",
         "src/base/utils/random-number-generator.cc",
         "src/base/utils/random-number-generator.h",
         "src/base/vector.h",
