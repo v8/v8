@@ -3968,12 +3968,14 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   heap_.SetUpSpaces(&isolate_data_.new_allocation_info_,
                     &isolate_data_.old_allocation_info_);
 
-  if (OwnsStringTable()) {
+  if (OwnsStringTables()) {
     string_table_ = std::make_shared<StringTable>(this);
+    string_forwarding_table_ = std::make_shared<StringForwardingTable>(this);
   } else {
     // Only refer to shared string table after attaching to the shared isolate.
     DCHECK_NOT_NULL(shared_isolate());
     string_table_ = shared_isolate()->string_table_;
+    string_forwarding_table_ = shared_isolate()->string_forwarding_table_;
   }
 
   if (V8_SHORT_BUILTIN_CALLS_BOOL && FLAG_short_builtin_calls) {

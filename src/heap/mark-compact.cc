@@ -2486,7 +2486,7 @@ void MarkCompactCollector::MarkLiveObjects() {
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
 
-  if (isolate()->OwnsStringTable()) {
+  if (isolate()->OwnsStringTables()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_STRING_TABLE);
 
     // Prune the string table removing all strings only pointed to by the
@@ -2497,6 +2497,18 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     string_table->DropOldData();
     string_table->IterateElements(&internalized_visitor);
     string_table->NotifyElementsRemoved(internalized_visitor.PointersRemoved());
+
+    // Clear string forwarding table. Live strings are transitioned to
+    // ThinStrings in the cleanup process.
+    StringForwardingTable* forwarding_table =
+        isolate()->string_forwarding_table();
+    auto is_dead = [=](HeapObject object) {
+      return non_atomic_marking_state_.IsWhite(object);
+    };
+    auto record_slot = [](HeapObject object, ObjectSlot slot, Object target) {
+      RecordSlot(object, slot, HeapObject::cast(target));
+    };
+    forwarding_table->CleanUpDuringGC(is_dead, record_slot);
   }
 
   ExternalStringTableCleaner external_visitor(heap());
