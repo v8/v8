@@ -197,7 +197,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 #endif
 }
 
-size_t MemoryChunk::CommittedPhysicalMemory() {
+size_t MemoryChunk::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits() || IsLargePage()) return size();
   return active_system_pages_.Size(MemoryAllocator::GetCommitPageSizeBits());
 }

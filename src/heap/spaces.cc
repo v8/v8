@@ -236,7 +236,7 @@ void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
 void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
-                                          size_t min_size) {
+                                          size_t min_size) const {
   DCHECK_GE(end - start, min_size);
 
   if (!use_lab_) {
@@ -288,7 +288,7 @@ void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {
   allocations_origins_[static_cast<int>(origin)]++;
 }
 
-void SpaceWithLinearArea::PrintAllocationsOrigins() {
+void SpaceWithLinearArea::PrintAllocationsOrigins() const {
   PrintIsolate(
       heap()->isolate(),
       "Allocations Origins for %s: GeneratedCode:%zu - Runtime:%zu - GC:%zu\n",

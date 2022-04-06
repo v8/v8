@@ -430,7 +430,7 @@ void ReadOnlySpace::Unseal() {
   is_marked_read_only_ = false;
 }
 
-bool ReadOnlySpace::ContainsSlow(Address addr) {
+bool ReadOnlySpace::ContainsSlow(Address addr) const {
   BasicMemoryChunk* c = BasicMemoryChunk::FromAddress(addr);
   for (BasicMemoryChunk* chunk : pages_) {
     if (chunk == c) return true;
@@ -442,7 +442,7 @@ namespace {
 // Only iterates over a single chunk as the chunk iteration is done externally.
 class ReadOnlySpaceObjectIterator : public ObjectIterator {
  public:
-  ReadOnlySpaceObjectIterator(Heap* heap, ReadOnlySpace* space,
+  ReadOnlySpaceObjectIterator(const Heap* heap, const ReadOnlySpace* space,
                               BasicMemoryChunk* chunk)
       : cur_addr_(kNullAddress), cur_end_(kNullAddress), space_(space) {}
 
@@ -481,7 +481,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
 
   Address cur_addr_;  // Current iteration point.
   Address cur_end_;   // End iteration point.
-  ReadOnlySpace* space_;
+  const ReadOnlySpace* const space_;
 };
 }  // namespace
 
@@ -510,7 +510,7 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
 };
 }  // namespace
 
-void ReadOnlySpace::Verify(Isolate* isolate) {
+void ReadOnlySpace::Verify(Isolate* isolate) const {
   bool allocation_pointer_found_in_space = top_ == limit_;
   VerifyReadOnlyPointersVisitor visitor(isolate->heap());
 
@@ -558,7 +558,7 @@ void ReadOnlySpace::Verify(Isolate* isolate) {
 }
 
 #ifdef DEBUG
-void ReadOnlySpace::VerifyCounters(Heap* heap) {
+void ReadOnlySpace::VerifyCounters(Heap* heap) const {
   size_t total_capacity = 0;
   size_t total_allocated = 0;
   for (BasicMemoryChunk* page : pages_) {
@@ -582,7 +582,7 @@ void ReadOnlySpace::VerifyCounters(Heap* heap) {
 #endif  // DEBUG
 #endif  // VERIFY_HEAP
 
-size_t ReadOnlySpace::CommittedPhysicalMemory() {
+size_t ReadOnlySpace::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
   BasicMemoryChunk::UpdateHighWaterMark(top_);
   size_t size = 0;

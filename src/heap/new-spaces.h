@@ -59,7 +59,7 @@ class SemiSpace : public Space {
 
   bool Commit();
   bool Uncommit();
-  bool IsCommitted() { return !memory_chunk_list_.Empty(); }
+  bool IsCommitted() const { return !memory_chunk_list_.Empty(); }
 
   // Grow the semispace to the new capacity.  The new capacity requested must
   // be larger than the current capacity and less than the maximum capacity.
@@ -73,7 +73,7 @@ class SemiSpace : public Space {
   bool EnsureCurrentCapacity();
 
   // Returns the start address of the first page of the space.
-  Address space_start() {
+  Address space_start() const {
     DCHECK_NE(memory_chunk_list_.front(), nullptr);
     return memory_chunk_list_.front()->area_start();
   }
@@ -81,10 +81,10 @@ class SemiSpace : public Space {
   Page* current_page() { return current_page_; }
 
   // Returns the start address of the current page of the space.
-  Address page_low() { return current_page_->area_start(); }
+  Address page_low() const { return current_page_->area_start(); }
 
   // Returns one past the end address of the current page of the space.
-  Address page_high() { return current_page_->area_end(); }
+  Address page_high() const { return current_page_->area_end(); }
 
   bool AdvancePage() {
     Page* next_page = current_page_->next_page();
@@ -109,34 +109,34 @@ class SemiSpace : public Space {
   Page* InitializePage(MemoryChunk* chunk) override;
 
   // Age mark accessors.
-  Address age_mark() { return age_mark_; }
+  Address age_mark() const { return age_mark_; }
   void set_age_mark(Address mark);
 
   // Returns the current capacity of the semispace.
-  size_t current_capacity() { return current_capacity_; }
+  size_t current_capacity() const { return current_capacity_; }
 
   // Returns the target capacity of the semispace.
-  size_t target_capacity() { return target_capacity_; }
+  size_t target_capacity() const { return target_capacity_; }
 
   // Returns the maximum capacity of the semispace.
-  size_t maximum_capacity() { return maximum_capacity_; }
+  size_t maximum_capacity() const { return maximum_capacity_; }
 
   // Returns the initial capacity of the semispace.
-  size_t minimum_capacity() { return minimum_capacity_; }
+  size_t minimum_capacity() const { return minimum_capacity_; }
 
-  SemiSpaceId id() { return id_; }
+  SemiSpaceId id() const { return id_; }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory() override;
+  size_t CommittedPhysicalMemory() const override;
 
   // If we don't have these here then SemiSpace will be abstract.  However
   // they should never be called:
 
-  size_t Size() override { UNREACHABLE(); }
+  size_t Size() const override { UNREACHABLE(); }
 
-  size_t SizeOfObjects() override { return Size(); }
+  size_t SizeOfObjects() const override { return Size(); }
 
-  size_t Available() override { UNREACHABLE(); }
+  size_t Available() const override { UNREACHABLE(); }
 
   Page* first_page() override {
     return reinterpret_cast<Page*>(memory_chunk_list_.front());
@@ -172,7 +172,7 @@ class SemiSpace : public Space {
 #endif
 
 #ifdef VERIFY_HEAP
-  virtual void Verify();
+  virtual void Verify() const;
 #endif
 
   void AddRangeToActiveSystemPages(Address start, Address end);
@@ -220,7 +220,7 @@ class SemiSpace : public Space {
 class SemiSpaceObjectIterator : public ObjectIterator {
  public:
   // Create an iterator over the allocated objects in the given to-space.
-  explicit SemiSpaceObjectIterator(NewSpace* space);
+  explicit SemiSpaceObjectIterator(const NewSpace* space);
 
   inline HeapObject Next() override;
 
@@ -239,7 +239,7 @@ class SemiSpaceObjectIterator : public ObjectIterator {
 // The new space consists of a contiguous pair of semispaces.  It simply
 // forwards most functions to the appropriate semispace.
 
-class V8_EXPORT_PRIVATE NewSpace
+class V8_EXPORT_PRIVATE NewSpace final
     : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
  public:
   using iterator = PageIterator;
@@ -268,17 +268,17 @@ class V8_EXPORT_PRIVATE NewSpace
   void Shrink();
 
   // Return the allocated bytes in the active semispace.
-  size_t Size() final {
+  size_t Size() const final {
     DCHECK_GE(top(), to_space_.page_low());
     return (to_space_.current_capacity() - Page::kPageSize) / Page::kPageSize *
                MemoryChunkLayout::AllocatableMemoryInDataPage() +
            static_cast<size_t>(top() - to_space_.page_low());
   }
 
-  size_t SizeOfObjects() final { return Size(); }
+  size_t SizeOfObjects() const final { return Size(); }
 
   // Return the allocatable capacity of a semispace.
-  size_t Capacity() {
+  size_t Capacity() const {
     SLOW_DCHECK(to_space_.target_capacity() == from_space_.target_capacity());
     return (to_space_.target_capacity() / Page::kPageSize) *
            MemoryChunkLayout::AllocatableMemoryInDataPage();
@@ -286,27 +286,27 @@ class V8_EXPORT_PRIVATE NewSpace
 
   // Return the current size of a semispace, allocatable and non-allocatable
   // memory.
-  size_t TotalCapacity() {
+  size_t TotalCapacity() const {
     DCHECK(to_space_.target_capacity() == from_space_.target_capacity());
     return to_space_.target_capacity();
   }
 
   // Committed memory for NewSpace is the committed memory of both semi-spaces
   // combined.
-  size_t CommittedMemory() final {
+  size_t CommittedMemory() const final {
     return from_space_.CommittedMemory() + to_space_.CommittedMemory();
   }
 
-  size_t MaximumCommittedMemory() final {
+  size_t MaximumCommittedMemory() const final {
     return from_space_.MaximumCommittedMemory() +
            to_space_.MaximumCommittedMemory();
   }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory() final;
+  size_t CommittedPhysicalMemory() const final;
 
   // Return the available bytes without growing.
-  size_t Available() final {
+  size_t Available() const final {
     DCHECK_GE(Capacity(), Size());
     return Capacity() - Size();
   }
@@ -318,7 +318,7 @@ class V8_EXPORT_PRIVATE NewSpace
     return to_space_.ExternalBackingStoreBytes(type);
   }
 
-  size_t ExternalBackingStoreBytes() {
+  size_t ExternalBackingStoreBytes() const {
     size_t result = 0;
     for (int i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
       result +=
@@ -327,7 +327,7 @@ class V8_EXPORT_PRIVATE NewSpace
     return result;
   }
 
-  size_t AllocatedSinceLastGC() {
+  size_t AllocatedSinceLastGC() const {
     const Address age_mark = to_space_.age_mark();
     DCHECK_NE(age_mark, kNullAddress);
     DCHECK_NE(top(), kNullAddress);
@@ -364,34 +364,36 @@ class V8_EXPORT_PRIVATE NewSpace
   bool Rebalance();
 
   // Return the maximum capacity of a semispace.
-  size_t MaximumCapacity() {
+  size_t MaximumCapacity() const {
     DCHECK(to_space_.maximum_capacity() == from_space_.maximum_capacity());
     return to_space_.maximum_capacity();
   }
 
-  bool IsAtMaximumCapacity() { return TotalCapacity() == MaximumCapacity(); }
+  bool IsAtMaximumCapacity() const {
+    return TotalCapacity() == MaximumCapacity();
+  }
 
   // Returns the initial capacity of a semispace.
-  size_t InitialTotalCapacity() {
+  size_t InitialTotalCapacity() const {
     DCHECK(to_space_.minimum_capacity() == from_space_.minimum_capacity());
     return to_space_.minimum_capacity();
   }
 
-  void VerifyTop();
+  void VerifyTop() const;
 
-  Address original_top_acquire() {
+  Address original_top_acquire() const {
     return original_top_.load(std::memory_order_acquire);
   }
-  Address original_limit_relaxed() {
+  Address original_limit_relaxed() const {
     return original_limit_.load(std::memory_order_relaxed);
   }
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
-  Address first_allocatable_address() { return to_space_.space_start(); }
+  Address first_allocatable_address() const { return to_space_.space_start(); }
 
   // Get the age mark of the inactive semispace.
-  Address age_mark() { return from_space_.age_mark(); }
+  Address age_mark() const { return from_space_.age_mark(); }
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
@@ -433,7 +435,7 @@ class V8_EXPORT_PRIVATE NewSpace
 
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
-  virtual void Verify(Isolate* isolate);
+  virtual void Verify(Isolate* isolate) const;
 #endif
 
 #ifdef DEBUG
@@ -452,7 +454,7 @@ class V8_EXPORT_PRIVATE NewSpace
     return from_space_.Uncommit();
   }
 
-  bool IsFromSpaceCommitted() { return from_space_.IsCommitted(); }
+  bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
 
   SemiSpace* active_space() { return &to_space_; }
 
@@ -532,7 +534,7 @@ class V8_EXPORT_PRIVATE NewSpace
       int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
-  bool SupportsAllocationObserver() override { return true; }
+  bool SupportsAllocationObserver() const override { return true; }
 
   friend class SemiSpaceObjectIterator;
 };

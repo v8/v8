@@ -60,7 +60,7 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
   return page;
 }
 
-size_t LargeObjectSpace::Available() {
+size_t LargeObjectSpace::Available() const {
   // We return zero here since we cannot take advantage of already allocated
   // large object memory.
   return 0;
@@ -226,7 +226,7 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
   return page;
 }
 
-size_t LargeObjectSpace::CommittedPhysicalMemory() {
+size_t LargeObjectSpace::CommittedPhysicalMemory() const {
   // On a platform that provides lazy committing of memory, we over-account
   // the actually committed memory. There is no easy way right now to support
   // precise accounting of committed memory in large object space.
@@ -347,7 +347,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   objects_size_ = surviving_object_size;
 }
 
-bool LargeObjectSpace::Contains(HeapObject object) {
+bool LargeObjectSpace::Contains(HeapObject object) const {
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
 
   bool owned = (chunk->owner() == this);
@@ -357,8 +357,8 @@ bool LargeObjectSpace::Contains(HeapObject object) {
   return owned;
 }
 
-bool LargeObjectSpace::ContainsSlow(Address addr) {
-  for (LargePage* page : *this) {
+bool LargeObjectSpace::ContainsSlow(Address addr) const {
+  for (const LargePage* page : *this) {
     if (page->Contains(addr)) return true;
   }
   return false;
@@ -536,7 +536,9 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   return AllocationResult::FromObject(result);
 }
 
-size_t NewLargeObjectSpace::Available() { return capacity_ - SizeOfObjects(); }
+size_t NewLargeObjectSpace::Available() const {
+  return capacity_ - SizeOfObjects();
+}
 
 void NewLargeObjectSpace::Flip() {
   for (LargePage* chunk = first_page(); chunk != nullptr;

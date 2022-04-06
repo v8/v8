@@ -212,20 +212,20 @@ class ReadOnlySpace : public BaseSpace {
   // to write it into the free space nodes that were already created.
   void RepairFreeSpacesAfterDeserialization();
 
-  size_t Size() override { return accounting_stats_.Size(); }
-  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() override;
+  size_t Size() const override { return accounting_stats_.Size(); }
+  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const override;
 
   const std::vector<ReadOnlyPage*>& pages() const { return pages_; }
   Address top() const { return top_; }
   Address limit() const { return limit_; }
   size_t Capacity() const { return capacity_; }
 
-  bool ContainsSlow(Address addr);
+  bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
 #ifdef VERIFY_HEAP
-  void Verify(Isolate* isolate);
+  void Verify(Isolate* isolate) const;
 #ifdef DEBUG
-  void VerifyCounters(Heap* heap);
+  void VerifyCounters(Heap* heap) const;
 #endif  // DEBUG
 #endif  // VERIFY_HEAP
 

@@ -145,12 +145,12 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
-  virtual size_t SizeOfObjects() { return Size(); }
+  virtual size_t SizeOfObjects() const { return Size(); }
 
   // Return the available bytes without growing.
-  virtual size_t Available() = 0;
+  virtual size_t Available() const = 0;
 
-  virtual int RoundSizeDownToObjectAlignment(int size) {
+  virtual int RoundSizeDownToObjectAlignment(int size) const {
     if (id_ == CODE_SPACE) {
       return RoundDown(size, kCodeAlignment);
     } else {
@@ -372,6 +372,7 @@ class PageIteratorImpl
 using PageIterator = PageIteratorImpl<Page>;
 using ConstPageIterator = PageIteratorImpl<const Page>;
 using LargePageIterator = PageIteratorImpl<LargePage>;
+using ConstLargePageIterator = PageIteratorImpl<const LargePage>;
 
 class PageRange {
  public:
@@ -466,7 +467,7 @@ class SpaceWithLinearArea : public Space {
                       LinearAllocationArea* allocation_info)
       : Space(heap, id, free_list), allocation_info_(allocation_info) {}
 
-  virtual bool SupportsAllocationObserver() = 0;
+  virtual bool SupportsAllocationObserver() const = 0;
 
   // Returns the allocation pointer in this space.
   Address top() const { return allocation_info_->top(); }
@@ -504,7 +505,7 @@ class SpaceWithLinearArea : public Space {
   // area bounded by [start, end), this function computes the limit to use to
   // allow proper observation based on existing observers. min_size specifies
   // the minimum size that the limited area should have.
-  Address ComputeLimit(Address start, Address end, size_t min_size);
+  Address ComputeLimit(Address start, Address end, size_t min_size) const;
   V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit(
       size_t min_size) = 0;
 
@@ -512,7 +513,7 @@ class SpaceWithLinearArea : public Space {
   void EnableInlineAllocation();
   bool IsInlineAllocationEnabled() const { return use_lab_; }
 
-  void PrintAllocationsOrigins();
+  void PrintAllocationsOrigins() const;
 
  protected:
   V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);

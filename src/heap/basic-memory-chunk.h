@@ -138,7 +138,9 @@ class BasicMemoryChunk {
   Address address() const { return reinterpret_cast<Address>(this); }
 
   // Returns the offset of a given address to this page.
-  inline size_t Offset(Address a) { return static_cast<size_t>(a - address()); }
+  inline size_t Offset(Address a) const {
+    return static_cast<size_t>(a - address());
+  }
 
   // Some callers rely on the fact that this can operate on both
   // tagged and aligned object addresses.
@@ -200,11 +202,11 @@ class BasicMemoryChunk {
     return IsFlagSet(READ_ONLY_HEAP);
   }
 
-  bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
+  bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
 
   void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
 
-  bool CanAllocate() {
+  bool CanAllocate() const {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
   }
 
@@ -219,7 +221,7 @@ class BasicMemoryChunk {
            ((flags & COMPACTION_WAS_ABORTED) == 0);
   }
 
-  Executability executable() {
+  Executability executable() const {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
@@ -288,7 +290,7 @@ class BasicMemoryChunk {
         Bitmap::FromAddress(address() + kMarkingBitmapOffset));
   }
 
-  Address HighWaterMark() { return address() + high_water_mark_; }
+  Address HighWaterMark() const { return address() + high_water_mark_; }
 
   static inline void UpdateHighWaterMark(Address mark) {
     if (mark == kNullAddress) return;

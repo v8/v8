@@ -205,7 +205,7 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   DCHECK_EQ(0u, other->Capacity());
 }
 
-size_t PagedSpace::CommittedPhysicalMemory() {
+size_t PagedSpace::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits()) {
     DCHECK_EQ(0, committed_physical_memory());
     return CommittedMemory();
@@ -231,10 +231,10 @@ void PagedSpace::DecrementCommittedPhysicalMemory(size_t decrement_value) {
 }
 
 #if DEBUG
-void PagedSpace::VerifyCommittedPhysicalMemory() {
+void PagedSpace::VerifyCommittedPhysicalMemory() const {
   heap()->safepoint()->AssertActive();
   size_t size = 0;
-  for (Page* page : *this) {
+  for (const Page* page : *this) {
     DCHECK(page->SweepingDone());
     size += page->CommittedPhysicalMemory();
   }
@@ -371,9 +371,9 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::ExpandBackground(
   return std::make_pair(object_start, size_in_bytes);
 }
 
-int PagedSpace::CountTotalPages() {
+int PagedSpace::CountTotalPages() const {
   int count = 0;
-  for (Page* page : *this) {
+  for (const Page* page : *this) {
     count++;
     USE(page);
   }
@@ -447,7 +447,7 @@ void PagedSpace::MakeLinearAllocationAreaIterable() {
   }
 }
 
-size_t PagedSpace::Available() {
+size_t PagedSpace::Available() const {
   ConcurrentAllocationMutex guard(this);
   return free_list_->Available();
 }
@@ -719,7 +719,7 @@ PagedSpace::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
   return std::make_pair(start, used_size_in_bytes);
 }
 
-bool PagedSpace::IsSweepingAllowedOnThread(LocalHeap* local_heap) {
+bool PagedSpace::IsSweepingAllowedOnThread(LocalHeap* local_heap) const {
   // Code space sweeping is only allowed on main thread.
   return (local_heap && local_heap->is_main_thread()) ||
          identity() != CODE_SPACE;
@@ -1085,7 +1085,7 @@ void MapSpace::SortFreeList() {
 }
 
 #ifdef VERIFY_HEAP
-void MapSpace::VerifyObject(HeapObject object) { CHECK(object.IsMap()); }
+void MapSpace::VerifyObject(HeapObject object) const { CHECK(object.IsMap()); }
 #endif
 
 }  // namespace internal

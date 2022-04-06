@@ -98,7 +98,7 @@ class MemoryChunk : public BasicMemoryChunk {
     return static_cast<ConcurrentSweepingState>(concurrent_sweeping_.load());
   }
 
-  bool SweepingDone() {
+  bool SweepingDone() const {
     return concurrent_sweeping_ == ConcurrentSweepingState::kDone;
   }
 
@@ -158,7 +158,7 @@ class MemoryChunk : public BasicMemoryChunk {
   int FreeListsLength();
 
   // Approximate amount of physical memory committed for this chunk.
-  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory();
+  V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const;
 
   class ProgressBar& ProgressBar() {
     return progress_bar_;
@@ -171,7 +171,7 @@ class MemoryChunk : public BasicMemoryChunk {
   inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                  size_t amount);
 
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) {
+  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const {
     return external_backing_store_bytes_[type];
   }
 

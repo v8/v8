@@ -167,7 +167,7 @@ bool SemiSpace::Uncommit() {
   return true;
 }
 
-size_t SemiSpace::CommittedPhysicalMemory() {
+size_t SemiSpace::CommittedPhysicalMemory() const {
   if (!IsCommitted()) return 0;
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
   return committed_physical_memory_;
@@ -361,7 +361,7 @@ void SemiSpace::Print() {}
 #endif
 
 #ifdef VERIFY_HEAP
-void SemiSpace::Verify() {
+void SemiSpace::Verify() const {
   bool is_from_space = (id_ == kFromSpace);
   size_t external_backing_store_bytes[kNumTypes];
 
@@ -372,7 +372,7 @@ void SemiSpace::Verify() {
   int actual_pages = 0;
   size_t computed_committed_physical_memory = 0;
 
-  for (Page* page : *this) {
+  for (const Page* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
     CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::FROM_PAGE
@@ -435,7 +435,7 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 // -----------------------------------------------------------------------------
 // SemiSpaceObjectIterator implementation.
 
-SemiSpaceObjectIterator::SemiSpaceObjectIterator(NewSpace* space) {
+SemiSpaceObjectIterator::SemiSpaceObjectIterator(const NewSpace* space) {
   Initialize(space->first_allocatable_address(), space->top());
 }
 
@@ -445,7 +445,7 @@ void SemiSpaceObjectIterator::Initialize(Address start, Address end) {
   limit_ = end;
 }
 
-size_t NewSpace::CommittedPhysicalMemory() {
+size_t NewSpace::CommittedPhysicalMemory() const {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
   size_t size = to_space_.CommittedPhysicalMemory();
@@ -736,7 +736,7 @@ void NewSpace::FreeLinearAllocationArea() {
   UpdateInlineAllocationLimit(0);
 }
 
-void NewSpace::VerifyTop() {
+void NewSpace::VerifyTop() const {
   // Ensure validity of LAB: start <= top <= limit
   DCHECK_LE(allocation_info_->start(), allocation_info_->top());
   DCHECK_LE(allocation_info_->top(), allocation_info_->limit());
@@ -754,7 +754,7 @@ void NewSpace::VerifyTop() {
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).
-void NewSpace::Verify(Isolate* isolate) {
+void NewSpace::Verify(Isolate* isolate) const {
   // The allocation pointer should be in the space or at the very end.
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
