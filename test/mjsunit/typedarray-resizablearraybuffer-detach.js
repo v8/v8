@@ -1458,6 +1458,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     return 0;
   }
 
+  function AssertIsDetached(ta) {
+    assertEquals(0, ta.byteLength);
+    assertEquals(0, ta.byteOffset);
+    assertEquals(0, ta.length);
+  }
+
   // Fixed length TA.
   for (let ctor of ctors) {
     rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -1466,7 +1472,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    assertThrows(() => { fixedLength.sort(CustomComparison); });
+    fixedLength.sort(CustomComparison);
+    AssertIsDetached(fixedLength);
   }
 
   // Length-tracking TA.
@@ -1477,7 +1484,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    assertThrows(() => { lengthTracking.sort(CustomComparison); });
+    lengthTracking.sort(CustomComparison);
+    AssertIsDetached(lengthTracking);
   }
 })();
 

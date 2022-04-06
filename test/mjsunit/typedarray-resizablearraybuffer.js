@@ -6597,7 +6597,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    assertThrows(() => { fixedLength.sort(CustomComparison); });
+    fixedLength.sort(CustomComparison);
 
     // The data is unchanged.
     assertEquals([10, 9], ToNumbers(taFull));
