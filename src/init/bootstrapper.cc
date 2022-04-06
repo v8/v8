@@ -5982,24 +5982,29 @@ bool Genesis::InstallExtension(Isolate* isolate,
       return false;
     }
   }
-  bool result = CompileExtension(isolate, extension);
-  if (!result) {
+  if (!CompileExtension(isolate, extension)) {
     // If this failed, it either threw an exception, or the isolate is
     // terminating.
     DCHECK(isolate->has_pending_exception() ||
            (isolate->has_scheduled_exception() &&
             isolate->scheduled_exception() ==
                 ReadOnlyRoots(isolate).termination_exception()));
-    // We print out the name of the extension that fail to install.
-    // When an error is thrown during bootstrapping we automatically print
-    // the line number at which this happened to the console in the isolate
-    // error throwing functionality.
-    base::OS::PrintError("Error installing extension '%s'.\n",
-                         current->extension()->name());
-    isolate->clear_pending_exception();
+    if (isolate->has_pending_exception()) {
+      // We print out the name of the extension that fail to install.
+      // When an error is thrown during bootstrapping we automatically print
+      // the line number at which this happened to the console in the isolate
+      // error throwing functionality.
+      base::OS::PrintError("Error installing extension '%s'.\n",
+                           current->extension()->name());
+      isolate->clear_pending_exception();
+    }
+    return false;
   }
+
+  DCHECK(!isolate->has_pending_exception() &&
+         !isolate->has_scheduled_exception());
   extension_states->set_state(current, INSTALLED);
-  return result;
+  return true;
 }
 
 bool Genesis::ConfigureGlobalObject(

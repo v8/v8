@@ -1789,8 +1789,8 @@ MaybeLocal<Context> Shell::CreateRealm(
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   Local<Context> context =
       Context::New(isolate, nullptr, global_template, global_object);
-  DCHECK(!try_catch.HasCaught());
   if (context.IsEmpty()) return MaybeLocal<Context>();
+  DCHECK(!try_catch.HasCaught());
   InitializeModuleEmbedderData(context);
   data->realms_[index].Reset(isolate, context);
   data->realms_[index].AnnotateStrongRetainer(kGlobalHandleLabel);
