@@ -57,8 +57,6 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   static inline bool SetLengthWouldNormalize(Heap* heap, uint32_t new_length);
 
   // Initializes the array to a certain length.
-  inline bool AllowsSetLength();
-
   V8_EXPORT_PRIVATE static Maybe<bool> SetLength(Handle<JSArray> array,
                                                  uint32_t length);
 

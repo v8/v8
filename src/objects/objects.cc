@@ -5192,8 +5192,6 @@ void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
 }
 
 Maybe<bool> JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
-  // We should never end in here with a pixel or external array.
-  DCHECK(array->AllowsSetLength());
   if (array->SetLengthWouldNormalize(new_length)) {
     JSObject::NormalizeElements(array);
   }
