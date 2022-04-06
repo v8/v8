@@ -4,6 +4,8 @@
 
 #include "src/logging/runtime-call-stats.h"
 
+#include <atomic>
+
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
@@ -21,7 +23,8 @@ namespace internal {
 
 namespace {
 
-static base::TimeTicks runtime_call_stats_test_time_ = base::TimeTicks();
+static std::atomic<base::TimeTicks> runtime_call_stats_test_time_ =
+    base::TimeTicks();
 // Time source used for the RuntimeCallTimer during tests. We cannot rely on
 // the native timer since it's too unpredictable on the build bots.
 static base::TimeTicks RuntimeCallStatsTestNow() {
