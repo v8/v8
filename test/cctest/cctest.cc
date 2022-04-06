@@ -336,8 +336,8 @@ i::Handle<i::JSFunction> Optimize(
 }
 
 static void PrintTestList() {
-  for (auto [name, test] : g_cctests.Get()) {
-    printf("%s\n", name.c_str());
+  for (const auto& entry : g_cctests.Get()) {
+    printf("%s\n", entry.first.c_str());
   }
 }
 
