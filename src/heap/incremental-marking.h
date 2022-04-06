@@ -135,17 +135,13 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool WasActivated();
 
   void Start(GarbageCollectionReason gc_reason);
+  // Returns true if incremental marking was running and false otherwise.
+  bool Stop();
 
   void FinalizeIncrementally();
 
   void UpdateMarkingWorklistAfterYoungGenGC();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
-
-  void Hurry();
-
-  void Finalize();
-
-  void Stop();
 
   void FinalizeMarking(CompletionAction action);
 

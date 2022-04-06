@@ -966,8 +966,6 @@ void MarkCompactCollector::AbortCompaction() {
 }
 
 void MarkCompactCollector::Prepare() {
-  was_marked_incrementally_ = heap()->incremental_marking()->IsMarking();
-
 #ifdef DEBUG
   DCHECK(state_ == IDLE);
   state_ = PREPARE_GC;
@@ -975,7 +973,7 @@ void MarkCompactCollector::Prepare() {
 
   DCHECK(!sweeping_in_progress());
 
-  if (!was_marked_incrementally_) {
+  if (!heap()->incremental_marking()->IsMarking()) {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
       auto embedder_flags = heap_->flags_for_embedder_tracer();
@@ -2358,14 +2356,12 @@ void MarkCompactCollector::MarkLiveObjects() {
   // with the C stack limit check.
   PostponeInterruptsScope postpone(isolate());
 
+  bool was_marked_incrementally = false;
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_FINISH_INCREMENTAL);
-    IncrementalMarking* incremental_marking = heap_->incremental_marking();
-    if (was_marked_incrementally_) {
-      incremental_marking->Finalize();
+    if (heap_->incremental_marking()->Stop()) {
       MarkingBarrier::PublishAll(heap());
-    } else {
-      CHECK(incremental_marking->IsStopped());
+      was_marked_incrementally = true;
     }
   }
 
@@ -2475,7 +2471,11 @@ void MarkCompactCollector::MarkLiveObjects() {
           &IsUnmarkedHeapObject);
     }
   }
-  if (was_marked_incrementally_) {
+
+  if (was_marked_incrementally) {
+    // Disable the marking barrier after concurrent/parallel marking has
+    // finished as it will reset page flags that share the same bitmap as
+    // the evacuation candidate bit.
     MarkingBarrier::DeactivateAll(heap());
     GlobalHandles::DisableMarkingBarrier(heap()->isolate());
   }

@@ -574,31 +574,9 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
              : StepResult::kMoreWorkRemaining;
 }
 
-void IncrementalMarking::Hurry() {
-  if (!local_marking_worklists()->IsEmpty()) {
-    double start = 0.0;
-    if (FLAG_trace_incremental_marking) {
-      start = heap_->MonotonicallyIncreasingTimeInMs();
-      if (FLAG_trace_incremental_marking) {
-        heap()->isolate()->PrintWithTimestamp("[IncrementalMarking] Hurry\n");
-      }
-    }
-    collector_->ProcessMarkingWorklist(0);
-    SetState(COMPLETE);
-    if (FLAG_trace_incremental_marking) {
-      double end = heap_->MonotonicallyIncreasingTimeInMs();
-      double delta = end - start;
-      if (FLAG_trace_incremental_marking) {
-        heap()->isolate()->PrintWithTimestamp(
-            "[IncrementalMarking] Complete (hurry), spent %d ms.\n",
-            static_cast<int>(delta));
-      }
-    }
-  }
-}
+bool IncrementalMarking::Stop() {
+  if (IsStopped()) return false;
 
-void IncrementalMarking::Stop() {
-  if (IsStopped()) return;
   if (FLAG_trace_incremental_marking) {
     int old_generation_size_mb =
         static_cast<int>(heap()->OldGenerationSizeOfObjects() / MB);
@@ -626,21 +604,16 @@ void IncrementalMarking::Stop() {
   FinishBlackAllocation();
 
   // Merge live bytes counters of background threads
-  for (auto pair : background_live_bytes_) {
+  for (const auto& pair : background_live_bytes_) {
     MemoryChunk* memory_chunk = pair.first;
     intptr_t live_bytes = pair.second;
-
     if (live_bytes) {
       marking_state()->IncrementLiveBytes(memory_chunk, live_bytes);
     }
   }
-
   background_live_bytes_.clear();
-}
 
-void IncrementalMarking::Finalize() {
-  Hurry();
-  Stop();
+  return true;
 }
 
 void IncrementalMarking::FinalizeMarking(CompletionAction action) {
