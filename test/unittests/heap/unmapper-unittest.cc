@@ -236,14 +236,32 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
 // This test is currently incompatible with the sandbox. Enable it
 // once the VirtualAddressSpace interface is stable.
 #if !V8_OS_FUCHSIA && !V8_SANDBOX
-class SequentialUnmapperTest : public TestWithIsolate {
+
+template <typename TMixin>
+class SequentialUnmapperTestMixin : public TMixin {
+ public:
+  SequentialUnmapperTestMixin();
+  ~SequentialUnmapperTestMixin() override;
+};
+
+class SequentialUnmapperTest : public                                     //
+                               WithInternalIsolateMixin<                  //
+                                   WithIsolateScopeMixin<                 //
+                                       WithIsolateMixin<                  //
+                                           SequentialUnmapperTestMixin<   //
+                                               WithDefaultPlatformMixin<  //
+                                                   ::testing::Test>>>>> {
  public:
   SequentialUnmapperTest() = default;
   ~SequentialUnmapperTest() override = default;
   SequentialUnmapperTest(const SequentialUnmapperTest&) = delete;
   SequentialUnmapperTest& operator=(const SequentialUnmapperTest&) = delete;
 
-  static void SetUpTestCase() {
+  static void FreeProcessWidePtrComprCageForTesting() {
+    IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
+  }
+
+  static void DoMixinSetUp() {
     CHECK_NULL(tracking_page_allocator_);
     old_page_allocator_ = GetPlatformPageAllocator();
     tracking_page_allocator_ = new TrackingPageAllocator(old_page_allocator_);
@@ -266,11 +284,9 @@ class SequentialUnmapperTest : public TestWithIsolate {
 #endif
     IsolateAllocator::InitializeOncePerProcess();
 #endif
-    TestWithIsolate::SetUpTestCase();
   }
 
-  static void TearDownTestCase() {
-    TestWithIsolate::TearDownTestCase();
+  static void DoMixinTearDown() {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     // Free the process-wide cage reservation, otherwise the pages won't be
     // freed until process teardown.
@@ -307,6 +323,15 @@ TrackingPageAllocator* SequentialUnmapperTest::tracking_page_allocator_ =
     nullptr;
 v8::PageAllocator* SequentialUnmapperTest::old_page_allocator_ = nullptr;
 bool SequentialUnmapperTest::old_flag_;
+
+template <typename TMixin>
+SequentialUnmapperTestMixin<TMixin>::SequentialUnmapperTestMixin() {
+  SequentialUnmapperTest::DoMixinSetUp();
+}
+template <typename TMixin>
+SequentialUnmapperTestMixin<TMixin>::~SequentialUnmapperTestMixin() {
+  SequentialUnmapperTest::DoMixinTearDown();
+}
 
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {

@@ -50,14 +50,14 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
   }
 
-  static void SetUpTestCase() {
-    TestWithIsolate::SetUpTestCase();
+  static void SetUpTestSuite() {
+    TestWithIsolate::SetUpTestSuite();
     // Use a custom time source to precisly emulate system time.
     RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
   }
 
-  static void TearDownTestCase() {
-    TestWithIsolate::TearDownTestCase();
+  static void TearDownTestSuite() {
+    TestWithIsolate::TearDownTestSuite();
     // Restore the original time source.
     RuntimeCallTimer::Now = &base::TimeTicks::Now;
   }

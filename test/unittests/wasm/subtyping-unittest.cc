@@ -13,7 +13,7 @@ namespace internal {
 namespace wasm {
 namespace subtyping_unittest {
 
-class WasmSubtypingTest : public ::testing::Test {};
+class WasmSubtypingTest : public TestWithPlatform {};
 using FieldInit = std::pair<ValueType, bool>;
 
 constexpr ValueType ref(uint32_t index) {

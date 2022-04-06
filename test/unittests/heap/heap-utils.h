@@ -37,12 +37,13 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
 };
 
-using TestWithHeapInternals =       //
-    WithHeapInternals<              //
-        WithInternalIsolateMixin<   //
-            WithIsolateScopeMixin<  //
-                WithIsolateMixin<   //
-                    ::testing::Test>>>>;
+using TestWithHeapInternals =                  //
+    WithHeapInternals<                         //
+        WithInternalIsolateMixin<              //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
+                        ::testing::Test>>>>>;
 
 }  // namespace internal
 }  // namespace v8

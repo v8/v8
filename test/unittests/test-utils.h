@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-context.h"
 #include "include/v8-local-handle.h"
@@ -25,6 +26,32 @@
 namespace v8 {
 
 class ArrayBufferAllocator;
+
+template <typename TMixin>
+class WithDefaultPlatformMixin : public TMixin {
+ public:
+  WithDefaultPlatformMixin() {
+    platform_ = v8::platform::NewDefaultPlatform(
+        0, v8::platform::IdleTaskSupport::kEnabled);
+    CHECK_NOT_NULL(platform_.get());
+    v8::V8::InitializePlatform(platform_.get());
+#ifdef V8_SANDBOX
+    CHECK(v8::V8::InitializeSandbox());
+#endif  // V8_SANDBOX
+    v8::V8::Initialize();
+  }
+
+  ~WithDefaultPlatformMixin() {
+    CHECK_NOT_NULL(platform_.get());
+    v8::V8::Dispose();
+    v8::V8::DisposePlatform();
+  }
+
+  v8::Platform* platform() const { return platform_.get(); }
+
+ private:
+  std::unique_ptr<v8::Platform> platform_;
+};
 
 using CounterMap = std::map<std::string, int>;
 
@@ -123,20 +150,26 @@ class WithContextMixin : public TMixin {
   v8::Context::Scope context_scope_;
 };
 
+using TestWithPlatform =       //
+    WithDefaultPlatformMixin<  //
+        ::testing::Test>;
+
 // Use v8::internal::TestWithIsolate if you are testing internals,
 // aka. directly work with Handles.
-using TestWithIsolate =     //
-    WithIsolateScopeMixin<  //
-        WithIsolateMixin<   //
-            ::testing::Test>>;
+using TestWithIsolate =                //
+    WithIsolateScopeMixin<             //
+        WithIsolateMixin<              //
+            WithDefaultPlatformMixin<  //
+                ::testing::Test>>>;
 
 // Use v8::internal::TestWithNativeContext if you are testing internals,
 // aka. directly work with Handles.
-using TestWithContext =         //
-    WithContextMixin<           //
-        WithIsolateScopeMixin<  //
-            WithIsolateMixin<   //
-                ::testing::Test>>>;
+using TestWithContext =                    //
+    WithContextMixin<                      //
+        WithIsolateScopeMixin<             //
+            WithIsolateMixin<              //
+                WithDefaultPlatformMixin<  //
+                    ::testing::Test>>>>;
 
 namespace internal {
 
@@ -196,42 +229,49 @@ class WithZoneMixin : public TMixin {
   Zone zone_;
 };
 
-using TestWithIsolate =         //
-    WithInternalIsolateMixin<   //
-        WithIsolateScopeMixin<  //
-            WithIsolateMixin<   //
-                ::testing::Test>>>;
-
-using TestWithZone = WithZoneMixin<::testing::Test>;
-
-using TestWithIsolateAndZone =      //
-    WithZoneMixin<                  //
-        WithInternalIsolateMixin<   //
-            WithIsolateScopeMixin<  //
-                WithIsolateMixin<   //
+using TestWithIsolate =                    //
+    WithInternalIsolateMixin<              //
+        WithIsolateScopeMixin<             //
+            WithIsolateMixin<              //
+                WithDefaultPlatformMixin<  //
                     ::testing::Test>>>>;
 
-using TestWithNativeContext =       //
-    WithInternalIsolateMixin<       //
-        WithContextMixin<           //
-            WithIsolateScopeMixin<  //
-                WithIsolateMixin<   //
-                    ::testing::Test>>>>;
+using TestWithZone = WithZoneMixin<WithDefaultPlatformMixin<  //
+    ::testing::Test>>;
 
-using TestWithNativeContextAndCounters =  //
-    WithInternalIsolateMixin<             //
-        WithContextMixin<                 //
-            WithIsolateScopeMixin<        //
-                WithIsolateMixin<         //
-                    ::testing::Test, kEnableCounters>>>>;
-
-using TestWithNativeContextAndZone =    //
-    WithZoneMixin<                      //
-        WithInternalIsolateMixin<       //
-            WithContextMixin<           //
-                WithIsolateScopeMixin<  //
-                    WithIsolateMixin<   //
+using TestWithIsolateAndZone =                 //
+    WithZoneMixin<                             //
+        WithInternalIsolateMixin<              //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
                         ::testing::Test>>>>>;
+
+using TestWithNativeContext =                  //
+    WithInternalIsolateMixin<                  //
+        WithContextMixin<                      //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
+                        ::testing::Test>>>>>;
+
+using TestWithNativeContextAndCounters =       //
+    WithInternalIsolateMixin<                  //
+        WithContextMixin<                      //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
+                        ::testing::Test>,
+                    kEnableCounters>>>>;
+
+using TestWithNativeContextAndZone =               //
+    WithZoneMixin<                                 //
+        WithInternalIsolateMixin<                  //
+            WithContextMixin<                      //
+                WithIsolateScopeMixin<             //
+                    WithIsolateMixin<              //
+                        WithDefaultPlatformMixin<  //
+                            ::testing::Test>>>>>>;
 
 class V8_NODISCARD SaveFlags {
  public:

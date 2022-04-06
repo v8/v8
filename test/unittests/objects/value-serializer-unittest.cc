@@ -2466,14 +2466,14 @@ class ValueSerializerTestWithSharedArrayBufferClone
     return sab;
   }
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     flag_was_enabled_ = i::FLAG_harmony_sharedarraybuffer;
     i::FLAG_harmony_sharedarraybuffer = true;
-    ValueSerializerTest::SetUpTestCase();
+    ValueSerializerTest::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    ValueSerializerTest::TearDownTestCase();
+  static void TearDownTestSuite() {
+    ValueSerializerTest::TearDownTestSuite();
     i::FLAG_harmony_sharedarraybuffer = flag_was_enabled_;
     flag_was_enabled_ = false;
   }
@@ -2923,14 +2923,14 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
   }
 
  protected:
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     g_saved_flag = i::FLAG_expose_wasm;
     i::FLAG_expose_wasm = true;
-    ValueSerializerTest::SetUpTestCase();
+    ValueSerializerTest::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    ValueSerializerTest::TearDownTestCase();
+  static void TearDownTestSuite() {
+    ValueSerializerTest::TearDownTestSuite();
     i::FLAG_expose_wasm = g_saved_flag;
     g_saved_flag = false;
   }

@@ -5610,7 +5610,6 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/compactor.h",
     "src/heap/cppgc/concurrent-marker.cc",
     "src/heap/cppgc/concurrent-marker.h",
-    "src/heap/cppgc/default-platform.cc",
     "src/heap/cppgc/explicit-management.cc",
     "src/heap/cppgc/free-list.cc",
     "src/heap/cppgc/free-list.h",

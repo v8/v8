@@ -344,7 +344,7 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
   }
 };
 
-using FunctionBodyDecoderTest = FunctionBodyDecoderTestBase<::testing::Test>;
+using FunctionBodyDecoderTest = FunctionBodyDecoderTestBase<TestWithPlatform>;
 
 TEST_F(FunctionBodyDecoderTest, Int32Const1) {
   byte code[] = {kExprI32Const, 0};
@@ -5142,7 +5142,8 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
  ******************************************************************************/
 
 class FunctionBodyDecoderTestOnBothMemoryTypes
-    : public FunctionBodyDecoderTestBase<::testing::TestWithParam<MemoryType>> {
+    : public FunctionBodyDecoderTestBase<
+          WithDefaultPlatformMixin<::testing::TestWithParam<MemoryType>>> {
  public:
   bool is_memory64() const { return GetParam() == kMemory64; }
 };
