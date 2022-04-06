@@ -1074,13 +1074,6 @@ void Logger::IntPtrTEvent(const char* name, intptr_t value) {
   msg.WriteToLogFile();
 }
 
-void Logger::HandleEvent(const char* name, Address* location) {
-  if (!FLAG_log_handles) return;
-  MSG_BUILDER();
-  msg << name << kNext << reinterpret_cast<void*>(location);
-  msg.WriteToLogFile();
-}
-
 void Logger::WriteApiSecurityCheck() {
   DCHECK(FLAG_log_api);
   MSG_BUILDER();

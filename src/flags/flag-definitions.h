@@ -2016,7 +2016,6 @@ DEFINE_BOOL(log_code, false,
 DEFINE_BOOL(log_code_disassemble, false,
             "Log all disassembled code to the log file.")
 DEFINE_IMPLICATION(log_code_disassemble, log_code)
-DEFINE_BOOL(log_handles, false, "Log global handle events.")
 DEFINE_BOOL(log_source_code, false, "Log source code.")
 DEFINE_BOOL(log_function_events, false,
             "Log function events "
