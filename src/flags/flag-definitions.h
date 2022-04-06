@@ -1184,7 +1184,7 @@ DEFINE_BOOL(huge_max_old_generation_size, true,
             "Increase max size of the old space to 4 GB for x64 systems with"
             "the physical memory bigger than 16 GB")
 DEFINE_SIZE_T(initial_old_space_size, 0, "initial old space size (in Mbytes)")
-DEFINE_BOOL(separate_gc_phases, false,
+DEFINE_BOOL(separate_gc_phases, true,
             "yound and full garbage collection phases are not overlapping")
 DEFINE_BOOL(global_gc_scheduling, true,
             "enable GC scheduling based on global memory")
