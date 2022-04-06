@@ -3203,7 +3203,7 @@ void CodeGenerator::AssembleConstructFrame() {
   __ PushCPURegList(saves_fp);
 
   // Save registers.
-  __ PushCPURegList<TurboAssembler::kSignLR>(saves);
+  __ PushCPURegList(saves);
 
   if (returns != 0) {
     __ Claim(returns);
@@ -3221,7 +3221,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // Restore registers.
   CPURegList saves =
       CPURegList(kXRegSizeInBits, call_descriptor->CalleeSavedRegisters());
-  __ PopCPURegList<TurboAssembler::kAuthLR>(saves);
+  __ PopCPURegList(saves);
 
   // Restore fp registers.
   CPURegList saves_fp =
