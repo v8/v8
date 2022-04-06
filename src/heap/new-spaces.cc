@@ -476,7 +476,9 @@ NewSpace::NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
   ResetLinearAllocationArea();
 }
 
-void NewSpace::TearDown() {
+NewSpace::~NewSpace() {
+  // Tears down the space.  Heap memory was not allocated by the space, so it
+  // is not deallocated here.
   allocation_info_->Reset(kNullAddress, kNullAddress);
 
   to_space_.TearDown();

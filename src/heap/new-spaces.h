@@ -249,15 +249,11 @@ class V8_EXPORT_PRIVATE NewSpace
            size_t initial_semispace_capacity, size_t max_semispace_capacity,
            LinearAllocationArea* allocation_info);
 
-  ~NewSpace() override { TearDown(); }
+  ~NewSpace() override;
 
   inline bool ContainsSlow(Address a) const;
   inline bool Contains(Object o) const;
   inline bool Contains(HeapObject o) const;
-
-  // Tears down the space.  Heap memory was not allocated by the space, so it
-  // is not deallocated here.
-  void TearDown();
 
   void ResetParkedAllocationBuffers();
 

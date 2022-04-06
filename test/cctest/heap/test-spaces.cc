@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include <memory>
+
 #include "include/v8-initialization.h"
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
@@ -275,18 +277,19 @@ TEST(NewSpace) {
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
   LinearAllocationArea allocation_info;
 
-  NewSpace new_space(heap, memory_allocator->data_page_allocator(),
-                     CcTest::heap()->InitialSemiSpaceSize(),
-                     CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
-  CHECK(new_space.MaximumCapacity());
+  std::unique_ptr<NewSpace> new_space = std::make_unique<NewSpace>(
+      heap, memory_allocator->data_page_allocator(),
+      CcTest::heap()->InitialSemiSpaceSize(),
+      CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
+  CHECK(new_space->MaximumCapacity());
 
-  while (new_space.Available() >= kMaxRegularHeapObjectSize) {
-    CHECK(new_space.Contains(
-        new_space.AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned)
+  while (new_space->Available() >= kMaxRegularHeapObjectSize) {
+    CHECK(new_space->Contains(
+        new_space->AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned)
             .ToObjectChecked()));
   }
 
-  new_space.TearDown();
+  new_space.reset();
   memory_allocator->unmapper()->EnsureUnmappingCompleted();
 }
 
