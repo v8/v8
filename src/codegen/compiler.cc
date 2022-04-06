@@ -943,6 +943,7 @@ class OptimizedCodeCache : public AllStatic {
 
     if (IsOSR(osr_offset)) {
       DCHECK(CodeKindCanOSR(kind));
+      DCHECK(!compilation_info->function_context_specializing());
       Handle<SharedFunctionInfo> shared(function->shared(), isolate);
       Handle<NativeContext> native_context(function->native_context(), isolate);
       OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,

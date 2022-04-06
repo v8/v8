@@ -251,25 +251,28 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
-  // The synchronous fallback mechanism triggers if we've already got OSR'd
-  // code for the current function but at a different OSR offset - that may
-  // indicate we're having trouble hitting the correct JumpLoop for code
-  // installation. In this case, fall back to synchronous OSR.
   Handle<JSFunction> function(frame->function(), isolate);
-  base::Optional<BytecodeOffset> cached_osr_offset =
-      function->native_context().osr_code_cache().FirstOsrOffsetFor(
-          function->shared());
-  if (cached_osr_offset.has_value() &&
-      cached_osr_offset.value() != osr_offset) {
-    if (V8_UNLIKELY(FLAG_trace_osr)) {
-      CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(),
-             "[OSR - falling back to synchronous compilation due to mismatched "
-             "cached entry. function: %s, requested: %d, cached: %d]\n",
-             function->DebugNameCStr().get(), osr_offset.ToInt(),
-             cached_osr_offset.value().ToInt());
+  if (IsConcurrent(mode)) {
+    // The synchronous fallback mechanism triggers if we've already got OSR'd
+    // code for the current function but at a different OSR offset - that may
+    // indicate we're having trouble hitting the correct JumpLoop for code
+    // installation. In this case, fall back to synchronous OSR.
+    base::Optional<BytecodeOffset> cached_osr_offset =
+        function->native_context().osr_code_cache().FirstOsrOffsetFor(
+            function->shared());
+    if (cached_osr_offset.has_value() &&
+        cached_osr_offset.value() != osr_offset) {
+      if (V8_UNLIKELY(FLAG_trace_osr)) {
+        CodeTracer::Scope scope(isolate->GetCodeTracer());
+        PrintF(
+            scope.file(),
+            "[OSR - falling back to synchronous compilation due to mismatched "
+            "cached entry. function: %s, requested: %d, cached: %d]\n",
+            function->DebugNameCStr().get(), osr_offset.ToInt(),
+            cached_osr_offset.value().ToInt());
+      }
+      mode = ConcurrencyMode::kSynchronous;
     }
-    mode = ConcurrencyMode::kSynchronous;
   }
 
   Handle<CodeT> result;
