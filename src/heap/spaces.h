@@ -21,6 +21,7 @@
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/slot-set.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -310,6 +311,24 @@ class Page : public MemoryChunk {
   void ReleaseFreeListCategories();
 
   ActiveSystemPages* active_system_pages() { return &active_system_pages_; }
+
+  template <RememberedSetType remembered_set>
+  void ClearInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
+    TypedSlotSet* typed_slot_set = this->typed_slot_set<remembered_set>();
+    if (typed_slot_set != nullptr) {
+      typed_slot_set->ClearInvalidSlots(ranges);
+    }
+  }
+
+  template <RememberedSetType remembered_set>
+  void AssertNoInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
+#if DEBUG
+    TypedSlotSet* typed_slot_set = this->typed_slot_set<OLD_TO_OLD>();
+    if (typed_slot_set != nullptr) {
+      typed_slot_set->AssertNoInvalidSlots(ranges);
+    }
+#endif  // DEBUG
+  }
 
  private:
   friend class MemoryAllocator;

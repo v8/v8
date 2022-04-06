@@ -61,14 +61,12 @@ TypedSlots::Chunk* TypedSlots::NewChunk(Chunk* next, size_t capacity) {
   return chunk;
 }
 
-void TypedSlotSet::ClearInvalidSlots(
-    const std::map<uint32_t, uint32_t>& invalid_ranges) {
+void TypedSlotSet::ClearInvalidSlots(const FreeRangesMap& invalid_ranges) {
   IterateSlotsInRanges([](TypedSlot* slot) { *slot = ClearedTypedSlot(); },
                        invalid_ranges);
 }
 
-void TypedSlotSet::AssertNoInvalidSlots(
-    const std::map<uint32_t, uint32_t>& invalid_ranges) {
+void TypedSlotSet::AssertNoInvalidSlots(const FreeRangesMap& invalid_ranges) {
   IterateSlotsInRanges(
       [](TypedSlot* slot) {
         CHECK_WITH_MSG(false, "No slot in ranges expected.");
@@ -77,8 +75,8 @@ void TypedSlotSet::AssertNoInvalidSlots(
 }
 
 template <typename Callback>
-void TypedSlotSet::IterateSlotsInRanges(
-    Callback callback, const std::map<uint32_t, uint32_t>& ranges) {
+void TypedSlotSet::IterateSlotsInRanges(Callback callback,
+                                        const FreeRangesMap& ranges) {
   if (ranges.empty()) return;
 
   Chunk* chunk = LoadHead();
@@ -87,8 +85,7 @@ void TypedSlotSet::IterateSlotsInRanges(
       SlotType type = TypeField::decode(slot.type_and_offset);
       if (type == SlotType::kCleared) continue;
       uint32_t offset = OffsetField::decode(slot.type_and_offset);
-      std::map<uint32_t, uint32_t>::const_iterator upper_bound =
-          ranges.upper_bound(offset);
+      FreeRangesMap::const_iterator upper_bound = ranges.upper_bound(offset);
       if (upper_bound == ranges.begin()) continue;
       // upper_bounds points to the invalid range after the given slot. Hence,
       // we have to go to the previous element.

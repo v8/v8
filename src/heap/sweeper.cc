@@ -227,7 +227,7 @@ bool Sweeper::AreSweeperTasksRunning() {
 
 V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
     Address free_start, Address free_end, Page* page, Space* space,
-    bool record_free_ranges, FreeListRebuildingMode free_list_mode,
+    FreeListRebuildingMode free_list_mode,
     FreeSpaceTreatmentMode free_space_mode) {
   CHECK_GT(free_end, free_start);
   size_t freed_bytes = 0;
@@ -252,7 +252,7 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
 
 V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
     Address free_start, Address free_end, Page* page, bool record_free_ranges,
-    FreeRangesMap* free_ranges_map, SweepingMode sweeping_mode,
+    TypedSlotSet::FreeRangesMap* free_ranges_map, SweepingMode sweeping_mode,
     InvalidatedSlotsCleanup* old_to_new_cleanup) {
   DCHECK_LE(free_start, free_end);
   if (sweeping_mode == SweepingMode::kEagerDuringGC) {
@@ -282,37 +282,23 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
 }
 
 void Sweeper::CleanupInvalidTypedSlotsOfFreeRanges(
-    Page* page, const FreeRangesMap& free_ranges_map,
+    Page* page, const TypedSlotSet::FreeRangesMap& free_ranges_map,
     SweepingMode sweeping_mode) {
   if (sweeping_mode == SweepingMode::kEagerDuringGC) {
-    TypedSlotSet* old_to_new = page->typed_slot_set<OLD_TO_NEW>();
-    if (old_to_new != nullptr) {
-      old_to_new->ClearInvalidSlots(free_ranges_map);
-    }
+    page->ClearInvalidTypedSlots<OLD_TO_NEW>(free_ranges_map);
 
-#if DEBUG
-    TypedSlotSet* old_to_old = page->typed_slot_set<OLD_TO_OLD>();
-    if (old_to_old != nullptr) {
-      // Typed old-to-old slot sets are only ever recorded in live code objects.
-      // Also code objects are never right-trimmed, so there cannot be any slots
-      // in a free range.
-      old_to_old->AssertNoInvalidSlots(free_ranges_map);
-    }
-#endif  // DEBUG
+    // Typed old-to-old slot sets are only ever recorded in live code objects.
+    // Also code objects are never right-trimmed, so there cannot be any slots
+    // in a free range.
+    page->AssertNoInvalidTypedSlots<OLD_TO_OLD>(free_ranges_map);
     return;
   }
 
   DCHECK_EQ(sweeping_mode, SweepingMode::kLazyOrConcurrent);
 
-#if DEBUG
-  TypedSlotSet* old_to_new = page->typed_slot_set<OLD_TO_NEW>();
-  if (old_to_new != nullptr) {
-    // After a full GC there are no old-to-new typed slots. The main thread
-    // could create new slots but not in a free range.
-    old_to_new->AssertNoInvalidSlots(free_ranges_map);
-  }
-#endif  // DEBUG
-
+  // After a full GC there are no old-to-new typed slots. The main thread
+  // could create new slots but not in a free range.
+  page->AssertNoInvalidTypedSlots<OLD_TO_NEW>(free_ranges_map);
   DCHECK_NULL(page->typed_slot_set<OLD_TO_OLD>());
 }
 
@@ -380,7 +366,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
     old_to_new_cleanup = InvalidatedSlotsCleanup::OldToNew(p);
 
   // The free ranges map is used for filtering typed slots.
-  FreeRangesMap free_ranges_map;
+  TypedSlotSet::FreeRangesMap free_ranges_map;
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   p->object_start_bitmap()->Clear();
@@ -401,8 +387,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
       max_freed_bytes =
           std::max(max_freed_bytes,
                    FreeAndProcessFreedMemory(free_start, free_end, p, space,
-                                             record_free_ranges, free_list_mode,
-                                             free_space_mode));
+                                             free_list_mode, free_space_mode));
       CleanupRememberedSetEntriesForFreedMemory(
           free_start, free_end, p, record_free_ranges, &free_ranges_map,
           sweeping_mode, &old_to_new_cleanup);
@@ -428,10 +413,10 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   // If there is free memory after the last live object also free that.
   Address free_end = p->area_end();
   if (free_end != free_start) {
-    max_freed_bytes = std::max(
-        max_freed_bytes, FreeAndProcessFreedMemory(
-                             free_start, free_end, p, space, record_free_ranges,
-                             free_list_mode, free_space_mode));
+    max_freed_bytes =
+        std::max(max_freed_bytes,
+                 FreeAndProcessFreedMemory(free_start, free_end, p, space,
+                                           free_list_mode, free_space_mode));
     CleanupRememberedSetEntriesForFreedMemory(
         free_start, free_end, p, record_free_ranges, &free_ranges_map,
         sweeping_mode, &old_to_new_cleanup);
