@@ -278,6 +278,29 @@ InspectorTest.runAsyncTestSuite([
     if (result.result.preview.description === new Date(2018, 9, 31) + '')
       result.result.preview.description = '<expected description>';
     InspectorTest.logMessage(result);
+
+    result = (await evaluate({
+               expression:
+                   `a = new Date(2018, 9, 31); a.toString = date => 'bar'; a`,
+               generatePreview: true
+             })).result;
+    if (result.result.description === new Date(2018, 9, 31) + '')
+      result.result.description = '<expected description>';
+    if (result.result.preview.description === new Date(2018, 9, 31) + '')
+      result.result.preview.description = '<expected description>';
+    InspectorTest.logMessage(result);
+
+    result =
+        (await evaluate({
+          expression:
+              `a = new Date(2018, 9, 31); a[Symbol.toPrimitive] = date => 'bar'; a`,
+          generatePreview: true
+        })).result;
+    if (result.result.description === new Date(2018, 9, 31) + '')
+      result.result.description = '<expected description>';
+    if (result.result.preview.description === new Date(2018, 9, 31) + '')
+      result.result.preview.description = '<expected description>';
+    InspectorTest.logMessage(result);
   },
   async function testMap() {
     InspectorTest.logMessage((await evaluate({

@@ -309,11 +309,7 @@ String16 descriptionForObject(v8::Isolate* isolate,
 String16 descriptionForDate(v8::Local<v8::Context> context,
                             v8::Local<v8::Date> date) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::String> description;
-  if (!date->ToString(context).ToLocal(&description)) {
-    return descriptionForObject(isolate, date);
-  }
+  v8::Local<v8::String> description = v8::debug::GetDateDescription(date);
   return toProtocolString(isolate, description);
 }
 

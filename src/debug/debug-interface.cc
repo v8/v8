@@ -9,6 +9,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/script-details.h"
+#include "src/date/date.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
@@ -47,6 +48,17 @@ void SetInspector(Isolate* isolate, v8_inspector::V8Inspector* inspector) {
 
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate) {
   return reinterpret_cast<i::Isolate*>(isolate)->inspector();
+}
+
+Local<String> GetDateDescription(Local<Date> date) {
+  auto receiver = Utils::OpenHandle(*date);
+  i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(receiver);
+  i::Isolate* isolate = jsdate->GetIsolate();
+  auto buffer = i::ToDateString(jsdate->value().Number(), isolate->date_cache(),
+                                i::ToDateStringMode::kLocalDateAndTime);
+  return Utils::ToLocal(isolate->factory()
+                            ->NewStringFromUtf8(base::VectorOf(buffer))
+                            .ToHandleChecked());
 }
 
 Local<String> GetFunctionDescription(Local<Function> function) {

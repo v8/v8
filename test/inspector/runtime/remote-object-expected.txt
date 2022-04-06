@@ -626,6 +626,47 @@ Running test: testDate
         type : object
     }
 }
+'a = new Date(2018, 9, 31); a.toString = date => 'bar'; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+                [0] : {
+                    name : toString
+                    type : function
+                    value : 
+                }
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
+'a = new Date(2018, 9, 31); a[Symbol.toPrimitive] = date => 'bar'; a', returnByValue: false, generatePreview: true
+{
+    result : {
+        className : Date
+        description : <expected description>
+        objectId : <objectId>
+        preview : {
+            description : <expected description>
+            overflow : false
+            properties : [
+            ]
+            subtype : date
+            type : object
+        }
+        subtype : date
+        type : object
+    }
+}
 
 Running test: testMap
 'new Map()', returnByValue: false, generatePreview: true
@@ -1224,7 +1265,7 @@ Running test: testWeakMap
                             [0] : {
                                 name : setTimeout
                                 type : function
-                                value :
+                                value : 
                             }
                             [1] : {
                                 name : inspector
@@ -1308,7 +1349,7 @@ Running test: testWeakSet
                             [0] : {
                                 name : setTimeout
                                 type : function
-                                value :
+                                value : 
                             }
                             [1] : {
                                 name : inspector
@@ -2693,7 +2734,7 @@ Running test: testOtherObjects
                     [0] : {
                         name : a
                         type : function
-                        value :
+                        value : 
                     }
                 ]
                 type : object
@@ -2883,12 +2924,12 @@ Running test: testOtherObjects
                     [0] : {
                         name : a1
                         type : function
-                        value :
+                        value : 
                     }
                     [1] : {
                         name : a2
                         type : function
-                        value :
+                        value : 
                     }
                 ]
                 type : object
