@@ -74,7 +74,6 @@ DOM.defineCustomElement(
         const flameStack = [];
         const ticks = this._timeline.values;
         let maxDepth = 0;
-
         for (let tickIndex = 0; tickIndex < ticks.length; tickIndex++) {
           const tick = ticks[tickIndex];
           const tickStack = tick.stack;

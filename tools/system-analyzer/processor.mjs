@@ -71,18 +71,19 @@ export class Processor extends LogReader {
       parseInt, parseInt, parseInt, parseInt, parseString, parseString,
       parseString, parseString, parseString, parseString
     ];
-    this.dispatchTable_ = {
+    this.setDispatchTable({
       __proto__: null,
       'v8-version': {
         parsers: [
           parseInt,
           parseInt,
         ],
-        processor: this.processV8Version
+        processor: this.processV8Version,
       },
       'shared-library': {
         parsers: [parseString, parseInt, parseInt, parseInt],
-        processor: this.processSharedLibrary
+        processor: this.processSharedLibrary.bind(this),
+        isAsync: true,
       },
       'code-creation': {
         parsers: [
@@ -190,7 +191,7 @@ export class Processor extends LogReader {
         parsers: [parseString, parseVarArgs],
         processor: this.processApiEvent
       },
-    };
+    });
     // TODO(cbruni): Choose correct cpp entries provider
     this._cppEntriesProvider = new RemoteLinuxCppEntriesProvider();
   }
@@ -209,6 +210,7 @@ export class Processor extends LogReader {
     let current = 0;
     let next = 0;
     let line;
+    let lineNumber = 1;
     try {
       while (current < end) {
         next = chunk.indexOf('\n', current);
@@ -222,10 +224,12 @@ export class Processor extends LogReader {
           this._chunkRemainder = '';
         }
         current = next + 1;
+        lineNumber++;
         await this.processLogLine(line);
       }
     } catch (e) {
-      console.error(`Error occurred during parsing, trying to continue: ${e}`);
+      console.error(
+          `Could not parse log line ${lineNumber}, trying to continue: ${e}`);
     }
   }
 

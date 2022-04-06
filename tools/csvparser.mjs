@@ -42,7 +42,7 @@ export class CsvParser {
     // Escape sequences of the form \x00 and \u0000;
     let pos = 0;
     while (nextPos !== -1) {
-      const escapeIdentifier = string.charAt(nextPos + 1);
+      const escapeIdentifier = string[nextPos + 1];
       pos = nextPos + 2;
       if (escapeIdentifier === 'n') {
         result += '\n';
