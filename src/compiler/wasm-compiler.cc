@@ -5795,15 +5795,6 @@ void WasmGraphBuilder::TypeCheck(
 
   Node* map = gasm_->LoadMap(object);
 
-  if (config.reference_kind == kFunction) {
-    // Currently, the only way for a function to match an rtt is if its map
-    // is equal to that rtt.
-    callbacks.fail_if_not(gasm_->TaggedEqual(map, rtt), BranchHint::kTrue);
-    return;
-  }
-
-  DCHECK(config.reference_kind == kArrayOrStruct);
-
   // First, check if types happen to be equal. This has been shown to give large
   // speedups.
   callbacks.succeed_if(gasm_->TaggedEqual(map, rtt), BranchHint::kTrue);

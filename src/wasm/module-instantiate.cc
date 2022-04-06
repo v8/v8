@@ -253,7 +253,6 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateArrayMap(isolate, module, type_index, rtt_parent, instance);
       break;
     case TypeDefinition::kFunction:
-      // TODO(7748): Create funcref RTTs lazily?
       map = CreateFuncRefMap(isolate, module, rtt_parent, instance);
       break;
   }

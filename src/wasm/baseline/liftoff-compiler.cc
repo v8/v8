@@ -5573,17 +5573,6 @@ class LiftoffCompiler {
     __ LoadMap(tmp1.gp(), obj_reg.gp());
     // {tmp1} now holds the object's map.
 
-    if (decoder->module_->has_signature(rtt.type.ref_index())) {
-      // Function case: currently, the only way for the type check to succeed is
-      // that the function's map equals the rtt.
-      __ emit_cond_jump(kUnequal, no_match, rtt.type.kind(), tmp1.gp(),
-                        rtt_reg.gp());
-      __ bind(&match);
-      return obj_reg;
-    }
-
-    // Array/struct case until the rest of the function.
-
     // Check for rtt equality, and if not, check if the rtt is a struct/array
     // rtt.
     __ emit_cond_jump(kEqual, &match, rtt.type.kind(), tmp1.gp(), rtt_reg.gp());

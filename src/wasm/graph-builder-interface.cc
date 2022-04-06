@@ -1161,10 +1161,6 @@ class WasmGraphBuildingInterface {
     result.object_can_be_null = object_type.is_nullable();
     DCHECK(object_type.is_object_reference());  // Checked by validation.
     // In the bottom case, the result is irrelevant.
-    result.reference_kind =
-        !rtt_type.is_bottom() && module->has_signature(rtt_type.ref_index())
-            ? compiler::WasmGraphBuilder::kFunction
-            : compiler::WasmGraphBuilder::kArrayOrStruct;
     result.rtt_depth = rtt_type.is_bottom()
                            ? 0 /* unused */
                            : static_cast<uint8_t>(GetSubtypingDepth(

@@ -223,13 +223,8 @@ class WasmGraphBuilder {
     kWasmApiFunctionRefMode,
     kNoSpecialParameterMode
   };
-  enum ReferenceKind : bool {  // --
-    kArrayOrStruct = true,
-    kFunction = false
-  };
   struct ObjectReferenceKnowledge {
     bool object_can_be_null;
-    ReferenceKind reference_kind;
     uint8_t rtt_depth;
   };
   enum EnforceBoundsCheck : bool {  // --
