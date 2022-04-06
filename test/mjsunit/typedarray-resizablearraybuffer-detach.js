@@ -38,57 +38,6 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function ConstructFromTypedArraySpeciesConstructorDetaches() {
-  let rab;
-  class MyArrayBuffer extends ArrayBuffer {
-    constructor(...params) {
-      super(...params);
-    }
-    static get [Symbol.species]() {
-      %ArrayBufferDetach(rab);
-    }
-  };
-
-  function CreateRabForTest(ctor) {
-    const rab = new MyArrayBuffer(
-      4 * ctor.BYTES_PER_ELEMENT,
-      {maxByteLength: 8 * ctor.BYTES_PER_ELEMENT});
-    // Write some data into the array.
-    const taWrite = new ctor(rab);
-    for (let i = 0; i < 4; ++i) {
-      WriteToTypedArray(taWrite, i, 2 * i);
-    }
-    return rab;
-  }
-
-  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
-    rab = CreateRabForTest(sourceCtor);
-    const fixedLength = new sourceCtor(rab, 0, 4);
-    assertThrows(() => { new targetCtor(fixedLength); }, TypeError);
-  });
-
-  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
-    rab = CreateRabForTest(sourceCtor);
-    const fixedLengthWithOffset = new sourceCtor(
-        rab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
-    assertThrows(() => { new targetCtor(fixedLengthWithOffset); }, TypeError);
-  });
-
-  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
-    rab = CreateRabForTest(sourceCtor);
-    const lengthTracking = new sourceCtor(rab, 0);
-    assertThrows(() => { new targetCtor(lengthTracking); }, TypeError);
-  });
-
-  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
-    rab = CreateRabForTest(sourceCtor);
-    const lengthTrackingWithOffset = new sourceCtor(
-      rab, 2 * sourceCtor.BYTES_PER_ELEMENT);
-    assertThrows(() => { new targetCtor(lengthTrackingWithOffset); },
-                 TypeError);
-  });
-})();
-
 (function AccessDetachedTypedArray() {
   const rab = CreateResizableArrayBuffer(16, 40);
 
