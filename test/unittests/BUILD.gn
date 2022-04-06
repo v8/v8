@@ -360,6 +360,7 @@ v8_source_set("unittests_sources") {
     "libplatform/default-job-unittest.cc",
     "libplatform/default-platform-unittest.cc",
     "libplatform/default-worker-threads-task-runner-unittest.cc",
+    "libplatform/single-threaded-default-platform-unittest.cc",
     "libplatform/task-queue-unittest.cc",
     "libplatform/worker-thread-unittest.cc",
     "logging/counters-unittest.cc",
