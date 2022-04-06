@@ -318,8 +318,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthCode)
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDay)
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
-/* Temporal #sec-temporal.calendar.prototype.mergefields */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMergeFields)
 /* Temporal #sec-temporal.calendar.prototype.tojson */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeToJSON)
 
@@ -794,14 +792,15 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
 
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
-TEMPORAL_PROTOTYPE_METHOD2(Calendar, DateFromFields, dateFromFields)
 TEMPORAL_ID_BY_TO_STRING(Calendar)
+TEMPORAL_PROTOTYPE_METHOD2(Calendar, DateFromFields, dateFromFields)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInMonth, daysInMonth)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInWeek, daysInWeek)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInYear, daysInYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfWeek, dayOfWeek)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfYear, dayOfYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, InLeapYear, inLeapYear)
+TEMPORAL_PROTOTYPE_METHOD2(Calendar, MergeFields, mergeFields)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthsInYear, monthsInYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
 TEMPORAL_TO_STRING(Calendar)

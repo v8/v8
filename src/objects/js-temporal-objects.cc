@@ -2899,6 +2899,116 @@ MaybeHandle<JSTemporalDuration> CalendarDateUntil(
   return Handle<JSTemporalDuration>::cast(duration);
 }
 
+// #sec-temporal-defaultmergefields
+MaybeHandle<JSReceiver> DefaultMergeFields(
+    Isolate* isolate, Handle<JSReceiver> fields,
+    Handle<JSReceiver> additional_fields) {
+  Factory* factory = isolate->factory();
+  // 1. Let merged be ! OrdinaryObjectCreate(%Object.prototype%).
+  Handle<JSObject> merged =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  // 2. Let originalKeys be ? EnumerableOwnPropertyNames(fields, key).
+  Handle<FixedArray> original_keys;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, original_keys,
+      KeyAccumulator::GetKeys(fields, KeyCollectionMode::kOwnOnly,
+                              ENUMERABLE_STRINGS,
+                              GetKeysConversion::kConvertToString),
+      JSReceiver);
+  // 3. For each element nextKey of originalKeys, do
+  for (int i = 0; i < original_keys->length(); i++) {
+    // a. If nextKey is not "month" or "monthCode", then
+    Handle<Object> next_key = handle(original_keys->get(i), isolate);
+    DCHECK(next_key->IsString());
+    Handle<String> next_key_string = Handle<String>::cast(next_key);
+    if (!(String::Equals(isolate, factory->month_string(), next_key_string) ||
+          String::Equals(isolate, factory->monthCode_string(),
+                         next_key_string))) {
+      // i. Let propValue be ? Get(fields, nextKey).
+      Handle<Object> prop_value;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, prop_value,
+          JSReceiver::GetPropertyOrElement(isolate, fields, next_key_string),
+          JSReceiver);
+      // ii. If propValue is not undefined, then
+      if (!prop_value->IsUndefined()) {
+        // 1. Perform ! CreateDataPropertyOrThrow(merged, nextKey,
+        // propValue).
+        CHECK(JSReceiver::CreateDataProperty(isolate, merged, next_key_string,
+                                             prop_value, Just(kDontThrow))
+                  .FromJust());
+      }
+    }
+  }
+  // 4. Let newKeys be ? EnumerableOwnPropertyNames(additionalFields, key).
+  Handle<FixedArray> new_keys;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, new_keys,
+      KeyAccumulator::GetKeys(additional_fields, KeyCollectionMode::kOwnOnly,
+                              ENUMERABLE_STRINGS,
+                              GetKeysConversion::kConvertToString),
+      JSReceiver);
+  bool new_keys_has_month_or_month_code = false;
+  // 5. For each element nextKey of newKeys, do
+  for (int i = 0; i < new_keys->length(); i++) {
+    Handle<Object> next_key = handle(new_keys->get(i), isolate);
+    DCHECK(next_key->IsString());
+    Handle<String> next_key_string = Handle<String>::cast(next_key);
+    // a. Let propValue be ? Get(additionalFields, nextKey).
+    Handle<Object> prop_value;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, prop_value,
+                               JSReceiver::GetPropertyOrElement(
+                                   isolate, additional_fields, next_key_string),
+                               JSReceiver);
+    // b. If propValue is not undefined, then
+    if (!prop_value->IsUndefined()) {
+      // 1. Perform ! CreateDataPropertyOrThrow(merged, nextKey, propValue).
+      Maybe<bool> maybe_created = JSReceiver::CreateDataProperty(
+          isolate, merged, next_key_string, prop_value, Just(kThrowOnError));
+      MAYBE_RETURN(maybe_created, Handle<JSReceiver>());
+    }
+    new_keys_has_month_or_month_code |=
+        String::Equals(isolate, factory->month_string(), next_key_string) ||
+        String::Equals(isolate, factory->monthCode_string(), next_key_string);
+  }
+  // 6. If newKeys does not contain either "month" or "monthCode", then
+  if (!new_keys_has_month_or_month_code) {
+    // a. Let month be ? Get(fields, "month").
+    Handle<Object> month;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, month,
+                               JSReceiver::GetPropertyOrElement(
+                                   isolate, fields, factory->month_string()),
+                               JSReceiver);
+    // b. If month is not undefined, then
+    if (!month->IsUndefined()) {
+      // i. Perform ! CreateDataPropertyOrThrow(merged, "month", month).
+      CHECK(JSReceiver::CreateDataProperty(isolate, merged,
+                                           factory->month_string(), month,
+                                           Just(kDontThrow))
+                .FromJust());
+    }
+    // c. Let monthCode be ? Get(fields, "monthCode").
+    Handle<Object> month_code;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, month_code,
+        JSReceiver::GetPropertyOrElement(isolate, fields,
+                                         factory->monthCode_string()),
+        JSReceiver);
+    // d. If monthCode is not undefined, then
+    if (!month_code->IsUndefined()) {
+      // i. Perform ! CreateDataPropertyOrThrow(merged, "monthCode", monthCode).
+      CHECK(JSReceiver::CreateDataProperty(isolate, merged,
+                                           factory->monthCode_string(),
+                                           month_code, Just(kDontThrow))
+                .FromJust());
+    }
+  }
+  // 7. Return merged.
+  return merged;
+}
+
+// #sec-temporal-getoffsetnanosecondsfor
 Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
                                        Handle<JSReceiver> time_zone_obj,
                                        Handle<Object> instant,
@@ -5327,6 +5437,35 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateFromFields(
     return CreateTemporalDate(isolate, year, month, day, calendar);
   }
   // TODO(ftang) add intl implementation inside #ifdef V8_INTL_SUPPORT
+  UNREACHABLE();
+}
+
+// #sec-temporal.calendar.prototype.mergefields
+MaybeHandle<JSReceiver> JSTemporalCalendar::MergeFields(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> fields_obj, Handle<Object> additional_fields_obj) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. Set fields to ? ToObject(fields).
+  Handle<JSReceiver> fields;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, fields,
+                             Object::ToObject(isolate, fields_obj), JSReceiver);
+
+  // 5. Set additionalFields to ? ToObject(additionalFields).
+  Handle<JSReceiver> additional_fields;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, additional_fields,
+                             Object::ToObject(isolate, additional_fields_obj),
+                             JSReceiver);
+  // 5. If calendar.[[Identifier]] is "iso8601", then
+  if (calendar->calendar_index() == 0) {
+    // a. Return ? DefaultMergeFields(fields, additionalFields).
+    return DefaultMergeFields(isolate, fields, additional_fields);
+  }
+#ifdef V8_INTL_SUPPORT
+  // TODO(ftang) add Intl code.
+#endif  // V8_INTL_SUPPORT
   UNREACHABLE();
 }
 
