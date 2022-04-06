@@ -144,6 +144,24 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
 }
 
 template <typename Impl>
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
+    int length, AllocationType allocation) {
+  DCHECK_LE(0, length);
+  if (length == 0) return impl()->empty_fixed_array();
+  if (length > FixedArray::kMaxLength) {
+    FATAL("Invalid FixedArray size %d", length);
+  }
+  HeapObject result = AllocateRawFixedArray(length, allocation);
+  DisallowGarbageCollection no_gc;
+  result.set_map_after_allocation(read_only_roots().fixed_array_map(),
+                                  SKIP_WRITE_BARRIER);
+  FixedArray array = FixedArray::cast(result);
+  array.set_length(length);
+  MemsetTagged(array.data_start(), Smi::zero(), length);
+  return handle(array, isolate());
+}
+
+template <typename Impl>
 Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
     int length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();

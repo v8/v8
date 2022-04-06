@@ -1207,8 +1207,8 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // Allocate feedback vector if needed.
   if (result.feedback_vector_slots > 0) {
     DCHECK(FLAG_wasm_speculative_inlining);
-    Handle<FixedArray> vector =
-        isolate->factory()->NewFixedArray(result.feedback_vector_slots);
+    Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
+        result.feedback_vector_slots);
     instance->feedback_vectors().set(
         declared_function_index(module, func_index), *vector);
   }
@@ -1324,6 +1324,15 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
         PrintF("[Function #%d call_ref #%d: best frequency %f]\n", func_index,
                i / 2, best_frequency);
       }
+    } else if (value.IsSmi()) {
+      // Direct call, just collecting call count.
+      int count = Smi::cast(value).value();
+      if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function #%d call_direct #%d: frequency %d]\n", func_index,
+               i / 2, count);
+      }
+      result[i / 2] = {-1, count};
+      continue;
     }
     // If we fall through to here, then this call isn't eligible for inlining.
     // Possible reasons: uninitialized or megamorphic feedback; or monomorphic

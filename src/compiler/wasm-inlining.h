@@ -66,7 +66,6 @@ class WasmInliner final : public AdvancedReducer {
   struct CandidateInfo {
     Node* node;
     uint32_t inlinee_index;
-    bool is_speculative_call_ref;
     int call_count;
     int wire_byte_size;
   };
@@ -74,12 +73,6 @@ class WasmInliner final : public AdvancedReducer {
   struct LexicographicOrdering {
     // Returns if c1 should be prioritized less than c2.
     bool operator()(CandidateInfo& c1, CandidateInfo& c2) {
-      if (c1.is_speculative_call_ref && !c2.is_speculative_call_ref) {
-        return false;
-      }
-      if (c2.is_speculative_call_ref && !c1.is_speculative_call_ref) {
-        return true;
-      }
       if (c1.call_count > c2.call_count) return false;
       if (c2.call_count > c1.call_count) return true;
       return c1.wire_byte_size > c2.wire_byte_size;

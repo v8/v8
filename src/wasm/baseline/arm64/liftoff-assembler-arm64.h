@@ -1189,6 +1189,23 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   return true;
 }
 
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  if (COMPRESS_POINTERS_BOOL) {
+    DCHECK(SmiValuesAre31Bits());
+    Register scratch = temps.AcquireW();
+    Ldr(scratch, MemOperand(dst.gp(), offset));
+    Add(scratch, scratch, Operand(Smi::FromInt(1)));
+    Str(scratch, MemOperand(dst.gp(), offset));
+  } else {
+    Register scratch = temps.AcquireX();
+    SmiUntag(scratch, MemOperand(dst.gp(), offset));
+    Add(scratch, scratch, Operand(1));
+    SmiTag(scratch);
+    Str(scratch, MemOperand(dst.gp(), offset));
+  }
+}
+
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {

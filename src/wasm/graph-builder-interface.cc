@@ -640,12 +640,20 @@ class WasmGraphBuildingInterface {
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
+    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+      DCHECK_LT(feedback_instruction_index_, type_feedback_.size());
+      feedback_instruction_index_++;
+    }
     DoCall(decoder, CallInfo::CallDirect(imm.index), imm.sig, args, returns);
   }
 
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
+    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+      DCHECK_LT(feedback_instruction_index_, type_feedback_.size());
+      feedback_instruction_index_++;
+    }
     DoReturnCall(decoder, CallInfo::CallDirect(imm.index), imm.sig, args);
   }
 
@@ -671,8 +679,6 @@ class WasmGraphBuildingInterface {
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
     int maybe_feedback = -1;
-    // TODO(jkummerow): The way we currently prepare type feedback means that
-    // we won't have any for inlined functions. Figure out how to change that.
     if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
       DCHECK_LT(feedback_instruction_index_, type_feedback_.size());
       maybe_feedback =

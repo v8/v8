@@ -1863,6 +1863,14 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   return true;
 }
 
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  ldr(scratch, MemOperand(dst.gp(), offset));
+  add(scratch, scratch, Operand(Smi::FromInt(1)));
+  str(scratch, MemOperand(dst.gp(), offset));
+}
+
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
   if (CpuFeatures::IsSupported(ARMv8)) {
     CpuFeatureScope scope(this, ARMv8);

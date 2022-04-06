@@ -696,7 +696,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         PrintF("[Function %d (declared %d): allocating %d feedback slots]\n",
                func_index, i, slots);
       }
-      Handle<FixedArray> feedback = isolate_->factory()->NewFixedArray(slots);
+      Handle<FixedArray> feedback =
+          isolate_->factory()->NewFixedArrayWithZeroes(slots);
       vectors->set(i, *feedback);
     }
   }

@@ -546,7 +546,7 @@ class LiftoffCompiler {
   int GetFeedbackVectorSlots() const {
     // The number of instructions is capped by max function size.
     STATIC_ASSERT(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max());
-    return static_cast<int>(num_call_ref_instructions_) * 2;
+    return static_cast<int>(num_call_instructions_) * 2;
   }
 
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
@@ -5922,6 +5922,17 @@ class LiftoffCompiler {
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
+    // One slot would be enough for call_direct, but would make index
+    // computations much more complicated.
+    uintptr_t vector_slot = num_call_instructions_ * 2;
+    if (FLAG_wasm_speculative_inlining) {
+      base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
+      decoder->module_->type_feedback.feedback_for_function[func_index_]
+          .positions[decoder->position()] =
+          static_cast<int>(num_call_instructions_);
+      num_call_instructions_++;
+    }
+
     if (imm.index < env_->module->num_imported_functions) {
       // A direct call to an imported function.
       LiftoffRegList pinned;
@@ -5957,6 +5968,15 @@ class LiftoffCompiler {
         FinishCall(decoder, &sig, call_descriptor);
       }
     } else {
+      // Inlining direct calls isn't speculative, but existence of the
+      // feedback vector currently depends on this flag.
+      if (FLAG_wasm_speculative_inlining) {
+        LiftoffRegister vector = __ GetUnusedRegister(kGpReg, {});
+        __ Fill(vector, liftoff::kFeedbackVectorOffset, kPointerKind);
+        __ IncrementSmi(vector,
+                        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                            static_cast<int>(vector_slot)));
+      }
       // A direct call within this module just gets the current instance.
       __ PrepareCall(&sig, call_descriptor);
       // Just encode the function index. This will be patched at instantiation.
@@ -6145,14 +6165,14 @@ class LiftoffCompiler {
       __ Fill(vector, liftoff::kFeedbackVectorOffset, kPointerKind);
       LiftoffAssembler::VarState vector_var(kPointerKind, vector, 0);
       LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      uintptr_t vector_slot = num_call_ref_instructions_ * 2;
+      uintptr_t vector_slot = num_call_instructions_ * 2;
       {
         base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
         decoder->module_->type_feedback.feedback_for_function[func_index_]
             .positions[decoder->position()] =
-            static_cast<int>(num_call_ref_instructions_);
+            static_cast<int>(num_call_instructions_);
       }
-      num_call_ref_instructions_++;
+      num_call_instructions_++;
       __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
       LiftoffAssembler::VarState index_var(kIntPtrKind, index, 0);
 
@@ -6528,9 +6548,10 @@ class LiftoffCompiler {
   // Current number of exception refs on the stack.
   int num_exceptions_ = 0;
 
-  // Number of {call_ref} instructions encountered. While compiling, also
-  // index of the next {call_ref}. Used for indexing type feedback.
-  uintptr_t num_call_ref_instructions_ = 0;
+  // Number of feedback-collecting call instructions encountered. While
+  // compiling, also index of the next such instruction. Used for indexing type
+  // feedback.
+  uintptr_t num_call_instructions_ = 0;
 
   int32_t* max_steps_;
   int32_t* nondeterminism_;

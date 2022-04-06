@@ -72,7 +72,6 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 
   TRACE("adding to inlining candidates!]\n")
 
-  bool is_speculative_call_ref = false;
   int call_count = 0;
   if (FLAG_wasm_speculative_inlining) {
     base::MutexGuard guard(&module()->type_feedback.mutex);
@@ -83,11 +82,15 @@ Reduction WasmInliner::ReduceCall(Node* call) {
       wasm::WasmCodePosition position =
           source_positions_->GetSourcePosition(call).ScriptOffset();
       DCHECK_NE(position, wasm::kNoCodePosition);
+      // It could be that we haven't processed the feedback yet, because e.g.:
+      // - Liftoff bailed out for this function
+      // - the call is in an inlined function that isn't hot yet
       auto index_in_feedback_vector = feedback.positions.find(position);
-      if (index_in_feedback_vector != feedback.positions.end()) {
-        is_speculative_call_ref = true;
-        call_count = feedback.feedback_vector[index_in_feedback_vector->second]
-                         .absolute_call_frequency;
+      if (index_in_feedback_vector != feedback.positions.end() &&
+          feedback.feedback_vector.size() > 0) {
+        const wasm::CallSiteFeedback& call_site_feedback =
+            feedback.feedback_vector[index_in_feedback_vector->second];
+        call_count = call_site_feedback.absolute_call_frequency;
       }
     }
   }
@@ -96,8 +99,8 @@ Reduction WasmInliner::ReduceCall(Node* call) {
   const wasm::WasmFunction* inlinee = &module()->functions[inlinee_index];
   base::Vector<const byte> function_bytes = wire_bytes_->GetCode(inlinee->code);
 
-  CandidateInfo candidate{call, inlinee_index, is_speculative_call_ref,
-                          call_count, function_bytes.length()};
+  CandidateInfo candidate{call, inlinee_index, call_count,
+                          function_bytes.length()};
 
   inlining_candidates_.push(candidate);
   return NoChange();
@@ -110,10 +113,9 @@ void WasmInliner::Finalize() {
     inlining_candidates_.pop();
     Node* call = candidate.node;
     TRACE(
-        "  [function %d: considering candidate {@%d, index=%d, type=%s, "
-        "count=%d, size=%d}... ",
+        "  [function %d: considering candidate {@%d, index=%d, count=%d, "
+        "size=%d}... ",
         function_index_, call->id(), candidate.inlinee_index,
-        candidate.is_speculative_call_ref ? "ref" : "direct",
         candidate.call_count, candidate.wire_byte_size);
     if (call->IsDead()) {
       TRACE("dead node]\n");
