@@ -78,6 +78,9 @@ ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
 FLAGS_NO_ALWAYS_OPT = re.compile("//\s*Flags:.*--no-?always-opt.*\n")
 
 TOOLS_PATH = dirname(abspath(__file__))
+DEPS_DEPOT_TOOLS_PATH = abspath(
+    join(TOOLS_PATH, '..', 'third_party', 'depot_tools'))
+
 
 def CppLintWorker(command):
   try:
@@ -106,7 +109,7 @@ def CppLintWorker(command):
     process.kill()
   except:
     print('Error running cpplint.py. Please make sure you have depot_tools' +
-          ' in your $PATH. Lint check skipped.')
+          ' in your third_party directory. Lint check skipped.')
     process.kill()
 
 def TorqueLintWorker(command):
@@ -153,8 +156,9 @@ def JSLintWorker(command):
     except KeyboardInterrupt:
       process.kill()
     except Exception:
-      print('Error running clang-format. Please make sure you have depot_tools' +
-            ' in your $PATH. Lint check skipped.')
+      print(
+          'Error running clang-format. Please make sure you have depot_tools' +
+          ' in your third_party directory. Lint check skipped.')
       process.kill()
 
   rc = format_file(command)
@@ -387,13 +391,9 @@ class CppLintProcessor(CacheableSourceFileProcessor):
   def GetProcessorScript(self):
     filters = ','.join([n for n in LINT_RULES])
     arguments = ['--filter', filters]
-    for path in [TOOLS_PATH] + os.environ["PATH"].split(os.pathsep):
-      path = path.strip('"')
-      cpplint = os.path.join(path, 'cpplint.py')
-      if os.path.isfile(cpplint):
-        return cpplint, arguments
 
-    return None, arguments
+    cpplint = os.path.join(DEPS_DEPOT_TOOLS_PATH, 'cpplint.py')
+    return cpplint, arguments
 
 
 class TorqueLintProcessor(CacheableSourceFileProcessor):
@@ -445,13 +445,9 @@ class JSLintProcessor(CacheableSourceFileProcessor):
     return JSLintWorker
 
   def GetProcessorScript(self):
-    for path in [TOOLS_PATH] + os.environ["PATH"].split(os.pathsep):
-      path = path.strip('"')
-      clang_format = os.path.join(path, 'clang_format.py')
-      if os.path.isfile(clang_format):
-        return clang_format, []
+    jslint = os.path.join(DEPS_DEPOT_TOOLS_PATH, 'clang_format.py')
+    return jslint, []
 
-    return None, []
 
 COPYRIGHT_HEADER_PATTERN = re.compile(
     r'Copyright [\d-]*20[0-2][0-9] the V8 project authors. All rights reserved.')
