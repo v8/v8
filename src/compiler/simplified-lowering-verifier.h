@@ -16,7 +16,7 @@ class OperationTyper;
 class SimplifiedLoweringVerifier final {
  public:
   struct PerNodeData {
-    Type type = Type::None();
+    base::Optional<Type> type = base::nullopt;
     Truncation truncation = Truncation::Any(IdentifyZeros::kDistinguishZeros);
   };
 
@@ -30,6 +30,18 @@ class SimplifiedLoweringVerifier final {
     hints_.push_back(node);
   }
   const ZoneVector<Node*>& inserted_hints() const { return hints_; }
+
+  base::Optional<Type> GetType(Node* node) const {
+    if (NodeProperties::IsTyped(node)) {
+      return NodeProperties::GetType(node);
+    }
+    // For nodes that have not been typed before SL, we use the type that has
+    // been inferred by the verifier.
+    if (node->id() < data_.size()) {
+      return data_[node->id()].type;
+    }
+    return base::nullopt;
+  }
 
  private:
   void ResizeDataIfNecessary(Node* node) {
@@ -54,10 +66,11 @@ class SimplifiedLoweringVerifier final {
     }
     // For nodes that have not been typed before SL, we use the type that has
     // been inferred by the verifier.
+    base::Optional<Type> type_opt;
     if (input->id() < data_.size()) {
-      return data_[input->id()].type;
+      type_opt = data_[input->id()].type;
     }
-    return Type::None();
+    return type_opt.has_value() ? *type_opt : Type::None();
   }
 
   void SetTruncation(Node* node, const Truncation& truncation) {

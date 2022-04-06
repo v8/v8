@@ -1583,7 +1583,7 @@ struct SimplifiedLoweringPhase {
     SimplifiedLowering lowering(data->jsgraph(), data->broker(), temp_zone,
                                 data->source_positions(), data->node_origins(),
                                 &data->info()->tick_counter(), linkage,
-                                data->observe_node_manager());
+                                data->info(), data->observe_node_manager());
 
     // RepresentationChanger accesses the heap.
     UnparkedScopeIfNeeded scope(data->broker());

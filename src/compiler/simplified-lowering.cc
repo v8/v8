@@ -16,6 +16,8 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
+#include "src/compiler/graph-visualizer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-observer.h"
@@ -222,6 +224,23 @@ bool IsSomePositiveOrderedNumber(Type type) {
   return type.Is(Type::OrderedNumber()) && (type.IsNone() || type.Min() > 0);
 }
 
+class JSONGraphWriterWithVerifierTypes : public JSONGraphWriter {
+ public:
+  JSONGraphWriterWithVerifierTypes(std::ostream& os, const Graph* graph,
+                                   const SourcePositionTable* positions,
+                                   const NodeOriginTable* origins,
+                                   SimplifiedLoweringVerifier* verifier)
+      : JSONGraphWriter(os, graph, positions, origins), verifier_(verifier) {}
+
+ protected:
+  base::Optional<Type> GetType(Node* node) override {
+    return verifier_->GetType(node);
+  }
+
+ private:
+  SimplifiedLoweringVerifier* verifier_;
+};
+
 }  // namespace
 
 #ifdef DEBUG
@@ -316,6 +335,7 @@ class RepresentationSelector {
                          ObserveNodeManager* observe_node_manager,
                          SimplifiedLoweringVerifier* verifier)
       : jsgraph_(jsgraph),
+        broker_(broker),
         zone_(zone),
         might_need_revisit_(zone),
         count_(jsgraph->graph()->NodeCount()),
@@ -721,7 +741,7 @@ class RepresentationSelector {
     }
   }
 
-  void RunVerifyPhase() {
+  void RunVerifyPhase(OptimizedCompilationInfo* info) {
     DCHECK_NOT_NULL(verifier_);
 
     TRACE("--{Verify Phase}--\n");
@@ -741,6 +761,17 @@ class RepresentationSelector {
     // Verify all nodes.
     for (Node* node : traversal_nodes_) verifier_->VisitNode(node, op_typer_);
 
+    // Print graph.
+    if (info != nullptr && info->trace_turbo_json()) {
+      UnparkedScopeIfNeeded scope(broker_);
+      AllowHandleDereference allow_deref;
+
+      TurboJsonFile json_of(info, std::ios_base::app);
+      JSONGraphWriterWithVerifierTypes writer(
+          json_of, graph(), source_positions_, node_origins_, verifier_);
+      writer.PrintPhase("V8.TFSimplifiedLoweringVerifier");
+    }
+
     // Eliminate all introduced hints.
     for (Node* node : verifier_->inserted_hints()) {
       Node* input = node->InputAt(0);
@@ -756,7 +787,7 @@ class RepresentationSelector {
     RunLowerPhase(lowering);
 
     if (verification_enabled()) {
-      RunVerifyPhase();
+      RunVerifyPhase(lowering->info_);
     }
   }
 
@@ -4128,6 +4159,7 @@ class RepresentationSelector {
   }
 
   JSGraph* jsgraph_;
+  JSHeapBroker* broker_;
   Zone* zone_;                      // Temporary zone.
   // Map from node to its uses that might need to be revisited.
   ZoneMap<Node*, ZoneVector<Node*>> might_need_revisit_;
@@ -4323,13 +4355,11 @@ void RepresentationSelector::InsertUnreachableIfNecessary<LOWER>(Node* node) {
   }
 }
 
-SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
-                                       Zone* zone,
-                                       SourcePositionTable* source_positions,
-                                       NodeOriginTable* node_origins,
-                                       TickCounter* tick_counter,
-                                       Linkage* linkage,
-                                       ObserveNodeManager* observe_node_manager)
+SimplifiedLowering::SimplifiedLowering(
+    JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
+    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+    TickCounter* tick_counter, Linkage* linkage, OptimizedCompilationInfo* info,
+    ObserveNodeManager* observe_node_manager)
     : jsgraph_(jsgraph),
       broker_(broker),
       zone_(zone),
@@ -4338,6 +4368,7 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
       node_origins_(node_origins),
       tick_counter_(tick_counter),
       linkage_(linkage),
+      info_(info),
       observe_node_manager_(observe_node_manager) {}
 
 void SimplifiedLowering::LowerAllNodes() {
