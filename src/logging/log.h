@@ -148,10 +148,6 @@ class Logger : public CodeEventListener {
   void NewEvent(const char* name, void* object, size_t size);
   void DeleteEvent(const char* name, void* object);
 
-  // Emits an event that an undefined property was read from an
-  // object.
-  void SuspectReadEvent(Name name, Object obj);
-
   // ==== Events logged by --log-function-events ====
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
                      int start_position, int end_position,

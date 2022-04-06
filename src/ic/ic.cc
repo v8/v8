@@ -514,7 +514,6 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
     if (it.IsFound()) {
       return result;
     } else if (!ShouldThrowReferenceError()) {
-      LOG(isolate(), SuspectReadEvent(*name, *object));
       return result;
     }
   }

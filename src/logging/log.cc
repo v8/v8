@@ -1611,15 +1611,6 @@ void Logger::MoveEventInternal(LogEventsAndTags event, Address from,
   msg.WriteToLogFile();
 }
 
-void Logger::SuspectReadEvent(Name name, Object obj) {
-  if (!FLAG_log_suspect) return;
-  MSG_BUILDER();
-  String class_name = obj.IsJSObject() ? JSObject::cast(obj).class_name()
-                                       : ReadOnlyRoots(isolate_).empty_string();
-  msg << "suspect-read" << kNext << class_name << kNext << name;
-  msg.WriteToLogFile();
-}
-
 namespace {
 void AppendFunctionMessage(Log::MessageBuilder& msg, const char* reason,
                            int script_id, double time_delta, int start_position,
