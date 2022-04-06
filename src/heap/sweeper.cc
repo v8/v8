@@ -354,8 +354,9 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   size_t live_bytes = 0;
   size_t max_freed_bytes = 0;
 
-  bool record_free_ranges =
-      p->typed_slot_set<OLD_TO_NEW>() != nullptr || DEBUG_BOOL;
+  bool record_free_ranges = p->typed_slot_set<OLD_TO_NEW>() != nullptr ||
+                            p->typed_slot_set<OLD_TO_OLD>() != nullptr ||
+                            DEBUG_BOOL;
 
   // Clean invalidated slots during the final atomic pause. After resuming
   // execution this isn't necessary, invalid old-to-new refs were already

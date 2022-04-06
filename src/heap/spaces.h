@@ -322,12 +322,11 @@ class Page : public MemoryChunk {
 
   template <RememberedSetType remembered_set>
   void AssertNoInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
-#if DEBUG
+    // TODO(dinfuehr): Make this a DCHECK eventually.
     TypedSlotSet* typed_slot_set = this->typed_slot_set<OLD_TO_OLD>();
     if (typed_slot_set != nullptr) {
       typed_slot_set->AssertNoInvalidSlots(ranges);
     }
-#endif  // DEBUG
   }
 
  private:
