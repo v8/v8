@@ -739,10 +739,17 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
   // This can run concurrently to Iterate().
   void ClearInvalidSlots(const std::map<uint32_t, uint32_t>& invalid_ranges);
 
+  // Asserts that there are no recorded slots in the specified ranges.
+  void AssertNoInvalidSlots(const std::map<uint32_t, uint32_t>& invalid_ranges);
+
   // Frees empty chunks accumulated by PREFREE_EMPTY_CHUNKS.
   void FreeToBeFreedChunks();
 
  private:
+  template <typename Callback>
+  void IterateSlotsInRanges(Callback callback,
+                            const std::map<uint32_t, uint32_t>& invalid_ranges);
+
   // Atomic operations used by Iterate and ClearInvalidSlots;
   Chunk* LoadNext(Chunk* chunk) {
     return base::AsAtomicPointer::Relaxed_Load(&chunk->next);

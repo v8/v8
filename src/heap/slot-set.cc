@@ -4,6 +4,9 @@
 
 #include "src/heap/slot-set.h"
 
+#include "src/base/logging.h"
+#include "src/heap/memory-chunk-layout.h"
+
 namespace v8 {
 namespace internal {
 
@@ -60,6 +63,24 @@ TypedSlots::Chunk* TypedSlots::NewChunk(Chunk* next, size_t capacity) {
 
 void TypedSlotSet::ClearInvalidSlots(
     const std::map<uint32_t, uint32_t>& invalid_ranges) {
+  IterateSlotsInRanges([](TypedSlot* slot) { *slot = ClearedTypedSlot(); },
+                       invalid_ranges);
+}
+
+void TypedSlotSet::AssertNoInvalidSlots(
+    const std::map<uint32_t, uint32_t>& invalid_ranges) {
+  IterateSlotsInRanges(
+      [](TypedSlot* slot) {
+        CHECK_WITH_MSG(false, "No slot in ranges expected.");
+      },
+      invalid_ranges);
+}
+
+template <typename Callback>
+void TypedSlotSet::IterateSlotsInRanges(
+    Callback callback, const std::map<uint32_t, uint32_t>& ranges) {
+  if (ranges.empty()) return;
+
   Chunk* chunk = LoadHead();
   while (chunk != nullptr) {
     for (TypedSlot& slot : chunk->buffer) {
@@ -67,14 +88,14 @@ void TypedSlotSet::ClearInvalidSlots(
       if (type == SlotType::kCleared) continue;
       uint32_t offset = OffsetField::decode(slot.type_and_offset);
       std::map<uint32_t, uint32_t>::const_iterator upper_bound =
-          invalid_ranges.upper_bound(offset);
-      if (upper_bound == invalid_ranges.begin()) continue;
+          ranges.upper_bound(offset);
+      if (upper_bound == ranges.begin()) continue;
       // upper_bounds points to the invalid range after the given slot. Hence,
       // we have to go to the previous element.
       upper_bound--;
       DCHECK_LE(upper_bound->first, offset);
       if (upper_bound->second > offset) {
-        slot = ClearedTypedSlot();
+        callback(&slot);
       }
     }
     chunk = LoadNext(chunk);

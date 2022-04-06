@@ -136,21 +136,22 @@ class Sweeper {
   // the operating system.
   size_t FreeAndProcessFreedMemory(Address free_start, Address free_end,
                                    Page* page, Space* space,
-                                   bool non_empty_typed_slots,
+                                   bool record_free_ranges,
                                    FreeListRebuildingMode free_list_mode,
                                    FreeSpaceTreatmentMode free_space_mode);
 
   // Helper function for RawSweep. Handle remembered set entries in the freed
   // memory which require clearing.
   void CleanupRememberedSetEntriesForFreedMemory(
-      Address free_start, Address free_end, Page* page,
-      bool non_empty_typed_slots, FreeRangesMap* free_ranges_map,
-      SweepingMode sweeping_mode, InvalidatedSlotsCleanup* old_to_new_cleanup);
+      Address free_start, Address free_end, Page* page, bool record_free_ranges,
+      FreeRangesMap* free_ranges_map, SweepingMode sweeping_mode,
+      InvalidatedSlotsCleanup* old_to_new_cleanup);
 
   // Helper function for RawSweep. Clears invalid typed slots in the given free
   // ranges.
   void CleanupInvalidTypedSlotsOfFreeRanges(
-      Page* page, const FreeRangesMap& free_ranges_map);
+      Page* page, const FreeRangesMap& free_ranges_map,
+      SweepingMode sweeping_mode);
 
   // Helper function for RawSweep. Clears the mark bits and ensures consistency
   // of live bytes.
