@@ -308,15 +308,17 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   Map initial_map = this->map(kAcquireLoad);
   StringShape initial_shape(initial_map);
 
+  // TODO(v8:12007): Support shared ThinStrings.
+  //
+  // Currently in-place migrations to ThinStrings are disabled for shared
+  // strings to unblock prototyping.
+  if (initial_shape.IsShared()) return;
   DCHECK(!initial_shape.IsThin());
-  DCHECK_IMPLIES(initial_shape.IsShared(), HasForwardingIndex());
 
   bool has_pointers = initial_shape.IsIndirect();
   int old_size = this->SizeFromMap(initial_map);
   Map target_map = ComputeThinStringMap(isolate, initial_shape,
                                         internalized.IsOneByteRepresentation());
-  // TODO(pthier): We don't need to migrate under lock anymore, as shared
-  // strings are only transitioned during stop-the-world GC.
   switch (MigrateStringMapUnderLockIfNeeded(
       isolate, *this, initial_map, target_map,
       [=](IsolateT* isolate, String string, StringShape initial_shape) {
@@ -732,7 +734,7 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
         subject->EnsureHash();  // Force hash calculation.
         DCHECK_EQ(subject->raw_hash_field(), raw_hash_field);
 #endif
-        subject->set_raw_hash_field_if_empty(raw_hash_field);
+        subject->set_raw_hash_field(raw_hash_field);
       }
       return handle(Smi::FromInt(d), isolate);
     }
@@ -1033,12 +1035,10 @@ bool String::SlowEquals(
 
   // Fast check: if hash code is computed for both strings
   // a fast negative check can be performed.
-  uint32_t this_hash;
-  uint32_t other_hash;
-  if (TryGetHash(&this_hash) && other.TryGetHash(&other_hash)) {
+  if (HasHashCode() && other.HasHashCode()) {
 #ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
-      if (this_hash != other_hash) {
+      if (hash() != other.hash()) {
         bool found_difference = false;
         for (int i = 0; i < len; i++) {
           if (Get(i) != other.Get(i)) {
@@ -1050,7 +1050,7 @@ bool String::SlowEquals(
       }
     }
 #endif
-    if (this_hash != other_hash) return false;
+    if (hash() != other.hash()) return false;
   }
 
   // We know the strings are both non-empty. Compare the first chars
@@ -1093,12 +1093,10 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
 
   // Fast check: if hash code is computed for both strings
   // a fast negative check can be performed.
-  uint32_t one_hash;
-  uint32_t two_hash;
-  if (one->TryGetHash(&one_hash) && two->TryGetHash(&two_hash)) {
+  if (one->HasHashCode() && two->HasHashCode()) {
 #ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
-      if (one_hash != two_hash) {
+      if (one->hash() != two->hash()) {
         bool found_difference = false;
         for (int i = 0; i < one_length; i++) {
           if (one->Get(i) != two->Get(i)) {
@@ -1110,7 +1108,7 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
       }
     }
 #endif
-    if (one_hash != two_hash) return false;
+    if (one->hash() != two->hash()) return false;
   }
 
   // We know the strings are both non-empty. Compare the first chars
@@ -1633,18 +1631,6 @@ uint32_t String::ComputeAndSetHash(
   // same. The raw hash field is stored with relaxed ordering.
   DCHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
 
-  uint32_t field = raw_hash_field(kAcquireLoad);
-  if (Name::IsForwardingIndex(field)) {
-    // Get the real hash from the forwarded string.
-    Isolate* isolate = GetIsolateFromWritableObject(*this);
-    const int forward_index = Name::HashBits::decode(field);
-    String internalized = isolate->string_forwarding_table()->GetForwardString(
-        isolate, forward_index);
-    uint32_t hash = internalized.raw_hash_field();
-    DCHECK(IsHashFieldComputed(hash));
-    return HashBits::decode(hash);
-  }
-
   // Store the hash code in the object.
   uint64_t seed = HashSeed(GetReadOnlyRoots());
   size_t start = 0;
@@ -1675,11 +1661,10 @@ uint32_t String::ComputeAndSetHash(
                                 access_guard)
           : HashString<uint16_t>(string, start, length(), seed, cage_base,
                                  access_guard);
-  set_raw_hash_field_if_empty(raw_hash_field);
+  set_raw_hash_field(raw_hash_field);
 
-  // Check the hash code is there (or a forwarding index if the string was
-  // internalized in parallel).
-  DCHECK(HasHashCode() || HasForwardingIndex());
+  // Check the hash code is there.
+  DCHECK(HasHashCode());
   uint32_t result = HashBits::decode(raw_hash_field);
   DCHECK_NE(result, 0);  // Ensure that the hash value of 0 is never computed.
   return result;

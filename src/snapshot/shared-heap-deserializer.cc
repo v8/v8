@@ -32,7 +32,7 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
 void SharedHeapDeserializer::DeserializeStringTable() {
   // See SharedHeapSerializer::SerializeStringTable.
 
-  DCHECK(isolate()->OwnsStringTables());
+  DCHECK(isolate()->OwnsStringTable());
 
   // Get the string table size.
   int string_table_size = source()->GetInt();

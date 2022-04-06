@@ -209,8 +209,8 @@ Heap::Heap()
       safepoint_(std::make_unique<IsolateSafepoint>(this)),
       external_string_table_(this),
       allocation_type_for_in_place_internalizable_strings_(
-          isolate()->OwnsStringTables() ? AllocationType::kOld
-                                        : AllocationType::kSharedOld),
+          isolate()->OwnsStringTable() ? AllocationType::kOld
+                                       : AllocationType::kSharedOld),
       collection_barrier_(new CollectionBarrier(this)) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));
@@ -4470,7 +4470,7 @@ bool Heap::SharedHeapContains(HeapObject value) const {
 }
 
 bool Heap::ShouldBeInSharedOldSpace(HeapObject value) {
-  if (isolate()->OwnsStringTables()) return false;
+  if (isolate()->OwnsStringTable()) return false;
   if (ReadOnlyHeap::Contains(value)) return false;
   if (Heap::InYoungGeneration(value)) return false;
   if (value.IsExternalString()) return false;
@@ -4825,7 +4825,7 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
 
   if (!options.contains(SkipRoot::kOldGeneration) &&
       !options.contains(SkipRoot::kUnserializable) &&
-      isolate()->OwnsStringTables()) {
+      isolate()->OwnsStringTable()) {
     // Do not visit for the following reasons.
     // - Serialization, since the string table is custom serialized.
     // - If we are skipping old generation, since all internalized strings

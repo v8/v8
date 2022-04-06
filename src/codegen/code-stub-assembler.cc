@@ -8071,10 +8071,8 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
 
     BIND(&if_string);
     {
-      Label if_thinstring(this), if_has_cached_index(this),
-          if_forwarding_index(this);
+      Label if_thinstring(this), if_has_cached_index(this);
 
-      // TODO(v8:12007): LoadNameRawHashField() should be an acquire load.
       TNode<Uint32T> raw_hash_field = LoadNameRawHashField(CAST(key));
       GotoIf(IsClearWord32(raw_hash_field,
                            Name::kDoesNotContainCachedArrayIndexMask),
@@ -8090,12 +8088,6 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
       GotoIf(InstanceTypeEqual(var_instance_type.value(),
                                THIN_ONE_BYTE_STRING_TYPE),
              &if_thinstring);
-
-      // Check if the hash field encodes a string forwarding index.
-      GotoIf(IsEqualInWord32<Name::HashFieldTypeBits>(
-                 raw_hash_field, Name::HashFieldType::kForwardingIndex),
-             &if_forwarding_index);
-
       // Finally, check if |key| is internalized.
       STATIC_ASSERT(kNotInternalizedTag != 0);
       GotoIf(IsSetWord32(var_instance_type.value(), kIsNotInternalizedMask),
@@ -8108,21 +8100,6 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
       {
         *var_unique =
             LoadObjectField<String>(CAST(key), ThinString::kActualOffset);
-        Goto(if_keyisunique);
-      }
-      BIND(&if_forwarding_index);
-      {
-        TNode<ExternalReference> function =
-            ExternalConstant(ExternalReference::string_from_forward_table());
-        const TNode<ExternalReference> isolate_ptr =
-            ExternalConstant(ExternalReference::isolate_address(isolate()));
-        TNode<Object> result = CAST(CallCFunction(
-            function, MachineType::AnyTagged(),
-            std::make_pair(MachineType::Pointer(), isolate_ptr),
-            std::make_pair(MachineType::Int32(),
-                           DecodeWord32<Name::HashBits>(raw_hash_field))));
-
-        *var_unique = CAST(result);
         Goto(if_keyisunique);
       }
 
