@@ -5570,13 +5570,13 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     });
   }
 
-  // Tests where the length getter returns a non-zero value -> these throw if
+  // Tests where the length getter returns a non-zero value -> these are nop if
   // the TA went OOB.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertThrows(() => { fixedLength.set(CreateSourceProxy(1)); }, TypeError);
+    fixedLength.set(CreateSourceProxy(1));
     assertEquals([0, 2, 4], ToNumbers(new ctor(rab)));
   }
 
@@ -5584,8 +5584,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     rab = CreateRabForTest(ctor);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertThrows(() => { fixedLengthWithOffset.set(CreateSourceProxy(1)); },
-                         TypeError);
+    fixedLengthWithOffset.set(CreateSourceProxy(1));
     assertEquals([0, 2, 4], ToNumbers(new ctor(rab)));
   }
 
@@ -5612,8 +5611,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     resizeTo = 1 * ctor.BYTES_PER_ELEMENT;
-    assertThrows(() => { lengthTrackingWithOffset.set(CreateSourceProxy(1)); },
-                 TypeError);
+    lengthTrackingWithOffset.set(CreateSourceProxy(1));
     assertEquals([0], ToNumbers(new ctor(rab)));
   }
 
@@ -5757,7 +5755,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     const fixedLength = new ctor(rab, 0, 4);
     resizeAt = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertThrows(() => { fixedLength.set(CreateSourceProxy(4)); }, TypeError);
+    fixedLength.set(CreateSourceProxy(4));
     assertEquals([1, 2, 4], ToNumbers(new ctor(rab)));
   }
 
@@ -5766,8 +5764,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     resizeAt = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertThrows(() => { fixedLengthWithOffset.set(CreateSourceProxy(2)); },
-                         TypeError);
+    fixedLengthWithOffset.set(CreateSourceProxy(2));
     assertEquals([0, 2, 1], ToNumbers(new ctor(rab)));
   }
 
@@ -5797,8 +5794,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     resizeAt = 1;
     resizeTo = 1 * ctor.BYTES_PER_ELEMENT;
-    assertThrows(() => { lengthTrackingWithOffset.set(CreateSourceProxy(2)); },
-                 TypeError);
+    lengthTrackingWithOffset.set(CreateSourceProxy(2));
     assertEquals([0], ToNumbers(new ctor(rab)));
   }
 })();

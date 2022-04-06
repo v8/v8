@@ -1207,32 +1207,29 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     });
   }
 
-  // Tests where the length getter returns a non-zero value -> these throw.
+  // Tests where the length getter detaches -> these are no-op.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
-    assertThrows(() => { fixedLength.set(CreateSourceProxy(1)); }, TypeError);
+    fixedLength.set(CreateSourceProxy(1));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
-    assertThrows(() => { fixedLengthWithOffset.set(CreateSourceProxy(1)); },
-                         TypeError);
+    fixedLengthWithOffset.set(CreateSourceProxy(1));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
-    assertThrows(() => { lengthTracking.set(CreateSourceProxy(1)); },
-                 TypeError);
+    lengthTracking.set(CreateSourceProxy(1));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
-    assertThrows(() => { lengthTrackingWithOffset.set(CreateSourceProxy(1)); },
-                 TypeError);
+    lengthTrackingWithOffset.set(CreateSourceProxy(1));
   }
 
   // Tests where the length getter returns a zero -> these don't throw.
@@ -1302,31 +1299,28 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
     detachAt = 2;
-    assertThrows(() => { fixedLength.set(CreateSourceProxy(4)); }, TypeError);
+    fixedLength.set(CreateSourceProxy(4));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     detachAt = 2;
-    assertThrows(() => { fixedLengthWithOffset.set(CreateSourceProxy(2)); },
-                         TypeError);
+    fixedLengthWithOffset.set(CreateSourceProxy(2));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
     detachAt = 2;
-    assertThrows(() => { lengthTracking.set(CreateSourceProxy(2)); },
-                 TypeError);
+    lengthTracking.set(CreateSourceProxy(2));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     detachAt = 2;
-    assertThrows(() => { lengthTrackingWithOffset.set(CreateSourceProxy(2)); },
-                 TypeError);
+    lengthTrackingWithOffset.set(CreateSourceProxy(2));
   }
 })();
 

@@ -3822,42 +3822,52 @@ class TypedElementsAccessor
     return false;
   }
 
+  // ES#sec-settypedarrayfromarraylike
   static Object CopyElementsHandleSlow(Handle<Object> source,
                                        Handle<JSTypedArray> destination,
                                        size_t length, size_t offset) {
     Isolate* isolate = destination->GetIsolate();
+    // 8. Let k be 0.
+    // 9. Repeat, while k < srcLength,
     for (size_t i = 0; i < length; i++) {
       Handle<Object> elem;
+      // a. Let Pk be ! ToString(𝔽(k)).
+      // b. Let value be ? Get(src, Pk).
       LookupIterator it(isolate, source, i);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                          Object::GetProperty(&it));
+      // c. Let targetIndex be 𝔽(targetOffset + k).
+      // d. Perform ? IntegerIndexedElementSet(target, targetIndex, value).
+      //
+      // Rest of loop body inlines ES#IntegerIndexedElementSet
       if (IsBigIntTypedArrayElementsKind(Kind)) {
+        // 1. If O.[[ContentType]] is BigInt, let numValue be ? ToBigInt(value).
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                            BigInt::FromObject(isolate, elem));
       } else {
+        // 2. Otherwise, let numValue be ? ToNumber(value).
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                            Object::ToNumber(isolate, elem));
       }
+      // 3. If IsValidIntegerIndex(O, index) is true, then
+      //   a. Let offset be O.[[ByteOffset]].
+      //   b. Let elementSize be TypedArrayElementSize(O).
+      //   c. Let indexedPosition be (ℝ(index) × elementSize) + offset.
+      //   d. Let elementType be TypedArrayElementType(O).
+      //   e. Perform SetValueInBuffer(O.[[ViewedArrayBuffer]],
+      //      indexedPosition, elementType, numValue, true, Unordered).
       bool out_of_bounds = false;
       size_t new_length = destination->GetLengthOrOutOfBounds(out_of_bounds);
-      if (V8_UNLIKELY(out_of_bounds || destination->WasDetached())) {
-        const char* op = "set";
-        const MessageTemplate message = MessageTemplate::kDetachedOperation;
-        Handle<String> operation =
-            isolate->factory()->NewStringFromAsciiChecked(op);
-        THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                       NewTypeError(message, operation));
-      }
-      if (V8_UNLIKELY(new_length <= offset + i)) {
+      if (V8_UNLIKELY(out_of_bounds || destination->WasDetached() ||
+                      new_length <= offset + i)) {
         // Proceed with the loop so that we call get getters for the source even
         // though we don't set the values in the target.
-        // TODO(v8:11111): Maybe change this, depending on how
-        // https://github.com/tc39/proposal-resizablearraybuffer/issues/86 is
-        // resolved.
         continue;
       }
       SetImpl(destination, InternalIndex(offset + i), *elem);
+      // e. Set k to k + 1.
     }
+    // 10. Return unused.
     return *isolate->factory()->undefined_value();
   }
 
