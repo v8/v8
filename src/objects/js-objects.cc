@@ -4198,12 +4198,16 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
                    NewTypeError(MessageTemplate::kNoAccess));
   }
 
-  if (attrs == NONE && !object->map().is_extensible()) return Just(true);
+  if (attrs == NONE && !object->map().is_extensible()) {
+    return Just(true);
+  }
+
   {
     ElementsKind old_elements_kind = object->map().elements_kind();
     if (IsFrozenElementsKind(old_elements_kind)) return Just(true);
-    if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind))
+    if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind)) {
       return Just(true);
+    }
   }
 
   if (object->IsJSGlobalProxy()) {
@@ -4274,7 +4278,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       TransitionsAccessor::SearchSpecial(isolate, old_map, *transition_marker);
   if (maybe_transition_map.ToHandle(&transition_map)) {
     DCHECK(transition_map->has_dictionary_elements() ||
-           transition_map->has_typed_array_elements() ||
+           transition_map->has_typed_array_or_rab_gsab_typed_array_elements() ||
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
            transition_map->has_any_nonextensible_elements());
     DCHECK(!transition_map->is_extensible());
@@ -4340,8 +4344,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
   // Both seal and preventExtensions always go through without modifications to
   // typed array elements. Freeze works only if there are no actual elements.
-  if (object->HasTypedArrayElements()) {
-    if (attrs == FROZEN && JSArrayBufferView::cast(*object).byte_length() > 0) {
+  if (object->HasTypedArrayOrRabGsabTypedArrayElements()) {
+    if (attrs == FROZEN && JSTypedArray::cast(*object).GetLength() > 0) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kCannotFreezeArrayBufferView));
       return Nothing<bool>();

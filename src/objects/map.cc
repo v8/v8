@@ -1698,7 +1698,7 @@ Handle<Map> Map::CopyForPreventExtensions(
       CopyReplaceDescriptors(isolate, map, new_desc, flag, transition_marker,
                              reason, SPECIAL_TRANSITION);
   new_map->set_is_extensible(false);
-  if (!IsTypedArrayElementsKind(map->elements_kind())) {
+  if (!IsTypedArrayOrRabGsabTypedArrayElementsKind(map->elements_kind())) {
     ElementsKind new_kind = IsStringWrapperElementsKind(map->elements_kind())
                                 ? SLOW_STRING_WRAPPER_ELEMENTS
                                 : DICTIONARY_ELEMENTS;

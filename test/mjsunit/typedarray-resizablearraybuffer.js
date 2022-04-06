@@ -6702,3 +6702,52 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     assertEquals([0, 0, 0, 0, 8, 0], ToNumbers(lengthTracking));
   }
 })();
+
+(function ObjectFreeze() {
+  // Freezing non-OOB non-zero-length TAs throws.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(
+        rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(
+        rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { Object.freeze(fixedLength); }, TypeError);
+    assertThrows(() => { Object.freeze(fixedLengthWithOffset); }, TypeError);
+    assertThrows(() => { Object.freeze(lengthTracking); }, TypeError);
+    assertThrows(() => { Object.freeze(lengthTrackingWithOffset); }, TypeError);
+  }
+  // Freezing zero-length TAs doesn't throw.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 0);
+    const fixedLengthWithOffset = new ctor(
+        rab, 2 * ctor.BYTES_PER_ELEMENT, 0);
+    // Zero-length because the offset is at the end:
+    const lengthTrackingWithOffset = new ctor(
+        rab, 4 * ctor.BYTES_PER_ELEMENT);
+
+    Object.freeze(fixedLength);
+    Object.freeze(fixedLengthWithOffset);
+    Object.freeze(lengthTrackingWithOffset);
+  }
+  // If the buffer has been resized to make length-tracking TAs zero-length,
+  // freezing them also doesn't throw.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, );
+    const lengthTrackingWithOffset = new ctor(
+        rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+    Object.freeze(lengthTrackingWithOffset);
+
+    rab.resize(0 * ctor.BYTES_PER_ELEMENT);
+    Object.freeze(lengthTracking);
+  }
+})();
