@@ -101,7 +101,48 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
+  Local<Value> RunJS(const char* source) {
+    return RunJS(
+        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
+  }
+
+  Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
+    return RunJS(v8::String::NewExternalOneByte(this->v8_isolate(), source)
+                     .ToLocalChecked());
+  }
+
+  void CollectGarbage(i::AllocationSpace space) {
+    i_isolate()->heap()->CollectGarbage(space,
+                                        i::GarbageCollectionReason::kTesting);
+  }
+
+  void CollectAllGarbage() {
+    i_isolate()->heap()->CollectAllGarbage(
+        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+  }
+
+  void CollectAllAvailableGarbage() {
+    i_isolate()->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kTesting);
+  }
+
+  void PreciseCollectAllGarbage() {
+    i_isolate()->heap()->PreciseCollectAllGarbage(
+        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+  }
+
+  v8::Local<v8::String> NewString(const char* string) {
+    return v8::String::NewFromUtf8(this->v8_isolate(), string).ToLocalChecked();
+  }
+
  private:
+  Local<Value> RunJS(Local<String> source) {
+    auto context = this->v8_isolate()->GetCurrentContext();
+    Local<Script> script =
+        v8::Script::Compile(context, source).ToLocalChecked();
+    return script->Run(context).ToLocalChecked();
+  }
+
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope handle_scope_;
 };
@@ -117,35 +158,14 @@ class WithContextMixin : public TMixin {
   const Local<Context>& context() const { return v8_context(); }
   const Local<Context>& v8_context() const { return context_; }
 
-  Local<Value> RunJS(const char* source) {
-    return RunJS(
-        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
-  }
-
-  Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
-    return RunJS(v8::String::NewExternalOneByte(this->v8_isolate(), source)
-                     .ToLocalChecked());
-  }
-
-  v8::Local<v8::String> NewString(const char* string) {
-    return v8::String::NewFromUtf8(this->v8_isolate(), string).ToLocalChecked();
-  }
-
   void SetGlobalProperty(const char* name, v8::Local<v8::Value> value) {
     CHECK(v8_context()
               ->Global()
-              ->Set(v8_context(), NewString(name), value)
+              ->Set(v8_context(), TMixin::NewString(name), value)
               .FromJust());
   }
 
  private:
-  Local<Value> RunJS(Local<String> source) {
-    auto context = this->v8_isolate()->GetCurrentContext();
-    Local<Script> script =
-        v8::Script::Compile(context, source).ToLocalChecked();
-    return script->Run(context).ToLocalChecked();
-  }
-
   v8::Local<v8::Context> context_;
   v8::Context::Scope context_scope_;
 };
