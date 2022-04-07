@@ -22,9 +22,9 @@ constexpr bool ShouldPadArguments(int argument_count) {
 #ifdef DEBUG
 template <typename... RegTypes,
           // All arguments must be either Register or DoubleRegister.
-          typename = typename std::enable_if<
-              base::is_same<Register, RegTypes...>::value ||
-              base::is_same<DoubleRegister, RegTypes...>::value>::type>
+          typename = typename std::enable_if_t<
+              std::conjunction_v<std::is_same<Register, RegTypes>...> ||
+              std::conjunction_v<std::is_same<DoubleRegister, RegTypes>...>>>
 inline constexpr bool AreAliased(RegTypes... regs) {
   int num_different_regs = RegListBase{regs...}.Count();
   int num_given_regs = (... + (regs.is_valid() ? 1 : 0));
