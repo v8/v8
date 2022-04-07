@@ -3363,7 +3363,7 @@ MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
 
   // -- Alright, decided to proceed. --
 
-  // Disarm all back edges, i.e. reset the OSR urgency.
+  // Disarm all back edges, i.e. reset the OSR urgency and install target.
   //
   // Note that the bytecode array active on the stack might be different from
   // the one installed on the function (e.g. patched by debugger). This however
@@ -3371,7 +3371,7 @@ MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
   // BytecodeOffset representing the entry point will be valid for any copy of
   // the bytecode.
   Handle<BytecodeArray> bytecode(frame->GetBytecodeArray(), isolate);
-  bytecode->reset_osr_urgency();
+  bytecode->reset_osr_urgency_and_install_target();
 
   CompilerTracer::TraceOptimizeOSR(isolate, function, osr_offset, mode);
   MaybeHandle<CodeT> result = GetOrCompileOptimized(
@@ -3435,9 +3435,12 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
         OptimizedCodeCache::Insert(compilation_info);
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
         if (IsOSR(osr_offset)) {
-          // TODO(jgruber): Implement a targeted install request for the
-          // specific osr_offset.
-          shared->GetBytecodeArray(isolate).RequestOsrAtNextOpportunity();
+          if (FLAG_trace_osr) {
+            PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
+                   "[OSR - requesting install. function: %s, osr offset: %d]\n",
+                   function->DebugNameCStr().get(), osr_offset.ToInt());
+          }
+          shared->GetBytecodeArray(isolate).set_osr_install_target(osr_offset);
         } else {
           function->set_code(*compilation_info->code(), kReleaseStore);
         }

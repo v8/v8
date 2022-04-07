@@ -1188,13 +1188,14 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
 }
 
 int BytecodeArray::osr_urgency() const {
-  return ACQUIRE_READ_INT8_FIELD(*this, kOsrUrgencyOffset);
+  return OsrUrgencyBits::decode(osr_urgency_and_install_target());
 }
 
 void BytecodeArray::set_osr_urgency(int urgency) {
   DCHECK(0 <= urgency && urgency <= BytecodeArray::kMaxOsrUrgency);
-  STATIC_ASSERT(BytecodeArray::kMaxOsrUrgency < kMaxInt8);
-  RELEASE_WRITE_INT8_FIELD(*this, kOsrUrgencyOffset, urgency);
+  STATIC_ASSERT(BytecodeArray::kMaxOsrUrgency <= OsrUrgencyBits::kMax);
+  uint32_t value = osr_urgency_and_install_target();
+  set_osr_urgency_and_install_target(OsrUrgencyBits::update(value, urgency));
 }
 
 BytecodeArray::Age BytecodeArray::bytecode_age() const {
@@ -1206,6 +1207,27 @@ void BytecodeArray::reset_osr_urgency() { set_osr_urgency(0); }
 
 void BytecodeArray::RequestOsrAtNextOpportunity() {
   set_osr_urgency(kMaxOsrUrgency);
+}
+
+int BytecodeArray::osr_install_target() {
+  return OsrInstallTargetBits::decode(osr_urgency_and_install_target());
+}
+
+void BytecodeArray::set_osr_install_target(BytecodeOffset jump_loop_offset) {
+  DCHECK_LE(jump_loop_offset.ToInt(), length());
+  set_osr_urgency_and_install_target(OsrInstallTargetBits::update(
+      osr_urgency_and_install_target(), OsrInstallTargetFor(jump_loop_offset)));
+}
+
+void BytecodeArray::reset_osr_install_target() {
+  uint32_t value = osr_urgency_and_install_target();
+  set_osr_urgency_and_install_target(
+      OsrInstallTargetBits::update(value, kNoOsrInstallTarget));
+}
+
+void BytecodeArray::reset_osr_urgency_and_install_target() {
+  set_osr_urgency_and_install_target(OsrUrgencyBits::encode(0) |
+                                     OsrInstallTargetBits::encode(0));
 }
 
 void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
