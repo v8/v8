@@ -1255,6 +1255,23 @@ bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
   return false;
 }
 
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  if (COMPRESS_POINTERS_BOOL) {
+    DCHECK(SmiValuesAre31Bits());
+    Register scratch = temps.Acquire();
+    LoadS32(scratch, MemOperand(dst.gp(), offset), r0);
+    AddS64(scratch, scratch, Operand(Smi::FromInt(1)));
+    StoreU32(scratch, MemOperand(dst.gp(), offset), r0);
+  } else {
+    Register scratch = temps.Acquire();
+    SmiUntag(scratch, MemOperand(dst.gp(), offset), LeaveRC, r0);
+    AddS64(scratch, scratch, Operand(1));
+    SmiTag(scratch);
+    StoreU64(scratch, MemOperand(dst.gp(), offset), r0);
+  }
+}
+
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {

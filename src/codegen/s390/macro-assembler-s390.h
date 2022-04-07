@@ -1054,6 +1054,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     SmiUntag(smi);
   }
 
+  // Shift left by kSmiShift
+  void SmiTag(Register reg) { SmiTag(reg, reg); }
+  void SmiTag(Register dst, Register src) {
+    ShiftLeftU64(dst, src, Operand(kSmiShift));
+  }
+
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
@@ -1681,12 +1687,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Smi utilities
-
-  // Shift left by kSmiShift
-  void SmiTag(Register reg) { SmiTag(reg, reg); }
-  void SmiTag(Register dst, Register src) {
-    ShiftLeftU64(dst, src, Operand(kSmiShift));
-  }
 
   // Jump if either of the registers contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
