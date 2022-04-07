@@ -135,7 +135,6 @@ void V8::Initialize() {
   // Update logging information before enforcing flag implications.
   bool* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
                            &FLAG_log_all,
-                           &FLAG_log_api,
                            &FLAG_log_code,
                            &FLAG_log_code_disassemble,
                            &FLAG_log_source_code,

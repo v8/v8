@@ -183,7 +183,7 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object,
                        std::vector<Local<Value>>* names_out,
                        std::vector<Local<Value>>* values_out) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  LOG_API(isolate, debug, GetPrivateMembers);
+  API_RCS_SCOPE(isolate, debug, GetPrivateMembers);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::JSReceiver> receiver = Utils::OpenHandle(*object);
   i::Handle<i::JSArray> names;

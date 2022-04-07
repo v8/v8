@@ -5,7 +5,6 @@
 import {Script, SourcePosition} from '../profile.mjs';
 
 import {State} from './app-model.mjs';
-import {ApiLogEntry} from './log/api.mjs';
 import {CodeLogEntry} from './log/code.mjs';
 import {DeoptLogEntry} from './log/code.mjs';
 import {SharedLibLogEntry} from './log/code.mjs';
@@ -34,14 +33,12 @@ class App {
       icTrack: $('#ic-track'),
       deoptTrack: $('#deopt-track'),
       codeTrack: $('#code-track'),
-      apiTrack: $('#api-track'),
       timerTrack: $('#timer-track'),
 
       icList: $('#ic-list'),
       mapList: $('#map-list'),
       codeList: $('#code-list'),
       deoptList: $('#deopt-list'),
-      apiList: $('#api-list'),
 
       mapPanel: $('#map-panel'),
       codePanel: $('#code-panel'),
@@ -64,7 +61,6 @@ class App {
       SourcePosition,
       MapLogEntry,
       IcLogEntry,
-      ApiLogEntry,
       CodeLogEntry,
       DeoptLogEntry,
       SharedLibLogEntry,
@@ -125,7 +121,6 @@ class App {
         entries = entry.entries.concat(entry.sourcePositions);
         break;
       case TimerLogEntry:
-      case ApiLogEntry:
       case CodeLogEntry:
       case TickLogEntry:
       case SharedLibLogEntry:
@@ -175,8 +170,6 @@ class App {
         return this.showMapEntries(entries, focusView);
       case IcLogEntry:
         return this.showIcEntries(entries, focusView);
-      case ApiLogEntry:
-        return this.showApiEntries(entries, focusView);
       case CodeLogEntry:
         return this.showCodeEntries(entries, focusView);
       case DeoptLogEntry:
@@ -215,11 +208,6 @@ class App {
     if (focusView) this._view.codePanel.show();
   }
 
-  showApiEntries(entries, focusView = true) {
-    this._view.apiList.selectedLogEntries = entries;
-    if (focusView) this._view.apiList.show();
-  }
-
   showTickEntries(entries, focusView = true) {}
   showTimerEntries(entries, focusView = true) {}
 
@@ -239,7 +227,6 @@ class App {
     this.showIcEntries(this._state.icTimeline.selectionOrSelf, false);
     this.showDeoptEntries(this._state.deoptTimeline.selectionOrSelf, false);
     this.showCodeEntries(this._state.codeTimeline.selectionOrSelf, false);
-    this.showApiEntries(this._state.apiTimeline.selectionOrSelf, false);
     this.showTickEntries(this._state.tickTimeline.selectionOrSelf, false);
     this.showTimerEntries(this._state.timerTimeline.selectionOrSelf, false);
     this._view.timelinePanel.timeSelection = {start, end, focus, zoom};
@@ -260,8 +247,6 @@ class App {
         return this.focusMapLogEntry(entry);
       case IcLogEntry:
         return this.focusIcLogEntry(entry);
-      case ApiLogEntry:
-        return this.focusApiLogEntry(entry);
       case CodeLogEntry:
         return this.focusCodeLogEntry(entry);
       case DeoptLogEntry:
@@ -310,12 +295,6 @@ class App {
 
   focusSharedLibLogEntry(entry) {
     // no-op.
-  }
-
-  focusApiLogEntry(entry) {
-    this._state.apiLogEntry = entry;
-    this._view.apiTrack.focusedEntry = entry;
-    this.focusSourcePosition(entry.sourcePosition);
   }
 
   focusTickLogEntry(entry) {
@@ -380,18 +359,16 @@ class App {
       const icTimeline = processor.icTimeline;
       const deoptTimeline = processor.deoptTimeline;
       const codeTimeline = processor.codeTimeline;
-      const apiTimeline = processor.apiTimeline;
       const tickTimeline = processor.tickTimeline;
       const timerTimeline = processor.timerTimeline;
       this._state.setTimelines(
-          mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline,
-          tickTimeline, timerTimeline);
+          mapTimeline, icTimeline, deoptTimeline, codeTimeline, tickTimeline,
+          timerTimeline);
       this._view.mapPanel.timeline = mapTimeline;
       this._view.icList.timeline = icTimeline;
       this._view.mapList.timeline = mapTimeline;
       this._view.deoptList.timeline = deoptTimeline;
       this._view.codeList.timeline = codeTimeline;
-      this._view.apiList.timeline = apiTimeline;
       this._view.scriptPanel.scripts = processor.scripts;
       this._view.codePanel.timeline = codeTimeline;
       this._view.codePanel.timeline = codeTimeline;
@@ -410,7 +387,6 @@ class App {
     this._view.icTrack.data = this._state.icTimeline;
     this._view.deoptTrack.data = this._state.deoptTimeline;
     this._view.codeTrack.data = this._state.codeTimeline;
-    this._view.apiTrack.data = this._state.apiTimeline;
     this._view.tickTrack.data = this._state.tickTimeline;
     this._view.timerTrack.data = this._state.timerTimeline;
   }

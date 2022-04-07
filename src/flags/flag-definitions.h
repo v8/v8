@@ -2009,7 +2009,6 @@ DEFINE_BOOL(log, false,
             "Minimal logging (no API, code, GC, suspect, or handles samples).")
 DEFINE_BOOL(log_all, false, "Log all events to the log file.")
 
-DEFINE_BOOL(log_api, false, "Log API events to the log file.")
 DEFINE_BOOL(log_code, false,
             "Log code events to the log file without profiling.")
 DEFINE_BOOL(log_code_disassemble, false,

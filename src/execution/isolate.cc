@@ -1528,8 +1528,6 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
     data = handle(access_check_info.data(), this);
   }
 
-  LOG(this, ApiSecurityCheck());
-
   {
     // Leaving JavaScript.
     VMState<EXTERNAL> state(this);

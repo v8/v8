@@ -6,7 +6,6 @@ import {LogReader, parseString, parseVarArgs} from '../logreader.mjs';
 import {Profile} from '../profile.mjs';
 import {RemoteLinuxCppEntriesProvider, RemoteMacOSCppEntriesProvider} from '../tickprocessor.mjs'
 
-import {ApiLogEntry} from './log/api.mjs';
 import {CodeLogEntry, DeoptLogEntry, FeedbackVectorEntry, SharedLibLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
@@ -49,7 +48,6 @@ class AsyncConsumer {
 
 export class Processor extends LogReader {
   _profile = new Profile();
-  _apiTimeline = new Timeline();
   _codeTimeline = new Timeline();
   _deoptTimeline = new Timeline();
   _icTimeline = new Timeline();
@@ -580,19 +578,7 @@ export class Processor extends LogReader {
   }
 
   processApiEvent(type, varArgs) {
-    let name, arg1;
-    if (varArgs.length == 0) {
-      const index = type.indexOf(':');
-      if (index > 0) {
-        name = type;
-        type = type.substr(0, index);
-      }
-    } else {
-      name = varArgs[0];
-      arg1 = varArgs[1];
-    }
-    this._apiTimeline.push(
-        new ApiLogEntry(type, this._lastTimestamp, name, arg1));
+    // legacy events that are no longer supported
   }
 
   processTimerEventStart(type, time) {
@@ -627,10 +613,6 @@ export class Processor extends LogReader {
 
   get codeTimeline() {
     return this._codeTimeline;
-  }
-
-  get apiTimeline() {
-    return this._apiTimeline;
   }
 
   get tickTimeline() {
