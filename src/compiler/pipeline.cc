@@ -1622,7 +1622,7 @@ struct WasmInliningPhase {
   void Run(PipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
            uint32_t function_index, const wasm::WireBytesStorage* wire_bytes,
            std::vector<compiler::WasmLoopInfo>* loop_info) {
-    if (WasmInliner::any_inlining_impossible(data->graph()->NodeCount())) {
+    if (!WasmInliner::graph_size_allows_inlining(data->graph()->NodeCount())) {
       return;
     }
     GraphReducer graph_reducer(
@@ -1630,9 +1630,11 @@ struct WasmInliningPhase {
         data->jsgraph()->Dead(), data->observe_node_manager());
     DeadCodeElimination dead(&graph_reducer, data->graph(), data->common(),
                              temp_zone);
+    std::unique_ptr<char[]> debug_name = data->info()->GetDebugName();
     WasmInliner inliner(&graph_reducer, env, function_index,
                         data->source_positions(), data->node_origins(),
-                        data->mcgraph(), wire_bytes, loop_info);
+                        data->mcgraph(), wire_bytes, loop_info,
+                        debug_name.get());
     AddReducer(data, &graph_reducer, &dead);
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
