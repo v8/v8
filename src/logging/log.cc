@@ -1915,6 +1915,8 @@ void Logger::LogCompiledFunctions() {
   existing_code_logger_.LogCompiledFunctions();
 }
 
+void Logger::LogBuiltins() { existing_code_logger_.LogBuiltins(); }
+
 void Logger::LogAccessorCallbacks() {
   Heap* heap = isolate_->heap();
   HeapObjectIterator iterator(heap);
@@ -2066,6 +2068,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
     if (options & kJitCodeEventEnumExisting) {
       HandleScope scope(isolate_);
       LogCodeObjects();
+      LogBuiltins();
       LogCompiledFunctions();
     }
   }
@@ -2138,8 +2141,6 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
     case CodeKind::BASELINE:
     case CodeKind::MAGLEV:
       return;  // We log this later using LogCompiledFunctions.
-    case CodeKind::BYTECODE_HANDLER:
-      return;  // We log it later by walking the dispatch table.
     case CodeKind::FOR_TESTING:
       description = "STUB code";
       tag = CodeEventListener::STUB_TAG;
@@ -2147,6 +2148,11 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
     case CodeKind::REGEXP:
       description = "Regular expression code";
       tag = CodeEventListener::REG_EXP_TAG;
+      break;
+    case CodeKind::BYTECODE_HANDLER:
+      description =
+          isolate_->builtins()->name(abstract_code->GetCode().builtin_id());
+      tag = CodeEventListener::BYTECODE_HANDLER_TAG;
       break;
     case CodeKind::BUILTIN:
       if (Code::cast(object).is_interpreter_trampoline_builtin() &&
@@ -2194,6 +2200,16 @@ void ExistingCodeLogger::LogCodeObjects() {
        obj = iterator.Next()) {
     if (obj.IsCode()) LogCodeObject(obj);
     if (obj.IsBytecodeArray()) LogCodeObject(obj);
+  }
+}
+
+void ExistingCodeLogger::LogBuiltins() {
+  Builtins* builtins = isolate_->builtins();
+  DCHECK(builtins->is_initialized());
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    Code code = FromCodeT(builtins->code(builtin));
+    LogCodeObject(code);
   }
 }
 

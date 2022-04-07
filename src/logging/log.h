@@ -88,6 +88,7 @@ class ExistingCodeLogger {
       : isolate_(isolate), listener_(listener) {}
 
   void LogCodeObjects();
+  void LogBuiltins();
 
   void LogCompiledFunctions();
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
@@ -296,6 +297,7 @@ class Logger : public CodeEventListener {
   V8_EXPORT_PRIVATE void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
   V8_EXPORT_PRIVATE void LogCodeObjects();
+  V8_EXPORT_PRIVATE void LogBuiltins();
   // Logs all Maps found on the heap.
   void LogAllMaps();
 
