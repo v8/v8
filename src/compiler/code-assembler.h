@@ -1570,7 +1570,7 @@ class CodeAssemblerParameterizedLabel
             {PhiMachineRepresentationOf<Types>...});
     auto it = phi_nodes.begin();
     USE(it);
-    ITERATE_PACK(AssignPhi(results, *(it++)));
+    (AssignPhi(results, *(it++)), ...);
   }
   template <class T>
   static void AssignPhi(TNode<T>* result, Node* phi) {
