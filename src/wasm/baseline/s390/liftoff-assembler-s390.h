@@ -409,9 +409,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kS128Load:
       if (is_load_mem) {
-        LoadV128LE(dst.fp(), src_op, r0, r1);
+        LoadV128LE(dst.fp(), src_op, r1, r0);
       } else {
-        LoadV128(dst.fp(), src_op, r0);
+        LoadV128(dst.fp(), src_op, r1);
       }
       break;
     default:
@@ -478,7 +478,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kS128Store: {
       if (is_store_mem) {
-        StoreV128LE(src.fp(), dst_op, r0, r1);
+        StoreV128LE(src.fp(), dst_op, r1, r0);
       } else {
         StoreV128(src.fp(), dst_op, r1);
       }
@@ -2912,11 +2912,11 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   MultiPush(regs.GetGpList());
-  MultiPushF64OrV128(regs.GetFpList());
+  MultiPushF64OrV128(regs.GetFpList(), ip);
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  MultiPopF64OrV128(regs.GetFpList());
+  MultiPopF64OrV128(regs.GetFpList(), ip);
   MultiPop(regs.GetGpList());
 }
 

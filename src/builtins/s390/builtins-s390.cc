@@ -2910,7 +2910,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
              fp_regs.Count());
 
     __ MultiPush(gp_regs);
-    __ MultiPushF64OrV128(fp_regs);
+    __ MultiPushF64OrV128(fp_regs, ip);
 
     // Pass instance and function index as explicit arguments to the runtime
     // function.
@@ -2923,7 +2923,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ mov(ip, r2);
 
     // Restore registers.
-    __ MultiPopF64OrV128(fp_regs);
+    __ MultiPopF64OrV128(fp_regs, ip);
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.
@@ -2938,7 +2938,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
-    __ MultiPushF64OrV128(WasmDebugBreakFrameConstants::kPushedFpRegs);
+    __ MultiPushF64OrV128(WasmDebugBreakFrameConstants::kPushedFpRegs, ip);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -2946,7 +2946,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmDebugBreak, 0);
 
     // Restore registers.
-    __ MultiPopF64OrV128(WasmDebugBreakFrameConstants::kPushedFpRegs);
+    __ MultiPopF64OrV128(WasmDebugBreakFrameConstants::kPushedFpRegs, ip);
     __ MultiPop(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();
