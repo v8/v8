@@ -1142,7 +1142,7 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
 // return_val, return_type)
 #define BINOP_LIST(V)                                                          \
   V(f32_copysign, CopySignF64, DoubleRegister, DoubleRegister, DoubleRegister, \
-    , , , ROUND_F64_TO_F32, , void)                                            \
+    , , , USE, , void)                                                         \
   V(f64_copysign, CopySignF64, DoubleRegister, DoubleRegister, DoubleRegister, \
     , , , USE, , void)                                                         \
   V(f32_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
