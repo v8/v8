@@ -314,6 +314,16 @@ inline void PrintTo(Smi o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
 
+// ManualGCScope allows for disabling GC heuristics. This is useful for tests
+// that want to check specific corner cases around GC.
+//
+// The scope will finalize any ongoing GC on the provided Isolate.
+class V8_NODISCARD ManualGCScope final : private SaveFlags {
+ public:
+  explicit ManualGCScope(i::Isolate* isolate);
+  ~ManualGCScope() = default;
+};
+
 }  // namespace internal
 }  // namespace v8
 
