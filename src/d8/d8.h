@@ -500,8 +500,8 @@ class Shell : public i::AllStatic {
   static void ReportException(Isolate* isolate, Local<Message> message,
                               Local<Value> exception);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
-  static Local<String> ReadFile(Isolate* isolate, const char* name,
-                                bool should_throw = true);
+  static MaybeLocal<String> ReadFile(Isolate* isolate, const char* name,
+                                     bool should_throw = true);
   static Local<String> WasmLoadSourceMapCallback(Isolate* isolate,
                                                  const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);

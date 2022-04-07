@@ -1022,7 +1022,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
                                           ModuleType module_type) {
   DCHECK(IsAbsolutePath(file_name));
   Isolate* isolate = context->GetIsolate();
-  Local<String> source_text = ReadFile(isolate, file_name.c_str(), false);
+  MaybeLocal<String> source_text = ReadFile(isolate, file_name.c_str(), false);
   if (source_text.IsEmpty() && options.fuzzy_module_file_extensions) {
     std::string fallback_file_name = file_name + ".js";
     source_text = ReadFile(isolate, fallback_file_name.c_str(), false);
@@ -1053,14 +1053,16 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
 
   Local<Module> module;
   if (module_type == ModuleType::kJavaScript) {
-    ScriptCompiler::Source source(source_text, origin);
-    if (!CompileString<Module>(isolate, context, source_text, origin)
+    ScriptCompiler::Source source(source_text.ToLocalChecked(), origin);
+    if (!CompileString<Module>(isolate, context, source_text.ToLocalChecked(),
+                               origin)
              .ToLocal(&module)) {
       return MaybeLocal<Module>();
     }
   } else if (module_type == ModuleType::kJSON) {
     Local<Value> parsed_json;
-    if (!v8::JSON::Parse(context, source_text).ToLocal(&parsed_json)) {
+    if (!v8::JSON::Parse(context, source_text.ToLocalChecked())
+             .ToLocal(&parsed_json)) {
       return MaybeLocal<Module>();
     }
 
@@ -2302,8 +2304,8 @@ void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
       return;
     }
   }
-  Local<String> source = ReadFile(args.GetIsolate(), *file_name);
-  if (source.IsEmpty()) return;
+  Local<String> source;
+  if (!ReadFile(args.GetIsolate(), *file_name).ToLocal(&source)) return;
   args.GetReturnValue().Set(source);
 }
 
@@ -2356,8 +2358,8 @@ void Shell::ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
           String::NewFromUtf8(isolate, oss.str().c_str()).ToLocalChecked());
       return;
     }
-    Local<String> source = ReadFile(isolate, *file_name);
-    if (source.IsEmpty()) return;
+    Local<String> source;
+    if (!ReadFile(isolate, *file_name).ToLocal(&source)) return;
     if (!ExecuteString(
             args.GetIsolate(), source,
             String::NewFromUtf8(isolate, *file_name).ToLocalChecked(),
@@ -2497,8 +2499,9 @@ MaybeLocal<String> Shell::ReadSource(
         return MaybeLocal<String>();
       }
       String::Utf8Value filename(isolate, args[index]);
-      source = Shell::ReadFile(isolate, *filename);
-      if (source.IsEmpty()) return MaybeLocal<String>();
+      if (!Shell::ReadFile(isolate, *filename).ToLocal(&source)) {
+        return MaybeLocal<String>();
+      };
       break;
     }
     case CodeType::kString:
@@ -3270,7 +3273,7 @@ void Shell::Initialize(Isolate* isolate, D8Console* console,
 
 Local<String> Shell::WasmLoadSourceMapCallback(Isolate* isolate,
                                                const char* path) {
-  return Shell::ReadFile(isolate, path, false);
+  return Shell::ReadFile(isolate, path, false).ToLocalChecked();
 }
 
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
@@ -3650,33 +3653,31 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 // Reads a file into a v8 string.
-Local<String> Shell::ReadFile(Isolate* isolate, const char* name,
-                              bool should_throw) {
+MaybeLocal<String> Shell::ReadFile(Isolate* isolate, const char* name,
+                                   bool should_throw) {
   std::unique_ptr<base::OS::MemoryMappedFile> file(
       base::OS::MemoryMappedFile::open(
           name, base::OS::MemoryMappedFile::FileMode::kReadOnly));
   if (!file) {
     if (should_throw) {
       std::ostringstream oss;
-      oss << "Error loading file: \"" << name << '"';
+      oss << "Error loading file: " << name;
       isolate->ThrowError(
-          v8::String::NewFromUtf8(isolate, oss.str().c_str()).ToLocalChecked());
+          v8::String::NewFromUtf8(
+              isolate, oss.str().substr(0, String::kMaxLength).c_str())
+              .ToLocalChecked());
     }
-    return Local<String>();
+    return MaybeLocal<String>();
   }
 
   int size = static_cast<int>(file->size());
   char* chars = static_cast<char*>(file->memory());
-  Local<String> result;
   if (i::FLAG_use_external_strings && i::String::IsAscii(chars, size)) {
     String::ExternalOneByteStringResource* resource =
         new ExternalOwningOneByteStringResource(std::move(file));
-    result = String::NewExternalOneByte(isolate, resource).ToLocalChecked();
-  } else {
-    result = String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size)
-                 .ToLocalChecked();
+    return String::NewExternalOneByte(isolate, resource);
   }
-  return result;
+  return String::NewFromUtf8(isolate, chars, NewStringType::kNormal, size);
 }
 
 void Shell::WriteChars(const char* name, uint8_t* buffer, size_t buffer_size) {
@@ -3970,8 +3971,8 @@ bool SourceGroup::Execute(Isolate* isolate) {
     HandleScope handle_scope(isolate);
     Local<String> file_name =
         String::NewFromUtf8(isolate, arg).ToLocalChecked();
-    Local<String> source = Shell::ReadFile(isolate, arg);
-    if (source.IsEmpty()) {
+    Local<String> source;
+    if (!Shell::ReadFile(isolate, arg).ToLocal(&source)) {
       printf("Error reading '%s'\n", arg);
       base::OS::ExitProcess(1);
     }
