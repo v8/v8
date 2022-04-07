@@ -4339,6 +4339,41 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
+#if V8_TARGET_OS_WIN
+// Enable support for unicode filename path on windows.
+// We first convert ansi encoded argv[i] to utf16 encoded, and then
+// convert utf16 encoded to utf8 encoded with setting the argv[i]
+// to the utf8 encoded arg. We allocate memory for the utf8 encoded
+// arg, and we will free it and reset it to nullptr after using
+// the filename path arg. And because Execute may be called multiple
+// times, we need to free the allocated unicode filename when exit.
+
+// Save the allocated utf8 filenames, and we will free them when exit.
+std::vector<char*> utf8_filenames;
+#include <shellapi.h>
+// Convert utf-16 encoded string to utf-8 encoded.
+char* ConvertUtf16StringToUtf8(const wchar_t* str) {
+  // On Windows wchar_t must be a 16-bit value.
+  static_assert(sizeof(wchar_t) == 2, "wrong wchar_t size");
+  int len =
+      WideCharToMultiByte(CP_UTF8, 0, str, -1, nullptr, 0, nullptr, FALSE);
+  DCHECK_LT(0, len);
+  char* utf8_str = new char[len];
+  utf8_filenames.push_back(utf8_str);
+  WideCharToMultiByte(CP_UTF8, 0, str, -1, utf8_str, len, nullptr, FALSE);
+  return utf8_str;
+}
+
+// Convert ansi encoded argv[i] to utf8 encoded.
+void PreProcessUnicodeFilenameArg(char* argv[], int i) {
+  int argc;
+  wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  argv[i] = ConvertUtf16StringToUtf8(wargv[i]);
+  LocalFree(wargv);
+}
+
+#endif
+
 bool Shell::SetOptions(int argc, char* argv[]) {
   bool logfile_per_isolate = false;
   bool no_always_opt = false;
@@ -4565,6 +4600,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--expose-fast-api") == 0) {
       options.expose_fast_api = true;
       argv[i] = nullptr;
+    } else {
+#ifdef V8_TARGET_OS_WIN
+      PreProcessUnicodeFilenameArg(argv, i);
+#endif
     }
   }
 
@@ -5549,6 +5588,16 @@ int Shell::Main(int argc, char* argv[]) {
     tracing_controller->StopTracing();
   }
   g_platform.reset();
+
+#ifdef V8_TARGET_OS_WIN
+  // We need to free the allocated utf8 filenames in
+  // PreProcessUnicodeFilenameArg.
+  for (char* utf8_str : utf8_filenames) {
+    delete[] utf8_str;
+  }
+  utf8_filenames.clear();
+#endif
+
   return result;
 }
 
