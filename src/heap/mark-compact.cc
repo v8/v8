@@ -43,6 +43,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/safepoint.h"
+#include "src/heap/slot-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/weak-object-worklists.h"
@@ -3223,7 +3224,6 @@ static inline SlotCallbackResult UpdateSlot(PtrComprCageBase cage_base,
   } else {
     DCHECK(MarkCompactCollector::IsMapOrForwardedMap(map_word.ToMap()));
   }
-  // OLD_TO_OLD slots are always removed after updating.
   return REMOVE_SLOT;
 }
 
@@ -4399,10 +4399,14 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
           [&filter, cage_base](MaybeObjectSlot slot) {
-            if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-            return UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+            if (filter.IsValid(slot.address())) {
+              UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+            }
+            // Always keep slot since all slots are dropped at once after
+            // iteration.
+            return KEEP_SLOT;
           },
-          SlotSet::FREE_EMPTY_BUCKETS);
+          SlotSet::KEEP_EMPTY_BUCKETS);
       chunk_->ReleaseSlotSet<OLD_TO_OLD>();
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
@@ -4463,11 +4467,14 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         // Using UpdateStrongSlot is OK here, because there are no weak
         // typed slots.
         PtrComprCageBase cage_base = heap_->isolate();
-        return UpdateTypedSlotHelper::UpdateTypedSlot(
+        UpdateTypedSlotHelper::UpdateTypedSlot(
             heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
               return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
             });
+        // Always keep slot since all slots are dropped at once after iteration.
+        return KEEP_SLOT;
       });
+      chunk_->ReleaseTypedSlotSet<OLD_TO_OLD>();
     }
   }
 
