@@ -491,7 +491,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 class BytecodeOffset {
  public:
   explicit constexpr BytecodeOffset(int id) : id_(id) {}
-  constexpr int ToInt() const { return id_; }
+  int ToInt() const { return id_; }
 
   static constexpr BytecodeOffset None() { return BytecodeOffset(kNoneId); }
 

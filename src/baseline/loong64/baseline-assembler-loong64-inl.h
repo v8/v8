@@ -346,8 +346,8 @@ void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   __ Ld_d(output, FieldMemOperand(source, offset));
 }
-void BaselineAssembler::LoadWord8Field(Register output, Register source,
-                                       int offset) {
+void BaselineAssembler::LoadByteField(Register output, Register source,
+                                      int offset) {
   __ Ld_b(output, FieldMemOperand(source, offset));
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,

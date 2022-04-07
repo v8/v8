@@ -1086,20 +1086,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Word32T> Word32Shr(TNode<Word32T> value, int shift);
   TNode<Word32T> Word32Sar(TNode<Word32T> value, int shift);
 
-  // Convenience overloads.
-  TNode<Int32T> Int32Sub(TNode<Int32T> left, int right) {
-    return Int32Sub(left, Int32Constant(right));
-  }
-  TNode<Word32T> Word32And(TNode<Word32T> left, int right) {
-    return Word32And(left, Int32Constant(right));
-  }
-  TNode<Int32T> Word32Shl(TNode<Int32T> left, int right) {
-    return Word32Shl(left, Int32Constant(right));
-  }
-  TNode<BoolT> Word32Equal(TNode<Word32T> left, int right) {
-    return Word32Equal(left, Int32Constant(right));
-  }
-
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
   TNode<ResType> name(TNode<ArgType> a);

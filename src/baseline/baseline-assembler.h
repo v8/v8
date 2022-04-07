@@ -79,9 +79,6 @@ class BaselineAssembler {
                         Label::Distance distance = Label::kFar);
   inline void JumpIfSmi(Condition cc, Register lhs, Register rhs, Label* target,
                         Label::Distance distance = Label::kFar);
-  inline void JumpIfImmediate(Condition cc, Register left, int right,
-                              Label* target,
-                              Label::Distance distance = Label::kFar);
   inline void JumpIfTagged(Condition cc, Register value, MemOperand operand,
                            Label* target,
                            Label::Distance distance = Label::kFar);
@@ -155,9 +152,7 @@ class BaselineAssembler {
   inline void LoadTaggedSignedField(Register output, Register source,
                                     int offset);
   inline void LoadTaggedAnyField(Register output, Register source, int offset);
-  inline void LoadWord16FieldZeroExtend(Register output, Register source,
-                                        int offset);
-  inline void LoadWord8Field(Register output, Register source, int offset);
+  inline void LoadByteField(Register output, Register source, int offset);
   inline void StoreTaggedSignedField(Register target, int offset, Smi value);
   inline void StoreTaggedFieldWithWriteBarrier(Register target, int offset,
                                                Register value);
@@ -177,8 +172,6 @@ class BaselineAssembler {
   inline void AddSmi(Register lhs, Smi rhs);
   inline void SmiUntag(Register value);
   inline void SmiUntag(Register output, Register value);
-
-  inline void Word32And(Register output, Register lhs, int rhs);
 
   inline void Switch(Register reg, int case_value_base, Label** labels,
                      int num_labels);
