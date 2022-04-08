@@ -1810,6 +1810,17 @@ Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
   suspender->set_continuation(ReadOnlyRoots(isolate).undefined_value());
   suspender->set_parent(ReadOnlyRoots(isolate).undefined_value());
   suspender->set_state(Inactive);
+  // Instantiate the callable object which resumes this Suspender. This will be
+  // used implicitly as the onFulfilled callback of the returned JS promise.
+  Handle<WasmOnFulfilledData> function_data =
+      isolate->factory()->NewWasmOnFulfilledData(suspender);
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForWasmOnFulfilled(
+          function_data);
+  Handle<Context> context(isolate->native_context());
+  Handle<JSObject> resume =
+      Factory::JSFunctionBuilder{isolate, shared, context}.Build();
+  suspender->set_resume(*resume);
   return suspender;
 }
 

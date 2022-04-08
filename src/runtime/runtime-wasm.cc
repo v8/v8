@@ -791,20 +791,7 @@ RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
   Handle<Object> promise = args.at(0);
   Handle<WasmSuspenderObject> suspender = args.at<WasmSuspenderObject>(1);
 
-  // Instantiate onFulfilled callback.
-  Handle<WasmOnFulfilledData> function_data =
-      isolate->factory()->NewWasmOnFulfilledData(suspender);
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForWasmOnFulfilled(
-          function_data);
-  Handle<Context> context(isolate->native_context());
-  Handle<Map> function_map = isolate->strict_function_map();
-  Handle<JSObject> on_fulfilled =
-      Factory::JSFunctionBuilder{isolate, shared, context}
-          .set_map(function_map)
-          .Build();
-
-  i::Handle<i::Object> argv[] = {on_fulfilled};
+  i::Handle<i::Object> argv[] = {handle(suspender->resume(), isolate)};
   i::Handle<i::Object> result;
   bool has_pending_exception =
       !i::Execution::CallBuiltin(isolate, isolate->promise_then(), promise,
