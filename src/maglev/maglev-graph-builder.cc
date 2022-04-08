@@ -73,8 +73,6 @@ MaglevGraphBuilder::MaglevGraphBuilder(MaglevCompilationUnit* compilation_unit)
   interpreter::Register new_target_or_generator_register =
       bytecode().incoming_new_target_or_generator_register();
 
-  const compiler::BytecodeLivenessState* liveness =
-      bytecode_analysis().GetInLivenessFor(0);
   int register_index = 0;
   // TODO(leszeks): Don't emit if not needed.
   ValueNode* undefined_value =
@@ -82,19 +80,16 @@ MaglevGraphBuilder::MaglevGraphBuilder(MaglevCompilationUnit* compilation_unit)
   if (new_target_or_generator_register.is_valid()) {
     int new_target_index = new_target_or_generator_register.index();
     for (; register_index < new_target_index; register_index++) {
-      StoreRegister(interpreter::Register(register_index), undefined_value,
-                    liveness);
+      StoreRegister(interpreter::Register(register_index), undefined_value);
     }
     StoreRegister(
         new_target_or_generator_register,
         // TODO(leszeks): Expose in Graph.
-        AddNewNode<RegisterInput>({}, kJavaScriptCallNewTargetRegister),
-        liveness);
+        AddNewNode<RegisterInput>({}, kJavaScriptCallNewTargetRegister));
     register_index++;
   }
   for (; register_index < register_count(); register_index++) {
-    StoreRegister(interpreter::Register(register_index), undefined_value,
-                  liveness);
+    StoreRegister(interpreter::Register(register_index), undefined_value);
   }
 
   BasicBlock* first_block = CreateBlock<Jump>({}, &jump_targets_[0]);
@@ -134,8 +129,8 @@ template <Operation kOperation>
 void MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
   FeedbackSlot slot_index = GetSlotOperand(0);
   ValueNode* value = GetAccumulator();
-  SetAccumulatorToNewNode<GenericNodeForOperation<kOperation>>(
-      {value}, compiler::FeedbackSource{feedback(), slot_index});
+  SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
+      {value}, compiler::FeedbackSource{feedback(), slot_index}));
 }
 
 template <Operation kOperation>
@@ -143,8 +138,8 @@ void MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
   ValueNode* left = LoadRegister(0);
   ValueNode* right = GetAccumulator();
   FeedbackSlot slot_index = GetSlotOperand(1);
-  SetAccumulatorToNewNode<GenericNodeForOperation<kOperation>>(
-      {left, right}, compiler::FeedbackSource{feedback(), slot_index});
+  SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
+      {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
 }
 
 template <Operation kOperation>
@@ -153,8 +148,8 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
   Smi constant = Smi::FromInt(iterator_.GetImmediateOperand(0));
   ValueNode* right = AddNewNode<SmiConstant>({}, constant);
   FeedbackSlot slot_index = GetSlotOperand(1);
-  SetAccumulatorToNewNode<GenericNodeForOperation<kOperation>>(
-      {left, right}, compiler::FeedbackSource{feedback(), slot_index});
+  SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
+      {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
 }
 
 template <Operation kOperation>
@@ -177,7 +172,7 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
 
         if (kOperation == Operation::kAdd) {
           ValueNode* result = AddNewNode<Int32AddWithOverflow>({left, right});
-          SetAccumulatorToNewNode<CheckedSmiTag>({result});
+          SetAccumulator(AddNewNode<CheckedSmiTag>({result}));
           return;
         }
       }
@@ -202,14 +197,13 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
 
         if (kOperation == Operation::kAdd) {
           if (constant == Smi::zero()) {
-            // For addition of zero, that passed the Smi check, we can simply
-            // return the accumulator.
-            SetAccumulatorToExistingNode(GetAccumulator());
+            // For addition of zero, when the accumulator passed the Smi check,
+            // it already has the right value, so we can just return.
             return;
           }
           ValueNode* right = AddNewNode<SmiConstant>({}, constant);
           ValueNode* result = AddNewNode<Int32AddWithOverflow>({left, right});
-          SetAccumulatorToNewNode<CheckedSmiTag>({result});
+          SetAccumulator(AddNewNode<CheckedSmiTag>({result}));
           return;
         }
       }
@@ -221,33 +215,34 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
 }
 
 void MaglevGraphBuilder::VisitLdar() {
-  SetAccumulatorToExistingNode(LoadRegister(0));
+  MoveNodeBetweenRegisters(iterator_.GetRegisterOperand(0),
+                           interpreter::Register::virtual_accumulator());
 }
 
 void MaglevGraphBuilder::VisitLdaZero() {
-  SetAccumulatorToNewNode<SmiConstant>({}, Smi::zero());
+  SetAccumulator(AddNewNode<SmiConstant>({}, Smi::zero()));
 }
 void MaglevGraphBuilder::VisitLdaSmi() {
   Smi constant = Smi::FromInt(iterator_.GetImmediateOperand(0));
-  SetAccumulatorToNewNode<SmiConstant>({}, constant);
+  SetAccumulator(AddNewNode<SmiConstant>({}, constant));
 }
 void MaglevGraphBuilder::VisitLdaUndefined() {
-  SetAccumulatorToNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
+  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
 }
 void MaglevGraphBuilder::VisitLdaNull() {
-  SetAccumulatorToNewNode<RootConstant>({}, RootIndex::kNullValue);
+  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kNullValue));
 }
 void MaglevGraphBuilder::VisitLdaTheHole() {
-  SetAccumulatorToNewNode<RootConstant>({}, RootIndex::kTheHoleValue);
+  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kTheHoleValue));
 }
 void MaglevGraphBuilder::VisitLdaTrue() {
-  SetAccumulatorToNewNode<RootConstant>({}, RootIndex::kTrueValue);
+  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kTrueValue));
 }
 void MaglevGraphBuilder::VisitLdaFalse() {
-  SetAccumulatorToNewNode<RootConstant>({}, RootIndex::kFalseValue);
+  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kFalseValue));
 }
 void MaglevGraphBuilder::VisitLdaConstant() {
-  SetAccumulatorToConstant(GetRefOperand<HeapObject>(0));
+  SetAccumulator(GetConstant(GetRefOperand<HeapObject>(0)));
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaContextSlot)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaImmutableContextSlot)
@@ -257,26 +252,33 @@ void MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
 
   // TODO(leszeks): Passing a LoadHandler to LoadField here is a bit of
   // a hack, maybe we should have a LoadRawOffset or similar.
-  SetAccumulatorToNewNode<LoadField>(
+  SetAccumulator(AddNewNode<LoadField>(
       {context}, LoadHandler::LoadField(
                      isolate(), FieldIndex::ForInObjectOffset(
                                     Context::OffsetOfElementAt(slot_index),
                                     FieldIndex::kTagged))
-                     ->value());
+                     ->value()));
 }
 void MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   // TODO(leszeks): Consider context specialising.
   VisitLdaCurrentContextSlot();
 }
 void MaglevGraphBuilder::VisitStar() {
-  StoreRegister(
-      iterator_.GetRegisterOperand(0), GetAccumulator(),
-      bytecode_analysis().GetOutLivenessFor(iterator_.current_offset()));
+  MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
+                           iterator_.GetRegisterOperand(0));
 }
+#define SHORT_STAR_VISITOR(Name, ...)                                          \
+  void MaglevGraphBuilder::Visit##Name() {                                     \
+    MoveNodeBetweenRegisters(                                                  \
+        interpreter::Register::virtual_accumulator(),                          \
+        interpreter::Register::FromShortStar(interpreter::Bytecode::k##Name)); \
+  }
+SHORT_STAR_BYTECODE_LIST(SHORT_STAR_VISITOR)
+#undef SHORT_STAR_VISITOR
+
 void MaglevGraphBuilder::VisitMov() {
-  StoreRegister(
-      iterator_.GetRegisterOperand(1), LoadRegister(0),
-      bytecode_analysis().GetOutLivenessFor(iterator_.current_offset()));
+  MoveNodeBetweenRegisters(iterator_.GetRegisterOperand(0),
+                           iterator_.GetRegisterOperand(1));
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(PushContext)
 MAGLEV_UNIMPLEMENTED_BYTECODE(PopContext)
@@ -306,7 +308,7 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
   DCHECK_EQ(PropertyKind::kData, property_details.kind());
 
   if (!property_details.IsConfigurable() && property_details.IsReadOnly()) {
-    SetAccumulatorToConstant(property_cell_value);
+    SetAccumulator(GetConstant(property_cell_value));
     return;
   }
 
@@ -321,7 +323,7 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
   // Load from constant/undefined global property can be constant-folded.
   if (property_cell_type == PropertyCellType::kConstant ||
       property_cell_type == PropertyCellType::kUndefined) {
-    SetAccumulatorToConstant(property_cell_value);
+    SetAccumulator(GetConstant(property_cell_value));
     return;
   }
 
@@ -329,12 +331,12 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
       AddNewNode<Constant>({}, property_cell.AsHeapObject());
   // TODO(leszeks): Padding a LoadHandler to LoadField here is a bit of
   // a hack, maybe we should have a LoadRawOffset or similar.
-  SetAccumulatorToNewNode<LoadField>(
+  SetAccumulator(AddNewNode<LoadField>(
       {property_cell_node},
       LoadHandler::LoadField(
           isolate(), FieldIndex::ForInObjectOffset(PropertyCell::kValueOffset,
                                                    FieldIndex::kTagged))
-          ->value());
+          ->value()));
 }
 
 void MaglevGraphBuilder::VisitLdaGlobal() {
@@ -362,7 +364,7 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
     // TODO(leszeks): Handle the IsScriptContextSlot case.
 
     ValueNode* context = GetContext();
-    SetAccumulatorToNewNode<LoadGlobal>({context}, name);
+    SetAccumulator(AddNewNode<LoadGlobal>({context}, name));
   }
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaGlobalInsideTypeof)
@@ -397,7 +399,7 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
           !LoadHandler::IsWasmStructBits::decode(handler)) {
         AddNewNode<CheckMaps>({object},
                               MakeRef(broker(), map_and_handler.first));
-        SetAccumulatorToNewNode<LoadField>({object}, handler);
+        SetAccumulator(AddNewNode<LoadField>({object}, handler));
         return;
       }
     }
@@ -405,9 +407,9 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
 
   ValueNode* context = GetContext();
   compiler::NameRef name = GetRefOperand<Name>(1);
-  SetAccumulatorToNewNode<LoadNamedGeneric>(
+  SetAccumulator(AddNewNode<LoadNamedGeneric>(
       {context, object}, name,
-      compiler::FeedbackSource{feedback(), slot_index});
+      compiler::FeedbackSource{feedback(), slot_index}));
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetNamedPropertyFromSuper)
@@ -571,7 +573,7 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
     call->set_arg(arg_index++, current_interpreter_frame_.get(args[i]));
   }
 
-  SetAccumulatorToNewNode(call);
+  SetAccumulator(call);
 }
 
 void MaglevGraphBuilder::BuildCallFromRegisters(
@@ -601,7 +603,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
     call->set_arg(arg_index++, LoadRegister(i + 1));
   }
 
-  SetAccumulatorToNewNode(call);
+  SetAccumulator(call);
 }
 
 void MaglevGraphBuilder::VisitCallAnyReceiver() {
@@ -745,8 +747,6 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
 
 void MaglevGraphBuilder::BuildBranchIfTrue(ValueNode* node, int true_target,
                                            int false_target) {
-  // TODO(verwaest): Materialize true/false in the respective environments.
-  if (GetOutLiveness()->AccumulatorIsLive()) SetAccumulatorToExistingNode(node);
   BasicBlock* block = FinishBlock<BranchIfTrue>(next_offset(), {node},
                                                 &jump_targets_[true_target],
                                                 &jump_targets_[false_target]);
@@ -755,8 +755,6 @@ void MaglevGraphBuilder::BuildBranchIfTrue(ValueNode* node, int true_target,
 void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
                                                     int true_target,
                                                     int false_target) {
-  // TODO(verwaest): Materialize true/false in the respective environments.
-  if (GetOutLiveness()->AccumulatorIsLive()) SetAccumulatorToExistingNode(node);
   BasicBlock* block = FinishBlock<BranchIfToBooleanTrue>(
       next_offset(), {node}, &jump_targets_[true_target],
       &jump_targets_[false_target]);
@@ -807,15 +805,6 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(GetIterator)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Debugger)
 MAGLEV_UNIMPLEMENTED_BYTECODE(IncBlockCounter)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Abort)
-#define SHORT_STAR_VISITOR(Name, ...)                                         \
-  void MaglevGraphBuilder::Visit##Name() {                                    \
-    StoreRegister(                                                            \
-        interpreter::Register::FromShortStar(interpreter::Bytecode::k##Name), \
-        GetAccumulator(),                                                     \
-        bytecode_analysis().GetOutLivenessFor(iterator_.current_offset()));   \
-  }
-SHORT_STAR_BYTECODE_LIST(SHORT_STAR_VISITOR)
-#undef SHORT_STAR_VISITOR
 
 void MaglevGraphBuilder::VisitWide() { UNREACHABLE(); }
 void MaglevGraphBuilder::VisitExtraWide() { UNREACHABLE(); }

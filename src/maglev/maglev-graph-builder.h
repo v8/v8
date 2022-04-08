@@ -113,6 +113,10 @@ class MaglevGraphBuilder {
       StartNewBlock(offset);
     }
     DCHECK_NOT_NULL(current_block_);
+#ifdef DEBUG
+    // Clear new nodes for the next VisitFoo
+    new_nodes_.clear();
+#endif
     switch (iterator_.current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
@@ -134,6 +138,9 @@ class MaglevGraphBuilder {
     }
     current_block_->nodes().Add(node);
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+#ifdef DEBUG
+    new_nodes_.insert(node);
+#endif
     return node;
   }
 
@@ -180,39 +187,30 @@ class MaglevGraphBuilder {
                        operand_index, isolate())));
   }
 
-  // For cases where we're setting the accumulator to a previously created node
-  // (e.g. moving an interpreter register to the accumulator).
-  // TODO(leszeks): Somehow DCHECK that this isn't a new node.
-  void SetAccumulatorToExistingNode(ValueNode* node) {
-    current_interpreter_frame_.set_accumulator(node);
+  ValueNode* GetConstant(const compiler::ObjectRef& ref) {
+    if (ref.IsSmi()) {
+      return AddNewNode<SmiConstant>({}, Smi::FromInt(ref.AsSmi()));
+    }
+    // TODO(leszeks): Detect roots and use RootConstant.
+    return AddNewNode<Constant>({}, ref.AsHeapObject());
+  }
+
+  // Move an existing ValueNode between two registers. You can pass
+  // virtual_accumulator as the src or dst to move in or out of the accumulator.
+  void MoveNodeBetweenRegisters(interpreter::Register src,
+                                interpreter::Register dst) {
+    // We shouldn't be moving newly created nodes between registers.
+    DCHECK_EQ(0, new_nodes_.count(current_interpreter_frame_.get(src)));
+    DCHECK_NOT_NULL(current_interpreter_frame_.get(src));
+
+    current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
   }
 
   template <typename NodeT>
-  void SetAccumulatorToNewNode(NodeT* node) {
-    DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
-              node->properties().can_lazy_deopt());
-    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      DCHECK(!node->lazy_deopt_info()->result_location.is_valid());
-      node->lazy_deopt_info()->result_location =
-          interpreter::Register::virtual_accumulator();
-    }
-    SetAccumulatorToExistingNode(node);
-  }
-
-  template <typename NodeT, typename... Args>
-  void SetAccumulatorToNewNode(std::initializer_list<ValueNode*> inputs,
-                               Args&&... args) {
-    NodeT* node = AddNewNode<NodeT>(inputs, args...);
-    SetAccumulatorToNewNode(node);
-  }
-
-  void SetAccumulatorToConstant(const compiler::ObjectRef& ref) {
-    if (ref.IsSmi()) {
-      return SetAccumulatorToNewNode<SmiConstant>({},
-                                                  Smi::FromInt(ref.AsSmi()));
-    }
-    // TODO(leszeks): Detect roots and use RootConstant.
-    SetAccumulatorToNewNode<Constant>({}, ref.AsHeapObject());
+  void SetAccumulator(NodeT* node) {
+    // Accumulator stores are equivalent to stores to the virtual accumulator
+    // register.
+    StoreRegister(interpreter::Register::virtual_accumulator(), node);
   }
 
   ValueNode* GetAccumulator() const {
@@ -224,11 +222,13 @@ class MaglevGraphBuilder {
     return current_interpreter_frame_.get(source);
   }
 
-  void StoreRegister(interpreter::Register target, ValueNode* value,
-                     const compiler::BytecodeLivenessState* liveness) {
-    if (target.index() >= 0 && !liveness->RegisterIsLive(target.index())) {
-      return;
-    }
+  template <typename NodeT>
+  void StoreRegister(interpreter::Register target, NodeT* value) {
+    // We should only set register values to nodes that were newly created in
+    // this Visit. Existing nodes should be moved between registers with
+    // MoveNodeBetweenRegisters.
+    DCHECK_NE(0, new_nodes_.count(value));
+    MarkAsLazyDeoptResult(value, target);
     current_interpreter_frame_.set(target, value);
   }
 
@@ -247,6 +247,18 @@ class MaglevGraphBuilder {
         BytecodeOffset(iterator_.current_offset()),
         zone()->New<CompactInterpreterFrameState>(
             *compilation_unit_, GetOutLiveness(), current_interpreter_frame_));
+  }
+
+  template <typename NodeT>
+  void MarkAsLazyDeoptResult(NodeT* value,
+                             interpreter::Register result_location) {
+    DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
+              value->properties().can_lazy_deopt());
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      DCHECK(result_location.is_valid());
+      DCHECK(!value->lazy_deopt_info()->result_location.is_valid());
+      value->lazy_deopt_info()->result_location = result_location;
+    }
   }
 
   void MarkPossibleSideEffect() {
@@ -424,6 +436,10 @@ class MaglevGraphBuilder {
   // TODO(v8:7700): Clean up after all bytecodes are supported.
   bool found_unsupported_bytecode_ = false;
   bool this_field_will_be_unused_once_all_bytecodes_are_supported_;
+
+#ifdef DEBUG
+  std::unordered_set<Node*> new_nodes_;
+#endif
 };
 
 }  // namespace maglev
