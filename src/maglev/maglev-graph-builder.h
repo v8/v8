@@ -332,11 +332,15 @@ class MaglevGraphBuilder {
   void BuildGenericUnaryOperationNode();
   template <Operation kOperation>
   void BuildGenericBinaryOperationNode();
+  template <Operation kOperation>
+  void BuildGenericBinarySmiOperationNode();
 
   template <Operation kOperation>
   void VisitUnaryOperation();
   template <Operation kOperation>
   void VisitBinaryOperation();
+  template <Operation kOperation>
+  void VisitBinarySmiOperation();
 
   void MergeIntoFrameState(BasicBlock* block, int target);
   void BuildBranchIfTrue(ValueNode* node, int true_target, int false_target);

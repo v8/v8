@@ -141,8 +141,18 @@ void MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
   ValueNode* left = LoadRegister(0);
-  FeedbackSlot slot_index = GetSlotOperand(1);
   ValueNode* right = GetAccumulator();
+  FeedbackSlot slot_index = GetSlotOperand(1);
+  SetAccumulatorToNewNode<GenericNodeForOperation<kOperation>>(
+      {left, right}, compiler::FeedbackSource{feedback(), slot_index});
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
+  ValueNode* left = GetAccumulator();
+  Smi constant = Smi::FromInt(iterator_.GetImmediateOperand(0));
+  ValueNode* right = AddNewNode<SmiConstant>({}, constant);
+  FeedbackSlot slot_index = GetSlotOperand(1);
   SetAccumulatorToNewNode<GenericNodeForOperation<kOperation>>(
       {left, right}, compiler::FeedbackSource{feedback(), slot_index});
 }
@@ -178,6 +188,38 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
   BuildGenericBinaryOperationNode<kOperation>();
 }
 
+template <Operation kOperation>
+void MaglevGraphBuilder::VisitBinarySmiOperation() {
+  FeedbackNexus nexus = feedback_nexus(1);
+
+  if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
+    if (nexus.kind() == FeedbackSlotKind::kBinaryOp) {
+      BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
+
+      if (hint == BinaryOperationHint::kSignedSmall) {
+        ValueNode* left = AddNewNode<CheckedSmiUntag>({GetAccumulator()});
+        Smi constant = Smi::FromInt(iterator_.GetImmediateOperand(0));
+
+        if (kOperation == Operation::kAdd) {
+          if (constant == Smi::zero()) {
+            // For addition of zero, that passed the Smi check, we can simply
+            // return the accumulator.
+            SetAccumulatorToExistingNode(GetAccumulator());
+            return;
+          }
+          ValueNode* right = AddNewNode<SmiConstant>({}, constant);
+          ValueNode* result = AddNewNode<Int32AddWithOverflow>({left, right});
+          SetAccumulatorToNewNode<CheckedSmiTag>({result});
+          return;
+        }
+      }
+    }
+  }
+
+  // TODO(victorgomes): Use feedback info and create optimized versions.
+  BuildGenericBinarySmiOperationNode<kOperation>();
+}
+
 void MaglevGraphBuilder::VisitLdar() {
   SetAccumulatorToExistingNode(LoadRegister(0));
 }
@@ -204,11 +246,28 @@ void MaglevGraphBuilder::VisitLdaTrue() {
 void MaglevGraphBuilder::VisitLdaFalse() {
   SetAccumulatorToNewNode<RootConstant>({}, RootIndex::kFalseValue);
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaConstant)
+void MaglevGraphBuilder::VisitLdaConstant() {
+  SetAccumulatorToConstant(GetRefOperand<HeapObject>(0));
+}
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaContextSlot)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaImmutableContextSlot)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaCurrentContextSlot)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaImmutableCurrentContextSlot)
+void MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
+  ValueNode* context = GetContext();
+  int slot_index = iterator_.GetIndexOperand(0);
+
+  // TODO(leszeks): Passing a LoadHandler to LoadField here is a bit of
+  // a hack, maybe we should have a LoadRawOffset or similar.
+  SetAccumulatorToNewNode<LoadField>(
+      {context}, LoadHandler::LoadField(
+                     isolate(), FieldIndex::ForInObjectOffset(
+                                    Context::OffsetOfElementAt(slot_index),
+                                    FieldIndex::kTagged))
+                     ->value());
+}
+void MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
+  // TODO(leszeks): Consider context specialising.
+  VisitLdaCurrentContextSlot();
+}
 void MaglevGraphBuilder::VisitStar() {
   StoreRegister(
       iterator_.GetRegisterOperand(0), GetAccumulator(),
@@ -428,18 +487,42 @@ void MaglevGraphBuilder::VisitShiftRightLogical() {
   VisitBinaryOperation<Operation::kShiftRightLogical>();
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(AddSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(SubSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(MulSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(DivSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ModSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ExpSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseOrSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseXorSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(BitwiseAndSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftLeftSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRightSmi)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ShiftRightLogicalSmi)
+void MaglevGraphBuilder::VisitAddSmi() {
+  VisitBinarySmiOperation<Operation::kAdd>();
+}
+void MaglevGraphBuilder::VisitSubSmi() {
+  VisitBinarySmiOperation<Operation::kSubtract>();
+}
+void MaglevGraphBuilder::VisitMulSmi() {
+  VisitBinarySmiOperation<Operation::kMultiply>();
+}
+void MaglevGraphBuilder::VisitDivSmi() {
+  VisitBinarySmiOperation<Operation::kDivide>();
+}
+void MaglevGraphBuilder::VisitModSmi() {
+  VisitBinarySmiOperation<Operation::kModulus>();
+}
+void MaglevGraphBuilder::VisitExpSmi() {
+  VisitBinarySmiOperation<Operation::kExponentiate>();
+}
+void MaglevGraphBuilder::VisitBitwiseOrSmi() {
+  VisitBinarySmiOperation<Operation::kBitwiseOr>();
+}
+void MaglevGraphBuilder::VisitBitwiseXorSmi() {
+  VisitBinarySmiOperation<Operation::kBitwiseXor>();
+}
+void MaglevGraphBuilder::VisitBitwiseAndSmi() {
+  VisitBinarySmiOperation<Operation::kBitwiseAnd>();
+}
+void MaglevGraphBuilder::VisitShiftLeftSmi() {
+  VisitBinarySmiOperation<Operation::kShiftLeft>();
+}
+void MaglevGraphBuilder::VisitShiftRightSmi() {
+  VisitBinarySmiOperation<Operation::kShiftRight>();
+}
+void MaglevGraphBuilder::VisitShiftRightLogicalSmi() {
+  VisitBinarySmiOperation<Operation::kShiftRightLogical>();
+}
 
 void MaglevGraphBuilder::VisitInc() {
   VisitUnaryOperation<Operation::kIncrement>();
@@ -556,9 +639,13 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(CallJSRuntime)
 MAGLEV_UNIMPLEMENTED_BYTECODE(InvokeIntrinsic)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Construct)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ConstructWithSpread)
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestEqual)
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestEqualStrict)
 
+void MaglevGraphBuilder::VisitTestEqual() {
+  VisitBinaryOperation<Operation::kEqual>();
+}
+void MaglevGraphBuilder::VisitTestEqualStrict() {
+  VisitBinaryOperation<Operation::kStrictEqual>();
+}
 void MaglevGraphBuilder::VisitTestLessThan() {
   VisitBinaryOperation<Operation::kLessThan>();
 }
