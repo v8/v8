@@ -2559,7 +2559,8 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
   InitializeJSObjectFromMap(js_obj, *empty_fixed_array(), *map);
 
-  DCHECK(js_obj.HasFastElements() || js_obj.HasTypedArrayElements() ||
+  DCHECK(js_obj.HasFastElements() ||
+         js_obj.HasTypedArrayOrRabGsabTypedArrayElements() ||
          js_obj.HasFastStringWrapperElements() ||
          js_obj.HasFastArgumentsElements() || js_obj.HasDictionaryElements());
   return handle(js_obj, isolate());

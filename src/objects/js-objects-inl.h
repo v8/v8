@@ -725,11 +725,6 @@ DEF_GETTER(JSObject, HasSlowStringWrapperElements, bool) {
   return GetElementsKind(cage_base) == SLOW_STRING_WRAPPER_ELEMENTS;
 }
 
-DEF_GETTER(JSObject, HasTypedArrayElements, bool) {
-  DCHECK(!elements(cage_base).is_null());
-  return map(cage_base).has_typed_array_elements();
-}
-
 DEF_GETTER(JSObject, HasTypedArrayOrRabGsabTypedArrayElements, bool) {
   DCHECK(!elements(cage_base).is_null());
   return map(cage_base).has_typed_array_or_rab_gsab_typed_array_elements();

@@ -379,7 +379,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_GETTER(HasSealedElements, bool)
   DECL_GETTER(HasNonextensibleElements, bool)
 
-  DECL_GETTER(HasTypedArrayElements, bool)
   DECL_GETTER(HasTypedArrayOrRabGsabTypedArrayElements, bool)
 
   DECL_GETTER(HasFixedUint8ClampedElements, bool)

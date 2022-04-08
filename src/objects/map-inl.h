@@ -590,14 +590,6 @@ bool Map::has_fast_string_wrapper_elements() const {
   return elements_kind() == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
-bool Map::has_typed_array_elements() const {
-  return IsTypedArrayElementsKind(elements_kind());
-}
-
-bool Map::has_rab_gsab_typed_array_elements() const {
-  return IsRabGsabTypedArrayElementsKind(elements_kind());
-}
-
 bool Map::has_typed_array_or_rab_gsab_typed_array_elements() const {
   return IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind());
 }

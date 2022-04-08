@@ -475,7 +475,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
   Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
   if (IsElement(*holder)) {
-    DCHECK(!holder_obj->HasTypedArrayElements(isolate_));
+    DCHECK(!holder_obj->HasTypedArrayOrRabGsabTypedArrayElements(isolate_));
     DCHECK(attributes != NONE || !holder_obj->HasFastElements(isolate_));
     Handle<FixedArrayBase> elements(holder_obj->elements(isolate_), isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
@@ -1238,7 +1238,7 @@ bool HasInterceptor(Map map, size_t index) {
     if (index > JSObject::kMaxElementIndex) {
       // There is currently no way to install interceptors on an object with
       // typed array elements.
-      DCHECK(!map.has_typed_array_elements());
+      DCHECK(!map.has_typed_array_or_rab_gsab_typed_array_elements());
       return map.has_named_interceptor();
     }
     return map.has_indexed_interceptor();
@@ -1388,7 +1388,7 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
   if (!access_check_info.is_null()) {
     // There is currently no way to create objects with typed array elements
     // and access checks.
-    DCHECK(!holder_->map().has_typed_array_elements());
+    DCHECK(!holder_->map().has_typed_array_or_rab_gsab_typed_array_elements());
     Object interceptor = is_js_array_element(IsElement())
                              ? access_check_info.indexed_interceptor()
                              : access_check_info.named_interceptor();

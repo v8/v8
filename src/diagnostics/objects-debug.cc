@@ -369,7 +369,7 @@ void VerifyJSObjectElements(Isolate* isolate, JSObject object) {
   if (object.IsJSTypedArray()) {
     // TODO(bmeurer,v8:4153): Fix CreateTypedArray to either not instantiate
     // the object or propertly initialize it on errors during construction.
-    /* CHECK(object->HasTypedArrayElements()); */
+    /* CHECK(object->HasTypedArrayOrRabGsabTypedArrayElements()); */
     return;
   }
   CHECK(!object.elements().IsByteArray());

@@ -3461,7 +3461,6 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     Maybe<ShouldThrow> should_throw, AccessorInfoHandling handling,
     EnforceDefineSemantics semantics, StoreOrigin store_origin) {
   it->UpdateProtector();
-  Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
 
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -3559,13 +3558,11 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
           return Object::SetDataProperty(it, value);
         }
 
-        // Special case: properties of typed arrays cannot be reconfigured to
-        // non-writable nor to non-enumerable.
-        if (it->IsElement() && object->HasTypedArrayElements()) {
-          return Object::RedefineIncompatibleProperty(
-              it->isolate(), it->GetName(), value, should_throw);
-        }
-
+        // The non-matching attribute case for JSTypedArrays has already been
+        // handled by JSTypedArray::DefineOwnProperty.
+        DCHECK(!it->IsElement() ||
+               !Handle<JSObject>::cast(it->GetReceiver())
+                    ->HasTypedArrayOrRabGsabTypedArrayElements());
         // Reconfigure the data property if the attributes mismatch.
         it->ReconfigureDataProperty(value, attributes);
 
@@ -3842,7 +3839,7 @@ void JSObject::RequireSlowElements(NumberDictionary dictionary) {
 }
 
 Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
-  DCHECK(!object->HasTypedArrayElements());
+  DCHECK(!object->HasTypedArrayOrRabGsabTypedArrayElements());
   Isolate* isolate = object->GetIsolate();
   bool is_sloppy_arguments = object->HasSloppyArgumentsElements();
   {
@@ -4089,16 +4086,15 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
                    NewTypeError(MessageTemplate::kCannotPreventExt));
   }
 
-  if (!object->HasTypedArrayElements()) {
-    // If there are fast elements we normalize.
-    Handle<NumberDictionary> dictionary = NormalizeElements(object);
-    DCHECK(object->HasDictionaryElements() ||
-           object->HasSlowArgumentsElements());
+  DCHECK(!object->HasTypedArrayOrRabGsabTypedArrayElements());
 
-    // Make sure that we never go back to fast case.
-    if (*dictionary != ReadOnlyRoots(isolate).empty_slow_element_dictionary()) {
-      object->RequireSlowElements(*dictionary);
-    }
+  // Normalize fast elements.
+  Handle<NumberDictionary> dictionary = NormalizeElements(object);
+  DCHECK(object->HasDictionaryElements() || object->HasSlowArgumentsElements());
+
+  // Make sure that we never go back to fast case.
+  if (*dictionary != ReadOnlyRoots(isolate).empty_slow_element_dictionary()) {
+    object->RequireSlowElements(*dictionary);
   }
 
   // Do a map transition, other objects with this map may still
@@ -4167,7 +4163,8 @@ template void JSObject::ApplyAttributesToDictionary(
 Handle<NumberDictionary> CreateElementDictionary(Isolate* isolate,
                                                  Handle<JSObject> object) {
   Handle<NumberDictionary> new_element_dictionary;
-  if (!object->HasTypedArrayElements() && !object->HasDictionaryElements() &&
+  if (!object->HasTypedArrayOrRabGsabTypedArrayElements() &&
+      !object->HasDictionaryElements() &&
       !object->HasSlowStringWrapperElements()) {
     int length = object->IsJSArray()
                      ? Smi::ToInt(Handle<JSArray>::cast(object)->length())
@@ -4345,6 +4342,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   // Both seal and preventExtensions always go through without modifications to
   // typed array elements. Freeze works only if there are no actual elements.
   if (object->HasTypedArrayOrRabGsabTypedArrayElements()) {
+    DCHECK(new_element_dictionary.is_null());
     if (attrs == FROZEN && JSTypedArray::cast(*object).GetLength() > 0) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kCannotFreezeArrayBufferView));
@@ -4535,7 +4533,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
 
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   // Ignore accessors on typed arrays.
-  if (it->IsElement() && object->HasTypedArrayElements()) {
+  if (it->IsElement() && object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     return it->factory()->undefined_value();
   }
 
@@ -4572,7 +4570,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   }
 
   // Ignore accessors on typed arrays.
-  if (it.IsElement() && object->HasTypedArrayElements()) {
+  if (it.IsElement() && object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     return it.factory()->undefined_value();
   }
 
