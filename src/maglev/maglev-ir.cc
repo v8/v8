@@ -538,19 +538,28 @@ void LoadField::GenerateCode(MaglevCodeGenState* code_gen_state,
   //    LoadHandler::FieldIndexBits::decode(raw_handler);
 
   Register object = ToRegister(object_input());
+  Register res = ToRegister(result());
   int handler = this->handler();
 
   if (LoadHandler::IsInobjectBits::decode(handler)) {
     Operand input_field_operand = FieldOperand(
         object, LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize);
-    __ DecompressAnyTagged(ToRegister(result()), input_field_operand);
-    if (LoadHandler::IsDoubleBits::decode(handler)) {
-      // TODO(leszeks): Copy out the value, either as a double or a HeapNumber.
-      UNSUPPORTED("LoadField double property");
-    }
+    __ DecompressAnyTagged(res, input_field_operand);
   } else {
-    // TODO(leszeks): Handle out-of-object properties.
-    UNSUPPORTED("LoadField out-of-object property");
+    Operand property_array_operand =
+        FieldOperand(object, JSReceiver::kPropertiesOrHashOffset);
+    __ DecompressAnyTagged(res, property_array_operand);
+
+    __ AssertNotSmi(res);
+
+    Operand input_field_operand = FieldOperand(
+        res, LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize);
+    __ DecompressAnyTagged(res, input_field_operand);
+  }
+
+  if (LoadHandler::IsDoubleBits::decode(handler)) {
+    // TODO(leszeks): Copy out the value, either as a double or a HeapNumber.
+    UNSUPPORTED("LoadField double property");
   }
 }
 void LoadField::PrintParams(std::ostream& os,
