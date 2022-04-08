@@ -3816,10 +3816,14 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
       heap()->read_only_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
                           AddressToString(ro_space_firstpage_address));
-  const uintptr_t map_space_firstpage_address =
-      heap()->map_space()->FirstPageAddress();
-  add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
-                          AddressToString(map_space_firstpage_address));
+
+  if (heap()->map_space()) {
+    const uintptr_t map_space_firstpage_address =
+        heap()->map_space()->FirstPageAddress();
+    add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
+                            AddressToString(map_space_firstpage_address));
+  }
+
   const uintptr_t code_space_firstpage_address =
       heap()->code_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
