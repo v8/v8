@@ -1649,7 +1649,7 @@ class ModuleDecoderImpl : public Decoder {
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
       } else {
-        int size = global.type.element_size_bytes();
+        int size = global.type.value_kind_size();
         untagged_offset = (untagged_offset + size - 1) & ~(size - 1);  // align
         global.offset = untagged_offset;
         untagged_offset += size;

@@ -739,8 +739,8 @@ void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
 namespace {
 bool SlotInterference(const VarState& a, const VarState& b) {
   return a.is_stack() && b.is_stack() &&
-         b.offset() > a.offset() - element_size_bytes(a.kind()) &&
-         b.offset() - element_size_bytes(b.kind()) < a.offset();
+         b.offset() > a.offset() - value_kind_size(a.kind()) &&
+         b.offset() - value_kind_size(b.kind()) < a.offset();
 }
 
 bool SlotInterference(const VarState& a, base::Vector<const VarState> v) {

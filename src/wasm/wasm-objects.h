@@ -986,7 +986,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   }
 
   static int MaxLength(const wasm::ArrayType* type) {
-    return MaxLength(type->element_type().element_size_bytes());
+    return MaxLength(type->element_type().value_kind_size());
   }
 
   static inline void EncodeElementSizeInMap(int element_size, Map map);

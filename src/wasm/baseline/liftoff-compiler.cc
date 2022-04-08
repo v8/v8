@@ -1495,10 +1495,10 @@ class LiftoffCompiler {
     // Store arguments on our stack, then align the stack for calling to C.
     int param_bytes = 0;
     for (ValueKind param_kind : sig->parameters()) {
-      param_bytes += element_size_bytes(param_kind);
+      param_bytes += value_kind_size(param_kind);
     }
     int out_arg_bytes =
-        out_argument_kind == kVoid ? 0 : element_size_bytes(out_argument_kind);
+        out_argument_kind == kVoid ? 0 : value_kind_size(out_argument_kind);
     int stack_bytes = std::max(param_bytes, out_arg_bytes);
     __ CallC(sig, arg_regs, result_regs, out_argument_kind, stack_bytes,
              ext_ref);
@@ -4619,11 +4619,11 @@ class LiftoffCompiler {
                   const MemoryAccessImmediate<validate>& imm) {
     LiftoffRegister full_index = __ PeekToRegister(2, {});
     Register index_reg =
-        BoundsCheckMem(decoder, element_size_bytes(kind), imm.offset,
-                       full_index, {}, kDoForceCheck);
+        BoundsCheckMem(decoder, value_kind_size(kind), imm.offset, full_index,
+                       {}, kDoForceCheck);
     if (index_reg == no_reg) return;
     LiftoffRegList pinned = {index_reg};
-    AlignmentCheckMem(decoder, element_size_bytes(kind), imm.offset, index_reg,
+    AlignmentCheckMem(decoder, value_kind_size(kind), imm.offset, index_reg,
                       pinned);
 
     uintptr_t offset = imm.offset;
@@ -4926,7 +4926,8 @@ class LiftoffCompiler {
     LiftoffRegister seg_index =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     // Scale the seg_index for the array access.
-    __ LoadConstant(seg_index, WasmValue(imm.index << element_size_log2(kI32)));
+    __ LoadConstant(seg_index,
+                    WasmValue(imm.index << value_kind_size_log2(kI32)));
 
     // Set the length of the segment to '0' to drop it.
     LiftoffRegister null_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -5261,7 +5262,7 @@ class LiftoffCompiler {
                              WasmArray::MaxLength(imm.array_type));
     }
     ValueKind elem_kind = imm.array_type->element_type().kind();
-    int elem_size = element_size_bytes(elem_kind);
+    int elem_size = value_kind_size(elem_kind);
     // Allocate the array.
     {
       LiftoffRegister elem_size_reg = __ GetUnusedRegister(kGpReg, {});
@@ -5296,9 +5297,9 @@ class LiftoffCompiler {
           offset,
           WasmValue(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)));
       LiftoffRegister end_offset = length;
-      if (element_size_log2(elem_kind) != 0) {
+      if (value_kind_size_log2(elem_kind) != 0) {
         __ emit_i32_shli(end_offset.gp(), length.gp(),
-                         element_size_log2(elem_kind));
+                         value_kind_size_log2(elem_kind));
       }
       __ emit_i32_add(end_offset.gp(), end_offset.gp(), offset.gp());
       Label loop, done;
@@ -5341,7 +5342,7 @@ class LiftoffCompiler {
     BoundsCheckArray(decoder, array, index, pinned);
     ValueKind elem_kind = imm.array_type->element_type().kind();
     if (!CheckSupportedType(decoder, elem_kind, "array load")) return;
-    int elem_size_shift = element_size_log2(elem_kind);
+    int elem_size_shift = value_kind_size_log2(elem_kind);
     if (elem_size_shift != 0) {
       __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
     }
@@ -5365,7 +5366,7 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
     BoundsCheckArray(decoder, array, index, pinned);
     ValueKind elem_kind = imm.array_type->element_type().kind();
-    int elem_size_shift = element_size_log2(elem_kind);
+    int elem_size_shift = value_kind_size_log2(elem_kind);
     if (elem_size_shift != 0) {
       __ emit_i32_shli(index.gp(), index.gp(), elem_size_shift);
     }
@@ -5415,7 +5416,7 @@ class LiftoffCompiler {
       LiftoffRegister elem_size_reg =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-      __ LoadConstant(elem_size_reg, WasmValue(element_size_bytes(elem_kind)));
+      __ LoadConstant(elem_size_reg, WasmValue(value_kind_size(elem_kind)));
       LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
 
       LiftoffRegister length_reg =
@@ -5443,7 +5444,8 @@ class LiftoffCompiler {
       LiftoffRegister element = pinned.set(__ PopToRegister(pinned));
       LiftoffRegister offset_reg =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ LoadConstant(offset_reg, WasmValue(i << element_size_log2(elem_kind)));
+      __ LoadConstant(offset_reg,
+                      WasmValue(i << value_kind_size_log2(elem_kind)));
       StoreObjectField(array.gp(), offset_reg.gp(),
                        wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
                        element, pinned, elem_kind);

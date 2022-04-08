@@ -1680,7 +1680,7 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
   result.set_length(length);
   MemCopy(reinterpret_cast<void*>(result.ElementAddress(0)),
           reinterpret_cast<void*>(source),
-          length * element_type.element_size_bytes());
+          length * element_type.value_kind_size());
 
   return handle(result, isolate());
 }

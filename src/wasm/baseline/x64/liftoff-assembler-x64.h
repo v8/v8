@@ -293,7 +293,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
-  return is_reference(kind) ? kSystemPointerSize : element_size_bytes(kind);
+  return value_kind_full_size(kind);
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
@@ -871,21 +871,16 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   DCHECK_NE(dst_offset, src_offset);
   Operand dst = liftoff::GetStackSlot(dst_offset);
   Operand src = liftoff::GetStackSlot(src_offset);
-  size_t size = element_size_log2(kind);
-  if (kind == kRef || kind == kOptRef || kind == kRtt) {
-    // Pointers are uncompressed on the stack!
-    size = kSystemPointerSizeLog2;
-  }
-  switch (size) {
-    case 2:
+  switch (SlotSizeForType(kind)) {
+    case 4:
       movl(kScratchRegister, src);
       movl(dst, kScratchRegister);
       break;
-    case 3:
+    case 8:
       movq(kScratchRegister, src);
       movq(dst, kScratchRegister);
       break;
-    case 4:
+    case 16:
       Movdqu(kScratchDoubleReg, src);
       Movdqu(dst, kScratchDoubleReg);
       break;
@@ -4095,7 +4090,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   int arg_bytes = 0;
   for (ValueKind param_kind : sig->parameters()) {
     liftoff::Store(this, Operand(rsp, arg_bytes), *args++, param_kind);
-    arg_bytes += element_size_bytes(param_kind);
+    arg_bytes += value_kind_size(param_kind);
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 

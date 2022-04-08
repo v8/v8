@@ -395,7 +395,7 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
   // some performance testing to see how big an effect it will take.
   switch (kind) {
     case kS128:
-      return element_size_bytes(kind);
+      return value_kind_size(kind);
     default:
       return kStackSlotSize;
   }
@@ -3186,7 +3186,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   int arg_bytes = 0;
   for (ValueKind param_kind : sig->parameters()) {
     Poke(liftoff::GetRegFromType(*args++, param_kind), arg_bytes);
-    arg_bytes += element_size_bytes(param_kind);
+    arg_bytes += value_kind_size(param_kind);
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 

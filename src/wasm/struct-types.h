@@ -71,9 +71,9 @@ class StructType : public ZoneObject {
 
   void InitializeOffsets() {
     if (field_count() == 0) return;
-    uint32_t offset = field(0).element_size_bytes();
+    uint32_t offset = field(0).value_kind_size();
     for (uint32_t i = 1; i < field_count(); i++) {
-      uint32_t field_size = field(i).element_size_bytes();
+      uint32_t field_size = field(i).value_kind_size();
       // TODO(jkummerow): Don't round up to more than kTaggedSize-alignment.
       offset = RoundUp(offset, field_size);
       field_offsets_[i - 1] = offset;

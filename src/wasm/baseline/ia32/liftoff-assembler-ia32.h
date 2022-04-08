@@ -318,7 +318,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
-  return is_reference(kind) ? kSystemPointerSize : element_size_bytes(kind);
+  return value_kind_full_size(kind);
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
@@ -1158,8 +1158,8 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
-  DCHECK_EQ(0, element_size_bytes(kind) % kSystemPointerSize);
-  int words = element_size_bytes(kind) / kSystemPointerSize;
+  DCHECK_EQ(0, SlotSizeForType(kind) % kSystemPointerSize);
+  int words = SlotSizeForType(kind) / kSystemPointerSize;
   DCHECK_LE(1, words);
   // Make sure we move the words in the correct order in case there is an
   // overlap between src and dst.
@@ -4542,7 +4542,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   int arg_bytes = 0;
   for (ValueKind param_kind : sig->parameters()) {
     liftoff::Store(this, esp, arg_bytes, *args++, param_kind);
-    arg_bytes += element_size_bytes(param_kind);
+    arg_bytes += value_kind_size(param_kind);
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 

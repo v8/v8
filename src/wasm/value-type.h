@@ -208,19 +208,19 @@ constexpr bool is_object_reference(ValueKind kind) {
   return kind == kRef || kind == kOptRef;
 }
 
-constexpr int element_size_log2(ValueKind kind) {
-  constexpr int8_t kElementSizeLog2[] = {
-#define ELEM_SIZE_LOG2(kind, log2Size, ...) log2Size,
-      FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
-#undef ELEM_SIZE_LOG2
+constexpr int value_kind_size_log2(ValueKind kind) {
+  constexpr int8_t kValueKindSizeLog2[] = {
+#define VALUE_KIND_SIZE_LOG2(kind, log2Size, ...) log2Size,
+      FOREACH_VALUE_TYPE(VALUE_KIND_SIZE_LOG2)
+#undef VALUE_KIND_SIZE_LOG2
   };
 
-  int size_log_2 = kElementSizeLog2[kind];
+  int size_log_2 = kValueKindSizeLog2[kind];
   DCHECK_LE(0, size_log_2);
   return size_log_2;
 }
 
-constexpr int element_size_bytes(ValueKind kind) {
+constexpr int value_kind_size(ValueKind kind) {
   constexpr int8_t kElementSize[] = {
 #define ELEM_SIZE_LOG2(kind, log2Size, ...) \
   log2Size == -1 ? -1 : (1 << std::max(0, log2Size)),
@@ -231,6 +231,14 @@ constexpr int element_size_bytes(ValueKind kind) {
   int size = kElementSize[kind];
   DCHECK_LT(0, size);
   return size;
+}
+
+constexpr int value_kind_full_size(ValueKind kind) {
+  if (is_reference(kind)) {
+    // Uncompressed pointer size.
+    return kSystemPointerSize;
+  }
+  return value_kind_size(kind);
 }
 
 constexpr char short_name(ValueKind kind) {
@@ -395,12 +403,16 @@ class ValueType {
     return offsetof(ValueType, bit_field_);
   }
 
-  constexpr int element_size_log2() const {
-    return wasm::element_size_log2(kind());
+  constexpr int value_kind_size_log2() const {
+    return wasm::value_kind_size_log2(kind());
   }
 
-  constexpr int element_size_bytes() const {
-    return wasm::element_size_bytes(kind());
+  constexpr int value_kind_size() const {
+    return wasm::value_kind_size(kind());
+  }
+
+  constexpr int value_kind_full_size() const {
+    return wasm::value_kind_full_size(kind());
   }
 
   /*************************** Machine-type related ***************************/

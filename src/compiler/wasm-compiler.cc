@@ -482,8 +482,7 @@ class WasmGraphAssembler : public GraphAssembler {
         mcgraph()->machine()->Is64() ? ChangeUint32ToUint64(index) : index;
     return IntAdd(
         IntPtrConstant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)),
-        IntMul(index_intptr,
-               IntPtrConstant(element_type.element_size_bytes())));
+        IntMul(index_intptr, IntPtrConstant(element_type.value_kind_size())));
   }
 
   Node* LoadWasmArrayLength(Node* array) {
@@ -1637,7 +1636,7 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
   Node* result;
   Node* value = node;
   MachineOperatorBuilder* m = mcgraph()->machine();
-  int valueSizeInBytes = wasmtype.element_size_bytes();
+  int valueSizeInBytes = wasmtype.value_kind_size();
   int valueSizeInBits = 8 * valueSizeInBytes;
   bool isFloat = false;
 
@@ -1671,7 +1670,7 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
     // In case we store lower part of WasmI64 expression, we can truncate
     // upper 32bits
     value = gasm_->TruncateInt64ToInt32(value);
-    valueSizeInBytes = wasm::kWasmI32.element_size_bytes();
+    valueSizeInBytes = wasm::kWasmI32.value_kind_size();
     valueSizeInBits = 8 * valueSizeInBytes;
     if (mem_rep == MachineRepresentation::kWord16) {
       value = gasm_->Word32Shl(value, Int32Constant(16));
@@ -3885,7 +3884,7 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
 
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
                                                       wasm::ValueType type) {
-  int alignment = offset % type.element_size_bytes();
+  int alignment = offset % type.value_kind_size();
   MachineType mach_type = type.machine_type();
   if (COMPRESS_POINTERS_BOOL && mach_type.IsTagged()) {
     // We are loading tagged value from off-heap location, so we need to load
@@ -3901,7 +3900,7 @@ const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
 
 const Operator* WasmGraphBuilder::GetSafeStoreOperator(int offset,
                                                        wasm::ValueType type) {
-  int alignment = offset % type.element_size_bytes();
+  int alignment = offset % type.value_kind_size();
   MachineRepresentation rep = type.machine_representation();
   if (COMPRESS_POINTERS_BOOL && IsAnyTagged(rep)) {
     // We are storing tagged value to off-heap location, so we need to store
@@ -5638,9 +5637,9 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
   // Do NOT mark this as Operator::kEliminatable, because that would cause the
   // Call node to have no control inputs, which means it could get scheduled
   // before the check/trap above.
-  Node* a = gasm_->CallBuiltin(
-      stub, Operator::kNoDeopt | Operator::kNoThrow, rtt, length,
-      Int32Constant(element_type.element_size_bytes()));
+  Node* a =
+      gasm_->CallBuiltin(stub, Operator::kNoDeopt | Operator::kNoThrow, rtt,
+                         length, Int32Constant(element_type.value_kind_size()));
   if (initial_value != nullptr) {
     // TODO(manoskouk): If the loop is ever removed here, we have to update
     // ArrayNewWithRtt() in graph-builder-interface.cc to not mark the current
@@ -5649,7 +5648,7 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
     auto done = gasm_->MakeLabel();
     Node* start_offset =
         Int32Constant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize));
-    Node* element_size = Int32Constant(element_type.element_size_bytes());
+    Node* element_size = Int32Constant(element_type.value_kind_size());
     Node* end_offset =
         gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
     gasm_->Goto(&loop, start_offset);
@@ -5676,7 +5675,7 @@ Node* WasmGraphBuilder::ArrayInit(const wasm::ArrayType* type, Node* rtt,
       gasm_->CallBuiltin(Builtin::kWasmAllocateArray_Uninitialized,
                          Operator::kNoDeopt | Operator::kNoThrow, rtt,
                          Int32Constant(static_cast<int32_t>(elements.size())),
-                         Int32Constant(element_type.element_size_bytes()));
+                         Int32Constant(element_type.value_kind_size()));
   for (int i = 0; i < static_cast<int>(elements.size()); i++) {
     Node* offset =
         gasm_->WasmArrayElementOffset(Int32Constant(i), element_type);
@@ -7261,11 +7260,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Store arguments on our stack, then align the stack for calling to C.
     int param_bytes = 0;
     for (wasm::ValueType type : sig_->parameters()) {
-      param_bytes += type.element_size_bytes();
+      param_bytes += type.value_kind_size();
     }
     int return_bytes = 0;
     for (wasm::ValueType type : sig_->returns()) {
-      return_bytes += type.element_size_bytes();
+      return_bytes += type.value_kind_size();
     }
 
     int stack_slot_bytes = std::max(param_bytes, return_bytes);
@@ -7284,7 +7283,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       SetEffect(graph()->NewNode(GetSafeStoreOperator(offset, type), values,
                                  Int32Constant(offset), Param(i + 1), effect(),
                                  control()));
-      offset += type.element_size_bytes();
+      offset += type.value_kind_size();
     }
 
     Node* function_node = gasm_->Load(
@@ -7349,7 +7348,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             graph()->NewNode(GetSafeLoadOperator(offset, type), values,
                              Int32Constant(offset), effect(), control()));
         returns[i] = val;
-        offset += type.element_size_bytes();
+        offset += type.value_kind_size();
       }
       Return(base::VectorOf(returns));
     }
@@ -7571,7 +7570,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           graph()->NewNode(GetSafeLoadOperator(offset, type), arg_buffer,
                            Int32Constant(offset), effect(), control()));
       args[pos++] = arg_load;
-      offset += type.element_size_bytes();
+      offset += type.value_kind_size();
     }
 
     args[pos++] = effect();
@@ -7603,7 +7602,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       SetEffect(graph()->NewNode(GetSafeStoreOperator(offset, type), arg_buffer,
                                  Int32Constant(offset), value, effect(),
                                  control()));
-      offset += type.element_size_bytes();
+      offset += type.value_kind_size();
       pos++;
     }
 

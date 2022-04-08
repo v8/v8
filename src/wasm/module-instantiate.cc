@@ -188,7 +188,7 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   map->SetInstanceDescriptors(isolate, *descriptors,
                               descriptors->number_of_descriptors());
   map->set_is_extensible(false);
-  WasmArray::EncodeElementSizeInMap(type->element_type().element_size_bytes(),
+  WasmArray::EncodeElementSizeInMap(type->element_type().value_kind_size(),
                                     *map);
   return map;
 }
