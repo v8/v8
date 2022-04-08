@@ -1697,6 +1697,23 @@ void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
   Branch(target, condition, scratch, Operand(zero_reg));
 }
 
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  if (COMPRESS_POINTERS_BOOL) {
+    DCHECK(SmiValuesAre31Bits());
+    Register scratch = temps.Acquire();
+    Lw(scratch, MemOperand(dst.gp(), offset));
+    Add32(scratch, scratch, Operand(Smi::FromInt(1)));
+    Sw(scratch, MemOperand(dst.gp(), offset));
+  } else {
+    Register scratch = temps.Acquire();
+    SmiUntag(scratch, MemOperand(dst.gp(), offset));
+    Add64(scratch, scratch, Operand(1));
+    SmiTag(scratch);
+    Sd(scratch, MemOperand(dst.gp(), offset));
+  }
+}
+
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
