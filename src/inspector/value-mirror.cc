@@ -209,10 +209,9 @@ String16 descriptionForSymbol(v8::Local<v8::Context> context,
 String16 descriptionForBigInt(v8::Local<v8::Context> context,
                               v8::Local<v8::BigInt> value) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::String> description;
-  if (!value->ToString(context).ToLocal(&description)) return String16();
-  return toProtocolString(isolate, description) + "n";
+  v8::Local<v8::String> description =
+      v8::debug::GetBigIntDescription(isolate, value);
+  return toProtocolString(isolate, description);
 }
 
 String16 descriptionForPrimitiveType(v8::Local<v8::Context> context,
@@ -516,7 +515,7 @@ class BigIntMirror final : public ValueMirror {
     *result = RemoteObject::create()
                   .setType(RemoteObject::TypeEnum::Bigint)
                   .setUnserializableValue(description)
-                  .setDescription(description)
+                  .setDescription(abbreviateString(description, kMiddle))
                   .build();
     return Response::Success();
   }
@@ -540,7 +539,8 @@ class BigIntMirror final : public ValueMirror {
     *preview =
         ObjectPreview::create()
             .setType(RemoteObject::TypeEnum::Bigint)
-            .setDescription(descriptionForBigInt(context, m_value))
+            .setDescription(abbreviateString(
+                descriptionForBigInt(context, m_value), kMiddle))
             .setOverflow(false)
             .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();

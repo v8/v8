@@ -395,6 +395,23 @@ Running test: testBigInt
         unserializableValue : -5n
     }
 }
+'1n << 9_999_999n', returnByValue: false, generatePreview: false
+{
+    result : {
+        description : 0x800000000000000000000000000000000000000000000000…000000000000000000000000000000000000000000000000n
+        type : bigint
+        unserializableValue : <expected unserializableValue>
+    }
+}
+'-1n << 9_999_999n', returnByValue: false, generatePreview: false
+100
+{
+    result : {
+        description : -0x80000000000000000000000000000000000000000000000…000000000000000000000000000000000000000000000000n
+        type : bigint
+        unserializableValue : <expected unserializableValue>
+    }
+}
 
 Running test: testRegExp
 '/w+/d', returnByValue: false, generatePreview: false

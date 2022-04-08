@@ -50,6 +50,9 @@ int GetContextId(Local<Context> context);
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
+// Returns a debug string representation of the bigint.
+Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint);
+
 // Returns a debug string representation of the date.
 Local<String> GetDateDescription(Local<Date> date);
 
