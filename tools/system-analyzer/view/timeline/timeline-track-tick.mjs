@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {delay} from '../../helper.mjs';
 import {TickLogEntry} from '../../log/tick.mjs';
 import {Timeline} from '../../timeline.mjs';
-import {DOM, SVG} from '../helper.mjs';
+import {delay, DOM, SVG} from '../helper.mjs';
+
 import {TimelineTrackStackedBase} from './timeline-track-stacked-base.mjs'
 
 class Flame {

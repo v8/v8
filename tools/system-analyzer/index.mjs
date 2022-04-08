@@ -15,9 +15,8 @@ import {MapLogEntry} from './log/map.mjs';
 import {TickLogEntry} from './log/tick.mjs';
 import {TimerLogEntry} from './log/timer.mjs';
 import {Processor} from './processor.mjs';
-import {Timeline} from './timeline.mjs'
 import {FocusEvent, SelectionEvent, SelectRelatedEvent, SelectTimeEvent, ToolTipEvent,} from './view/events.mjs';
-import {$, CSSColor, groupBy} from './view/helper.mjs';
+import {$, groupBy} from './view/helper.mjs';
 
 class App {
   _state;
@@ -51,11 +50,11 @@ class App {
       toolTip: $('#tool-tip'),
     };
     this._view.logFileReader.addEventListener(
-        'fileuploadstart', (e) => this.handleFileUploadStart(e));
+        'fileuploadstart', this.handleFileUploadStart.bind(this));
     this._view.logFileReader.addEventListener(
-        'fileuploadchunk', (e) => this.handleFileUploadChunk(e));
+        'fileuploadchunk', this.handleFileUploadChunk.bind(this));
     this._view.logFileReader.addEventListener(
-        'fileuploadend', (e) => this.handleFileUploadEnd(e));
+        'fileuploadend', this.handleFileUploadEnd.bind(this));
     this._startupPromise = this._loadCustomElements();
     this._view.codeTrack.svg = true;
   }
@@ -91,14 +90,14 @@ class App {
     document.addEventListener(
         'keydown', e => this._navigation?.handleKeyDown(e));
     document.addEventListener(
-        SelectRelatedEvent.name, e => this.handleSelectRelatedEntries(e));
+        SelectRelatedEvent.name, this.handleSelectRelatedEntries.bind(this));
     document.addEventListener(
-        SelectionEvent.name, e => this.handleSelectEntries(e))
+        SelectionEvent.name, this.handleSelectEntries.bind(this))
     document.addEventListener(
-        FocusEvent.name, e => this.handleFocusLogEntry(e));
+        FocusEvent.name, this.handleFocusLogEntry.bind(this));
     document.addEventListener(
-        SelectTimeEvent.name, e => this.handleTimeRangeSelect(e));
-    document.addEventListener(ToolTipEvent.name, e => this.handleToolTip(e));
+        SelectTimeEvent.name, this.handleTimeRangeSelect.bind(this));
+    document.addEventListener(ToolTipEvent.name, this.handleToolTip.bind(this));
   }
 
   handleSelectRelatedEntries(e) {
@@ -362,6 +361,8 @@ class App {
     this.restartApp();
     $('#container').className = 'initial';
     this._processor = new Processor();
+    this._processor.setProgressCallback(
+        e.detail.totalSize, e.detail.progressCallback);
   }
 
   async handleFileUploadChunk(e) {

@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {delay} from '../../helper.mjs';
 import {Timeline} from '../../timeline.mjs';
 import {SelectTimeEvent} from '../events.mjs';
-import {CSSColor, DOM, SVG} from '../helper.mjs';
+import {CSSColor, delay, SVG} from '../helper.mjs';
 
 import {TimelineTrackBase} from './timeline-track-base.mjs'
 

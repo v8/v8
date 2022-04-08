@@ -69,12 +69,19 @@ found in the LICENSE file. -->
     height: calc(var(--view-height) + 12px);
     overflow-y: scroll;
     margin-right: -10px;
-    padding-right: 2px;
+    padding: 0 2px 0 2px;
+    width: 400px;
+    border-left: 1px solid var(--border-color);
   }
 
   #legendTable {
-    width: 280px;
+    width: 100%;
     border-collapse: collapse;
+  }
+
+  thead {
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
   }
 
   th,
@@ -84,23 +91,19 @@ found in the LICENSE file. -->
 
   #legendTable td {
     padding-top: 3px;
+    text-align: right;
   }
   /* Center colors */
-  #legendTable td:nth-of-type(4n+1) {
+  #legendTable .color {
     text-align: center;
   }
   /* Left align text*/
-  #legendTable td:nth-of-type(4n+2) {
+  #legendTable .text {
     text-align: left;
     width: 100%;
     max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  /* right align numbers */
-  #legendTable td:nth-of-type(4n+3),
-  #legendTable td:nth-of-type(4n+4) {
-    text-align: right;
   }
 
   .timeline {
@@ -162,6 +165,9 @@ found in the LICENSE file. -->
   }
   .legend {
     flex: initial;
+  }
+  .colorbox.empty {
+    opacity: 0.5;
   }
 </style>
 <style>
@@ -235,7 +241,7 @@ found in the LICENSE file. -->
       <thead>
         <tr>
           <td></td>
-          <td>Type</td>
+          <td class="text">Type</td>
           <td>Count</td>
           <td></td>
         </tr>

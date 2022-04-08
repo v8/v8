@@ -179,9 +179,9 @@ button:hover {
 
 .colorbox {
   display: inline-block;
-  width: 10px;
-  height: 10px;
-  border: 1px var(--background-color) solid;
+  width: 8px;
+  height: 8px;
+  border: 2px var(--background-color) solid;
   border-radius: 50%;
 }
 

@@ -61,6 +61,11 @@ export class Processor extends LogReader {
   _lastCodeLogEntry;
   _lastTickLogEntry;
   _chunkRemainder = '';
+
+  _totalInputBytes = 0;
+  _processedInputChars = 0;
+  _progressCallback;
+
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
   constructor() {
@@ -205,7 +210,22 @@ export class Processor extends LogReader {
     this._chunkConsumer.push(chunk)
   }
 
+  setProgressCallback(totalSize, callback) {
+    this._totalInputBytes = totalSize;
+    this._progressCallback = callback;
+  }
+
+  async _updateProgress() {
+    if (!this._progressCallback) return;
+    // We use chars and bytes interchangeably for simplicity. This causes us to
+    // slightly underestimate progress.
+    this._progressCallback(
+        this._processedInputChars / this._totalInputBytes,
+        this._processedInputChars);
+  }
+
   async _processChunk(chunk) {
+    const prevProcessedInputChars = this._processedInputChars;
     let end = chunk.length;
     let current = 0;
     let next = 0;
@@ -226,7 +246,9 @@ export class Processor extends LogReader {
         current = next + 1;
         lineNumber++;
         await this.processLogLine(line);
+        this._processedInputChars = prevProcessedInputChars + current;
       }
+      this._updateProgress();
     } catch (e) {
       console.error(
           `Could not parse log line ${lineNumber}, trying to continue: ${e}`);

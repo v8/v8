@@ -44,7 +44,7 @@ export const parseVarArgs = 'parse-var-args';
  * @constructor
  */
 export class LogReader {
-  constructor (timedRange, pairwiseTimedRange) {
+  constructor(timedRange=false, pairwiseTimedRange=false) {
     this.dispatchTable_ = new Map();
     this.timedRange_ = timedRange;
     this.pairwiseTimedRange_ = pairwiseTimedRange;

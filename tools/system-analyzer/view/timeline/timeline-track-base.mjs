@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {delay} from '../../helper.mjs';
 import {kChunkHeight, kChunkVisualWidth, kChunkWidth} from '../../log/map.mjs';
 import {SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
-import {CSSColor, DOM, formatDurationMicros, SVG, V8CustomElement} from '../helper.mjs';
+import {CSSColor, delay, DOM, formatDurationMicros, V8CustomElement} from '../helper.mjs';
 
 export const kTimelineHeight = 200;
 
@@ -41,9 +40,9 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _initEventListeners() {
-    this._legend.onFilter = (type) => this._handleFilterTimeline();
+    this._legend.onFilter = this._handleFilterTimeline.bind(this);
     this.timelineNode.addEventListener(
-        'scroll', e => this._handleTimelineScroll(e));
+        'scroll', this._handleTimelineScroll.bind(this));
     this.hitPanelNode.onclick = this._handleClick.bind(this);
     this.hitPanelNode.ondblclick = this._handleDoubleClick.bind(this);
     this.hitPanelNode.onmousemove = this._handleMouseMove.bind(this);
@@ -64,6 +63,7 @@ export class TimelineTrackBase extends V8CustomElement {
 
   _handleFilterTimeline(type) {
     this._updateChunks();
+    this._legend.update(true);
   }
 
   set data(timeline) {
@@ -597,24 +597,39 @@ class Legend {
     return this._typesFilters.get(logEntry.type);
   }
 
-  update() {
-    if (this._lastSelection === this.selection) return;
+  update(force = false) {
+    if (!force && this._lastSelection === this.selection) return;
     this._lastSelection = this.selection;
     const tbody = DOM.tbody();
     const missingTypes = new Set(this._typesFilters.keys());
     this._checkDurationField();
-    this.selection.getBreakdown(undefined, this._enableDuration)
-        .forEach(group => {
-          tbody.appendChild(this._addTypeRow(group));
-          missingTypes.delete(group.key);
-        });
-    missingTypes.forEach(
-        key => tbody.appendChild(this._addRow('', key, 0, '0%')));
-    if (this._timeline.selection) {
-      tbody.appendChild(
-          this._addRow('', 'Selection', this.selection.length, '100%'));
+    let selectionDuration = 0;
+    const breakdown =
+        this.selection.getBreakdown(undefined, this._enableDuration);
+    if (this._enableDuration) {
+      if (this.selection.cachedDuration === undefined) {
+        this.selection.cachedDuration = this._breakdownTotalDuration(breakdown);
+      }
+      selectionDuration = this.selection.cachedDuration;
     }
-    tbody.appendChild(this._addRow('', 'All', this._timeline.length, ''));
+    breakdown.forEach(group => {
+      tbody.appendChild(this._addTypeRow(group, selectionDuration));
+      missingTypes.delete(group.key);
+    });
+    missingTypes.forEach(key => {
+      const emptyGroup = {key, length: 0, duration: 0};
+      tbody.appendChild(this._addTypeRow(emptyGroup, selectionDuration));
+    });
+    if (this._timeline.selection) {
+      tbody.appendChild(this._addRow(
+          '', 'Selection', this.selection.length, '100%', selectionDuration,
+          '100%'));
+    }
+    // Showing 100% for 'All' and for 'Selection' would be confusing.
+    const allPercent = this._timeline.selection ? '' : '100%';
+    tbody.appendChild(this._addRow(
+        '', 'All', this._timeline.length, allPercent,
+        this._timeline.cachedDuration, allPercent));
     this._table.tBodies[0].replaceWith(tbody);
   }
 
@@ -628,8 +643,9 @@ class Legend {
 
   _addRow(colorNode, type, count, countPercent, duration, durationPercent) {
     const row = DOM.tr();
-    row.appendChild(DOM.td(colorNode));
-    const typeCell = row.appendChild(DOM.td(type));
+    const colorCell = row.appendChild(DOM.td(colorNode, 'color'));
+    colorCell.setAttribute('title', `Toggle '${type}' entries.`);
+    const typeCell = row.appendChild(DOM.td(type, 'text'));
     typeCell.setAttribute('title', type);
     row.appendChild(DOM.td(count.toString()));
     row.appendChild(DOM.td(countPercent));
@@ -640,26 +656,31 @@ class Legend {
     return row
   }
 
-  _addTypeRow(group) {
+  _addTypeRow(group, selectionDuration) {
     const color = this.colorForType(group.key);
-    const colorDiv = DOM.div('colorbox');
+    const classes = ['colorbox'];
+    if (group.length == 0) classes.push('empty');
+    const colorDiv = DOM.div(classes);
+    colorDiv.style.borderColor = color;
     if (this._typesFilters.get(group.key)) {
       colorDiv.style.backgroundColor = color;
     } else {
-      colorDiv.style.borderColor = color;
       colorDiv.style.backgroundColor = CSSColor.backgroundImage;
     }
     let duration = 0;
+    let durationPercent = '';
     if (this._enableDuration) {
-      const entries = group.entries;
-      for (let i = 0; i < entries.length; i++) {
-        duration += entries[i].duration;
-      }
+      // group.duration was added in _breakdownTotalDuration.
+      duration = group.duration;
+      durationPercent = selectionDuration == 0 ?
+          '0%' :
+          this._formatPercent(duration / selectionDuration);
     }
-    let countPercent =
-        `${(group.length / this.selection.length * 100).toFixed(1)}%`;
+    const countPercent =
+        this._formatPercent(group.length / this.selection.length);
     const row = this._addRow(
-        colorDiv, group.key, group.length, countPercent, duration, '');
+        colorDiv, group.key, group.length, countPercent, duration,
+        durationPercent);
     row.className = 'clickable';
     row.onclick = this._typeClickHandler;
     row.data = group.key;
@@ -670,5 +691,27 @@ class Legend {
     const type = e.currentTarget.data;
     this._typesFilters.set(type, !this._typesFilters.get(type));
     this.onFilter(type);
+  }
+
+  _breakdownTotalDuration(breakdown) {
+    let duration = 0;
+    breakdown.forEach(group => {
+      group.duration = this._groupDuration(group);
+      duration += group.duration;
+    })
+    return duration;
+  }
+
+  _groupDuration(group) {
+    let duration = 0;
+    const entries = group.entries;
+    for (let i = 0; i < entries.length; i++) {
+      duration += entries[i].duration;
+    }
+    return duration;
+  }
+
+  _formatPercent(ratio) {
+    return `${(ratio * 100).toFixed(1)}%`;
   }
 }
