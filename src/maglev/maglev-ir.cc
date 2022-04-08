@@ -34,11 +34,12 @@ const char* ToString(Opcode opcode) {
 
 // TODO(v8:7700): Clean up after all code paths are supported.
 static bool g_this_field_will_be_unused_once_all_code_paths_are_supported;
-#define UNSUPPORTED()                                                     \
-  do {                                                                    \
-    std::cerr << "Maglev: Can't compile, unsuppored codegen path.\n";     \
-    code_gen_state->set_found_unsupported_code_paths(true);               \
-    g_this_field_will_be_unused_once_all_code_paths_are_supported = true; \
+#define UNSUPPORTED(REASON)                                                \
+  do {                                                                     \
+    std::cerr << "Maglev: Can't compile, unsuppored codegen path (" REASON \
+                 ")\n";                                                    \
+    code_gen_state->set_found_unsupported_code_paths(true);                \
+    g_this_field_will_be_unused_once_all_code_paths_are_supported = true;  \
   } while (false)
 
 namespace {
@@ -545,11 +546,11 @@ void LoadField::GenerateCode(MaglevCodeGenState* code_gen_state,
     __ DecompressAnyTagged(ToRegister(result()), input_field_operand);
     if (LoadHandler::IsDoubleBits::decode(handler)) {
       // TODO(leszeks): Copy out the value, either as a double or a HeapNumber.
-      UNSUPPORTED();
+      UNSUPPORTED("LoadField double property");
     }
   } else {
     // TODO(leszeks): Handle out-of-object properties.
-    UNSUPPORTED();
+    UNSUPPORTED("LoadField out-of-object property");
   }
 }
 void LoadField::PrintParams(std::ostream& os,
@@ -574,7 +575,7 @@ void StoreField::GenerateCode(MaglevCodeGenState* code_gen_state,
     __ StoreTaggedField(operand, value);
   } else {
     // TODO(victorgomes): Out-of-object properties.
-    UNSUPPORTED();
+    UNSUPPORTED("StoreField out-of-object property");
   }
 }
 
