@@ -218,7 +218,6 @@ void MarkerBase::StartMarking() {
         MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
       mutator_marking_state_.Publish();
       concurrent_marker_->Start();
-      concurrent_marking_active_ = true;
     }
     incremental_marking_allocation_observer_ =
         std::make_unique<IncrementalMarkingAllocationObserver>(*this);
@@ -262,11 +261,10 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
       MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     // Start parallel marking.
     mutator_marking_state_.Publish();
-    if (concurrent_marking_active_) {
+    if (concurrent_marker_->IsActive()) {
       concurrent_marker_->NotifyIncrementalMutatorStepCompleted();
     } else {
       concurrent_marker_->Start();
-      concurrent_marking_active_ = true;
     }
   }
 }
@@ -433,11 +431,9 @@ void MarkerBase::AdvanceMarkingOnAllocation() {
 
 bool MarkerBase::CancelConcurrentMarkingIfNeeded() {
   if (config_.marking_type != MarkingConfig::MarkingType::kAtomic ||
-      !concurrent_marking_active_)
+      !concurrent_marker_->Cancel())
     return false;
 
-  concurrent_marker_->Cancel();
-  concurrent_marking_active_ = false;
   // Concurrent markers may have pushed some "leftover" in-construction objects
   // after flushing in EnterAtomicPause.
   HandleNotFullyConstructedObjects();

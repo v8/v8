@@ -161,6 +161,7 @@ class V8_EXPORT CppHeap {
 class JSVisitor : public cppgc::Visitor {
  public:
   explicit JSVisitor(cppgc::Visitor::Key key) : cppgc::Visitor(key) {}
+  ~JSVisitor() override = default;
 
   void Trace(const TracedReferenceBase& ref) {
     if (ref.IsEmptyThreadSafe()) return;
