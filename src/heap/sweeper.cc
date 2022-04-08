@@ -272,6 +272,11 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
     DCHECK_NULL(page->slot_set<OLD_TO_OLD>());
   }
 
+  // Old-to-shared isn't reset after a full GC, so needs to be cleaned both
+  // during and after a full GC.
+  RememberedSet<OLD_TO_SHARED>::RemoveRange(page, free_start, free_end,
+                                            SlotSet::KEEP_EMPTY_BUCKETS);
+
   if (record_free_ranges) {
     free_ranges_map->insert(std::pair<uint32_t, uint32_t>(
         static_cast<uint32_t>(free_start - page->address()),
@@ -291,6 +296,8 @@ void Sweeper::CleanupInvalidTypedSlotsOfFreeRanges(
     // Also code objects are never right-trimmed, so there cannot be any slots
     // in a free range.
     page->AssertNoInvalidTypedSlots<OLD_TO_OLD>(free_ranges_map);
+
+    page->ClearInvalidTypedSlots<OLD_TO_SHARED>(free_ranges_map);
     return;
   }
 
@@ -300,6 +307,7 @@ void Sweeper::CleanupInvalidTypedSlotsOfFreeRanges(
   // could create new slots but not in a free range.
   page->AssertNoInvalidTypedSlots<OLD_TO_NEW>(free_ranges_map);
   DCHECK_NULL(page->typed_slot_set<OLD_TO_OLD>());
+  page->ClearInvalidTypedSlots<OLD_TO_SHARED>(free_ranges_map);
 }
 
 void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(
@@ -356,6 +364,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
 
   bool record_free_ranges = p->typed_slot_set<OLD_TO_NEW>() != nullptr ||
                             p->typed_slot_set<OLD_TO_OLD>() != nullptr ||
+                            p->typed_slot_set<OLD_TO_SHARED>() != nullptr ||
                             DEBUG_BOOL;
 
   // Clean invalidated slots during the final atomic pause. After resuming
