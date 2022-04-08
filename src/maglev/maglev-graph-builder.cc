@@ -320,7 +320,8 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
 void MaglevGraphBuilder::VisitGetNamedProperty() {
   // GetNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
-  FeedbackNexus nexus = feedback_nexus(2);
+  FeedbackSlot slot_index = GetSlotOperand(2);
+  FeedbackNexus nexus(feedback().object(), slot_index);
 
   if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
     AddNewNode<EagerDeopt>({});
@@ -345,7 +346,9 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
 
   ValueNode* context = GetContext();
   compiler::NameRef name = GetRefOperand<Name>(1);
-  SetAccumulatorToNewNode<LoadNamedGeneric>({context, object}, name);
+  SetAccumulatorToNewNode<LoadNamedGeneric>(
+      {context, object}, name,
+      compiler::FeedbackSource{feedback(), slot_index});
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetNamedPropertyFromSuper)

@@ -1163,13 +1163,15 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   using Base = FixedInputValueNodeT<2, LoadNamedGeneric>;
 
  public:
-  explicit LoadNamedGeneric(uint32_t bitfield, const compiler::NameRef& name)
-      : Base(bitfield), name_(name) {}
+  explicit LoadNamedGeneric(uint32_t bitfield, const compiler::NameRef& name,
+                            const compiler::FeedbackSource& feedback)
+      : Base(bitfield), name_(name), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
   compiler::NameRef name() const { return name_; }
+  compiler::FeedbackSource feedback() const { return feedback_; }
 
   static constexpr int kContextIndex = 0;
   static constexpr int kObjectIndex = 1;
@@ -1182,6 +1184,7 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
 
  private:
   const compiler::NameRef name_;
+  const compiler::FeedbackSource feedback_;
 };
 
 class GapMove : public FixedInputNodeT<0, GapMove> {

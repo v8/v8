@@ -585,21 +585,21 @@ void StoreField::PrintParams(std::ostream& os,
 
 void LoadNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                     const ProcessingState& state) {
-  using D = LoadNoFeedbackDescriptor;
+  using D = LoadWithVectorDescriptor;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
 void LoadNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
                                     const ProcessingState& state) {
-  using D = LoadNoFeedbackDescriptor;
-  const int ic_kind = static_cast<int>(FeedbackSlotKind::kLoadProperty);
+  using D = LoadWithVectorDescriptor;
   DCHECK_EQ(ToRegister(context()), kContextRegister);
   DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
   __ Move(D::GetRegisterParameter(D::kName), name().object());
-  __ Move(D::GetRegisterParameter(D::kICKind),
-          Immediate(Smi::FromInt(ic_kind)));
-  __ CallBuiltin(Builtin::kLoadIC_NoFeedback);
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          Smi::FromInt(feedback().slot.ToInt()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kLoadIC);
 }
 void LoadNamedGeneric::PrintParams(std::ostream& os,
                                    MaglevGraphLabeller* graph_labeller) const {
