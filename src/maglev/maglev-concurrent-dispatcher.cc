@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 
+#include "src/codegen/compiler.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/isolate.h"
@@ -115,6 +116,10 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   return CompilationJob::SUCCEEDED;
 }
 
+Handle<JSFunction> MaglevCompilationJob::function() const {
+  return info_->function();
+}
+
 // The JobTask is posted to V8::GetCurrentPlatform(). It's responsible for
 // processing the incoming queue on a worker thread.
 class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
@@ -187,7 +192,9 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
     CompilationJob::Status status = job->FinalizeJob(isolate_);
     // TODO(v8:7700): Use the result and check if job succeed
     // when all the bytecodes are implemented.
-    USE(status);
+    if (status == CompilationJob::SUCCEEDED) {
+      Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
+    }
   }
 }
 

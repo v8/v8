@@ -1128,6 +1128,25 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
   return {};
 }
 
+#ifdef V8_ENABLE_MAGLEV
+// TODO(v8:7700): Record maglev compilations better.
+void RecordMaglevFunctionCompilation(Isolate* isolate,
+                                     Handle<JSFunction> function) {
+  Handle<AbstractCode> abstract_code(
+      AbstractCode::cast(FromCodeT(function->code())), isolate);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  Handle<Script> script(Script::cast(shared->script()), isolate);
+  Handle<FeedbackVector> feedback_vector(function->feedback_vector(), isolate);
+
+  // Optimistic estimate.
+  double time_taken_ms = 0;
+
+  LogFunctionCompilation(isolate, CodeEventListener::FUNCTION_TAG, script,
+                         shared, feedback_vector, abstract_code,
+                         abstract_code->kind(), time_taken_ms);
+}
+#endif  // V8_ENABLE_MAGLEV
+
 MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
                                  ConcurrencyMode mode,
                                  BytecodeOffset osr_offset,
@@ -1145,13 +1164,6 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
 
-  if (IsSynchronous(mode)) {
-    function->reset_tiering_state();
-    return Maglev::Compile(isolate, function);
-  }
-
-  DCHECK(IsConcurrent(mode));
-
   // TODO(v8:7700): See everything in CompileTurbofan_Concurrent.
   // - Tracing,
   // - timers,
@@ -1162,6 +1174,29 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   auto job = maglev::MaglevCompilationJob::New(isolate, function);
   CompilationJob::Status status = job->PrepareJob(isolate);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
+
+  if (IsSynchronous(mode)) {
+    function->reset_tiering_state();
+    {
+      // Park the main thread Isolate here, to be in the same state as
+      // background threads.
+      ParkedScope parked_scope(isolate->main_thread_local_isolate());
+      if (job->ExecuteJob(isolate->counters()->runtime_call_stats(),
+                          isolate->main_thread_local_isolate()) !=
+          CompilationJob::SUCCEEDED) {
+        return {};
+      }
+    }
+
+    if (job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
+      return {};
+    }
+
+    RecordMaglevFunctionCompilation(isolate, function);
+    return handle(function->code(), isolate);
+  }
+
+  DCHECK(IsConcurrent(mode));
 
   // Enqueue it.
   isolate->maglev_concurrent_dispatcher()->EnqueueJob(std::move(job));
@@ -3455,6 +3490,16 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
     }
   }
   return CompilationJob::FAILED;
+}
+
+// static
+bool Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
+                                            Isolate* isolate) {
+#ifdef V8_ENABLE_MAGLEV
+  VMState<COMPILER> state(isolate);
+  RecordMaglevFunctionCompilation(isolate, job->function());
+#endif
+  return CompilationJob::SUCCEEDED;
 }
 
 // static

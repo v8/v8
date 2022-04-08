@@ -44,6 +44,10 @@ class WorkerThreadRuntimeCallStats;
 struct ScriptDetails;
 struct ScriptStreamingData;
 
+namespace maglev {
+class MaglevCompilationJob;
+}  // namespace maglev
+
 // The V8 compiler API.
 //
 // This is the central hub for dispatching to the various compilers within V8.
@@ -120,6 +124,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Finalize and install Turbofan code from a previously run job.
   static bool FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
                                              Isolate* isolate);
+
+  // Finalize and install Maglev code from a previously run job.
+  static bool FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
+                                           Isolate* isolate);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will

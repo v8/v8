@@ -54,6 +54,8 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
                         LocalIsolate* local_isolate) override;
   Status FinalizeJobImpl(Isolate* isolate) override;
 
+  Handle<JSFunction> function() const;
+
  private:
   explicit MaglevCompilationJob(std::unique_ptr<MaglevCompilationInfo>&& info);
 
