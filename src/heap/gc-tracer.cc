@@ -274,7 +274,9 @@ void GCTracer::ResetForTesting() {
   previous_ = current_;
   start_of_observable_pause_ = 0.0;
   notified_sweeping_completed_ = false;
-  notified_cppgc_completed_ = false;
+  notified_full_cppgc_completed_ = false;
+  notified_young_cppgc_completed_ = false;
+  notified_young_cppgc_running_ = false;
   young_gc_while_full_gc_ = false;
   ResetIncrementalMarkingCounters();
   allocation_time_ms_ = 0.0;
@@ -550,13 +552,29 @@ void GCTracer::StopCycle(GarbageCollector collector) {
   }
 }
 
-void GCTracer::StopCycleIfNeeded() {
+void GCTracer::StopFullCycleIfNeeded() {
   if (current_.state != Event::State::SWEEPING) return;
   if (!notified_sweeping_completed_) return;
-  if (heap_->cpp_heap() && !notified_cppgc_completed_) return;
+  if (heap_->cpp_heap() && !notified_full_cppgc_completed_) return;
   StopCycle(GarbageCollector::MARK_COMPACTOR);
   notified_sweeping_completed_ = false;
-  notified_cppgc_completed_ = false;
+  notified_full_cppgc_completed_ = false;
+}
+
+void GCTracer::StopYoungCycleIfNeeded() {
+  // We rely here on the fact that young GCs in V8 are atomic and by the time
+  // this is called, the Scavenger or Minor MC has already finished.
+  DCHECK(Event::IsYoungGenerationEvent(current_.type));
+  if (current_.state != Event::State::SWEEPING) return;
+  // Check if young cppgc was scheduled but hasn't completed yet.
+  if (heap_->cpp_heap() && notified_young_cppgc_running_ &&
+      !notified_young_cppgc_completed_)
+    return;
+  StopCycle(current_.type == Event::SCAVENGER
+                ? GarbageCollector::SCAVENGER
+                : GarbageCollector::MINOR_MARK_COMPACTOR);
+  notified_young_cppgc_running_ = false;
+  notified_young_cppgc_completed_ = false;
 }
 
 void GCTracer::NotifySweepingCompleted() {
@@ -586,29 +604,39 @@ void GCTracer::NotifySweepingCompleted() {
   }
   DCHECK(!notified_sweeping_completed_);
   notified_sweeping_completed_ = true;
-  StopCycleIfNeeded();
+  StopFullCycleIfNeeded();
 }
 
-void GCTracer::NotifyCppGCCompleted(CppType collection_type) {
+void GCTracer::NotifyFullCppGCCompleted() {
   // Stop a full GC cycle only when both v8 and cppgc (if available) GCs have
   // finished sweeping. This method is invoked by cppgc.
   DCHECK(heap_->cpp_heap());
   const auto* metric_recorder =
       CppHeap::From(heap_->cpp_heap())->GetMetricRecorder();
   USE(metric_recorder);
-  if (collection_type == CppType::kMinor) {
-    DCHECK(metric_recorder->YoungGCMetricsReportPending());
-    // Young generation GCs in Oilpan run together with Scavenger. Check that
-    // collection types are in sync.
-    DCHECK(Event::IsYoungGenerationEvent(current_.type));
-    // Don't stop the cycle (i.e. call StopCycle/StopCycleIfNeeded) for young
-    // generation events - this is performed later in Heap::CollectGarbage().
-    return;
-  }
   DCHECK(metric_recorder->FullGCMetricsReportPending());
-  DCHECK(!notified_cppgc_completed_);
-  notified_cppgc_completed_ = true;
-  StopCycleIfNeeded();
+  DCHECK(!notified_full_cppgc_completed_);
+  notified_full_cppgc_completed_ = true;
+  StopFullCycleIfNeeded();
+}
+
+void GCTracer::NotifyYoungCppGCCompleted() {
+  // Stop a young GC cycle only when both v8 and cppgc (if available) GCs have
+  // finished sweeping. This method is invoked by cppgc.
+  DCHECK(heap_->cpp_heap());
+  DCHECK(notified_young_cppgc_running_);
+  const auto* metric_recorder =
+      CppHeap::From(heap_->cpp_heap())->GetMetricRecorder();
+  USE(metric_recorder);
+  DCHECK(metric_recorder->YoungGCMetricsReportPending());
+  DCHECK(!notified_young_cppgc_completed_);
+  notified_young_cppgc_completed_ = true;
+  StopYoungCycleIfNeeded();
+}
+
+void GCTracer::NotifyYoungCppGCRunning() {
+  DCHECK(!notified_young_cppgc_running_);
+  notified_young_cppgc_running_ = true;
 }
 
 void GCTracer::SampleAllocation(double current_ms,

@@ -102,7 +102,7 @@ void StopTracing(GCTracer* tracer, GarbageCollector collector) {
   tracer->StopObservablePause();
   tracer->UpdateStatistics(collector);
   if (Heap::IsYoungGenerationCollector(collector)) {
-    tracer->StopCycle(collector);
+    tracer->StopYoungCycleIfNeeded();
   } else {
     tracer->NotifySweepingCompleted();
   }

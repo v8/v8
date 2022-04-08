@@ -41,6 +41,9 @@ class V8_EXPORT_PRIVATE CppHeap final
   };
 
   using GarbageCollectionFlags = base::Flags<GarbageCollectionFlagValues>;
+  using StackState = cppgc::internal::GarbageCollector::Config::StackState;
+  using CollectionType =
+      cppgc::internal::GarbageCollector::Config::CollectionType;
 
   class MetricRecorderAdapter final : public cppgc::internal::MetricRecorder {
    public:
@@ -114,9 +117,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void EnableDetachedGarbageCollectionsForTesting();
 
-  void CollectGarbageForTesting(
-      cppgc::internal::GarbageCollector::Config::CollectionType,
-      cppgc::internal::GarbageCollector::Config::StackState);
+  void CollectGarbageForTesting(CollectionType, StackState);
 
   void CollectCustomSpaceStatisticsAtLastGC(
       std::vector<cppgc::CustomSpaceIndex>,
@@ -134,7 +135,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
 
-  void RunMinorGC();
+  void RunMinorGC(StackState);
 
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;

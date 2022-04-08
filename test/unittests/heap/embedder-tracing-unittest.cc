@@ -502,7 +502,7 @@ TEST_F(EmbedderTracingTest, FinalizeTracingWhenMarking) {
     heap->mark_compact_collector()->EnsureSweepingCompleted(
         MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
-  heap->tracer()->StopCycleIfNeeded();
+  heap->tracer()->StopFullCycleIfNeeded();
   EXPECT_TRUE(heap->incremental_marking()->IsStopped());
 
   i::IncrementalMarking* marking = heap->incremental_marking();

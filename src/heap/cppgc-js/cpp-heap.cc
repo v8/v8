@@ -145,15 +145,13 @@ void CppHeap::EnableDetachedGarbageCollectionsForTesting() {
 
 void CppHeap::CollectGarbageForTesting(cppgc::EmbedderStackState stack_state) {
   return internal::CppHeap::From(this)->CollectGarbageForTesting(
-      cppgc::internal::GarbageCollector::Config::CollectionType::kMajor,
-      stack_state);
+      internal::CppHeap::CollectionType::kMajor, stack_state);
 }
 
 void CppHeap::CollectGarbageInYoungGenerationForTesting(
     cppgc::EmbedderStackState stack_state) {
   return internal::CppHeap::From(this)->CollectGarbageForTesting(
-      cppgc::internal::GarbageCollector::Config::CollectionType::kMinor,
-      stack_state);
+      internal::CppHeap::CollectionType::kMinor, stack_state);
 }
 
 namespace internal {
@@ -277,8 +275,7 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
     : cppgc::internal::MarkerBase(heap, platform, config),
       unified_heap_marking_state_(v8_heap),
       marking_visitor_(
-          config.collection_type == cppgc::internal::GarbageCollector::Config::
-                                        CollectionType::kMajor
+          config.collection_type == CppHeap::CollectionType::kMajor
               ? std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
                     heap, mutator_marking_state_, unified_heap_marking_state_)
               : std::make_unique<MutatorMinorGCMarkingVisitor>(
@@ -297,17 +294,16 @@ void UnifiedHeapMarker::AddObject(void* object) {
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
     const GCCycle& cppgc_event) {
+  auto* tracer = GetIsolate()->heap()->tracer();
   if (cppgc_event.type == MetricRecorder::GCCycle::Type::kMinor) {
     DCHECK(!last_young_gc_event_);
     last_young_gc_event_ = cppgc_event;
+    tracer->NotifyYoungCppGCCompleted();
   } else {
     DCHECK(!last_full_gc_event_);
     last_full_gc_event_ = cppgc_event;
+    tracer->NotifyFullCppGCCompleted();
   }
-  GetIsolate()->heap()->tracer()->NotifyCppGCCompleted(
-      cppgc_event.type == MetricRecorder::GCCycle::Type::kMinor
-          ? GCTracer::CppType::kMinor
-          : GCTracer::CppType::kMajor);
 }
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
@@ -513,6 +509,9 @@ bool ShouldReduceMemory(CppHeap::GarbageCollectionFlags flags) {
 }  // namespace
 
 CppHeap::MarkingType CppHeap::SelectMarkingType() const {
+  // For now, force atomic marking for minor collections.
+  if (*collection_type_ == CollectionType::kMinor) return MarkingType::kAtomic;
+
   if (IsForceGC(current_gc_flags_) && !force_incremental_marking_for_testing_)
     return MarkingType::kAtomic;
 
@@ -525,16 +524,14 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
   return sweeping_support();
 }
 
-void CppHeap::InitializeTracing(
-    cppgc::internal::GarbageCollector::Config::CollectionType collection_type,
-    GarbageCollectionFlags gc_flags) {
+void CppHeap::InitializeTracing(CollectionType collection_type,
+                                GarbageCollectionFlags gc_flags) {
   CHECK(!sweeper_.IsSweepingInProgress());
 
   // Check that previous cycle metrics for the same collection type have been
   // reported.
   if (GetMetricRecorder()) {
-    if (collection_type ==
-        cppgc::internal::GarbageCollector::Config::CollectionType::kMajor)
+    if (collection_type == CollectionType::kMajor)
       DCHECK(!GetMetricRecorder()->FullGCMetricsReportPending());
     else
       DCHECK(!GetMetricRecorder()->YoungGCMetricsReportPending());
@@ -544,16 +541,14 @@ void CppHeap::InitializeTracing(
   collection_type_ = collection_type;
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (*collection_type_ ==
-      cppgc::internal::GarbageCollector::Config::CollectionType::kMajor)
+  if (*collection_type_ == CollectionType::kMajor)
     cppgc::internal::SequentialUnmarker unmarker(raw_heap());
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   current_gc_flags_ = gc_flags;
 
   const UnifiedHeapMarker::MarkingConfig marking_config{
-      *collection_type_, cppgc::Heap::StackState::kNoHeapPointers,
-      SelectMarkingType(),
+      *collection_type_, StackState::kNoHeapPointers, SelectMarkingType(),
       IsForceGC(current_gc_flags_)
           ? UnifiedHeapMarker::MarkingConfig::IsForcedGC::kForced
           : UnifiedHeapMarker::MarkingConfig::IsForcedGC::kNotForced};
@@ -602,9 +597,7 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
   in_atomic_pause_ = true;
   marker_->EnterAtomicPause(stack_state);
-  if (isolate_ &&
-      *collection_type_ ==
-          cppgc::internal::GarbageCollector::Config::CollectionType::kMinor) {
+  if (isolate_ && *collection_type_ == CollectionType::kMinor) {
     // Visit V8 -> cppgc references.
     TraceV8ToCppGCReferences(isolate_,
                              static_cast<UnifiedHeapMarker*>(marker_.get())
@@ -665,26 +658,29 @@ void CppHeap::TraceEpilogue() {
   sweeper().NotifyDoneIfNeeded();
 }
 
-void CppHeap::RunMinorGC() {
-#if defined(CPPGC_YOUNG_GENERATION)
+void CppHeap::RunMinorGC(StackState stack_state) {
+  DCHECK(!sweeper_.IsSweepingInProgress());
+
   if (in_no_gc_scope()) return;
   // Minor GC does not support nesting in full GCs.
   if (IsMarking()) return;
-  // Finish sweeping in case it is still running.
-  sweeper().FinishIfRunning();
+  // Minor GCs with the stack are currently not supported.
+  if (stack_state == StackState::kMayContainHeapPointers) return;
+
+  // Notify GC tracer that CppGC started young GC cycle.
+  isolate_->heap()->tracer()->NotifyYoungCppGCRunning();
 
   SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
 
   // Perform an atomic GC, with starting incremental/concurrent marking and
   // immediately finalizing the garbage collection.
-  InitializeTracing(
-      cppgc::internal::GarbageCollector::Config::CollectionType::kMinor,
-      GarbageCollectionFlagValues::kForced);
+  InitializeTracing(CollectionType::kMinor,
+                    GarbageCollectionFlagValues::kNoFlags);
   StartTracing();
+  // TODO(chromium:1029379): Should be safe to run without stack.
   EnterFinalPause(cppgc::EmbedderStackState::kMayContainHeapPointers);
   AdvanceTracing(std::numeric_limits<double>::infinity());
   TraceEpilogue();
-#endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
 void CppHeap::AllocatedObjectSizeIncreased(size_t bytes) {
@@ -721,9 +717,8 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
   }
 }
 
-void CppHeap::CollectGarbageForTesting(
-    cppgc::internal::GarbageCollector::Config::CollectionType collection_type,
-    cppgc::internal::GarbageCollector::Config::StackState stack_state) {
+void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
+                                       StackState stack_state) {
   if (in_no_gc_scope()) return;
 
   // Finish sweeping in case it is still running.
@@ -762,9 +757,8 @@ void CppHeap::StartIncrementalGarbageCollectionForTesting() {
   DCHECK_NULL(isolate_);
   if (IsMarking()) return;
   force_incremental_marking_for_testing_ = true;
-  InitializeTracing(
-      cppgc::internal::GarbageCollector::Config::CollectionType::kMajor,
-      GarbageCollectionFlagValues::kForced);
+  InitializeTracing(CollectionType::kMajor,
+                    GarbageCollectionFlagValues::kForced);
   StartTracing();
   force_incremental_marking_for_testing_ = false;
 }
@@ -775,9 +769,7 @@ void CppHeap::FinalizeIncrementalGarbageCollectionForTesting(
   DCHECK_NULL(isolate_);
   DCHECK(IsMarking());
   if (IsMarking()) {
-    CollectGarbageForTesting(
-        cppgc::internal::GarbageCollector::Config::CollectionType::kMajor,
-        stack_state);
+    CollectGarbageForTesting(CollectionType::kMajor, stack_state);
   }
   sweeper_.FinishIfRunning();
 }

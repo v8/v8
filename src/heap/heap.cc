@@ -1914,9 +1914,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
     // order; the latter may replace the current event with that of an
     // interrupted full cycle.
     if (IsYoungGenerationCollector(collector)) {
-      tracer()->StopCycle(collector);
+      tracer()->StopYoungCycleIfNeeded();
     } else {
-      tracer()->StopCycleIfNeeded();
+      tracer()->StopFullCycleIfNeeded();
     }
   }
 
@@ -2357,13 +2357,17 @@ size_t Heap::PerformGarbageCollection(
     local_embedder_heap_tracer()->TraceEpilogue();
   }
 
+#if defined(CPPGC_YOUNG_GENERATION)
   // Schedule Oilpan's Minor GC. Since the minor GC doesn't support conservative
   // stack scanning, do it only when Scavenger runs from task, which is
   // non-nestable.
-  if (cpp_heap() && collector == GarbageCollector::SCAVENGER &&
-      gc_reason == GarbageCollectionReason::kTask) {
-    CppHeap::From(cpp_heap())->RunMinorGC();
+  if (cpp_heap() && IsYoungGenerationCollector(collector)) {
+    const bool with_stack = (gc_reason != GarbageCollectionReason::kTask);
+    CppHeap::From(cpp_heap())
+        ->RunMinorGC(with_stack ? CppHeap::StackState::kMayContainHeapPointers
+                                : CppHeap::StackState::kNoHeapPointers);
   }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -2432,7 +2436,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   tracer()->StopAtomicPause();
   tracer()->StopObservablePause();
   tracer()->UpdateStatistics(collector);
-  tracer()->StopCycleIfNeeded();
+  tracer()->StopFullCycleIfNeeded();
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {
@@ -2458,6 +2462,11 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
   // the sweeping here, to avoid having to pause and resume during the young
   // generation GC.
   mark_compact_collector()->FinishSweepingIfOutOfWork();
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  // Always complete sweeping if young generation is enabled.
+  if (cpp_heap()) CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
 void Heap::EnsureSweepingCompleted(HeapObject object) {

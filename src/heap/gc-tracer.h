@@ -235,11 +235,6 @@ class V8_EXPORT_PRIVATE GCTracer {
     TimedHistogram* type_priority_timer;
   };
 
-  enum class CppType {
-    kMinor,
-    kMajor,
-  };
-
   static const int kThroughputTimeFrameMs = 5000;
   static constexpr double kConservativeSpeedInBytesPerMillisecond = 128 * KB;
 
@@ -271,8 +266,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Start and stop a GC cycle (collecting data and reporting results).
   void StartCycle(GarbageCollector collector, GarbageCollectionReason gc_reason,
                   const char* collector_reason, MarkingType marking);
-  void StopCycle(GarbageCollector collector);
-  void StopCycleIfNeeded();
+  void StopYoungCycleIfNeeded();
+  void StopFullCycleIfNeeded();
 
   // Start and stop a cycle's atomic pause.
   void StartAtomicPause();
@@ -282,7 +277,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StopInSafepoint();
 
   void NotifySweepingCompleted();
-  void NotifyCppGCCompleted(CppType);
+  void NotifyFullCppGCCompleted();
+
+  void NotifyYoungCppGCRunning();
+  void NotifyYoungCppGCCompleted();
 
   void NotifyYoungGenerationHandling(
       YoungGenerationHandling young_generation_handling);
@@ -462,6 +460,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     double total_duration_ms;
   };
 
+  void StopCycle(GarbageCollector collector);
+
   // Returns the average speed of the events in the buffer.
   // If the buffer is empty, the result is 0.
   // Otherwise, the result is between 1 byte/ms and 1 GB/ms.
@@ -587,7 +587,13 @@ class V8_EXPORT_PRIVATE GCTracer {
   // A full GC cycle stops only when both v8 and cppgc (if available) GCs have
   // finished sweeping.
   bool notified_sweeping_completed_ = false;
-  bool notified_cppgc_completed_ = false;
+  bool notified_full_cppgc_completed_ = false;
+  // Similar to full GCs, a young GC cycle stops only when both v8 and cppgc GCs
+  // have finished sweeping.
+  bool notified_young_cppgc_completed_ = false;
+  // Keep track whether the young cppgc GC was scheduled (as opposed to full
+  // cycles, for young cycles cppgc is not always scheduled).
+  bool notified_young_cppgc_running_ = false;
 
   // When a full GC cycle is interrupted by a young generation GC cycle, the
   // |previous_| event is used as temporary storage for the |current_| event
