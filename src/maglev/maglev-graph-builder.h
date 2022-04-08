@@ -100,7 +100,9 @@ class MaglevGraphBuilder {
     int offset = iterator_.current_offset();
     if (V8_UNLIKELY(merge_states_[offset] != nullptr)) {
       if (current_block_ != nullptr) {
-        DCHECK(!current_block_->nodes().is_empty());
+        // TODO(leszeks): Re-evaluate this DCHECK, we might hit it if the only
+        // bytecodes in this basic block were only register juggling.
+        // DCHECK(!current_block_->nodes().is_empty());
         FinishBlock<Jump>(offset, {}, &jump_targets_[offset]);
 
         merge_states_[offset]->Merge(*compilation_unit_,
