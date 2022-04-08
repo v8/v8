@@ -675,6 +675,7 @@ class ModuleDecoderImpl : public Decoder {
 
     // Non wasm-gc type section decoding.
     if (!enabled_features_.has_gc()) {
+      module_->types.reserve(types_count);
       for (uint32_t i = 0; i < types_count; ++i) {
         TRACE("DecodeSignature[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
