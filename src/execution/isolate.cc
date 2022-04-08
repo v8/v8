@@ -4356,8 +4356,8 @@ CodeTracer* Isolate::GetCodeTracer() {
 
 bool Isolate::use_optimizer() {
   // TODO(v8:7700): Update this predicate for a world with multiple tiers.
-  return FLAG_opt && !serializer_enabled_ && CpuFeatures::SupportsOptimizer() &&
-         !is_precise_count_code_coverage();
+  return (FLAG_opt || FLAG_maglev) && !serializer_enabled_ &&
+         CpuFeatures::SupportsOptimizer() && !is_precise_count_code_coverage();
 }
 
 void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
