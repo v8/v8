@@ -87,6 +87,23 @@ size_t GetNextIncrementalStepDuration(IncrementalMarkingSchedule& schedule,
 
 constexpr v8::base::TimeDelta MarkerBase::kMaximumIncrementalStepDuration;
 
+class MarkerBase::IncrementalMarkingTask final : public cppgc::Task {
+ public:
+  using Handle = SingleThreadedHandle;
+
+  IncrementalMarkingTask(MarkerBase*, MarkingConfig::StackState);
+
+  static Handle Post(cppgc::TaskRunner*, MarkerBase*);
+
+ private:
+  void Run() final;
+
+  MarkerBase* const marker_;
+  MarkingConfig::StackState stack_state_;
+  // TODO(chromium:1056170): Change to CancelableTask.
+  Handle handle_;
+};
+
 MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(
     MarkerBase* marker, MarkingConfig::StackState stack_state)
     : marker_(marker),
