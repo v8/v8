@@ -195,11 +195,20 @@ void MaglevCompiler::Compile() {
 MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
     MaglevCompilationUnit* toplevel_compilation_unit) {
   Graph* const graph = toplevel_compilation_unit->info()->graph();
-  if (graph == nullptr) return {};  // Compilation failed.
+  if (graph == nullptr) {
+    // Compilation failed.
+    toplevel_compilation_unit->shared_function_info()
+        .object()
+        ->set_maglev_compilation_failed(true);
+    return {};
+  }
 
   Handle<Code> code;
   if (!MaglevCodeGenerator::Generate(toplevel_compilation_unit, graph)
            .ToHandle(&code)) {
+    toplevel_compilation_unit->shared_function_info()
+        .object()
+        ->set_maglev_compilation_failed(true);
     return {};
   }
 

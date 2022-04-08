@@ -329,7 +329,8 @@ OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
                                                     JavaScriptFrame* frame) {
   DCHECK_EQ(code_kind, function.GetActiveTier().value());
 
-  if (TiersUpToMaglev(code_kind)) {
+  if (TiersUpToMaglev(code_kind) &&
+      !function.shared(isolate_).maglev_compilation_failed()) {
     return OptimizationDecision::Maglev();
   } else if (code_kind == CodeKind::TURBOFAN) {
     // Already in the top tier.
