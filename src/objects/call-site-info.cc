@@ -673,6 +673,14 @@ void AppendMethodCall(Isolate* isolate, Handle<CallSiteInfo> frame,
   Handle<Object> method_name = CallSiteInfo::GetMethodName(frame);
   Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
 
+  Handle<Object> receiver(frame->receiver_or_instance(), isolate);
+  if (receiver->IsJSClassConstructor()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(receiver);
+    Handle<String> class_name = JSFunction::GetDebugName(function);
+    if (class_name->length() != 0) {
+      type_name = class_name;
+    }
+  }
   if (IsNonEmptyString(function_name)) {
     Handle<String> function_string = Handle<String>::cast(function_name);
     if (IsNonEmptyString(type_name)) {
