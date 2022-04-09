@@ -1022,7 +1022,8 @@ I32_SHIFTOP_I(shr, srl)
 
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                                      int64_t imm) {
-  LiftoffRegister imm_reg = GetUnusedRegister(kFpReg, LiftoffRegList{dst, lhs});
+  LiftoffRegister imm_reg =
+      GetUnusedRegister(kGpRegPair, LiftoffRegList{dst, lhs});
   int32_t imm_low_word = static_cast<int32_t>(imm);
   int32_t imm_high_word = static_cast<int32_t>(imm >> 32);
   TurboAssembler::li(imm_reg.low_gp(), imm_low_word);
