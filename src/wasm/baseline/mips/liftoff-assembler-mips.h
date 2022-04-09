@@ -1234,6 +1234,14 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   return true;
 }
 
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  lw(scratch, MemOperand(dst.gp(), offset));
+  Addu(scratch, scratch, Operand(Smi::FromInt(1)));
+  sw(scratch, MemOperand(dst.gp(), offset));
+}
+
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   TurboAssembler::Neg_s(dst, src);
 }

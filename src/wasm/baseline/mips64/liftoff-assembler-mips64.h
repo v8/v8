@@ -1098,6 +1098,15 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   return true;
 }
 
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  SmiUntag(scratch, MemOperand(dst.gp(), offset));
+  Daddu(scratch, scratch, Operand(1));
+  SmiTag(scratch);
+  Sd(scratch, MemOperand(dst.gp(), offset));
+}
+
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   TurboAssembler::Mul(dst, lhs, rhs);
 }
