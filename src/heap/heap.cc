@@ -3947,7 +3947,6 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
                  ThreadKind::kMain);
 
   IgnoreLocalGCRequests ignore_gc_requests(this);
-  SafepointScope safepoint(this);
   InvokeIncrementalMarkingPrologueCallbacks();
   incremental_marking()->FinalizeIncrementally();
   InvokeIncrementalMarkingEpilogueCallbacks();

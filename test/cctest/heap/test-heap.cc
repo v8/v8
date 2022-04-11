@@ -48,6 +48,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/parked-scope.h"
@@ -5654,6 +5655,7 @@ TEST(Regress598319) {
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       SafepointScope safepoint_scope(heap);
+      MarkingBarrier::PublishAll(heap);
       marking->FinalizeIncrementally();
     }
   }

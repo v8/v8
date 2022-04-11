@@ -423,8 +423,6 @@ void IncrementalMarking::FinalizeIncrementally() {
   // so we can do it only once at the beginning of the finalization.
   RetainMaps();
 
-  MarkingBarrier::PublishAll(heap());
-
   finalize_marking_completed_ = true;
 
   if (FLAG_trace_incremental_marking) {
