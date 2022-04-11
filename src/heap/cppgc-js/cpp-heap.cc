@@ -204,27 +204,27 @@ class UnifiedHeapConcurrentMarker
     : public cppgc::internal::ConcurrentMarkerBase {
  public:
   UnifiedHeapConcurrentMarker(
-      cppgc::internal::HeapBase& heap,
+      cppgc::internal::HeapBase& heap, Heap* v8_heap,
       cppgc::internal::MarkingWorklists& marking_worklists,
       cppgc::internal::IncrementalMarkingSchedule& incremental_marking_schedule,
       cppgc::Platform* platform,
       UnifiedHeapMarkingState& unified_heap_marking_state)
       : cppgc::internal::ConcurrentMarkerBase(
             heap, marking_worklists, incremental_marking_schedule, platform),
-        unified_heap_marking_state_(unified_heap_marking_state) {}
+        v8_heap_(v8_heap) {}
 
   std::unique_ptr<cppgc::Visitor> CreateConcurrentMarkingVisitor(
       cppgc::internal::ConcurrentMarkingState&) const final;
 
  private:
-  UnifiedHeapMarkingState& unified_heap_marking_state_;
+  Heap* const v8_heap_;
 };
 
 std::unique_ptr<cppgc::Visitor>
 UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
     cppgc::internal::ConcurrentMarkingState& marking_state) const {
-  return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
-      heap(), marking_state, unified_heap_marking_state_);
+  return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(heap(), v8_heap_,
+                                                               marking_state);
 }
 
 void FatalOutOfMemoryHandlerImpl(const std::string& reason,
@@ -253,6 +253,10 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
         marking_visitor_->marking_state_);
   }
 
+  UnifiedHeapMarkingState& GetMutatorUnifiedHeapMarkingState() {
+    return mutator_unified_heap_marking_state_;
+  }
+
  protected:
   cppgc::Visitor& visitor() final { return *marking_visitor_; }
   cppgc::internal::ConservativeTracingVisitor& conservative_visitor() final {
@@ -263,7 +267,7 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   }
 
  private:
-  UnifiedHeapMarkingState unified_heap_marking_state_;
+  UnifiedHeapMarkingState mutator_unified_heap_marking_state_;
   std::unique_ptr<MutatorUnifiedHeapMarkingVisitor> marking_visitor_;
   cppgc::internal::ConservativeMarkingVisitor conservative_marking_visitor_;
 };
@@ -273,18 +277,19 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                      cppgc::Platform* platform,
                                      MarkingConfig config)
     : cppgc::internal::MarkerBase(heap, platform, config),
-      unified_heap_marking_state_(v8_heap),
-      marking_visitor_(
-          config.collection_type == CppHeap::CollectionType::kMajor
-              ? std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
-                    heap, mutator_marking_state_, unified_heap_marking_state_)
-              : std::make_unique<MutatorMinorGCMarkingVisitor>(
-                    heap, mutator_marking_state_, unified_heap_marking_state_)),
+      mutator_unified_heap_marking_state_(v8_heap, nullptr),
+      marking_visitor_(config.collection_type == CppHeap::CollectionType::kMajor
+                           ? std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
+                                 heap, mutator_marking_state_,
+                                 mutator_unified_heap_marking_state_)
+                           : std::make_unique<MutatorMinorGCMarkingVisitor>(
+                                 heap, mutator_marking_state_,
+                                 mutator_unified_heap_marking_state_)),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
-      heap_, marking_worklists_, schedule_, platform_,
-      unified_heap_marking_state_);
+      heap_, v8_heap, marking_worklists_, schedule_, platform_,
+      mutator_unified_heap_marking_state_);
 }
 
 void UnifiedHeapMarker::AddObject(void* object) {
@@ -567,6 +572,16 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
 }
 
 void CppHeap::StartTracing() {
+  if (isolate_) {
+    // Reuse the same local worklist for the mutator marking state which results
+    // in directly processing the objects by the JS logic. Also avoids
+    // publishing local objects.
+    static_cast<UnifiedHeapMarker*>(marker_.get())
+        ->GetMutatorUnifiedHeapMarkingState()
+        .Update(isolate_->heap()
+                    ->mark_compact_collector()
+                    ->local_marking_worklists());
+  }
   marker_->StartMarking();
   marking_done_ = false;
 }
@@ -882,6 +897,13 @@ CppHeap::CreateCppMarkingStateForMutatorThread() {
   return std::make_unique<CppMarkingState>(
       isolate(), wrapper_descriptor_,
       static_cast<UnifiedHeapMarker*>(marker())->GetMutatorMarkingState());
+}
+
+CppHeap::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
+    CppHeap* cpp_heap) {
+  if (cpp_heap && cpp_heap->marker()) {
+    pause_scope_.emplace(*cpp_heap->marker());
+  }
 }
 
 }  // namespace internal

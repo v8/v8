@@ -640,6 +640,16 @@ void MarkerBase::WaitForConcurrentMarkingForTesting() {
   concurrent_marker_->Join();
 }
 
+MarkerBase::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
+    MarkerBase& marker)
+    : marker_(marker), resume_on_exit_(marker_.concurrent_marker_->Cancel()) {}
+
+MarkerBase::PauseConcurrentMarkingScope::~PauseConcurrentMarkingScope() {
+  if (resume_on_exit_) {
+    marker_.concurrent_marker_->Start();
+  }
+}
+
 Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
     : MarkerBase(heap, platform, config),
       marking_visitor_(heap, mutator_marking_state_),
