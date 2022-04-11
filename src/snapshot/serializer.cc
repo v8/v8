@@ -1189,10 +1189,12 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
     PtrComprCageBase cage_base(isolate_);
     if (object_->IsBytecodeArray(cage_base)) {
       // The bytecode age field can be changed by GC concurrently.
-      byte field_value = BytecodeArray::kNoAgeBytecodeAge;
+      static_assert(BytecodeArray::kBytecodeAgeSize == kUInt16Size);
+      uint16_t field_value = BytecodeArray::kNoAgeBytecodeAge;
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                BytecodeArray::kBytecodeAgeOffset,
-                               sizeof(field_value), &field_value);
+                               sizeof(field_value),
+                               reinterpret_cast<byte*>(&field_value));
     } else if (object_->IsDescriptorArray(cage_base)) {
       // The number of marked descriptors field can be changed by GC
       // concurrently.

@@ -198,6 +198,7 @@ class AsAtomicImpl {
 };
 
 using AsAtomic8 = AsAtomicImpl<base::Atomic8>;
+using AsAtomic16 = AsAtomicImpl<base::Atomic16>;
 using AsAtomic32 = AsAtomicImpl<base::Atomic32>;
 using AsAtomicWord = AsAtomicImpl<base::AtomicWord>;
 

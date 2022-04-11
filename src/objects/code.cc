@@ -698,8 +698,9 @@ void BytecodeArray::MakeOlder() {
   DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
   Age age = bytecode_age();
   if (age < kLastBytecodeAge) {
-    base::AsAtomic8::Relaxed_CompareAndSwap(
-        reinterpret_cast<base::Atomic8*>(age_addr), age, age + 1);
+    static_assert(kBytecodeAgeSize == kUInt16Size);
+    base::AsAtomic16::Relaxed_CompareAndSwap(
+        reinterpret_cast<base::Atomic16*>(age_addr), age, age + 1);
   }
 
   DCHECK_GE(bytecode_age(), kFirstBytecodeAge);
