@@ -21,8 +21,22 @@ namespace internal {
 
 namespace maglev {
 
-MaglevGraphBuilder::MaglevGraphBuilder(MaglevCompilationUnit* compilation_unit)
-    : compilation_unit_(compilation_unit),
+namespace {
+
+int LoadSimpleFieldHandler(FieldIndex field_index) {
+  int config = LoadHandler::KindBits::encode(LoadHandler::Kind::kField) |
+               LoadHandler::IsInobjectBits::encode(field_index.is_inobject()) |
+               LoadHandler::IsDoubleBits::encode(field_index.is_double()) |
+               LoadHandler::FieldIndexBits::encode(field_index.index());
+  return config;
+}
+
+}  // namespace
+
+MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
+                                       MaglevCompilationUnit* compilation_unit)
+    : local_isolate_(local_isolate),
+      compilation_unit_(compilation_unit),
       iterator_(bytecode().object()),
       jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length())),
       // Overallocate merge_states_ by one to allow always looking up the
@@ -160,7 +174,7 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
 
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinaryOperation() {
-  FeedbackNexus nexus = feedback_nexus(1);
+  FeedbackNexus nexus = FeedbackNexusForOperand(1);
 
   if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
     if (nexus.kind() == FeedbackSlotKind::kBinaryOp) {
@@ -185,7 +199,7 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
 
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinarySmiOperation() {
-  FeedbackNexus nexus = feedback_nexus(1);
+  FeedbackNexus nexus = FeedbackNexusForOperand(1);
 
   if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
     if (nexus.kind() == FeedbackSlotKind::kBinaryOp) {
@@ -253,11 +267,9 @@ void MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
   // TODO(leszeks): Passing a LoadHandler to LoadField here is a bit of
   // a hack, maybe we should have a LoadRawOffset or similar.
   SetAccumulator(AddNewNode<LoadField>(
-      {context}, LoadHandler::LoadField(
-                     isolate(), FieldIndex::ForInObjectOffset(
-                                    Context::OffsetOfElementAt(slot_index),
-                                    FieldIndex::kTagged))
-                     ->value()));
+      {context},
+      LoadSimpleFieldHandler(FieldIndex::ForInObjectOffset(
+          Context::OffsetOfElementAt(slot_index), FieldIndex::kTagged))));
 }
 void MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   // TODO(leszeks): Consider context specialising.
@@ -333,10 +345,8 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
   // a hack, maybe we should have a LoadRawOffset or similar.
   SetAccumulator(AddNewNode<LoadField>(
       {property_cell_node},
-      LoadHandler::LoadField(
-          isolate(), FieldIndex::ForInObjectOffset(PropertyCell::kValueOffset,
-                                                   FieldIndex::kTagged))
-          ->value()));
+      LoadSimpleFieldHandler(FieldIndex::ForInObjectOffset(
+          PropertyCell::kValueOffset, FieldIndex::kTagged))));
 }
 
 void MaglevGraphBuilder::VisitLdaGlobal() {
@@ -381,35 +391,50 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
 void MaglevGraphBuilder::VisitGetNamedProperty() {
   // GetNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
-  FeedbackSlot slot_index = GetSlotOperand(2);
-  FeedbackNexus nexus(feedback().object(), slot_index);
+  compiler::NameRef name = GetRefOperand<Name>(1);
+  FeedbackSlot slot = GetSlotOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
-    AddNewNode<EagerDeopt>({});
-    return;
-  } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
-    std::vector<MapAndHandler> maps_and_handlers;
-    nexus.ExtractMapsAndHandlers(&maps_and_handlers);
-    DCHECK_EQ(maps_and_handlers.size(), 1);
-    MapAndHandler& map_and_handler = maps_and_handlers[0];
-    if (map_and_handler.second->IsSmi()) {
-      int handler = map_and_handler.second->ToSmi().value();
-      LoadHandler::Kind kind = LoadHandler::KindBits::decode(handler);
-      if (kind == LoadHandler::Kind::kField &&
-          !LoadHandler::IsWasmStructBits::decode(handler)) {
-        AddNewNode<CheckMaps>({object},
-                              MakeRef(broker(), map_and_handler.first));
-        SetAccumulator(AddNewNode<LoadField>({object}, handler));
-        return;
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(feedback_source,
+                                             compiler::AccessMode::kLoad, name);
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      AddNewNode<EagerDeopt>({});
+      return;
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      const compiler::NamedAccessFeedback& named_feedback =
+          processed_feedback.AsNamedAccess();
+      if (named_feedback.maps().size() == 1) {
+        // Monomorphic load, check the handler.
+        // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
+        MaybeObjectHandle handler =
+            FeedbackNexusForSlot(slot).FindHandlerForMap(
+                named_feedback.maps()[0].object());
+        if (!handler.is_null() && handler->IsSmi()) {
+          // Smi handler, emit a map check and LoadField.
+          int smi_handler = handler->ToSmi().value();
+          LoadHandler::Kind kind = LoadHandler::KindBits::decode(smi_handler);
+          if (kind == LoadHandler::Kind::kField &&
+              !LoadHandler::IsWasmStructBits::decode(smi_handler)) {
+            AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
+            SetAccumulator(AddNewNode<LoadField>({object}, smi_handler));
+            return;
+          }
+        }
       }
-    }
+    } break;
+
+    default:
+      break;
   }
 
+  // Create a generic load in the fallthrough.
   ValueNode* context = GetContext();
-  compiler::NameRef name = GetRefOperand<Name>(1);
-  SetAccumulator(AddNewNode<LoadNamedGeneric>(
-      {context, object}, name,
-      compiler::FeedbackSource{feedback(), slot_index}));
+  SetAccumulator(
+      AddNewNode<LoadNamedGeneric>({context, object}, name, feedback_source));
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetNamedPropertyFromSuper)
@@ -420,27 +445,43 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(StaModuleVariable)
 void MaglevGraphBuilder::VisitSetNamedProperty() {
   // SetNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
-  FeedbackNexus nexus = feedback_nexus(2);
+  compiler::NameRef name = GetRefOperand<Name>(1);
+  FeedbackSlot slot = GetSlotOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
 
-  if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
-    AddNewNode<EagerDeopt>({});
-    return;
-  } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
-    std::vector<MapAndHandler> maps_and_handlers;
-    nexus.ExtractMapsAndHandlers(&maps_and_handlers);
-    DCHECK_EQ(maps_and_handlers.size(), 1);
-    MapAndHandler& map_and_handler = maps_and_handlers[0];
-    if (map_and_handler.second->IsSmi()) {
-      int handler = map_and_handler.second->ToSmi().value();
-      StoreHandler::Kind kind = StoreHandler::KindBits::decode(handler);
-      if (kind == StoreHandler::Kind::kField) {
-        AddNewNode<CheckMaps>({object},
-                              MakeRef(broker(), map_and_handler.first));
-        ValueNode* value = GetAccumulator();
-        AddNewNode<StoreField>({object, value}, handler);
-        return;
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kStore, name);
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      AddNewNode<EagerDeopt>({});
+      return;
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      const compiler::NamedAccessFeedback& named_feedback =
+          processed_feedback.AsNamedAccess();
+      if (named_feedback.maps().size() == 1) {
+        // Monomorphic store, check the handler.
+        // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
+        MaybeObjectHandle handler =
+            FeedbackNexusForSlot(slot).FindHandlerForMap(
+                named_feedback.maps()[0].object());
+        if (!handler.is_null() && handler->IsSmi()) {
+          int smi_handler = handler->ToSmi().value();
+          StoreHandler::Kind kind = StoreHandler::KindBits::decode(smi_handler);
+          if (kind == StoreHandler::Kind::kField) {
+            AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
+            ValueNode* value = GetAccumulator();
+            AddNewNode<StoreField>({object, value}, smi_handler);
+            return;
+          }
+        }
       }
-    }
+    } break;
+
+    default:
+      break;
   }
 
   // TODO(victorgomes): Generic store.

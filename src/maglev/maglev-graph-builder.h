@@ -25,7 +25,8 @@ namespace maglev {
 
 class MaglevGraphBuilder {
  public:
-  explicit MaglevGraphBuilder(MaglevCompilationUnit* compilation_unit);
+  explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
+                              MaglevCompilationUnit* compilation_unit);
 
   void Build() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
@@ -182,9 +183,12 @@ class MaglevGraphBuilder {
   template <class T, typename = std::enable_if_t<
                          std::is_convertible<T*, Object*>::value>>
   typename compiler::ref_traits<T>::ref_type GetRefOperand(int operand_index) {
-    return MakeRef(broker(),
-                   Handle<T>::cast(iterator_.GetConstantForIndexOperand(
-                       operand_index, isolate())));
+    // The BytecodeArray itself was fetched by using a barrier so all reads
+    // from the constant pool are safe.
+    return MakeRefAssumeMemoryFence(
+        broker(), broker()->CanonicalPersistentHandle(
+                      Handle<T>::cast(iterator_.GetConstantForIndexOperand(
+                          operand_index, local_isolate()))));
   }
 
   ValueNode* GetConstant(const compiler::ObjectRef& ref) {
@@ -394,10 +398,14 @@ class MaglevGraphBuilder {
   const compiler::FeedbackVectorRef& feedback() const {
     return compilation_unit_->feedback();
   }
-  const FeedbackNexus feedback_nexus(int slot_operand_index) const {
-    // TODO(leszeks): Use JSHeapBroker here.
+  const FeedbackNexus FeedbackNexusForOperand(int slot_operand_index) const {
     return FeedbackNexus(feedback().object(),
-                         GetSlotOperand(slot_operand_index));
+                         GetSlotOperand(slot_operand_index),
+                         broker()->feedback_nexus_config());
+  }
+  const FeedbackNexus FeedbackNexusForSlot(FeedbackSlot slot) const {
+    return FeedbackNexus(feedback().object(), slot,
+                         broker()->feedback_nexus_config());
   }
   const compiler::BytecodeArrayRef& bytecode() const {
     return compilation_unit_->bytecode();
@@ -405,7 +413,7 @@ class MaglevGraphBuilder {
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
     return compilation_unit_->bytecode_analysis();
   }
-  Isolate* isolate() const { return compilation_unit_->isolate(); }
+  LocalIsolate* local_isolate() const { return local_isolate_; }
   Zone* zone() const { return compilation_unit_->zone(); }
   int parameter_count() const { return compilation_unit_->parameter_count(); }
   int register_count() const { return compilation_unit_->register_count(); }
@@ -416,6 +424,7 @@ class MaglevGraphBuilder {
     return compilation_unit_->graph_labeller();
   }
 
+  LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
   interpreter::BytecodeArrayIterator iterator_;
   uint32_t* predecessors_;

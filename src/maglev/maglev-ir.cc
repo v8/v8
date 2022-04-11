@@ -482,7 +482,7 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ Cmp(map_tmp, map().object());
 
   // TODO(leszeks): Encode as a bit on CheckMaps.
-  if (map().object()->is_migration_target()) {
+  if (map().is_migration_target()) {
     JumpToDeferredIf(
         not_equal, code_gen_state,
         [](MaglevCodeGenState* code_gen_state, Label* return_label,

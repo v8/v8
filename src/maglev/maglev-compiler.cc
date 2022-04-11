@@ -138,8 +138,9 @@ class UseMarkingProcessor {
 };
 
 // static
-void MaglevCompiler::Compile(MaglevCompilationUnit* toplevel_compilation_unit) {
-  MaglevCompiler compiler(toplevel_compilation_unit);
+void MaglevCompiler::Compile(LocalIsolate* local_isolate,
+                             MaglevCompilationUnit* toplevel_compilation_unit) {
+  MaglevCompiler compiler(local_isolate, toplevel_compilation_unit);
   compiler.Compile();
 }
 
@@ -153,7 +154,7 @@ void MaglevCompiler::Compile() {
         new MaglevGraphLabeller());
   }
 
-  MaglevGraphBuilder graph_builder(toplevel_compilation_unit_);
+  MaglevGraphBuilder graph_builder(local_isolate(), toplevel_compilation_unit_);
 
   graph_builder.Build();
 
