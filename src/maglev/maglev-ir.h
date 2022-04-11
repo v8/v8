@@ -79,6 +79,7 @@ class CompactInterpreterFrameState;
   V(CheckedSmiTag)         \
   V(CheckedSmiUntag)       \
   V(Int32AddWithOverflow)  \
+  V(Int32Constant)         \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define NODE_LIST(V) \
@@ -949,6 +950,23 @@ class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
+  using Base = FixedInputValueNodeT<0, Int32Constant>;
+
+ public:
+  explicit Int32Constant(uint32_t bitfield, int32_t value)
+      : Base(bitfield), value_(value) {}
+
+  int32_t value() const { return value_; }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int32_t value_;
 };
 
 class Int32AddWithOverflow

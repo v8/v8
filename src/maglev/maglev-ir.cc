@@ -735,6 +735,19 @@ void CheckedSmiTag::GenerateCode(MaglevCodeGenState* code_gen_state,
   EmitEagerDeoptIf(overflow, code_gen_state, this);
 }
 
+void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                 const ProcessingState& state) {
+  DefineAsRegister(vreg_state, this);
+}
+void Int32Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                 const ProcessingState& state) {
+  __ Move(ToRegister(result()), Immediate(value()));
+}
+void Int32Constant::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
 void Int32AddWithOverflow::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                         const ProcessingState& state) {
   UseRegister(left_input());

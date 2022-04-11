@@ -207,15 +207,17 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
 
       if (hint == BinaryOperationHint::kSignedSmall) {
         ValueNode* left = AddNewNode<CheckedSmiUntag>({GetAccumulator()});
-        Smi constant = Smi::FromInt(iterator_.GetImmediateOperand(0));
+        int32_t constant = iterator_.GetImmediateOperand(0);
 
         if (kOperation == Operation::kAdd) {
-          if (constant == Smi::zero()) {
+          if (constant == 0) {
             // For addition of zero, when the accumulator passed the Smi check,
             // it already has the right value, so we can just return.
             return;
           }
-          ValueNode* right = AddNewNode<SmiConstant>({}, constant);
+          // TODO(victorgomes): We could create an Int32Add node that receives
+          // a constant and avoid a register move.
+          ValueNode* right = AddNewNode<Int32Constant>({}, constant);
           ValueNode* result = AddNewNode<Int32AddWithOverflow>({left, right});
           SetAccumulator(AddNewNode<CheckedSmiTag>({result}));
           return;
