@@ -188,6 +188,12 @@ void BaselineAssembler::JumpIfSmi(Register value, Label* target,
   __ JumpIfSmi(value, target);
 }
 
+void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
+                                        Label* target,
+                                        Label::Distance distance) {
+  JumpIf(cc, left, Operand(right), target, distance);
+}
+
 void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance) {
   __ JumpIfNotSmi(value, target);
@@ -455,14 +461,23 @@ void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   UNIMPLEMENTED();
 }
+
+void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
+                                                  Register source, int offset) {
+  __ LoadU16(output, FieldMemOperand(source, offset), r0);
+}
+
 void BaselineAssembler::LoadWord8Field(Register output, Register source,
                                        int offset) {
   UNIMPLEMENTED();
+  __ LoadU8(output, FieldMemOperand(source, offset), r0);
 }
+
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
                                                Smi value) {
   UNIMPLEMENTED();
 }
+
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          int offset,
                                                          Register value) {
@@ -489,6 +504,10 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) { UNIMPLEMENTED(); }
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
   UNIMPLEMENTED();
+}
+
+void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
+  __ AndU32(output, lhs, Operand(rhs));
 }
 
 #undef __

@@ -204,11 +204,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
   if (is_osr) {
     Register scratch = ip;
-    __ mov(scratch, Operand(0));
-    __ StoreU16(scratch,
-                FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                BytecodeArray::kOsrUrgencyOffset),
-                r0);
+    ResetBytecodeAgeAndOsrState(masm, bytecodeArray, scratch);
     Generate_OSREntry(masm, code_obj, Code::kHeaderSize - kHeapObjectTag);
   } else {
     __ AddS64(code_obj, code_obj, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -238,6 +234,18 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
   // Retry from the start after installing baseline code.
   __ b(&start);
+}
+
+void ResetBytecodeAgeAndOsrState(MacroAssembler* masm, Register bytecode_array,
+                                 Register scratch) {
+  // Reset the bytecode age and OSR state (optimized to a single write).
+  static_assert(BytecodeArray::kOsrStateAndBytecodeAgeAreContiguous32Bits);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ mov(scratch, Operand(0));
+  __ StoreU32(scratch,
+              FieldMemOperand(bytecode_array,
+                              BytecodeArray::kOsrUrgencyAndInstallTargetOffset),
+              r0);
 }
 
 }  // namespace
@@ -1389,17 +1397,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
 
-  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
-  // 8-bit fields next to each other, so we could just optimize by writing a
-  // 16-bit. These static asserts guard our assumption is valid.
-  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrUrgencyOffset + kCharSize);
-  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-  __ li(r8, Operand(0));
-  __ StoreU16(r8,
-              FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                              BytecodeArray::kOsrUrgencyOffset),
-              r0);
+  ResetBytecodeAgeAndOsrState(masm, bytecodeArray, r8);
 
   // Load initial bytecode offset.
   __ mov(kInterpreterBytecodeOffsetRegister,

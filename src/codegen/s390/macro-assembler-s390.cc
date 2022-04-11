@@ -3776,6 +3776,7 @@ void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
 }
 
 void TurboAssembler::LoadU16(Register dst, const MemOperand& mem) {
+  // TODO(s390x): Add scratch reg
 #if V8_TARGET_ARCH_S390X
   llgh(dst, mem);
 #else
@@ -3792,6 +3793,7 @@ void TurboAssembler::LoadU16(Register dst, Register src) {
 }
 
 void TurboAssembler::LoadS8(Register dst, const MemOperand& mem) {
+  // TODO(s390x): Add scratch reg
 #if V8_TARGET_ARCH_S390X
   lgb(dst, mem);
 #else
@@ -3808,6 +3810,7 @@ void TurboAssembler::LoadS8(Register dst, Register src) {
 }
 
 void TurboAssembler::LoadU8(Register dst, const MemOperand& mem) {
+  // TODO(s390x): Add scratch reg
 #if V8_TARGET_ARCH_S390X
   llgc(dst, mem);
 #else
