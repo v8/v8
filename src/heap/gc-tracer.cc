@@ -89,13 +89,13 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
 
 GCTracer::Scope::~Scope() {
   double duration_ms = tracer_->MonotonicallyIncreasingTimeInMs() - start_time_;
+  tracer_->AddScopeSample(scope_, duration_ms);
 
   if (thread_kind_ == ThreadKind::kMain) {
 #if DEBUG
     AssertMainThread();
 #endif  // DEBUG
 
-    tracer_->AddScopeSample(scope_, duration_ms);
     if (scope_ == ScopeId::MC_INCREMENTAL ||
         scope_ == ScopeId::MC_INCREMENTAL_START ||
         scope_ == ScopeId::MC_INCREMENTAL_FINALIZE) {
@@ -105,8 +105,6 @@ GCTracer::Scope::~Scope() {
           static_cast<int64_t>(duration_ms *
                                base::Time::kMicrosecondsPerMillisecond);
     }
-  } else {
-    tracer_->AddScopeSampleBackground(scope_, duration_ms);
   }
 
 #ifdef V8_RUNTIME_CALL_STATS
@@ -421,7 +419,7 @@ void GCTracer::ResetIncrementalMarkingCounters() {
   incremental_marking_bytes_ = 0;
   incremental_marking_duration_ = 0;
   for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
-    incremental_marking_scopes_[i].ResetCurrentCycle();
+    incremental_scopes_[i].ResetCurrentCycle();
   }
 }
 
@@ -461,35 +459,23 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
         MakeBytesAndDuration(current_.young_object_size, duration));
     recorded_minor_gcs_survived_.Push(
         MakeBytesAndDuration(current_.survived_young_object_size, duration));
-    FetchBackgroundMinorGCCounters();
     long_task_stats->gc_young_wall_clock_duration_us += duration_us;
   } else {
     if (current_.type == Event::INCREMENTAL_MARK_COMPACTOR) {
-      current_.incremental_marking_bytes = incremental_marking_bytes_;
-      current_.incremental_marking_duration = incremental_marking_duration_;
-      for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
-        current_.incremental_marking_scopes[i] = incremental_marking_scopes_[i];
-        current_.scopes[i] = incremental_marking_scopes_[i].duration;
-      }
-      RecordIncrementalMarkingSpeed(current_.incremental_marking_bytes,
-                                    current_.incremental_marking_duration);
+      RecordIncrementalMarkingSpeed(incremental_marking_bytes_,
+                                    incremental_marking_duration_);
       recorded_incremental_mark_compacts_.Push(
           MakeBytesAndDuration(current_.end_object_size, duration));
     } else {
-      DCHECK_EQ(0u, current_.incremental_marking_bytes);
-      DCHECK_EQ(0, current_.incremental_marking_duration);
       recorded_mark_compacts_.Push(
           MakeBytesAndDuration(current_.end_object_size, duration));
     }
     RecordMutatorUtilization(current_.end_time,
-                             duration + current_.incremental_marking_duration);
+                             duration + incremental_marking_duration_);
     RecordGCSumCounters();
-    ResetIncrementalMarkingCounters();
     combined_mark_compact_speed_cache_ = 0.0;
-    FetchBackgroundMarkCompactCounters();
     long_task_stats->gc_full_atomic_wall_clock_duration_us += duration_us;
   }
-  FetchBackgroundGeneralCounters();
 
   heap_->UpdateTotalGCTime(duration);
 
@@ -516,6 +502,31 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
   }
 }
 
+void GCTracer::FinalizeCurrentEvent() {
+  const bool is_young = Event::IsYoungGenerationEvent(current_.type);
+
+  if (is_young) {
+    FetchBackgroundMinorGCCounters();
+  } else {
+    if (current_.type == Event::INCREMENTAL_MARK_COMPACTOR) {
+      current_.incremental_marking_bytes = incremental_marking_bytes_;
+      current_.incremental_marking_duration = incremental_marking_duration_;
+      for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
+        current_.incremental_scopes[i] = incremental_scopes_[i];
+        current_.scopes[i] = incremental_scopes_[i].duration;
+      }
+      ResetIncrementalMarkingCounters();
+    } else {
+      DCHECK_EQ(0u, incremental_marking_bytes_);
+      DCHECK_EQ(0.0, incremental_marking_duration_);
+      DCHECK_EQ(0u, current_.incremental_marking_bytes);
+      DCHECK_EQ(0.0, current_.incremental_marking_duration);
+    }
+    FetchBackgroundMarkCompactCounters();
+  }
+  FetchBackgroundGeneralCounters();
+}
+
 void GCTracer::StopAtomicPause() {
   DCHECK_EQ(Event::State::ATOMIC, current_.state);
   current_.state = Event::State::SWEEPING;
@@ -526,9 +537,7 @@ void GCTracer::StopCycle(GarbageCollector collector) {
   current_.state = Event::State::NOT_RUNNING;
 
   DCHECK(IsConsistentWithCollector(collector));
-
-  Counters* counters = heap_->isolate()->counters();
-  GarbageCollectionReason gc_reason = current_.gc_reason;
+  FinalizeCurrentEvent();
 
   if (Heap::IsYoungGenerationCollector(collector)) {
     ReportYoungCycleToRecorder();
@@ -542,7 +551,8 @@ void GCTracer::StopCycle(GarbageCollector collector) {
   } else {
     ReportFullCycleToRecorder();
 
-    counters->mark_compact_reason()->AddSample(static_cast<int>(gc_reason));
+    heap_->isolate()->counters()->mark_compact_reason()->AddSample(
+        static_cast<int>(current_.gc_reason));
 
     if (FLAG_trace_gc_freelists) {
       PrintIsolate(heap_->isolate(),
@@ -740,11 +750,18 @@ void GCTracer::Print() const {
         incremental_buffer, kIncrementalStatsSize,
         " (+ %.1f ms in %d steps since start of marking, "
         "biggest step %.1f ms, walltime since start of marking %.f ms)",
-        current_.scopes[Scope::MC_INCREMENTAL],
-        current_.incremental_marking_scopes[Scope::MC_INCREMENTAL].steps,
-        current_.incremental_marking_scopes[Scope::MC_INCREMENTAL].longest_step,
+        current_scope(Scope::MC_INCREMENTAL),
+        incremental_scope(Scope::MC_INCREMENTAL).steps,
+        incremental_scope(Scope::MC_INCREMENTAL).longest_step,
         current_.end_time - incremental_marking_start_time_);
   }
+
+  const double total_external_time =
+      current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES) +
+      current_scope(Scope::HEAP_EXTERNAL_EPILOGUE) +
+      current_scope(Scope::HEAP_EXTERNAL_PROLOGUE) +
+      current_scope(Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE) +
+      current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE);
 
   // Avoid PrintF as Output also appends the string to the tracing ring buffer
   // that gets printed on OOM failures.
@@ -762,7 +779,7 @@ void GCTracer::Print() const {
       static_cast<double>(current_.start_memory_size) / MB,
       static_cast<double>(current_.end_object_size) / MB,
       static_cast<double>(current_.end_memory_size) / MB, duration,
-      TotalExternalTime(), incremental_buffer,
+      total_external_time, incremental_buffer,
       AverageMarkCompactMutatorUtilization(),
       CurrentMarkCompactMutatorUtilization(),
       Heap::GarbageCollectionReasonToString(current_.gc_reason),
@@ -781,6 +798,9 @@ void GCTracer::PrintNVP() const {
     incremental_walltime_duration =
         current_.end_time - incremental_marking_start_time_;
   }
+
+  // Avoid data races when printing the background scopes.
+  base::MutexGuard guard(&background_counter_mutex_);
 
   switch (current_.type) {
     case Event::SCAVENGER:
@@ -831,31 +851,28 @@ void GCTracer::PrintNVP() const {
           "unmapper_chunks=%d\n",
           duration, spent_in_mutator, current_.TypeName(true),
           current_.reduce_memory, current_.scopes[Scope::TIME_TO_SAFEPOINT],
-          current_.scopes[Scope::HEAP_PROLOGUE],
-          current_.scopes[Scope::HEAP_EPILOGUE],
-          current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],
-          current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
-          current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE],
-          current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
-          current_.scopes[Scope::SCAVENGER_FAST_PROMOTE],
-          current_.scopes[Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS],
-          current_.scopes[Scope::SCAVENGER_SCAVENGE],
-          current_.scopes[Scope::SCAVENGER_FREE_REMEMBERED_SET],
-          current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS],
-          current_.scopes[Scope::SCAVENGER_SCAVENGE_WEAK],
-          current_
-              .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY],
-          current_
-              .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS],
-          current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL],
-          current_.scopes[Scope::SCAVENGER_SCAVENGE_UPDATE_REFS],
-          current_.scopes[Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS],
-          current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL],
-          current_.scopes[Scope::BACKGROUND_UNMAPPER],
-          current_.scopes[Scope::UNMAPPER],
-          current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
-              .steps,
-          current_.scopes[Scope::MC_INCREMENTAL],
+          current_scope(Scope::HEAP_PROLOGUE),
+          current_scope(Scope::HEAP_EPILOGUE),
+          current_scope(Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE),
+          current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
+          current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
+          current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
+          current_scope(Scope::SCAVENGER_FAST_PROMOTE),
+          current_scope(Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS),
+          current_scope(Scope::SCAVENGER_SCAVENGE),
+          current_scope(Scope::SCAVENGER_FREE_REMEMBERED_SET),
+          current_scope(Scope::SCAVENGER_SCAVENGE_ROOTS),
+          current_scope(Scope::SCAVENGER_SCAVENGE_WEAK),
+          current_scope(Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY),
+          current_scope(Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS),
+          current_scope(Scope::SCAVENGER_SCAVENGE_PARALLEL),
+          current_scope(Scope::SCAVENGER_SCAVENGE_UPDATE_REFS),
+          current_scope(Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS),
+          current_scope(Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL),
+          current_scope(Scope::BACKGROUND_UNMAPPER),
+          current_scope(Scope::UNMAPPER),
+          incremental_scope(GCTracer::Scope::MC_INCREMENTAL).steps,
+          current_scope(Scope::MC_INCREMENTAL),
           ScavengeSpeedInBytesPerMillisecond(), current_.start_object_size,
           current_.end_object_size, current_.start_holes_size,
           current_.end_holes_size, allocated_since_last_gc,
@@ -898,30 +915,29 @@ void GCTracer::PrintNVP() const {
           "update_marking_deque=%.2f "
           "reset_liveness=%.2f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
-          current_.scopes[Scope::MINOR_MC],
-          current_.scopes[Scope::MINOR_MC_SWEEPING],
-          current_.scopes[Scope::TIME_TO_SAFEPOINT],
-          current_.scopes[Scope::MINOR_MC_MARK],
-          current_.scopes[Scope::MINOR_MC_MARK_SEED],
-          current_.scopes[Scope::MINOR_MC_MARK_ROOTS],
-          current_.scopes[Scope::MINOR_MC_MARK_WEAK],
-          current_.scopes[Scope::MINOR_MC_MARK_GLOBAL_HANDLES],
-          current_.scopes[Scope::MINOR_MC_CLEAR],
-          current_.scopes[Scope::MINOR_MC_CLEAR_STRING_TABLE],
-          current_.scopes[Scope::MINOR_MC_CLEAR_WEAK_LISTS],
-          current_.scopes[Scope::MINOR_MC_EVACUATE],
-          current_.scopes[Scope::MINOR_MC_EVACUATE_COPY],
-          current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS],
-          current_
-              .scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS],
-          current_.scopes[Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS],
-          current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING],
-          current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY],
-          current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::BACKGROUND_UNMAPPER],
-          current_.scopes[Scope::UNMAPPER],
-          current_.scopes[Scope::MINOR_MC_MARKING_DEQUE],
-          current_.scopes[Scope::MINOR_MC_RESET_LIVENESS]);
+          current_scope(Scope::MINOR_MC),
+          current_scope(Scope::MINOR_MC_SWEEPING),
+          current_scope(Scope::TIME_TO_SAFEPOINT),
+          current_scope(Scope::MINOR_MC_MARK),
+          current_scope(Scope::MINOR_MC_MARK_SEED),
+          current_scope(Scope::MINOR_MC_MARK_ROOTS),
+          current_scope(Scope::MINOR_MC_MARK_WEAK),
+          current_scope(Scope::MINOR_MC_MARK_GLOBAL_HANDLES),
+          current_scope(Scope::MINOR_MC_CLEAR),
+          current_scope(Scope::MINOR_MC_CLEAR_STRING_TABLE),
+          current_scope(Scope::MINOR_MC_CLEAR_WEAK_LISTS),
+          current_scope(Scope::MINOR_MC_EVACUATE),
+          current_scope(Scope::MINOR_MC_EVACUATE_COPY),
+          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS),
+          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS),
+          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS),
+          current_scope(Scope::MINOR_MC_BACKGROUND_MARKING),
+          current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY),
+          current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
+          current_scope(Scope::BACKGROUND_UNMAPPER),
+          current_scope(Scope::UNMAPPER),
+          current_scope(Scope::MINOR_MC_MARKING_DEQUE),
+          current_scope(Scope::MINOR_MC_RESET_LIVENESS));
       break;
     case Event::MARK_COMPACTOR:
     case Event::INCREMENTAL_MARK_COMPACTOR:
@@ -1020,85 +1036,77 @@ void GCTracer::PrintNVP() const {
           "unmapper_chunks=%d "
           "compaction_speed=%.f\n",
           duration, spent_in_mutator, current_.TypeName(true),
-          current_.reduce_memory, current_.scopes[Scope::TIME_TO_SAFEPOINT],
-          current_.scopes[Scope::HEAP_PROLOGUE],
-          current_.scopes[Scope::HEAP_EMBEDDER_TRACING_EPILOGUE],
-          current_.scopes[Scope::HEAP_EPILOGUE],
-          current_.scopes[Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE],
-          current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
-          current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE],
-          current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
-          current_.scopes[Scope::MC_CLEAR],
-          current_.scopes[Scope::MC_CLEAR_DEPENDENT_CODE],
-          current_.scopes[Scope::MC_CLEAR_MAPS],
-          current_.scopes[Scope::MC_CLEAR_SLOTS_BUFFER],
-          current_.scopes[Scope::MC_CLEAR_STRING_TABLE],
-          current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
-          current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
-          current_.scopes[Scope::MC_CLEAR_WEAK_REFERENCES],
-          current_.scopes[Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS],
-          current_.scopes[Scope::MC_EPILOGUE],
-          current_.scopes[Scope::MC_EVACUATE],
-          current_.scopes[Scope::MC_EVACUATE_CANDIDATES],
-          current_.scopes[Scope::MC_EVACUATE_CLEAN_UP],
-          current_.scopes[Scope::MC_EVACUATE_COPY],
-          current_.scopes[Scope::MC_EVACUATE_PROLOGUE],
-          current_.scopes[Scope::MC_EVACUATE_EPILOGUE],
-          current_.scopes[Scope::MC_EVACUATE_REBALANCE],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
-          current_.scopes[Scope::MC_FINISH],
-          current_.scopes[Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS],
-          current_.scopes[Scope::MC_MARK],
-          current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
-          current_.scopes[Scope::MC_MARK_ROOTS],
-          current_.scopes[Scope::MC_MARK_MAIN],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS],
-          current_.scopes[Scope::MC_MARK_WEAK_CLOSURE_HARMONY],
-          current_.scopes[Scope::MC_MARK_EMBEDDER_PROLOGUE],
-          current_.scopes[Scope::MC_MARK_EMBEDDER_TRACING],
-          current_.scopes[Scope::MC_PROLOGUE], current_.scopes[Scope::MC_SWEEP],
-          current_.scopes[Scope::MC_SWEEP_CODE],
-          current_.scopes[Scope::MC_SWEEP_MAP],
-          current_.scopes[Scope::MC_SWEEP_OLD],
-          current_.scopes[Scope::MC_INCREMENTAL],
-          current_.scopes[Scope::MC_INCREMENTAL_FINALIZE],
-          current_.scopes[Scope::MC_INCREMENTAL_FINALIZE_BODY],
-          current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE],
-          current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
-          current_.scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE],
-          current_.scopes[Scope::MC_INCREMENTAL_START],
-          current_.scopes[Scope::MC_INCREMENTAL_SWEEPING],
-          current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE],
-          current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_TRACING],
-          current_
-              .incremental_marking_scopes
-                  [Scope::MC_INCREMENTAL_EMBEDDER_TRACING]
+          current_.reduce_memory, current_scope(Scope::TIME_TO_SAFEPOINT),
+          current_scope(Scope::HEAP_PROLOGUE),
+          current_scope(Scope::HEAP_EMBEDDER_TRACING_EPILOGUE),
+          current_scope(Scope::HEAP_EPILOGUE),
+          current_scope(Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE),
+          current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
+          current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
+          current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
+          current_scope(Scope::MC_CLEAR),
+          current_scope(Scope::MC_CLEAR_DEPENDENT_CODE),
+          current_scope(Scope::MC_CLEAR_MAPS),
+          current_scope(Scope::MC_CLEAR_SLOTS_BUFFER),
+          current_scope(Scope::MC_CLEAR_STRING_TABLE),
+          current_scope(Scope::MC_CLEAR_WEAK_COLLECTIONS),
+          current_scope(Scope::MC_CLEAR_WEAK_LISTS),
+          current_scope(Scope::MC_CLEAR_WEAK_REFERENCES),
+          current_scope(Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
+          current_scope(Scope::MC_EPILOGUE), current_scope(Scope::MC_EVACUATE),
+          current_scope(Scope::MC_EVACUATE_CANDIDATES),
+          current_scope(Scope::MC_EVACUATE_CLEAN_UP),
+          current_scope(Scope::MC_EVACUATE_COPY),
+          current_scope(Scope::MC_EVACUATE_PROLOGUE),
+          current_scope(Scope::MC_EVACUATE_EPILOGUE),
+          current_scope(Scope::MC_EVACUATE_REBALANCE),
+          current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS),
+          current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS),
+          current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN),
+          current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK),
+          current_scope(Scope::MC_FINISH),
+          current_scope(Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS),
+          current_scope(Scope::MC_MARK),
+          current_scope(Scope::MC_MARK_FINISH_INCREMENTAL),
+          current_scope(Scope::MC_MARK_ROOTS),
+          current_scope(Scope::MC_MARK_MAIN),
+          current_scope(Scope::MC_MARK_WEAK_CLOSURE),
+          current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON),
+          current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING),
+          current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR),
+          current_scope(Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES),
+          current_scope(Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS),
+          current_scope(Scope::MC_MARK_WEAK_CLOSURE_HARMONY),
+          current_scope(Scope::MC_MARK_EMBEDDER_PROLOGUE),
+          current_scope(Scope::MC_MARK_EMBEDDER_TRACING),
+          current_scope(Scope::MC_PROLOGUE), current_scope(Scope::MC_SWEEP),
+          current_scope(Scope::MC_SWEEP_CODE),
+          current_scope(Scope::MC_SWEEP_MAP),
+          current_scope(Scope::MC_SWEEP_OLD),
+          current_scope(Scope::MC_INCREMENTAL),
+          current_scope(Scope::MC_INCREMENTAL_FINALIZE),
+          current_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY),
+          current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE),
+          current_scope(Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE),
+          current_scope(Scope::MC_INCREMENTAL_LAYOUT_CHANGE),
+          current_scope(Scope::MC_INCREMENTAL_START),
+          current_scope(Scope::MC_INCREMENTAL_SWEEPING),
+          current_scope(Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE),
+          current_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING),
+          incremental_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING)
               .longest_step,
-          current_
-              .incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE_BODY]
-              .longest_step,
-          current_
-              .incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE_BODY]
-              .steps,
-          current_.incremental_marking_scopes[Scope::MC_INCREMENTAL]
-              .longest_step,
-          current_.incremental_marking_scopes[Scope::MC_INCREMENTAL].steps,
+          incremental_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY).longest_step,
+          incremental_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY).steps,
+          incremental_scope(Scope::MC_INCREMENTAL).longest_step,
+          incremental_scope(Scope::MC_INCREMENTAL).steps,
           IncrementalMarkingSpeedInBytesPerMillisecond(),
           incremental_walltime_duration,
-          current_.scopes[Scope::MC_BACKGROUND_MARKING],
-          current_.scopes[Scope::MC_BACKGROUND_SWEEPING],
-          current_.scopes[Scope::MC_BACKGROUND_EVACUATE_COPY],
-          current_.scopes[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
-          current_.scopes[Scope::BACKGROUND_UNMAPPER],
-          current_.scopes[Scope::UNMAPPER], current_.start_object_size,
+          current_scope(Scope::MC_BACKGROUND_MARKING),
+          current_scope(Scope::MC_BACKGROUND_SWEEPING),
+          current_scope(Scope::MC_BACKGROUND_EVACUATE_COPY),
+          current_scope(Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
+          current_scope(Scope::BACKGROUND_UNMAPPER),
+          current_scope(Scope::UNMAPPER), current_.start_object_size,
           current_.end_object_size, current_.start_holes_size,
           current_.end_holes_size, allocated_since_last_gc,
           heap_->promoted_objects_size(),
@@ -1374,12 +1382,6 @@ void GCTracer::FetchBackgroundCounters(int first_scope, int last_scope) {
   }
 }
 
-void GCTracer::AddScopeSampleBackground(Scope::ScopeId scope, double duration) {
-  base::MutexGuard guard(&background_counter_mutex_);
-  BackgroundCounter& counter = background_counter_[scope];
-  counter.total_duration_ms += duration;
-}
-
 void GCTracer::RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode) {
   Counters* counters = heap_->isolate()->counters();
   if (mode == RecordGCPhasesInfo::Mode::Finalize) {
@@ -1444,16 +1446,12 @@ void GCTracer::RecordGCSumCounters() {
 
   const double atomic_pause_duration = current_.scopes[Scope::MARK_COMPACTOR];
   const double incremental_marking =
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
-          .duration +
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
-          .duration +
+      incremental_scopes_[Scope::MC_INCREMENTAL_LAYOUT_CHANGE].duration +
+      incremental_scopes_[Scope::MC_INCREMENTAL_START].duration +
       incremental_marking_duration_ +
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE]
-          .duration;
+      incremental_scopes_[Scope::MC_INCREMENTAL_FINALIZE].duration;
   const double incremental_sweeping =
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_SWEEPING]
-          .duration;
+      incremental_scopes_[Scope::MC_INCREMENTAL_SWEEPING].duration;
   const double overall_duration =
       atomic_pause_duration + incremental_marking + incremental_sweeping;
   const double background_duration =
@@ -1607,16 +1605,13 @@ void GCTracer::ReportFullCycleToRecorder() {
   // Unified heap statistics:
   const double atomic_pause_duration = current_.scopes[Scope::MARK_COMPACTOR];
   const double incremental_marking =
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
+      current_.incremental_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
           .duration +
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
-          .duration +
+      current_.incremental_scopes[Scope::MC_INCREMENTAL_START].duration +
       current_.incremental_marking_duration +
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_FINALIZE]
-          .duration;
+      current_.incremental_scopes[Scope::MC_INCREMENTAL_FINALIZE].duration;
   const double incremental_sweeping =
-      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_SWEEPING]
-          .duration;
+      current_.incremental_scopes[Scope::MC_INCREMENTAL_SWEEPING].duration;
   const double overall_duration =
       atomic_pause_duration + incremental_marking + incremental_sweeping;
   const double marking_background_duration =
