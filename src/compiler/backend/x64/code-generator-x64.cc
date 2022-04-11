@@ -2023,23 +2023,52 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       DCHECK_EQ(2, instr->OutputCount());
       Register success_reg = i.OutputRegister(1);
-      DoubleRegister rounded = kScratchDoubleReg;
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ Roundss(rounded, i.InputDoubleRegister(0), kRoundToZero);
-        __ Cvttss2siq(output_reg, i.InputDoubleRegister(0));
+      if (CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX)) {
+        DoubleRegister rounded = kScratchDoubleReg;
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Roundss(rounded, i.InputDoubleRegister(0), kRoundToZero);
+          __ Cvttss2siq(output_reg, i.InputDoubleRegister(0));
+        } else {
+          __ Roundss(rounded, i.InputOperand(0), kRoundToZero);
+          // Convert {rounded} instead of the input operand, to avoid another
+          // load.
+          __ Cvttss2siq(output_reg, rounded);
+        }
+        DoubleRegister converted_back = i.TempSimd128Register(0);
+        __ Cvtqsi2ss(converted_back, output_reg);
+        // Compare the converted back value to the rounded value, set
+        // success_reg to 0 if they differ, or 1 on success.
+        __ Cmpeqss(converted_back, rounded);
+        __ Movq(success_reg, converted_back);
+        __ And(success_reg, Immediate(1));
       } else {
-        __ Roundss(rounded, i.InputOperand(0), kRoundToZero);
-        // Convert {rounded} instead of the input operand, to avoid another
-        // load.
-        __ Cvttss2siq(output_reg, rounded);
+        // Less efficient code for non-AVX and non-SSE4_1 CPUs.
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+        } else {
+          __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
+        }
+        __ Move(success_reg, 1);
+        Label done;
+        Label fail;
+        __ Move(kScratchDoubleReg, float{INT64_MIN});
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Ucomiss(kScratchDoubleReg, i.InputDoubleRegister(0));
+        } else {
+          __ Ucomiss(kScratchDoubleReg, i.InputOperand(0));
+        }
+        // If the input is NaN, then the conversion fails.
+        __ j(parity_even, &fail, Label::kNear);
+        // If the input is INT64_MIN, then the conversion succeeds.
+        __ j(equal, &done, Label::kNear);
+        __ cmpq(output_reg, Immediate(1));
+        // If the conversion results in INT64_MIN, but the input was not
+        // INT64_MIN, then the conversion fails.
+        __ j(no_overflow, &done, Label::kNear);
+        __ bind(&fail);
+        __ Move(success_reg, 0);
+        __ bind(&done);
       }
-      DoubleRegister converted_back = i.TempSimd128Register(0);
-      __ Cvtqsi2ss(converted_back, output_reg);
-      // Compare the converted back value to the rounded value, set success_reg
-      // to 0 if they differ, or 1 on success.
-      __ Cmpeqss(converted_back, rounded);
-      __ Movq(success_reg, converted_back);
-      __ And(success_reg, Immediate(1));
       break;
     }
     case kSSEFloat64ToInt64: {
@@ -2054,23 +2083,52 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       DCHECK_EQ(2, instr->OutputCount());
       Register success_reg = i.OutputRegister(1);
-      DoubleRegister rounded = kScratchDoubleReg;
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ Roundsd(rounded, i.InputDoubleRegister(0), kRoundToZero);
-        __ Cvttsd2siq(output_reg, i.InputDoubleRegister(0));
+      if (CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX)) {
+        DoubleRegister rounded = kScratchDoubleReg;
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Roundsd(rounded, i.InputDoubleRegister(0), kRoundToZero);
+          __ Cvttsd2siq(output_reg, i.InputDoubleRegister(0));
+        } else {
+          __ Roundsd(rounded, i.InputOperand(0), kRoundToZero);
+          // Convert {rounded} instead of the input operand, to avoid another
+          // load.
+          __ Cvttsd2siq(output_reg, rounded);
+        }
+        DoubleRegister converted_back = i.TempSimd128Register(0);
+        __ Cvtqsi2sd(converted_back, output_reg);
+        // Compare the converted back value to the rounded value, set
+        // success_reg to 0 if they differ, or 1 on success.
+        __ Cmpeqsd(converted_back, rounded);
+        __ Movq(success_reg, converted_back);
+        __ And(success_reg, Immediate(1));
       } else {
-        __ Roundsd(rounded, i.InputOperand(0), kRoundToZero);
-        // Convert {rounded} instead of the input operand, to avoid another
-        // load.
-        __ Cvttsd2siq(output_reg, rounded);
+        // Less efficient code for non-AVX and non-SSE4_1 CPUs.
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Cvttsd2siq(i.OutputRegister(0), i.InputDoubleRegister(0));
+        } else {
+          __ Cvttsd2siq(i.OutputRegister(0), i.InputOperand(0));
+        }
+        __ Move(success_reg, 1);
+        Label done;
+        Label fail;
+        __ Move(kScratchDoubleReg, double{INT64_MIN});
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Ucomisd(kScratchDoubleReg, i.InputDoubleRegister(0));
+        } else {
+          __ Ucomisd(kScratchDoubleReg, i.InputOperand(0));
+        }
+        // If the input is NaN, then the conversion fails.
+        __ j(parity_even, &fail, Label::kNear);
+        // If the input is INT64_MIN, then the conversion succeeds.
+        __ j(equal, &done, Label::kNear);
+        __ cmpq(output_reg, Immediate(1));
+        // If the conversion results in INT64_MIN, but the input was not
+        // INT64_MIN, then the conversion fails.
+        __ j(no_overflow, &done, Label::kNear);
+        __ bind(&fail);
+        __ Move(success_reg, 0);
+        __ bind(&done);
       }
-      DoubleRegister converted_back = i.TempSimd128Register(0);
-      __ Cvtqsi2sd(converted_back, output_reg);
-      // Compare the converted back value to the rounded value, set success_reg
-      // to 0 if they differ, or 1 on success.
-      __ Cmpeqsd(converted_back, rounded);
-      __ Movq(success_reg, converted_back);
-      __ And(success_reg, Immediate(1));
       break;
     }
     case kSSEFloat32ToUint64: {
