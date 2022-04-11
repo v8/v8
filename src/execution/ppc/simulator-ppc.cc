@@ -642,6 +642,18 @@ static bool AllOnOnePage(uintptr_t start, int size) {
   return start_page == end_page;
 }
 
+static bool is_snan(float input) {
+  uint32_t kQuietNanFPBit = 1 << 22;
+  uint32_t InputAsUint = bit_cast<uint32_t>(input);
+  return isnan(input) && ((InputAsUint & kQuietNanFPBit) == 0);
+}
+
+static bool is_snan(double input) {
+  uint64_t kQuietNanDPBit = 1L << 51;
+  uint64_t InputAsUint = bit_cast<uint64_t>(input);
+  return isnan(input) && ((InputAsUint & kQuietNanDPBit) == 0);
+}
+
 void Simulator::set_last_debugger_input(char* input) {
   DeleteArray(last_debugger_input_);
   last_debugger_input_ = input;
@@ -4784,7 +4796,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           bit_cast<float, uint32_t>(static_cast<uint32_t>(double_bits >> 32));
       double_bits = bit_cast<uint64_t, double>(static_cast<double>(f));
       // Preserve snan.
-      if (issignaling(f)) {
+      if (is_snan(f)) {
         double_bits &= 0xFFF7FFFFFFFFFFFFU;  // Clear bit 51.
       }
       set_d_register(t, double_bits);
@@ -4797,7 +4809,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uint64_t float_bits = static_cast<uint64_t>(
           bit_cast<uint32_t, float>(static_cast<float>(b_val)));
       // Preserve snan.
-      if (issignaling(b_val)) {
+      if (is_snan(b_val)) {
         float_bits &= 0xFFBFFFFFU;  // Clear bit 22.
       }
       // fp result is placed in both 32bit halfs of the dst.
