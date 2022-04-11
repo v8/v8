@@ -205,6 +205,15 @@ class V8_EXPORT V8InspectorSession {
   virtual void triggerPreciseCoverageDeltaUpdate(StringView occasion) = 0;
 };
 
+class V8_EXPORT WebDriverValue {
+ public:
+  explicit WebDriverValue(StringView type, v8::MaybeLocal<v8::Value> value = {})
+      : type(type), value(value) {}
+
+  StringView type;
+  v8::MaybeLocal<v8::Value> value;
+};
+
 class V8_EXPORT V8InspectorClient {
  public:
   virtual ~V8InspectorClient() = default;
@@ -219,6 +228,10 @@ class V8_EXPORT V8InspectorClient {
   virtual void beginUserGesture() {}
   virtual void endUserGesture() {}
 
+  virtual std::unique_ptr<WebDriverValue> serializeToWebDriverValue(
+      v8::Local<v8::Value> v8_value, int max_depth) {
+    return nullptr;
+  }
   virtual std::unique_ptr<StringBuffer> valueSubtype(v8::Local<v8::Value>) {
     return nullptr;
   }

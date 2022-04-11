@@ -574,6 +574,14 @@ Response InjectedScript::wrapObjectMirror(
                           &customPreview);
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
+  if (wrapMode == WrapMode::kGenerateWebDriverValue) {
+    int maxDepth = 1;
+    std::unique_ptr<protocol::Runtime::WebDriverValue> webDriverValue;
+    response = mirror.buildWebDriverValue(context, maxDepth, &webDriverValue);
+    if (!response.IsSuccess()) return response;
+    (*result)->setWebDriverValue(std::move(webDriverValue));
+  }
+
   return Response::Success();
 }
 
