@@ -165,8 +165,7 @@ Handle<JSObject> PropertyCallbackArguments::CallIndexedEnumerator(
 Handle<Object> PropertyCallbackArguments::CallNamedGetter(
     Handle<InterceptorInfo> interceptor, Handle<Name> name) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
-  Isolate* isolate = this->isolate();
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedGetterCallback);
+  RCS_SCOPE(isolate(), RuntimeCallCounterId::kNamedGetterCallback);
   GenericNamedPropertyGetterCallback f =
       ToCData<GenericNamedPropertyGetterCallback>(interceptor->getter());
   return BasicCallNamedGetterCallback(f, name, interceptor);
@@ -175,8 +174,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedGetter(
 Handle<Object> PropertyCallbackArguments::CallNamedDescriptor(
     Handle<InterceptorInfo> interceptor, Handle<Name> name) {
   DCHECK_NAME_COMPATIBLE(interceptor, name);
-  Isolate* isolate = this->isolate();
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedDescriptorCallback);
+  RCS_SCOPE(isolate(), RuntimeCallCounterId::kNamedDescriptorCallback);
   GenericNamedPropertyDescriptorCallback f =
       ToCData<GenericNamedPropertyDescriptorCallback>(
           interceptor->descriptor());
@@ -252,8 +250,7 @@ Handle<Object> PropertyCallbackArguments::CallIndexedDefiner(
 Handle<Object> PropertyCallbackArguments::CallIndexedGetter(
     Handle<InterceptorInfo> interceptor, uint32_t index) {
   DCHECK(!interceptor->is_named());
-  Isolate* isolate = this->isolate();
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kNamedGetterCallback);
+  RCS_SCOPE(isolate(), RuntimeCallCounterId::kNamedGetterCallback);
   IndexedPropertyGetterCallback f =
       ToCData<IndexedPropertyGetterCallback>(interceptor->getter());
   return BasicCallIndexedGetterCallback(f, index, interceptor);
@@ -262,8 +259,7 @@ Handle<Object> PropertyCallbackArguments::CallIndexedGetter(
 Handle<Object> PropertyCallbackArguments::CallIndexedDescriptor(
     Handle<InterceptorInfo> interceptor, uint32_t index) {
   DCHECK(!interceptor->is_named());
-  Isolate* isolate = this->isolate();
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kIndexedDescriptorCallback);
+  RCS_SCOPE(isolate(), RuntimeCallCounterId::kIndexedDescriptorCallback);
   IndexedPropertyDescriptorCallback f =
       ToCData<IndexedPropertyDescriptorCallback>(interceptor->descriptor());
   return BasicCallIndexedGetterCallback(f, index, interceptor);

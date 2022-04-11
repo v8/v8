@@ -2031,8 +2031,7 @@ Local<Script> UnboundScript::BindToCurrentContext() {
 
 int UnboundScript::GetId() const {
   auto function_info = i::SharedFunctionInfo::cast(*Utils::OpenHandle(this));
-  i::Isolate* isolate = function_info.GetIsolate();
-  API_RCS_SCOPE(isolate, UnboundScript, GetId);
+  API_RCS_SCOPE(function_info.GetIsolate(), UnboundScript, GetId);
   return i::Script::cast(function_info.script()).id();
 }
 
@@ -7130,8 +7129,7 @@ double v8::NumberObject::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
       i::Handle<i::JSPrimitiveWrapper>::cast(obj);
-  i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
-  API_RCS_SCOPE(isolate, NumberObject, NumberValue);
+  API_RCS_SCOPE(js_primitive_wrapper->GetIsolate(), NumberObject, NumberValue);
   return js_primitive_wrapper->value().Number();
 }
 
@@ -7234,8 +7232,7 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
 double v8::Date::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(obj);
-  i::Isolate* isolate = jsdate->GetIsolate();
-  API_RCS_SCOPE(isolate, Date, NumberValue);
+  API_RCS_SCOPE(jsdate->GetIsolate(), Date, NumberValue);
   return jsdate->value().Number();
 }
 
@@ -7722,8 +7719,7 @@ Local<Value> Promise::Result() {
 
 Promise::PromiseState Promise::State() {
   i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);
-  i::Isolate* isolate = promise->GetIsolate();
-  API_RCS_SCOPE(isolate, Promise, Status);
+  API_RCS_SCOPE(promise->GetIsolate(), Promise, Status);
   i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
   return static_cast<PromiseState>(js_promise->status());
 }
