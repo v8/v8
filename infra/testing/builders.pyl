@@ -314,9 +314,9 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'test262', 'shards': 7},
-      {'name': 'v8testing', 'shards': 3},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'test262', 'shards': 12},
+      {'name': 'v8testing', 'shards': 5},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'variant': 'slow_path'},
     ],
   },
