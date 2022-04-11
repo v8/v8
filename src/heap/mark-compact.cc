@@ -1021,6 +1021,9 @@ void MarkCompactCollector::FinishConcurrentMarking() {
         non_atomic_marking_state());
     heap()->concurrent_marking()->FlushNativeContexts(&native_context_stats_);
   }
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
+    cpp_heap->FinishConcurrentMarkingIfNeeded();
+  }
 }
 
 void MarkCompactCollector::VerifyMarking() {

@@ -134,6 +134,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   bool IsTracingDone();
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
+  bool FinishConcurrentMarkingIfNeeded();
 
   void RunMinorGC(StackState);
 

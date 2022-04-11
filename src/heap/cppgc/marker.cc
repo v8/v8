@@ -317,6 +317,9 @@ void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
     StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
                                              StatsCollector::kAtomicMark);
     CHECK(AdvanceMarkingWithLimits(v8::base::TimeDelta::Max(), SIZE_MAX));
+    if (JoinConcurrentMarkingIfNeeded()) {
+      CHECK(AdvanceMarkingWithLimits(v8::base::TimeDelta::Max(), SIZE_MAX));
+    }
     mutator_marking_state_.Publish();
   }
   LeaveAtomicPause();
@@ -447,9 +450,9 @@ void MarkerBase::AdvanceMarkingOnAllocation() {
   }
 }
 
-bool MarkerBase::CancelConcurrentMarkingIfNeeded() {
+bool MarkerBase::JoinConcurrentMarkingIfNeeded() {
   if (config_.marking_type != MarkingConfig::MarkingType::kAtomic ||
-      !concurrent_marker_->Cancel())
+      !concurrent_marker_->Join())
     return false;
 
   // Concurrent markers may have pushed some "leftover" in-construction objects
@@ -476,9 +479,6 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
     if (is_done && VisitCrossThreadPersistentsIfNeeded()) {
       // Both limits are absolute and hence can be passed along without further
       // adjustment.
-      is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
-    }
-    if (is_done && CancelConcurrentMarkingIfNeeded()) {
       is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
     }
     schedule_.UpdateMutatorThreadMarkedBytes(
@@ -637,7 +637,7 @@ void MarkerBase::SetMainThreadMarkingDisabledForTesting(bool value) {
 }
 
 void MarkerBase::WaitForConcurrentMarkingForTesting() {
-  concurrent_marker_->JoinForTesting();
+  concurrent_marker_->Join();
 }
 
 Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)

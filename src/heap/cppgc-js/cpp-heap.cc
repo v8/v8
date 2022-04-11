@@ -607,6 +607,10 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   compactor_.CancelIfShouldNotCompact(MarkingType::kAtomic, stack_state);
 }
 
+bool CppHeap::FinishConcurrentMarkingIfNeeded() {
+  return marker_->JoinConcurrentMarkingIfNeeded();
+}
+
 void CppHeap::TraceEpilogue() {
   CHECK(in_atomic_pause_);
   CHECK(marking_done_);
@@ -738,7 +742,10 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
       StartTracing();
     }
     EnterFinalPause(stack_state);
-    AdvanceTracing(std::numeric_limits<double>::infinity());
+    CHECK(AdvanceTracing(std::numeric_limits<double>::infinity()));
+    if (FinishConcurrentMarkingIfNeeded()) {
+      CHECK(AdvanceTracing(std::numeric_limits<double>::infinity()));
+    }
     TraceEpilogue();
   }
 }

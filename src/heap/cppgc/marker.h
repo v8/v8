@@ -100,6 +100,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   void ProcessWeakness();
 
+  bool JoinConcurrentMarkingIfNeeded();
+
   inline void WriteBarrierForInConstructionObject(HeapObjectHeader&);
 
   template <WriteBarrierType type>
@@ -148,8 +150,6 @@ class V8_EXPORT_PRIVATE MarkerBase {
   bool IncrementalMarkingStep(MarkingConfig::StackState);
 
   void AdvanceMarkingOnAllocation();
-
-  bool CancelConcurrentMarkingIfNeeded();
 
   void HandleNotFullyConstructedObjects();
 
