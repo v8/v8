@@ -672,6 +672,7 @@ void StraightForwardRegisterAllocator::FreeSomeRegister() {
     }
   }
   DCHECK(best.is_valid());
+  DropRegisterValue(best);
   FreeRegister(best);
 }
 
