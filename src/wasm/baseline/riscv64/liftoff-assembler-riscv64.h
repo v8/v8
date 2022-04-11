@@ -864,69 +864,81 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                        type, liftoff::Binop::kExchange);
 }
 
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_linked,       \
+                                                 store_conditional) \
+  do {                                                              \
+    Label compareExchange;                                          \
+    Label exit;                                                     \
+    sync();                                                         \
+    bind(&compareExchange);                                         \
+    load_linked(result.gp(), MemOperand(temp0, 0));                 \
+    BranchShort(&exit, ne, expected.gp(), Operand(result.gp()));    \
+    mv(temp2, new_value.gp());                                      \
+    store_conditional(temp2, MemOperand(temp0, 0));                 \
+    BranchShort(&compareExchange, eq, temp2, Operand(zero_reg));    \
+    bind(&exit);                                                    \
+    sync();                                                         \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(            \
+    load_linked, store_conditional, size, aligned)               \
+  do {                                                           \
+    Label compareExchange;                                       \
+    Label exit;                                                  \
+    andi(temp1, temp0, aligned);                                 \
+    Sub64(temp0, temp0, Operand(temp1));                         \
+    Sll32(temp1, temp1, 3);                                      \
+    sync();                                                      \
+    bind(&compareExchange);                                      \
+    load_linked(temp2, MemOperand(temp0, 0));                    \
+    ExtractBits(result.gp(), temp2, temp1, size, false);         \
+    ExtractBits(temp2, expected.gp(), zero_reg, size, false);    \
+    BranchShort(&exit, ne, temp2, Operand(result.gp()));         \
+    InsertBits(temp2, new_value.gp(), temp1, size);              \
+    store_conditional(temp2, MemOperand(temp0, 0));              \
+    BranchShort(&compareExchange, eq, temp2, Operand(zero_reg)); \
+    bind(&exit);                                                 \
+    sync();                                                      \
+  } while (0)
+
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  LiftoffRegList pinned = {dst_addr, offset_reg, expected, new_value};
-
-  Register result_reg = result.gp();
-  if (pinned.has(result)) {
-    result_reg = GetUnusedRegister(kGpReg, pinned).gp();
-  }
-
-  UseScratchRegisterScope temps(this);
-
-  Register actual_addr = liftoff::CalculateActualAddress(
-      this, dst_addr, offset_reg, offset_imm, temps.Acquire());
-
-  Register store_result = temps.Acquire();
-
-  Label retry;
-  Label done;
-  bind(&retry);
+  LiftoffRegList pinned = {dst_addr, offset_reg, expected, new_value, result};
+  Register temp0 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register temp2 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+  Add64(temp0, dst_op.rm(), dst_op.offset());
   switch (type.value()) {
     case StoreType::kI64Store8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 8, 7);
+      break;
     case StoreType::kI32Store8:
-      lbu(result_reg, actual_addr, 0);
-      sync();
-      Branch(&done, ne, result.gp(), Operand(expected.gp()));
-      sync();
-      sb(new_value.gp(), actual_addr, 0);
-      sync();
-      mv(store_result, zero_reg);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 8, 3);
       break;
     case StoreType::kI64Store16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 16, 7);
+      break;
     case StoreType::kI32Store16:
-      lhu(result_reg, actual_addr, 0);
-      sync();
-      Branch(&done, ne, result.gp(), Operand(expected.gp()));
-      sync();
-      sh(new_value.gp(), actual_addr, 0);
-      sync();
-      mv(store_result, zero_reg);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Ll, Sc, 16, 3);
       break;
     case StoreType::kI64Store32:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(Lld, Scd, 32, 7);
+      break;
     case StoreType::kI32Store:
-      lr_w(true, true, result_reg, actual_addr);
-      Branch(&done, ne, result.gp(), Operand(expected.gp()));
-      sc_w(true, true, store_result, new_value.gp(), actual_addr);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc);
       break;
     case StoreType::kI64Store:
-      lr_d(true, true, result_reg, actual_addr);
-      Branch(&done, ne, result.gp(), Operand(expected.gp()));
-      sc_d(true, true, store_result, new_value.gp(), actual_addr);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd);
       break;
     default:
       UNREACHABLE();
   }
-  bnez(store_result, &retry);
-  bind(&done);
-
-  if (result_reg != result.gp()) {
-    mv(result.gp(), result_reg);
-  }
 }
+#undef ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER
+#undef ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT
 
 void LiftoffAssembler::AtomicFence() { sync(); }
 
