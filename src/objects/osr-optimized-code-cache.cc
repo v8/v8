@@ -31,7 +31,11 @@ void OSROptimizedCodeCache::Insert(Isolate* isolate,
   Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
                                           isolate);
 
-  DCHECK_EQ(osr_cache->FindEntry(*shared, osr_offset), -1);
+  if (shared->osr_code_cache_state() == kNotCached) {
+    DCHECK_EQ(osr_cache->FindEntry(*shared, osr_offset), -1);
+  } else if (osr_cache->FindEntry(*shared, osr_offset) != -1) {
+    return;  // Already cached for a different JSFunction.
+  }
 
   STATIC_ASSERT(kEntryLength == 3);
   int entry = -1;
@@ -52,6 +56,7 @@ void OSROptimizedCodeCache::Insert(Isolate* isolate,
       // TODO(mythria): We could use better mechanisms (like lru) to replace
       // existing entries. Though we don't expect this to be a common case, so
       // for now choosing to replace the first entry.
+      osr_cache->ClearEntry(0, isolate);
       entry = 0;
     }
   }
