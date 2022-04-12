@@ -3484,6 +3484,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-graph-labeller.h",
       "src/maglev/maglev-graph-printer.h",
       "src/maglev/maglev-graph-processor.h",
+      "src/maglev/maglev-graph-verifier.h",
       "src/maglev/maglev-graph.h",
       "src/maglev/maglev-interpreter-frame-state.h",
       "src/maglev/maglev-ir.h",

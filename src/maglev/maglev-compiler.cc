@@ -31,6 +31,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
@@ -173,6 +174,13 @@ void MaglevCompiler::Compile() {
     std::cout << "After graph buiding" << std::endl;
     PrintGraph(std::cout, toplevel_compilation_unit_, graph_builder.graph());
   }
+
+#ifdef DEBUG
+  {
+    GraphProcessor<MaglevGraphVerifier> verifier(toplevel_compilation_unit_);
+    verifier.ProcessGraph(graph_builder.graph());
+  }
+#endif
 
   {
     GraphMultiProcessor<NumberingProcessor, UseMarkingProcessor,
