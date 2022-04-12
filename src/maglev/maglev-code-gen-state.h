@@ -53,6 +53,8 @@ class MaglevCodeGenState {
   const std::vector<LazyDeoptInfo*>& lazy_deopts() const {
     return lazy_deopts_;
   }
+  inline void DefineSafepointStackSlots(
+      SafepointTableBuilder::Safepoint& safepoint) const;
 
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
@@ -142,6 +144,19 @@ inline MemOperand ToMemOperand(const compiler::InstructionOperand& operand) {
 
 inline MemOperand ToMemOperand(const ValueLocation& location) {
   return ToMemOperand(location.operand());
+}
+
+inline void MaglevCodeGenState::DefineSafepointStackSlots(
+    SafepointTableBuilder::Safepoint& safepoint) const {
+  DCHECK_EQ(compilation_unit()->stack_value_repr().size(), vreg_slots());
+  int stack_slot = 0;
+  for (ValueRepresentation repr : compilation_unit()->stack_value_repr()) {
+    if (repr == ValueRepresentation::kTagged) {
+      safepoint.DefineTaggedStackSlot(
+          GetSafepointIndexForStackSlot(stack_slot));
+    }
+    stack_slot++;
+  }
 }
 
 }  // namespace maglev

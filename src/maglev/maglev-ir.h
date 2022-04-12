@@ -165,6 +165,11 @@ class ConditionalControlNode;
 class UnconditionalControlNode;
 class ValueNode;
 
+enum class ValueRepresentation {
+  kTagged,
+  kUntagged,
+};
+
 #define DEF_FORWARD_DECLARATION(type, ...) class type;
 NODE_BASE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
@@ -651,12 +656,24 @@ class Node : public NodeBase {
 
   inline ValueLocation& result();
 
+  // This might break ThreadedList invariants.
+  // Run ThreadedList::RevalidateTail afterwards.
+  void AddNodeAfter(Node* node) {
+    DCHECK_NOT_NULL(node);
+    DCHECK_NULL(node->next_);
+    node->next_ = next_;
+    next_ = node;
+  }
+
+  Node* NextNode() const { return next_; }
+
  protected:
   using NodeBase::NodeBase;
 
  private:
   Node** next() { return &next_; }
   Node* next_ = nullptr;
+
   friend List;
   friend base::ThreadedListTraits<Node>;
 };
@@ -747,6 +764,12 @@ class ValueNode : public Node {
     }
     DCHECK(is_spilled());
     return compiler::AllocatedOperand::cast(spill_or_hint_);
+  }
+
+  bool IsUntaggedValue() const {
+    // TODO(victorgomes): Make this check faster somehow.
+    return Is<CheckedSmiUntag>() || Is<Int32AddWithOverflow>() ||
+           Is<Int32Constant>();
   }
 
  protected:

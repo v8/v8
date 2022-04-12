@@ -6,6 +6,7 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/objects/js-function-inl.h"
 
 namespace v8 {
@@ -21,7 +22,8 @@ MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
       bytecode_analysis_(bytecode_.object(), zone(), BytecodeOffset::None(),
                          true),
       register_count_(bytecode_.register_count()),
-      parameter_count_(bytecode_.parameter_count()) {}
+      parameter_count_(bytecode_.parameter_count()),
+      stack_value_repr_(info->zone()) {}
 
 compiler::JSHeapBroker* MaglevCompilationUnit::broker() const {
   return info_->broker();
@@ -38,6 +40,12 @@ bool MaglevCompilationUnit::has_graph_labeller() const {
 MaglevGraphLabeller* MaglevCompilationUnit::graph_labeller() const {
   DCHECK(has_graph_labeller());
   return info_->graph_labeller();
+}
+
+void MaglevCompilationUnit::RegisterNodeInGraphLabeller(const Node* node) {
+  if (has_graph_labeller()) {
+    graph_labeller()->RegisterNode(node);
+  }
 }
 
 }  // namespace maglev

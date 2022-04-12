@@ -142,15 +142,15 @@ using GenericNodeForOperation =
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
   FeedbackSlot slot_index = GetSlotOperand(0);
-  ValueNode* value = GetAccumulator();
+  ValueNode* value = GetAccumulatorTaggedValue();
   SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
       {value}, compiler::FeedbackSource{feedback(), slot_index}));
 }
 
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
-  ValueNode* left = LoadRegister(0);
-  ValueNode* right = GetAccumulator();
+  ValueNode* left = LoadRegisterTaggedValue(0);
+  ValueNode* right = GetAccumulatorTaggedValue();
   FeedbackSlot slot_index = GetSlotOperand(1);
   SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
       {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
@@ -158,7 +158,7 @@ void MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
 
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
-  ValueNode* left = GetAccumulator();
+  ValueNode* left = GetAccumulatorTaggedValue();
   Smi constant = Smi::FromInt(iterator_.GetImmediateOperand(0));
   ValueNode* right = AddNewNode<SmiConstant>({}, constant);
   FeedbackSlot slot_index = GetSlotOperand(1);
@@ -181,12 +181,16 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
       BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
 
       if (hint == BinaryOperationHint::kSignedSmall) {
-        ValueNode* left = AddNewNode<CheckedSmiUntag>({LoadRegister(0)});
-        ValueNode* right = AddNewNode<CheckedSmiUntag>({GetAccumulator()});
+        ValueNode *left, *right;
+        if (IsRegisterEqualToAccumulator(0)) {
+          left = right = LoadRegisterSmiUntaggedValue(0);
+        } else {
+          left = LoadRegisterSmiUntaggedValue(0);
+          right = GetAccumulatorSmiUntaggedValue();
+        }
 
         if (kOperation == Operation::kAdd) {
-          ValueNode* result = AddNewNode<Int32AddWithOverflow>({left, right});
-          SetAccumulator(AddNewNode<CheckedSmiTag>({result}));
+          SetAccumulator(AddNewNode<Int32AddWithOverflow>({left, right}));
           return;
         }
       }
@@ -206,7 +210,7 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
       BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
 
       if (hint == BinaryOperationHint::kSignedSmall) {
-        ValueNode* left = AddNewNode<CheckedSmiUntag>({GetAccumulator()});
+        ValueNode* left = GetAccumulatorSmiUntaggedValue();
         int32_t constant = iterator_.GetImmediateOperand(0);
 
         if (kOperation == Operation::kAdd) {
@@ -218,8 +222,7 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
           // TODO(victorgomes): We could create an Int32Add node that receives
           // a constant and avoid a register move.
           ValueNode* right = AddNewNode<Int32Constant>({}, constant);
-          ValueNode* result = AddNewNode<Int32AddWithOverflow>({left, right});
-          SetAccumulator(AddNewNode<CheckedSmiTag>({result}));
+          SetAccumulator(AddNewNode<Int32AddWithOverflow>({left, right}));
           return;
         }
       }
@@ -392,7 +395,7 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupGlobalSlotInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
 void MaglevGraphBuilder::VisitGetNamedProperty() {
   // GetNamedProperty <object> <name_index> <slot>
-  ValueNode* object = LoadRegister(0);
+  ValueNode* object = LoadRegisterTaggedValue(0);
   compiler::NameRef name = GetRefOperand<Name>(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
@@ -446,7 +449,7 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(StaModuleVariable)
 
 void MaglevGraphBuilder::VisitSetNamedProperty() {
   // SetNamedProperty <object> <name_index> <slot>
-  ValueNode* object = LoadRegister(0);
+  ValueNode* object = LoadRegisterTaggedValue(0);
   compiler::NameRef name = GetRefOperand<Name>(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
@@ -474,7 +477,7 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
           StoreHandler::Kind kind = StoreHandler::KindBits::decode(smi_handler);
           if (kind == StoreHandler::Kind::kField) {
             AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
-            ValueNode* value = GetAccumulator();
+            ValueNode* value = GetAccumulatorTaggedValue();
             AddNewNode<StoreField>({object, value}, smi_handler);
             return;
           }
@@ -592,7 +595,7 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(GetSuperConstructor)
 // TODO(v8:7700): Read feedback and implement inlining
 void MaglevGraphBuilder::BuildCallFromRegisterList(
     ConvertReceiverMode receiver_mode) {
-  ValueNode* function = LoadRegister(0);
+  ValueNode* function = LoadRegisterTaggedValue(0);
 
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   ValueNode* context = GetContext();
@@ -622,7 +625,7 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
 void MaglevGraphBuilder::BuildCallFromRegisters(
     int argc_count, ConvertReceiverMode receiver_mode) {
   DCHECK_LE(argc_count, 2);
-  ValueNode* function = LoadRegister(0);
+  ValueNode* function = LoadRegisterTaggedValue(0);
   ValueNode* context = GetContext();
 
   int argc_count_with_recv = argc_count + 1;
@@ -643,7 +646,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
     call->set_arg(arg_index++, undefined_constant);
   }
   for (int i = 0; i < reg_count; i++) {
-    call->set_arg(arg_index++, LoadRegister(i + 1));
+    call->set_arg(arg_index++, LoadRegisterTaggedValue(i + 1));
   }
 
   SetAccumulator(call);
@@ -804,19 +807,19 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
 }
 void MaglevGraphBuilder::VisitJumpIfToBooleanTrue() {
-  BuildBranchIfToBooleanTrue(GetAccumulator(), iterator_.GetJumpTargetOffset(),
-                             next_offset());
+  BuildBranchIfToBooleanTrue(GetAccumulatorTaggedValue(),
+                             iterator_.GetJumpTargetOffset(), next_offset());
 }
 void MaglevGraphBuilder::VisitJumpIfToBooleanFalse() {
-  BuildBranchIfToBooleanTrue(GetAccumulator(), next_offset(),
+  BuildBranchIfToBooleanTrue(GetAccumulatorTaggedValue(), next_offset(),
                              iterator_.GetJumpTargetOffset());
 }
 void MaglevGraphBuilder::VisitJumpIfTrue() {
-  BuildBranchIfTrue(GetAccumulator(), iterator_.GetJumpTargetOffset(),
-                    next_offset());
+  BuildBranchIfTrue(GetAccumulatorTaggedValue(),
+                    iterator_.GetJumpTargetOffset(), next_offset());
 }
 void MaglevGraphBuilder::VisitJumpIfFalse() {
-  BuildBranchIfTrue(GetAccumulator(), next_offset(),
+  BuildBranchIfTrue(GetAccumulatorTaggedValue(), next_offset(),
                     iterator_.GetJumpTargetOffset());
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfNull)
@@ -835,7 +838,7 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(SetPendingMessage)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Throw)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ReThrow)
 void MaglevGraphBuilder::VisitReturn() {
-  FinishBlock<Return>(next_offset(), {GetAccumulator()});
+  FinishBlock<Return>(next_offset(), {GetAccumulatorTaggedValue()});
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowReferenceErrorIfHole)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowSuperNotCalledIfHole)

@@ -649,6 +649,9 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
 void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
   DCHECK(!node->is_spilled());
   uint32_t free_slot = top_of_stack_++;
+  compilation_unit_->push_stack_value_repr(node->IsUntaggedValue()
+                                               ? ValueRepresentation::kUntagged
+                                               : ValueRepresentation::kTagged);
   node->Spill(compiler::AllocatedOperand(compiler::AllocatedOperand::STACK_SLOT,
                                          MachineRepresentation::kTagged,
                                          free_slot));

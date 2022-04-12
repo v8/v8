@@ -34,6 +34,14 @@ class MaglevGraphBuilder {
       // TODO(v8:7700): Clean up after all bytecodes are supported.
       if (found_unsupported_bytecode()) break;
     }
+
+    // During InterpreterFrameState merge points, we might emit CheckedSmiTags
+    // and add them unsafely to the basic blocks. This addition might break a
+    // list invariant (namely `tail_` might not point to the last element).
+    // We revalidate this invariant here in all basic blocks.
+    for (BasicBlock* block : *graph_) {
+      block->nodes().RevalidateTail();
+    }
   }
 
   Graph* graph() const { return graph_; }
@@ -210,20 +218,59 @@ class MaglevGraphBuilder {
     current_interpreter_frame_.set(dst, current_interpreter_frame_.get(src));
   }
 
+  ValueNode* GetTaggedValue(interpreter::Register reg) {
+    // TODO(victorgomes): Add the representation (Tagged/Untagged) in the
+    // InterpreterFrameState, so that we don't need to derefence a node.
+    ValueNode* value = current_interpreter_frame_.get(reg);
+    if (!value->IsUntaggedValue()) return value;
+    if (value->Is<CheckedSmiUntag>()) {
+      return value->input(0).node();
+    }
+    DCHECK(value->Is<Int32AddWithOverflow>() || value->Is<Int32Constant>());
+    ValueNode* tagged = AddNewNode<CheckedSmiTag>({value});
+    current_interpreter_frame_.set(reg, tagged);
+    return tagged;
+  }
+
+  ValueNode* GetSmiUntaggedValue(interpreter::Register reg) {
+    // TODO(victorgomes): Add the representation (Tagged/Untagged) in the
+    // InterpreterFrameState, so that we don't need to derefence a node.
+    ValueNode* value = current_interpreter_frame_.get(reg);
+    if (value->IsUntaggedValue()) return value;
+    if (value->Is<CheckedSmiTag>()) return value->input(0).node();
+    // Untag any other value.
+    ValueNode* untagged = AddNewNode<CheckedSmiUntag>({value});
+    current_interpreter_frame_.set(reg, untagged);
+    return untagged;
+  }
+
+  ValueNode* GetAccumulatorTaggedValue() {
+    return GetTaggedValue(interpreter::Register::virtual_accumulator());
+  }
+
+  ValueNode* GetAccumulatorSmiUntaggedValue() {
+    return GetSmiUntaggedValue(interpreter::Register::virtual_accumulator());
+  }
+
+  bool IsRegisterEqualToAccumulator(int operand_index) {
+    interpreter::Register source = iterator_.GetRegisterOperand(operand_index);
+    return current_interpreter_frame_.get(source) ==
+           current_interpreter_frame_.accumulator();
+  }
+
+  ValueNode* LoadRegisterTaggedValue(int operand_index) {
+    return GetTaggedValue(iterator_.GetRegisterOperand(operand_index));
+  }
+
+  ValueNode* LoadRegisterSmiUntaggedValue(int operand_index) {
+    return GetSmiUntaggedValue(iterator_.GetRegisterOperand(operand_index));
+  }
+
   template <typename NodeT>
   void SetAccumulator(NodeT* node) {
     // Accumulator stores are equivalent to stores to the virtual accumulator
     // register.
     StoreRegister(interpreter::Register::virtual_accumulator(), node);
-  }
-
-  ValueNode* GetAccumulator() const {
-    return current_interpreter_frame_.accumulator();
-  }
-
-  ValueNode* LoadRegister(int operand_index) {
-    interpreter::Register source = iterator_.GetRegisterOperand(operand_index);
-    return current_interpreter_frame_.get(source);
   }
 
   template <typename NodeT>

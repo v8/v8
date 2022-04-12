@@ -285,7 +285,7 @@ class MergePointInterpreterFrameState {
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
-  void Merge(const MaglevCompilationUnit& compilation_unit,
+  void Merge(MaglevCompilationUnit& compilation_unit,
              const InterpreterFrameState& unmerged, BasicBlock* predecessor,
              int merge_offset) {
     DCHECK_GT(predecessor_count_, 1);
@@ -296,8 +296,8 @@ class MergePointInterpreterFrameState {
         compilation_unit, [&](ValueNode*& value, interpreter::Register reg) {
           CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
 
-          value = MergeValue(compilation_unit.zone(), reg, value,
-                             unmerged.get(reg), merge_offset);
+          value = MergeValue(compilation_unit, reg, value, unmerged.get(reg),
+                             merge_offset);
         });
     predecessors_so_far_++;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
@@ -348,9 +348,40 @@ class MergePointInterpreterFrameState {
       const MaglevCompilationUnit& info,
       const MergePointInterpreterFrameState& state);
 
-  ValueNode* MergeValue(Zone* zone, interpreter::Register owner,
-                        ValueNode* merged, ValueNode* unmerged,
-                        int merge_offset) {
+  ValueNode* TagValue(MaglevCompilationUnit& compilation_unit,
+                      ValueNode* value) {
+    DCHECK(value->IsUntaggedValue());
+    if (value->Is<CheckedSmiUntag>()) {
+      return value->input(0).node();
+    }
+    DCHECK(value->Is<Int32AddWithOverflow>() || value->Is<Int32Constant>());
+    // Check if the next Node in the block after value is its CheckedSmiTag
+    // version and reuse it.
+    if (value->NextNode()) {
+      CheckedSmiTag* tagged = value->NextNode()->TryCast<CheckedSmiTag>();
+      if (tagged != nullptr && value == tagged->input().node()) {
+        return tagged;
+      }
+    }
+    // Otherwise create a tagged version.
+    ValueNode* tagged =
+        Node::New<CheckedSmiTag, std::initializer_list<ValueNode*>>(
+            compilation_unit.zone(), compilation_unit,
+            value->eager_deopt_info()->state, {value});
+    value->AddNodeAfter(tagged);
+    compilation_unit.RegisterNodeInGraphLabeller(tagged);
+    return tagged;
+  }
+
+  ValueNode* EnsureTagged(MaglevCompilationUnit& compilation_unit,
+                          ValueNode* value) {
+    if (value->IsUntaggedValue()) return TagValue(compilation_unit, value);
+    return value;
+  }
+
+  ValueNode* MergeValue(MaglevCompilationUnit& compilation_unit,
+                        interpreter::Register owner, ValueNode* merged,
+                        ValueNode* unmerged, int merge_offset) {
     // If the merged node is null, this is a pre-created loop header merge
     // frame will null values for anything that isn't a loop Phi.
     if (merged == nullptr) {
@@ -364,10 +395,22 @@ class MergePointInterpreterFrameState {
       // It's possible that merged == unmerged at this point since loop-phis are
       // not dropped if they are only assigned to themselves in the loop.
       DCHECK_EQ(result->owner(), owner);
+      if (unmerged->IsUntaggedValue()) {
+        unmerged = TagValue(compilation_unit, unmerged);
+      }
       result->set_input(predecessors_so_far_, unmerged);
       return result;
     }
 
+    if (merged == unmerged) return merged;
+
+    // We guarantee that the values are tagged.
+    // TODO(victorgomes): Support Phi nodes of untagged values.
+    merged = EnsureTagged(compilation_unit, merged);
+    unmerged = EnsureTagged(compilation_unit, unmerged);
+
+    // Tagged versions could point to the same value, avoid Phi nodes in this
+    // case.
     if (merged == unmerged) return merged;
 
     // Up to this point all predecessors had the same value for this interpreter
@@ -378,7 +421,8 @@ class MergePointInterpreterFrameState {
     // the frame slot. In that case we only need the inputs for representation
     // selection, and hence could remove duplicate inputs. We'd likely need to
     // attach the interpreter register to the phi in that case?
-    result = Node::New<Phi>(zone, predecessor_count_, owner, merge_offset);
+    result = Node::New<Phi>(compilation_unit.zone(), predecessor_count_, owner,
+                            merge_offset);
 
     for (int i = 0; i < predecessors_so_far_; i++) result->set_input(i, merged);
     result->set_input(predecessors_so_far_, unmerged);

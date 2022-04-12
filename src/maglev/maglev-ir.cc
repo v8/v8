@@ -832,9 +832,7 @@ void Call::GenerateCode(MaglevCodeGenState* code_gen_state,
   SafepointTableBuilder::Safepoint safepoint =
       code_gen_state->safepoint_table_builder()->DefineSafepoint(
           code_gen_state->masm());
-  for (int i = 0; i < code_gen_state->vreg_slots(); i++) {
-    safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(i));
-  }
+  code_gen_state->DefineSafepointStackSlots(safepoint);
 }
 
 // ---

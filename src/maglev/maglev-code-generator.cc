@@ -78,13 +78,11 @@ class MaglevCodeGeneratingNodeProcessor {
     }
 
     // We don't emit proper safepoint data yet; instead, define a single
-    // safepoint at the end of the code object, with all-tagged stack slots.
-    // TODO(jgruber): Real safepoint handling.
+    // safepoint at the end of the code object.
+    // TODO(v8:7700): Add better safepoint handling when we support stack reuse.
     SafepointTableBuilder::Safepoint safepoint =
         safepoint_table_builder()->DefineSafepoint(masm());
-    for (int i = 0; i < code_gen_state_->vreg_slots(); i++) {
-      safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(i));
-    }
+    code_gen_state_->DefineSafepointStackSlots(safepoint);
   }
 
   void PostProcessGraph(MaglevCompilationUnit*, Graph*) {}
