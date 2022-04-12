@@ -191,6 +191,9 @@ class OpProperties {
   constexpr bool non_memory_side_effects() const {
     return kNonMemorySideEffectsBit::decode(bitfield_);
   }
+  constexpr bool is_untagged_value() const {
+    return kUntaggedValueBit::decode(bitfield_);
+  }
 
   constexpr bool is_pure() const {
     return (bitfield_ | kPureMask) == kPureValue;
@@ -222,6 +225,9 @@ class OpProperties {
   static constexpr OpProperties NonMemorySideEffects() {
     return OpProperties(kNonMemorySideEffectsBit::encode(true));
   }
+  static constexpr OpProperties UntaggedValue() {
+    return OpProperties(kUntaggedValueBit::encode(true));
+  }
   static constexpr OpProperties JSCall() {
     return Call() | NonMemorySideEffects() | LazyDeopt();
   }
@@ -239,6 +245,7 @@ class OpProperties {
   using kCanReadBit = kCanLazyDeoptBit::Next<bool, 1>;
   using kCanWriteBit = kCanReadBit::Next<bool, 1>;
   using kNonMemorySideEffectsBit = kCanWriteBit::Next<bool, 1>;
+  using kUntaggedValueBit = kNonMemorySideEffectsBit::Next<bool, 1>;
 
   static const uint32_t kPureMask = kCanReadBit::kMask | kCanWriteBit::kMask |
                                     kNonMemorySideEffectsBit::kMask;
@@ -249,7 +256,7 @@ class OpProperties {
   const uint32_t bitfield_;
 
  public:
-  static const size_t kSize = kNonMemorySideEffectsBit::kLastUsedBit + 1;
+  static const size_t kSize = kUntaggedValueBit::kLastUsedBit + 1;
 };
 
 class ValueLocation {
@@ -766,10 +773,11 @@ class ValueNode : public Node {
     return compiler::AllocatedOperand::cast(spill_or_hint_);
   }
 
-  bool IsUntaggedValue() const {
-    // TODO(victorgomes): Make this check faster somehow.
-    return Is<CheckedSmiUntag>() || Is<Int32AddWithOverflow>() ||
-           Is<Int32Constant>();
+  bool is_untagged_value() const { return properties().is_untagged_value(); }
+
+  ValueRepresentation value_representation() const {
+    return is_untagged_value() ? ValueRepresentation::kUntagged
+                               : ValueRepresentation::kTagged;
   }
 
  protected:
@@ -966,7 +974,8 @@ class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
  public:
   explicit CheckedSmiUntag(uint32_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::UntaggedValue();
 
   Input& input() { return Node::input(0); }
 
@@ -981,6 +990,8 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
  public:
   explicit Int32Constant(uint32_t bitfield, int32_t value)
       : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::UntaggedValue();
 
   int32_t value() const { return value_; }
 
@@ -999,7 +1010,8 @@ class Int32AddWithOverflow
  public:
   explicit Int32AddWithOverflow(uint32_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::UntaggedValue();
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;

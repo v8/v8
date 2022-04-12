@@ -350,7 +350,7 @@ class MergePointInterpreterFrameState {
 
   ValueNode* TagValue(MaglevCompilationUnit& compilation_unit,
                       ValueNode* value) {
-    DCHECK(value->IsUntaggedValue());
+    DCHECK(value->is_untagged_value());
     if (value->Is<CheckedSmiUntag>()) {
       return value->input(0).node();
     }
@@ -375,7 +375,7 @@ class MergePointInterpreterFrameState {
 
   ValueNode* EnsureTagged(MaglevCompilationUnit& compilation_unit,
                           ValueNode* value) {
-    if (value->IsUntaggedValue()) return TagValue(compilation_unit, value);
+    if (value->is_untagged_value()) return TagValue(compilation_unit, value);
     return value;
   }
 
@@ -395,9 +395,7 @@ class MergePointInterpreterFrameState {
       // It's possible that merged == unmerged at this point since loop-phis are
       // not dropped if they are only assigned to themselves in the loop.
       DCHECK_EQ(result->owner(), owner);
-      if (unmerged->IsUntaggedValue()) {
-        unmerged = TagValue(compilation_unit, unmerged);
-      }
+      unmerged = EnsureTagged(compilation_unit, unmerged);
       result->set_input(predecessors_so_far_, unmerged);
       return result;
     }

@@ -222,7 +222,7 @@ class MaglevGraphBuilder {
     // TODO(victorgomes): Add the representation (Tagged/Untagged) in the
     // InterpreterFrameState, so that we don't need to derefence a node.
     ValueNode* value = current_interpreter_frame_.get(reg);
-    if (!value->IsUntaggedValue()) return value;
+    if (!value->is_untagged_value()) return value;
     if (value->Is<CheckedSmiUntag>()) {
       return value->input(0).node();
     }
@@ -236,7 +236,7 @@ class MaglevGraphBuilder {
     // TODO(victorgomes): Add the representation (Tagged/Untagged) in the
     // InterpreterFrameState, so that we don't need to derefence a node.
     ValueNode* value = current_interpreter_frame_.get(reg);
-    if (value->IsUntaggedValue()) return value;
+    if (value->is_untagged_value()) return value;
     if (value->Is<CheckedSmiTag>()) return value->input(0).node();
     // Untag any other value.
     ValueNode* untagged = AddNewNode<CheckedSmiUntag>({value});
