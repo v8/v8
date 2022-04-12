@@ -33,55 +33,52 @@ TemporalBuiltinsAssembler::TemporalInstantFixedArrayFromIterable(
   //   a. Return a new empty List.
   GotoIf(IsUndefined(iterable), &done);
 
-  // 2. Let iteratorRecord be ? GetIterator(items).
-  IteratorRecord iterator_record = GetIterator(context, iterable);
+  // 2. Let iteratorRecord be ? GetIterator(items) (handled by Iterate).
 
   // 3. Let list be a new empty List.
 
-  Label loop_start(this,
-                   {list.var_array(), list.var_length(), list.var_capacity()});
-  Goto(&loop_start);
-  // 4. Let next be true.
-  // 5. Repeat, while next is not false
-  Label if_isnottemporalinstant(this, Label::kDeferred),
-      if_exception(this, Label::kDeferred);
-  BIND(&loop_start);
-  {
-    //  a. Set next to ? IteratorStep(iteratorRecord).
-    TNode<JSReceiver> next = IteratorStep(context, iterator_record, &done);
-    //  b. If next is not false, then
-    //   i. Let nextValue be ? IteratorValue(next).
-    TNode<Object> next_value = IteratorValue(context, next);
-    //   ii. If Type(nextValue) is not Object or nextValue does not have an
-    //   [[InitializedTemporalInstant]] internal slot
-    GotoIf(TaggedIsSmi(next_value), &if_isnottemporalinstant);
-    TNode<Uint16T> next_value_type = LoadInstanceType(CAST(next_value));
-    GotoIfNot(IsTemporalInstantInstanceType(next_value_type),
-              &if_isnottemporalinstant);
-    //   iii. Append nextValue to the end of the List list.
-    list.Push(next_value);
-    Goto(&loop_start);
-    // 5.b.ii
-    BIND(&if_isnottemporalinstant);
-    {
-      // 1. Let error be ThrowCompletion(a newly created TypeError object).
-      TVARIABLE(Object, var_exception);
-      {
-        compiler::ScopedExceptionHandler handler(this, &if_exception,
-                                                 &var_exception);
-        CallRuntime(Runtime::kThrowTypeError, context,
-                    SmiConstant(MessageTemplate::kIterableYieldedNonString),
-                    next_value);
-      }
-      Unreachable();
+  // 3. Let next be true. (handled by Iterate).
+  // 4. Repeat, while next is not false (handled by Iterate).
+  Iterate(context, iterable,
+          [&](TNode<Object> next_value) {
+            // Handled by Iterate:
+            //  a. Set next to ? IteratorStep(iteratorRecord).
+            //  b. If next is not false, then
+            //   i. Let nextValue be ? IteratorValue(next).
 
-      // 2. Return ? IteratorClose(iteratorRecord, error).
-      BIND(&if_exception);
-      IteratorCloseOnException(context, iterator_record);
-      CallRuntime(Runtime::kReThrow, context, var_exception.value());
-      Unreachable();
-    }
-  }
+            //   ii. If Type(nextValue) is not Object or nextValue does not have
+            //   an [[InitializedTemporalInstant]] internal slot
+            Label if_isnottemporalinstant(this, Label::kDeferred),
+                loop_body_end(this);
+            GotoIf(TaggedIsSmi(next_value), &if_isnottemporalinstant);
+            TNode<Uint16T> next_value_type = LoadInstanceType(CAST(next_value));
+            GotoIfNot(IsTemporalInstantInstanceType(next_value_type),
+                      &if_isnottemporalinstant);
+
+            //   iii. Append nextValue to the end of the List list.
+            list.Push(next_value);
+            Goto(&loop_body_end);
+
+            // 5.b.ii
+            BIND(&if_isnottemporalinstant);
+            {
+              // 1. Let error be ThrowCompletion(a newly created TypeError
+              // object).
+              CallRuntime(
+                  Runtime::kThrowTypeError, context,
+                  SmiConstant(MessageTemplate::kIterableYieldedNonString),
+                  next_value);
+
+              // 2. Return ? IteratorClose(iteratorRecord, error). (handled by
+              // Iterate).
+              Unreachable();
+            }
+
+            BIND(&loop_body_end);
+          },
+          {list.var_array(), list.var_length(), list.var_capacity()});
+
+  Goto(&done);
 
   BIND(&done);
   return list.ToFixedArray();
