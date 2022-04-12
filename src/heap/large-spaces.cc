@@ -412,6 +412,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
         object.IsPropertyArray(cage_base) ||                      //
         object.IsScopeInfo() ||                                   //
         object.IsSeqString(cage_base) ||                          //
+        object.IsSloppyArgumentsElements(cage_base) ||            //
         object.IsSwissNameDictionary() ||                         //
         object.IsThinString(cage_base) ||                         //
         object.IsUncompiledDataWithoutPreparseData(cage_base) ||  //
