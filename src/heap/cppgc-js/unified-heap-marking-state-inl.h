@@ -18,9 +18,18 @@ namespace internal {
 
 class BasicTracedReferenceExtractor {
  public:
-  static Address* ObjectReference(const TracedReferenceBase& ref) {
-    return const_cast<Address*>(
+  static Object GetObjectForMarking(const TracedReferenceBase& ref) {
+    Address* global_handle_location = const_cast<Address*>(
         reinterpret_cast<const Address*>(ref.GetSlotThreadSafe()));
+    // We cannot assume that the reference is non-null as we may get here by
+    // tracing an ephemeron which doesn't have early bailouts, see
+    // `cppgc::Visitor::TraceEphemeron()` for non-Member values.
+    if (!global_handle_location) return Object();
+
+    GlobalHandles::MarkTraced(global_handle_location);
+    return Object(
+        reinterpret_cast<std::atomic<Address>*>(global_handle_location)
+            ->load(std::memory_order_relaxed));
   }
 };
 
@@ -29,13 +38,7 @@ void UnifiedHeapMarkingState::MarkAndPush(
   // The following code will crash with null pointer derefs when finding a
   // non-empty `TracedReferenceBase` when `CppHeap` is in detached mode.
 
-  Address* global_handle_location =
-      BasicTracedReferenceExtractor::ObjectReference(reference);
-  DCHECK_NOT_NULL(global_handle_location);
-
-  GlobalHandles::MarkTraced(global_handle_location);
-  Object object(reinterpret_cast<std::atomic<Address>*>(global_handle_location)
-                    ->load(std::memory_order_relaxed));
+  Object object = BasicTracedReferenceExtractor::GetObjectForMarking(reference);
   if (!object.IsHeapObject()) {
     // The embedder is not aware of whether numbers are materialized as heap
     // objects are just passed around as Smis.
