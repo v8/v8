@@ -380,5 +380,35 @@ size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
   return (backing_byte_length - array.byte_offset()) / element_byte_size;
 }
 
+size_t JSTypedArray::GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const {
+  DCHECK(!WasDetached());
+  if (is_length_tracking()) {
+    if (is_backed_by_rab()) {
+      if (byte_offset() > buffer().byte_length()) {
+        out_of_bounds = true;
+        return 0;
+      }
+      return (buffer().byte_length() - byte_offset()) / element_size();
+    }
+    if (byte_offset() >
+        buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst)) {
+      out_of_bounds = true;
+      return 0;
+    }
+    return (buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst) -
+            byte_offset()) /
+           element_size();
+  }
+  DCHECK(is_backed_by_rab());
+  size_t array_length = LengthUnchecked();
+  // The sum can't overflow, since we have managed to allocate the
+  // JSTypedArray.
+  if (byte_offset() + array_length * element_size() > buffer().byte_length()) {
+    out_of_bounds = true;
+    return 0;
+  }
+  return array_length;
+}
+
 }  // namespace internal
 }  // namespace v8
