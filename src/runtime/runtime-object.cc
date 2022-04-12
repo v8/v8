@@ -1337,7 +1337,7 @@ void CheckExcludedPropertiesAreOnCallerStack(Isolate* isolate, Address base,
 
 RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
   HandleScope scope(isolate);
-  DCHECK_LE(3, args.length());
+  DCHECK_EQ(3, args.length());
   Handle<Object> source = args.at(0);
   int excluded_property_count = args.smi_value_at(1);
   // The excluded_property_base is passed as a raw stack pointer. This is safe
