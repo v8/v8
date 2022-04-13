@@ -123,6 +123,9 @@ class Logger : public CodeEventListener {
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
 
+  // Additional steps taken after the logger has been set up.
+  void LateSetup(Isolate* isolate);
+
   // Frees resources acquired in SetUp.
   // When a temporary file is used for the log, returns its stream descriptor,
   // leaving the file open.
@@ -344,6 +347,12 @@ class Logger : public CodeEventListener {
 #endif
   std::unique_ptr<LowLevelLogger> ll_logger_;
   std::unique_ptr<JitLogger> jit_logger_;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  std::unique_ptr<JitLogger> gdb_jit_logger_;
+#endif
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  std::unique_ptr<JitLogger> etw_jit_logger_;
+#endif
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 
@@ -428,6 +437,8 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
   void WeakCodeClearEvent() override {}
+
+  bool is_listening_to_code_events() override { return true; }
 
  protected:
   Isolate* isolate_;

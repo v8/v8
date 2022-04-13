@@ -44,11 +44,21 @@
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
 
+#ifdef ENABLE_GDB_JIT_INTERFACE
+#include "src/diagnostics/gdb-jit.h"
+#endif  // ENABLE_GDB_JIT_INTERFACE
+
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#if V8_OS_WIN
+#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#include "src/diagnostics/system-jit-win.h"
+#endif
+#endif  // V8_OS_WIN
 
 namespace v8 {
 namespace internal {
@@ -203,6 +213,7 @@ CodeEventLogger::~CodeEventLogger() = default;
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       Handle<AbstractCode> code,
                                       const char* comment) {
+  DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(comment);
   LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
@@ -212,6 +223,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       Handle<AbstractCode> code,
                                       Handle<Name> name) {
+  DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
   name_buffer_->AppendName(*name);
   LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
@@ -222,6 +234,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       Handle<AbstractCode> code,
                                       Handle<SharedFunctionInfo> shared,
                                       Handle<Name> script_name) {
+  DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(*shared, *code));
   name_buffer_->AppendByte(' ');
@@ -234,6 +247,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       Handle<SharedFunctionInfo> shared,
                                       Handle<Name> script_name, int line,
                                       int column) {
+  DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
   name_buffer_->AppendBytes(ComputeMarker(*shared, *code));
   name_buffer_->AppendBytes(shared->DebugNameCStr().get());
@@ -256,6 +270,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       wasm::WasmName name,
                                       const char* source_url,
                                       int /*code_offset*/, int /*script_id*/) {
+  DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
   DCHECK(!name.empty());
   name_buffer_->AppendBytes(name.begin(), name.length());
@@ -273,6 +288,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
 
 void CodeEventLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                             Handle<String> source) {
+  DCHECK(is_listening_to_code_events());
   name_buffer_->Init(CodeEventListener::REG_EXP_TAG);
   name_buffer_->AppendString(*source);
   LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
@@ -1994,6 +2010,26 @@ bool Logger::SetUp(Isolate* isolate) {
       "--perf-basic-prof should be statically disabled on non-Linux platforms");
 #endif
 
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (i::FLAG_gdbjit) {
+    auto code_event_handler = i::GDBJITInterface::EventHandler;
+    DCHECK_NOT_NULL(code_event_handler);
+    gdb_jit_logger_ = std::make_unique<JitLogger>(isolate, code_event_handler);
+    AddCodeEventListener(gdb_jit_logger_.get());
+    CHECK(isolate->code_event_dispatcher()->IsListeningToCodeEvents());
+  }
+#endif  // ENABLE_GDB_JIT_INTERFACE
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  if (i::FLAG_enable_system_instrumentation) {
+    auto code_event_handler = i::ETWJITInterface::EventHandler;
+    DCHECK_NOT_NULL(code_event_handler);
+    etw_jit_logger_ = std::make_unique<JitLogger>(isolate, code_event_handler);
+    AddCodeEventListener(etw_jit_logger_.get());
+    CHECK(isolate->code_event_dispatcher()->IsListeningToCodeEvents());
+  }
+#endif  // defined(V8_OS_WIN)
+
   if (FLAG_ll_prof) {
     ll_logger_ =
         std::make_unique<LowLevelLogger>(isolate, log_file_name.str().c_str());
@@ -2010,6 +2046,14 @@ bool Logger::SetUp(Isolate* isolate) {
   }
   if (is_logging_) AddCodeEventListener(this);
   return true;
+}
+
+void Logger::LateSetup(Isolate* isolate) {
+  if (!isolate->code_event_dispatcher()->IsListeningToCodeEvents()) return;
+  Builtins::EmitCodeCreateEvents(isolate);
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::GetWasmEngine()->EnableCodeLogging(isolate);
+#endif
 }
 
 void Logger::SetCodeEventHandler(uint32_t options,

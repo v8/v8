@@ -50,7 +50,6 @@
 #endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/diagnostics/gdb-jit.h"
 #include "src/execution/embedder-state.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -157,9 +156,6 @@
 #include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
-#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-#include "src/diagnostics/system-jit-win.h"
-#endif
 #endif  // V8_OS_WIN
 
 // Has to be the last include (doesn't have include guards):
@@ -8655,18 +8651,6 @@ void Isolate::Initialize(Isolate* isolate,
     // Set up code event handlers. Needs to be after i::Snapshot::Initialize
     // because that is where we add the isolate to WasmEngine.
     auto code_event_handler = params.code_event_handler;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-    if (code_event_handler == nullptr && i::FLAG_gdbjit) {
-      code_event_handler = i::GDBJITInterface::EventHandler;
-    }
-#endif  // ENABLE_GDB_JIT_INTERFACE
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-    if (code_event_handler == nullptr &&
-        i::FLAG_enable_system_instrumentation) {
-      code_event_handler = i::ETWJITInterface::EventHandler;
-    }
-#endif  // defined(V8_OS_WIN)
-
     if (code_event_handler) {
       isolate->SetJitCodeEventHandler(kJitCodeEventEnumExisting,
                                       code_event_handler);

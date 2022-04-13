@@ -4121,7 +4121,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   setup_delegate_ = nullptr;
 
   Builtins::InitializeIsolateDataTables(this);
-  Builtins::EmitCodeCreateEvents(this);
+
+  // Extra steps in the logger after the heap has been set up.
+  logger_->LateSetup(this);
 
 #ifdef DEBUG
   // Verify that the current heap state (usually deserialized from the snapshot)
