@@ -2945,6 +2945,10 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
                              true);
 
+  pipeline.Run<BranchConditionDuplicationPhase>();
+  pipeline.RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(),
+                             true);
+
   pipeline.Run<VerifyGraphPhase>(true);
 
   int graph_hash_before_scheduling = 0;
