@@ -466,6 +466,8 @@ void Decoder::DecodeExtP(Instruction* instr) {
   switch (EXTP | (instr->BitField(25, 25))) {
     case PLOAD_STORE_8LS:
     case PLOAD_STORE_MLS: {
+      // TODO(miladfarca): Decode the R bit.
+      DCHECK_NE(instr->Bit(20), 1);
       // Read prefix.
       SetAsPrefixed(instr->Bits(17, 0));
       // Read suffix (next instruction).

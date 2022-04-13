@@ -1544,6 +1544,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       // Prefixed instructions.
     case PLOAD_STORE_8LS:
     case PLOAD_STORE_MLS: {
+      // TODO(miladfarca): Simulate PC-relative capability indicated by the R
+      // bit.
+      DCHECK_NE(instr->Bit(20), 1);
       // Read prefix value.
       uint64_t prefix_value = instr->Bits(17, 0);
       // Read suffix (next instruction).
