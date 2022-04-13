@@ -2077,6 +2077,12 @@ void Shell::TestVerifySourcePositions(
   }
 }
 
+void Shell::InstallConditionalFeatures(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
+}
+
 // async_hooks.createHook() registers functions to be called for different
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
@@ -3012,6 +3018,11 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
       test_template->Set(isolate, "LeafInterfaceType",
                          Shell::CreateLeafInterfaceTypeTemplate(isolate));
     }
+    // Allows testing code paths that are triggered when Origin Trials are
+    // added in the browser.
+    test_template->Set(
+        isolate, "installConditionalFeatures",
+        FunctionTemplate::New(isolate, Shell::InstallConditionalFeatures));
 
     d8_template->Set(isolate, "test", test_template);
   }
