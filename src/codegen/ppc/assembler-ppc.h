@@ -604,14 +604,20 @@ class Assembler : public AssemblerBase {
   PPC_VC_OPCODE_LIST(DECLARE_PPC_VC_INSTRUCTIONS)
 #undef DECLARE_PPC_VC_INSTRUCTIONS
 
+#define DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00(name, instr_name, instr_value) \
+  inline void name(const Operand& imm, const PRBit pr = LeavePR) {             \
+    prefix_form(instr_name, imm, pr);                                          \
+  }
 #define DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10(name, instr_name, instr_value) \
   inline void name(const Operand& imm, const PRBit pr = LeavePR) {             \
-    prefix_10_form(instr_name, imm, pr);                                       \
+    prefix_form(instr_name, imm, pr);                                          \
   }
-  inline void prefix_10_form(Instr instr, const Operand& imm, int pr) {
+  inline void prefix_form(Instr instr, const Operand& imm, int pr) {
     emit_prefix(instr | pr * B20 | (imm.immediate() & kImm18Mask));
   }
+  PPC_PREFIX_OPCODE_TYPE_00_LIST(DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00)
   PPC_PREFIX_OPCODE_TYPE_10_LIST(DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10)
+#undef DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_00
 #undef DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
@@ -1133,6 +1139,14 @@ class Assembler : public AssemblerBase {
   void paddi(Register dst, Register src, const Operand& imm);
   void pli(Register dst, const Operand& imm);
   void psubi(Register dst, Register src, const Operand& imm);
+  void plbz(Register dst, const MemOperand& src);
+  void plhz(Register dst, const MemOperand& src);
+  void plha(Register dst, const MemOperand& src);
+  void plwz(Register dst, const MemOperand& src);
+  void plwa(Register dst, const MemOperand& src);
+  void pld(Register dst, const MemOperand& src);
+  void plfs(DoubleRegister dst, const MemOperand& src);
+  void plfd(DoubleRegister dst, const MemOperand& src);
 
   // Pseudo instructions
 
@@ -1428,6 +1442,8 @@ class Assembler : public AssemblerBase {
     if (((pc_offset() + sizeof(Instr)) & 63) == 0) {
       nop();
     }
+    // Do not emit trampoline pool in between prefix and suffix.
+    CHECK(is_trampoline_pool_blocked());
     emit(x);
   }
 

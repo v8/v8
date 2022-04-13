@@ -92,6 +92,9 @@ constexpr int kRootRegisterBias = 128;
 // sign-extend the least significant 16-bits of value <imm>
 #define SIGN_EXT_IMM16(imm) ((static_cast<int>(imm) << 16) >> 16)
 
+// sign-extend the least significant 14-bits of value <imm>
+#define SIGN_EXT_IMM18(imm) ((static_cast<int>(imm) << 14) >> 14)
+
 // sign-extend the least significant 22-bits of value <imm>
 #define SIGN_EXT_IMM22(imm) ((static_cast<int>(imm) << 10) >> 10)
 
@@ -2675,38 +2678,45 @@ immediate-specified index */                 \
   /* System Call */           \
   V(sc, SC, 0x44000002)
 
-#define PPC_PREFIX_OPCODE_TYPE_10_LIST(V) V(ppaddi, PPADDI, 0x6000000)
+#define PPC_PREFIX_OPCODE_TYPE_00_LIST(V)        \
+  V(pload_store_8ls, PLOAD_STORE_8LS, 0x4000000) \
+  V(pplwa, PPLWA, 0xA4000000)                    \
+  V(ppld, PPLD, 0xE4000000)
 
-#define PPC_OPCODE_LIST(V)       \
-  PPC_X_OPCODE_LIST(V)           \
-  PPC_X_OPCODE_EH_S_FORM_LIST(V) \
-  PPC_XO_OPCODE_LIST(V)          \
-  PPC_DS_OPCODE_LIST(V)          \
-  PPC_DQ_OPCODE_LIST(V)          \
-  PPC_MDS_OPCODE_LIST(V)         \
-  PPC_MD_OPCODE_LIST(V)          \
-  PPC_XS_OPCODE_LIST(V)          \
-  PPC_D_OPCODE_LIST(V)           \
-  PPC_I_OPCODE_LIST(V)           \
-  PPC_B_OPCODE_LIST(V)           \
-  PPC_XL_OPCODE_LIST(V)          \
-  PPC_A_OPCODE_LIST(V)           \
-  PPC_XFX_OPCODE_LIST(V)         \
-  PPC_M_OPCODE_LIST(V)           \
-  PPC_SC_OPCODE_LIST(V)          \
-  PPC_Z23_OPCODE_LIST(V)         \
-  PPC_Z22_OPCODE_LIST(V)         \
-  PPC_EVX_OPCODE_LIST(V)         \
-  PPC_XFL_OPCODE_LIST(V)         \
-  PPC_EVS_OPCODE_LIST(V)         \
-  PPC_VX_OPCODE_LIST(V)          \
-  PPC_VA_OPCODE_LIST(V)          \
-  PPC_VC_OPCODE_LIST(V)          \
-  PPC_XX1_OPCODE_LIST(V)         \
-  PPC_XX2_OPCODE_LIST(V)         \
-  PPC_XX3_OPCODE_VECTOR_LIST(V)  \
-  PPC_XX3_OPCODE_SCALAR_LIST(V)  \
-  PPC_XX4_OPCODE_LIST(V)         \
+#define PPC_PREFIX_OPCODE_TYPE_10_LIST(V) \
+  V(pload_store_mls, PLOAD_STORE_MLS, 0x6000000)
+
+#define PPC_OPCODE_LIST(V)          \
+  PPC_X_OPCODE_LIST(V)              \
+  PPC_X_OPCODE_EH_S_FORM_LIST(V)    \
+  PPC_XO_OPCODE_LIST(V)             \
+  PPC_DS_OPCODE_LIST(V)             \
+  PPC_DQ_OPCODE_LIST(V)             \
+  PPC_MDS_OPCODE_LIST(V)            \
+  PPC_MD_OPCODE_LIST(V)             \
+  PPC_XS_OPCODE_LIST(V)             \
+  PPC_D_OPCODE_LIST(V)              \
+  PPC_I_OPCODE_LIST(V)              \
+  PPC_B_OPCODE_LIST(V)              \
+  PPC_XL_OPCODE_LIST(V)             \
+  PPC_A_OPCODE_LIST(V)              \
+  PPC_XFX_OPCODE_LIST(V)            \
+  PPC_M_OPCODE_LIST(V)              \
+  PPC_SC_OPCODE_LIST(V)             \
+  PPC_Z23_OPCODE_LIST(V)            \
+  PPC_Z22_OPCODE_LIST(V)            \
+  PPC_EVX_OPCODE_LIST(V)            \
+  PPC_XFL_OPCODE_LIST(V)            \
+  PPC_EVS_OPCODE_LIST(V)            \
+  PPC_VX_OPCODE_LIST(V)             \
+  PPC_VA_OPCODE_LIST(V)             \
+  PPC_VC_OPCODE_LIST(V)             \
+  PPC_XX1_OPCODE_LIST(V)            \
+  PPC_XX2_OPCODE_LIST(V)            \
+  PPC_XX3_OPCODE_VECTOR_LIST(V)     \
+  PPC_XX3_OPCODE_SCALAR_LIST(V)     \
+  PPC_XX4_OPCODE_LIST(V)            \
+  PPC_PREFIX_OPCODE_TYPE_00_LIST(V) \
   PPC_PREFIX_OPCODE_TYPE_10_LIST(V)
 
 enum Opcode : uint32_t {
@@ -2988,12 +2998,19 @@ class Instruction {
   inline Opcode OpcodeBase() const {
     uint32_t opcode = PrefixOpcodeField();
     uint32_t extcode = PrefixOpcodeField();
+    // Check for prefix.
     switch (opcode) {
+      PPC_PREFIX_OPCODE_TYPE_00_LIST(OPCODE_CASES)
       PPC_PREFIX_OPCODE_TYPE_10_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
     opcode = OpcodeField();
     extcode = OpcodeField();
+    // Check for suffix.
+    switch (opcode) {
+      PPC_PREFIX_OPCODE_TYPE_00_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
     switch (opcode) {
       PPC_D_OPCODE_LIST(OPCODE_CASES)
       PPC_I_OPCODE_LIST(OPCODE_CASES)

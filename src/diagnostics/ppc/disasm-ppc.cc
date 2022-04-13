@@ -286,13 +286,12 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 'i': {  // int16
       int64_t value;
-      uint32_t addi_value = instr->Bits(15, 0);
+      uint32_t imm_value = instr->Bits(15, 0);
       if (IsPrefixed()) {
         uint64_t prefix_value = GetPrefixValue();
-        value = SIGN_EXT_IMM34(
-            static_cast<int64_t>((prefix_value << 16) | addi_value));
+        value = SIGN_EXT_IMM34((prefix_value << 16) | imm_value);
       } else {
-        value = (static_cast<int64_t>(addi_value) << 48) >> 48;
+        value = (static_cast<int64_t>(imm_value) << 48) >> 48;
       }
       out_buffer_pos_ +=
           base::SNPrintF(out_buffer_ + out_buffer_pos_, "%ld", value);
@@ -465,22 +464,71 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 
 void Decoder::DecodeExtP(Instruction* instr) {
   switch (EXTP | (instr->BitField(25, 25))) {
-    case PPADDI: {
+    case PLOAD_STORE_8LS:
+    case PLOAD_STORE_MLS: {
       // Read prefix.
       SetAsPrefixed(instr->Bits(17, 0));
       // Read suffix (next instruction).
       Instruction* next_instr =
           bit_cast<Instruction*>(bit_cast<intptr_t>(instr) + kInstrSize);
-      CHECK_EQ(ADDI, next_instr->OpcodeField());
-      if (next_instr->RAValue() == 0) {
-        // This is load immediate prefixed.
-        Format(instr, "pli");
-        Format(next_instr, "     'rt, ");
-      } else {
-        Format(instr, "paddi");
-        Format(next_instr, "   'rt, 'ra, ");
+      switch (next_instr->OpcodeBase()) {
+          // Prefixed ADDI.
+        case (ADDI): {
+          if (next_instr->RAValue() == 0) {
+            // This is load immediate prefixed.
+            Format(instr, "pli");
+            Format(next_instr, "     'rt, ");
+          } else {
+            Format(instr, "paddi");
+            Format(next_instr, "   'rt, 'ra, ");
+          }
+          Format(next_instr, "'int34");
+          break;
+        }
+        // Prefixed LBZ.
+        case LBZ: {
+          Format(next_instr, "plbz    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LHZ.
+        case LHZ: {
+          Format(next_instr, "plhz    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LHA.
+        case LHA: {
+          Format(next_instr, "plha    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LWZ.
+        case LWZ: {
+          Format(next_instr, "plwz    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LWA.
+        case PPLWA: {
+          Format(next_instr, "plwa    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LD.
+        case PPLD: {
+          Format(next_instr, "pld    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LFS.
+        case LFS: {
+          Format(next_instr, "plfs    'Dt, 'int34('ra)");
+          break;
+        }
+        // Prefixed LFD.
+        case LFD: {
+          Format(next_instr, "plfd    'Dt, 'int34('ra)");
+          break;
+        }
+        default: {
+          Unknown(instr);
+        }
       }
-      Format(next_instr, "'int34");
       break;
     }
     default: {

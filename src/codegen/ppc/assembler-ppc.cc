@@ -1142,28 +1142,108 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 #endif
 
 // Prefixed instructions.
+#define GENERATE_PREFIX_SUFFIX_BITS(immediate, prefix, suffix)      \
+  CHECK(is_int34(immediate));                                       \
+  int32_t prefix =                                                  \
+      SIGN_EXT_IMM18((immediate >> 16) & kImm18Mask); /* 18 bits.*/ \
+  int16_t suffix = immediate & kImm16Mask;            /* 16 bits.*/ \
+  DCHECK(is_int18(prefix));
+
 void Assembler::paddi(Register dst, Register src, const Operand& imm) {
   CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
-  CHECK(is_int34(imm.immediate()));
   DCHECK(src != r0);  // use pli instead to show intent.
-  int32_t hi = (imm.immediate() >> 16) & kImm18Mask;  // 18 bits.
-  int16_t lo = imm.immediate() & kImm16Mask;          // 16 bits.
-  ppaddi(Operand(hi));
+  intptr_t immediate = imm.immediate();
+  GENERATE_PREFIX_SUFFIX_BITS(immediate, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
   addi(dst, src, Operand(lo));
 }
 
 void Assembler::pli(Register dst, const Operand& imm) {
   CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
-  CHECK(is_int34(imm.immediate()));
-  int32_t hi = (imm.immediate() >> 16) & kImm18Mask;  // 18 bits.
-  int16_t lo = imm.immediate() & kImm16Mask;          // 16 bits.
-  ppaddi(Operand(hi));
+  intptr_t immediate = imm.immediate();
+  GENERATE_PREFIX_SUFFIX_BITS(immediate, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
   li(dst, Operand(lo));
 }
 
 void Assembler::psubi(Register dst, Register src, const Operand& imm) {
   paddi(dst, src, Operand(-(imm.immediate())));
 }
+
+void Assembler::plbz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lbz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plhz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lhz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plha(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lha(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plwz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lwz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plwa(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPLWA | dst.code() * B21 | src.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::pld(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPLD | dst.code() * B21 | src.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::plfs(DoubleRegister dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lfs(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plfd(DoubleRegister dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lfd(dst, MemOperand(src.ra(), lo));
+}
+#undef GENERATE_PREFIX_SUFFIX_BITS
 
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {
