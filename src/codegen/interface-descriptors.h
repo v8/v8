@@ -31,16 +31,17 @@ namespace internal {
   V(ArrayNoArgumentConstructor)                      \
   V(ArraySingleArgumentConstructor)                  \
   V(AsyncFunctionStackParameter)                     \
+  V(BaselineLeaveFrame)                              \
+  V(BaselineOnStackReplacement)                      \
+  V(BaselineOutOfLinePrologue)                       \
   V(BigIntToI32Pair)                                 \
   V(BigIntToI64)                                     \
   V(BinaryOp)                                        \
   V(BinaryOp_Baseline)                               \
-  V(BinarySmiOp_Baseline)                            \
   V(BinaryOp_WithFeedback)                           \
+  V(BinarySmiOp_Baseline)                            \
   V(CallForwardVarargs)                              \
   V(CallFunctionTemplate)                            \
-  V(CopyDataPropertiesWithExcludedProperties)        \
-  V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CallTrampoline)                                  \
   V(CallTrampoline_Baseline)                         \
   V(CallTrampoline_Baseline_Compact)                 \
@@ -57,17 +58,19 @@ namespace internal {
   V(Compare)                                         \
   V(Compare_Baseline)                                \
   V(Compare_WithFeedback)                            \
+  V(Construct_Baseline)                              \
   V(ConstructForwardVarargs)                         \
   V(ConstructStub)                                   \
   V(ConstructVarargs)                                \
   V(ConstructWithArrayLike)                          \
   V(ConstructWithArrayLike_WithFeedback)             \
   V(Construct_WithFeedback)                          \
-  V(Construct_Baseline)                              \
   V(ConstructWithSpread)                             \
   V(ConstructWithSpread_Baseline)                    \
   V(ConstructWithSpread_WithFeedback)                \
   V(ContextOnly)                                     \
+  V(CopyDataPropertiesWithExcludedProperties)        \
+  V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CppBuiltinAdaptor)                               \
   V(FastNewObject)                                   \
   V(ForInPrepare)                                    \
@@ -79,11 +82,15 @@ namespace internal {
   V(InterpreterCEntry1)                              \
   V(InterpreterCEntry2)                              \
   V(InterpreterDispatch)                             \
+  V(InterpreterOnStackReplacement)                   \
   V(InterpreterPushArgsThenCall)                     \
   V(InterpreterPushArgsThenConstruct)                \
   V(JSTrampoline)                                    \
-  V(BaselineOutOfLinePrologue)                       \
-  V(BaselineLeaveFrame)                              \
+  V(KeyedHasICBaseline)                              \
+  V(KeyedHasICWithVector)                            \
+  V(KeyedLoad)                                       \
+  V(KeyedLoadBaseline)                               \
+  V(KeyedLoadWithVector)                             \
   V(Load)                                            \
   V(LoadBaseline)                                    \
   V(LoadGlobal)                                      \
@@ -91,18 +98,12 @@ namespace internal {
   V(LoadGlobalNoFeedback)                            \
   V(LoadGlobalWithVector)                            \
   V(LoadNoFeedback)                                  \
-  V(LoadWithVector)                                  \
-  V(KeyedLoad)                                       \
-  V(KeyedLoadBaseline)                               \
-  V(KeyedLoadWithVector)                             \
-  V(KeyedHasICBaseline)                              \
-  V(KeyedHasICWithVector)                            \
   V(LoadWithReceiverAndVector)                       \
   V(LoadWithReceiverBaseline)                        \
+  V(LoadWithVector)                                  \
   V(LookupBaseline)                                  \
   V(NoContext)                                       \
   V(ResumeGenerator)                                 \
-  V(SuspendGeneratorBaseline)                        \
   V(ResumeGeneratorBaseline)                         \
   V(RunMicrotasks)                                   \
   V(RunMicrotasksEntry)                              \
@@ -116,11 +117,10 @@ namespace internal {
   V(StoreWithVector)                                 \
   V(StringAtAsString)                                \
   V(StringSubstring)                                 \
-  IF_TSAN(V, TSANStore)                              \
-  IF_TSAN(V, TSANLoad)                               \
+  V(SuspendGeneratorBaseline)                        \
   V(TypeConversion)                                  \
-  V(TypeConversionNoContext)                         \
   V(TypeConversion_Baseline)                         \
+  V(TypeConversionNoContext)                         \
   V(Typeof)                                          \
   V(UnaryOp_Baseline)                                \
   V(UnaryOp_WithFeedback)                            \
@@ -131,6 +131,8 @@ namespace internal {
   V(WasmI64AtomicWait32)                             \
   V(WasmSuspend)                                     \
   V(WriteBarrier)                                    \
+  IF_TSAN(V, TSANLoad)                               \
+  IF_TSAN(V, TSANStore)                              \
   BUILTIN_LIST_TFS(V)                                \
   TORQUE_BUILTIN_LIST_TFC(V)
 
@@ -1684,6 +1686,42 @@ class BaselineLeaveFrameDescriptor
 
   static constexpr inline Register ParamsSizeRegister();
   static constexpr inline Register WeightRegister();
+
+  static constexpr inline auto registers();
+};
+
+class InterpreterOnStackReplacementDescriptor
+    : public StaticCallInterfaceDescriptor<
+          InterpreterOnStackReplacementDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kCurrentLoopDepth, kEncodedCurrentBytecodeOffset,
+                    kOsrUrgencyAndInstallTarget)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),  // kCurrentLoopDepth
+                         MachineType::Int32(),  // kEncodedCurrentBytecodeOffset
+                         MachineType::Int32())  // kOsrUrgencyAndInstallTarget
+  DECLARE_DESCRIPTOR(InterpreterOnStackReplacementDescriptor)
+
+  static constexpr inline Register CurrentLoopDepthRegister();
+  static constexpr inline Register EncodedCurrentBytecodeOffsetRegister();
+  static constexpr inline Register OsrUrgencyAndInstallTargetRegister();
+
+  static constexpr inline auto registers();
+};
+
+class BaselineOnStackReplacementDescriptor
+    : public StaticCallInterfaceDescriptor<
+          BaselineOnStackReplacementDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kCurrentLoopDepth, kEncodedCurrentBytecodeOffset,
+                               kOsrUrgencyAndInstallTarget)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),  // kCurrentLoopDepth
+                         MachineType::Int32(),  // kEncodedCurrentBytecodeOffset
+                         MachineType::Int32())  // kOsrUrgencyAndInstallTarget
+  DECLARE_DESCRIPTOR(BaselineOnStackReplacementDescriptor)
+
+  static constexpr inline Register CurrentLoopDepthRegister();
+  static constexpr inline Register EncodedCurrentBytecodeOffsetRegister();
+  static constexpr inline Register OsrUrgencyAndInstallTargetRegister();
 
   static constexpr inline auto registers();
 };

@@ -263,8 +263,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
       TNode<FixedArrayBase> parameters_and_registers,
       TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count);
 
-  // Perform OnStackReplacement.
-  void OnStackReplacement(TNode<Context> context, TNode<IntPtrT> relative_jump);
+  // Attempts to OSR; note this may fail in some cases, e.g. on a mismatched
+  // install target, or if there's no compiled code object available yet
+  // (concurrent OSR).
+  void OnStackReplacement(TNode<Context> context, TNode<IntPtrT> relative_jump,
+                          TNode<Int32T> loop_depth,
+                          TNode<Int16T> osr_urgency_and_install_target);
 
   // The BytecodeOffset() is the offset from the ByteCodeArray pointer; to
   // translate into runtime `BytecodeOffset` (defined in utils.h as the offset
