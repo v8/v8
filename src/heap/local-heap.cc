@@ -152,9 +152,7 @@ bool LocalHeap::ContainsLocalHandle(Address* location) {
 }
 
 bool LocalHeap::IsHandleDereferenceAllowed() {
-#ifdef DEBUG
   VerifyCurrent();
-#endif
   return IsRunning();
 }
 #endif
