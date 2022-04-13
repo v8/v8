@@ -4,6 +4,7 @@
 
 #include "src/heap/memory-chunk.h"
 
+#include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
@@ -141,6 +142,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
     // Not actually used but initialize anyway for predictability.
     invalidated_slots_[OLD_TO_CODE] = nullptr;
   }
+  invalidated_slots_[OLD_TO_SHARED] = nullptr;
   progress_bar_.Initialize();
   set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
   page_protection_change_mutex_ = new base::Mutex();
@@ -245,10 +247,13 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseSlotSet<OLD_TO_NEW>();
   ReleaseSlotSet<OLD_TO_OLD>();
   if (V8_EXTERNAL_CODE_SPACE_BOOL) ReleaseSlotSet<OLD_TO_CODE>();
+  ReleaseSlotSet<OLD_TO_SHARED>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
   ReleaseTypedSlotSet<OLD_TO_OLD>();
+  ReleaseTypedSlotSet<OLD_TO_SHARED>();
   ReleaseInvalidatedSlots<OLD_TO_NEW>();
   ReleaseInvalidatedSlots<OLD_TO_OLD>();
+  ReleaseInvalidatedSlots<OLD_TO_SHARED>();
 
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
 
@@ -348,6 +353,7 @@ InvalidatedSlots* MemoryChunk::AllocateInvalidatedSlots() {
 
 template void MemoryChunk::ReleaseInvalidatedSlots<OLD_TO_NEW>();
 template void MemoryChunk::ReleaseInvalidatedSlots<OLD_TO_OLD>();
+template void MemoryChunk::ReleaseInvalidatedSlots<OLD_TO_SHARED>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseInvalidatedSlots() {
@@ -361,15 +367,28 @@ template V8_EXPORT_PRIVATE void
 MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object);
 template V8_EXPORT_PRIVATE void
 MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object);
+template V8_EXPORT_PRIVATE void MemoryChunk::RegisterObjectWithInvalidatedSlots<
+    OLD_TO_SHARED>(HeapObject object);
 
 template <RememberedSetType type>
 void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
   bool skip_slot_recording;
 
-  if (type == OLD_TO_NEW) {
-    skip_slot_recording = InYoungGeneration();
-  } else {
-    skip_slot_recording = ShouldSkipEvacuationSlotRecording();
+  switch (type) {
+    case OLD_TO_NEW:
+      skip_slot_recording = InYoungGeneration();
+      break;
+
+    case OLD_TO_OLD:
+      skip_slot_recording = ShouldSkipEvacuationSlotRecording();
+      break;
+
+    case OLD_TO_SHARED:
+      skip_slot_recording = InYoungGeneration();
+      break;
+
+    default:
+      UNREACHABLE();
   }
 
   if (skip_slot_recording) {
@@ -391,8 +410,13 @@ void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
     RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
   }
 
-  if (slot_set_[OLD_TO_NEW] != nullptr)
+  if (slot_set_[OLD_TO_NEW] != nullptr) {
     RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
+  }
+
+  if (slot_set_[OLD_TO_SHARED] != nullptr) {
+    RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
+  }
 }
 
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(

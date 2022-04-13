@@ -144,7 +144,8 @@ class Sweeper {
   void CleanupRememberedSetEntriesForFreedMemory(
       Address free_start, Address free_end, Page* page, bool record_free_ranges,
       TypedSlotSet::FreeRangesMap* free_ranges_map, SweepingMode sweeping_mode,
-      InvalidatedSlotsCleanup* old_to_new_cleanup);
+      InvalidatedSlotsCleanup* invalidated_old_to_new_cleanup,
+      InvalidatedSlotsCleanup* invalidated_old_to_shared_cleanup);
 
   // Helper function for RawSweep. Clears invalid typed slots in the given free
   // ranges.

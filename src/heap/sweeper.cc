@@ -254,7 +254,8 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
 V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
     Address free_start, Address free_end, Page* page, bool record_free_ranges,
     TypedSlotSet::FreeRangesMap* free_ranges_map, SweepingMode sweeping_mode,
-    InvalidatedSlotsCleanup* old_to_new_cleanup) {
+    InvalidatedSlotsCleanup* invalidated_old_to_new_cleanup,
+    InvalidatedSlotsCleanup* invalidated_old_to_shared_cleanup) {
   DCHECK_LE(free_start, free_end);
   if (sweeping_mode == SweepingMode::kEagerDuringGC) {
     // New space and in consequence the old-to-new remembered set is always
@@ -284,7 +285,8 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
         static_cast<uint32_t>(free_end - page->address())));
   }
 
-  old_to_new_cleanup->Free(free_start, free_end);
+  invalidated_old_to_new_cleanup->Free(free_start, free_end);
+  invalidated_old_to_shared_cleanup->Free(free_start, free_end);
 }
 
 void Sweeper::CleanupInvalidTypedSlotsOfFreeRanges(
@@ -368,13 +370,18 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                             p->typed_slot_set<OLD_TO_SHARED>() != nullptr ||
                             DEBUG_BOOL;
 
-  // Clean invalidated slots during the final atomic pause. After resuming
-  // execution this isn't necessary, invalid old-to-new refs were already
-  // removed by mark compact's update pointers phase.
-  InvalidatedSlotsCleanup old_to_new_cleanup =
+  // Clean invalidated slots in free memory during the final atomic pause. After
+  // resuming execution this isn't necessary, invalid slots were already removed
+  // by mark compact's update pointers phase. So there are no invalid slots left
+  // in free memory.
+  InvalidatedSlotsCleanup invalidated_old_to_new_cleanup =
       InvalidatedSlotsCleanup::NoCleanup(p);
-  if (sweeping_mode == SweepingMode::kEagerDuringGC)
-    old_to_new_cleanup = InvalidatedSlotsCleanup::OldToNew(p);
+  InvalidatedSlotsCleanup invalidated_old_to_shared_cleanup =
+      InvalidatedSlotsCleanup::NoCleanup(p);
+  if (sweeping_mode == SweepingMode::kEagerDuringGC) {
+    invalidated_old_to_new_cleanup = InvalidatedSlotsCleanup::OldToNew(p);
+    invalidated_old_to_shared_cleanup = InvalidatedSlotsCleanup::OldToShared(p);
+  }
 
   // The free ranges map is used for filtering typed slots.
   TypedSlotSet::FreeRangesMap free_ranges_map;
@@ -401,7 +408,8 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                                              free_list_mode, free_space_mode));
       CleanupRememberedSetEntriesForFreedMemory(
           free_start, free_end, p, record_free_ranges, &free_ranges_map,
-          sweeping_mode, &old_to_new_cleanup);
+          sweeping_mode, &invalidated_old_to_new_cleanup,
+          &invalidated_old_to_shared_cleanup);
     }
     Map map = object.map(cage_base, kAcquireLoad);
     DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
@@ -429,7 +437,8 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                                            free_list_mode, free_space_mode));
     CleanupRememberedSetEntriesForFreedMemory(
         free_start, free_end, p, record_free_ranges, &free_ranges_map,
-        sweeping_mode, &old_to_new_cleanup);
+        sweeping_mode, &invalidated_old_to_new_cleanup,
+        &invalidated_old_to_shared_cleanup);
   }
 
   // Phase 3: Post process the page.
