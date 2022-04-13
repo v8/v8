@@ -627,6 +627,16 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
   RecordComment("]");
 }
 
+void TurboAssembler::LoadTaggedSignedField(Register destination,
+                                           MemOperand field_operand,
+                                           Register scratch) {
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressTaggedSigned(destination, field_operand);
+  } else {
+    LoadU64(destination, field_operand, scratch);
+  }
+}
+
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register slot_address,
                                       LinkRegisterStatus lr_status,

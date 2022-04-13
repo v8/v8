@@ -332,11 +332,11 @@ void BaselineAssembler::Move(Register output, int32_t value) {
 }
 
 void BaselineAssembler::MoveMaybeSmi(Register output, Register source) {
-  __ mov(output, source);
+  __ mr(output, source);
 }
 
 void BaselineAssembler::MoveSmi(Register output, Register source) {
-  __ mov(output, source);
+  __ mr(output, source);
 }
 
 namespace detail {
@@ -451,15 +451,17 @@ void BaselineAssembler::Pop(T... registers) {
 
 void BaselineAssembler::LoadTaggedPointerField(Register output, Register source,
                                                int offset) {
-  UNIMPLEMENTED();
+  __ LoadTaggedPointerField(output, FieldMemOperand(source, offset), r0);
 }
+
 void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
                                               int offset) {
-  UNIMPLEMENTED();
+  __ LoadTaggedSignedField(output, FieldMemOperand(source, offset), r0);
 }
+
 void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
-  UNIMPLEMENTED();
+  __ LoadAnyTaggedField(output, FieldMemOperand(source, offset), r0);
 }
 
 void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
@@ -469,7 +471,6 @@ void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
 
 void BaselineAssembler::LoadWord8Field(Register output, Register source,
                                        int offset) {
-  UNIMPLEMENTED();
   __ LoadU8(output, FieldMemOperand(source, offset), r0);
 }
 

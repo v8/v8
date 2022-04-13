@@ -982,6 +982,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadTaggedPointerField(const Register& destination,
                               const MemOperand& field_operand,
                               const Register& scratch = no_reg);
+  void LoadTaggedSignedField(Register destination, MemOperand field_operand,
+                             Register scratch);
 
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadAnyTaggedField(const Register& destination,
