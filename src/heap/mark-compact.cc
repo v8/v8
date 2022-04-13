@@ -24,6 +24,7 @@
 #include "src/heap/code-object-registry.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/evacuation-allocator-inl.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"

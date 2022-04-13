@@ -1413,6 +1413,7 @@ filegroup(
         "src/heap/gc-idle-time-handler.cc",
         "src/heap/gc-idle-time-handler.h",
         "src/heap/gc-tracer.cc",
+        "src/heap/gc-tracer-inl.h",
         "src/heap/gc-tracer.h",
         "src/heap/heap-allocator-inl.h",
         "src/heap/heap-allocator.cc",

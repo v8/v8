@@ -10,11 +10,12 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/metric-recorder.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
 #include "src/logging/counters.h"
@@ -36,28 +37,6 @@ static size_t CountTotalHolesSize(Heap* heap) {
   return holes_size;
 }
 
-#ifdef V8_RUNTIME_CALL_STATS
-WorkerThreadRuntimeCallStats* GCTracer::worker_thread_runtime_call_stats() {
-  return heap_->isolate()->counters()->worker_thread_runtime_call_stats();
-}
-
-RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
-  STATIC_ASSERT(Scope::FIRST_SCOPE == Scope::MC_INCREMENTAL);
-  return static_cast<RuntimeCallCounterId>(
-      static_cast<int>(RuntimeCallCounterId::kGC_MC_INCREMENTAL) +
-      static_cast<int>(id));
-}
-#endif  // defined(V8_RUNTIME_CALL_STATS)
-
-double GCTracer::MonotonicallyIncreasingTimeInMs() {
-  if (V8_UNLIKELY(FLAG_predictable)) {
-    return heap_->MonotonicallyIncreasingTimeInMs();
-  } else {
-    return base::TimeTicks::Now().ToInternalValue() /
-           static_cast<double>(base::Time::kMicrosecondsPerMillisecond);
-  }
-}
-
 namespace {
 std::atomic<CollectionEpoch> global_epoch{0};
 
@@ -65,53 +44,6 @@ CollectionEpoch next_epoch() {
   return global_epoch.fetch_add(1, std::memory_order_relaxed) + 1;
 }
 }  // namespace
-
-GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
-    : tracer_(tracer), scope_(scope), thread_kind_(thread_kind) {
-  start_time_ = tracer_->MonotonicallyIncreasingTimeInMs();
-#ifdef V8_RUNTIME_CALL_STATS
-  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
-  if (thread_kind_ == ThreadKind::kMain) {
-#if DEBUG
-    AssertMainThread();
-#endif  // DEBUG
-    runtime_stats_ =
-        tracer_->heap_->isolate()->counters()->runtime_call_stats();
-    runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
-  } else {
-    runtime_call_stats_scope_.emplace(
-        tracer->worker_thread_runtime_call_stats());
-    runtime_stats_ = runtime_call_stats_scope_->Get();
-    runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
-  }
-#endif  // defined(V8_RUNTIME_CALL_STATS)
-}
-
-GCTracer::Scope::~Scope() {
-  double duration_ms = tracer_->MonotonicallyIncreasingTimeInMs() - start_time_;
-  tracer_->AddScopeSample(scope_, duration_ms);
-
-  if (thread_kind_ == ThreadKind::kMain) {
-#if DEBUG
-    AssertMainThread();
-#endif  // DEBUG
-
-    if (scope_ == ScopeId::MC_INCREMENTAL ||
-        scope_ == ScopeId::MC_INCREMENTAL_START ||
-        scope_ == ScopeId::MC_INCREMENTAL_FINALIZE) {
-      auto* long_task_stats =
-          tracer_->heap_->isolate()->GetCurrentLongTaskStats();
-      long_task_stats->gc_full_incremental_wall_clock_duration_us +=
-          static_cast<int64_t>(duration_ms *
-                               base::Time::kMicrosecondsPerMillisecond);
-    }
-  }
-
-#ifdef V8_RUNTIME_CALL_STATS
-  if (V8_LIKELY(runtime_stats_ == nullptr)) return;
-  runtime_stats_->Leave(&timer_);
-#endif  // defined(V8_RUNTIME_CALL_STATS)
-}
 
 #if DEBUG
 void GCTracer::Scope::AssertMainThread() {

@@ -14,6 +14,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"

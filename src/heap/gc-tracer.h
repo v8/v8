@@ -9,8 +9,6 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
-#include "src/base/platform/platform.h"
-#include "src/base/platform/time.h"
 #include "src/base/ring-buffer.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
@@ -61,21 +59,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   GCTracer& operator=(const GCTracer&) = delete;
 
   struct IncrementalMarkingInfos {
-    IncrementalMarkingInfos() : duration(0), longest_step(0), steps(0) {}
-
-    void Update(double delta) {
-      steps++;
-      duration += delta;
-      if (delta > longest_step) {
-        longest_step = delta;
-      }
-    }
-
-    void ResetCurrentCycle() {
-      duration = 0;
-      longest_step = 0;
-      steps = 0;
-    }
+    V8_INLINE IncrementalMarkingInfos();
+    V8_INLINE void Update(double delta);
+    V8_INLINE void ResetCurrentCycle();
 
     double duration;      // in ms
     double longest_step;  // in ms
@@ -107,28 +93,23 @@ class V8_EXPORT_PRIVATE GCTracer {
       LAST_BACKGROUND_SCOPE = LAST_MINOR_GC_BACKGROUND_SCOPE
     };
 
-    Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind);
-    ~Scope();
+    V8_INLINE Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind);
+    V8_INLINE ~Scope();
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;
     static const char* Name(ScopeId id);
     static bool NeedsYoungEpoch(ScopeId id);
-
-    static constexpr int IncrementalOffset(ScopeId id) {
-      DCHECK_LE(FIRST_INCREMENTAL_SCOPE, id);
-      DCHECK_GE(LAST_INCREMENTAL_SCOPE, id);
-      return id - FIRST_INCREMENTAL_SCOPE;
-    }
+    V8_INLINE static constexpr int IncrementalOffset(ScopeId id);
 
    private:
 #if DEBUG
     void AssertMainThread();
 #endif  // DEBUG
 
-    GCTracer* tracer_;
-    ScopeId scope_;
-    ThreadKind thread_kind_;
-    double start_time_;
+    GCTracer* const tracer_;
+    const ScopeId scope_;
+    const ThreadKind thread_kind_;
+    const double start_time_;
 #ifdef V8_RUNTIME_CALL_STATS
     RuntimeCallTimer timer_;
     RuntimeCallStats* runtime_stats_ = nullptr;
@@ -147,10 +128,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     };
 
     // Returns true if the event corresponds to a young generation GC.
-    static constexpr bool IsYoungGenerationEvent(Type type) {
-      DCHECK_NE(START, type);
-      return type == SCAVENGER || type == MINOR_MARK_COMPACTOR;
-    }
+    V8_INLINE static constexpr bool IsYoungGenerationEvent(Type type);
 
     // The state diagram for a GC cycle:
     //   (NOT_RUNNING) -----(StartCycle)----->
@@ -249,14 +227,12 @@ class V8_EXPORT_PRIVATE GCTracer {
                                                    double optional_speed);
 
 #ifdef V8_RUNTIME_CALL_STATS
-  static RuntimeCallCounterId RCSCounterFromScope(Scope::ScopeId id);
+  V8_INLINE static RuntimeCallCounterId RCSCounterFromScope(Scope::ScopeId id);
 #endif  // defined(V8_RUNTIME_CALL_STATS)
 
   explicit GCTracer(Heap* heap);
 
-  CollectionEpoch CurrentEpoch(Scope::ScopeId id) const {
-    return Scope::NeedsYoungEpoch(id) ? epoch_young_ : epoch_full_;
-  }
+  V8_INLINE CollectionEpoch CurrentEpoch(Scope::ScopeId id) const;
 
   // Start and stop an observable pause.
   void StartObservablePause();
@@ -294,26 +270,14 @@ class V8_EXPORT_PRIVATE GCTracer {
       YoungGenerationHandling young_generation_handling);
 
 #ifdef DEBUG
-  bool IsInObservablePause() const { return 0.0 < start_of_observable_pause_; }
+  V8_INLINE bool IsInObservablePause() const;
 
   // Checks if the current event is consistent with a collector.
-  bool IsConsistentWithCollector(GarbageCollector collector) const {
-    return (collector == GarbageCollector::SCAVENGER &&
-            current_.type == Event::SCAVENGER) ||
-           (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
-            current_.type == Event::MINOR_MARK_COMPACTOR) ||
-           (collector == GarbageCollector::MARK_COMPACTOR &&
-            (current_.type == Event::MARK_COMPACTOR ||
-             current_.type == Event::INCREMENTAL_MARK_COMPACTOR));
-  }
+  V8_INLINE bool IsConsistentWithCollector(GarbageCollector collector) const;
 
   // Checks if the current event corresponds to a full GC cycle whose sweeping
   // has not finalized yet.
-  bool IsSweepingInProgress() const {
-    return (current_.type == Event::MARK_COMPACTOR ||
-            current_.type == Event::INCREMENTAL_MARK_COMPACTOR) &&
-           current_.state == Event::State::SWEEPING;
-  }
+  V8_INLINE bool IsSweepingInProgress() const;
 #endif
 
   // Sample and accumulate bytes allocated since the last GC.
@@ -419,19 +383,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   double AverageMarkCompactMutatorUtilization() const;
   double CurrentMarkCompactMutatorUtilization() const;
 
-  V8_INLINE void AddScopeSample(Scope::ScopeId id, double duration) {
-    if (Scope::FIRST_INCREMENTAL_SCOPE <= id &&
-        id <= Scope::LAST_INCREMENTAL_SCOPE) {
-      incremental_scopes_[Scope::IncrementalOffset(id)].Update(duration);
-    } else if (Scope::FIRST_BACKGROUND_SCOPE <= id &&
-               id <= Scope::LAST_BACKGROUND_SCOPE) {
-      base::MutexGuard guard(&background_counter_mutex_);
-      background_counter_[id].total_duration_ms += duration;
-    } else {
-      DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);
-      current_.scopes[id] += duration;
-    }
-  }
+  V8_INLINE void AddScopeSample(Scope::ScopeId id, double duration);
 
   void RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode);
 
@@ -443,7 +395,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void RecordTimeToIncrementalMarkingTask(double time_to_task);
 
 #ifdef V8_RUNTIME_CALL_STATS
-  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats();
+  V8_INLINE WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats();
 #endif  // defined(V8_RUNTIME_CALL_STATS)
 
  private:
@@ -477,23 +429,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Note: when accessing a background scope via this method, the caller is
   // responsible for avoiding data races, e.g., by acquiring
   // background_counter_mutex_.
-  constexpr double current_scope(Scope::ScopeId id) const {
-    if (Scope::FIRST_INCREMENTAL_SCOPE <= id &&
-        id <= Scope::LAST_INCREMENTAL_SCOPE) {
-      return incremental_scope(id).duration;
-    } else if (Scope::FIRST_BACKGROUND_SCOPE <= id &&
-               id <= Scope::LAST_BACKGROUND_SCOPE) {
-      return background_counter_[id].total_duration_ms;
-    } else {
-      DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);
-      return current_.scopes[id];
-    }
-  }
+  V8_INLINE constexpr double current_scope(Scope::ScopeId id) const;
 
-  constexpr const IncrementalMarkingInfos& incremental_scope(
-      Scope::ScopeId id) const {
-    return incremental_scopes_[Scope::IncrementalOffset(id)];
-  }
+  V8_INLINE constexpr const IncrementalMarkingInfos& incremental_scope(
+      Scope::ScopeId id) const;
 
   // Returns the average speed of the events in the buffer.
   // If the buffer is empty, the result is 0.
@@ -513,7 +452,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // end of the atomic pause.
   void RecordGCSumCounters();
 
-  double MonotonicallyIncreasingTimeInMs();
+  V8_INLINE double MonotonicallyIncreasingTimeInMs();
 
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.

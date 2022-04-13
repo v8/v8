@@ -47,6 +47,7 @@
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-idle-time-handler.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-layout-tracer.h"

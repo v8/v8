@@ -16,7 +16,6 @@
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"

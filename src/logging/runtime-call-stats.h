@@ -687,7 +687,7 @@ class WorkerThreadRuntimeCallStats final {
 // Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local
 // runtime call stats table, and will dump the table to an immediate trace event
 // when it is destroyed.
-class V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
+class V8_EXPORT_PRIVATE V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
  public:
   WorkerThreadRuntimeCallStatsScope() = default;
   explicit WorkerThreadRuntimeCallStatsScope(
