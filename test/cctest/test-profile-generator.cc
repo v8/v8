@@ -536,6 +536,32 @@ TEST(SampleIds_StopProfilingByProfilerId) {
   CHECK_NE(profile, nullptr);
 }
 
+TEST(CpuProfilesCollectionDuplicateId) {
+  CpuProfilesCollection collection(CcTest::i_isolate());
+  CpuProfiler profiler(CcTest::i_isolate());
+  collection.set_cpu_profiler(&profiler);
+
+  auto profile_result = collection.StartProfiling();
+  CHECK_EQ(CpuProfilingStatus::kStarted, profile_result.status);
+  CHECK_EQ(CpuProfilingStatus::kAlreadyStarted,
+           collection.StartProfilingForTesting(profile_result.id).status);
+
+  collection.StopProfiling(profile_result.id);
+}
+
+TEST(CpuProfilesCollectionDuplicateTitle) {
+  CpuProfilesCollection collection(CcTest::i_isolate());
+  CpuProfiler profiler(CcTest::i_isolate());
+  collection.set_cpu_profiler(&profiler);
+
+  auto profile_result = collection.StartProfiling("duplicate");
+  CHECK_EQ(CpuProfilingStatus::kStarted, profile_result.status);
+  CHECK_EQ(CpuProfilingStatus::kAlreadyStarted,
+           collection.StartProfiling("duplicate").status);
+
+  collection.StopProfiling(profile_result.id);
+}
+
 namespace {
 class DiscardedSamplesDelegateImpl : public v8::DiscardedSamplesDelegate {
  public:
@@ -748,7 +774,6 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
     i::DeleteArray(titles[i]);
 }
-
 
 static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
                                            const char* name) {
