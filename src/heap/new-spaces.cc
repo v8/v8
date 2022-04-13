@@ -445,15 +445,57 @@ void SemiSpaceObjectIterator::Initialize(Address start, Address end) {
   limit_ = end;
 }
 
-size_t NewSpace::CommittedPhysicalMemory() const {
-  if (!base::OS::HasLazyCommits()) return CommittedMemory();
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
-  size_t size = to_space_.CommittedPhysicalMemory();
-  if (from_space_.IsCommitted()) {
-    size += from_space_.CommittedPhysicalMemory();
-  }
-  return size;
+// -----------------------------------------------------------------------------
+// NewSpaceBase implementation
+
+NewSpaceBase::NewSpaceBase(Heap* heap, LinearAllocationArea* allocation_info)
+    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList(), allocation_info) {}
+
+void NewSpaceBase::ResetParkedAllocationBuffers() {
+  parked_allocation_buffers_.clear();
 }
+
+void NewSpaceBase::MaybeFreeUnusedLab(LinearAllocationArea info) {
+  if (allocation_info_->MergeIfAdjacent(info)) {
+    original_top_.store(allocation_info_->top(), std::memory_order_release);
+  }
+
+#if DEBUG
+  VerifyTop();
+#endif
+}
+
+std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator(Heap* heap) {
+  return std::unique_ptr<ObjectIterator>(new SemiSpaceObjectIterator(this));
+}
+
+void NewSpaceBase::MakeLinearAllocationAreaIterable() {
+  Address to_top = top();
+  Page* page = Page::FromAddress(to_top - kTaggedSize);
+  if (page->Contains(to_top)) {
+    int remaining_in_page = static_cast<int>(page->area_end() - to_top);
+    heap_->CreateFillerObjectAt(to_top, remaining_in_page,
+                                ClearRecordedSlots::kNo);
+  }
+}
+
+void NewSpaceBase::FreeLinearAllocationArea() {
+  MakeLinearAllocationAreaIterable();
+  UpdateInlineAllocationLimit(0);
+}
+
+#if DEBUG
+void NewSpaceBase::VerifyTop() const {
+  SpaceWithLinearArea::VerifyTop();
+
+  // Ensure that original_top_ always >= LAB start. The delta between start_
+  // and top_ is still to be processed by allocation observers.
+  DCHECK_GE(original_top_, allocation_info_->start());
+
+  // Ensure that limit() is <= original_limit_.
+  DCHECK_LE(allocation_info_->limit(), original_limit_);
+}
+#endif  // DEBUG
 
 // -----------------------------------------------------------------------------
 // NewSpace implementation
@@ -462,7 +504,7 @@ NewSpace::NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
                    size_t initial_semispace_capacity,
                    size_t max_semispace_capacity,
                    LinearAllocationArea* allocation_info)
-    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList(), allocation_info),
+    : NewSpaceBase(heap, allocation_info),
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
@@ -483,10 +525,6 @@ NewSpace::~NewSpace() {
 
   to_space_.TearDown();
   from_space_.TearDown();
-}
-
-void NewSpace::ResetParkedAllocationBuffers() {
-  parked_allocation_buffers_.clear();
 }
 
 void NewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
@@ -519,6 +557,16 @@ void NewSpace::Shrink() {
     from_space_.ShrinkTo(rounded_new_capacity);
   }
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+}
+
+size_t NewSpace::CommittedPhysicalMemory() const {
+  if (!base::OS::HasLazyCommits()) return CommittedMemory();
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
+  size_t size = to_space_.CommittedPhysicalMemory();
+  if (from_space_.IsCommitted()) {
+    size += from_space_.CommittedPhysicalMemory();
+  }
+  return size;
 }
 
 bool NewSpace::Rebalance() {
@@ -669,45 +717,15 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
   return true;
 }
 
-void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
-  if (allocation_info_->MergeIfAdjacent(info)) {
-    original_top_.store(allocation_info_->top(), std::memory_order_release);
-  }
-
-#if DEBUG
-  VerifyTop();
-#endif
-}
-
-std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator(Heap* heap) {
-  return std::unique_ptr<ObjectIterator>(new SemiSpaceObjectIterator(this));
-}
-
-void NewSpace::MakeLinearAllocationAreaIterable() {
-  Address to_top = top();
-  Page* page = Page::FromAddress(to_top - kTaggedSize);
-  if (page->Contains(to_top)) {
-    int remaining_in_page = static_cast<int>(page->area_end() - to_top);
-    heap_->CreateFillerObjectAt(to_top, remaining_in_page,
-                                ClearRecordedSlots::kNo);
-  }
-}
-
-void NewSpace::FreeLinearAllocationArea() {
-  MakeLinearAllocationAreaIterable();
-  UpdateInlineAllocationLimit(0);
-}
-
 #if DEBUG
 void NewSpace::VerifyTop() const {
-  SpaceWithLinearArea::VerifyTop();
+  NewSpaceBase::VerifyTop();
 
   // Ensure that original_top_ always >= LAB start. The delta between start_
   // and top_ is still to be processed by allocation observers.
   DCHECK_GE(original_top_, allocation_info_->start());
 
-  // Ensure that limit() is <= original_limit_, original_limit_ always needs
-  // to be end of curent to space page.
+  // original_limit_ always needs to be end of curent to space page.
   DCHECK_LE(allocation_info_->limit(), original_limit_);
   DCHECK_EQ(original_limit_, to_space_.page_high());
 }

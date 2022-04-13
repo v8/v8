@@ -560,7 +560,7 @@ class SpaceWithLinearArea : public Space {
                                 int* out_max_aligned_size) = 0;
 
 #if DEBUG
-  V8_EXPORT_PRIVATE void VerifyTop() const;
+  V8_EXPORT_PRIVATE virtual void VerifyTop() const;
 #endif  // DEBUG
 
   LinearAllocationArea* const allocation_info_;

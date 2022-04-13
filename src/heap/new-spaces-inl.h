@@ -38,15 +38,26 @@ bool SemiSpace::ContainsSlow(Address a) const {
 }
 
 // --------------------------------------------------------------------------
-// NewSpace
+// NewSpaceBase
 
-bool NewSpace::Contains(Object o) const {
+bool NewSpaceBase::Contains(Object o) const {
   return o.IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
-bool NewSpace::Contains(HeapObject o) const {
+bool NewSpaceBase::Contains(HeapObject o) const {
   return BasicMemoryChunk::FromHeapObject(o)->InNewSpace();
 }
+
+V8_WARN_UNUSED_RESULT inline AllocationResult
+NewSpaceBase::AllocateRawSynchronized(int size_in_bytes,
+                                      AllocationAlignment alignment,
+                                      AllocationOrigin origin) {
+  base::MutexGuard guard(&mutex_);
+  return AllocateRaw(size_in_bytes, alignment, origin);
+}
+
+// -----------------------------------------------------------------------------
+// NewSpace
 
 bool NewSpace::ContainsSlow(Address a) const {
   return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
@@ -80,15 +91,6 @@ HeapObject SemiSpaceObjectIterator::Next() {
     }
   }
   return HeapObject();
-}
-
-// -----------------------------------------------------------------------------
-// NewSpace
-
-V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
-    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  base::MutexGuard guard(&mutex_);
-  return AllocateRaw(size_in_bytes, alignment, origin);
 }
 
 }  // namespace internal
