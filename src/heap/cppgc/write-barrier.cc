@@ -135,7 +135,7 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
   // results in applying the generational barrier.
   if (local_data.heap_base.in_atomic_pause()) return;
 
-  if (value_offset > 0 && age_table[value_offset] == AgeTable::Age::kOld)
+  if (value_offset > 0 && age_table.GetAge(value_offset) == AgeTable::Age::kOld)
     return;
 
   // Record slot.
