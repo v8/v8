@@ -143,23 +143,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   // due to being too small to use for allocation.
   virtual size_t Waste() const { return free_list_->wasted_bytes(); }
 
-  // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space double aligned if
-  // possible, return a failure object if not.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
-      int size_in_bytes, AllocationAlignment alignment,
-      AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space and consider allocation
-  // alignment if needed.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationAlignment alignment,
-      AllocationOrigin origin = AllocationOrigin::kRuntime);
-
   // Allocate the requested number of bytes in the space from a background
   // thread.
   V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
@@ -364,11 +347,6 @@ class V8_EXPORT_PRIVATE PagedSpace
     return !is_compaction_space();
   }
 
-  // Slow path of allocation function
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
-                  AllocationOrigin origin);
-
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -395,20 +373,9 @@ class V8_EXPORT_PRIVATE PagedSpace
   base::Optional<std::pair<Address, size_t>> ExpandBackground(
       size_t size_in_bytes);
 
-  // Sets up a linear allocation area that fits the given number of bytes.
-  // Returns false if there is not enough space and the caller has to retry
-  // after collecting garbage.
-  inline bool EnsureLabMain(int size_in_bytes, AllocationOrigin origin);
-  // Allocates an object from the linear allocation area. Assumes that the
-  // linear allocation area is large enought to fit the object.
-  inline AllocationResult AllocateFastUnaligned(int size_in_bytes);
-  // Tries to allocate an aligned object from the linear allocation area.
-  // Returns nullptr if the linear allocation area does not fit the object.
-  // Otherwise, returns the object pointer and writes the allocation size
-  // (object size + alignment filler size) to the size_in_bytes.
-  inline AllocationResult AllocateFastAligned(int size_in_bytes,
-                                              int* aligned_size_in_bytes,
-                                              AllocationAlignment alignment);
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
 
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
       size_t size_in_bytes, AllocationOrigin origin);

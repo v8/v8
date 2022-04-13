@@ -697,7 +697,9 @@ class Heap {
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs() const;
 
+#if DEBUG
   void VerifyNewSpaceTop();
+#endif  // DEBUG
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
 

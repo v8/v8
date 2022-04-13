@@ -4156,10 +4156,12 @@ double Heap::MonotonicallyIncreasingTimeInMs() const {
          static_cast<double>(base::Time::kMillisecondsPerSecond);
 }
 
+#if DEBUG
 void Heap::VerifyNewSpaceTop() {
   if (!new_space()) return;
   new_space()->VerifyTop();
 }
+#endif  // DEBUG
 
 bool Heap::IdleNotification(int idle_time_in_ms) {
   return IdleNotification(

@@ -628,7 +628,14 @@ bool NewSpace::AddParkedAllocationBuffer(int size_in_bytes,
 }
 
 bool NewSpace::EnsureAllocation(int size_in_bytes,
-                                AllocationAlignment alignment) {
+                                AllocationAlignment alignment,
+                                AllocationOrigin origin,
+                                int* out_max_aligned_size) {
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+#if DEBUG
+  VerifyTop();
+#endif  // DEBUG
+
   AdvanceAllocationObservers();
 
   Address old_top = allocation_info_->top();
@@ -636,26 +643,29 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
   int filler_size = Heap::GetFillToAlign(old_top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
-  if (old_top + aligned_size_in_bytes <= high) {
-    UpdateInlineAllocationLimit(aligned_size_in_bytes);
-    return true;
+  if (old_top + aligned_size_in_bytes > high) {
+    // Not enough room in the page, try to allocate a new one.
+    if (!AddFreshPage()) {
+      // When we cannot grow NewSpace anymore we query for parked allocations.
+      if (!FLAG_allocation_buffer_parking ||
+          !AddParkedAllocationBuffer(size_in_bytes, alignment))
+        return false;
+    }
+
+    old_top = allocation_info_->top();
+    high = to_space_.page_high();
+    filler_size = Heap::GetFillToAlign(old_top, alignment);
+    aligned_size_in_bytes = size_in_bytes + filler_size;
   }
 
-  // Not enough room in the page, try to allocate a new one.
-  if (!AddFreshPage()) {
-    // When we cannot grow NewSpace anymore we query for parked allocations.
-    if (!FLAG_allocation_buffer_parking ||
-        !AddParkedAllocationBuffer(size_in_bytes, alignment))
-      return false;
+  if (out_max_aligned_size) {
+    *out_max_aligned_size = aligned_size_in_bytes;
   }
-
-  old_top = allocation_info_->top();
-  high = to_space_.page_high();
-  filler_size = Heap::GetFillToAlign(old_top, alignment);
-  aligned_size_in_bytes = size_in_bytes + filler_size;
 
   DCHECK(old_top + aligned_size_in_bytes <= high);
   UpdateInlineAllocationLimit(aligned_size_in_bytes);
+  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
   return true;
 }
 
@@ -673,54 +683,6 @@ std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator(Heap* heap) {
   return std::unique_ptr<ObjectIterator>(new SemiSpaceObjectIterator(this));
 }
 
-AllocationResult NewSpace::AllocateRawSlow(int size_in_bytes,
-                                           AllocationAlignment alignment,
-                                           AllocationOrigin origin) {
-  return USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
-             ? AllocateRawAligned(size_in_bytes, alignment, origin)
-             : AllocateRawUnaligned(size_in_bytes, origin);
-}
-
-AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes,
-                                                AllocationOrigin origin) {
-  DCHECK(!FLAG_enable_third_party_heap);
-  if (!EnsureAllocation(size_in_bytes, kTaggedAligned)) {
-    return AllocationResult::Failure();
-  }
-
-  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
-
-  AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
-  DCHECK(!result.IsFailure());
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
-                            size_in_bytes);
-
-  return result;
-}
-
-AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
-                                              AllocationAlignment alignment,
-                                              AllocationOrigin origin) {
-  DCHECK(!FLAG_enable_third_party_heap);
-  if (!EnsureAllocation(size_in_bytes, alignment)) {
-    return AllocationResult::Failure();
-  }
-
-  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
-
-  int aligned_size_in_bytes;
-
-  AllocationResult result = AllocateFastAligned(
-      size_in_bytes, &aligned_size_in_bytes, alignment, origin);
-  DCHECK(!result.IsFailure());
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                            aligned_size_in_bytes, aligned_size_in_bytes);
-
-  return result;
-}
-
 void NewSpace::MakeLinearAllocationAreaIterable() {
   Address to_top = top();
   Page* page = Page::FromAddress(to_top - kTaggedSize);
@@ -736,10 +698,9 @@ void NewSpace::FreeLinearAllocationArea() {
   UpdateInlineAllocationLimit(0);
 }
 
+#if DEBUG
 void NewSpace::VerifyTop() const {
-  // Ensure validity of LAB: start <= top <= limit
-  DCHECK_LE(allocation_info_->start(), allocation_info_->top());
-  DCHECK_LE(allocation_info_->top(), allocation_info_->limit());
+  SpaceWithLinearArea::VerifyTop();
 
   // Ensure that original_top_ always >= LAB start. The delta between start_
   // and top_ is still to be processed by allocation observers.
@@ -750,6 +711,7 @@ void NewSpace::VerifyTop() const {
   DCHECK_LE(allocation_info_->limit(), original_limit_);
   DCHECK_EQ(original_limit_, to_space_.page_high());
 }
+#endif  // DEBUG
 
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume

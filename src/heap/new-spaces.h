@@ -379,7 +379,9 @@ class V8_EXPORT_PRIVATE NewSpace final
     return to_space_.minimum_capacity();
   }
 
+#if DEBUG
   void VerifyTop() const;
+#endif  // DEBUG
 
   Address original_top_acquire() const {
     return original_top_.load(std::memory_order_acquire);
@@ -397,17 +399,9 @@ class V8_EXPORT_PRIVATE NewSpace final
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
-              AllocationOrigin origin = AllocationOrigin::kRuntime);
-
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
       int size_in_bytes, AllocationAlignment alignment,
       AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
-                     AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetLinearAllocationArea();
@@ -518,22 +512,9 @@ class V8_EXPORT_PRIVATE NewSpace final
 
   ParkedAllocationBuffersVector parked_allocation_buffers_;
 
-  // Internal allocation methods.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastAligned(int size_in_bytes, int* aligned_size_in_bytes,
-                      AllocationAlignment alignment, AllocationOrigin origin);
-
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
-
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
-                  AllocationOrigin origin);
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
   bool SupportsAllocationObserver() const override { return true; }
 
   friend class SemiSpaceObjectIterator;

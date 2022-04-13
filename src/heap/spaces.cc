@@ -443,6 +443,14 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
                      allocation_counter_.NextBytes());
 }
 
+#if DEBUG
+void SpaceWithLinearArea::VerifyTop() const {
+  // Ensure validity of LAB: start <= top <= limit
+  DCHECK_LE(allocation_info_->start(), allocation_info_->top());
+  DCHECK_LE(allocation_info_->top(), allocation_info_->limit());
+}
+#endif  // DEBUG
+
 int MemoryChunk::FreeListsLength() {
   int length = 0;
   for (int cat = kFirstCategory; cat <= owner()->free_list()->last_category();

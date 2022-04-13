@@ -1008,25 +1008,6 @@ bool PagedSpace::ContributeToSweepingMain(int required_freed_bytes,
   return false;
 }
 
-AllocationResult PagedSpace::AllocateRawSlow(int size_in_bytes,
-                                             AllocationAlignment alignment,
-                                             AllocationOrigin origin) {
-  if (!is_compaction_space()) {
-    // Start incremental marking before the actual allocation, this allows the
-    // allocation function to mark the object black when incremental marking is
-    // running.
-    heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-        heap()->GCFlagsForIncrementalMarking(),
-        kGCCallbackScheduleIdleGarbageCollection);
-  }
-
-  AllocationResult result =
-      USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
-          ? AllocateRawAligned(size_in_bytes, alignment, origin)
-          : AllocateRawUnaligned(size_in_bytes, origin);
-  return result;
-}
-
 void PagedSpace::AddRangeToActiveSystemPages(Page* page, Address start,
                                              Address end) {
   DCHECK_LE(page->address(), start);
@@ -1047,6 +1028,31 @@ void PagedSpace::ReduceActiveSystemPages(
       page->active_system_pages()->Reduce(active_system_pages);
   DecrementCommittedPhysicalMemory(reduced_pages *
                                    MemoryAllocator::GetCommitPageSize());
+}
+
+bool PagedSpace::EnsureAllocation(int size_in_bytes,
+                                  AllocationAlignment alignment,
+                                  AllocationOrigin origin,
+                                  int* out_max_aligned_size) {
+  if (!is_compaction_space()) {
+    // Start incremental marking before the actual allocation, this allows the
+    // allocation function to mark the object black when incremental marking is
+    // running.
+    heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
+        heap()->GCFlagsForIncrementalMarking(),
+        kGCCallbackScheduleIdleGarbageCollection);
+  }
+
+  // We don't know exactly how much filler we need to align until space is
+  // allocated, so assume the worst case.
+  size_in_bytes += Heap::GetMaximumFillToAlign(alignment);
+  if (out_max_aligned_size) {
+    *out_max_aligned_size = size_in_bytes;
+  }
+  if (allocation_info_->top() + size_in_bytes <= allocation_info_->limit()) {
+    return true;
+  }
+  return RefillLabMain(size_in_bytes, origin);
 }
 
 // -----------------------------------------------------------------------------
