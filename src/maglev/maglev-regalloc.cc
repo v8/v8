@@ -347,16 +347,12 @@ void StraightForwardRegisterAllocator::UpdateUse(
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  for (Input& input : *node) UpdateUse(&input);
   if (node->properties().can_eager_deopt()) {
     UpdateUse(*node->eager_deopt_info());
   }
+  for (Input& input : *node) UpdateUse(&input);
 
   if (node->properties().is_call()) SpillAndClearRegisters();
-  // TODO(verwaest): This isn't a good idea :)
-  if (node->properties().can_eager_deopt() ||
-      node->properties().can_lazy_deopt())
-    SpillRegisters();
 
   // Allocate node output.
   if (node->Is<ValueNode>()) AllocateNodeResult(node->Cast<ValueNode>());

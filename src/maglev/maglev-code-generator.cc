@@ -401,9 +401,9 @@ class MaglevCodeGeneratorImpl final {
         deopt_info->state.bytecode_position, kFunctionLiteralIndex,
         code_gen_state_.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(*code_gen_state_.compilation_unit(),
-                         deopt_info->state.register_frame,
-                         interpreter::Register::invalid_value());
+    EmitDeoptFrameValues(
+        *code_gen_state_.compilation_unit(), deopt_info->state.register_frame,
+        deopt_info->input_locations, interpreter::Register::invalid_value());
   }
 
   void EmitLazyDeopt(LazyDeoptInfo* deopt_info) {
@@ -441,19 +441,46 @@ class MaglevCodeGeneratorImpl final {
         deopt_info->state.bytecode_position, kFunctionLiteralIndex,
         code_gen_state_.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(*code_gen_state_.compilation_unit(),
-                         deopt_info->state.register_frame,
-                         deopt_info->result_location);
+    EmitDeoptFrameValues(
+        *code_gen_state_.compilation_unit(), deopt_info->state.register_frame,
+        deopt_info->input_locations, deopt_info->result_location);
+  }
+
+  void EmitDeoptFrameSingleValue(ValueNode* value,
+                                 const InputLocation& input_location) {
+    const compiler::AllocatedOperand& operand =
+        compiler::AllocatedOperand::cast(input_location.operand());
+    if (operand.IsRegister()) {
+      if (value->properties().is_untagged_value()) {
+        translation_array_builder_.StoreInt32Register(operand.GetRegister());
+      } else {
+        translation_array_builder_.StoreRegister(operand.GetRegister());
+      }
+    } else {
+      if (value->properties().is_untagged_value()) {
+        translation_array_builder_.StoreInt32StackSlot(
+            DeoptStackSlotFromStackSlot(operand));
+      } else {
+        translation_array_builder_.StoreStackSlot(
+            DeoptStackSlotFromStackSlot(operand));
+      }
+    }
   }
 
   void EmitDeoptFrameValues(
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
+      const InputLocation* input_locations,
       interpreter::Register result_location) {
     // Closure
     int closure_index = DeoptStackSlotIndexFromFPOffset(
         StandardFrameConstants::kFunctionOffset);
     translation_array_builder_.StoreStackSlot(closure_index);
+
+    // TODO(leszeks): The input locations array happens to be in the same order
+    // as parameters+locals+accumulator are accessed here. We should make this
+    // clearer and guard against this invariant failing.
+    const InputLocation* input_location = input_locations;
 
     // Parameters
     {
@@ -462,13 +489,13 @@ class MaglevCodeGeneratorImpl final {
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_EQ(reg.ToParameterIndex(), i);
             if (reg != result_location) {
-              translation_array_builder_.StoreStackSlot(
-                  DeoptStackSlotFromStackSlot(value->spill_slot()));
+              EmitDeoptFrameSingleValue(value, *input_location);
             } else {
               translation_array_builder_.StoreLiteral(
                   kOptimizedOutConstantIndex);
             }
             i++;
+            input_location++;
           });
     }
 
@@ -483,16 +510,19 @@ class MaglevCodeGeneratorImpl final {
       checkpoint_state->ForEachLocal(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
-            if (reg == result_location) return;
+            if (reg == result_location) {
+              input_location++;
+              return;
+            }
             while (i < reg.index()) {
               translation_array_builder_.StoreLiteral(
                   kOptimizedOutConstantIndex);
               i++;
             }
             DCHECK_EQ(i, reg.index());
-            translation_array_builder_.StoreStackSlot(
-                DeoptStackSlotFromStackSlot(value->spill_slot()));
+            EmitDeoptFrameSingleValue(value, *input_location);
             i++;
+            input_location++;
           });
       while (i < code_gen_state_.register_count()) {
         translation_array_builder_.StoreLiteral(kOptimizedOutConstantIndex);
@@ -505,9 +535,7 @@ class MaglevCodeGeneratorImpl final {
       if (checkpoint_state->liveness()->AccumulatorIsLive() &&
           result_location != interpreter::Register::virtual_accumulator()) {
         ValueNode* value = checkpoint_state->accumulator(compilation_unit);
-        translation_array_builder_.StoreStackSlot(
-            DeoptStackSlotFromStackSlot(value->spill_slot()));
-
+        EmitDeoptFrameSingleValue(value, *input_location);
       } else {
         translation_array_builder_.StoreLiteral(kOptimizedOutConstantIndex);
       }

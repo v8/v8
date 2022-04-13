@@ -314,6 +314,7 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   EagerDeoptInfo* deopt_info = node->eager_deopt_info();
   os << "  ↱ eager @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
+  int index = 0;
   deopt_info->state.register_frame->ForEachValue(
       *state.compilation_unit(),
       [&](ValueNode* node, interpreter::Register reg) {
@@ -322,7 +323,9 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
         } else {
           os << ", ";
         }
-        os << reg.ToString() << ":" << PrintNodeLabel(graph_labeller, node);
+        os << reg.ToString() << ":" << PrintNodeLabel(graph_labeller, node)
+           << ":" << deopt_info->input_locations[index].operand();
+        index++;
       });
   os << "}\n";
 }
@@ -351,6 +354,7 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
   os << "  ↳ lazy @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
+  int index = 0;
   deopt_info->state.register_frame->ForEachValue(
       *state.compilation_unit(),
       [&](ValueNode* node, interpreter::Register reg) {
@@ -363,8 +367,10 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
         if (reg == deopt_info->result_location) {
           os << "<result>";
         } else {
-          os << PrintNodeLabel(graph_labeller, node);
+          os << PrintNodeLabel(graph_labeller, node) << ":"
+             << deopt_info->input_locations[index].operand();
         }
+        index++;
       });
   os << "}\n";
 }

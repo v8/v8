@@ -351,7 +351,15 @@ DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
                      CheckpointedInterpreterState state)
     : state(state),
       input_locations(zone->NewArray<InputLocation>(
-          state.register_frame->size(compilation_unit))) {}
+          state.register_frame->size(compilation_unit))) {
+  // Default initialise if we're printing the graph, to avoid printing junk
+  // values.
+  if (FLAG_print_maglev_graph) {
+    for (size_t i = 0; i < state.register_frame->size(compilation_unit); ++i) {
+      new (&input_locations[i]) InputLocation();
+    }
+  }
+}
 
 // ---
 // Nodes
@@ -718,8 +726,13 @@ void CheckedSmiUntag::AllocateVreg(MaglevVregAllocationState* vreg_state,
 
 void CheckedSmiUntag::GenerateCode(MaglevCodeGenState* code_gen_state,
                                    const ProcessingState& state) {
-  __ sarl(ToRegister(input()), Immediate(1));
-  EmitEagerDeoptIf(carry, code_gen_state, this);
+  Register value = ToRegister(input());
+  // TODO(leszeks): Consider optimizing away this test and using the carry bit
+  // of the `sarl` for cases where the deopt uses the value from a different
+  // register.
+  __ testb(value, Immediate(1));
+  EmitEagerDeoptIf(not_zero, code_gen_state, this);
+  __ sarl(value, Immediate(1));
 }
 
 void CheckedSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state,
