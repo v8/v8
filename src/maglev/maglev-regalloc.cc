@@ -175,7 +175,8 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles(
         // If the first branch returns or jumps back, we've found highest
         // reachable control-node of the longest branch (the second control
         // node).
-        if (first->Is<Return>() || first->Is<JumpLoop>()) {
+        if (first->Is<Return>() || first->Is<Deopt>() ||
+            first->Is<JumpLoop>()) {
           control->set_next_post_dominating_hole(second);
           break;
         }
@@ -239,6 +240,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
             continue;
           } else if (control->Is<Return>()) {
             printing_visitor_->os() << " " << control->id() << ".";
+            break;
+          } else if (control->Is<Deopt>()) {
+            printing_visitor_->os() << " " << control->id() << "✖️";
             break;
           } else if (control->Is<JumpLoop>()) {
             printing_visitor_->os() << " " << control->id() << "↰";
@@ -496,6 +500,9 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
+  if (node->properties().can_eager_deopt()) {
+    UpdateUse(*node->eager_deopt_info());
+  }
   for (Input& input : *node) UpdateUse(&input);
 
   if (node->properties().is_call()) SpillAndClearRegisters();

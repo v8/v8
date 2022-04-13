@@ -401,7 +401,11 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
   // moves).
   for (int i = 0; i < phi->input_count(); ++i) {
     if (i > 0) os_ << ", ";
-    os_ << PrintNodeLabel(graph_labeller, phi->input(i).node());
+    if (state.block()->predecessor_at(i) == nullptr) {
+      os_ << "<dead>";
+    } else {
+      os_ << PrintNodeLabel(graph_labeller, phi->input(i).node());
+    }
   }
   os_ << ") → " << phi->result().operand() << "\n";
 
@@ -410,9 +414,10 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
 }
 
 void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
+  MaglevGraphLabeller* graph_labeller = state.graph_labeller();
+
   MaybePrintEagerDeopt(os_, targets_, node, state);
 
-  MaglevGraphLabeller* graph_labeller = state.graph_labeller();
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller, node);
   os_ << PrintNode(graph_labeller, node) << "\n";
@@ -426,6 +431,8 @@ void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
 void MaglevPrintingVisitor::Process(ControlNode* control_node,
                                     const ProcessingState& state) {
   MaglevGraphLabeller* graph_labeller = state.graph_labeller();
+
+  MaybePrintEagerDeopt(os_, targets_, control_node, state);
 
   bool has_fallthrough = false;
 

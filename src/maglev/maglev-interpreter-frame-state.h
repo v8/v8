@@ -224,6 +224,8 @@ class MergePointRegisterState {
 
 class MergePointInterpreterFrameState {
  public:
+  static constexpr BasicBlock* kDeadPredecessor = nullptr;
+
   void CheckIsLoopPhiIfNeeded(const MaglevCompilationUnit& compilation_unit,
                               int merge_offset, interpreter::Register reg,
                               ValueNode* value) {
@@ -319,6 +321,24 @@ class MergePointInterpreterFrameState {
           MergeLoopValue(compilation_unit.zone(), reg, value,
                          loop_end_state.get(reg), merge_offset);
         });
+  }
+
+  // Merges a dead framestate (e.g. one which has been early terminated with a
+  // deopt).
+  void MergeDead() {
+    DCHECK_GT(predecessor_count_, 1);
+    DCHECK_LT(predecessors_so_far_, predecessor_count_);
+    predecessors_[predecessors_so_far_] = kDeadPredecessor;
+    predecessors_so_far_++;
+    DCHECK_LE(predecessors_so_far_, predecessor_count_);
+  }
+
+  // Merges a dead loop framestate (e.g. one where the block containing the
+  // JumpLoop has been early terminated with a deopt).
+  void MergeDeadLoop() {
+    DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+    DCHECK_NULL(predecessors_[0]);
+    predecessors_[0] = kDeadPredecessor;
   }
 
   const CompactInterpreterFrameState& frame_state() const {

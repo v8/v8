@@ -62,7 +62,7 @@ class MaglevGraphVerifier {
       case Opcode::kInitialValue:
       case Opcode::kRegisterInput:
       case Opcode::kGapMove:
-      case Opcode::kEagerDeopt:
+      case Opcode::kDeopt:
       case Opcode::kJump:
       case Opcode::kJumpLoop:
         // No input.

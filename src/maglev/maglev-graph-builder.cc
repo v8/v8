@@ -316,7 +316,7 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
   compiler::ObjectRef property_cell_value = property_cell.value();
   if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
-    AddNewNode<EagerDeopt>({});
+    EmitUnconditionalDeopt();
     return;
   }
 
@@ -366,7 +366,7 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
           feedback(), GetSlotOperand(kSlotOperandIndex)));
 
   if (access_feedback.IsInsufficient()) {
-    AddNewNode<EagerDeopt>({});
+    EmitUnconditionalDeopt();
     return;
   }
 
@@ -406,7 +406,7 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      AddNewNode<EagerDeopt>({});
+      EmitUnconditionalDeopt();
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {
@@ -460,7 +460,7 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      AddNewNode<EagerDeopt>({});
+      EmitUnconditionalDeopt();
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {

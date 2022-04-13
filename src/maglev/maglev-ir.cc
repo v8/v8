@@ -377,13 +377,6 @@ void SmiConstant::PrintParams(std::ostream& os,
   os << "(" << value() << ")";
 }
 
-void EagerDeopt::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                              const ProcessingState& state) {}
-void EagerDeopt::GenerateCode(MaglevCodeGenState* code_gen_state,
-                              const ProcessingState& state) {
-  EmitEagerDeoptIf(always, code_gen_state, this);
-}
-
 void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
                             const ProcessingState& state) {
   DefineAsRegister(vreg_state, this);
@@ -888,6 +881,13 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ DropArguments(actual_params_size, r9, TurboAssembler::kCountIsInteger,
                    TurboAssembler::kCountIncludesReceiver);
   __ Ret();
+}
+
+void Deopt::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                         const ProcessingState& state) {}
+void Deopt::GenerateCode(MaglevCodeGenState* code_gen_state,
+                         const ProcessingState& state) {
+  EmitEagerDeoptIf(always, code_gen_state, this);
 }
 
 void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state,

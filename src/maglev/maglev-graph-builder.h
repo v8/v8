@@ -72,6 +72,11 @@ class MaglevGraphBuilder {
     BasicBlockRef* old_jump_targets = jump_targets_[offset].Reset();
     while (old_jump_targets != nullptr) {
       BasicBlock* predecessor = merge_state.predecessor_at(predecessor_index);
+      if (predecessor == nullptr) {
+        // We can have null predecessors if the predecessor is dead.
+        predecessor_index--;
+        continue;
+      }
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
@@ -102,6 +107,53 @@ class MaglevGraphBuilder {
       for (Phi* phi : *merge_states_[offset]->phis()) {
         graph_labeller()->RegisterNode(phi);
       }
+    }
+  }
+
+  // Return true if the given offset is a merge point, i.e. there are jumps
+  // targetting it.
+  bool IsOffsetAMergePoint(int offset) {
+    return merge_states_[offset] != nullptr;
+  }
+
+  // Called when a block is killed by an unconditional eager deopt.
+  void EmitUnconditionalDeopt() {
+    // Create a block rather than calling finish, since we don't yet know the
+    // next block's offset before the loop skipping the rest of the bytecodes.
+    BasicBlock* block = CreateBlock<Deopt>({});
+    ResolveJumpsToBlockAtOffset(block, block_offset_);
+
+    // Skip any bytecodes remaining in the block, up to the next merge point.
+    while (!IsOffsetAMergePoint(iterator_.next_offset())) {
+      iterator_.Advance();
+      if (iterator_.done()) break;
+    }
+
+    // If there is control flow out of this block, we need to kill the merges
+    // into the control flow targets.
+    interpreter::Bytecode bytecode = iterator_.current_bytecode();
+    if (interpreter::Bytecodes::IsForwardJump(bytecode)) {
+      // Jumps merge into their target, and conditional jumps also merge into
+      // the fallthrough.
+      merge_states_[iterator_.GetJumpTargetOffset()]->MergeDead();
+      if (interpreter::Bytecodes::IsConditionalJump(bytecode)) {
+        merge_states_[iterator_.next_offset()]->MergeDead();
+      }
+    } else if (bytecode == interpreter::Bytecode::kJumpLoop) {
+      // JumpLoop merges into its loop header, which has to be treated specially
+      // by the merge..
+      merge_states_[iterator_.GetJumpTargetOffset()]->MergeDeadLoop();
+    } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
+      // Switches merge into their targets, and into the fallthrough.
+      for (auto offset : iterator_.GetJumpTableTargetOffsets()) {
+        merge_states_[offset.target_offset]->MergeDead();
+      }
+      merge_states_[iterator_.next_offset()]->MergeDead();
+    } else if (!interpreter::Bytecodes::Returns(bytecode) &&
+               !interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
+      // Any other bytecode that doesn't return or throw will merge into the
+      // fallthrough.
+      merge_states_[iterator_.next_offset()]->MergeDead();
     }
   }
 
@@ -167,15 +219,15 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* CreateNewNode(Args&&... args) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      return Node::New<NodeT>(zone(), *compilation_unit_,
-                              GetLatestCheckpointedState(),
-                              std::forward<Args>(args)...);
+      return NodeBase::New<NodeT>(zone(), *compilation_unit_,
+                                  GetLatestCheckpointedState(),
+                                  std::forward<Args>(args)...);
     } else if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      return Node::New<NodeT>(zone(), *compilation_unit_,
-                              GetCheckpointedStateForLazyDeopt(),
-                              std::forward<Args>(args)...);
+      return NodeBase::New<NodeT>(zone(), *compilation_unit_,
+                                  GetCheckpointedStateForLazyDeopt(),
+                                  std::forward<Args>(args)...);
     } else {
-      return Node::New<NodeT>(zone(), std::forward<Args>(args)...);
+      return NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
     }
   }
 
@@ -336,8 +388,8 @@ class MaglevGraphBuilder {
   template <typename ControlNodeT, typename... Args>
   BasicBlock* CreateBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args) {
-    current_block_->set_control_node(NodeBase::New<ControlNodeT>(
-        zone(), control_inputs, std::forward<Args>(args)...));
+    current_block_->set_control_node(CreateNewNode<ControlNodeT>(
+        control_inputs, std::forward<Args>(args)...));
 
     BasicBlock* block = current_block_;
     current_block_ = nullptr;
@@ -349,21 +401,25 @@ class MaglevGraphBuilder {
     return block;
   }
 
+  // Update all jumps which were targetting the not-yet-created block at the
+  // given `block_offset`, to now point to the given `block`.
+  void ResolveJumpsToBlockAtOffset(BasicBlock* block, int block_offset) const {
+    BasicBlockRef* jump_target_refs_head =
+        jump_targets_[block_offset].SetToBlockAndReturnNext(block);
+    while (jump_target_refs_head != nullptr) {
+      jump_target_refs_head =
+          jump_target_refs_head->SetToBlockAndReturnNext(block);
+    }
+    DCHECK_EQ(jump_targets_[block_offset].block_ptr(), block);
+  }
+
   template <typename ControlNodeT, typename... Args>
   BasicBlock* FinishBlock(int next_block_offset,
                           std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args) {
     BasicBlock* block =
         CreateBlock<ControlNodeT>(control_inputs, std::forward<Args>(args)...);
-
-    // Resolve pointers to this basic block.
-    BasicBlockRef* jump_target_refs_head =
-        jump_targets_[block_offset_].SetToBlockAndReturnNext(block);
-    while (jump_target_refs_head != nullptr) {
-      jump_target_refs_head =
-          jump_target_refs_head->SetToBlockAndReturnNext(block);
-    }
-    DCHECK_EQ(jump_targets_[block_offset_].block_ptr(), block);
+    ResolveJumpsToBlockAtOffset(block, block_offset_);
 
     // If the next block has merge states, then it's not a simple fallthrough,
     // and we should reset the checkpoint validity.
@@ -374,11 +430,11 @@ class MaglevGraphBuilder {
     // which case we merge our state into it. That merge-point could also be a
     // loop header, in which case the merge state might not exist yet (if the
     // only predecessors are this path and the JumpLoop).
+    DCHECK_NULL(current_block_);
     if (std::is_base_of<ConditionalControlNode, ControlNodeT>::value) {
       if (NumPredecessors(next_block_offset) == 1) {
         StartNewBlock(next_block_offset);
       } else {
-        DCHECK_NULL(current_block_);
         MergeIntoFrameState(block, next_block_offset);
       }
     }

@@ -85,7 +85,6 @@ class CompactInterpreterFrameState;
 #define NODE_LIST(V) \
   V(CheckMaps)       \
   V(GapMove)         \
-  V(EagerDeopt)      \
   V(StoreField)      \
   VALUE_NODE_LIST(V)
 
@@ -99,6 +98,7 @@ class CompactInterpreterFrameState;
 
 #define CONTROL_NODE_LIST(V)       \
   V(Return)                        \
+  V(Deopt)                         \
   CONDITIONAL_CONTROL_NODE_LIST(V) \
   UNCONDITIONAL_CONTROL_NODE_LIST(V)
 
@@ -1106,19 +1106,6 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   const RootIndex index_;
 };
 
-class EagerDeopt : public FixedInputNodeT<0, EagerDeopt> {
-  using Base = FixedInputNodeT<0, EagerDeopt>;
-
- public:
-  explicit EagerDeopt(uint32_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
@@ -1437,6 +1424,7 @@ class ControlNode : public NodeBase {
   }
   void set_next_post_dominating_hole(ControlNode* node) {
     DCHECK_IMPLIES(node != nullptr, node->Is<Jump>() || node->Is<Return>() ||
+                                        node->Is<Deopt>() ||
                                         node->Is<JumpLoop>());
     next_post_dominating_hole_ = node;
   }
@@ -1568,6 +1556,19 @@ class Return : public ControlNode {
   }
 
   Input& value_input() { return input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Deopt : public ControlNode {
+ public:
+  explicit Deopt(uint32_t bitfield) : ControlNode(bitfield) {
+    DCHECK_EQ(NodeBase::opcode(), opcode_of<Deopt>);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
