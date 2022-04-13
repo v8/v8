@@ -3600,7 +3600,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage) {
   data->BeginPhaseKind("V8.TFCodeGeneration");
   data->InitializeCodeGenerator(linkage);
 
-  UnparkedScopeIfNeeded unparked_scope(data->broker(), FLAG_code_comments);
+  UnparkedScopeIfNeeded unparked_scope(data->broker());
 
   Run<AssembleCodePhase>();
   if (data->info()->trace_turbo_json()) {
