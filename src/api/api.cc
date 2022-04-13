@@ -3496,7 +3496,7 @@ MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, ValueDeserializer, ReadValue, Value);
   i::MaybeHandle<i::Object> result;
   if (GetWireFormatVersion() > 0) {
-    result = private_->deserializer.ReadObject();
+    result = private_->deserializer.ReadObjectWrapper();
   } else {
     result =
         private_->deserializer.ReadObjectUsingEntireBufferForLegacyFormat();
