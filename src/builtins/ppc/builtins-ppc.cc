@@ -1307,6 +1307,159 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   TailCallOptimizedCodeSlot(masm, optimized_code_entry, r9);
 }
 
+// Read off the optimization state in the feedback vector and check if there
+// is optimized code or a tiering state that needs to be processed.
+static void LoadTieringStateAndJumpIfNeedsProcessing(
+    MacroAssembler* masm, Register optimization_state, Register feedback_vector,
+    Label* has_optimized_code_or_state) {
+  ASM_CODE_COMMENT(masm);
+  USE(LoadTieringStateAndJumpIfNeedsProcessing);
+  DCHECK(!AreAliased(optimization_state, feedback_vector));
+  __ LoadU32(optimization_state,
+             FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  CHECK(is_uint16(
+      FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+  __ mov(
+      r0,
+      Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+  __ AndU32(r0, optimization_state, r0, SetRC);
+  __ bne(has_optimized_code_or_state);
+}
+
+#if ENABLE_SPARKPLUG
+// static
+void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
+  auto descriptor =
+      Builtins::CallInterfaceDescriptorFor(Builtin::kBaselineOutOfLinePrologue);
+  Register closure = descriptor.GetRegisterParameter(
+      BaselineOutOfLinePrologueDescriptor::kClosure);
+  // Load the feedback vector from the closure.
+  Register feedback_vector = ip;
+  __ LoadTaggedPointerField(
+      feedback_vector,
+      FieldMemOperand(closure, JSFunction::kFeedbackCellOffset), r0);
+  __ LoadTaggedPointerField(
+      feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset),
+      r0);
+
+  if (FLAG_debug_code) {
+    Register scratch = r11;
+    __ CompareObjectType(feedback_vector, scratch, scratch,
+                         FEEDBACK_VECTOR_TYPE);
+    __ Assert(eq, AbortReason::kExpectedFeedbackVector);
+  }
+
+  // Check for an tiering state.
+  Label has_optimized_code_or_state;
+  Register optimization_state = r11;
+  {
+    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
+                                             feedback_vector,
+                                             &has_optimized_code_or_state);
+  }
+
+  // Increment invocation count for the function.
+  {
+    Register invocation_count = r13;
+    __ LoadU64(invocation_count,
+               FieldMemOperand(feedback_vector,
+                               FeedbackVector::kInvocationCountOffset),
+               r0);
+    __ AddS64(invocation_count, invocation_count, Operand(1));
+    __ StoreU64(invocation_count,
+                FieldMemOperand(feedback_vector,
+                                FeedbackVector::kInvocationCountOffset),
+                r0);
+  }
+
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Frame Setup");
+    // Normally the first thing we'd do here is Push(lr, fp), but we already
+    // entered the frame in BaselineCompiler::Prologue, as we had to use the
+    // value lr before the call to this BaselineOutOfLinePrologue builtin.
+
+    Register callee_context = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kCalleeContext);
+    Register callee_js_function = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kClosure);
+    __ Push(callee_context, callee_js_function);
+    DCHECK_EQ(callee_js_function, kJavaScriptCallTargetRegister);
+    DCHECK_EQ(callee_js_function, kJSFunctionRegister);
+
+    Register argc = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallArgCount);
+    // We'll use the bytecode for both code age/OSR resetting, and pushing onto
+    // the frame, so load it into a register.
+    Register bytecodeArray = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    ResetBytecodeAgeAndOsrState(masm, bytecodeArray, r13);
+
+    __ Push(argc, bytecodeArray);
+
+    // Baseline code frames store the feedback vector where interpreter would
+    // store the bytecode offset.
+    if (FLAG_debug_code) {
+      Register scratch = r13;
+      __ CompareObjectType(feedback_vector, scratch, scratch,
+                           FEEDBACK_VECTOR_TYPE);
+      __ Assert(eq, AbortReason::kExpectedFeedbackVector);
+    }
+    __ Push(feedback_vector);
+  }
+
+  Label call_stack_guard;
+  Register frame_size = descriptor.GetRegisterParameter(
+      BaselineOutOfLinePrologueDescriptor::kStackFrameSize);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt check");
+    // Stack check. This folds the checks for both the interrupt stack limit
+    // check and the real stack limit into one by just checking for the
+    // interrupt limit. The interrupt limit is either equal to the real stack
+    // limit or tighter. By ensuring we have space until that limit after
+    // building the frame we can quickly precheck both at once.
+
+    Register sp_minus_frame_size = r13;
+    Register interrupt_limit = r0;
+    __ SubS64(sp_minus_frame_size, sp, frame_size);
+    __ LoadStackLimit(interrupt_limit, StackLimitKind::kInterruptStackLimit);
+    __ CmpU64(sp_minus_frame_size, interrupt_limit);
+    __ blt(&call_stack_guard);
+  }
+
+  // Do "fast" return to the caller pc in lr.
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Ret();
+
+  __ bind(&has_optimized_code_or_state);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
+
+    // Drop the frame created by the baseline call.
+    __ Pop(r0, fp);
+    __ mtlr(r0);
+    MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
+                                                 feedback_vector);
+    __ Trap();
+  }
+
+  __ bind(&call_stack_guard);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Save incoming new target or generator
+    __ Push(kJavaScriptCallNewTargetRegister);
+    __ SmiTag(frame_size);
+    __ Push(frame_size);
+    __ CallRuntime(Runtime::kStackGuardWithGap);
+    __ Pop(kJavaScriptCallNewTargetRegister);
+  }
+
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Ret();
+}
+#endif
+
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
 // stack left to right.
