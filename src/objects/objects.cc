@@ -4774,36 +4774,6 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   return value;
 }
 
-Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
-                                       Handle<Context> native_context,
-                                       Handle<Map> initial_map) {
-  // Replace all of the cached initial array maps in the native context with
-  // the appropriate transitioned elements kind maps.
-  Handle<Map> current_map = initial_map;
-  ElementsKind kind = current_map->elements_kind();
-  DCHECK_EQ(GetInitialFastElementsKind(), kind);
-  native_context->set(Context::ArrayMapIndex(kind), *current_map,
-                      UPDATE_WRITE_BARRIER, kReleaseStore);
-  for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
-       i < kFastElementsKindCount; ++i) {
-    Handle<Map> new_map;
-    ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
-    Map maybe_elements_transition = current_map->ElementsTransitionMap(
-        isolate, ConcurrencyMode::kSynchronous);
-    if (!maybe_elements_transition.is_null()) {
-      new_map = handle(maybe_elements_transition, isolate);
-    } else {
-      new_map = Map::CopyAsElementsKind(isolate, current_map, next_kind,
-                                        INSERT_TRANSITION);
-    }
-    DCHECK_EQ(next_kind, new_map->elements_kind());
-    native_context->set(Context::ArrayMapIndex(next_kind), *new_map,
-                        UPDATE_WRITE_BARRIER, kReleaseStore);
-    current_map = new_map;
-  }
-  return initial_map;
-}
-
 STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
                                   Oddball::kToNumberRawOffset);
 

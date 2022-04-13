@@ -642,16 +642,8 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
       Handle<Map> new_map =
           Map::Copy(isolate, initial_map, "SetInstancePrototype");
       JSFunction::SetInitialMap(isolate, function, new_map, value);
-
-      // If the function is used as the global Array function, cache the
-      // updated initial maps (and transitioned versions) in the native context.
-      Handle<Context> native_context(function->native_context(), isolate);
-      Handle<Object> array_function(
-          native_context->get(Context::ARRAY_FUNCTION_INDEX), isolate);
-      if (array_function->IsJSFunction() &&
-          *function == JSFunction::cast(*array_function)) {
-        CacheInitialJSArrayMaps(isolate, native_context, new_map);
-      }
+      DCHECK_IMPLIES(!isolate->bootstrapper()->IsActive(),
+                     *function != function->native_context().array_function());
     }
 
     // Deoptimize all code that embeds the previous initial map.

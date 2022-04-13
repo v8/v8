@@ -141,10 +141,6 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   TQ_OBJECT_CONSTRUCTORS(JSArray)
 };
 
-Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
-                                       Handle<Context> native_context,
-                                       Handle<Map> initial_map);
-
 // The JSArrayIterator describes JavaScript Array Iterators Objects, as
 // defined in ES section #sec-array-iterator-objects.
 class JSArrayIterator

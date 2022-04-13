@@ -1185,6 +1185,37 @@ void ReplaceAccessors(Isolate* isolate, Handle<Map> map, Handle<String> name,
   Descriptor d = Descriptor::AccessorConstant(name, accessor_pair, attributes);
   descriptors.Replace(entry, &d);
 }
+
+void InitializeJSArrayMaps(Isolate* isolate, Handle<Context> native_context,
+                           Handle<Map> initial_map) {
+  // Replace all of the cached initial array maps in the native context with
+  // the appropriate transitioned elements kind maps.
+  Handle<Map> current_map = initial_map;
+  ElementsKind kind = current_map->elements_kind();
+  DCHECK_EQ(GetInitialFastElementsKind(), kind);
+  DCHECK_EQ(PACKED_SMI_ELEMENTS, kind);
+  DCHECK_EQ(Context::ArrayMapIndex(kind),
+            Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX);
+  native_context->set(Context::ArrayMapIndex(kind), *current_map,
+                      UPDATE_WRITE_BARRIER, kReleaseStore);
+  for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
+       i < kFastElementsKindCount; ++i) {
+    Handle<Map> new_map;
+    ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
+    Map maybe_elements_transition = current_map->ElementsTransitionMap(
+        isolate, ConcurrencyMode::kSynchronous);
+    if (!maybe_elements_transition.is_null()) {
+      new_map = handle(maybe_elements_transition, isolate);
+    } else {
+      new_map = Map::CopyAsElementsKind(isolate, current_map, next_kind,
+                                        INSERT_TRANSITION);
+    }
+    DCHECK_EQ(next_kind, new_map->elements_kind());
+    native_context->set(Context::ArrayMapIndex(next_kind), *new_map,
+                        UPDATE_WRITE_BARRIER, kReleaseStore);
+    current_map = new_map;
+  }
+}
 }  // namespace
 
 void Genesis::AddRestrictedFunctionProperties(Handle<JSFunction> empty) {
@@ -1710,8 +1741,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::ARRAY_FUNCTION_INDEX);
     InstallSpeciesGetter(isolate_, array_function);
 
-    // Cache the array maps, needed by ArrayConstructorStub
-    CacheInitialJSArrayMaps(isolate_, native_context(), initial_map);
+    // Create the initial array map for Array.prototype which is required by
+    // the used ArrayConstructorStub.
+    // This is repeated after properly instantiating the Array.prototype.
+    InitializeJSArrayMaps(isolate_, native_context(), initial_map);
 
     // Set up %ArrayPrototype%.
     // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure
@@ -1721,6 +1754,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                                 AllocationType::kOld);
     JSFunction::SetPrototype(array_function, proto);
     native_context()->set_initial_array_prototype(*proto);
+
+    InitializeJSArrayMaps(isolate_, native_context(),
+
+                          handle(array_function->initial_map(), isolate_));
 
     SimpleInstallFunction(isolate_, array_function, "isArray",
                           Builtin::kArrayIsArray, 1, true);
