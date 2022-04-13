@@ -2173,7 +2173,7 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   // OSR requests can be triggered either through urgency (when > the current
   // loop depth), or an explicit install target (= the lower bits of the
   // targeted bytecode offset).
-  Label ok(this), maybe_osr(this);
+  Label ok(this), maybe_osr(this, Label::kDeferred);
   Branch(Int32GreaterThanOrEqual(loop_depth, osr_urgency_and_install_target),
          &ok, &maybe_osr);
 
@@ -2183,8 +2183,30 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   JumpBackward(relative_jump);
 
   BIND(&maybe_osr);
-  OnStackReplacement(context, relative_jump, loop_depth,
-                     osr_urgency_and_install_target);
+  Label osr(this);
+  // OSR based on urgency, i.e. is the OSR urgency greater than the current
+  // loop depth?
+  STATIC_ASSERT(BytecodeArray::OsrUrgencyBits::kShift == 0);
+  TNode<Word32T> osr_urgency = Word32And(osr_urgency_and_install_target,
+                                         BytecodeArray::OsrUrgencyBits::kMask);
+  GotoIf(Int32GreaterThan(osr_urgency, loop_depth), &osr);
+
+  // OSR based on the install target offset, i.e. does the current bytecode
+  // offset match the install target offset?
+  //
+  //  if (((offset << kShift) & kMask) == (target & kMask)) { ... }
+  static constexpr int kShift = BytecodeArray::OsrInstallTargetBits::kShift;
+  static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
+  // Note: We OR in 1 to avoid 0 offsets, see Code::OsrInstallTargetFor.
+  TNode<Word32T> actual = Word32Or(
+      Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()), kFirstBytecodeOffset),
+      Int32Constant(1));
+  actual = Word32And(Word32Shl(UncheckedCast<Int32T>(actual), kShift), kMask);
+  TNode<Word32T> expected = Word32And(osr_urgency_and_install_target, kMask);
+  Branch(Word32Equal(actual, expected), &osr, &ok);
+
+  BIND(&osr);
+  OnStackReplacement(context, relative_jump);
 }
 
 // SwitchOnSmiNoFeedback <table_start> <table_length> <case_value_base>

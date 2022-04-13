@@ -189,11 +189,11 @@ namespace internal {
       InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterEnterAtBytecode, Dummy)                                       \
   ASM(InterpreterEnterAtNextBytecode, Dummy)                                   \
-  ASM(InterpreterOnStackReplacement, InterpreterOnStackReplacement)            \
+  ASM(InterpreterOnStackReplacement, ContextOnly)                              \
                                                                                \
   /* Baseline Compiler */                                                      \
   ASM(BaselineOutOfLinePrologue, BaselineOutOfLinePrologue)                    \
-  ASM(BaselineOnStackReplacement, BaselineOnStackReplacement)                  \
+  ASM(BaselineOnStackReplacement, Void)                                        \
   ASM(BaselineLeaveFrame, BaselineLeaveFrame)                                  \
   ASM(BaselineOrInterpreterEnterAtBytecode, Void)                              \
   ASM(BaselineOrInterpreterEnterAtNextBytecode, Void)                          \
