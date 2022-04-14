@@ -20,11 +20,9 @@
 ['system == macos and arch == arm64 and not simulator_run', {
   # Throwing C++ exceptions doesn't work; probably because the unittests
   # binary is built with -fno-exceptions?
-  'LanguageServerJson.LexerError': [SKIP],
-  'LanguageServerJson.ParserError': [SKIP],
-  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [SKIP],
-  'Torque.Enums': [SKIP],
-  'Torque.ImportNonExistentFile': [SKIP],
+  'LanguageServerJson.*': [SKIP],
+  'LanguageServer.*': [SKIP],
+  'Torque.*': [SKIP],
 
   # Test uses fancy signal handling. Needs investigation.
   'MemoryAllocationPermissionsTest.DoTest': [SKIP],
