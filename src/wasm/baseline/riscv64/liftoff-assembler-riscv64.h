@@ -1351,7 +1351,7 @@ void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
   TurboAssembler::Add64(dst.gp(), lhs.gp(), Operand(imm));
 }
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
-  addw(dst, src, zero_reg);
+  ZeroExtendWord(dst, src);
 }
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
