@@ -36,6 +36,10 @@
 
 #include "src/codegen/ppc/assembler-ppc.h"
 
+#if defined(__PASE__)
+#include <sys/utsname.h>
+#endif
+
 #if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
@@ -76,10 +80,19 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #else
   base::CPU cpu;
   if (cpu.part() == base::CPU::kPPCPower10) {
-// IBMi does not yet support prefixed instructions introduced on Power10.
-// Run on P9 mode until OS adds support.
 #if defined(__PASE__)
-    supported_ |= (1u << PPC_9_PLUS);
+    // Some P10 features such as prefixed isns will only be supported in future
+    // ibmi versions. We only enable full power 10 features if version>7.4
+    struct utsname uts;
+    memset(reinterpret_cast<void*>(&uts), 0, sizeof(uts));
+    int r = uname(&uts);
+    CHECK_GE(r, 0);
+    int rel = atoi(uts.release);
+    if (rel > 4) {
+      supported_ |= (1u << PPC_10_PLUS);
+    } else {
+      supported_ |= (1u << PPC_9_PLUS);
+    }
 #else
     supported_ |= (1u << PPC_10_PLUS);
 #endif
