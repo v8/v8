@@ -58,7 +58,9 @@ export class Processor extends LogReader {
   _lastTimestamp = 0;
   _lastCodeLogEntry;
   _lastTickLogEntry;
+
   _chunkRemainder = '';
+  _lineNumber = 1;
 
   _totalInputBytes = 0;
   _processedInputChars = 0;
@@ -228,12 +230,11 @@ export class Processor extends LogReader {
     let current = 0;
     let next = 0;
     let line;
-    let lineNumber = 1;
     try {
       while (current < end) {
         next = chunk.indexOf('\n', current);
         if (next === -1) {
-          this._chunkRemainder = chunk.substring(current);
+          this._chunkRemainder += chunk.substring(current);
           break;
         }
         line = chunk.substring(current, next);
@@ -242,14 +243,14 @@ export class Processor extends LogReader {
           this._chunkRemainder = '';
         }
         current = next + 1;
-        lineNumber++;
+        this._lineNumber++;
         await this.processLogLine(line);
         this._processedInputChars = prevProcessedInputChars + current;
       }
       this._updateProgress();
     } catch (e) {
-      console.error(
-          `Could not parse log line ${lineNumber}, trying to continue: ${e}`);
+      console.error(`Could not parse log line ${
+          this._lineNumber}, trying to continue: ${e}`);
     }
   }
 

@@ -1,5 +1,6 @@
 :root {
   --code-font: Consolas, Monaco, Menlo, monospace;
+  --code-font-size: 12px;
   --background-color: #000000;
   --surface-color-rgb: 18, 18, 18;
   --surface-color: rgb(var(--surface-color-rgb));
@@ -72,6 +73,10 @@ kbd {
 
 kbd, code, pre {
   font-family: var(--code-font);
+}
+code {
+  font-size: var(--code-font-size);
+  white-space: nowrap;
 }
 
 a {
