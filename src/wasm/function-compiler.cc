@@ -244,7 +244,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
       isolate_->is_profiling()) {
     Handle<String> name = isolate_->factory()->NewStringFromAsciiChecked(
         job_->compilation_info()->GetDebugName().get());
-    PROFILE(isolate_, CodeCreateEvent(CodeEventListener::STUB_TAG,
+    PROFILE(isolate_, CodeCreateEvent(LogEventListener::STUB_TAG,
                                       Handle<AbstractCode>::cast(code), name));
   }
   return code;

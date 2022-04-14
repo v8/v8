@@ -314,7 +314,7 @@ class UnoptimizedCompilationJob : public CompilationJob {
   FinalizeJob(Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate);
 
   void RecordCompilationStats(Isolate* isolate) const;
-  void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
+  void RecordFunctionCompilation(LogEventListener::LogEventsAndTags tag,
                                  Handle<SharedFunctionInfo> shared,
                                  Isolate* isolate) const;
 
@@ -415,7 +415,7 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
   Status AbortOptimization(BailoutReason reason);
 
   void RecordCompilationStats(ConcurrencyMode mode, Isolate* isolate) const;
-  void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
+  void RecordFunctionCompilation(LogEventListener::LogEventsAndTags tag,
                                  Isolate* isolate) const;
 
  private:

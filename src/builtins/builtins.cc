@@ -343,7 +343,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
     Code builtin_code = FromCodeT(CodeT::cast(Object(builtins[i])));
     Handle<AbstractCode> code(AbstractCode::cast(builtin_code), isolate);
-    PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG, code,
+    PROFILE(isolate, CodeCreateEvent(LogEventListener::BUILTIN_TAG, code,
                                      Builtins::name(FromInt(i))));
   }
 
@@ -357,7 +357,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
         builtin_metadata[i].data.bytecode_and_scale.scale;
     PROFILE(isolate,
             CodeCreateEvent(
-                CodeEventListener::BYTECODE_HANDLER_TAG, code,
+                LogEventListener::BYTECODE_HANDLER_TAG, code,
                 interpreter::Bytecodes::ToString(bytecode, scale).c_str()));
   }
 }

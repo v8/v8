@@ -245,7 +245,7 @@ class CompilerTracer : public AllStatic {
 };
 
 void LogFunctionCompilation(Isolate* isolate,
-                            CodeEventListener::LogEventsAndTags tag,
+                            LogEventListener::LogEventsAndTags tag,
                             Handle<Script> script,
                             Handle<SharedFunctionInfo> shared,
                             Handle<FeedbackVector> vector,
@@ -263,7 +263,7 @@ void LogFunctionCompilation(Isolate* isolate,
   // enabled as finding the line number is not free.
   if (!isolate->logger()->is_listening_to_code_events() &&
       !isolate->is_profiling() && !FLAG_log_function_events &&
-      !isolate->code_event_dispatcher()->IsListeningToCodeEvents()) {
+      !isolate->log_event_dispatcher()->is_listening_to_code_events()) {
     return;
   }
 
@@ -273,7 +273,7 @@ void LogFunctionCompilation(Isolate* isolate,
                                  ? String::cast(script->name())
                                  : ReadOnlyRoots(isolate).empty_string(),
                              isolate);
-  CodeEventListener::LogEventsAndTags log_tag =
+  LogEventListener::LogEventsAndTags log_tag =
       Logger::ToNativeByScript(tag, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared, script_name,
                                    line_num, column_num));
@@ -297,15 +297,15 @@ void LogFunctionCompilation(Isolate* isolate,
       UNREACHABLE();
   }
   switch (tag) {
-    case CodeEventListener::EVAL_TAG:
+    case LogEventListener::EVAL_TAG:
       name += "-eval";
       break;
-    case CodeEventListener::SCRIPT_TAG:
+    case LogEventListener::SCRIPT_TAG:
       break;
-    case CodeEventListener::LAZY_COMPILE_TAG:
+    case LogEventListener::LAZY_COMPILE_TAG:
       name += "-lazy";
       break;
-    case CodeEventListener::FUNCTION_TAG:
+    case LogEventListener::FUNCTION_TAG:
       break;
     default:
       UNREACHABLE();
@@ -408,7 +408,7 @@ void RecordUnoptimizedCompilationStats(Isolate* isolate,
 }
 
 void RecordUnoptimizedFunctionCompilation(
-    Isolate* isolate, CodeEventListener::LogEventsAndTags tag,
+    Isolate* isolate, LogEventListener::LogEventsAndTags tag,
     Handle<SharedFunctionInfo> shared, base::TimeDelta time_taken_to_execute,
     base::TimeDelta time_taken_to_finalize) {
   Handle<AbstractCode> abstract_code;
@@ -554,7 +554,7 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
 }
 
 void TurbofanCompilationJob::RecordFunctionCompilation(
-    CodeEventListener::LogEventsAndTags tag, Isolate* isolate) const {
+    LogEventListener::LogEventsAndTags tag, Isolate* isolate) const {
   Handle<AbstractCode> abstract_code =
       Handle<AbstractCode>::cast(compilation_info()->code());
 
@@ -595,7 +595,7 @@ bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
 
 void InstallInterpreterTrampolineCopy(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
-    CodeEventListener::LogEventsAndTags log_tag) {
+    LogEventListener::LogEventsAndTags log_tag) {
   DCHECK(FLAG_interpreted_frames_native_stack);
   if (!shared_info->function_data(kAcquireLoad).IsBytecodeArray()) {
     DCHECK(!shared_info->HasBytecodeArray());
@@ -668,7 +668,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 
 void LogUnoptimizedCompilation(Isolate* isolate,
                                Handle<SharedFunctionInfo> shared_info,
-                               CodeEventListener::LogEventsAndTags log_tag,
+                               LogEventListener::LogEventsAndTags log_tag,
                                base::TimeDelta time_taken_to_execute,
                                base::TimeDelta time_taken_to_finalize) {
   RecordUnoptimizedFunctionCompilation(isolate, log_tag, shared_info,
@@ -1014,7 +1014,7 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
   DCHECK(!isolate->has_pending_exception());
   OptimizedCodeCache::Insert(compilation_info);
-  job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, isolate);
+  job->RecordFunctionCompilation(LogEventListener::LAZY_COMPILE_TAG, isolate);
   return true;
 }
 
@@ -1141,7 +1141,7 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
   // Optimistic estimate.
   double time_taken_ms = 0;
 
-  LogFunctionCompilation(isolate, CodeEventListener::FUNCTION_TAG, script,
+  LogFunctionCompilation(isolate, LogEventListener::FUNCTION_TAG, script,
                          shared, feedback_vector, abstract_code,
                          abstract_code->kind(), time_taken_ms);
 }
@@ -1355,13 +1355,13 @@ void FinalizeUnoptimizedCompilation(
     if (need_source_positions) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     }
-    CodeEventListener::LogEventsAndTags log_tag;
+    LogEventListener::LogEventsAndTags log_tag;
     if (shared_info->is_toplevel()) {
-      log_tag = flags.is_eval() ? CodeEventListener::EVAL_TAG
-                                : CodeEventListener::SCRIPT_TAG;
+      log_tag = flags.is_eval() ? LogEventListener::EVAL_TAG
+                                : LogEventListener::SCRIPT_TAG;
     } else {
-      log_tag = flags.is_lazy_compile() ? CodeEventListener::LAZY_COMPILE_TAG
-                                        : CodeEventListener::FUNCTION_TAG;
+      log_tag = flags.is_lazy_compile() ? LogEventListener::LAZY_COMPILE_TAG
+                                        : LogEventListener::FUNCTION_TAG;
     }
     log_tag = Logger::ToNativeByScript(log_tag, *script);
     if (FLAG_interpreted_frames_native_stack) {
@@ -2174,7 +2174,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   CompilerTracer::TraceFinishBaselineCompile(isolate, shared, time_taken_ms);
 
   if (shared->script().IsScript()) {
-    LogFunctionCompilation(isolate, CodeEventListener::FUNCTION_TAG,
+    LogFunctionCompilation(isolate, LogEventListener::FUNCTION_TAG,
                            handle(Script::cast(shared->script()), isolate),
                            shared, Handle<FeedbackVector>(),
                            Handle<AbstractCode>::cast(code), CodeKind::BASELINE,
@@ -3463,7 +3463,7 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
       job->RetryOptimization(BailoutReason::kOptimizationDisabled);
     } else if (job->FinalizeJob(isolate) == CompilationJob::SUCCEEDED) {
       job->RecordCompilationStats(ConcurrencyMode::kConcurrent, isolate);
-      job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
+      job->RecordFunctionCompilation(LogEventListener::LAZY_COMPILE_TAG,
                                      isolate);
       if (V8_LIKELY(use_result)) {
         ResetTieringState(*function, osr_offset);

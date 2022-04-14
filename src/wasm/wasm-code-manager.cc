@@ -214,7 +214,7 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
   // to call {WasmEngine::EnableCodeLogging} if this return value would change
   // for any isolate. Otherwise we might lose code events.
   return isolate->logger()->is_listening_to_code_events() ||
-         isolate->code_event_dispatcher()->IsListeningToCodeEvents() ||
+         isolate->log_event_dispatcher()->is_listening_to_code_events() ||
          isolate->is_profiling();
 }
 
@@ -288,7 +288,7 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
   }
 
   int code_offset = module->functions[index_].code.offset();
-  PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name,
+  PROFILE(isolate, CodeCreateEvent(LogEventListener::FUNCTION_TAG, this, name,
                                    source_url, code_offset, script_id));
 }
 

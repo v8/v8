@@ -1547,7 +1547,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
   // The {NoopListener} currently does nothing on any callback, but reports
   // {true} on {is_listening_to_code_events()}. Feel free to add assertions to
   // any method to further test the code logging callbacks.
-  class NoopListener final : public CodeEventListener {
+  class NoopListener final : public LogEventListener {
     void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                          const char* name) final {}
     void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
@@ -1589,7 +1589,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->EnableCodeLogging(isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  isolate->code_event_dispatcher()->AddListener(noop_listener.get());
+  isolate->log_event_dispatcher()->AddListener(noop_listener.get());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

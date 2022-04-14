@@ -96,7 +96,7 @@ class AstStringConstants;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
 class CancelableTaskManager;
-class CodeEventDispatcher;
+class LogEventDispatcher;
 class CodeTracer;
 class CommonFrame;
 class CompilationCache;
@@ -1315,8 +1315,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     is_profiling_.store(enabled, std::memory_order_relaxed);
   }
 
-  CodeEventDispatcher* code_event_dispatcher() const {
-    return code_event_dispatcher_.get();
+  LogEventDispatcher* log_event_dispatcher() const {
+    return log_event_dispatcher_;
   }
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
@@ -2221,7 +2221,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Debug* debug_ = nullptr;
   HeapProfiler* heap_profiler_ = nullptr;
-  std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
+  LogEventDispatcher* log_event_dispatcher_ = nullptr;
 
   const AstStringConstants* ast_string_constants_ = nullptr;
 

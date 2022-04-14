@@ -187,7 +187,7 @@ TEST(CodeEvents) {
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer.code_entries(),
                                      *code_observer.weak_code_registry());
-  isolate->logger()->AddCodeEventListener(&profiler_listener);
+  isolate->logger()->AddLogEventListener(&profiler_listener);
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
@@ -203,7 +203,7 @@ TEST(CodeEvents) {
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
 
-  isolate->logger()->RemoveCodeEventListener(&profiler_listener);
+  isolate->logger()->RemoveLogEventListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of the symbolizer.
@@ -255,7 +255,7 @@ TEST(TickEvents) {
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer->code_entries(),
                                      *code_observer->weak_code_registry());
-  isolate->logger()->AddCodeEventListener(&profiler_listener);
+  isolate->logger()->AddLogEventListener(&profiler_listener);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
   profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, "ccc");
@@ -271,7 +271,7 @@ TEST(TickEvents) {
                          frame2_code->raw_instruction_end() - 1,
                          frame1_code->raw_instruction_end() - 1);
 
-  isolate->logger()->RemoveCodeEventListener(&profiler_listener);
+  isolate->logger()->RemoveLogEventListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling(id);
   CHECK(profile);

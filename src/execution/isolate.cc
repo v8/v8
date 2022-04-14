@@ -3232,7 +3232,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
       num_active_deserializers_(0),
 #endif
       rail_mode_(PERFORMANCE_ANIMATION),
-      code_event_dispatcher_(new CodeEventDispatcher()),
+      log_event_dispatcher_(new LogEventDispatcher()),
       detailed_source_positions_for_profiling_(FLAG_detailed_line_info),
       persistent_handles_list_(new PersistentHandlesList()),
       jitless_(FLAG_jitless),
@@ -3468,7 +3468,8 @@ void Isolate::Deinit() {
   delete ast_string_constants_;
   ast_string_constants_ = nullptr;
 
-  code_event_dispatcher_.reset();
+  delete log_event_dispatcher_;
+  log_event_dispatcher_ = nullptr;
 
   delete root_index_map_;
   root_index_map_ = nullptr;
