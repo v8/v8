@@ -1339,19 +1339,39 @@ void InterpreterAssembler::AbortIfWordNotEqual(TNode<WordT> lhs,
   BIND(&ok);
 }
 
-void InterpreterAssembler::OnStackReplacement(TNode<Context> context,
-                                              TNode<IntPtrT> relative_jump) {
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
-  TNode<HeapObject> shared_info = LoadJSFunctionSharedFunctionInfo(function);
-  TNode<Object> sfi_data =
-      LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
-  TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
-
-  Label baseline(this);
-  GotoIf(InstanceTypeEqual(data_type, CODET_TYPE), &baseline);
+void InterpreterAssembler::OnStackReplacement(
+    TNode<Context> context, TNode<IntPtrT> relative_jump,
+    TNode<Int32T> loop_depth, TNode<Int16T> osr_urgency_and_install_target) {
+  Label interpreter(this), baseline(this);
   {
+    TNode<JSFunction> function =
+        CAST(LoadRegister(Register::function_closure()));
+    TNode<HeapObject> shared_info = LoadJSFunctionSharedFunctionInfo(function);
+    TNode<Object> sfi_data =
+        LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
+    TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
+    Branch(InstanceTypeEqual(data_type, CODET_TYPE), &baseline, &interpreter);
+  }
+
+  BIND(&interpreter);
+  {
+    // Encode the current bytecode offset as
+    //
+    //  BytecodeArray::OsrInstallTargetFor(
+    //      BytecodeOffset{iterator().current_offset()})
+    //  << BytecodeArray::OsrInstallTargetBits::kShift
+    static constexpr int kShift = BytecodeArray::OsrInstallTargetBits::kShift;
+    static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
+    TNode<Word32T> encoded_bytecode_offset = Word32Or(
+        Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()), kFirstBytecodeOffset),
+        Int32Constant(1));
+    encoded_bytecode_offset = Word32And(
+        Word32Shl(UncheckedCast<Int32T>(encoded_bytecode_offset), kShift),
+        kMask);
+
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
-    CallStub(callable, context);
+    CallStub(callable, context, loop_depth, encoded_bytecode_offset,
+             osr_urgency_and_install_target);
     JumpBackward(relative_jump);
   }
 

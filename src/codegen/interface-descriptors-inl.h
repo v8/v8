@@ -357,6 +357,52 @@ constexpr auto BaselineLeaveFrameDescriptor::registers() {
 }
 
 // static
+constexpr auto BaselineOnStackReplacementDescriptor::registers() {
+  return DefaultRegisterArray();
+}
+
+// static
+constexpr Register
+BaselineOnStackReplacementDescriptor::CurrentLoopDepthRegister() {
+  return registers()[0];
+}
+// static
+constexpr Register
+BaselineOnStackReplacementDescriptor::EncodedCurrentBytecodeOffsetRegister() {
+  return registers()[1];
+}
+// static
+constexpr Register
+BaselineOnStackReplacementDescriptor::OsrUrgencyAndInstallTargetRegister() {
+  return registers()[2];
+}
+
+// static
+constexpr auto InterpreterOnStackReplacementDescriptor::registers() {
+  using BaselineD = BaselineOnStackReplacementDescriptor;
+  return BaselineD::registers();
+}
+
+// static
+constexpr Register
+InterpreterOnStackReplacementDescriptor::CurrentLoopDepthRegister() {
+  using BaselineD = BaselineOnStackReplacementDescriptor;
+  return BaselineD::CurrentLoopDepthRegister();
+}
+// static
+constexpr Register InterpreterOnStackReplacementDescriptor::
+    EncodedCurrentBytecodeOffsetRegister() {
+  using BaselineD = BaselineOnStackReplacementDescriptor;
+  return BaselineD::EncodedCurrentBytecodeOffsetRegister();
+}
+// static
+constexpr Register
+InterpreterOnStackReplacementDescriptor::OsrUrgencyAndInstallTargetRegister() {
+  using BaselineD = BaselineOnStackReplacementDescriptor;
+  return BaselineD::OsrUrgencyAndInstallTargetRegister();
+}
+
+// static
 constexpr auto VoidDescriptor::registers() { return RegisterArray(); }
 
 // static

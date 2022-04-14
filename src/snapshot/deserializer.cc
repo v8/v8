@@ -560,7 +560,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
-    BytecodeArray::cast(raw_obj).reset_osr_urgency();
+    BytecodeArray::cast(raw_obj).reset_osr_urgency_and_install_target();
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
