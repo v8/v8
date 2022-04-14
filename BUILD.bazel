@@ -579,7 +579,6 @@ filegroup(
         "src/base/address-region.h",
         "src/base/atomic-utils.h",
         "src/base/atomicops.h",
-        "src/base/atomicops_internals_atomicword_compat.h",
         "src/base/base-export.h",
         "src/base/bit-field.h",
         "src/base/bits-iterator.h",
