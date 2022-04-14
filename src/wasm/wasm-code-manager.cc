@@ -2110,7 +2110,7 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(
   // With dynamic tiering we don't expect to compile more than 25% with
   // TurboFan. If there is no liftoff though then all code will get generated
   // by TurboFan.
-  if (include_liftoff && dynamic_tiering == DynamicTiering::kEnabled) {
+  if (include_liftoff && dynamic_tiering) {
     size_of_turbofan /= 4;
   }
 
@@ -2233,11 +2233,10 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
-                                       ? DynamicTiering::kEnabled
-                                       : DynamicTiering::kDisabled;
-  new NativeModule(enabled, dynamic_tiering, std::move(code_space),
-                   std::move(module), isolate->async_counters(), &ret);
+  new NativeModule(enabled,
+                   DynamicTiering{isolate->IsWasmDynamicTieringEnabled()},
+                   std::move(code_space), std::move(module),
+                   isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: 0x%" PRIxPTR ",+%zu\n", ret.get(),

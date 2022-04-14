@@ -2240,7 +2240,7 @@ Handle<AsmWasmData> AsmWasmData::New(
   const bool kUsesLiftoff = false;
   size_t memory_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          module, kUsesLiftoff, wasm::DynamicTiering::kDisabled) +
+          module, kUsesLiftoff, wasm::kNoDynamicTiering) +
       wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,

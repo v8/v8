@@ -343,8 +343,7 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
 
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {test_module_.get(), native_module_->bounds_checks(),
-          runtime_exception_support_, enabled_features_,
-          DynamicTiering::kDisabled};
+          runtime_exception_support_, enabled_features_, kNoDynamicTiering};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -360,12 +359,10 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   const bool kUsesLiftoff = true;
-  DynamicTiering dynamic_tiering = FLAG_wasm_dynamic_tiering
-                                       ? DynamicTiering::kEnabled
-                                       : DynamicTiering::kDisabled;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          test_module_.get(), kUsesLiftoff, dynamic_tiering);
+          test_module_.get(), kUsesLiftoff,
+          DynamicTiering{FLAG_wasm_dynamic_tiering});
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());

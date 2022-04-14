@@ -952,8 +952,7 @@ ExecutionTierPair GetRequestedExecutionTiers(
   result.baseline_tier = WasmCompilationUnit::GetBaselineExecutionTier(module);
 
   bool dynamic_tiering =
-      Impl(native_module->compilation_state())->dynamic_tiering() ==
-      DynamicTiering::kEnabled;
+      Impl(native_module->compilation_state())->dynamic_tiering();
   bool tier_up_enabled = !dynamic_tiering && FLAG_wasm_tier_up;
   if (module->origin != kWasmOrigin || !tier_up_enabled ||
       V8_UNLIKELY(FLAG_wasm_tier_up_filter >= 0 &&
@@ -1930,9 +1929,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 
   // Create a new {NativeModule} first.
   const bool include_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
-  DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
-                                       ? DynamicTiering::kEnabled
-                                       : DynamicTiering::kDisabled;
+  DynamicTiering dynamic_tiering{isolate->IsWasmDynamicTieringEnabled()};
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           module.get(), include_liftoff, dynamic_tiering);
@@ -2006,9 +2003,7 @@ AsyncCompileJob::AsyncCompileJob(
     : isolate_(isolate),
       api_method_name_(api_method_name),
       enabled_features_(enabled),
-      dynamic_tiering_(isolate_->IsWasmDynamicTieringEnabled()
-                           ? DynamicTiering::kEnabled
-                           : DynamicTiering::kDisabled),
+      dynamic_tiering_(DynamicTiering{isolate_->IsWasmDynamicTieringEnabled()}),
       wasm_lazy_compilation_(FLAG_wasm_lazy_compilation),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes_copy)),
@@ -3610,16 +3605,14 @@ void CompilationStateImpl::TriggerCallbacks(
     triggered_events.Add(CompilationEvent::kFinishedExportWrappers);
     if (outstanding_baseline_units_ == 0) {
       triggered_events.Add(CompilationEvent::kFinishedBaselineCompilation);
-      if (dynamic_tiering_ == DynamicTiering::kDisabled &&
-          outstanding_top_tier_functions_ == 0) {
+      if (!dynamic_tiering_ && outstanding_top_tier_functions_ == 0) {
         triggered_events.Add(CompilationEvent::kFinishedTopTierCompilation);
       }
     }
   }
 
-  if (dynamic_tiering_ == DynamicTiering::kEnabled &&
-      static_cast<size_t>(FLAG_wasm_caching_threshold) <
-          bytes_since_last_chunk_) {
+  if (dynamic_tiering_ && static_cast<size_t>(FLAG_wasm_caching_threshold) <
+                              bytes_since_last_chunk_) {
     triggered_events.Add(CompilationEvent::kFinishedCompilationChunk);
     bytes_since_last_chunk_ = 0;
   }

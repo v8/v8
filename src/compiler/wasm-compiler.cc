@@ -7999,7 +7999,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
   wasm::CompilationEnv env(
       nullptr, wasm::kNoBoundsChecks,
       wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport,
-      wasm::WasmFeatures::All(), wasm::DynamicTiering::kDisabled);
+      wasm::WasmFeatures::All(), wasm::kNoDynamicTiering);
 
   WasmGraphBuilder builder(&env, mcgraph->zone(), mcgraph, sig,
                            source_positions);

@@ -790,8 +790,7 @@ class LiftoffCompiler {
   }
 
   bool dynamic_tiering() {
-    return env_->dynamic_tiering == DynamicTiering::kEnabled &&
-           for_debugging_ == kNoDebugging &&
+    return env_->dynamic_tiering && for_debugging_ == kNoDebugging &&
            (FLAG_wasm_tier_up_filter == -1 ||
             FLAG_wasm_tier_up_filter == func_index_);
   }
