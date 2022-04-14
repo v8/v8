@@ -764,26 +764,22 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   switch (type.value()) {
     case LoadType::kI32Load8U:
     case LoadType::kI64Load8U:
-      fence(PSR | PSW, PSR | PSW);
       lbu(dst.gp(), src_reg, 0);
-      fence(PSR, PSR | PSW);
+      sync();
       return;
     case LoadType::kI32Load16U:
     case LoadType::kI64Load16U:
-      fence(PSR | PSW, PSR | PSW);
       lhu(dst.gp(), src_reg, 0);
-      fence(PSR, PSR | PSW);
+      sync();
       return;
     case LoadType::kI32Load:
     case LoadType::kI64Load32U:
-      fence(PSR | PSW, PSR | PSW);
       lw(dst.gp(), src_reg, 0);
-      fence(PSR, PSR | PSW);
+      sync();
       return;
     case LoadType::kI64Load:
-      fence(PSR | PSW, PSR | PSW);
       ld(dst.gp(), src_reg, 0);
-      fence(PSR, PSR | PSW);
+      sync();
       return;
     default:
       UNREACHABLE();
@@ -799,21 +795,21 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8:
-      fence(PSR | PSW, PSW);
+      sync();
       sb(src.gp(), dst_reg, 0);
       return;
     case StoreType::kI64Store16:
     case StoreType::kI32Store16:
-      fence(PSR | PSW, PSW);
+      sync();
       sh(src.gp(), dst_reg, 0);
       return;
     case StoreType::kI64Store32:
     case StoreType::kI32Store:
-      fence(PSR | PSW, PSW);
+      sync();
       sw(src.gp(), dst_reg, 0);
       return;
     case StoreType::kI64Store:
-      fence(PSR | PSW, PSW);
+      sync();
       sd(src.gp(), dst_reg, 0);
       return;
     default:
@@ -875,7 +871,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     BranchShort(&exit, ne, expected.gp(), Operand(result.gp()));    \
     mv(temp2, new_value.gp());                                      \
     store_conditional(temp2, MemOperand(temp0, 0));                 \
-    BranchShort(&compareExchange, eq, temp2, Operand(zero_reg));    \
+    BranchShort(&compareExchange, ne, temp2, Operand(zero_reg));    \
     bind(&exit);                                                    \
     sync();                                                         \
   } while (0)
@@ -896,7 +892,7 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     BranchShort(&exit, ne, temp2, Operand(result.gp()));         \
     InsertBits(temp2, new_value.gp(), temp1, size);              \
     store_conditional(temp2, MemOperand(temp0, 0));              \
-    BranchShort(&compareExchange, eq, temp2, Operand(zero_reg)); \
+    BranchShort(&compareExchange, ne, temp2, Operand(zero_reg)); \
     bind(&exit);                                                 \
     sync();                                                      \
   } while (0)
