@@ -255,7 +255,39 @@ enum class OsrSourceTier {
   kBaseline,
 };
 
-void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source) {
+void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
+                        Register current_loop_depth,
+                        Register encoded_current_bytecode_offset,
+                        Register osr_urgency_and_install_target) {
+  static constexpr Register scratch = r5;
+  DCHECK(!AreAliased(scratch, current_loop_depth,
+                     encoded_current_bytecode_offset,
+                     osr_urgency_and_install_target));
+  // OSR based on urgency, i.e. is the OSR urgency greater than the current
+  // loop depth?
+  Label try_osr;
+  STATIC_ASSERT(BytecodeArray::OsrUrgencyBits::kShift == 0);
+  Register urgency = scratch;
+  __ AndP(urgency, osr_urgency_and_install_target,
+          Operand(BytecodeArray::OsrUrgencyBits::kMask));
+  __ CmpU64(urgency, current_loop_depth);
+  __ bgt(&try_osr);
+
+  // OSR based on the install target offset, i.e. does the current bytecode
+  // offset match the install target offset?
+  static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
+  Register install_target = osr_urgency_and_install_target;
+  __ AndP(install_target, osr_urgency_and_install_target, Operand(kMask));
+  __ CmpU64(install_target, encoded_current_bytecode_offset);
+  __ beq(&try_osr);
+
+  // Neither urgency nor the install target triggered, return to the caller.
+  // Note: the return value must be nullptr or a valid Code object.
+  __ mov(r2, Operand(0));
+  __ Ret(0);
+
+  __ bind(&try_osr);
+
   ASM_CODE_COMMENT(masm);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -3837,14 +3869,25 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  OnStackReplacement(masm, OsrSourceTier::kInterpreter);
+  using D = InterpreterOnStackReplacementDescriptor;
+  STATIC_ASSERT(D::kParameterCount == 3);
+  OnStackReplacement(masm, OsrSourceTier::kInterpreter,
+                     D::CurrentLoopDepthRegister(),
+                     D::EncodedCurrentBytecodeOffsetRegister(),
+                     D::OsrUrgencyAndInstallTargetRegister());
 }
 
 #if ENABLE_SPARKPLUG
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  using D = BaselineOnStackReplacementDescriptor;
+  STATIC_ASSERT(D::kParameterCount == 3);
+
   __ LoadU64(kContextRegister,
          MemOperand(fp, BaselineFrameConstants::kContextOffset));
-  OnStackReplacement(masm, OsrSourceTier::kBaseline);
+  OnStackReplacement(masm, OsrSourceTier::kBaseline,
+                     D::CurrentLoopDepthRegister(),
+                     D::EncodedCurrentBytecodeOffsetRegister(),
+                     D::OsrUrgencyAndInstallTargetRegister());
 }
 #endif
 
