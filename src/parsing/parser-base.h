@@ -1948,6 +1948,11 @@ ParserBase<Impl>::ParsePrimaryExpression() {
 
     case Token::THIS: {
       Consume(Token::THIS);
+      // Not necessary for this.x, this.x(), this?.x and this?.x() to
+      // store the source position for ThisExpression.
+      if (peek() == Token::PERIOD || peek() == Token::QUESTION_PERIOD) {
+        return impl()->ThisExpression();
+      }
       return impl()->NewThisExpression(beg_pos);
     }
 
