@@ -243,7 +243,8 @@ def _Write(filename, content):
     f.write(content)
 
 def _Notify(summary, body):
-  if _Which('notify-send') is not None:
+  if (_Which('notify-send') is not None and
+      os.environ.get("DISPLAY") is not None):
     _Call("notify-send '{}' '{}'".format(summary, body), silent=True)
   else:
     print("{} - {}".format(summary, body))
