@@ -26,7 +26,8 @@ namespace maglev {
 class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
-                              MaglevCompilationUnit* compilation_unit);
+                              MaglevCompilationUnit* compilation_unit,
+                              Graph* graph);
 
   void Build() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
@@ -529,6 +530,7 @@ class MaglevGraphBuilder {
 
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
+  Graph* const graph_;
   interpreter::BytecodeArrayIterator iterator_;
   uint32_t* predecessors_;
 
@@ -540,7 +542,6 @@ class MaglevGraphBuilder {
   BasicBlockRef* jump_targets_;
   MergePointInterpreterFrameState** merge_states_;
 
-  Graph* const graph_;
   InterpreterFrameState current_interpreter_frame_;
 
   // Allow marking some bytecodes as unsupported during graph building, so that

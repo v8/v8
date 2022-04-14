@@ -141,27 +141,26 @@ class UseMarkingProcessor {
 // static
 void MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationUnit* toplevel_compilation_unit) {
-  MaglevCompiler compiler(local_isolate, toplevel_compilation_unit);
-  compiler.Compile();
-}
-
-void MaglevCompiler::Compile() {
-  compiler::UnparkedScopeIfNeeded unparked_scope(broker());
+  compiler::UnparkedScopeIfNeeded unparked_scope(
+      toplevel_compilation_unit->broker());
 
   // Build graph.
   if (FLAG_print_maglev_code || FLAG_code_comments || FLAG_print_maglev_graph ||
       FLAG_trace_maglev_regalloc) {
-    toplevel_compilation_unit_->info()->set_graph_labeller(
+    toplevel_compilation_unit->info()->set_graph_labeller(
         new MaglevGraphLabeller());
   }
 
   // TODO(v8:7700): Support exceptions in maglev. We currently bail if exception
   // handler table is non-empty.
-  if (toplevel_compilation_unit_->bytecode().handler_table_size() > 0) {
+  if (toplevel_compilation_unit->bytecode().handler_table_size() > 0) {
     return;
   }
 
-  MaglevGraphBuilder graph_builder(local_isolate(), toplevel_compilation_unit_);
+  Graph* graph = Graph::New(toplevel_compilation_unit->zone());
+
+  MaglevGraphBuilder graph_builder(local_isolate, toplevel_compilation_unit,
+                                   graph);
 
   graph_builder.Build();
 
@@ -172,12 +171,12 @@ void MaglevCompiler::Compile() {
 
   if (FLAG_print_maglev_graph) {
     std::cout << "After graph buiding" << std::endl;
-    PrintGraph(std::cout, toplevel_compilation_unit_, graph_builder.graph());
+    PrintGraph(std::cout, toplevel_compilation_unit, graph_builder.graph());
   }
 
 #ifdef DEBUG
   {
-    GraphProcessor<MaglevGraphVerifier> verifier(toplevel_compilation_unit_);
+    GraphProcessor<MaglevGraphVerifier> verifier(toplevel_compilation_unit);
     verifier.ProcessGraph(graph_builder.graph());
   }
 #endif
@@ -185,25 +184,25 @@ void MaglevCompiler::Compile() {
   {
     GraphMultiProcessor<NumberingProcessor, UseMarkingProcessor,
                         MaglevVregAllocator>
-        processor(toplevel_compilation_unit_);
+        processor(toplevel_compilation_unit);
     processor.ProcessGraph(graph_builder.graph());
   }
 
   if (FLAG_print_maglev_graph) {
     std::cout << "After node processor" << std::endl;
-    PrintGraph(std::cout, toplevel_compilation_unit_, graph_builder.graph());
+    PrintGraph(std::cout, toplevel_compilation_unit, graph_builder.graph());
   }
 
-  StraightForwardRegisterAllocator allocator(toplevel_compilation_unit_,
+  StraightForwardRegisterAllocator allocator(toplevel_compilation_unit,
                                              graph_builder.graph());
 
   if (FLAG_print_maglev_graph) {
     std::cout << "After register allocation" << std::endl;
-    PrintGraph(std::cout, toplevel_compilation_unit_, graph_builder.graph());
+    PrintGraph(std::cout, toplevel_compilation_unit, graph_builder.graph());
   }
 
   // Stash the compiled graph on the compilation info.
-  toplevel_compilation_unit_->info()->set_graph(graph_builder.graph());
+  toplevel_compilation_unit->info()->set_graph(graph_builder.graph());
 }
 
 // static

@@ -34,16 +34,17 @@ int LoadSimpleFieldHandler(FieldIndex field_index) {
 }  // namespace
 
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
-                                       MaglevCompilationUnit* compilation_unit)
+                                       MaglevCompilationUnit* compilation_unit,
+                                       Graph* graph)
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
+      graph_(graph),
       iterator_(bytecode().object()),
       jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length())),
       // Overallocate merge_states_ by one to allow always looking up the
       // next offset.
       merge_states_(zone()->NewArray<MergePointInterpreterFrameState*>(
           bytecode().length() + 1)),
-      graph_(Graph::New(zone())),
       current_interpreter_frame_(*compilation_unit_) {
   memset(merge_states_, 0,
          bytecode().length() * sizeof(InterpreterFrameState*));
