@@ -404,8 +404,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
           sweeping_mode, &old_to_new_cleanup);
     }
     Map map = object.map(cage_base, kAcquireLoad);
-    // Map might be forwarded during GC.
-    DCHECK(MarkCompactCollector::IsMapOrForwardedMap(map));
+    DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
     int size = object.SizeFromMap(map);
     live_bytes += size;
     free_start = free_end + size;

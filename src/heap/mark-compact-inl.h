@@ -197,7 +197,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         HeapObject black_object = HeapObject::FromAddress(addr);
         map = black_object.map(cage_base, kAcquireLoad);
         // Map might be forwarded during GC.
-        DCHECK(MarkCompactCollector::IsMapOrForwardedMap(map));
+        DCHECK(MarkCompactCollector::IsMapOrForwarded(map));
         size = black_object.SizeFromMap(map);
         CHECK_LE(addr + size, chunk_->area_end());
         Address end = addr + size - kTaggedSize;

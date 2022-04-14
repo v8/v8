@@ -517,11 +517,12 @@ void MarkCompactCollector::TearDown() {
 }
 
 // static
-bool MarkCompactCollector::IsMapOrForwardedMap(Map map) {
+bool MarkCompactCollector::IsMapOrForwarded(Map map) {
   MapWord map_word = map.map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
-    return map_word.ToForwardingAddress().IsMap();
+    // During GC we can't access forwarded maps without synchronization.
+    return true;
   } else {
     return map_word.ToMap().IsMap();
   }
@@ -3231,7 +3232,7 @@ static inline SlotCallbackResult UpdateSlot(PtrComprCageBase cage_base,
     DCHECK(!Heap::InFromPage(target));
     DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
   } else {
-    DCHECK(MarkCompactCollector::IsMapOrForwardedMap(map_word.ToMap()));
+    DCHECK(MarkCompactCollector::IsMapOrForwarded(map_word.ToMap()));
   }
   return REMOVE_SLOT;
 }
