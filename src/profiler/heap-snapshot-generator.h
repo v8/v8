@@ -118,7 +118,8 @@ class HeapEntry {
     kConsString = v8::HeapGraphNode::kConsString,
     kSlicedString = v8::HeapGraphNode::kSlicedString,
     kSymbol = v8::HeapGraphNode::kSymbol,
-    kBigInt = v8::HeapGraphNode::kBigInt
+    kBigInt = v8::HeapGraphNode::kBigInt,
+    kObjectShape = v8::HeapGraphNode::kObjectShape,
   };
 
   HeapEntry(HeapSnapshot* snapshot, int index, Type type, const char* name,
@@ -431,6 +432,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractFeedbackCellReferences(HeapEntry* entry,
                                      FeedbackCell feedback_cell);
   void ExtractPropertyCellReferences(HeapEntry* entry, PropertyCell cell);
+  void ExtractPrototypeInfoReferences(HeapEntry* entry, PrototypeInfo info);
   void ExtractAllocationSiteReferences(HeapEntry* entry, AllocationSite site);
   void ExtractArrayBoilerplateDescriptionReferences(
       HeapEntry* entry, ArrayBoilerplateDescription value);
@@ -448,6 +450,9 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                        FeedbackVector feedback_vector);
   void ExtractDescriptorArrayReferences(HeapEntry* entry,
                                         DescriptorArray array);
+  void ExtractEnumCacheReferences(HeapEntry* entry, EnumCache cache);
+  void ExtractTransitionArrayReferences(HeapEntry* entry,
+                                        TransitionArray transitions);
   template <typename T>
   void ExtractWeakArrayReferences(int header_size, HeapEntry* entry, T array);
   void ExtractPropertyReferences(JSObject js_obj, HeapEntry* entry);

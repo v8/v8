@@ -542,7 +542,9 @@ class V8_EXPORT HeapGraphNode {
     kConsString = 10,    // Concatenated string. A pair of pointers to strings.
     kSlicedString = 11,  // Sliced string. A fragment of another string.
     kSymbol = 12,        // A Symbol (ES6).
-    kBigInt = 13         // BigInt.
+    kBigInt = 13,        // BigInt.
+    kObjectShape = 14,   // Internal data used for tracking the shapes (or
+                         // "hidden classes") of JS objects.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
