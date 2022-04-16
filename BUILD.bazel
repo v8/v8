@@ -2395,6 +2395,10 @@ filegroup(
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
+        "@v8//bazel/config:is_macos_arm64": [
+            "src/trap-handler/handler-inside-posix.cc",
+            "src/trap-handler/handler-outside-posix.cc",
+        ],
         "//conditions:default": [],
     }) + select({
         "@v8//bazel/config:v8_arm64_simulator": [
