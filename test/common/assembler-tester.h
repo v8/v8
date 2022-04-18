@@ -9,6 +9,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/code-desc.h"
+#include "src/common/code-memory-access-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +28,7 @@ class TestingAssemblerBuffer : public AssemblerBuffer {
     MakeWritable();
   }
 
-  ~TestingAssemblerBuffer() { reservation_.Free(); }
+  ~TestingAssemblerBuffer() override { reservation_.Free(); }
 
   byte* start() const override {
     return reinterpret_cast<byte*>(reservation_.address());
@@ -62,7 +63,6 @@ class TestingAssemblerBuffer : public AssemblerBuffer {
     CHECK(result);
   }
 
-  // TODO(wasm): Only needed for the "test-jump-table-assembler.cc" tests.
   void MakeWritableAndExecutable() {
     bool result = SetPermissions(GetPlatformPageAllocator(), start(), size(),
                                  v8::PageAllocator::kReadWriteExecute);
@@ -71,6 +71,31 @@ class TestingAssemblerBuffer : public AssemblerBuffer {
 
  private:
   VirtualMemory reservation_;
+};
+
+// This scope class is mostly necesasry for arm64 tests running on Apple Silicon
+// (M1) which prohibits reconfiguration of page permissions for RWX pages.
+// Instead of altering the page permissions one must flip the X-W state by
+// calling pthread_jit_write_protect_np() function.
+// See RwxMemoryWriteScope for details.
+class V8_NODISCARD AssemblerBufferWriteScope final {
+ public:
+  explicit AssemblerBufferWriteScope(TestingAssemblerBuffer& buffer)
+      : buffer_(buffer) {
+    buffer_.MakeWritable();
+  }
+
+  ~AssemblerBufferWriteScope() { buffer_.MakeExecutable(); }
+
+  // Disable copy constructor and copy-assignment operator, since this manages
+  // a resource and implicit copying of the scope can yield surprising errors.
+  AssemblerBufferWriteScope(const AssemblerBufferWriteScope&) = delete;
+  AssemblerBufferWriteScope& operator=(const AssemblerBufferWriteScope&) =
+      delete;
+
+ private:
+  RwxMemoryWriteScopeForTesting rwx_write_scope_;
+  TestingAssemblerBuffer& buffer_;
 };
 
 static inline std::unique_ptr<TestingAssemblerBuffer> AllocateAssemblerBuffer(

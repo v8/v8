@@ -4,6 +4,7 @@
 
 #include "src/wasm/code-space-access.h"
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 
@@ -36,20 +37,13 @@ CodeSpaceWriteScope::~CodeSpaceWriteScope() {
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
-// Ignoring this warning is considered better than relying on
-// __builtin_available.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunguarded-availability-new"
 // static
-void CodeSpaceWriteScope::SetWritable() {
-  pthread_jit_write_protect_np(0);
-}
+void CodeSpaceWriteScope::SetWritable() { RwxMemoryWriteScope::SetWritable(); }
 
 // static
 void CodeSpaceWriteScope::SetExecutable() {
-  pthread_jit_write_protect_np(1);
+  RwxMemoryWriteScope::SetExecutable();
 }
-#pragma clang diagnostic pop
 
 // static
 bool CodeSpaceWriteScope::SwitchingPerNativeModule() { return false; }
