@@ -38,6 +38,7 @@ EXTRA_FLAGS = [
     (0.1, '--no-liftoff'),
     (0.1, '--no-opt'),
     (0.2, '--no-regexp-tier-up'),
+    (0.25, '--no-use-map-space'),
     (0.1, '--no-wasm-tier-up'),
     (0.1, '--regexp-interpret-all'),
     (0.1, '--regexp-tier-up-ticks=10'),
