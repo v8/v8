@@ -321,30 +321,53 @@ class LinuxPerfBasicLogger : public CodeEventLogger {
   static const char kFilenameFormatString[];
   static const int kFilenameBufferPadding;
 
-  FILE* perf_output_handle_;
+  // Per-process singleton file. We assume that there is one main isolate
+  // to determine when it goes away, we keep the reference count.
+  static base::LazyRecursiveMutex file_mutex_;
+  static FILE* perf_output_handle_;
+  static uint64_t reference_count_;
 };
 
 const char LinuxPerfBasicLogger::kFilenameFormatString[] = "/tmp/perf-%d.map";
 // Extra space for the PID in the filename
 const int LinuxPerfBasicLogger::kFilenameBufferPadding = 16;
 
+base::LazyRecursiveMutex LinuxPerfBasicLogger::file_mutex_;
+// The following static variables are protected by
+// LinuxPerfBasicLogger::file_mutex_.
+uint64_t LinuxPerfBasicLogger::reference_count_ = 0;
+FILE* LinuxPerfBasicLogger::perf_output_handle_ = nullptr;
+
 LinuxPerfBasicLogger::LinuxPerfBasicLogger(Isolate* isolate)
-    : CodeEventLogger(isolate), perf_output_handle_(nullptr) {
-  // Open the perf JIT dump file.
-  int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
-  base::ScopedVector<char> perf_dump_name(bufferSize);
-  int size = SNPrintF(perf_dump_name, kFilenameFormatString,
-                      base::OS::GetCurrentProcessId());
-  CHECK_NE(size, -1);
-  perf_output_handle_ =
-      base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
-  CHECK_NOT_NULL(perf_output_handle_);
-  setvbuf(perf_output_handle_, nullptr, _IOLBF, 0);
+    : CodeEventLogger(isolate) {
+  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+  int process_id_ = base::OS::GetCurrentProcessId();
+  reference_count_++;
+  // If this is the first logger, open the file.
+  if (reference_count_ == 1) {
+    CHECK_NULL(perf_output_handle_);
+    // Open the perf JIT dump file.
+    int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
+    base::ScopedVector<char> perf_dump_name(bufferSize);
+    int size = SNPrintF(perf_dump_name, kFilenameFormatString, process_id_);
+    CHECK_NE(size, -1);
+    perf_output_handle_ =
+        base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
+    CHECK_NOT_NULL(perf_output_handle_);
+    setvbuf(perf_output_handle_, nullptr, _IOLBF, 0);
+  }
 }
 
 LinuxPerfBasicLogger::~LinuxPerfBasicLogger() {
-  base::Fclose(perf_output_handle_);
-  perf_output_handle_ = nullptr;
+  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+  reference_count_--;
+
+  // If this was the last logger, close the file.
+  if (reference_count_ == 0) {
+    CHECK_NOT_NULL(perf_output_handle_);
+    base::Fclose(perf_output_handle_);
+    perf_output_handle_ = nullptr;
+  }
 }
 
 void LinuxPerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address, int size,
