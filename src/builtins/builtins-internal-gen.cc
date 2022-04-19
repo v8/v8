@@ -23,13 +23,6 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// Stack checks.
-
-void Builtins::Generate_StackCheck(MacroAssembler* masm) {
-  masm->TailCallRuntime(Runtime::kStackGuard);
-}
-
-// -----------------------------------------------------------------------------
 // TurboFan support builtins.
 
 TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {

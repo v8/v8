@@ -28,9 +28,6 @@ namespace internal {
 // ASM: Builtin in platform-dependent assembly.
 //      Args: name, interface descriptor
 
-// TODO(jgruber): Remove DummyDescriptor once all ASM builtins have been
-// properly associated with their descriptor.
-
 // Builtins are additionally split into tiers, where the tier determines the
 // distance of the builtins table from the root register within IsolateData.
 //
@@ -146,16 +143,16 @@ namespace internal {
   ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)                \
   TFC(Construct_Baseline, Construct_Baseline)                                  \
   TFC(Construct_WithFeedback, Construct_WithFeedback)                          \
-  ASM(JSConstructStubGeneric, Dummy)                                           \
-  ASM(JSBuiltinsConstructStub, Dummy)                                          \
+  ASM(JSConstructStubGeneric, ConstructStub)                                   \
+  ASM(JSBuiltinsConstructStub, ConstructStub)                                  \
   TFC(FastNewObject, FastNewObject)                                            \
   TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \
   /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
   TFC(ConstructProxy, JSTrampoline)                                            \
                                                                                \
   /* Apply and entries */                                                      \
-  ASM(JSEntry, Dummy)                                                          \
-  ASM(JSConstructEntry, Dummy)                                                 \
+  ASM(JSEntry, JSEntry)                                                        \
+  ASM(JSConstructEntry, JSEntry)                                               \
   ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                                \
   /* Call a JSValue. */                                                        \
   ASM(JSEntryTrampoline, JSTrampoline)                                         \
@@ -187,8 +184,8 @@ namespace internal {
       InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterPushArgsThenConstructWithFinalSpread,                         \
       InterpreterPushArgsThenConstruct)                                        \
-  ASM(InterpreterEnterAtBytecode, Dummy)                                       \
-  ASM(InterpreterEnterAtNextBytecode, Dummy)                                   \
+  ASM(InterpreterEnterAtBytecode, Void)                                        \
+  ASM(InterpreterEnterAtNextBytecode, Void)                                    \
   ASM(InterpreterOnStackReplacement, InterpreterOnStackReplacement)            \
                                                                                \
   /* Baseline Compiler */                                                      \
@@ -203,7 +200,7 @@ namespace internal {
   TFC(CompileLazy, JSTrampoline)                                               \
   TFC(CompileLazyDeoptimizedCode, JSTrampoline)                                \
   TFC(InstantiateAsmJs, JSTrampoline)                                          \
-  ASM(NotifyDeoptimized, Dummy)                                                \
+  ASM(NotifyDeoptimized, Void)                                                 \
                                                                                \
   /* Trampolines called when returning from a deoptimization that expects   */ \
   /* to continue in a JavaScript builtin to finish the functionality of a   */ \
@@ -225,10 +222,10 @@ namespace internal {
   /* stack parameter to the JavaScript builtin by the "WithResult"          */ \
   /* trampoline variant. The plain variant is used in EAGER deopt contexts  */ \
   /* and has no such special handling. */                                      \
-  ASM(ContinueToCodeStubBuiltin, Dummy)                                        \
-  ASM(ContinueToCodeStubBuiltinWithResult, Dummy)                              \
-  ASM(ContinueToJavaScriptBuiltin, Dummy)                                      \
-  ASM(ContinueToJavaScriptBuiltinWithResult, Dummy)                            \
+  ASM(ContinueToCodeStubBuiltin, ContinueToBuiltin)                            \
+  ASM(ContinueToCodeStubBuiltinWithResult, ContinueToBuiltin)                  \
+  ASM(ContinueToJavaScriptBuiltin, ContinueToBuiltin)                          \
+  ASM(ContinueToJavaScriptBuiltinWithResult, ContinueToBuiltin)                \
                                                                                \
   /* API callback handling */                                                  \
   ASM(CallApiCallback, ApiCallback)                                            \
@@ -952,13 +949,13 @@ namespace internal {
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
                                                                                \
   /* Wasm */                                                                   \
-  IF_WASM(ASM, GenericJSToWasmWrapper, Dummy)                                  \
-  IF_WASM(ASM, WasmReturnPromiseOnSuspend, Dummy)                              \
+  IF_WASM(ASM, GenericJSToWasmWrapper, WasmDummy)                              \
+  IF_WASM(ASM, WasmReturnPromiseOnSuspend, WasmDummy)                          \
   IF_WASM(ASM, WasmSuspend, WasmSuspend)                                       \
-  IF_WASM(ASM, WasmResume, Dummy)                                              \
-  IF_WASM(ASM, WasmCompileLazy, Dummy)                                         \
-  IF_WASM(ASM, WasmDebugBreak, Dummy)                                          \
-  IF_WASM(ASM, WasmOnStackReplace, Dummy)                                      \
+  IF_WASM(ASM, WasmResume, WasmDummy)                                          \
+  IF_WASM(ASM, WasmCompileLazy, WasmDummy)                                     \
+  IF_WASM(ASM, WasmDebugBreak, WasmDummy)                                      \
+  IF_WASM(ASM, WasmOnStackReplace, WasmDummy)                                  \
   IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \
   IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToNumber)                       \
   IF_WASM(TFC, WasmI32AtomicWait32, WasmI32AtomicWait32)                       \
@@ -1039,25 +1036,25 @@ namespace internal {
   TFJ(AsyncIteratorValueUnwrap, kJSArgcReceiverSlots + 1, kReceiver, kValue)   \
                                                                                \
   /* CEntry */                                                                 \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)          \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)            \
-  ASM(CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, Dummy)       \
-  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)              \
-  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)                \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)          \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)            \
-  ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, Dummy)       \
-  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit, Dummy)              \
-  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit, Dummy)                \
-  ASM(DirectCEntry, Dummy)                                                     \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)    \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit,                   \
+      CEntry1ArgvOnStack)                                                      \
+  ASM(CEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, CEntryDummy) \
+  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)        \
+  ASM(CEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)          \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)    \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)      \
+  ASM(CEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit, CEntryDummy) \
+  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit, CEntryDummy)        \
+  ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit, CEntryDummy)          \
+  ASM(DirectCEntry, CEntryDummy)                                               \
                                                                                \
   /* String helpers */                                                         \
   TFS(StringAdd_CheckNone, kLeft, kRight)                                      \
   TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \
-  ASM(StackCheck, Dummy)                                                       \
-  ASM(DoubleToI, Dummy)                                                        \
+  ASM(DoubleToI, Void)                                                         \
   TFC(GetProperty, GetProperty)                                                \
   TFS(GetPropertyWithReceiver, kObject, kKey, kReceiver, kOnNonExistent)       \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \

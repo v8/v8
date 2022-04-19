@@ -677,11 +677,8 @@ class V8_EXPORT_PRIVATE VoidDescriptor
   static constexpr auto registers();
 };
 
-// Dummy descriptor used to mark builtins that don't yet have their proper
-// descriptor associated.
-using DummyDescriptor = VoidDescriptor;
-
 // Dummy descriptor that marks builtins with C calling convention.
+// TODO(jgruber): Define real descriptors for C calling conventions.
 using CCallDescriptor = VoidDescriptor;
 
 // Marks deoptimization entry builtins. Precise calling conventions currently
@@ -689,6 +686,22 @@ using CCallDescriptor = VoidDescriptor;
 // TODO(jgruber): Once this is unified, we could create a better description
 // here.
 using DeoptimizationEntryDescriptor = VoidDescriptor;
+
+// TODO(jgruber): Consider filling in the details here; however, this doesn't
+// make too much sense as long as the descriptor isn't used or verified.
+using JSEntryDescriptor = VoidDescriptor;
+
+// TODO(jgruber): Consider filling in the details here; however, this doesn't
+// make too much sense as long as the descriptor isn't used or verified.
+using CEntryDummyDescriptor = VoidDescriptor;
+
+// TODO(jgruber): Consider filling in the details here; however, this doesn't
+// make too much sense as long as the descriptor isn't used or verified.
+using ContinueToBuiltinDescriptor = VoidDescriptor;
+
+// TODO(wasm): Consider filling in details / defining real descriptors for all
+// builtins still using this placeholder descriptor.
+using WasmDummyDescriptor = VoidDescriptor;
 
 class AllocateDescriptor
     : public StaticCallInterfaceDescriptor<AllocateDescriptor> {
@@ -1429,9 +1442,8 @@ class ConstructWithArrayLike_WithFeedbackDescriptor
 class ConstructStubDescriptor
     : public StaticCallInterfaceDescriptor<ConstructStubDescriptor> {
  public:
-  // TODO(jgruber): Remove the unused allocation site parameter.
-  DEFINE_JS_PARAMETERS(kAllocationSite)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
+  DEFINE_JS_PARAMETERS()
+  DEFINE_JS_PARAMETER_TYPES()
 
   // TODO(ishell): Use DECLARE_JS_COMPATIBLE_DESCRIPTOR if registers match
   DECLARE_DESCRIPTOR(ConstructStubDescriptor)

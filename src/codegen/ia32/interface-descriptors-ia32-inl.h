@@ -226,9 +226,7 @@ constexpr auto ConstructStubDescriptor::registers() {
   // eax : number of arguments
   // edx : the new target
   // edi : the target to call
-  // ecx : allocation site or undefined
-  // TODO(jgruber): Remove the unused allocation site parameter.
-  return RegisterArray(edi, edx, eax, ecx);
+  return RegisterArray(edi, edx, eax);
 }
 
 // static
