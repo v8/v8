@@ -287,6 +287,28 @@ class V8_EXPORT_PRIVATE Operand {
 
   Data data_;
 };
+
+class V8_EXPORT_PRIVATE Operand256 : public Operand {
+ public:
+  // [base + disp/r]
+  V8_INLINE Operand256(Register base, int32_t disp) : Operand(base, disp) {}
+
+  // [base + index*scale + disp/r]
+  V8_INLINE Operand256(Register base, Register index, ScaleFactor scale,
+                       int32_t disp)
+      : Operand(base, index, scale, disp) {}
+
+  // [index*scale + disp/r]
+  V8_INLINE Operand256(Register index, ScaleFactor scale, int32_t disp)
+      : Operand(index, scale, disp) {}
+
+  Operand256(const Operand256&) V8_NOEXCEPT = default;
+  Operand256& operator=(const Operand256&) V8_NOEXCEPT = default;
+
+ private:
+  friend class Operand;
+};
+
 ASSERT_TRIVIALLY_COPYABLE(Operand);
 static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
               "Operand must be small enough to pass it by value");
@@ -1045,6 +1067,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE2_UNOP_AVX_INSTRUCTION)
 #undef DECLARE_SSE2_UNOP_AVX_INSTRUCTION
+
+#define DECLARE_SSE2_UNOP_AVX_YMM_INSTRUCTION(                 \
+    instruction, opcode, DSTRegister, SRCRegister, MemOperand) \
+  void v##instruction(DSTRegister dst, SRCRegister src) {      \
+    vpd(0x##opcode, dst, ymm0, src);                           \
+  }                                                            \
+  void v##instruction(DSTRegister dst, MemOperand src) {       \
+    vpd(0x##opcode, dst, ymm0, src);                           \
+  }
+  DECLARE_SSE2_UNOP_AVX_YMM_INSTRUCTION(sqrtpd, 51, YMMRegister, YMMRegister,
+                                        Operand)
+  DECLARE_SSE2_UNOP_AVX_YMM_INSTRUCTION(cvtpd2ps, 5A, XMMRegister, YMMRegister,
+                                        Operand256)
+  DECLARE_SSE2_UNOP_AVX_YMM_INSTRUCTION(cvtps2dq, 5B, YMMRegister, YMMRegister,
+                                        Operand)
+  DECLARE_SSE2_UNOP_AVX_YMM_INSTRUCTION(cvttpd2dq, E6, XMMRegister, YMMRegister,
+                                        Operand256)
+#undef DECLARE_SSE2_UNOP_AVX_YMM_INSTRUCTION
 
   // SSE3
   void lddqu(XMMRegister dst, Operand src);
@@ -1863,8 +1903,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
            byte imm8);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, YMMRegister dst, YMMRegister src1, YMMRegister src2);
+  void vpd(byte op, XMMRegister dst, YMMRegister src1, YMMRegister src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
   void vpd(byte op, YMMRegister dst, YMMRegister src1, Operand src2);
+  void vpd(byte op, XMMRegister dst, YMMRegister src1, Operand src2);
 
   // AVX2 instructions
 #define AVX2_INSTRUCTION(instr, prefix, escape1, escape2, opcode)           \
