@@ -1156,15 +1156,8 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
 
 void WasmInstanceObject::SetRawMemory(byte* mem_start, size_t mem_size) {
   CHECK_LE(mem_size, wasm::max_mem_bytes());
-#if V8_HOST_ARCH_64_BIT
   set_memory_start(mem_start);
   set_memory_size(mem_size);
-#else
-  // Must handle memory > 2GiB specially.
-  CHECK_LE(mem_size, size_t{kMaxUInt32});
-  set_memory_start(mem_start);
-  set_memory_size(mem_size);
-#endif
 }
 
 const WasmModule* WasmInstanceObject::module() {
