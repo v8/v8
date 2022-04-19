@@ -23,6 +23,9 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
+
+  # https://crbug.com/1303521, feature not yet implemented.
+  'debugger/restart-frame/*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -325,7 +328,10 @@
   'debugger/regression-424142': [SKIP],
   'debugger/remove-breakpoint-at-breakpoint': [SKIP],
   'debugger/resource-name-to-url': [SKIP],
-  'debugger/restart-frame': [SKIP],
+  'debugger/restart-frame/fails-without-mode-param': [SKIP],
+  'debugger/restart-frame/restart-top-frame-debugger-stmt': [SKIP],
+  'debugger/restart-frame/restart-top-frame-local-variables': [SKIP],
+  'debugger/restart-frame/restart-top-frame-with-breakpoint': [SKIP],
   'debugger/restore-breakpoint': [SKIP],
   'debugger/return-break-locations': [SKIP],
   'debugger/scope-skip-variables-with-empty-name': [SKIP],
