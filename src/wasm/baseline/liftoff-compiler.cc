@@ -491,31 +491,30 @@ class LiftoffCompiler {
                   CompilationEnv* env, Zone* compilation_zone,
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
-                  ForDebugging for_debugging, int func_index,
-                  base::Vector<const int> breakpoints = {},
-                  int dead_breakpoint = 0, int32_t* max_steps = nullptr,
-                  int32_t* nondeterminism = nullptr)
+                  const LiftoffOptions& options)
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
         debug_sidetable_builder_(debug_sidetable_builder),
-        for_debugging_(for_debugging),
-        func_index_(func_index),
+        for_debugging_(options.for_debugging),
+        func_index_(options.func_index),
         out_of_line_code_(compilation_zone),
         source_position_table_builder_(compilation_zone),
         protected_instructions_(compilation_zone),
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_),
-        next_breakpoint_ptr_(breakpoints.begin()),
-        next_breakpoint_end_(breakpoints.end()),
-        dead_breakpoint_(dead_breakpoint),
+        next_breakpoint_ptr_(options.breakpoints.begin()),
+        next_breakpoint_end_(options.breakpoints.end()),
+        dead_breakpoint_(options.dead_breakpoint),
         handlers_(compilation_zone),
-        max_steps_(max_steps),
-        nondeterminism_(nondeterminism) {
-    if (breakpoints.empty()) {
-      next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
-    }
+        max_steps_(options.max_steps),
+        nondeterminism_(options.nondeterminism) {
+    DCHECK(options.is_initialized());
+    // If there are no breakpoints, both pointers should be nullptr.
+    DCHECK_IMPLIES(
+        next_breakpoint_ptr_ == next_breakpoint_end_,
+        next_breakpoint_ptr_ == nullptr && next_breakpoint_end_ == nullptr);
   }
 
   bool did_bailout() const { return bailout_reason_ != kSuccess; }
@@ -6566,16 +6565,17 @@ constexpr base::EnumSet<ValueKind> LiftoffCompiler::kUnconditionallySupported;
 }  // namespace
 
 WasmCompilationResult ExecuteLiftoffCompilation(
-    CompilationEnv* env, const FunctionBody& func_body, int func_index,
-    ForDebugging for_debugging, const LiftoffOptions& compiler_options) {
+    CompilationEnv* env, const FunctionBody& func_body,
+    const LiftoffOptions& compiler_options) {
+  DCHECK(compiler_options.is_initialized());
   base::TimeTicks start_time;
   if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
   }
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-               "wasm.CompileBaseline", "funcIndex", func_index, "bodySize",
-               func_body_size);
+               "wasm.CompileBaseline", "funcIndex", compiler_options.func_index,
+               "bodySize", func_body_size);
 
   Zone zone(GetWasmEngine()->allocator(), "LiftoffCompilationZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
@@ -6590,7 +6590,8 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   if (compiler_options.debug_sidetable) {
     debug_sidetable_builder = std::make_unique<DebugSideTableBuilder>();
   }
-  DCHECK_IMPLIES(compiler_options.max_steps, for_debugging == kForDebugging);
+  DCHECK_IMPLIES(compiler_options.max_steps,
+                 compiler_options.for_debugging == kForDebugging);
   WasmFeatures unused_detected_features;
   WasmFullDecoder<Decoder::kBooleanValidation, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features,
@@ -6598,9 +6599,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
                                          : &unused_detected_features,
       func_body, call_descriptor, env, &zone,
       NewAssemblerBuffer(initial_buffer_size), debug_sidetable_builder.get(),
-      for_debugging, func_index, compiler_options.breakpoints,
-      compiler_options.dead_breakpoint, compiler_options.max_steps,
-      compiler_options.nondeterminism);
+      compiler_options);
   decoder.Decode();
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);
@@ -6627,9 +6626,9 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.frame_slot_count = compiler->GetTotalFrameSlotCountForGC();
   auto* lowered_call_desc = GetLoweredCallDescriptor(&zone, call_descriptor);
   result.tagged_parameter_slots = lowered_call_desc->GetTaggedParameterSlots();
-  result.func_index = func_index;
+  result.func_index = compiler_options.func_index;
   result.result_tier = ExecutionTier::kLiftoff;
-  result.for_debugging = for_debugging;
+  result.for_debugging = compiler_options.for_debugging;
   if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
@@ -6640,7 +6639,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     int codesize = result.code_desc.body_size();
     StdoutStream{} << "Compiled function "
                    << reinterpret_cast<const void*>(env->module) << "#"
-                   << func_index << " using Liftoff, took "
+                   << compiler_options.func_index << " using Liftoff, took "
                    << time.InMilliseconds() << " ms and "
                    << zone.allocation_size() << " bytes; bodysize "
                    << func_body_size << " codesize " << codesize << std::endl;
@@ -6676,8 +6675,11 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       &zone, native_module->module(), env.enabled_features, &detected,
       func_body, call_descriptor, &env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
-      &debug_sidetable_builder, code->for_debugging(), code->index(),
-      breakpoints);
+      &debug_sidetable_builder,
+      LiftoffOptions{}
+          .set_func_index(code->index())
+          .set_for_debugging(code->for_debugging())
+          .set_breakpoints(breakpoints));
   decoder.Decode();
   DCHECK(decoder.ok());
   DCHECK(!decoder.interface().did_bailout());

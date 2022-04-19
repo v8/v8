@@ -120,8 +120,10 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
           debug_sidetable_ptr = &unused_debug_sidetable;
         }
         result = ExecuteLiftoffCompilation(
-            env, func_body, func_index_, for_debugging_,
+            env, func_body,
             LiftoffOptions{}
+                .set_func_index(func_index_)
+                .set_for_debugging(for_debugging_)
                 .set_counters(counters)
                 .set_detected_features(detected)
                 .set_debug_sidetable(debug_sidetable_ptr));

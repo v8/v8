@@ -582,8 +582,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
     result.emplace(ExecuteLiftoffCompilation(
-        &env, func_body, function_->func_index, kForDebugging,
+        &env, func_body,
         LiftoffOptions{}
+            .set_func_index(function_->func_index)
+            .set_for_debugging(kForDebugging)
             .set_max_steps(builder_->max_steps_ptr())
             .set_nondeterminism(builder_->non_determinism_ptr())));
   } else {

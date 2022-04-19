@@ -54,6 +54,8 @@ enum LiftoffBailoutReason : int8_t {
 };
 
 struct LiftoffOptions {
+  int func_index = -1;
+  ForDebugging for_debugging = kNoDebugging;
   Counters* counters = nullptr;
   WasmFeatures* detected_features = nullptr;
   base::Vector<const int> breakpoints = {};
@@ -62,14 +64,18 @@ struct LiftoffOptions {
   int32_t* max_steps = nullptr;
   int32_t* nondeterminism = nullptr;
 
+  // Check that all non-optional fields have been initialized.
+  bool is_initialized() const { return func_index >= 0; }
+
   // We keep the macro as small as possible by offloading the actual DCHECK and
   // assignment to another function. This makes debugging easier.
-#define SETTER(field)                               \
-  template <typename T>                             \
-  LiftoffOptions& set_##field(T new_value) {        \
-    return Set<decltype(field)>(&field, new_value); \
+#define SETTER(field)                                               \
+  LiftoffOptions& set_##field(decltype(field) new_value) {          \
+    return Set<decltype(field)>(&LiftoffOptions::field, new_value); \
   }
 
+  SETTER(func_index)
+  SETTER(for_debugging)
   SETTER(counters)
   SETTER(detected_features)
   SETTER(breakpoints)
@@ -82,17 +88,16 @@ struct LiftoffOptions {
 
  private:
   template <typename T>
-  LiftoffOptions& Set(T* ptr, T new_value) {
-    // The field must still have its default value.
-    DCHECK_EQ(*ptr, T{});
-    *ptr = new_value;
+  LiftoffOptions& Set(T LiftoffOptions::*field_ptr, T new_value) {
+    // The field must still have its default value (set each field only once).
+    DCHECK_EQ(this->*field_ptr, LiftoffOptions{}.*field_ptr);
+    this->*field_ptr = new_value;
     return *this;
   }
 };
 
-V8_EXPORT_PRIVATE WasmCompilationResult
-ExecuteLiftoffCompilation(CompilationEnv*, const FunctionBody&, int func_index,
-                          ForDebugging, const LiftoffOptions& = {});
+V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
+    CompilationEnv*, const FunctionBody&, const LiftoffOptions&);
 
 V8_EXPORT_PRIVATE std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
     const WasmCode*);
