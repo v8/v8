@@ -64,16 +64,18 @@ class MaglevCodeGeneratingNodeProcessor {
     __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 
     // Extend rsp by the size of the frame.
-    code_gen_state_->SetVregSlots(graph->stack_slots());
-    __ subq(rsp, Immediate(code_gen_state_->vreg_slots() * kSystemPointerSize));
+    code_gen_state_->set_untagged_slots(graph->untagged_stack_slots());
+    code_gen_state_->set_tagged_slots(graph->tagged_stack_slots());
+    __ subq(rsp,
+            Immediate(code_gen_state_->stack_slots() * kSystemPointerSize));
 
     // Initialize stack slots.
     // TODO(jgruber): Update logic once the register allocator is further along.
     {
       ASM_CODE_COMMENT_STRING(masm(), "Initializing stack slots");
       __ Move(rax, Immediate(0));
-      __ Move(rcx, Immediate(code_gen_state_->vreg_slots()));
-      __ leaq(rdi, GetStackSlot(code_gen_state_->vreg_slots() - 1));
+      __ Move(rcx, Immediate(code_gen_state_->stack_slots()));
+      __ leaq(rdi, code_gen_state_->TopOfStack());
       __ repstosq();
     }
 
@@ -123,7 +125,8 @@ class MaglevCodeGeneratingNodeProcessor {
         if (!source.IsStackSlot()) {
           if (FLAG_code_comments) __ RecordComment("--   Spill:");
           DCHECK(!source.IsStackSlot());
-          __ movq(GetStackSlot(value_node->spill_slot()), ToRegister(source));
+          __ movq(code_gen_state_->GetStackSlot(value_node->spill_slot()),
+                  ToRegister(source));
         } else {
           // Otherwise, the result source stack slot should be equal to the
           // spill slot.
@@ -179,7 +182,8 @@ class MaglevCodeGeneratingNodeProcessor {
   void EmitStackToRegisterGapMove(compiler::InstructionOperand source,
                                   Register target) {
     if (!source.IsAllocated()) return;
-    __ movq(target, GetStackSlot(compiler::AllocatedOperand::cast(source)));
+    __ movq(target, code_gen_state_->GetStackSlot(
+                        compiler::AllocatedOperand::cast(source)));
   }
 
   void RecordGapMove(compiler::AllocatedOperand source, Register target_reg,
@@ -215,10 +219,10 @@ class MaglevCodeGeneratingNodeProcessor {
     // clobbered by reg->reg or stack->reg, so emit them immediately.
     if (source.IsRegister()) {
       Register source_reg = ToRegister(source);
-      __ movq(GetStackSlot(target), source_reg);
+      __ movq(code_gen_state_->GetStackSlot(target), source_reg);
     } else {
-      __ movq(kScratchRegister, GetStackSlot(source));
-      __ movq(GetStackSlot(target), kScratchRegister);
+      __ movq(kScratchRegister, code_gen_state_->GetStackSlot(source));
+      __ movq(code_gen_state_->GetStackSlot(target), kScratchRegister);
     }
   }
 
@@ -303,15 +307,6 @@ class MaglevCodeGeneratingNodeProcessor {
  private:
   MaglevCodeGenState* code_gen_state_;
 };
-
-constexpr int DeoptStackSlotIndexFromFPOffset(int offset) {
-  return 1 - offset / kSystemPointerSize;
-}
-
-int DeoptStackSlotFromStackSlot(const compiler::AllocatedOperand& operand) {
-  return DeoptStackSlotIndexFromFPOffset(
-      GetFramePointerOffsetForStackSlot(operand));
-}
 
 }  // namespace
 
@@ -465,6 +460,15 @@ class MaglevCodeGeneratorImpl final {
             DeoptStackSlotFromStackSlot(operand));
       }
     }
+  }
+
+  constexpr int DeoptStackSlotIndexFromFPOffset(int offset) {
+    return 1 - offset / kSystemPointerSize;
+  }
+
+  int DeoptStackSlotFromStackSlot(const compiler::AllocatedOperand& operand) {
+    return DeoptStackSlotIndexFromFPOffset(
+        code_gen_state_.GetFramePointerOffsetForStackSlot(operand));
   }
 
   void EmitDeoptFrameValues(
@@ -635,7 +639,7 @@ class MaglevCodeGeneratorImpl final {
     return data;
   }
 
-  int stack_slot_count() const { return code_gen_state_.vreg_slots(); }
+  int stack_slot_count() const { return code_gen_state_.stack_slots(); }
   int stack_slot_count_with_fixed_frame() const {
     return stack_slot_count() + StandardFrameConstants::kFixedSlotCount;
   }

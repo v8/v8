@@ -100,7 +100,7 @@ void PushInput(MaglevCodeGenState* code_gen_state, const Input& input) {
     __ Push(operand.GetRegister());
   } else {
     DCHECK(operand.IsStackSlot());
-    __ Push(GetStackSlot(operand));
+    __ Push(code_gen_state->GetStackSlot(operand));
   }
 }
 
@@ -628,15 +628,15 @@ void GapMove::GenerateCode(MaglevCodeGenState* code_gen_state,
     if (target().IsAnyRegister()) {
       __ movq(ToRegister(target()), source_reg);
     } else {
-      __ movq(ToMemOperand(target()), source_reg);
+      __ movq(code_gen_state->ToMemOperand(target()), source_reg);
     }
   } else {
-    MemOperand source_op = ToMemOperand(source());
+    MemOperand source_op = code_gen_state->ToMemOperand(source());
     if (target().IsAnyRegister()) {
       __ movq(ToRegister(target()), source_op);
     } else {
       __ movq(kScratchRegister, source_op);
-      __ movq(ToMemOperand(target()), kScratchRegister);
+      __ movq(code_gen_state->ToMemOperand(target()), kScratchRegister);
     }
   }
 }

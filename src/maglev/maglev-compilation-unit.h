@@ -49,14 +49,6 @@ class MaglevCompilationUnit : public ZoneObject {
 
   void RegisterNodeInGraphLabeller(const Node* node);
 
-  const ZoneVector<ValueRepresentation>& stack_value_repr() const {
-    return stack_value_repr_;
-  }
-
-  void push_stack_value_repr(ValueRepresentation r) {
-    stack_value_repr_.push_back(r);
-  }
-
  private:
   MaglevCompilationInfo* const info_;
   const compiler::SharedFunctionInfoRef shared_function_info_;
@@ -65,10 +57,6 @@ class MaglevCompilationUnit : public ZoneObject {
   const compiler::BytecodeAnalysis bytecode_analysis_;
   const int register_count_;
   const int parameter_count_;
-
-  // TODO(victorgomes): Compress these values, if only tagged/untagged, we could
-  // use a binary vector? We might also want to deal with safepoints properly.
-  ZoneVector<ValueRepresentation> stack_value_repr_;
 };
 
 }  // namespace maglev

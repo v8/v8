@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
@@ -82,7 +83,8 @@ StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
     : compilation_unit_(compilation_unit) {
   ComputePostDominatingHoles(graph);
   AllocateRegisters(graph);
-  graph->set_stack_slots(top_of_stack_);
+  graph->set_tagged_stack_slots(tagged_.top);
+  graph->set_untagged_stack_slots(untagged_.top);
 }
 
 StraightForwardRegisterAllocator::~StraightForwardRegisterAllocator() = default;
@@ -318,6 +320,20 @@ void StraightForwardRegisterAllocator::UpdateUse(
 
   // If a value is dead, make sure it's cleared.
   FreeRegisters(node);
+
+  // If the stack slot is a local slot, free it so it can be reused.
+  if (node->is_spilled()) {
+    compiler::AllocatedOperand slot = node->spill_slot();
+    if (slot.index() > 0) {
+      SpillSlots& slots =
+          slot.representation() == MachineRepresentation::kTagged ? tagged_
+                                                                  : untagged_;
+      DCHECK_IMPLIES(
+          slots.free_slots.size() > 0,
+          slots.free_slots.back().freed_at_position <= node->live_range().end);
+      slots.free_slots.emplace_back(slot.index(), node->live_range().end);
+    }
+  }
 }
 
 void StraightForwardRegisterAllocator::UpdateUse(
@@ -651,11 +667,30 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
 
 void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
   DCHECK(!node->is_spilled());
-  uint32_t free_slot = top_of_stack_++;
-  compilation_unit_->push_stack_value_repr(node->value_representation());
+  uint32_t free_slot;
+  bool is_tagged = node->value_representation() == ValueRepresentation::kTagged;
+  SpillSlots& slots = is_tagged ? tagged_ : untagged_;
+  MachineRepresentation representation = is_tagged
+                                             ? MachineRepresentation::kTagged
+                                             : MachineRepresentation::kWord64;
+  if (slots.free_slots.empty()) {
+    free_slot = slots.top++;
+  } else {
+    NodeIdT start = node->live_range().start;
+    auto it =
+        std::upper_bound(slots.free_slots.begin(), slots.free_slots.end(),
+                         start, [](NodeIdT s, const SpillSlotInfo& slot_info) {
+                           return slot_info.freed_at_position < s;
+                         });
+    if (it != slots.free_slots.end()) {
+      free_slot = it->slot_index;
+      slots.free_slots.erase(it);
+    } else {
+      free_slot = slots.top++;
+    }
+  }
   node->Spill(compiler::AllocatedOperand(compiler::AllocatedOperand::STACK_SLOT,
-                                         MachineRepresentation::kTagged,
-                                         free_slot));
+                                         representation, free_slot));
 }
 
 void StraightForwardRegisterAllocator::FreeSomeRegister() {

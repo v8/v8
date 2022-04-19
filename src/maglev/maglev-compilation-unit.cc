@@ -22,8 +22,7 @@ MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
       bytecode_analysis_(bytecode_.object(), zone(), BytecodeOffset::None(),
                          true),
       register_count_(bytecode_.register_count()),
-      parameter_count_(bytecode_.parameter_count()),
-      stack_value_repr_(info->zone()) {}
+      parameter_count_(bytecode_.parameter_count()) {}
 
 compiler::JSHeapBroker* MaglevCompilationUnit::broker() const {
   return info_->broker();

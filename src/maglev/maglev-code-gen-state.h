@@ -7,6 +7,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/label.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/globals.h"
@@ -37,7 +38,8 @@ class MaglevCodeGenState {
         safepoint_table_builder_(safepoint_table_builder),
         masm_(isolate(), CodeObjectRequired::kNo) {}
 
-  void SetVregSlots(int slots) { vreg_slots_ = slots; }
+  void set_tagged_slots(int slots) { tagged_slots_ = slots; }
+  void set_untagged_slots(int slots) { untagged_slots_ = slots; }
 
   void PushDeferredCode(DeferredCodeInfo* deferred_code) {
     deferred_code_.push_back(deferred_code);
@@ -73,7 +75,7 @@ class MaglevCodeGenState {
     return compilation_unit_->graph_labeller();
   }
   MacroAssembler* masm() { return &masm_; }
-  int vreg_slots() const { return vreg_slots_; }
+  int stack_slots() const { return untagged_slots_ + tagged_slots_; }
   SafepointTableBuilder* safepoint_table_builder() const {
     return safepoint_table_builder_;
   }
@@ -87,7 +89,38 @@ class MaglevCodeGenState {
     return found_unsupported_code_paths_;
   }
 
+  inline int GetFramePointerOffsetForStackSlot(
+      const compiler::AllocatedOperand& operand) {
+    int index = operand.index();
+    if (operand.representation() != MachineRepresentation::kTagged) {
+      index += tagged_slots_;
+    }
+    return GetFramePointerOffsetForStackSlot(index);
+  }
+
+  inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand) {
+    return MemOperand(rbp, GetFramePointerOffsetForStackSlot(operand));
+  }
+
+  inline MemOperand ToMemOperand(const compiler::InstructionOperand& operand) {
+    return GetStackSlot(compiler::AllocatedOperand::cast(operand));
+  }
+
+  inline MemOperand ToMemOperand(const ValueLocation& location) {
+    return ToMemOperand(location.operand());
+  }
+
+  inline MemOperand TopOfStack() {
+    return MemOperand(rbp,
+                      GetFramePointerOffsetForStackSlot(stack_slots() - 1));
+  }
+
  private:
+  inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
+    return StandardFrameConstants::kExpressionsOffset -
+           index * kSystemPointerSize;
+  }
+
   MaglevCompilationUnit* const compilation_unit_;
   SafepointTableBuilder* const safepoint_table_builder_;
 
@@ -95,7 +128,8 @@ class MaglevCodeGenState {
   std::vector<DeferredCodeInfo*> deferred_code_;
   std::vector<EagerDeoptInfo*> eager_deopts_;
   std::vector<LazyDeoptInfo*> lazy_deopts_;
-  int vreg_slots_ = 0;
+  int untagged_slots_ = 0;
+  int tagged_slots_ = 0;
 
   // Allow marking some codegen paths as unsupported, so that we can test maglev
   // incrementally.
@@ -106,28 +140,10 @@ class MaglevCodeGenState {
 // Some helpers for codegen.
 // TODO(leszeks): consider moving this to a separate header.
 
-inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
-  return StandardFrameConstants::kExpressionsOffset -
-         index * kSystemPointerSize;
-}
-
-inline int GetFramePointerOffsetForStackSlot(
-    const compiler::AllocatedOperand& operand) {
-  return GetFramePointerOffsetForStackSlot(operand.index());
-}
-
 inline int GetSafepointIndexForStackSlot(int i) {
   // Safepoint tables also contain slots for all fixed frame slots (both
   // above and below the fp).
   return StandardFrameConstants::kFixedSlotCount + i;
-}
-
-inline MemOperand GetStackSlot(int index) {
-  return MemOperand(rbp, GetFramePointerOffsetForStackSlot(index));
-}
-
-inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand) {
-  return GetStackSlot(operand.index());
 }
 
 inline Register ToRegister(const compiler::InstructionOperand& operand) {
@@ -138,24 +154,10 @@ inline Register ToRegister(const ValueLocation& location) {
   return ToRegister(location.operand());
 }
 
-inline MemOperand ToMemOperand(const compiler::InstructionOperand& operand) {
-  return GetStackSlot(compiler::AllocatedOperand::cast(operand));
-}
-
-inline MemOperand ToMemOperand(const ValueLocation& location) {
-  return ToMemOperand(location.operand());
-}
-
 inline void MaglevCodeGenState::DefineSafepointStackSlots(
     SafepointTableBuilder::Safepoint& safepoint) const {
-  DCHECK_EQ(compilation_unit()->stack_value_repr().size(), vreg_slots());
-  int stack_slot = 0;
-  for (ValueRepresentation repr : compilation_unit()->stack_value_repr()) {
-    if (repr == ValueRepresentation::kTagged) {
-      safepoint.DefineTaggedStackSlot(
-          GetSafepointIndexForStackSlot(stack_slot));
-    }
-    stack_slot++;
+  for (int stack_slot = 0; stack_slot < tagged_slots_; stack_slot++) {
+    safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(stack_slot));
   }
 }
 

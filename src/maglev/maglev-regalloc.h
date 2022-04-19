@@ -25,14 +25,26 @@ class StraightForwardRegisterAllocator {
                                    Graph* graph);
   ~StraightForwardRegisterAllocator();
 
-  int stack_slots() const { return top_of_stack_; }
-
  private:
   std::vector<int> future_register_uses_[Register::kNumRegisters];
   ValueNode* register_values_[Register::kNumRegisters];
 
-  int top_of_stack_ = 0;
   RegList free_registers_ = kAllocatableGeneralRegisters;
+
+  struct SpillSlotInfo {
+    SpillSlotInfo(uint32_t slot_index, NodeIdT freed_at_position)
+        : slot_index(slot_index), freed_at_position(freed_at_position) {}
+    uint32_t slot_index;
+    NodeIdT freed_at_position;
+  };
+  struct SpillSlots {
+    int top = 0;
+    // Sorted from earliest freed_at_position to latest freed_at_position.
+    std::vector<SpillSlotInfo> free_slots;
+  };
+
+  SpillSlots untagged_;
+  SpillSlots tagged_;
 
   RegList used_registers() const {
     // Only allocatable registers should be free.
