@@ -127,37 +127,44 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
 
 GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(Heap* heap,
                                                  GarbageCollector collector) {
-  Counters* counters = heap->isolate()->counters();
-  const bool in_background = heap->isolate()->IsIsolateInBackground();
   if (Heap::IsYoungGenerationCollector(collector)) {
-    mode = Mode::Scavenger;
-    type_timer = type_priority_timer = nullptr;
+    mode_ = Mode::Scavenger;
+    type_timer_ = nullptr;
+    type_priority_timer_ = nullptr;
+    trace_event_name_ = "V8.GCScavenger";
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
+    Counters* counters = heap->isolate()->counters();
+    const bool in_background = heap->isolate()->IsIsolateInBackground();
     if (heap->incremental_marking()->IsStopped()) {
-      mode = Mode::None;
-      type_timer = counters->gc_compactor();
-      type_priority_timer = in_background ? counters->gc_compactor_background()
-                                          : counters->gc_compactor_foreground();
+      mode_ = Mode::None;
+      type_timer_ = counters->gc_compactor();
+      type_priority_timer_ = in_background
+                                 ? counters->gc_compactor_background()
+                                 : counters->gc_compactor_foreground();
+      trace_event_name_ = "V8.GCCompactor";
     } else if (heap->ShouldReduceMemory()) {
-      mode = Mode::None;
-      type_timer = counters->gc_finalize_reduce_memory();
-      type_priority_timer =
+      mode_ = Mode::None;
+      type_timer_ = counters->gc_finalize_reduce_memory();
+      type_priority_timer_ =
           in_background ? counters->gc_finalize_reduce_memory_background()
                         : counters->gc_finalize_reduce_memory_foreground();
+      trace_event_name_ = "V8.GCFinalizeMCReduceMemory";
     } else {
       if (heap->incremental_marking()->IsMarking() &&
           heap->incremental_marking()
               ->local_marking_worklists()
               ->IsPerContextMode()) {
-        mode = Mode::None;
-        type_timer = counters->gc_finalize_measure_memory();
+        mode_ = Mode::None;
+        type_timer_ = counters->gc_finalize_measure_memory();
+        trace_event_name_ = "V8.GCFinalizeMCMeasureMemory";
       } else {
-        mode = Mode::Finalize;
-        type_timer = counters->gc_finalize();
+        mode_ = Mode::Finalize;
+        type_timer_ = counters->gc_finalize();
+        trace_event_name_ = "V8.GCFinalizeMC";
       }
-      type_priority_timer = in_background ? counters->gc_finalize_background()
-                                          : counters->gc_finalize_foreground();
+      type_priority_timer_ = in_background ? counters->gc_finalize_background()
+                                           : counters->gc_finalize_foreground();
     }
   }
 }
@@ -195,6 +202,20 @@ GCTracer::GCTracer(Heap* heap)
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;
   }
+  // Check that the trace event names used in metrics code coincide with the
+  // names of the respective counters, when applicable.
+  DCHECK_EQ(0, strcmp(heap->isolate()->counters()->gc_compactor()->name(),
+                      "V8.GCCompactor"));
+  DCHECK_EQ(
+      0,
+      strcmp(heap->isolate()->counters()->gc_finalize_reduce_memory()->name(),
+             "V8.GCFinalizeMCReduceMemory"));
+  DCHECK_EQ(
+      0,
+      strcmp(heap->isolate()->counters()->gc_finalize_measure_memory()->name(),
+             "V8.GCFinalizeMCMeasureMemory"));
+  DCHECK_EQ(0, strcmp(heap->isolate()->counters()->gc_finalize()->name(),
+                      "V8.GCFinalizeMC"));
 }
 
 void GCTracer::ResetForTesting() {

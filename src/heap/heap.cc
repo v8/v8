@@ -1843,18 +1843,18 @@ bool Heap::CollectGarbage(AllocationSpace space,
       base::Optional<TimedHistogramScope> histogram_timer_scope;
       base::Optional<OptionalTimedHistogramScope>
           histogram_timer_priority_scope;
-      if (record_gc_phases_info.type_timer) {
-        histogram_timer_scope.emplace(record_gc_phases_info.type_timer,
+      TRACE_EVENT0("v8", record_gc_phases_info.trace_event_name());
+      if (record_gc_phases_info.type_timer()) {
+        histogram_timer_scope.emplace(record_gc_phases_info.type_timer(),
                                       isolate_);
-        TRACE_EVENT0("v8", record_gc_phases_info.type_timer->name());
       }
-      if (record_gc_phases_info.type_priority_timer) {
+      if (record_gc_phases_info.type_priority_timer()) {
         OptionalTimedHistogramScopeMode mode =
             isolate_->IsMemorySavingsModeActive()
                 ? OptionalTimedHistogramScopeMode::DONT_TAKE_TIME
                 : OptionalTimedHistogramScopeMode::TAKE_TIME;
         histogram_timer_priority_scope.emplace(
-            record_gc_phases_info.type_priority_timer, isolate_, mode);
+            record_gc_phases_info.type_priority_timer(), isolate_, mode);
       }
 
       if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -1871,7 +1871,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
       if (collector == GarbageCollector::MARK_COMPACTOR ||
           collector == GarbageCollector::SCAVENGER) {
-        tracer()->RecordGCPhasesHistograms(record_gc_phases_info.mode);
+        tracer()->RecordGCPhasesHistograms(record_gc_phases_info.mode());
       }
     }
 
