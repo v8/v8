@@ -28,7 +28,6 @@ class PlatformEmbeddedFileWriterGeneric
   void SectionRoData() override;
 
   void AlignToCodeAlignment() override;
-  void AlignToPageSizeIfNeeded() override;
   void AlignToDataAlignment() override;
 
   void DeclareUint32(const char* name, uint32_t value) override;

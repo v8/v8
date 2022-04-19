@@ -123,6 +123,25 @@ constexpr int kAppleArmPageSize = 1 << 14;
 
 const int kMmapFdOffset = 0;
 
+// TODO(v8:10026): Add the right permission flag to make executable pages
+// guarded.
+int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
+      return PROT_NONE;
+    case OS::MemoryPermission::kRead:
+      return PROT_READ;
+    case OS::MemoryPermission::kReadWrite:
+      return PROT_READ | PROT_WRITE;
+    case OS::MemoryPermission::kReadWriteExecute:
+      return PROT_READ | PROT_WRITE | PROT_EXEC;
+    case OS::MemoryPermission::kReadExecute:
+      return PROT_READ | PROT_EXEC;
+  }
+  UNREACHABLE();
+}
+
 enum class PageType { kShared, kPrivate };
 
 int GetFlagsForMemoryPermission(OS::MemoryPermission access,
@@ -176,25 +195,6 @@ void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
 #endif  // !V8_OS_FUCHSIA
 
 }  // namespace
-
-// TODO(v8:10026): Add the right permission flag to make executable pages
-// guarded.
-int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
-  switch (access) {
-    case OS::MemoryPermission::kNoAccess:
-    case OS::MemoryPermission::kNoAccessWillJitLater:
-      return PROT_NONE;
-    case OS::MemoryPermission::kRead:
-      return PROT_READ;
-    case OS::MemoryPermission::kReadWrite:
-      return PROT_READ | PROT_WRITE;
-    case OS::MemoryPermission::kReadWriteExecute:
-      return PROT_READ | PROT_WRITE | PROT_EXEC;
-    case OS::MemoryPermission::kReadExecute:
-      return PROT_READ | PROT_EXEC;
-  }
-  UNREACHABLE();
-}
 
 #if V8_OS_LINUX || V8_OS_FREEBSD
 #ifdef __arm__

@@ -3980,18 +3980,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 
   if (V8_SHORT_BUILTIN_CALLS_BOOL && FLAG_short_builtin_calls) {
-#if defined(V8_OS_ANDROID)
-    // On Android, the check is not operative to detect memory, and re-embedded
-    // builtins don't have a memory cost.
-    is_short_builtin_calls_enabled_ = true;
-#else
     // Check if the system has more than 4GB of physical memory by comparing the
     // old space size with respective threshold value.
-    is_short_builtin_calls_enabled_ = (heap_.MaxOldGenerationSize() >=
-                                       kShortBuiltinCallsOldSpaceSizeThreshold);
-#endif  // defined(V8_OS_ANDROID)
+    //
     // Additionally, enable if there is already a process-wide CodeRange that
     // has re-embedded builtins.
+    is_short_builtin_calls_enabled_ = (heap_.MaxOldGenerationSize() >=
+                                       kShortBuiltinCallsOldSpaceSizeThreshold);
     if (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) {
       std::shared_ptr<CodeRange> code_range =
           CodeRange::GetProcessWideCodeRange();

@@ -6,14 +6,7 @@
 
 #include <cstring>
 
-#include "src/base/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if V8_TARGET_OS_LINUX
-#include <sys/sysmacros.h>
-
-#include "src/base/platform/platform-linux.h"
-#endif
 
 #if V8_OS_WIN
 #include <windows.h>
@@ -21,17 +14,6 @@
 
 namespace v8 {
 namespace base {
-
-#if V8_TARGET_OS_WIN
-// Alignemnt is constrained on Windows.
-constexpr size_t kMaxPageSize = 4096;
-#else
-constexpr size_t kMaxPageSize = 16384;
-#endif
-
-alignas(kMaxPageSize) const char kArray[kMaxPageSize] =
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
-    "tempor incididunt ut labore et dolore magna aliqua.";
 
 TEST(OS, GetCurrentProcessId) {
 #if V8_OS_POSIX
@@ -46,9 +28,12 @@ TEST(OS, GetCurrentProcessId) {
 
 TEST(OS, RemapPages) {
   if constexpr (OS::IsRemapPageSupported()) {
-    const size_t size = base::OS::AllocatePageSize();
-    ASSERT_TRUE(size <= kMaxPageSize);
-    const void* data = static_cast<const void*>(kArray);
+    size_t size = base::OS::AllocatePageSize();
+    // Data to be remapped, filled with data.
+    void* data = OS::Allocate(nullptr, size, base::OS::AllocatePageSize(),
+                              OS::MemoryPermission::kReadWrite);
+    ASSERT_TRUE(data);
+    memset(data, 0xab, size);
 
     // Target mapping.
     void* remapped_data =
@@ -60,64 +45,10 @@ TEST(OS, RemapPages) {
                                OS::MemoryPermission::kReadExecute));
     EXPECT_EQ(0, memcmp(remapped_data, data, size));
 
+    OS::Free(data, size);
     OS::Free(remapped_data, size);
   }
 }
-
-#if V8_TARGET_OS_LINUX
-TEST(OS, ParseProcMaps) {
-  // Truncated
-  std::string line = "00000000-12345678 r--p";
-  EXPECT_FALSE(MemoryRegion::FromMapsLine(line.c_str()));
-
-  // Constants below are for 64 bit architectures.
-#if V8_TARGET_ARCH_64_BIT
-  // File-backed.
-  line =
-      "7f861d1e3000-7f861d33b000 r-xp 00026000 fe:01 12583839                  "
-      " /lib/x86_64-linux-gnu/libc-2.33.so";
-  auto region = MemoryRegion::FromMapsLine(line.c_str());
-  EXPECT_TRUE(region);
-
-  EXPECT_EQ(region->start, 0x7f861d1e3000u);
-  EXPECT_EQ(region->end, 0x7f861d33b000u);
-  EXPECT_EQ(std::string(region->permissions), std::string("r-xp"));
-  EXPECT_EQ(region->offset, 0x00026000u);
-  EXPECT_EQ(region->dev, makedev(0xfe, 0x01));
-  EXPECT_EQ(region->inode, 12583839u);
-  EXPECT_EQ(region->pathname,
-            std::string("/lib/x86_64-linux-gnu/libc-2.33.so"));
-
-  // Anonymous, but named.
-  line =
-      "5611cc7eb000-5611cc80c000 rw-p 00000000 00:00 0                         "
-      " [heap]";
-  region = MemoryRegion::FromMapsLine(line.c_str());
-  EXPECT_TRUE(region);
-
-  EXPECT_EQ(region->start, 0x5611cc7eb000u);
-  EXPECT_EQ(region->end, 0x5611cc80c000u);
-  EXPECT_EQ(std::string(region->permissions), std::string("rw-p"));
-  EXPECT_EQ(region->offset, 0u);
-  EXPECT_EQ(region->dev, makedev(0x0, 0x0));
-  EXPECT_EQ(region->inode, 0u);
-  EXPECT_EQ(region->pathname, std::string("[heap]"));
-
-  // Anonymous, not named.
-  line = "5611cc7eb000-5611cc80c000 rw-p 00000000 00:00 0";
-  region = MemoryRegion::FromMapsLine(line.c_str());
-  EXPECT_TRUE(region);
-
-  EXPECT_EQ(region->start, 0x5611cc7eb000u);
-  EXPECT_EQ(region->end, 0x5611cc80c000u);
-  EXPECT_EQ(std::string(region->permissions), std::string("rw-p"));
-  EXPECT_EQ(region->offset, 0u);
-  EXPECT_EQ(region->dev, makedev(0x0, 0x0));
-  EXPECT_EQ(region->inode, 0u);
-  EXPECT_EQ(region->pathname, std::string(""));
-#endif  // V8_TARGET_ARCH_64_BIT
-}
-#endif  // V8_TARGET_OS_LINUX
 
 namespace {
 
@@ -173,6 +104,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
 };
 
 }  // namespace
+
 
 TEST_F(ThreadLocalStorageTest, DoTest) {
   Run();
