@@ -3382,11 +3382,11 @@ void Isolate::Deinit() {
   }
 
   // We must stop the logger before we tear down other components.
-  sampler::Sampler* sampler = logger_->sampler();
+  sampler::Sampler* sampler = v8_file_logger_->sampler();
   if (sampler && sampler->IsActive()) sampler->Stop();
 
   FreeThreadResources();
-  logger_->StopProfilerThread();
+  v8_file_logger_->StopProfilerThread();
 
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
@@ -3453,7 +3453,7 @@ void Isolate::Deinit() {
 
   main_thread_local_isolate_.reset();
 
-  FILE* logfile = logger_->TearDownAndGetLogFile();
+  FILE* logfile = v8_file_logger_->TearDownAndGetLogFile();
   if (logfile != nullptr) base::Fclose(logfile);
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3524,8 +3524,8 @@ Isolate::~Isolate() {
   delete materialized_object_store_;
   materialized_object_store_ = nullptr;
 
-  delete logger_;
-  logger_ = nullptr;
+  delete v8_file_logger_;
+  v8_file_logger_ = nullptr;
 
   delete handle_scope_implementer_;
   handle_scope_implementer_ = nullptr;
@@ -3636,8 +3636,8 @@ bool Isolate::InitializeCounters() {
 }
 
 void Isolate::InitializeLoggingAndCounters() {
-  if (logger_ == nullptr) {
-    logger_ = new V8FileLogger(this);
+  if (v8_file_logger_ == nullptr) {
+    v8_file_logger_ = new V8FileLogger(this);
   }
   InitializeCounters();
 }
@@ -3931,7 +3931,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif
 
   // Enable logging before setting up the heap
-  logger_->SetUp(this);
+  v8_file_logger_->SetUp(this);
 
   metrics_recorder_ = std::make_shared<metrics::Recorder>();
 
@@ -4124,7 +4124,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   Builtins::InitializeIsolateDataTables(this);
 
   // Extra steps in the logger after the heap has been set up.
-  logger_->LateSetup(this);
+  v8_file_logger_->LateSetup(this);
 
 #ifdef DEBUG
   // Verify that the current heap state (usually deserialized from the snapshot)
@@ -4384,7 +4384,7 @@ bool Isolate::NeedsSourcePositionsForProfiling() const {
       // Dynamic conditions; changing any of these conditions triggers source
       // position collection for the entire heap
       // (CollectSourcePositionsForAllBytecodeArrays).
-      is_profiling() || debug_->is_active() || logger_->is_logging();
+      is_profiling() || debug_->is_active() || v8_file_logger_->is_logging();
 }
 
 void Isolate::SetFeedbackVectorsForProfilingTools(Object value) {
