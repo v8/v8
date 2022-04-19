@@ -388,7 +388,7 @@ void CodeGenerator::AssembleCode() {
     }
   }
 
-  // The PerfJitLogger logs code up until here, excluding the safepoint
+  // The LinuxPerfJitLogger logs code up until here, excluding the safepoint
   // table. Resolve the unwinding info now so it is aware of the same code
   // size as reported by perf.
   unwinding_info_writer_.Finish(tasm()->pc_offset());

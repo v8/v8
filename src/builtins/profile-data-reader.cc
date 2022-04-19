@@ -57,7 +57,7 @@ EnsureInitProfileData() {
     if (!std::getline(line_stream, token, ',')) continue;
     if (token == ProfileDataFromFileConstants::kBlockCounterMarker) {
       // Any line starting with kBlockCounterMarker is a block usage count.
-      // As defined by Logger::BasicBlockCounterEvent, the format is:
+      // As defined by V8FileLogger::BasicBlockCounterEvent, the format is:
       //   literal kBlockCounterMarker , builtin_name , block_id , usage_count
       std::string builtin_name;
       CHECK(std::getline(line_stream, builtin_name, ','));
@@ -76,7 +76,7 @@ EnsureInitProfileData() {
       counters_and_hash.AddCountToBlock(id, count);
     } else if (token == ProfileDataFromFileConstants::kBuiltinHashMarker) {
       // Any line starting with kBuiltinHashMarker is a function hash record.
-      // As defined by Logger::BuiltinHashEvent, the format is:
+      // As defined by V8FileLogger::BuiltinHashEvent, the format is:
       //   literal kBuiltinHashMarker , builtin_name , hash
       std::string builtin_name;
       CHECK(std::getline(line_stream, builtin_name, ','));

@@ -14,7 +14,7 @@
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/logging/code-events.h"  // For CodeCreateEvent.
-#include "src/logging/log.h"          // For Logger.
+#include "src/logging/log.h"          // For V8FileLogger.
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/visitors.h"

@@ -27,7 +27,7 @@ namespace internal {
 
 struct TickSample;
 
-// Logger is used for collecting logging information from V8 during
+// V8FileLogger is used for collecting logging information from V8 during
 // execution. The result is dumped to a file.
 //
 // Available command line flags:
@@ -63,8 +63,8 @@ class Isolate;
 class JitLogger;
 class Log;
 class LowLevelLogger;
-class PerfBasicLogger;
-class PerfJitLogger;
+class LinuxPerfBasicLogger;
+class LinuxPerfJitLogger;
 class Profiler;
 class SourcePosition;
 class Ticker;
@@ -103,7 +103,7 @@ class ExistingCodeLogger {
 
 enum class LogSeparator;
 
-class Logger : public LogEventListener {
+class V8FileLogger : public LogEventListener {
  public:
   enum class ScriptEventType {
     kReserveId,
@@ -113,8 +113,8 @@ class Logger : public LogEventListener {
     kStreamingCompile
   };
 
-  explicit Logger(Isolate* isolate);
-  ~Logger() override;
+  explicit V8FileLogger(Isolate* isolate);
+  ~V8FileLogger() override;
 
   // The separator is used to write an unescaped "," into the log.
   static const LogSeparator kNext;
@@ -341,8 +341,8 @@ class Logger : public LogEventListener {
   std::atomic<bool> is_logging_;
   std::unique_ptr<Log> log_;
 #if V8_OS_LINUX
-  std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
-  std::unique_ptr<PerfJitLogger> perf_jit_logger_;
+  std::unique_ptr<LinuxPerfBasicLogger> perf_basic_logger_;
+  std::unique_ptr<LinuxPerfJitLogger> perf_jit_logger_;
 #endif
   std::unique_ptr<LowLevelLogger> ll_logger_;
   std::unique_ptr<JitLogger> jit_logger_;

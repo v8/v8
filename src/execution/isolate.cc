@@ -3637,7 +3637,7 @@ bool Isolate::InitializeCounters() {
 
 void Isolate::InitializeLoggingAndCounters() {
   if (logger_ == nullptr) {
-    logger_ = new Logger(this);
+    logger_ = new V8FileLogger(this);
   }
   InitializeCounters();
 }
@@ -4077,7 +4077,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   init_memcopy_functions();
 
   if (FLAG_log_internal_timer_events) {
-    set_event_logger(Logger::DefaultEventLoggerSentinel);
+    set_event_logger(V8FileLogger::DefaultEventLoggerSentinel);
   }
 
   if (FLAG_trace_turbo || FLAG_trace_turbo_graph || FLAG_turbo_profiling) {

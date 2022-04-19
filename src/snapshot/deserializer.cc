@@ -334,7 +334,7 @@ template <typename IsolateT>
 void Deserializer<IsolateT>::LogScriptEvents(Script script) {
   DisallowGarbageCollection no_gc;
   LOG(isolate(),
-      ScriptEvent(Logger::ScriptEventType::kDeserialize, script.id()));
+      ScriptEvent(V8FileLogger::ScriptEventType::kDeserialize, script.id()));
   LOG(isolate(), ScriptDetails(script));
 }
 

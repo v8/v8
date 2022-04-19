@@ -301,7 +301,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     impl()->AddToScriptList(script);
   }
 
-  LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
+  LOG(isolate(),
+      ScriptEvent(V8FileLogger::ScriptEventType::kCreate, script_id));
   return script;
 }
 

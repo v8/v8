@@ -49,7 +49,7 @@ bool Log::IsLoggingToTemporaryFile(std::string file_name) {
   return file_name.compare(Log::kLogToTemporaryFile) == 0;
 }
 
-Log::Log(Logger* logger, std::string file_name)
+Log::Log(V8FileLogger* logger, std::string file_name)
     : logger_(logger),
       file_name_(file_name),
       output_handle_(Log::CreateOutputHandle(file_name)),

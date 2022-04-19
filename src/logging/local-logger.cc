@@ -20,7 +20,8 @@ LocalLogger::LocalLogger(Isolate* isolate)
 void LocalLogger::ScriptDetails(Script script) {
   logger_->ScriptDetails(script);
 }
-void LocalLogger::ScriptEvent(Logger::ScriptEventType type, int script_id) {
+void LocalLogger::ScriptEvent(V8FileLogger::ScriptEventType type,
+                              int script_id) {
   logger_->ScriptEvent(type, script_id);
 }
 void LocalLogger::CodeLinePosInfoRecordEvent(Address code_start,

@@ -47,7 +47,7 @@
 
 using v8::base::EmbeddedVector;
 using v8::internal::Address;
-using v8::internal::Logger;
+using v8::internal::V8FileLogger;
 
 namespace {
 
@@ -95,7 +95,7 @@ class V8_NODISCARD ScopedLoggerInitializer {
 
   i::Isolate* i_isolate() { return reinterpret_cast<i::Isolate*>(isolate()); }
 
-  Logger* logger() { return logger_; }
+  V8FileLogger* logger() { return logger_; }
 
   v8::Local<v8::String> GetLogString() {
     int length = static_cast<int>(raw_log_.size());
@@ -214,7 +214,7 @@ class V8_NODISCARD ScopedLoggerInitializer {
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope scope_;
   v8::Local<v8::Context> env_;
-  Logger* logger_;
+  V8FileLogger* logger_;
 
   std::string raw_log_;
   std::vector<std::string> log_;

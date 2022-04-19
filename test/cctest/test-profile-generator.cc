@@ -396,9 +396,9 @@ TEST(SymbolizeTickSample) {
   CodeEntryStorage storage;
   CodeMap code_map(storage);
   Symbolizer symbolizer(&code_map);
-  CodeEntry* entry1 = storage.Create(i::Logger::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 = storage.Create(i::Logger::FUNCTION_TAG, "bbb");
-  CodeEntry* entry3 = storage.Create(i::Logger::FUNCTION_TAG, "ccc");
+  CodeEntry* entry1 = storage.Create(i::V8FileLogger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = storage.Create(i::V8FileLogger::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = storage.Create(i::V8FileLogger::FUNCTION_TAG, "ccc");
   symbolizer.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
   symbolizer.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
   symbolizer.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
@@ -466,9 +466,9 @@ TEST(SampleIds) {
   CodeEntryStorage storage;
   CodeMap code_map(storage);
   Symbolizer symbolizer(&code_map);
-  CodeEntry* entry1 = storage.Create(i::Logger::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 = storage.Create(i::Logger::FUNCTION_TAG, "bbb");
-  CodeEntry* entry3 = storage.Create(i::Logger::FUNCTION_TAG, "ccc");
+  CodeEntry* entry1 = storage.Create(i::V8FileLogger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = storage.Create(i::V8FileLogger::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = storage.Create(i::V8FileLogger::FUNCTION_TAG, "ccc");
   symbolizer.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
   symbolizer.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
   symbolizer.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
@@ -677,7 +677,7 @@ TEST(NoSamples) {
   CodeEntryStorage storage;
   CodeMap code_map(storage);
   Symbolizer symbolizer(&code_map);
-  CodeEntry* entry1 = storage.Create(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry1 = storage.Create(i::V8FileLogger::FUNCTION_TAG, "aaa");
   symbolizer.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
 
   // We are building the following calls tree:

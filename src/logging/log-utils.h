@@ -28,14 +28,14 @@ class Vector;
 
 namespace internal {
 
-class Logger;
+class V8FileLogger;
 
 enum class LogSeparator { kSeparator };
 
 // Functions and data for performing output of log messages.
 class Log {
  public:
-  explicit Log(Logger* logger, std::string log_file_name);
+  explicit Log(V8FileLogger* logger, std::string log_file_name);
 
   V8_EXPORT_PRIVATE static bool IsLoggingToConsole(std::string file_name);
   V8_EXPORT_PRIVATE static bool IsLoggingToTemporaryFile(std::string file_name);
@@ -113,7 +113,7 @@ class Log {
 
   void WriteLogHeader();
 
-  Logger* logger_;
+  V8FileLogger* logger_;
 
   std::string file_name_;
 
@@ -131,7 +131,7 @@ class Log {
   // mutex_ should be acquired before using it.
   std::unique_ptr<char[]> format_buffer_;
 
-  friend class Logger;
+  friend class V8FileLogger;
 };
 
 template <>

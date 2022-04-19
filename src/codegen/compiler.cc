@@ -274,7 +274,7 @@ void LogFunctionCompilation(Isolate* isolate,
                                  : ReadOnlyRoots(isolate).empty_string(),
                              isolate);
   LogEventListener::LogEventsAndTags log_tag =
-      Logger::ToNativeByScript(tag, *script);
+      V8FileLogger::ToNativeByScript(tag, *script);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared, script_name,
                                    line_num, column_num));
   if (!vector.is_null()) {
@@ -1363,7 +1363,7 @@ void FinalizeUnoptimizedCompilation(
       log_tag = flags.is_lazy_compile() ? LogEventListener::LAZY_COMPILE_TAG
                                         : LogEventListener::FUNCTION_TAG;
     }
-    log_tag = Logger::ToNativeByScript(log_tag, *script);
+    log_tag = V8FileLogger::ToNativeByScript(log_tag, *script);
     if (FLAG_interpreted_frames_native_stack) {
       InstallInterpreterTrampolineCopy(isolate, shared_info, log_tag);
     }
@@ -1534,7 +1534,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
       function_literal_id_(kFunctionLiteralIdTopLevel) {
   VMState<PARSER> state(isolate);
 
-  LOG(isolate, ScriptEvent(Logger::ScriptEventType::kStreamingCompile,
+  LOG(isolate, ScriptEvent(V8FileLogger::ScriptEventType::kStreamingCompile,
                            flags_.script_id()));
 }
 

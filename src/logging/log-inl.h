@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-LogEventListener::LogEventsAndTags Logger::ToNativeByScript(
+LogEventListener::LogEventsAndTags V8FileLogger::ToNativeByScript(
     LogEventListener::LogEventsAndTags tag, Script script) {
   if (script.type() != Script::TYPE_NATIVE) return tag;
   switch (tag) {
@@ -30,8 +30,8 @@ LogEventListener::LogEventsAndTags Logger::ToNativeByScript(
 
 template <class TimerEvent>
 void TimerEventScope<TimerEvent>::LogTimerEvent(v8::LogEventStatus se) {
-  Logger::CallEventLogger(isolate_, TimerEvent::name(), se,
-                          TimerEvent::expose_to_api());
+  V8FileLogger::CallEventLogger(isolate_, TimerEvent::name(), se,
+                                TimerEvent::expose_to_api());
 }
 
 }  // namespace internal

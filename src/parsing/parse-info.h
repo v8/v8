@@ -32,7 +32,7 @@ class LazyCompileDispatcher;
 class DeclarationScope;
 class FunctionLiteral;
 class RuntimeCallStats;
-class Logger;
+class V8FileLogger;
 class SourceRangeMap;
 class Utf16CharacterStream;
 class Zone;
@@ -205,13 +205,13 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
   }
-  Logger* logger() const { return logger_; }
+  V8FileLogger* logger() const { return logger_; }
   LazyCompileDispatcher* dispatcher() const { return dispatcher_; }
 
  private:
   uint64_t hash_seed_;
   AccountingAllocator* allocator_;
-  Logger* logger_;
+  V8FileLogger* logger_;
   LazyCompileDispatcher* dispatcher_;
   const AstStringConstants* ast_string_constants_;
   Zone ast_raw_string_zone_;
@@ -251,7 +251,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   const AstStringConstants* ast_string_constants() const {
     return reusable_state_->ast_string_constants();
   }
-  Logger* logger() const { return reusable_state_->logger(); }
+  V8FileLogger* logger() const { return reusable_state_->logger(); }
   LazyCompileDispatcher* dispatcher() const {
     return reusable_state_->dispatcher();
   }

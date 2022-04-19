@@ -102,8 +102,8 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
                                    is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
 
-  LOG(isolate,
-      ScriptEvent(Logger::ScriptEventType::kReserveId, flags.script_id()));
+  LOG(isolate, ScriptEvent(V8FileLogger::ScriptEventType::kReserveId,
+                           flags.script_id()));
   return flags;
 }
 

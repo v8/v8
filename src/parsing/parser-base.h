@@ -246,7 +246,7 @@ class ParserBase {
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              AstValueFactory* ast_value_factory,
              PendingCompilationErrorHandler* pending_error_handler,
-             RuntimeCallStats* runtime_call_stats, Logger* logger,
+             RuntimeCallStats* runtime_call_stats, V8FileLogger* logger,
              UnoptimizedCompileFlags flags, bool parsing_on_main_thread)
       : scope_(nullptr),
         original_scope_(nullptr),
@@ -1562,7 +1562,7 @@ class ParserBase {
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
   RuntimeCallStats* runtime_call_stats_;
-  internal::Logger* logger_;
+  internal::V8FileLogger* logger_;
   bool parsing_on_main_thread_;
   uintptr_t stack_limit_;
   PendingCompilationErrorHandler* pending_error_handler_;
