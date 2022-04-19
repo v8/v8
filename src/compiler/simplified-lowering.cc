@@ -1306,12 +1306,11 @@ class RepresentationSelector {
       return MachineType(rep, MachineSemantic::kInt64);
     }
     MachineType machine_type(rep, DeoptValueSemanticOf(type));
-    DCHECK_IMPLIES(
-        machine_type.representation() == MachineRepresentation::kWord32,
-        machine_type.semantic() == MachineSemantic::kInt32 ||
-            machine_type.semantic() == MachineSemantic::kUint32);
-    DCHECK_IMPLIES(machine_type.representation() == MachineRepresentation::kBit,
-                   type.Is(Type::Boolean()));
+    DCHECK(machine_type.representation() != MachineRepresentation::kWord32 ||
+           machine_type.semantic() == MachineSemantic::kInt32 ||
+           machine_type.semantic() == MachineSemantic::kUint32);
+    DCHECK(machine_type.representation() != MachineRepresentation::kBit ||
+           type.Is(Type::Boolean()));
     return machine_type;
   }
 
