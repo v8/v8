@@ -4548,26 +4548,6 @@ THREADED_TEST(ScriptException) {
   CHECK_EQ(0, strcmp(*exception_value, "panama!"));
 }
 
-
-TEST(TryCatchCustomException) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::TryCatch try_catch(isolate);
-  CompileRun(
-      "function CustomError() { this.a = 'b'; }"
-      "(function f() { throw new CustomError(); })();");
-  CHECK(try_catch.HasCaught());
-  CHECK(try_catch.Exception()
-            ->ToObject(env.local())
-            .ToLocalChecked()
-            ->Get(env.local(), v8_str("a"))
-            .ToLocalChecked()
-            ->Equals(env.local(), v8_str("b"))
-            .FromJust());
-}
-
-
 bool message_received;
 
 
@@ -5581,23 +5561,6 @@ void ThrowFromC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetIsolate()->ThrowException(v8_str("konto"));
 }
 
-
-void CCatcher(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (args.Length() < 1) {
-    args.GetReturnValue().Set(false);
-    return;
-  }
-  v8::HandleScope scope(args.GetIsolate());
-  v8::TryCatch try_catch(args.GetIsolate());
-  Local<Value> result =
-      CompileRun(args[0]
-                     ->ToString(args.GetIsolate()->GetCurrentContext())
-                     .ToLocalChecked());
-  CHECK(!try_catch.HasCaught() || result.IsEmpty());
-  args.GetReturnValue().Set(try_catch.HasCaught());
-}
-
-
 THREADED_TEST(APICatch) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -5630,32 +5593,6 @@ THREADED_TEST(APIThrowTryCatch) {
   CompileRun("ThrowFromC();");
   CHECK(try_catch.HasCaught());
 }
-
-
-// Test that a try-finally block doesn't shadow a try-catch block
-// when setting up an external handler.
-//
-// BUG(271): Some of the exception propagation does not work on the
-// ARM simulator because the simulator separates the C++ stack and the
-// JS stack.  This test therefore fails on the simulator.  The test is
-// not threaded to allow the threading tests to run on the simulator.
-TEST(TryCatchInTryFinally) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(isolate, "CCatcher", v8::FunctionTemplate::New(isolate, CCatcher));
-  LocalContext context(nullptr, templ);
-  Local<Value> result = CompileRun(
-      "try {"
-      "  try {"
-      "    CCatcher('throw 7;');"
-      "  } finally {"
-      "  }"
-      "} catch (e) {"
-      "}");
-  CHECK(result->IsTrue());
-}
-
 
 static void check_custom_error_tostring(v8::Local<v8::Message> message,
                                         v8::Local<v8::Value> data) {
@@ -6130,57 +6067,6 @@ THREADED_TEST(TryCatchAndFinally) {
       "  native_with_try_catch();\n"
       "}\n");
   CHECK(try_catch.HasCaught());
-}
-
-
-static void TryCatchNested1Helper(int depth) {
-  if (depth > 0) {
-    v8::TryCatch try_catch(CcTest::isolate());
-    try_catch.SetVerbose(true);
-    TryCatchNested1Helper(depth - 1);
-    CHECK(try_catch.HasCaught());
-    try_catch.ReThrow();
-  } else {
-    CcTest::isolate()->ThrowException(v8_str("E1"));
-  }
-}
-
-
-static void TryCatchNested2Helper(int depth) {
-  if (depth > 0) {
-    v8::TryCatch try_catch(CcTest::isolate());
-    try_catch.SetVerbose(true);
-    TryCatchNested2Helper(depth - 1);
-    CHECK(try_catch.HasCaught());
-    try_catch.ReThrow();
-  } else {
-    CompileRun("throw 'E2';");
-  }
-}
-
-TEST(TryCatchNested) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-
-  {
-    // Test nested try-catch with a native throw in the end.
-    v8::TryCatch try_catch(context->GetIsolate());
-    TryCatchNested1Helper(5);
-    CHECK(try_catch.HasCaught());
-    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(context->GetIsolate(),
-                                              try_catch.Exception()),
-                       "E1"));
-  }
-
-  {
-    // Test nested try-catch with a JavaScript throw in the end.
-    v8::TryCatch try_catch(context->GetIsolate());
-    TryCatchNested2Helper(5);
-    CHECK(try_catch.HasCaught());
-    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(context->GetIsolate(),
-                                              try_catch.Exception()),
-                       "E2"));
-  }
 }
 
 void TryCatchMixedNestingCheck(v8::TryCatch* try_catch) {
@@ -9045,66 +8931,6 @@ TEST(CompilationErrorUsingTryCatchHandler) {
   CHECK(*try_catch.Exception());
   CHECK(try_catch.HasCaught());
 }
-
-
-TEST(TryCatchFinallyUsingTryCatchHandler) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::TryCatch try_catch(env->GetIsolate());
-  CompileRun("try { throw ''; } catch (e) {}");
-  CHECK(!try_catch.HasCaught());
-  CompileRun("try { throw ''; } finally {}");
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-  CompileRun(
-      "(function() {"
-      "try { throw ''; } finally { return; }"
-      "})()");
-  CHECK(!try_catch.HasCaught());
-  CompileRun(
-      "(function()"
-      "  { try { throw ''; } finally { throw 0; }"
-      "})()");
-  CHECK(try_catch.HasCaught());
-}
-
-
-void CEvaluate(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope scope(args.GetIsolate());
-  CompileRun(args[0]
-                 ->ToString(args.GetIsolate()->GetCurrentContext())
-                 .ToLocalChecked());
-}
-
-
-TEST(TryCatchFinallyStoresMessageUsingTryCatchHandler) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(isolate, "CEvaluate",
-             v8::FunctionTemplate::New(isolate, CEvaluate));
-  LocalContext context(nullptr, templ);
-  v8::TryCatch try_catch(isolate);
-  CompileRun("try {"
-             "  CEvaluate('throw 1;');"
-             "} finally {"
-             "}");
-  CHECK(try_catch.HasCaught());
-  CHECK(!try_catch.Message().IsEmpty());
-  String::Utf8Value exception_value(isolate, try_catch.Exception());
-  CHECK_EQ(0, strcmp(*exception_value, "1"));
-  try_catch.Reset();
-  CompileRun("try {"
-             "  CEvaluate('throw 1;');"
-             "} finally {"
-             "  throw 2;"
-             "}");
-  CHECK(try_catch.HasCaught());
-  CHECK(!try_catch.Message().IsEmpty());
-  String::Utf8Value finally_exception_value(isolate, try_catch.Exception());
-  CHECK_EQ(0, strcmp(*finally_exception_value, "2"));
-}
-
 
 // For use within the TestSecurityHandler() test.
 static bool g_security_callback_result = false;
@@ -20759,49 +20585,6 @@ THREADED_TEST(CheckIsLeafTemplateForApiObject) {
   printf("Testing negative for parent ...\n");
   CHECK(!templ->IsLeafTemplateForApiObject(instance));
 }
-
-TEST(TryFinallyMessage) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  {
-    // Test that the original error message is not lost if there is a
-    // recursive call into Javascript is done in the finally block, e.g. to
-    // initialize an IC. (crbug.com/129171)
-    TryCatch try_catch(context->GetIsolate());
-    const char* trigger_ic =
-        "try {                      \n"
-        "  throw new Error('test'); \n"
-        "} finally {                \n"
-        "  var x = 0;               \n"
-        "  x++;                     \n"  // Trigger an IC initialization here.
-        "}                          \n";
-    CompileRun(trigger_ic);
-    CHECK(try_catch.HasCaught());
-    Local<Message> message = try_catch.Message();
-    CHECK(!message.IsEmpty());
-    CHECK_EQ(2, message->GetLineNumber(context.local()).FromJust());
-  }
-
-  {
-    // Test that the original exception message is indeed overwritten if
-    // a new error is thrown in the finally block.
-    TryCatch try_catch(context->GetIsolate());
-    const char* throw_again =
-        "try {                       \n"
-        "  throw new Error('test');  \n"
-        "} finally {                 \n"
-        "  var x = 0;                \n"
-        "  x++;                      \n"
-        "  throw new Error('again'); \n"  // This is the new uncaught error.
-        "}                           \n";
-    CompileRun(throw_again);
-    CHECK(try_catch.HasCaught());
-    Local<Message> message = try_catch.Message();
-    CHECK(!message.IsEmpty());
-    CHECK_EQ(6, message->GetLineNumber(context.local()).FromJust());
-  }
-}
-
 
 static void Helper137002(bool do_store,
                          bool polymorphic,

@@ -106,6 +106,19 @@ class WithIsolateScopeMixin : public TMixin {
         v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
   }
 
+  MaybeLocal<Value> TryRunJS(const char* source) {
+    return TryRunJS(
+        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
+  }
+
+  static MaybeLocal<Value> TryRunJS(Isolate* isolate, Local<String> source) {
+    auto context = isolate->GetCurrentContext();
+    v8::Local<v8::Value> result;
+    Local<Script> script =
+        v8::Script::Compile(context, source).ToLocalChecked();
+    return script->Run(context);
+  }
+
   Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
     return RunJS(v8::String::NewExternalOneByte(this->v8_isolate(), source)
                      .ToLocalChecked());
@@ -137,10 +150,11 @@ class WithIsolateScopeMixin : public TMixin {
 
  private:
   Local<Value> RunJS(Local<String> source) {
-    auto context = this->v8_isolate()->GetCurrentContext();
-    Local<Script> script =
-        v8::Script::Compile(context, source).ToLocalChecked();
-    return script->Run(context).ToLocalChecked();
+    return TryRunJS(source).ToLocalChecked();
+  }
+
+  MaybeLocal<Value> TryRunJS(Local<String> source) {
+    return TryRunJS(this->v8_isolate(), source);
   }
 
   v8::Isolate::Scope isolate_scope_;
