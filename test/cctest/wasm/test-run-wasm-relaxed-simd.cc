@@ -31,6 +31,11 @@ namespace test_run_wasm_relaxed_simd {
     EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
     RunWasm_##name##_Impl(TestExecutionTier::kInterpreter);     \
   }                                                             \
+  TEST(RunWasm_##name##_liftoff) {                              \
+    EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);                      \
+    FLAG_SCOPE(liftoff_only);                                   \
+    RunWasm_##name##_Impl(TestExecutionTier::kLiftoff);         \
+  }                                                             \
   void RunWasm_##name##_Impl(TestExecutionTier execution_tier)
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \

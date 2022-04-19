@@ -4455,6 +4455,38 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
   F64x2ReplaceLane(dst.fp(), src1.fp(), src2.fp(), imm_lane_idx);
 }
 
+void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  F32x4Qfma(dst.fp(), src1.fp(), src2.fp(), src3.fp(),
+            liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_f32x4_qfms(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  F32x4Qfms(dst.fp(), src1.fp(), src2.fp(), src3.fp(),
+            liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_f64x2_qfma(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  F64x2Qfma(dst.fp(), src1.fp(), src2.fp(), src3.fp(),
+            liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  F64x2Qfms(dst.fp(), src1.fp(), src2.fp(), src3.fp(),
+            liftoff::kScratchDoubleReg);
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   cmp(esp, Operand(limit_address, 0));
   j(below_equal, ool_code);

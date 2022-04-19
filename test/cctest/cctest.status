@@ -138,6 +138,23 @@
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
 
   'test-intl/StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
+
+  # TODO(12284): Implement relaxed SIMD in Liftoff.
+  'test-run-wasm-relaxed-simd/RunWasm_I8x16RelaxedSwizzle_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I8x16RelaxedLaneSelect_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I16x8RelaxedLaneSelect_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedLaneSelect_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I64x2RelaxedLaneSelect_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4RelaxedMin_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4RelaxedMax_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2RelaxedMin_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2RelaxedMax_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4S_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4U_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2SZero_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2UZero_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4RecipApprox_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4RecipSqrtApprox_liftoff': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -1227,5 +1244,13 @@
   # always triggers a concurrent compilation.
   'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
 }],  # variant == assert_types
+
+['arch != ia32 and arch != x64', {
+  # TODO(12284): Implement relaxed SIMD in Liftoff on missing architectures.
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_liftoff': [SKIP],
+}]
 
 ]
