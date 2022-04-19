@@ -688,6 +688,7 @@ filegroup(
         "@v8//bazel/config:is_linux": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-linux.cc",
+            "src/base/platform/platform-linux.h",
         ],
         "@v8//bazel/config:is_android": [
             "src/base/debug/stack_trace_android.cc",

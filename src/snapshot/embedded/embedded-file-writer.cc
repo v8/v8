@@ -164,7 +164,7 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
        ++builtin) {
     WriteBuiltin(w, blob, builtin);
   }
-  w->PaddingAfterCode();
+  w->AlignToPageSizeIfNeeded();
   w->Newline();
 }
 

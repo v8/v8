@@ -418,7 +418,7 @@ if (v8_enable_zone_compression == "") {
 }
 if (v8_enable_short_builtin_calls == "") {
   v8_enable_short_builtin_calls =
-      v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64")
+      v8_current_cpu == "x64" || v8_current_cpu == "arm64"
 }
 if (v8_enable_external_code_space == "") {
   v8_enable_external_code_space =
@@ -5245,6 +5245,7 @@ v8_component("v8_libbase") {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
       "src/base/platform/platform-linux.cc",
+      "src/base/platform/platform-linux.h",
     ]
 
     libs = [
