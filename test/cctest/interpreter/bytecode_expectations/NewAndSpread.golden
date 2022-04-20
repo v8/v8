@@ -90,7 +90,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 110
+bytecode array length: 111
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
@@ -123,13 +123,13 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(6), U8(1),
                 B(GetNamedProperty), R(6), U8(6), U8(17),
-                B(JumpIfToBooleanTrue), U8(18),
+                B(JumpIfToBooleanTrue), U8(19),
                 B(GetNamedProperty), R(6), U8(7), U8(8),
                 B(StaInArrayLiteral), R(3), R(2), U8(13),
                 B(Ldar), R(2),
                 B(Inc), U8(12),
                 B(Star2),
-                B(JumpLoop), U8(31), I8(0),
+                B(JumpLoop), U8(31), I8(0), U8(19),
                 B(LdaSmi), I8(4),
                 B(StaInArrayLiteral), R(3), R(2), U8(13),
                 B(Mov), R(3), R(2),

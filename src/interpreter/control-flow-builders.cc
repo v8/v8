@@ -83,9 +83,10 @@ void LoopBuilder::JumpToHeader(int loop_depth, LoopBuilder* const parent_loop) {
     //
     // The loop must have closed form, i.e. all loop elements are within the
     // loop, the loop header precedes the body and next elements in the loop.
+    int slot_index = feedback_vector_spec_->AddJumpLoopSlot().ToInt();
     builder()->JumpLoop(&loop_header_,
                         std::min(loop_depth, BytecodeArray::kMaxOsrUrgency - 1),
-                        source_position_);
+                        source_position_, slot_index);
   }
 }
 
