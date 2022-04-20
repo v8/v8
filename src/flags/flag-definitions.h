@@ -2225,11 +2225,10 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
 
-// Web snapshots
+// Web snapshots: 1) expose WebSnapshot.* API 2) interpret scripts as web
+// snapshots if they start with a magic number.
 // TODO(v8:11525): Remove this flag once proper embedder integration is done.
-DEFINE_BOOL(
-    experimental_web_snapshots, false,
-    "interpret scripts as web snapshots if they start with a magic number")
+DEFINE_BOOL(experimental_web_snapshots, false, "enable Web Snapshots")
 DEFINE_NEG_IMPLICATION(experimental_web_snapshots, script_streaming)
 
 #undef FLAG

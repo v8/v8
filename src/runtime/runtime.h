@@ -568,8 +568,6 @@ namespace internal {
   F(TurbofanStaticAssert, 1, 1)               \
   F(TypedArraySpeciesProtector, 0, 1)         \
   F(WaitForBackgroundOptimization, 0, 1)      \
-  F(WebSnapshotDeserialize, -1, 1)            \
-  F(WebSnapshotSerialize, -1, 1)              \
   I(DeoptimizeNow, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)    \

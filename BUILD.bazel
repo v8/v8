@@ -1121,6 +1121,7 @@ filegroup(
         "src/builtins/builtins-utils-inl.h",
         "src/builtins/builtins-utils.h",
         "src/builtins/builtins-weak-refs.cc",
+        "src/builtins/builtins-web-snapshots.cc",
         "src/builtins/builtins.cc",
         "src/builtins/builtins.h",
         "src/builtins/constants-table-builder.cc",

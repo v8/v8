@@ -4133,6 +4133,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-trace.cc",
     "src/builtins/builtins-typed-array.cc",
     "src/builtins/builtins-weak-refs.cc",
+    "src/builtins/builtins-web-snapshots.cc",
     "src/builtins/builtins.cc",
     "src/builtins/constants-table-builder.cc",
     "src/codegen/aligned-slot-allocator.cc",

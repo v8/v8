@@ -239,6 +239,8 @@ class Genesis {
 #undef DECLARE_FEATURE_INITIALIZATION
   void InitializeGlobal_regexp_linear_flag();
 
+  void InitializeGlobal_experimental_web_snapshots();
+
   enum ArrayBufferKind { ARRAY_BUFFER, SHARED_ARRAY_BUFFER };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
                                        ArrayBufferKind array_buffer_kind);
@@ -4117,6 +4119,7 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
   InitializeGlobal_regexp_linear_flag();
+  InitializeGlobal_experimental_web_snapshots();
 }
 
 bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
@@ -5448,6 +5451,21 @@ void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
 }
 
 #endif  // V8_INTL_SUPPORT
+
+void Genesis::InitializeGlobal_experimental_web_snapshots() {
+  if (!FLAG_experimental_web_snapshots) return;
+
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+  Handle<JSObject> web_snapshot_object =
+      factory()->NewJSObject(isolate_->object_function(), AllocationType::kOld);
+  JSObject::AddProperty(isolate_, global, "WebSnapshot", web_snapshot_object,
+                        DONT_ENUM);
+  InstallToStringTag(isolate_, web_snapshot_object, "WebSnapshot");
+  SimpleInstallFunction(isolate_, web_snapshot_object, "serialize",
+                        Builtin::kWebSnapshotSerialize, 2, false);
+  SimpleInstallFunction(isolate_, web_snapshot_object, "deserialize",
+                        Builtin::kWebSnapshotDeserialize, 2, false);
+}
 
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
