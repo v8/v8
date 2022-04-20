@@ -540,9 +540,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32x4RelaxedTruncF32x4S, 0xfda5, s_s)     \
   V(I32x4RelaxedTruncF32x4U, 0xfda6, s_s)     \
   V(I32x4RelaxedTruncF64x2SZero, 0xfdc5, s_s) \
-  V(I32x4RelaxedTruncF64x2UZero, 0xfdc6, s_s) \
-  V(F32x4RecipApprox, 0xfdbb, s_s)            \
-  V(F32x4RecipSqrtApprox, 0xfdc2, s_s)
+  V(I32x4RelaxedTruncF64x2UZero, 0xfdc6, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   V(I8x16ExtractLaneS, 0xfd15, _)                \

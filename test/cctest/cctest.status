@@ -152,8 +152,6 @@
   'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4U_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2SZero_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2UZero_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4RecipApprox_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4RecipSqrtApprox_liftoff': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

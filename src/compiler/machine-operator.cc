@@ -442,8 +442,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
-  V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                    \
-  V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)                \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                             \

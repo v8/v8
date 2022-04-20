@@ -3151,8 +3151,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4Abs)               \
   V(F32x4Neg)               \
   V(F32x4Sqrt)              \
-  V(F32x4RecipApprox)       \
-  V(F32x4RecipSqrtApprox)   \
   V(F32x4DemoteF64x2Zero)   \
   V(I64x2BitMask)           \
   V(I64x2SConvertI32x4Low)  \

@@ -3175,16 +3175,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
-    case kRiscvF32x4RecipApprox: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vfrec7_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvF32x4RecipSqrtApprox: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vfrsqrt7_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kRiscvF32x4Qfma: {
       __ VU.set(kScratchReg, E32, m1);
       __ vfmadd_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),

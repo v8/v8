@@ -2833,14 +2833,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xvnegsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kPPC_F32x4RecipApprox: {
-      __ xvresp(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4RecipSqrtApprox: {
-      __ xvrsqrtesp(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kPPC_F32x4Sqrt: {
       __ xvsqrtsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;

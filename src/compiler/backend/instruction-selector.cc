@@ -2013,10 +2013,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Neg(node);
     case IrOpcode::kF32x4Sqrt:
       return MarkAsSimd128(node), VisitF32x4Sqrt(node);
-    case IrOpcode::kF32x4RecipApprox:
-      return MarkAsSimd128(node), VisitF32x4RecipApprox(node);
-    case IrOpcode::kF32x4RecipSqrtApprox:
-      return MarkAsSimd128(node), VisitF32x4RecipSqrtApprox(node);
     case IrOpcode::kF32x4Add:
       return MarkAsSimd128(node), VisitF32x4Add(node);
     case IrOpcode::kF32x4Sub:

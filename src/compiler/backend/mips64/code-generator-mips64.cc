@@ -2606,16 +2606,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bnegi_w(i.OutputSimd128Register(), i.InputSimd128Register(0), 31);
       break;
     }
-    case kMips64F32x4RecipApprox: {
-      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ frcp_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kMips64F32x4RecipSqrtApprox: {
-      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
-      __ frsqrt_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kMips64F32x4Add: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fadd_w(i.OutputSimd128Register(), i.InputSimd128Register(0),

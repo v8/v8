@@ -2298,8 +2298,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_UNOP_CASE(kArm64F32x4SConvertI32x4, Scvtf, 4S);
       SIMD_UNOP_CASE(kArm64F32x4UConvertI32x4, Ucvtf, 4S);
-      SIMD_UNOP_CASE(kArm64F32x4RecipApprox, Frecpe, 4S);
-      SIMD_UNOP_CASE(kArm64F32x4RecipSqrtApprox, Frsqrte, 4S);
     case kArm64FMulElement: {
       VectorFormat s_f =
           ScalarFormatFromLaneSize(LaneSizeField::decode(opcode));

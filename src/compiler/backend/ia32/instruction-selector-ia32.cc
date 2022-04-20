@@ -2371,8 +2371,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4DemoteF64x2Zero)   \
   V(F32x4Sqrt)              \
   V(F32x4SConvertI32x4)     \
-  V(F32x4RecipApprox)       \
-  V(F32x4RecipSqrtApprox)   \
   V(I64x2BitMask)           \
   V(I64x2SConvertI32x4Low)  \
   V(I64x2SConvertI32x4High) \

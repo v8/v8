@@ -363,8 +363,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F64x2_OP(PromoteLowF32x4, "promote_low_f32x4")
 
     // Relaxed SIMD opcodes.
-    CASE_F32x4_OP(RecipApprox, "recip_approx")
-    CASE_F32x4_OP(RecipSqrtApprox, "recip_sqrt_approx")
     CASE_SIMDF_OP(Qfma, "qfma")
     CASE_SIMDF_OP(Qfms, "qfms")
     CASE_I8x16_OP(RelaxedSwizzle, "relaxed_swizzle");

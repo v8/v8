@@ -229,16 +229,6 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
         // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_RISCV64
 
-WASM_RELAXED_SIMD_TEST(F32x4RecipApprox) {
-  RunF32x4UnOpTest(execution_tier, kExprF32x4RecipApprox, base::Recip,
-                   false /* !exact */);
-}
-
-WASM_RELAXED_SIMD_TEST(F32x4RecipSqrtApprox) {
-  RunF32x4UnOpTest(execution_tier, kExprF32x4RecipSqrtApprox, base::RecipSqrt,
-                   false /* !exact */);
-}
-
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 namespace {

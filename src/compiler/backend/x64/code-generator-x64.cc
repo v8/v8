@@ -2924,14 +2924,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kX64F32x4RecipApprox: {
-      __ Rcpps(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kX64F32x4RecipSqrtApprox: {
-      __ Rsqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kX64F32x4Add: {
       ASSEMBLE_SIMD_BINOP(addps);
       break;

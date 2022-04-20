@@ -2548,8 +2548,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   V(F64x2Splat)              \
   V(F32x4Abs)                \
   V(F32x4Neg)                \
-  V(F32x4RecipApprox)        \
-  V(F32x4RecipSqrtApprox)    \
   V(F32x4Sqrt)               \
   V(F32x4Ceil)               \
   V(F32x4Floor)              \
