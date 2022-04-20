@@ -6,15 +6,14 @@ Paused at (after evaluation):
 }
 
 Pause stack:
-    f:3 (canBeRestarted = true)
-    g:8 (canBeRestarted = true)
-    h:13 (canBeRestarted = true)
+  f:3 (canBeRestarted = true)
+  g:8 (canBeRestarted = true)
+  h:13 (canBeRestarted = true)
 
 Optimization status for function "h" after we paused? optimized
 Restarting function "g" ...
-Paused at (after restart):
-function g(a, b) {  // We want to restart 'g'.
-  #console.log('g');
-  return 2 + f(a, b);
-
-Called functions: h,g,f,g,f
+Failed to restart function "g":
+{
+    code : -32000
+    message : Frame restarting not supported
+}

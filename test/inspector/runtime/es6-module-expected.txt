@@ -79,6 +79,7 @@ console.log(239)
         callFrames : [
             [0] : {
                 callFrameId : <callFrameId>
+                canBeRestarted : false
                 functionLocation : {
                     columnNumber : 0
                     lineNumber : 0

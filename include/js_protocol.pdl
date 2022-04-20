@@ -113,6 +113,11 @@ domain Debugger
       Runtime.RemoteObject this
       # The value being returned, if the function is at return point.
       optional Runtime.RemoteObject returnValue
+      # Valid only while the VM is paused and indicates whether this frame
+      # can be restarted or not. Note that a `true` value here does not
+      # guarantee that Debugger#restartFrame with this CallFrameId will be
+      # successful, but it is very likely.
+      experimental optional boolean canBeRestarted
 
   # Scope description.
   type Scope extends object

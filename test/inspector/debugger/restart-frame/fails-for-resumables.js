@@ -13,7 +13,7 @@ async function testCase(description, snippet, restartFrameIndex) {
 
   const { callFrames, evaluatePromise } = await InspectorTest.evaluateAndWaitForPause(snippet);
   // These are negative tests where the following call is expected to fail.
-  await InspectorTest.restartFrameAndWaitForPause(callFrames, restartFrameIndex);
+  await InspectorTest.restartFrameAndWaitForPause(callFrames, restartFrameIndex, /*quitOnFailure*/ false);
 
   // All snippets are written so a single resume is enough.
   Protocol.Debugger.resume();

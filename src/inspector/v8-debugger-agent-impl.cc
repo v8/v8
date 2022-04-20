@@ -1491,6 +1491,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
                      .setUrl(String16())
                      .setScopeChain(std::move(scopes))
                      .setThis(std::move(protocolReceiver))
+                     .setCanBeRestarted(iterator->CanBeRestarted())
                      .build();
 
     v8::Local<v8::Function> func = iterator->GetFunction();

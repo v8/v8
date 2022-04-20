@@ -519,7 +519,8 @@ InspectorTest.evaluateAndWaitForPause = async (expression) => {
   return { callFrames, evaluatePromise };
 };
 
-InspectorTest.restartFrameAndWaitForPause = async (callFrames, index) => {
+// TODO(crbug.com/1303521): Remove `quitOnFailure` once no longer needed.
+InspectorTest.restartFrameAndWaitForPause = async (callFrames, index, quitOnFailure = true) => {
   const pausedPromise = Protocol.Debugger.oncePaused();
   const frame = callFrames[index];
 
@@ -528,6 +529,9 @@ InspectorTest.restartFrameAndWaitForPause = async (callFrames, index) => {
   if (response.error) {
     InspectorTest.log(`Failed to restart function "${frame.functionName}":`);
     InspectorTest.logMessage(response.error);
+    if (quitOnFailure) {
+      InspectorTest.completeTest();
+    }
     return;
   }
 

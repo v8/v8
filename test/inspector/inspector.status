@@ -23,9 +23,6 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
-
-  # https://crbug.com/1303521, feature not yet implemented.
-  'debugger/restart-frame/*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
