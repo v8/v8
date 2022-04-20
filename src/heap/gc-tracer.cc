@@ -908,13 +908,14 @@ void GCTracer::PrintNVP() const {
           "heap.external.epilogue=%.1f "
           "heap.external.weak_global_handles=%.1f "
           "clear=%1.f "
+          "clear.external_string_table=%.1f "
           "clear.dependent_code=%.1f "
           "clear.maps=%.1f "
           "clear.slots_buffer=%.1f "
-          "clear.string_table=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
           "clear.weak_references=%.1f "
+          "clear.join_job=%.1f "
           "complete.sweep_array_buffers=%.1f "
           "epilogue=%.1f "
           "evacuate=%.1f "
@@ -998,13 +999,14 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
           current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MC_CLEAR),
+          current_scope(Scope::MC_CLEAR_EXTERNAL_STRING_TABLE),
           current_scope(Scope::MC_CLEAR_DEPENDENT_CODE),
           current_scope(Scope::MC_CLEAR_MAPS),
           current_scope(Scope::MC_CLEAR_SLOTS_BUFFER),
-          current_scope(Scope::MC_CLEAR_STRING_TABLE),
           current_scope(Scope::MC_CLEAR_WEAK_COLLECTIONS),
           current_scope(Scope::MC_CLEAR_WEAK_LISTS),
           current_scope(Scope::MC_CLEAR_WEAK_REFERENCES),
+          current_scope(Scope::MC_CLEAR_JOIN_JOB),
           current_scope(Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MC_EPILOGUE), current_scope(Scope::MC_EVACUATE),
           current_scope(Scope::MC_EVACUATE_CANDIDATES),
