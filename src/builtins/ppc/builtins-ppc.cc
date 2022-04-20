@@ -1388,7 +1388,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Check for an tiering state.
   Label has_optimized_code_or_state;
-  Register optimization_state = r11;
+  Register optimization_state = r10;
   {
     LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
                                              feedback_vector,
