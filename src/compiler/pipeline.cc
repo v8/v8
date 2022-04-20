@@ -201,9 +201,11 @@ class PipelineData {
                PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins,
-               const AssemblerOptions& assembler_options)
+               const AssemblerOptions& assembler_options,
+               wasm::AssemblerBufferCache* buffer_cache)
       : isolate_(nullptr),
         wasm_engine_(wasm_engine),
+        assembler_buffer_cache_(buffer_cache),
         allocator_(wasm_engine->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
@@ -559,11 +561,15 @@ class PipelineData {
 
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
+    wasm::AssemblerBufferCache* buffer_cache = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+    buffer_cache = assembler_buffer_cache_;
+#endif  // V8_ENABLE_WEBASSEMBLY
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        assembler_options(), info_->builtin(), max_unoptimized_frame_height(),
-        max_pushed_argument_count(),
+        assembler_options(), buffer_cache, info_->builtin(),
+        max_unoptimized_frame_height(), max_pushed_argument_count(),
         FLAG_trace_turbo_stack_accesses ? debug_name_.get() : nullptr);
   }
 
@@ -606,6 +612,7 @@ class PipelineData {
   Isolate* const isolate_;
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine* const wasm_engine_ = nullptr;
+  wasm::AssemblerBufferCache* assembler_buffer_cache_ = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
   AccountingAllocator* const allocator_;
   OptimizedCompilationInfo* const info_;
@@ -3075,8 +3082,10 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
   ZoneStats zone_stats(wasm_engine->allocator());
   NodeOriginTable* node_positions = graph->zone()->New<NodeOriginTable>(graph);
+  // TODO(12809): Use the assembler buffer cache to also protect wasm stubs.
+  constexpr wasm::AssemblerBufferCache* kNoBufferCache = nullptr;
   PipelineData data(&zone_stats, wasm_engine, &info, mcgraph, nullptr,
-                    source_positions, node_positions, options);
+                    source_positions, node_positions, options, kNoBufferCache);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
@@ -3172,7 +3181,8 @@ void Pipeline::GenerateCodeForWasmFunction(
     CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
     NodeOriginTable* node_origins, wasm::FunctionBody function_body,
     const wasm::WasmModule* module, int function_index,
-    std::vector<compiler::WasmLoopInfo>* loop_info) {
+    std::vector<compiler::WasmLoopInfo>* loop_info,
+    wasm::AssemblerBufferCache* buffer_cache) {
   auto* wasm_engine = wasm::GetWasmEngine();
   base::TimeTicks start_time;
   if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
@@ -3183,7 +3193,7 @@ void Pipeline::GenerateCodeForWasmFunction(
       CreatePipelineStatistics(function_body, module, info, &zone_stats));
   PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
                     pipeline_statistics.get(), source_positions, node_origins,
-                    WasmAssemblerOptions());
+                    WasmAssemblerOptions(), buffer_cache);
 
   PipelineImpl pipeline(&data);
 

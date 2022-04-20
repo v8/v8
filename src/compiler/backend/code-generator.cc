@@ -20,6 +20,10 @@
 #include "src/objects/smi.h"
 #include "src/utils/address-map.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/assembler-buffer-cache.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -41,16 +45,14 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                             InstructionSequence* instructions,
-                             OptimizedCompilationInfo* info, Isolate* isolate,
-                             base::Optional<OsrHelper> osr_helper,
-                             int start_source_position,
-                             JumpOptimizationInfo* jump_opt,
-                             const AssemblerOptions& options, Builtin builtin,
-                             size_t max_unoptimized_frame_height,
-                             size_t max_pushed_argument_count,
-                             const char* debug_name)
+CodeGenerator::CodeGenerator(
+    Zone* codegen_zone, Frame* frame, Linkage* linkage,
+    InstructionSequence* instructions, OptimizedCompilationInfo* info,
+    Isolate* isolate, base::Optional<OsrHelper> osr_helper,
+    int start_source_position, JumpOptimizationInfo* jump_opt,
+    const AssemblerOptions& options, wasm::AssemblerBufferCache* buffer_cache,
+    Builtin builtin, size_t max_unoptimized_frame_height,
+    size_t max_pushed_argument_count, const char* debug_name)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -63,7 +65,13 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
-      tasm_(isolate, options, CodeObjectRequired::kNo),
+      tasm_(isolate, options, CodeObjectRequired::kNo,
+#if V8_ENABLE_WEBASSEMBLY
+            buffer_cache ? buffer_cache->GetAssemblerBuffer(
+                               AssemblerBase::kDefaultBufferSize)
+                         :
+#endif  // V8_ENABLE_WEBASSEMBLY
+                         std::unique_ptr<AssemblerBuffer>{}),
       resolver_(this),
       safepoints_(codegen_zone),
       handlers_(codegen_zone),

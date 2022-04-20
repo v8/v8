@@ -8450,7 +8450,7 @@ base::Vector<const char> GetDebugName(Zone* zone,
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::CompilationEnv* env, const wasm::WireBytesStorage* wire_byte_storage,
     const wasm::FunctionBody& func_body, int func_index, Counters* counters,
-    wasm::WasmFeatures* detected) {
+    wasm::AssemblerBufferCache* buffer_cache, wasm::WasmFeatures* detected) {
   // Check that we do not accidentally compile a Wasm function to TurboFan if
   // --liftoff-only is set.
   DCHECK(!FLAG_liftoff_only);
@@ -8510,9 +8510,10 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     return wasm::WasmCompilationResult{};
   }
 
-  Pipeline::GenerateCodeForWasmFunction(
-      &info, env, wire_byte_storage, mcgraph, call_descriptor, source_positions,
-      node_origins, func_body, env->module, func_index, &loop_infos);
+  Pipeline::GenerateCodeForWasmFunction(&info, env, wire_byte_storage, mcgraph,
+                                        call_descriptor, source_positions,
+                                        node_origins, func_body, env->module,
+                                        func_index, &loop_infos, buffer_cache);
 
   if (counters) {
     int zone_bytes =

@@ -48,6 +48,7 @@ enum class BranchHint : uint8_t;
 }  // namespace compiler
 
 namespace wasm {
+class AssemblerBufferCache;
 struct DecodeStruct;
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 using TFNode = compiler::Node;
@@ -64,7 +65,7 @@ namespace compiler {
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::CompilationEnv*, const wasm::WireBytesStorage* wire_bytes_storage,
     const wasm::FunctionBody&, int func_index, Counters*,
-    wasm::WasmFeatures* detected);
+    wasm::AssemblerBufferCache* buffer_cache, wasm::WasmFeatures* detected);
 
 // Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the

@@ -998,13 +998,14 @@ class CodeGeneratorTester {
       i++;
     }
 
-    static constexpr size_t kMaxUnoptimizedFrameHeight = 0;
-    static constexpr size_t kMaxPushedArgumentCount = 0;
+    constexpr size_t kMaxUnoptimizedFrameHeight = 0;
+    constexpr size_t kMaxPushedArgumentCount = 0;
+    constexpr wasm::AssemblerBufferCache* kNoBufferCache = nullptr;
     generator_ = new CodeGenerator(
         environment->main_zone(), &frame_, &linkage_,
         environment->instructions(), &info_, environment->main_isolate(),
         base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
-        AssemblerOptions::Default(environment->main_isolate()),
+        AssemblerOptions::Default(environment->main_isolate()), kNoBufferCache,
         Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
 
