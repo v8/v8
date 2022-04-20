@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-utils.load('test/inspector/debugger/restart-frame/restart-frame-test.js');
-
 const {session, contextGroup, Protocol} =
   InspectorTest.start('Checks that restart frame fails when embedder frames would be unwound');
 
@@ -21,11 +19,11 @@ function entrypoint() {
 (async () => {
   await Protocol.Debugger.enable();
 
-  const { callFrames } = await RestartFrameTest.evaluateAndWaitForPause('entrypoint()');
+  const { callFrames } = await InspectorTest.evaluateAndWaitForPause('entrypoint()');
 
   // Restart the `entrypoint` frame. Inbetween is the C++ API method `callbackForTests`.
   const restartFrameIndex = 1;  // 0 is `breaker`, 1 is `entrypoint`.
-  await RestartFrameTest.restartFrameAndWaitForPause(callFrames, restartFrameIndex);
+  await InspectorTest.restartFrameAndWaitForPause(callFrames, restartFrameIndex);
 
   InspectorTest.completeTest();
 })();

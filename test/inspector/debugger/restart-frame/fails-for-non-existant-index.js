@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-utils.load('test/inspector/debugger/restart-frame/restart-frame-test.js');
-
 const {session, Protocol} =
     InspectorTest.start('Checks that requesting to restart a non-existant frame fails cleanly');
 
@@ -12,7 +10,7 @@ session.setupScriptMap();
 (async () => {
   await Protocol.Debugger.enable();
 
-  await RestartFrameTest.evaluateAndWaitForPause(`
+  await InspectorTest.evaluateAndWaitForPause(`
     (function foo() { debugger; })();
   `);
 

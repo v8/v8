@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-utils.load('test/inspector/debugger/restart-frame/restart-frame-test.js');
-
 const {session, contextGroup, Protocol} =
   InspectorTest.start('Checks that restart frame fails for generator or async functions.');
 
@@ -13,9 +11,9 @@ async function testCase(description, snippet, restartFrameIndex) {
   InspectorTest.log('');
   InspectorTest.log(description);
 
-  const { callFrames, evaluatePromise } = await RestartFrameTest.evaluateAndWaitForPause(snippet);
+  const { callFrames, evaluatePromise } = await InspectorTest.evaluateAndWaitForPause(snippet);
   // These are negative tests where the following call is expected to fail.
-  await RestartFrameTest.restartFrameAndWaitForPause(callFrames, restartFrameIndex);
+  await InspectorTest.restartFrameAndWaitForPause(callFrames, restartFrameIndex);
 
   // All snippets are written so a single resume is enough.
   Protocol.Debugger.resume();

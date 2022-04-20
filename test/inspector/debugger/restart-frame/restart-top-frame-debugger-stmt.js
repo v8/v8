@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-utils.load('test/inspector/debugger/restart-frame/restart-frame-test.js');
-
 const {session, Protocol} =
     InspectorTest.start('Checks that restarting the top frame hits a debugger statement twice');
 
@@ -21,9 +19,9 @@ foo();
 (async () => {
   await Protocol.Debugger.enable();
 
-  const { callFrames } = await RestartFrameTest.evaluateAndWaitForPause(source);
+  const { callFrames } = await InspectorTest.evaluateAndWaitForPause(source);
 
-  await RestartFrameTest.restartFrameAndWaitForPause(callFrames, 0);
+  await InspectorTest.restartFrameAndWaitForPause(callFrames, 0);
 
   Protocol.Debugger.resume();  // Resuming hits the 'debugger' stmt again.
   await Protocol.Debugger.oncePaused();

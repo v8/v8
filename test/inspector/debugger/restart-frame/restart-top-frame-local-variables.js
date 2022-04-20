@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-utils.load('test/inspector/debugger/restart-frame/restart-frame-test.js');
-
 const {session, Protocol} =
     InspectorTest.start('Checks that after restarting the top frame, local variables are reset');
 
@@ -22,7 +20,7 @@ foo();
 (async () => {
   await Protocol.Debugger.enable();
 
-  const { callFrames } = await RestartFrameTest.evaluateAndWaitForPause(source);
+  const { callFrames } = await InspectorTest.evaluateAndWaitForPause(source);
 
   let { callFrameId } = callFrames[0];
   InspectorTest.log('Evaluating x:');
@@ -34,7 +32,7 @@ foo();
   InspectorTest.log('Evaluating z:');
   InspectorTest.logMessage(await Protocol.Debugger.evaluateOnCallFrame({ callFrameId, expression: 'z' }));
 
-  const callFramesAfter = await RestartFrameTest.restartFrameAndWaitForPause(callFrames, 0);
+  const callFramesAfter = await InspectorTest.restartFrameAndWaitForPause(callFrames, 0);
 
   ({ callFrameId } = callFramesAfter[0]);
   InspectorTest.log('Evaluating x:');

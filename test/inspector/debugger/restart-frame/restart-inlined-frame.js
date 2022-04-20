@@ -4,8 +4,6 @@
 
 // Flags: --allow-natives-syntax
 
-utils.load('test/inspector/debugger/restart-frame/restart-frame-test.js');
-
 const {session, contextGroup, Protocol} =
   InspectorTest.start('Checks that restarting an inlined frame works.');
 
@@ -53,12 +51,12 @@ h();
 
   await Protocol.Debugger.setBreakpointByUrl({ url: 'test.js', lineNumber: 4 });
 
-  const { callFrames, evaluatePromise } = await RestartFrameTest.evaluateAndWaitForPause('h()');
+  const { callFrames, evaluatePromise } = await InspectorTest.evaluateAndWaitForPause('h()');
 
   ({ result: { result: { value } } } = await Protocol.Runtime.evaluate({ expression: 'isOptimized(h)' }));
   InspectorTest.log(`Optimization status for function "h" after we paused? ${value}`);
 
-  await RestartFrameTest.restartFrameAndWaitForPause(callFrames, 1);
+  await InspectorTest.restartFrameAndWaitForPause(callFrames, 1);
 
   // Restarting the frame means we hit the breakpoint a second time.
   Protocol.Debugger.resume();

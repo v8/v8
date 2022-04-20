@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-utils.load('test/inspector/debugger/restart-frame/restart-frame-test.js');
-
 const {session, Protocol} =
     InspectorTest.start('Checks that restarting the top frame works with breakpoints');
 
@@ -26,8 +24,8 @@ function foo() {
     url: 'testRestartFrame.js',
   });
 
-  const { callFrames } = await RestartFrameTest.evaluateAndWaitForPause('foo()');
-  await RestartFrameTest.restartFrameAndWaitForPause(callFrames, 0);
+  const { callFrames } = await InspectorTest.evaluateAndWaitForPause('foo()');
+  await InspectorTest.restartFrameAndWaitForPause(callFrames, 0);
 
   Protocol.Debugger.resume();  // Resuming hits the breakpoint again.
   await Protocol.Debugger.oncePaused();

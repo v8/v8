@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-utils.load('test/inspector/debugger/restart-frame/restart-frame-test.js');
-
 const {session, contextGroup, Protocol} =
     InspectorTest.start('Checks that restarting every frame on the stack works.');
 
@@ -40,8 +38,8 @@ function F() {
 `, 0, 0, 'test.js');
 
 async function testCase(frameIndex) {
-  const { callFrames, evaluatePromise } = await RestartFrameTest.evaluateAndWaitForPause('F()');
-  await RestartFrameTest.restartFrameAndWaitForPause(callFrames, frameIndex);
+  const { callFrames, evaluatePromise } = await InspectorTest.evaluateAndWaitForPause('F()');
+  await InspectorTest.restartFrameAndWaitForPause(callFrames, frameIndex);
 
   Protocol.Debugger.resume();  // Resuming hits the 'debugger' stmt again.
   await Protocol.Debugger.oncePaused();
