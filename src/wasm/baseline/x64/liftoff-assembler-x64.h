@@ -2511,6 +2511,13 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                kScratchRegister);
 }
 
+void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
+                                                  LiftoffRegister lhs,
+                                                  LiftoffRegister rhs) {
+  I8x16Swizzle(dst.fp(), lhs.fp(), rhs.fp(), kScratchDoubleReg,
+               kScratchRegister, true);
+}
+
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
   I8x16Popcnt(dst.fp(), src.fp(), kScratchDoubleReg,

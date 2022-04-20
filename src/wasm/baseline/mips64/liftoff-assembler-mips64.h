@@ -2149,6 +2149,12 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   vshf_b(dst_msa, kSimd128RegZero, lhs_msa);
 }
 
+void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
+                                                  LiftoffRegister lhs,
+                                                  LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i8x16_relaxed_swizzle");
+}
+
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   fill_b(dst.fp().toW(), src.gp());

@@ -2460,6 +2460,12 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
   vtbl(dst.high_fp(), table, rhs.high_fp());
 }
 
+void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
+                                                  LiftoffRegister lhs,
+                                                  LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i8x16_relaxed_swizzle");
+}
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   TurboAssembler::Move(dst.low_fp(), src.fp());
