@@ -14,7 +14,18 @@ namespace baseline {
 
 #define __ basm_.
 
-void BaselineCompiler::Prologue() { UNIMPLEMENTED(); }
+void BaselineCompiler::Prologue() {
+  ASM_CODE_COMMENT(&masm_);
+  __ masm()->EnterFrame(StackFrame::BASELINE);
+  DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
+  int max_frame_size =
+      bytecode_->frame_size() + max_call_args_ * kSystemPointerSize;
+  CallBuiltin<Builtin::kBaselineOutOfLinePrologue>(
+      kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
+      max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
+
+  PrologueFillFrame();
+}
 
 void BaselineCompiler::PrologueFillFrame() { UNIMPLEMENTED(); }
 
