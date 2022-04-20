@@ -9,20 +9,20 @@
 #include "src/base/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if V8_TARGET_OS_LINUX
+#ifdef V8_TARGET_OS_LINUX
 #include <sys/sysmacros.h>
 
 #include "src/base/platform/platform-linux.h"
 #endif
 
-#if V8_OS_WIN
+#ifdef V8_OS_WIN
 #include <windows.h>
 #endif
 
 namespace v8 {
 namespace base {
 
-#if V8_TARGET_OS_WIN
+#ifdef V8_TARGET_OS_WIN
 // Alignemnt is constrained on Windows.
 constexpr size_t kMaxPageSize = 4096;
 #else
@@ -34,11 +34,11 @@ alignas(kMaxPageSize) const char kArray[kMaxPageSize] =
     "tempor incididunt ut labore et dolore magna aliqua.";
 
 TEST(OS, GetCurrentProcessId) {
-#if V8_OS_POSIX
+#ifdef V8_OS_POSIX
   EXPECT_EQ(static_cast<int>(getpid()), OS::GetCurrentProcessId());
 #endif
 
-#if V8_OS_WIN
+#ifdef V8_OS_WIN
   EXPECT_EQ(static_cast<int>(::GetCurrentProcessId()),
             OS::GetCurrentProcessId());
 #endif
@@ -64,14 +64,14 @@ TEST(OS, RemapPages) {
   }
 }
 
-#if V8_TARGET_OS_LINUX
+#ifdef V8_TARGET_OS_LINUX
 TEST(OS, ParseProcMaps) {
   // Truncated
   std::string line = "00000000-12345678 r--p";
   EXPECT_FALSE(MemoryRegion::FromMapsLine(line.c_str()));
 
   // Constants below are for 64 bit architectures.
-#if V8_TARGET_ARCH_64_BIT
+#ifdef V8_TARGET_ARCH_64_BIT
   // File-backed.
   line =
       "7f861d1e3000-7f861d33b000 r-xp 00026000 fe:01 12583839                  "
@@ -186,7 +186,7 @@ TEST(StackTest, GetCurrentStackPosition) {
   EXPECT_NE(nullptr, Stack::GetCurrentStackPosition());
 }
 
-#if !V8_OS_FUCHSIA
+#if !defined(V8_OS_FUCHSIA)
 TEST(StackTest, StackVariableInBounds) {
   void* dummy;
   ASSERT_GT(static_cast<void*>(Stack::GetStackStart()),
