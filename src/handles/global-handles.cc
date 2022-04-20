@@ -15,7 +15,6 @@
 #include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/sanitizer/asan.h"
-#include "src/common/allow-deprecated.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/base/stack.h"
@@ -544,11 +543,6 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
       case v8::WeakCallbackType::kInternalFields:
         set_weakness_type(PHANTOM_WEAK_2_EMBEDDER_FIELDS);
         break;
-        START_ALLOW_USE_DEPRECATED()
-      case v8::WeakCallbackType::kFinalizer:
-        set_weakness_type(FINALIZER_WEAK);
-        break;
-        END_ALLOW_USE_DEPRECATED()
     }
     set_parameter(parameter);
     weak_callback_ = phantom_callback;

@@ -28,7 +28,6 @@
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
-#include "src/common/allow-deprecated.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
@@ -36,8 +35,6 @@
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
-
-START_ALLOW_USE_DEPRECATED()
 
 namespace v8 {
 namespace internal {
@@ -191,27 +188,7 @@ void TracedReferenceTestWithScavenge(v8::Isolate* isolate,
   CHECK_IMPLIES(survives == SurvivalMode::kDies, fp->handle.IsEmpty());
 }
 
-void ResurrectingFinalizer(
-    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
-  data.GetParameter()->ClearWeak();
-}
-
-void ResettingFinalizer(
-    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
-  data.GetParameter()->Reset();
-}
-
 void EmptyWeakCallback(const v8::WeakCallbackInfo<void>& data) {}
-
-void ResurrectingFinalizerSettingProperty(
-    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
-  data.GetParameter()->ClearWeak();
-  v8::Local<v8::Object> o =
-      v8::Local<v8::Object>::New(data.GetIsolate(), *data.GetParameter());
-  o->Set(data.GetIsolate()->GetCurrentContext(), v8_str("finalizer"),
-         v8_str("was here"))
-      .FromJust();
-}
 
 }  // namespace
 
@@ -309,32 +286,7 @@ TEST(WeakPersistentSmi) {
                   v8::WeakCallbackType::kParameter);
 }
 
-TEST(FinalizerWeakness) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-
-  v8::Global<v8::Object> g;
-  int identity;
-
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Object> o = v8::Object::New(isolate);
-    identity = o->GetIdentityHash();
-    g.Reset(isolate, o);
-    g.SetWeak(&g, &ResurrectingFinalizerSettingProperty,
-              v8::WeakCallbackType::kFinalizer);
-  }
-
-  CcTest::CollectAllAvailableGarbage();
-
-  CHECK(!g.IsEmpty());
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Object> o = v8::Local<v8::Object>::New(isolate, g);
-  CHECK_EQ(identity, o->GetIdentityHash());
-  CHECK(o->Has(isolate->GetCurrentContext(), v8_str("finalizer")).FromJust());
-}
-
-TEST(PhatomHandlesWithoutCallbacks) {
+TEST(PhantomHandlesWithoutCallbacks) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
 
@@ -510,84 +462,6 @@ TEST(TracedReferenceTOJsApiObjectWithElementsSurvivesScavenge) {
   CHECK(!handle.IsEmpty());
 }
 
-TEST(FinalizerOnUnmodifiedJSApiObjectDoesNotCrash) {
-  // See crbug.com/v8/8586.
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
-  v8::Context::Scope context_scope(context);
-
-  FlagAndGlobal fp;
-  ConstructJSApiObject(isolate, context, &fp);
-  fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
-                    v8::WeakCallbackType::kFinalizer);
-  fp.flag = false;
-  {
-    v8::HandleScope inner_scope(isolate);
-    v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
-    USE(tmp);
-    InvokeScavenge();
-  }
-}
-
-namespace {
-
-void ConstructFinalizerPointingPhantomHandle(
-    v8::Isolate* isolate, v8::Global<v8::Object>* g1,
-    v8::Global<v8::Object>* g2,
-    typename v8::WeakCallbackInfo<v8::Global<v8::Object>>::Callback
-        finalizer_for_g1) {
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Object> o1 =
-      v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
-  v8::Local<v8::Object> o2 =
-      v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
-  o1->Set(isolate->GetCurrentContext(), v8_str("link"), o2).FromJust();
-  g1->Reset(isolate, o1);
-  g2->Reset(isolate, o2);
-  // g1 will be finalized but resurrected.
-  g1->SetWeak(g1, finalizer_for_g1, v8::WeakCallbackType::kFinalizer);
-  // g2 will be a phantom handle that is dependent on the finalizer handle
-  // g1 as it is in its subgraph.
-  g2->SetWeak();
-}
-
-}  // namespace
-
-TEST(FinalizerResurrectsAndKeepsPhantomAliveOnMarkCompact) {
-  // See crbug.com/772299.
-  CcTest::InitializeVM();
-  v8::Global<v8::Object> g1, g2;
-  ConstructFinalizerPointingPhantomHandle(CcTest::isolate(), &g1, &g2,
-                                          ResurrectingFinalizer);
-  InvokeMarkSweep();
-  // Both, g1 and g2, should stay alive as the finalizer resurrects the root
-  // object that transitively keeps the other one alive.
-  CHECK(!g1.IsEmpty());
-  CHECK(!g2.IsEmpty());
-  InvokeMarkSweep();
-  // The finalizer handle is now strong, so it should keep the objects alive.
-  CHECK(!g1.IsEmpty());
-  CHECK(!g2.IsEmpty());
-}
-
-TEST(FinalizerDiesAndKeepsPhantomAliveOnMarkCompact) {
-  CcTest::InitializeVM();
-  v8::Global<v8::Object> g1, g2;
-  ConstructFinalizerPointingPhantomHandle(CcTest::isolate(), &g1, &g2,
-                                          ResettingFinalizer);
-  InvokeMarkSweep();
-  // Finalizer (g1) dies but the phantom handle (g2) is kept alive for one
-  // more round as the underlying object only dies on the next GC.
-  CHECK(g1.IsEmpty());
-  CHECK(!g2.IsEmpty());
-  InvokeMarkSweep();
-  // Phantom handle dies after one more round.
-  CHECK(g1.IsEmpty());
-  CHECK(g2.IsEmpty());
-}
-
 namespace {
 
 void ForceScavenge2(const v8::WeakCallbackInfo<FlagAndGlobal>& data) {
@@ -748,5 +622,3 @@ TEST(TotalSizeTracedNode) {
 
 }  // namespace internal
 }  // namespace v8
-
-END_ALLOW_USE_DEPRECATED()
