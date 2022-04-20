@@ -357,7 +357,7 @@ namespace internal {
   T(InvalidAtomicAccessIndex, "Invalid atomic access index")                   \
   T(InvalidCalendar, "Invalid calendar specified: %")                          \
   T(InvalidCodePoint, "Invalid code point %")                                  \
-  T(InvalidCountValue, "Invalid count value")                                  \
+  T(InvalidCountValue, "Invalid count value: %")                               \
   T(InvalidDataViewAccessorOffset,                                             \
     "Offset is outside the bounds of the DataView")                            \
   T(InvalidDataViewLength, "Invalid DataView length %")                        \
