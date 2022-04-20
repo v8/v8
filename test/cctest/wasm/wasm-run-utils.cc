@@ -593,7 +593,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-        nullptr, nullptr));
+        nullptr, nullptr, nullptr));
   }
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(*result)));

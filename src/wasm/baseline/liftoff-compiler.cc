@@ -21,6 +21,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
+#include "src/wasm/assembler-buffer-cache.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -6585,6 +6586,21 @@ constexpr WasmOpcode LiftoffCompiler::kNoOutstandingOp;
 // static
 constexpr base::EnumSet<ValueKind> LiftoffCompiler::kUnconditionallySupported;
 
+std::unique_ptr<AssemblerBuffer> NewLiftoffAssemblerBuffer(
+    AssemblerBufferCache* assembler_buffer_cache, int func_body_size) {
+  size_t code_size_estimate =
+      WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);
+  // Allocate the initial buffer a bit bigger to avoid reallocation during code
+  // generation. Overflows when casting to int are fine, as we will allocate at
+  // least {AssemblerBase::kMinimalBufferSize} anyway, so in the worst case we
+  // have to grow more often.
+  int initial_buffer_size = static_cast<int>(128 + code_size_estimate * 4 / 3);
+
+  return assembler_buffer_cache
+             ? assembler_buffer_cache->GetAssemblerBuffer(initial_buffer_size)
+             : NewAssemblerBuffer(initial_buffer_size);
+}
+
 }  // namespace
 
 WasmCompilationResult ExecuteLiftoffCompilation(
@@ -6602,13 +6618,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
 
   Zone zone(GetWasmEngine()->allocator(), "LiftoffCompilationZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
-  size_t code_size_estimate =
-      WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);
-  // Allocate the initial buffer a bit bigger to avoid reallocation during code
-  // generation. Overflows when casting to int are fine, as we will allocate at
-  // least {AssemblerBase::kMinimalBufferSize} anyway, so in the worst case we
-  // have to grow more often.
-  int initial_buffer_size = static_cast<int>(128 + code_size_estimate * 4 / 3);
+
   std::unique_ptr<DebugSideTableBuilder> debug_sidetable_builder;
   if (compiler_options.debug_sidetable) {
     debug_sidetable_builder = std::make_unique<DebugSideTableBuilder>();
@@ -6616,13 +6626,15 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   DCHECK_IMPLIES(compiler_options.max_steps,
                  compiler_options.for_debugging == kForDebugging);
   WasmFeatures unused_detected_features;
+
   WasmFullDecoder<Decoder::kBooleanValidation, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features,
       compiler_options.detected_features ? compiler_options.detected_features
                                          : &unused_detected_features,
       func_body, call_descriptor, env, &zone,
-      NewAssemblerBuffer(initial_buffer_size), debug_sidetable_builder.get(),
-      compiler_options);
+      NewLiftoffAssemblerBuffer(compiler_options.assembler_buffer_cache,
+                                func_body_size),
+      debug_sidetable_builder.get(), compiler_options);
   decoder.Decode();
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);

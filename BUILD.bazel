@@ -2435,6 +2435,8 @@ filegroup(
             "src/debug/debug-wasm-objects-inl.h",
             "src/runtime/runtime-test-wasm.cc",
             "src/runtime/runtime-wasm.cc",
+            "src/wasm/assembler-buffer-cache.cc",
+            "src/wasm/assembler-buffer-cache.h",
             "src/wasm/baseline/liftoff-assembler.cc",
             "src/wasm/baseline/liftoff-assembler-defs.h",
             "src/wasm/baseline/liftoff-assembler.h",
