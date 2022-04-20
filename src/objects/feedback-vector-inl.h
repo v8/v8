@@ -71,6 +71,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
     case FeedbackSlotKind::kTypeProfile:
+    case FeedbackSlotKind::kJumpLoop:
       return 1;
 
     case FeedbackSlotKind::kCall:
@@ -93,10 +94,8 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
       return 2;
 
     case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
   }
-  return 1;
 }
 
 Handle<FeedbackCell> ClosureFeedbackCellArray::GetFeedbackCell(int index) {

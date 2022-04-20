@@ -61,9 +61,13 @@ enum class FeedbackSlotKind : uint8_t {
   kForIn,
   kInstanceOf,
   kCloneObject,
+  kJumpLoop,
 
-  kKindsNumber  // Last value indicating number of kinds.
+  kLast = kJumpLoop  // Always update this if the list above changes.
 };
+
+static constexpr int kFeedbackSlotKindCount =
+    static_cast<int>(FeedbackSlotKind::kLast) + 1;
 
 using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
 using MapAndFeedback = std::pair<Handle<Map>, MaybeObjectHandle>;
@@ -470,6 +474,10 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(FeedbackSlotKind::kCloneObject);
   }
 
+  FeedbackSlot AddJumpLoopSlot() {
+    return AddSlot(FeedbackSlotKind::kJumpLoop);
+  }
+
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
@@ -581,8 +589,7 @@ class FeedbackMetadata : public HeapObject {
   inline int length() const;
 
   static const int kFeedbackSlotKindBits = 5;
-  STATIC_ASSERT(static_cast<int>(FeedbackSlotKind::kKindsNumber) <
-                (1 << kFeedbackSlotKindBits));
+  STATIC_ASSERT(kFeedbackSlotKindCount <= (1 << kFeedbackSlotKindBits));
 
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
 
@@ -619,7 +626,6 @@ class FeedbackMetadataIterator {
   // Returns slot kind of the last slot returned by Next().
   FeedbackSlotKind kind() const {
     DCHECK_NE(FeedbackSlotKind::kInvalid, slot_kind_);
-    DCHECK_NE(FeedbackSlotKind::kKindsNumber, slot_kind_);
     return slot_kind_;
   }
 

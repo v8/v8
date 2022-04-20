@@ -665,7 +665,7 @@ void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
       iter.Next();
       FeedbackSlotKind kind = iter.kind();
       CHECK_NE(FeedbackSlotKind::kInvalid, kind);
-      CHECK_GT(FeedbackSlotKind::kKindsNumber, kind);
+      CHECK_GT(kFeedbackSlotKindCount, kind);
     }
   }
 }
