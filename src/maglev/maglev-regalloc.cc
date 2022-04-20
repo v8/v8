@@ -668,7 +668,8 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
 void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
   DCHECK(!node->is_spilled());
   uint32_t free_slot;
-  bool is_tagged = node->value_representation() == ValueRepresentation::kTagged;
+  bool is_tagged = (node->properties().value_representation() ==
+                    ValueRepresentation::kTagged);
   SpillSlots& slots = is_tagged ? tagged_ : untagged_;
   MachineRepresentation representation = is_tagged
                                              ? MachineRepresentation::kTagged

@@ -266,8 +266,12 @@ class MaglevGraphBuilder {
   ValueNode* GetTaggedValue(interpreter::Register reg) {
     // TODO(victorgomes): Add the representation (Tagged/Untagged) in the
     // InterpreterFrameState, so that we don't need to derefence a node.
+    // TODO(victorgomes): Support Float64.
     ValueNode* value = current_interpreter_frame_.get(reg);
-    if (!value->is_untagged_value()) return value;
+    if (value->properties().value_representation() ==
+        ValueRepresentation::kTagged) {
+      return value;
+    }
     if (value->Is<CheckedSmiUntag>()) {
       return value->input(0).node();
     }
@@ -277,24 +281,30 @@ class MaglevGraphBuilder {
     return tagged;
   }
 
-  ValueNode* GetSmiUntaggedValue(interpreter::Register reg) {
+  ValueNode* GetInt32(interpreter::Register reg) {
     // TODO(victorgomes): Add the representation (Tagged/Untagged) in the
     // InterpreterFrameState, so that we don't need to derefence a node.
+    // TODO(victorgomes): Support Float64.
     ValueNode* value = current_interpreter_frame_.get(reg);
-    if (value->is_untagged_value()) return value;
+    if (value->properties().value_representation() ==
+        ValueRepresentation::kInt32) {
+      return value;
+    }
     if (value->Is<CheckedSmiTag>()) return value->input(0).node();
     // Untag any other value.
+    DCHECK_EQ(value->properties().value_representation(),
+              ValueRepresentation::kTagged);
     ValueNode* untagged = AddNewNode<CheckedSmiUntag>({value});
     current_interpreter_frame_.set(reg, untagged);
     return untagged;
   }
 
-  ValueNode* GetAccumulatorTaggedValue() {
+  ValueNode* GetAccumulatorTagged() {
     return GetTaggedValue(interpreter::Register::virtual_accumulator());
   }
 
-  ValueNode* GetAccumulatorSmiUntaggedValue() {
-    return GetSmiUntaggedValue(interpreter::Register::virtual_accumulator());
+  ValueNode* GetAccumulatorInt32() {
+    return GetInt32(interpreter::Register::virtual_accumulator());
   }
 
   bool IsRegisterEqualToAccumulator(int operand_index) {
@@ -303,12 +313,12 @@ class MaglevGraphBuilder {
            current_interpreter_frame_.accumulator();
   }
 
-  ValueNode* LoadRegisterTaggedValue(int operand_index) {
+  ValueNode* LoadRegisterTagged(int operand_index) {
     return GetTaggedValue(iterator_.GetRegisterOperand(operand_index));
   }
 
-  ValueNode* LoadRegisterSmiUntaggedValue(int operand_index) {
-    return GetSmiUntaggedValue(iterator_.GetRegisterOperand(operand_index));
+  ValueNode* LoadRegisterInt32(int operand_index) {
+    return GetInt32(iterator_.GetRegisterOperand(operand_index));
   }
 
   template <typename NodeT>

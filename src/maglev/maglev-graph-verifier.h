@@ -15,10 +15,13 @@ namespace maglev {
 std::ostream& operator<<(std::ostream& os, const ValueRepresentation& repr) {
   switch (repr) {
     case ValueRepresentation::kTagged:
-      os << "TaggedValue";
+      os << "Tagged";
       break;
-    case ValueRepresentation::kUntagged:
-      os << "UntaggedValue";
+    case ValueRepresentation::kInt32:
+      os << "Int32";
+      break;
+    case ValueRepresentation::kFloat64:
+      os << "Float64";
       break;
   }
   return os;
@@ -39,16 +42,17 @@ class MaglevGraphVerifier {
   void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
 
-  void CheckValueInputIs(NodeBase* node, int i, ValueRepresentation repr) {
+  void CheckValueInputIs(NodeBase* node, int i, ValueRepresentation expected) {
     ValueNode* input = node->input(i).node();
-    if (input->value_representation() != repr) {
+    ValueRepresentation got = input->properties().value_representation();
+    if (got != expected) {
       std::ostringstream str;
       str << "Type representation error: node ";
       if (graph_labeller_) {
         str << "#" << graph_labeller_->NodeId(node) << " : ";
       }
       str << node->opcode() << " (input @" << i << " = " << input->opcode()
-          << ") type " << input->value_representation() << " is not " << repr;
+          << ") type " << got << " is not " << expected;
       FATAL("%s", str.str().c_str());
     }
   }
@@ -86,7 +90,7 @@ class MaglevGraphVerifier {
         break;
       case Opcode::kCheckedSmiTag:
         // Untagged unary operations.
-        CheckValueInputIs(node, 0, ValueRepresentation::kUntagged);
+        CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         break;
       case Opcode::kGenericAdd:
       case Opcode::kGenericSubtract:
@@ -119,8 +123,8 @@ class MaglevGraphVerifier {
         break;
       case Opcode::kInt32AddWithOverflow:
         // Untagged binary operations.
-        CheckValueInputIs(node, 0, ValueRepresentation::kUntagged);
-        CheckValueInputIs(node, 1, ValueRepresentation::kUntagged);
+        CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
+        CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
         break;
       case Opcode::kCall:
       case Opcode::kPhi:

@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-enum class ValueRepresentation;
+enum class ValueRepresentation : uint8_t;
 class MaglevCompilationInfo;
 class MaglevGraphLabeller;
 class Node;

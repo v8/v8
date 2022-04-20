@@ -370,7 +370,9 @@ class MergePointInterpreterFrameState {
 
   ValueNode* TagValue(MaglevCompilationUnit& compilation_unit,
                       ValueNode* value) {
-    DCHECK(value->is_untagged_value());
+    // TODO(victorgomes): Support Float64.
+    DCHECK_EQ(value->properties().value_representation(),
+              ValueRepresentation::kInt32);
     if (value->Is<CheckedSmiUntag>()) {
       return value->input(0).node();
     }
@@ -395,8 +397,15 @@ class MergePointInterpreterFrameState {
 
   ValueNode* EnsureTagged(MaglevCompilationUnit& compilation_unit,
                           ValueNode* value) {
-    if (value->is_untagged_value()) return TagValue(compilation_unit, value);
-    return value;
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged:
+        return value;
+      case ValueRepresentation::kInt32:
+        return TagValue(compilation_unit, value);
+      case ValueRepresentation::kFloat64:
+        // TOOD(victorgomes): Support Float64.
+        UNREACHABLE();
+    }
   }
 
   ValueNode* MergeValue(MaglevCompilationUnit& compilation_unit,

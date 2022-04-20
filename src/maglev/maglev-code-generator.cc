@@ -441,24 +441,47 @@ class MaglevCodeGeneratorImpl final {
         deopt_info->input_locations, deopt_info->result_location);
   }
 
+  void EmitDeoptStoreRegister(const compiler::AllocatedOperand& operand,
+                              ValueRepresentation repr) {
+    switch (repr) {
+      case ValueRepresentation::kTagged:
+        translation_array_builder_.StoreRegister(operand.GetRegister());
+        break;
+      case ValueRepresentation::kInt32:
+        translation_array_builder_.StoreInt32Register(operand.GetRegister());
+        break;
+      case ValueRepresentation::kFloat64:
+        translation_array_builder_.StoreDoubleRegister(
+            operand.GetDoubleRegister());
+        break;
+    }
+  }
+
+  void EmitDeoptStoreStackSlot(const compiler::AllocatedOperand& operand,
+                               ValueRepresentation repr) {
+    int stack_slot = DeoptStackSlotFromStackSlot(operand);
+    switch (repr) {
+      case ValueRepresentation::kTagged:
+        translation_array_builder_.StoreStackSlot(stack_slot);
+        break;
+      case ValueRepresentation::kInt32:
+        translation_array_builder_.StoreInt32StackSlot(stack_slot);
+        break;
+      case ValueRepresentation::kFloat64:
+        translation_array_builder_.StoreInt64StackSlot(stack_slot);
+        break;
+    }
+  }
+
   void EmitDeoptFrameSingleValue(ValueNode* value,
                                  const InputLocation& input_location) {
     const compiler::AllocatedOperand& operand =
         compiler::AllocatedOperand::cast(input_location.operand());
+    ValueRepresentation repr = value->properties().value_representation();
     if (operand.IsRegister()) {
-      if (value->properties().is_untagged_value()) {
-        translation_array_builder_.StoreInt32Register(operand.GetRegister());
-      } else {
-        translation_array_builder_.StoreRegister(operand.GetRegister());
-      }
+      EmitDeoptStoreRegister(operand, repr);
     } else {
-      if (value->properties().is_untagged_value()) {
-        translation_array_builder_.StoreInt32StackSlot(
-            DeoptStackSlotFromStackSlot(operand));
-      } else {
-        translation_array_builder_.StoreStackSlot(
-            DeoptStackSlotFromStackSlot(operand));
-      }
+      EmitDeoptStoreStackSlot(operand, repr);
     }
   }
 

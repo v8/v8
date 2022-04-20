@@ -165,10 +165,7 @@ class ConditionalControlNode;
 class UnconditionalControlNode;
 class ValueNode;
 
-enum class ValueRepresentation {
-  kTagged,
-  kUntagged,
-};
+enum class ValueRepresentation : uint8_t { kTagged, kInt32, kFloat64 };
 
 #define DEF_FORWARD_DECLARATION(type, ...) class type;
 NODE_BASE_LIST(DEF_FORWARD_DECLARATION)
@@ -191,10 +188,9 @@ class OpProperties {
   constexpr bool non_memory_side_effects() const {
     return kNonMemorySideEffectsBit::decode(bitfield_);
   }
-  constexpr bool is_untagged_value() const {
-    return kUntaggedValueBit::decode(bitfield_);
+  constexpr ValueRepresentation value_representation() const {
+    return kValueRepresentationBits::decode(bitfield_);
   }
-
   constexpr bool is_pure() const {
     return (bitfield_ | kPureMask) == kPureValue;
   }
@@ -225,8 +221,17 @@ class OpProperties {
   static constexpr OpProperties NonMemorySideEffects() {
     return OpProperties(kNonMemorySideEffectsBit::encode(true));
   }
-  static constexpr OpProperties UntaggedValue() {
-    return OpProperties(kUntaggedValueBit::encode(true));
+  static constexpr OpProperties TaggedValue() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kTagged));
+  }
+  static constexpr OpProperties Int32() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kInt32));
+  }
+  static constexpr OpProperties Float64() {
+    return OpProperties(
+        kValueRepresentationBits::encode(ValueRepresentation::kFloat64));
   }
   static constexpr OpProperties JSCall() {
     return Call() | NonMemorySideEffects() | LazyDeopt();
@@ -245,7 +250,8 @@ class OpProperties {
   using kCanReadBit = kCanLazyDeoptBit::Next<bool, 1>;
   using kCanWriteBit = kCanReadBit::Next<bool, 1>;
   using kNonMemorySideEffectsBit = kCanWriteBit::Next<bool, 1>;
-  using kUntaggedValueBit = kNonMemorySideEffectsBit::Next<bool, 1>;
+  using kValueRepresentationBits =
+      kNonMemorySideEffectsBit::Next<ValueRepresentation, 2>;
 
   static const uint32_t kPureMask = kCanReadBit::kMask | kCanWriteBit::kMask |
                                     kNonMemorySideEffectsBit::kMask;
@@ -256,7 +262,7 @@ class OpProperties {
   const uint32_t bitfield_;
 
  public:
-  static const size_t kSize = kUntaggedValueBit::kLastUsedBit + 1;
+  static const size_t kSize = kValueRepresentationBits::kLastUsedBit + 1;
 };
 
 class ValueLocation {
@@ -436,7 +442,8 @@ class NodeBase : public ZoneObject {
   }
 
   // Overwritten by subclasses.
-  static constexpr OpProperties kProperties = OpProperties::Pure();
+  static constexpr OpProperties kProperties =
+      OpProperties::Pure() | OpProperties::TaggedValue();
 
   constexpr Opcode opcode() const { return OpcodeField::decode(bit_field_); }
   OpProperties properties() const {
@@ -764,13 +771,6 @@ class ValueNode : public Node {
     return compiler::AllocatedOperand::cast(spill_or_hint_);
   }
 
-  bool is_untagged_value() const { return properties().is_untagged_value(); }
-
-  ValueRepresentation value_representation() const {
-    return is_untagged_value() ? ValueRepresentation::kUntagged
-                               : ValueRepresentation::kTagged;
-  }
-
  protected:
   explicit ValueNode(uint32_t bitfield)
       : Node(bitfield),
@@ -966,7 +966,7 @@ class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
   explicit CheckedSmiUntag(uint32_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::UntaggedValue();
+      OpProperties::EagerDeopt() | OpProperties::Int32();
 
   Input& input() { return Node::input(0); }
 
@@ -982,7 +982,7 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   explicit Int32Constant(uint32_t bitfield, int32_t value)
       : Base(bitfield), value_(value) {}
 
-  static constexpr OpProperties kProperties = OpProperties::UntaggedValue();
+  static constexpr OpProperties kProperties = OpProperties::Int32();
 
   int32_t value() const { return value_; }
 
@@ -1002,7 +1002,7 @@ class Int32AddWithOverflow
   explicit Int32AddWithOverflow(uint32_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::UntaggedValue();
+      OpProperties::EagerDeopt() | OpProperties::Int32();
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;
