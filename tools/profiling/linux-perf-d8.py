@@ -95,7 +95,7 @@ def log(*args):
 if len(args) == 0:
   parser.error("No d8 binary provided")
 
-d8_bin = Path(args.pop(0))
+d8_bin = Path(args.pop(0)).absolute()
 if not d8_bin.exists():
   parser.error(f"D8 '{d8_bin}' does not exist")
 
@@ -111,17 +111,38 @@ if not options.perf_data_dir.is_dir():
 if options.timeout and options.timeout < 0:
   parser.error("--timeout should be a positive number")
 
+
+# ==============================================================================
+def make_path_absolute(maybe_path):
+  if maybe_path.startswith("-"):
+    return maybe_path
+  path = Path(maybe_path)
+  if path.exists():
+    return str(path.absolute())
+  return maybe_path
+
+
+def make_args_paths_absolute(args):
+  return list(map(make_path_absolute, args))
+
+
+# Preprocess args if we change CWD to get cleaner output
+if options.perf_data_dir != Path.cwd():
+  args = make_args_paths_absolute(args)
+
 # ==============================================================================
 old_cwd = Path.cwd()
 os.chdir(options.perf_data_dir)
 
 # ==============================================================================
+
 cmd = [str(d8_bin), "--perf-prof"]
 
 if not options.no_interpreted_frames_native_stack:
   cmd += ["--interpreted-frames-native-stack"]
 if options.perf_prof_annotate_wasm:
   cmd += ["--perf-prof-annotate-wasm"]
+
 cmd += args
 log("D8 CMD: ", shlex.join(cmd))
 
@@ -155,7 +176,10 @@ def wait_for_process_timeout(process):
 
 
 if options.timeout is None:
-  subprocess.run(cmd)
+  try:
+    subprocess.check_call(cmd)
+  except:
+    log("ERROR running perf record")
 else:
   process = subprocess.Popen(cmd)
   if not wait_for_process_timeout(process):
@@ -168,8 +192,13 @@ else:
       child.send_signal(signal.SIGQUIT)
   # Wait for linux-perf to write out files
   time.sleep(1)
-  process.send_signal(signal.SIGQUIT)
-  process.wait()
+  return_status = process.poll()
+  if return_status is None:
+    log("Force quitting linux-perf")
+    process.send_signal(signal.SIGQUIT)
+    process.wait()
+  elif return_status != 0:
+    log("ERROR running perf record")
 
 # ==============================================================================
 log("POST PROCESSING: Injecting JS symbols")
@@ -182,7 +211,7 @@ def inject_v8_symbols(perf_dat_file):
       f"--output={output_file}"
   ]
   try:
-    subprocess.run(cmd)
+    subprocess.check_call(cmd)
     print(f"Processed: {output_file}")
   except:
     print(shlex.join(cmd))

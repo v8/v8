@@ -81,7 +81,7 @@ def log(*args):
 if len(args) == 0:
   parser.error("No chrome binary provided")
 
-chrome_bin = Path(args.pop(0))
+chrome_bin = Path(args.pop(0)).absolute()
 if not chrome_bin.exists():
   parser.error(f"Chrome '{chrome_bin}' does not exist")
 
@@ -155,7 +155,10 @@ with tempfile.TemporaryDirectory(prefix="chrome-") as tmp_dir_path:
     log("LINUX PERF CMD: ", shlex.join(cmd))
 
   if options.timeout is None:
-    subprocess.run(cmd)
+    try:
+      subprocess.check_call(cmd)
+    except:
+      log("ERROR running perf record")
   else:
     process = subprocess.Popen(cmd)
     if not wait_for_process_timeout(process):
@@ -168,10 +171,14 @@ with tempfile.TemporaryDirectory(prefix="chrome-") as tmp_dir_path:
         child.send_signal(signal.SIGQUIT)
     # Wait for linux-perf to write out files
     time.sleep(1)
-    process.send_signal(signal.SIGQUIT)
-    process.wait()
-
-# ==============================================================================
+    return_status = process.poll()
+    if return_status is None:
+      log("Force quitting linux-perf")
+      process.send_signal(signal.SIGQUIT)
+      process.wait()
+    elif return_status != 0:
+      log("ERROR running perf record")
+  # ==============================================================================
 log("PARALLEL POST PROCESSING: Injecting JS symbols")
 
 
@@ -182,7 +189,7 @@ def inject_v8_symbols(perf_dat_file):
       f"--output={output_file}"
   ]
   try:
-    subprocess.run(cmd)
+    subprocess.check_call(cmd)
     print(f"Processed: {output_file}")
   except:
     print(shlex.join(cmd))
