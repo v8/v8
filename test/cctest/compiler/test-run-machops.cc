@@ -16,7 +16,7 @@
 #include "src/utils/boxed-float.h"
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/test-codegen.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/common/flag-utils.h"
 

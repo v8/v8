@@ -626,7 +626,7 @@
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
   # Tests that generate code at runtime.
-  'codegen-tester/*': [SKIP],
+  'test-codegen/*': [SKIP],
   'test-accessor-assembler/*': [SKIP],
   'test-assembler-*': [SKIP],
   'test-atomic-load-store-codegen/*': [SKIP],

@@ -212,7 +212,6 @@ static const bool USE_RESULT_BUFFER = true;
 static const bool USE_RETURN_REGISTER = false;
 static const int32_t CHECK_VALUE = 0x99BEEDCE;
 
-
 // TODO(titzer): use the C-style calling convention, or any register-based
 // calling convention for binop tests.
 template <typename CType, bool use_result_buffer>
@@ -271,7 +270,6 @@ class BinopTester {
   CType result;
 };
 
-
 // A helper class for testing code sequences that take two int parameters and
 // return an int value.
 class Int32BinopTester : public BinopTester<int32_t, USE_RETURN_REGISTER> {
@@ -281,7 +279,6 @@ class Int32BinopTester : public BinopTester<int32_t, USE_RETURN_REGISTER> {
                                                   MachineType::Int32()) {}
 };
 
-
 // A helper class for testing code sequences that take two int parameters and
 // return an int value.
 class Int64BinopTester : public BinopTester<int64_t, USE_RETURN_REGISTER> {
@@ -290,7 +287,6 @@ class Int64BinopTester : public BinopTester<int64_t, USE_RETURN_REGISTER> {
       : BinopTester<int64_t, USE_RETURN_REGISTER>(tester,
                                                   MachineType::Int64()) {}
 };
-
 
 // A helper class for testing code sequences that take two uint parameters and
 // return an uint value.
@@ -307,7 +303,6 @@ class Uint32BinopTester : public BinopTester<uint32_t, USE_RETURN_REGISTER> {
   }
 };
 
-
 // A helper class for testing code sequences that take two float parameters and
 // return a float value.
 class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
@@ -315,7 +310,6 @@ class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
   explicit Float32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
       : BinopTester<float, USE_RESULT_BUFFER>(tester, MachineType::Float32()) {}
 };
-
 
 // A helper class for testing code sequences that take two double parameters and
 // return a double value.
@@ -325,7 +319,6 @@ class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
       : BinopTester<double, USE_RESULT_BUFFER>(tester, MachineType::Float64()) {
   }
 };
-
 
 // A helper class for testing code sequences that take two pointer parameters
 // and return a pointer value.
@@ -337,7 +330,6 @@ class PointerBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
       : BinopTester<Type, USE_RETURN_REGISTER>(tester, MachineType::Pointer()) {
   }
 };
-
 
 // A helper class for testing code sequences that take two tagged parameters and
 // return a tagged value.
@@ -417,7 +409,6 @@ class CompareWrapper {
 
   IrOpcode::Value opcode;
 };
-
 
 // A small closure class to generate code for a function of two inputs that
 // produces a single output so that it can be used in many different contexts.

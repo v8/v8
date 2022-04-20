@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/test-codegen.h"
 
 #include "src/base/overflowing-math.h"
 #include "src/objects/objects-inl.h"
@@ -277,7 +277,6 @@ TEST(CompareWrapper) {
   CHECK_EQ(false, wFloat64LessThanOrEqual.Float64Compare(-1.8, -2.8));
 }
 
-
 void Int32BinopInputShapeTester::TestAllInputShapes() {
   base::Vector<const int32_t> inputs = ValueHelper::int32_vector();
   int num_int_inputs = static_cast<int>(inputs.size());
@@ -326,7 +325,6 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
   }
 }
 
-
 void Int32BinopInputShapeTester::Run(RawMachineAssemblerTester<int32_t>* m) {
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
@@ -338,7 +336,6 @@ void Int32BinopInputShapeTester::Run(RawMachineAssemblerTester<int32_t>* m) {
   }
 }
 
-
 void Int32BinopInputShapeTester::RunLeft(
     RawMachineAssemblerTester<int32_t>* m) {
   FOR_UINT32_INPUTS(i) {
@@ -348,7 +345,6 @@ void Int32BinopInputShapeTester::RunLeft(
   }
 }
 
-
 void Int32BinopInputShapeTester::RunRight(
     RawMachineAssemblerTester<int32_t>* m) {
   FOR_UINT32_INPUTS(i) {
@@ -357,7 +353,6 @@ void Int32BinopInputShapeTester::RunRight(
     CHECK_EQ(expect, m->Call(input_a, input_b));
   }
 }
-
 
 TEST(ParametersEqual) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
@@ -370,7 +365,6 @@ TEST(ParametersEqual) {
   CHECK_EQ(p1, m.Parameter(1));
 }
 
-
 void RunSmiConstant(int32_t v) {
 // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
 #if !V8_TARGET_ARCH_X64
@@ -381,7 +375,6 @@ void RunSmiConstant(int32_t v) {
   }
 #endif
 }
-
 
 void RunNumberConstant(double v) {
   RawMachineAssemblerTester<Object> m;
@@ -395,13 +388,11 @@ void RunNumberConstant(double v) {
   m.CheckNumber(v, result);
 }
 
-
 TEST(RunEmpty) {
   RawMachineAssemblerTester<int32_t> m;
   m.Return(m.Int32Constant(0));
   CHECK_EQ(0, m.Call());
 }
-
 
 TEST(RunInt32Constants) {
   FOR_INT32_INPUTS(i) {
@@ -410,7 +401,6 @@ TEST(RunInt32Constants) {
     CHECK_EQ(i, m.Call());
   }
 }
-
 
 TEST(RunSmiConstants) {
   for (int32_t i = 1; i < Smi::kMaxValue && i != 0;
@@ -453,13 +443,11 @@ TEST(RunEmptyString) {
   m.CheckString("empty", m.Call());
 }
 
-
 TEST(RunHeapConstant) {
   RawMachineAssemblerTester<Object> m;
   m.Return(m.StringConstant("empty"));
   m.CheckString("empty", m.Call());
 }
-
 
 TEST(RunHeapNumberConstant) {
   RawMachineAssemblerTester<void*> m;
@@ -470,7 +458,6 @@ TEST(RunHeapNumberConstant) {
   CHECK_EQ(result, *number);
 }
 
-
 TEST(RunParam1) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   m.Return(m.Parameter(0));
@@ -480,7 +467,6 @@ TEST(RunParam1) {
     CHECK_EQ(i, result);
   }
 }
-
 
 TEST(RunParam2_1) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
@@ -496,7 +482,6 @@ TEST(RunParam2_1) {
   }
 }
 
-
 TEST(RunParam2_2) {
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
                                        MachineType::Int32());
@@ -510,7 +495,6 @@ TEST(RunParam2_2) {
     CHECK_EQ(i, result);
   }
 }
-
 
 TEST(RunParam3) {
   for (int i = 0; i < 3; i++) {
@@ -527,7 +511,6 @@ TEST(RunParam3) {
     }
   }
 }
-
 
 TEST(RunBinopTester) {
   {
@@ -562,7 +545,6 @@ TEST(RunBinopTester) {
     FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(i, bt.call(-11.25, i)); }
   }
 }
-
 
 #if V8_TARGET_ARCH_64_BIT
 // TODO(ahaas): run int64 tests on all platforms when supported.

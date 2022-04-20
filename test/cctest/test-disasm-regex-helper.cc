@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/disasm-regex-helper.h"
+#include "test/cctest/test-disasm-regex-helper.h"
 
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"

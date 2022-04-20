@@ -56,7 +56,11 @@ class TestLoader(testsuite.TestLoader):
       print(output.stderr)
       return []
 
-    return sorted(output.stdout.strip().split())
+    filtered_output = [
+        test for test in output.stdout.strip().split()
+        if test.startswith('test-')
+    ]
+    return sorted(filtered_output)
 
 
 class TestSuite(testsuite.TestSuite):
