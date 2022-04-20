@@ -7,8 +7,7 @@
 #include "src/base/platform/platform.h"
 #include "src/libplatform/default-platform.h"
 #include "src/tracing/trace-event.h"
-#include "test/unittests/test-utils.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "test/cctest/cctest.h"
 
 #ifdef V8_USE_PERFETTO
 #include "perfetto/tracing.h"
@@ -21,9 +20,8 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-class PlatformTracingTest : public TestWithPlatform {};
-
-TEST_F(PlatformTracingTest, TestTraceConfig) {
+TEST(TestTraceConfig) {
+  LocalContext env;
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8");
   trace_config->AddIncludedCategory(TRACE_DISABLED_BY_DEFAULT("v8.runtime"));
@@ -46,7 +44,7 @@ TEST_F(PlatformTracingTest, TestTraceConfig) {
 
 // Perfetto doesn't use TraceObject.
 #if !defined(V8_USE_PERFETTO)
-TEST_F(PlatformTracingTest, TestTraceObject) {
+TEST(TestTraceObject) {
   TraceObject trace_object;
   uint8_t category_enabled_flag = 41;
   trace_object.Initialize('X', &category_enabled_flag, "Test.Trace",
@@ -93,7 +91,7 @@ class MockTraceWriter : public TraceWriter {
 
 // Perfetto doesn't use the ring buffer.
 #if !defined(V8_USE_PERFETTO)
-TEST_F(PlatformTracingTest, TestTraceBufferRingBuffer) {
+TEST(TestTraceBufferRingBuffer) {
   // We should be able to add kChunkSize * 2 + 1 trace events.
   const int HANDLES_COUNT = TraceBufferChunk::kChunkSize * 2 + 1;
   MockTraceWriter* writer = new MockTraceWriter();
@@ -179,7 +177,7 @@ void PopulateJSONWriter(TraceWriter* writer) {
   i::V8::SetPlatformForTesting(old_platform);
 }
 
-TEST_F(PlatformTracingTest, TestJSONTraceWriter) {
+TEST(TestJSONTraceWriter) {
   std::ostringstream stream;
   TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
   PopulateJSONWriter(writer);
@@ -195,7 +193,7 @@ TEST_F(PlatformTracingTest, TestJSONTraceWriter) {
   CHECK_EQ(expected_trace_str, trace_str);
 }
 
-TEST_F(PlatformTracingTest, TestJSONTraceWriterWithCustomtag) {
+TEST(TestJSONTraceWriterWithCustomtag) {
   std::ostringstream stream;
   TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream, "customTag");
   PopulateJSONWriter(writer);
@@ -228,7 +226,7 @@ void GetJSONStrings(std::vector<std::string>* ret, const std::string& str,
 
 // With Perfetto the tracing controller doesn't observe events.
 #if !defined(V8_USE_PERFETTO)
-TEST_F(PlatformTracingTest, TestTracingController) {
+TEST(TestTracingController) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   std::unique_ptr<v8::Platform> default_platform(
       v8::platform::NewDefaultPlatform());
@@ -260,7 +258,7 @@ TEST_F(PlatformTracingTest, TestTracingController) {
   i::V8::SetPlatformForTesting(old_platform);
 }
 
-TEST_F(PlatformTracingTest, TestTracingControllerMultipleArgsAndCopy) {
+TEST(TestTracingControllerMultipleArgsAndCopy) {
   std::ostringstream stream, perfetto_stream;
   uint64_t aa = 11;
   unsigned int bb = 22;
@@ -402,7 +400,7 @@ class TraceStateObserverImpl : public TracingController::TraceStateObserver {
 
 }  // namespace
 
-TEST_F(PlatformTracingTest, TracingObservers) {
+TEST(TracingObservers) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   std::unique_ptr<v8::Platform> default_platform(
       v8::platform::NewDefaultPlatform());
@@ -497,7 +495,7 @@ class TraceWritingThread : public base::Thread {
   v8::platform::tracing::TracingController* tracing_controller_;
 };
 
-TEST_F(PlatformTracingTest, AddTraceEventMultiThreaded) {
+TEST(AddTraceEventMultiThreaded) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   std::unique_ptr<v8::Platform> default_platform(
       v8::platform::NewDefaultPlatform());
@@ -679,7 +677,7 @@ class TracingTestHarness {
   std::ostringstream perfetto_json_stream_;
 };
 
-TEST_F(PlatformTracingTest, Perfetto) {
+TEST(Perfetto) {
   TracingTestHarness harness;
   harness.StartTracing();
 
@@ -706,7 +704,7 @@ TEST_F(PlatformTracingTest, Perfetto) {
 }
 
 // Replacement for 'TestTracingController'
-TEST_F(PlatformTracingTest, Categories) {
+TEST(Categories) {
   TracingTestHarness harness;
   harness.StartTracing();
 
@@ -727,7 +725,7 @@ TEST_F(PlatformTracingTest, Categories) {
 }
 
 // Replacement for 'TestTracingControllerMultipleArgsAndCopy'
-TEST_F(PlatformTracingTest, MultipleArgsAndCopy) {
+TEST(MultipleArgsAndCopy) {
   uint64_t aa = 11;
   unsigned int bb = 22;
   uint16_t cc = 33;
@@ -836,7 +834,7 @@ TEST_F(PlatformTracingTest, MultipleArgsAndCopy) {
   for (size_t i = 0; i < 20; i++) CHECK_EQ("E:.", harness.get_event(24 + i));
 }
 
-TEST_F(PlatformTracingTest, JsonIntegrationTest) {
+TEST(JsonIntegrationTest) {
   // Check that tricky values are rendered correctly in the JSON output.
   double big_num = 1e100;
   double nan_num = std::numeric_limits<double>::quiet_NaN();
