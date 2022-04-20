@@ -411,6 +411,13 @@ void FeedbackVector::ClearOptimizedCode() {
   set_maybe_has_optimized_code(false);
 }
 
+void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot, CodeT code) {
+  DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
+  DCHECK(!slot.IsInvalid());
+  Set(slot, HeapObjectReference::Weak(code));
+  set_maybe_has_optimized_osr_code(true);
+}
+
 void FeedbackVector::reset_tiering_state() {
   set_tiering_state(TieringState::kNone);
 }
@@ -423,8 +430,9 @@ void FeedbackVector::set_tiering_state(TieringState state) {
 
 void FeedbackVector::reset_flags() {
   set_flags(TieringStateBits::encode(TieringState::kNone) |
+            MaybeHasOptimizedCodeBit::encode(false) |
             OsrTieringStateBit::encode(TieringState::kNone) |
-            MaybeHasOptimizedCodeBit::encode(false));
+            MaybeHasOptimizedOsrCodeBit::encode(false));
 }
 
 TieringState FeedbackVector::osr_tiering_state() {
