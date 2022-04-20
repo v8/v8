@@ -653,6 +653,100 @@ namespace {
 const int kHostDefinedOptionsLength = 2;
 const uint32_t kHostDefinedOptionsMagicConstant = 0xF1F2F3F0;
 
+std::string ToSTLString(Isolate* isolate, Local<String> v8_str) {
+  String::Utf8Value utf8(isolate, v8_str);
+  // Should not be able to fail since the input is a String.
+  CHECK(*utf8);
+  return *utf8;
+}
+
+// Per-context Module data, allowing sharing of module maps
+// across top-level module loads.
+class ModuleEmbedderData {
+ private:
+  class ModuleGlobalHash {
+   public:
+    explicit ModuleGlobalHash(Isolate* isolate) : isolate_(isolate) {}
+    size_t operator()(const Global<Module>& module) const {
+      return module.Get(isolate_)->GetIdentityHash();
+    }
+
+   private:
+    Isolate* isolate_;
+  };
+
+ public:
+  explicit ModuleEmbedderData(Isolate* isolate)
+      : module_to_specifier_map(10, ModuleGlobalHash(isolate)),
+        json_module_to_parsed_json_map(
+            10, module_to_specifier_map.hash_function()) {}
+
+  static ModuleType ModuleTypeFromImportAssertions(
+      Local<Context> context, Local<FixedArray> import_assertions,
+      bool hasPositions) {
+    Isolate* isolate = context->GetIsolate();
+    const int kV8AssertionEntrySize = hasPositions ? 3 : 2;
+    for (int i = 0; i < import_assertions->Length();
+         i += kV8AssertionEntrySize) {
+      Local<String> v8_assertion_key =
+          import_assertions->Get(context, i).As<v8::String>();
+      std::string assertion_key = ToSTLString(isolate, v8_assertion_key);
+
+      if (assertion_key == "type") {
+        Local<String> v8_assertion_value =
+            import_assertions->Get(context, i + 1).As<String>();
+        std::string assertion_value = ToSTLString(isolate, v8_assertion_value);
+        if (assertion_value == "json") {
+          return ModuleType::kJSON;
+        } else {
+          // JSON is currently the only supported non-JS type
+          return ModuleType::kInvalid;
+        }
+      }
+    }
+
+    // If no type is asserted, default to JS.
+    return ModuleType::kJavaScript;
+  }
+
+  // Map from (normalized module specifier, module type) pair to Module.
+  std::map<std::pair<std::string, ModuleType>, Global<Module>> module_map;
+  // Map from Module to its URL as defined in the ScriptOrigin
+  std::unordered_map<Global<Module>, std::string, ModuleGlobalHash>
+      module_to_specifier_map;
+  // Map from JSON Module to its parsed content, for use in module
+  // JSONModuleEvaluationSteps
+  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
+      json_module_to_parsed_json_map;
+
+  // Origin location used for resolving modules when referrer is null.
+  std::string origin;
+};
+
+enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
+
+std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
+    Local<Context> context) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  const size_t kModuleEmbedderDataEstimate = 4 * 1024;  // module map.
+  i::Handle<i::Managed<ModuleEmbedderData>> module_data_managed =
+      i::Managed<ModuleEmbedderData>::Allocate(
+          i_isolate, kModuleEmbedderDataEstimate, context->GetIsolate());
+  v8::Local<v8::Value> module_data = Utils::ToLocal(module_data_managed);
+  context->SetEmbedderData(kModuleEmbedderDataIndex, module_data);
+  return module_data_managed->get();
+}
+
+std::shared_ptr<ModuleEmbedderData> GetModuleDataFromContext(
+    Local<Context> context) {
+  v8::Local<v8::Value> module_data =
+      context->GetEmbedderData(kModuleEmbedderDataIndex);
+  i::Handle<i::Managed<ModuleEmbedderData>> module_data_managed =
+      i::Handle<i::Managed<ModuleEmbedderData>>::cast(
+          Utils::OpenHandle<Value, i::Object>(module_data));
+  return module_data_managed->get();
+}
+
 ScriptOrigin CreateScriptOrigin(Isolate* isolate, Local<String> resource_name,
                                 v8::ScriptType type) {
   Local<PrimitiveArray> options =
@@ -740,6 +834,10 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin =
         CreateScriptOrigin(isolate, name, ScriptType::kClassic);
+
+    std::shared_ptr<ModuleEmbedderData> module_data =
+        GetModuleDataFromContext(realm);
+    module_data->origin = ToSTLString(isolate, name);
 
     for (int i = 1; i < options.repeat_compile; ++i) {
       HandleScope handle_scope_for_compiling(isolate);
@@ -844,13 +942,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
 namespace {
 
-std::string ToSTLString(Isolate* isolate, Local<String> v8_str) {
-  String::Utf8Value utf8(isolate, v8_str);
-  // Should not be able to fail since the input is a String.
-  CHECK(*utf8);
-  return *utf8;
-}
-
 bool IsAbsolutePath(const std::string& path) {
 #if defined(_WIN32) || defined(_WIN64)
   // This is an incorrect approximation, but should
@@ -919,98 +1010,23 @@ std::string NormalizePath(const std::string& path,
   return os.str();
 }
 
-// Per-context Module data, allowing sharing of module maps
-// across top-level module loads.
-class ModuleEmbedderData {
- private:
-  class ModuleGlobalHash {
-   public:
-    explicit ModuleGlobalHash(Isolate* isolate) : isolate_(isolate) {}
-    size_t operator()(const Global<Module>& module) const {
-      return module.Get(isolate_)->GetIdentityHash();
-    }
-
-   private:
-    Isolate* isolate_;
-  };
-
- public:
-  explicit ModuleEmbedderData(Isolate* isolate)
-      : module_to_specifier_map(10, ModuleGlobalHash(isolate)),
-        json_module_to_parsed_json_map(10, ModuleGlobalHash(isolate)) {}
-
-  static ModuleType ModuleTypeFromImportAssertions(
-      Local<Context> context, Local<FixedArray> import_assertions,
-      bool hasPositions) {
-    Isolate* isolate = context->GetIsolate();
-    const int kV8AssertionEntrySize = hasPositions ? 3 : 2;
-    for (int i = 0; i < import_assertions->Length();
-         i += kV8AssertionEntrySize) {
-      Local<String> v8_assertion_key =
-          import_assertions->Get(context, i).As<v8::String>();
-      std::string assertion_key = ToSTLString(isolate, v8_assertion_key);
-
-      if (assertion_key == "type") {
-        Local<String> v8_assertion_value =
-            import_assertions->Get(context, i + 1).As<String>();
-        std::string assertion_value = ToSTLString(isolate, v8_assertion_value);
-        if (assertion_value == "json") {
-          return ModuleType::kJSON;
-        } else {
-          // JSON is currently the only supported non-JS type
-          return ModuleType::kInvalid;
-        }
-      }
-    }
-
-    // If no type is asserted, default to JS.
-    return ModuleType::kJavaScript;
-  }
-
-  // Map from (normalized module specifier, module type) pair to Module.
-  std::map<std::pair<std::string, ModuleType>, Global<Module>> module_map;
-  // Map from Module to its URL as defined in the ScriptOrigin
-  std::unordered_map<Global<Module>, std::string, ModuleGlobalHash>
-      module_to_specifier_map;
-  // Map from JSON Module to its parsed content, for use in module
-  // JSONModuleEvaluationSteps
-  std::unordered_map<Global<Module>, Global<Value>, ModuleGlobalHash>
-      json_module_to_parsed_json_map;
-};
-
-enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
-
-void InitializeModuleEmbedderData(Local<Context> context) {
-  context->SetAlignedPointerInEmbedderData(
-      kModuleEmbedderDataIndex, new ModuleEmbedderData(context->GetIsolate()));
-}
-
-ModuleEmbedderData* GetModuleDataFromContext(Local<Context> context) {
-  return static_cast<ModuleEmbedderData*>(
-      context->GetAlignedPointerFromEmbedderData(kModuleEmbedderDataIndex));
-}
-
-void DisposeModuleEmbedderData(Local<Context> context) {
-  delete GetModuleDataFromContext(context);
-  context->SetAlignedPointerInEmbedderData(kModuleEmbedderDataIndex, nullptr);
-}
-
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
                                          Local<FixedArray> import_assertions,
                                          Local<Module> referrer) {
   Isolate* isolate = context->GetIsolate();
-  ModuleEmbedderData* d = GetModuleDataFromContext(context);
-  auto specifier_it =
-      d->module_to_specifier_map.find(Global<Module>(isolate, referrer));
-  CHECK(specifier_it != d->module_to_specifier_map.end());
+  std::shared_ptr<ModuleEmbedderData> module_data =
+      GetModuleDataFromContext(context);
+  auto specifier_it = module_data->module_to_specifier_map.find(
+      Global<Module>(isolate, referrer));
+  CHECK(specifier_it != module_data->module_to_specifier_map.end());
   std::string absolute_path = NormalizePath(ToSTLString(isolate, specifier),
                                             DirName(specifier_it->second));
   ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAssertions(
       context, import_assertions, true);
   auto module_it =
-      d->module_map.find(std::make_pair(absolute_path, module_type));
-  CHECK(module_it != d->module_map.end());
+      module_data->module_map.find(std::make_pair(absolute_path, module_type));
+  CHECK(module_it != module_data->module_map.end());
   return module_it->second.Get(isolate);
 }
 
@@ -1032,13 +1048,14 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     }
   }
 
-  ModuleEmbedderData* d = GetModuleDataFromContext(context);
+  std::shared_ptr<ModuleEmbedderData> module_data =
+      GetModuleDataFromContext(context);
   if (source_text.IsEmpty()) {
     std::string msg = "d8: Error reading  module from " + file_name;
     if (!referrer.IsEmpty()) {
-      auto specifier_it =
-          d->module_to_specifier_map.find(Global<Module>(isolate, referrer));
-      CHECK(specifier_it != d->module_to_specifier_map.end());
+      auto specifier_it = module_data->module_to_specifier_map.find(
+          Global<Module>(isolate, referrer));
+      CHECK(specifier_it != module_data->module_to_specifier_map.end());
       msg += "\n    imported by " + specifier_it->second;
     }
     isolate->ThrowError(
@@ -1074,7 +1091,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
         String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
         export_names, Shell::JSONModuleEvaluationSteps);
 
-    CHECK(d->json_module_to_parsed_json_map
+    CHECK(module_data->json_module_to_parsed_json_map
               .insert(std::make_pair(Global<Module>(isolate, module),
                                      Global<Value>(isolate, parsed_json)))
               .second);
@@ -1082,11 +1099,11 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
     UNREACHABLE();
   }
 
-  CHECK(d->module_map
+  CHECK(module_data->module_map
             .insert(std::make_pair(std::make_pair(file_name, module_type),
                                    Global<Module>(isolate, module)))
             .second);
-  CHECK(d->module_to_specifier_map
+  CHECK(module_data->module_to_specifier_map
             .insert(std::make_pair(Global<Module>(isolate, module), file_name))
             .second);
 
@@ -1109,7 +1126,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       return MaybeLocal<Module>();
     }
 
-    if (d->module_map.count(
+    if (module_data->module_map.count(
             std::make_pair(absolute_path, request_module_type))) {
       continue;
     }
@@ -1127,10 +1144,11 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
                                                    Local<Module> module) {
   Isolate* isolate = context->GetIsolate();
 
-  ModuleEmbedderData* d = GetModuleDataFromContext(context);
-  auto json_value_it =
-      d->json_module_to_parsed_json_map.find(Global<Module>(isolate, module));
-  CHECK(json_value_it != d->json_module_to_parsed_json_map.end());
+  std::shared_ptr<ModuleEmbedderData> module_data =
+      GetModuleDataFromContext(context);
+  auto json_value_it = module_data->json_module_to_parsed_json_map.find(
+      Global<Module>(isolate, module));
+  CHECK(json_value_it != module_data->json_module_to_parsed_json_map.end());
   Local<Value> json_value = json_value_it->second.Get(isolate);
 
   TryCatch try_catch(isolate);
@@ -1151,11 +1169,12 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
 }
 
 struct DynamicImportData {
-  DynamicImportData(Isolate* isolate_, Local<String> referrer_,
-                    Local<String> specifier_,
+  DynamicImportData(Isolate* isolate_, Local<Context> context_,
+                    Local<Value> referrer_, Local<String> specifier_,
                     Local<FixedArray> import_assertions_,
                     Local<Promise::Resolver> resolver_)
       : isolate(isolate_) {
+    context.Reset(isolate, context_);
     referrer.Reset(isolate, referrer_);
     specifier.Reset(isolate, specifier_);
     import_assertions.Reset(isolate, import_assertions_);
@@ -1163,7 +1182,10 @@ struct DynamicImportData {
   }
 
   Isolate* isolate;
-  Global<String> referrer;
+  // The initiating context. It can be the Realm created by d8, or the context
+  // created by ShadowRealm built-in.
+  Global<Context> context;
+  Global<Value> referrer;
   Global<String> specifier;
   Global<FixedArray> import_assertions;
   Global<Promise::Resolver> resolver;
@@ -1235,7 +1257,8 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   Local<Promise::Resolver> resolver;
   if (!maybe_resolver.ToLocal(&resolver)) return MaybeLocal<Promise>();
 
-  if (!IsValidHostDefinedOptions(context, host_defined_options,
+  if (!resource_name->IsNull() &&
+      !IsValidHostDefinedOptions(context, host_defined_options,
                                  resource_name)) {
     resolver
         ->Reject(context, v8::Exception::TypeError(String::NewFromUtf8Literal(
@@ -1243,7 +1266,7 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
         .ToChecked();
   } else {
     DynamicImportData* data =
-        new DynamicImportData(isolate, resource_name.As<String>(), specifier,
+        new DynamicImportData(isolate, context, resource_name, specifier,
                               import_assertions, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
@@ -1257,10 +1280,11 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
-  ModuleEmbedderData* d = GetModuleDataFromContext(context);
-  auto specifier_it =
-      d->module_to_specifier_map.find(Global<Module>(isolate, module));
-  CHECK(specifier_it != d->module_to_specifier_map.end());
+  std::shared_ptr<ModuleEmbedderData> module_data =
+      GetModuleDataFromContext(context);
+  auto specifier_it = module_data->module_to_specifier_map.find(
+      Global<Module>(isolate, module));
+  CHECK(specifier_it != module_data->module_to_specifier_map.end());
 
   Local<String> url_key =
       String::NewFromUtf8Literal(isolate, "url", NewStringType::kInternalized);
@@ -1271,7 +1295,14 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
 
 MaybeLocal<Context> Shell::HostCreateShadowRealmContext(
     Local<Context> initiator_context) {
-  return v8::Context::New(initiator_context->GetIsolate());
+  Local<Context> context = v8::Context::New(initiator_context->GetIsolate());
+  std::shared_ptr<ModuleEmbedderData> shadow_realm_data =
+      InitializeModuleEmbedderData(context);
+  std::shared_ptr<ModuleEmbedderData> initiator_data =
+      GetModuleDataFromContext(initiator_context);
+  shadow_realm_data->origin = initiator_data->origin;
+
+  return context;
 }
 
 void Shell::DoHostImportModuleDynamically(void* import_data) {
@@ -1281,16 +1312,16 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Isolate* isolate(import_data_->isolate);
   HandleScope handle_scope(isolate);
 
-  Local<String> referrer(import_data_->referrer.Get(isolate));
+  Local<Context> realm = import_data_->context.Get(isolate);
+  Local<Value> referrer(import_data_->referrer.Get(isolate));
   Local<String> specifier(import_data_->specifier.Get(isolate));
   Local<FixedArray> import_assertions(
       import_data_->import_assertions.Get(isolate));
   Local<Promise::Resolver> resolver(import_data_->resolver.Get(isolate));
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  PerIsolateData::Get(isolate)->DeleteDynamicImportData(import_data_);
+  data->DeleteDynamicImportData(import_data_);
 
-  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
   Context::Scope context_scope(realm);
 
   ModuleType module_type = ModuleEmbedderData::ModuleTypeFromImportAssertions(
@@ -1306,17 +1337,21 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
     return;
   }
 
-  std::string source_url = ToSTLString(isolate, referrer);
+  std::shared_ptr<ModuleEmbedderData> module_data =
+      GetModuleDataFromContext(realm);
+
+  std::string source_url = referrer->IsNull()
+                               ? module_data->origin
+                               : ToSTLString(isolate, referrer.As<String>());
   std::string dir_name =
       DirName(NormalizePath(source_url, GetWorkingDirectory()));
   std::string file_name = ToSTLString(isolate, specifier);
   std::string absolute_path = NormalizePath(file_name, dir_name);
 
-  ModuleEmbedderData* d = GetModuleDataFromContext(realm);
   Local<Module> root_module;
   auto module_it =
-      d->module_map.find(std::make_pair(absolute_path, module_type));
-  if (module_it != d->module_map.end()) {
+      module_data->module_map.find(std::make_pair(absolute_path, module_type));
+  if (module_it != module_data->module_map.end()) {
     root_module = module_it->second.Get(isolate);
   } else if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
                               module_type)
@@ -1374,11 +1409,12 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   // isolate->ReportPendingMessages().
   TryCatch try_catch(isolate);
 
-  ModuleEmbedderData* d = GetModuleDataFromContext(realm);
+  std::shared_ptr<ModuleEmbedderData> module_data =
+      GetModuleDataFromContext(realm);
   Local<Module> root_module;
-  auto module_it = d->module_map.find(
+  auto module_it = module_data->module_map.find(
       std::make_pair(absolute_path, ModuleType::kJavaScript));
-  if (module_it != d->module_map.end()) {
+  if (module_it != module_data->module_map.end()) {
     root_module = module_it->second.Get(isolate);
   } else if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
                               ModuleType::kJavaScript)
@@ -1387,6 +1423,8 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     ReportException(isolate, &try_catch);
     return false;
   }
+
+  module_data->origin = absolute_path;
 
   MaybeLocal<Value> maybe_result;
   if (root_module->InstantiateModule(realm, ResolveModuleCallback)
@@ -1616,14 +1654,7 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
 }
 
 PerIsolateData::RealmScope::~RealmScope() {
-  // Drop realms to avoid keeping them alive. We don't dispose the
-  // module embedder data for the first realm here, but instead do
-  // it in RunShell or in RunMain, if not running in interactive mode
-  for (int i = 1; i < data_->realm_count_; ++i) {
-    Global<Context>& realm = data_->realms_[i];
-    if (realm.IsEmpty()) continue;
-    DisposeModuleEmbedderData(realm.Get(data_->isolate_));
-  }
+  // Drop realms to avoid keeping them alive.
   data_->realm_count_ = 0;
   delete[] data_->realms_;
 }
@@ -1805,7 +1836,6 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> context = data->realms_[index].Get(isolate);
-  DisposeModuleEmbedderData(context);
   data->realms_[index].Reset();
   // ContextDisposedNotification expects the disposed context to be entered.
   v8::Context::Scope scope(context);
@@ -3715,9 +3745,6 @@ void Shell::RunShell(Isolate* isolate) {
                   kProcessMessageQueue);
   }
   printf("\n");
-  // We need to explicitly clean up the module embedder data for
-  // the interative shell context.
-  DisposeModuleEmbedderData(context);
 }
 
 class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
@@ -4031,7 +4058,6 @@ void SourceGroup::ExecuteInThread() {
           Execute(isolate);
           Shell::CompleteMessageLoop(isolate);
         }
-        DisposeModuleEmbedderData(context);
       }
       Shell::CollectGarbage(isolate);
     }
@@ -4306,7 +4332,6 @@ void Worker::ExecuteInThread() {
           }
         }
       }
-      DisposeModuleEmbedderData(context);
     }
     Shell::CollectGarbage(isolate_);
   }
@@ -4706,9 +4731,6 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       if (!options.isolate_sources[0].Execute(isolate)) success = false;
       if (!CompleteMessageLoop(isolate)) success = false;
-    }
-    if (!use_existing_context) {
-      DisposeModuleEmbedderData(context);
     }
     WriteLcovData(isolate, options.lcov_file);
     if (last_run && i::FLAG_stress_snapshot) {

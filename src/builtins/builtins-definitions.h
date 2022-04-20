@@ -872,7 +872,11 @@ namespace internal {
   CPP(ShadowRealmConstructor)                                                  \
   TFS(ShadowRealmGetWrappedValue, kCreationContext, kTargetContext, kValue)    \
   CPP(ShadowRealmPrototypeEvaluate)                                            \
-  CPP(ShadowRealmPrototypeImportValue)                                         \
+  TFJ(ShadowRealmPrototypeImportValue, kJSArgcReceiverSlots + 2, kReceiver,    \
+      kSpecifier, kExportName)                                                 \
+  TFJ(ShadowRealmImportValueFulfilled, kJSArgcReceiverSlots + 1, kReceiver,    \
+      kExports)                                                                \
+  TFJ(ShadowRealmImportValueRejected, kDontAdaptArgumentsSentinel)             \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \

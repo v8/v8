@@ -277,7 +277,8 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_MODULE(F, I)    \
   F(DynamicImportCall, -1 /* [2, 3] */, 1) \
   I(GetImportMetaObject, 0, 1)             \
-  F(GetModuleNamespace, 1, 1)
+  F(GetModuleNamespace, 1, 1)              \
+  F(GetModuleNamespaceExport, 2, 1)
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F, I) \
   F(ArrayBufferMaxByteLength, 0, 1)      \
@@ -440,7 +441,8 @@ namespace internal {
   F(ThrowConstAssignError, 0, 1)
 
 #define FOR_EACH_INTRINSIC_SHADOW_REALM(F, I) \
-  F(ShadowRealmWrappedFunctionCreate, 2, 1)
+  F(ShadowRealmWrappedFunctionCreate, 2, 1)   \
+  F(ShadowRealmImportValue, 1, 1)
 
 #define FOR_EACH_INTRINSIC_STRINGS(F, I)  \
   F(FlattenString, 1, 1)                  \

@@ -216,11 +216,5 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   return *wrapped_result;
 }
 
-// https://tc39.es/proposal-shadowrealm/#sec-shadowrealm.prototype.importvalue
-BUILTIN(ShadowRealmPrototypeImportValue) {
-  HandleScope scope(isolate);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 }  // namespace internal
 }  // namespace v8

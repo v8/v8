@@ -6,6 +6,8 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/js-shadow-realms.h"
+#include "src/objects/module.h"
 
 namespace v8 {
 namespace internal {
@@ -15,11 +17,27 @@ class ShadowRealmBuiltinsAssembler : public CodeStubAssembler {
   explicit ShadowRealmBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  enum ImportValueFulfilledFunctionContextSlot {
+    kEvalContextSlot = Context::MIN_CONTEXT_SLOTS,
+    kSpecifierSlot,
+    kExportNameSlot,
+    kContextLength,
+  };
+
  protected:
   TNode<JSObject> AllocateJSWrappedFunction(TNode<Context> context,
                                             TNode<Object> target);
   void CheckAccessor(TNode<DescriptorArray> array, TNode<IntPtrT> index,
                      TNode<Name> name, Label* bailout);
+  TNode<Object> ImportValue(TNode<NativeContext> caller_context,
+                            TNode<NativeContext> eval_context,
+                            TNode<String> specifier, TNode<String> export_name);
+  TNode<Context> CreateImportValueFulfilledFunctionContext(
+      TNode<NativeContext> caller_context, TNode<NativeContext> eval_context,
+      TNode<String> specifier, TNode<String> export_name);
+  TNode<JSFunction> AllocateImportValueFulfilledFunction(
+      TNode<NativeContext> caller_context, TNode<NativeContext> eval_context,
+      TNode<String> specifier, TNode<String> export_name);
 };
 
 TNode<JSObject> ShadowRealmBuiltinsAssembler::AllocateJSWrappedFunction(
@@ -33,6 +51,40 @@ TNode<JSObject> ShadowRealmBuiltinsAssembler::AllocateJSWrappedFunction(
   StoreObjectFieldNoWriteBarrier(wrapped, JSWrappedFunction::kContextOffset,
                                  context);
   return wrapped;
+}
+
+TNode<Context>
+ShadowRealmBuiltinsAssembler::CreateImportValueFulfilledFunctionContext(
+    TNode<NativeContext> caller_context, TNode<NativeContext> eval_context,
+    TNode<String> specifier, TNode<String> export_name) {
+  const TNode<Context> context = AllocateSyntheticFunctionContext(
+      caller_context, ImportValueFulfilledFunctionContextSlot::kContextLength);
+  StoreContextElementNoWriteBarrier(
+      context, ImportValueFulfilledFunctionContextSlot::kEvalContextSlot,
+      eval_context);
+  StoreContextElementNoWriteBarrier(
+      context, ImportValueFulfilledFunctionContextSlot::kSpecifierSlot,
+      specifier);
+  StoreContextElementNoWriteBarrier(
+      context, ImportValueFulfilledFunctionContextSlot::kExportNameSlot,
+      export_name);
+  return context;
+}
+
+TNode<JSFunction>
+ShadowRealmBuiltinsAssembler::AllocateImportValueFulfilledFunction(
+    TNode<NativeContext> caller_context, TNode<NativeContext> eval_context,
+    TNode<String> specifier, TNode<String> export_name) {
+  const TNode<Context> function_context =
+      CreateImportValueFulfilledFunctionContext(caller_context, eval_context,
+                                                specifier, export_name);
+  const TNode<Map> function_map = CAST(LoadContextElement(
+      caller_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
+  const TNode<SharedFunctionInfo> info =
+      ShadowRealmImportValueFulfilledSFIConstant();
+
+  return AllocateFunctionWithMapAndContext(function_map, info,
+                                           function_context);
 }
 
 void ShadowRealmBuiltinsAssembler::CheckAccessor(TNode<DescriptorArray> array,
@@ -242,6 +294,132 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
   BIND(&target_not_callable);
   // A wrapped value should not be non-callable.
   Unreachable();
+}
+
+// https://tc39.es/proposal-shadowrealm/#sec-shadowrealm.prototype.importvalue
+TF_BUILTIN(ShadowRealmPrototypeImportValue, ShadowRealmBuiltinsAssembler) {
+  const char* const kMethodName = "ShadowRealm.prototype.importValue";
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  // 1. Let O be this value.
+  TNode<Object> O = Parameter<Object>(Descriptor::kReceiver);
+  // 2. Perform ? ValidateShadowRealmObject(O).
+  ThrowIfNotInstanceType(context, O, JS_SHADOW_REALM_TYPE, kMethodName);
+
+  // 3. Let specifierString be ? ToString(specifier).
+  TNode<Object> specifier = Parameter<Object>(Descriptor::kSpecifier);
+  TNode<String> specifier_string = ToString_Inline(context, specifier);
+  // 4. Let exportNameString be ? ToString(exportName).
+  TNode<Object> export_name = Parameter<Object>(Descriptor::kExportName);
+  TNode<String> export_name_string = ToString_Inline(context, export_name);
+  // 5. Let callerRealm be the current Realm Record.
+  TNode<NativeContext> caller_context = LoadNativeContext(context);
+  // 6. Let evalRealm be O.[[ShadowRealm]].
+  // 7. Let evalContext be O.[[ExecutionContext]].
+  TNode<NativeContext> eval_context =
+      CAST(LoadObjectField(CAST(O), JSShadowRealm::kNativeContextOffset));
+  // 8. Return ? ShadowRealmImportValue(specifierString, exportNameString,
+  // callerRealm, evalRealm, evalContext).
+  TNode<Object> result = ImportValue(caller_context, eval_context,
+                                     specifier_string, export_name_string);
+  Return(result);
+}
+
+// https://tc39.es/proposal-shadowrealm/#sec-shadowrealmimportvalue
+TNode<Object> ShadowRealmBuiltinsAssembler::ImportValue(
+    TNode<NativeContext> caller_context, TNode<NativeContext> eval_context,
+    TNode<String> specifier, TNode<String> export_name) {
+  // 1. Assert: evalContext is an execution context associated to a ShadowRealm
+  // instance's [[ExecutionContext]].
+  // 2. Let innerCapability be ! NewPromiseCapability(%Promise%).
+  // 3. Let runningContext be the running execution context.
+  // 4. If runningContext is not already suspended, suspend runningContext.
+  // 5. Push evalContext onto the execution context stack; evalContext is now
+  // the running execution context.
+  // 6. Perform ! HostImportModuleDynamically(null, specifierString,
+  // innerCapability).
+  // 7. Suspend evalContext and remove it from the execution context stack.
+  // 8. Resume the context that is now on the top of the execution context stack
+  // as the running execution context.
+  TNode<Object> inner_capability =
+      CallRuntime(Runtime::kShadowRealmImportValue, eval_context, specifier);
+
+  // 9. Let steps be the steps of an ExportGetter function as described below.
+  // 10. Let onFulfilled be ! CreateBuiltinFunction(steps, 1, "", «
+  // [[ExportNameString]] », callerRealm).
+  // 11. Set onFulfilled.[[ExportNameString]] to exportNameString.
+  TNode<JSFunction> on_fulfilled = AllocateImportValueFulfilledFunction(
+      caller_context, eval_context, specifier, export_name);
+
+  TNode<JSFunction> on_rejected = CAST(LoadContextElement(
+      caller_context, Context::SHADOW_REALM_IMPORT_VALUE_REJECTED_INDEX));
+  // 12. Let promiseCapability be ! NewPromiseCapability(%Promise%).
+  TNode<JSPromise> promise = NewJSPromise(caller_context);
+  // 13. Return ! PerformPromiseThen(innerCapability.[[Promise]], onFulfilled,
+  // callerRealm.[[Intrinsics]].[[%ThrowTypeError%]], promiseCapability).
+  return CallBuiltin(Builtin::kPerformPromiseThen, caller_context,
+                     inner_capability, on_fulfilled, on_rejected, promise);
+}
+
+// ExportGetter of
+// https://tc39.es/proposal-shadowrealm/#sec-shadowrealmimportvalue
+TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
+  // An ExportGetter function is an anonymous built-in function with a
+  // [[ExportNameString]] internal slot. When an ExportGetter function is called
+  // with argument exports, it performs the following steps:
+  // 8. Let realm be f.[[Realm]].
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  TNode<Context> eval_context = CAST(LoadContextElement(
+      context, ImportValueFulfilledFunctionContextSlot::kEvalContextSlot));
+
+  Label get_export_exception(this, Label::kDeferred);
+
+  // 2. Let f be the active function object.
+  // 3. Let string be f.[[ExportNameString]].
+  // 4. Assert: Type(string) is String.
+  TNode<String> export_name_string = CAST(LoadContextElement(
+      context, ImportValueFulfilledFunctionContextSlot::kExportNameSlot));
+
+  // 1. Assert: exports is a module namespace exotic object.
+  TNode<JSModuleNamespace> exports =
+      Parameter<JSModuleNamespace>(Descriptor::kExports);
+
+  // 5. Let hasOwn be ? HasOwnProperty(exports, string).
+  // 6. If hasOwn is false, throw a TypeError exception.
+  // 7. Let value be ? Get(exports, string).
+
+  // The only exceptions thrown by Runtime::kGetModuleNamespaceExport are
+  // either the export is not found or the module is not initialized.
+  TVARIABLE(Object, var_exception);
+  TNode<Object> value;
+  {
+    compiler::ScopedExceptionHandler handler(this, &get_export_exception,
+                                             &var_exception);
+    value = CallRuntime(Runtime::kGetModuleNamespaceExport, eval_context,
+                        exports, export_name_string);
+  }
+
+  // 9. Return ? GetWrappedValue(realm, value).
+  TNode<NativeContext> caller_context = LoadNativeContext(context);
+  TNode<Object> wrapped_result =
+      CallBuiltin(Builtin::kShadowRealmGetWrappedValue, caller_context,
+                  caller_context, eval_context, value);
+  Return(wrapped_result);
+
+  BIND(&get_export_exception);
+  {
+    TNode<String> specifier_string = CAST(LoadContextElement(
+        context, ImportValueFulfilledFunctionContextSlot::kSpecifierSlot));
+    ThrowTypeError(context, MessageTemplate::kUnresolvableExport,
+                   specifier_string, export_name_string);
+  }
+}
+
+TF_BUILTIN(ShadowRealmImportValueRejected, ShadowRealmBuiltinsAssembler) {
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  // TODO(v8:11989): provide a non-observable inspection on the
+  // pending_exception to the newly created TypeError.
+  // https://github.com/tc39/proposal-shadowrealm/issues/353
+  ThrowTypeError(context, MessageTemplate::kImportShadowRealmRejected);
 }
 
 }  // namespace internal

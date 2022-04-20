@@ -6520,6 +6520,10 @@ TNode<BoolT> CodeStubAssembler::IsJSStringIterator(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_STRING_ITERATOR_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSShadowRealm(TNode<HeapObject> object) {
+  return HasInstanceType(object, JS_SHADOW_REALM_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSRegExpStringIterator(
     TNode<HeapObject> object) {
   return HasInstanceType(object, JS_REG_EXP_STRING_ITERATOR_TYPE);
