@@ -35,14 +35,6 @@ class MaglevGraphBuilder {
       // TODO(v8:7700): Clean up after all bytecodes are supported.
       if (found_unsupported_bytecode()) break;
     }
-
-    // During InterpreterFrameState merge points, we might emit CheckedSmiTags
-    // and add them unsafely to the basic blocks. This addition might break a
-    // list invariant (namely `tail_` might not point to the last element).
-    // We revalidate this invariant here in all basic blocks.
-    for (BasicBlock* block : *graph_) {
-      block->nodes().RevalidateTail();
-    }
   }
 
   Graph* graph() const { return graph_; }

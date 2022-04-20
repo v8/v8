@@ -388,7 +388,7 @@ class MergePointInterpreterFrameState {
         Node::New<CheckedSmiTag, std::initializer_list<ValueNode*>>(
             compilation_unit.zone(), compilation_unit,
             value->eager_deopt_info()->state, {value});
-    value->AddNodeAfter(tagged);
+    Node::List::AddAfter(value, tagged);
     compilation_unit.RegisterNodeInGraphLabeller(tagged);
     return tagged;
   }
