@@ -2182,6 +2182,49 @@ void WasmCodeManager::InitializeMemoryProtectionKeyPermissionsIfSupported()
   }
 }
 
+base::AddressRegion WasmCodeManager::AllocateAssemblerBufferSpace(int size) {
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  if (MemoryProtectionKeysEnabled()) {
+    auto* page_allocator = GetPlatformPageAllocator();
+    size_t page_size = page_allocator->AllocatePageSize();
+    size = RoundUp(size, page_size);
+    void* mapped = AllocatePages(page_allocator, nullptr, size, page_size,
+                                 PageAllocator::kNoAccess);
+    if (V8_UNLIKELY(!mapped)) {
+      constexpr auto format = base::StaticCharVector(
+          "Cannot allocate %zu more bytes for assembler buffers");
+      constexpr int kMaxMessageLength =
+          format.size() - 3 + std::numeric_limits<size_t>::digits10;
+      base::EmbeddedVector<char, kMaxMessageLength + 1> message;
+      SNPrintF(message, format.begin(), size);
+      V8::FatalProcessOutOfMemory(nullptr, message.begin());
+      UNREACHABLE();
+    }
+    auto region =
+        base::AddressRegionOf(reinterpret_cast<uint8_t*>(mapped), size);
+    CHECK(SetPermissionsAndMemoryProtectionKey(page_allocator, region,
+                                               PageAllocator::kReadWrite,
+                                               memory_protection_key_));
+    return region;
+  }
+#endif  // defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  DCHECK(!MemoryProtectionKeysEnabled());
+  return base::AddressRegionOf(new uint8_t[size], size);
+}
+
+void WasmCodeManager::FreeAssemblerBufferSpace(base::AddressRegion region) {
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  if (MemoryProtectionKeysEnabled()) {
+    auto* page_allocator = GetPlatformPageAllocator();
+    FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+              region.size());
+    return;
+  }
+#endif  // defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  DCHECK(!MemoryProtectionKeysEnabled());
+  delete[] reinterpret_cast<uint8_t*>(region.begin());
+}
+
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
     std::shared_ptr<const WasmModule> module) {

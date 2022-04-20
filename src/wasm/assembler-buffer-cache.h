@@ -11,22 +11,34 @@
 
 #include <memory>
 
+#include "src/wasm/wasm-code-manager.h"
+
 namespace v8::internal {
 class AssemblerBuffer;
 }
 
 namespace v8::internal::wasm {
 
+class CachedAssemblerBuffer;
+
 // Creating assembler buffers can be expensive, in particular if PKU is used,
 // which requires an {mmap} and {pkey_protect} system call for each new buffer.
 // Hence pool-allocate a larger memory region and reuse it if assembler buffers
 // are freed.
-// For now, this class only implements the interface without actually caching
-// anything.
-// TODO(12809): Actually cache the assembler buffers.
 class AssemblerBufferCache final {
  public:
+  ~AssemblerBufferCache();
   std::unique_ptr<AssemblerBuffer> GetAssemblerBuffer(int size);
+
+ private:
+  friend class CachedAssemblerBuffer;
+
+  // Called when CachedAssemblerBuffers get destroyed, to return memory to the
+  // cache.
+  void Return(base::AddressRegion);
+
+  DisjointAllocationPool available_memory_;
+  int total_allocated_ = 0;
 };
 
 }  // namespace v8::internal::wasm
