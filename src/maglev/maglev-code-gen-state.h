@@ -13,7 +13,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
@@ -32,9 +32,9 @@ class DeferredCodeInfo {
 
 class MaglevCodeGenState {
  public:
-  MaglevCodeGenState(MaglevCompilationUnit* compilation_unit,
+  MaglevCodeGenState(MaglevCompilationInfo* compilation_info,
                      SafepointTableBuilder* safepoint_table_builder)
-      : compilation_unit_(compilation_unit),
+      : compilation_info_(compilation_info),
         safepoint_table_builder_(safepoint_table_builder),
         masm_(isolate(), CodeObjectRequired::kNo) {}
 
@@ -61,25 +61,17 @@ class MaglevCodeGenState {
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
   }
-  Isolate* isolate() const { return compilation_unit_->isolate(); }
-  int parameter_count() const { return compilation_unit_->parameter_count(); }
-  int register_count() const { return compilation_unit_->register_count(); }
-  const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return compilation_unit_->bytecode_analysis();
-  }
-  compiler::JSHeapBroker* broker() const { return compilation_unit_->broker(); }
-  const compiler::BytecodeArrayRef& bytecode() const {
-    return compilation_unit_->bytecode();
-  }
+  Isolate* isolate() const { return compilation_info_->isolate(); }
+  compiler::JSHeapBroker* broker() const { return compilation_info_->broker(); }
   MaglevGraphLabeller* graph_labeller() const {
-    return compilation_unit_->graph_labeller();
+    return compilation_info_->graph_labeller();
   }
   MacroAssembler* masm() { return &masm_; }
   int stack_slots() const { return untagged_slots_ + tagged_slots_; }
   SafepointTableBuilder* safepoint_table_builder() const {
     return safepoint_table_builder_;
   }
-  MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
+  MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
   // TODO(v8:7700): Clean up after all code paths are supported.
   void set_found_unsupported_code_paths(bool val) {
@@ -121,7 +113,7 @@ class MaglevCodeGenState {
            index * kSystemPointerSize;
   }
 
-  MaglevCompilationUnit* const compilation_unit_;
+  MaglevCompilationInfo* const compilation_info_;
   SafepointTableBuilder* const safepoint_table_builder_;
 
   MacroAssembler masm_;

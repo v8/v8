@@ -113,14 +113,14 @@ template <typename T, typename Enable = void>
 struct CopyForDeferredHelper {
   template <typename U>
   struct No_Copy_Helper_Implemented_For_Type;
-  static void Copy(MaglevCompilationUnit* compilation_unit,
+  static void Copy(MaglevCompilationInfo* compilation_info,
                    No_Copy_Helper_Implemented_For_Type<T>);
 };
 
 // Helper for copies by value.
 template <typename T, typename Enable = void>
 struct CopyForDeferredByValue {
-  static T Copy(MaglevCompilationUnit* compilation_unit, T node) {
+  static T Copy(MaglevCompilationInfo* compilation_info, T node) {
     return node;
   }
 };
@@ -139,10 +139,10 @@ template <typename T>
 struct CopyForDeferredHelper<
     T, typename std::enable_if<std::is_enum<T>::value>::type>
     : public CopyForDeferredByValue<T> {};
-// MaglevCompilationUnits are copied by value.
+// MaglevCompilationInfos are copied by value.
 template <>
-struct CopyForDeferredHelper<MaglevCompilationUnit*>
-    : public CopyForDeferredByValue<MaglevCompilationUnit*> {};
+struct CopyForDeferredHelper<MaglevCompilationInfo*>
+    : public CopyForDeferredByValue<MaglevCompilationInfo*> {};
 // Machine registers are copied by value.
 template <>
 struct CopyForDeferredHelper<Register>
@@ -151,36 +151,25 @@ struct CopyForDeferredHelper<Register>
 template <>
 struct CopyForDeferredHelper<BytecodeOffset>
     : public CopyForDeferredByValue<BytecodeOffset> {};
-
-// InterpreterFrameState is cloned.
-template <>
-struct CopyForDeferredHelper<const InterpreterFrameState*> {
-  static const InterpreterFrameState* Copy(
-      MaglevCompilationUnit* compilation_unit,
-      const InterpreterFrameState* frame_state) {
-    return compilation_unit->zone()->New<InterpreterFrameState>(
-        *compilation_unit, *frame_state);
-  }
-};
 // EagerDeoptInfo pointers are copied by value.
 template <>
 struct CopyForDeferredHelper<EagerDeoptInfo*>
     : public CopyForDeferredByValue<EagerDeoptInfo*> {};
 
 template <typename T>
-T CopyForDeferred(MaglevCompilationUnit* compilation_unit, T&& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_unit,
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, T&& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info,
                                         std::forward<T>(value));
 }
 
 template <typename T>
-T CopyForDeferred(MaglevCompilationUnit* compilation_unit, T& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_unit, value);
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, T& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info, value);
 }
 
 template <typename T>
-T CopyForDeferred(MaglevCompilationUnit* compilation_unit, const T& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_unit, value);
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, const T& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info, value);
 }
 
 template <typename Function, typename FunctionPointer = Function>
@@ -213,10 +202,10 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
   static constexpr size_t kSize = FunctionArgumentsTupleHelper<Function>::kSize;
 
   template <typename... InArgs>
-  explicit DeferredCodeInfoImpl(MaglevCompilationUnit* compilation_unit,
+  explicit DeferredCodeInfoImpl(MaglevCompilationInfo* compilation_info,
                                 FunctionPointer function, InArgs&&... args)
       : function(function),
-        args(CopyForDeferred(compilation_unit, std::forward<InArgs>(args))...) {
+        args(CopyForDeferred(compilation_info, std::forward<InArgs>(args))...) {
   }
 
   DeferredCodeInfoImpl(DeferredCodeInfoImpl&&) = delete;
@@ -244,8 +233,8 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
                       Function&& deferred_code_gen, Args&&... args) {
   using DeferredCodeInfoT = DeferredCodeInfoImpl<Function>;
   DeferredCodeInfoT* deferred_code =
-      code_gen_state->compilation_unit()->zone()->New<DeferredCodeInfoT>(
-          code_gen_state->compilation_unit(), deferred_code_gen,
+      code_gen_state->compilation_info()->zone()->New<DeferredCodeInfoT>(
+          code_gen_state->compilation_info(), deferred_code_gen,
           std::forward<Args>(args)...);
 
   code_gen_state->PushDeferredCode(deferred_code);
@@ -852,6 +841,12 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
                           const ProcessingState& state) {
   DCHECK_EQ(ToRegister(value_input()), kReturnRegister0);
 
+  // Read the formal number of parameters from the top level compilation unit
+  // (i.e. the outermost, non inlined function).
+  int formal_params_size = code_gen_state->compilation_info()
+                               ->toplevel_compilation_unit()
+                               ->parameter_count();
+
   // We're not going to continue execution, so we can use an arbitrary register
   // here instead of relying on temporaries from the register allocator.
   Register actual_params_size = r8;
@@ -869,12 +864,11 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   Label drop_dynamic_arg_size;
-  __ cmpq(actual_params_size, Immediate(code_gen_state->parameter_count()));
+  __ cmpq(actual_params_size, Immediate(formal_params_size));
   __ j(greater, &drop_dynamic_arg_size);
 
   // Drop receiver + arguments according to static formal arguments size.
-  __ Ret(code_gen_state->parameter_count() * kSystemPointerSize,
-         kScratchRegister);
+  __ Ret(formal_params_size * kSystemPointerSize, kScratchRegister);
 
   __ bind(&drop_dynamic_arg_size);
   // Drop receiver + arguments according to dynamic arguments size.

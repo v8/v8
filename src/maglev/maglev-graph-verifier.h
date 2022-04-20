@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_VERIFIER_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_VERIFIER_H_
 
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-ir.h"
 
@@ -33,14 +34,14 @@ class Graph;
 // are expected to be tagged/untagged. Add more verification later.
 class MaglevGraphVerifier {
  public:
-  void PreProcessGraph(MaglevCompilationUnit* compilation_unit, Graph* graph) {
-    if (compilation_unit->has_graph_labeller()) {
-      graph_labeller_ = compilation_unit->graph_labeller();
+  void PreProcessGraph(MaglevCompilationInfo* compilation_info, Graph* graph) {
+    if (compilation_info->has_graph_labeller()) {
+      graph_labeller_ = compilation_info->graph_labeller();
     }
   }
 
-  void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
-  void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
+  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
+  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
 
   void CheckValueInputIs(NodeBase* node, int i, ValueRepresentation expected) {
     ValueNode* input = node->input(i).node();

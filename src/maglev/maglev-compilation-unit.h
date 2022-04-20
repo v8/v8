@@ -22,11 +22,11 @@ class Node;
 // function.
 class MaglevCompilationUnit : public ZoneObject {
  public:
-  static MaglevCompilationUnit* New(Zone* zone, MaglevCompilationInfo* data,
+  static MaglevCompilationUnit* New(Zone* zone, MaglevCompilationInfo* info,
                                     Handle<JSFunction> function) {
-    return zone->New<MaglevCompilationUnit>(data, function);
+    return zone->New<MaglevCompilationUnit>(info, function);
   }
-  MaglevCompilationUnit(MaglevCompilationInfo* data,
+  MaglevCompilationUnit(MaglevCompilationInfo* info,
                         Handle<JSFunction> function);
 
   MaglevCompilationInfo* info() const { return info_; }
@@ -41,6 +41,7 @@ class MaglevCompilationUnit : public ZoneObject {
   const compiler::SharedFunctionInfoRef& shared_function_info() const {
     return shared_function_info_;
   }
+  const compiler::JSFunctionRef& function() const { return function_; }
   const compiler::BytecodeArrayRef& bytecode() const { return bytecode_; }
   const compiler::FeedbackVectorRef& feedback() const { return feedback_; }
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
@@ -51,6 +52,7 @@ class MaglevCompilationUnit : public ZoneObject {
 
  private:
   MaglevCompilationInfo* const info_;
+  const compiler::JSFunctionRef function_;
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::BytecodeArrayRef bytecode_;
   const compiler::FeedbackVectorRef feedback_;

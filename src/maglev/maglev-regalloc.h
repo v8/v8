@@ -7,6 +7,7 @@
 
 #include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
@@ -15,13 +16,13 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-class MaglevCompilationUnit;
+class MaglevCompilationInfo;
 class MaglevPrintingVisitor;
 class MergePointRegisterState;
 
 class StraightForwardRegisterAllocator {
  public:
-  StraightForwardRegisterAllocator(MaglevCompilationUnit* compilation_unit,
+  StraightForwardRegisterAllocator(MaglevCompilationInfo* compilation_info,
                                    Graph* graph);
   ~StraightForwardRegisterAllocator();
 
@@ -110,10 +111,10 @@ class StraightForwardRegisterAllocator {
                            int predecessor_id);
 
   MaglevGraphLabeller* graph_labeller() const {
-    return compilation_unit_->graph_labeller();
+    return compilation_info_->graph_labeller();
   }
 
-  MaglevCompilationUnit* compilation_unit_;
+  MaglevCompilationInfo* compilation_info_;
   std::unique_ptr<MaglevPrintingVisitor> printing_visitor_;
   BlockConstIterator block_it_;
   NodeIterator node_it_;

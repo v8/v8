@@ -47,7 +47,7 @@ class MaglevCodeGeneratingNodeProcessor {
   explicit MaglevCodeGeneratingNodeProcessor(MaglevCodeGenState* code_gen_state)
       : code_gen_state_(code_gen_state) {}
 
-  void PreProcessGraph(MaglevCompilationUnit*, Graph* graph) {
+  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) {
     if (FLAG_maglev_break_on_entry) {
       __ int3();
     }
@@ -87,9 +87,9 @@ class MaglevCodeGeneratingNodeProcessor {
     code_gen_state_->DefineSafepointStackSlots(safepoint);
   }
 
-  void PostProcessGraph(MaglevCompilationUnit*, Graph*) {}
+  void PostProcessGraph(MaglevCompilationInfo*, Graph*) {}
 
-  void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {
+  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {
     if (FLAG_code_comments) {
       std::stringstream ss;
       ss << "-- Block b" << graph_labeller()->BlockId(block);
@@ -312,20 +312,20 @@ class MaglevCodeGeneratingNodeProcessor {
 
 class MaglevCodeGeneratorImpl final {
  public:
-  static MaybeHandle<Code> Generate(MaglevCompilationUnit* compilation_unit,
+  static MaybeHandle<Code> Generate(MaglevCompilationInfo* compilation_info,
                                     Graph* graph) {
-    return MaglevCodeGeneratorImpl(compilation_unit, graph).Generate();
+    return MaglevCodeGeneratorImpl(compilation_info, graph).Generate();
   }
 
  private:
   static constexpr int kFunctionLiteralIndex = 0;
   static constexpr int kOptimizedOutConstantIndex = 1;
 
-  MaglevCodeGeneratorImpl(MaglevCompilationUnit* compilation_unit, Graph* graph)
-      : safepoint_table_builder_(compilation_unit->zone()),
-        translation_array_builder_(compilation_unit->zone()),
-        code_gen_state_(compilation_unit, safepoint_table_builder()),
-        processor_(compilation_unit, &code_gen_state_),
+  MaglevCodeGeneratorImpl(MaglevCompilationInfo* compilation_info, Graph* graph)
+      : safepoint_table_builder_(compilation_info->zone()),
+        translation_array_builder_(compilation_info->zone()),
+        code_gen_state_(compilation_info, safepoint_table_builder()),
+        processor_(compilation_info, &code_gen_state_),
         graph_(graph) {}
 
   MaybeHandle<Code> Generate() {
@@ -388,17 +388,20 @@ class MaglevCodeGeneratorImpl final {
     deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
         frame_count, jsframe_count, update_feedback_count);
 
+    const MaglevCompilationUnit& compilation_unit =
+        *code_gen_state_.compilation_info()->toplevel_compilation_unit();
+
     // Returns are used for updating an accumulator or register after a lazy
     // deopt.
     const int return_offset = 0;
     const int return_count = 0;
     translation_array_builder_.BeginInterpretedFrame(
         deopt_info->state.bytecode_position, kFunctionLiteralIndex,
-        code_gen_state_.register_count(), return_offset, return_count);
+        compilation_unit.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(
-        *code_gen_state_.compilation_unit(), deopt_info->state.register_frame,
-        deopt_info->input_locations, interpreter::Register::invalid_value());
+    EmitDeoptFrameValues(compilation_unit, deopt_info->state.register_frame,
+                         deopt_info->input_locations,
+                         interpreter::Register::invalid_value());
   }
 
   void EmitLazyDeopt(LazyDeoptInfo* deopt_info) {
@@ -407,6 +410,9 @@ class MaglevCodeGeneratorImpl final {
     int update_feedback_count = 0;
     deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
         frame_count, jsframe_count, update_feedback_count);
+
+    const MaglevCompilationUnit& compilation_unit =
+        *code_gen_state_.compilation_info()->toplevel_compilation_unit();
 
     // Return offsets are counted from the end of the translation frame, which
     // is the array [parameters..., locals..., accumulator].
@@ -423,22 +429,22 @@ class MaglevCodeGeneratorImpl final {
       //                  ^
       // and this calculation gives, correctly:
       //   2 + 2 - 1 = 3
-      return_offset = code_gen_state_.register_count() +
-                      code_gen_state_.parameter_count() -
+      return_offset = compilation_unit.register_count() +
+                      compilation_unit.parameter_count() -
                       deopt_info->result_location.ToParameterIndex();
     } else {
-      return_offset = code_gen_state_.register_count() -
+      return_offset = compilation_unit.register_count() -
                       deopt_info->result_location.index();
     }
     // TODO(leszeks): Support lazy deopts with multiple return values.
     int return_count = 1;
     translation_array_builder_.BeginInterpretedFrame(
         deopt_info->state.bytecode_position, kFunctionLiteralIndex,
-        code_gen_state_.register_count(), return_offset, return_count);
+        compilation_unit.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(
-        *code_gen_state_.compilation_unit(), deopt_info->state.register_frame,
-        deopt_info->input_locations, deopt_info->result_location);
+    EmitDeoptFrameValues(compilation_unit, deopt_info->state.register_frame,
+                         deopt_info->input_locations,
+                         deopt_info->result_location);
   }
 
   void EmitDeoptStoreRegister(const compiler::AllocatedOperand& operand,
@@ -551,7 +557,7 @@ class MaglevCodeGeneratorImpl final {
             i++;
             input_location++;
           });
-      while (i < code_gen_state_.register_count()) {
+      while (i < compilation_unit.register_count()) {
         translation_array_builder_.StoreLiteral(kOptimizedOutConstantIndex);
         i++;
       }
@@ -613,15 +619,18 @@ class MaglevCodeGeneratorImpl final {
     data->SetEagerDeoptCount(Smi::FromInt(eager_deopt_count));
     data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count));
 
-    data->SetSharedFunctionInfo(
-        *code_gen_state_.compilation_unit()->shared_function_info().object());
+    data->SetSharedFunctionInfo(*code_gen_state_.compilation_info()
+                                     ->toplevel_compilation_unit()
+                                     ->shared_function_info()
+                                     .object());
 
     // TODO(leszeks): Proper literals array.
     Handle<DeoptimizationLiteralArray> literals =
         isolate()->factory()->NewDeoptimizationLiteralArray(2);
-    literals->set(
-        kFunctionLiteralIndex,
-        *code_gen_state_.compilation_unit()->shared_function_info().object());
+    literals->set(kFunctionLiteralIndex, *code_gen_state_.compilation_info()
+                                              ->toplevel_compilation_unit()
+                                              ->shared_function_info()
+                                              .object());
     literals->set(kOptimizedOutConstantIndex,
                   ReadOnlyRoots(isolate()).optimized_out());
     data->SetLiteralArray(*literals);
@@ -668,7 +677,7 @@ class MaglevCodeGeneratorImpl final {
   }
 
   Isolate* isolate() const {
-    return code_gen_state_.compilation_unit()->isolate();
+    return code_gen_state_.compilation_info()->isolate();
   }
   MacroAssembler* masm() { return code_gen_state_.masm(); }
   SafepointTableBuilder* safepoint_table_builder() {
@@ -689,8 +698,8 @@ class MaglevCodeGeneratorImpl final {
 
 // static
 MaybeHandle<Code> MaglevCodeGenerator::Generate(
-    MaglevCompilationUnit* compilation_unit, Graph* graph) {
-  return MaglevCodeGeneratorImpl::Generate(compilation_unit, graph);
+    MaglevCompilationInfo* compilation_info, Graph* graph) {
+  return MaglevCodeGeneratorImpl::Generate(compilation_info, graph);
 }
 
 }  // namespace maglev

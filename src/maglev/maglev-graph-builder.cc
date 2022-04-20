@@ -4,12 +4,15 @@
 
 #include "src/maglev/maglev-graph-builder.h"
 
+#include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/name-inl.h"

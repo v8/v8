@@ -10,6 +10,7 @@
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -79,8 +80,8 @@ bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
 }  // namespace
 
 StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
-    MaglevCompilationUnit* compilation_unit, Graph* graph)
-    : compilation_unit_(compilation_unit) {
+    MaglevCompilationInfo* compilation_info, Graph* graph)
+    : compilation_info_(compilation_info) {
   ComputePostDominatingHoles(graph);
   AllocateRegisters(graph);
   graph->set_tagged_stack_slots(tagged_.top);
@@ -213,7 +214,7 @@ void StraightForwardRegisterAllocator::PrintLiveRegs() const {
 void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_.reset(new MaglevPrintingVisitor(std::cout));
-    printing_visitor_->PreProcessGraph(compilation_unit_, graph);
+    printing_visitor_->PreProcessGraph(compilation_info_, graph);
   }
 
   for (block_it_ = graph->begin(); block_it_ != graph->end(); ++block_it_) {
@@ -225,7 +226,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
     }
 
     if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->PreProcessBasicBlock(compilation_unit_, block);
+      printing_visitor_->PreProcessBasicBlock(compilation_info_, block);
       printing_visitor_->os() << "live regs: ";
       PrintLiveRegs();
 
@@ -274,7 +275,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
               compiler::AllocatedOperand::cast(allocation));
           if (FLAG_trace_maglev_regalloc) {
             printing_visitor_->Process(
-                phi, ProcessingState(compilation_unit_, block_it_));
+                phi, ProcessingState(compilation_info_, block_it_));
             printing_visitor_->os()
                 << "phi (new reg) " << phi->result().operand() << std::endl;
           }
@@ -288,7 +289,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
         phi->result().SetAllocated(phi->spill_slot());
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
-              phi, ProcessingState(compilation_unit_, block_it_));
+              phi, ProcessingState(compilation_info_, block_it_));
           printing_visitor_->os()
               << "phi (stack) " << phi->result().operand() << std::endl;
         }
@@ -340,9 +341,11 @@ void StraightForwardRegisterAllocator::UpdateUse(
     const EagerDeoptInfo& deopt_info) {
   const CompactInterpreterFrameState* checkpoint_state =
       deopt_info.state.register_frame;
+  const MaglevCompilationUnit& compilation_unit =
+      *compilation_info_->toplevel_compilation_unit();
   int index = 0;
   checkpoint_state->ForEachValue(
-      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
+      compilation_unit, [&](ValueNode* node, interpreter::Register reg) {
         InputLocation* input = &deopt_info.input_locations[index++];
         input->InjectAllocated(node->allocation());
         UpdateUse(node, input);
@@ -353,9 +356,11 @@ void StraightForwardRegisterAllocator::UpdateUse(
     const LazyDeoptInfo& deopt_info) {
   const CompactInterpreterFrameState* checkpoint_state =
       deopt_info.state.register_frame;
+  const MaglevCompilationUnit& compilation_unit =
+      *compilation_info_->toplevel_compilation_unit();
   int index = 0;
   checkpoint_state->ForEachValue(
-      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
+      compilation_unit, [&](ValueNode* node, interpreter::Register reg) {
         // Skip over the result location.
         if (reg == deopt_info.result_location) return;
         InputLocation* input = &deopt_info.input_locations[index++];
@@ -384,7 +389,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
 
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->Process(node,
-                               ProcessingState(compilation_unit_, block_it_));
+                               ProcessingState(compilation_info_, block_it_));
     printing_visitor_->os() << "live regs: ";
     PrintLiveRegs();
     printing_visitor_->os() << "\n";
@@ -554,7 +559,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->Process(node,
-                               ProcessingState(compilation_unit_, block_it_));
+                               ProcessingState(compilation_info_, block_it_));
   }
 }
 
@@ -567,7 +572,7 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
         phi->result().SetAllocated(ForceAllocate(reg, phi));
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
-              phi, ProcessingState(compilation_unit_, block_it_));
+              phi, ProcessingState(compilation_info_, block_it_));
           printing_visitor_->os()
               << "phi (reuse) " << input.operand() << std::endl;
         }
@@ -580,8 +585,8 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
 void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
     compiler::AllocatedOperand source, compiler::AllocatedOperand target) {
   GapMove* gap_move =
-      Node::New<GapMove>(compilation_unit_->zone(), {}, source, target);
-  if (compilation_unit_->has_graph_labeller()) {
+      Node::New<GapMove>(compilation_info_->zone(), {}, source, target);
+  if (compilation_info_->has_graph_labeller()) {
     graph_labeller()->RegisterNode(gap_move);
   }
   if (*node_it_ == nullptr) {
@@ -894,7 +899,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
 
     const size_t size = sizeof(RegisterMerge) +
                         predecessor_count * sizeof(compiler::AllocatedOperand);
-    void* buffer = compilation_unit_->zone()->Allocate<void*>(size);
+    void* buffer = compilation_info_->zone()->Allocate<void*>(size);
     merge = new (buffer) RegisterMerge();
     merge->node = node == nullptr ? incoming : node;
 
