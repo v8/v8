@@ -74,7 +74,12 @@ void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
-#if V8_TARGET_ARCH_X64
+#if (V8_OS_ANDROID || V8_OS_LINUX) && \
+    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+  // On these architectures and platforms, we remap the builtins, so need these
+  // to be aligned on a page boundary.
+  fprintf(fp_, ".balign 4096\n");
+#elif V8_TARGET_ARCH_X64
   // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
   STATIC_ASSERT(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");
@@ -86,6 +91,14 @@ void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
 #else
   STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
+#endif
+}
+
+void PlatformEmbeddedFileWriterGeneric::AlignToPageSizeIfNeeded() {
+#if (V8_OS_ANDROID || V8_OS_LINUX) && \
+    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+  // Since the builtins are remapped, need to pad until the next page boundary.
+  fprintf(fp_, ".balign 4096\n");
 #endif
 }
 

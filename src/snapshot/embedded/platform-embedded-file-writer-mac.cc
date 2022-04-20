@@ -79,7 +79,7 @@ void PlatformEmbeddedFileWriterMac::AlignToCodeAlignment() {
 #endif
 }
 
-void PlatformEmbeddedFileWriterMac::PaddingAfterCode() {
+void PlatformEmbeddedFileWriterMac::AlignToPageSizeIfNeeded() {
 #if V8_TARGET_ARCH_ARM64
   // ARM64 macOS has a 16kiB page size. Since we want to remap builtins on the
   // heap, make sure that the trailing part of the page doesn't contain anything

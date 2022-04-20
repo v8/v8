@@ -317,7 +317,7 @@ class V8_BASE_EXPORT OS {
   // Whether the platform supports mapping a given address in another location
   // in the address space.
   V8_WARN_UNUSED_RESULT static constexpr bool IsRemapPageSupported() {
-#ifdef V8_OS_MACOS
+#if defined(V8_OS_MACOS) || defined(V8_OS_LINUX)
     return true;
 #else
     return false;
@@ -329,6 +329,9 @@ class V8_BASE_EXPORT OS {
   // Both the source and target addresses must be page-aligned, and |size| must
   // be a multiple of the system page size.  If there is already memory mapped
   // at the target address, it is replaced by the new mapping.
+  //
+  // In addition, this is only meant to remap memory which is file-backed, and
+  // mapped from a file which is still accessible.
   //
   // Must not be called if |IsRemapPagesSupported()| return false.
   // Returns true for success.
