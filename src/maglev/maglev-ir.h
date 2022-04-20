@@ -752,14 +752,44 @@ class ValueNode : public Node {
   // A node is dead once it has no more upcoming uses.
   bool is_dead() const { return next_use_ == kInvalidNodeId; }
 
-  void AddRegister(Register reg) { registers_with_result_.set(reg); }
-  void RemoveRegister(Register reg) { registers_with_result_.clear(reg); }
-  RegList ClearRegisters() {
-    return std::exchange(registers_with_result_, kEmptyRegList);
+  constexpr bool use_double_register() const {
+    return (properties().value_representation() ==
+            ValueRepresentation::kFloat64);
   }
 
-  int num_registers() const { return registers_with_result_.Count(); }
-  bool has_register() const { return registers_with_result_ != kEmptyRegList; }
+  void AddRegister(Register reg) {
+    DCHECK(!use_double_register());
+    registers_with_result_.set(reg);
+  }
+  void AddRegister(DoubleRegister reg) {
+    DCHECK(use_double_register());
+    double_registers_with_result_.set(reg);
+  }
+
+  void RemoveRegister(Register reg) {
+    DCHECK(!use_double_register());
+    registers_with_result_.clear(reg);
+  }
+  void RemoveRegister(DoubleRegister reg) {
+    DCHECK(use_double_register());
+    double_registers_with_result_.clear(reg);
+  }
+
+  template <typename T>
+  inline RegListBase<T> ClearRegisters();
+
+  int num_registers() const {
+    if (use_double_register()) {
+      return double_registers_with_result_.Count();
+    }
+    return registers_with_result_.Count();
+  }
+  bool has_register() const {
+    if (use_double_register()) {
+      return double_registers_with_result_ != kEmptyDoubleRegList;
+    }
+    return registers_with_result_ != kEmptyRegList;
+  }
 
   compiler::AllocatedOperand allocation() const {
     if (has_register()) {
@@ -780,6 +810,11 @@ class ValueNode : public Node {
         state_(kLastUse)
 #endif  // DEBUG
   {
+    if (use_double_register()) {
+      double_registers_with_result_ = kEmptyDoubleRegList;
+    } else {
+      registers_with_result_ = kEmptyRegList;
+    }
   }
 
   // Rename for better pairing with `end_id`.
@@ -788,7 +823,10 @@ class ValueNode : public Node {
   NodeIdT end_id_ = kInvalidNodeId;
   NodeIdT next_use_ = kInvalidNodeId;
   ValueLocation result_;
-  RegList registers_with_result_ = kEmptyRegList;
+  union {
+    RegList registers_with_result_;
+    DoubleRegList double_registers_with_result_;
+  };
   union {
     // Pointer to the current last use's next_use_id field. Most of the time
     // this will be a pointer to an Input's next_use_id_ field, but it's
@@ -801,6 +839,18 @@ class ValueNode : public Node {
   enum { kLastUse, kSpillOrHint } state_;
 #endif  // DEBUG
 };
+
+template <>
+inline RegList ValueNode::ClearRegisters() {
+  DCHECK(!use_double_register());
+  return std::exchange(registers_with_result_, kEmptyRegList);
+}
+
+template <>
+inline DoubleRegList ValueNode::ClearRegisters() {
+  DCHECK(use_double_register());
+  return std::exchange(double_registers_with_result_, kEmptyDoubleRegList);
+}
 
 ValueLocation& Node::result() {
   DCHECK(Is<ValueNode>());

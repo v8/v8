@@ -71,7 +71,7 @@ class StraightForwardRegisterAllocator {
   void TryAllocateToInput(Phi* phi);
 
   void FreeRegisters(ValueNode* node) {
-    RegList list = node->ClearRegisters();
+    RegList list = node->ClearRegisters<Register>();
     DCHECK_EQ(free_registers_ & list, kEmptyRegList);
     free_registers_ |= list;
   }

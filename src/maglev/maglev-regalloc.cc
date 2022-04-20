@@ -675,6 +675,8 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
   uint32_t free_slot;
   bool is_tagged = (node->properties().value_representation() ==
                     ValueRepresentation::kTagged);
+  // TODO(v8:7700): We will need a new class of SpillSlots for doubles in 32-bit
+  // architectures.
   SpillSlots& slots = is_tagged ? tagged_ : untagged_;
   MachineRepresentation representation = is_tagged
                                              ? MachineRepresentation::kTagged
