@@ -761,7 +761,7 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
     call->set_arg(arg_index++, undefined_constant);
   }
   for (int i = 0; i < args.register_count(); ++i) {
-    call->set_arg(arg_index++, current_interpreter_frame_.get(args[i]));
+    call->set_arg(arg_index++, GetTaggedValue(args[i]));
   }
 
   SetAccumulator(call);

@@ -503,6 +503,7 @@ class MergePointInterpreterFrameState {
 #ifdef DEBUG
     DCHECK_NULL(result->input(0).node());
 #endif
+    unmerged = EnsureTagged(compilation_unit, unmerged);
     result->set_input(0, unmerged);
   }
 
