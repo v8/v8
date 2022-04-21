@@ -24,18 +24,27 @@ class MaglevCompilationUnit : public ZoneObject {
  public:
   static MaglevCompilationUnit* New(Zone* zone, MaglevCompilationInfo* info,
                                     Handle<JSFunction> function) {
-    return zone->New<MaglevCompilationUnit>(info, function);
+    return zone->New<MaglevCompilationUnit>(info, nullptr, function);
   }
+  static MaglevCompilationUnit* NewInner(Zone* zone,
+                                         const MaglevCompilationUnit* caller,
+                                         Handle<JSFunction> function) {
+    return zone->New<MaglevCompilationUnit>(caller->info(), caller, function);
+  }
+
   MaglevCompilationUnit(MaglevCompilationInfo* info,
+                        const MaglevCompilationUnit* caller,
                         Handle<JSFunction> function);
 
   MaglevCompilationInfo* info() const { return info_; }
+  const MaglevCompilationUnit* caller() const { return caller_; }
   compiler::JSHeapBroker* broker() const;
   Isolate* isolate() const;
   LocalIsolate* local_isolate() const;
   Zone* zone() const;
   int register_count() const { return register_count_; }
   int parameter_count() const { return parameter_count_; }
+  int inlining_depth() const { return inlining_depth_; }
   bool has_graph_labeller() const;
   MaglevGraphLabeller* graph_labeller() const;
   const compiler::SharedFunctionInfoRef& shared_function_info() const {
@@ -52,6 +61,7 @@ class MaglevCompilationUnit : public ZoneObject {
 
  private:
   MaglevCompilationInfo* const info_;
+  const MaglevCompilationUnit* const caller_;
   const compiler::JSFunctionRef function_;
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::BytecodeArrayRef bytecode_;
@@ -59,6 +69,7 @@ class MaglevCompilationUnit : public ZoneObject {
   const compiler::BytecodeAnalysis bytecode_analysis_;
   const int register_count_;
   const int parameter_count_;
+  const int inlining_depth_;
 };
 
 }  // namespace maglev

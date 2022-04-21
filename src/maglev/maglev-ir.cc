@@ -336,15 +336,32 @@ void NodeBase::Print(std::ostream& os,
   UNREACHABLE();
 }
 
+namespace {
+size_t GetInputLocationsArraySize(const MaglevCompilationUnit& compilation_unit,
+                                  const CheckpointedInterpreterState& state) {
+  size_t size = state.register_frame->size(compilation_unit);
+  const CheckpointedInterpreterState* parent = state.parent;
+  const MaglevCompilationUnit* parent_unit = compilation_unit.caller();
+  while (parent != nullptr) {
+    size += parent->register_frame->size(*parent_unit);
+    parent = parent->parent;
+    parent_unit = parent_unit->caller();
+  }
+  return size;
+}
+}  // namespace
+
 DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
                      CheckpointedInterpreterState state)
-    : state(state),
+    : unit(compilation_unit),
+      state(state),
       input_locations(zone->NewArray<InputLocation>(
-          state.register_frame->size(compilation_unit))) {
+          GetInputLocationsArraySize(compilation_unit, state))) {
   // Default initialise if we're printing the graph, to avoid printing junk
   // values.
   if (FLAG_print_maglev_graph) {
-    for (size_t i = 0; i < state.register_frame->size(compilation_unit); ++i) {
+    for (size_t i = 0; i < GetInputLocationsArraySize(compilation_unit, state);
+         ++i) {
       new (&input_locations[i]) InputLocation();
     }
   }
@@ -888,6 +905,30 @@ void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state,
                         const ProcessingState& state) {}
 void Jump::GenerateCode(MaglevCodeGenState* code_gen_state,
                         const ProcessingState& state) {
+  // Avoid emitting a jump to the next block.
+  if (target() != state.next_block()) {
+    __ jmp(target()->label());
+  }
+}
+
+void JumpToInlined::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                 const ProcessingState& state) {}
+void JumpToInlined::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                 const ProcessingState& state) {
+  // Avoid emitting a jump to the next block.
+  if (target() != state.next_block()) {
+    __ jmp(target()->label());
+  }
+}
+void JumpToInlined::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Brief(*unit()->shared_function_info().object()) << ")";
+}
+
+void JumpFromInlined::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {}
+void JumpFromInlined::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
   // Avoid emitting a jump to the next block.
   if (target() != state.next_block()) {
     __ jmp(target()->label());

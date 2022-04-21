@@ -94,7 +94,9 @@ class CompactInterpreterFrameState;
 
 #define UNCONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Jump)                                  \
-  V(JumpLoop)
+  V(JumpLoop)                              \
+  V(JumpToInlined)                         \
+  V(JumpFromInlined)
 
 #define CONTROL_NODE_LIST(V)       \
   V(Return)                        \
@@ -328,11 +330,15 @@ class CheckpointedInterpreterState {
  public:
   CheckpointedInterpreterState() = default;
   CheckpointedInterpreterState(BytecodeOffset bytecode_position,
-                               const CompactInterpreterFrameState* state)
-      : bytecode_position(bytecode_position), register_frame(state) {}
+                               const CompactInterpreterFrameState* state,
+                               const CheckpointedInterpreterState* parent)
+      : bytecode_position(bytecode_position),
+        register_frame(state),
+        parent(parent) {}
 
   BytecodeOffset bytecode_position = BytecodeOffset::None();
   const CompactInterpreterFrameState* register_frame = nullptr;
+  const CheckpointedInterpreterState* parent = nullptr;
 };
 
 class DeoptInfo {
@@ -341,6 +347,7 @@ class DeoptInfo {
             CheckpointedInterpreterState checkpoint);
 
  public:
+  const MaglevCompilationUnit& unit;
   CheckpointedInterpreterState state;
   InputLocation* input_locations = nullptr;
   Label deopt_entry_label;
@@ -1464,9 +1471,9 @@ class ControlNode : public NodeBase {
     return next_post_dominating_hole_;
   }
   void set_next_post_dominating_hole(ControlNode* node) {
-    DCHECK_IMPLIES(node != nullptr, node->Is<Jump>() || node->Is<Return>() ||
-                                        node->Is<Deopt>() ||
-                                        node->Is<JumpLoop>());
+    DCHECK_IMPLIES(node != nullptr, node->Is<UnconditionalControlNode>() ||
+                                        node->Is<Return>() ||
+                                        node->Is<Deopt>());
     next_post_dominating_hole_ = node;
   }
 
@@ -1584,6 +1591,36 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
 
   explicit JumpLoop(uint32_t bitfield, BasicBlockRef* ref)
       : Base(bitfield, ref) {}
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class JumpToInlined : public UnconditionalControlNodeT<JumpToInlined> {
+  using Base = UnconditionalControlNodeT<JumpToInlined>;
+
+ public:
+  explicit JumpToInlined(uint32_t bitfield, BasicBlockRef* target_refs,
+                         MaglevCompilationUnit* unit)
+      : Base(bitfield, target_refs), unit_(unit) {}
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  const MaglevCompilationUnit* unit() const { return unit_; }
+
+ private:
+  MaglevCompilationUnit* unit_;
+};
+
+class JumpFromInlined : public UnconditionalControlNodeT<JumpFromInlined> {
+  using Base = UnconditionalControlNodeT<JumpFromInlined>;
+
+ public:
+  explicit JumpFromInlined(uint32_t bitfield, BasicBlockRef* target_refs)
+      : Base(bitfield, target_refs) {}
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);

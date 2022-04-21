@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-code-generator.h"
 
+#include "src/base/hashmap.h"
 #include "src/codegen/code-desc.h"
 #include "src/codegen/register.h"
 #include "src/codegen/safepoint-table.h"
@@ -19,6 +20,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/objects/code-inl.h"
+#include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {
@@ -318,15 +320,15 @@ class MaglevCodeGeneratorImpl final {
   }
 
  private:
-  static constexpr int kFunctionLiteralIndex = 0;
-  static constexpr int kOptimizedOutConstantIndex = 1;
+  static constexpr int kOptimizedOutConstantIndex = 0;
 
   MaglevCodeGeneratorImpl(MaglevCompilationInfo* compilation_info, Graph* graph)
       : safepoint_table_builder_(compilation_info->zone()),
         translation_array_builder_(compilation_info->zone()),
         code_gen_state_(compilation_info, safepoint_table_builder()),
         processor_(compilation_info, &code_gen_state_),
-        graph_(graph) {}
+        graph_(graph),
+        deopt_literals_(compilation_info->isolate()->heap()) {}
 
   MaybeHandle<Code> Generate() {
     EmitCode();
@@ -352,6 +354,14 @@ class MaglevCodeGeneratorImpl final {
 
   void EmitDeopts() {
     deopt_exit_start_offset_ = __ pc_offset();
+
+    // We'll emit the optimized out constant a bunch of times, so to avoid
+    // looking it up in the literal map every time, add it now with the fixed
+    // offset 0.
+    int optimized_out_constant_index =
+        GetDeoptLiteral(ReadOnlyRoots(isolate()).optimized_out());
+    USE(optimized_out_constant_index);
+    DCHECK_EQ(kOptimizedOutConstantIndex, optimized_out_constant_index);
 
     __ RecordComment("-- Non-lazy deopts");
     for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
@@ -381,38 +391,50 @@ class MaglevCodeGeneratorImpl final {
     }
   }
 
-  void EmitEagerDeopt(EagerDeoptInfo* deopt_info) {
-    int frame_count = 1;
-    int jsframe_count = 1;
-    int update_feedback_count = 0;
-    deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
-        frame_count, jsframe_count, update_feedback_count);
-
-    const MaglevCompilationUnit& compilation_unit =
-        *code_gen_state_.compilation_info()->toplevel_compilation_unit();
+  const InputLocation* EmitDeoptFrame(const MaglevCompilationUnit& unit,
+                                      const CheckpointedInterpreterState& state,
+                                      const InputLocation* input_locations) {
+    if (state.parent) {
+      // Deopt input locations are in the order of deopt frame emission, so
+      // update the pointer after emitting the parent frame.
+      input_locations =
+          EmitDeoptFrame(*unit.caller(), *state.parent, input_locations);
+    }
 
     // Returns are used for updating an accumulator or register after a lazy
     // deopt.
     const int return_offset = 0;
     const int return_count = 0;
     translation_array_builder_.BeginInterpretedFrame(
-        deopt_info->state.bytecode_position, kFunctionLiteralIndex,
-        compilation_unit.register_count(), return_offset, return_count);
+        state.bytecode_position,
+        GetDeoptLiteral(*unit.shared_function_info().object()),
+        unit.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(compilation_unit, deopt_info->state.register_frame,
-                         deopt_info->input_locations,
-                         interpreter::Register::invalid_value());
+    return EmitDeoptFrameValues(unit, state.register_frame, input_locations,
+                                interpreter::Register::invalid_value());
+  }
+
+  void EmitEagerDeopt(EagerDeoptInfo* deopt_info) {
+    int frame_count = 1 + deopt_info->unit.inlining_depth();
+    int jsframe_count = frame_count;
+    int update_feedback_count = 0;
+    deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
+        frame_count, jsframe_count, update_feedback_count);
+
+    EmitDeoptFrame(deopt_info->unit, deopt_info->state,
+                   deopt_info->input_locations);
   }
 
   void EmitLazyDeopt(LazyDeoptInfo* deopt_info) {
+    const MaglevCompilationUnit& unit = deopt_info->unit;
+    DCHECK_NULL(unit.caller());
+    DCHECK_EQ(unit.inlining_depth(), 0);
+
     int frame_count = 1;
     int jsframe_count = 1;
     int update_feedback_count = 0;
     deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
         frame_count, jsframe_count, update_feedback_count);
-
-    const MaglevCompilationUnit& compilation_unit =
-        *code_gen_state_.compilation_info()->toplevel_compilation_unit();
 
     // Return offsets are counted from the end of the translation frame, which
     // is the array [parameters..., locals..., accumulator].
@@ -429,20 +451,20 @@ class MaglevCodeGeneratorImpl final {
       //                  ^
       // and this calculation gives, correctly:
       //   2 + 2 - 1 = 3
-      return_offset = compilation_unit.register_count() +
-                      compilation_unit.parameter_count() -
+      return_offset = unit.register_count() + unit.parameter_count() -
                       deopt_info->result_location.ToParameterIndex();
     } else {
-      return_offset = compilation_unit.register_count() -
-                      deopt_info->result_location.index();
+      return_offset =
+          unit.register_count() - deopt_info->result_location.index();
     }
     // TODO(leszeks): Support lazy deopts with multiple return values.
     int return_count = 1;
     translation_array_builder_.BeginInterpretedFrame(
-        deopt_info->state.bytecode_position, kFunctionLiteralIndex,
-        compilation_unit.register_count(), return_offset, return_count);
+        deopt_info->state.bytecode_position,
+        GetDeoptLiteral(*unit.shared_function_info().object()),
+        unit.register_count(), return_offset, return_count);
 
-    EmitDeoptFrameValues(compilation_unit, deopt_info->state.register_frame,
+    EmitDeoptFrameValues(unit, deopt_info->state.register_frame,
                          deopt_info->input_locations,
                          deopt_info->result_location);
   }
@@ -500,15 +522,20 @@ class MaglevCodeGeneratorImpl final {
         code_gen_state_.GetFramePointerOffsetForStackSlot(operand));
   }
 
-  void EmitDeoptFrameValues(
+  const InputLocation* EmitDeoptFrameValues(
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
       const InputLocation* input_locations,
       interpreter::Register result_location) {
     // Closure
-    int closure_index = DeoptStackSlotIndexFromFPOffset(
-        StandardFrameConstants::kFunctionOffset);
-    translation_array_builder_.StoreStackSlot(closure_index);
+    if (compilation_unit.inlining_depth() == 0) {
+      int closure_index = DeoptStackSlotIndexFromFPOffset(
+          StandardFrameConstants::kFunctionOffset);
+      translation_array_builder_.StoreStackSlot(closure_index);
+    } else {
+      translation_array_builder_.StoreLiteral(
+          GetDeoptLiteral(*compilation_unit.function().object()));
+    }
 
     // TODO(leszeks): The input locations array happens to be in the same order
     // as parameters+locals+accumulator are accessed here. We should make this
@@ -573,6 +600,8 @@ class MaglevCodeGeneratorImpl final {
         translation_array_builder_.StoreLiteral(kOptimizedOutConstantIndex);
       }
     }
+
+    return input_location;
   }
 
   void EmitMetadata() {
@@ -610,6 +639,7 @@ class MaglevCodeGeneratorImpl final {
         translation_array_builder_.ToTranslationArray(isolate()->factory());
 
     data->SetTranslationByteArray(*translation_array);
+    // TODO(leszeks): Fix with the real inlined function count.
     data->SetInlinedFunctionCount(Smi::zero());
     // TODO(leszeks): Support optimization IDs
     data->SetOptimizationId(Smi::zero());
@@ -624,18 +654,17 @@ class MaglevCodeGeneratorImpl final {
                                      ->shared_function_info()
                                      .object());
 
-    // TODO(leszeks): Proper literals array.
     Handle<DeoptimizationLiteralArray> literals =
-        isolate()->factory()->NewDeoptimizationLiteralArray(2);
-    literals->set(kFunctionLiteralIndex, *code_gen_state_.compilation_info()
-                                              ->toplevel_compilation_unit()
-                                              ->shared_function_info()
-                                              .object());
-    literals->set(kOptimizedOutConstantIndex,
-                  ReadOnlyRoots(isolate()).optimized_out());
+        isolate()->factory()->NewDeoptimizationLiteralArray(
+            deopt_literals_.size());
+    IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
+        &deopt_literals_);
+    for (auto it = iterate.begin(); it != iterate.end(); ++it) {
+      literals->set(*it.entry(), it.key());
+    }
     data->SetLiteralArray(*literals);
 
-    // TODO(leszeks): Fix once we have inlining.
+    // TODO(leszeks): Fix with the real inlining positions.
     Handle<PodArray<InliningPosition>> inlining_positions =
         PodArray<InliningPosition>::New(isolate(), 0);
     data->SetInliningPositions(*inlining_positions);
@@ -687,11 +716,21 @@ class MaglevCodeGeneratorImpl final {
     return &translation_array_builder_;
   }
 
+  int GetDeoptLiteral(Object obj) {
+    IdentityMapFindResult<int> res = deopt_literals_.FindOrInsert(obj);
+    if (!res.already_exists) {
+      DCHECK_EQ(0, *res.entry);
+      *res.entry = deopt_literals_.size() - 1;
+    }
+    return *res.entry;
+  }
+
   SafepointTableBuilder safepoint_table_builder_;
   TranslationArrayBuilder translation_array_builder_;
   MaglevCodeGenState code_gen_state_;
   GraphProcessor<MaglevCodeGeneratingNodeProcessor> processor_;
   Graph* const graph_;
+  IdentityMap<int, base::DefaultAllocationPolicy> deopt_literals_;
 
   int deopt_exit_start_offset_ = -1;
 };

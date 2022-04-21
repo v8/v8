@@ -314,10 +314,8 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   os << "  ↱ eager @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
   int index = 0;
-  const MaglevCompilationUnit& compilation_unit =
-      *state.compilation_info()->toplevel_compilation_unit();
   deopt_info->state.register_frame->ForEachValue(
-      compilation_unit, [&](ValueNode* node, interpreter::Register reg) {
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
@@ -355,10 +353,8 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   os << "  ↳ lazy @" << deopt_info->state.bytecode_position << " : {";
   bool first = true;
   int index = 0;
-  const MaglevCompilationUnit& compilation_unit =
-      *state.compilation_info()->toplevel_compilation_unit();
   deopt_info->state.register_frame->ForEachValue(
-      compilation_unit, [&](ValueNode* node, interpreter::Register reg) {
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {

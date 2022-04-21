@@ -27,9 +27,28 @@ class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(LocalIsolate* local_isolate,
                               MaglevCompilationUnit* compilation_unit,
-                              Graph* graph);
+                              Graph* graph,
+                              MaglevGraphBuilder* parent = nullptr);
 
   void Build() {
+    DCHECK(!is_inline());
+
+    StartPrologue();
+    for (int i = 0; i < parameter_count(); i++) {
+      SetArgument(i, AddNewNode<InitialValue>(
+                         {}, interpreter::Register::FromParameterIndex(i)));
+    }
+    BuildRegisterFrameInitialization();
+    EndPrologue();
+    BuildBody();
+  }
+
+  void StartPrologue();
+  void SetArgument(int i, ValueNode* value);
+  void BuildRegisterFrameInitialization();
+  BasicBlock* EndPrologue();
+
+  void BuildBody() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
       VisitSingleBytecode();
       // TODO(v8:7700): Clean up after all bytecodes are supported.
@@ -343,7 +362,13 @@ class MaglevGraphBuilder {
       latest_checkpointed_state_.emplace(
           BytecodeOffset(iterator_.current_offset()),
           zone()->New<CompactInterpreterFrameState>(
-              *compilation_unit_, GetInLiveness(), current_interpreter_frame_));
+              *compilation_unit_, GetInLiveness(), current_interpreter_frame_),
+          parent_ == nullptr
+              ? nullptr
+              // TODO(leszeks): Don't always allocate for the parent state,
+              // maybe cache it on the graph builder?
+              : zone()->New<CheckpointedInterpreterState>(
+                    parent_->GetLatestCheckpointedState()));
     }
     return *latest_checkpointed_state_;
   }
@@ -352,7 +377,9 @@ class MaglevGraphBuilder {
     return CheckpointedInterpreterState(
         BytecodeOffset(iterator_.current_offset()),
         zone()->New<CompactInterpreterFrameState>(
-            *compilation_unit_, GetOutLiveness(), current_interpreter_frame_));
+            *compilation_unit_, GetOutLiveness(), current_interpreter_frame_),
+        // TODO(leszeks): Support lazy deopts in inlined functions.
+        nullptr);
   }
 
   template <typename NodeT>
@@ -444,6 +471,10 @@ class MaglevGraphBuilder {
     return block;
   }
 
+  void InlineCallFromRegisters(int argc_count,
+                               ConvertReceiverMode receiver_mode,
+                               compiler::JSFunctionRef function);
+
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
@@ -465,6 +496,7 @@ class MaglevGraphBuilder {
   void VisitBinarySmiOperation();
 
   void MergeIntoFrameState(BasicBlock* block, int target);
+  void MergeIntoInlinedReturnFrameState(BasicBlock* block);
   void BuildBranchIfTrue(ValueNode* node, int true_target, int false_target);
   void BuildBranchIfToBooleanTrue(ValueNode* node, int true_target,
                                   int false_target);
@@ -491,11 +523,17 @@ class MaglevGraphBuilder {
       } else if (interpreter::Bytecodes::Returns(bytecode) ||
                  interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
         predecessors_[iterator.next_offset()]--;
+        // Collect inline return jumps in the slot after the last bytecode.
+        if (is_inline() && interpreter::Bytecodes::Returns(bytecode)) {
+          predecessors_[array_length - 1]++;
+        }
       }
       // TODO(leszeks): Also consider handler entries (the bytecode analysis)
       // will do this automatically I guess if we merge this into that.
     }
-    DCHECK_EQ(0, predecessors_[bytecode().length()]);
+    if (!is_inline()) {
+      DCHECK_EQ(0, predecessors_[bytecode().length()]);
+    }
   }
 
   int NumPredecessors(int offset) { return predecessors_[offset]; }
@@ -530,8 +568,19 @@ class MaglevGraphBuilder {
     return compilation_unit_->graph_labeller();
   }
 
+  // True when this graph builder is building the subgraph of an inlined
+  // function.
+  bool is_inline() const { return parent_ != nullptr; }
+
+  // The fake offset used as a target for all exits of an inlined function.
+  int inline_exit_offset() const {
+    DCHECK(is_inline());
+    return bytecode().length();
+  }
+
   LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const compilation_unit_;
+  MaglevGraphBuilder* const parent_;
   Graph* const graph_;
   interpreter::BytecodeArrayIterator iterator_;
   uint32_t* predecessors_;

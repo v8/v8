@@ -511,6 +511,8 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 #ifdef V8_ENABLE_MAGLEV
 #define V8_ENABLE_MAGLEV_BOOL true
 DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
+DEFINE_BOOL(maglev_inlining, false,
+            "enable inlining in the maglev optimizing compiler")
 #else
 #define V8_ENABLE_MAGLEV_BOOL false
 DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")

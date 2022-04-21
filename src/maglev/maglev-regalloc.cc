@@ -339,13 +339,20 @@ void StraightForwardRegisterAllocator::UpdateUse(
 
 void StraightForwardRegisterAllocator::UpdateUse(
     const EagerDeoptInfo& deopt_info) {
+  int index = 0;
+  UpdateUse(deopt_info.unit, &deopt_info.state, deopt_info.input_locations,
+            index);
+}
+
+void StraightForwardRegisterAllocator::UpdateUse(
+    const LazyDeoptInfo& deopt_info) {
   const CompactInterpreterFrameState* checkpoint_state =
       deopt_info.state.register_frame;
-  const MaglevCompilationUnit& compilation_unit =
-      *compilation_info_->toplevel_compilation_unit();
   int index = 0;
   checkpoint_state->ForEachValue(
-      compilation_unit, [&](ValueNode* node, interpreter::Register reg) {
+      deopt_info.unit, [&](ValueNode* node, interpreter::Register reg) {
+        // Skip over the result location.
+        if (reg == deopt_info.result_location) return;
         InputLocation* input = &deopt_info.input_locations[index++];
         input->InjectAllocated(node->allocation());
         UpdateUse(node, input);
@@ -353,17 +360,16 @@ void StraightForwardRegisterAllocator::UpdateUse(
 }
 
 void StraightForwardRegisterAllocator::UpdateUse(
-    const LazyDeoptInfo& deopt_info) {
-  const CompactInterpreterFrameState* checkpoint_state =
-      deopt_info.state.register_frame;
-  const MaglevCompilationUnit& compilation_unit =
-      *compilation_info_->toplevel_compilation_unit();
-  int index = 0;
+    const MaglevCompilationUnit& unit,
+    const CheckpointedInterpreterState* state, InputLocation* input_locations,
+    int& index) {
+  if (state->parent) {
+    UpdateUse(*unit.caller(), state->parent, input_locations, index);
+  }
+  const CompactInterpreterFrameState* checkpoint_state = state->register_frame;
   checkpoint_state->ForEachValue(
-      compilation_unit, [&](ValueNode* node, interpreter::Register reg) {
-        // Skip over the result location.
-        if (reg == deopt_info.result_location) return;
-        InputLocation* input = &deopt_info.input_locations[index++];
+      unit, [&](ValueNode* node, interpreter::Register reg) {
+        InputLocation* input = &input_locations[index++];
         input->InjectAllocated(node->allocation());
         UpdateUse(node, input);
       });
@@ -546,7 +552,10 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
   // Merge register values. Values only flowing into phis and not being
   // independently live will be killed as part of the merge.
-  if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
+  if (node->Is<JumpToInlined>()) {
+    // Do nothing.
+    // TODO(leszeks): DCHECK any useful invariants here.
+  } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
     // Empty blocks are immediately merged at the control of their predecessor.
     if (!block->is_empty_block()) {
       MergeRegisterValues(unconditional, unconditional->target(),

@@ -38,14 +38,18 @@ int LoadSimpleFieldHandler(FieldIndex field_index) {
 
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
-                                       Graph* graph)
+                                       Graph* graph, MaglevGraphBuilder* parent)
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
+      parent_(parent),
       graph_(graph),
       iterator_(bytecode().object()),
-      jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length())),
+      // Add an extra jump_target slot for the inline exit if needed.
+      jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length() +
+                                                    (is_inline() ? 1 : 0))),
       // Overallocate merge_states_ by one to allow always looking up the
-      // next offset.
+      // next offset. This overallocated slot can also be used for the inline
+      // exit when needed.
       merge_states_(zone()->NewArray<MergePointInterpreterFrameState*>(
           bytecode().length() + 1)),
       current_interpreter_frame_(*compilation_unit_) {
@@ -55,6 +59,16 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
   // TODO(leszeks): This could be a memset of nullptr to ..._jump_targets_.
   for (int i = 0; i < bytecode().length(); ++i) {
     new (&jump_targets_[i]) BasicBlockRef();
+  }
+
+  if (is_inline()) {
+    DCHECK_NOT_NULL(parent_);
+    DCHECK_GT(compilation_unit->inlining_depth(), 0);
+    // The allocation/initialisation logic here relies on inline_exit_offset
+    // being the offset one past the end of the bytecode.
+    DCHECK_EQ(inline_exit_offset(), bytecode().length());
+    merge_states_[inline_exit_offset()] = nullptr;
+    new (&jump_targets_[inline_exit_offset()]) BasicBlockRef();
   }
 
   CalculatePredecessorCounts();
@@ -70,15 +84,25 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
         *compilation_unit_, offset, NumPredecessors(offset), liveness,
         &loop_info);
   }
+}
 
+void MaglevGraphBuilder::StartPrologue() {
   current_block_ = zone()->New<BasicBlock>(nullptr);
   block_offset_ = -1;
+}
 
-  for (int i = 0; i < parameter_count(); i++) {
-    interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
-    current_interpreter_frame_.set(reg, AddNewNode<InitialValue>({}, reg));
-  }
+BasicBlock* MaglevGraphBuilder::EndPrologue() {
+  BasicBlock* first_block = CreateBlock<Jump>({}, &jump_targets_[0]);
+  MergeIntoFrameState(first_block, 0);
+  return first_block;
+}
 
+void MaglevGraphBuilder::SetArgument(int i, ValueNode* value) {
+  interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
+  current_interpreter_frame_.set(reg, value);
+}
+
+void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
   // TODO(leszeks): Extract out a separate "incoming context/closure" nodes,
   // to be able to read in the machine register but also use the frame-spilled
   // slot.
@@ -109,9 +133,6 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
   for (; register_index < register_count(); register_index++) {
     StoreRegister(interpreter::Register(register_index), undefined_value);
   }
-
-  BasicBlock* first_block = CreateBlock<Jump>({}, &jump_targets_[0]);
-  MergeIntoFrameState(first_block, 0);
 }
 
 // TODO(v8:7700): Clean up after all bytecodes are supported.
@@ -596,6 +617,102 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertyStrict)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertySloppy)
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetSuperConstructor)
 
+void MaglevGraphBuilder::InlineCallFromRegisters(
+    int argc_count, ConvertReceiverMode receiver_mode,
+    compiler::JSFunctionRef function) {
+  // The undefined constant node has to be created before the inner graph is
+  // created.
+  RootConstant* undefined_constant;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    undefined_constant =
+        AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
+  }
+
+  // Create a new compilation unit and graph builder for the inlined
+  // function.
+  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
+      zone(), compilation_unit_, function.object());
+  MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
+                                         this);
+
+  // Finish the current block with a jump to the inlined function.
+  BasicBlockRef start_ref, end_ref;
+  BasicBlock* block = CreateBlock<JumpToInlined>({}, &start_ref, inner_unit);
+  ResolveJumpsToBlockAtOffset(block, block_offset_);
+
+  // Manually create the prologue of the inner function graph, so that we
+  // can manually set up the arguments.
+  inner_graph_builder.StartPrologue();
+
+  int arg_index = 0;
+  int reg_count;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    reg_count = argc_count;
+    if (function.shared().language_mode() == LanguageMode::kSloppy) {
+      // TODO(leszeks): Store the global proxy somehow.
+      inner_graph_builder.SetArgument(arg_index++, undefined_constant);
+    } else {
+      inner_graph_builder.SetArgument(arg_index++, undefined_constant);
+    }
+  } else {
+    reg_count = argc_count + 1;
+  }
+  for (int i = 0; i < reg_count && i < inner_unit->parameter_count(); i++) {
+    inner_graph_builder.SetArgument(arg_index++, LoadRegisterTagged(i + 1));
+  }
+  for (; arg_index < inner_unit->parameter_count(); arg_index++) {
+    inner_graph_builder.SetArgument(arg_index, undefined_constant);
+  }
+  // TODO(leszeks): Also correctly set up the closure and context slots, instead
+  // of using InitialValue.
+  inner_graph_builder.BuildRegisterFrameInitialization();
+  BasicBlock* inlined_prologue = inner_graph_builder.EndPrologue();
+
+  // Set the entry JumpToInlined to jump to the prologue block.
+  // TODO(leszeks): Passing start_ref to JumpToInlined creates a two-element
+  // linked list of refs. Consider adding a helper to explicitly set the target
+  // instead.
+  start_ref.SetToBlockAndReturnNext(inlined_prologue)
+      ->SetToBlockAndReturnNext(inlined_prologue);
+
+  // Build the inlined function body.
+  inner_graph_builder.BuildBody();
+
+  // All returns in the inlined body jump to a merge point one past the
+  // bytecode length (i.e. at offset bytecode.length()). Create a block at
+  // this fake offset and have it jump out of the inlined function, into a new
+  // block that we create which resumes execution of the outer function.
+  // TODO(leszeks): Wrap this up in a helper.
+  DCHECK_NULL(inner_graph_builder.current_block_);
+  inner_graph_builder.ProcessMergePoint(
+      inner_graph_builder.inline_exit_offset());
+  inner_graph_builder.StartNewBlock(inner_graph_builder.inline_exit_offset());
+  BasicBlock* end_block =
+      inner_graph_builder.CreateBlock<JumpFromInlined>({}, &end_ref);
+  inner_graph_builder.ResolveJumpsToBlockAtOffset(
+      end_block, inner_graph_builder.inline_exit_offset());
+
+  // Pull the returned accumulator value out of the inlined function's final
+  // merged return state.
+  current_interpreter_frame_.set_accumulator(
+      inner_graph_builder.current_interpreter_frame_.accumulator());
+
+  // Create a new block at our current offset, and resume execution. Do this
+  // manually to avoid trying to resolve any merges to this offset, which will
+  // have already been processed on entry to this visitor.
+  current_block_ =
+      zone()->New<BasicBlock>(zone()->New<MergePointInterpreterFrameState>(
+          *compilation_unit_, current_interpreter_frame_,
+          iterator_.current_offset(), 1, block, GetInLiveness()));
+  block_offset_ = iterator_.current_offset();
+  // Set the exit JumpFromInlined to jump to this resume block.
+  // TODO(leszeks): Passing start_ref to JumpFromInlined creates a two-element
+  // linked list of refs. Consider adding a helper to explicitly set the target
+  // instead.
+  end_ref.SetToBlockAndReturnNext(current_block_)
+      ->SetToBlockAndReturnNext(current_block_);
+}
+
 // TODO(v8:7700): Read feedback and implement inlining
 void MaglevGraphBuilder::BuildCallFromRegisterList(
     ConvertReceiverMode receiver_mode) {
@@ -628,9 +745,52 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
 
 void MaglevGraphBuilder::BuildCallFromRegisters(
     int argc_count, ConvertReceiverMode receiver_mode) {
+  // Indices and counts of operands on the bytecode.
+  const int kFirstArgumentOperandIndex = 1;
+  const int kReceiverOperandCount =
+      (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
+  const int kReceiverAndArgOperandCount = kReceiverOperandCount + argc_count;
+  const int kSlotOperandIndex =
+      kFirstArgumentOperandIndex + kReceiverAndArgOperandCount;
+
   DCHECK_LE(argc_count, 2);
   ValueNode* function = LoadRegisterTagged(0);
   ValueNode* context = GetContext();
+  FeedbackSlot slot = GetSlotOperand(kSlotOperandIndex);
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForCall(compiler::FeedbackSource(feedback(), slot));
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      EmitUnconditionalDeopt();
+      return;
+
+    case compiler::ProcessedFeedback::kCall: {
+      if (!FLAG_maglev_inlining) break;
+
+      const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
+      CallFeedbackContent content = call_feedback.call_feedback_content();
+      if (content != CallFeedbackContent::kTarget) break;
+
+      base::Optional<compiler::HeapObjectRef> maybe_target =
+          call_feedback.target();
+      if (!maybe_target.has_value()) break;
+
+      compiler::HeapObjectRef target = maybe_target.value();
+      if (!target.IsJSFunction()) break;
+
+      compiler::JSFunctionRef function = target.AsJSFunction();
+      base::Optional<compiler::FeedbackVectorRef> maybe_feedback_vector =
+          function.feedback_vector(broker()->dependencies());
+      if (!maybe_feedback_vector.has_value()) break;
+
+      return InlineCallFromRegisters(argc_count, receiver_mode, function);
+    }
+
+    default:
+      break;
+  }
+  // On fallthrough, create a generic call.
 
   int argc_count_with_recv = argc_count + 1;
   size_t input_count = argc_count_with_recv + Call::kFixedInputCount;
@@ -795,6 +955,31 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
   }
 }
 
+void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
+    BasicBlock* predecessor) {
+  int target = inline_exit_offset();
+  if (merge_states_[target] == nullptr) {
+    // All returns should have the same liveness, which is that only the
+    // accumulator is live.
+    const compiler::BytecodeLivenessState* liveness =
+        bytecode_analysis().GetInLivenessFor(iterator_.current_offset());
+    DCHECK(liveness->AccumulatorIsLive());
+    DCHECK_EQ(liveness->live_value_count(), 1);
+
+    // If there's no target frame state, allocate a new one.
+    merge_states_[target] = zone()->New<MergePointInterpreterFrameState>(
+        *compilation_unit_, current_interpreter_frame_, target,
+        NumPredecessors(target), predecessor, liveness);
+  } else {
+    // Again, all returns should have the same liveness, so double check this.
+    DCHECK(bytecode_analysis()
+               .GetInLivenessFor(iterator_.current_offset())
+               ->Equals(*merge_states_[target]->frame_state().liveness()));
+    merge_states_[target]->Merge(*compilation_unit_, current_interpreter_frame_,
+                                 predecessor, target);
+  }
+}
+
 void MaglevGraphBuilder::BuildBranchIfTrue(ValueNode* node, int true_target,
                                            int false_target) {
   BasicBlock* block = FinishBlock<BranchIfTrue>(next_offset(), {node},
@@ -842,7 +1027,19 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(SetPendingMessage)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Throw)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ReThrow)
 void MaglevGraphBuilder::VisitReturn() {
-  FinishBlock<Return>(next_offset(), {GetAccumulatorTagged()});
+  if (!is_inline()) {
+    FinishBlock<Return>(next_offset(), {GetAccumulatorTagged()});
+    return;
+  }
+
+  // All inlined function returns instead jump to one past the end of the
+  // bytecode, where we'll later create a final basic block which resumes
+  // execution of the caller.
+  // TODO(leszeks): Consider shortcutting this Jump for cases where there is
+  // only one return and no need to merge return states.
+  BasicBlock* block = FinishBlock<Jump>(next_offset(), {},
+                                        &jump_targets_[inline_exit_offset()]);
+  MergeIntoInlinedReturnFrameState(block);
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowReferenceErrorIfHole)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowSuperNotCalledIfHole)

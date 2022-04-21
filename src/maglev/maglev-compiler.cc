@@ -108,31 +108,39 @@ class UseMarkingProcessor {
   }
 
  private:
-  void MarkCheckpointNodes(NodeBase* node, const EagerDeoptInfo* deopt_info,
-                           const ProcessingState& state) {
-    const MaglevCompilationUnit& compilation_unit =
-        *state.compilation_info()->toplevel_compilation_unit();
+  void MarkCheckpointNodes(NodeBase* node, const MaglevCompilationUnit& unit,
+                           const CheckpointedInterpreterState* checkpoint_state,
+                           InputLocation* input_locations,
+                           const ProcessingState& state, int& index) {
+    if (checkpoint_state->parent) {
+      MarkCheckpointNodes(node, *unit.caller(), checkpoint_state->parent,
+                          input_locations, state, index);
+    }
+
     const CompactInterpreterFrameState* register_frame =
-        deopt_info->state.register_frame;
+        checkpoint_state->register_frame;
     int use_id = node->id();
-    int index = 0;
 
     register_frame->ForEachValue(
-        compilation_unit, [&](ValueNode* node, interpreter::Register reg) {
-          node->mark_use(use_id, &deopt_info->input_locations[index++]);
+        unit, [&](ValueNode* node, interpreter::Register reg) {
+          node->mark_use(use_id, &input_locations[index++]);
         });
+  }
+  void MarkCheckpointNodes(NodeBase* node, const EagerDeoptInfo* deopt_info,
+                           const ProcessingState& state) {
+    int index = 0;
+    MarkCheckpointNodes(node, deopt_info->unit, &deopt_info->state,
+                        deopt_info->input_locations, state, index);
   }
   void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
                            const ProcessingState& state) {
-    const MaglevCompilationUnit& compilation_unit =
-        *state.compilation_info()->toplevel_compilation_unit();
     const CompactInterpreterFrameState* register_frame =
         deopt_info->state.register_frame;
     int use_id = node->id();
     int index = 0;
 
     register_frame->ForEachValue(
-        compilation_unit, [&](ValueNode* node, interpreter::Register reg) {
+        deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
           // Skip over the result location.
           if (reg == deopt_info->result_location) return;
           node->mark_use(use_id, &deopt_info->input_locations[index++]);

@@ -13,9 +13,11 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
-                                             Handle<JSFunction> function)
+MaglevCompilationUnit::MaglevCompilationUnit(
+    MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
+    Handle<JSFunction> function)
     : info_(info),
+      caller_(caller),
       function_(MakeRef(broker(), function)),
       shared_function_info_(function_.shared()),
       bytecode_(shared_function_info_.GetBytecodeArray()),
@@ -24,7 +26,8 @@ MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
       bytecode_analysis_(bytecode_.object(), zone(), BytecodeOffset::None(),
                          true),
       register_count_(bytecode_.register_count()),
-      parameter_count_(bytecode_.parameter_count()) {}
+      parameter_count_(bytecode_.parameter_count()),
+      inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {}
 
 compiler::JSHeapBroker* MaglevCompilationUnit::broker() const {
   return info_->broker();
