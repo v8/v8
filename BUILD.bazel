@@ -3140,6 +3140,8 @@ filegroup(
         "src/inspector/v8-string-conversions.h",
         "src/inspector/v8-value-utils.cc",
         "src/inspector/v8-value-utils.h",
+        "src/inspector/v8-webdriver-serializer.cc",
+        "src/inspector/v8-webdriver-serializer.h",
         "src/inspector/value-mirror.cc",
         "src/inspector/value-mirror.h",
         ":crdtp_platform_files",
