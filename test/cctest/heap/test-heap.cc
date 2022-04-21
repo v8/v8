@@ -1318,10 +1318,18 @@ UNINITIALIZED_TEST(Regress12777) {
       arrays.push_back(i_isolate->factory()->NewFixedArray(length));
     }
 
-    // The work done above should trigger the heap limit callback at least
-    // twice to prove that the callback can raise the limit in the second
-    // or later calls to avoid an OOM.
-    CHECK_GE(near_heap_limit_invocation_count, 2);
+    // Normally, taking a heap snapshot in the near heap limit would result in
+    // a full GC, then the overhead of the promotions would cause another
+    // invocation of the heap limit callback and it can raise the limit in
+    // the second call to avoid an OOM, so we test that the callback can
+    // indeed raise the limit this way in this case. When there is only one
+    // generation, however, there would not be the overhead of promotions so the
+    // callback may not be triggered again during the generation of the heap
+    // snapshot. In that case we only need to check that the callback is called
+    // and it can perform GC-triggering operations jsut fine there.
+    size_t minimum_callback_invocation_count = FLAG_single_generation ? 1 : 2;
+    CHECK_GE(near_heap_limit_invocation_count,
+             minimum_callback_invocation_count);
   }
 
   isolate->GetHeapProfiler()->DeleteAllHeapSnapshots();
