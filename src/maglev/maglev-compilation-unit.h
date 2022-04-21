@@ -24,17 +24,20 @@ class MaglevCompilationUnit : public ZoneObject {
  public:
   static MaglevCompilationUnit* New(Zone* zone, MaglevCompilationInfo* info,
                                     Handle<JSFunction> function) {
-    return zone->New<MaglevCompilationUnit>(info, nullptr, function);
+    return zone->New<MaglevCompilationUnit>(info, function);
   }
   static MaglevCompilationUnit* NewInner(Zone* zone,
                                          const MaglevCompilationUnit* caller,
-                                         Handle<JSFunction> function) {
+                                         compiler::JSFunctionRef function) {
     return zone->New<MaglevCompilationUnit>(caller->info(), caller, function);
   }
 
   MaglevCompilationUnit(MaglevCompilationInfo* info,
-                        const MaglevCompilationUnit* caller,
                         Handle<JSFunction> function);
+
+  MaglevCompilationUnit(MaglevCompilationInfo* info,
+                        const MaglevCompilationUnit* caller,
+                        compiler::JSFunctionRef function);
 
   MaglevCompilationInfo* info() const { return info_; }
   const MaglevCompilationUnit* caller() const { return caller_; }

@@ -631,8 +631,8 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
 
   // Create a new compilation unit and graph builder for the inlined
   // function.
-  MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
-      zone(), compilation_unit_, function.object());
+  MaglevCompilationUnit* inner_unit =
+      MaglevCompilationUnit::NewInner(zone(), compilation_unit_, function);
   MaglevGraphBuilder inner_graph_builder(local_isolate_, inner_unit, graph_,
                                          this);
 

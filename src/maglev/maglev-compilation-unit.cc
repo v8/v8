@@ -13,12 +13,19 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
+                                             Handle<JSFunction> function)
+    : MaglevCompilationUnit(
+          info, nullptr,
+          MakeRef(info->broker(),
+                  info->broker()->CanonicalPersistentHandle(function))) {}
+
 MaglevCompilationUnit::MaglevCompilationUnit(
     MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
-    Handle<JSFunction> function)
+    compiler::JSFunctionRef function)
     : info_(info),
       caller_(caller),
-      function_(MakeRef(broker(), function)),
+      function_(function),
       shared_function_info_(function_.shared()),
       bytecode_(shared_function_info_.GetBytecodeArray()),
       feedback_(
