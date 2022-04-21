@@ -728,6 +728,9 @@
 
   # BUG(v8:11745) The test allocates too much memory, making it slow on TSAN.
   'compiler/regress-crbug-11564': [SKIP],
+
+  # BUG(v8:12822): Flakes on TSAN.
+  'regress/regress-crbug-1239907': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
