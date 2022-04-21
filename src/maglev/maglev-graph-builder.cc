@@ -138,8 +138,9 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
 // TODO(v8:7700): Clean up after all bytecodes are supported.
 #define MAGLEV_UNIMPLEMENTED(BytecodeName)                              \
   do {                                                                  \
-    std::cerr << "Maglev: Can't compile, bytecode " #BytecodeName       \
-                 " is not supported\n";                                 \
+    std::cerr << "Maglev: Can't compile "                               \
+              << Brief(*compilation_unit_->function().object())         \
+              << ", bytecode " #BytecodeName " is not supported\n";     \
     found_unsupported_bytecode_ = true;                                 \
     this_field_will_be_unused_once_all_bytecodes_are_supported_ = true; \
   } while (false)
