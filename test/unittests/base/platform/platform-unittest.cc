@@ -23,8 +23,17 @@ namespace v8 {
 namespace base {
 
 #ifdef V8_TARGET_OS_WIN
-// Alignemnt is constrained on Windows.
+// Alignment is constrained on Windows.
 constexpr size_t kMaxPageSize = 4096;
+#elif V8_HOST_ARCH_PPC64
+#if defined(_AIX)
+// gcc might complain about overalignment (bug):
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=89357
+constexpr size_t kMaxPageSize = 4096;
+#else
+// Native PPC linux has large (64KB) physical pages.
+constexpr size_t kMaxPageSize = 65536;
+#endif
 #else
 constexpr size_t kMaxPageSize = 16384;
 #endif
