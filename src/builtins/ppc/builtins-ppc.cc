@@ -1359,7 +1359,7 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
       r0,
       Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
   __ AndU32(r0, optimization_state, r0, SetRC);
-  __ bne(has_optimized_code_or_state);
+  __ bne(has_optimized_code_or_state, cr0);
 }
 
 #if ENABLE_SPARKPLUG
