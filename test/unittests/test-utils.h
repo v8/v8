@@ -103,6 +103,17 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
+  i::Handle<i::String> MakeName(const char* str, int suffix) {
+    v8::base::EmbeddedVector<char, 128> buffer;
+    v8::base::SNPrintF(buffer, "%s%d", str, suffix);
+    return MakeString(buffer.begin());
+  }
+
+  i::Handle<i::String> MakeString(const char* str) {
+    i::Factory* factory = i_isolate()->factory();
+    return factory->InternalizeUtf8String(str);
+  }
+
   Local<Value> RunJS(const char* source) {
     return RunJS(
         v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());

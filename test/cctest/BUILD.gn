@@ -199,7 +199,6 @@ v8_source_set("cctest_sources") {
     "test-code-layout.cc",
     "test-code-pages.cc",
     "test-code-stub-assembler.cc",
-    "test-concurrent-descriptor-array.cc",
     "test-concurrent-feedback-vector.cc",
     "test-concurrent-js-array.cc",
     "test-concurrent-prototype.cc",
