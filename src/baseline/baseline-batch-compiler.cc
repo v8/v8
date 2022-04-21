@@ -46,6 +46,8 @@ class BaselineCompilerTask {
 
   // Executed in the background thread.
   void Compile(LocalIsolate* local_isolate) {
+    base::ElapsedTimer timer;
+    timer.Start();
     BaselineCompiler compiler(local_isolate, shared_function_info_, bytecode_);
     compiler.GenerateCode();
     maybe_code_ = local_isolate->heap()->NewPersistentMaybeHandle(
@@ -54,6 +56,7 @@ class BaselineCompilerTask {
     if (maybe_code_.ToHandle(&code)) {
       local_isolate->heap()->RegisterCodeObject(code);
     }
+    time_taken_ms_ = timer.Elapsed().InMillisecondsF();
   }
 
   // Executed in the main thread.
@@ -68,6 +71,7 @@ class BaselineCompilerTask {
     if (!CanCompileWithConcurrentBaseline(*shared_function_info_, isolate)) {
       return;
     }
+
     shared_function_info_->set_baseline_code(ToCodeT(*code), kReleaseStore);
     if (V8_LIKELY(FLAG_use_osr)) {
       shared_function_info_->GetBytecodeArray(isolate)
@@ -82,12 +86,20 @@ class BaselineCompilerTask {
       OFStream os(scope.file());
       os << ss.str();
     }
+    if (shared_function_info_->script().IsScript()) {
+      Compiler::LogFunctionCompilation(
+          isolate, LogEventListener::FUNCTION_TAG,
+          handle(Script::cast(shared_function_info_->script()), isolate),
+          shared_function_info_, Handle<FeedbackVector>(),
+          Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms_);
+    }
   }
 
  private:
   Handle<SharedFunctionInfo> shared_function_info_;
   Handle<BytecodeArray> bytecode_;
   MaybeHandle<Code> maybe_code_;
+  double time_taken_ms_;
 };
 
 class BaselineBatchCompilerJob {
@@ -127,6 +139,7 @@ class BaselineBatchCompilerJob {
 
   // Executed in the main thread.
   void Install(Isolate* isolate) {
+    HandleScope local_scope(isolate);
     for (auto& task : tasks_) {
       task.Install(isolate);
     }

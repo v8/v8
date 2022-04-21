@@ -244,13 +244,16 @@ class CompilerTracer : public AllStatic {
   }
 };
 
-void LogFunctionCompilation(Isolate* isolate,
-                            LogEventListener::LogEventsAndTags tag,
-                            Handle<Script> script,
-                            Handle<SharedFunctionInfo> shared,
-                            Handle<FeedbackVector> vector,
-                            Handle<AbstractCode> abstract_code, CodeKind kind,
-                            double time_taken_ms) {
+}  // namespace
+
+// static
+void Compiler::LogFunctionCompilation(Isolate* isolate,
+                                      LogEventListener::LogEventsAndTags tag,
+                                      Handle<Script> script,
+                                      Handle<SharedFunctionInfo> shared,
+                                      Handle<FeedbackVector> vector,
+                                      Handle<AbstractCode> abstract_code,
+                                      CodeKind kind, double time_taken_ms) {
   DCHECK(!abstract_code.is_null());
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     DCHECK_NE(*abstract_code, FromCodeT(*BUILTIN_CODE(isolate, CompileLazy)));
@@ -317,8 +320,6 @@ void LogFunctionCompilation(Isolate* isolate,
                              shared->StartPosition(), shared->EndPosition(),
                              *debug_name));
 }
-
-}  // namespace
 
 // Helper that times a scoped region and records the elapsed time.
 struct ScopedTimer {
@@ -429,9 +430,9 @@ void RecordUnoptimizedFunctionCompilation(
                          time_taken_to_finalize.InMillisecondsF();
 
   Handle<Script> script(Script::cast(shared->script()), isolate);
-  LogFunctionCompilation(isolate, tag, script, shared, Handle<FeedbackVector>(),
-                         abstract_code, CodeKind::INTERPRETED_FUNCTION,
-                         time_taken_ms);
+  Compiler::LogFunctionCompilation(
+      isolate, tag, script, shared, Handle<FeedbackVector>(), abstract_code,
+      CodeKind::INTERPRETED_FUNCTION, time_taken_ms);
 }
 
 }  // namespace
@@ -566,7 +567,7 @@ void TurbofanCompilationJob::RecordFunctionCompilation(
       Script::cast(compilation_info()->shared_info()->script()), isolate);
   Handle<FeedbackVector> feedback_vector(
       compilation_info()->closure()->feedback_vector(), isolate);
-  LogFunctionCompilation(
+  Compiler::LogFunctionCompilation(
       isolate, tag, script, compilation_info()->shared_info(), feedback_vector,
       abstract_code, compilation_info()->code_kind(), time_taken_ms);
 }
@@ -1141,9 +1142,9 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
   // Optimistic estimate.
   double time_taken_ms = 0;
 
-  LogFunctionCompilation(isolate, LogEventListener::FUNCTION_TAG, script,
-                         shared, feedback_vector, abstract_code,
-                         abstract_code->kind(), time_taken_ms);
+  Compiler::LogFunctionCompilation(
+      isolate, LogEventListener::FUNCTION_TAG, script, shared, feedback_vector,
+      abstract_code, abstract_code->kind(), time_taken_ms);
 }
 #endif  // V8_ENABLE_MAGLEV
 

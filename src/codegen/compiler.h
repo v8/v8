@@ -236,6 +236,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
                                                           Handle<Script> script,
                                                           IsolateT* isolate);
+
+  static void LogFunctionCompilation(Isolate* isolate,
+                                     LogEventListener::LogEventsAndTags tag,
+                                     Handle<Script> script,
+                                     Handle<SharedFunctionInfo> shared,
+                                     Handle<FeedbackVector> vector,
+                                     Handle<AbstractCode> abstract_code,
+                                     CodeKind kind, double time_taken_ms);
 };
 
 // A base class for compilation jobs intended to run concurrent to the main
