@@ -11,8 +11,10 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-context.h"
+#include "include/v8-extension.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
@@ -204,6 +206,62 @@ using TestWithContext =                    //
             WithIsolateMixin<              //
                 WithDefaultPlatformMixin<  //
                     ::testing::Test>>>>;
+
+class PrintExtension : public v8::Extension {
+ public:
+  PrintExtension() : v8::Extension("v8/print", "native function print();") {}
+  v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) override {
+    return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
+  }
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    for (int i = 0; i < args.Length(); i++) {
+      if (i != 0) printf(" ");
+      v8::HandleScope scope(args.GetIsolate());
+      v8::String::Utf8Value str(args.GetIsolate(), args[i]);
+      if (*str == nullptr) return;
+      printf("%s", *str);
+    }
+    printf("\n");
+  }
+};
+
+template <typename TMixin>
+class WithPrintExtensionMixin : public TMixin {
+ public:
+  WithPrintExtensionMixin() = default;
+  ~WithPrintExtensionMixin() override = default;
+  WithPrintExtensionMixin(const WithPrintExtensionMixin&) = delete;
+  WithPrintExtensionMixin& operator=(const WithPrintExtensionMixin&) = delete;
+
+  static void SetUpTestSuite() {
+    v8::RegisterExtension(std::make_unique<PrintExtension>());
+    TMixin::SetUpTestSuite();
+  }
+
+  static void TearDownTestSuite() { TMixin::TearDownTestSuite(); }
+
+  static constexpr const char* kPrintExtensionName = "v8/print";
+};
+
+// Run a ScriptStreamingTask in a separate thread.
+class StreamerThread : public v8::base::Thread {
+ public:
+  static void StartThreadForTaskAndJoin(
+      v8::ScriptCompiler::ScriptStreamingTask* task) {
+    StreamerThread thread(task);
+    CHECK(thread.Start());
+    thread.Join();
+  }
+
+  explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)
+      : Thread(Thread::Options()), task_(task) {}
+
+  void Run() override { task_->Run(); }
+
+ private:
+  v8::ScriptCompiler::ScriptStreamingTask* task_;
+};
 
 namespace internal {
 

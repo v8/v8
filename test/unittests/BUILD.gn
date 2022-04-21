@@ -257,6 +257,7 @@ v8_source_set("unittests_sources") {
     "compiler/common-operator-reducer-unittest.cc",
     "compiler/common-operator-unittest.cc",
     "compiler/compiler-test-utils.h",
+    "compiler/compiler-unittest.cc",
     "compiler/constant-folding-reducer-unittest.cc",
     "compiler/control-equivalence-unittest.cc",
     "compiler/control-flow-optimizer-unittest.cc",
