@@ -77,6 +77,7 @@ class MaglevGraphVerifier {
       case Opcode::kGenericIncrement:
       case Opcode::kGenericDecrement:
       case Opcode::kCheckedSmiUntag:
+      case Opcode::kGenericBitwiseNot:
       case Opcode::kLoadField:
       case Opcode::kLoadGlobal:
       // TODO(victorgomes): Can we check that the input is actually a map?
@@ -105,7 +106,6 @@ class MaglevGraphVerifier {
       case Opcode::kGenericShiftLeft:
       case Opcode::kGenericShiftRight:
       case Opcode::kGenericShiftRightLogical:
-      case Opcode::kGenericBitwiseNot:
       // TODO(victorgomes): Can we use the fact that these nodes return a
       // Boolean?
       case Opcode::kGenericEqual:
