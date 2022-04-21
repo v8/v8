@@ -165,6 +165,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kSandboxedPointer:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
     case MachineRepresentation::kNone:
       break;
   }

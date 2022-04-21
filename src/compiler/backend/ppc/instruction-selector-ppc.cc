@@ -233,6 +233,7 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
       // Vectors do not support MRI mode, only MRR is available.
       mode = kNoImmediate;
       break;
+    case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -374,6 +375,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
         // Vectors do not support MRI mode, only MRR is available.
         mode = kNoImmediate;
         break;
+      case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();

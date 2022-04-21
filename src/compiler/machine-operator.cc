@@ -666,7 +666,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(AnyTagged)               \
   V(CompressedPointer)       \
   V(SandboxedPointer)        \
-  V(AnyCompressed)
+  V(AnyCompressed)           \
+  V(Simd256)
 
 #define MACHINE_REPRESENTATION_LIST(V) \
   V(kFloat32)                          \
@@ -682,7 +683,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(kTagged)                           \
   V(kCompressedPointer)                \
   V(kSandboxedPointer)                 \
-  V(kCompressed)
+  V(kCompressed)                       \
+  V(kSimd256)
 
 #define LOAD_TRANSFORM_LIST(V) \
   V(S128Load8Splat)            \

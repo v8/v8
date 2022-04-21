@@ -469,8 +469,9 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kNone:
-    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kNone:               // Fall through.
+    case MachineRepresentation::kSimd128:            // Fall through.
+    case MachineRepresentation::kSimd256:
       UNREACHABLE();
   }
 
@@ -548,8 +549,9 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kSandboxedPointer:   // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
-      case MachineRepresentation::kNone:
-      case MachineRepresentation::kSimd128:
+      case MachineRepresentation::kNone:               // Fall through.
+      case MachineRepresentation::kSimd128:            // Fall through.
+      case MachineRepresentation::kSimd256:
         UNREACHABLE();
     }
 

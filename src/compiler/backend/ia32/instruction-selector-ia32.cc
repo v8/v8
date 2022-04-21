@@ -276,6 +276,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd128:
       opcode = kIA32Movdqu;
       break;
+    case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
@@ -632,6 +633,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
       return kIA32Movl;
     case MachineRepresentation::kSimd128:
       return kIA32Movdqu;
+    case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
