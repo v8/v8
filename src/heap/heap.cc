@@ -3969,6 +3969,8 @@ void Heap::NotifyObjectLayoutChange(
       MayContainRecordedSlots(object)) {
     MemoryChunk::FromHeapObject(object)
         ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
+    MemoryChunk::FromHeapObject(object)
+        ->RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
