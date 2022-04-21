@@ -6,13 +6,11 @@
 
 #include <algorithm>
 #include <atomic>
-#include <climits>
 #include <cstdint>
 #include <map>
 
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
-#include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/common/globals.h"
@@ -85,38 +83,7 @@ class GlobalHandles::NodeBlock final {
   NodeBlock* next() const { return next_; }
   NodeBlock* next_used() const { return next_used_; }
 
-  void set_markbit(size_t index) {
-    const auto [cell, bit] = CellAndBit(index);
-    reinterpret_cast<std::atomic<CellType>&>(mark_bits_[cell])
-        .fetch_or(CellType{1} << bit, std::memory_order_relaxed);
-  }
-
-  void clear_markbit(size_t index) {
-    const auto [cell, bit] = CellAndBit(index);
-    mark_bits_[cell] &= ~(CellType{1} << bit);
-  }
-
-  bool markbit(size_t index) const {
-    const auto [cell, bit] = CellAndBit(index);
-    return mark_bits_[cell] & CellType{1} << bit;
-  }
-
  private:
-  using CellType = uint32_t;
-
-  std::tuple<CellType, CellType> CellAndBit(size_t index) const {
-    static constexpr CellType kMarkBitCellSizeLog2 = 5;
-    static_assert(base::bits::IsPowerOfTwo(kBlockSize),
-                  "Block size must be power of two.");
-    static_assert(
-        sizeof(CellType) * CHAR_BIT == (CellType{1} << kMarkBitCellSizeLog2),
-        "Markbit CellType not matching defined log2 size.");
-    static constexpr CellType kCellMask =
-        (CellType{1} << kMarkBitCellSizeLog2) - 1;
-    return {static_cast<CellType>(index >> kMarkBitCellSizeLog2),
-            index & kCellMask};
-  }
-
   NodeType nodes_[kBlockSize];
   NodeBlock* const next_;
   GlobalHandles* const global_handles_;
@@ -124,7 +91,6 @@ class GlobalHandles::NodeBlock final {
   NodeBlock* next_used_ = nullptr;
   NodeBlock* prev_used_ = nullptr;
   uint32_t used_nodes_ = 0;
-  CellType mark_bits_[kBlockSize / (sizeof(CellType) * CHAR_BIT)] = {0};
 };
 
 template <class NodeType>
@@ -231,7 +197,7 @@ class GlobalHandles::NodeSpace final {
       : global_handles_(global_handles) {}
   ~NodeSpace();
 
-  V8_INLINE NodeType* Acquire(Object object);
+  V8_INLINE NodeType* Allocate();
 
   iterator begin() { return iterator(first_used_block_); }
   iterator end() { return iterator(nullptr); }
@@ -262,7 +228,7 @@ GlobalHandles::NodeSpace<NodeType>::~NodeSpace() {
 }
 
 template <class NodeType>
-NodeType* GlobalHandles::NodeSpace<NodeType>::Acquire(Object object) {
+NodeType* GlobalHandles::NodeSpace<NodeType>::Allocate() {
   if (first_free_ == nullptr) {
     first_block_ = new BlockType(global_handles_, this, first_block_);
     blocks_++;
@@ -271,14 +237,13 @@ NodeType* GlobalHandles::NodeSpace<NodeType>::Acquire(Object object) {
   DCHECK_NOT_NULL(first_free_);
   NodeType* node = first_free_;
   first_free_ = first_free_->next_free();
-  node->Acquire(object);
   BlockType* block = BlockType::From(node);
   if (block->IncreaseUsage()) {
     block->ListAdd(&first_used_block_);
   }
   global_handles_->isolate()->counters()->global_handles()->Increment();
   handles_count_++;
-  DCHECK(node->IsInUse());
+  node->CheckNodeIsFreeNode();
   return node;
 }
 
@@ -343,14 +308,15 @@ class NodeBase {
     data_.next_free = free_list;
   }
 
-  void Acquire(Object object) {
+  // Publishes all internal state to be consumed by other threads.
+  Handle<Object> Publish(Object object) {
     DCHECK(!AsChild()->IsInUse());
-    CheckFieldsAreCleared();
-    reinterpret_cast<std::atomic<Address>*>(&object_)->store(
-        object.ptr(), std::memory_order_relaxed);
-    AsChild()->MarkAsUsed();
     data_.parameter = nullptr;
+    AsChild()->MarkAsUsed();
+    reinterpret_cast<std::atomic<Address>*>(&object_)->store(
+        object.ptr(), std::memory_order_release);
     DCHECK(AsChild()->IsInUse());
+    return handle();
   }
 
   void Release(Child* free_list) {
@@ -386,6 +352,12 @@ class NodeBase {
     return data_.parameter;
   }
 
+  void CheckNodeIsFreeNode() const {
+    DCHECK_EQ(kGlobalHandleZapValue, object_);
+    DCHECK_EQ(v8::HeapProfiler::kPersistentHandleNoClassId, class_id_);
+    AsChild()->CheckNodeIsFreeNodeImpl();
+  }
+
  protected:
   Child* AsChild() { return reinterpret_cast<Child*>(this); }
   const Child* AsChild() const { return reinterpret_cast<const Child*>(this); }
@@ -395,12 +367,6 @@ class NodeBase {
     object_ = kGlobalHandleZapValue;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     AsChild()->ClearImplFields();
-  }
-
-  void CheckFieldsAreCleared() {
-    DCHECK_EQ(kGlobalHandleZapValue, object_);
-    DCHECK_EQ(v8::HeapProfiler::kPersistentHandleNoClassId, class_id_);
-    AsChild()->CheckImplFieldsAreCleared();
   }
 
   // Storage for object pointer.
@@ -606,11 +572,17 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   // Fields that are not used for managing node memory.
   void ClearImplFields() { weak_callback_ = nullptr; }
 
-  void CheckImplFieldsAreCleared() { DCHECK_EQ(nullptr, weak_callback_); }
+  void CheckNodeIsFreeNodeImpl() const {
+    DCHECK_EQ(nullptr, weak_callback_);
+    DCHECK(!IsInUse());
+  }
 
   // This stores three flags (independent, partially_dependent and
   // in_young_list) and a State.
   using NodeState = base::BitField8<State, 0, 3>;
+  // Tracks whether the node is contained in the set of young nodes. This bit
+  // persists across allocating and freeing a node as it's only cleaned up
+  // when young nodes are proccessed.
   using IsInYoungList = NodeState::Next<bool, 1>;
   using NodeWeaknessType = IsInYoungList::Next<WeaknessType, 2>;
 
@@ -647,16 +619,21 @@ class GlobalHandles::TracedNode final
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
 
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   void set_markbit() {
-    NodeBlock<TracedNode>::From(this)->set_markbit(index());
+    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
+      flags_ = Markbit::update(flags_, true);
+      return;
+    }
+    std::atomic<uint8_t>& atomic_flags =
+        reinterpret_cast<std::atomic<uint8_t>&>(flags_);
+    const uint8_t new_value =
+        Markbit::update(atomic_flags.load(std::memory_order_relaxed), true);
+    atomic_flags.fetch_or(new_value, std::memory_order_relaxed);
   }
 
-  bool markbit() const {
-    return NodeBlock<TracedNode>::From(this)->markbit(index());
-  }
-  void clear_markbit() {
-    NodeBlock<TracedNode>::From(this)->clear_markbit(index());
-  }
+  bool markbit() const { return Markbit::decode(flags_); }
+  void clear_markbit() { flags_ = Markbit::update(flags_, false); }
 
   bool is_on_stack() const { return IsOnStack::decode(flags_); }
   void set_is_on_stack(bool v) { flags_ = IsOnStack::update(flags_, v); }
@@ -680,18 +657,33 @@ class GlobalHandles::TracedNode final
   static void Verify(GlobalHandles* global_handles, const Address* const* slot);
 
  protected:
-  // Various state is managed in a bit field. Mark bits are used concurrently
-  // and held externally in a NodeBlock.
+  // Various state is managed in a bit field where some of the state is managed
+  // concurrently, whereas other state is managed only on the main thread when
+  // no concurrent thread has access to flags, e.g., in the atomic pause of the
+  // garbage collector. All state is made available to other threads using
+  // `Publish()`.
+  //
+  // The following state is modified only on the main thread.
   using NodeState = base::BitField8<State, 0, 2>;
   using IsInYoungList = NodeState::Next<bool, 1>;
   using IsRoot = IsInYoungList::Next<bool, 1>;
   using IsOnStack = IsRoot::Next<bool, 1>;
+  // The markbit is the exception as it can be set from the main and marker
+  // threads at the same time.
+  using Markbit = IsOnStack::Next<bool, 1>;
+
   void ClearImplFields() {
     set_root(true);
+    // Nodes are black allocated for simplicity.
+    set_markbit();
     set_is_on_stack(false);
   }
 
-  void CheckImplFieldsAreCleared() const { DCHECK(is_root()); }
+  void CheckNodeIsFreeNodeImpl() const {
+    DCHECK(is_root());
+    DCHECK(markbit());
+    DCHECK(!IsInUse());
+  }
 
   friend class NodeBase<GlobalHandles::TracedNode>;
 };
@@ -720,7 +712,7 @@ class GlobalHandles::OnStackTracedNodeSpace final {
   V8_INLINE bool IsOnStack(uintptr_t slot) const;
 
   void Iterate(RootVisitor* v);
-  TracedNode* Acquire(Object value, uintptr_t address);
+  TracedNode* Allocate(uintptr_t address);
   void CleanupBelowCurrentStackPosition();
   void NotifyEmptyEmbedderStack();
 
@@ -791,8 +783,8 @@ void GlobalHandles::OnStackTracedNodeSpace::Iterate(RootVisitor* v) {
 #endif  // !V8_USE_ADDRESS_SANITIZER
 }
 
-GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
-    Object value, uintptr_t slot) {
+GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Allocate(
+    uintptr_t slot) {
   constexpr size_t kAcquireCleanupThresholdLog2 = 8;
   constexpr size_t kAcquireCleanupThresholdMask =
       (size_t{1} << kAcquireCleanupThresholdLog2) - 1;
@@ -820,8 +812,7 @@ GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
   }
   TracedNode* result = &(pair.first->second.node);
 #endif  // !V8_USE_ADDRESS_SANITIZER
-  result->Acquire(value);
-  result->set_is_on_stack(true);
+  result->CheckNodeIsFreeNode();
   return result;
 }
 
@@ -906,13 +897,22 @@ GlobalHandles::GlobalHandles(Isolate* isolate)
 
 GlobalHandles::~GlobalHandles() { regular_nodes_.reset(nullptr); }
 
+namespace {
+
+template <typename NodeType>
+bool NeedsTrackingInYoungNodes(Object value, NodeType* node) {
+  return ObjectInYoungGeneration(value) && !node->is_in_young_list();
+}
+
+}  // namespace
+
 Handle<Object> GlobalHandles::Create(Object value) {
-  GlobalHandles::Node* result = regular_nodes_->Acquire(value);
-  if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
-    young_nodes_.push_back(result);
-    result->set_in_young_list(true);
+  GlobalHandles::Node* node = regular_nodes_->Allocate();
+  if (NeedsTrackingInYoungNodes(value, node)) {
+    young_nodes_.push_back(node);
+    node->set_in_young_list(true);
   }
-  return result->handle();
+  return node->Publish(value);
 }
 
 Handle<Object> GlobalHandles::Create(Address value) {
@@ -929,23 +929,22 @@ Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
 Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
                                            GlobalHandleStoreMode store_mode,
                                            bool is_on_stack) {
-  GlobalHandles::TracedNode* result;
+  GlobalHandles::TracedNode* node;
   if (is_on_stack) {
-    result = on_stack_nodes_->Acquire(value, reinterpret_cast<uintptr_t>(slot));
+    node = on_stack_nodes_->Allocate(reinterpret_cast<uintptr_t>(slot));
+    node->set_is_on_stack(true);
+    // No write barrier needed as on-stack nodes are treated as roots.
   } else {
-    result = traced_nodes_->Acquire(value);
-    if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
-      traced_young_nodes_.push_back(result);
-      result->set_in_young_list(true);
+    node = traced_nodes_->Allocate();
+    if (NeedsTrackingInYoungNodes(value, node)) {
+      traced_young_nodes_.push_back(node);
+      node->set_in_young_list(true);
     }
-    // Nodes are black allocated for simplicity.
-    result->set_markbit();
     if (store_mode != GlobalHandleStoreMode::kInitializingStore) {
       WriteBarrier::MarkingFromGlobalHandle(value);
     }
   }
-  result->set_parameter(nullptr);
-  return result->handle();
+  return node->Publish(value);
 }
 
 Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot,
@@ -1041,7 +1040,7 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
           GlobalHandleStoreMode::kAssigningStore, to_on_stack);
       SetSlotThreadSafe(to, o.location());
       to_node = TracedNode::FromLocation(*to);
-      DCHECK_IMPLIES(!to_node->is_on_stack(), to_node->markbit());
+      DCHECK(to_node->markbit());
     } else {
       DCHECK(to_node->IsInUse());
       to_node->CopyObjectReference(*from_node);
@@ -1081,8 +1080,7 @@ GlobalHandles* GlobalHandles::From(const TracedNode* node) {
 void GlobalHandles::MarkTraced(Address* location) {
   TracedNode* node = TracedNode::FromLocation(location);
   DCHECK(node->IsInUse());
-  if (node->is_on_stack()) return;
-  node->set_markbit();
+  node->set_markbit<AccessMode::ATOMIC>();
 }
 
 void GlobalHandles::Destroy(Address* location) {

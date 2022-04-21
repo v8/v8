@@ -80,6 +80,8 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   static void DestroyTracedReference(Address* location);
   static void MarkTraced(Address* location);
 
+  V8_INLINE static Object Acquire(Address* location);
+
   explicit GlobalHandles(Isolate* isolate);
   ~GlobalHandles();
 
