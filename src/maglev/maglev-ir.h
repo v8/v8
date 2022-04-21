@@ -579,6 +579,16 @@ class NodeBase : public ZoneObject {
     new (input_address(index)) Input(input);
   }
 
+  // For nodes that don't have data past the input, allow trimming the input
+  // count. This is used by Phis to reduce inputs when merging in dead control
+  // flow.
+  void reduce_input_count() {
+    DCHECK_EQ(opcode(), Opcode::kPhi);
+    DCHECK(!properties().can_lazy_deopt());
+    DCHECK(!properties().can_eager_deopt());
+    bit_field_ = InputCountField::update(bit_field_, input_count() - 1);
+  }
+
   void set_temporaries_needed(int value) {
 #ifdef DEBUG
     DCHECK_EQ(kTemporariesState, kUnset);
@@ -1311,6 +1321,7 @@ class Phi : public ValueNodeT<Phi> {
   interpreter::Register owner() const { return owner_; }
   int merge_offset() const { return merge_offset_; }
 
+  using Node::reduce_input_count;
   using Node::set_input;
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);

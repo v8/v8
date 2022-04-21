@@ -135,38 +135,54 @@ class MaglevGraphBuilder {
     BasicBlock* block = CreateBlock<Deopt>({});
     ResolveJumpsToBlockAtOffset(block, block_offset_);
 
-    // Skip any bytecodes remaining in the block, up to the next merge point.
-    while (!IsOffsetAMergePoint(iterator_.next_offset())) {
+    // Skip any bytecodes remaining in the block, up to the next merge point
+    // with non-dead predecessors.
+    int saved_offset = iterator_.current_offset();
+    while (true) {
       iterator_.Advance();
       if (iterator_.done()) break;
+
+      if (IsOffsetAMergePoint(iterator_.current_offset())) {
+        // Loops that are unreachable aside from their back-edge are going to
+        // be entirely unreachable, thanks to irreducibility.
+        if (!merge_states_[iterator_.current_offset()]->is_unreachable_loop()) {
+          break;
+        }
+      }
+
+      // If the current bytecode is a jump to elsewhere, then this jump is
+      // also dead and we should make sure to merge it as a dead predecessor.
+      interpreter::Bytecode bytecode = iterator_.current_bytecode();
+      if (interpreter::Bytecodes::IsForwardJump(bytecode)) {
+        // Jumps merge into their target, and conditional jumps also merge into
+        // the fallthrough.
+        MergeDeadIntoFrameState(iterator_.GetJumpTargetOffset());
+        if (interpreter::Bytecodes::IsConditionalJump(bytecode)) {
+          MergeDeadIntoFrameState(iterator_.next_offset());
+        }
+      } else if (bytecode == interpreter::Bytecode::kJumpLoop) {
+        // JumpLoop merges into its loop header, which has to be treated
+        // specially by the merge..
+        int target = iterator_.GetJumpTargetOffset();
+        merge_states_[target]->MergeDeadLoop();
+      } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
+        // Switches merge into their targets, and into the fallthrough.
+        for (auto offset : iterator_.GetJumpTableTargetOffsets()) {
+          MergeDeadIntoFrameState(offset.target_offset);
+        }
+        MergeDeadIntoFrameState(iterator_.next_offset());
+      } else if (!interpreter::Bytecodes::Returns(bytecode) &&
+                 !interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
+        // Any other bytecode that doesn't return or throw will merge into the
+        // fallthrough.
+        MergeDeadIntoFrameState(iterator_.next_offset());
+      }
+      saved_offset = iterator_.current_offset();
     }
 
-    // If there is control flow out of this block, we need to kill the merges
-    // into the control flow targets.
-    interpreter::Bytecode bytecode = iterator_.current_bytecode();
-    if (interpreter::Bytecodes::IsForwardJump(bytecode)) {
-      // Jumps merge into their target, and conditional jumps also merge into
-      // the fallthrough.
-      merge_states_[iterator_.GetJumpTargetOffset()]->MergeDead();
-      if (interpreter::Bytecodes::IsConditionalJump(bytecode)) {
-        merge_states_[iterator_.next_offset()]->MergeDead();
-      }
-    } else if (bytecode == interpreter::Bytecode::kJumpLoop) {
-      // JumpLoop merges into its loop header, which has to be treated specially
-      // by the merge..
-      merge_states_[iterator_.GetJumpTargetOffset()]->MergeDeadLoop();
-    } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
-      // Switches merge into their targets, and into the fallthrough.
-      for (auto offset : iterator_.GetJumpTableTargetOffsets()) {
-        merge_states_[offset.target_offset]->MergeDead();
-      }
-      merge_states_[iterator_.next_offset()]->MergeDead();
-    } else if (!interpreter::Bytecodes::Returns(bytecode) &&
-               !interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
-      // Any other bytecode that doesn't return or throw will merge into the
-      // fallthrough.
-      merge_states_[iterator_.next_offset()]->MergeDead();
-    }
+    // Restore the offset to before the Advance, so that the bytecode visiting
+    // loop can Advance it again.
+    iterator_.SetOffset(saved_offset);
   }
 
   void VisitSingleBytecode() {
@@ -496,6 +512,7 @@ class MaglevGraphBuilder {
   void VisitBinarySmiOperation();
 
   void MergeIntoFrameState(BasicBlock* block, int target);
+  void MergeDeadIntoFrameState(int target);
   void MergeIntoInlinedReturnFrameState(BasicBlock* block);
   void BuildBranchIfTrue(ValueNode* node, int true_target, int false_target);
   void BuildBranchIfToBooleanTrue(ValueNode* node, int true_target,

@@ -307,7 +307,7 @@ class MergePointInterpreterFrameState {
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
-  void MergeLoop(const MaglevCompilationUnit& compilation_unit,
+  void MergeLoop(MaglevCompilationUnit& compilation_unit,
                  const InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block, int merge_offset) {
     DCHECK_EQ(predecessors_so_far_, predecessor_count_);
@@ -318,19 +318,25 @@ class MergePointInterpreterFrameState {
         compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
           CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
 
-          MergeLoopValue(compilation_unit.zone(), reg, value,
-                         loop_end_state.get(reg), merge_offset);
+          MergeLoopValue(compilation_unit, reg, value, loop_end_state.get(reg),
+                         merge_offset);
         });
   }
 
   // Merges a dead framestate (e.g. one which has been early terminated with a
   // deopt).
-  void MergeDead() {
+  void MergeDead(const MaglevCompilationUnit& compilation_unit,
+                 int merge_offset) {
     DCHECK_GT(predecessor_count_, 1);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
-    predecessors_[predecessors_so_far_] = kDeadPredecessor;
-    predecessors_so_far_++;
+    predecessor_count_--;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
+
+    frame_state_.ForEachValue(
+        compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
+          CheckIsLoopPhiIfNeeded(compilation_unit, merge_offset, reg, value);
+          ReducePhiPredecessorCount(reg, value, merge_offset);
+        });
   }
 
   // Merges a dead loop framestate (e.g. one where the block containing the
@@ -358,9 +364,16 @@ class MergePointInterpreterFrameState {
   int predecessor_count() const { return predecessor_count_; }
 
   BasicBlock* predecessor_at(int i) const {
-    DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+    // DCHECK_EQ(predecessors_so_far_, predecessor_count_);
     DCHECK_LT(i, predecessor_count_);
     return predecessors_[i];
+  }
+
+  bool is_unreachable_loop() const {
+    DCHECK_EQ(predecessors_so_far_, predecessor_count_);
+    // If there is only one predecessor, and it's not set, then this is a loop
+    // merge with no forward control flow entering it.
+    return predecessor_count_ == 1 && predecessors_[0] == nullptr;
   }
 
  private:
@@ -458,9 +471,28 @@ class MergePointInterpreterFrameState {
     return result;
   }
 
-  void MergeLoopValue(Zone* zone, interpreter::Register owner,
-                      ValueNode* merged, ValueNode* unmerged,
-                      int merge_offset) {
+  void ReducePhiPredecessorCount(interpreter::Register owner, ValueNode* merged,
+                                 int merge_offset) {
+    // If the merged node is null, this is a pre-created loop header merge
+    // frame with null values for anything that isn't a loop Phi.
+    if (merged == nullptr) {
+      DCHECK_NULL(predecessors_[0]);
+      DCHECK_EQ(predecessors_so_far_, 1);
+      return;
+    }
+
+    Phi* result = merged->TryCast<Phi>();
+    if (result != nullptr && result->merge_offset() == merge_offset) {
+      // It's possible that merged == unmerged at this point since loop-phis are
+      // not dropped if they are only assigned to themselves in the loop.
+      DCHECK_EQ(result->owner(), owner);
+      result->reduce_input_count();
+    }
+  }
+
+  void MergeLoopValue(MaglevCompilationUnit& compilation_unit,
+                      interpreter::Register owner, ValueNode* merged,
+                      ValueNode* unmerged, int merge_offset) {
     Phi* result = merged->TryCast<Phi>();
     if (result == nullptr || result->merge_offset() != merge_offset) {
       DCHECK_EQ(merged, unmerged);

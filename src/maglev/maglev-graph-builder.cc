@@ -955,6 +955,16 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
   }
 }
 
+void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
+  // If there is no merge state yet, don't create one, but just reduce the
+  // number of possible predecessors to zero.
+  predecessors_[target]--;
+  if (merge_states_[target]) {
+    // If there already is a frame state, merge.
+    merge_states_[target]->MergeDead(*compilation_unit_, target);
+  }
+}
+
 void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
     BasicBlock* predecessor) {
   int target = inline_exit_offset();
