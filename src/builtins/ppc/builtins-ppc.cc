@@ -1350,9 +1350,8 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
     MacroAssembler* masm, Register optimization_state, Register feedback_vector,
     Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(masm);
-  USE(LoadTieringStateAndJumpIfNeedsProcessing);
   DCHECK(!AreAliased(optimization_state, feedback_vector));
-  __ LoadU32(optimization_state,
+  __ LoadU16(optimization_state,
              FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   CHECK(is_uint16(
       FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
@@ -1552,18 +1551,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bne(&push_stack_frame);
 
   Register optimization_state = r7;
-
-  // Read off the optimization state in the feedback vector.
-  __ LoadU32(optimization_state,
-             FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset),
-             r0);
-
-  // Check if the optimized code slot is not empty or has a tiering state.
   Label has_optimized_code_or_state;
-  __ TestBitMask(
-      optimization_state,
-      FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask, r0);
-  __ bne(&has_optimized_code_or_state, cr0);
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   Label not_optimized;
   __ bind(&not_optimized);
