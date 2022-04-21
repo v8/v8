@@ -192,7 +192,6 @@ v8_source_set("cctest_sources") {
     "test-api-typed-array.cc",
     "test-api.cc",
     "test-api.h",
-    "test-array-list.cc",
     "test-atomicops.cc",
     "test-bignum-dtoa.cc",
     "test-bignum.cc",
