@@ -195,7 +195,6 @@ v8_source_set("cctest_sources") {
     "test-atomicops.cc",
     "test-bignum-dtoa.cc",
     "test-bignum.cc",
-    "test-bit-vector.cc",
     "test-circular-queue.cc",
     "test-code-layout.cc",
     "test-code-pages.cc",

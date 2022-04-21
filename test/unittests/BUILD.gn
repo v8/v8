@@ -399,6 +399,7 @@ v8_source_set("unittests_sources") {
     "torque/torque-unittest.cc",
     "torque/torque-utils-unittest.cc",
     "utils/allocation-unittest.cc",
+    "utils/bit-vector-unittest.cc",
     "utils/detachable-vector-unittest.cc",
     "utils/locked-queue-unittest.cc",
     "utils/utils-unittest.cc",
