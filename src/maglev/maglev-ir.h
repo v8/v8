@@ -453,7 +453,7 @@ class NodeBase : public ZoneObject {
       OpProperties::Pure() | OpProperties::TaggedValue();
 
   constexpr Opcode opcode() const { return OpcodeField::decode(bit_field_); }
-  OpProperties properties() const {
+  constexpr OpProperties properties() const {
     return OpPropertiesField::decode(bit_field_);
   }
 
