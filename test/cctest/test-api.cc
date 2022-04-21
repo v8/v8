@@ -55,6 +55,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/common/allow-deprecated.h"
 #include "src/compiler/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments.h"
@@ -18825,6 +18826,7 @@ class Visitor42 : public v8::PersistentHandleVisitor {
   v8::Persistent<v8::Object>* object_;
 };
 
+START_ALLOW_USE_DEPRECATED()
 
 TEST(PersistentHandleVisitor) {
   LocalContext context;
@@ -18842,6 +18844,7 @@ TEST(PersistentHandleVisitor) {
   object.Reset();
 }
 
+END_ALLOW_USE_DEPRECATED()
 
 TEST(WrapperClassId) {
   LocalContext context;

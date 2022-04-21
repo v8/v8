@@ -28,6 +28,7 @@
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
+#include "src/common/allow-deprecated.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
@@ -286,6 +287,8 @@ TEST(WeakPersistentSmi) {
                   v8::WeakCallbackType::kParameter);
 }
 
+START_ALLOW_USE_DEPRECATED()
+
 TEST(PhantomHandlesWithoutCallbacks) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
@@ -304,6 +307,8 @@ TEST(PhantomHandlesWithoutCallbacks) {
   CHECK_EQ(2u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
   CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
 }
+
+END_ALLOW_USE_DEPRECATED()
 
 TEST(WeakHandleToUnmodifiedJSObjectDiesOnScavenge) {
   if (FLAG_single_generation) return;

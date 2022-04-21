@@ -38,6 +38,7 @@
 #include "src/base/optional.h"
 #include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/common/allow-deprecated.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
 #include "src/init/v8.h"
@@ -1645,11 +1646,15 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
         graph->AddNode(std::unique_ptr<Group>(new Group("ccc-group")));
   }
 
+  START_ALLOW_USE_DEPRECATED()
+
   static void BuildEmbedderGraph(v8::Isolate* isolate, v8::EmbedderGraph* graph,
                                  void* data) {
     EmbedderGraphBuilder builder(isolate, graph);
     isolate->VisitHandlesWithClassIds(&builder);
   }
+
+  END_ALLOW_USE_DEPRECATED()
 
   void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
                              uint16_t class_id) override {
