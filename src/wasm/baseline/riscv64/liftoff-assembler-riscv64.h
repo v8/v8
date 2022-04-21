@@ -2454,8 +2454,8 @@ void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
   VU.set(kScratchReg, E8, m1);
-  vnot_vv(dst.fp().toV(), rhs.fp().toV());
-  vand_vv(dst.fp().toV(), lhs.fp().toV(), dst.fp().toV());
+  vnot_vv(kSimd128ScratchReg, rhs.fp().toV());
+  vand_vv(dst.fp().toV(), lhs.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_s128_select(LiftoffRegister dst,

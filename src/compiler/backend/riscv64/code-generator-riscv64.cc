@@ -2074,9 +2074,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvS128AndNot: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vnot_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ vnot_vv(kSimd128ScratchReg, i.InputSimd128Register(1));
       __ vand_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.OutputSimd128Register());
+                 kSimd128ScratchReg);
       break;
     }
     case kRiscvS128Const: {
