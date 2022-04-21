@@ -289,8 +289,30 @@ void MaglevGraphBuilder::VisitLdaFalse() {
 void MaglevGraphBuilder::VisitLdaConstant() {
   SetAccumulator(GetConstant(GetRefOperand<HeapObject>(0)));
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaContextSlot)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaImmutableContextSlot)
+
+void MaglevGraphBuilder::VisitLdaContextSlot() {
+  ValueNode* context = LoadRegisterTagged(0);
+  int slot_index = iterator_.GetIndexOperand(1);
+  int depth = iterator_.GetUnsignedImmediateOperand(2);
+
+  for (int i = 0; i < depth; ++i) {
+    context = AddNewNode<LoadField>(
+        {context}, LoadSimpleFieldHandler(FieldIndex::ForInObjectOffset(
+                       Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
+                       FieldIndex::kTagged)));
+  }
+
+  // TODO(leszeks): Passing a LoadHandler to LoadField here is a bit of
+  // a hack, maybe we should have a LoadRawOffset or similar.
+  SetAccumulator(AddNewNode<LoadField>(
+      {context},
+      LoadSimpleFieldHandler(FieldIndex::ForInObjectOffset(
+          Context::OffsetOfElementAt(slot_index), FieldIndex::kTagged))));
+}
+void MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
+  // TODO(leszeks): Consider context specialising.
+  VisitLdaCurrentContextSlot();
+}
 void MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
@@ -306,6 +328,7 @@ void MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   // TODO(leszeks): Consider context specialising.
   VisitLdaCurrentContextSlot();
 }
+
 void MaglevGraphBuilder::VisitStar() {
   MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
                            iterator_.GetRegisterOperand(0));
