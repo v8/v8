@@ -26,21 +26,6 @@ namespace internal {
 class HeapStats;
 class RootVisitor;
 
-enum WeaknessType {
-  // Embedder gets a handle to the dying object.
-  FINALIZER_WEAK,
-  // In the following cases, the embedder gets the parameter they passed in
-  // earlier, and 0 or 2 first embedder fields. Note that the internal
-  // fields must contain aligned non-V8 pointers.  Getting pointers to V8
-  // objects through this interface would be GC unsafe so in that case the
-  // embedder gets a null pointer instead.
-  PHANTOM_WEAK,
-  PHANTOM_WEAK_2_EMBEDDER_FIELDS,
-  // The handle is automatically reset by the garbage collector when
-  // the object is no longer reachable.
-  PHANTOM_WEAK_RESET_HANDLE
-};
-
 // Global handles hold handles that are independent of stack-state and can have
 // callbacks and finalizers attached to them.
 class V8_EXPORT_PRIVATE GlobalHandles final {
@@ -118,9 +103,8 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   size_t InvokeFirstPassWeakCallbacks();
   void InvokeSecondPassPhantomCallbacks();
 
-  // Process pending weak handles.
-  // Returns the number of freed nodes.
-  size_t PostGarbageCollectionProcessing(
+  // Schedule or invoke second pass weak callbacks.
+  void PostGarbageCollectionProcessing(
       GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags);
 
   void IterateStrongRoots(RootVisitor* v);
@@ -144,13 +128,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void IterateTracedNodes(
       v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor);
 
-  // Marks handles with finalizers on the predicate |should_reset_handle| as
-  // pending.
-  void IterateWeakRootsIdentifyFinalizers(
-      WeakSlotCallbackWithHeap should_reset_handle);
-  // Uses the provided visitor |v| to mark handles with finalizers that are
-  // pending.
-  void IterateWeakRootsForFinalizers(RootVisitor* v);
   // Marks handles that are phantom or have callbacks based on the predicate
   // |should_reset_handle| as pending.
   void IterateWeakRootsForPhantomHandles(
@@ -164,12 +141,8 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // Iterates over strong and dependent handles. See the note above.
   void IterateYoungStrongAndDependentRoots(RootVisitor* v);
 
-  // Marks weak unmodified handles satisfying |is_dead| as pending.
-  void MarkYoungWeakDeadObjectsPending(WeakSlotCallbackWithHeap is_dead);
-
   // Iterates over weak independent or unmodified handles.
   // See the note above.
-  void IterateYoungWeakDeadObjectsForFinalizers(RootVisitor* v);
   void IterateYoungWeakObjectsForPhantomHandles(
       RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle);
 
@@ -218,8 +191,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   void InvokeSecondPassPhantomCallbacksFromTask();
   void InvokeOrScheduleSecondPassPhantomCallbacks(bool synchronous_second_pass);
-  size_t PostScavengeProcessing(unsigned post_processing_count);
-  size_t PostMarkSweepProcessing(unsigned post_processing_count);
 
   template <typename T>
   size_t InvokeFirstPassWeakCallbacks(

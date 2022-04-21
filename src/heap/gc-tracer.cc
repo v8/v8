@@ -909,6 +909,7 @@ void GCTracer::PrintNVP() const {
           "heap.external.weak_global_handles=%.1f "
           "clear=%1.f "
           "clear.external_string_table=%.1f "
+          "clear.weak_global_handles=%.1f "
           "clear.dependent_code=%.1f "
           "clear.maps=%.1f "
           "clear.slots_buffer=%.1f "
@@ -939,9 +940,6 @@ void GCTracer::PrintNVP() const {
           "mark.weak_closure.ephemeron=%.1f "
           "mark.weak_closure.ephemeron.marking=%.1f "
           "mark.weak_closure.ephemeron.linear=%.1f "
-          "mark.weak_closure.weak_handles=%.1f "
-          "mark.weak_closure.weak_roots=%.1f "
-          "mark.weak_closure.harmony=%.1f "
           "mark.embedder_prologue=%.1f "
           "mark.embedder_tracing=%.1f "
           "prologue=%.1f "
@@ -1000,6 +998,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MC_CLEAR),
           current_scope(Scope::MC_CLEAR_EXTERNAL_STRING_TABLE),
+          current_scope(Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MC_CLEAR_DEPENDENT_CODE),
           current_scope(Scope::MC_CLEAR_MAPS),
           current_scope(Scope::MC_CLEAR_SLOTS_BUFFER),
@@ -1029,9 +1028,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON),
           current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING),
           current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_HARMONY),
           current_scope(Scope::MC_MARK_EMBEDDER_PROLOGUE),
           current_scope(Scope::MC_MARK_EMBEDDER_TRACING),
           current_scope(Scope::MC_PROLOGUE), current_scope(Scope::MC_SWEEP),

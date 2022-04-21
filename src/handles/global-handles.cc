@@ -40,6 +40,19 @@ constexpr size_t kBlockSize = 256;
 
 }  // namespace
 
+enum WeaknessType {
+  // In the following cases, the embedder gets the parameter they passed in
+  // earlier, and 0 or 2 first embedder fields. Note that the internal
+  // fields must contain aligned non-V8 pointers.  Getting pointers to V8
+  // objects through this interface would be GC unsafe so in that case the
+  // embedder gets a null pointer instead.
+  PHANTOM_WEAK,
+  PHANTOM_WEAK_2_EMBEDDER_FIELDS,
+  // The handle is automatically reset by the garbage collector when
+  // the object is no longer reachable.
+  PHANTOM_WEAK_RESET_HANDLE
+};
+
 template <class _NodeType>
 class GlobalHandles::NodeBlock final {
  public:
@@ -434,7 +447,7 @@ void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
 class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
  public:
   // State transition diagram:
-  // FREE -> NORMAL <-> WEAK -> PENDING -> NEAR_DEATH -> { NORMAL, WEAK, FREE }
+  // FREE -> NORMAL <-> WEAK -> PENDING -> NEAR_DEATH -> FREE
   enum State {
     FREE = 0,
     NORMAL,      // Normal global handle.
@@ -488,33 +501,11 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     return weakness_type() == PHANTOM_WEAK_RESET_HANDLE;
   }
 
-  bool IsFinalizerHandle() const { return weakness_type() == FINALIZER_WEAK; }
-
-  bool IsPendingPhantomCallback() const {
-    return state() == PENDING && IsPhantomCallback();
-  }
-
-  bool IsPendingPhantomResetHandle() const {
-    return state() == PENDING && IsPhantomResetHandle();
-  }
-
-  bool IsPendingFinalizer() const {
-    return state() == PENDING && weakness_type() == FINALIZER_WEAK;
-  }
-
-  bool IsPending() const { return state() == PENDING; }
-
-  bool IsRetainer() const {
-    return state() != FREE &&
-           !(state() == NEAR_DEATH && weakness_type() != FINALIZER_WEAK);
-  }
+  bool IsRetainer() const { return state() != FREE && state() != NEAR_DEATH; }
 
   bool IsStrongRetainer() const { return state() == NORMAL; }
 
-  bool IsWeakRetainer() const {
-    return state() == WEAK || state() == PENDING ||
-           (state() == NEAR_DEATH && weakness_type() == FINALIZER_WEAK);
-  }
+  bool IsWeakRetainer() const { return state() == WEAK || state() == PENDING; }
 
   void MarkPending() {
     DCHECK(state() == WEAK);
@@ -602,30 +593,6 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     Address** handle = reinterpret_cast<Address**>(parameter());
     *handle = nullptr;
     NodeSpace<Node>::Release(this);
-  }
-
-  void PostGarbageCollectionProcessing(Isolate* isolate) {
-    // This method invokes a finalizer. Updating the method name would require
-    // adjusting CFI blocklist as weak_callback_ is invoked on the wrong type.
-    CHECK(IsPendingFinalizer());
-    set_state(NEAR_DEATH);
-    // Check that we are not passing a finalized external string to
-    // the callback.
-    DCHECK(!object().IsExternalOneByteString() ||
-           ExternalOneByteString::cast(object()).resource() != nullptr);
-    DCHECK(!object().IsExternalTwoByteString() ||
-           ExternalTwoByteString::cast(object()).resource() != nullptr);
-    // Leaving V8.
-    VMState<EXTERNAL> vmstate(isolate);
-    HandleScope handle_scope(isolate);
-    void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
-                                                                nullptr};
-    v8::WeakCallbackInfo<void> data(reinterpret_cast<v8::Isolate*>(isolate),
-                                    parameter(), embedder_fields, nullptr);
-    weak_callback_(data);
-    // For finalizers the handle must have either been reset or made strong.
-    // Both cases reset the state.
-    CHECK_NE(NEAR_DEATH, state());
   }
 
   void MarkAsFree() { set_state(FREE); }
@@ -1034,10 +1001,7 @@ void GlobalHandles::MoveGlobal(Address** from, Address** to) {
   if (node->IsWeak() && node->IsPhantomResetHandle()) {
     node->set_parameter(to);
   }
-
-  // - Strong handles do not require fixups.
-  // - Weak handles with finalizers and callbacks are too general to fix up. For
-  //   those the callers need to ensure consistency.
+  // Strong handles do not require fixups.
 }
 
 void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
@@ -1191,19 +1155,6 @@ bool GlobalHandles::IsWeak(Address* location) {
 }
 
 DISABLE_CFI_PERF
-void GlobalHandles::IterateWeakRootsForFinalizers(RootVisitor* v) {
-  for (Node* node : *regular_nodes_) {
-    if (node->IsWeakRetainer() && node->state() == Node::PENDING) {
-      DCHECK(!node->IsPhantomCallback());
-      DCHECK(!node->IsPhantomResetHandle());
-      // Finalizers need to survive.
-      v->VisitRootPointer(Root::kGlobalHandles, node->label(),
-                          node->location());
-    }
-  }
-}
-
-DISABLE_CFI_PERF
 void GlobalHandles::IterateWeakRootsForPhantomHandles(
     WeakSlotCallbackWithHeap should_reset_handle) {
   for (Node* node : *regular_nodes_) {
@@ -1240,18 +1191,6 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
   }
 }
 
-void GlobalHandles::IterateWeakRootsIdentifyFinalizers(
-    WeakSlotCallbackWithHeap should_reset_handle) {
-  for (Node* node : *regular_nodes_) {
-    if (node->IsWeak() &&
-        should_reset_handle(isolate()->heap(), node->location())) {
-      if (node->IsFinalizerHandle()) {
-        node->MarkPending();
-      }
-    }
-  }
-}
-
 void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
   if (!FLAG_reclaim_unmodified_wrappers) return;
@@ -1283,31 +1222,6 @@ void GlobalHandles::IterateYoungStrongAndDependentRoots(RootVisitor* v) {
   for (TracedNode* node : traced_young_nodes_) {
     if (node->IsInUse() && node->is_root()) {
       v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
-    }
-  }
-}
-
-void GlobalHandles::MarkYoungWeakDeadObjectsPending(
-    WeakSlotCallbackWithHeap is_dead) {
-  for (Node* node : young_nodes_) {
-    DCHECK(node->is_in_young_list());
-    if (node->IsWeak() && is_dead(isolate_->heap(), node->location())) {
-      if (!node->IsPhantomCallback() && !node->IsPhantomResetHandle()) {
-        node->MarkPending();
-      }
-    }
-  }
-}
-
-void GlobalHandles::IterateYoungWeakDeadObjectsForFinalizers(RootVisitor* v) {
-  for (Node* node : young_nodes_) {
-    DCHECK(node->is_in_young_list());
-    if (node->IsWeakRetainer() && (node->state() == Node::PENDING)) {
-      DCHECK(!node->IsPhantomCallback());
-      DCHECK(!node->IsPhantomResetHandle());
-      // Finalizers need to survive.
-      v->VisitRootPointer(Root::kGlobalHandles, node->label(),
-                          node->location());
     }
   }
 }
@@ -1390,42 +1304,6 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
     callback.Invoke(isolate(), PendingPhantomCallback::kSecondPass);
   }
   running_second_pass_callbacks_ = false;
-}
-
-size_t GlobalHandles::PostScavengeProcessing(unsigned post_processing_count) {
-  size_t freed_nodes = 0;
-  for (Node* node : young_nodes_) {
-    // Filter free nodes.
-    if (!node->IsRetainer()) continue;
-
-    if (node->IsPending()) {
-      DCHECK(node->has_callback());
-      DCHECK(node->IsPendingFinalizer());
-      node->PostGarbageCollectionProcessing(isolate_);
-    }
-    if (InRecursiveGC(post_processing_count)) return freed_nodes;
-
-    if (!node->IsRetainer()) freed_nodes++;
-  }
-  return freed_nodes;
-}
-
-size_t GlobalHandles::PostMarkSweepProcessing(unsigned post_processing_count) {
-  size_t freed_nodes = 0;
-  for (Node* node : *regular_nodes_) {
-    // Filter free nodes.
-    if (!node->IsRetainer()) continue;
-
-    if (node->IsPending()) {
-      DCHECK(node->has_callback());
-      DCHECK(node->IsPendingFinalizer());
-      node->PostGarbageCollectionProcessing(isolate_);
-    }
-    if (InRecursiveGC(post_processing_count)) return freed_nodes;
-
-    if (!node->IsRetainer()) freed_nodes++;
-  }
-  return freed_nodes;
 }
 
 template <typename T>
@@ -1527,29 +1405,22 @@ bool GlobalHandles::InRecursiveGC(unsigned gc_processing_counter) {
   return gc_processing_counter != post_gc_processing_count_;
 }
 
-size_t GlobalHandles::PostGarbageCollectionProcessing(
+void GlobalHandles::PostGarbageCollectionProcessing(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   DCHECK_EQ(Heap::NOT_IN_GC, isolate_->heap()->gc_state());
   const unsigned post_processing_count = ++post_gc_processing_count_;
-  size_t freed_nodes = 0;
   bool synchronous_second_pass =
       isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
   InvokeOrScheduleSecondPassPhantomCallbacks(synchronous_second_pass);
-  if (InRecursiveGC(post_processing_count)) return freed_nodes;
-
-  freed_nodes += Heap::IsYoungGenerationCollector(collector)
-                     ? PostScavengeProcessing(post_processing_count)
-                     : PostMarkSweepProcessing(post_processing_count);
-  if (InRecursiveGC(post_processing_count)) return freed_nodes;
+  if (InRecursiveGC(post_processing_count)) return;
 
   UpdateListOfYoungNodes();
-  return freed_nodes;
 }
 
 void GlobalHandles::IterateStrongRoots(RootVisitor* v) {

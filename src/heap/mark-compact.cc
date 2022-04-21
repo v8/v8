@@ -2440,47 +2440,6 @@ void MarkCompactCollector::MarkLiveObjects() {
       ProcessEphemeronMarking();
       DCHECK(local_marking_worklists()->IsEmpty());
     }
-
-    // The objects reachable from the roots, weak maps, and embedder heap
-    // tracing are marked. Objects pointed to only by weak global handles cannot
-    // be immediately reclaimed. Instead, we have to mark them as pending and
-    // mark objects reachable from them.
-    //
-    // First we identify nonlive weak handles and mark them as pending
-    // destruction.
-    {
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES);
-      heap()->isolate()->global_handles()->IterateWeakRootsIdentifyFinalizers(
-          &IsUnmarkedHeapObject);
-      DrainMarkingWorklist();
-    }
-
-    // Process finalizers, effectively keeping them alive until the next
-    // garbage collection.
-    {
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
-      heap()->isolate()->global_handles()->IterateWeakRootsForFinalizers(
-          &root_visitor);
-      DrainMarkingWorklist();
-    }
-
-    // Repeat ephemeron processing from the newly marked objects.
-    {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
-      ProcessEphemeronMarking();
-      DCHECK(local_marking_worklists()->IsWrapperEmpty());
-      DCHECK(local_marking_worklists()->IsEmpty());
-    }
-
-    // We depend on IterateWeakRootsForPhantomHandles being called before
-    // ProcessOldCodeCandidates in order to identify flushed bytecode in the
-    // CPU profiler.
-    {
-      heap()->isolate()->global_handles()->IterateWeakRootsForPhantomHandles(
-          &IsUnmarkedHeapObject);
-    }
   }
 
   if (was_marked_incrementally) {
@@ -2575,6 +2534,15 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     ExternalStringTableCleaner external_visitor(heap());
     heap()->external_string_table_.IterateAll(&external_visitor);
     heap()->external_string_table_.CleanUpAll();
+  }
+
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES);
+    // We depend on `IterateWeakRootsForPhantomHandles()` being called before
+    // `ProcessOldCodeCandidates()` in order to identify flushed bytecode in the
+    // CPU profiler.
+    heap()->isolate()->global_handles()->IterateWeakRootsForPhantomHandles(
+        &IsUnmarkedHeapObject);
   }
 
   {
@@ -5891,10 +5859,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_GLOBAL_HANDLES);
-    isolate()->global_handles()->MarkYoungWeakDeadObjectsPending(
-        &IsUnmarkedObjectForYoungGeneration);
-    isolate()->global_handles()->IterateYoungWeakDeadObjectsForFinalizers(
-        &root_visitor);
     isolate()->global_handles()->IterateYoungWeakObjectsForPhantomHandles(
         &root_visitor, &IsUnmarkedObjectForYoungGeneration);
     DrainMarkingWorklist();

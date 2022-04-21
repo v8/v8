@@ -366,16 +366,10 @@ void ScavengerCollector::CollectGarbage() {
       // Scavenge weak global handles.
       TRACE_GC(heap_->tracer(),
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
-      isolate_->global_handles()->MarkYoungWeakDeadObjectsPending(
-          &IsUnscavengedHeapObjectSlot);
-      isolate_->global_handles()->IterateYoungWeakDeadObjectsForFinalizers(
-          &root_scavenge_visitor);
-      scavengers[kMainThreadId]->Process();
-
-      DCHECK(copied_list.IsEmpty());
-      DCHECK(promotion_list.IsEmpty());
       isolate_->global_handles()->IterateYoungWeakObjectsForPhantomHandles(
           &root_scavenge_visitor, &IsUnscavengedHeapObjectSlot);
+      DCHECK(copied_list.IsEmpty());
+      DCHECK(promotion_list.IsEmpty());
     }
 
     {

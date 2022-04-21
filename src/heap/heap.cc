@@ -1931,9 +1931,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
     {
       AllowGarbageCollection allow_gc;
       AllowJavascriptExecution allow_js(isolate());
-      freed_global_handles +=
-          isolate_->global_handles()->PostGarbageCollectionProcessing(
-              collector, gc_callback_flags);
+      isolate_->global_handles()->PostGarbageCollectionProcessing(
+          collector, gc_callback_flags);
     }
     gc_post_processing_depth_--;
   }
