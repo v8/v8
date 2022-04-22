@@ -1,4 +1,4 @@
-// Copyright 2021 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,10 +12,13 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/objects/js-array-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
+using ConcurrentJsArrayTest = TestWithContext;
+
 namespace internal {
 
 static constexpr int kNumArrays = 1024;
@@ -68,7 +71,7 @@ class BackgroundThread final : public v8::base::Thread {
       if (result.has_value()) {
         // On any success, the elements at index 1 must be the original value
         // Smi(1).
-        CHECK(result.value().IsSmi());
+        EXPECT_TRUE(result.value().IsSmi());
         CHECK_EQ(Smi::ToInt(result.value()), 1);
       }
     }
@@ -81,26 +84,24 @@ class BackgroundThread final : public v8::base::Thread {
   base::Semaphore* sema_started_;
 };
 
-TEST(ArrayWithCowElements) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+TEST_F(ConcurrentJsArrayTest, ArrayWithCowElements) {
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
   std::vector<Handle<JSArray>> handles;
   std::vector<Handle<JSArray>> persistent_handles;
 
-  HandleScope handle_scope(isolate);
+  HandleScope handle_scope(i_isolate());
 
   // Create kNumArrays arrays with COW backing stores.
-  CompileRun(
+  RunJS(
       "function f() { return [0,1,2,3,4]; }\n"
       "const xs = [];\n"
       "let i = 0;\n");
 
   for (int i = 0; i < kNumArrays; i++) {
-    Handle<JSArray> x = Handle<JSArray>::cast(Utils::OpenHandle(
-        *CompileRunChecked(CcTest::isolate(), "xs[i++] = f();")));
-    CHECK_EQ(x->elements().map(), ReadOnlyRoots(isolate).fixed_cow_array_map());
+    Handle<JSArray> x =
+        Handle<JSArray>::cast(Utils::OpenHandle(*RunJS("xs[i++] = f();")));
+    EXPECT_EQ(x->elements().map(),
+              ReadOnlyRoots(i_isolate()).fixed_cow_array_map());
     handles.push_back(x);
     persistent_handles.push_back(ph->NewHandle(x));
   }
@@ -109,8 +110,8 @@ TEST(ArrayWithCowElements) {
 
   // Pass persistent handles to background thread.
   std::unique_ptr<BackgroundThread> thread(new BackgroundThread(
-      isolate->heap(), persistent_handles, std::move(ph), &sema_started));
-  CHECK(thread->Start());
+      i_isolate()->heap(), persistent_handles, std::move(ph), &sema_started));
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
@@ -124,9 +125,9 @@ TEST(ArrayWithCowElements) {
   static const int kNumMutators = arraysize(kMutators);
 
   for (int i = kNumArrays - 1; i >= 0; i--) {
-    CompileRunChecked(CcTest::isolate(), kMutators[i % kNumMutators]);
-    CHECK_NE(handles[i]->elements().map(),
-             ReadOnlyRoots(isolate).fixed_cow_array_map());
+    RunJS(kMutators[i % kNumMutators]);
+    EXPECT_NE(handles[i]->elements().map(),
+              ReadOnlyRoots(i_isolate()).fixed_cow_array_map());
   }
 
   thread->Join();
