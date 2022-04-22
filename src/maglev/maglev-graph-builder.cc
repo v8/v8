@@ -311,7 +311,7 @@ void MaglevGraphBuilder::VisitLdaContextSlot() {
 }
 void MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
   // TODO(leszeks): Consider context specialising.
-  VisitLdaCurrentContextSlot();
+  VisitLdaContextSlot();
 }
 void MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
   ValueNode* context = GetContext();
