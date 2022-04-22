@@ -110,7 +110,7 @@ void BaselineAssembler::JumpIfSmi(Register value, Label* target,
 }
 void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance) {
-  __ JumpIfSmi(value, target);
+  __ JumpIfNotSmi(value, target);
 }
 void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
                                         Label* target,
@@ -399,7 +399,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   if (skip_interrupt_label) {
     DCHECK_LT(weight, 0);
-    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(weight));
+    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
   }
 }
 
@@ -420,7 +420,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   __ Sw(interrupt_budget,
         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   if (skip_interrupt_label)
-    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(weight));
+    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {

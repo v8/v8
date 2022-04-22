@@ -400,7 +400,7 @@ void TurboAssembler::Add64(Register rd, Register rs, const Operand& rt) {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       BlockTrampolinePoolScope block_trampoline_pool(this);
-      Li(scratch, rt.immediate());
+      li(scratch, rt);
       add(rd, rs, scratch);
     }
   }
@@ -485,13 +485,13 @@ void TurboAssembler::Sub64(Register rd, Register rs, const Operand& rt) {
       DCHECK(rt.immediate() != std::numeric_limits<int32_t>::min());
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      Li(scratch, -rt.immediate());
+      li(scratch, Operand(-rt.immediate()));
       add(rd, rs, scratch);
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      Li(scratch, rt.immediate());
+      li(scratch, rt);
       sub(rd, rs, scratch);
     }
   }
