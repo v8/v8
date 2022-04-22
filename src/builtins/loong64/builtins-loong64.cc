@@ -1010,8 +1010,8 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
   // TODO(liuyu): Remove CHECK
   CHECK_NE(t2, optimization_state);
   CHECK_NE(t2, feedback_vector);
-  __ Ld_w(optimization_state,
-          FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  __ Ld_hu(optimization_state,
+           FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ And(
       scratch, optimization_state,
       Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
@@ -1224,6 +1224,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Ld_d(
       kInterpreterBytecodeArrayRegister,
       FieldMemOperand(kScratchReg, SharedFunctionInfo::kFunctionDataOffset));
+
   Label is_baseline;
   GetSharedFunctionInfoBytecodeOrBaseline(
       masm, kInterpreterBytecodeArrayRegister, kScratchReg, &is_baseline);
@@ -1247,18 +1248,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Ld_hu(a4, FieldMemOperand(a4, Map::kInstanceTypeOffset));
   __ Branch(&push_stack_frame, ne, a4, Operand(FEEDBACK_VECTOR_TYPE));
 
-  // Read off the optimization state in the feedback vector, and if there
-  // is optimized code or an tiering state, call that instead.
-  Register optimization_state = a4;
-  __ Ld_w(optimization_state,
-          FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-
-  // Check if the optimized code slot is not empty or has a tiering state.
+  // Check the tiering state.
   Label has_optimized_code_or_state;
-
-  __ andi(t0, optimization_state,
-          FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask);
-  __ Branch(&has_optimized_code_or_state, ne, t0, Operand(zero_reg));
+  Register optimization_state = a4;
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   Label not_optimized;
   __ bind(&not_optimized);

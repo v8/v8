@@ -1216,8 +1216,8 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
     Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(optimization_state, feedback_vector));
-  __ Ldr(optimization_state,
-         FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  __ Ldrh(optimization_state,
+          FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ TestAndBranchIfAnySet(
       optimization_state,
       FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask,

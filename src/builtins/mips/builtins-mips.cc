@@ -1008,8 +1008,8 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
     Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(masm);
   Register scratch = t6;
-  __ Lw(optimization_state,
-        FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  __ lhu(optimization_state,
+         FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ And(
       scratch, optimization_state,
       Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
@@ -1241,18 +1241,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ lhu(t0, FieldMemOperand(t0, Map::kInstanceTypeOffset));
   __ Branch(&push_stack_frame, ne, t0, Operand(FEEDBACK_VECTOR_TYPE));
 
-  // Read off the optimization state in the feedback vector, and if there
-  // is optimized code or an tiering state, call that instead.
-  Register optimization_state = t0;
-  __ Lw(optimization_state,
-        FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-
-  // Check if the optimized code slot is not empty or has a tiering state.
+  // Check the tiering state.
   Label has_optimized_code_or_state;
-
-  __ andi(t1, optimization_state,
-          FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask);
-  __ Branch(&has_optimized_code_or_state, ne, t1, Operand(zero_reg));
+  Register optimization_state = t0;
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   Label not_optimized;
   __ bind(&not_optimized);

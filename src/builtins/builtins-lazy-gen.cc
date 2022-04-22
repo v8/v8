@@ -44,8 +44,8 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     TNode<JSFunction> function, TNode<FeedbackVector> feedback_vector) {
   Label fallthrough(this), may_have_optimized_code(this);
 
-  TNode<Uint32T> optimization_state =
-      LoadObjectField<Uint32T>(feedback_vector, FeedbackVector::kFlagsOffset);
+  TNode<Uint16T> optimization_state =
+      LoadObjectField<Uint16T>(feedback_vector, FeedbackVector::kFlagsOffset);
 
   // Fall through if no optimization trigger or optimized code.
   GotoIfNot(

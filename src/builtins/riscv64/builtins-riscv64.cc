@@ -1074,8 +1074,8 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
   DCHECK(!AreAliased(optimization_state, feedback_vector));
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ Lw(optimization_state,
-        FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  __ Lhu(optimization_state,
+         FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ And(
       scratch, optimization_state,
       Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
@@ -1313,18 +1313,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Branch(&push_stack_frame, ne, a4, Operand(FEEDBACK_VECTOR_TYPE),
             Label::Distance::kNear);
 
-  // Read off the optimization state in the feedback vector, and if there
-  // is optimized code or an tiering state, call that instead.
-  Register optimization_state = a4;
-  __ Lw(optimization_state,
-        FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-
-  // Check if the optimized code slot is not empty or has a tiering state.
+  // Check the tiering state.
   Label has_optimized_code_or_state;
-
-  __ And(scratch, optimization_state,
-         FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask);
-  __ Branch(&has_optimized_code_or_state, ne, scratch, Operand(zero_reg));
+  Register optimization_state = a4;
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   Label not_optimized;
   __ bind(&not_optimized);

@@ -1001,14 +1001,15 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
   // Store feedback_vector. We may need it if we need to load the optimize code
   // slot entry.
   __ movd(saved_feedback_vector, feedback_vector);
-  __ mov(optimization_state,
-         FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  __ mov_w(optimization_state,
+           FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
 
   // Check if there is optimized code or a tiering state that needes to be
   // processed.
-  __ test(optimization_state,
-          Immediate(
-              FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+  __ test_w(
+      optimization_state,
+      Immediate(
+          FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
   __ j(not_zero, has_optimized_code_or_state);
 }
 

@@ -1111,9 +1111,9 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
     MacroAssembler* masm, Register optimization_state, Register feedback_vector,
     Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(masm);
-  __ movl(optimization_state,
-          FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-  __ testl(
+  __ movzxwl(optimization_state,
+             FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  __ testw(
       optimization_state,
       Immediate(
           FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
