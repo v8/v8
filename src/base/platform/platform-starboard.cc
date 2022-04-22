@@ -82,18 +82,12 @@ void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
 }
 
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
-#if SB_API_VERSION >= 12
   if (!SbTimeIsTimeThreadNowSupported()) return -1;
-#endif
 
-#if SB_API_VERSION >= 12 || SB_HAS(TIME_THREAD_NOW)
   SbTimeMonotonic thread_now = SbTimeGetMonotonicThreadNow();
   *secs = thread_now / kSbTimeSecond;
   *usecs = thread_now % kSbTimeSecond;
   return 0;
-#else
-  return -1;
-#endif
 }
 
 double OS::TimeCurrentMillis() { return Time::Now().ToJsTime(); }
