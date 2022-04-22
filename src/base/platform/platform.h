@@ -71,7 +71,9 @@ namespace base {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
+
+inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kTibInlineTlsOffset = 0xE10;
   const intptr_t kTibExtraTlsOffset = 0xF94;
   const intptr_t kMaxInlineSlots = 64;
@@ -89,8 +91,6 @@ V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
                                                   (index - kMaxInlineSlots));
 }
 
-// Not possible on ARM64, the register holding the base pointer is not stable
-// across major releases.
 #elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
 // tvOS simulator does not use intptr_t as TLS key.
@@ -98,14 +98,20 @@ V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index) {
+extern V8_BASE_EXPORT intptr_t kMacTlsBaseOffset;
+
+V8_INLINE intptr_t InternalGetExistingThreadLocal(intptr_t index);
+
+inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   intptr_t result;
 #if V8_HOST_ARCH_IA32
-  asm("movl %%gs:(,%1,4), %0;"
-      : "=r"(result)  // Output must be a writable register.
-      : "r"(index));
+  asm("movl %%gs:(%1,%2,4), %0;"
+      :"=r"(result)  // Output must be a writable register.
+      :"r"(kMacTlsBaseOffset), "r"(index));
 #else
-  asm("movq %%gs:(,%1,8), %0;" : "=r"(result) : "r"(index));
+  asm("movq %%gs:(%1,%2,8), %0;"
+      :"=r"(result)
+      :"r"(kMacTlsBaseOffset), "r"(index));
 #endif
   return result;
 }
