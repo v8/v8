@@ -407,6 +407,13 @@ class V8_NODISCARD ManualGCScope final : private SaveFlags {
   ~ManualGCScope() = default;
 };
 
+static inline uint16_t* AsciiToTwoByteString(const char* source) {
+  size_t array_length = strlen(source) + 1;
+  uint16_t* converted = NewArray<uint16_t>(array_length);
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  return converted;
+}
+
 }  // namespace internal
 }  // namespace v8
 

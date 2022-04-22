@@ -203,7 +203,6 @@ v8_source_set("cctest_sources") {
     "test-concurrent-js-array.cc",
     "test-concurrent-prototype.cc",
     "test-concurrent-script-context-table.cc",
-    "test-concurrent-string.cc",
     "test-concurrent-transition-array.cc",
     "test-constantpool.cc",
     "test-conversions.cc",

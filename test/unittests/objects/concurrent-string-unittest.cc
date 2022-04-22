@@ -1,4 +1,4 @@
-// Copyright 2020 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,10 +11,13 @@
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
+using ConcurrentStringTest = TestWithContext;
+
 namespace internal {
 
 namespace {
@@ -82,11 +85,11 @@ class ConcurrentStringThread final : public v8::base::Thread {
     sema_started_->Signal();
     // Check the three operations we do from the StringRef concurrently: get the
     // string, the nth character, and convert into a double.
-    CHECK_EQ(str_->length(kAcquireLoad), length_);
+    EXPECT_EQ(str_->length(kAcquireLoad), static_cast<int>(length_));
     for (unsigned int i = 0; i < length_; ++i) {
-      CHECK_EQ(str_->Get(i, &local_isolate), chars_[i]);
+      EXPECT_EQ(str_->Get(i, &local_isolate), chars_[i]);
     }
-    CHECK_EQ(TryStringToDouble(&local_isolate, str_).value(), DOUBLE_VALUE);
+    EXPECT_EQ(TryStringToDouble(&local_isolate, str_).value(), DOUBLE_VALUE);
   }
 
  private:
@@ -99,22 +102,19 @@ class ConcurrentStringThread final : public v8::base::Thread {
 };
 
 // Inspect a one byte string, while the main thread externalizes it.
-TEST(InspectOneByteExternalizing) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(ConcurrentStringTest, InspectOneByteExternalizing) {
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
-
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   // Crate an internalized one-byte string.
   const char* raw_string = STRING_VALUE;
   Handle<String> one_byte_string = factory->InternalizeString(
       factory->NewStringFromAsciiChecked(raw_string));
-  CHECK(one_byte_string->IsOneByteRepresentation());
-  CHECK(!one_byte_string->IsExternalString());
-  CHECK(one_byte_string->IsInternalizedString());
+  EXPECT_TRUE(one_byte_string->IsOneByteRepresentation());
+  EXPECT_TRUE(!one_byte_string->IsExternalString());
+  EXPECT_TRUE(one_byte_string->IsInternalizedString());
 
   Handle<String> persistent_string = ph->NewHandle(one_byte_string);
 
@@ -126,40 +126,37 @@ TEST(InspectOneByteExternalizing) {
   base::Semaphore sema_started(0);
 
   std::unique_ptr<ConcurrentStringThread> thread(new ConcurrentStringThread(
-      isolate, persistent_string, std::move(ph), &sema_started, chars));
-  CHECK(thread->Start());
+      i_isolate(), persistent_string, std::move(ph), &sema_started, chars));
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
   // Externalize it to a one-byte external string.
   // We need to use StrDup in this case since the TestOneByteResource will get
   // ownership of raw_string otherwise.
-  CHECK(one_byte_string->MakeExternal(
+  EXPECT_TRUE(one_byte_string->MakeExternal(
       new TestOneByteResource(i::StrDup(raw_string))));
-  CHECK(one_byte_string->IsExternalOneByteString());
-  CHECK(one_byte_string->IsInternalizedString());
+  EXPECT_TRUE(one_byte_string->IsExternalOneByteString());
+  EXPECT_TRUE(one_byte_string->IsInternalizedString());
 
   thread->Join();
 }
 
 // Inspect a one byte string, while the main thread externalizes it into a two
 // bytes string.
-TEST(InspectOneIntoTwoByteExternalizing) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(ConcurrentStringTest, InspectOneIntoTwoByteExternalizing) {
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
-
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   // Crate an internalized one-byte string.
   const char* raw_string = STRING_VALUE;
   Handle<String> one_byte_string = factory->InternalizeString(
       factory->NewStringFromAsciiChecked(raw_string));
-  CHECK(one_byte_string->IsOneByteRepresentation());
-  CHECK(!one_byte_string->IsExternalString());
-  CHECK(one_byte_string->IsInternalizedString());
+  EXPECT_TRUE(one_byte_string->IsOneByteRepresentation());
+  EXPECT_TRUE(!one_byte_string->IsExternalString());
+  EXPECT_TRUE(one_byte_string->IsInternalizedString());
 
   Handle<String> persistent_string = ph->NewHandle(one_byte_string);
   std::vector<uint16_t> chars;
@@ -170,30 +167,27 @@ TEST(InspectOneIntoTwoByteExternalizing) {
   base::Semaphore sema_started(0);
 
   std::unique_ptr<ConcurrentStringThread> thread(new ConcurrentStringThread(
-      isolate, persistent_string, std::move(ph), &sema_started, chars));
-  CHECK(thread->Start());
+      i_isolate(), persistent_string, std::move(ph), &sema_started, chars));
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
   // Externalize it to a two-bytes external string. AsciiToTwoByteString does
   // the string duplication for us.
-  CHECK(one_byte_string->MakeExternal(
+  EXPECT_TRUE(one_byte_string->MakeExternal(
       new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
-  CHECK(one_byte_string->IsExternalTwoByteString());
-  CHECK(one_byte_string->IsInternalizedString());
+  EXPECT_TRUE(one_byte_string->IsExternalTwoByteString());
+  EXPECT_TRUE(one_byte_string->IsInternalizedString());
 
   thread->Join();
 }
 
 // Inspect a two byte string, while the main thread externalizes it.
-TEST(InspectTwoByteExternalizing) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
-
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   // Crate an internalized two-byte string.
   // TODO(solanes): Can we have only one raw string?
@@ -210,9 +204,9 @@ TEST(InspectTwoByteExternalizing) {
     two_bytes_string = raw;
   }
   two_bytes_string = factory->InternalizeString(two_bytes_string);
-  CHECK(two_bytes_string->IsTwoByteRepresentation());
-  CHECK(!two_bytes_string->IsExternalString());
-  CHECK(two_bytes_string->IsInternalizedString());
+  EXPECT_TRUE(two_bytes_string->IsTwoByteRepresentation());
+  EXPECT_TRUE(!two_bytes_string->IsExternalString());
+  EXPECT_TRUE(two_bytes_string->IsInternalizedString());
 
   Handle<String> persistent_string = ph->NewHandle(two_bytes_string);
   std::vector<uint16_t> chars;
@@ -222,50 +216,47 @@ TEST(InspectTwoByteExternalizing) {
   base::Semaphore sema_started(0);
 
   std::unique_ptr<ConcurrentStringThread> thread(new ConcurrentStringThread(
-      isolate, persistent_string, std::move(ph), &sema_started, chars));
-  CHECK(thread->Start());
+      i_isolate(), persistent_string, std::move(ph), &sema_started, chars));
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
   // Externalize it to a two-bytes external string.
-  CHECK(two_bytes_string->MakeExternal(
+  EXPECT_TRUE(two_bytes_string->MakeExternal(
       new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
-  CHECK(two_bytes_string->IsExternalTwoByteString());
-  CHECK(two_bytes_string->IsInternalizedString());
+  EXPECT_TRUE(two_bytes_string->IsExternalTwoByteString());
+  EXPECT_TRUE(two_bytes_string->IsInternalizedString());
 
   thread->Join();
 }
 
 // Inspect a one byte string, while the main thread externalizes it. Same as
 // InspectOneByteExternalizing, but using thin strings.
-TEST(InspectOneByteExternalizing_ThinString) {
+TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // We will not create a thin string if single_generation is turned on.
   if (FLAG_single_generation) return;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
-
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   // Create a string.
   const char* raw_string = STRING_VALUE;
   Handle<String> thin_string = factory->NewStringFromAsciiChecked(raw_string);
-  CHECK(thin_string->IsOneByteRepresentation());
-  CHECK(!thin_string->IsExternalString());
-  CHECK(!thin_string->IsInternalizedString());
+  EXPECT_TRUE(thin_string->IsOneByteRepresentation());
+  EXPECT_TRUE(!thin_string->IsExternalString());
+  EXPECT_TRUE(!thin_string->IsInternalizedString());
 
   // Crate an internalized one-byte version of that string string.
   Handle<String> internalized_string = factory->InternalizeString(thin_string);
-  CHECK(internalized_string->IsOneByteRepresentation());
-  CHECK(!internalized_string->IsExternalString());
-  CHECK(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(internalized_string->IsOneByteRepresentation());
+  EXPECT_TRUE(!internalized_string->IsExternalString());
+  EXPECT_TRUE(internalized_string->IsInternalizedString());
 
   // We now should have an internalized string, and a thin string pointing to
   // it.
-  CHECK(thin_string->IsThinString());
-  CHECK_NE(*thin_string, *internalized_string);
+  EXPECT_TRUE(thin_string->IsThinString());
+  EXPECT_NE(*thin_string, *internalized_string);
 
   Handle<String> persistent_string = ph->NewHandle(thin_string);
 
@@ -277,23 +268,23 @@ TEST(InspectOneByteExternalizing_ThinString) {
   base::Semaphore sema_started(0);
 
   std::unique_ptr<ConcurrentStringThread> thread(new ConcurrentStringThread(
-      isolate, persistent_string, std::move(ph), &sema_started, chars));
-  CHECK(thread->Start());
+      i_isolate(), persistent_string, std::move(ph), &sema_started, chars));
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
   // Externalize it to a one-byte external string.
   // We need to use StrDup in this case since the TestOneByteResource will get
   // ownership of raw_string otherwise.
-  CHECK(internalized_string->MakeExternal(
+  EXPECT_TRUE(internalized_string->MakeExternal(
       new TestOneByteResource(i::StrDup(raw_string))));
-  CHECK(internalized_string->IsExternalOneByteString());
-  CHECK(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(internalized_string->IsExternalOneByteString());
+  EXPECT_TRUE(internalized_string->IsInternalizedString());
 
   // Check that the thin string is unmodified.
-  CHECK(!thin_string->IsExternalString());
-  CHECK(!thin_string->IsInternalizedString());
-  CHECK(thin_string->IsThinString());
+  EXPECT_TRUE(!thin_string->IsExternalString());
+  EXPECT_TRUE(!thin_string->IsInternalizedString());
+  EXPECT_TRUE(thin_string->IsThinString());
 
   thread->Join();
 }
@@ -301,34 +292,31 @@ TEST(InspectOneByteExternalizing_ThinString) {
 // Inspect a one byte string, while the main thread externalizes it into a two
 // bytes string. Same as InspectOneIntoTwoByteExternalizing, but using thin
 // strings.
-TEST(InspectOneIntoTwoByteExternalizing_ThinString) {
+TEST_F(ConcurrentStringTest, InspectOneIntoTwoByteExternalizing_ThinString) {
   // We will not create a thin string if single_generation is turned on.
   if (FLAG_single_generation) return;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
-
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   // Create a string.
   const char* raw_string = STRING_VALUE;
   Handle<String> thin_string = factory->NewStringFromAsciiChecked(raw_string);
-  CHECK(thin_string->IsOneByteRepresentation());
-  CHECK(!thin_string->IsExternalString());
-  CHECK(!thin_string->IsInternalizedString());
+  EXPECT_TRUE(thin_string->IsOneByteRepresentation());
+  EXPECT_TRUE(!thin_string->IsExternalString());
+  EXPECT_TRUE(!thin_string->IsInternalizedString());
 
   // Crate an internalized one-byte version of that string string.
   Handle<String> internalized_string = factory->InternalizeString(thin_string);
-  CHECK(internalized_string->IsOneByteRepresentation());
-  CHECK(!internalized_string->IsExternalString());
-  CHECK(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(internalized_string->IsOneByteRepresentation());
+  EXPECT_TRUE(!internalized_string->IsExternalString());
+  EXPECT_TRUE(internalized_string->IsInternalizedString());
 
   // We now should have an internalized string, and a thin string pointing to
   // it.
-  CHECK(thin_string->IsThinString());
-  CHECK_NE(*thin_string, *internalized_string);
+  EXPECT_TRUE(thin_string->IsThinString());
+  EXPECT_NE(*thin_string, *internalized_string);
 
   Handle<String> persistent_string = ph->NewHandle(thin_string);
   std::vector<uint16_t> chars;
@@ -339,41 +327,38 @@ TEST(InspectOneIntoTwoByteExternalizing_ThinString) {
   base::Semaphore sema_started(0);
 
   std::unique_ptr<ConcurrentStringThread> thread(new ConcurrentStringThread(
-      isolate, persistent_string, std::move(ph), &sema_started, chars));
-  CHECK(thread->Start());
+      i_isolate(), persistent_string, std::move(ph), &sema_started, chars));
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
   // Externalize it to a two-bytes external string. AsciiToTwoByteString does
   // the string duplication for us.
-  CHECK(internalized_string->MakeExternal(
+  EXPECT_TRUE(internalized_string->MakeExternal(
       new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
-  CHECK(internalized_string->IsExternalTwoByteString());
-  CHECK(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(internalized_string->IsExternalTwoByteString());
+  EXPECT_TRUE(internalized_string->IsInternalizedString());
 
   // Check that the thin string is unmodified.
-  CHECK(!thin_string->IsExternalString());
-  CHECK(!thin_string->IsInternalizedString());
-  CHECK(thin_string->IsThinString());
+  EXPECT_TRUE(!thin_string->IsExternalString());
+  EXPECT_TRUE(!thin_string->IsInternalizedString());
+  EXPECT_TRUE(thin_string->IsThinString());
   // Even its representation is still one byte, even when the internalized
   // string moved to two bytes.
-  CHECK(thin_string->IsOneByteRepresentation());
+  EXPECT_TRUE(thin_string->IsOneByteRepresentation());
 
   thread->Join();
 }
 
 // Inspect a two byte string, while the main thread externalizes it. Same as
 // InspectTwoByteExternalizing, but using thin strings.
-TEST(InspectTwoByteExternalizing_ThinString) {
+TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
   // We will not create a thin string if single_generation is turned on.
   if (FLAG_single_generation) return;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
-
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   // Crate an internalized two-byte string.
   // TODO(solanes): Can we have only one raw string?
@@ -391,9 +376,9 @@ TEST(InspectTwoByteExternalizing_ThinString) {
   }
 
   Handle<String> internalized_string = factory->InternalizeString(thin_string);
-  CHECK(internalized_string->IsTwoByteRepresentation());
-  CHECK(!internalized_string->IsExternalString());
-  CHECK(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(internalized_string->IsTwoByteRepresentation());
+  EXPECT_TRUE(!internalized_string->IsExternalString());
+  EXPECT_TRUE(internalized_string->IsInternalizedString());
 
   Handle<String> persistent_string = ph->NewHandle(thin_string);
   std::vector<uint16_t> chars;
@@ -403,21 +388,21 @@ TEST(InspectTwoByteExternalizing_ThinString) {
   base::Semaphore sema_started(0);
 
   std::unique_ptr<ConcurrentStringThread> thread(new ConcurrentStringThread(
-      isolate, persistent_string, std::move(ph), &sema_started, chars));
-  CHECK(thread->Start());
+      i_isolate(), persistent_string, std::move(ph), &sema_started, chars));
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
   // Externalize it to a two-bytes external string.
-  CHECK(internalized_string->MakeExternal(
+  EXPECT_TRUE(internalized_string->MakeExternal(
       new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
-  CHECK(internalized_string->IsExternalTwoByteString());
-  CHECK(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(internalized_string->IsExternalTwoByteString());
+  EXPECT_TRUE(internalized_string->IsInternalizedString());
 
   // Check that the thin string is unmodified.
-  CHECK(!thin_string->IsExternalString());
-  CHECK(!thin_string->IsInternalizedString());
-  CHECK(thin_string->IsThinString());
+  EXPECT_TRUE(!thin_string->IsExternalString());
+  EXPECT_TRUE(!thin_string->IsInternalizedString());
+  EXPECT_TRUE(thin_string->IsThinString());
 
   thread->Join();
 }
