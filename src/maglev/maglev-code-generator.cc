@@ -254,21 +254,19 @@ class MaglevCodeGeneratingNodeProcessor {
 
     __ RecordComment("--   Gap moves:");
 
-    for (auto entry : target->state()->register_state()) {
-      RegisterMerge* merge;
-      if (LoadMergeState(entry.state, &merge)) {
-        compiler::AllocatedOperand source = merge->operand(predecessor_id);
-        Register target_reg = entry.reg;
-
-        if (FLAG_code_comments) {
-          std::stringstream ss;
-          ss << "--   * " << source << " → " << target_reg;
-          __ RecordComment(ss.str());
-        }
-        RecordGapMove(source, target_reg, register_moves,
-                      stack_to_register_moves);
-      }
-    }
+    target->state()->register_state().ForEachGeneralRegister(
+        [&](Register reg, RegisterState& state) {
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &merge)) {
+            compiler::AllocatedOperand source = merge->operand(predecessor_id);
+            if (FLAG_code_comments) {
+              std::stringstream ss;
+              ss << "--   * " << source << " → " << reg;
+              __ RecordComment(ss.str());
+            }
+            RecordGapMove(source, reg, register_moves, stack_to_register_moves);
+          }
+        });
 
     if (target->has_phi()) {
       Phi::List* phis = target->phis();

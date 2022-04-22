@@ -806,31 +806,30 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
   DCHECK_EQ(free_registers_, kAllocatableGeneralRegisters);
 
   // Then fill it in with target information.
-  for (auto entry : target_state) {
-    Register reg = entry.reg;
-
+  target_state.ForEachGeneralRegister([&](Register reg, RegisterState& state) {
     ValueNode* node;
     RegisterMerge* merge;
-    LoadMergeState(entry.state, &node, &merge);
+    LoadMergeState(state, &node, &merge);
     if (node != nullptr) {
       free_registers_.clear(reg);
       SetRegister(reg, node);
     } else {
-      DCHECK(!entry.state.GetPayload().is_merge);
+      DCHECK(!state.GetPayload().is_merge);
     }
-  }
+  });
 }
 
 void StraightForwardRegisterAllocator::EnsureInRegister(
     MergePointRegisterState& target_state, ValueNode* incoming) {
 #ifdef DEBUG
   bool found = false;
-  for (auto entry : target_state) {
-    ValueNode* node;
-    RegisterMerge* merge;
-    LoadMergeState(entry.state, &node, &merge);
-    if (node == incoming) found = true;
-  }
+  target_state.ForEachGeneralRegister(
+      [&found, &incoming](Register reg, RegisterState& state) {
+        ValueNode* node;
+        RegisterMerge* merge;
+        LoadMergeState(state, &node, &merge);
+        if (node == incoming) found = true;
+      });
   DCHECK(found);
 #endif
 }
@@ -839,15 +838,14 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     ControlNode* source, BasicBlock* target) {
   MergePointRegisterState& target_state = target->state()->register_state();
   DCHECK(!target_state.is_initialized());
-  for (auto entry : target_state) {
-    Register reg = entry.reg;
+  target_state.ForEachGeneralRegister([&](Register reg, RegisterState& state) {
     ValueNode* node = nullptr;
     if (!free_registers_.has(reg)) {
       node = GetRegisterValue(reg);
       if (!IsLiveAtTarget(node, source, target)) node = nullptr;
     }
-    entry.state = {node, initialized_node};
-  }
+    state = {node, initialized_node};
+  });
 }
 
 void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
@@ -860,12 +858,10 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
   }
 
   int predecessor_count = target->state()->predecessor_count();
-  for (auto entry : target_state) {
-    Register reg = entry.reg;
-
+  target_state.ForEachGeneralRegister([&](Register reg, RegisterState& state) {
     ValueNode* node;
     RegisterMerge* merge;
-    LoadMergeState(entry.state, &node, &merge);
+    LoadMergeState(state, &node, &merge);
 
     compiler::AllocatedOperand register_info = {
         compiler::LocationOperand::REGISTER, MachineRepresentation::kTagged,
@@ -883,7 +879,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // We're using the same register as the target already has. If registers
       // are merged, add input information.
       if (merge) merge->operand(predecessor_id) = register_info;
-      continue;
+      return;
     }
 
     if (merge) {
@@ -896,7 +892,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       if (incoming != nullptr && incoming->is_spilled()) {
         EnsureInRegister(target_state, incoming);
       }
-      continue;
+      return;
     }
 
     DCHECK_IMPLIES(node == nullptr, incoming != nullptr);
@@ -905,7 +901,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // value isn't spilled, that means we must have seen it already in a
       // different register.
       EnsureInRegister(target_state, incoming);
-      continue;
+      return;
     }
 
     const size_t size = sizeof(RegisterMerge) +
@@ -936,8 +932,8 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     } else {
       merge->operand(predecessor_id) = node->allocation();
     }
-    entry.state = {merge, initialized_merge};
-  }
+    state = {merge, initialized_merge};
+  });
 }
 
 }  // namespace maglev

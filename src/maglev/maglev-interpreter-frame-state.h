@@ -185,41 +185,29 @@ class CompactInterpreterFrameState {
 
 class MergePointRegisterState {
  public:
-  class Iterator {
-   public:
-    struct Entry {
-      RegisterState& state;
-      Register reg;
-    };
-    explicit Iterator(RegisterState* value_pointer,
-                      RegList::Iterator reg_iterator)
-        : current_value_(value_pointer), reg_iterator_(reg_iterator) {}
-    Entry operator*() { return {*current_value_, *reg_iterator_}; }
-    void operator++() {
-      ++current_value_;
-      ++reg_iterator_;
-    }
-    bool operator!=(const Iterator& other) const {
-      return current_value_ != other.current_value_;
-    }
-
-   private:
-    RegisterState* current_value_;
-    RegList::Iterator reg_iterator_;
-  };
-
   bool is_initialized() const { return values_[0].GetPayload().is_initialized; }
 
-  Iterator begin() {
-    return Iterator(values_, kAllocatableGeneralRegisters.begin());
+  template <typename Function>
+  void ForEachGeneralRegister(Function&& f) {
+    RegisterState* current_value = &values_[0];
+    for (Register reg : kAllocatableGeneralRegisters) {
+      f(reg, *current_value);
+      ++current_value;
+    }
   }
-  Iterator end() {
-    return Iterator(values_ + kAllocatableGeneralRegisterCount,
-                    kAllocatableGeneralRegisters.end());
+
+  template <typename Function>
+  void ForEachDoubleRegister(Function&& f) {
+    RegisterState* current_value = &double_values_[0];
+    for (DoubleRegister reg : kAllocatableDoubleRegisters) {
+      f(reg, *current_value);
+      ++current_value;
+    }
   }
 
  private:
   RegisterState values_[kAllocatableGeneralRegisterCount] = {{}};
+  RegisterState double_values_[kAllocatableDoubleRegisterCount] = {{}};
 };
 
 class MergePointInterpreterFrameState {
