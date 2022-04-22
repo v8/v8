@@ -97,9 +97,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     V8_INLINE ~Scope();
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;
-    static const char* Name(ScopeId id);
-    static bool NeedsYoungEpoch(ScopeId id);
-    V8_INLINE static constexpr int IncrementalOffset(ScopeId id);
+    static constexpr const char* Name(ScopeId id);
+    static constexpr bool NeedsYoungEpoch(ScopeId id);
+    static constexpr int IncrementalOffset(ScopeId id);
 
    private:
 #if DEBUG
