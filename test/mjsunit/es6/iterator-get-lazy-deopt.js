@@ -6,7 +6,7 @@
 // protocol (https://tc39.es/ecma262/#sec-getiterator). Here, the
 // bytecode performs multiple operations including some that have side-effects
 // and may deoptimize eagerly or lazily.
-// This test ensures the lazy deoptimization is handled correctly.
+// This test ensures the get @@iterator lazy deoptimization is handled correctly.
 
 // Flags: --allow-natives-syntax --no-always-opt
 
@@ -18,9 +18,10 @@ var getIteratorCount = 0;
 function foo(obj) {
     // The following for-of loop uses the iterator protocol to iterate
     // over the 'obj'.
-    // The GetIterator bytecode invovlves 2 steps:
+    // The GetIterator bytecode involves 3 steps:
     // 1. method = GetMethod(obj, @@iterator)
     // 2. iterator = Call(method, obj).
+    // 3. if(!IsJSReceiver(iterator)) throw SymbolIteratorInvalid.
     for(var x of obj){}
 }
 

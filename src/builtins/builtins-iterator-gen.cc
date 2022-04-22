@@ -472,6 +472,16 @@ TF_BUILTIN(GetIteratorWithFeedbackLazyDeoptContinuation,
   Return(result);
 }
 
+TF_BUILTIN(CallIteratorWithFeedbackLazyDeoptContinuation,
+           IteratorBuiltinsAssembler) {
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  TNode<Object> iterator = Parameter<Object>(Descriptor::kArgument);
+
+  ThrowIfNotJSReceiver(context, iterator,
+                       MessageTemplate::kSymbolIteratorInvalid, "");
+  Return(iterator);
+}
+
 // This builtin creates a FixedArray based on an Iterable and doesn't have a
 // fast path for anything.
 TF_BUILTIN(IterableToFixedArrayWithSymbolLookupSlow,

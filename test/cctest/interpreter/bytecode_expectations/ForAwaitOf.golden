@@ -485,7 +485,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 198
+bytecode array length: 191
 bytecodes: [
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
@@ -497,8 +497,6 @@ bytecodes: [
   /*   68 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(37),
                 B(Star5),
                 B(GetIterator), R(5), U8(2), U8(4),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star4),
                 B(GetNamedProperty), R(4), U8(2), U8(6),
                 B(Star3),
@@ -594,8 +592,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [14, 176, 176],
-  [46, 92, 98],
-  [111, 130, 132],
+  [14, 169, 169],
+  [39, 85, 91],
+  [104, 123, 125],
 ]
 

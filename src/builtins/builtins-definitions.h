@@ -590,6 +590,7 @@ namespace internal {
                                                                                \
   /* Iterator Protocol */                                                      \
   TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
+  TFC(CallIteratorWithFeedbackLazyDeoptContinuation, SingleParameterOnStack)   \
                                                                                \
   /* Global object */                                                          \
   CPP(GlobalDecodeURI)                                                         \

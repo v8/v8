@@ -15,11 +15,9 @@ snippet: "
 "
 frame size: 14
 parameter count: 2
-bytecode array length: 126
+bytecode array length: 119
 bytecodes: [
   /*   34 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star5),
                 B(GetNamedProperty), R(5), U8(0), U8(4),
                 B(Star4),
@@ -87,8 +85,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
 ]
 handlers: [
-  [22, 64, 70],
-  [83, 102, 104],
+  [15, 57, 63],
+  [76, 95, 97],
 ]
 
 ---
@@ -100,7 +98,7 @@ snippet: "
 "
 frame size: 20
 parameter count: 2
-bytecode array length: 206
+bytecode array length: 199
 bytecodes: [
   /*   10 E> */ B(CreateFunctionContext), U8(0), U8(5),
                 B(PushContext), R(2),
@@ -119,8 +117,6 @@ bytecodes: [
   /*   34 S> */ B(LdaContextSlot), R(3), U8(4), U8(0),
                 B(Star6),
                 B(GetIterator), R(6), U8(0), U8(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star5),
                 B(GetNamedProperty), R(5), U8(2), U8(4),
                 B(Star4),
@@ -215,8 +211,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
 ]
 handlers: [
-  [54, 142, 148],
-  [161, 180, 182],
+  [47, 135, 141],
+  [154, 173, 175],
 ]
 
 ---
@@ -228,11 +224,9 @@ snippet: "
 "
 frame size: 13
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 135
 bytecodes: [
   /*   34 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star3),
                 B(GetNamedProperty), R(3), U8(0), U8(4),
                 B(Star2),
@@ -310,8 +304,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
 ]
 handlers: [
-  [22, 80, 86],
-  [99, 118, 120],
+  [15, 73, 79],
+  [92, 111, 113],
 ]
 
 ---
@@ -323,11 +317,9 @@ snippet: "
 "
 frame size: 16
 parameter count: 2
-bytecode array length: 134
+bytecode array length: 127
 bytecodes: [
   /*   41 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star7),
                 B(GetNamedProperty), R(7), U8(0), U8(4),
                 B(Star6),
@@ -401,8 +393,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
 ]
 handlers: [
-  [22, 72, 78],
-  [91, 110, 112],
+  [15, 65, 71],
+  [84, 103, 105],
 ]
 
 ---
@@ -414,7 +406,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 2
-bytecode array length: 165
+bytecode array length: 158
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(5),
@@ -431,8 +423,6 @@ bytecodes: [
                 B(Ldar), R(5),
                 B(Return),
   /*   35 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star6),
                 B(GetNamedProperty), R(6), U8(3), U8(4),
                 B(Star5),
@@ -503,8 +493,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
 ]
 handlers: [
-  [61, 103, 109],
-  [122, 141, 143],
+  [54, 96, 102],
+  [115, 134, 136],
 ]
 
 ---
@@ -516,7 +506,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 2
-bytecode array length: 206
+bytecode array length: 199
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -533,8 +523,6 @@ bytecodes: [
                 B(Ldar), R(4),
                 B(Return),
   /*   35 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star5),
                 B(GetNamedProperty), R(5), U8(4), U8(4),
                 B(Star4),
@@ -613,7 +601,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [20],
-  Smi [108],
+  Smi [101],
   Smi [10],
   Smi [7],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
@@ -626,8 +614,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [61, 138, 144],
-  [157, 176, 178],
+  [54, 131, 137],
+  [150, 169, 171],
 ]
 
 ---
@@ -639,7 +627,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 2
-bytecode array length: 170
+bytecode array length: 163
 bytecodes: [
                 B(Mov), R(closure), R(5),
                 B(Mov), R(this), R(6),
@@ -647,8 +635,6 @@ bytecodes: [
                 B(Star0),
                 B(Mov), R(context), R(5),
   /*   40 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star7),
                 B(GetNamedProperty), R(7), U8(0), U8(4),
                 B(Star6),
@@ -732,9 +718,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [14, 148, 148],
-  [36, 78, 84],
-  [97, 116, 118],
+  [14, 141, 141],
+  [29, 71, 77],
+  [90, 109, 111],
 ]
 
 ---
@@ -746,7 +732,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 2
-bytecode array length: 204
+bytecode array length: 197
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(4),
@@ -755,8 +741,6 @@ bytecodes: [
                 B(Star0),
                 B(Mov), R(context), R(4),
   /*   40 S> */ B(GetIterator), R(arg0), U8(0), U8(2),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star6),
                 B(GetNamedProperty), R(6), U8(1), U8(4),
                 B(Star5),
@@ -845,7 +829,7 @@ bytecodes: [
                 B(Return),
 ]
 constant pool: [
-  Smi [88],
+  Smi [81],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
@@ -853,8 +837,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 182, 182],
-  [40, 112, 118],
-  [131, 150, 152],
+  [18, 175, 175],
+  [33, 105, 111],
+  [124, 143, 145],
 ]
 
