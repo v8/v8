@@ -406,7 +406,6 @@ class Internals {
   static const int kNodeFlagsOffset = 1 * kApiSystemPointerSize + 3;
   static const int kNodeStateMask = 0x7;
   static const int kNodeStateIsWeakValue = 2;
-  static const int kNodeStateIsPendingValue = 3;
 
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;

@@ -5805,7 +5805,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
     // Seed the root set (roots + old->new set).
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
-      isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
+      isolate()->global_handles()->ComputeWeaknessForYoungObjects(
           &JSObject::IsUnmodifiedApiObject);
       // MinorMC treats all weak roots except for global handles as strong.
       // That is why we don't set skip_weak = true here and instead visit
@@ -5859,7 +5859,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_GLOBAL_HANDLES);
-    isolate()->global_handles()->IterateYoungWeakObjectsForPhantomHandles(
+    isolate()->global_handles()->ProcessWeakYoungObjects(
         &root_visitor, &IsUnmarkedObjectForYoungGeneration);
     DrainMarkingWorklist();
   }

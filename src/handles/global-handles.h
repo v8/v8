@@ -143,14 +143,18 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // Iterates over strong and dependent handles. See the note above.
   void IterateYoungStrongAndDependentRoots(RootVisitor* v);
 
-  // Iterates over weak independent or unmodified handles.
-  // See the note above.
-  void IterateYoungWeakObjectsForPhantomHandles(
-      RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle);
+  // Processes all young weak objects. Weak objects for which
+  // `should_reset_handle()` returns true are reset and others are passed to the
+  // visitor `v`.
+  void ProcessWeakYoungObjects(RootVisitor* v,
+                               WeakSlotCallbackWithHeap should_reset_handle);
 
-  // Identify unmodified objects that are in weak state and marks them
-  // unmodified
-  void IdentifyWeakUnmodifiedObjects(WeakSlotCallback is_unmodified);
+  // Computes whether young weak objects should be considered roots for young
+  // generation garbage collections  or just be treated weakly. Per default
+  // objects are considered as roots. Objects are treated not as root when both
+  // - `is_unmodified()` returns true;
+  // - the `EmbedderRootsHandler` also does not consider them as roots;
+  void ComputeWeaknessForYoungObjects(WeakSlotCallback is_unmodified);
 
   Isolate* isolate() const { return isolate_; }
 
@@ -204,6 +208,13 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
+
+  // Clears a weak `node` for which `should_reset_node()` returns true.
+  //
+  // Returns false if a node is weak and alive which requires further
+  // processing, and true in all other cases (e.g. also strong nodes).
+  bool ResetWeakNodeIfDead(Node* node,
+                           WeakSlotCallbackWithHeap should_reset_node);
 
   Isolate* const isolate_;
   bool is_marking_ = false;

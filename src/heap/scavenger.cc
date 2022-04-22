@@ -322,7 +322,7 @@ void ScavengerCollector::CollectGarbage() {
       TRACE_GC(
           heap_->tracer(),
           GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-      isolate_->global_handles()->IdentifyWeakUnmodifiedObjects(
+      isolate_->global_handles()->ComputeWeaknessForYoungObjects(
           &JSObject::IsUnmodifiedApiObject);
     }
     {
@@ -366,7 +366,7 @@ void ScavengerCollector::CollectGarbage() {
       // Scavenge weak global handles.
       TRACE_GC(heap_->tracer(),
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
-      isolate_->global_handles()->IterateYoungWeakObjectsForPhantomHandles(
+      isolate_->global_handles()->ProcessWeakYoungObjects(
           &root_scavenge_visitor, &IsUnscavengedHeapObjectSlot);
       DCHECK(copied_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());

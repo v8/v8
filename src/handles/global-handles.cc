@@ -38,17 +38,19 @@ constexpr size_t kBlockSize = 256;
 
 }  // namespace
 
-enum WeaknessType {
-  // In the following cases, the embedder gets the parameter they passed in
-  // earlier, and 0 or 2 first embedder fields. Note that the internal
-  // fields must contain aligned non-V8 pointers.  Getting pointers to V8
-  // objects through this interface would be GC unsafe so in that case the
+// Various internal weakness types for Persistent and Global handles.
+enum class WeaknessType {
+  // Weakness with custom callback and an embedder-provided parameter.
+  kCallback,
+  // Weakness with custom callback and an embedder-provided parameter. In
+  // addition the first two embedder fields are passed along. Note that the
+  // internal fields must contain aligned non-V8 pointers. Getting pointers to
+  // V8 objects through this interface would be GC unsafe so in that case the
   // embedder gets a null pointer instead.
-  PHANTOM_WEAK,
-  PHANTOM_WEAK_2_EMBEDDER_FIELDS,
-  // The handle is automatically reset by the garbage collector when
-  // the object is no longer reachable.
-  PHANTOM_WEAK_RESET_HANDLE
+  kCallbackWithTwoEmbedderFields,
+  // Weakness where the handle is automatically reset in the garbage collector
+  // when the object is no longer reachable.
+  kNoCallback,
 };
 
 template <class _NodeType>
@@ -413,21 +415,22 @@ void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
 class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
  public:
   // State transition diagram:
-  // FREE -> NORMAL <-> WEAK -> PENDING -> NEAR_DEATH -> FREE
+  // FREE -> NORMAL <-> WEAK -> {NEAR_DEATH, FREE} -> FREE
   enum State {
     FREE = 0,
-    NORMAL,      // Normal global handle.
-    WEAK,        // Flagged as weak but not yet finalized.
-    PENDING,     // Has been recognized as only reachable by weak handles.
-    NEAR_DEATH,  // Callback has informed the handle is near death.
-    NUMBER_OF_NODE_STATES
+    // Strong global handle.
+    NORMAL,
+    // Flagged as weak and still considered as live.
+    WEAK,
+    // Temporary state used in GC to sanity check that handles are reset in
+    // their first pass callback.
+    NEAR_DEATH,
   };
 
   Node() {
     STATIC_ASSERT(static_cast<int>(NodeState::kMask) ==
                   Internals::kNodeStateMask);
     STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);
-    STATIC_ASSERT(PENDING == Internals::kNodeStateIsPendingValue);
     set_in_young_list(false);
   }
 
@@ -458,25 +461,17 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   bool IsInUse() const { return state() != FREE; }
 
-  bool IsPhantomCallback() const {
-    return weakness_type() == PHANTOM_WEAK ||
-           weakness_type() == PHANTOM_WEAK_2_EMBEDDER_FIELDS;
-  }
-
   bool IsPhantomResetHandle() const {
-    return weakness_type() == PHANTOM_WEAK_RESET_HANDLE;
+    return weakness_type() == WeaknessType::kNoCallback;
   }
 
-  bool IsRetainer() const { return state() != FREE && state() != NEAR_DEATH; }
+  bool IsWeakOrStrongRetainer() const {
+    return state() == NORMAL || state() == WEAK;
+  }
 
   bool IsStrongRetainer() const { return state() == NORMAL; }
 
-  bool IsWeakRetainer() const { return state() == WEAK || state() == PENDING; }
-
-  void MarkPending() {
-    DCHECK(state() == WEAK);
-    set_state(PENDING);
-  }
+  bool IsWeakRetainer() const { return state() == WEAK; }
 
   bool has_callback() const { return weak_callback_ != nullptr; }
 
@@ -495,10 +490,10 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     set_state(WEAK);
     switch (type) {
       case v8::WeakCallbackType::kParameter:
-        set_weakness_type(PHANTOM_WEAK);
+        set_weakness_type(WeaknessType::kCallback);
         break;
       case v8::WeakCallbackType::kInternalFields:
-        set_weakness_type(PHANTOM_WEAK_2_EMBEDDER_FIELDS);
+        set_weakness_type(WeaknessType::kCallbackWithTwoEmbedderFields);
         break;
     }
     set_parameter(parameter);
@@ -509,7 +504,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     DCHECK(IsInUse());
     CHECK_NE(object_, kGlobalHandleZapValue);
     set_state(WEAK);
-    set_weakness_type(PHANTOM_WEAK_RESET_HANDLE);
+    set_weakness_type(WeaknessType::kNoCallback);
     set_parameter(location_addr);
     weak_callback_ = nullptr;
   }
@@ -530,14 +525,14 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   void CollectPhantomCallbackData(
       std::vector<std::pair<Node*, PendingPhantomCallback>>*
           pending_phantom_callbacks) {
-    DCHECK(weakness_type() == PHANTOM_WEAK ||
-           weakness_type() == PHANTOM_WEAK_2_EMBEDDER_FIELDS);
-    DCHECK(state() == PENDING);
+    DCHECK(weakness_type() == WeaknessType::kCallback ||
+           weakness_type() == WeaknessType::kCallbackWithTwoEmbedderFields);
     DCHECK_NOT_NULL(weak_callback_);
 
     void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
-    if (weakness_type() != PHANTOM_WEAK && object().IsJSObject()) {
+    if (weakness_type() == WeaknessType::kCallbackWithTwoEmbedderFields &&
+        object().IsJSObject()) {
       ExtractInternalFields(JSObject::cast(object()), embedder_fields,
                             v8::kEmbedderFieldsInWeakCallback);
     }
@@ -553,8 +548,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   }
 
   void ResetPhantomHandle() {
-    DCHECK_EQ(PHANTOM_WEAK_RESET_HANDLE, weakness_type());
-    DCHECK_EQ(PENDING, state());
+    DCHECK_EQ(WeaknessType::kNoCallback, weakness_type());
     DCHECK_NULL(weak_callback_);
     Address** handle = reinterpret_cast<Address**>(parameter());
     *handle = nullptr;
@@ -1152,21 +1146,31 @@ bool GlobalHandles::IsWeak(Address* location) {
   return Node::FromLocation(location)->IsWeak();
 }
 
+V8_INLINE bool GlobalHandles::ResetWeakNodeIfDead(
+    Node* node, WeakSlotCallbackWithHeap should_reset_handle) {
+  DCHECK(node->IsWeakRetainer());
+
+  if (!should_reset_handle(isolate()->heap(), node->location())) return false;
+
+  switch (node->weakness_type()) {
+    case WeaknessType::kNoCallback:
+      node->ResetPhantomHandle();
+      ++number_of_phantom_handle_resets_;
+      break;
+    case WeaknessType::kCallback:
+      V8_FALLTHROUGH;
+    case WeaknessType::kCallbackWithTwoEmbedderFields:
+      node->CollectPhantomCallbackData(&regular_pending_phantom_callbacks_);
+      break;
+  }
+  return true;
+}
+
 DISABLE_CFI_PERF
 void GlobalHandles::IterateWeakRootsForPhantomHandles(
     WeakSlotCallbackWithHeap should_reset_handle) {
   for (Node* node : *regular_nodes_) {
-    if (node->IsWeakRetainer() &&
-        should_reset_handle(isolate()->heap(), node->location())) {
-      if (node->IsPhantomResetHandle()) {
-        node->MarkPending();
-        node->ResetPhantomHandle();
-        ++number_of_phantom_handle_resets_;
-      } else if (node->IsPhantomCallback()) {
-        node->MarkPending();
-        node->CollectPhantomCallbackData(&regular_pending_phantom_callbacks_);
-      }
-    }
+    if (node->IsWeakRetainer()) ResetWeakNodeIfDead(node, should_reset_handle);
   }
   for (TracedNode* node : *traced_nodes_) {
     if (!node->IsInUse()) continue;
@@ -1189,7 +1193,7 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
   }
 }
 
-void GlobalHandles::IdentifyWeakUnmodifiedObjects(
+void GlobalHandles::ComputeWeaknessForYoungObjects(
     WeakSlotCallback is_unmodified) {
   if (!FLAG_reclaim_unmodified_wrappers) return;
 
@@ -1224,28 +1228,16 @@ void GlobalHandles::IterateYoungStrongAndDependentRoots(RootVisitor* v) {
   }
 }
 
-void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
+void GlobalHandles::ProcessWeakYoungObjects(
     RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle) {
   for (Node* node : young_nodes_) {
     DCHECK(node->is_in_young_list());
-    if (node->IsWeakRetainer() && (node->state() != Node::PENDING)) {
-      if (should_reset_handle(isolate_->heap(), node->location())) {
-        DCHECK(node->IsPhantomResetHandle() || node->IsPhantomCallback());
-        if (node->IsPhantomResetHandle()) {
-          node->MarkPending();
-          node->ResetPhantomHandle();
-          ++number_of_phantom_handle_resets_;
-        } else if (node->IsPhantomCallback()) {
-          node->MarkPending();
-          node->CollectPhantomCallbackData(&regular_pending_phantom_callbacks_);
-        } else {
-          UNREACHABLE();
-        }
-      } else {
-        // Node survived and needs to be visited.
-        v->VisitRootPointer(Root::kGlobalHandles, node->label(),
-                            node->location());
-      }
+
+    if (node->IsWeakRetainer() &&
+        !ResetWeakNodeIfDead(node, should_reset_handle)) {
+      // Node is weak and alive, so it should be passed onto the visitor.
+      v->VisitRootPointer(Root::kGlobalHandles, node->label(),
+                          node->location());
     }
   }
 
@@ -1261,10 +1253,10 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
       v8::Value* value = ToApi<v8::Value>(node->handle());
       handler->ResetRoot(
           *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
+      ++number_of_phantom_handle_resets_;
       // We cannot check whether a node is in use here as the reset behavior
       // depends on whether incremental marking is running when reclaiming
       // young objects.
-      ++number_of_phantom_handle_resets_;
     } else {
       if (!node->is_root()) {
         node->set_root(true);
@@ -1451,7 +1443,7 @@ void GlobalHandles::IterateWeakRoots(RootVisitor* v) {
 DISABLE_CFI_PERF
 void GlobalHandles::IterateAllRoots(RootVisitor* v) {
   for (Node* node : *regular_nodes_) {
-    if (node->IsRetainer()) {
+    if (node->IsWeakOrStrongRetainer()) {
       v->VisitRootPointer(Root::kGlobalHandles, node->label(),
                           node->location());
     }
@@ -1467,7 +1459,7 @@ void GlobalHandles::IterateAllRoots(RootVisitor* v) {
 DISABLE_CFI_PERF
 void GlobalHandles::IterateAllYoungRoots(RootVisitor* v) {
   for (Node* node : young_nodes_) {
-    if (node->IsRetainer()) {
+    if (node->IsWeakOrStrongRetainer()) {
       v->VisitRootPointer(Root::kGlobalHandles, node->label(),
                           node->location());
     }
@@ -1493,7 +1485,7 @@ DISABLE_CFI_PERF
 void GlobalHandles::IterateAllRootsWithClassIds(
     v8::PersistentHandleVisitor* visitor) {
   for (Node* node : *regular_nodes_) {
-    if (node->IsRetainer() && node->has_wrapper_class_id()) {
+    if (node->IsWeakOrStrongRetainer() && node->has_wrapper_class_id()) {
       ApplyPersistentHandleVisitor(visitor, node);
     }
   }
@@ -1515,7 +1507,7 @@ DISABLE_CFI_PERF
 void GlobalHandles::IterateAllYoungRootsWithClassIds(
     v8::PersistentHandleVisitor* visitor) {
   for (Node* node : young_nodes_) {
-    if (node->IsRetainer() && node->has_wrapper_class_id()) {
+    if (node->IsWeakOrStrongRetainer() && node->has_wrapper_class_id()) {
       ApplyPersistentHandleVisitor(visitor, node);
     }
   }
@@ -1541,8 +1533,6 @@ void GlobalHandles::RecordStats(HeapStats* stats) {
     *stats->global_handle_count += 1;
     if (node->state() == Node::WEAK) {
       *stats->weak_global_handle_count += 1;
-    } else if (node->state() == Node::PENDING) {
-      *stats->pending_global_handle_count += 1;
     } else if (node->state() == Node::NEAR_DEATH) {
       *stats->near_death_global_handle_count += 1;
     } else if (node->state() == Node::FREE) {
@@ -1556,14 +1546,12 @@ void GlobalHandles::RecordStats(HeapStats* stats) {
 void GlobalHandles::PrintStats() {
   int total = 0;
   int weak = 0;
-  int pending = 0;
   int near_death = 0;
   int destroyed = 0;
 
   for (Node* node : *regular_nodes_) {
     total++;
     if (node->state() == Node::WEAK) weak++;
-    if (node->state() == Node::PENDING) pending++;
     if (node->state() == Node::NEAR_DEATH) near_death++;
     if (node->state() == Node::FREE) destroyed++;
   }
@@ -1571,7 +1559,6 @@ void GlobalHandles::PrintStats() {
   PrintF("Global Handle Statistics:\n");
   PrintF("  allocated memory = %zuB\n", total * sizeof(Node));
   PrintF("  # weak       = %d\n", weak);
-  PrintF("  # pending    = %d\n", pending);
   PrintF("  # near_death = %d\n", near_death);
   PrintF("  # free       = %d\n", destroyed);
   PrintF("  # total      = %d\n", total);
