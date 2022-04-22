@@ -88,6 +88,7 @@
 // PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
 // HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
 // MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+#ifdef CAN_USE_RVV_INSTRUCTIONS
 static inline bool is_aligned(const unsigned val, const unsigned pos) {
   return pos ? (val & (pos - 1)) == 0 : true;
 }
@@ -155,7 +156,6 @@ static inline bool is_overlapped_widen(const int astart, int asize,
 // PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
 // HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
 // MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#ifdef CAN_USE_RVV_INSTRUCTIONS
 template <uint64_t N>
 struct type_usew_t;
 template <>
@@ -4635,10 +4635,10 @@ void Simulator::DecodeRVIType() {
       if (!DecodeRvvVL()) {
         UNSUPPORTED();
       }
+      break;
 #else
       UNSUPPORTED();
 #endif
-      break;
     }
   }
 }
@@ -4676,10 +4676,10 @@ void Simulator::DecodeRVSType() {
       if (!DecodeRvvVS()) {
         UNSUPPORTED();
       }
+      break;
 #else
       UNSUPPORTED();
 #endif
-      break;
   }
 }
 
