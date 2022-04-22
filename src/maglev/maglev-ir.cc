@@ -531,47 +531,20 @@ void CheckMaps::PrintParams(std::ostream& os,
   os << "(" << *map().object() << ")";
 }
 
-void LoadField::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                             const ProcessingState& state) {
+void LoadTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
   UseRegister(object_input());
   DefineAsRegister(vreg_state, this);
 }
-void LoadField::GenerateCode(MaglevCodeGenState* code_gen_state,
-                             const ProcessingState& state) {
-  // os << "kField, is in object = "
-  //    << LoadHandler::IsInobjectBits::decode(raw_handler)
-  //    << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
-  //    << ", field index = " <<
-  //    LoadHandler::FieldIndexBits::decode(raw_handler);
-
+void LoadTaggedField::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
   Register object = ToRegister(object_input());
-  Register res = ToRegister(result());
-  int handler = this->handler();
-
-  if (LoadHandler::IsInobjectBits::decode(handler)) {
-    Operand input_field_operand = FieldOperand(
-        object, LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize);
-    __ DecompressAnyTagged(res, input_field_operand);
-  } else {
-    Operand property_array_operand =
-        FieldOperand(object, JSReceiver::kPropertiesOrHashOffset);
-    __ DecompressAnyTagged(res, property_array_operand);
-
-    __ AssertNotSmi(res);
-
-    Operand input_field_operand = FieldOperand(
-        res, LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize);
-    __ DecompressAnyTagged(res, input_field_operand);
-  }
-
-  if (LoadHandler::IsDoubleBits::decode(handler)) {
-    // TODO(leszeks): Copy out the value, either as a double or a HeapNumber.
-    UNSUPPORTED("LoadField double property");
-  }
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(ToRegister(result()), FieldOperand(object, offset()));
 }
-void LoadField::PrintParams(std::ostream& os,
-                            MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << handler() << std::dec << ")";
+void LoadTaggedField::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void StoreField::AllocateVreg(MaglevVregAllocationState* vreg_state,

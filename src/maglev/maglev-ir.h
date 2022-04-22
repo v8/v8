@@ -69,7 +69,7 @@ class CompactInterpreterFrameState;
   V(Call)                  \
   V(Constant)              \
   V(InitialValue)          \
-  V(LoadField)             \
+  V(LoadTaggedField)       \
   V(LoadGlobal)            \
   V(LoadNamedGeneric)      \
   V(Phi)                   \
@@ -1190,16 +1190,16 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   const compiler::MapRef map_;
 };
 
-class LoadField : public FixedInputValueNodeT<1, LoadField> {
-  using Base = FixedInputValueNodeT<1, LoadField>;
+class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
+  using Base = FixedInputValueNodeT<1, LoadTaggedField>;
 
  public:
-  explicit LoadField(uint32_t bitfield, int handler)
-      : Base(bitfield), handler_(handler) {}
+  explicit LoadTaggedField(uint32_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::Reading();
 
-  int handler() const { return handler_; }
+  int offset() const { return offset_; }
 
   static constexpr int kObjectIndex = 0;
   Input& object_input() { return input(kObjectIndex); }
@@ -1209,7 +1209,7 @@ class LoadField : public FixedInputValueNodeT<1, LoadField> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const int handler_;
+  const int offset_;
 };
 
 class StoreField : public FixedInputNodeT<2, StoreField> {

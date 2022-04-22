@@ -24,18 +24,6 @@ namespace internal {
 
 namespace maglev {
 
-namespace {
-
-int LoadSimpleFieldHandler(FieldIndex field_index) {
-  int config = LoadHandler::KindBits::encode(LoadHandler::Kind::kField) |
-               LoadHandler::IsInobjectBits::encode(field_index.is_inobject()) |
-               LoadHandler::IsDoubleBits::encode(field_index.is_double()) |
-               LoadHandler::FieldIndexBits::encode(field_index.index());
-  return config;
-}
-
-}  // namespace
-
 MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
                                        Graph* graph, MaglevGraphBuilder* parent)
@@ -296,18 +284,12 @@ void MaglevGraphBuilder::VisitLdaContextSlot() {
   int depth = iterator_.GetUnsignedImmediateOperand(2);
 
   for (int i = 0; i < depth; ++i) {
-    context = AddNewNode<LoadField>(
-        {context}, LoadSimpleFieldHandler(FieldIndex::ForInObjectOffset(
-                       Context::OffsetOfElementAt(Context::PREVIOUS_INDEX),
-                       FieldIndex::kTagged)));
+    context = AddNewNode<LoadTaggedField>(
+        {context}, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
   }
 
-  // TODO(leszeks): Passing a LoadHandler to LoadField here is a bit of
-  // a hack, maybe we should have a LoadRawOffset or similar.
-  SetAccumulator(AddNewNode<LoadField>(
-      {context},
-      LoadSimpleFieldHandler(FieldIndex::ForInObjectOffset(
-          Context::OffsetOfElementAt(slot_index), FieldIndex::kTagged))));
+  SetAccumulator(AddNewNode<LoadTaggedField>(
+      {context}, Context::OffsetOfElementAt(slot_index)));
 }
 void MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
   // TODO(leszeks): Consider context specialising.
@@ -317,12 +299,8 @@ void MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
 
-  // TODO(leszeks): Passing a LoadHandler to LoadField here is a bit of
-  // a hack, maybe we should have a LoadRawOffset or similar.
-  SetAccumulator(AddNewNode<LoadField>(
-      {context},
-      LoadSimpleFieldHandler(FieldIndex::ForInObjectOffset(
-          Context::OffsetOfElementAt(slot_index), FieldIndex::kTagged))));
+  SetAccumulator(AddNewNode<LoadTaggedField>(
+      {context}, Context::OffsetOfElementAt(slot_index)));
 }
 void MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   // TODO(leszeks): Consider context specialising.
@@ -395,12 +373,8 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
 
   ValueNode* property_cell_node =
       AddNewNode<Constant>({}, property_cell.AsHeapObject());
-  // TODO(leszeks): Padding a LoadHandler to LoadField here is a bit of
-  // a hack, maybe we should have a LoadRawOffset or similar.
-  SetAccumulator(AddNewNode<LoadField>(
-      {property_cell_node},
-      LoadSimpleFieldHandler(FieldIndex::ForInObjectOffset(
-          PropertyCell::kValueOffset, FieldIndex::kTagged))));
+  SetAccumulator(AddNewNode<LoadTaggedField>({property_cell_node},
+                                             PropertyCell::kValueOffset));
 }
 
 void MaglevGraphBuilder::VisitLdaGlobal() {
@@ -474,7 +448,25 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
           if (kind == LoadHandler::Kind::kField &&
               !LoadHandler::IsWasmStructBits::decode(smi_handler)) {
             AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
-            SetAccumulator(AddNewNode<LoadField>({object}, smi_handler));
+
+            ValueNode* load_source;
+            if (LoadHandler::IsInobjectBits::decode(smi_handler)) {
+              load_source = object;
+            } else {
+              // The field is in the property array, first load it from there.
+              load_source = AddNewNode<LoadTaggedField>(
+                  {object}, JSReceiver::kPropertiesOrHashOffset);
+            }
+            if (LoadHandler::IsDoubleBits::decode(smi_handler)) {
+              // TODO(leszeks): Create a LoadDoubleField which loads the
+              // raw double value.
+              MAGLEV_UNIMPLEMENTED("GetNamedProperty with double field");
+            } else {
+              SetAccumulator(AddNewNode<LoadTaggedField>(
+                  {load_source},
+                  LoadHandler::FieldIndexBits::decode(smi_handler) *
+                      kTaggedSize));
+            }
             return;
           }
         }
