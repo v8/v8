@@ -1998,6 +1998,7 @@ filegroup(
         "src/runtime/runtime-shadow-realm.cc",
         "src/runtime/runtime-strings.cc",
         "src/runtime/runtime-symbol.cc",
+        "src/runtime/runtime-temporal.cc",
         "src/runtime/runtime-test.cc",
         "src/runtime/runtime-trace.cc",
         "src/runtime/runtime-typedarray.cc",

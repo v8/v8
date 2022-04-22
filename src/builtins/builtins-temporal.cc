@@ -317,10 +317,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 /* Temporal #sec-temporal.calendar.prototype.tojson */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeToJSON)
 
-// to be switch to TFJ later
-/* Temporal #sec-temporal.calendar.prototype.fields */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeFields)
-
 #ifdef V8_INTL_SUPPORT
 /* Temporal */
 /* Temporal #sec-temporal.calendar.prototype.era */

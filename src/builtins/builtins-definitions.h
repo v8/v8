@@ -1649,7 +1649,7 @@ namespace internal {
   /* Temporal #sec-temporal.calendar.prototype.inleapyear */                   \
   CPP(TemporalCalendarPrototypeInLeapYear)                                     \
   /* Temporal #sec-temporal.calendar.prototype.fields */                       \
-  CPP(TemporalCalendarPrototypeFields)                                         \
+  TFJ(TemporalCalendarPrototypeFields, kJSArgcReceiverSlots, kIterable)        \
   /* Temporal #sec-temporal.calendar.prototype.mergefields */                  \
   CPP(TemporalCalendarPrototypeMergeFields)                                    \
   /* Temporal #sec-temporal.calendar.prototype.tostring */                     \

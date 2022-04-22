@@ -6605,5 +6605,39 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::From(Isolate* isolate,
   return ToTemporalInstant(isolate, item, method_name);
 }
 
+namespace temporal {
+
+// Step iii and iv of #sec-temporal.calendar.prototype.fields
+MaybeHandle<Oddball> IsInvalidTemporalCalendarField(
+    Isolate* isolate, Handle<String> next_value,
+    Handle<FixedArray> fields_name) {
+  Factory* factory = isolate->factory();
+  // iii. iii. If fieldNames contains nextValue, then
+  for (int i = 0; i < fields_name->length(); i++) {
+    Object item = fields_name->get(i);
+    CHECK(item.IsString());
+    if (String::Equals(isolate, next_value,
+                       handle(String::cast(item), isolate))) {
+      return isolate->factory()->true_value();
+    }
+  }
+  // iv. If nextValue is not one of "year", "month", "monthCode", "day", "hour",
+  // "minute", "second", "millisecond", "microsecond", "nanosecond", then
+  if (!(String::Equals(isolate, next_value, factory->year_string()) ||
+        String::Equals(isolate, next_value, factory->month_string()) ||
+        String::Equals(isolate, next_value, factory->monthCode_string()) ||
+        String::Equals(isolate, next_value, factory->day_string()) ||
+        String::Equals(isolate, next_value, factory->hour_string()) ||
+        String::Equals(isolate, next_value, factory->minute_string()) ||
+        String::Equals(isolate, next_value, factory->second_string()) ||
+        String::Equals(isolate, next_value, factory->millisecond_string()) ||
+        String::Equals(isolate, next_value, factory->microsecond_string()) ||
+        String::Equals(isolate, next_value, factory->nanosecond_string()))) {
+    return isolate->factory()->true_value();
+  }
+  return isolate->factory()->false_value();
+}
+
+}  // namespace temporal
 }  // namespace internal
 }  // namespace v8
