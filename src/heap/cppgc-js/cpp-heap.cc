@@ -208,23 +208,30 @@ class UnifiedHeapConcurrentMarker
       cppgc::internal::MarkingWorklists& marking_worklists,
       cppgc::internal::IncrementalMarkingSchedule& incremental_marking_schedule,
       cppgc::Platform* platform,
-      UnifiedHeapMarkingState& unified_heap_marking_state)
+      UnifiedHeapMarkingState& unified_heap_marking_state,
+      CppHeap::CollectionType collection_type)
       : cppgc::internal::ConcurrentMarkerBase(
             heap, marking_worklists, incremental_marking_schedule, platform),
-        v8_heap_(v8_heap) {}
+        v8_heap_(v8_heap),
+        collection_type_(collection_type) {}
 
   std::unique_ptr<cppgc::Visitor> CreateConcurrentMarkingVisitor(
       cppgc::internal::ConcurrentMarkingState&) const final;
 
  private:
   Heap* const v8_heap_;
+  CppHeap::CollectionType collection_type_;
 };
 
 std::unique_ptr<cppgc::Visitor>
 UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
     cppgc::internal::ConcurrentMarkingState& marking_state) const {
-  return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(heap(), v8_heap_,
-                                                               marking_state);
+  if (collection_type_ == CppHeap::CollectionType::kMajor)
+    return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
+        heap(), v8_heap_, marking_state);
+  else
+    return std::make_unique<ConcurrentMinorGCMarkingVisitor>(heap(), v8_heap_,
+                                                             marking_state);
 }
 
 void FatalOutOfMemoryHandlerImpl(const std::string& reason,
@@ -289,7 +296,7 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
       heap_, v8_heap, marking_worklists_, schedule_, platform_,
-      mutator_unified_heap_marking_state_);
+      mutator_unified_heap_marking_state_, config.collection_type);
 }
 
 void UnifiedHeapMarker::AddObject(void* object) {
