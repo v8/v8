@@ -197,7 +197,6 @@ v8_source_set("cctest_sources") {
     "test-bignum.cc",
     "test-circular-queue.cc",
     "test-code-layout.cc",
-    "test-code-pages.cc",
     "test-code-stub-assembler.cc",
     "test-concurrent-prototype.cc",
     "test-concurrent-transition-array.cc",

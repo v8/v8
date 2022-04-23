@@ -240,6 +240,7 @@ v8_source_set("unittests_sources") {
     "base/vlq-base64-unittest.cc",
     "base/vlq-unittest.cc",
     "codegen/aligned-slot-allocator-unittest.cc",
+    "codegen/code-pages-unittest.cc",
     "codegen/code-stub-assembler-unittest.cc",
     "codegen/code-stub-assembler-unittest.h",
     "codegen/register-configuration-unittest.cc",
