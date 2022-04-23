@@ -215,6 +215,7 @@ v8_source_set("unittests_sources") {
     "api/v8-object-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
+    "base/bignum-unittest.cc",
     "base/bits-unittest.cc",
     "base/cpu-unittest.cc",
     "base/division-by-constant-unittest.cc",
