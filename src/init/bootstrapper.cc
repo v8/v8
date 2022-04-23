@@ -967,20 +967,6 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
     async_module_evaluate_internal->shared().set_native(false);
     native_context()->set_async_module_evaluate_internal(
         *async_module_evaluate_internal);
-
-    Handle<JSFunction> call_async_module_fulfilled =
-        SimpleCreateFunction(isolate(), factory()->empty_string(),
-                             Builtin::kCallAsyncModuleFulfilled, 1, false);
-    call_async_module_fulfilled->shared().set_native(false);
-    native_context()->set_call_async_module_fulfilled(
-        *call_async_module_fulfilled);
-
-    Handle<JSFunction> call_async_module_rejected =
-        SimpleCreateFunction(isolate(), factory()->empty_string(),
-                             Builtin::kCallAsyncModuleRejected, 1, false);
-    call_async_module_rejected->shared().set_native(false);
-    native_context()->set_call_async_module_rejected(
-        *call_async_module_rejected);
   }
 
   // Create maps for generator functions and their prototypes.  Store those

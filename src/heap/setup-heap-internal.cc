@@ -1074,6 +1074,17 @@ void Heap::CreateInitialObjects() {
         isolate_, Builtin::kShadowRealmImportValueFulfilled, 0);
     set_shadow_realm_import_value_fulfilled_sfi(*info);
   }
+
+  // SourceTextModule:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kCallAsyncModuleFulfilled, 0);
+    set_source_text_module_execute_async_module_fulfilled_sfi(*info);
+
+    info = CreateSharedFunctionInfo(isolate_, Builtin::kCallAsyncModuleRejected,
+                                    0);
+    set_source_text_module_execute_async_module_rejected_sfi(*info);
+  }
 }
 
 void Heap::CreateInternalAccessorInfoObjects() {
