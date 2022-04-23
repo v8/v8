@@ -372,6 +372,7 @@ v8_source_set("unittests_sources") {
     "objects/concurrent-descriptor-array-unittest.cc",
     "objects/concurrent-feedback-vector-unittest.cc",
     "objects/concurrent-js-array-unittest.cc",
+    "objects/concurrent-script-context-table-unittest.cc",
     "objects/concurrent-string-unittest.cc",
     "objects/object-unittest.cc",
     "objects/osr-optimized-code-cache-unittest.cc",

@@ -1,4 +1,4 @@
-// Copyright 2020 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,10 +11,13 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/objects/contexts.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
+using ConcurrentScriptContextTableTest = TestWithContext;
+
 namespace internal {
 
 namespace {
@@ -43,7 +46,7 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
 
     for (int i = 0; i < script_context_table_->used(kAcquireLoad); ++i) {
       Context context = script_context_table_->get_context(i);
-      CHECK(context.IsScriptContext());
+      EXPECT_TRUE(context.IsScriptContext());
     }
   }
 
@@ -83,7 +86,7 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
           native_context_->synchronized_script_context_table(), &local_heap);
       Handle<Context> context(script_context_table->get_context(i),
                               &local_heap);
-      CHECK(!context.is_null());
+      EXPECT_TRUE(!context.is_null());
     }
   }
 
@@ -94,13 +97,11 @@ class AccessScriptContextTableThread final : public v8::base::Thread {
   Handle<NativeContext> native_context_;
 };
 
-TEST(ScriptContextTable_Extend) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(ConcurrentScriptContextTableTest, ScriptContextTable_Extend) {
+  v8::HandleScope scope(isolate());
   const bool kIgnoreDuplicateNames = true;
 
-  Factory* factory = isolate->factory();
+  Factory* factory = i_isolate()->factory();
   Handle<NativeContext> native_context = factory->NewNativeContext();
   Handle<Map> script_context_map =
       factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
@@ -111,27 +112,28 @@ TEST(ScriptContextTable_Extend) {
       factory->NewScriptContextTable();
 
   Handle<ScopeInfo> scope_info =
-      ReadOnlyRoots(isolate).global_this_binding_scope_info_handle();
+      ReadOnlyRoots(i_isolate()).global_this_binding_scope_info_handle();
 
   for (int i = 0; i < 10; ++i) {
     Handle<Context> script_context =
         factory->NewScriptContext(native_context, scope_info);
 
-    script_context_table = ScriptContextTable::Extend(
-        isolate, script_context_table, script_context, kIgnoreDuplicateNames);
+    script_context_table =
+        ScriptContextTable::Extend(i_isolate(), script_context_table,
+                                   script_context, kIgnoreDuplicateNames);
   }
 
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
   Handle<ScriptContextTable> persistent_script_context_table =
       ph->NewHandle(script_context_table);
 
   base::Semaphore sema_started(0);
 
   auto thread = std::make_unique<ScriptContextTableAccessUsedThread>(
-      isolate, isolate->heap(), &sema_started, std::move(ph),
+      i_isolate(), i_isolate()->heap(), &sema_started, std::move(ph),
       persistent_script_context_table);
 
-  CHECK(thread->Start());
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
@@ -139,18 +141,17 @@ TEST(ScriptContextTable_Extend) {
     Handle<Context> context =
         factory->NewScriptContext(native_context, scope_info);
     script_context_table = ScriptContextTable::Extend(
-        isolate, script_context_table, context, kIgnoreDuplicateNames);
+        i_isolate(), script_context_table, context, kIgnoreDuplicateNames);
   }
 
   thread->Join();
 }
 
-TEST(ScriptContextTable_AccessScriptContextTable) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(ConcurrentScriptContextTableTest,
+       ScriptContextTable_AccessScriptContextTable) {
+  v8::HandleScope scope(isolate());
 
-  Factory* factory = isolate->factory();
+  Factory* factory = i_isolate()->factory();
   Handle<NativeContext> native_context = factory->NewNativeContext();
   Handle<Map> script_context_map =
       factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
@@ -158,29 +159,29 @@ TEST(ScriptContextTable_AccessScriptContextTable) {
   native_context->set_script_context_map(*script_context_map);
 
   Handle<ScopeInfo> scope_info =
-      ReadOnlyRoots(isolate).global_this_binding_scope_info_handle();
+      ReadOnlyRoots(i_isolate()).global_this_binding_scope_info_handle();
 
   Handle<ScriptContextTable> script_context_table =
       factory->NewScriptContextTable();
   Handle<Context> context =
       factory->NewScriptContext(native_context, scope_info);
   script_context_table =
-      ScriptContextTable::Extend(isolate, script_context_table, context);
+      ScriptContextTable::Extend(i_isolate(), script_context_table, context);
   int initialized_entries = 1;
   g_initialized_entries.store(initialized_entries, std::memory_order_release);
 
   native_context->set_script_context_table(*script_context_table);
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
   Handle<NativeContext> persistent_native_context =
       ph->NewHandle(native_context);
 
   base::Semaphore sema_started(0);
 
   auto thread = std::make_unique<AccessScriptContextTableThread>(
-      isolate, isolate->heap(), &sema_started, std::move(ph),
+      i_isolate(), i_isolate()->heap(), &sema_started, std::move(ph),
       persistent_native_context);
 
-  CHECK(thread->Start());
+  EXPECT_TRUE(thread->Start());
 
   sema_started.Wait();
 
@@ -189,7 +190,7 @@ TEST(ScriptContextTable_AccessScriptContextTable) {
     Handle<Context> new_context =
         factory->NewScriptContext(native_context, scope_info);
     script_context_table = ScriptContextTable::Extend(
-        isolate, script_context_table, new_context, kIgnoreDuplicateNames);
+        i_isolate(), script_context_table, new_context, kIgnoreDuplicateNames);
     native_context->synchronized_set_script_context_table(
         *script_context_table);
     // Update with relaxed semantics to not introduce ordering constraints.
