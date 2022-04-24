@@ -6162,6 +6162,14 @@ void BytecodeGenerator::BuildLiteralCompareNil(
   }
 }
 
+void BytecodeGenerator::BuildLiteralStrictCompareBoolean(Literal* literal) {
+  DCHECK(literal->IsBooleanLiteral());
+  Register result = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(result);
+  builder()->LoadBoolean(literal->AsBooleanLiteral());
+  builder()->CompareReference(result);
+}
+
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
@@ -6177,6 +6185,11 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     } else {
       builder()->CompareTypeOf(literal_flag);
     }
+  } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
+    DCHECK(expr->op() == Token::EQ_STRICT);
+    VisitForAccumulatorValue(sub_expr);
+    builder()->SetExpressionPosition(expr);
+    BuildLiteralStrictCompareBoolean(literal);
   } else if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);
