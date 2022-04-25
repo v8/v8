@@ -38,6 +38,7 @@ class RegisterFrameState {
       AllocatableRegisters<RegisterT>::kRegisters;
   static constexpr RegList kEmptyRegList = {};
 
+  RegList empty() const { return kEmptyRegList; }
   RegList free() const { return free_; }
   RegList used() const {
     // Only allocatable registers should be free.
@@ -133,9 +134,13 @@ class StraightForwardRegisterAllocator {
 
   void AllocateSpillSlot(ValueNode* node);
   void Spill(ValueNode* node);
-  void SpillAndClearRegisters();
   void SpillRegisters();
 
+  template <typename RegisterT>
+  void SpillAndClearRegisters(RegisterFrameState<RegisterT>& registers);
+  void SpillAndClearRegisters();
+
+  void FreeRegistersUsedBy(ValueNode* node);
   void FreeSomeGeneralRegister();
   void FreeSomeDoubleRegister();
 
@@ -152,6 +157,11 @@ class StraightForwardRegisterAllocator {
       RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node);
   compiler::AllocatedOperand ForceAllocate(DoubleRegister reg, ValueNode* node);
+  compiler::AllocatedOperand ForceAllocate(const Input& input, ValueNode* node);
+
+  template <typename Function>
+  void ForEachMergePointRegisterState(
+      MergePointRegisterState& merge_point_state, Function&& f);
 
   void InitializeRegisterValues(MergePointRegisterState& target_state);
   void EnsureInRegister(MergePointRegisterState& target_state,

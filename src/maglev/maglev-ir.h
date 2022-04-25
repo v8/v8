@@ -295,10 +295,17 @@ class ValueLocation {
     operand_ = compiler::ConstantOperand(args...);
   }
 
-  Register AssignedRegister() const {
-    return Register::from_code(
-        compiler::AllocatedOperand::cast(operand_).register_code());
+  Register AssignedGeneralRegister() const {
+    DCHECK(!IsDoubleRegister());
+    return compiler::AllocatedOperand::cast(operand_).GetRegister();
   }
+
+  DoubleRegister AssignedDoubleRegister() const {
+    DCHECK(IsDoubleRegister());
+    return compiler::AllocatedOperand::cast(operand_).GetDoubleRegister();
+  }
+
+  bool IsDoubleRegister() const { return operand_.IsDoubleRegister(); }
 
   const compiler::InstructionOperand& operand() const { return operand_; }
   const compiler::InstructionOperand& operand() { return operand_; }
