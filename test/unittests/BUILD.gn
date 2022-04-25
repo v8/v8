@@ -384,6 +384,7 @@ v8_source_set("unittests_sources") {
     "objects/weakarraylist-unittest.cc",
     "parser/ast-value-unittest.cc",
     "parser/preparser-unittest.cc",
+    "profiler/circular-queue-unittest.cc",
     "profiler/strings-storage-unittest.cc",
     "regexp/regexp-unittest.cc",
     "regress/regress-crbug-1041240-unittest.cc",
