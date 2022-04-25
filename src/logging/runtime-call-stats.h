@@ -368,6 +368,8 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, SimplifiedLowering)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, StoreStoreElimination)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TraceScheduleAndVerify)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildTurboShaft)                 \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftRecreateSchedule)      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypeAssertions)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TypedLowering)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, Typer)                           \

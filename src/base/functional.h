@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstring>
 #include <functional>
+#include <type_traits>
 #include <utility>
 
 #include "src/base/base-export.h"
@@ -135,6 +136,22 @@ V8_INLINE size_t hash_value(T* const& v) {
 template <typename T1, typename T2>
 V8_INLINE size_t hash_value(std::pair<T1, T2> const& v) {
   return hash_combine(v.first, v.second);
+}
+
+template <typename... T, size_t... I>
+V8_INLINE size_t hash_value_impl(std::tuple<T...> const& v,
+                                 std::index_sequence<I...>) {
+  return hash_combine(std::get<I>(v)...);
+}
+
+template <typename... T>
+V8_INLINE size_t hash_value(std::tuple<T...> const& v) {
+  return hash_value_impl(v, std::make_index_sequence<sizeof...(T)>());
+}
+
+template <typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
+V8_INLINE size_t hash_value(T v) {
+  return hash_value(static_cast<std::underlying_type_t<T>>(v));
 }
 
 template <typename T>

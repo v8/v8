@@ -12,6 +12,7 @@
 #include <memory>
 #include <type_traits>
 
+#include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
@@ -41,6 +42,21 @@ class Vector {
     DCHECK_LE(from, to);
     DCHECK_LE(to, length_);
     return Vector<T>(begin() + from, to - from);
+  }
+  Vector<T> SubVectorFrom(size_t from) const {
+    return SubVector(from, length_);
+  }
+
+  template <class U>
+  void OverwriteWith(Vector<U> other) {
+    DCHECK_EQ(size(), other.size());
+    std::copy(other.begin(), other.end(), begin());
+  }
+
+  template <class U, size_t n>
+  void OverwriteWith(const std::array<U, n>& other) {
+    DCHECK_EQ(size(), other.size());
+    std::copy(other.begin(), other.end(), begin());
   }
 
   // Returns the length of the vector. Only use this if you really need an
@@ -79,6 +95,13 @@ class Vector {
 
   // Returns a pointer past the end of the data in the vector.
   constexpr T* end() const { return start_ + length_; }
+
+  constexpr std::reverse_iterator<T*> rbegin() const {
+    return std::make_reverse_iterator(end());
+  }
+  constexpr std::reverse_iterator<T*> rend() const {
+    return std::make_reverse_iterator(begin());
+  }
 
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
@@ -139,6 +162,11 @@ class Vector {
   T* start_;
   size_t length_;
 };
+
+template <typename T>
+V8_INLINE size_t hash_value(base::Vector<T> v) {
+  return hash_range(v.begin(), v.end());
+}
 
 template <typename T>
 class V8_NODISCARD ScopedVector : public Vector<T> {

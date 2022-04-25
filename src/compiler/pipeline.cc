@@ -75,6 +75,10 @@
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
+#include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/graph-builder.h"
+#include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/recreate-schedule.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
@@ -150,7 +154,7 @@ class PipelineData {
         allocator_(isolate->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
-        may_have_unverifiable_graph_(false),
+        may_have_unverifiable_graph_(FLAG_turboshaft),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
         graph_zone_scope_(zone_stats_, kGraphZoneName, kCompressGraphZone),
@@ -168,6 +172,7 @@ class PipelineData {
         assembler_options_(AssemblerOptions::Default(isolate)) {
     PhaseScope scope(pipeline_statistics, "V8.TFInitPipelineData");
     graph_ = graph_zone_->New<Graph>(graph_zone_);
+    turboshaft_graph_ = std::make_unique<turboshaft::Graph>(graph_zone_);
     source_positions_ = graph_zone_->New<SourcePositionTable>(graph_);
     node_origins_ = info->trace_turbo_json()
                         ? graph_zone_->New<NodeOriginTable>(graph_)
@@ -340,6 +345,8 @@ class PipelineData {
 
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
+  void set_graph(Graph* graph) { graph_ = graph; }
+  turboshaft::Graph& turboshaft_graph() const { return *turboshaft_graph_; }
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
   MachineOperatorBuilder* machine() const { return machine_; }
@@ -460,6 +467,7 @@ class PipelineData {
     graph_zone_scope_.Destroy();
     graph_zone_ = nullptr;
     graph_ = nullptr;
+    turboshaft_graph_ = nullptr;
     source_positions_ = nullptr;
     node_origins_ = nullptr;
     simplified_ = nullptr;
@@ -619,6 +627,7 @@ class PipelineData {
   ZoneStats::Scope graph_zone_scope_;
   Zone* graph_zone_ = nullptr;
   Graph* graph_ = nullptr;
+  std::unique_ptr<turboshaft::Graph> turboshaft_graph_ = nullptr;
   SourcePositionTable* source_positions_ = nullptr;
   NodeOriginTable* node_origins_ = nullptr;
   SimplifiedOperatorBuilder* simplified_ = nullptr;
@@ -1991,6 +2000,28 @@ struct BranchConditionDuplicationPhase {
   }
 };
 
+struct BuildTurboshaftPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(BuildTurboShaft)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    turboshaft::BuildGraph(data->schedule(), data->graph_zone(), temp_zone,
+                           &data->turboshaft_graph());
+    data->reset_schedule();
+  }
+};
+
+struct TurboshaftRecreateSchedulePhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftRecreateSchedule)
+
+  void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
+    auto result = turboshaft::RecreateSchedule(data->turboshaft_graph(),
+                                               linkage->GetIncomingDescriptor(),
+                                               data->graph_zone(), temp_zone);
+    data->set_graph(result.graph);
+    data->set_schedule(result.schedule);
+  }
+};
+
 #if V8_ENABLE_WEBASSEMBLY
 struct WasmOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
@@ -2811,6 +2842,28 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   }
 
   ComputeScheduledGraph();
+
+  if (FLAG_turboshaft) {
+    Run<BuildTurboshaftPhase>();
+    if (data->info()->trace_turbo_graph()) {
+      UnparkedScopeIfNeeded scope(data->broker());
+      AllowHandleDereference allow_deref;
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "\n-- TurboShaft Graph ----------------------------\n"
+          << data->turboshaft_graph();
+    }
+
+    Run<TurboshaftRecreateSchedulePhase>(linkage);
+    if (data->info()->trace_turbo_graph() || FLAG_trace_turbo_scheduler) {
+      UnparkedScopeIfNeeded scope(data->broker());
+      AllowHandleDereference allow_deref;
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "\n-- Recreated Schedule ----------------------------\n"
+          << *data->schedule();
+    }
+  }
 
   return SelectInstructions(linkage);
 }

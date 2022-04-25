@@ -154,6 +154,9 @@ class FrameStateInfo final {
   int local_count() const {
     return info_ == nullptr ? 0 : info_->local_count();
   }
+  int stack_count() const {
+    return type() == FrameStateType::kUnoptimizedFunction ? 1 : 0;
+  }
   const FrameStateFunctionInfo* function_info() const { return info_; }
 
  private:

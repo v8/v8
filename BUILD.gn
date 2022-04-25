@@ -2876,6 +2876,12 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/simplified-operator.h",
     "src/compiler/state-values-utils.h",
     "src/compiler/store-store-elimination.h",
+    "src/compiler/turboshaft/assembler.h",
+    "src/compiler/turboshaft/deopt-data.h",
+    "src/compiler/turboshaft/graph-builder.h",
+    "src/compiler/turboshaft/graph.h",
+    "src/compiler/turboshaft/operations.h",
+    "src/compiler/turboshaft/recreate-schedule.h",
     "src/compiler/type-cache.h",
     "src/compiler/type-narrowing-reducer.h",
     "src/compiler/typed-optimization.h",
@@ -4060,6 +4066,34 @@ v8_source_set("v8_compiler") {
   configs = [ ":internal_config" ]
 }
 
+# The src/compiler files with default optimization behavior.
+v8_source_set("v8_turboshaft") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = [
+    "src/compiler/turboshaft/graph-builder.cc",
+    "src/compiler/turboshaft/graph.cc",
+    "src/compiler/turboshaft/operations.cc",
+    "src/compiler/turboshaft/recreate-schedule.cc",
+  ]
+
+  public_deps = [
+    ":generate_bytecode_builtins_list",
+    ":run_torque",
+    ":v8_internal_headers",
+    ":v8_maybe_icu",
+    ":v8_tracing",
+  ]
+
+  deps = [
+    ":v8_base_without_compiler",
+    ":v8_libbase",
+    ":v8_shared_internal_headers",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
 group("v8_compiler_for_mksnapshot") {
   if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
     deps = [ ":v8_compiler_opt" ]
@@ -4971,6 +5005,7 @@ group("v8_base") {
   public_deps = [
     ":v8_base_without_compiler",
     ":v8_compiler",
+    ":v8_turboshaft",
   ]
 }
 
@@ -5879,6 +5914,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_maybe_icu",
       ":v8_shared_internal_headers",
       ":v8_tracing",
+      ":v8_turboshaft",
       "//build/win:default_exe_manifest",
     ]
   }

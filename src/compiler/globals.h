@@ -25,7 +25,7 @@ inline bool CollectFeedbackInGenericLowering() {
   return FLAG_turbo_collect_feedback_in_generic_lowering;
 }
 
-enum class StackCheckKind {
+enum class StackCheckKind : uint8_t {
   kJSFunctionEntry = 0,
   kJSIterationBody,
   kCodeStubAssembler,

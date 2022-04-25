@@ -6,6 +6,7 @@
 #define V8_CODEGEN_MACHINE_TYPE_H_
 
 #include <iosfwd>
+#include <limits>
 
 #include "include/v8-fast-api-calls.h"
 #include "src/base/bits.h"
@@ -415,6 +416,25 @@ STATIC_ASSERT(kMaximumReprSizeLog2 >=
 V8_EXPORT_PRIVATE inline constexpr int ElementSizeInBytes(
     MachineRepresentation rep) {
   return 1 << ElementSizeLog2Of(rep);
+}
+
+inline constexpr int ElementSizeInBits(MachineRepresentation rep) {
+  return 8 * ElementSizeInBytes(rep);
+}
+
+inline constexpr uint64_t MaxUnsignedValue(MachineRepresentation rep) {
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      return std::numeric_limits<uint8_t>::max();
+    case MachineRepresentation::kWord16:
+      return std::numeric_limits<uint16_t>::max();
+    case MachineRepresentation::kWord32:
+      return std::numeric_limits<uint32_t>::max();
+    case MachineRepresentation::kWord64:
+      return std::numeric_limits<uint64_t>::max();
+    default:
+      UNREACHABLE();
+  }
 }
 
 V8_EXPORT_PRIVATE inline constexpr int ElementSizeInPointers(
