@@ -398,6 +398,7 @@ struct OperationT : Operation {
                                  std::index_sequence<I...>) {
     os << "[";
     bool first = true;
+    USE(first);
     ((first ? (first = false, os << std::get<I>(options))
             : os << ", " << std::get<I>(options)),
      ...);
