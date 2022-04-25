@@ -1,4 +1,4 @@
-// Copyright 2020 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,10 +11,13 @@
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
+using ConcurrentPrototypeTest = TestWithContext;
+
 namespace internal {
 
 static constexpr int kNumHandles = kHandleBlockSize * 2 + kHandleBlockSize / 2;
@@ -55,8 +58,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
         map = map_prototype_map;
       }
     }
-
-    CHECK_EQ(handles_.size(), kNumHandles * 2);
+    CHECK_EQ(static_cast<int>(handles_.size()), kNumHandles * 2);
   }
 
  private:
@@ -67,21 +69,18 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 };
 
 // Test to search on a background thread, while the main thread is idle.
-TEST(ProtoWalkBackground) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+TEST_F(ConcurrentPrototypeTest, ProtoWalkBackground) {
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
   std::vector<Handle<JSObject>> handles;
 
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   Handle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
-  Handle<String> name = CcTest::MakeString("property");
-  Handle<Object> value = CcTest::MakeString("dummy_value");
+  Handle<String> name = MakeString("property");
+  Handle<Object> value = MakeString("dummy_value");
   // For the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array.
   JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name, value,
@@ -96,7 +95,7 @@ TEST(ProtoWalkBackground) {
 
   // Pass persistent handles to background thread.
   std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
-      isolate->heap(), std::move(handles), std::move(ph), &sema_started));
+      i_isolate()->heap(), std::move(handles), std::move(ph), &sema_started));
   CHECK(thread->Start());
 
   sema_started.Wait();
@@ -106,21 +105,18 @@ TEST(ProtoWalkBackground) {
 
 // Test to search on a background thread, while the main thread modifies the
 // descriptor array.
-TEST(ProtoWalkBackground_DescriptorArrayWrite) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+TEST_F(ConcurrentPrototypeTest, ProtoWalkBackground_DescriptorArrayWrite) {
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
   std::vector<Handle<JSObject>> handles;
 
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   Handle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
-  Handle<String> name = CcTest::MakeString("property");
-  Handle<Object> value = CcTest::MakeString("dummy_value");
+  Handle<String> name = MakeString("property");
+  Handle<Object> value = MakeString("dummy_value");
   // For the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array.
   JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name, value,
@@ -135,15 +131,15 @@ TEST(ProtoWalkBackground_DescriptorArrayWrite) {
 
   // Pass persistent handles to background thread.
   std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
-      isolate->heap(), std::move(handles), std::move(ph), &sema_started));
+      i_isolate()->heap(), std::move(handles), std::move(ph), &sema_started));
   CHECK(thread->Start());
 
   sema_started.Wait();
 
   // Exercise descriptor array.
   for (int i = 0; i < 20; ++i) {
-    Handle<String> filler_name = CcTest::MakeName("filler_property_", i);
-    Handle<Object> filler_value = CcTest::MakeString("dummy_value");
+    Handle<String> filler_name = MakeName("filler_property_", i);
+    Handle<Object> filler_value = MakeString("dummy_value");
     JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, filler_name,
                                                       filler_value, NONE)
         .Check();
@@ -152,15 +148,12 @@ TEST(ProtoWalkBackground_DescriptorArrayWrite) {
   thread->Join();
 }
 
-TEST(ProtoWalkBackground_PrototypeChainWrite) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-
-  std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
+TEST_F(ConcurrentPrototypeTest, ProtoWalkBackground_PrototypeChainWrite) {
+  std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
   std::vector<Handle<JSObject>> handles;
 
-  auto factory = isolate->factory();
-  HandleScope handle_scope(isolate);
+  auto factory = i_isolate()->factory();
+  HandleScope handle_scope(i_isolate());
 
   Handle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
@@ -174,21 +167,21 @@ TEST(ProtoWalkBackground_PrototypeChainWrite) {
 
   // Pass persistent handles to background thread.
   std::unique_ptr<ConcurrentSearchThread> thread(new ConcurrentSearchThread(
-      isolate->heap(), std::move(handles), std::move(ph), &sema_started));
+      i_isolate()->heap(), std::move(handles), std::move(ph), &sema_started));
   CHECK(thread->Start());
 
   // The prototype chain looks like this JSObject -> Object -> null. Change the
   // prototype of the js_object to be JSObject -> null, and then back a bunch of
   // times.
-  Handle<Map> map(js_object->map(), isolate);
-  Handle<HeapObject> old_proto(map->prototype(), isolate);
+  Handle<Map> map(js_object->map(), i_isolate());
+  Handle<HeapObject> old_proto(map->prototype(), i_isolate());
   DCHECK(!old_proto->IsNull());
-  Handle<HeapObject> new_proto(old_proto->map().prototype(), isolate);
+  Handle<HeapObject> new_proto(old_proto->map().prototype(), i_isolate());
 
   sema_started.Wait();
 
   for (int i = 0; i < 20; ++i) {
-    CHECK(JSReceiver::SetPrototype(isolate, js_object,
+    CHECK(JSReceiver::SetPrototype(i_isolate(), js_object,
                                    i % 2 == 0 ? new_proto : old_proto, false,
                                    kDontThrow)
               .FromJust());
