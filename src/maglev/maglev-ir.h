@@ -774,6 +774,17 @@ class ValueNode : public Node {
             ValueRepresentation::kFloat64);
   }
 
+  constexpr MachineRepresentation GetMachineRepresentation() const {
+    switch (properties().value_representation()) {
+      case ValueRepresentation::kTagged:
+        return MachineRepresentation::kTagged;
+      case ValueRepresentation::kInt32:
+        return MachineRepresentation::kWord32;
+      case ValueRepresentation::kFloat64:
+        return MachineRepresentation::kFloat64;
+    }
+  }
+
   void AddRegister(Register reg) {
     DCHECK(!use_double_register());
     registers_with_result_.set(reg);
@@ -811,8 +822,8 @@ class ValueNode : public Node {
   compiler::AllocatedOperand allocation() const {
     if (has_register()) {
       return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
-                                        MachineRepresentation::kTagged,
-                                        registers_with_result_.first().code());
+                                        GetMachineRepresentation(),
+                                        FirstRegisterCode());
     }
     DCHECK(is_spilled());
     return compiler::AllocatedOperand::cast(spill_or_hint_);
@@ -832,6 +843,13 @@ class ValueNode : public Node {
     } else {
       registers_with_result_ = kEmptyRegList;
     }
+  }
+
+  int FirstRegisterCode() const {
+    if (use_double_register()) {
+      return double_registers_with_result_.first().code();
+    }
+    return registers_with_result_.first().code();
   }
 
   // Rename for better pairing with `end_id`.
