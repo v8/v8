@@ -462,7 +462,8 @@ bool VirtualMemoryCage::InitReservation(
   page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
       params.page_allocator, allocatable_base, allocatable_size,
       params.page_size,
-      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized);
+      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
+      base::PageFreeingMode::kMakeInaccessible);
   return true;
 }
 

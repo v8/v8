@@ -176,7 +176,8 @@ TEST(MemoryChunk) {
     base::BoundedPageAllocator code_page_allocator(
         page_allocator, code_range_reservation.address(),
         code_range_reservation.size(), MemoryChunk::kAlignment,
-        base::PageInitializationMode::kAllocatedPagesCanBeUninitialized);
+        base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
+        base::PageFreeingMode::kMakeInaccessible);
 
     VerifyMemoryChunk(isolate, heap, &code_page_allocator, area_size,
                       EXECUTABLE, PageSize::kLarge, heap->code_lo_space());

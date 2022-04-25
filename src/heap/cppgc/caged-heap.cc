@@ -73,7 +73,8 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
   bounded_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
       &platform_allocator, caged_heap_start,
       reserved_area_.size() - local_data_size_with_padding, kPageSize,
-      v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized);
+      v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
+      v8::base::PageFreeingMode::kMakeInaccessible);
 }
 
 }  // namespace internal
