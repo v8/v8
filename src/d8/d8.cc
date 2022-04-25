@@ -64,7 +64,6 @@
 #include "src/profiler/profile-generator.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tasks/cancelable-task.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 #include "src/web-snapshot/web-snapshot.h"
@@ -91,6 +90,10 @@
 #include <windows.h>
 #endif                // !defined(_WIN32) && !defined(_WIN64)
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+        //
 #ifndef DCHECK
 #define DCHECK(condition) assert(condition)
 #endif
@@ -2537,7 +2540,7 @@ MaybeLocal<String> Shell::ReadSource(
       String::Utf8Value filename(isolate, args[index]);
       if (!Shell::ReadFile(isolate, *filename).ToLocal(&source)) {
         return MaybeLocal<String>();
-      };
+      }
       break;
     }
     case CodeType::kString:

@@ -1034,6 +1034,15 @@ filegroup(
     ],
 )
 
+# Default setting for v8_enable_pointer_compression when target is x64.
+selects.config_setting_group(
+    name = "is_v8_enable_webassembly_on_non_android_posix_x64",
+    match_all = [
+        ":is_v8_enable_webassembly",
+        "@v8//bazel/config:is_non_android_posix_x64",
+    ],
+)
+
 filegroup(
     name = "v8_base_without_compiler_files",
     srcs = [
@@ -2102,12 +2111,6 @@ filegroup(
         "src/tracing/traced-value.h",
         "src/tracing/tracing-category-observer.cc",
         "src/tracing/tracing-category-observer.h",
-        "src/trap-handler/handler-inside-posix.h",
-        "src/trap-handler/handler-inside.cc",
-        "src/trap-handler/handler-outside.cc",
-        "src/trap-handler/handler-shared.cc",
-        "src/trap-handler/trap-handler-internal.h",
-        "src/trap-handler/trap-handler.h",
         "src/utils/address-map.cc",
         "src/utils/address-map.h",
         "src/utils/allocation.cc",
@@ -2391,7 +2394,7 @@ filegroup(
         ],
     }) + select({
         # Only for x64 builds and for arm64 with x64 host simulator.
-        "@v8//bazel/config:is_non_android_posix_x64": [
+        ":is_v8_enable_webassembly_on_non_android_posix_x64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
@@ -2435,6 +2438,12 @@ filegroup(
             "src/debug/debug-wasm-objects-inl.h",
             "src/runtime/runtime-test-wasm.cc",
             "src/runtime/runtime-wasm.cc",
+            "src/trap-handler/handler-inside-posix.h",
+            "src/trap-handler/handler-inside.cc",
+            "src/trap-handler/handler-outside.cc",
+            "src/trap-handler/handler-shared.cc",
+            "src/trap-handler/trap-handler-internal.h",
+            "src/trap-handler/trap-handler.h",
             "src/wasm/assembler-buffer-cache.cc",
             "src/wasm/assembler-buffer-cache.h",
             "src/wasm/baseline/liftoff-assembler.cc",

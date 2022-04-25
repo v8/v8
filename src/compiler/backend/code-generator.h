@@ -18,7 +18,10 @@
 #include "src/compiler/osr.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-kind.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {
@@ -462,7 +465,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
+#if V8_ENABLE_WEBASSEMBLY
   ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
+#endif  // V8_ENABLE_WEBASSEMBLY
   CodeGenResult result_;
   ZoneVector<int> block_starts_;
   TurbolizerCodeOffsetsInfo offsets_info_;

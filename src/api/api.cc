@@ -140,9 +140,13 @@
 
 #if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 #include <signal.h>
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "include/v8-wasm-trap-handler-posix.h"
 #include "src/trap-handler/handler-inside-posix.h"
-#endif
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#endif  // V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 
 #if V8_OS_WIN
 #include <windows.h>

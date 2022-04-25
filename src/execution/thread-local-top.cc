@@ -5,7 +5,10 @@
 #include "src/execution/thread-local-top.h"
 #include "src/execution/isolate.h"
 #include "src/execution/simulator.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
 namespace internal {

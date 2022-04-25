@@ -80,7 +80,9 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       optimized_out_literal_id_(-1),
       source_position_table_builder_(
           codegen_zone, SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
+#if V8_ENABLE_WEBASSEMBLY
       protected_instructions_(codegen_zone),
+#endif  // V8_ENABLE_WEBASSEMBLY
       result_(kSuccess),
       block_starts_(codegen_zone),
       instr_starts_(codegen_zone),
@@ -108,7 +110,9 @@ bool CodeGenerator::wasm_runtime_exception_support() const {
 
 void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
                                                    uint32_t landing_offset) {
+#if V8_ENABLE_WEBASSEMBLY
   protected_instructions_.push_back({instr_offset, landing_offset});
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
@@ -442,8 +446,12 @@ base::OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
 }
 
 base::OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
+#if V8_ENABLE_WEBASSEMBLY
   return base::OwnedVector<byte>::Of(
       base::Vector<byte>::cast(base::VectorOf(protected_instructions_)));
+#else
+  return {};
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 MaybeHandle<Code> CodeGenerator::FinalizeCode() {
