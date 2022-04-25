@@ -358,7 +358,7 @@ class DeoptInfo {
   CheckpointedInterpreterState state;
   InputLocation* input_locations = nullptr;
   Label deopt_entry_label;
-  int deopt_index = -1;
+  int translation_index = -1;
 };
 
 class EagerDeoptInfo : public DeoptInfo {

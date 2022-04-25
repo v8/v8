@@ -361,6 +361,8 @@ class MaglevCodeGeneratorImpl final {
     USE(optimized_out_constant_index);
     DCHECK_EQ(kOptimizedOutConstantIndex, optimized_out_constant_index);
 
+    int deopt_index = 0;
+
     __ RecordComment("-- Non-lazy deopts");
     for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
       EmitEagerDeopt(deopt_info);
@@ -369,6 +371,7 @@ class MaglevCodeGeneratorImpl final {
       __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, 0,
                                &deopt_info->deopt_entry_label,
                                DeoptimizeKind::kEager, nullptr, nullptr);
+      deopt_index++;
     }
 
     __ RecordComment("-- Lazy deopts");
@@ -385,7 +388,8 @@ class MaglevCodeGeneratorImpl final {
           safepoint_table_builder_.UpdateDeoptimizationInfo(
               deopt_info->deopting_call_return_pc,
               deopt_info->deopt_entry_label.pos(), last_updated_safepoint,
-              deopt_info->deopt_index);
+              deopt_index);
+      deopt_index++;
     }
   }
 
@@ -416,7 +420,7 @@ class MaglevCodeGeneratorImpl final {
     int frame_count = 1 + deopt_info->unit.inlining_depth();
     int jsframe_count = frame_count;
     int update_feedback_count = 0;
-    deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
+    deopt_info->translation_index = translation_array_builder_.BeginTranslation(
         frame_count, jsframe_count, update_feedback_count);
 
     EmitDeoptFrame(deopt_info->unit, deopt_info->state,
@@ -431,7 +435,7 @@ class MaglevCodeGeneratorImpl final {
     int frame_count = 1;
     int jsframe_count = 1;
     int update_feedback_count = 0;
-    deopt_info->deopt_index = translation_array_builder_.BeginTranslation(
+    deopt_info->translation_index = translation_array_builder_.BeginTranslation(
         frame_count, jsframe_count, update_feedback_count);
 
     // Return offsets are counted from the end of the translation frame, which
@@ -675,9 +679,9 @@ class MaglevCodeGeneratorImpl final {
     // Populate deoptimization entries.
     int i = 0;
     for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
-      DCHECK_NE(deopt_info->deopt_index, -1);
+      DCHECK_NE(deopt_info->translation_index, -1);
       data->SetBytecodeOffset(i, deopt_info->state.bytecode_position);
-      data->SetTranslationIndex(i, Smi::FromInt(deopt_info->deopt_index));
+      data->SetTranslationIndex(i, Smi::FromInt(deopt_info->translation_index));
       data->SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label.pos()));
 #ifdef DEBUG
       data->SetNodeId(i, Smi::FromInt(i));
@@ -685,9 +689,9 @@ class MaglevCodeGeneratorImpl final {
       i++;
     }
     for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
-      DCHECK_NE(deopt_info->deopt_index, -1);
+      DCHECK_NE(deopt_info->translation_index, -1);
       data->SetBytecodeOffset(i, deopt_info->state.bytecode_position);
-      data->SetTranslationIndex(i, Smi::FromInt(deopt_info->deopt_index));
+      data->SetTranslationIndex(i, Smi::FromInt(deopt_info->translation_index));
       data->SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label.pos()));
 #ifdef DEBUG
       data->SetNodeId(i, Smi::FromInt(i));
