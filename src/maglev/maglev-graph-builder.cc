@@ -738,25 +738,22 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
   ValueNode* context = GetContext();
 
   size_t input_count = args.register_count() + Call::kFixedInputCount;
-
-  RootConstant* undefined_constant;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    // The undefined constant node has to be created before the call node.
-    undefined_constant =
-        AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
     input_count++;
   }
 
-  Call* call = AddNewNode<Call>(input_count, receiver_mode, function, context);
+  Call* call =
+      CreateNewNode<Call>(input_count, receiver_mode, function, context);
   int arg_index = 0;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    call->set_arg(arg_index++, undefined_constant);
+    call->set_arg(arg_index++,
+                  AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
   }
   for (int i = 0; i < args.register_count(); ++i) {
     call->set_arg(arg_index++, GetTaggedValue(args[i]));
   }
 
-  SetAccumulator(call);
+  SetAccumulator(AddNode(call));
 }
 
 void MaglevGraphBuilder::BuildCallFromRegisters(
@@ -811,25 +808,20 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
   int argc_count_with_recv = argc_count + 1;
   size_t input_count = argc_count_with_recv + Call::kFixedInputCount;
 
-  // The undefined constant node has to be created before the call node.
-  RootConstant* undefined_constant;
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    undefined_constant =
-        AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
-  }
-
-  Call* call = AddNewNode<Call>(input_count, receiver_mode, function, context);
   int arg_index = 0;
   int reg_count = argc_count_with_recv;
+  Call* call =
+      CreateNewNode<Call>(input_count, receiver_mode, function, context);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     reg_count = argc_count;
-    call->set_arg(arg_index++, undefined_constant);
+    call->set_arg(arg_index++,
+                  AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
   }
   for (int i = 0; i < reg_count; i++) {
     call->set_arg(arg_index++, LoadRegisterTagged(i + 1));
   }
 
-  SetAccumulator(call);
+  SetAccumulator(AddNode(call));
 }
 
 void MaglevGraphBuilder::VisitCallAnyReceiver() {
