@@ -12,6 +12,7 @@
 
 #include "src/base/base-export.h"
 #include "src/base/optional.h"
+#include "src/base/platform/platform.h"
 
 namespace v8 {
 namespace base {
@@ -30,6 +31,10 @@ struct V8_BASE_EXPORT MemoryRegion {
   // |line| must not contains the tail '\n'.
   static base::Optional<MemoryRegion> FromMapsLine(const char* line);
 };
+
+// The |fp| parameter is for testing, to pass a fake /proc/self/maps file.
+V8_BASE_EXPORT std::vector<OS::SharedLibraryAddress> GetSharedLibraryAddresses(
+    FILE* fp);
 
 }  // namespace base
 }  // namespace v8

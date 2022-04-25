@@ -4,6 +4,7 @@
 
 #include "src/base/platform/platform.h"
 
+#include <cstdio>
 #include <cstring>
 
 #include "src/base/build_config.h"
@@ -125,6 +126,34 @@ TEST(OS, ParseProcMaps) {
   EXPECT_EQ(region->inode, 0u);
   EXPECT_EQ(region->pathname, std::string(""));
 #endif  // V8_TARGET_ARCH_64_BIT
+}
+
+TEST(OS, GetSharedLibraryAddresses) {
+  FILE* fp = tmpfile();
+  ASSERT_TRUE(fp);
+  const char* contents =
+      R"EOF(12340000-12345000 r-xp 00026000 fe:01 12583839                   /lib/x86_64-linux-gnu/libc-2.33.so
+12365000-12376000 rw-p 00000000 00:00 0    [heap]
+12430000-12435000 r-xp 00062000 fe:01 12583839 /path/to/SomeApplication.apk
+)EOF";
+  size_t length = strlen(contents);
+  ASSERT_EQ(fwrite(contents, 1, length, fp), length);
+  rewind(fp);
+
+  auto shared_library_addresses = GetSharedLibraryAddresses(fp);
+  EXPECT_EQ(shared_library_addresses.size(), 2u);
+
+  EXPECT_EQ(shared_library_addresses[0].library_path,
+            "/lib/x86_64-linux-gnu/libc-2.33.so");
+  EXPECT_EQ(shared_library_addresses[0].start, 0x12340000u - 0x26000);
+
+  EXPECT_EQ(shared_library_addresses[1].library_path,
+            "/path/to/SomeApplication.apk");
+#if defined(V8_OS_ANDROID)
+  EXPECT_EQ(shared_library_addresses[1].start, 0x12430000u);
+#else
+  EXPECT_EQ(shared_library_addresses[1].start, 0x12430000u - 0x62000);
+#endif
 }
 #endif  // V8_TARGET_OS_LINUX
 

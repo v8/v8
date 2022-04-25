@@ -31,6 +31,7 @@
 #include <unistd.h>     // sysconf
 
 #include <cmath>
+#include <cstdio>
 #include <memory>
 
 #include "src/base/logging.h"
@@ -48,83 +49,6 @@ namespace base {
 
 TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();
-}
-
-std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
-  std::vector<SharedLibraryAddress> result;
-  // This function assumes that the layout of the file is as follows:
-  // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
-  // If we encounter an unexpected situation we abort scanning further entries.
-  FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == nullptr) return result;
-
-  // Allocate enough room to be able to store a full file name.
-  const int kLibNameLen = FILENAME_MAX + 1;
-  char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
-
-  // This loop will terminate once the scanning hits an EOF.
-  while (true) {
-    uintptr_t start, end, offset;
-    char attr_r, attr_w, attr_x, attr_p;
-    // Parse the addresses and permission bits at the beginning of the line.
-    if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
-    if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
-    if (fscanf(fp, "%" V8PRIxPTR, &offset) != 1) break;
-
-    int c;
-    if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
-      // Found a read-only executable entry. Skip characters until we reach
-      // the beginning of the filename or the end of the line.
-      do {
-        c = getc(fp);
-      } while ((c != EOF) && (c != '\n') && (c != '/') && (c != '['));
-      if (c == EOF) break;  // EOF: Was unexpected, just exit.
-
-      // Process the filename if found.
-      if ((c == '/') || (c == '[')) {
-        // Push the '/' or '[' back into the stream to be read below.
-        ungetc(c, fp);
-
-        // Read to the end of the line. Exit if the read fails.
-        if (fgets(lib_name, kLibNameLen, fp) == nullptr) break;
-
-        // Drop the newline character read by fgets. We do not need to check
-        // for a zero-length string because we know that we at least read the
-        // '/' or '[' character.
-        lib_name[strlen(lib_name) - 1] = '\0';
-      } else {
-        // No library name found, just record the raw address range.
-        snprintf(lib_name, kLibNameLen, "%08" V8PRIxPTR "-%08" V8PRIxPTR, start,
-                 end);
-      }
-
-#ifdef V8_OS_ANDROID
-      size_t lib_name_length = strlen(lib_name);
-      if (lib_name_length < 4 ||
-          strncmp(&lib_name[lib_name_length - 4], ".apk", 4) != 0) {
-        // Only adjust {start} based on {offset} if the file isn't the APK,
-        // since we load the library directly from the APK and don't want to
-        // apply the offset of the .so in the APK as the libraries offset.
-        start -= offset;
-      }
-#else
-      // Adjust {start} based on {offset}.
-      start -= offset;
-#endif
-
-      result.push_back(SharedLibraryAddress(lib_name, start, end));
-    } else {
-      // Entry not describing executable data. Skip to end of line to set up
-      // reading the next entry.
-      do {
-        c = getc(fp);
-      } while ((c != EOF) && (c != '\n'));
-      if (c == EOF) break;
-    }
-  }
-  free(lib_name);
-  fclose(fp);
-  return result;
 }
 
 void OS::SignalCodeMovingGC() {
@@ -246,10 +170,11 @@ base::Optional<MemoryRegion> MemoryRegion::FromMapsLine(const char* line) {
 namespace {
 // Parses /proc/self/maps.
 std::unique_ptr<std::vector<MemoryRegion>> ParseProcSelfMaps(
-    std::function<bool(const MemoryRegion&)> predicate, bool early_stopping) {
+    FILE* fp, std::function<bool(const MemoryRegion&)> predicate,
+    bool early_stopping) {
   auto result = std::make_unique<std::vector<MemoryRegion>>();
 
-  FILE* fp = fopen("/proc/self/maps", "r");
+  if (!fp) fp = fopen("/proc/self/maps", "r");
   if (!fp) return nullptr;
 
   // Allocate enough room to be able to store a full file name.
@@ -263,15 +188,26 @@ std::unique_ptr<std::vector<MemoryRegion>> ParseProcSelfMaps(
     error = true;
 
     // Read to the end of the line. Exit if the read fails.
-    if (fgets(line.get(), kMaxLineLength, fp) == nullptr) break;
+    if (fgets(line.get(), kMaxLineLength, fp) == nullptr) {
+      if (feof(fp)) error = false;
+      break;
+    }
+
     size_t line_length = strlen(line.get());
+    // Empty line at the end.
+    if (!line_length) {
+      error = false;
+      break;
+    }
     // Line was truncated.
     if (line.get()[line_length - 1] != '\n') break;
     line.get()[line_length - 1] = '\0';
 
     base::Optional<MemoryRegion> region =
         MemoryRegion::FromMapsLine(line.get());
-    if (!region) break;
+    if (!region) {
+      break;
+    }
 
     error = false;
 
@@ -289,6 +225,7 @@ std::unique_ptr<std::vector<MemoryRegion>> ParseProcSelfMaps(
 
 MemoryRegion FindEnclosingMapping(uintptr_t target_start, size_t size) {
   auto result = ParseProcSelfMaps(
+      nullptr,
       [=](const MemoryRegion& region) {
         return region.start <= target_start && target_start + size < region.end;
       },
@@ -299,6 +236,45 @@ MemoryRegion FindEnclosingMapping(uintptr_t target_start, size_t size) {
     return {};
 }
 }  // namespace
+
+// static
+std::vector<OS::SharedLibraryAddress> GetSharedLibraryAddresses(FILE* fp) {
+  auto regions = ParseProcSelfMaps(
+      fp,
+      [](const MemoryRegion& region) {
+        if (region.permissions[0] == 'r' && region.permissions[1] == '-' &&
+            region.permissions[2] == 'x') {
+          return true;
+        }
+        return false;
+      },
+      false);
+
+  if (!regions) return {};
+
+  std::vector<OS::SharedLibraryAddress> result;
+  for (const MemoryRegion& region : *regions) {
+    uintptr_t start = region.start;
+#ifdef V8_OS_ANDROID
+    if (region.pathname.size() < 4 ||
+        region.pathname.compare(region.pathname.size() - 4, 4, ".apk") != 0) {
+      // Only adjust {start} based on {offset} if the file isn't the APK,
+      // since we load the library directly from the APK and don't want to
+      // apply the offset of the .so in the APK as the libraries offset.
+      start -= region.offset;
+    }
+#else
+    start -= region.offset;
+#endif
+    result.emplace_back(region.pathname, start, region.end);
+  }
+  return result;
+}
+
+// static
+std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
+  return ::v8::base::GetSharedLibraryAddresses(nullptr);
+}
 
 // static
 bool OS::RemapPages(const void* address, size_t size, void* new_address,
