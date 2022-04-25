@@ -1,40 +1,30 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "src/date/date.h"
+
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
 namespace internal {
 
-class DateCacheMock: public DateCache {
+class DateTest : public TestWithContext {
+ public:
+  void CheckDST(int64_t time) {
+    DateCache* date_cache = i_isolate()->date_cache();
+    int64_t actual = date_cache->ToLocal(time);
+    int64_t expected = time + date_cache->GetLocalOffsetFromOS(time, true);
+    CHECK_EQ(actual, expected);
+  }
+};
+
+class DateCacheMock : public DateCache {
  public:
   struct Rule {
     int year, start_month, start_day, end_month, end_day, offset_sec;
@@ -67,7 +57,6 @@ class DateCacheMock: public DateCache {
     return result;
   }
 
-
   bool Match(Rule* rule, int year, int month, int day, int time_in_day_sec) {
     if (rule->year != 0 && rule->year != year) return false;
     if (rule->start_month > month) return false;
@@ -85,7 +74,6 @@ class DateCacheMock: public DateCache {
     return true;
   }
 
-
   int ComputeRuleDay(int year, int month, int day) {
     if (day != 0) return day;
     int days = DaysFromYearMonth(year, month);
@@ -99,41 +87,28 @@ class DateCacheMock: public DateCache {
   int rules_count_;
 };
 
-static int64_t TimeFromYearMonthDay(DateCache* date_cache,
-                                    int year,
-                                    int month,
+static int64_t TimeFromYearMonthDay(DateCache* date_cache, int year, int month,
                                     int day) {
   int64_t result = date_cache->DaysFromYearMonth(year, month);
   return (result + day - 1) * DateCache::kMsPerDay;
 }
 
-
-static void CheckDST(int64_t time) {
-  Isolate* isolate = CcTest::i_isolate();
-  DateCache* date_cache = isolate->date_cache();
-  int64_t actual = date_cache->ToLocal(time);
-  int64_t expected = time + date_cache->GetLocalOffsetFromOS(time, true);
-  CHECK_EQ(actual, expected);
-}
-
-
-TEST(DaylightSavingsTime) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(DateTest, DaylightSavingsTime) {
+  v8::HandleScope scope(isolate());
   DateCacheMock::Rule rules[] = {
-    {0, 2, 0, 10, 0, 3600},  // DST from March to November in any year.
-    {2010, 2, 0, 7, 20, 3600},  // DST from March to August 20 in 2010.
-    {2010, 7, 20, 8, 10, 0},  // No DST from August 20 to September 10 in 2010.
-    {2010, 8, 10, 10, 0, 3600},  // DST from September 10 to November in 2010.
+      {0, 2, 0, 10, 0, 3600},     // DST from March to November in any year.
+      {2010, 2, 0, 7, 20, 3600},  // DST from March to August 20 in 2010.
+      {2010, 7, 20, 8, 10,
+       0},  // No DST from August 20 to September 10 in 2010.
+      {2010, 8, 10, 10, 0, 3600},  // DST from September 10 to November in 2010.
   };
 
   int local_offset_ms = -36000000;  // -10 hours.
 
   DateCacheMock* date_cache =
-    new DateCacheMock(local_offset_ms, rules, arraysize(rules));
+      new DateCacheMock(local_offset_ms, rules, arraysize(rules));
 
-  reinterpret_cast<Isolate*>(isolate)->set_date_cache(date_cache);
+  reinterpret_cast<Isolate*>(isolate())->set_date_cache(date_cache);
 
   int64_t start_of_2010 = TimeFromYearMonthDay(date_cache, 2010, 0, 1);
   int64_t start_of_2011 = TimeFromYearMonthDay(date_cache, 2011, 0, 1);
@@ -147,8 +122,7 @@ TEST(DaylightSavingsTime) {
   CheckDST(august_20 + 2 * 3600 - 1000);
   CheckDST(august_20);
   // Check each day of 2010.
-  for (int64_t time = start_of_2011 + 2 * 3600;
-       time >= start_of_2010;
+  for (int64_t time = start_of_2011 + 2 * 3600; time >= start_of_2010;
        time -= DateCache::kMsPerDay) {
     CheckDST(time);
     CheckDST(time - 1000);
@@ -175,21 +149,19 @@ void DateParseLegacyCounterCallback(v8::Isolate* isolate,
 }
 }  // anonymous namespace
 
-TEST(DateParseLegacyUseCounter) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  LocalContext context;
-  CcTest::isolate()->SetUseCounterCallback(DateParseLegacyCounterCallback);
+TEST_F(DateTest, DateParseLegacyUseCounter) {
+  v8::HandleScope scope(isolate());
+  isolate()->SetUseCounterCallback(DateParseLegacyCounterCallback);
   CHECK_EQ(0, legacy_parse_count);
-  CompileRun("Date.parse('2015-02-31')");
+  RunJS("Date.parse('2015-02-31')");
   CHECK_EQ(0, legacy_parse_count);
-  CompileRun("Date.parse('2015-02-31T11:22:33.444Z01:23')");
+  RunJS("Date.parse('2015-02-31T11:22:33.444Z01:23')");
   CHECK_EQ(0, legacy_parse_count);
-  CompileRun("Date.parse('2015-02-31T11:22:33.444')");
+  RunJS("Date.parse('2015-02-31T11:22:33.444')");
   CHECK_EQ(0, legacy_parse_count);
-  CompileRun("Date.parse('2000 01 01')");
+  RunJS("Date.parse('2000 01 01')");
   CHECK_EQ(1, legacy_parse_count);
-  CompileRun("Date.parse('2015-02-31T11:22:33.444     ')");
+  RunJS("Date.parse('2015-02-31T11:22:33.444     ')");
   CHECK_EQ(1, legacy_parse_count);
 }
 

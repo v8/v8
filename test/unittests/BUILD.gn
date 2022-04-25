@@ -311,6 +311,7 @@ v8_source_set("unittests_sources") {
     "compiler/value-numbering-reducer-unittest.cc",
     "compiler/zone-stats-unittest.cc",
     "date/date-cache-unittest.cc",
+    "date/date-unittest.cc",
     "debug/debug-property-iterator-unittest.cc",
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",

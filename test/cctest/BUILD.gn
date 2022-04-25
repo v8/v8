@@ -199,7 +199,6 @@ v8_source_set("cctest_sources") {
     "test-constantpool.cc",
     "test-conversions.cc",
     "test-cpu-profiler.cc",
-    "test-date.cc",
     "test-debug-helper.cc",
     "test-debug.cc",
     "test-decls.cc",
