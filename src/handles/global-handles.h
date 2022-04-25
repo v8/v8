@@ -149,6 +149,12 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void ProcessWeakYoungObjects(RootVisitor* v,
                                WeakSlotCallbackWithHeap should_reset_handle);
 
+  // Updates the list of young nodes that is maintained separately.
+  void UpdateListOfYoungNodes();
+  // Clears the list of young nodes, assuming that the young generation is
+  // empty.
+  void ClearListOfYoungNodes();
+
   // Computes whether young weak objects should be considered roots for young
   // generation garbage collections  or just be treated weakly. Per default
   // objects are considered as roots. Objects are treated not as root when both
@@ -193,18 +199,12 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   static GlobalHandles* From(const TracedNode*);
 
-  bool InRecursiveGC(unsigned gc_processing_counter);
-
   void InvokeSecondPassPhantomCallbacksFromTask();
   void InvokeOrScheduleSecondPassPhantomCallbacks(bool synchronous_second_pass);
 
   template <typename T>
   size_t InvokeFirstPassWeakCallbacks(
       std::vector<std::pair<T*, PendingPhantomCallback>>* pending);
-
-  template <typename T>
-  void UpdateAndCompactListOfYoungNode(std::vector<T*>* node_list);
-  void UpdateListOfYoungNodes();
 
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
@@ -237,9 +237,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   std::vector<PendingPhantomCallback> second_pass_callbacks_;
   bool second_pass_callbacks_task_posted_ = false;
   bool running_second_pass_callbacks_ = false;
-
-  // Counter for recursive garbage collections during callback processing.
-  unsigned post_gc_processing_count_ = 0;
 };
 
 class GlobalHandles::PendingPhantomCallback final {

@@ -1050,6 +1050,8 @@ void MarkCompactCollector::VerifyMarking() {
 void MarkCompactCollector::Finish() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
 
+  heap()->isolate()->global_handles()->ClearListOfYoungNodes();
+
   SweepArrayBufferExtensions();
 
 #ifdef DEBUG
@@ -5420,6 +5422,8 @@ void MinorMarkCompactCollector::CollectGarbage() {
   CleanupPromotedPages();
 
   SweepArrayBufferExtensions();
+
+  heap()->isolate()->global_handles()->UpdateListOfYoungNodes();
 }
 
 void MinorMarkCompactCollector::MakeIterable(

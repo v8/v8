@@ -1304,23 +1304,24 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
   running_second_pass_callbacks_ = false;
 }
 
+namespace {
+
 template <typename T>
-void GlobalHandles::UpdateAndCompactListOfYoungNode(
-    std::vector<T*>* node_list) {
+void UpdateListOfYoungNodesImpl(Isolate* isolate, std::vector<T*>* node_list) {
   size_t last = 0;
   for (T* node : *node_list) {
     DCHECK(node->is_in_young_list());
-    if (node->IsInUse()) {
+    if (node->IsInUse() && node->state() != T::NEAR_DEATH) {
       if (ObjectInYoungGeneration(node->object())) {
         (*node_list)[last++] = node;
-        isolate_->heap()->IncrementNodesCopiedInNewSpace();
+        isolate->heap()->IncrementNodesCopiedInNewSpace();
       } else {
         node->set_in_young_list(false);
-        isolate_->heap()->IncrementNodesPromoted();
+        isolate->heap()->IncrementNodesPromoted();
       }
     } else {
       node->set_in_young_list(false);
-      isolate_->heap()->IncrementNodesDiedInNewSpace();
+      isolate->heap()->IncrementNodesDiedInNewSpace(1);
     }
   }
   DCHECK_LE(last, node_list->size());
@@ -1328,9 +1329,30 @@ void GlobalHandles::UpdateAndCompactListOfYoungNode(
   node_list->shrink_to_fit();
 }
 
+template <typename T>
+void ClearListOfYoungNodesImpl(Isolate* isolate, std::vector<T*>* node_list) {
+  for (T* node : *node_list) {
+    DCHECK(node->is_in_young_list());
+    node->set_in_young_list(false);
+    DCHECK_IMPLIES(node->IsInUse() && node->state() != T::NEAR_DEATH,
+                   !ObjectInYoungGeneration(node->object()));
+  }
+  isolate->heap()->IncrementNodesDiedInNewSpace(
+      static_cast<int>(node_list->size()));
+  node_list->clear();
+  node_list->shrink_to_fit();
+}
+
+}  // namespace
+
 void GlobalHandles::UpdateListOfYoungNodes() {
-  UpdateAndCompactListOfYoungNode(&young_nodes_);
-  UpdateAndCompactListOfYoungNode(&traced_young_nodes_);
+  UpdateListOfYoungNodesImpl(isolate_, &young_nodes_);
+  UpdateListOfYoungNodesImpl(isolate_, &traced_young_nodes_);
+}
+
+void GlobalHandles::ClearListOfYoungNodes() {
+  ClearListOfYoungNodesImpl(isolate_, &young_nodes_);
+  ClearListOfYoungNodesImpl(isolate_, &traced_young_nodes_);
 }
 
 template <typename T>
@@ -1399,26 +1421,18 @@ void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate,
   callback(data);
 }
 
-bool GlobalHandles::InRecursiveGC(unsigned gc_processing_counter) {
-  return gc_processing_counter != post_gc_processing_count_;
-}
-
 void GlobalHandles::PostGarbageCollectionProcessing(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   DCHECK_EQ(Heap::NOT_IN_GC, isolate_->heap()->gc_state());
-  const unsigned post_processing_count = ++post_gc_processing_count_;
-  bool synchronous_second_pass =
+  const bool synchronous_second_pass =
       isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
   InvokeOrScheduleSecondPassPhantomCallbacks(synchronous_second_pass);
-  if (InRecursiveGC(post_processing_count)) return;
-
-  UpdateListOfYoungNodes();
 }
 
 void GlobalHandles::IterateStrongRoots(RootVisitor* v) {
