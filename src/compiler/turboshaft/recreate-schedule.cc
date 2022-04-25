@@ -900,7 +900,8 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
 RecreateScheduleResult RecreateSchedule(const Graph& graph,
                                         CallDescriptor* call_descriptor,
                                         Zone* graph_zone, Zone* phase_zone) {
-  return ScheduleBuilder{graph, call_descriptor, graph_zone, phase_zone}.Run();
+  ScheduleBuilder builder{graph, call_descriptor, graph_zone, phase_zone};
+  return builder.Run();
 }
 
 }  // namespace v8::internal::compiler::turboshaft
