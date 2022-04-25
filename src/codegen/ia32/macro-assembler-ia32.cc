@@ -733,6 +733,18 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   CompareRange(instance_type_out, lower_limit, higher_limit, scratch);
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
+                                                        Register scratch) {
+  mov(scratch, FieldOperand(codet, Code::kCodeDataContainerOffset));
+  test(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
+       Immediate(1 << Code::kMarkedForDeoptimizationBit));
+}
+
+Immediate MacroAssembler::ClearedValue() const {
+  return Immediate(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void MacroAssembler::AssertSmi(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);

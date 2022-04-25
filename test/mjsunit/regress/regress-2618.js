@@ -35,7 +35,7 @@ if (isNeverOptimizeLiteMode()) {
 }
 assertFalse(isAlwaysOptimize());
 
-function f() {
+function f(disable_asserts) {
   do {
     do {
       for (var i = 0; i < 10; i++) {
@@ -47,6 +47,7 @@ function f() {
       // feedback.
       var opt_status = %GetOptimizationStatus(f);
       assertTrue(
+        disable_asserts ||
         (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0 ||
         (opt_status & V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0);
     } while (false);
@@ -54,7 +55,8 @@ function f() {
 }
 
 %PrepareFunctionForOptimization(f);
-f();
+f(true);  // Gather feedback first.
+f(false);
 
 function g() {
   for (var i = 0; i < 1; i++) { }

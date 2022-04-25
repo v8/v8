@@ -891,32 +891,32 @@ bool FinalizeDeferredUnoptimizedCompilationJobs(
   return true;
 }
 
-// A wrapper to access either the OSR optimized code cache (one per native
-// context), or the optimized code cache slot on the feedback vector.
+// A wrapper to access the optimized code cache slots on the feedback vector.
 class OptimizedCodeCache : public AllStatic {
  public:
   static V8_WARN_UNUSED_RESULT MaybeHandle<CodeT> Get(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
       CodeKind code_kind) {
     if (!CodeKindIsStoredInOptimizedCodeCache(code_kind)) return {};
+    if (!function->has_feedback_vector()) return {};
 
     DisallowGarbageCollection no_gc;
     SharedFunctionInfo shared = function->shared();
     RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
 
     CodeT code;
+    FeedbackVector feedback_vector = function->feedback_vector();
     if (IsOSR(osr_offset)) {
-      // For OSR, check the OSR optimized code cache.
-      code = function->native_context().osr_code_cache().TryGet(
-          shared, osr_offset, isolate);
+      Handle<BytecodeArray> bytecode(shared.GetBytecodeArray(isolate), isolate);
+      interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
+      DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+      base::Optional<CodeT> maybe_code =
+          feedback_vector.GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
+      if (maybe_code.has_value()) code = maybe_code.value();
     } else {
-      // Non-OSR code may be cached on the feedback vector.
-      if (function->has_feedback_vector()) {
-        FeedbackVector feedback_vector = function->feedback_vector();
-        feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
-            shared, "OptimizedCodeCache::Get");
-        code = feedback_vector.optimized_code();
-      }
+      feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
+          shared, "OptimizedCodeCache::Get");
+      code = feedback_vector.optimized_code();
     }
 
     DCHECK_IMPLIES(!code.is_null(), code.kind() <= code_kind);
@@ -932,23 +932,24 @@ class OptimizedCodeCache : public AllStatic {
     return handle(code, isolate);
   }
 
-  static void Insert(OptimizedCompilationInfo* compilation_info) {
+  static void Insert(Isolate* isolate,
+                     OptimizedCompilationInfo* compilation_info) {
     const CodeKind kind = compilation_info->code_kind();
     if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
 
-    // Cache optimized code.
     Handle<JSFunction> function = compilation_info->closure();
-    Isolate* isolate = function->GetIsolate();
     Handle<CodeT> code = ToCodeT(compilation_info->code(), isolate);
     const BytecodeOffset osr_offset = compilation_info->osr_offset();
+    FeedbackVector feedback_vector = function->feedback_vector();
 
     if (IsOSR(osr_offset)) {
       DCHECK(CodeKindCanOSR(kind));
       DCHECK(!compilation_info->function_context_specializing());
-      Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-      Handle<NativeContext> native_context(function->native_context(), isolate);
-      OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
-                                    osr_offset);
+      SharedFunctionInfo shared = function->shared();
+      Handle<BytecodeArray> bytecode(shared.GetBytecodeArray(isolate), isolate);
+      interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
+      DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+      feedback_vector.SetOptimizedOsrCode(it.GetSlotOperand(2), *code);
       return;
     }
 
@@ -957,13 +958,13 @@ class OptimizedCodeCache : public AllStatic {
     if (compilation_info->function_context_specializing()) {
       // Function context specialization folds-in the function context, so no
       // sharing can occur. Make sure the optimized code cache is cleared.
-      if (function->feedback_vector().has_optimized_code()) {
-        function->feedback_vector().ClearOptimizedCode();
+      if (feedback_vector.has_optimized_code()) {
+        feedback_vector.ClearOptimizedCode();
       }
       return;
     }
 
-    function->feedback_vector().SetOptimizedCode(code);
+    feedback_vector.SetOptimizedCode(code);
   }
 };
 
@@ -1014,7 +1015,7 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   // Success!
   job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
   DCHECK(!isolate->has_pending_exception());
-  OptimizedCodeCache::Insert(compilation_info);
+  OptimizedCodeCache::Insert(isolate, compilation_info);
   job->RecordFunctionCompilation(LogEventListener::LAZY_COMPILE_TAG, isolate);
   return true;
 }
@@ -2165,10 +2166,6 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
       return false;
     }
     shared->set_baseline_code(ToCodeT(*code), kReleaseStore);
-
-    if (V8_LIKELY(FLAG_use_osr)) {
-      shared->GetBytecodeArray(isolate).RequestOsrAtNextOpportunity();
-    }
   }
   double time_taken_ms = time_taken.InMillisecondsF();
 
@@ -3399,15 +3396,7 @@ MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
 
   // -- Alright, decided to proceed. --
 
-  // Disarm all back edges, i.e. reset the OSR urgency and install target.
-  //
-  // Note that the bytecode array active on the stack might be different from
-  // the one installed on the function (e.g. patched by debugger). This however
-  // is fine because we guarantee the layout to be in sync, hence any
-  // BytecodeOffset representing the entry point will be valid for any copy of
-  // the bytecode.
-  Handle<BytecodeArray> bytecode(frame->GetBytecodeArray(), isolate);
-  bytecode->reset_osr_urgency_and_install_target();
+  function->feedback_vector().reset_osr_urgency();
 
   CompilerTracer::TraceOptimizeOSR(isolate, function, osr_offset, mode);
   MaybeHandle<CodeT> result = GetOrCompileOptimized(
@@ -3468,16 +3457,9 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
                                      isolate);
       if (V8_LIKELY(use_result)) {
         ResetTieringState(*function, osr_offset);
-        OptimizedCodeCache::Insert(compilation_info);
+        OptimizedCodeCache::Insert(isolate, compilation_info);
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
-        if (IsOSR(osr_offset)) {
-          if (FLAG_trace_osr) {
-            PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
-                   "[OSR - requesting install. function: %s, osr offset: %d]\n",
-                   function->DebugNameCStr().get(), osr_offset.ToInt());
-          }
-          shared->GetBytecodeArray(isolate).set_osr_install_target(osr_offset);
-        } else {
+        if (!IsOSR(osr_offset)) {
           function->set_code(*compilation_info->code(), kReleaseStore);
         }
       }

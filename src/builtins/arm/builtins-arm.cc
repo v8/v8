@@ -903,12 +903,12 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
-  __ ldr(scratch,
-         FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
-  __ ldr(scratch,
-         FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ b(ne, &heal_optimized_code_slot);
+  {
+    UseScratchRegisterScope temps(masm);
+    __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry,
+                                          temps.Acquire());
+    __ b(ne, &heal_optimized_code_slot);
+  }
 
   // Optimized code is good, get it into the closure and link the closure
   // into the optimized functions list, then tail call the optimized code.
@@ -1067,15 +1067,24 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
 
 namespace {
 
-void ResetBytecodeAgeAndOsrState(MacroAssembler* masm, Register bytecode_array,
-                                 Register scratch) {
-  // Reset the bytecode age and OSR state (optimized to a single write).
-  static_assert(BytecodeArray::kOsrStateAndBytecodeAgeAreContiguous32Bits);
+void ResetBytecodeAge(MacroAssembler* masm, Register bytecode_array,
+                      Register scratch) {
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  DCHECK(!AreAliased(bytecode_array, scratch));
   __ mov(scratch, Operand(0));
-  __ str(scratch,
-         FieldMemOperand(bytecode_array,
-                         BytecodeArray::kOsrUrgencyAndInstallTargetOffset));
+  __ strh(scratch,
+          FieldMemOperand(bytecode_array, BytecodeArray::kBytecodeAgeOffset));
+}
+
+void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
+                                   Register feedback_vector, Register scratch) {
+  DCHECK(!AreAliased(feedback_vector, scratch));
+  __ ldrb(scratch,
+          FieldMemOperand(feedback_vector, FeedbackVector::kOsrStateOffset));
+  __ and_(scratch, scratch,
+          Operand(FeedbackVector::MaybeHasOptimizedOsrCodeBit::kMask));
+  __ strb(scratch,
+          FieldMemOperand(feedback_vector, FeedbackVector::kOsrStateOffset));
 }
 
 }  // namespace
@@ -1116,6 +1125,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                                              &has_optimized_code_or_state);
   }
 
+  {
+    UseScratchRegisterScope temps(masm);
+    ResetFeedbackVectorOsrUrgency(masm, feedback_vector, temps.Acquire());
+  }
+
   // Increment invocation count for the function.
   {
     UseScratchRegisterScope temps(masm);
@@ -1152,7 +1166,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
     {
       UseScratchRegisterScope temps(masm);
-      ResetBytecodeAgeAndOsrState(masm, bytecodeArray, temps.Acquire());
+      ResetBytecodeAge(masm, bytecodeArray, temps.Acquire());
     }
     __ Push(argc, bytecodeArray);
 
@@ -1276,6 +1290,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   LoadTieringStateAndJumpIfNeedsProcessing(
       masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
+  {
+    UseScratchRegisterScope temps(masm);
+    ResetFeedbackVectorOsrUrgency(masm, feedback_vector, temps.Acquire());
+  }
+
   Label not_optimized;
   __ bind(&not_optimized);
 
@@ -1293,7 +1312,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
 
-  ResetBytecodeAgeAndOsrState(masm, kInterpreterBytecodeArrayRegister, r9);
+  ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister, r9);
 
   // Load the initial bytecode offset.
   __ mov(kInterpreterBytecodeOffsetRegister,
@@ -1822,37 +1841,15 @@ enum class OsrSourceTier {
 };
 
 void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
-                        Register current_loop_depth,
-                        Register encoded_current_bytecode_offset,
-                        Register osr_urgency_and_install_target) {
-  static constexpr Register scratch = r3;
-  DCHECK(!AreAliased(scratch, current_loop_depth,
-                     encoded_current_bytecode_offset,
-                     osr_urgency_and_install_target));
-  // OSR based on urgency, i.e. is the OSR urgency greater than the current
-  // loop depth?
-  Label try_osr;
-  STATIC_ASSERT(BytecodeArray::OsrUrgencyBits::kShift == 0);
-  Register urgency = scratch;
-  __ and_(urgency, osr_urgency_and_install_target,
-          Operand(BytecodeArray::OsrUrgencyBits::kMask));
-  __ cmp(urgency, current_loop_depth);
-  __ b(hi, &try_osr);
-
-  // OSR based on the install target offset, i.e. does the current bytecode
-  // offset match the install target offset?
-  static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
-  Register install_target = osr_urgency_and_install_target;
-  __ and_(install_target, osr_urgency_and_install_target, Operand(kMask));
-  __ cmp(install_target, encoded_current_bytecode_offset);
-  __ b(eq, &try_osr);
-
-  // Neither urgency nor the install target triggered, return to the caller.
-  // Note: the return value must be nullptr or a valid Code object.
-  __ Move(r0, Operand(0));
-  __ Ret(0);
-
-  __ bind(&try_osr);
+                        Register maybe_target_code) {
+  Label jump_to_optimized_code;
+  {
+    // If maybe_target_code is not null, no need to call into runtime. A
+    // precondition here is: if maybe_target_code is a Code object, it must NOT
+    // be marked_for_deoptimization (callers must ensure this).
+    __ cmp(maybe_target_code, Operand(Smi::zero()));
+    __ b(ne, &jump_to_optimized_code);
+  }
 
   ASM_CODE_COMMENT(masm);
   {
@@ -1861,12 +1858,12 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   }
 
   // If the code object is null, just return to the caller.
-  Label skip;
   __ cmp(r0, Operand(Smi::zero()));
-  __ b(ne, &skip);
+  __ b(ne, &jump_to_optimized_code);
   __ Ret();
 
-  __ bind(&skip);
+  __ bind(&jump_to_optimized_code);
+  DCHECK_EQ(maybe_target_code, r0);  // Already in the right spot.
 
   if (source == OsrSourceTier::kInterpreter) {
     // Drop the handler frame that is be sitting on top of the actual
@@ -1895,23 +1892,19 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   using D = InterpreterOnStackReplacementDescriptor;
-  STATIC_ASSERT(D::kParameterCount == 3);
+  STATIC_ASSERT(D::kParameterCount == 1);
   OnStackReplacement(masm, OsrSourceTier::kInterpreter,
-                     D::CurrentLoopDepthRegister(),
-                     D::EncodedCurrentBytecodeOffsetRegister(),
-                     D::OsrUrgencyAndInstallTargetRegister());
+                     D::MaybeTargetCodeRegister());
 }
 
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
   using D = BaselineOnStackReplacementDescriptor;
-  STATIC_ASSERT(D::kParameterCount == 3);
+  STATIC_ASSERT(D::kParameterCount == 1);
 
   __ ldr(kContextRegister,
          MemOperand(fp, BaselineFrameConstants::kContextOffset));
   OnStackReplacement(masm, OsrSourceTier::kBaseline,
-                     D::CurrentLoopDepthRegister(),
-                     D::EncodedCurrentBytecodeOffsetRegister(),
-                     D::OsrUrgencyAndInstallTargetRegister());
+                     D::MaybeTargetCodeRegister());
 }
 
 // static
@@ -3703,11 +3696,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ Pop(kInterpreterAccumulatorRegister);
 
   if (is_osr) {
-    // TODO(pthier): Separate baseline Sparkplug from TF arming and don't
-    // disarm Sparkplug here.
     UseScratchRegisterScope temps(masm);
-    ResetBytecodeAgeAndOsrState(masm, kInterpreterBytecodeArrayRegister,
-                                temps.Acquire());
+    ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister, temps.Acquire());
     Generate_OSREntry(masm, code_obj,
                       Operand(Code::kHeaderSize - kHeapObjectTag));
   } else {

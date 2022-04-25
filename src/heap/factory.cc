@@ -1186,7 +1186,6 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context.set_math_random_index(Smi::zero());
   context.set_serialized_objects(*empty_fixed_array());
   context.set_microtask_queue(isolate(), nullptr);
-  context.set_osr_code_cache(*OSROptimizedCodeCache::Empty(isolate()));
   context.set_retained_maps(*empty_weak_array_list());
   return handle(context, isolate());
 }
@@ -2418,8 +2417,6 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
   copy.set_handler_table(raw_source.handler_table());
   copy.set_source_position_table(raw_source.source_position_table(kAcquireLoad),
                                  kReleaseStore);
-  copy.set_osr_urgency_and_install_target(
-      raw_source.osr_urgency_and_install_target());
   copy.set_bytecode_age(raw_source.bytecode_age());
   raw_source.CopyBytecodesTo(copy);
   return handle(copy, isolate());
