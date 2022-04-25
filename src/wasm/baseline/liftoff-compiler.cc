@@ -585,7 +585,7 @@ class LiftoffCompiler {
     LiftoffBailoutReason bailout_reason;
     switch (kind) {
       case kS128:
-        bailout_reason = kMissingCPUFeature;
+        bailout_reason = kSimd;
         break;
       case kRef:
       case kOptRef:
