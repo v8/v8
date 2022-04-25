@@ -629,7 +629,14 @@ class GlobalHandles::TracedNode final
   bool markbit() const { return Markbit::decode(flags_); }
   void clear_markbit() { flags_ = Markbit::update(flags_, false); }
 
-  bool is_on_stack() const { return IsOnStack::decode(flags_); }
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  bool is_on_stack() const {
+    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
+      return IsOnStack::decode(flags_);
+    }
+    return IsOnStack::decode(base::AsAtomic8::Relaxed_Load(&flags_));
+  }
+
   void set_is_on_stack(bool v) { flags_ = IsOnStack::update(flags_, v); }
 
   void clear_object() {
@@ -691,6 +698,7 @@ class GlobalHandles::TracedNode final
 class GlobalHandles::OnStackTracedNodeSpace final {
  public:
   static GlobalHandles* GetGlobalHandles(const TracedNode* on_stack_node) {
+    // An on-stack node should never be picked up by the concurrent marker.
     DCHECK(on_stack_node->is_on_stack());
     return reinterpret_cast<const NodeEntry*>(on_stack_node)->global_handles;
   }
@@ -840,8 +848,8 @@ void GlobalHandles::TracedNode::Verify(GlobalHandles* global_handles,
   DCHECK(node->IsInUse());
   bool slot_on_stack = global_handles->on_stack_nodes_->IsOnStack(
       reinterpret_cast<uintptr_t>(slot));
-  DCHECK_EQ(slot_on_stack, node->is_on_stack());
-  if (!node->is_on_stack()) {
+  DCHECK_EQ(slot_on_stack, node->is_on_stack<AccessMode::ATOMIC>());
+  if (!node->is_on_stack<AccessMode::ATOMIC>()) {
     // On-heap nodes have seprate lists for young generation processing.
     bool is_young_gen_object = ObjectInYoungGeneration(node->object());
     DCHECK_IMPLIES(is_young_gen_object, node->is_in_young_list());
@@ -1013,7 +1021,7 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
 #ifdef DEBUG
   global_handles = GlobalHandles::From(from_node);
 #endif  // DEBUG
-  bool from_on_stack = from_node->is_on_stack();
+  bool from_on_stack = from_node->is_on_stack<AccessMode::ATOMIC>();
   bool to_on_stack = false;
   if (!to_node) {
     // Figure out whether stack or heap to allow fast path for heap->heap move.
@@ -1021,7 +1029,7 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
     to_on_stack = global_handles->on_stack_nodes_->IsOnStack(
         reinterpret_cast<uintptr_t>(to));
   } else {
-    to_on_stack = to_node->is_on_stack();
+    to_on_stack = to_node->is_on_stack<AccessMode::ATOMIC>();
   }
 
   // Moving.
@@ -1066,7 +1074,7 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
 
 // static
 GlobalHandles* GlobalHandles::From(const TracedNode* node) {
-  return node->is_on_stack()
+  return node->is_on_stack<AccessMode::ATOMIC>()
              ? OnStackTracedNodeSpace::GetGlobalHandles(node)
              : NodeBlock<TracedNode>::From(node)->global_handles();
 }
@@ -1087,11 +1095,11 @@ void GlobalHandles::Destroy(Address* location) {
 void GlobalHandles::DestroyTracedReference(Address* location) {
   if (location != nullptr) {
     TracedNode* node = TracedNode::FromLocation(location);
-    if (node->is_on_stack()) {
+    if (node->is_on_stack<AccessMode::ATOMIC>()) {
       node->Release(nullptr);
       return;
     }
-    DCHECK(!node->is_on_stack());
+    DCHECK(!node->is_on_stack<AccessMode::ATOMIC>());
 
     auto* global_handles = GlobalHandles::From(node);
     // When marking is off the handle may be freed immediately. Note that this
