@@ -73,6 +73,10 @@ class BaselineCompilerTask {
     }
 
     shared_function_info_->set_baseline_code(ToCodeT(*code), kReleaseStore);
+    if (V8_LIKELY(FLAG_use_osr)) {
+      shared_function_info_->GetBytecodeArray(isolate)
+          .RequestOsrAtNextOpportunity();
+    }
     if (FLAG_trace_baseline_concurrent_compilation) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       std::stringstream ss;

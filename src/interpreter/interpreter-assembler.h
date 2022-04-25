@@ -140,8 +140,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Load and untag constant at |index| in the constant pool.
   TNode<IntPtrT> LoadAndUntagConstantPoolEntry(TNode<WordT> index);
 
-  TNode<JSFunction> LoadFunctionClosure();
-
   // Load the FeedbackVector for the current function. The retuned node could be
   // undefined.
   TNode<HeapObject> LoadFeedbackVector();
@@ -236,7 +234,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
-  TNode<Int8T> LoadOsrState(TNode<FeedbackVector> feedback_vector);
+  // Returns the OSR urgency and install target from the bytecode header.
+  TNode<Int16T> LoadOsrUrgencyAndInstallTarget();
 
   // Dispatch to the bytecode.
   void Dispatch();
@@ -264,17 +263,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
       TNode<FixedArrayBase> parameters_and_registers,
       TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count);
 
-  // Attempts to OSR.
-  enum OnStackReplacementParams {
-    kBaselineCodeIsCached,
-    kDefault,
-  };
-  void OnStackReplacement(TNode<Context> context,
-                          TNode<FeedbackVector> feedback_vector,
-                          TNode<IntPtrT> relative_jump,
+  // Attempts to OSR; note this may fail in some cases, e.g. on a mismatched
+  // install target, or if there's no compiled code object available yet
+  // (concurrent OSR).
+  void OnStackReplacement(TNode<Context> context, TNode<IntPtrT> relative_jump,
                           TNode<Int32T> loop_depth,
-                          TNode<IntPtrT> feedback_slot, TNode<Int8T> osr_state,
-                          OnStackReplacementParams params);
+                          TNode<Int16T> osr_urgency_and_install_target);
 
   // The BytecodeOffset() is the offset from the ByteCodeArray pointer; to
   // translate into runtime `BytecodeOffset` (defined in utils.h as the offset

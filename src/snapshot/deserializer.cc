@@ -557,6 +557,10 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     return PostProcessNewJSReceiver(raw_map, Handle<JSReceiver>::cast(obj),
                                     JSReceiver::cast(raw_obj), instance_type,
                                     space);
+  } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
+    // TODO(mythria): Remove these once we store the default values for these
+    // fields in the serializer.
+    BytecodeArray::cast(raw_obj).reset_osr_urgency_and_install_target();
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);

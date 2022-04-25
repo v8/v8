@@ -1929,30 +1929,24 @@ void BaselineCompiler::VisitJumpLoop() {
   {
     ASM_CODE_COMMENT_STRING(&masm_, "OSR Check Armed");
     using D = BaselineOnStackReplacementDescriptor;
-    BaselineAssembler::ScratchRegisterScope temps(&basm_);
-    Register feedback_vector = temps.AcquireScratch();
-    Register osr_state = temps.AcquireScratch();
-    LoadFeedbackVector(feedback_vector);
-    __ LoadWord8Field(osr_state, feedback_vector,
-                      FeedbackVector::kOsrStateOffset);
+    Register osr_urgency_and_install_target =
+        D::OsrUrgencyAndInstallTargetRegister();
+    __ LoadRegister(osr_urgency_and_install_target,
+                    interpreter::Register::bytecode_array());
+    __ LoadWord16FieldZeroExtend(
+        osr_urgency_and_install_target, osr_urgency_and_install_target,
+        BytecodeArray::kOsrUrgencyAndInstallTargetOffset);
     const int loop_depth = iterator().GetImmediateOperand(1);
-    static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
-                  FeedbackVector::kMaxOsrUrgency);
-    __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_state, loop_depth,
-                  &osr_not_armed, Label::kNear);
+    __ JumpIfImmediate(Condition::kUnsignedLessThanEqual,
+                       osr_urgency_and_install_target, loop_depth,
+                       &osr_not_armed, Label::kNear);
 
-    Label osr;
-    Register maybe_target_code = D::MaybeTargetCodeRegister();
-    DCHECK(!AreAliased(maybe_target_code, feedback_vector, osr_state));
-    __ TryLoadOptimizedOsrCode(maybe_target_code, feedback_vector,
-                               iterator().GetSlotOperand(2), &osr,
-                               Label::kNear);
-    __ DecodeField<FeedbackVector::OsrUrgencyBits>(osr_state);
-    __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_state, loop_depth,
-                  &osr_not_armed, Label::kNear);
-
-    __ Bind(&osr);
-    CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
+    const int encoded_current_offset =
+        BytecodeArray::OsrInstallTargetFor(
+            BytecodeOffset{iterator().current_offset()})
+        << BytecodeArray::OsrInstallTargetBits::kShift;
+    CallBuiltin<Builtin::kBaselineOnStackReplacement>(
+        loop_depth, encoded_current_offset, osr_urgency_and_install_target);
   }
 
   __ Bind(&osr_not_armed);

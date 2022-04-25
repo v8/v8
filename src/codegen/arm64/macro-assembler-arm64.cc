@@ -2485,29 +2485,6 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   Bind(&done);
 }
 
-void MacroAssembler::JumpIfCodeTIsMarkedForDeoptimization(
-    Register codet, Register scratch, Label* if_marked_for_deoptimization) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Ldr(scratch.W(),
-        FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
-    Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
-         if_marked_for_deoptimization);
-
-  } else {
-    LoadTaggedPointerField(
-        scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
-    Ldr(scratch.W(),
-        FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
-    Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
-         if_marked_for_deoptimization);
-  }
-}
-
-Operand MacroAssembler::ClearedValue() const {
-  return Operand(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
-}
-
 Operand MacroAssembler::ReceiverOperand(Register arg_count) {
   return Operand(0);
 }

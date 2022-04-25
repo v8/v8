@@ -872,7 +872,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<RawPtrT> GetCodeEntry(TNode<CodeT> code);
-  TNode<BoolT> IsMarkedForDeoptimization(TNode<CodeT> codet);
 
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
@@ -1496,7 +1495,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                        TNode<Object> object);
 
   TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
-  TNode<MaybeObject> ClearedValue();
 
   void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, TNode<Smi> index,
                              int additional_offset);
@@ -3389,8 +3387,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // The returned object could be undefined if the closure does not have
   // a feedback vector associated with it.
   TNode<HeapObject> LoadFeedbackVector(TNode<JSFunction> closure);
-  TNode<FeedbackVector> LoadFeedbackVector(TNode<JSFunction> closure,
-                                           Label* if_no_feedback_vector);
 
   // Load the ClosureFeedbackCellArray that contains the feedback cells
   // used when creating closures from this function. This array could be

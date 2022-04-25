@@ -9,6 +9,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/osr-optimized-code-cache.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -369,7 +370,8 @@ enum ContextLookupFlags {
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
-  V(RETAINED_MAPS, Object, retained_maps)
+  V(RETAINED_MAPS, Object, retained_maps)                                      \
+  V(OSR_CODE_CACHE_INDEX, OSROptimizedCodeCache, osr_code_cache)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
 
