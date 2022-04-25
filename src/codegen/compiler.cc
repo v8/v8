@@ -293,6 +293,9 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
     case CodeKind::BASELINE:
       name = "baseline";
       break;
+    case CodeKind::MAGLEV:
+      name = "maglev";
+      break;
     case CodeKind::TURBOFAN:
       name = "optimize";
       break;
