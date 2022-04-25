@@ -30,7 +30,7 @@ BUILTIN(WebSnapshotSerialize) {
     block_list_js_array = args.at<JSArray>(2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, block_list,
-        JSReceiver::GetOwnValues(block_list_js_array,
+        JSReceiver::GetOwnValues(isolate, block_list_js_array,
                                  PropertyFilter::ENUMERABLE_STRINGS));
   }
 
@@ -98,7 +98,8 @@ BUILTIN(WebSnapshotDeserialize) {
     auto js_array = args.at<JSArray>(2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, injected_references,
-        JSReceiver::GetOwnValues(js_array, PropertyFilter::ENUMERABLE_STRINGS));
+        JSReceiver::GetOwnValues(isolate, js_array,
+                                 PropertyFilter::ENUMERABLE_STRINGS));
   }
 
   WebSnapshotDeserializer deserializer(reinterpret_cast<v8::Isolate*>(isolate),

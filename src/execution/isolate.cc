@@ -4766,7 +4766,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
       Handle<JSReceiver>::cast(import_assertions_object);
 
   Handle<FixedArray> assertion_keys;
-  if (!KeyAccumulator::GetKeys(import_assertions_object_receiver,
+  if (!KeyAccumulator::GetKeys(this, import_assertions_object_receiver,
                                KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
                                GetKeysConversion::kConvertToString)
            .ToHandle(&assertion_keys)) {

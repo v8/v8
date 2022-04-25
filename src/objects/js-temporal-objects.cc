@@ -2915,7 +2915,7 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
   Handle<FixedArray> original_keys;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, original_keys,
-      KeyAccumulator::GetKeys(fields, KeyCollectionMode::kOwnOnly,
+      KeyAccumulator::GetKeys(isolate, fields, KeyCollectionMode::kOwnOnly,
                               ENUMERABLE_STRINGS,
                               GetKeysConversion::kConvertToString),
       JSReceiver);
@@ -2948,8 +2948,8 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
   Handle<FixedArray> new_keys;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, new_keys,
-      KeyAccumulator::GetKeys(additional_fields, KeyCollectionMode::kOwnOnly,
-                              ENUMERABLE_STRINGS,
+      KeyAccumulator::GetKeys(isolate, additional_fields,
+                              KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
                               GetKeysConversion::kConvertToString),
       JSReceiver);
   bool new_keys_has_month_or_month_code = false;

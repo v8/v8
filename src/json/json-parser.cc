@@ -161,7 +161,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       Handle<FixedArray> contents;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, contents,
-          KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+          KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS,
                                   GetKeysConversion::kConvertToString),
           Object);

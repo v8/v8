@@ -194,8 +194,8 @@ bool GetPrivateMembers(Local<Context> context, Local<Object> object,
   i::Handle<i::FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, keys,
-      i::KeyAccumulator::GetKeys(receiver, i::KeyCollectionMode::kOwnOnly,
-                                 key_filter,
+      i::KeyAccumulator::GetKeys(isolate, receiver,
+                                 i::KeyCollectionMode::kOwnOnly, key_filter,
                                  i::GetKeysConversion::kConvertToString),
       false);
 
