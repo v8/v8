@@ -6493,26 +6493,35 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                               Operator::kEliminatable, input, context);
   }
 
+  enum UnwrapExternalFunctions : bool {
+    kUnwrapWasmExternalFunctions = true,
+    kLeaveFunctionsAlone = false
+  };
   // Assumes {input} has been checked for validity against the target wasm type.
   // If {input} is a function, returns the WasmInternalFunction associated with
   // it. If {input} has the {wasm_wrapped_object_symbol} property, returns the
   // value of that property. Otherwise, returns {input}.
-  Node* BuildUnpackObjectWrapper(Node* input, Node* context) {
-    auto not_a_function = gasm_->MakeLabel();
+  Node* BuildUnpackObjectWrapper(
+      Node* input, Node* context,
+      UnwrapExternalFunctions unwrap_wasm_external_functions) {
     auto end = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
 
-    gasm_->GotoIfNot(gasm_->HasInstanceType(input, JS_FUNCTION_TYPE),
-                     &not_a_function);
+    if (unwrap_wasm_external_functions) {
+      auto not_a_function = gasm_->MakeLabel();
+      gasm_->GotoIf(IsSmi(input), &not_a_function);
+      gasm_->GotoIfNot(gasm_->HasInstanceType(input, JS_FUNCTION_TYPE),
+                       &not_a_function);
 
-    Node* function_data = gasm_->LoadFunctionDataFromJSFunction(input);
+      Node* function_data = gasm_->LoadFunctionDataFromJSFunction(input);
 
-    // Due to type checking, {function_data} will be a WasmFunctionData.
-    Node* internal = gasm_->LoadFromObject(
-        MachineType::TaggedPointer(), function_data,
-        wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
-    gasm_->Goto(&end, internal);
+      // Due to type checking, {function_data} will be a WasmFunctionData.
+      Node* internal = gasm_->LoadFromObject(
+          MachineType::TaggedPointer(), function_data,
+          wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
+      gasm_->Goto(&end, internal);
 
-    gasm_->Bind(&not_a_function);
+      gasm_->Bind(&not_a_function);
+    }
     if (!FLAG_wasm_gc_js_interop) {
       Node* obj = gasm_->CallBuiltin(
           Builtin::kWasmGetOwnProperty, Operator::kEliminatable, input,
@@ -6605,10 +6614,19 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             if (!enabled_features_.has_gc()) return input;
             // If this is a wrapper for arrays/structs/i31s, unpack it.
             // TODO(7748): Update this when JS interop has settled.
-            return BuildUnpackObjectWrapper(input, js_context);
+            // We prefer not to unwrap functions here, because deciding whether
+            // that's valid for a given function is expensive (specifically,
+            // it's not valid for plain JS functions, because they don't have
+            // a WasmFunctionData/WasmInternalFunction inside). The consequence
+            // is that passing a funcref to JS and taking it back as {anyref}
+            // turns it into an opaque pointer that can't be cast back to
+            // {funcref}.
+            return BuildUnpackObjectWrapper(input, js_context,
+                                            kLeaveFunctionsAlone);
           case wasm::HeapType::kFunc:
             BuildCheckValidRefValue(input, js_context, type);
-            return BuildUnpackObjectWrapper(input, js_context);
+            return BuildUnpackObjectWrapper(input, js_context,
+                                            kUnwrapWasmExternalFunctions);
           case wasm::HeapType::kData:
           case wasm::HeapType::kArray:
           case wasm::HeapType::kEq:
@@ -6617,11 +6635,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             BuildCheckValidRefValue(input, js_context, type);
             // This will just return {input} if the object is not wrapped, i.e.
             // if it is null (given the check just above).
-            return BuildUnpackObjectWrapper(input, js_context);
+            // Skip function unpacking here to save code size (they can't occur
+            // anyway).
+            return BuildUnpackObjectWrapper(input, js_context,
+                                            kLeaveFunctionsAlone);
           default:
             if (module_->has_signature(type.ref_index())) {
               BuildCheckValidRefValue(input, js_context, type);
-              return BuildUnpackObjectWrapper(input, js_context);
+              return BuildUnpackObjectWrapper(input, js_context,
+                                              kUnwrapWasmExternalFunctions);
             }
             // If this is reached, then IsJSCompatibleSignature() is too
             // permissive.
