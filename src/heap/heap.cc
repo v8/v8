@@ -3954,22 +3954,24 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
 
 void Heap::NotifyObjectLayoutChange(
     HeapObject object, const DisallowGarbageCollection&,
-    InvalidateRecordedSlots invalidate_recorded_slots) {
+    InvalidateRecordedSlots invalidate_recorded_slots, int new_size) {
+  DCHECK_IMPLIES(invalidate_recorded_slots == InvalidateRecordedSlots::kYes,
+                 new_size > 0);
   if (incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
     if (incremental_marking()->IsCompacting() &&
         invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
         MayContainRecordedSlots(object)) {
       MemoryChunk::FromHeapObject(object)
-          ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
+          ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, new_size);
     }
   }
   if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
       MayContainRecordedSlots(object)) {
     MemoryChunk::FromHeapObject(object)
-        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
+        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object, new_size);
     MemoryChunk::FromHeapObject(object)
-        ->RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
+        ->RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object, new_size);
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -4646,9 +4648,32 @@ void Heap::Verify() {
   if (new_lo_space_) new_lo_space_->Verify(isolate());
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 
+  VerifyInvalidatedObjectSize();
+
 #if DEBUG
   VerifyCommittedPhysicalMemory();
 #endif  // DEBUG
+}
+
+namespace {
+void VerifyInvalidatedSlots(InvalidatedSlots* invalidated_slots) {
+  if (!invalidated_slots) return;
+  for (std::pair<HeapObject, int> object_and_size : *invalidated_slots) {
+    HeapObject object = object_and_size.first;
+    int size = object_and_size.second;
+    CHECK_EQ(object.Size(), size);
+  }
+}
+}  // namespace
+
+void Heap::VerifyInvalidatedObjectSize() {
+  OldGenerationMemoryChunkIterator chunk_iterator(this);
+  MemoryChunk* chunk;
+
+  while ((chunk = chunk_iterator.next()) != nullptr) {
+    VerifyInvalidatedSlots(chunk->invalidated_slots<OLD_TO_NEW>());
+    VerifyInvalidatedSlots(chunk->invalidated_slots<OLD_TO_SHARED>());
+  }
 }
 
 void Heap::VerifyReadOnlyHeap() {

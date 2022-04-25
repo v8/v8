@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/scope-info-inl.h"
@@ -826,7 +827,8 @@ void SharedFunctionInfo::ClearPreparseData() {
   Heap* heap = GetHeapFromWritableObject(data);
 
   // Swap the map.
-  heap->NotifyObjectLayoutChange(data, no_gc);
+  heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots::kYes,
+                                 UncompiledDataWithoutPreparseData::kSize);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize <
                 UncompiledDataWithPreparseData::kSize);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
