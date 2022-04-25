@@ -178,6 +178,8 @@ def wait_for_process_timeout(process):
 if options.timeout is None:
   try:
     subprocess.check_call(cmd)
+    log("Waiting for linux-perf to flush all perf data")
+    time.sleep(1)
   except:
     log("ERROR running perf record")
 else:
@@ -190,7 +192,7 @@ else:
     if "d8" in child.name():
       print(f"  quitting PID={child.pid}")
       child.send_signal(signal.SIGQUIT)
-  # Wait for linux-perf to write out files
+  log("Waiting for linux-perf to flush all perf data")
   time.sleep(1)
   return_status = process.poll()
   if return_status is None:

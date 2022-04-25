@@ -14,7 +14,7 @@ import time
 import psutil
 import multiprocessing
 
-renderer_cmd_file = Path(__file__).parent / 'linux-perf-renderer-cmd.sh'
+renderer_cmd_file = Path(__file__).parent / 'linux-perf-chrome-renderer-cmd.sh'
 assert renderer_cmd_file.is_file()
 renderer_cmd_prefix = f"{renderer_cmd_file} --perf-data-prefix=chrome_renderer"
 
@@ -109,7 +109,7 @@ old_cwd = Path.cwd()
 os.chdir(options.perf_data_dir)
 
 # ==============================================================================
-JS_FLAGS_PERF = ("--perf-prof --no-write-protect-code-memory "
+JS_FLAGS_PERF = ("--perf-prof", "--no-write-protect-code-memory",
                  "--interpreted-frames-native-stack")
 
 
@@ -134,10 +134,15 @@ with tempfile.TemporaryDirectory(prefix="chrome-") as tmp_dir_path:
       "--no-sandbox", "--incognito", "--enable-benchmarking", "--no-first-run",
       "--no-default-browser-check",
       f"--renderer-cmd-prefix={options.renderer_cmd_prefix}",
-      f"--js-flags={JS_FLAGS_PERF}"
   ]
+
+  # Do the magic js-flag concatenation to properly forward them to the
+  # renderer command
+  js_flags = set(JS_FLAGS_PERF)
   if options.js_flags:
-    cmd += [f"--js-flags={options.js_flags}"]
+    js_flags.update(shlex.split(options.js_flags))
+  cmd += [f"--js-flags={','.join(list(js_flags))}"]
+
   if options.enable_features:
     cmd += [f"--enable-features={options.enable_features}"]
   if options.disable_features:
@@ -156,7 +161,9 @@ with tempfile.TemporaryDirectory(prefix="chrome-") as tmp_dir_path:
 
   if options.timeout is None:
     try:
-      subprocess.check_call(cmd)
+      subprocess.check_call(cmd, start_new_session=True)
+      log("Waiting for linux-perf to flush all perf data")
+      time.sleep(3)
     except:
       log("ERROR running perf record")
   else:
@@ -169,8 +176,8 @@ with tempfile.TemporaryDirectory(prefix="chrome-") as tmp_dir_path:
       if "chrome" in child.name() or "content_shell" in child.name():
         print(f"  quitting PID={child.pid}")
         child.send_signal(signal.SIGQUIT)
-    # Wait for linux-perf to write out files
-    time.sleep(1)
+    log("Waiting for linux-perf to flush all perf data")
+    time.sleep(3)
     return_status = process.poll()
     if return_status is None:
       log("Force quitting linux-perf")

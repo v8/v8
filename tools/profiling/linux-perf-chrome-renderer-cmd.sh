@@ -40,6 +40,5 @@ for i in "$@"; do
   esac
 done
 
-
 PERF_OUTPUT="$PERF_DATA_DIR/${PERF_DATA_PREFIX}_${PPID}_${RENDERER_ID}.perf.data"
 perf record --call-graph=fp --clockid=mono --freq=max --output="${PERF_OUTPUT}" -- $@
