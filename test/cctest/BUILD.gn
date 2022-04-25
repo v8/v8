@@ -197,7 +197,6 @@ v8_source_set("cctest_sources") {
     "test-code-stub-assembler.cc",
     "test-concurrent-transition-array.cc",
     "test-constantpool.cc",
-    "test-conversions.cc",
     "test-cpu-profiler.cc",
     "test-debug-helper.cc",
     "test-debug.cc",
