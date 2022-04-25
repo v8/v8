@@ -1,18 +1,21 @@
-// Copyright 2016 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
+using CodeLayoutTest = TestWithContext;
+
 namespace internal {
 
-TEST(CodeLayoutWithoutUnwindingInfo) {
-  CcTest::InitializeVM();
-  HandleScope handle_scope(CcTest::i_isolate());
+TEST_F(CodeLayoutTest, CodeLayoutWithoutUnwindingInfo) {
+  HandleScope handle_scope(i_isolate());
 
   // "Hello, World!" in ASCII, padded to kCodeAlignment.
   byte buffer_array[16] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
@@ -39,21 +42,21 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   code_desc.unwinding_info_size = 0;
   code_desc.origin = nullptr;
 
-  Handle<Code> code = Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
-                                           CodeKind::FOR_TESTING)
-                          .Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), code_desc, CodeKind::FOR_TESTING)
+          .Build();
 
   CHECK(!code->has_unwinding_info());
   CHECK_EQ(code->raw_instruction_size(), buffer_size);
   CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->raw_instruction_start()),
                      buffer, buffer_size));
-  CHECK_EQ(code->raw_instruction_end() - code->raw_instruction_start(),
+  CHECK_EQ(static_cast<int>(code->raw_instruction_end() -
+                            code->raw_instruction_start()),
            buffer_size);
 }
 
-TEST(CodeLayoutWithUnwindingInfo) {
-  CcTest::InitializeVM();
-  HandleScope handle_scope(CcTest::i_isolate());
+TEST_F(CodeLayoutTest, CodeLayoutWithUnwindingInfo) {
+  HandleScope handle_scope(i_isolate());
 
   // "Hello, World!" in ASCII, padded to kCodeAlignment.
   byte buffer_array[16] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
@@ -86,9 +89,9 @@ TEST(CodeLayoutWithUnwindingInfo) {
   code_desc.unwinding_info_size = unwinding_info_size;
   code_desc.origin = nullptr;
 
-  Handle<Code> code = Factory::CodeBuilder(CcTest::i_isolate(), code_desc,
-                                           CodeKind::FOR_TESTING)
-                          .Build();
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), code_desc, CodeKind::FOR_TESTING)
+          .Build();
 
   CHECK(code->has_unwinding_info());
   CHECK_EQ(code->raw_body_size(), buffer_size + unwinding_info_size);
@@ -98,7 +101,8 @@ TEST(CodeLayoutWithUnwindingInfo) {
   CHECK_EQ(memcmp(reinterpret_cast<void*>(code->unwinding_info_start()),
                   unwinding_info, unwinding_info_size),
            0);
-  CHECK_EQ(code->unwinding_info_end() - code->raw_instruction_start(),
+  CHECK_EQ(static_cast<int>(code->unwinding_info_end() -
+                            code->raw_instruction_start()),
            buffer_size + unwinding_info_size);
 }
 
