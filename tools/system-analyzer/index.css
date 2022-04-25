@@ -76,7 +76,7 @@ kbd, code, pre {
 }
 code {
   font-size: var(--code-font-size);
-  white-space: nowrap;
+  white-space: pre;
 }
 
 a {
