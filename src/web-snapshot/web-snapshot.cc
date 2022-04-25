@@ -788,14 +788,10 @@ void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
   contexts_ = ArrayList::Add(isolate_, contexts_, context);
 
   Handle<ScopeInfo> scope_info = handle(context->scope_info(), isolate_);
-  int count = scope_info->ContextLocalCount();
-
-  for (int i = 0; i < count; ++i) {
-    // TODO(v8:11525): support parameters
-    // TODO(v8:11525): distinguish variable modes
-    Handle<String> name(scope_info->context_local_names(i), isolate_);
-    DiscoverString(name);
-    Object value = context->get(scope_info->ContextHeaderLength() + i);
+  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
+    DiscoverString(handle(it->name(), isolate_));
+    Object value =
+        context->get(scope_info->ContextHeaderLength() + it->index());
     if (!value.IsHeapObject()) continue;
     discovery_queue_.push(handle(HeapObject::cast(value), isolate_));
   }
@@ -807,6 +803,14 @@ void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
 }
 
 void WebSnapshotSerializer::DiscoverSource(Handle<JSFunction> function) {
+  // Function may not have source code, e.g. we discover source for a builtin
+  // function. In SerializeFunctionInfo, we also check if the function has
+  // source code, and we throw the same error here if the function doesn't
+  // have source code to be consistent with SerializeFunctionInfo.
+  if (!function->shared().HasSourceCode()) {
+    Throw("Function without source code");
+    return;
+  }
   source_intervals_.emplace(function->shared().StartPosition(),
                             function->shared().EndPosition());
   Handle<String> function_script_source =
@@ -945,13 +949,13 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
   int count = scope_info->ContextLocalCount();
   context_serializer_.WriteUint32(count);
 
-  for (int i = 0; i < count; ++i) {
+  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
     // TODO(v8:11525): support parameters
     // TODO(v8:11525): distinguish variable modes
-    Handle<String> name(scope_info->context_local_names(i), isolate_);
-    WriteStringId(name, context_serializer_);
-    Handle<Object> value(context->get(scope_info->ContextHeaderLength() + i),
-                         isolate_);
+    WriteStringId(handle(it->name(), isolate_), context_serializer_);
+    Handle<Object> value(
+        context->get(scope_info->ContextHeaderLength() + it->index()),
+        isolate_);
     WriteValue(value, context_serializer_);
   }
 }
@@ -1624,10 +1628,12 @@ void WebSnapshotDeserializer::DeserializeContexts() {
       Throw("Malformed context");
       return;
     }
+    const bool has_inlined_local_names =
+        variable_count < kScopeInfoMaxInlinedLocalNamesSize;
     // TODO(v8:11525): Enforce upper limit for variable count.
-    Handle<ScopeInfo> scope_info =
-        CreateScopeInfo(variable_count, parent_context_id > 0,
-                        static_cast<ContextType>(context_type));
+    Handle<ScopeInfo> scope_info = CreateScopeInfo(
+        variable_count, parent_context_id > 0,
+        static_cast<ContextType>(context_type), has_inlined_local_names);
 
     Handle<Context> parent_context;
     if (parent_context_id > 0) {
@@ -1636,29 +1642,6 @@ void WebSnapshotDeserializer::DeserializeContexts() {
       scope_info->set_outer_scope_info(parent_context->scope_info());
     } else {
       parent_context = handle(isolate_->context(), isolate_);
-    }
-
-    const int context_local_base = ScopeInfo::kVariablePartIndex;
-    const int context_local_info_base = context_local_base + variable_count;
-    for (int variable_index = 0;
-         variable_index < static_cast<int>(variable_count); ++variable_index) {
-      {
-        String name = ReadString(true);
-        scope_info->set(context_local_base + variable_index, name);
-      }
-
-      // TODO(v8:11525): Support variable modes etc.
-      uint32_t info =
-          ScopeInfo::VariableModeBits::encode(VariableMode::kLet) |
-          ScopeInfo::InitFlagBit::encode(
-              InitializationFlag::kNeedsInitialization) |
-          ScopeInfo::MaybeAssignedFlagBit::encode(
-              MaybeAssignedFlag::kMaybeAssigned) |
-          ScopeInfo::ParameterNumberBits::encode(
-              ScopeInfo::ParameterNumberBits::kMax) |
-          ScopeInfo::IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
-      scope_info->set(context_local_info_base + variable_index,
-                      Smi::FromInt(info));
     }
 
     // Allocate the FunctionContext after setting up the ScopeInfo to avoid
@@ -1675,10 +1658,46 @@ void WebSnapshotDeserializer::DeserializeContexts() {
         Throw("Unsupported context type");
         return;
     }
-    int context_header_length = scope_info->ContextHeaderLength();
+
+    const int local_names_container_size =
+        has_inlined_local_names ? variable_count : 1;
+    const int context_local_base = ScopeInfo::kVariablePartIndex;
+    const int context_local_info_base =
+        context_local_base + local_names_container_size;
+
     for (int variable_index = 0;
          variable_index < static_cast<int>(variable_count); ++variable_index) {
-      int context_index = context_header_length + variable_index;
+      {
+        String name = ReadString(true);
+        if (has_inlined_local_names) {
+          scope_info->set(context_local_base + variable_index, name);
+        } else {
+          Handle<NameToIndexHashTable> local_names_hashtable(
+              scope_info->context_local_names_hashtable(), isolate_);
+
+          Handle<NameToIndexHashTable> new_table =
+              NameToIndexHashTable::Add(isolate_, local_names_hashtable,
+                                        handle(name, isolate_), variable_index);
+          // The hash table didn't grow, since it was preallocated to
+          // be large enough in CreateScopeInfo.
+          DCHECK_EQ(*new_table, *local_names_hashtable);
+          USE(new_table);
+        }
+      }
+      // TODO(v8:11525): Support variable modes etc.
+      uint32_t info =
+          ScopeInfo::VariableModeBits::encode(VariableMode::kLet) |
+          ScopeInfo::InitFlagBit::encode(
+              InitializationFlag::kNeedsInitialization) |
+          ScopeInfo::MaybeAssignedFlagBit::encode(
+              MaybeAssignedFlag::kMaybeAssigned) |
+          ScopeInfo::ParameterNumberBits::encode(
+              ScopeInfo::ParameterNumberBits::kMax) |
+          ScopeInfo::IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
+      scope_info->set(context_local_info_base + variable_index,
+                      Smi::FromInt(info));
+
+      int context_index = scope_info->ContextHeaderLength() + variable_index;
       Object value = ReadValue(context, context_index);
       context->set(context_index, value);
     }
@@ -1687,7 +1706,8 @@ void WebSnapshotDeserializer::DeserializeContexts() {
 }
 
 Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
-    uint32_t variable_count, bool has_parent, ContextType context_type) {
+    uint32_t variable_count, bool has_parent, ContextType context_type,
+    bool has_inlined_local_names) {
   // TODO(v8:11525): Decide how to handle language modes. (The code below sets
   // the language mode as strict.)
   // TODO(v8:11525): Support (context-allocating) receiver.
@@ -1732,12 +1752,16 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
       Throw("Unsupported context type");
   }
   flags |= ScopeInfo::ScopeTypeBits::encode(scope_type);
+  const int local_names_container_size =
+      has_inlined_local_names ? variable_count : 1;
   const int length = ScopeInfo::kVariablePartIndex +
                      (ScopeInfo::NeedsPositionInfo(scope_type)
                           ? ScopeInfo::kPositionInfoEntries
                           : 0) +
-                     (has_parent ? 1 : 0) + 2 * variable_count;
+                     (has_parent ? 1 : 0) + local_names_container_size +
+                     variable_count;
   Handle<ScopeInfo> scope_info = factory()->NewScopeInfo(length);
+  Handle<NameToIndexHashTable> local_names_hashtable;
   {
     DisallowGarbageCollection no_gc;
     ScopeInfo raw = *scope_info;
@@ -1751,6 +1775,11 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
     if (raw.HasPositionInfo()) {
       raw.SetPositionInfo(0, 0);
     }
+  }
+  if (!has_inlined_local_names) {
+    local_names_hashtable = NameToIndexHashTable::New(isolate_, variable_count,
+                                                      AllocationType::kOld);
+    scope_info->set_context_local_names_hashtable(*local_names_hashtable);
   }
   return scope_info;
 }

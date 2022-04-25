@@ -315,7 +315,8 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeMaps();
   void DeserializeContexts();
   Handle<ScopeInfo> CreateScopeInfo(uint32_t variable_count, bool has_parent,
-                                    ContextType context_type);
+                                    ContextType context_type,
+                                    bool has_inlined_local_names);
   Handle<JSFunction> CreateJSFunction(int index, uint32_t start,
                                       uint32_t length, uint32_t parameter_count,
                                       uint32_t flags, uint32_t context_id);
