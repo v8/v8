@@ -1587,9 +1587,13 @@ CompilationExecutionResult ExecuteCompilationUnits(
   // that bit of overhead over the memory consumption increase by the cache.
   base::Optional<AssemblerBufferCache> optional_assembler_buffer_cache;
   AssemblerBufferCache* assembler_buffer_cache = nullptr;
+  // Also, open a CodeSpaceWriteScope now to have (thread-local) write access to
+  // the assembler buffers.
+  base::Optional<CodeSpaceWriteScope> write_scope_for_assembler_buffers;
   if (GetWasmCodeManager()->MemoryProtectionKeysEnabled()) {
     optional_assembler_buffer_cache.emplace();
     assembler_buffer_cache = &*optional_assembler_buffer_cache;
+    write_scope_for_assembler_buffers.emplace(nullptr);
   }
 
   std::vector<WasmCompilationResult> results_to_publish;

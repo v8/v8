@@ -12,6 +12,19 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace {
+// For PKU and if MAP_JIT is available, the CodeSpaceWriteScope does not
+// actually make use of the supplied {NativeModule}. In fact, there are
+// situations where we can't provide a specific {NativeModule} to the scope. For
+// those situations, we use this dummy pointer instead.
+NativeModule* GetDummyNativeModule() {
+  static struct alignas(NativeModule) DummyNativeModule {
+    char content;
+  } dummy_native_module;
+  return reinterpret_cast<NativeModule*>(&dummy_native_module);
+}
+}  // namespace
+
 thread_local NativeModule* CodeSpaceWriteScope::current_native_module_ =
     nullptr;
 
@@ -19,7 +32,13 @@ thread_local NativeModule* CodeSpaceWriteScope::current_native_module_ =
 // writable mode; only the main thread has to switch back and forth.
 CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
     : previous_native_module_(current_native_module_) {
-  DCHECK_NOT_NULL(native_module);
+  if (!native_module) {
+    // Passing in a {nullptr} is OK if we don't use that pointer anyway.
+    // Internally, we need a non-nullptr though to know whether a scope is
+    // already open from looking at {current_native_module_}.
+    DCHECK(!SwitchingPerNativeModule());
+    native_module = GetDummyNativeModule();
+  }
   if (previous_native_module_ == native_module) return;
   current_native_module_ = native_module;
   if (previous_native_module_ == nullptr || SwitchingPerNativeModule()) {
