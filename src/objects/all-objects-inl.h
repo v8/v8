@@ -47,7 +47,7 @@
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
-#include "src/objects/js-shadow-realms-inl.h"
+#include "src/objects/js-shadow-realm-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"

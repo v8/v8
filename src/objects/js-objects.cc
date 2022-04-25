@@ -52,7 +52,7 @@
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
-#include "src/objects/js-shadow-realms.h"
+#include "src/objects/js-shadow-realm.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segment-iterator.h"

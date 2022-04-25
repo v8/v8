@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_OBJECTS_JS_SHADOW_REALMS_H_
-#define V8_OBJECTS_JS_SHADOW_REALMS_H_
+#ifndef V8_OBJECTS_JS_SHADOW_REALM_H_
+#define V8_OBJECTS_JS_SHADOW_REALM_H_
 
 #include "src/objects/js-objects.h"
 #include "torque-generated/bit-fields.h"
@@ -16,7 +16,7 @@ namespace internal {
 
 class NativeContext;
 
-#include "torque-generated/src/objects/js-shadow-realms-tq.inc"
+#include "torque-generated/src/objects/js-shadow-realm-tq.inc"
 
 // ShadowRealm object from the JS ShadowRealm spec proposal:
 // https://github.com/tc39/proposal-shadowrealm
@@ -36,4 +36,4 @@ class JSShadowRealm
 
 #include "src/objects/object-macros-undef.h"
 
-#endif  // V8_OBJECTS_JS_SHADOW_REALMS_H_
+#endif  // V8_OBJECTS_JS_SHADOW_REALM_H_

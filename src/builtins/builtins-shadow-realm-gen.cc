@@ -6,7 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/objects/descriptor-array.h"
-#include "src/objects/js-shadow-realms.h"
+#include "src/objects/js-shadow-realm.h"
 #include "src/objects/module.h"
 
 namespace v8 {

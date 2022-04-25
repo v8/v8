@@ -5,7 +5,7 @@
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/logging/counters.h"
-#include "src/objects/js-shadow-realms-inl.h"
+#include "src/objects/js-shadow-realm-inl.h"
 
 namespace v8 {
 namespace internal {
