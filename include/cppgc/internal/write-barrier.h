@@ -135,7 +135,8 @@ class V8_EXPORT WriteBarrier final {
 
 template <WriteBarrier::Type type>
 V8_INLINE WriteBarrier::Type SetAndReturnType(WriteBarrier::Params& params) {
-  if (type == WriteBarrier::Type::kNone) return WriteBarrier::Type::kNone;
+  if constexpr (type == WriteBarrier::Type::kNone)
+    return WriteBarrier::Type::kNone;
 #if V8_ENABLE_CHECKS
   params.type = type;
 #endif  // !V8_ENABLE_CHECKS
@@ -180,18 +181,24 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
 
   static V8_INLINE bool TryGetCagedHeap(const void* slot, const void* value,
                                         WriteBarrier::Params& params) {
-    // TODO(chromium:1056170): Check if the null check can be folded in with
-    // the rest of the write barrier.
-    if (!value) return false;
-    params.start = reinterpret_cast<uintptr_t>(value) &
-                   ~(api_constants::kCagedHeapReservationAlignment - 1);
-    const uintptr_t slot_offset =
-        reinterpret_cast<uintptr_t>(slot) - params.start;
-    if (slot_offset > api_constants::kCagedHeapReservationSize) {
-      // Check if slot is on stack or value is sentinel or nullptr. This relies
-      // on the fact that kSentinelPointer is encoded as 0x1.
-      return false;
-    }
+    // The compiler must fold these checks into a single one.
+    if (!value || value == kSentinelPointer) return false;
+
+    // Now we are certain that |value| points within the cage.
+    const uintptr_t real_cage_base =
+        reinterpret_cast<uintptr_t>(value) &
+        ~(api_constants::kCagedHeapReservationAlignment - 1);
+
+    const uintptr_t cage_base_from_slot =
+        reinterpret_cast<uintptr_t>(slot) &
+        ~(api_constants::kCagedHeapReservationAlignment - 1);
+
+    // If |cage_base_from_slot| is different from |real_cage_base|, the slot
+    // must be on stack, bail out.
+    if (V8_UNLIKELY(real_cage_base != cage_base_from_slot)) return false;
+
+    // Otherwise, set params.start and return.
+    params.start = real_cage_base;
     return true;
   }
 
