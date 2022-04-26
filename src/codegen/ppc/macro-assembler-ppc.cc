@@ -297,6 +297,24 @@ void TurboAssembler::Drop(Register count, Register scratch) {
   add(sp, sp, scratch);
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
+                                                        Register scratch1,
+                                                        Register scratch2) {
+  LoadTaggedPointerField(scratch1,
+                         FieldMemOperand(codet, Code::kCodeDataContainerOffset),
+                         scratch2);
+  LoadS32(
+      scratch1,
+      FieldMemOperand(scratch1, CodeDataContainer::kKindSpecificFlagsOffset),
+      scratch2);
+  TestBit(scratch1, Code::kMarkedForDeoptimizationBit, scratch2);
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void TurboAssembler::Call(Label* target) { b(target, SetLK); }
 
 void TurboAssembler::Push(Handle<HeapObject> handle) {

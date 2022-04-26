@@ -1773,6 +1773,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
       RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
       SmiCheck smi_check = SmiCheck::kInline);
 
+  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch);
+  Operand ClearedValue() const;
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
   // Helper functions for generating invokes.
