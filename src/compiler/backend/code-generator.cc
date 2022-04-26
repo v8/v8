@@ -507,10 +507,6 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
     return MaybeHandle<Code>();
   }
 
-  // Counts both compiled code and metadata.
-  isolate()->counters()->total_compiled_code_size()->Increment(
-      code->raw_body_size());
-
   LOG_CODE_EVENT(isolate(), CodeLinePosInfoRecordEvent(
                                 code->raw_instruction_start(),
                                 *source_positions, JitCodeEvent::JIT_CODE));

@@ -817,13 +817,6 @@ void StringTable::NotifyElementsRemoved(int count) {
   data_.load(std::memory_order_relaxed)->ElementsRemoved(count);
 }
 
-void StringTable::UpdateCountersIfOwnedBy(Isolate* isolate) {
-  DCHECK_EQ(isolate->string_table(), this);
-  if (!isolate->OwnsStringTables()) return;
-  isolate->counters()->string_table_capacity()->Set(Capacity());
-  isolate->counters()->number_of_symbols()->Set(NumberOfElements());
-}
-
 class StringForwardingTable::Block {
  public:
   static std::unique_ptr<Block> New(int capacity);

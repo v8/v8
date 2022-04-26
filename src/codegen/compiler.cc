@@ -389,28 +389,6 @@ CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
 }
 
 namespace {
-
-void RecordUnoptimizedCompilationStats(Isolate* isolate,
-                                       Handle<SharedFunctionInfo> shared_info) {
-#if V8_ENABLE_WEBASSEMBLY
-  int code_size =
-      shared_info->HasBytecodeArray()
-          ? shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata()
-          : shared_info->asm_wasm_data().Size();
-#else
-  int code_size =
-      shared_info->GetBytecodeArray(isolate).SizeIncludingMetadata();
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  Counters* counters = isolate->counters();
-  // TODO(4280): Rename counters from "baseline" to "unoptimized" eventually.
-  counters->total_baseline_code_size()->Increment(code_size);
-  counters->total_baseline_compile_count()->Increment(1);
-
-  // TODO(5203): Add timers for each phase of compilation.
-  // Also add total time (there's now already timer_ on the base class).
-}
-
 void RecordUnoptimizedFunctionCompilation(
     Isolate* isolate, LogEventListener::LogEventsAndTags tag,
     Handle<SharedFunctionInfo> shared, base::TimeDelta time_taken_to_execute,
@@ -678,7 +656,6 @@ void LogUnoptimizedCompilation(Isolate* isolate,
   RecordUnoptimizedFunctionCompilation(isolate, log_tag, shared_info,
                                        time_taken_to_execute,
                                        time_taken_to_finalize);
-  RecordUnoptimizedCompilationStats(isolate, shared_info);
 }
 
 template <typename IsolateT>
@@ -1837,10 +1814,6 @@ void BackgroundCompileTask::ReportStatistics(Isolate* isolate) {
   for (auto feature : use_counts_) {
     isolate->CountUsage(feature);
   }
-  if (total_preparse_skipped_ > 0) {
-    isolate->counters()->total_preparse_skipped()->Increment(
-        total_preparse_skipped_);
-  }
 }
 
 BackgroundDeserializeTask::BackgroundDeserializeTask(
@@ -2300,9 +2273,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     int eval_scope_position, int eval_position,
     ParsingWhileDebugging parsing_while_debugging) {
   Isolate* isolate = context->GetIsolate();
-  int source_length = source->length();
-  isolate->counters()->total_eval_size()->Increment(source_length);
-  isolate->counters()->total_compile_size()->Increment(source_length);
 
   // The cache lookup key needs to be aware of the separation between the
   // parameters and the body to prevent this valid invocation:
@@ -2981,15 +2951,12 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     DCHECK(!(cached_data && deserialize_task));
     DCHECK_NULL(extension);
   }
-  int source_length = source->length();
-  isolate->counters()->total_load_size()->Increment(source_length);
-  isolate->counters()->total_compile_size()->Increment(source_length);
 
   if (V8_UNLIKELY(
           i::FLAG_experimental_web_snapshots &&
           (source->IsExternalOneByteString() || source->IsSeqOneByteString() ||
            source->IsExternalTwoByteString() || source->IsSeqTwoByteString()) &&
-          source_length > 4)) {
+          source->length() > 4)) {
     // Experimental: Treat the script as a web snapshot if it starts with the
     // magic byte sequence. TODO(v8:11525): Remove this once proper embedder
     // integration is done.
@@ -3164,9 +3131,6 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     DCHECK(cached_data);
   }
 
-  int source_length = source->length();
-  isolate->counters()->total_compile_size()->Increment(source_length);
-
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
@@ -3251,10 +3215,6 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   ScriptCompileTimerScope compile_timer(
       isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
   PostponeInterruptsScope postpone(isolate);
-
-  int source_length = source->length();
-  isolate->counters()->total_load_size()->Increment(source_length);
-  isolate->counters()->total_compile_size()->Increment(source_length);
 
   BackgroundCompileTask* task = streaming_data->task.get();
 

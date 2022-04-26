@@ -2449,14 +2449,12 @@ uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
 
 InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
 InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
-  isolate_->counters()->pc_to_code()->Increment();
   DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
   uint32_t hash =
       ComputeUnseededHash(PcAddressForHashing(isolate_, inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   InnerPointerToCodeCacheEntry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {
-    isolate_->counters()->pc_to_code_cached()->Increment();
     DCHECK(entry->code ==
            isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer));
   } else {

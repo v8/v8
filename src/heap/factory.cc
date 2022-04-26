@@ -1902,7 +1902,6 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   DCHECK(!map.is_in_retained_map_list());
   map.clear_padding();
   map.set_elements_kind(elements_kind);
-  isolate()->counters()->maps_created()->Increment();
   if (FLAG_log_maps) LOG(isolate(), MapCreate(map));
   return map;
 }

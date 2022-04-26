@@ -6352,7 +6352,6 @@ Genesis::Genesis(
   if (!native_context().is_null()) {
     AddToWeakNativeContextList(isolate, *native_context());
     isolate->set_context(*native_context());
-    isolate->counters()->contexts_created_by_snapshot()->Increment();
 
     // If no global proxy template was passed in, simply use the global in the
     // snapshot. If a global proxy template was passed in it's used to recreate
@@ -6395,8 +6394,6 @@ Genesis::Genesis(
     if (!InstallABunchOfRandomThings()) return;
     if (!InstallExtrasBindings()) return;
     if (!ConfigureGlobalObject(global_proxy_template)) return;
-
-    isolate->counters()->contexts_created_from_scratch()->Increment();
 
     if (FLAG_profile_deserialization) {
       double ms = timer.Elapsed().InMillisecondsF();

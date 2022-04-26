@@ -2267,8 +2267,6 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
                              : NameDictionary::kInitialCapacity;
   Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
       initial_map, initial_capacity, AllocationType::kYoung, site);
-  isolate->counters()->constructed_objects()->Increment();
-  isolate->counters()->constructed_objects_runtime()->Increment();
   return result;
 }
 
@@ -2298,7 +2296,6 @@ void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   Handle<FixedArray> writable_elems = isolate->factory()->CopyFixedArrayWithMap(
       elems, isolate->factory()->fixed_array_map());
   object->set_elements(*writable_elems);
-  isolate->counters()->cow_arrays_converted()->Increment();
 }
 
 int JSObject::GetHeaderSize(InstanceType type,
@@ -3247,8 +3244,6 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     }
   }
 
-  isolate->counters()->props_to_dictionary()->Increment();
-
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
     StdoutStream os;
@@ -3880,8 +3875,6 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
   } else {
     object->set_elements(*dictionary);
   }
-
-  isolate->counters()->elements_to_dictionary()->Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {

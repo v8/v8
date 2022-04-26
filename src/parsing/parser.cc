@@ -3375,8 +3375,6 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
       isolate->CountUsage(v8::Isolate::kHtmlCommentInExternalScript);
     }
   }
-  isolate->counters()->total_preparse_skipped()->Increment(
-      total_preparse_skipped_);
 }
 
 void Parser::UpdateStatistics(

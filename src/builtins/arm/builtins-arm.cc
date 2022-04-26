@@ -209,8 +209,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       &not_create_implicit_receiver);
 
   // If not derived class constructor: Allocate the new receiver object.
-  __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1, r4,
-                      r5);
   __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject), RelocInfo::CODE_TARGET);
   __ b(&post_instantiation_deopt_entry);
 

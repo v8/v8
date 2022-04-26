@@ -1474,8 +1474,6 @@ void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));
 
-  isolate_->string_table()->UpdateCountersIfOwnedBy(isolate_);
-
   if (CommittedMemory() > 0) {
     isolate_->counters()->external_fragmentation_total()->AddSample(
         static_cast<int>(100 - (SizeOfObjects() * 100.0) / CommittedMemory()));
@@ -3259,7 +3257,6 @@ void* Heap::AllocateExternalBackingStore(
       result = allocate(byte_length);
       if (result) return result;
     }
-    isolate()->counters()->gc_last_resort_from_handles()->Increment();
     CollectAllAvailableGarbage(
         GarbageCollectionReason::kExternalMemoryPressure);
   }
