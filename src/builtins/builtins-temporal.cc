@@ -194,8 +194,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToPlainTime)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToPlainDateTime)
 
 /* Temporal.Duration */
-/* Temporal #sec-temporal.duration.from */
-TO_BE_IMPLEMENTED(TemporalDurationFrom)
 /* Temporal #sec-temporal.duration.compare */
 TO_BE_IMPLEMENTED(TemporalDurationCompare)
 /* Temporal #sec-temporal.duration.prototype.with */
@@ -411,6 +409,14 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
         JSTemporal##T ::METHOD(isolate, obj, args.atOrUndefined(isolate, 1), \
                                args.atOrUndefined(isolate, 2),               \
                                args.atOrUndefined(isolate, 3)));             \
+  }
+
+#define TEMPORAL_METHOD1(T, METHOD)                                       \
+  BUILTIN(Temporal##T##METHOD) {                                          \
+    HandleScope scope(isolate);                                           \
+    RETURN_RESULT_OR_FAILURE(                                             \
+        isolate,                                                          \
+        JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1))); \
   }
 
 #define TEMPORAL_METHOD2(T, METHOD)                                     \
@@ -750,6 +756,7 @@ BUILTIN(TemporalDurationConstructor) {
                    args.atOrUndefined(isolate, 9),     // microseconds
                    args.atOrUndefined(isolate, 10)));  // nanoseconds
 }
+TEMPORAL_METHOD1(Duration, From)
 TEMPORAL_GET(Duration, Years, years)
 TEMPORAL_GET(Duration, Months, months)
 TEMPORAL_GET(Duration, Weeks, weeks)

@@ -2028,35 +2028,45 @@ void VerifyParseDurationWithComma(Isolate* isolate, const char* str) {
   VerifyParseDurationSuccess(isolate, str, expected);
 }
 
+constexpr int64_t empty = ParsedISO8601Duration::kEmpty;
+
 // Test basic cases.
 TEST(TemporalDurationStringBasic) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
 
-  VerifyParseDurationSuccess(isolate, "PT0S", 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT0S", -1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                             0);
+  VerifyParseDurationSuccess(isolate, "PT0S", 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 0, empty);
+  VerifyParseDurationSuccess(isolate, "-PT0S", -1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 0, empty);
 
-  VerifyParseDurationSuccess(isolate, "P1Y", 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P2M", 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P3W", 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P4D", 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT5H", 1, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT1.987654321H", 1, 0, 0, 0, 0, 1,
-                             987654321, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT2.9H", 1, 0, 0, 0, 0, 2, 900000000, 0,
-                             0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT6M", 1, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT2.234567891M", 1, 0, 0, 0, 0, 0, 0, 2,
-                             234567891, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT3.23M", 1, 0, 0, 0, 0, 0, 0, 3,
-                             230000000, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT7S", 1, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0);
-  VerifyParseDurationSuccess(isolate, "PT3.345678912S", 1, 0, 0, 0, 0, 0, 0, 0,
-                             0, 3, 345678912);
-  VerifyParseDurationSuccess(isolate, "PT4.345S", 1, 0, 0, 0, 0, 0, 0, 0, 0, 4,
-                             345000000);
+  VerifyParseDurationSuccess(isolate, "P1Y", 1, 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P2M", 1, empty, 2, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P3W", 1, empty, empty, 3, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P4D", 1, empty, empty, empty, 4, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT5H", 1, empty, empty, empty, empty, 5,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT1.987654321H", 1, empty, empty, empty,
+                             empty, 1, 987654321, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT2.9H", 1, empty, empty, empty, empty,
+                             2, 900000000, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT6M", 1, empty, empty, empty, empty,
+                             empty, empty, 6, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT2.234567891M", 1, empty, empty, empty,
+                             empty, empty, empty, 2, 234567891, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT3.23M", 1, empty, empty, empty, empty,
+                             empty, empty, 3, 230000000, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT7S", 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 7, empty);
+  VerifyParseDurationSuccess(isolate, "PT3.345678912S", 1, empty, empty, empty,
+                             empty, empty, empty, empty, empty, 3, 345678912);
+  VerifyParseDurationSuccess(isolate, "PT4.345S", 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 4, 345000000);
 
   VerifyParseDurationSuccess(isolate, "P1Y2M3W4DT5.6H7.8M9.1S", 1, 1, 2, 3, 4,
                              5, 600000000, 7, 800000000, 9, 100000000);
@@ -2074,26 +2084,30 @@ TEST(TemporalDurationStringNegative) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
-  VerifyParseDurationSuccess(isolate, "-P1Y", -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P2M", -1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P3W", -1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P4D", -1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT5H", -1, 0, 0, 0, 0, 5, 0, 0, 0, 0,
-                             0);
-  VerifyParseDurationSuccess(isolate, "-PT4.123H", -1, 0, 0, 0, 0, 4, 123000000,
-                             0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT3.123456H", -1, 0, 0, 0, 0, 3,
-                             123456000, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT6M", -1, 0, 0, 0, 0, 0, 0, 6, 0, 0,
-                             0);
-  VerifyParseDurationSuccess(isolate, "-PT5.2M", -1, 0, 0, 0, 0, 0, 0, 5,
-                             200000000, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT4.3456M", -1, 0, 0, 0, 0, 0, 0, 4,
-                             345600000, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT7S", -1, 0, 0, 0, 0, 0, 0, 0, 0, 7,
-                             0);
-  VerifyParseDurationSuccess(isolate, "-PT6.987S", -1, 0, 0, 0, 0, 0, 0, 0, 0,
-                             6, 987000000);
+  VerifyParseDurationSuccess(isolate, "-P1Y", -1, 1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P2M", -1, empty, 2, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P3W", -1, empty, empty, 3, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P4D", -1, empty, empty, empty, 4, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT5H", -1, empty, empty, empty, empty,
+                             5, empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT4.123H", -1, empty, empty, empty,
+                             empty, 4, 123000000, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT3.123456H", -1, empty, empty, empty,
+                             empty, 3, 123456000, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT6M", -1, empty, empty, empty, empty,
+                             empty, empty, 6, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT5.2M", -1, empty, empty, empty, empty,
+                             empty, empty, 5, 200000000, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT4.3456M", -1, empty, empty, empty,
+                             empty, empty, empty, 4, 345600000, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT7S", -1, empty, empty, empty, empty,
+                             empty, empty, empty, empty, 7, empty);
+  VerifyParseDurationSuccess(isolate, "-PT6.987S", -1, empty, empty, empty,
+                             empty, empty, empty, empty, empty, 6, 987000000);
 }
 
 // Test duration with + sign parsed the same as without + sign.
@@ -2174,50 +2188,68 @@ TEST(TemporalDurationStringLongDigits) {
   v8::HandleScope scope(CcTest::isolate());
 
   VerifyParseDurationSuccess(isolate, "P8999999999999999999Y", 1,
-                             8999999999999999999, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P8999999999999999998M", 1, 0,
-                             8999999999999999998, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P8999999999999999997W", 1, 0, 0,
-                             8999999999999999997, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "P8999999999999999996D", 1, 0, 0, 0,
-                             8999999999999999996, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT8999999999999999995H", 1, 0, 0, 0, 0,
-                             8999999999999999995, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT8999999999999999994M", 1, 0, 0, 0, 0,
-                             0, 0, 8999999999999999994, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT8999999999999999993S", 1, 0, 0, 0, 0,
-                             0, 0, 0, 0, 8999999999999999993, 0);
+                             8999999999999999999, empty, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P8999999999999999998M", 1, empty,
+                             8999999999999999998, empty, empty, empty, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P8999999999999999997W", 1, empty, empty,
+                             8999999999999999997, empty, empty, empty, empty,
+                             empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "P8999999999999999996D", 1, empty, empty,
+                             empty, 8999999999999999996, empty, empty, empty,
+                             empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT8999999999999999995H", 1, empty, empty,
+                             empty, empty, 8999999999999999995, empty, empty,
+                             empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT8999999999999999994M", 1, empty, empty,
+                             empty, empty, empty, empty, 8999999999999999994,
+                             empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT8999999999999999993S", 1, empty, empty,
+                             empty, empty, empty, empty, empty, empty,
+                             8999999999999999993, empty);
 
-  VerifyParseDurationSuccess(isolate, "PT0.999999999H", 1, 0, 0, 0, 0, 0,
-                             999999999, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT0.999999999M", 1, 0, 0, 0, 0, 0, 0, 0,
-                             999999999, 0, 0);
-  VerifyParseDurationSuccess(isolate, "PT0.999999999S", 1, 0, 0, 0, 0, 0, 0, 0,
-                             0, 0, 999999999);
+  VerifyParseDurationSuccess(isolate, "PT0.999999999H", 1, empty, empty, empty,
+                             empty, 0, 999999999, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT0.999999999M", 1, empty, empty, empty,
+                             empty, empty, empty, 0, 999999999, empty, empty);
+  VerifyParseDurationSuccess(isolate, "PT0.999999999S", 1, empty, empty, empty,
+                             empty, empty, empty, empty, empty, 0, 999999999);
 
   VerifyParseDurationSuccess(isolate, "-P8999999999999999999Y", -1,
-                             8999999999999999999, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P8999999999999999998M", -1, 0,
-                             8999999999999999998, 0, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P8999999999999999997W", -1, 0, 0,
-                             8999999999999999997, 0, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-P8999999999999999996D", -1, 0, 0, 0,
-                             8999999999999999996, 0, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT8999999999999999995H", -1, 0, 0, 0, 0,
-                             8999999999999999995, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT8999999999999999995H", -1, 0, 0, 0, 0,
-                             8999999999999999995, 0, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT8999999999999999994M", -1, 0, 0, 0, 0,
-                             0, 0, 8999999999999999994, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT8999999999999999993S", -1, 0, 0, 0, 0,
-                             0, 0, 0, 0, 8999999999999999993, 0);
+                             8999999999999999999, empty, empty, empty, empty,
+                             empty, empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P8999999999999999998M", -1, empty,
+                             8999999999999999998, empty, empty, empty, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P8999999999999999997W", -1, empty,
+                             empty, 8999999999999999997, empty, empty, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-P8999999999999999996D", -1, empty,
+                             empty, empty, 8999999999999999996, empty, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT8999999999999999995H", -1, empty,
+                             empty, empty, empty, 8999999999999999995, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT8999999999999999995H", -1, empty,
+                             empty, empty, empty, 8999999999999999995, empty,
+                             empty, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT8999999999999999994M", -1, empty,
+                             empty, empty, empty, empty, empty,
+                             8999999999999999994, empty, empty, empty);
+  VerifyParseDurationSuccess(isolate, "-PT8999999999999999993S", -1, empty,
+                             empty, empty, empty, empty, empty, empty, empty,
+                             8999999999999999993, empty);
 
-  VerifyParseDurationSuccess(isolate, "-PT0.999999999H", -1, 0, 0, 0, 0, 0,
-                             999999999, 0, 0, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT0.999999999M", -1, 0, 0, 0, 0, 0, 0,
-                             0, 999999999, 0, 0);
-  VerifyParseDurationSuccess(isolate, "-PT0.999999999S", -1, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 999999999);
+  VerifyParseDurationSuccess(isolate, "-PT0.999999999H", -1, empty, empty,
+                             empty, empty, 0, 999999999, empty, empty, empty,
+                             empty);
+  VerifyParseDurationSuccess(isolate, "-PT0.999999999M", -1, empty, empty,
+                             empty, empty, empty, empty, 0, 999999999, empty,
+                             empty);
+  VerifyParseDurationSuccess(isolate, "-PT0.999999999S", -1, empty, empty,
+                             empty, empty, empty, empty, empty, empty, 0,
+                             999999999);
 }
 
 TEST(TemporalDurationStringNotSatisfy) {

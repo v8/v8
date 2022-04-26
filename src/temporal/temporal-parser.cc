@@ -1020,10 +1020,10 @@ SCAN_FORWARD(DurationSecondsFraction, TimeFraction, int64_t)
   int32_t ScanDurationWhole##Name##FractionDesignator(                    \
       base::Vector<Char> str, int32_t s, ParsedISO8601Duration* r) {      \
     int32_t cur = s;                                                      \
-    int64_t whole = 0;                                                    \
+    int64_t whole = ParsedISO8601Duration::kEmpty;                        \
     cur += ScanDurationWhole##Name(str, cur, &whole);                     \
     if (cur == s) return 0;                                               \
-    int64_t fraction = 0;                                                 \
+    int64_t fraction = ParsedISO8601Duration::kEmpty;                     \
     int32_t len = ScanDuration##Name##Fraction(str, cur, &fraction);      \
     cur += len;                                                           \
     if (str.length() < (cur + 1) || AsciiAlphaToLower(str[cur++]) != (d)) \

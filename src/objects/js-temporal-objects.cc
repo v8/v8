@@ -124,6 +124,12 @@ struct DurationRecord {
   double months;
   double weeks;
   TimeDurationRecord time_duration;
+  // #sec-temporal-createdurationrecord
+  static Maybe<DurationRecord> Create(Isolate* isolate, double years,
+                                      double months, double weeks, double days,
+                                      double hours, double minutes,
+                                      double seconds, double milliseconds,
+                                      double microseconds, double nanoseconds);
 };
 
 // #sec-temporal-isvalidduration
@@ -170,6 +176,9 @@ V8_WARN_UNUSED_RESULT Maybe<DateRecord> ParseTemporalDateString(
 // #sec-temporal-parsetemporaltimestring
 Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
                                           Handle<String> iso_string);
+// #sec-temporal-parsetemporaldurationstring
+V8_WARN_UNUSED_RESULT Maybe<DurationRecord> ParseTemporalDurationString(
+    Isolate* isolate, Handle<String> iso_string);
 
 // #sec-temporal-parsetemporaltimezone
 V8_WARN_UNUSED_RESULT MaybeHandle<String> ParseTemporalTimeZone(
@@ -808,11 +817,9 @@ Maybe<TimeDurationRecord> TimeDurationRecord::Create(
   // 1. If ! IsValidDuration(0, 0, 0, days, hours, minutes, seconds,
   // milliseconds, microseconds, nanoseconds) is false, throw a RangeError
   // exception.
-  if (!IsValidDuration(isolate, {0,
-                                 0,
-                                 0,
-                                 {days, hours, minutes, seconds, milliseconds,
-                                  microseconds, nanoseconds}})) {
+  TimeDurationRecord record = {days,         hours,        minutes,    seconds,
+                               milliseconds, microseconds, nanoseconds};
+  if (!IsValidDuration(isolate, {0, 0, 0, record})) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
                                  Nothing<TimeDurationRecord>());
   }
@@ -820,8 +827,32 @@ Maybe<TimeDurationRecord> TimeDurationRecord::Create(
   // [[Minutes]]: ℝ(𝔽(minutes)), [[Seconds]]: ℝ(𝔽(seconds)), [[Milliseconds]]:
   // ℝ(𝔽(milliseconds)), [[Microseconds]]: ℝ(𝔽(microseconds)), [[Nanoseconds]]:
   // ℝ(𝔽(nanoseconds)) }.
-  return Just(TimeDurationRecord({days, hours, minutes, seconds, milliseconds,
-                                  microseconds, nanoseconds}));
+  return Just(record);
+}
+
+// #sec-temporal-createdurationrecord
+Maybe<DurationRecord> DurationRecord::Create(
+    Isolate* isolate, double years, double months, double weeks, double days,
+    double hours, double minutes, double seconds, double milliseconds,
+    double microseconds, double nanoseconds) {
+  // 1. If ! IsValidDuration(years, months, weeks, days, hours, minutes,
+  // seconds, milliseconds, microseconds, nanoseconds) is false, throw a
+  // RangeError exception.
+  DurationRecord record = {
+      years,
+      months,
+      weeks,
+      {days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds}};
+  if (!IsValidDuration(isolate, record)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
+  // [[Weeks]]: ℝ(𝔽(weeks)), [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
+  // [[Minutes]]: ℝ(𝔽(minutes)), [[Seconds]]: ℝ(𝔽(seconds)), [[Milliseconds]]:
+  // ℝ(𝔽(milliseconds)), [[Microseconds]]: ℝ(𝔽(microseconds)), [[Nanoseconds]]:
+  // ℝ(𝔽(nanoseconds)) }.
+  return Just(record);
 }
 
 // #sec-temporal-createtemporalduration
@@ -1936,6 +1967,39 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
   return CreateTemporalDate(isolate, result.date, calendar);
 }
 
+// #sec-isintegralnumber
+bool IsIntegralNumber(Isolate* isolate, Handle<Object> argument) {
+  // 1. If Type(argument) is not Number, return false.
+  if (!argument->IsNumber()) return false;
+  // 2. If argument is NaN, +∞𝔽, or -∞𝔽, return false.
+  double number = argument->Number();
+  if (!std::isfinite(number)) return false;
+  // 3. If floor(abs(ℝ(argument))) ≠ abs(ℝ(argument)), return false.
+  if (std::floor(std::abs(number)) != std::abs(number)) return false;
+  // 4. Return true.
+  return true;
+}
+
+// #sec-temporal-tointegerwithoutrounding
+Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
+                                       Handle<Object> argument) {
+  // 1. Let number be ? ToNumber(argument).
+  Handle<Object> number;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, number, Object::ToNumber(isolate, argument), Nothing<double>());
+  // 2. If number is NaN, +0𝔽, or −0𝔽 return 0.
+  if (number->IsNaN() || number->Number() == 0) {
+    return Just(static_cast<double>(0));
+  }
+  // 3. If IsIntegralNumber(number) is false, throw a RangeError exception.
+  if (!IsIntegralNumber(isolate, number)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<double>());
+  }
+  // 4. Return ℝ(number).
+  return Just(number->Number());
+}
+
 }  // namespace
 
 namespace temporal {
@@ -2101,6 +2165,133 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
   // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
   // result.[[Nanosecond]]).
   return CreateTemporalTime(isolate, result.time);
+}
+
+// #sec-temporal-totemporaldurationrecord
+Maybe<DurationRecord> ToTemporalDurationRecord(
+    Isolate* isolate, Handle<Object> temporal_duration_like,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. If Type(temporalDurationLike) is not Object, then
+  if (!temporal_duration_like->IsJSReceiver()) {
+    // a. Let string be ? ToString(temporalDurationLike).
+    Handle<String> string;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, string, Object::ToString(isolate, temporal_duration_like),
+        Nothing<DurationRecord>());
+    // b. Let result be ? ParseTemporalDurationString(string).
+    return ParseTemporalDurationString(isolate, string);
+  }
+  // 2. If temporalDurationLike has an [[InitializedTemporalDuration]] internal
+  // slot, then
+  if (temporal_duration_like->IsJSTemporalDuration()) {
+    // a. Return ! CreateDurationRecord(temporalDurationLike.[[Years]],
+    // temporalDurationLike.[[Months]], temporalDurationLike.[[Weeks]],
+    // temporalDurationLike.[[Days]], temporalDurationLike.[[Hours]],
+    // temporalDurationLike.[[Minutes]], temporalDurationLike.[[Seconds]],
+    // temporalDurationLike.[[Milliseconds]],
+    // temporalDurationLike.[[Microseconds]],
+    // temporalDurationLike.[[Nanoseconds]]).
+    Handle<JSTemporalDuration> duration =
+        Handle<JSTemporalDuration>::cast(temporal_duration_like);
+    return DurationRecord::Create(
+        isolate, duration->years().Number(), duration->months().Number(),
+        duration->weeks().Number(), duration->days().Number(),
+        duration->hours().Number(), duration->minutes().Number(),
+        duration->seconds().Number(), duration->milliseconds().Number(),
+        duration->microseconds().Number(), duration->nanoseconds().Number());
+  }
+  // 3. Let result be a new Record with all the internal slots given in the
+  // Internal Slot column in Table 7.
+  // 4. Let any be false.
+  bool any = false;
+
+  // 5. For each row of Table 7, except the header row, in table order, do
+  DurationRecord record;
+  Factory* factory = isolate->factory();
+  std::array<std::pair<Handle<String>, double*>, 10> table7 = {
+      {{factory->days_string(), &record.time_duration.days},
+       {factory->hours_string(), &record.time_duration.hours},
+       {factory->microseconds_string(), &record.time_duration.microseconds},
+       {factory->milliseconds_string(), &record.time_duration.milliseconds},
+       {factory->minutes_string(), &record.time_duration.minutes},
+       {factory->months_string(), &record.months},
+       {factory->nanoseconds_string(), &record.time_duration.nanoseconds},
+       {factory->seconds_string(), &record.time_duration.seconds},
+       {factory->weeks_string(), &record.weeks},
+       {factory->years_string(), &record.years}}};
+
+  for (const auto& row : table7) {
+    Handle<Object> val;
+    // a. Let prop be the Property value of the current row.
+    // b. Let val be ? Get(temporalDurationLike, prop).
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, val,
+        Object::GetPropertyOrElement(isolate, temporal_duration_like,
+                                     row.first),
+        Nothing<DurationRecord>());
+    // c. If val is undefined, then
+    if (val->IsUndefined()) {
+      // i. Set result's internal slot whose name is the Internal Slot
+      // value of the current row to 0.
+      *(row.second) = 0;
+      // d. Else,
+    } else {
+      // i. Set any to true.
+      any = true;
+      // ii. Let val be 𝔽(? ToIntegerWithoutRounding(val)).
+      Maybe<double> maybe_integer = ToIntegerWithoutRounding(isolate, val);
+      MAYBE_RETURN(maybe_integer, Nothing<DurationRecord>());
+      // iii. Set result's field whose name is the Field Name value of the
+      // current row to val.
+      *(row.second) = maybe_integer.FromJust();
+    }
+  }
+
+  // 6. If any is false, then
+  if (!any) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 7. If ! IsValidDuration(result.[[Years]], result.[[Months]],
+  // result.[[Weeks]] result.[[Days]], result.[[Hours]], result.[[Minutes]],
+  // result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]],
+  // result.[[Nanoseconds]]) is false, then
+  if (!IsValidDuration(isolate, record)) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 8. Return result.
+  return Just(record);
+}
+
+// #sec-temporal-totemporalduration
+MaybeHandle<JSTemporalDuration> ToTemporalDuration(Isolate* isolate,
+                                                   Handle<Object> item,
+                                                   const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  DurationRecord result;
+  // 1. If Type(item) is Object and item has an [[InitializedTemporalDuration]]
+  // internal slot, then
+  if (item->IsJSTemporalDuration()) {
+    // a. Return item.
+    return Handle<JSTemporalDuration>::cast(item);
+  }
+  // 2. Let result be ? ToTemporalDurationRecord(item).
+  Maybe<DurationRecord> maybe_result =
+      ToTemporalDurationRecord(isolate, item, method_name);
+  MAYBE_RETURN(maybe_result, Handle<JSTemporalDuration>());
+  result = maybe_result.FromJust();
+
+  // 3. Return ? CreateTemporalDuration(result.[[Years]], result.[[Months]],
+  // result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]],
+  // result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]],
+  // result.[[Nanoseconds]]).
+  return CreateTemporalDuration(isolate, result);
 }
 
 // #sec-temporal-totemporaltimezone
@@ -2567,6 +2758,165 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   // 8. Return utc − offsetNanoseconds.
   return BigInt::Subtract(isolate, utc,
                           BigInt::FromInt64(isolate, offset_nanoseconds));
+}
+
+// #sec-temporal-createdurationrecord
+Maybe<DurationRecord> CreateDurationRecord(Isolate* isolate,
+                                           const DurationRecord& duration) {
+  //   1. If ! IsValidDuration(years, months, weeks, days, hours, minutes,
+  //   seconds, milliseconds, microseconds, nanoseconds) is false, throw a
+  //   RangeError exception.
+  if (!IsValidDuration(isolate, duration)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
+  // [[Weeks]]: ℝ(𝔽(weeks)), [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
+  // [[Minutes]]: ℝ(𝔽(minutes)), [[Seconds]]: ℝ(𝔽(seconds)), [[Milliseconds]]:
+  // ℝ(𝔽(milliseconds)), [[Microseconds]]: ℝ(𝔽(microseconds)), [[Nanoseconds]]:
+  // ℝ(𝔽(nanoseconds)) }.
+  return Just(duration);
+}
+
+inline int64_t IfEmptyReturnZero(int64_t value) {
+  return value == ParsedISO8601Duration::kEmpty ? 0 : value;
+}
+
+// #sec-temporal-parsetemporaldurationstring
+Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
+                                                  Handle<String> iso_string) {
+  TEMPORAL_ENTER_FUNC();
+  // In this funciton, we use 'double' as type for all mathematical values
+  // except the three three units < seconds. For all others, we use 'double'
+  // because in
+  // https://tc39.es/proposal-temporal/#sec-properties-of-temporal-duration-instances
+  // they are "A float64-representable integer representing the number" in the
+  // internal slots.
+  // For milliseconds_mv, microseconds_mv, and nanoseconds_mv, we use int32_t
+  // instead because their maximum number during calculation is 999999999,
+  // which can be encoded in 30 bits and the parsed.seconds_fraction return from
+  // the ISO8601 parser are stored in an integer, in the unit of nanoseconds.
+  // Therefore, use "int32_t" will avoid rounding error for the final
+  // calculating of nanoseconds_mv.
+  //
+  // 1. Let duration be ParseText(StringToCodePoints(isoString),
+  // TemporalDurationString).
+  // 2. If duration is a List of errors, throw a RangeError exception.
+  // 3. Let each of sign, years, months, weeks, days, hours, fHours, minutes,
+  // fMinutes, seconds, and fSeconds be the source text matched by the
+  // respective Sign, DurationYears, DurationMonths, DurationWeeks,
+  // DurationDays, DurationWholeHours, DurationHoursFraction,
+  // DurationWholeMinutes, DurationMinutesFraction, DurationWholeSeconds, and
+  // DurationSecondsFraction Parse Node enclosed by duration, or an empty
+  // sequence of code points if not present.
+  Maybe<ParsedISO8601Duration> maybe_parsed =
+      TemporalParser::ParseTemporalDurationString(isolate, iso_string);
+  if (maybe_parsed.IsNothing()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  ParsedISO8601Duration parsed = maybe_parsed.FromJust();
+  // 4. Let yearsMV be ! ToIntegerOrInfinity(CodePointsToString(years)).
+  double years_mv = IfEmptyReturnZero(parsed.years);
+  // 5. Let monthsMV be ! ToIntegerOrInfinity(CodePointsToString(months)).
+  double months_mv = IfEmptyReturnZero(parsed.months);
+  // 6. Let weeksMV be ! ToIntegerOrInfinity(CodePointsToString(weeks)).
+  double weeks_mv = IfEmptyReturnZero(parsed.weeks);
+  // 7. Let daysMV be ! ToIntegerOrInfinity(CodePointsToString(days)).
+  double days_mv = IfEmptyReturnZero(parsed.days);
+  // 8. Let hoursMV be ! ToIntegerOrInfinity(CodePointsToString(hours)).
+  double hours_mv = IfEmptyReturnZero(parsed.whole_hours);
+  // 9. If fHours is not empty, then
+  double minutes_mv;
+  if (parsed.hours_fraction != ParsedISO8601Duration::kEmpty) {
+    // a. If any of minutes, fMinutes, seconds, fSeconds is not empty, throw a
+    // RangeError exception.
+    if (parsed.whole_minutes != ParsedISO8601Duration::kEmpty ||
+        parsed.minutes_fraction != ParsedISO8601Duration::kEmpty ||
+        parsed.whole_seconds != ParsedISO8601Duration::kEmpty ||
+        parsed.seconds_fraction != ParsedISO8601Duration::kEmpty) {
+      THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                   NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                   Nothing<DurationRecord>());
+    }
+    // b. Let fHoursDigits be the substring of CodePointsToString(fHours)
+    // from 1. c. Let fHoursScale be the length of fHoursDigits. d. Let
+    // minutesMV be ! ToIntegerOrInfinity(fHoursDigits) / 10^fHoursScale × 60.
+    minutes_mv = IfEmptyReturnZero(parsed.hours_fraction) * 60.0 / 1e9;
+    // 10. Else,
+  } else {
+    // a. Let minutesMV be ! ToIntegerOrInfinity(CodePointsToString(minutes)).
+    minutes_mv = IfEmptyReturnZero(parsed.whole_minutes);
+  }
+  double seconds_mv;
+  // 11. If fMinutes is not empty, then
+  if (parsed.minutes_fraction != ParsedISO8601Duration::kEmpty) {
+    // a. If any of seconds, fSeconds is not empty, throw a RangeError
+    // exception.
+    if (parsed.whole_seconds != ParsedISO8601Duration::kEmpty ||
+        parsed.seconds_fraction != ParsedISO8601Duration::kEmpty) {
+      THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                   NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                   Nothing<DurationRecord>());
+    }
+    // b. Let fMinutesDigits be the substring of CodePointsToString(fMinutes)
+    // from 1. c. Let fMinutesScale be the length of fMinutesDigits. d. Let
+    // secondsMV be ! ToIntegerOrInfinity(fMinutesDigits) / 10^fMinutesScale
+    // × 60.
+    seconds_mv = IfEmptyReturnZero(parsed.minutes_fraction) * 60.0 / 1e9;
+    // 12. Else if seconds is not empty, then
+  } else if (parsed.whole_seconds != ParsedISO8601Duration::kEmpty) {
+    // a. Let secondsMV be ! ToIntegerOrInfinity(CodePointsToString(seconds)).
+    seconds_mv = parsed.whole_seconds;
+    // 13. Else,
+  } else {
+    // a. Let secondsMV be remainder(minutesMV, 1) × 60.
+    seconds_mv = (minutes_mv - std::floor(minutes_mv)) * 60.0;
+  }
+  int32_t milliseconds_mv;
+  int32_t nanoseconds_mv;
+  // 14. If fSeconds is not empty, then
+  if (parsed.seconds_fraction != ParsedISO8601Duration::kEmpty) {
+    // a. Let fSecondsDigits be the substring of CodePointsToString(fSeconds)
+    // from 1. b. Let fSecondsScale be the length of fSecondsDigits. c. Let
+    // millisecondsMV be ! ToIntegerOrInfinity(fSecondsDigits) /
+    // 10^fSecondsScale × 1000.
+    DCHECK_LE(IfEmptyReturnZero(parsed.seconds_fraction), 1e9);
+    nanoseconds_mv =
+        static_cast<int32_t>(IfEmptyReturnZero(parsed.seconds_fraction));
+    // 15. Else,
+  } else {
+    // a. Let millisecondsMV be remainder(secondsMV, 1) × 1000.
+    nanoseconds_mv = (seconds_mv - std::floor(seconds_mv)) * 1000000000;
+  }
+  milliseconds_mv = nanoseconds_mv / 1000000;
+  // 16. Let microsecondsMV be remainder(millisecondsMV, 1) × 1000.
+  int32_t microseconds_mv = (nanoseconds_mv / 1000) % 1000;
+  // 17. Let nanosecondsMV be remainder(microsecondsMV, 1) × 1000.
+  nanoseconds_mv = nanoseconds_mv % 1000;
+
+  DCHECK_LE(milliseconds_mv, 1000);
+  DCHECK_LE(microseconds_mv, 1000);
+  DCHECK_LE(nanoseconds_mv, 1000);
+  // 18. If sign contains the code point 0x002D (HYPHEN-MINUS) or 0x2212 (MINUS
+  // SIGN), then a. Let factor be −1.
+  // 19. Else,
+  // a. Let factor be 1.
+  double factor = parsed.sign;
+
+  // 20. Return ? CreateDurationRecord(yearsMV × factor, monthsMV × factor,
+  // weeksMV × factor, daysMV × factor, hoursMV × factor, floor(minutesMV) ×
+  // factor, floor(secondsMV) × factor, floor(millisecondsMV) × factor,
+  // floor(microsecondsMV) × factor, floor(nanosecondsMV) × factor).
+
+  return CreateDurationRecord(
+      isolate,
+      {years_mv * factor,
+       months_mv * factor,
+       weeks_mv * factor,
+       {days_mv * factor, hours_mv * factor, std::floor(minutes_mv) * factor,
+        std::floor(seconds_mv) * factor, milliseconds_mv * factor,
+        microseconds_mv * factor, nanoseconds_mv * factor}});
 }
 
 // #sec-temporal-parsetemporaltimezonestring
@@ -3070,11 +3420,11 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
 
   // 5. If ! IsIntegralNumber(offsetNanoseconds) is false, throw a RangeError
   // exception.
-  double offset_nanoseconds = offset_nanoseconds_obj->Number();
-  if ((offset_nanoseconds - std::floor(offset_nanoseconds) != 0)) {
+  if (!IsIntegralNumber(isolate, offset_nanoseconds_obj)) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
                                  Nothing<int64_t>());
   }
+  double offset_nanoseconds = offset_nanoseconds_obj->Number();
 
   // 6. Set offsetNanoseconds to ℝ(offsetNanoseconds).
   int64_t offset_nanoseconds_int = static_cast<int64_t>(offset_nanoseconds);
@@ -4775,80 +5125,86 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
                                      method_name)),
                     JSTemporalDuration);
   }
-  // 2. Let y be ? ToIntegerThrowOnInfinity(years).
-  Handle<Object> number_years;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_years,
-                             ToIntegerThrowOnInfinity(isolate, years),
-                             JSTemporalDuration);
-  double y = number_years->Number();
+  // 2. Let y be ? ToIntegerWithoutRounding(years).
+  Maybe<double> maybe_y = ToIntegerWithoutRounding(isolate, years);
+  MAYBE_RETURN(maybe_y, Handle<JSTemporalDuration>());
+  double y = maybe_y.FromJust();
 
-  // 3. Let mo be ? ToIntegerThrowOnInfinity(months).
-  Handle<Object> number_months;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_months,
-                             ToIntegerThrowOnInfinity(isolate, months),
-                             JSTemporalDuration);
-  double mo = number_months->Number();
+  // 3. Let mo be ? ToIntegerWithoutRounding(months).
+  Maybe<double> maybe_mo = ToIntegerWithoutRounding(isolate, months);
+  MAYBE_RETURN(maybe_mo, Handle<JSTemporalDuration>());
+  double mo = maybe_mo.FromJust();
 
-  // 4. Let w be ? ToIntegerThrowOnInfinity(weeks).
-  Handle<Object> number_weeks;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_weeks,
-                             ToIntegerThrowOnInfinity(isolate, weeks),
-                             JSTemporalDuration);
-  double w = number_weeks->Number();
+  // 4. Let w be ? ToIntegerWithoutRounding(weeks).
+  Maybe<double> maybe_w = ToIntegerWithoutRounding(isolate, weeks);
+  MAYBE_RETURN(maybe_w, Handle<JSTemporalDuration>());
+  double w = maybe_w.FromJust();
 
-  // 5. Let d be ? ToIntegerThrowOnInfinity(days).
-  Handle<Object> number_days;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_days,
-                             ToIntegerThrowOnInfinity(isolate, days),
-                             JSTemporalDuration);
-  double d = number_days->Number();
+  // 5. Let d be ? ToIntegerWithoutRounding(days).
+  Maybe<double> maybe_d = ToIntegerWithoutRounding(isolate, days);
+  MAYBE_RETURN(maybe_d, Handle<JSTemporalDuration>());
+  double d = maybe_d.FromJust();
 
-  // 6. Let h be ? ToIntegerThrowOnInfinity(hours).
-  Handle<Object> number_hours;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_hours,
-                             ToIntegerThrowOnInfinity(isolate, hours),
-                             JSTemporalDuration);
-  double h = number_hours->Number();
+  // 6. Let h be ? ToIntegerWithoutRounding(hours).
+  Maybe<double> maybe_h = ToIntegerWithoutRounding(isolate, hours);
+  MAYBE_RETURN(maybe_h, Handle<JSTemporalDuration>());
+  double h = maybe_h.FromJust();
 
-  // 7. Let m be ? ToIntegerThrowOnInfinity(minutes).
-  Handle<Object> number_minutes;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_minutes,
-                             ToIntegerThrowOnInfinity(isolate, minutes),
-                             JSTemporalDuration);
-  double m = number_minutes->Number();
+  // 7. Let m be ? ToIntegerWithoutRounding(minutes).
+  Maybe<double> maybe_m = ToIntegerWithoutRounding(isolate, minutes);
+  MAYBE_RETURN(maybe_m, Handle<JSTemporalDuration>());
+  double m = maybe_m.FromJust();
 
-  // 8. Let s be ? ToIntegerThrowOnInfinity(seconds).
-  Handle<Object> number_seconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_seconds,
-                             ToIntegerThrowOnInfinity(isolate, seconds),
-                             JSTemporalDuration);
-  double s = number_seconds->Number();
+  // 8. Let s be ? ToIntegerWithoutRounding(seconds).
+  Maybe<double> maybe_s = ToIntegerWithoutRounding(isolate, seconds);
+  MAYBE_RETURN(maybe_s, Handle<JSTemporalDuration>());
+  double s = maybe_s.FromJust();
 
-  // 9. Let ms be ? ToIntegerThrowOnInfinity(milliseconds).
-  Handle<Object> number_milliseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_milliseconds,
-                             ToIntegerThrowOnInfinity(isolate, milliseconds),
-                             JSTemporalDuration);
-  double ms = number_milliseconds->Number();
+  // 9. Let ms be ? ToIntegerWithoutRounding(milliseconds).
+  Maybe<double> maybe_ms = ToIntegerWithoutRounding(isolate, milliseconds);
+  MAYBE_RETURN(maybe_ms, Handle<JSTemporalDuration>());
+  double ms = maybe_ms.FromJust();
 
-  // 10. Let mis be ? ToIntegerThrowOnInfinity(microseconds).
-  Handle<Object> number_microseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_microseconds,
-                             ToIntegerThrowOnInfinity(isolate, microseconds),
-                             JSTemporalDuration);
-  double mis = number_microseconds->Number();
+  // 10. Let mis be ? ToIntegerWithoutRounding(microseconds).
+  Maybe<double> maybe_mis = ToIntegerWithoutRounding(isolate, microseconds);
+  MAYBE_RETURN(maybe_mis, Handle<JSTemporalDuration>());
+  double mis = maybe_mis.FromJust();
 
-  // 11. Let ns be ? ToIntegerThrowOnInfinity(nanoseconds).
-  Handle<Object> number_nanoseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_nanoseconds,
-                             ToIntegerThrowOnInfinity(isolate, nanoseconds),
-                             JSTemporalDuration);
-  double ns = number_nanoseconds->Number();
+  // 11. Let ns be ? ToIntegerWithoutRounding(nanoseconds).
+  Maybe<double> maybe_ns = ToIntegerWithoutRounding(isolate, nanoseconds);
+  MAYBE_RETURN(maybe_ns, Handle<JSTemporalDuration>());
+  double ns = maybe_ns.FromJust();
 
   // 12. Return ? CreateTemporalDuration(y, mo, w, d, h, m, s, ms, mis, ns,
   // NewTarget).
   return CreateTemporalDuration(isolate, target, new_target,
                                 {y, mo, w, {d, h, m, s, ms, mis, ns}});
+}
+
+// #sec-temporal.duration.from
+MaybeHandle<JSTemporalDuration> JSTemporalDuration::From(Isolate* isolate,
+                                                         Handle<Object> item) {
+  //  1. If Type(item) is Object and item has an [[InitializedTemporalDuration]]
+  //  internal slot, then
+  if (item->IsJSTemporalDuration()) {
+    // a. Return ? CreateTemporalDuration(item.[[Years]], item.[[Months]],
+    // item.[[Weeks]], item.[[Days]], item.[[Hours]], item.[[Minutes]],
+    // item.[[Seconds]], item.[[Milliseconds]], item.[[Microseconds]],
+    // item.[[Nanoseconds]]).
+    Handle<JSTemporalDuration> duration =
+        Handle<JSTemporalDuration>::cast(item);
+    return CreateTemporalDuration(
+        isolate,
+        {duration->years().Number(),
+         duration->months().Number(),
+         duration->weeks().Number(),
+         {duration->days().Number(), duration->hours().Number(),
+          duration->minutes().Number(), duration->seconds().Number(),
+          duration->milliseconds().Number(), duration->microseconds().Number(),
+          duration->nanoseconds().Number()}});
+  }
+  // 2. Return ? ToTemporalDuration(item).
+  return temporal::ToTemporalDuration(isolate, item, "Temporal.Duration.from");
 }
 
 // #sec-get-temporal.duration.prototype.sign

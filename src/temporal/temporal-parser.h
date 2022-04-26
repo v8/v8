@@ -84,6 +84,8 @@ struct ParsedISO8601Result {
  * ParsedISO8601Duration contains the parsed result of ISO 8601 grammar
  * documented in #prod-TemporalDurationString
  * for TemporalDurationString.
+ * A special value kEmpty is used to represent the
+ * field is "undefined" after parsing for all fields except sign.
  */
 struct ParsedISO8601Duration {
   int64_t sign;              // Sign production
@@ -99,18 +101,19 @@ struct ParsedISO8601Duration {
   int64_t seconds_fraction;  // DurationSecondFraction, in unit of nanosecond (
                              // 1e-9 seconds).
 
+  static constexpr int64_t kEmpty = -1;
   ParsedISO8601Duration()
       : sign(1),
-        years(0),
-        months(0),
-        weeks(0),
-        days(0),
-        whole_hours(0),
-        hours_fraction(0),
-        whole_minutes(0),
-        minutes_fraction(0),
-        whole_seconds(0),
-        seconds_fraction(0) {}
+        years(kEmpty),
+        months(kEmpty),
+        weeks(kEmpty),
+        days(kEmpty),
+        whole_hours(kEmpty),
+        hours_fraction(kEmpty),
+        whole_minutes(kEmpty),
+        minutes_fraction(kEmpty),
+        whole_seconds(kEmpty),
+        seconds_fraction(kEmpty) {}
 };
 
 /**
