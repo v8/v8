@@ -42,6 +42,7 @@ class App {
 
       mapPanel: $('#map-panel'),
       codePanel: $('#code-panel'),
+      profilerPanel: $('#profiler-panel'),
       scriptPanel: $('#script-panel'),
 
       toolTip: $('#tool-tip'),
@@ -73,11 +74,13 @@ class App {
     await Promise.all([
       import('./view/list-panel.mjs'),
       import('./view/timeline-panel.mjs'),
+      import('./view/timeline/timeline-overview.mjs'),
       import('./view/map-panel.mjs'),
       import('./view/script-panel.mjs'),
       import('./view/code-panel.mjs'),
       import('./view/property-link-table.mjs'),
       import('./view/tool-tip.mjs'),
+      import('./view/profiler-panel.mjs'),
     ]);
     this._addEventListeners();
   }
@@ -208,7 +211,11 @@ class App {
     if (focusView) this._view.codePanel.show();
   }
 
-  showTickEntries(entries, focusView = true) {}
+  showTickEntries(entries, focusView = true) {
+    this._view.profilerPanel.selectedLogEntries = entries;
+    if (focusView) this._view.profilerPanel.show();
+  }
+
   showTimerEntries(entries, focusView = true) {}
 
   showSourcePositions(entries, focusView = true) {
@@ -372,6 +379,7 @@ class App {
       this._view.scriptPanel.scripts = processor.scripts;
       this._view.codePanel.timeline = codeTimeline;
       this._view.codePanel.timeline = codeTimeline;
+      this._view.profilerPanel.timeline = tickTimeline;
       this.refreshTimelineTrackView();
     } catch (e) {
       this._view.logFileReader.error = 'Log file contains errors!'
