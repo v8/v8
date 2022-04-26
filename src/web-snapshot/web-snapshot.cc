@@ -925,6 +925,7 @@ void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function) {
 // - Variable count
 // - For each variable:
 //   - String id (name)
+// - For each variable:
 //   - Serialized value
 void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
   uint32_t parent_context_id = 0;
@@ -953,6 +954,8 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
     // TODO(v8:11525): support parameters
     // TODO(v8:11525): distinguish variable modes
     WriteStringId(handle(it->name(), isolate_), context_serializer_);
+  }
+  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
     Handle<Object> value(
         context->get(scope_info->ContextHeaderLength() + it->index()),
         isolate_);
@@ -1644,21 +1647,6 @@ void WebSnapshotDeserializer::DeserializeContexts() {
       parent_context = handle(isolate_->context(), isolate_);
     }
 
-    // Allocate the FunctionContext after setting up the ScopeInfo to avoid
-    // pointing to a ScopeInfo which is not set up yet.
-    Handle<Context> context;
-    switch (context_type) {
-      case ContextType::FUNCTION:
-        context = factory()->NewFunctionContext(parent_context, scope_info);
-        break;
-      case ContextType::BLOCK:
-        context = factory()->NewBlockContext(parent_context, scope_info);
-        break;
-      default:
-        Throw("Unsupported context type");
-        return;
-    }
-
     const int local_names_container_size =
         has_inlined_local_names ? variable_count : 1;
     const int context_local_base = ScopeInfo::kVariablePartIndex;
@@ -1696,7 +1684,24 @@ void WebSnapshotDeserializer::DeserializeContexts() {
           ScopeInfo::IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
       scope_info->set(context_local_info_base + variable_index,
                       Smi::FromInt(info));
+    }
 
+    // Allocate the FunctionContext after setting up the ScopeInfo to avoid
+    // pointing to a ScopeInfo which is not set up yet.
+    Handle<Context> context;
+    switch (context_type) {
+      case ContextType::FUNCTION:
+        context = factory()->NewFunctionContext(parent_context, scope_info);
+        break;
+      case ContextType::BLOCK:
+        context = factory()->NewBlockContext(parent_context, scope_info);
+        break;
+      default:
+        Throw("Unsupported context type");
+        return;
+    }
+    for (int variable_index = 0;
+         variable_index < static_cast<int>(variable_count); ++variable_index) {
       int context_index = scope_info->ContextHeaderLength() + variable_index;
       Object value = ReadValue(context, context_index);
       context->set(context_index, value);
