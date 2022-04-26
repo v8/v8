@@ -1087,7 +1087,6 @@ void SetCompileError(ErrorThrower* thrower, ModuleWireBytes wire_bytes,
 
 DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
                                     base::Vector<const uint8_t> code,
-                                    Counters* counters,
                                     AccountingAllocator* allocator,
                                     WasmFeatures enabled_features) {
   const WasmFunction* func = &module->functions[func_index];
@@ -1125,8 +1124,8 @@ void ValidateSequentially(
     ModuleWireBytes wire_bytes{native_module->wire_bytes()};
     const WasmFunction* func = &module->functions[func_index];
     base::Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
-    DecodeResult result = ValidateSingleFunction(
-        module, func_index, code, counters, allocator, enabled_features);
+    DecodeResult result = ValidateSingleFunction(module, func_index, code,
+                                                 allocator, enabled_features);
     if (result.failed()) {
       SetCompileError(thrower, wire_bytes, func, module, result.error());
     }
@@ -1174,7 +1173,6 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   WasmCompilationUnit baseline_unit{func_index, tiers.baseline_tier,
                                     kNoDebugging};
   CompilationEnv env = native_module->CreateCompilationEnv();
-  WasmEngine* engine = GetWasmEngine();
   // TODO(wasm): Use an assembler buffer cache for lazy compilation.
   AssemblerBufferCache* assembler_buffer_cache = nullptr;
   WasmFeatures detected_features;
@@ -1192,17 +1190,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // {--wasm-lazy-validation} is enabled. Otherwise, the module was fully
   // verified before starting its execution.
   CHECK_IMPLIES(result.failed(), FLAG_wasm_lazy_validation);
-  const WasmFunction* func = &module->functions[func_index];
   if (result.failed()) {
-    ErrorThrower thrower(isolate, nullptr);
-    base::Vector<const uint8_t> code =
-        compilation_state->GetWireBytesStorage()->GetCode(func->code);
-    DecodeResult decode_result =
-        ValidateSingleFunction(module, func_index, code, counters,
-                               engine->allocator(), enabled_features);
-    CHECK(decode_result.failed());
-    SetCompileError(&thrower, ModuleWireBytes(native_module->wire_bytes()),
-                    func, module, decode_result.error());
     return false;
   }
 
@@ -1244,6 +1232,28 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   }
 
   return true;
+}
+
+void ThrowLazyCompilationError(Isolate* isolate,
+                               const NativeModule* native_module,
+                               int func_index) {
+  const WasmModule* module = native_module->module();
+
+  CompilationStateImpl* compilation_state =
+      Impl(native_module->compilation_state());
+  const WasmFunction* func = &module->functions[func_index];
+  base::Vector<const uint8_t> code =
+      compilation_state->GetWireBytesStorage()->GetCode(func->code);
+
+  WasmEngine* engine = GetWasmEngine();
+  auto enabled_features = native_module->enabled_features();
+  DecodeResult decode_result = ValidateSingleFunction(
+      module, func_index, code, engine->allocator(), enabled_features);
+
+  CHECK(decode_result.failed());
+  wasm::ErrorThrower thrower(isolate, nullptr);
+  SetCompileError(&thrower, ModuleWireBytes(native_module->wire_bytes()), func,
+                  module, decode_result.error());
 }
 
 class TransitiveTypeFeedbackProcessor {
@@ -2578,9 +2588,8 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
                 strategy == CompileStrategy::kLazy ||
                 strategy == CompileStrategy::kLazyBaselineEagerTopTier;
             if (validate_lazily_compiled_function) {
-              DecodeResult function_result =
-                  ValidateSingleFunction(module, func_index, code, counters_,
-                                         allocator, enabled_features);
+              DecodeResult function_result = ValidateSingleFunction(
+                  module, func_index, code, allocator, enabled_features);
               if (function_result.failed()) {
                 result = ModuleResult(function_result.error());
                 break;
@@ -2939,9 +2948,8 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
   if (validate_lazily_compiled_function) {
     // The native module does not own the wire bytes until {SetWireBytes} is
     // called in {OnFinishedStream}. Validation must use {bytes} parameter.
-    DecodeResult result =
-        ValidateSingleFunction(module, func_index, bytes, async_counters_.get(),
-                               allocator_, enabled_features);
+    DecodeResult result = ValidateSingleFunction(module, func_index, bytes,
+                                                 allocator_, enabled_features);
 
     if (result.failed()) {
       FinishAsyncCompileJobWithError(result.error());

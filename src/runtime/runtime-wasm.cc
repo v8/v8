@@ -208,6 +208,11 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
+  // The parameters of the called function we are going to compile have been
+  // spilled on the stack. Some of these parameters may be references. As we
+  // don't know which parameters are references, we have to make sure that no GC
+  // is triggered during the compilation of the function.
+  base::Optional<DisallowGarbageCollection> no_gc(base::in_place);
   ClearThreadInWasmScope wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -223,6 +228,14 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   isolate->set_context(instance->native_context());
   bool success = wasm::CompileLazy(isolate, instance, func_index);
   if (!success) {
+    {
+      // Compilation of function failed. We have to allocate the exception
+      // object. This allocation may trigger a GC, but that's okay, because the
+      // parameters on the stack will not be used anymore anyways.
+      no_gc.reset();
+      wasm::ThrowLazyCompilationError(
+          isolate, instance->module_object().native_module(), func_index);
+    }
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
