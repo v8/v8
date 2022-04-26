@@ -797,6 +797,10 @@ class FailingPageAllocator : public v8::PageAllocator {
                       Permission permissions) override {
     return false;
   }
+  bool RecommitPages(void* address, size_t length,
+                     Permission permissions) override {
+    return false;
+  }
   bool DecommitPages(void* address, size_t length) override { return false; }
 };
 }  // namespace

@@ -501,6 +501,20 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
+bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+
+#if defined(V8_OS_DARWIN)
+  while (madvise(address, size, MADV_FREE_REUSE) == -1 && errno == EAGAIN) {
+  }
+  return true;
+#else
+  return SetPermissions(address, size, access);
+#endif  // defined(V8_OS_DARWIN)
+}
+
+// static
 bool OS::DiscardSystemPages(void* address, size_t size) {
   // Roughly based on PartitionAlloc's DiscardSystemPagesInternal
   // (base/allocator/partition_allocator/page_allocator_internals_posix.h)
@@ -510,7 +524,10 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
   // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
   // marks the pages with the reusable bit, which allows both Activity Monitor
   // and memory-infra to correctly track the pages.
-  int ret = madvise(address, size, MADV_FREE_REUSABLE);
+  int ret;
+  do {
+    ret = madvise(address, size, MADV_FREE_REUSABLE);
+  } while (ret != 0 && errno == EAGAIN);
   if (ret) {
     // MADV_FREE_REUSABLE sometimes fails, so fall back to MADV_DONTNEED.
     ret = madvise(address, size, MADV_DONTNEED);
@@ -988,6 +1005,12 @@ bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
                                              OS::MemoryPermission access) {
   DCHECK(Contains(address, size));
   return OS::SetPermissions(address, size, access);
+}
+
+bool AddressSpaceReservation::RecommitPages(void* address, size_t size,
+                                            OS::MemoryPermission access) {
+  DCHECK(Contains(address, size));
+  return OS::RecommitPages(address, size, access);
 }
 
 bool AddressSpaceReservation::DiscardSystemPages(void* address, size_t size) {

@@ -285,6 +285,11 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
+bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
+  return SetPermissions(address, size, access);
+}
+
+// static
 bool OS::DiscardSystemPages(void* address, size_t size) {
   return DiscardSystemPagesInternal(*zx::vmar::root_self(), CommitPageSize(),
                                     address, size);
@@ -441,6 +446,11 @@ bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
   DCHECK(Contains(address, size));
   return SetPermissionsInternal(*zx::unowned_vmar(vmar_), OS::CommitPageSize(),
                                 address, size, access);
+}
+
+bool AddressSpaceReservation::RecommitPages(void* address, size_t size,
+                                            OS::MemoryPermission access) {
+  return SetPermissions(address, size, access);
 }
 
 bool AddressSpaceReservation::DiscardSystemPages(void* address, size_t size) {

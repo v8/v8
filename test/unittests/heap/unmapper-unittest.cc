@@ -97,6 +97,15 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
     return result;
   }
 
+  bool RecommitPages(void* address, size_t size,
+                     PageAllocator::Permission access) override {
+    UNREACHABLE();
+  }
+
+  bool DiscardSystemPages(void* address, size_t size) override {
+    UNREACHABLE();
+  }
+
   bool DecommitPages(void* address, size_t size) override {
     bool result = page_allocator_->DecommitPages(address, size);
     if (result) {

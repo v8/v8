@@ -277,8 +277,25 @@ void VirtualMemory::Reset() {
 bool VirtualMemory::SetPermissions(Address address, size_t size,
                                    PageAllocator::Permission access) {
   CHECK(InVM(address, size));
-  bool result =
-      v8::internal::SetPermissions(page_allocator_, address, size, access);
+  bool result = page_allocator_->SetPermissions(
+      reinterpret_cast<void*>(address), size, access);
+  DCHECK(result);
+  return result;
+}
+
+bool VirtualMemory::RecommitPages(Address address, size_t size,
+                                  PageAllocator::Permission access) {
+  CHECK(InVM(address, size));
+  bool result = page_allocator_->RecommitPages(reinterpret_cast<void*>(address),
+                                               size, access);
+  DCHECK(result);
+  return result;
+}
+
+bool VirtualMemory::DiscardSystemPages(Address address, size_t size) {
+  CHECK(InVM(address, size));
+  bool result = page_allocator_->DiscardSystemPages(
+      reinterpret_cast<void*>(address), size);
   DCHECK(result);
   return result;
 }
