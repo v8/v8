@@ -40,9 +40,6 @@
   'proposals/js-types/limits': [SKIP],
   'proposals/simd/limits': [SKIP],
   'proposals/memory64/limits': [SKIP],
-
-  # TODO(v8:11577): investigate this failure.
-  'limits': [SKIP],
 }], # ALWAYS
 
 ['arch == s390 or arch == s390x or system == aix', {
