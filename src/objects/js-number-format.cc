@@ -1451,18 +1451,31 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
                                     factory->roundingIncrement_string()),
                       JSNumberFormat);
     }
-    // 23. If roundingIncrement is not 1 and numberFormat.[[RoundingType]] is
-    // not fractionDigits, throw a RangeError exception.
-    if (rounding_increment != 1 &&
-        digit_options.rounding_type != Intl::RoundingType::kFractionDigits) {
-      THROW_NEW_ERROR(isolate,
-                      NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                                    factory->roundingIncrement_string()),
-                      JSNumberFormat);
+    if (rounding_increment != 1) {
+      // 23. If roundingIncrement is not 1 and numberFormat.[[RoundingType]] is
+      // not fractionDigits, throw a TypeError exception.
+      if (digit_options.rounding_type != Intl::RoundingType::kFractionDigits) {
+        THROW_NEW_ERROR(isolate,
+                        NewTypeError(MessageTemplate::kBadRoundingType),
+                        JSNumberFormat);
+      }
+      // 24. If roundingIncrement is not 1 and
+      // numberFormat.[[MaximumFractionDigits]] is not equal to
+      // numberFormat.[[MinimumFractionDigits]], throw a RangeError exception.
+      if (digit_options.maximum_fraction_digits !=
+          digit_options.minimum_fraction_digits) {
+        THROW_NEW_ERROR(
+            isolate,
+            NewRangeError(
+                MessageTemplate::
+                    kMaximumFractionDigitsNotEqualMinimumFractionDigits),
+            JSNumberFormat);
+      }
     }
-    // 24. Set _numberFormat.[[RoundingIncrement]] to roundingIncrement.
 
-    // 25. Let trailingZeroDisplay be ? GetOption(options,
+    // 25. Set _numberFormat.[[RoundingIncrement]] to roundingIncrement.
+
+    // 26. Let trailingZeroDisplay be ? GetOption(options,
     // "trailingZeroDisplay", "string", « "auto", "stripIfInteger" », "auto").
     Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
         GetStringOption<TrailingZeroDisplay>(
@@ -1474,7 +1487,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     TrailingZeroDisplay trailing_zero_display =
         maybe_trailing_zero_display.FromJust();
 
-    // 26. Set numberFormat.[[TrailingZeroDisplay]] to trailingZeroDisplay.
+    // 27. Set numberFormat.[[TrailingZeroDisplay]] to trailingZeroDisplay.
     settings = SetDigitOptionsToFormatterV3(
         settings, digit_options, rounding_increment,
         trailing_zero_display == TrailingZeroDisplay::STRIP_IF_INTEGER
@@ -1484,7 +1497,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     settings = SetDigitOptionsToFormatterV2(settings, digit_options);
   }
 
-  // 27. Let compactDisplay be ? GetOption(options, "compactDisplay",
+  // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
   // "string", « "short", "long" »,  "short").
   Maybe<CompactDisplay> maybe_compact_display = GetStringOption<CompactDisplay>(
       isolate, options, "compactDisplay", service, {"short", "long"},

@@ -42,6 +42,7 @@ namespace internal {
     "await can not be used when evaluating code "                              \
     "while paused in the debugger")                                            \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
+  T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \
     "The comparison function must be either a function or undefined")          \
   T(BigIntFromNumber,                                                          \
@@ -376,6 +377,8 @@ namespace internal {
   T(InvalidTypedArrayLength, "Invalid typed array length: %")                  \
   T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
+  T(MaximumFractionDigitsNotEqualMinimumFractionDigits,                        \
+    "maximumFractionDigits not equal to  minimumFractionDigits")               \
   T(NormalizationForm, "The normalization form should be one of %.")           \
   T(OutOfMemory, "%: Out of memory")                                           \
   T(ParameterOfFunctionOutOfRange,                                             \
