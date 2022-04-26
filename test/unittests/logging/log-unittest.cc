@@ -1,31 +1,10 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 // Tests of logging functions from log.h
+
+#include "src/logging/log.h"
 
 #include <unordered_set>
 #include <vector>
@@ -38,16 +17,18 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/init/v8.h"
 #include "src/logging/log-utils.h"
-#include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/version.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 using v8::base::EmbeddedVector;
 using v8::internal::Address;
 using v8::internal::V8FileLogger;
+
+namespace v8 {
 
 namespace {
 
@@ -67,6 +48,16 @@ static std::vector<std::string> Split(const std::string& s, char delimiter) {
   }
   return result;
 }
+
+class LogTest : public TestWithIsolate {
+ public:
+  static void SetUpTestSuite() {
+    SETUP_FLAGS();
+    TestWithIsolate::SetUpTestSuite();
+  }
+
+  static void TearDownTestSuite() { TestWithIsolate::TearDownTestSuite(); }
+};
 
 class V8_NODISCARD ScopedLoggerInitializer {
  public:
@@ -292,59 +283,54 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
 
 }  // namespace
 
-TEST(Issue23768) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
+TEST_F(LogTest, Issue23768) {
+  v8::HandleScope scope(isolate());
+  v8::Local<v8::Context> env = v8::Context::New(isolate());
   env->Enter();
 
   SimpleExternalString source_ext_str("(function ext() {})();");
   v8::Local<v8::String> source =
-      v8::String::NewExternalTwoByte(CcTest::isolate(), &source_ext_str)
+      v8::String::NewExternalTwoByte(isolate(), &source_ext_str)
           .ToLocalChecked();
   // Script needs to have a name in order to trigger InitLineEnds execution.
   v8::Local<v8::String> origin =
-      v8::String::NewFromUtf8Literal(CcTest::isolate(), "issue-23768-test");
+      v8::String::NewFromUtf8Literal(isolate(), "issue-23768-test");
   v8::Local<v8::Script> evil_script = CompileWithOrigin(source, origin, false);
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run(env).IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
       i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)),
-      CcTest::i_isolate());
+      i_isolate());
   // This situation can happen if source was an external string disposed
   // by its owner.
-  i_source->SetResource(CcTest::i_isolate(), nullptr);
+  i_source->SetResource(i_isolate(), nullptr);
 
   // Must not crash.
-  CcTest::i_isolate()->logger()->LogCompiledFunctions();
+  i_isolate()->logger()->LogCompiledFunctions();
 }
 
-static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {
-}
+static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {}
 
-UNINITIALIZED_TEST(LogCallbacks) {
-  SETUP_FLAGS();
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+TEST_F(LogTest, LogCallbacks) {
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
 
     v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
-        isolate, v8::FunctionTemplate::New(isolate));
-    obj->SetClassName(v8_str("Obj"));
+        isolate(), v8::FunctionTemplate::New(isolate()));
+    obj->SetClassName(NewString("Obj"));
     v8::Local<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
-    v8::Local<v8::Signature> signature = v8::Signature::New(isolate, obj);
-    proto->Set(v8_str("method1"),
-               v8::FunctionTemplate::New(isolate, ObjMethod1,
+    v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), obj);
+    proto->Set(NewString("method1"),
+               v8::FunctionTemplate::New(isolate(), ObjMethod1,
                                          v8::Local<v8::Value>(), signature),
                static_cast<v8::PropertyAttribute>(v8::DontDelete));
 
     logger.env()
         ->Global()
-        ->Set(logger.env(), v8_str("Obj"),
+        ->Set(logger.env(), NewString("Obj"),
               obj->GetFunction(logger.env()).ToLocalChecked())
         .FromJust();
-    CompileRun("Obj.prototype.method1.toString();");
+    RunJS("Obj.prototype.method1.toString();");
 
     logger.LogCompiledFunctions();
     logger.StopLogging();
@@ -359,36 +345,28 @@ UNINITIALIZED_TEST(LogCallbacks) {
     CHECK(logger.ContainsLine(
         {"code-creation,Callback,-2,", std::string(suffix_buffer.begin())}));
   }
-  isolate->Dispose();
 }
 
 static void Prop1Getter(v8::Local<v8::String> property,
-                        const v8::PropertyCallbackInfo<v8::Value>& info) {
-}
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
 static void Prop1Setter(v8::Local<v8::String> property,
                         v8::Local<v8::Value> value,
-                        const v8::PropertyCallbackInfo<void>& info) {
-}
+                        const v8::PropertyCallbackInfo<void>& info) {}
 
 static void Prop2Getter(v8::Local<v8::String> property,
-                        const v8::PropertyCallbackInfo<v8::Value>& info) {
-}
+                        const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
-UNINITIALIZED_TEST(LogAccessorCallbacks) {
-  SETUP_FLAGS();
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+TEST_F(LogTest, LogAccessorCallbacks) {
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
 
     v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
-        isolate, v8::FunctionTemplate::New(isolate));
-    obj->SetClassName(v8_str("Obj"));
+        isolate(), v8::FunctionTemplate::New(isolate()));
+    obj->SetClassName(NewString("Obj"));
     v8::Local<v8::ObjectTemplate> inst = obj->InstanceTemplate();
-    inst->SetAccessor(v8_str("prop1"), Prop1Getter, Prop1Setter);
-    inst->SetAccessor(v8_str("prop2"), Prop2Getter);
+    inst->SetAccessor(NewString("prop1"), Prop1Getter, Prop1Setter);
+    inst->SetAccessor(NewString("prop2"), Prop2Getter);
 
     logger.logger()->LogAccessorCallbacks();
 
@@ -424,16 +402,11 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
                                std::string(prop2_getter_record.begin())}));
   }
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(LogVersion) {
-  SETUP_FLAGS();
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+TEST_F(LogTest, LogVersion) {
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
     logger.StopLogging();
 
     v8::base::EmbeddedVector<char, 100> line_buffer;
@@ -443,12 +416,11 @@ UNINITIALIZED_TEST(LogVersion) {
     CHECK(
         logger.ContainsLine({"v8-version,", std::string(line_buffer.begin())}));
   }
-  isolate->Dispose();
 }
 
 // https://crbug.com/539892
 // CodeCreateEvents with really large names should not crash.
-UNINITIALIZED_TEST(Issue539892) {
+TEST_F(LogTest, Issue539892) {
   class FakeCodeEventLogger : public i::CodeEventLogger {
    public:
     explicit FakeCodeEventLogger(i::Isolate* isolate)
@@ -468,15 +440,9 @@ UNINITIALIZED_TEST(Issue539892) {
                            int length) override {}
 #endif  // V8_ENABLE_WEBASSEMBLY
   };
-
-  SETUP_FLAGS();
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  FakeCodeEventLogger code_event_logger(reinterpret_cast<i::Isolate*>(isolate));
-
+  FakeCodeEventLogger code_event_logger(i_isolate());
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
     logger.logger()->AddLogEventListener(&code_event_logger);
 
     // Function with a really large name.
@@ -501,15 +467,16 @@ UNINITIALIZED_TEST(Issue539892) {
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac"
         "(){})();";
 
-    CompileRun(source_text);
+    RunJS(source_text);
 
     // Must not crash.
     logger.LogCompiledFunctions();
   }
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(LogAll) {
+using LogAllTest = TestWithPlatform;
+
+TEST_F(LogAllTest, LogAll) {
   SETUP_FLAGS();
   i::FLAG_log_all = true;
   i::FLAG_log_deopt = true;
@@ -517,7 +484,8 @@ UNINITIALIZED_TEST(LogAll) {
   i::FLAG_log_internal_timer_events = true;
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator =
+      ArrayBuffer::Allocator::NewDefaultAllocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
@@ -545,7 +513,12 @@ UNINITIALIZED_TEST(LogAll) {
           result = testAddFn('1', i);
         }
       )";
-    CompileRun(source_text);
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Script> script =
+        v8::Script::Compile(
+            context, String::NewFromUtf8(isolate, source_text).ToLocalChecked())
+            .ToLocalChecked();
+    script->Run(context).ToLocalChecked();
 
     logger.StopLogging();
 
@@ -562,23 +535,20 @@ UNINITIALIZED_TEST(LogAll) {
     }
   }
   isolate->Dispose();
+  delete create_params.array_buffer_allocator;
 }
 
 #ifndef V8_TARGET_ARCH_ARM
-UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
-  SETUP_FLAGS();
+TEST_F(LogTest, LogInterpretedFramesNativeStack) {
   i::FLAG_interpreted_frames_native_stack = true;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
 
     const char* source_text =
         "function testLogInterpretedFramesNativeStack(a,b) { return a + b };"
         "testLogInterpretedFramesNativeStack('1', 1);";
-    CompileRun(source_text);
+    RunJS(source_text);
 
     logger.StopLogging();
 
@@ -586,15 +556,17 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
         {{"LazyCompile", "testLogInterpretedFramesNativeStack"},
          {"LazyCompile", "testLogInterpretedFramesNativeStack"}}));
   }
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
+using LogInterpretedFramesNativeStackTest = TestWithPlatform;
+TEST_F(LogInterpretedFramesNativeStackTest,
+       LogInterpretedFramesNativeStackWithSerialization) {
   SETUP_FLAGS();
   i::FLAG_interpreted_frames_native_stack = true;
   i::FLAG_always_opt = false;
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator =
+      ArrayBuffer::Allocator::NewDefaultAllocator();
 
   v8::ScriptCompiler::CachedData* cache = nullptr;
 
@@ -618,10 +590,17 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
       v8::HandleScope scope(isolate);
       v8::Isolate::Scope isolate_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
-      v8::Local<v8::String> source = v8_str(
-          "function eyecatcher() { return a * a; } return eyecatcher();");
-      v8::Local<v8::String> arg_str = v8_str("a");
-      v8::ScriptOrigin origin(isolate, v8_str("filename"));
+      v8::Local<v8::String> source =
+          String::NewFromUtf8(
+              isolate,
+              "function eyecatcher() { return a * a; } return eyecatcher();")
+              .ToLocalChecked();
+
+      v8::Local<v8::String> arg_str =
+          String::NewFromUtf8(isolate, "a").ToLocalChecked();
+
+      v8::ScriptOrigin origin(
+          isolate, String::NewFromUtf8(isolate, ("filename")).ToLocalChecked());
 
       i::DisallowCompilation* no_compile_expected =
           has_cache ? new i::DisallowCompilation(
@@ -641,7 +620,7 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
         CHECK(logger.ContainsLinesInOrder(
             {{"Function", "eyecatcher"}, {"Function", "eyecatcher"}}));
       }
-      v8::Local<v8::Value> arg = v8_num(3);
+      v8::Local<v8::Value> arg = Number::New(isolate, 3);
       v8::Local<v8::Value> result =
           fun->Call(context, v8::Undefined(isolate), 1, &arg).ToLocalChecked();
       CHECK_EQ(9, result->Int32Value(context).FromJust());
@@ -653,29 +632,26 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
     isolate->Dispose();
   } while (!has_cache);
   delete cache;
+  delete create_params.array_buffer_allocator;
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-UNINITIALIZED_TEST(ExternalLogEventListener) {
+TEST_F(LogTest, ExternalLogEventListener) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
 
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-
   {
-    v8::HandleScope scope(isolate);
-    v8::Isolate::Scope isolate_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::HandleScope scope(isolate());
+    v8::Isolate::Scope isolate_scope(isolate());
+    v8::Local<v8::Context> context = v8::Context::New(isolate());
     v8::Context::Scope context_scope(context);
 
-    TestCodeEventHandler code_event_handler(isolate);
+    v8::TestCodeEventHandler code_event_handler(isolate());
 
     const char* source_text_before_start =
         "function testLogEventListenerBeforeStart(a,b) { return a + b };"
         "testLogEventListenerBeforeStart('1', 1);";
-    CompileRun(source_text_before_start);
+    RunJS(source_text_before_start);
 
     CHECK_EQ(code_event_handler.CountLines("Function",
                                            "testLogEventListenerBeforeStart"),
@@ -693,16 +669,17 @@ UNINITIALIZED_TEST(ExternalLogEventListener) {
     const char* source_text_after_start =
         "function testLogEventListenerAfterStart(a,b) { return a + b };"
         "testLogEventListenerAfterStart('1', 1);";
-    CompileRun(source_text_after_start);
+    RunJS(source_text_after_start);
 
     CHECK_GE(code_event_handler.CountLines("LazyCompile",
                                            "testLogEventListenerAfterStart"),
              1);
   }
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(ExternalLogEventListenerInnerFunctions) {
+using ExternalLogTest = TestWithPlatform;
+
+TEST_F(ExternalLogTest, ExternalLogEventListenerInnerFunctions) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
 
@@ -711,7 +688,9 @@ UNINITIALIZED_TEST(ExternalLogEventListenerInnerFunctions) {
       "(function f1() { return (function f2() {}); })()";
 
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.array_buffer_allocator =
+      ArrayBuffer::Allocator::NewDefaultAllocator();
+
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
   {  // Test that we emit the correct code events from eagerly compiling.
     v8::HandleScope scope(isolate1);
@@ -722,8 +701,12 @@ UNINITIALIZED_TEST(ExternalLogEventListenerInnerFunctions) {
     TestCodeEventHandler code_event_handler(isolate1);
     code_event_handler.Enable();
 
-    v8::Local<v8::String> source_string = v8_str(source_cstring);
-    v8::ScriptOrigin origin(isolate1, v8_str("test"));
+    v8::Local<v8::String> source_string =
+        String::NewFromUtf8(isolate1, source_cstring).ToLocalChecked();
+
+    v8::ScriptOrigin origin(
+        isolate1, String::NewFromUtf8(isolate1, "test").ToLocalChecked());
+
     v8::ScriptCompiler::Source source(source_string, origin);
     v8::Local<v8::UnboundScript> script =
         v8::ScriptCompiler::CompileUnboundScript(isolate1, &source)
@@ -748,8 +731,12 @@ UNINITIALIZED_TEST(ExternalLogEventListenerInnerFunctions) {
     TestCodeEventHandler code_event_handler(isolate2);
     code_event_handler.Enable();
 
-    v8::Local<v8::String> source_string = v8_str(source_cstring);
-    v8::ScriptOrigin origin(isolate2, v8_str("test"));
+    v8::Local<v8::String> source_string =
+        String::NewFromUtf8(isolate2, source_cstring).ToLocalChecked();
+
+    v8::ScriptOrigin origin(
+        isolate2, String::NewFromUtf8(isolate2, "test").ToLocalChecked());
+
     v8::ScriptCompiler::Source source(source_string, origin, cache);
     {
       i::DisallowCompilation no_compile_expected(
@@ -762,30 +749,27 @@ UNINITIALIZED_TEST(ExternalLogEventListenerInnerFunctions) {
     CHECK_EQ(code_event_handler.CountLines("Function", "f2"), 1);
   }
   isolate2->Dispose();
+  delete create_params.array_buffer_allocator;
 }
 
 #ifndef V8_TARGET_ARCH_ARM
-UNINITIALIZED_TEST(ExternalLogEventListenerWithInterpretedFramesNativeStack) {
+TEST_F(LogTest, ExternalLogEventListenerWithInterpretedFramesNativeStack) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
   i::FLAG_interpreted_frames_native_stack = true;
 
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-
   {
-    v8::HandleScope scope(isolate);
-    v8::Isolate::Scope isolate_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::HandleScope scope(isolate());
+    v8::Isolate::Scope isolate_scope(isolate());
+    v8::Local<v8::Context> context = v8::Context::New(isolate());
     context->Enter();
 
-    TestCodeEventHandler code_event_handler(isolate);
+    TestCodeEventHandler code_event_handler(isolate());
 
     const char* source_text_before_start =
         "function testLogEventListenerBeforeStart(a,b) { return a + b };"
         "testLogEventListenerBeforeStart('1', 1);";
-    CompileRun(source_text_before_start);
+    RunJS(source_text_before_start);
 
     CHECK_EQ(code_event_handler.CountLines("Function",
                                            "testLogEventListenerBeforeStart"),
@@ -800,7 +784,7 @@ UNINITIALIZED_TEST(ExternalLogEventListenerWithInterpretedFramesNativeStack) {
     const char* source_text_after_start =
         "function testLogEventListenerAfterStart(a,b) { return a + b };"
         "testLogEventListenerAfterStart('1', 1);";
-    CompileRun(source_text_after_start);
+    RunJS(source_text_after_start);
 
     CHECK_GE(code_event_handler.CountLines("LazyCompile",
                                            "testLogEventListenerAfterStart"),
@@ -812,18 +796,13 @@ UNINITIALIZED_TEST(ExternalLogEventListenerWithInterpretedFramesNativeStack) {
 
     context->Exit();
   }
-  isolate->Dispose();
 }
 #endif  // V8_TARGET_ARCH_ARM
 
-UNINITIALIZED_TEST(TraceMaps) {
-  SETUP_FLAGS();
+TEST_F(LogTest, TraceMaps) {
   i::FLAG_log_maps = true;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
     // Try to create many different kind of maps to make sure the logging won't
     // crash. More detailed tests are implemented separately.
     const char* source_text = R"(
@@ -844,7 +823,7 @@ UNINITIALIZED_TEST(TraceMaps) {
       };
       t.b = {};
     )";
-    CompileRunChecked(isolate, source_text);
+    RunJS(source_text);
 
     logger.StopLogging();
 
@@ -854,7 +833,6 @@ UNINITIALIZED_TEST(TraceMaps) {
     CHECK(logger.ContainsLine({"map-details", ",0x"}));
   }
   i::FLAG_log_maps = false;
-  isolate->Dispose();
 }
 
 namespace {
@@ -903,40 +881,40 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
 
 }  // namespace
 
-UNINITIALIZED_TEST(LogMapsDetailsStartup) {
+class LogMapTest : public TestWithIsolate {
+ public:
+  static void SetUpTestSuite() {
+    SETUP_FLAGS();
+    i::FLAG_retain_maps_for_n_gc = 0xFFFFFFF;
+    i::FLAG_log_maps = true;
+    TestWithIsolate::SetUpTestSuite();
+  }
+
+  static void TearDownTestSuite() { TestWithIsolate::TearDownTestSuite(); }
+};
+
+TEST_F(LogMapTest, LogMapsDetailsStartup) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
       i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
-  SETUP_FLAGS();
-  i::FLAG_log_maps = true;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
     logger.StopLogging();
-    ValidateMapDetailsLogging(isolate, &logger);
+    ValidateMapDetailsLogging(isolate(), &logger);
   }
 
   i::FLAG_log_function_events = false;
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(LogMapsDetailsCode) {
+TEST_F(LogMapTest, LogMapsDetailsCode) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
       i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
-  SETUP_FLAGS();
-  i::FLAG_retain_maps_for_n_gc = 0xFFFFFFF;
-  i::FLAG_log_maps = true;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
   const char* source = R"(
     // Normal properties overflowing into dict-mode.
     let a = {};
@@ -1012,65 +990,53 @@ UNINITIALIZED_TEST(LogMapsDetailsCode) {
     [1,2,3].helper();
   )";
   {
-    ScopedLoggerInitializer logger(isolate);
-    CompileRunChecked(isolate, source);
+    ScopedLoggerInitializer logger(isolate());
+    RunJS(source);
     logger.StopLogging();
-    ValidateMapDetailsLogging(isolate, &logger);
+    ValidateMapDetailsLogging(isolate(), &logger);
   }
 
   i::FLAG_log_function_events = false;
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(LogMapsDetailsContexts) {
+TEST_F(LogMapTest, LogMapsDetailsContexts) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
       i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
-  SETUP_FLAGS();
-  i::FLAG_log_maps = true;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
     // Use the default context.
-    CompileRunChecked(isolate, "{a:1}");
+    RunJS("{a:1}");
     // Create additional contexts.
-    v8::Local<v8::Context> env1 = v8::Context::New(isolate);
+    v8::Local<v8::Context> env1 = v8::Context::New(isolate());
     env1->Enter();
-    CompileRun(env1, "{b:1}").ToLocalChecked();
+    RunJS("{b:1}");
 
-    v8::Local<v8::Context> env2 = v8::Context::New(isolate);
+    v8::Local<v8::Context> env2 = v8::Context::New(isolate());
     env2->Enter();
-    CompileRun(env2, "{c:1}").ToLocalChecked();
+    RunJS("{c:1}");
     env2->Exit();
     env1->Exit();
 
     logger.StopLogging();
-    ValidateMapDetailsLogging(isolate, &logger);
+    ValidateMapDetailsLogging(isolate(), &logger);
   }
 
   i::FLAG_log_function_events = false;
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(ConsoleTimeEvents) {
-  SETUP_FLAGS();
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+TEST_F(LogTest, ConsoleTimeEvents) {
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
     {
       // setup console global.
-      v8::HandleScope scope(isolate);
+      v8::HandleScope scope(isolate());
       v8::Local<v8::String> name = v8::String::NewFromUtf8Literal(
-          isolate, "console", v8::NewStringType::kInternalized);
-      v8::Local<v8::Context> context = isolate->GetCurrentContext();
+          isolate(), "console", v8::NewStringType::kInternalized);
+      v8::Local<v8::Context> context = isolate()->GetCurrentContext();
       v8::Local<v8::Value> console = context->GetExtrasBindingObject()
                                          ->Get(context, name)
                                          .ToLocalChecked();
@@ -1085,7 +1051,7 @@ UNINITIALIZED_TEST(ConsoleTimeEvents) {
         "console.timeEnd('timerEvent1');"
         "console.timeStamp('timerEvent2');"
         "console.timeStamp('timerEvent3');";
-    CompileRun(source_text);
+    RunJS(source_text);
 
     logger.StopLogging();
 
@@ -1096,25 +1062,19 @@ UNINITIALIZED_TEST(ConsoleTimeEvents) {
         {"timer-event,timerEvent3,"}};
     CHECK(logger.ContainsLinesInOrder(lines));
   }
-
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(LogFunctionEvents) {
+TEST_F(LogTest, LogFunctionEvents) {
   // Always opt and stress opt will break the fine-grained log order.
   if (i::FLAG_always_opt) return;
 
-  SETUP_FLAGS();
   i::FLAG_log_function_events = true;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
 
     // Run some warmup code to help ignoring existing log entries.
-    CompileRun(
+    RunJS(
         "function warmUp(a) {"
         " let b = () => 1;"
         " return function(c) { return a+b+c; };"
@@ -1133,7 +1093,7 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
         "(function eagerFunction(){ return 'eager' })();"
         "function Foo() { this.foo = function(){}; };"
         "let i = new Foo(); i.foo();";
-    CompileRun(source_text);
+    RunJS(source_text);
 
     logger.StopLogging();
 
@@ -1177,16 +1137,11 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
     CHECK(logger.ContainsLinesInOrder(lines));
   }
   i::FLAG_log_function_events = false;
-  isolate->Dispose();
 }
 
-UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
-  SETUP_FLAGS();
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
+TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
   {
-    ScopedLoggerInitializer logger(isolate);
+    ScopedLoggerInitializer logger(isolate());
 
     logger.LogCodeObjects();
     logger.LogCompiledFunctions();
@@ -1209,5 +1164,6 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     CHECK(!logger.ContainsLine(
         {"code-creation,LazyCompile,2,", std::string(buffer.begin())}));
   }
-  isolate->Dispose();
 }
+
+}  // namespace v8
