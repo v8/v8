@@ -2192,7 +2192,7 @@ base::AddressRegion WasmCodeManager::AllocateAssemblerBufferSpace(int size) {
                                  PageAllocator::kNoAccess);
     if (V8_UNLIKELY(!mapped)) {
       constexpr auto format = base::StaticCharVector(
-          "Cannot allocate %zu more bytes for assembler buffers");
+          "Cannot allocate %d more bytes for assembler buffers");
       constexpr int kMaxMessageLength =
           format.size() - 3 + std::numeric_limits<size_t>::digits10;
       base::EmbeddedVector<char, kMaxMessageLength + 1> message;
