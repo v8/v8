@@ -210,8 +210,8 @@ Heap::Heap()
       safepoint_(std::make_unique<IsolateSafepoint>(this)),
       external_string_table_(this),
       allocation_type_for_in_place_internalizable_strings_(
-          isolate()->OwnsStringTable() ? AllocationType::kOld
-                                       : AllocationType::kSharedOld),
+          isolate()->OwnsStringTables() ? AllocationType::kOld
+                                        : AllocationType::kSharedOld),
       collection_barrier_(new CollectionBarrier(this)) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));
@@ -4053,7 +4053,9 @@ void Heap::VerifySafeMapTransition(HeapObject object, Map new_map) {
   }
   if (object.IsString(cage_base) &&
       (new_map == ReadOnlyRoots(this).thin_string_map() ||
-       new_map == ReadOnlyRoots(this).thin_one_byte_string_map())) {
+       new_map == ReadOnlyRoots(this).thin_one_byte_string_map() ||
+       new_map == ReadOnlyRoots(this).shared_thin_string_map() ||
+       new_map == ReadOnlyRoots(this).shared_thin_one_byte_string_map())) {
     // When transitioning a string to ThinString,
     // Heap::NotifyObjectLayoutChange doesn't need to be invoked because only
     // tagged fields are introduced.
@@ -4515,7 +4517,7 @@ bool Heap::SharedHeapContains(HeapObject value) const {
 }
 
 bool Heap::ShouldBeInSharedOldSpace(HeapObject value) {
-  if (isolate()->OwnsStringTable()) return false;
+  if (isolate()->OwnsStringTables()) return false;
   if (ReadOnlyHeap::Contains(value)) return false;
   if (Heap::InYoungGeneration(value)) return false;
   if (value.IsExternalString()) return false;
@@ -4870,7 +4872,7 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
 
   if (!options.contains(SkipRoot::kOldGeneration) &&
       !options.contains(SkipRoot::kUnserializable) &&
-      isolate()->OwnsStringTable()) {
+      isolate()->OwnsStringTables()) {
     // Do not visit for the following reasons.
     // - Serialization, since the string table is custom serialized.
     // - If we are skipping old generation, since all internalized strings

@@ -2500,7 +2500,7 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
   explicit ClearStringTableJobItem(Isolate* isolate) : isolate_(isolate) {}
 
   void Run(JobDelegate* delegate) final {
-    if (isolate_->OwnsStringTable()) {
+    if (isolate_->OwnsStringTables()) {
       TRACE_GC1(isolate_->heap()->tracer(),
                 GCTracer::Scope::MC_CLEAR_STRING_TABLE,
                 delegate->IsJoiningThread() ? ThreadKind::kMain
@@ -2525,6 +2525,20 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
 
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
+
+  if (isolate()->OwnsStringTables()) {
+    // Clear string forwarding table. Live strings are transitioned to
+    // ThinStrings in the cleanup process.
+    StringForwardingTable* forwarding_table =
+        isolate()->string_forwarding_table();
+    auto is_dead = [=](HeapObject object) {
+      return non_atomic_marking_state_.IsWhite(object);
+    };
+    auto record_slot = [](HeapObject object, ObjectSlot slot, Object target) {
+      RecordSlot(object, slot, HeapObject::cast(target));
+    };
+    forwarding_table->CleanUpDuringGC(is_dead, record_slot);
+  }
 
   auto clearing_job = std::make_unique<ParallelClearingJob>();
   clearing_job->Add(std::make_unique<ClearStringTableJobItem>(isolate()));

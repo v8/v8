@@ -91,6 +91,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   void RegisterDeserializerStarted();
   void RegisterDeserializerFinished();
+  bool has_active_deserializer() const;
 
   template <typename T>
   Handle<T> Throw(Handle<Object> exception) {

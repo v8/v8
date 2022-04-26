@@ -128,6 +128,7 @@ class RootVisitor;
 class SetupIsolateDelegate;
 class Simulator;
 class SnapshotData;
+class StringForwardingTable;
 class StringTable;
 class StubCache;
 class ThreadManager;
@@ -729,6 +730,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // The isolate's string table.
   StringTable* string_table() const { return string_table_.get(); }
+  StringForwardingTable* string_forwarding_table() const {
+    return string_forwarding_table_.get();
+  }
 
   Address get_address_from_id(IsolateAddressId id);
 
@@ -1935,7 +1939,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 
-  bool OwnsStringTable() { return !FLAG_shared_string_table || is_shared(); }
+  bool OwnsStringTables() { return !FLAG_shared_string_table || is_shared(); }
 
 #if USE_SIMULATOR
   SimulatorData* simulator_data() { return simulator_data_; }
@@ -2080,6 +2084,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
   std::shared_ptr<StringTable> string_table_;
+  std::shared_ptr<StringForwardingTable> string_forwarding_table_;
 
   const int id_;
   EntryStackItem* entry_stack_ = nullptr;

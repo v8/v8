@@ -991,6 +991,8 @@ FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
 FUNCTION_REFERENCE(copy_typed_array_elements_slice, CopyTypedArrayElementsSlice)
 FUNCTION_REFERENCE(try_string_to_index_or_lookup_existing,
                    StringTable::TryStringToIndexOrLookupExisting)
+FUNCTION_REFERENCE(string_from_forward_table,
+                   StringForwardingTable::GetForwardStringAddress)
 FUNCTION_REFERENCE(string_to_array_index_function, String::ToArrayIndex)
 
 static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,

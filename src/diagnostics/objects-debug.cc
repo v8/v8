@@ -335,8 +335,10 @@ void HeapObject::VerifyCodePointer(Isolate* isolate, Object p) {
 
 void Symbol::SymbolVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SymbolVerify(*this, isolate);
-  CHECK(HasHashCode());
-  CHECK_GT(hash(), 0);
+  uint32_t hash;
+  const bool has_hash = TryGetHash(&hash);
+  CHECK(has_hash);
+  CHECK_GT(hash, 0);
   CHECK(description().IsUndefined(isolate) || description().IsString());
   CHECK_IMPLIES(IsPrivateName(), IsPrivate());
   CHECK_IMPLIES(IsPrivateBrand(), IsPrivateName());
@@ -1946,7 +1948,7 @@ class StringTableVerifier : public RootVisitor {
 
 void StringTable::VerifyIfOwnedBy(Isolate* isolate) {
   DCHECK_EQ(isolate->string_table(), this);
-  if (!isolate->OwnsStringTable()) return;
+  if (!isolate->OwnsStringTables()) return;
   StringTableVerifier verifier(isolate);
   IterateElements(&verifier);
 }
@@ -2075,13 +2077,14 @@ bool DescriptorArray::IsSortedNoDuplicates() {
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name key = GetSortedKey(i);
-    CHECK(key.HasHashCode());
+    uint32_t hash;
+    const bool has_hash = key.TryGetHash(&hash);
+    CHECK(has_hash);
     if (key == current_key) {
       Print();
       return false;
     }
     current_key = key;
-    uint32_t hash = key.hash();
     if (hash < current) {
       Print();
       return false;
@@ -2099,8 +2102,9 @@ bool TransitionArray::IsSortedNoDuplicates() {
 
   for (int i = 0; i < number_of_transitions(); i++) {
     Name key = GetSortedKey(i);
-    CHECK(key.HasHashCode());
-    uint32_t hash = key.hash();
+    uint32_t hash;
+    const bool has_hash = key.TryGetHash(&hash);
+    CHECK(has_hash);
     PropertyKind kind = PropertyKind::kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key.GetReadOnlyRoots(),
