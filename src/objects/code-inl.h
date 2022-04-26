@@ -730,11 +730,11 @@ void Code::set_inlined_bytecode_size(unsigned size) {
 }
 
 BytecodeOffset Code::osr_offset() const {
-  return BytecodeOffset(ReadField<int32_t>(kOsrOffsetOffset));
+  return BytecodeOffset(RELAXED_READ_INT32_FIELD(*this, kOsrOffsetOffset));
 }
 
 void Code::set_osr_offset(BytecodeOffset offset) {
-  WriteField<int32_t>(kOsrOffsetOffset, offset.ToInt());
+  RELAXED_WRITE_INT32_FIELD(*this, kOsrOffsetOffset, offset.ToInt());
 }
 
 bool Code::uses_safepoint_table() const {
