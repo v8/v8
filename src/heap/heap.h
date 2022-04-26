@@ -2567,6 +2567,17 @@ class V8_NODISCARD AlwaysAllocateScope {
   Heap* heap_;
 };
 
+class V8_NODISCARD GCCallbacksScope final {
+ public:
+  explicit GCCallbacksScope(Heap* heap);
+  ~GCCallbacksScope();
+
+  bool CheckReenter() const;
+
+ private:
+  Heap* const heap_;
+};
+
 // Like AlwaysAllocateScope if the heap argument to the constructor is
 // non-null. No-op otherwise.
 //

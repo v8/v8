@@ -1500,18 +1500,15 @@ void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 }
 
-class V8_NODISCARD GCCallbacksScope {
- public:
-  explicit GCCallbacksScope(Heap* heap) : heap_(heap) {
-    heap_->gc_callbacks_depth_++;
-  }
-  ~GCCallbacksScope() { heap_->gc_callbacks_depth_--; }
+GCCallbacksScope::GCCallbacksScope(Heap* heap) : heap_(heap) {
+  heap_->gc_callbacks_depth_++;
+}
 
-  bool CheckReenter() { return heap_->gc_callbacks_depth_ == 1; }
+GCCallbacksScope::~GCCallbacksScope() { heap_->gc_callbacks_depth_--; }
 
- private:
-  Heap* heap_;
-};
+bool GCCallbacksScope::CheckReenter() const {
+  return heap_->gc_callbacks_depth_ == 1;
+}
 
 void Heap::HandleGCRequest() {
   if (IsStressingScavenge() && stress_scavenge_observer_->HasRequestedGC()) {

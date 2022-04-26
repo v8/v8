@@ -199,9 +199,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   static GlobalHandles* From(const TracedNode*);
 
-  void InvokeSecondPassPhantomCallbacksFromTask();
-  void InvokeOrScheduleSecondPassPhantomCallbacks(bool synchronous_second_pass);
-
   template <typename T>
   size_t InvokeFirstPassWeakCallbacks(
       std::vector<std::pair<T*, PendingPhantomCallback>>* pending);
@@ -236,7 +233,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
       traced_pending_phantom_callbacks_;
   std::vector<PendingPhantomCallback> second_pass_callbacks_;
   bool second_pass_callbacks_task_posted_ = false;
-  bool running_second_pass_callbacks_ = false;
 };
 
 class GlobalHandles::PendingPhantomCallback final {
