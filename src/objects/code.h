@@ -451,6 +451,9 @@ class Code : public HeapObject {
   inline unsigned inlined_bytecode_size() const;
   inline void set_inlined_bytecode_size(unsigned size);
 
+  inline BytecodeOffset osr_offset() const;
+  inline void set_osr_offset(BytecodeOffset offset);
+
   // [uses_safepoint_table]: Whether this Code object uses safepoint tables
   // (note the table may still be empty, see has_safepoint_table).
   inline bool uses_safepoint_table() const;
@@ -624,6 +627,7 @@ class Code : public HeapObject {
   V(kFlagsOffset, kInt32Size)                                                 \
   V(kBuiltinIndexOffset, kIntSize)                                            \
   V(kInlinedBytecodeSizeOffset, kIntSize)                                     \
+  V(kOsrOffsetOffset, kInt32Size)                                             \
   /* Offsets describing inline metadata tables, relative to MetadataStart. */ \
   V(kHandlerTableOffsetOffset, kIntSize)                                      \
   V(kConstantPoolOffsetOffset,                                                \
@@ -643,28 +647,28 @@ class Code : public HeapObject {
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
   static constexpr int kHeaderPaddingSize =
-      V8_EXTERNAL_CODE_SPACE_BOOL ? 8 : (COMPRESS_POINTERS_BOOL ? 12 : 24);
+      V8_EXTERNAL_CODE_SPACE_BOOL ? 4 : (COMPRESS_POINTERS_BOOL ? 8 : 20);
 #elif V8_TARGET_ARCH_MIPS64
-  static constexpr int kHeaderPaddingSize = 24;
+  static constexpr int kHeaderPaddingSize = 20;
 #elif V8_TARGET_ARCH_LOONG64
-  static constexpr int kHeaderPaddingSize = 24;
+  static constexpr int kHeaderPaddingSize = 20;
 #elif V8_TARGET_ARCH_X64
   static constexpr int kHeaderPaddingSize =
-      V8_EXTERNAL_CODE_SPACE_BOOL ? 8 : (COMPRESS_POINTERS_BOOL ? 12 : 56);
+      V8_EXTERNAL_CODE_SPACE_BOOL ? 4 : (COMPRESS_POINTERS_BOOL ? 8 : 52);
 #elif V8_TARGET_ARCH_ARM
-  static constexpr int kHeaderPaddingSize = 12;
+  static constexpr int kHeaderPaddingSize = 8;
 #elif V8_TARGET_ARCH_IA32
-  static constexpr int kHeaderPaddingSize = 12;
+  static constexpr int kHeaderPaddingSize = 8;
 #elif V8_TARGET_ARCH_MIPS
-  static constexpr int kHeaderPaddingSize = 12;
+  static constexpr int kHeaderPaddingSize = 8;
 #elif V8_TARGET_ARCH_PPC64
   static constexpr int kHeaderPaddingSize =
-      FLAG_enable_embedded_constant_pool ? (COMPRESS_POINTERS_BOOL ? 8 : 52)
-                                         : (COMPRESS_POINTERS_BOOL ? 12 : 56);
+      FLAG_enable_embedded_constant_pool ? (COMPRESS_POINTERS_BOOL ? 4 : 48)
+                                         : (COMPRESS_POINTERS_BOOL ? 8 : 52);
 #elif V8_TARGET_ARCH_S390X
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 12 : 24;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 8 : 20;
 #elif V8_TARGET_ARCH_RISCV64
-  static constexpr int kHeaderPaddingSize = (COMPRESS_POINTERS_BOOL ? 12 : 24);
+  static constexpr int kHeaderPaddingSize = (COMPRESS_POINTERS_BOOL ? 8 : 20);
 #else
 #error Unknown architecture.
 #endif

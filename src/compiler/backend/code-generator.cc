@@ -490,6 +490,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
           .set_is_turbofanned()
           .set_stack_slots(frame()->GetTotalFrameSlotCount())
           .set_profiler_data(info()->profiler_data())
+          .set_osr_offset(info()->osr_offset())
           .TryBuild();
 
   Handle<Code> code;

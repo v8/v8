@@ -172,6 +172,51 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   return Smi::zero();
 }
 
+namespace {
+
+// Whether the deopt exit is contained by the outermost loop containing the
+// osr'd loop. For example:
+//
+//  for (;;) {
+//    for (;;) {
+//    }  // OSR is triggered on this backedge.
+//  }  // This is the outermost loop containing the osr'd loop.
+bool DeoptExitIsInsideOsrLoop(Isolate* isolate, JSFunction function,
+                              BytecodeOffset deopt_exit_offset,
+                              BytecodeOffset osr_offset) {
+  DisallowGarbageCollection no_gc;
+  DCHECK(!deopt_exit_offset.IsNone());
+  DCHECK(!osr_offset.IsNone());
+
+  interpreter::BytecodeArrayIterator it(
+      handle(function.shared().GetBytecodeArray(isolate), isolate),
+      osr_offset.ToInt());
+  DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+
+  for (; !it.done(); it.Advance()) {
+    const int current_offset = it.current_offset();
+    // If we've reached the deopt exit, it's contained in the current loop
+    // (this is covered by IsInRange below, but this check lets us avoid
+    // useless iteration).
+    if (current_offset == deopt_exit_offset.ToInt()) return true;
+    // We're only interested in loop ranges.
+    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
+    // Is the deopt exit contained in the current loop?
+    if (base::IsInRange(deopt_exit_offset.ToInt(), it.GetJumpTargetOffset(),
+                        current_offset)) {
+      return true;
+    }
+    // We've reached nesting level 0, i.e. the current JumpLoop concludes a
+    // top-level loop.
+    const int loop_nesting_level = it.GetImmediateOperand(1);
+    if (loop_nesting_level == 0) return false;
+  }
+
+  UNREACHABLE();
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -186,7 +231,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // For OSR the optimized code isn't installed on the function, so get the
   // code object from deoptimizer.
   Handle<Code> optimized_code = deoptimizer->compiled_code();
-  DeoptimizeKind type = deoptimizer->deopt_kind();
+  const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
 
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
@@ -194,6 +239,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   // Make sure to materialize objects before causing any allocation.
   deoptimizer->MaterializeHeapObjects();
+  const BytecodeOffset deopt_exit_offset =
+      deoptimizer->deopt_exit_bytecode_offset();
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.
@@ -201,8 +248,25 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   JavaScriptFrame* top_frame = top_it.frame();
   isolate->set_context(Context::cast(top_frame->context()));
 
-  // Invalidate the underlying optimized code on eager deopts.
-  if (type == DeoptimizeKind::kEager) {
+  // Lazy deopts don't invalidate the underlying optimized code since the code
+  // object itself is still valid (as far as we know); the called function
+  // caused the deopt, not the function we're currently looking at.
+  if (deopt_kind == DeoptimizeKind::kLazy) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  // Non-OSR'd code is deoptimized unconditionally.
+  //
+  // For OSR'd code, we keep the optimized code around if deoptimization occurs
+  // outside the outermost loop containing the loop that triggered OSR
+  // compilation. The reasoning is that OSR is intended to speed up the
+  // long-running loop; so if the deoptimization occurs outside this loop it is
+  // still worth jumping to the OSR'd code on the next run. The reduced cost of
+  // the loop should pay for the deoptimization costs.
+  const BytecodeOffset osr_offset = optimized_code->osr_offset();
+  if (osr_offset.IsNone() ||
+      DeoptExitIsInsideOsrLoop(isolate, *function, deopt_exit_offset,
+                               osr_offset)) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
 

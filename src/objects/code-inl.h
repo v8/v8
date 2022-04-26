@@ -729,6 +729,14 @@ void Code::set_inlined_bytecode_size(unsigned size) {
   RELAXED_WRITE_UINT_FIELD(*this, kInlinedBytecodeSizeOffset, size);
 }
 
+BytecodeOffset Code::osr_offset() const {
+  return BytecodeOffset(ReadField<int32_t>(kOsrOffsetOffset));
+}
+
+void Code::set_osr_offset(BytecodeOffset offset) {
+  WriteField<int32_t>(kOsrOffsetOffset, offset.ToInt());
+}
+
 bool Code::uses_safepoint_table() const {
   return is_turbofanned() || is_maglevved() || is_wasm_code();
 }
