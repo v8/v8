@@ -102,6 +102,11 @@ class JSTemporalCalendar
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
       Handle<Object> fields, Handle<Object> additional_fields);
 
+  // #sec-temporal.calendar.prototype.dateuntil
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> DateUntil(
+      Isolate* isolate, Handle<JSTemporalCalendar> calendar, Handle<Object> one,
+      Handle<Object> two, Handle<Object> options);
+
   // #sec-temporal.calendar.prototype.tostring
   static MaybeHandle<String> ToString(Isolate* isolate,
                                       Handle<JSTemporalCalendar> calendar,

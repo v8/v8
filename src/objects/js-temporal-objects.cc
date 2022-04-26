@@ -135,6 +135,10 @@ struct DateDurationRecord {
   double months;
   double weeks;
   double days;
+  // #sec-temporal-createdatedurationrecord
+  static Maybe<DateDurationRecord> Create(Isolate* isolate, double years,
+                                          double months, double weeks,
+                                          double days);
 };
 
 struct TimeZoneRecord {
@@ -780,6 +784,22 @@ MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
 }
 
 inline double NormalizeMinusZero(double v) { return IsMinusZero(v) ? 0 : v; }
+
+// #sec-temporal-createdatedurationrecord
+Maybe<DateDurationRecord> DateDurationRecord::Create(
+    Isolate* isolate, double years, double months, double weeks, double days) {
+  // 1. If ! IsValidDuration(years, months, weeks, days, 0, 0, 0, 0, 0, 0) is
+  // false, throw a RangeError exception.
+  if (!IsValidDuration(isolate,
+                       {years, months, weeks, {days, 0, 0, 0, 0, 0, 0}})) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                 Nothing<DateDurationRecord>());
+  }
+  // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
+  // [[Weeks]]: ℝ(𝔽(weeks)), [[Days]]: ℝ(𝔽(days)) }.
+  DateDurationRecord record = {years, months, weeks, days};
+  return Just(record);
+}
 
 // #sec-temporal-createtimedurationrecord
 Maybe<TimeDurationRecord> TimeDurationRecord::Create(
@@ -3402,6 +3422,65 @@ MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
   return merged;
 }
 
+// #sec-temporal-tolargesttemporalunit
+Maybe<Unit> ToLargestTemporalUnit(Isolate* isolate,
+                                  Handle<JSReceiver> normalized_options,
+                                  std::set<Unit> disallowed_units,
+                                  Unit fallback, Unit auto_value,
+                                  const char* method) {
+  // 1. Assert: disallowedUnits does not contain fallback or "auto".
+  DCHECK_EQ(disallowed_units.find(fallback), disallowed_units.end());
+  DCHECK_EQ(disallowed_units.find(Unit::kAuto), disallowed_units.end());
+  // 2. Assert: If autoValue is present, fallback is "auto", and disallowedUnits
+  // does not contain autoValue.
+  DCHECK(auto_value == Unit::kNotPresent || fallback == Unit::kAuto);
+  DCHECK(auto_value == Unit::kNotPresent ||
+         disallowed_units.find(auto_value) == disallowed_units.end());
+  // 3. Let largestUnit be ? GetOption(normalizedOptions, "largestUnit", «
+  // String », « "auto", "year", "years", "month", "months", "week", "weeks",
+  // "day", "days", "hour", "hours", "minute", "minutes", "second", "seconds",
+  // "millisecond", "milliseconds", "microsecond", "microseconds", "nanosecond",
+  // "nanoseconds" », fallback).
+  Maybe<Unit> maybe_largest_unit = GetStringOption<Unit>(
+      isolate, normalized_options, "largestUnit", method,
+      {"auto",         "year",        "years",        "month",
+       "months",       "week",        "weeks",        "day",
+       "days",         "hour",        "hours",        "minute",
+       "minutes",      "second",      "seconds",      "millisecond",
+       "milliseconds", "microsecond", "microseconds", "nanosecond",
+       "nanoseconds"},
+      {Unit::kAuto,        Unit::kYear,        Unit::kYear,
+       Unit::kMonth,       Unit::kMonth,       Unit::kWeek,
+       Unit::kWeek,        Unit::kDay,         Unit::kDay,
+       Unit::kHour,        Unit::kHour,        Unit::kMinute,
+       Unit::kMinute,      Unit::kSecond,      Unit::kSecond,
+       Unit::kMillisecond, Unit::kMillisecond, Unit::kMicrosecond,
+       Unit::kMicrosecond, Unit::kNanosecond,  Unit::kNanosecond},
+      fallback);
+  MAYBE_RETURN(maybe_largest_unit, Nothing<Unit>());
+  // 4. If largestUnit is "auto" and autoValue is present, then
+  if (maybe_largest_unit.FromJust() == Unit::kAuto &&
+      auto_value != Unit::kNotPresent) {
+    // a. Return autoValue.
+    return Just(auto_value);
+  }
+  // 5. If largestUnit is in the Plural column of Table 12, then
+  // a. Set largestUnit to the corresponding Singular value of the same row.
+  // 6. If disallowedUnits contains largestUnit, then
+  if (disallowed_units.find(maybe_largest_unit.FromJust()) !=
+      disallowed_units.end()) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidUnit,
+                      isolate->factory()->NewStringFromAsciiChecked(method),
+                      isolate->factory()->largestUnit_string()),
+        Nothing<Unit>());
+  }
+  // 7. Return largestUnit.
+  return maybe_largest_unit;
+}
+
 // #sec-temporal-tointegerthrowoninfinity
 MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
                                              Handle<Object> argument) {
@@ -3466,7 +3545,8 @@ Handle<String> UnitToString(Isolate* isolate, Unit unit) {
       return ReadOnlyRoots(isolate).microsecond_string_handle();
     case Unit::kNanosecond:
       return ReadOnlyRoots(isolate).nanosecond_string_handle();
-    default:
+    case Unit::kNotPresent:
+    case Unit::kAuto:
       UNREACHABLE();
   }
 }
@@ -3753,11 +3833,13 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
       // b. Set nanoseconds to nanoseconds modulo 1000.
       duration.nanoseconds = modulo(duration.nanoseconds, 1000);
       break;
-    // 14. Else,
-    default:
+    // 15. Else,
+    case Unit::kNanosecond:
       // a. Assert: largestUnit is "nanosecond".
-      DCHECK_EQ(largest_unit, Unit::kNanosecond);
       break;
+    case Unit::kAuto:
+    case Unit::kNotPresent:
+      UNREACHABLE();
   }
   // 15. Return ? CreateTimeDurationRecord(days, hours × sign, minutes × sign,
   // seconds × sign, milliseconds × sign, microseconds × sign, nanoseconds ×
@@ -4511,13 +4593,16 @@ int32_t CompareISODate(Isolate* isolate, const DateRecordCommon& date1,
   return 0;
 }
 
+inline int32_t floor_divid(int32_t a, int32_t b) {
+  return (((a) / (b)) + ((((a) < 0) && (((a) % (b)) != 0)) ? -1 : 0));
+}
 // #sec-temporal-balanceisoyearmonth
 void BalanceISOYearMonth(Isolate* isolate, int32_t* year, int32_t* month) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: year and month are integers.
   // 2. Set year to year + floor((month - 1) / 12).
-  *year += std::floor((*month - 1) / 12);
+  *year += floor_divid((*month - 1), 12);
   // 3. Set month to (month − 1) modulo 12 + 1.
   *month = static_cast<int32_t>(modulo(*month - 1, 12)) + 1;
 
@@ -4906,8 +4991,7 @@ MaybeHandle<JSTemporalCalendar> JSTemporalCalendar::Constructor(
 namespace {
 
 // #sec-temporal-toisodayofyear
-int32_t ToISODayOfYear(Isolate* isolate, int32_t year, int32_t month,
-                       int32_t day) {
+int32_t ToISODayOfYear(Isolate* isolate, const DateRecordCommon& date) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: year is an integer.
@@ -4917,8 +5001,9 @@ int32_t ToISODayOfYear(Isolate* isolate, int32_t year, int32_t month,
   // 5. Return date's ordinal date in the year according to ISO-8601.
   // Note: In ISO 8601, Jan: month=1, Dec: month=12,
   // In DateCache API, Jan: month=0, Dec: month=11 so we need to - 1 for month.
-  return day + isolate->date_cache()->DaysFromYearMonth(year, month - 1) -
-         isolate->date_cache()->DaysFromYearMonth(year, 0);
+  return date.day +
+         isolate->date_cache()->DaysFromYearMonth(date.year, date.month - 1) -
+         isolate->date_cache()->DaysFromYearMonth(date.year, 0);
 }
 
 bool IsPlainDatePlainDateTimeOrPlainYearMonth(
@@ -5135,6 +5220,227 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
                           FastD2I(day_obj->Number())});
 }
 
+// #sec-temporal-addisodate
+Maybe<DateRecordCommon> AddISODate(Isolate* isolate,
+                                   const DateRecordCommon& date,
+                                   const DateDurationRecord& duration,
+                                   ShowOverflow overflow) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: year, month, day, years, months, weeks, and days are integers.
+  // 2. Assert: overflow is either "constrain" or "reject".
+  DCHECK(overflow == ShowOverflow::kConstrain ||
+         overflow == ShowOverflow::kReject);
+  // 3. Let intermediate be ! BalanceISOYearMonth(year + years, month + months).
+  DateRecordCommon intermediate = date;
+  intermediate.year += static_cast<int32_t>(duration.years);
+  intermediate.month += static_cast<int32_t>(duration.months);
+  BalanceISOYearMonth(isolate, &intermediate.year, &intermediate.month);
+  // 4. Let intermediate be ? RegulateISODate(intermediate.[[Year]],
+  // intermediate.[[Month]], day, overflow).
+  Maybe<DateRecordCommon> maybe_intermediate =
+      RegulateISODate(isolate, overflow, intermediate);
+  MAYBE_RETURN(maybe_intermediate, Nothing<DateRecordCommon>());
+  intermediate = maybe_intermediate.FromJust();
+  // 5. Set days to days + 7 × weeks.
+  // 6. Let d be intermediate.[[Day]] + days.
+  intermediate.day += duration.days + 7 * duration.weeks;
+  // 7. Let intermediate be ! BalanceISODate(intermediate.[[Year]],
+  // intermediate.[[Month]], d).
+  intermediate = BalanceISODate(isolate, intermediate);
+  // 8. Return ? RegulateISODate(intermediate.[[Year]], intermediate.[[Month]],
+  // intermediate.[[Day]], overflow).
+  return RegulateISODate(isolate, overflow, intermediate);
+}
+
+// #sec-temporal-differenceisodate
+Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
+                                            const DateRecordCommon& date1,
+                                            const DateRecordCommon& date2,
+                                            Unit largest_unit,
+                                            const char* method) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: largestUnit is one of "year", "month", "week", or "day".
+  DCHECK(largest_unit == Unit::kYear || largest_unit == Unit::kMonth ||
+         largest_unit == Unit::kWeek || largest_unit == Unit::kDay);
+  // 2. If largestUnit is "year" or "month", then
+  switch (largest_unit) {
+    case Unit::kYear:
+    case Unit::kMonth: {
+      // a. Let sign be -(! CompareISODate(y1, m1, d1, y2, m2, d2)).
+      int32_t sign = -CompareISODate(isolate, date1, date2);
+      // b. If sign is 0, return ! CreateDateDurationRecord(0, 0, 0, 0).
+      if (sign == 0) {
+        return DateDurationRecord::Create(isolate, 0, 0, 0, 0);
+      }
+
+      // c. Let start be the new Record { [[Year]]: y1, [[Month]]: m1, [[Day]]:
+      // d1
+      // }.
+      DateRecordCommon start = date1;
+      // d. Let end be the new Record { [[Year]]: y2, [[Month]]: m2, [[Day]]:
+      // d2 }.
+      DateRecordCommon end = date2;
+      // e. Let years be end.[[Year]] − start.[[Year]].
+      double years = end.year - start.year;
+      // f. Let mid be ! AddISODate(y1, m1, d1, years, 0, 0, 0, "constrain").
+      Maybe<DateRecordCommon> maybe_mid = AddISODate(
+          isolate, date1, {years, 0, 0, 0}, ShowOverflow::kConstrain);
+      MAYBE_RETURN(maybe_mid, Nothing<DateDurationRecord>());
+      DateRecordCommon mid = maybe_mid.FromJust();
+
+      // g. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
+      // mid.[[Day]], y2, m2, d2)).
+      int32_t mid_sign = -CompareISODate(isolate, mid, date2);
+
+      // h. If midSign is 0, then
+      if (mid_sign == 0) {
+        // i. If largestUnit is "year", return ! CreateDateDurationRecord(years,
+        // 0, 0, 0).
+        if (largest_unit == Unit::kYear) {
+          return DateDurationRecord::Create(isolate, years, 0, 0, 0);
+        }
+        // ii. Return ! CreateDateDurationRecord(0, years × 12, 0, 0).
+        return DateDurationRecord::Create(isolate, 0, years * 12, 0, 0);
+      }
+      // i. Let months be end.[[Month]] − start.[[Month]].
+      double months = end.month - start.month;
+      // j. If midSign is not equal to sign, then
+      if (mid_sign != sign) {
+        // i. Set years to years - sign.
+        years -= sign;
+        // ii. Set months to months + sign × 12.
+        months += sign * 12;
+      }
+      // k. Set mid be ! AddISODate(y1, m1, d1, years, months, 0, 0,
+      // "constrain").
+      maybe_mid = AddISODate(isolate, date1, {years, months, 0, 0},
+                             ShowOverflow::kConstrain);
+      MAYBE_RETURN(maybe_mid, Nothing<DateDurationRecord>());
+      mid = maybe_mid.FromJust();
+      // l. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
+      // mid.[[Day]], y2, m2, d2)).
+      mid_sign = -CompareISODate(isolate, mid, date2);
+      // m. If midSign is 0, then
+      if (mid_sign == 0) {
+        // 1. i. If largestUnit is "year", return !
+        // CreateDateDurationRecord(years, months, 0, 0).
+        if (largest_unit == Unit::kYear) {
+          return DateDurationRecord::Create(isolate, years, months, 0, 0);
+        }
+        // ii. Return ! CreateDateDurationRecord(0, months + years × 12, 0, 0).
+        return DateDurationRecord::Create(isolate, 0, months + years * 12, 0,
+                                          0);
+      }
+      // n. If midSign is not equal to sign, then
+      if (mid_sign != sign) {
+        // i. Set months to months - sign.
+        months -= sign;
+        // ii. If months is equal to -sign, then
+        if (months == -sign) {
+          // 1. Set years to years - sign.
+          years -= sign;
+          // 2. Set months to 11 × sign.
+          months = 11 * sign;
+        }
+        // iii. Set mid be ! AddISODate(y1, m1, d1, years, months, 0, 0,
+        // "constrain").
+        maybe_mid = AddISODate(isolate, date1, {years, months, 0, 0},
+                               ShowOverflow::kConstrain);
+        MAYBE_RETURN(maybe_mid, Nothing<DateDurationRecord>());
+        mid = maybe_mid.FromJust();
+        // iv. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
+        // mid.[[Day]], y2, m2, d2)).
+        mid_sign = -CompareISODate(isolate, mid, date2);
+      }
+      // o. Let days be 0.
+      double days = 0;
+      // p. If mid.[[Month]] = end.[[Month]], then
+      if (mid.month == end.month) {
+        // i. Assert: mid.[[Year]] = end.[[Year]].
+        CHECK_EQ(mid.year, end.year);
+        // ii. Set days to end.[[Day]] - mid.[[Day]].
+        days = end.day - mid.day;
+      } else if (sign < 0) {
+        // q. Else if sign < 0, set days to -mid.[[Day]] - (!
+        // ISODaysInMonth(end.[[Year]], end.[[Month]]) - end.[[Day]]).
+        days =
+            -mid.day - (ISODaysInMonth(isolate, end.year, end.month) - end.day);
+      } else {
+        // r. Else, set days to end.[[Day]] + (! ISODaysInMonth(mid.[[Year]],
+        // mid.[[Month]]) - mid.[[Day]]).
+        days =
+            end.day + (ISODaysInMonth(isolate, mid.year, mid.month) - mid.day);
+      }
+      // s. If largestUnit is "month", then
+      if (largest_unit == Unit::kMonth) {
+        // i. Set months to months + years × 12.
+        months += years * 12;
+        // ii. Set years to 0.
+        years = 0;
+      }
+      // t. Return ! CreateDateDurationRecord(years, months, 0, days).
+      return DateDurationRecord::Create(isolate, years, months, 0, days);
+    }
+      // 3. If largestUnit is "day" or "week", then
+    case Unit::kDay:
+    case Unit::kWeek: {
+      DateRecordCommon smaller, greater;
+      // a. If ! CompareISODate(y1, m1, d1, y2, m2, d2) < 0, then
+      int32_t sign;
+      if (CompareISODate(isolate, date1, date2) < 0) {
+        // i. Let smaller be the Record { [[Year]]: y1, [[Month]]: m1, [[Day]]:
+        // d1
+        // }.
+        smaller = date1;
+        // ii. Let greater be the Record { [[Year]]: y2, [[Month]]: m2, [[Day]]:
+        // d2
+        // }.
+        greater = date2;
+        // iii. Let sign be 1.
+        sign = 1;
+      } else {
+        // b. Else,
+        // i. Let smaller be the new Record { [[Year]]: y2, [[Month]]: m2,
+        // [[Day]]: d2 }.
+        smaller = date2;
+        // ii. Let greater be the new Record { [[Year]]: y1, [[Month]]: m1,
+        // [[Day]]: d1 }.
+        greater = date1;
+        // iii. Let sign be −1.
+        sign = -1;
+      }
+      // c. Let days be ! ToISODayOfYear(greater.[[Year]], greater.[[Month]],
+      // greater.[[Day]]) − ! ToISODayOfYear(smaller.[[Year]],
+      // smaller.[[Month]], smaller.[[Day]]).
+      int32_t days =
+          ToISODayOfYear(isolate, greater) - ToISODayOfYear(isolate, smaller);
+      // d. Let year be smaller.[[Year]].
+      // e. Repeat, while year < greater.[[Year]],
+      for (int32_t year = smaller.year; year < greater.year; year++) {
+        // i. Set days to days + ! ISODaysInYear(year).
+        // ii. Set year to year + 1.
+        days += ISODaysInYear(isolate, year);
+      }
+      // f. Let weeks be 0.
+      int32_t weeks = 0;
+      // g. If largestUnit is "week", then
+      if (largest_unit == Unit::kWeek) {
+        // i. Set weeks to floor(days / 7).
+        weeks = days / 7;
+        // ii. Set days to days mod 7.
+        days = days % 7;
+      }
+      // h. Return ! CreateDateDurationRecord(0, 0, weeks × sign, days × sign).
+      return DateDurationRecord::Create(isolate, 0, 0, weeks * sign,
+                                        days * sign);
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace
 
 // #sec-temporal.calendar.prototype.daysinyear
@@ -5275,9 +5581,9 @@ MaybeHandle<Smi> JSTemporalCalendar::DayOfYear(
       Smi);
   // a. Let value be ! ToISODayOfYear(temporalDate.[[ISOYear]],
   // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]]).
-  int32_t value =
-      ToISODayOfYear(isolate, temporal_date->iso_year(),
-                     temporal_date->iso_month(), temporal_date->iso_day());
+  int32_t value = ToISODayOfYear(
+      isolate, {temporal_date->iso_year(), temporal_date->iso_month(),
+                temporal_date->iso_day()});
   return handle(Smi::FromInt(value), isolate);
 }
 
@@ -5453,6 +5759,64 @@ MaybeHandle<JSReceiver> JSTemporalCalendar::MergeFields(
   // TODO(ftang) add Intl code.
 #endif  // V8_INTL_SUPPORT
   UNREACHABLE();
+}
+
+// #sec-temporal.calendar.prototype.dateuntil
+MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> one_obj, Handle<Object> two_obj,
+    Handle<Object> options_obj) {
+  const char* method_name = "Temporal.Calendar.prototype.dateUntil";
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. Set one to ? ToTemporalDate(one).
+  Handle<JSTemporalPlainDate> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one,
+      ToTemporalDate(isolate, one_obj,
+                     isolate->factory()->NewJSObjectWithNullProto(),
+                     method_name),
+      JSTemporalDuration);
+  // 5. Set two to ? ToTemporalDate(two).
+  Handle<JSTemporalPlainDate> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two,
+      ToTemporalDate(isolate, two_obj,
+                     isolate->factory()->NewJSObjectWithNullProto(),
+                     method_name),
+      JSTemporalDuration);
+  // 6. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalDuration);
+  // 7. Let largestUnit be ? ToLargestTemporalUnit(options, « "hour", "minute",
+  // "second", "millisecond", "microsecond", "nanosecond" », "auto", "day").
+  Maybe<Unit> maybe_largest_unit = ToLargestTemporalUnit(
+      isolate, options,
+      std::set<Unit>({Unit::kHour, Unit::kMinute, Unit::kSecond,
+                      Unit::kMillisecond, Unit::kMicrosecond,
+                      Unit::kNanosecond}),
+      Unit::kAuto, Unit::kDay, method_name);
+  MAYBE_RETURN(maybe_largest_unit, Handle<JSTemporalDuration>());
+
+  // 8. Let result be ! DifferenceISODate(one.[[ISOYear]], one.[[ISOMonth]],
+  // one.[[ISODay]], two.[[ISOYear]], two.[[ISOMonth]], two.[[ISODay]],
+  // largestUnit).
+  Maybe<DateDurationRecord> maybe_result = DifferenceISODate(
+      isolate, {one->iso_year(), one->iso_month(), one->iso_day()},
+      {two->iso_year(), two->iso_month(), two->iso_day()},
+      maybe_largest_unit.FromJust(), method_name);
+  MAYBE_RETURN(maybe_result, Handle<JSTemporalDuration>());
+  // 9. Return ! CreateTemporalDuration(result.[[Years]], result.[[Months]],
+  // result.[[Weeks]], result.[[Days]], 0, 0, 0, 0, 0, 0).
+  DateDurationRecord result = maybe_result.FromJust();
+  return CreateTemporalDuration(isolate, {result.years,
+                                          result.months,
+                                          result.weeks,
+                                          {result.days, 0, 0, 0, 0, 0, 0}});
 }
 
 // #sec-temporal.calendar.prototype.tostring
