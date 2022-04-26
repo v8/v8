@@ -1114,7 +1114,8 @@ class Heap {
   // manually.
   void NotifyObjectLayoutChange(
       HeapObject object, const DisallowGarbageCollection&,
-      InvalidateRecordedSlots invalidate_recorded_slots, int new_size = 0);
+      InvalidateRecordedSlots invalidate_recorded_slots =
+          InvalidateRecordedSlots::kYes);
 
 #ifdef VERIFY_HEAP
   // This function checks that either
@@ -1583,9 +1584,6 @@ class Heap {
   // created.
   void VerifyReadOnlyHeap();
   void VerifyRememberedSetFor(HeapObject object);
-
-  // Verify that cached size of invalidated object is up-to-date.
-  void VerifyInvalidatedObjectSize();
 #endif
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT

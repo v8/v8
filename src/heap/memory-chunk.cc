@@ -364,17 +364,14 @@ void MemoryChunk::ReleaseInvalidatedSlots() {
 }
 
 template V8_EXPORT_PRIVATE void
-MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object,
-                                                            int new_size);
+MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object);
 template V8_EXPORT_PRIVATE void
-MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object,
-                                                            int new_size);
+MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object);
 template V8_EXPORT_PRIVATE void MemoryChunk::RegisterObjectWithInvalidatedSlots<
-    OLD_TO_SHARED>(HeapObject object, int new_size);
+    OLD_TO_SHARED>(HeapObject object);
 
 template <RememberedSetType type>
-void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
-                                                     int new_size) {
+void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
   bool skip_slot_recording;
 
   switch (type) {
@@ -402,27 +399,23 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
     AllocateInvalidatedSlots<type>();
   }
 
-  DCHECK_GT(new_size, 0);
-  InvalidatedSlots& invalidated_slots = *this->invalidated_slots<type>();
-  DCHECK_IMPLIES(invalidated_slots[object] > 0,
-                 new_size <= invalidated_slots[object]);
-  invalidated_slots.insert_or_assign(object, new_size);
+  invalidated_slots<type>()->insert(object);
 }
 
-void MemoryChunk::InvalidateRecordedSlots(HeapObject object, int new_size) {
+void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
   if (V8_DISABLE_WRITE_BARRIERS_BOOL) return;
   if (heap()->incremental_marking()->IsCompacting()) {
     // We cannot check slot_set_[OLD_TO_OLD] here, since the
     // concurrent markers might insert slots concurrently.
-    RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, new_size);
+    RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
   }
 
   if (slot_set_[OLD_TO_NEW] != nullptr) {
-    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object, new_size);
+    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
   }
 
   if (slot_set_[OLD_TO_SHARED] != nullptr) {
-    RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object, new_size);
+    RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
   }
 }
 
