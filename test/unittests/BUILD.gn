@@ -142,6 +142,10 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/write-barrier-unittest.cc",
   ]
 
+  if (cppgc_enable_young_generation) {
+    sources += [ "heap/cppgc/age-table-unittest.cc" ]
+  }
+
   configs = [
     "../..:external_config",
     "../..:internal_config_base",

@@ -25,13 +25,17 @@ class HeapBase;
 // barrier. AgeTable contains entries that correspond to 512 bytes memory
 // regions (cards). Each entry in the table represents generation of the objects
 // that reside on the corresponding card (young, old or mixed).
-class AgeTable final {
+class V8_EXPORT AgeTable final {
   static constexpr size_t kRequiredSize = 1 * api_constants::kMB;
   static constexpr size_t kAllocationGranularity =
       api_constants::kAllocationGranularity;
 
  public:
+  // Represents age of the objects living on a single card.
   enum class Age : uint8_t { kOld, kYoung, kMixed };
+  // When setting age for a range, consider or ignore ages of the adjacent
+  // cards.
+  enum class AdjacentCardsPolicy : uint8_t { kConsider, kIgnore };
 
   static constexpr size_t kCardSizeInBytes =
       (api_constants::kCagedHeapReservationSize / kAllocationGranularity) /
@@ -40,6 +44,10 @@ class AgeTable final {
   void SetAge(uintptr_t cage_offset, Age age) {
     table_[card(cage_offset)] = age;
   }
+
+  void SetAgeForRange(uintptr_t cage_offset_begin, uintptr_t cage_offset_end,
+                      Age age, AdjacentCardsPolicy adjacent_cards_policy);
+
   V8_INLINE Age GetAge(uintptr_t cage_offset) const {
     return table_[card(cage_offset)];
   }
