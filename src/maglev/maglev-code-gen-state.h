@@ -142,8 +142,17 @@ inline Register ToRegister(const compiler::InstructionOperand& operand) {
   return compiler::AllocatedOperand::cast(operand).GetRegister();
 }
 
+inline DoubleRegister ToDoubleRegister(
+    const compiler::InstructionOperand& operand) {
+  return compiler::AllocatedOperand::cast(operand).GetDoubleRegister();
+}
+
 inline Register ToRegister(const ValueLocation& location) {
   return ToRegister(location.operand());
+}
+
+inline DoubleRegister ToDoubleRegister(const ValueLocation& location) {
+  return ToDoubleRegister(location.operand());
 }
 
 inline void MaglevCodeGenState::DefineSafepointStackSlots(

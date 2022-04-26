@@ -88,13 +88,17 @@ class MaglevGraphVerifier {
       case Opcode::kBranchIfTrue:
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kReturn:
-        // Generic tagged unary operations.
+      case Opcode::kCheckedFloat64Unbox:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         break;
       case Opcode::kCheckedSmiTag:
-        // Untagged unary operations.
+        DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
+        break;
+      case Opcode::kFloat64Box:
+        DCHECK_EQ(node->input_count(), 1);
+        CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         break;
       case Opcode::kGenericAdd:
       case Opcode::kGenericSubtract:
@@ -119,15 +123,19 @@ class MaglevGraphVerifier {
       // TODO(victorgomes): Can we check that first input is an Object?
       case Opcode::kStoreField:
       case Opcode::kLoadNamedGeneric:
-        // Generic tagged binary operations.
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kTagged);
         break;
       case Opcode::kInt32AddWithOverflow:
-        // Untagged binary operations.
+        DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
+        break;
+      case Opcode::kFloat64Add:
+        DCHECK_EQ(node->input_count(), 2);
+        CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
+        CheckValueInputIs(node, 1, ValueRepresentation::kFloat64);
         break;
       case Opcode::kCall:
       case Opcode::kPhi:

@@ -310,6 +310,13 @@ constexpr auto WasmFloat64ToNumberDescriptor::registers() {
   return RegisterArray(ecx);
 }
 
+// static
+constexpr auto NewHeapNumberDescriptor::registers() {
+  // Work around using eax, whose register code is 0, and leads to the FP
+  // parameter being passed via xmm0, which is not allocatable on ia32.
+  return RegisterArray(ecx);
+}
+
 }  // namespace internal
 }  // namespace v8
 

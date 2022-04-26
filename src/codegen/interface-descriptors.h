@@ -102,6 +102,7 @@ namespace internal {
   V(LoadWithReceiverBaseline)                        \
   V(LoadWithVector)                                  \
   V(LookupBaseline)                                  \
+  V(NewHeapNumber)                                   \
   V(NoContext)                                       \
   V(ResumeGenerator)                                 \
   V(ResumeGeneratorBaseline)                         \
@@ -480,6 +481,10 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr inline Register* GetRegisterData();
   static constexpr inline Register GetRegisterParameter(int i);
 
+  // Interface descriptors don't really support double registers.
+  // This reinterprets the i-th register as a double with the same code.
+  static constexpr inline DoubleRegister GetDoubleRegisterParameter(int i);
+
   explicit StaticCallInterfaceDescriptor(CallDescriptors::Key key)
       : CallInterfaceDescriptor(key) {}
 
@@ -712,6 +717,20 @@ class AllocateDescriptor
   DECLARE_DESCRIPTOR(AllocateDescriptor)
 
   static constexpr auto registers();
+};
+
+class NewHeapNumberDescriptor
+    : public StaticCallInterfaceDescriptor<NewHeapNumberDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // Result
+                                    MachineType::Float64())        // kValue
+  DECLARE_DESCRIPTOR(NewHeapNumberDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  // We need a custom descriptor on ia32 to avoid using xmm0.
+  static constexpr inline auto registers();
+#endif
 };
 
 // This descriptor defines the JavaScript calling convention that can be used

@@ -1080,6 +1080,11 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
                new_target);         // additional stack argument 4
 }
 
+TF_BUILTIN(NewHeapNumber, CodeStubAssembler) {
+  auto val = UncheckedParameter<Float64T>(Descriptor::kValue);
+  Return(ChangeFloat64ToTagged(val));
+}
+
 TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {
   auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));

@@ -190,6 +190,14 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetRegisterParameter(int i) {
 }
 
 // static
+template <typename DerivedDescriptor>
+constexpr DoubleRegister
+StaticCallInterfaceDescriptor<DerivedDescriptor>::GetDoubleRegisterParameter(
+    int i) {
+  return DoubleRegister::from_code(DerivedDescriptor::registers()[i].code());
+}
+
+// static
 constexpr Register FastNewObjectDescriptor::TargetRegister() {
   return kJSFunctionRegister;
 }

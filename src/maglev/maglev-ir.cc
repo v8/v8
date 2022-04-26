@@ -85,6 +85,10 @@ void UseFixed(Input& input, Register reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
                        GetVirtualRegister(input.node()));
 }
+void UseFixed(Input& input, DoubleRegister reg) {
+  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
+                       reg.code(), GetVirtualRegister(input.node()));
+}
 
 // ---
 // Code gen helpers.
@@ -746,6 +750,58 @@ void Int32AddWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register right = ToRegister(right_input());
   __ addl(left, right);
   EmitEagerDeoptIf(overflow, code_gen_state, this);
+}
+
+void Float64Box::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                              const ProcessingState& state) {
+  using D = NewHeapNumberDescriptor;
+  UseFixed(input(), D::GetDoubleRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void Float64Box::GenerateCode(MaglevCodeGenState* code_gen_state,
+                              const ProcessingState& state) {
+  // TODO(victorgomes): Inline heap number allocation.
+  __ CallBuiltin(Builtin::kNewHeapNumber);
+}
+
+void CheckedFloat64Unbox::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                       const ProcessingState& state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void CheckedFloat64Unbox::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                       const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ testb(value, Immediate(1));
+  __ j(not_zero, &is_not_smi);
+  // If Smi, convert to Float64.
+  __ sarl(value, Immediate(1));
+  __ Cvtlsi2sd(ToDoubleRegister(result()), value);
+  __ jmp(&done);
+  __ bind(&is_not_smi);
+  // Check if HeapNumber, deopt otherwise.
+  __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
+                 RootIndex::kHeapNumberMap);
+  EmitEagerDeoptIf(not_equal, code_gen_state, this);
+  __ Movsd(ToDoubleRegister(result()),
+           FieldOperand(value, HeapNumber::kValueOffset));
+  __ bind(&done);
+}
+
+void Float64Add::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                              const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Add::GenerateCode(MaglevCodeGenState* code_gen_state,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  __ Addsd(left, right);
 }
 
 void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state,

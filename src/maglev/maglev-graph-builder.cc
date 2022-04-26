@@ -207,6 +207,22 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
           SetAccumulator(AddNewNode<Int32AddWithOverflow>({left, right}));
           return;
         }
+
+      } else if (hint == BinaryOperationHint::kNumber) {
+        ValueNode *left, *right;
+        if (IsRegisterEqualToAccumulator(0)) {
+          left = right =
+              AddNewNode<CheckedFloat64Unbox>({LoadRegisterTagged(0)});
+        } else {
+          left = AddNewNode<CheckedFloat64Unbox>({LoadRegisterTagged(0)});
+          right = AddNewNode<CheckedFloat64Unbox>({GetAccumulatorTagged()});
+        }
+
+        if (kOperation == Operation::kAdd) {
+          ValueNode* result = AddNewNode<Float64Add>({left, right});
+          SetAccumulator(AddNewNode<Float64Box>({result}));
+          return;
+        }
       }
     }
   }

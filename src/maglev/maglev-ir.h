@@ -80,6 +80,9 @@ class CompactInterpreterFrameState;
   V(CheckedSmiUntag)       \
   V(Int32AddWithOverflow)  \
   V(Int32Constant)         \
+  V(Float64Box)            \
+  V(CheckedFloat64Unbox)   \
+  V(Float64Add)            \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define NODE_LIST(V) \
@@ -828,6 +831,12 @@ class ValueNode : public Node {
 
   compiler::AllocatedOperand allocation() const {
     if (has_register()) {
+      if (use_double_register()) {
+        return compiler::AllocatedOperand(
+            compiler::LocationOperand::REGISTER,
+            MachineRepresentation::kFloat64,
+            double_registers_with_result_.first().code());
+      }
       return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                         GetMachineRepresentation(),
                                         FirstRegisterCode());
@@ -1095,6 +1104,56 @@ class Int32AddWithOverflow
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Int32();
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
+  using Base = FixedInputValueNodeT<1, Float64Box>;
+
+ public:
+  explicit Float64Box(uint32_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckedFloat64Unbox
+    : public FixedInputValueNodeT<1, CheckedFloat64Unbox> {
+  using Base = FixedInputValueNodeT<1, CheckedFloat64Unbox>;
+
+ public:
+  explicit CheckedFloat64Unbox(uint32_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Float64();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Float64Add : public FixedInputValueNodeT<2, Float64Add> {
+  using Base = FixedInputValueNodeT<2, Float64Add>;
+
+ public:
+  explicit Float64Add(uint32_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Float64();
 
   static constexpr int kLeftIndex = 0;
   static constexpr int kRightIndex = 1;

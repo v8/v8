@@ -240,6 +240,8 @@ namespace internal {
   TFC(AllocateInOldGeneration, Allocate)                                       \
   TFC(AllocateRegularInOldGeneration, Allocate)                                \
                                                                                \
+  TFC(NewHeapNumber, NewHeapNumber)                                            \
+                                                                               \
   /* TurboFan support builtins */                                              \
   TFS(CopyFastSmiOrObjectElements, kObject)                                    \
   TFC(GrowFastDoubleElements, GrowArrayElements)                               \
