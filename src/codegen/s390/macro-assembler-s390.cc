@@ -495,6 +495,20 @@ void TurboAssembler::Drop(Register count, Register scratch) {
   AddS64(sp, sp, scratch);
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
+                                                        Register scratch) {
+  LoadTaggedPointerField(
+      scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+  LoadS32(scratch, FieldMemOperand(
+                       scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  TestBit(scratch, Code::kMarkedForDeoptimizationBit, scratch);
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void TurboAssembler::Call(Label* target) { b(r14, target); }
 
 void TurboAssembler::Push(Handle<HeapObject> handle) {
