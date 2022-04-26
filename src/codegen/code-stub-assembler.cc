@@ -2202,6 +2202,11 @@ TNode<MaybeObject> CodeStubAssembler::MakeWeak(TNode<HeapObject> value) {
       WordOr(BitcastTaggedToWord(value), IntPtrConstant(kWeakHeapObjectTag))));
 }
 
+TNode<MaybeObject> CodeStubAssembler::ClearedValue() {
+  return ReinterpretCast<MaybeObject>(BitcastWordToTagged(
+      IntPtrConstant(HeapObjectReference::ClearedValue(isolate()).ptr())));
+}
+
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<FixedArray> array) {
   return LoadAndUntagFixedArrayBaseLength(array);
@@ -10450,20 +10455,28 @@ TNode<HeapObject> CodeStubAssembler::LoadFeedbackCellValue(
 
 TNode<HeapObject> CodeStubAssembler::LoadFeedbackVector(
     TNode<JSFunction> closure) {
-  TVARIABLE(HeapObject, maybe_vector, LoadFeedbackCellValue(closure));
-  Label done(this);
+  TVARIABLE(HeapObject, maybe_vector);
+  Label if_no_feedback_vector(this), out(this);
 
+  maybe_vector = LoadFeedbackVector(closure, &if_no_feedback_vector);
+  Goto(&out);
+
+  BIND(&if_no_feedback_vector);
   // If the closure doesn't have a feedback vector allocated yet, return
-  // undefined. FeedbackCell can contain Undefined / FixedArray (for lazy
+  // undefined. The FeedbackCell can contain Undefined / FixedArray (for lazy
   // allocations) / FeedbackVector.
-  GotoIf(IsFeedbackVector(maybe_vector.value()), &done);
-
-  // In all other cases return Undefined.
   maybe_vector = UndefinedConstant();
-  Goto(&done);
+  Goto(&out);
 
-  BIND(&done);
+  BIND(&out);
   return maybe_vector.value();
+}
+
+TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVector(
+    TNode<JSFunction> closure, Label* if_no_feedback_vector) {
+  TNode<HeapObject> maybe_vector = LoadFeedbackCellValue(closure);
+  GotoIfNot(IsFeedbackVector(maybe_vector), if_no_feedback_vector);
+  return CAST(maybe_vector);
 }
 
 TNode<ClosureFeedbackCellArray> CodeStubAssembler::LoadClosureFeedbackArray(
@@ -14776,6 +14789,12 @@ TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeT> code) {
   return ReinterpretCast<RawPtrT>(
       IntPtrAdd(object, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
 #endif
+}
+
+TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<CodeT> codet) {
+  return IsSetWord32<Code::MarkedForDeoptimizationField>(
+      LoadObjectField<Int32T>(CodeDataContainerFromCodeT(codet),
+                              CodeDataContainer::kKindSpecificFlagsOffset));
 }
 
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
