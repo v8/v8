@@ -61,8 +61,11 @@ luci.cq_group(
                 ".+/[+]/include/cppgc/.+",
                 ".+/[+]/src/inspector/.+",
                 ".+/[+]/src/wasm/wasm-feature-flags\\.h",
-                ".+/[+]/src/wasm/wasm-js\\.{h,cc}",
+                ".+/[+]/src/wasm/wasm-js\\.cc",
+                ".+/[+]/src/wasm/wasm-js\\.h",
                 ".+/[+]/test/inspector/.+",
+                ".+/[+]/test/mjsunit/wasm/js-api\\.js",
+                ".+/[+]/test/wasm-js/.+",
             ],
         ),
         luci.cq_tryjob_verifier(
