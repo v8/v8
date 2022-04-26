@@ -606,18 +606,31 @@ void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void GapMove::GenerateCode(MaglevCodeGenState* code_gen_state,
                            const ProcessingState& state) {
-  if (source().IsAnyRegister()) {
+  if (source().IsRegister()) {
     Register source_reg = ToRegister(source());
     if (target().IsAnyRegister()) {
+      DCHECK(target().IsRegister());
       __ movq(ToRegister(target()), source_reg);
     } else {
       __ movq(code_gen_state->ToMemOperand(target()), source_reg);
     }
-  } else {
-    MemOperand source_op = code_gen_state->ToMemOperand(source());
+  } else if (source().IsDoubleRegister()) {
+    DoubleRegister source_reg = ToDoubleRegister(source());
     if (target().IsAnyRegister()) {
-      __ movq(ToRegister(target()), source_op);
+      DCHECK(target().IsDoubleRegister());
+      __ Movsd(ToDoubleRegister(target()), source_reg);
     } else {
+      __ Movsd(code_gen_state->ToMemOperand(target()), source_reg);
+    }
+  } else {
+    DCHECK(source().IsAnyStackSlot());
+    MemOperand source_op = code_gen_state->ToMemOperand(source());
+    if (target().IsRegister()) {
+      __ movq(ToRegister(target()), source_op);
+    } else if (target().IsDoubleRegister()) {
+      __ Movsd(ToDoubleRegister(target()), source_op);
+    } else {
+      DCHECK(target().IsAnyStackSlot());
       __ movq(kScratchRegister, source_op);
       __ movq(code_gen_state->ToMemOperand(target()), kScratchRegister);
     }
