@@ -17,9 +17,6 @@
   'wpt/global/type.tentative': [FAIL],
   'wpt/table/type.tentative': [FAIL],
 
-  # This test is out-dated in the spec repository
-  'interface': [FAIL],
-
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
   'proposals/memory64/table/get-set': [FAIL],
@@ -29,6 +26,10 @@
   'proposals/memory64/memory/constructor': [FAIL],
   'proposals/simd/memory/constructor': [FAIL],
   'proposals/tail-call/memory/constructor': [FAIL],
+  'proposals/js-types/interface': [FAIL],
+  'proposals/memory64/interface': [FAIL],
+  'proposals/simd/interface': [FAIL],
+  'proposals/tail-call/interface': [FAIL],
 
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
   'proposals/js-types/constructor/instantiate': [FAIL],

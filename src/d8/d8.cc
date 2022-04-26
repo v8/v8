@@ -93,7 +93,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
-        //
+
 #ifndef DCHECK
 #define DCHECK(condition) assert(condition)
 #endif
