@@ -167,8 +167,16 @@ bool SetPermissionsInternal(const zx::vmar& vmar, size_t page_size,
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % page_size);
   DCHECK_EQ(0, size % page_size);
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  return vmar.protect(prot, reinterpret_cast<uintptr_t>(address), size) ==
-         ZX_OK;
+  zx_status_t result =
+      vmar.protect(prot, reinterpret_cast<uintptr_t>(address), size);
+
+  // Any failure that's not OOM likely indicates a bug in the caller (e.g.
+  // using an invalid mapping) so attempt to catch that here to facilitate
+  // debugging of these failures. According to the documentation,
+  // zx_vmar_protect cannot return ZX_ERR_NO_MEMORY, so any error here is
+  // unexpected.
+  CHECK_EQ(status, ZX_OK);
+  return status == ZX_OK;
 }
 
 bool DiscardSystemPagesInternal(const zx::vmar& vmar, size_t page_size,

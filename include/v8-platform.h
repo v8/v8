@@ -709,6 +709,10 @@ class VirtualAddressSpace {
   /**
    * Sets permissions of all allocated pages in the given range.
    *
+   * This operation can fail due to OOM, in which case false is returned. If
+   * the operation fails for a reason other than OOM, this function will
+   * terminate the process as this implies a bug in the client.
+   *
    * \param address The start address of the range. Must be aligned to
    * page_size().
    *
@@ -717,7 +721,7 @@ class VirtualAddressSpace {
    *
    * \param permissions The new permissions for the range.
    *
-   * \returns true on success, false otherwise.
+   * \returns true on success, false on OOM.
    */
   virtual V8_WARN_UNUSED_RESULT bool SetPagePermissions(
       Address address, size_t size, PagePermissions permissions) = 0;

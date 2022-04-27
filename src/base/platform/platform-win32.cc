@@ -997,7 +997,14 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
     return VirtualFree(address, size, MEM_DECOMMIT) != 0;
   }
   DWORD protect = GetProtectionFromMemoryPermission(access);
-  return VirtualAllocWrapper(address, size, MEM_COMMIT, protect) != nullptr;
+  void* result = VirtualAllocWrapper(address, size, MEM_COMMIT, protect);
+
+  // Any failure that's not OOM likely indicates a bug in the caller (e.g.
+  // using an invalid mapping) so attempt to catch that here to facilitate
+  // debugging of these failures.
+  if (!result) CHECK_EQ(ERROR_NOT_ENOUGH_MEMORY, GetLastError());
+
+  return result != nullptr;
 }
 
 // static
