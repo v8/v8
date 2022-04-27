@@ -44,6 +44,10 @@
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 
+#ifdef DEBUG
+#include "src/runtime/runtime-utils.h"
+#endif
+
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uversion.h"  // Define U_ICU_NAMESPACE.
 namespace U_ICU_NAMESPACE {
@@ -790,6 +794,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline bool has_scheduled_exception();
   inline void clear_scheduled_exception();
   inline void set_scheduled_exception(Object exception);
+
+#ifdef DEBUG
+  inline Object VerifyBuiltinsResult(Object result);
+  inline ObjectPair VerifyBuiltinsResult(ObjectPair pair);
+#endif
 
   enum class ExceptionHandlerType {
     kJavaScriptHandler,
