@@ -92,8 +92,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToString)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToJSON)
 
 /* Temporal.PlaneDateTime */
-/* Temporal #sec-temporal.plaindatetime.from */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimeFrom)
 /* Temporal #sec-temporal.plaindatetime.compare */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimeCompare)
 /* Temporal #sec-temporal.plaindatetime.prototype.with */
@@ -623,6 +621,7 @@ TEMPORAL_GET_SMI(PlainDateTime, Second, iso_second)
 TEMPORAL_GET_SMI(PlainDateTime, Millisecond, iso_millisecond)
 TEMPORAL_GET_SMI(PlainDateTime, Microsecond, iso_microsecond)
 TEMPORAL_GET_SMI(PlainDateTime, Nanosecond, iso_nanosecond)
+TEMPORAL_METHOD2(PlainDateTime, From)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainDateTime)
 

@@ -250,6 +250,10 @@ class JSTemporalPlainDateTime
   WithCalendar(Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
                Handle<Object> calendar_like);
 
+  // #sec-temporal.plaindatetime.from
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> From(
+      Isolate* isolate, Handle<Object> item, Handle<Object> options);
+
   // #sec-temporal.plaindatetime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time);
