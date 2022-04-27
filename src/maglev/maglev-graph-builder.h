@@ -505,6 +505,20 @@ class MaglevGraphBuilder {
   void BuildGenericBinarySmiOperationNode();
 
   template <Operation kOperation>
+  ValueNode* AddNewInt32BinaryOperationNode(
+      std::initializer_list<ValueNode*> inputs);
+  template <Operation kOperation>
+  ValueNode* AddNewFloat64BinaryOperationNode(
+      std::initializer_list<ValueNode*> inputs);
+
+  template <Operation kOperation>
+  void BuildInt32BinaryOperationNode();
+  template <Operation kOperation>
+  void BuildInt32BinarySmiOperationNode();
+  template <Operation kOperation>
+  void BuildFloat64BinaryOperationNode();
+
+  template <Operation kOperation>
   void VisitUnaryOperation();
   template <Operation kOperation>
   void VisitBinaryOperation();

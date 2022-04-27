@@ -151,7 +151,67 @@ OPERATION_LIST(NODE_FOR_OPERATION_HELPER)
 template <Operation kOperation>
 using GenericNodeForOperation =
     typename NodeForOperationHelper<kOperation>::generic_type;
+
+// TODO(victorgomes): Remove this once all operations have fast paths.
+template <Operation kOperation>
+bool BinaryOperationHasFastPath() {
+  switch (kOperation) {
+    case Operation::kAdd:
+      return true;
+    default:
+      return false;
+  }
+}
+
 }  // namespace
+
+// MAP_OPERATION_TO_NODES are tuples with the following format:
+// (Operation name,
+//  Int32 operation node,
+//  Unit of int32 operation (e.g, 0 for add/sub and 1 for mul/div),
+//  Float64 operation node).
+#define MAP_OPERATION_TO_NODES(V) V(Add, Int32AddWithOverflow, 0, Float64Add)
+
+template <Operation kOperation>
+static int Int32Unit() {
+  switch (kOperation) {
+#define CASE(op, _, unit, ...) \
+  case Operation::k##op:       \
+    return unit;
+    MAP_OPERATION_TO_NODES(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Operation kOperation>
+ValueNode* MaglevGraphBuilder::AddNewInt32BinaryOperationNode(
+    std::initializer_list<ValueNode*> inputs) {
+  switch (kOperation) {
+#define CASE(op, OpNode, ...) \
+  case Operation::k##op:      \
+    return AddNewNode<OpNode>(inputs);
+    MAP_OPERATION_TO_NODES(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+template <Operation kOperation>
+ValueNode* MaglevGraphBuilder::AddNewFloat64BinaryOperationNode(
+    std::initializer_list<ValueNode*> inputs) {
+  switch (kOperation) {
+#define CASE(op, _, u, OpNode) \
+  case Operation::k##op:       \
+    return AddNewNode<OpNode>(inputs);
+    MAP_OPERATION_TO_NODES(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
 
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildGenericUnaryOperationNode() {
@@ -181,6 +241,48 @@ void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
 }
 
 template <Operation kOperation>
+void MaglevGraphBuilder::BuildInt32BinaryOperationNode() {
+  // TODO(v8:7700): Do constant folding.
+  ValueNode *left, *right;
+  if (IsRegisterEqualToAccumulator(0)) {
+    left = right = LoadRegisterInt32(0);
+  } else {
+    left = LoadRegisterInt32(0);
+    right = GetAccumulatorInt32();
+  }
+  SetAccumulator(AddNewInt32BinaryOperationNode<kOperation>({left, right}));
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
+  // TODO(v8:7700): Do constant folding.
+  ValueNode* left = GetAccumulatorInt32();
+  int32_t constant = iterator_.GetImmediateOperand(0);
+  if (constant == Int32Unit<kOperation>()) {
+    // If the constant is the unit of the operation, it already has the right
+    // value, so we can just return.
+    return;
+  }
+  ValueNode* right = AddNewNode<Int32Constant>({}, constant);
+  SetAccumulator(AddNewInt32BinaryOperationNode<kOperation>({left, right}));
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::BuildFloat64BinaryOperationNode() {
+  // TODO(v8:7700): Do constant folding.
+  ValueNode *left, *right;
+  if (IsRegisterEqualToAccumulator(0)) {
+    left = right = AddNewNode<CheckedFloat64Unbox>({LoadRegisterTagged(0)});
+  } else {
+    left = AddNewNode<CheckedFloat64Unbox>({LoadRegisterTagged(0)});
+    right = AddNewNode<CheckedFloat64Unbox>({GetAccumulatorTagged()});
+  }
+  ValueNode* result =
+      AddNewFloat64BinaryOperationNode<kOperation>({left, right});
+  SetAccumulator(AddNewNode<Float64Box>({result}));
+}
+
+template <Operation kOperation>
 void MaglevGraphBuilder::VisitUnaryOperation() {
   // TODO(victorgomes): Use feedback info and create optimized versions.
   BuildGenericUnaryOperationNode<kOperation>();
@@ -189,77 +291,35 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
-
-  if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
-    if (nexus.kind() == FeedbackSlotKind::kBinaryOp) {
-      BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
-
-      if (hint == BinaryOperationHint::kSignedSmall) {
-        ValueNode *left, *right;
-        if (IsRegisterEqualToAccumulator(0)) {
-          left = right = LoadRegisterInt32(0);
-        } else {
-          left = LoadRegisterInt32(0);
-          right = GetAccumulatorInt32();
-        }
-
-        if (kOperation == Operation::kAdd) {
-          SetAccumulator(AddNewNode<Int32AddWithOverflow>({left, right}));
-          return;
-        }
-
-      } else if (hint == BinaryOperationHint::kNumber) {
-        ValueNode *left, *right;
-        if (IsRegisterEqualToAccumulator(0)) {
-          left = right =
-              AddNewNode<CheckedFloat64Unbox>({LoadRegisterTagged(0)});
-        } else {
-          left = AddNewNode<CheckedFloat64Unbox>({LoadRegisterTagged(0)});
-          right = AddNewNode<CheckedFloat64Unbox>({GetAccumulatorTagged()});
-        }
-
-        if (kOperation == Operation::kAdd) {
-          ValueNode* result = AddNewNode<Float64Add>({left, right});
-          SetAccumulator(AddNewNode<Float64Box>({result}));
-          return;
-        }
-      }
+  if (BinaryOperationHasFastPath<kOperation>()) {
+    switch (nexus.GetBinaryOperationFeedback()) {
+      case BinaryOperationHint::kSignedSmall:
+        BuildInt32BinaryOperationNode<kOperation>();
+        return;
+      case BinaryOperationHint::kNumber:
+        BuildFloat64BinaryOperationNode<kOperation>();
+        return;
+      default:
+        // Fallback to generic node.
+        break;
     }
   }
-
-  // TODO(victorgomes): Use feedback info and create optimized versions.
   BuildGenericBinaryOperationNode<kOperation>();
 }
 
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinarySmiOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
-
-  if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
-    if (nexus.kind() == FeedbackSlotKind::kBinaryOp) {
-      BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
-
-      if (hint == BinaryOperationHint::kSignedSmall) {
-        ValueNode* left = GetAccumulatorInt32();
-        int32_t constant = iterator_.GetImmediateOperand(0);
-
-        if (kOperation == Operation::kAdd) {
-          if (constant == 0) {
-            // For addition of zero, when the accumulator passed the Smi check,
-            // it already has the right value, so we can just return.
-            return;
-          }
-          // TODO(victorgomes): We could create an Int32Add node that receives
-          // a constant and avoid a register move.
-          ValueNode* right = AddNewNode<Int32Constant>({}, constant);
-          SetAccumulator(AddNewNode<Int32AddWithOverflow>({left, right}));
-          return;
-        }
-      }
+  if (BinaryOperationHasFastPath<kOperation>()) {
+    switch (nexus.GetBinaryOperationFeedback()) {
+      case BinaryOperationHint::kSignedSmall:
+        BuildInt32BinarySmiOperationNode<kOperation>();
+        return;
+      default:
+        // Fallback to generic node.
+        break;
     }
   }
-
-  // TODO(victorgomes): Use feedback info and create optimized versions.
   BuildGenericBinarySmiOperationNode<kOperation>();
 }
 
