@@ -63,15 +63,6 @@ bool NewSpace::ContainsSlow(Address a) const {
   return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
 }
 
-bool NewSpace::ToSpaceContainsSlow(Address a) const {
-  return to_space_.ContainsSlow(a);
-}
-
-bool NewSpace::ToSpaceContains(Object o) const { return to_space_.Contains(o); }
-bool NewSpace::FromSpaceContains(Object o) const {
-  return from_space_.Contains(o);
-}
-
 V8_INLINE bool NewSpace::EnsureAllocation(int size_in_bytes,
                                           AllocationAlignment alignment,
                                           AllocationOrigin origin,

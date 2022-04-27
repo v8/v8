@@ -459,10 +459,6 @@ class V8_EXPORT_PRIVATE NewSpace final : public NewSpaceBase {
   // it in steps to guarantee that the observers are notified periodically.
   void UpdateInlineAllocationLimit(size_t size_in_bytes) override;
 
-  inline bool ToSpaceContainsSlow(Address a) const;
-  inline bool ToSpaceContains(Object o) const;
-  inline bool FromSpaceContains(Object o) const;
-
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
   // are no pages, or the current page is already empty), or true

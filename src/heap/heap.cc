@@ -4512,7 +4512,7 @@ bool Heap::Contains(HeapObject value) const {
     return false;
   }
   return HasBeenSetUp() &&
-         ((new_space_ && new_space_->ToSpaceContains(value)) ||
+         ((new_space_ && new_space_->Contains(value)) ||
           old_space_->Contains(value) || code_space_->Contains(value) ||
           (map_space_ && map_space_->Contains(value)) ||
           lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
@@ -4560,7 +4560,7 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_->ToSpaceContains(value);
+      return new_space_->Contains(value);
     case OLD_SPACE:
       return old_space_->Contains(value);
     case CODE_SPACE:
@@ -4590,7 +4590,7 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_->ToSpaceContainsSlow(addr);
+      return new_space_->ContainsSlow(addr);
     case OLD_SPACE:
       return old_space_->ContainsSlow(addr);
     case CODE_SPACE:
