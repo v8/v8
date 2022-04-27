@@ -7065,11 +7065,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         global_proxy);
   }
 
-  Node* BuildSuspend(Node* value, Node* api_function_ref,
-                     MachineRepresentation rep) {
+  Node* BuildSuspend(Node* value, Node* api_function_ref) {
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
-    auto resume = gasm_->MakeLabel(rep);
+    auto resume = gasm_->MakeLabel(MachineRepresentation::kTagged);
     gasm_->GotoIf(IsSmi(value), &resume, value);
     gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
                      BranchHint::kTrue, value);
@@ -7158,11 +7157,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         DCHECK_EQ(pos, args.size());
         call = gasm_->Call(call_descriptor, pos, args.begin());
         if (suspend == wasm::kSuspend) {
-          MachineRepresentation rep =
-              sig_->return_count() >= 1
-                  ? sig_->GetReturn(0).machine_representation()
-                  : MachineRepresentation::kNone;
-          call = BuildSuspend(call, Param(0), rep);
+          call = BuildSuspend(call, Param(0));
         }
         break;
       }
