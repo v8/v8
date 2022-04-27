@@ -765,9 +765,9 @@ void CheckedSmiUntag::GenerateCode(MaglevCodeGenState* code_gen_state,
   // TODO(leszeks): Consider optimizing away this test and using the carry bit
   // of the `sarl` for cases where the deopt uses the value from a different
   // register.
-  __ testb(value, Immediate(1));
-  EmitEagerDeoptIf(not_zero, code_gen_state, this);
-  __ sarl(value, Immediate(1));
+  Condition is_smi = __ CheckSmi(value);
+  EmitEagerDeoptIf(NegateCondition(is_smi), code_gen_state, this);
+  __ SmiToInt32(value);
 }
 
 void CheckedSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -833,17 +833,16 @@ void CheckedFloat64Unbox::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register value = ToRegister(input());
   Label is_not_smi, done;
   // Check if Smi.
-  __ testb(value, Immediate(1));
-  __ j(not_zero, &is_not_smi);
+  __ JumpIfNotSmi(value, &is_not_smi);
   // If Smi, convert to Float64.
-  __ sarl(value, Immediate(1));
+  __ SmiToInt32(value);
   __ Cvtlsi2sd(ToDoubleRegister(result()), value);
   // TODO(v8:7700): Add a constraint to the register allocator to indicate that
   // the value in the input register is "trashed" by this node. Currently we
   // have the invariant that the input register should not be mutated when it is
   // not the same as the output register or the function does not call a
   // builtin. So, we recover the Smi value here.
-  __ addl(value, value);
+  __ SmiTag(value);
   __ jmp(&done);
   __ bind(&is_not_smi);
   // Check if HeapNumber, deopt otherwise.
