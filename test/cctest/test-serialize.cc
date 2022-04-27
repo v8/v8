@@ -205,23 +205,22 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
     v8::Context::New(isolate);
   }
 
-  Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
-  internal_isolate->heap()->CollectAllAvailableGarbage(
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i_isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kTesting);
 
-  SafepointScope safepoint(internal_isolate->heap());
-  HandleScope scope(internal_isolate);
+  SafepointScope safepoint(i_isolate->heap());
+  HandleScope scope(i_isolate);
 
   DisallowGarbageCollection no_gc;
-  ReadOnlySerializer read_only_serializer(internal_isolate,
+  ReadOnlySerializer read_only_serializer(i_isolate,
                                           Snapshot::kDefaultSerializerFlags);
   read_only_serializer.SerializeReadOnlyRoots();
 
   SharedHeapSerializer shared_space_serializer(
-      internal_isolate, Snapshot::kDefaultSerializerFlags,
-      &read_only_serializer);
+      i_isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
 
-  StartupSerializer ser(internal_isolate, Snapshot::kDefaultSerializerFlags,
+  StartupSerializer ser(i_isolate, Snapshot::kDefaultSerializerFlags,
                         &read_only_serializer, &shared_space_serializer);
   ser.SerializeStrongReferences(no_gc);
 

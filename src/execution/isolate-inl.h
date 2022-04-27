@@ -130,6 +130,11 @@ bool Isolate::is_catchable_by_wasm(Object exception) {
   return !JSReceiver::HasProperty(&it).FromJust();
 }
 
+bool Isolate::is_execution_terminating() {
+  return thread_local_top()->scheduled_exception_ ==
+         i::ReadOnlyRoots(this).termination_exception();
+}
+
 void Isolate::FireBeforeCallEnteredCallback() {
   for (auto& callback : before_call_entered_callbacks_) {
     callback(reinterpret_cast<v8::Isolate*>(this));

@@ -292,11 +292,11 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value) {
 }
 
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debug()->ChangeBreakOnException(
-      i::BreakException, type == BreakOnAnyException);
-  internal_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
-                                                    type != NoBreakOnException);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->debug()->ChangeBreakOnException(i::BreakException,
+                                             type == BreakOnAnyException);
+  i_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
+                                             type != NoBreakOnException);
 }
 
 void SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
@@ -307,7 +307,7 @@ void SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
 
 void PrepareStep(Isolate* v8_isolate, StepAction action) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8_DO_NOT_USE(isolate);
+  ENTER_V8_BASIC(isolate);
   CHECK(isolate->debug()->CheckExecutionState());
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
@@ -325,7 +325,7 @@ void ClearStepping(Isolate* v8_isolate) {
 void BreakRightNow(Isolate* v8_isolate,
                    base::EnumSet<debug::BreakReason> break_reasons) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8_DO_NOT_USE(isolate);
+  ENTER_V8_BASIC(isolate);
   isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed,
                                      break_reasons);
 }
@@ -338,7 +338,7 @@ void SetTerminateOnResume(Isolate* v8_isolate) {
 
 bool CanBreakProgram(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8_DO_NOT_USE(isolate);
+  ENTER_V8_BASIC(isolate);
   return !isolate->debug()->AllFramesOnStackAreBlackboxed();
 }
 
@@ -1036,13 +1036,13 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
 MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
                                      v8::Local<v8::String> source,
                                      EvaluateGlobalMode mode, bool repl) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(internal_isolate, Value);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, Value);
   i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
-      i::DebugEvaluate::Global(internal_isolate, Utils::OpenHandle(*source),
-                               mode, repl_mode),
+      i::DebugEvaluate::Global(i_isolate, Utils::OpenHandle(*source), mode,
+                               repl_mode),
       &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
@@ -1051,13 +1051,13 @@ MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
 v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
     v8::Isolate* isolate, v8::Local<v8::Script> function,
     v8::debug::EvaluateGlobalMode mode, bool repl) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(internal_isolate, Value);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(i_isolate, Value);
   i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
-      i::DebugEvaluate::Global(internal_isolate, Utils::OpenHandle(*function),
-                               mode, repl_mode),
+      i::DebugEvaluate::Global(i_isolate, Utils::OpenHandle(*function), mode,
+                               repl_mode),
       &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
@@ -1246,12 +1246,12 @@ TypeProfile::ScriptData TypeProfile::GetScriptData(size_t i) const {
 
 MaybeLocal<v8::Value> EphemeronTable::Get(v8::Isolate* isolate,
                                           v8::Local<v8::Value> key) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto self = i::Handle<i::EphemeronHashTable>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> internal_key = Utils::OpenHandle(*key);
   DCHECK(internal_key->IsJSReceiver());
 
-  i::Handle<i::Object> value(self->Lookup(internal_key), internal_isolate);
+  i::Handle<i::Object> value(self->Lookup(internal_key), i_isolate);
 
   if (value->IsTheHole()) return {};
   return Utils::ToLocal(value);
@@ -1323,7 +1323,7 @@ std::unique_ptr<PropertyIterator> PropertyIterator::Create(
     Local<Context> context, Local<Object> object, bool skip_indices) {
   internal::Isolate* isolate =
       reinterpret_cast<i::Isolate*>(object->GetIsolate());
-  if (IsExecutionTerminatingCheck(isolate)) {
+  if (isolate->is_execution_terminating()) {
     return nullptr;
   }
   CallDepthScope<false> call_depth_scope(isolate, context);
@@ -1342,7 +1342,7 @@ std::unique_ptr<PropertyIterator> PropertyIterator::Create(
 namespace internal {
 
 Maybe<bool> DebugPropertyIterator::Advance() {
-  if (IsExecutionTerminatingCheck(isolate_)) {
+  if (isolate_->is_execution_terminating()) {
     return Nothing<bool>();
   }
   Local<v8::Context> context =
