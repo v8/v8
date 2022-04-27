@@ -98,7 +98,6 @@ branch_descriptors = [
 NAMING_CONVENTION_EXCLUDED_BUILDERS = [
     "V8 Linux64 - arm64 - sim - heap sandbox - debug",
     "V8 Linux64 - cppgc-non-default - debug",
-    "V8 Linux64 - dict tracking - debug",
     "V8 Linux64 - external code space - debug",
     "V8 Linux64 - heap sandbox - debug",
 ]
