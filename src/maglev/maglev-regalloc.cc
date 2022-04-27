@@ -760,11 +760,12 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
 }
 
 template <typename RegisterT>
-RegisterT RegisterFrameState<RegisterT>::FreeSomeRegister() {
+void StraightForwardRegisterAllocator::FreeSomeRegister(
+    RegisterFrameState<RegisterT>& registers) {
   int furthest_use = 0;
   RegisterT best = RegisterT::no_reg();
-  for (RegisterT reg : used()) {
-    ValueNode* value = GetValue(reg);
+  for (RegisterT reg : registers.used()) {
+    ValueNode* value = registers.GetValue(reg);
     // The cheapest register to clear is a register containing a value that's
     // contained in another register as well.
     if (value->num_registers() > 1) {
@@ -778,16 +779,16 @@ RegisterT RegisterFrameState<RegisterT>::FreeSomeRegister() {
     }
   }
   DCHECK(best.is_valid());
-  free_.set(best);
-  return best;
+  DropRegisterValue(registers, best);
+  registers.AddToFree(best);
 }
 
 void StraightForwardRegisterAllocator::FreeSomeGeneralRegister() {
-  DropRegisterValue(general_registers_.FreeSomeRegister());
+  return FreeSomeRegister(general_registers_);
 }
 
 void StraightForwardRegisterAllocator::FreeSomeDoubleRegister() {
-  DropRegisterValue(double_registers_.FreeSomeRegister());
+  return FreeSomeRegister(double_registers_);
 }
 compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
     ValueNode* node) {

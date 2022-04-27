@@ -57,7 +57,7 @@ class RegisterFrameState {
 
   RegisterT TakeFirstFree() { return free_.PopFirst(); }
   void RemoveFromFree(RegisterT reg) { free_.clear(reg); }
-  RegisterT FreeSomeRegister();
+  void AddToFree(RegisterT reg) { free_.set(reg); }
 
   void FreeRegistersUsedBy(ValueNode* node) {
     RegList list = node->ClearRegisters<RegisterT>();
@@ -141,6 +141,8 @@ class StraightForwardRegisterAllocator {
   void SpillAndClearRegisters();
 
   void FreeRegistersUsedBy(ValueNode* node);
+  template <typename RegisterT>
+  void FreeSomeRegister(RegisterFrameState<RegisterT>& registers);
   void FreeSomeGeneralRegister();
   void FreeSomeDoubleRegister();
 
