@@ -792,6 +792,12 @@ void CheckedFloat64Unbox::GenerateCode(MaglevCodeGenState* code_gen_state,
   // If Smi, convert to Float64.
   __ sarl(value, Immediate(1));
   __ Cvtlsi2sd(ToDoubleRegister(result()), value);
+  // TODO(v8:7700): Add a constraint to the register allocator to indicate that
+  // the value in the input register is "trashed" by this node. Currently we
+  // have the invariant that the input register should not be mutated when it is
+  // not the same as the output register or the function does not call a
+  // builtin. So, we recover the Smi value here.
+  __ addl(value, value);
   __ jmp(&done);
   __ bind(&is_not_smi);
   // Check if HeapNumber, deopt otherwise.

@@ -23,8 +23,40 @@
   // We deopt if not a number.
   assertEquals("42", add("4", "2"));
   assertFalse(isMaglevved(add));
+})();
 
-  // TODO(victorgomes): Fix deopt when we have a float,
-  // i.e., add(4, "2") will create a float with number 4
-  // and correctly deopt, but the state is bogus.
+// Deopt in the second Float64Unbox when the first argument is a Smi.
+(function() {
+  function add(x, y) {
+    return x + y;
+  }
+
+  %PrepareFunctionForOptimization(add);
+  assertEquals(4.2, add(2.1, 2.1));
+
+  %OptimizeMaglevOnNextCall(add);
+  assertEquals(4.2, add(2.1, 2.1));
+  assertTrue(isMaglevved(add));
+
+  // We deopt if not a number.
+  assertEquals("42", add(4, "2"));
+  assertFalse(isMaglevved(add));
+})();
+
+// Deopt in the second Float64Unbox when the first argument is a double.
+(function() {
+  function add(x, y) {
+    return x + y;
+  }
+
+  %PrepareFunctionForOptimization(add);
+  assertEquals(4.2, add(2.1, 2.1));
+
+  %OptimizeMaglevOnNextCall(add);
+  assertEquals(4.2, add(2.1, 2.1));
+  assertTrue(isMaglevved(add));
+
+  // We deopt if not a number.
+  assertEquals("4.2!", add(4.2, "!"));
+  assertFalse(isMaglevved(add));
 })();
