@@ -279,7 +279,8 @@ typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
   return iterator(chunk_, bitmap_, end_);
 }
 
-Isolate* MarkCompactCollectorBase::isolate() { return heap()->isolate(); }
+Isolate* MarkCompactCollector::isolate() { return heap()->isolate(); }
+Isolate* MinorMarkCompactCollector::isolate() { return heap()->isolate(); }
 
 }  // namespace internal
 }  // namespace v8

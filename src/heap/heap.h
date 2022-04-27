@@ -1638,6 +1638,13 @@ class Heap {
   // over all objects.
   void MakeHeapIterable();
 
+  V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
+  V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
+
+  inline bool ShouldReduceMemory() const {
+    return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
+  }
+
  private:
   class AllocationTrackerForDebugging;
 
@@ -1752,10 +1759,6 @@ class Heap {
 #undef ROOT_ACCESSOR
 
   void set_current_gc_flags(int flags) { current_gc_flags_ = flags; }
-
-  inline bool ShouldReduceMemory() const {
-    return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
-  }
 
   int NumberOfScavengeTasks();
 
@@ -1998,10 +2001,8 @@ class Heap {
 
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
-  V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
   V8_EXPORT_PRIVATE bool CanExpandOldGenerationBackground(LocalHeap* local_heap,
                                                           size_t size);
-  V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
 
   bool ShouldExpandOldGenerationOnSlowAllocation(
       LocalHeap* local_heap = nullptr);

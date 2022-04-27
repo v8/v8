@@ -471,11 +471,9 @@ int NumberOfAvailableCores() {
   return num_cores;
 }
 
-}  // namespace
-
-int MarkCompactCollectorBase::NumberOfParallelCompactionTasks() {
+int NumberOfParallelCompactionTasks(Heap* heap) {
   int tasks = FLAG_parallel_compaction ? NumberOfAvailableCores() : 1;
-  if (!heap_->CanPromoteYoungAndExpandOldGeneration(
+  if (!heap->CanPromoteYoungAndExpandOldGeneration(
           static_cast<size_t>(tasks * Page::kPageSize))) {
     // Optimize for memory usage near the heap limit.
     tasks = 1;
@@ -483,8 +481,10 @@ int MarkCompactCollectorBase::NumberOfParallelCompactionTasks() {
   return tasks;
 }
 
+}  // namespace
+
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
-    : MarkCompactCollectorBase(heap),
+    : heap_(heap),
 #ifdef DEBUG
       state_(IDLE),
 #endif
@@ -3908,17 +3908,19 @@ class PageEvacuationJob : public v8::JobTask {
   GCTracer* tracer_;
 };
 
+namespace {
 template <class Evacuator, class Collector>
-size_t MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
+size_t CreateAndExecuteEvacuationTasks(
     Collector* collector,
     std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items,
     MigrationObserver* migration_observer) {
   base::Optional<ProfilingMigrationObserver> profiling_observer;
-  if (isolate()->LogObjectRelocation()) {
-    profiling_observer.emplace(heap());
+  if (collector->isolate()->LogObjectRelocation()) {
+    profiling_observer.emplace(collector->heap());
   }
   std::vector<std::unique_ptr<v8::internal::Evacuator>> evacuators;
-  const int wanted_num_tasks = NumberOfParallelCompactionTasks();
+  const int wanted_num_tasks =
+      NumberOfParallelCompactionTasks(collector->heap());
   for (int i = 0; i < wanted_num_tasks; i++) {
     auto evacuator = std::make_unique<Evacuator>(collector);
     if (profiling_observer) {
@@ -3930,9 +3932,10 @@ size_t MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
     evacuators.push_back(std::move(evacuator));
   }
   V8::GetCurrentPlatform()
-      ->PostJob(v8::TaskPriority::kUserBlocking,
-                std::make_unique<PageEvacuationJob>(
-                    isolate(), &evacuators, std::move(evacuation_items)))
+      ->PostJob(
+          v8::TaskPriority::kUserBlocking,
+          std::make_unique<PageEvacuationJob>(collector->isolate(), &evacuators,
+                                              std::move(evacuation_items)))
       ->Join();
   for (auto& evacuator : evacuators) {
     evacuator->Finalize();
@@ -3940,18 +3943,17 @@ size_t MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
   return wanted_num_tasks;
 }
 
-bool MarkCompactCollectorBase::ShouldMovePage(
-    Page* p, intptr_t live_bytes, AlwaysPromoteYoung always_promote_young) {
-  const bool reduce_memory = heap()->ShouldReduceMemory();
-  const Address age_mark = heap()->new_space()->age_mark();
+bool ShouldMovePage(Page* p, intptr_t live_bytes,
+                    AlwaysPromoteYoung always_promote_young) {
+  Heap* heap = p->heap();
+  const bool reduce_memory = heap->ShouldReduceMemory();
+  const Address age_mark = heap->new_space()->age_mark();
   return !reduce_memory && !p->NeverEvacuate() &&
          (live_bytes > Evacuator::NewSpacePageEvacuationThreshold()) &&
          (always_promote_young == AlwaysPromoteYoung::kYes ||
           !p->Contains(age_mark)) &&
-         heap()->CanExpandOldGeneration(live_bytes);
+         heap->CanExpandOldGeneration(live_bytes);
 }
-
-namespace {
 
 void TraceEvacuation(Isolate* isolate, size_t pages_count,
                      size_t wanted_num_tasks, size_t live_bytes,
@@ -4570,10 +4572,11 @@ MarkCompactCollector::CreateRememberedSetUpdatingItem(
       heap(), non_atomic_marking_state(), chunk, updating_mode);
 }
 
-template <typename IterateableSpace>
-int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
-    std::vector<std::unique_ptr<UpdatingItem>>* items, IterateableSpace* space,
-    RememberedSetUpdatingMode mode) {
+namespace {
+template <typename IterateableSpace, typename Collector>
+int CollectRememberedSetUpdatingItems(
+    Collector* collector, std::vector<std::unique_ptr<UpdatingItem>>* items,
+    IterateableSpace* space, RememberedSetUpdatingMode mode) {
   int pages = 0;
   for (MemoryChunk* chunk : *space) {
     const bool contains_old_to_old_slots =
@@ -4603,12 +4606,14 @@ int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
     if (mode == RememberedSetUpdatingMode::ALL || contains_old_to_new_slots ||
         contains_old_to_old_invalidated_slots ||
         contains_old_to_new_invalidated_slots) {
-      items->emplace_back(CreateRememberedSetUpdatingItem(chunk, mode));
+      items->emplace_back(
+          collector->CreateRememberedSetUpdatingItem(chunk, mode));
       pages++;
     }
   }
   return pages;
 }
+}  // namespace
 
 class EphemeronTableUpdatingItem : public UpdatingItem {
  public:
@@ -4686,16 +4691,20 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN);
     std::vector<std::unique_ptr<UpdatingItem>> updating_items;
 
-    CollectRememberedSetUpdatingItems(&updating_items, heap()->old_space(),
+    CollectRememberedSetUpdatingItems(this, &updating_items,
+                                      heap()->old_space(),
                                       RememberedSetUpdatingMode::ALL);
-    CollectRememberedSetUpdatingItems(&updating_items, heap()->code_space(),
+    CollectRememberedSetUpdatingItems(this, &updating_items,
+                                      heap()->code_space(),
                                       RememberedSetUpdatingMode::ALL);
-    CollectRememberedSetUpdatingItems(&updating_items, heap()->lo_space(),
+    CollectRememberedSetUpdatingItems(this, &updating_items, heap()->lo_space(),
                                       RememberedSetUpdatingMode::ALL);
-    CollectRememberedSetUpdatingItems(&updating_items, heap()->code_lo_space(),
+    CollectRememberedSetUpdatingItems(this, &updating_items,
+                                      heap()->code_lo_space(),
                                       RememberedSetUpdatingMode::ALL);
     if (heap()->map_space()) {
-      CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
+      CollectRememberedSetUpdatingItems(this, &updating_items,
+                                        heap()->map_space(),
                                         RememberedSetUpdatingMode::ALL);
     }
 
@@ -5190,7 +5199,7 @@ void MinorMarkCompactCollector::TearDown() {}
 constexpr size_t MinorMarkCompactCollector::kMaxParallelTasks;
 
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
-    : MarkCompactCollectorBase(heap),
+    : heap_(heap),
       worklist_(new MinorMarkCompactCollector::MarkingWorklist()),
       main_thread_worklist_local_(worklist_),
       marking_state_(heap->isolate()),
@@ -5304,18 +5313,19 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
 
   // Create batches of global handles.
   CollectToSpaceUpdatingItems(&updating_items);
-  CollectRememberedSetUpdatingItems(&updating_items, heap()->old_space(),
+  CollectRememberedSetUpdatingItems(this, &updating_items, heap()->old_space(),
                                     RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-  CollectRememberedSetUpdatingItems(&updating_items, heap()->code_space(),
+  CollectRememberedSetUpdatingItems(this, &updating_items, heap()->code_space(),
                                     RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
   if (heap()->map_space()) {
     CollectRememberedSetUpdatingItems(
-        &updating_items, heap()->map_space(),
+        this, &updating_items, heap()->map_space(),
         RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
   }
-  CollectRememberedSetUpdatingItems(&updating_items, heap()->lo_space(),
+  CollectRememberedSetUpdatingItems(this, &updating_items, heap()->lo_space(),
                                     RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-  CollectRememberedSetUpdatingItems(&updating_items, heap()->code_lo_space(),
+  CollectRememberedSetUpdatingItems(this, &updating_items,
+                                    heap()->code_lo_space(),
                                     RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
 
   {
