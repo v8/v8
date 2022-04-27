@@ -126,9 +126,13 @@ class MaglevCodeGeneratingNodeProcessor {
         // We shouldn't spill nodes which already output to the stack.
         if (!source.IsStackSlot()) {
           if (FLAG_code_comments) __ RecordComment("--   Spill:");
-          DCHECK(!source.IsStackSlot());
-          __ movq(code_gen_state_->GetStackSlot(value_node->spill_slot()),
-                  ToRegister(source));
+          if (source.IsRegister()) {
+            __ movq(code_gen_state_->GetStackSlot(value_node->spill_slot()),
+                    ToRegister(source));
+          } else {
+            __ Movsd(code_gen_state_->GetStackSlot(value_node->spill_slot()),
+                     ToDoubleRegister(source));
+          }
         } else {
           // Otherwise, the result source stack slot should be equal to the
           // spill slot.

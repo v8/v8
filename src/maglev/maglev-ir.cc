@@ -551,6 +551,27 @@ void LoadTaggedField::PrintParams(std::ostream& os,
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
+void LoadDoubleField::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UseRegister(object_input());
+  DefineAsRegister(vreg_state, this);
+  set_temporaries_needed(1);
+}
+void LoadDoubleField::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  Register tmp = temporaries().PopFirst();
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(tmp, FieldOperand(object, offset()));
+  __ AssertNotSmi(tmp);
+  __ Movsd(ToDoubleRegister(result()),
+           FieldOperand(tmp, HeapNumber::kValueOffset));
+}
+void LoadDoubleField::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
 void StoreField::AllocateVreg(MaglevVregAllocationState* vreg_state,
                               const ProcessingState& state) {
   UseRegister(object_input());

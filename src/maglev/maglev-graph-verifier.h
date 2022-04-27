@@ -81,6 +81,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckedSmiUntag:
       case Opcode::kGenericBitwiseNot:
       case Opcode::kLoadTaggedField:
+      case Opcode::kLoadDoubleField:
       case Opcode::kLoadGlobal:
       // TODO(victorgomes): Can we check that the input is actually a map?
       case Opcode::kCheckMaps:

@@ -534,9 +534,10 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
                   {object}, JSReceiver::kPropertiesOrHashOffset);
             }
             if (LoadHandler::IsDoubleBits::decode(smi_handler)) {
-              // TODO(leszeks): Create a LoadDoubleField which loads the
-              // raw double value.
-              MAGLEV_UNIMPLEMENTED("GetNamedProperty with double field");
+              SetAccumulator(AddNewNode<LoadDoubleField>(
+                  {load_source},
+                  LoadHandler::FieldIndexBits::decode(smi_handler) *
+                      kTaggedSize));
             } else {
               SetAccumulator(AddNewNode<LoadTaggedField>(
                   {load_source},

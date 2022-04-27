@@ -70,6 +70,7 @@ class CompactInterpreterFrameState;
   V(Constant)              \
   V(InitialValue)          \
   V(LoadTaggedField)       \
+  V(LoadDoubleField)       \
   V(LoadGlobal)            \
   V(LoadNamedGeneric)      \
   V(Phi)                   \
@@ -1282,6 +1283,29 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::Reading();
+
+  int offset() const { return offset_; }
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return input(kObjectIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int offset_;
+};
+
+class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
+  using Base = FixedInputValueNodeT<1, LoadDoubleField>;
+
+ public:
+  explicit LoadDoubleField(uint32_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::Reading() | OpProperties::Float64();
 
   int offset() const { return offset_; }
 

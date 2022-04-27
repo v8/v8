@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
@@ -301,19 +302,30 @@ class MaglevGraphBuilder {
   ValueNode* GetTaggedValue(interpreter::Register reg) {
     // TODO(victorgomes): Add the representation (Tagged/Untagged) in the
     // InterpreterFrameState, so that we don't need to derefence a node.
-    // TODO(victorgomes): Support Float64.
     ValueNode* value = current_interpreter_frame_.get(reg);
-    if (value->properties().value_representation() ==
-        ValueRepresentation::kTagged) {
-      return value;
+    switch (value->properties().value_representation()) {
+      case ValueRepresentation::kTagged:
+        return value;
+      case ValueRepresentation::kInt32: {
+        if (value->Is<CheckedSmiUntag>()) {
+          return value->input(0).node();
+        }
+        DCHECK(value->Is<Int32AddWithOverflow>() || value->Is<Int32Constant>());
+        ValueNode* tagged = AddNewNode<CheckedSmiTag>({value});
+        current_interpreter_frame_.set(reg, tagged);
+        return tagged;
+      }
+      case ValueRepresentation::kFloat64: {
+        if (value->Is<CheckedFloat64Unbox>()) {
+          return value->input(0).node();
+        }
+        DCHECK(value->Is<LoadDoubleField>() || value->Is<Float64Add>());
+        ValueNode* tagged = AddNewNode<Float64Box>({value});
+        current_interpreter_frame_.set(reg, tagged);
+        return tagged;
+      }
     }
-    if (value->Is<CheckedSmiUntag>()) {
-      return value->input(0).node();
-    }
-    DCHECK(value->Is<Int32AddWithOverflow>() || value->Is<Int32Constant>());
-    ValueNode* tagged = AddNewNode<CheckedSmiTag>({value});
-    current_interpreter_frame_.set(reg, tagged);
-    return tagged;
+    UNREACHABLE();
   }
 
   ValueNode* GetInt32(interpreter::Register reg) {
