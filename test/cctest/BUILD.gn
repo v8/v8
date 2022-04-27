@@ -232,6 +232,7 @@ v8_source_set("cctest_sources") {
     "test-liveedit.cc",
     "test-local-handles.cc",
     "test-lockers.cc",
+    "test-log.cc",
     "test-managed.cc",
     "test-mementos.cc",
     "test-orderedhashtable.cc",
