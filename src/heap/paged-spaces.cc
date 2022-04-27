@@ -442,8 +442,7 @@ void PagedSpace::MakeLinearAllocationAreaIterable() {
     }
 
     heap_->CreateFillerObjectAt(current_top,
-                                static_cast<int>(current_limit - current_top),
-                                ClearRecordedSlots::kNo);
+                                static_cast<int>(current_limit - current_top));
   }
 }
 

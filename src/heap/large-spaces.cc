@@ -221,8 +221,7 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
 
   HeapObject object = page->GetObject();
 
-  heap()->CreateFillerObjectAt(object.address(), object_size,
-                               ClearRecordedSlots::kNo);
+  heap()->CreateFillerObjectAt(object.address(), object_size);
   return page;
 }
 

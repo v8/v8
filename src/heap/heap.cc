@@ -3217,8 +3217,7 @@ size_t Heap::GetCodeRangeReservedAreaSize() {
 }
 
 HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
-  CreateFillerObjectAt(object.address(), filler_size,
-                       ClearFreedMemoryMode::kDontClearFreedMemory);
+  CreateFillerObjectAt(object.address(), filler_size);
   return HeapObject::FromAddress(object.address() + filler_size);
 }
 
@@ -3233,8 +3232,7 @@ HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
     filler_size -= pre_filler;
   }
   if (filler_size) {
-    CreateFillerObjectAt(object.address() + object_size, filler_size,
-                         ClearFreedMemoryMode::kDontClearFreedMemory);
+    CreateFillerObjectAt(object.address() + object_size, filler_size);
   }
   return object;
 }
@@ -3306,9 +3304,9 @@ void Heap::FlushNumberStringCache() {
 
 namespace {
 
-HeapObject CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
-                                    ClearFreedMemoryMode clear_memory_mode) {
-  if (size == 0) return HeapObject();
+void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
+                              ClearFreedMemoryMode clear_memory_mode) {
+  if (size == 0) return;
   HeapObject filler = HeapObject::FromAddress(addr);
   ReadOnlyRoots roots(heap);
   if (size == kTaggedSize) {
@@ -3337,8 +3335,6 @@ HeapObject CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
   DCHECK((filler.map_slot().contains_map_value(kNullAddress) &&
           !heap->deserialization_complete()) ||
          filler.map(heap->isolate()).IsMap());
-
-  return filler;
 }
 
 #ifdef DEBUG
@@ -3356,42 +3352,46 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {}
 
 }  // namespace
 
-HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
-                                      ClearFreedMemoryMode clear_memory_mode) {
+void Heap::CreateFillerObjectAtBackground(Address addr, int size) {
   // TODO(leszeks): Verify that no slots need to be recorded.
-  HeapObject filler =
-      CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
-  VerifyNoNeedToClearSlots(addr, addr + size);
-  return filler;
+  // Do not verify whether slots are cleared here: the concurrent thread is not
+  // allowed to access the main thread's remembered set.
+  CreateFillerObjectAtRaw(addr, size,
+                          ClearFreedMemoryMode::kDontClearFreedMemory,
+                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
 }
 
-void Heap::CreateFillerObjectAtBackground(
-    Address addr, int size, ClearFreedMemoryMode clear_memory_mode) {
-  CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
+void Heap::CreateFillerObjectAtSweeper(Address addr, int size,
+                                       ClearFreedMemoryMode clear_memory_mode) {
   // Do not verify whether slots are cleared here: the concurrent sweeper is not
   // allowed to access the main thread's remembered set.
+  CreateFillerObjectAtRaw(addr, size, clear_memory_mode,
+                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
 }
 
-HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
-                                      ClearRecordedSlots clear_slots_mode) {
+void Heap::CreateFillerObjectAt(Address addr, int size) {
+  CreateFillerObjectAtRaw(addr, size,
+                          ClearFreedMemoryMode::kDontClearFreedMemory,
+                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kYes);
+}
+
+void Heap::CreateFillerObjectAtRaw(
+    Address addr, int size, ClearFreedMemoryMode clear_memory_mode,
+    ClearRecordedSlots clear_slots_mode,
+    VerifyNoSlotsRecorded verify_no_slots_recorded) {
   // TODO(mlippautz): It would be nice to DCHECK that we never call this
   // with {addr} pointing into large object space; however we currently
   // initialize LO allocations with a filler, see
   // LargeObjectSpace::AllocateLargePage.
-  if (size == 0) return HeapObject();
-  HeapObject filler = CreateFillerObjectAtImpl(
-      this, addr, size,
-      clear_slots_mode == ClearRecordedSlots::kYes
-          ? ClearFreedMemoryMode::kClearFreedMemory
-          : ClearFreedMemoryMode::kDontClearFreedMemory);
+  if (size == 0) return;
+  CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     if (clear_slots_mode == ClearRecordedSlots::kYes) {
       ClearRecordedSlotRange(addr, addr + size);
-    } else {
+    } else if (verify_no_slots_recorded == VerifyNoSlotsRecorded::kYes) {
       VerifyNoNeedToClearSlots(addr, addr + size);
     }
   }
-  return filler;
 }
 
 bool Heap::CanMoveObjectStart(HeapObject object) {
@@ -3545,10 +3545,11 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  CreateFillerObjectAt(old_start, bytes_to_trim,
-                       MayContainRecordedSlots(object)
-                           ? ClearRecordedSlots::kYes
-                           : ClearRecordedSlots::kNo);
+  CreateFillerObjectAtRaw(
+      old_start, bytes_to_trim, ClearFreedMemoryMode::kClearFreedMemory,
+      MayContainRecordedSlots(object) ? ClearRecordedSlots::kYes
+                                      : ClearRecordedSlots::kNo,
+      VerifyNoSlotsRecorded::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -3652,10 +3653,10 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
   // we still do it.
   // We do not create a filler for objects in a large object space.
   if (!IsLargeObject(object)) {
-    HeapObject filler = CreateFillerObjectAt(
-        new_end, bytes_to_trim,
+    NotifyObjectSizeChange(
+        object, old_size, old_size - bytes_to_trim,
         clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
-    DCHECK(!filler.is_null());
+    HeapObject filler = HeapObject::FromAddress(new_end);
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
@@ -3977,6 +3978,27 @@ void Heap::NotifyObjectLayoutChange(
     pending_layout_change_object_ = object;
   }
 #endif
+}
+
+void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
+                                  ClearRecordedSlots clear_recorded_slots) {
+  DCHECK_LE(new_size, old_size);
+  if (new_size == old_size) return;
+
+  const bool is_background = LocalHeap::Current() != nullptr;
+  DCHECK_IMPLIES(is_background,
+                 clear_recorded_slots == ClearRecordedSlots::kNo);
+
+  const ClearFreedMemoryMode clear_memory_mode =
+      is_background ? ClearFreedMemoryMode::kDontClearFreedMemory
+                    : ClearFreedMemoryMode::kClearFreedMemory;
+  const VerifyNoSlotsRecorded verify_no_slots_recorded =
+      is_background ? VerifyNoSlotsRecorded::kNo : VerifyNoSlotsRecorded::kYes;
+
+  const Address filler = object.address() + new_size;
+  const int filler_size = old_size - new_size;
+  CreateFillerObjectAtRaw(filler, filler_size, clear_memory_mode,
+                          clear_recorded_slots, verify_no_slots_recorded);
 }
 
 #ifdef VERIFY_HEAP

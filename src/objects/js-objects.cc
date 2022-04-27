@@ -3125,9 +3125,8 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   DCHECK_GE(instance_size_delta, 0);
 
   if (instance_size_delta > 0) {
-    Address address = object->address();
-    heap->CreateFillerObjectAt(address + new_instance_size, instance_size_delta,
-                               ClearRecordedSlots::kYes);
+    heap->NotifyObjectSizeChange(*object, old_instance_size, new_instance_size,
+                                 ClearRecordedSlots::kYes);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -3224,8 +3223,8 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   DCHECK_GE(instance_size_delta, 0);
 
   if (instance_size_delta > 0) {
-    heap->CreateFillerObjectAt(object->address() + new_instance_size,
-                               instance_size_delta, ClearRecordedSlots::kYes);
+    heap->NotifyObjectSizeChange(*object, old_instance_size, new_instance_size,
+                                 ClearRecordedSlots::kYes);
   }
 
   // We are storing the new map using release store after creating a filler for

@@ -240,8 +240,8 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
       (free_list_mode == REBUILD_FREE_LIST)
           ? ClearFreedMemoryMode::kDontClearFreedMemory
           : ClearFreedMemoryMode::kClearFreedMemory;
-  page->heap()->CreateFillerObjectAtBackground(
-      free_start, static_cast<int>(size), clear_memory_mode);
+  page->heap()->CreateFillerObjectAtSweeper(free_start, static_cast<int>(size),
+                                            clear_memory_mode);
   if (free_list_mode == REBUILD_FREE_LIST) {
     freed_bytes =
         reinterpret_cast<PagedSpace*>(space)->UnaccountedFree(free_start, size);

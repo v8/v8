@@ -520,14 +520,14 @@ class Heap {
                  WriteBarrierMode mode);
 
   // Initialize a filler object to keep the ability to iterate over the heap
-  // when introducing gaps within pages. If slots could have been recorded in
-  // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
-  // pass ClearRecordedSlots::kNo. Clears memory if clearing slots.
-  V8_EXPORT_PRIVATE HeapObject CreateFillerObjectAt(
-      Address addr, int size, ClearRecordedSlots clear_slots_mode);
+  // when introducing gaps within pages. This method will verify that no slots
+  // are recorded in this free memory.
+  V8_EXPORT_PRIVATE void CreateFillerObjectAt(Address addr, int size);
 
-  void CreateFillerObjectAtBackground(Address addr, int size,
-                                      ClearFreedMemoryMode clear_memory_mode);
+  // Initialize a filler object at a specific address. Unlike
+  // `CreateFillerObjectAt` this method will not perform slot verification since
+  // this would race on background threads.
+  void CreateFillerObjectAtBackground(Address addr, int size);
 
   template <typename T>
   void CreateFillerForArray(T object, int elements_to_trim, int bytes_to_trim);
@@ -1108,7 +1108,6 @@ class Heap {
 
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
-  // The old size is the size of the object before layout change.
   // By default recorded slots in the object are invalidated. Pass
   // InvalidateRecordedSlots::kNo if this is not necessary or to perform this
   // manually.
@@ -1116,6 +1115,12 @@ class Heap {
       HeapObject object, const DisallowGarbageCollection&,
       InvalidateRecordedSlots invalidate_recorded_slots =
           InvalidateRecordedSlots::kYes);
+
+  // The runtime uses this function to inform the GC of object size changes. The
+  // GC will fill this area with a filler object and might clear recorded slots
+  // in that area.
+  void NotifyObjectSizeChange(HeapObject, int old_size, int new_size,
+                              ClearRecordedSlots clear_recorded_slots);
 
 #ifdef VERIFY_HEAP
   // This function checks that either
@@ -1797,14 +1802,21 @@ class Heap {
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
                                        int size_in_bytes);
 
-  // Initialize a filler object to keep the ability to iterate over the heap
-  // when introducing gaps within pages. If the memory after the object header
-  // of the filler should be cleared, pass in kClearFreedMemory. The default is
-  // kDontClearFreedMemory.
-  V8_EXPORT_PRIVATE HeapObject
-  CreateFillerObjectAt(Address addr, int size,
-                       ClearFreedMemoryMode clear_memory_mode =
-                           ClearFreedMemoryMode::kDontClearFreedMemory);
+  enum class VerifyNoSlotsRecorded { kYes, kNo };
+
+  // This method is used by the sweeper on free memory ranges to make the page
+  // iterable again. Unlike `CreateFillerObjectAt` this method will not verify
+  // slots since the sweeper can run concurrently. The sweeper can also
+  // optionally clear the object payload.
+  void CreateFillerObjectAtSweeper(Address addr, int size,
+                                   ClearFreedMemoryMode clear_memory_mode);
+
+  // Creates a filler object in the specificed memory area. This method is the
+  // internal method used by all CreateFillerObjectAtXXX-methods.
+  void CreateFillerObjectAtRaw(Address addr, int size,
+                               ClearFreedMemoryMode clear_memory_mode,
+                               ClearRecordedSlots clear_slots_mode,
+                               VerifyNoSlotsRecorded verify_no_slots_recorded);
 
   // Range write barrier implementation.
   template <int kModeMask, typename TSlot>

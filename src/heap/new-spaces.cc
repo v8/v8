@@ -90,8 +90,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       marking_state->ClearLiveness(current_page);
       current_page->SetFlags(first_page()->GetFlags());
       heap()->CreateFillerObjectAt(current_page->area_start(),
-                                   static_cast<int>(current_page->area_size()),
-                                   ClearRecordedSlots::kNo);
+                                   static_cast<int>(current_page->area_size()));
     }
     DCHECK_EQ(expected_pages, actual_pages);
   }
@@ -474,8 +473,7 @@ void NewSpaceBase::MakeLinearAllocationAreaIterable() {
   Page* page = Page::FromAddress(to_top - kTaggedSize);
   if (page->Contains(to_top)) {
     int remaining_in_page = static_cast<int>(page->area_end() - to_top);
-    heap_->CreateFillerObjectAt(to_top, remaining_in_page,
-                                ClearRecordedSlots::kNo);
+    heap_->CreateFillerObjectAt(to_top, remaining_in_page);
   }
 }
 
@@ -627,7 +625,7 @@ bool NewSpace::AddFreshPage() {
   // Clear remainder of current page.
   Address limit = Page::FromAllocationAreaAddress(top)->area_end();
   int remaining_in_page = static_cast<int>(limit - top);
-  heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
+  heap()->CreateFillerObjectAt(top, remaining_in_page);
 
   if (!to_space_.AdvancePage()) {
     // No more pages left to advance.

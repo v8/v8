@@ -433,5 +433,12 @@ void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint() {
   }
 }
 
+void LocalHeap::NotifyObjectSizeChange(
+    HeapObject object, int old_size, int new_size,
+    ClearRecordedSlots clear_recorded_slots) {
+  heap()->NotifyObjectSizeChange(object, old_size, new_size,
+                                 clear_recorded_slots);
+}
+
 }  // namespace internal
 }  // namespace v8

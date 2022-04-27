@@ -1802,7 +1802,7 @@ static HeapObject NewSpaceAllocateAligned(int size,
       heap->new_space()->AllocateRawAligned(size, alignment);
   HeapObject obj;
   allocation.To(&obj);
-  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size);
   return obj;
 }
 
@@ -1870,7 +1870,7 @@ static HeapObject OldSpaceAllocateAligned(int size,
       heap->old_space()->AllocateRawAligned(size, alignment);
   HeapObject obj;
   allocation.To(&obj);
-  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size);
   return obj;
 }
 
@@ -1901,8 +1901,7 @@ TEST(TestAlignedOverAllocation) {
   // Allocate a dummy object to properly set up the linear allocation info.
   AllocationResult dummy = heap->old_space()->AllocateRawUnaligned(kTaggedSize);
   CHECK(!dummy.IsFailure());
-  heap->CreateFillerObjectAt(dummy.ToObjectChecked().address(), kTaggedSize,
-                             ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(dummy.ToObjectChecked().address(), kTaggedSize);
 
   // Double misalignment is 4 on 32-bit platforms or when pointer compression
   // is enabled, 0 on 64-bit ones when pointer compression is disabled.
@@ -3732,8 +3731,7 @@ TEST(Regress169928) {
   CHECK(allocation.To(&obj));
   Address addr_obj = obj.address();
   CcTest::heap()->CreateFillerObjectAt(addr_obj,
-                                       AllocationMemento::kSize + kTaggedSize,
-                                       ClearRecordedSlots::kNo);
+                                       AllocationMemento::kSize + kTaggedSize);
 
   // Give the array a name, making sure not to allocate strings.
   v8::Local<v8::Object> array_obj = v8::Utils::ToLocal(array);
@@ -7167,8 +7165,7 @@ HEAP_TEST(CodeLargeObjectSpace) {
     CHECK(allocation.To(&obj));
     CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
 
-    heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
-                               ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
   }
 
   CHECK(Heap::IsLargeObject(obj));
@@ -7202,8 +7199,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
       CHECK(allocation.To(&obj));
       CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
 
-      heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
-                                 ClearRecordedSlots::kNo);
+      heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
     }
 
     CHECK(!Heap::IsLargeObject(obj));
@@ -7225,8 +7221,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
       CHECK(allocation.To(&obj));
       CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
 
-      heap->CreateFillerObjectAt(obj.address(), size_in_bytes,
-                                 ClearRecordedSlots::kNo);
+      heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
     }
 
     CHECK(Heap::IsLargeObject(obj));

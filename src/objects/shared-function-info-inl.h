@@ -835,11 +835,9 @@ void SharedFunctionInfo::ClearPreparseData() {
                kReleaseStore);
 
   // Fill the remaining space with filler.
-  heap->CreateFillerObjectAt(
-      data.address() + UncompiledDataWithoutPreparseData::kSize,
-      UncompiledDataWithPreparseData::kSize -
-          UncompiledDataWithoutPreparseData::kSize,
-      ClearRecordedSlots::kYes);
+  heap->NotifyObjectSizeChange(data, UncompiledDataWithPreparseData::kSize,
+                               UncompiledDataWithoutPreparseData::kSize,
+                               ClearRecordedSlots::kYes);
 
   // Ensure that the clear was successful.
   DCHECK(HasUncompiledDataWithoutPreparseData());

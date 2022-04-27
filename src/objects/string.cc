@@ -348,12 +348,11 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   }
 
   ThinString thin = ThinString::cast(*this);
-  Address thin_end = thin.address() + ThinString::kSize;
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
     if (!Heap::IsLargeObject(thin)) {
-      isolate->heap()->CreateFillerObjectAt(
-          thin_end, size_delta,
+      isolate->heap()->NotifyObjectSizeChange(
+          thin, old_size, ThinString::kSize,
           has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
     } else {
       // We don't need special handling for the combination IsLargeObject &&
@@ -425,8 +424,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
   if (!isolate->heap()->IsLargeObject(*this)) {
-    isolate->heap()->CreateFillerObjectAt(
-        this->address() + new_size, size - new_size,
+    isolate->heap()->NotifyObjectSizeChange(
+        *this, size, new_size,
         has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
     // We don't need special handling for the combination IsLargeObject &&
@@ -509,8 +508,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     // Byte size of the external String object.
     int new_size = this->SizeFromMap(new_map);
 
-    isolate->heap()->CreateFillerObjectAt(
-        this->address() + new_size, size - new_size,
+    isolate->heap()->NotifyObjectSizeChange(
+        *this, size, new_size,
         has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
   } else {
     // We don't need special handling for the combination IsLargeObject &&
@@ -1753,18 +1752,18 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
     new_size = SeqTwoByteString::SizeFor(new_length);
   }
 
-  int delta = old_size - new_size;
-
+#if DEBUG
   Address start_of_string = string->address();
   DCHECK(IsAligned(start_of_string, kObjectAlignment));
   DCHECK(IsAligned(start_of_string + new_size, kObjectAlignment));
+#endif
 
   Heap* heap = Heap::FromWritableHeapObject(*string);
   if (!heap->IsLargeObject(*string)) {
     // Sizes are pointer size aligned, so that we can use filler objects
     // that are a multiple of pointer size.
-    heap->CreateFillerObjectAt(start_of_string + new_size, delta,
-                               ClearRecordedSlots::kNo);
+    heap->NotifyObjectSizeChange(*string, old_size, new_size,
+                                 ClearRecordedSlots::kNo);
   }
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
