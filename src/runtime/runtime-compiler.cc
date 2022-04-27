@@ -188,9 +188,12 @@ bool DeoptExitIsInsideOsrLoop(Isolate* isolate, JSFunction function,
   DCHECK(!deopt_exit_offset.IsNone());
   DCHECK(!osr_offset.IsNone());
 
-  interpreter::BytecodeArrayIterator it(
-      handle(function.shared().GetBytecodeArray(isolate), isolate),
-      osr_offset.ToInt());
+  Handle<BytecodeArray> bytecode_array(
+      function.shared().GetBytecodeArray(isolate), isolate);
+  DCHECK(interpreter::BytecodeArrayIterator::IsValidOffset(
+      bytecode_array, deopt_exit_offset.ToInt()));
+
+  interpreter::BytecodeArrayIterator it(bytecode_array, osr_offset.ToInt());
   DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
 
   for (; !it.done(); it.Advance()) {
@@ -240,7 +243,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // Make sure to materialize objects before causing any allocation.
   deoptimizer->MaterializeHeapObjects();
   const BytecodeOffset deopt_exit_offset =
-      deoptimizer->deopt_exit_bytecode_offset();
+      deoptimizer->bytecode_offset_in_outermost_frame();
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.

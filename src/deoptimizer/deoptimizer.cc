@@ -533,7 +533,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
     DCHECK_EQ(0, offset % kLazyDeoptExitSize);
     deopt_exit_index_ = eager_deopt_count + (offset / kLazyDeoptExitSize);
   }
-  deopt_exit_bytecode_offset_ = deopt_data.GetBytecodeOffset(deopt_exit_index_);
 }
 
 Code Deoptimizer::FindOptimizedCode() {
@@ -642,7 +641,8 @@ int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
 
 }  // namespace
 
-void Deoptimizer::TraceDeoptBegin(int optimization_id) {
+void Deoptimizer::TraceDeoptBegin(int optimization_id,
+                                  BytecodeOffset bytecode_offset) {
   DCHECK(tracing_enabled());
   FILE* file = trace_scope()->file();
   Deoptimizer::DeoptInfo info =
@@ -666,9 +666,8 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id) {
 #ifdef DEBUG
          info.node_id,
 #endif  // DEBUG
-         deopt_exit_bytecode_offset_.ToInt(), deopt_exit_index_,
-         fp_to_sp_delta_, caller_frame_top_,
-         PointerAuthentication::StripPAC(from_));
+         bytecode_offset.ToInt(), deopt_exit_index_, fp_to_sp_delta_,
+         caller_frame_top_, PointerAuthentication::StripPAC(from_));
   if (verbose_tracing_enabled() && deopt_kind_ != DeoptimizeKind::kLazy) {
     PrintF(file, "            ;;; deoptimize at ");
     OFStream outstr(file);
@@ -796,13 +795,15 @@ void Deoptimizer::DoComputeOutputFrames() {
   CHECK_GT(static_cast<uintptr_t>(caller_frame_top_),
            stack_guard->real_jslimit());
 
+  BytecodeOffset bytecode_offset =
+      input_data.GetBytecodeOffset(deopt_exit_index_);
   ByteArray translations = input_data.TranslationByteArray();
   unsigned translation_index =
       input_data.TranslationIndex(deopt_exit_index_).value();
 
   if (tracing_enabled()) {
     timer.Start();
-    TraceDeoptBegin(input_data.OptimizationId().value());
+    TraceDeoptBegin(input_data.OptimizationId().value(), bytecode_offset);
   }
 
   FILE* trace_file =
@@ -816,6 +817,9 @@ void Deoptimizer::DoComputeOutputFrames() {
                 .internal_formal_parameter_count_without_receiver()
           : 0,
       actual_argument_count_ - kJSArgcReceiverSlots);
+
+  bytecode_offset_in_outermost_frame_ =
+      translated_state_.frames()[0].bytecode_offset();
 
   // Do the input frame to output frame(s) translation.
   size_t count = translated_state_.frames().size();
