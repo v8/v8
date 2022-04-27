@@ -2281,6 +2281,50 @@ void Shell::SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 }
 
+void Shell::SerializerSerialize(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+
+  ValueSerializer serializer(isolate);
+  serializer.WriteHeader();
+  for (int i = 0; i < args.Length(); i++) {
+    bool ok;
+    if (!serializer.WriteValue(context, args[i]).To(&ok)) return;
+  }
+  Local<v8::ArrayBuffer> buffer;
+  {
+    std::pair<uint8_t*, size_t> pair = serializer.Release();
+    buffer = ArrayBuffer::New(isolate, pair.second);
+    memcpy(buffer->GetBackingStore()->Data(), pair.first, pair.second);
+    free(pair.first);
+  }
+  args.GetReturnValue().Set(buffer);
+}
+
+void Shell::SerializerDeserialize(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (!args[0]->IsArrayBuffer()) {
+    isolate->ThrowError("Can only deserialize from an ArrayBuffer");
+    return;
+  }
+  std::shared_ptr<BackingStore> backing_store =
+      args[0].As<ArrayBuffer>()->GetBackingStore();
+  ValueDeserializer deserializer(
+      isolate, static_cast<const uint8_t*>(backing_store->Data()),
+      backing_store->ByteLength());
+  bool ok;
+  if (!deserializer.ReadHeader(context).To(&ok)) return;
+  Local<Value> result;
+  if (!deserializer.ReadValue(context).ToLocal(&result)) return;
+  args.GetReturnValue().Set(result);
+}
+
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
@@ -3194,6 +3238,17 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         FunctionTemplate::New(isolate, SetPromiseHooks, Local<Value>(),
                               Local<Signature>(), 4));
     d8_template->Set(isolate, "promise", promise_template);
+  }
+  {
+    Local<ObjectTemplate> serializer_template = ObjectTemplate::New(isolate);
+    serializer_template->Set(
+        isolate, "serialize",
+        FunctionTemplate::New(isolate, SerializerSerialize));
+    serializer_template->Set(
+        isolate, "deserialize",
+        FunctionTemplate::New(isolate, SerializerDeserialize, Local<Value>(),
+                              Local<Signature>(), 1));
+    d8_template->Set(isolate, "serializer", serializer_template);
   }
   return d8_template;
 }

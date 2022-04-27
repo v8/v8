@@ -569,6 +569,11 @@ class Shell : public i::AllStatic {
 
   static void SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void SerializerSerialize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SerializerDeserialize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteStdout(const v8::FunctionCallbackInfo<v8::Value>& args);
