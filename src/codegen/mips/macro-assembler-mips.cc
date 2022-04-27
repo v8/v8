@@ -4333,6 +4333,22 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimizationAndJump(Register codet,
+                                                               Register scratch,
+                                                               Condition cond,
+                                                               Label* target) {
+  Lw(scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+  Lw(scratch,
+       FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(target, cond, scratch, Operand(zero_reg));
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     Label* done, InvokeType type) {

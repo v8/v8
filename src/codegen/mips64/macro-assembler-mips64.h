@@ -983,6 +983,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // less efficient form using xor instead of mov is emitted.
   void Swap(Register reg1, Register reg2, Register scratch = no_reg);
 
+  void TestCodeTIsMarkedForDeoptimizationAndJump(Register codet,
+                                                 Register scratch,
+                                                 Condition cond, Label* target);
+  Operand ClearedValue() const;
+
   void PushRoot(RootIndex index) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
