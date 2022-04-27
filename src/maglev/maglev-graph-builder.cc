@@ -607,8 +607,11 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
       break;
   }
 
-  // TODO(victorgomes): Generic store.
-  MAGLEV_UNIMPLEMENTED(VisitSetNamedProperty);
+  // Create a generic store in the fallthrough.
+  ValueNode* context = GetContext();
+  ValueNode* value = GetAccumulatorTagged();
+  SetAccumulator(AddNewNode<SetNamedGeneric>({context, object, value}, name,
+                                             feedback_source));
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(DefineNamedOwnProperty)

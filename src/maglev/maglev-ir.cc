@@ -621,6 +621,31 @@ void LoadNamedGeneric::PrintParams(std::ostream& os,
   os << "(" << name_ << ")";
 }
 
+void SetNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  using D = StoreWithVectorDescriptor;
+  UseFixed(context(), kContextRegister);
+  UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void SetNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  using D = StoreWithVectorDescriptor;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
+  __ Move(D::GetRegisterParameter(D::kName), name().object());
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          Smi::FromInt(feedback().slot.ToInt()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kStoreIC);
+}
+void SetNamedGeneric::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name_ << ")";
+}
+
 void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state,
                            const ProcessingState& state) {
   UNREACHABLE();
