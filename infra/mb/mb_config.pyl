@@ -67,7 +67,6 @@
       'V8 Linux64 - builder (reclient)': 'release_x64_reclient',
       'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
       'V8 Linux64 - debug builder': 'debug_x64',
-      'V8 Linux64 - dict tracking - debug - builder': 'debug_x64_dict_tracking_trybot',
       'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - heap sandbox - debug - builder': 'debug_x64_heap_sandbox',

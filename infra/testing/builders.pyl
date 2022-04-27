@@ -1231,15 +1231,6 @@
       },
     ],
   },
-  'V8 Linux64 - dict tracking - debug': {
-    'swarming_dimensions': {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 3},
-    ],
-  },
   'V8 Linux64 - disable runtime call stats': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
