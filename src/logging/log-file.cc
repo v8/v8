@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/logging/log-utils.h"
+#include "src/logging/log-file.h"
 
 #include <atomic>
 #include <memory>
@@ -22,17 +22,17 @@
 namespace v8 {
 namespace internal {
 
-const char* const Log::kLogToTemporaryFile = "+";
-const char* const Log::kLogToConsole = "-";
+const char* const LogFile::kLogToTemporaryFile = "+";
+const char* const LogFile::kLogToConsole = "-";
 
 // static
-FILE* Log::CreateOutputHandle(std::string file_name) {
+FILE* LogFile::CreateOutputHandle(std::string file_name) {
   // If we're logging anything, we need to open the log file.
   if (!FLAG_log) {
     return nullptr;
-  } else if (Log::IsLoggingToConsole(file_name)) {
+  } else if (LogFile::IsLoggingToConsole(file_name)) {
     return stdout;
-  } else if (Log::IsLoggingToTemporaryFile(file_name)) {
+  } else if (LogFile::IsLoggingToTemporaryFile(file_name)) {
     return base::OS::OpenTemporaryFile();
   } else {
     return base::OS::FOpen(file_name.c_str(), base::OS::LogFileOpenMode);
@@ -40,26 +40,26 @@ FILE* Log::CreateOutputHandle(std::string file_name) {
 }
 
 // static
-bool Log::IsLoggingToConsole(std::string file_name) {
-  return file_name.compare(Log::kLogToConsole) == 0;
+bool LogFile::IsLoggingToConsole(std::string file_name) {
+  return file_name.compare(LogFile::kLogToConsole) == 0;
 }
 
 // static
-bool Log::IsLoggingToTemporaryFile(std::string file_name) {
-  return file_name.compare(Log::kLogToTemporaryFile) == 0;
+bool LogFile::IsLoggingToTemporaryFile(std::string file_name) {
+  return file_name.compare(LogFile::kLogToTemporaryFile) == 0;
 }
 
-Log::Log(V8FileLogger* logger, std::string file_name)
+LogFile::LogFile(V8FileLogger* logger, std::string file_name)
     : logger_(logger),
       file_name_(file_name),
-      output_handle_(Log::CreateOutputHandle(file_name)),
+      output_handle_(LogFile::CreateOutputHandle(file_name)),
       os_(output_handle_ == nullptr ? stdout : output_handle_),
       format_buffer_(NewArray<char>(kMessageBufferSize)) {
   if (output_handle_) WriteLogHeader();
 }
 
-void Log::WriteLogHeader() {
-  Log::MessageBuilder msg(this);
+void LogFile::WriteLogHeader() {
+  LogFile::MessageBuilder msg(this);
   LogSeparator kNext = LogSeparator::kSeparator;
   msg << "v8-version" << kNext << Version::GetMajor() << kNext
       << Version::GetMinor() << kNext << Version::GetBuild() << kNext
@@ -73,12 +73,13 @@ void Log::WriteLogHeader() {
   msg.WriteToLogFile();
 }
 
-std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
+std::unique_ptr<LogFile::MessageBuilder> LogFile::NewMessageBuilder() {
   // Fast check of is_logging() without taking the lock. Bail out immediately if
   // logging isn't enabled.
   if (!logger_->is_logging()) return {};
 
-  std::unique_ptr<Log::MessageBuilder> result(new Log::MessageBuilder(this));
+  std::unique_ptr<LogFile::MessageBuilder> result(
+      new LogFile::MessageBuilder(this));
 
   // The first invocation of is_logging() might still read an old value. It is
   // fine if a background thread starts logging a bit later, but we want to
@@ -89,7 +90,7 @@ std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
   return result;
 }
 
-FILE* Log::Close() {
+FILE* LogFile::Close() {
   FILE* result = nullptr;
   if (output_handle_ != nullptr) {
     fflush(output_handle_);
@@ -100,14 +101,13 @@ FILE* Log::Close() {
   return result;
 }
 
-std::string Log::file_name() const { return file_name_; }
+std::string LogFile::file_name() const { return file_name_; }
 
-Log::MessageBuilder::MessageBuilder(Log* log)
-    : log_(log), lock_guard_(&log_->mutex_) {
-}
+LogFile::MessageBuilder::MessageBuilder(LogFile* log)
+    : log_(log), lock_guard_(&log_->mutex_) {}
 
-void Log::MessageBuilder::AppendString(String str,
-                                       base::Optional<int> length_limit) {
+void LogFile::MessageBuilder::AppendString(String str,
+                                           base::Optional<int> length_limit) {
   if (str.is_null()) return;
 
   DisallowGarbageCollection no_gc;  // Ensure string stays valid.
@@ -126,17 +126,17 @@ void Log::MessageBuilder::AppendString(String str,
   }
 }
 
-void Log::MessageBuilder::AppendString(base::Vector<const char> str) {
+void LogFile::MessageBuilder::AppendString(base::Vector<const char> str) {
   for (auto i = str.begin(); i < str.end(); i++) AppendCharacter(*i);
 }
 
-void Log::MessageBuilder::AppendString(const char* str) {
+void LogFile::MessageBuilder::AppendString(const char* str) {
   if (str == nullptr) return;
   AppendString(str, strlen(str));
 }
 
-void Log::MessageBuilder::AppendString(const char* str, size_t length,
-                                       bool is_one_byte) {
+void LogFile::MessageBuilder::AppendString(const char* str, size_t length,
+                                           bool is_one_byte) {
   if (str == nullptr) return;
   if (is_one_byte) {
     for (size_t i = 0; i < length; i++) {
@@ -151,7 +151,7 @@ void Log::MessageBuilder::AppendString(const char* str, size_t length,
   }
 }
 
-void Log::MessageBuilder::AppendFormatString(const char* format, ...) {
+void LogFile::MessageBuilder::AppendFormatString(const char* format, ...) {
   va_list args;
   va_start(args, format);
   const int length = FormatStringIntoBuffer(format, args);
@@ -162,7 +162,7 @@ void Log::MessageBuilder::AppendFormatString(const char* format, ...) {
   }
 }
 
-void Log::MessageBuilder::AppendTwoByteCharacter(char c1, char c2) {
+void LogFile::MessageBuilder::AppendTwoByteCharacter(char c1, char c2) {
   if (c2 == 0) {
     AppendCharacter(c1);
   } else {
@@ -170,7 +170,7 @@ void Log::MessageBuilder::AppendTwoByteCharacter(char c1, char c2) {
     AppendRawFormatString("\\u%02x%02x", c1 & 0xFF, c2 & 0xFF);
   }
 }
-void Log::MessageBuilder::AppendCharacter(char c) {
+void LogFile::MessageBuilder::AppendCharacter(char c) {
   if (c >= 32 && c <= 126) {
     if (c == ',') {
       // Escape commas to avoid adding column separators.
@@ -190,7 +190,7 @@ void Log::MessageBuilder::AppendCharacter(char c) {
   }
 }
 
-void Log::MessageBuilder::AppendSymbolName(Symbol symbol) {
+void LogFile::MessageBuilder::AppendSymbolName(Symbol symbol) {
   DCHECK(!symbol.is_null());
   OFStream& os = log_->os_;
   os << "symbol(";
@@ -202,8 +202,8 @@ void Log::MessageBuilder::AppendSymbolName(Symbol symbol) {
   os << "hash " << std::hex << symbol.hash() << std::dec << ")";
 }
 
-void Log::MessageBuilder::AppendSymbolNameDetails(String str,
-                                                  bool show_impl_info) {
+void LogFile::MessageBuilder::AppendSymbolNameDetails(String str,
+                                                      bool show_impl_info) {
   if (str.is_null()) return;
 
   DisallowGarbageCollection no_gc;  // Ensure string stays valid.
@@ -219,18 +219,19 @@ void Log::MessageBuilder::AppendSymbolNameDetails(String str,
   AppendString(str, limit);
 }
 
-int Log::MessageBuilder::FormatStringIntoBuffer(const char* format,
-                                                va_list args) {
-  base::Vector<char> buf(log_->format_buffer_.get(), Log::kMessageBufferSize);
+int LogFile::MessageBuilder::FormatStringIntoBuffer(const char* format,
+                                                    va_list args) {
+  base::Vector<char> buf(log_->format_buffer_.get(),
+                         LogFile::kMessageBufferSize);
   int length = base::VSNPrintF(buf, format, args);
   // |length| is -1 if output was truncated.
-  if (length == -1) length = Log::kMessageBufferSize;
-  DCHECK_LE(length, Log::kMessageBufferSize);
+  if (length == -1) length = LogFile::kMessageBufferSize;
+  DCHECK_LE(length, LogFile::kMessageBufferSize);
   DCHECK_GE(length, 0);
   return length;
 }
 
-void Log::MessageBuilder::AppendRawFormatString(const char* format, ...) {
+void LogFile::MessageBuilder::AppendRawFormatString(const char* format, ...) {
   va_list args;
   va_start(args, format);
   const int length = FormatStringIntoBuffer(format, args);
@@ -241,21 +242,20 @@ void Log::MessageBuilder::AppendRawFormatString(const char* format, ...) {
   }
 }
 
-void Log::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
+void LogFile::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
 
-void Log::MessageBuilder::WriteToLogFile() {
-  log_->os_ << std::endl;
-}
+void LogFile::MessageBuilder::WriteToLogFile() { log_->os_ << std::endl; }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<const char*>(
     const char* string) {
   this->AppendString(string);
   return *this;
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<void*>(void* pointer) {
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<void*>(
+    void* pointer) {
   OFStream& os = log_->os_;
   // Manually format the pointer since on Windows we do not consistently
   // get a "0x" prefix.
@@ -264,25 +264,27 @@ Log::MessageBuilder& Log::MessageBuilder::operator<<<void*>(void* pointer) {
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<char>(char c) {
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<char>(char c) {
   this->AppendCharacter(c);
   return *this;
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<String>(String string) {
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<String>(
+    String string) {
   this->AppendString(string);
   return *this;
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol>(Symbol symbol) {
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Symbol>(
+    Symbol symbol) {
   this->AppendSymbolName(symbol);
   return *this;
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<Name>(Name name) {
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Name>(Name name) {
   if (name.IsString()) {
     this->AppendString(String::cast(name));
   } else {
@@ -292,7 +294,7 @@ Log::MessageBuilder& Log::MessageBuilder::operator<<<Name>(Name name) {
 }
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<LogSeparator>(
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<LogSeparator>(
     LogSeparator separator) {
   // Skip escaping to create a new column.
   this->AppendRawCharacter(',');

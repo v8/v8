@@ -61,7 +61,7 @@ struct TickSample;
 class LogEventListener;
 class Isolate;
 class JitLogger;
-class Log;
+class LogFile;
 class LowLevelLogger;
 class LinuxPerfBasicLogger;
 class LinuxPerfJitLogger;
@@ -339,7 +339,7 @@ class V8FileLogger : public LogEventListener {
   friend class Profiler;
 
   std::atomic<bool> is_logging_;
-  std::unique_ptr<Log> log_;
+  std::unique_ptr<LogFile> log_;
 #if V8_OS_LINUX
   std::unique_ptr<LinuxPerfBasicLogger> perf_basic_logger_;
   std::unique_ptr<LinuxPerfJitLogger> perf_jit_logger_;

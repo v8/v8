@@ -37,7 +37,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/init/v8.h"
-#include "src/logging/log-utils.h"
+#include "src/logging/log-file.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
@@ -51,11 +51,11 @@ using v8::internal::V8FileLogger;
 
 namespace {
 
-#define SETUP_FLAGS()                            \
-  i::FLAG_log = true;                            \
-  i::FLAG_prof = true;                           \
-  i::FLAG_log_code = true;                       \
-  i::FLAG_logfile = i::Log::kLogToTemporaryFile; \
+#define SETUP_FLAGS()                                \
+  i::FLAG_log = true;                                \
+  i::FLAG_prof = true;                               \
+  i::FLAG_log_code = true;                           \
+  i::FLAG_logfile = i::LogFile::kLogToTemporaryFile; \
   i::FLAG_logfile_per_isolate = false
 
 static std::vector<std::string> Split(const std::string& s, char delimiter) {

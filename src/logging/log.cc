@@ -31,8 +31,8 @@
 #include "src/interpreter/interpreter.h"
 #include "src/libsampler/sampler.h"
 #include "src/logging/counters.h"
+#include "src/logging/log-file.h"
 #include "src/logging/log-inl.h"
-#include "src/logging/log-utils.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/code.h"
@@ -1062,10 +1062,11 @@ void Profiler::Run() {
 //
 // V8FileLogger class implementation.
 //
-#define MSG_BUILDER()                                                       \
-  std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder(); \
-  if (!msg_ptr) return;                                                     \
-  Log::MessageBuilder& msg = *msg_ptr.get();
+#define MSG_BUILDER()                                \
+  std::unique_ptr<LogFile::MessageBuilder> msg_ptr = \
+      log_->NewMessageBuilder();                     \
+  if (!msg_ptr) return;                              \
+  LogFile::MessageBuilder& msg = *msg_ptr.get();
 
 V8FileLogger::V8FileLogger(Isolate* isolate)
     : isolate_(isolate),
@@ -1205,7 +1206,7 @@ void V8FileLogger::DeleteEvent(const char* name, void* object) {
 
 namespace {
 
-void AppendCodeCreateHeader(Log::MessageBuilder& msg,
+void AppendCodeCreateHeader(LogFile::MessageBuilder& msg,
                             LogEventListener::LogEventsAndTags tag,
                             CodeKind kind, uint8_t* address, int size,
                             uint64_t time) {
@@ -1216,7 +1217,7 @@ void AppendCodeCreateHeader(Log::MessageBuilder& msg,
       << V8FileLogger::kNext << size << V8FileLogger::kNext;
 }
 
-void AppendCodeCreateHeader(Log::MessageBuilder& msg,
+void AppendCodeCreateHeader(LogFile::MessageBuilder& msg,
                             LogEventListener::LogEventsAndTags tag,
                             AbstractCode code, uint64_t time) {
   AppendCodeCreateHeader(msg, tag, code.kind(),
@@ -1618,7 +1619,7 @@ void V8FileLogger::MoveEventInternal(LogEventsAndTags event, Address from,
 }
 
 namespace {
-void AppendFunctionMessage(Log::MessageBuilder& msg, const char* reason,
+void AppendFunctionMessage(LogFile::MessageBuilder& msg, const char* reason,
                            int script_id, double time_delta, int start_position,
                            int end_position, uint64_t time) {
   msg << "function" << V8FileLogger::kNext << reason << V8FileLogger::kNext
@@ -1730,9 +1731,9 @@ bool V8FileLogger::EnsureLogScriptSource(Script script) {
   Object source_object = script.source();
   if (!source_object.IsString()) return false;
 
-  std::unique_ptr<Log::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
+  std::unique_ptr<LogFile::MessageBuilder> msg_ptr = log_->NewMessageBuilder();
   if (!msg_ptr) return false;
-  Log::MessageBuilder& msg = *msg_ptr.get();
+  LogFile::MessageBuilder& msg = *msg_ptr.get();
 
   String source_code = String::cast(source_object);
   msg << "script-source" << kNext << script_id << kNext;
@@ -2030,7 +2031,7 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
 
   std::ostringstream log_file_name;
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
-  log_ = std::make_unique<Log>(this, log_file_name.str());
+  log_ = std::make_unique<LogFile>(this, log_file_name.str());
 
 #if V8_OS_LINUX
   if (FLAG_perf_basic_prof) {

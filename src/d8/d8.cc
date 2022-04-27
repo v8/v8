@@ -54,7 +54,7 @@
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
-#include "src/logging/log-utils.h"
+#include "src/logging/log-file.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -2087,7 +2087,7 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope handle_scope(isolate);
 
   std::string file_name = i_isolate->logger()->file_name();
-  if (!i::Log::IsLoggingToTemporaryFile(file_name)) {
+  if (!i::LogFile::IsLoggingToTemporaryFile(file_name)) {
     isolate->ThrowError("Only capturing from temporary files is supported.");
     return;
   }

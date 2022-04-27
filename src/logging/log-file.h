@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LOGGING_LOG_UTILS_H_
-#define V8_LOGGING_LOG_UTILS_H_
+#ifndef V8_LOGGING_LOG_FILE_H_
+#define V8_LOGGING_LOG_FILE_H_
 
 #include <stdio.h>
 
@@ -33,9 +33,9 @@ class V8FileLogger;
 enum class LogSeparator { kSeparator };
 
 // Functions and data for performing output of log messages.
-class Log {
+class LogFile {
  public:
-  explicit Log(V8FileLogger* logger, std::string log_file_name);
+  explicit LogFile(V8FileLogger* logger, std::string log_file_name);
 
   V8_EXPORT_PRIVATE static bool IsLoggingToConsole(std::string file_name);
   V8_EXPORT_PRIVATE static bool IsLoggingToTemporaryFile(std::string file_name);
@@ -85,7 +85,7 @@ class Log {
    private:
     // Create a message builder starting from position 0.
     // This acquires the mutex in the log as well.
-    explicit MessageBuilder(Log* log);
+    explicit MessageBuilder(LogFile* log);
 
     // Prints the format string into |log_->format_buffer_|. Returns the length
     // of the result, or kMessageBufferSize if it was truncated.
@@ -97,15 +97,15 @@ class Log {
     void PRINTF_FORMAT(2, 3) AppendRawFormatString(const char* format, ...);
     void AppendRawCharacter(const char character);
 
-    Log* log_;
+    LogFile* log_;
     NoGarbageCollectionMutexGuard lock_guard_;
 
-    friend class Log;
+    friend class LogFile;
   };
 
-  // Use this method to create an instance of Log::MessageBuilder. This method
-  // will return null if logging is disabled.
-  std::unique_ptr<Log::MessageBuilder> NewMessageBuilder();
+  // Use this method to create an instance of LogFile::MessageBuilder. This
+  // method will return null if logging is disabled.
+  std::unique_ptr<LogFile::MessageBuilder> NewMessageBuilder();
 
  private:
   static FILE* CreateOutputHandle(std::string file_name);
@@ -135,23 +135,26 @@ class Log {
 };
 
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<LogSeparator>(
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<LogSeparator>(
     LogSeparator separator);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<void*>(void* pointer);
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<void*>(
+    void* pointer);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<const char*>(
     const char* string);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<char>(char c);
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<char>(char c);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<String>(String string);
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<String>(
+    String string);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol>(Symbol symbol);
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Symbol>(
+    Symbol symbol);
 template <>
-Log::MessageBuilder& Log::MessageBuilder::operator<<<Name>(Name name);
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Name>(Name name);
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_LOGGING_LOG_UTILS_H_
+#endif  // V8_LOGGING_LOG_FILE_H_
