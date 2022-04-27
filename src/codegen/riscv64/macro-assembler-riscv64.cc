@@ -4564,6 +4564,21 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label) {
   Branch(smi_label, eq, scratch, Operand(zero_reg));
 }
 
+void MacroAssembler::JumpIfCodeTIsMarkedForDeoptimization(
+    Register codet, Register scratch, Label* if_marked_for_deoptimization) {
+  LoadTaggedPointerField(
+      scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+  Lw(scratch,
+     FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(if_marked_for_deoptimization, ne, scratch, Operand(zero_reg));
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
