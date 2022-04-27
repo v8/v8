@@ -249,7 +249,7 @@ TEST(JumpTablePatchingStress) {
 
   STATIC_ASSERT(kAssemblerBufferSize >= kJumpTableSize);
   auto buffer = AllocateAssemblerBuffer(kAssemblerBufferSize, nullptr,
-                                        VirtualMemory::kMapAsJittable);
+                                        JitPermission::kMapAsJittable);
   byte* thunk_slot_buffer = buffer->start() + kBufferSlotStartOffset;
 
   std::bitset<kAvailableBufferSlots> used_thunk_slots;

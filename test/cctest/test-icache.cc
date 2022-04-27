@@ -185,7 +185,7 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
 
   for (int i = 0; i < kNumIterations; ++i) {
     auto buffer = AllocateAssemblerBuffer(kBufferSize, nullptr,
-                                          VirtualMemory::kMapAsJittable);
+                                          JitPermission::kMapAsJittable);
 
     // Allow calling the function from C++.
     auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer->start());

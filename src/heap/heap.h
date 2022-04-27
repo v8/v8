@@ -96,12 +96,14 @@ class MemoryChunk;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkCompactCollector;
+class NopRwxMemoryWriteScope;
 class ObjectIterator;
 class ObjectStats;
 class Page;
 class PagedSpace;
 class ReadOnlyHeap;
 class RootVisitor;
+class RwxMemoryWriteScope;
 class SafepointScope;
 class ScavengeJob;
 class Scavenger;
@@ -611,7 +613,15 @@ class Heap {
   // Dump heap statistics in JSON format.
   void DumpJSONHeapStatistics(std::stringstream& stream);
 
-  bool write_protect_code_memory() const { return write_protect_code_memory_; }
+  bool write_protect_code_memory() const {
+    if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
+      // On MacOs on ARM64 ("Apple M1"/Apple Silicon) code modification
+      // protection can be achieved by APRR/MAP_JIT machinery instead of
+      // changing memory protection flags.
+      return false;
+    }
+    return write_protect_code_memory_;
+  }
 
   uintptr_t code_space_memory_modification_scope_depth() {
     return code_space_memory_modification_scope_depth_;
@@ -2593,6 +2603,43 @@ class V8_NODISCARD CodePageCollectionMemoryModificationScope {
  private:
   Heap* heap_;
 };
+
+// The CodePageHeaderModificationScope enables write access to Code space page
+// headers.
+// On most of the configurations it's a no-op because Code space page headers
+// are configured as writable and permissions are never changed.
+// However, on MacOS on ARM64 ("Apple M1"/Apple Silicon) the situation is
+// different. In order to be able to use fast W^X permissions switching
+// machinery (APRR/MAP_JIT) it's necessary to configure executable memory as
+// readable writable executable (RWX). Also, on MacOS on ARM64 reconfiguration
+// of RWX page permissions to anything else is prohibited.
+// So, in order to be able to allocate large code pages over freed regular
+// code pages and vice versa we have to allocate Code page headers as RWX too
+// and switch them to writable mode when it's necessary to modify the code page
+// header.
+// The scope can be used from any thread and affects only current thread, see
+// RwxMemoryWriteScope for details about semantics of the scope.
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+using CodePageHeaderModificationScope = RwxMemoryWriteScope;
+#else
+// When write protection of code page headers is not required the scope is
+// a no-op.
+using CodePageHeaderModificationScope = NopRwxMemoryWriteScope;
+#endif  // V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+
+// The CodeTPageHeaderModificationScope enables write access to CodeT objects
+// page headers.
+#if V8_EXTERNAL_CODE_SPACE
+// When V8_EXTERNAL_CODE_SPACE is enabled this scope is no-op because CodeT
+// objects are data objects and thus the page header is always in writable
+// state.
+using CodeTPageHeaderModificationScope = NopRwxMemoryWriteScope;
+#else
+// When V8_EXTERNAL_CODE_SPACE is disabled this scope is an alias to
+// CodePageHeaderModificationScope because in CodeT is a Code object and thus
+// write access to the page headers might be required.
+using CodeTPageHeaderModificationScope = CodePageHeaderModificationScope;
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 // The CodePageMemoryModificationScope does not check if tansitions to
 // writeable and back to executable are actually allowed, i.e. the MemoryChunk

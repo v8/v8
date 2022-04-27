@@ -45,6 +45,7 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
     PageAllocator::Permission permission) {
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(permission == PageAllocator::kRead ||
          permission == PageAllocator::kReadExecute);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
@@ -81,6 +82,7 @@ void MemoryChunk::SetReadAndExecutable() {
 }
 
 void MemoryChunk::SetCodeModificationPermissions() {
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
   DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
@@ -162,7 +164,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
     if (heap->write_protect_code_memory()) {
       write_unprotect_counter_ =
           heap->code_space_memory_modification_scope_depth();
-    } else {
+    } else if (!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
       size_t page_size = MemoryAllocator::GetCommitPageSize();
       DCHECK(IsAligned(area_start_, page_size));
       size_t area_size = RoundUp(area_end_ - area_start_, page_size);

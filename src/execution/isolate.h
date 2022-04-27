@@ -1536,6 +1536,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool force_slow_path() const { return force_slow_path_; }
   bool* force_slow_path_address() { return &force_slow_path_; }
 
+  bool jitless() const { return jitless_; }
+
   DebugInfo::ExecutionMode* debug_execution_mode_address() {
     return &debug_execution_mode_;
   }

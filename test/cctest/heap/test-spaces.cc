@@ -170,14 +170,32 @@ TEST(MemoryChunk) {
     // With CodeRange.
     const size_t code_range_size = 32 * MB;
     VirtualMemory code_range_reservation(page_allocator, code_range_size,
-                                         nullptr, MemoryChunk::kAlignment);
+                                         nullptr, MemoryChunk::kAlignment,
+                                         JitPermission::kMapAsJittable);
+
+    base::PageFreeingMode page_freeing_mode =
+        base::PageFreeingMode::kMakeInaccessible;
+
+    // On MacOS on ARM64 the code range reservation must be committed as RWX.
+    if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
+      page_freeing_mode = base::PageFreeingMode::kDiscard;
+      void* base = reinterpret_cast<void*>(code_range_reservation.address());
+      CHECK(page_allocator->SetPermissions(base, code_range_size,
+                                           PageAllocator::kReadWriteExecute));
+      CHECK(page_allocator->DiscardSystemPages(base, code_range_size));
+    }
+
     CHECK(code_range_reservation.IsReserved());
 
     base::BoundedPageAllocator code_page_allocator(
         page_allocator, code_range_reservation.address(),
         code_range_reservation.size(), MemoryChunk::kAlignment,
         base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
-        base::PageFreeingMode::kMakeInaccessible);
+        page_freeing_mode);
+
+    RwxMemoryWriteScope rwx_write_scope(
+        "Modification of pages in code_range_reservation requires write "
+        "access");
 
     VerifyMemoryChunk(isolate, heap, &code_page_allocator, area_size,
                       EXECUTABLE, PageSize::kLarge, heap->code_lo_space());

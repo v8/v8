@@ -153,6 +153,46 @@ class Code;
 using CodeT = Code;
 #endif
 
+// V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT controls how V8 sets permissions for
+// executable pages.
+// In particular,
+// 1) when memory region is reserved for code range, the whole region is
+//    committed with RWX permissions and then the whole region is discarded,
+// 2) since reconfiguration of RWX page permissions is not allowed on MacOS on
+//    ARM64 ("Apple M1"/Apple Silicon), there must be no attempts to change
+//    them,
+// 3) the request to set RWX permissions in the execeutable page region just
+//    commits the pages without changing permissions (see (1), they were already
+//    allocated as RWX and then deommitted),
+// 4) in order to make executable pages inaccessible one must use
+//    OS::DiscardSystemPages() instead of using OS::DecommitPages() or setting
+//    permissions to kNoAccess because the latter two are not allowed by the
+//    MacOS (see (2)).
+// 5) since code space page headers are allocated as RWX pages it's also
+//   necessary to switch between W^X modes when updating the data in the
+//   page headers (i.e. when marking, updating stats, wiring pages in
+//   lists, etc.). The new CodePageHeaderModificationScope class is used
+//   in the respective places. On unrelated configurations it's a no-op.
+//
+// This is applicable only to MacOS on ARM64 ("Apple M1"/Apple Silicon) which
+// has a pthread_jit_write_protect machinery for fast W^X permission switching.
+//
+// This approach doesn't work and shouldn't be used for V8 configuration with
+// enabled pointer compression and disabled external code space because
+// a) the pointer compression cage has to be reserved with MAP_JIT flag which
+//    is too expensive,
+// b) in case of shared pointer compression cage if the code range will be
+//    deleted while the cage is still alive then attempt to configure
+//    permissions of pages that were previously set to RWX will fail.
+//
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT && \
+    !(defined(V8_COMPRESS_POINTERS) && !defined(V8_EXTERNAL_CODE_SPACE))
+// TODO(v8:12797): enable fast W^X permissions switching on Apple Silicon.
+#define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT false
+#else
+#define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT false
+#endif
+
 // Determine whether tagged pointers are 8 bytes (used in Torque layouts for
 // choosing where to insert padding).
 #if V8_TARGET_ARCH_64_BIT && !defined(V8_COMPRESS_POINTERS)
