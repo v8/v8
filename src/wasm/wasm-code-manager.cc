@@ -1999,7 +1999,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   // will have to determine whether we set kMapAsJittable or not.
   DCHECK(!FLAG_jitless);
   VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
-                    JitPermission::kMapAsJittable);
+                    VirtualMemory::kMapAsJittable);
   if (!mem.IsReserved()) return {};
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());

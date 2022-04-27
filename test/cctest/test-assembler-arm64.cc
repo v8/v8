@@ -123,7 +123,7 @@ static void InitializeVM() {
   HandleScope scope(isolate);                                                 \
   CHECK_NOT_NULL(isolate);                                                    \
   auto owned_buf =                                                            \
-      AllocateAssemblerBuffer(buf_size, nullptr, JitPermission::kNoJit);      \
+      AllocateAssemblerBuffer(buf_size, nullptr, VirtualMemory::kNoJit);      \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,        \
                       ExternalAssemblerBuffer(owned_buf->start(), buf_size)); \
   std::optional<AssemblerBufferWriteScope> rw_buffer_scope;                   \

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include <map>
-#include <optional>
 
 #include "src/base/region-allocator.h"
 #include "src/execution/isolate.h"
@@ -56,8 +55,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
       CHECK(region_allocator_.AllocateRegionAt(current_page, size));
       Address end = current_page + size;
       while (current_page < end) {
-        PageState state{access, access != kNoAccess};
-        page_permissions_.insert({current_page, state});
+        page_permissions_.insert({current_page, access});
         current_page += commit_page_size_;
       }
     }
@@ -101,32 +99,19 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
 
   bool RecommitPages(void* address, size_t size,
                      PageAllocator::Permission access) override {
-    bool result = page_allocator_->RecommitPages(address, size, access);
-    if (result) {
-      // Check that given range had given access permissions.
-      CheckPagePermissions(reinterpret_cast<Address>(address), size, access,
-                           {});
-      UpdatePagePermissions(reinterpret_cast<Address>(address), size, access,
-                            true);
-    }
-    return result;
+    UNREACHABLE();
   }
 
   bool DiscardSystemPages(void* address, size_t size) override {
-    bool result = page_allocator_->DiscardSystemPages(address, size);
-    if (result) {
-      UpdatePagePermissions(reinterpret_cast<Address>(address), size, {},
-                            false);
-    }
-    return result;
+    UNREACHABLE();
   }
 
   bool DecommitPages(void* address, size_t size) override {
     bool result = page_allocator_->DecommitPages(address, size);
     if (result) {
       // Mark pages as non-accessible.
-      UpdatePagePermissions(reinterpret_cast<Address>(address), size, kNoAccess,
-                            false);
+      UpdatePagePermissions(reinterpret_cast<Address>(address), size,
+                            kNoAccess);
     }
     return result;
   }
@@ -135,9 +120,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
                       PageAllocator::Permission access) override {
     bool result = page_allocator_->SetPermissions(address, size, access);
     if (result) {
-      bool committed = access != kNoAccess && access != kNoAccessWillJitLater;
-      UpdatePagePermissions(reinterpret_cast<Address>(address), size, access,
-                            committed);
+      UpdatePagePermissions(reinterpret_cast<Address>(address), size, access);
     }
     return result;
   }
@@ -152,15 +135,9 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   }
 
   void CheckPagePermissions(Address address, size_t size,
-                            PageAllocator::Permission access,
-                            std::optional<bool> committed = {true}) {
-    CHECK_IMPLIES(committed.has_value() && committed.value(),
-                  access != PageAllocator::kNoAccess);
+                            PageAllocator::Permission access) {
     ForEachPage(address, size, [=](PagePermissionsMap::value_type* value) {
-      if (committed.has_value()) {
-        EXPECT_EQ(committed.value(), value->second.committed);
-      }
-      EXPECT_EQ(access, value->second.access);
+      EXPECT_EQ(access, value->second);
     });
   }
 
@@ -183,40 +160,32 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
     Address contiguous_region_end = contiguous_region_start;
     PageAllocator::Permission contiguous_region_access =
         PageAllocator::kNoAccess;
-    bool contiguous_region_access_committed = false;
     for (auto& pair : page_permissions_) {
       if (contiguous_region_end == pair.first &&
-          pair.second.access == contiguous_region_access &&
-          pair.second.committed == contiguous_region_access_committed) {
+          pair.second == contiguous_region_access) {
         contiguous_region_end += commit_page_size_;
         continue;
       }
       if (contiguous_region_start != contiguous_region_end) {
         PrintRegion(os, contiguous_region_start, contiguous_region_end,
-                    contiguous_region_access,
-                    contiguous_region_access_committed);
+                    contiguous_region_access);
       }
       contiguous_region_start = pair.first;
       contiguous_region_end = pair.first + commit_page_size_;
-      contiguous_region_access = pair.second.access;
-      contiguous_region_access_committed = pair.second.committed;
+      contiguous_region_access = pair.second;
     }
     if (contiguous_region_start != contiguous_region_end) {
       PrintRegion(os, contiguous_region_start, contiguous_region_end,
-                  contiguous_region_access, contiguous_region_access_committed);
+                  contiguous_region_access);
     }
   }
 
  private:
-  struct PageState {
-    PageAllocator::Permission access;
-    bool committed;
-  };
-  using PagePermissionsMap = std::map<Address, PageState>;
+  using PagePermissionsMap = std::map<Address, PageAllocator::Permission>;
   using ForEachFn = std::function<void(PagePermissionsMap::value_type*)>;
 
   static void PrintRegion(std::ostream& os, Address start, Address end,
-                          PageAllocator::Permission access, bool committed) {
+                          PageAllocator::Permission access) {
     os << "  page: [" << start << ", " << end << "), access: ";
     switch (access) {
       case PageAllocator::kNoAccess:
@@ -236,7 +205,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
         os << "RX";
         break;
     }
-    os << ", committed: " << static_cast<int>(committed) << "\n";
+    os << "\n";
   }
 
   void ForEachPage(Address address, size_t size, const ForEachFn& fn) {
@@ -258,13 +227,9 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   }
 
   void UpdatePagePermissions(Address address, size_t size,
-                             std::optional<PageAllocator::Permission> access,
-                             bool committed) {
+                             PageAllocator::Permission access) {
     ForEachPage(address, size, [=](PagePermissionsMap::value_type* value) {
-      if (access.has_value()) {
-        value->second.access = access.value();
-      }
-      value->second.committed = committed;
+      value->second = access;
     });
   }
 
@@ -392,15 +357,15 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
   tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
                                                   PageAllocator::kReadWrite);
   unmapper()->FreeQueuedChunks();
-  tracking_page_allocator()->CheckPagePermissions(
-      page->address(), page_size, PageAllocator::kNoAccess, false);
+  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
+                                                  PageAllocator::kNoAccess);
   unmapper()->TearDown();
 #ifdef V8_COMPRESS_POINTERS
   // In this mode Isolate uses bounded page allocator which allocates pages
   // inside prereserved region. Thus these pages are kept reserved until
   // the Isolate dies.
-  tracking_page_allocator()->CheckPagePermissions(
-      page->address(), page_size, PageAllocator::kNoAccess, false);
+  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
+                                                  PageAllocator::kNoAccess);
 #else
   tracking_page_allocator()->CheckIsFree(page->address(), page_size);
 #endif  // V8_COMPRESS_POINTERS
@@ -426,8 +391,8 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   // In this mode Isolate uses bounded page allocator which allocates pages
   // inside prereserved region. Thus these pages are kept reserved until
   // the Isolate dies.
-  tracking_page_allocator()->CheckPagePermissions(
-      page->address(), page_size, PageAllocator::kNoAccess, false);
+  tracking_page_allocator()->CheckPagePermissions(page->address(), page_size,
+                                                  PageAllocator::kNoAccess);
 #else
   tracking_page_allocator()->CheckIsFree(page->address(), page_size);
 #endif  // V8_COMPRESS_POINTERS

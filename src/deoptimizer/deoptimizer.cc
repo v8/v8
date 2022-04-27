@@ -343,9 +343,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
     if (code.marked_for_deoptimization()) {
       codes.insert(code);
 
-      CodeTPageHeaderModificationScope rwx_write_scope(
-          "Storing a CodeT object triggers marking barrier which requires "
-          "write access to the CodeT page header");
       if (!prev.is_null()) {
         // Skip this code in the optimized code list.
         prev.set_next_code_link(next);

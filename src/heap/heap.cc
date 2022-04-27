@@ -2837,7 +2837,6 @@ void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
 
 void Heap::UnprotectAndRegisterMemoryChunk(HeapObject object,
                                            UnprotectMemoryOrigin origin) {
-  if (!write_protect_code_memory()) return;
   UnprotectAndRegisterMemoryChunk(MemoryChunk::FromHeapObject(object), origin);
 }
 
@@ -6204,14 +6203,9 @@ void Heap::TearDown() {
   shared_map_space_ = nullptr;
   shared_map_allocator_.reset();
 
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Deletion of CODE_SPACE and CODE_LO_SPACE requires write access to "
-        "Code page headers");
-    for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
-      delete space_[i];
-      space_[i] = nullptr;
-    }
+  for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
+    delete space_[i];
+    space_[i] = nullptr;
   }
 
   isolate()->read_only_heap()->OnHeapTearDown(this);

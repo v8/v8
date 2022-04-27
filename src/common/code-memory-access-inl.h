@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-RwxMemoryWriteScope::RwxMemoryWriteScope(const char* comment) { SetWritable(); }
+RwxMemoryWriteScope::RwxMemoryWriteScope() { SetWritable(); }
 
 RwxMemoryWriteScope::~RwxMemoryWriteScope() { SetExecutable(); }
 

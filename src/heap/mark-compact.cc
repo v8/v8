@@ -704,12 +704,7 @@ void MarkCompactCollector::EnsureSweepingCompleted(
 
     sweeper()->EnsureCompleted();
     heap()->old_space()->RefillFreeList();
-    {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Updating per-page stats stored in page headers requires write "
-          "access to Code page headers");
-      heap()->code_space()->RefillFreeList();
-    }
+    heap()->code_space()->RefillFreeList();
     if (heap()->map_space()) {
       heap()->map_space()->RefillFreeList();
       heap()->map_space()->SortFreeList();
@@ -829,9 +824,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   using LiveBytesPagePair = std::pair<size_t, Page*>;
   std::vector<LiveBytesPagePair> pages;
   pages.reserve(number_of_pages);
-
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Modification of Code page header flags requires write access");
 
   DCHECK(!sweeping_in_progress());
   Page* owner_of_linear_allocation_area =
@@ -2231,8 +2223,6 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   bool is_per_context_mode = local_marking_worklists()->IsPerContextMode();
   Isolate* isolate = heap()->isolate();
   PtrComprCageBase cage_base(isolate);
-  CodePageHeaderModificationScope rwx_write_scope(
-      "Marking of Code objects require write access to Code page headers");
   while (local_marking_worklists()->Pop(&object) ||
          local_marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
@@ -3841,9 +3831,6 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           marking_state->live_bytes(chunk));
       break;
     case kObjectsOldToOld: {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Clearing of markbits in Code spaces requires write access to "
-          "Code page headers");
       const bool success = LiveObjectVisitor::VisitBlackObjects(
           chunk, marking_state, &old_space_visitor_,
           LiveObjectVisitor::kClearMarkbits, &failed_object);
