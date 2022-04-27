@@ -39,6 +39,12 @@
   'proposals/memory64/limits': [SKIP],
 }], # ALWAYS
 
+['system == android', {
+  # Slow, and we always have the same limits anyway.
+  # Android bots don't have enough memory to run the test.
+  'limits': [SKIP],
+}],  # 'system == android'
+
 ['arch == s390 or arch == s390x or system == aix', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8402
   'instance/constructor': [SKIP],
