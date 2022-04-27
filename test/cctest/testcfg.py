@@ -56,10 +56,20 @@ class TestLoader(testsuite.TestLoader):
       print(output.stderr)
       return []
 
-    filtered_output = [
-        test for test in output.stdout.strip().split()
-        if test.startswith('test-')
-    ]
+    filtered_output = []
+    test_prefix = '**>Test: '
+    test_total_prefix = 'Total number of tests: '
+    tests_total = 0
+
+    for line in output.stdout.strip().splitlines():
+      if line.startswith(test_prefix):
+        filtered_output.append(line[len(test_prefix):])
+      if line.startswith(test_total_prefix):
+        tests_total = int(line[len(test_total_prefix):])
+
+    assert (len(filtered_output) > 0)
+    assert (len(filtered_output) == tests_total)
+
     return sorted(filtered_output)
 
 
