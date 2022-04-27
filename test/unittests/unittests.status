@@ -141,4 +141,10 @@
   'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
 }], # third_party_heap
 
+##############################################################################
+['byteorder == big', {
+  # Peephole optimization not supported on big-endian machines.
+  'RegExpTest.Peephole*': [SKIP],
+}],  # 'byteorder == big'
+
 ]
