@@ -235,7 +235,6 @@ v8_source_set("cctest_sources") {
     "test-log.cc",
     "test-managed.cc",
     "test-mementos.cc",
-    "test-modules.cc",
     "test-object.cc",
     "test-orderedhashtable.cc",
     "test-parsing.cc",

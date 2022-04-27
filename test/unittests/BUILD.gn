@@ -384,6 +384,7 @@ v8_source_set("unittests_sources") {
     "objects/concurrent-script-context-table-unittest.cc",
     "objects/concurrent-string-unittest.cc",
     "objects/concurrent-transition-array-unittest.cc",
+    "objects/modules-unittest.cc",
     "objects/object-unittest.cc",
     "objects/swiss-hash-table-helpers-unittest.cc",
     "objects/value-serializer-unittest.cc",
