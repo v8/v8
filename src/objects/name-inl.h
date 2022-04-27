@@ -133,13 +133,14 @@ void Name::set_raw_hash_field_if_empty(uint32_t hash) {
       reinterpret_cast<uint32_t*>(FIELD_ADDR(*this, kRawHashFieldOffset)),
       kEmptyHashField, hash);
   USE(result);
-  // CAS can only fail if the string is shared and the hash was already set
-  // (by another thread) or it is a forwarding index (that overwrites the
-  // previous hash).
-  // In all cases we don't want to overwrite the old value, so we don't handle
-  // the failure case.
+  // CAS can only fail if the string is shared or we use the forwarding table
+  // for all strings and the hash was already set (by another thread) or it is
+  // a forwarding index (that overwrites the previous hash).
+  // In all cases we don't want overwrite the old value, so we don't handle the
+  // failure case.
   DCHECK_IMPLIES(result != kEmptyHashField,
-                 String::cast(*this).IsShared() &&
+                 (String::cast(*this).IsShared() ||
+                  FLAG_always_use_string_forwarding_table) &&
                      (result == hash || IsForwardingIndex(hash)));
 }
 

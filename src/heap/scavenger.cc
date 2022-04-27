@@ -398,6 +398,10 @@ void ScavengerCollector::CollectGarbage() {
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->UpdateRetainersAfterScavenge();
     }
+
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table)) {
+      isolate_->string_forwarding_table()->UpdateAfterScavenge();
+    }
   }
 
   if (FLAG_concurrent_marking) {

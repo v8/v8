@@ -746,6 +746,9 @@ DEFINE_BOOL(trace_baseline_concurrent_compilation, false,
 // Internalize into a shared string table in the shared isolate
 DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
 DEFINE_IMPLICATION(harmony_struct, shared_string_table)
+DEFINE_BOOL(
+    always_use_string_forwarding_table, false,
+    "use string forwarding table instead of thin strings for all strings")
 
 #if !defined(V8_OS_DARWIN) || !defined(V8_HOST_ARCH_ARM64)
 DEFINE_BOOL(write_code_using_rwx, true,

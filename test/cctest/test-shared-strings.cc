@@ -571,7 +571,7 @@ UNINITIALIZED_TEST(StringShare) {
     CheckSharedStringIsEqualCopy(shared_two_byte, young_two_byte_seq);
   }
 
-  {
+  if (!FLAG_always_use_string_forwarding_table) {
     // Thin strings
     Handle<String> one_byte_seq1 =
         factory->NewStringFromAsciiChecked(raw_one_byte);

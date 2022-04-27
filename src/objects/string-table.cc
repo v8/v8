@@ -433,7 +433,8 @@ namespace {
 void SetInternalizedReference(Isolate* isolate, String string,
                               String internalized) {
   // TODO(v8:12007): Support external strings.
-  if (string.IsShared() && !string.IsExternalString()) {
+  if ((string.IsShared() || FLAG_always_use_string_forwarding_table) &&
+      !string.IsExternalString()) {
     uint32_t field = string.raw_hash_field();
     // Don't use the forwarding table for strings that have an integer index.
     // Using the hash field for the integer index is more beneficial than
@@ -853,6 +854,8 @@ class StringForwardingTable::Block {
       std::function<bool(HeapObject object)> is_dead,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           record_thin_slot);
+  void UpdateAfterScavenge(Isolate* isolate);
+  void UpdateAfterScavenge(Isolate* isolate, int up_to_index);
 
  private:
   static constexpr int kRecordSize = 2;
@@ -919,29 +922,63 @@ void StringForwardingTable::Block::TransitionStringIfAlive(
     Isolate* isolate, int index, std::function<bool(HeapObject object)> is_dead,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         record_thin_slot) {
-  String original = String::cast(Get(isolate, IndexOfOriginalString(index)));
-  if (is_dead(original)) return;
+  Object original = Get(isolate, IndexOfOriginalString(index));
+  if (!original.IsHeapObject()) {
+    // Only if we always use the forwarding table, the string could be a smi,
+    // indicating that the entry died during scavenge.
+    DCHECK(FLAG_always_use_string_forwarding_table);
+    DCHECK_EQ(original, deleted_element());
+    return;
+  }
+  if (is_dead(HeapObject::cast(original))) return;
+  String original_string = String::cast(original);
 
   // Check if the string was already transitioned. This happens if we have
   // multiple entries for the same string in the table.
-  if (original.IsThinString()) return;
+  if (original_string.IsThinString()) return;
 
   String forward = String::cast(Get(isolate, IndexOfForwardString(index)));
   if (is_dead(forward)) {
     // TODO(v8:12007): We should mark the internalized strings if the original
     // is alive to keep them alive in the StringTable.
-    original.set_raw_hash_field(String::kEmptyHashField);
+    original_string.set_raw_hash_field(String::kEmptyHashField);
     return;
   }
   // Transition the original string to a ThinString and override the forwarding
   // index with the correct hash.
-  original.MakeThin(isolate, forward);
-  original.set_raw_hash_field(forward.raw_hash_field());
+  original_string.MakeThin(isolate, forward);
+  original_string.set_raw_hash_field(forward.raw_hash_field());
   // Record the slot in the old-to-old remembered set. This is required as the
   // internalized string could be relocated during compaction.
   ObjectSlot slot =
-      ThinString::cast(original).RawField(ThinString::kActualOffset);
-  record_thin_slot(original, slot, forward);
+      ThinString::cast(original_string).RawField(ThinString::kActualOffset);
+  record_thin_slot(original_string, slot, forward);
+}
+
+void StringForwardingTable::Block::UpdateAfterScavenge(Isolate* isolate) {
+  UpdateAfterScavenge(isolate, capacity_);
+}
+
+void StringForwardingTable::Block::UpdateAfterScavenge(Isolate* isolate,
+                                                       int up_to_index) {
+  DCHECK(FLAG_always_use_string_forwarding_table);
+  for (int index = 0; index < up_to_index; ++index) {
+    Object original = Get(isolate, IndexOfOriginalString(index));
+    if (!original.IsHeapObject()) continue;
+    HeapObject object = HeapObject::cast(original);
+    if (Heap::InFromPage(object)) {
+      DCHECK(!object.InSharedWritableHeap());
+      MapWord map_word = object.map_word(kRelaxedLoad);
+      if (map_word.IsForwardingAddress()) {
+        HeapObject forwarded_object = map_word.ToForwardingAddress();
+        Set(IndexOfOriginalString(index), String::cast(forwarded_object));
+      } else {
+        Set(IndexOfOriginalString(index), deleted_element());
+      }
+    } else {
+      DCHECK(!object.map_word(kRelaxedLoad).IsForwardingAddress());
+    }
+  }
 }
 
 class StringForwardingTable::BlockVector {
@@ -1055,8 +1092,10 @@ StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
 
 int StringForwardingTable::Add(Isolate* isolate, String string,
                                String forward_to) {
-  DCHECK(string.InSharedHeap());
-  DCHECK(forward_to.InSharedHeap());
+  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
+                 string.InSharedHeap());
+  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
+                 forward_to.InSharedHeap());
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block = BlockForIndex(index, &index_in_block);
@@ -1121,6 +1160,23 @@ void StringForwardingTable::CleanUpDuringGC(
   block_vector_storage_.clear();
   InitializeBlockVector();
   next_free_index_ = 0;
+}
+
+void StringForwardingTable::UpdateAfterScavenge() {
+  DCHECK(FLAG_always_use_string_forwarding_table);
+
+  if (next_free_index_ == 0) return;  // Early exit if table is empty.
+
+  BlockVector* blocks = blocks_.load(std::memory_order_relaxed);
+  const unsigned int last_block = static_cast<unsigned int>(blocks->size() - 1);
+  for (unsigned int block = 0; block < last_block; ++block) {
+    Block* data = blocks->LoadBlock(block, kAcquireLoad);
+    data->UpdateAfterScavenge(isolate_);
+  }
+  // Handle last block separately, as it is not filled to capacity.
+  const int max_index = IndexInBlock(next_free_index_ - 1, last_block) + 1;
+  blocks->LoadBlock(last_block, kAcquireLoad)
+      ->UpdateAfterScavenge(isolate_, max_index);
 }
 
 }  // namespace internal

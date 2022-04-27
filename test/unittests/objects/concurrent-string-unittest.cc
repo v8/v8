@@ -235,6 +235,8 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
 TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // We will not create a thin string if single_generation is turned on.
   if (FLAG_single_generation) return;
+  // We don't create ThinStrings immediately when using the forwarding table.
+  if (FLAG_always_use_string_forwarding_table) return;
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
   auto factory = i_isolate()->factory();
@@ -295,6 +297,8 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
 TEST_F(ConcurrentStringTest, InspectOneIntoTwoByteExternalizing_ThinString) {
   // We will not create a thin string if single_generation is turned on.
   if (FLAG_single_generation) return;
+  // We don't create ThinStrings immediately when using the forwarding table.
+  if (FLAG_always_use_string_forwarding_table) return;
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
   auto factory = i_isolate()->factory();
@@ -355,6 +359,8 @@ TEST_F(ConcurrentStringTest, InspectOneIntoTwoByteExternalizing_ThinString) {
 TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
   // We will not create a thin string if single_generation is turned on.
   if (FLAG_single_generation) return;
+  // We don't create ThinStrings immediately when using the forwarding table.
+  if (FLAG_always_use_string_forwarding_table) return;
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
   auto factory = i_isolate()->factory();
