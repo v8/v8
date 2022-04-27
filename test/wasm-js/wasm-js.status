@@ -20,11 +20,9 @@
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
   'proposals/memory64/table/get-set': [FAIL],
-  'proposals/simd/table/get-set': [FAIL],
   'proposals/tail-call/table/get-set': [FAIL],
   'proposals/js-types/memory/constructor': [FAIL],
   'proposals/memory64/memory/constructor': [FAIL],
-  'proposals/simd/memory/constructor': [FAIL],
   'proposals/tail-call/memory/constructor': [FAIL],
   'proposals/js-types/interface': [FAIL],
   'proposals/memory64/interface': [FAIL],
@@ -38,7 +36,6 @@
 
   # These are slow, and not useful to run for the proposals:
   'proposals/js-types/limits': [SKIP],
-  'proposals/simd/limits': [SKIP],
   'proposals/memory64/limits': [SKIP],
 }], # ALWAYS
 
