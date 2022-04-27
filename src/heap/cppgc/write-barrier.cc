@@ -188,16 +188,13 @@ bool WriteBarrierTypeForNonCagedHeapPolicy::IsMarking(HeapHandle& heap_handle) {
 bool WriteBarrierTypeForCagedHeapPolicy::IsMarking(
     const HeapHandle& heap_handle, WriteBarrier::Params& params) {
   const auto& heap_base = internal::HeapBase::From(heap_handle);
-  if (const MarkerBase* marker = heap_base.marker()) {
-    return marker->IsMarking();
-  }
+  const bool is_marking = heap_base.marker() && heap_base.marker()->IsMarking();
   // Also set caged heap start here to avoid another call immediately after
   // checking IsMarking().
 #if defined(CPPGC_YOUNG_GENERATION)
-  params.start =
-      reinterpret_cast<uintptr_t>(&heap_base.caged_heap().local_data());
+  params.start = reinterpret_cast<uintptr_t>(heap_base.caged_heap().base());
 #endif  // !CPPGC_YOUNG_GENERATION
-  return false;
+  return is_marking;
 }
 
 #endif  // CPPGC_CAGED_HEAP
