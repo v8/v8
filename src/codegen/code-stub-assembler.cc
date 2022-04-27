@@ -6170,6 +6170,12 @@ void CodeStubAssembler::SetPendingMessage(TNode<HeapObject> message) {
   StoreFullTaggedNoWriteBarrier(pending_message, message);
 }
 
+TNode<BoolT> CodeStubAssembler::IsExecutionTerminating() {
+  TNode<HeapObject> pending_message = GetPendingMessage();
+  return TaggedEqual(pending_message,
+                     LoadRoot(RootIndex::kTerminationException));
+}
+
 TNode<BoolT> CodeStubAssembler::InstanceTypeEqual(TNode<Int32T> instance_type,
                                                   int type) {
   return Word32Equal(instance_type, Int32Constant(type));

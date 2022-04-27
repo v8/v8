@@ -2522,6 +2522,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<HeapObject> GetPendingMessage();
   void SetPendingMessage(TNode<HeapObject> message);
+  TNode<BoolT> IsExecutionTerminating();
 
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
