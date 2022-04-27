@@ -378,7 +378,7 @@ namespace internal {
   T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
   T(MaximumFractionDigitsNotEqualMinimumFractionDigits,                        \
-    "maximumFractionDigits not equal to  minimumFractionDigits")               \
+    "maximumFractionDigits not equal to minimumFractionDigits")                \
   T(NormalizationForm, "The normalization form should be one of %.")           \
   T(OutOfMemory, "%: Out of memory")                                           \
   T(ParameterOfFunctionOutOfRange,                                             \

@@ -369,12 +369,12 @@ inline double modulo(double a, int32_t b) { return a - std::floor(a / b) * b; }
 // (false)
 #endif  // DEBUG
 
-#define NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR()        \
+#define NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR()       \
   NewTypeError(                                     \
       MessageTemplate::kInvalidArgumentForTemporal, \
       isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
 
-#define NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR()        \
+#define NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR()       \
   NewRangeError(                                     \
       MessageTemplate::kInvalidTimeValueForTemporal, \
       isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
@@ -456,7 +456,7 @@ bool ISOYearMonthWithinLimits(int32_t year, int32_t month) {
       Handle<T>::cast(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
 
 #define THROW_INVALID_RANGE(T) \
-  THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), T);
+  THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), T);
 
 #define CONSTRUCTOR(name)                                                    \
   Handle<JSFunction>(                                                        \
@@ -801,7 +801,8 @@ Maybe<DateDurationRecord> DateDurationRecord::Create(
   // false, throw a RangeError exception.
   if (!IsValidDuration(isolate,
                        {years, months, weeks, {days, 0, 0, 0, 0, 0, 0}})) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DateDurationRecord>());
   }
   // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
@@ -820,7 +821,8 @@ Maybe<TimeDurationRecord> TimeDurationRecord::Create(
   TimeDurationRecord record = {days,         hours,        minutes,    seconds,
                                milliseconds, microseconds, nanoseconds};
   if (!IsValidDuration(isolate, {0, 0, 0, record})) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<TimeDurationRecord>());
   }
   // 2. Return the Record { [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
@@ -844,7 +846,8 @@ Maybe<DurationRecord> DurationRecord::Create(
       weeks,
       {days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds}};
   if (!IsValidDuration(isolate, record)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DurationRecord>());
   }
   // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
@@ -1301,7 +1304,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
     // c. Assert: disambiguation is "reject".
     DCHECK_EQ(disambiguation, Disambiguation::kReject);
     // d. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   // 5. Assert: n = 0.
@@ -1309,7 +1312,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   // 6. If disambiguation is "reject", then
   if (disambiguation == Disambiguation::kReject) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   // 7. Let epochNanoseconds be ! GetEpochFromISOParts(dateTime.[[ISOYear]],
@@ -1409,7 +1412,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
 
     // d. If possibleInstants is empty, throw a RangeError exception.
     if (possible_instants->length() == 0) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                       JSTemporalInstant);
     }
     // e. Return possibleInstants[0].
@@ -1459,7 +1462,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   n = possible_instants->length();
   // 19. If n = 0, throw a RangeError exception.
   if (n == 0) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   // 20. Return possibleInstants[n − 1].
@@ -1554,7 +1557,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFieldsOrPartial(
           (required == RequiredFields::kTimeZoneAndOffset &&
            String::Equals(isolate, property, factory->offset_string()))) {
         // 1. Throw a TypeError exception.
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                         JSObject);
       }
       // ii. Else,
@@ -1614,7 +1617,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFieldsOrPartial(
     // 5. If any is false, then
     if (!any) {
       // a. Throw a TypeError exception.
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(), JSObject);
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), JSObject);
     }
   }
   // 4. Return result.
@@ -1651,7 +1654,7 @@ MaybeHandle<T> FromFields(Isolate* isolate, Handle<JSReceiver> calendar,
       T);
   if ((!result->IsHeapObject()) ||
       HeapObject::cast(*result).map().instance_type() != type) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(), T);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), T);
   }
   return Handle<T>::cast(result);
 }
@@ -1993,8 +1996,8 @@ Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
   }
   // 3. If IsIntegralNumber(number) is false, throw a RangeError exception.
   if (!IsIntegralNumber(isolate, number)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<double>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
   }
   // 4. Return ℝ(number).
   return Just(number->Number());
@@ -2035,7 +2038,7 @@ Maybe<TimeRecord> RegulateTime(Isolate* isolate, const TimeRecord& time,
       // nanosecond) is false, throw a RangeError exception.
       if (!IsValidTime(isolate, time.time)) {
         THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                     NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                      Nothing<TimeRecord>());
       }
       // b. Return the new Record { [[Hour]]: hour, [[Minute]]: minute,
@@ -2122,7 +2125,7 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
                                JSTemporalPlainTime);
     if (!String::Equals(isolate, factory->iso8601_string(), identifier)) {
       // i. Throw a RangeError exception.
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                       JSTemporalPlainTime);
     }
     // f. Let result be ? ToTemporalTimeRecord(item).
@@ -2157,7 +2160,7 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
         !String::Equals(isolate, result.calendar,
                         isolate->factory()->iso8601_string())) {
       // i. Throw a RangeError exception.
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                       JSTemporalPlainTime);
     }
   }
@@ -2252,7 +2255,7 @@ Maybe<DurationRecord> ToTemporalDurationRecord(
   // 6. If any is false, then
   if (!any) {
     // a. Throw a TypeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                                  Nothing<DurationRecord>());
   }
   // 7. If ! IsValidDuration(result.[[Years]], result.[[Months]],
@@ -2261,7 +2264,8 @@ Maybe<DurationRecord> ToTemporalDurationRecord(
   // result.[[Nanoseconds]]) is false, then
   if (!IsValidDuration(isolate, record)) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DurationRecord>());
   }
   // 8. Return result.
@@ -2571,13 +2575,15 @@ Maybe<DateTimeRecord> ParseISODateTime(Isolate* isolate,
   // 16. If ! IsValidISODate(year, month, day) is false, throw a RangeError
   // exception.
   if (!IsValidISODate(isolate, result.date)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DateTimeRecord>());
   }
   // 17. If ! IsValidTime(hour, minute, second, millisecond, microsecond,
   // nanosecond) is false, throw a RangeError exception.
   if (!IsValidTime(isolate, result.time)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DateTimeRecord>());
   }
   // 18. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day,
@@ -2605,8 +2611,8 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
       TemporalParser::ParseTemporalDateString(isolate, iso_string);
   if (maybe_parsed.IsNothing()) {
     // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<DateRecord>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
   }
   MAYBE_RETURN(maybe_parsed, Nothing<DateRecord>());
 
@@ -2614,8 +2620,8 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
   // 3. If _isoString_ contains a |UTCDesignator|, then
   if (parsed.utc_designator) {
     // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<DateRecord>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
   }
   // 3. Let result be ? ParseISODateTime(isoString).
   Maybe<DateTimeRecord> maybe_result =
@@ -2643,15 +2649,15 @@ Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
   ParsedISO8601Result parsed;
   if (!maybe_parsed.To(&parsed)) {
     // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<TimeRecord>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<TimeRecord>());
   }
 
   // 3. If _isoString_ contains a |UTCDesignator|, then
   if (parsed.utc_designator) {
     // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<TimeRecord>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<TimeRecord>());
   }
 
   // 3. Let result be ? ParseISODateTime(isoString).
@@ -2678,7 +2684,8 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
   Maybe<ParsedISO8601Result> maybe_parsed =
       TemporalParser::ParseTemporalInstantString(isolate, iso_string);
   if (maybe_parsed.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<InstantRecord>());
   }
 
@@ -2747,7 +2754,7 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
       (BigInt::CompareToNumber(utc, factory->NewNumber(8.64e21)) ==
        ComparisonResult::kGreaterThan)) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), BigInt);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), BigInt);
   }
   // 7. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(offsetString).
   Maybe<int64_t> maybe_offset_nanoseconds =
@@ -2767,7 +2774,8 @@ Maybe<DurationRecord> CreateDurationRecord(Isolate* isolate,
   //   seconds, milliseconds, microseconds, nanoseconds) is false, throw a
   //   RangeError exception.
   if (!IsValidDuration(isolate, duration)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DurationRecord>());
   }
   // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
@@ -2812,7 +2820,8 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
   Maybe<ParsedISO8601Duration> maybe_parsed =
       TemporalParser::ParseTemporalDurationString(isolate, iso_string);
   if (maybe_parsed.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DurationRecord>());
   }
   ParsedISO8601Duration parsed = maybe_parsed.FromJust();
@@ -2836,7 +2845,7 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
         parsed.whole_seconds != ParsedISO8601Duration::kEmpty ||
         parsed.seconds_fraction != ParsedISO8601Duration::kEmpty) {
       THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                   NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                   NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                    Nothing<DurationRecord>());
     }
     // b. Let fHoursDigits be the substring of CodePointsToString(fHours)
@@ -2856,7 +2865,7 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
     if (parsed.whole_seconds != ParsedISO8601Duration::kEmpty ||
         parsed.seconds_fraction != ParsedISO8601Duration::kEmpty) {
       THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                   NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                   NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                    Nothing<DurationRecord>());
     }
     // b. Let fMinutesDigits be the substring of CodePointsToString(fMinutes)
@@ -2931,7 +2940,8 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
       TemporalParser::ParseTemporalTimeZoneString(isolate, iso_string);
   MAYBE_RETURN(maybe_parsed, Nothing<TimeZoneRecord>());
   if (maybe_parsed.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<TimeZoneRecord>());
   }
   ParsedISO8601Result parsed = maybe_parsed.FromJust();
@@ -3011,7 +3021,7 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
     // a. If ! IsValidTimeZoneName(name) is false, throw a RangeError exception.
     if (!IsValidTimeZoneName(isolate, name)) {
       THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                   NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                   NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                    Nothing<TimeZoneRecord>());
     }
     // b. Set name to ! CanonicalizeTimeZoneName(name).
@@ -3075,8 +3085,8 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
   MAYBE_RETURN(maybe_parsed, Nothing<int64_t>());
   if (throwIfNotSatisfy && maybe_parsed.IsNothing()) {
     /* a. Throw a RangeError exception. */
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<int64_t>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
   ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let sign, hours, minutes, seconds, and fraction be the parts of
@@ -3085,8 +3095,8 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
   // and TimeZoneUTCOffsetFraction productions, or undefined if not present.
   // 4. If either hours or sign are undefined, throw a RangeError exception.
   if (parsed.tzuo_hour_is_undefined() || parsed.tzuo_sign_is_undefined()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<int64_t>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
   // 5. If sign is the code unit 0x002D (HYPHEN-MINUS) or 0x2212 (MINUS SIGN),
   // then a. Set sign to −1.
@@ -3141,7 +3151,7 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
       TemporalParser::ParseTemporalCalendarString(isolate, iso_string);
   MAYBE_RETURN(maybe_parsed, Handle<String>());
   if (maybe_parsed.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), String);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), String);
   }
   ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let id be the part of isoString produced by the CalendarName production,
@@ -3227,7 +3237,7 @@ MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
       JSTemporalPlainDate);
   // 4. Perform ? RequireInternalSlot(addedDate, [[InitializedTemporalDate]]).
   if (!added_date->IsJSTemporalPlainDate()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                     JSTemporalPlainDate);
   }
   // 5. Return addedDate.
@@ -3265,7 +3275,7 @@ MaybeHandle<JSTemporalDuration> CalendarDateUntil(
   // 4. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
   if (!duration->IsJSTemporalDuration()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                     JSTemporalDuration);
   }
   // 5. Return duration.
@@ -3414,15 +3424,15 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
 
   // 4. If Type(offsetNanoseconds) is not Number, throw a TypeError exception.
   if (!offset_nanoseconds_obj->IsNumber()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                                  Nothing<int64_t>());
   }
 
   // 5. If ! IsIntegralNumber(offsetNanoseconds) is false, throw a RangeError
   // exception.
   if (!IsIntegralNumber(isolate, offset_nanoseconds_obj)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<int64_t>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
   double offset_nanoseconds = offset_nanoseconds_obj->Number();
 
@@ -3430,8 +3440,8 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
   int64_t offset_nanoseconds_int = static_cast<int64_t>(offset_nanoseconds);
   // 7. If abs(offsetNanoseconds) > 86400 × 10^9, throw a RangeError exception.
   if (std::abs(offset_nanoseconds_int) > 86400e9) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<int64_t>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
   // 8. Return offsetNanoseconds.
   return Just(offset_nanoseconds_int);
@@ -3448,7 +3458,7 @@ MaybeHandle<Object> ToPositiveInteger(Isolate* isolate,
   // 2. If integer ≤ 0, then
   if (NumberToInt32(*argument) <= 0) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Object);
   }
   return argument;
 }
@@ -3480,26 +3490,27 @@ MaybeHandle<Object> InvokeCalendarMethod(Isolate* isolate,
   return result;
 }
 
-#define CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Name, name, Action)             \
-  MaybeHandle<Object> Calendar##Name(Isolate* isolate,                         \
-                                     Handle<JSReceiver> calendar,              \
-                                     Handle<JSReceiver> date_like) {           \
-    /* 1. Assert: Type(calendar) is Object.   */                               \
-    /* 2. Let result be ? Invoke(calendar, property, « dateLike »). */       \
-    Handle<Object> result;                                                     \
-    ASSIGN_RETURN_ON_EXCEPTION(                                                \
-        isolate, result,                                                       \
-        InvokeCalendarMethod(isolate, calendar,                                \
-                             isolate->factory()->name##_string(), date_like),  \
-        Object);                                                               \
-    /* 3. If result is undefined, throw a RangeError exception. */             \
-    if (result->IsUndefined()) {                                               \
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object); \
-    }                                                                          \
-    /* 4. Return ? Action(result). */                                          \
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Action(isolate, result),       \
-                               Object);                                        \
-    return Handle<Smi>(Smi::FromInt(result->Number()), isolate);               \
+#define CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Name, name, Action)            \
+  MaybeHandle<Object> Calendar##Name(Isolate* isolate,                        \
+                                     Handle<JSReceiver> calendar,             \
+                                     Handle<JSReceiver> date_like) {          \
+    /* 1. Assert: Type(calendar) is Object.   */                              \
+    /* 2. Let result be ? Invoke(calendar, property, « dateLike »). */      \
+    Handle<Object> result;                                                    \
+    ASSIGN_RETURN_ON_EXCEPTION(                                               \
+        isolate, result,                                                      \
+        InvokeCalendarMethod(isolate, calendar,                               \
+                             isolate->factory()->name##_string(), date_like), \
+        Object);                                                              \
+    /* 3. If result is undefined, throw a RangeError exception. */            \
+    if (result->IsUndefined()) {                                              \
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),        \
+                      Object);                                                \
+    }                                                                         \
+    /* 4. Return ? Action(result). */                                         \
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Action(isolate, result),      \
+                               Object);                                       \
+    return Handle<Smi>(Smi::FromInt(result->Number()), isolate);              \
   }
 
 // #sec-temporal-calendaryear
@@ -3522,7 +3533,7 @@ MaybeHandle<Object> CalendarMonthCode(Isolate* isolate,
       Object);
   /* 3. If result is undefined, throw a RangeError exception. */
   if (result->IsUndefined()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Object);
   }
   // 4. Return ? ToString(result).
   return Object::ToString(isolate, result);
@@ -3739,7 +3750,7 @@ Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
   // 5. If _any_ is *false*, then
   if (!any) {
     // a. Throw a *TypeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                                  Nothing<TimeRecord>());
   }
   // 4. Return result.
@@ -3842,7 +3853,7 @@ MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
   // 2. If integer is +∞ or -∞, throw a RangeError exception.
   if (!std::isfinite(argument->Number())) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Object);
   }
   return argument;
 }
@@ -4718,7 +4729,7 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
   // 3. If ! IsValidEpochNanoseconds(result) is false, throw a RangeError
   // exception.
   if (!IsValidEpochNanoseconds(isolate, result)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), BigInt);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), BigInt);
   }
   // 4. Return result.
   return result;
@@ -5406,7 +5417,7 @@ Maybe<DateRecordCommon> RegulateISODate(Isolate* isolate, ShowOverflow overflow,
       // exception.
       if (!IsValidISODate(isolate, date)) {
         THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                     NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                      Nothing<DateRecordCommon>());
       }
       // b. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day
@@ -5450,7 +5461,7 @@ Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
     // a. If month is undefined, throw a TypeError exception.
     if (month_obj->IsUndefined(isolate)) {
       THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(), Nothing<int32_t>());
+          isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), Nothing<int32_t>());
     }
     // b. Return month.
     // Note: In Temporal spec, "month" in fields is always converted by
@@ -5543,7 +5554,7 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
       Nothing<DateRecordCommon>());
   // 5. If year is undefined, throw a TypeError exception.
   if (year_obj->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                                  Nothing<DateRecordCommon>());
   }
   // Note: "year" in fields is always converted by
@@ -5563,7 +5574,7 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
       Nothing<DateRecordCommon>());
   // 8. If day is undefined, throw a TypeError exception.
   if (day_obj->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                                  Nothing<DateRecordCommon>());
   }
   // Note: "day" in fields is always converted by
@@ -6890,7 +6901,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
   // RangeError exception.
   if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalZonedDateTime);
   }
 
@@ -7214,7 +7225,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
   // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
   // RangeError exception.
   if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   // 4. Return ? CreateTemporalInstant(epochNanoseconds, NewTarget).
@@ -7245,7 +7256,7 @@ MaybeHandle<JSTemporalInstant> ScaleNumberToNanosecondsVerifyAndMake(
   // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
   // RangeError exception.
   if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   return temporal::CreateTemporalInstant(isolate, epoch_nanoseconds);
