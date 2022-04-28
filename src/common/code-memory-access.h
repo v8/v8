@@ -32,7 +32,9 @@ class CodeSpaceWriteScope;
 // The scope is reentrant and thread safe.
 class V8_NODISCARD RwxMemoryWriteScope final {
  public:
-  V8_INLINE RwxMemoryWriteScope();
+  // The comment argument is used only for ensuring that explanation about why
+  // the scope is needed is given at particular use case.
+  V8_INLINE explicit RwxMemoryWriteScope(const char* comment);
   V8_INLINE ~RwxMemoryWriteScope();
 
   // Disable copy constructor and copy-assignment operator, since this manages
@@ -57,6 +59,16 @@ class V8_NODISCARD RwxMemoryWriteScope final {
   // This counter is used for supporting scope reentrance.
   static thread_local int code_space_write_nesting_level_;
 #endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+};
+
+// This class is a no-op version of the RwxMemoryWriteScope class above.
+// It's used as a target type for other scope type definitions when a no-op
+// semantics is required.
+class V8_NODISCARD NopRwxMemoryWriteScope final {
+ public:
+  V8_INLINE explicit NopRwxMemoryWriteScope(const char* comment) {
+    // Define a constructor to avoid unused variable warnings.
+  }
 };
 
 // Same as the RwxMemoryWriteScope but without inlining the code.

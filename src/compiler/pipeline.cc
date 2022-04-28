@@ -1260,6 +1260,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   compilation_info()->SetCode(code);
   Handle<NativeContext> context(compilation_info()->native_context(), isolate);
   if (CodeKindCanDeoptimize(code->kind())) {
+    CodeTPageHeaderModificationScope rwx_write_scope(
+        "Storing a CodeT object triggers marking barrier which requires "
+        "write access to the CodeT page header");
     context->AddOptimizedCode(ToCodeT(*code));
   }
   RegisterWeakObjectsInOptimizedCode(isolate, context, code);

@@ -45,6 +45,7 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
     PageAllocator::Permission permission) {
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(permission == PageAllocator::kRead ||
          permission == PageAllocator::kReadExecute);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
@@ -81,6 +82,7 @@ void MemoryChunk::SetReadAndExecutable() {
 }
 
 void MemoryChunk::SetCodeModificationPermissions() {
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
   DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
@@ -114,8 +116,12 @@ void MemoryChunk::SetDefaultCodePermissions() {
 namespace {
 
 PageAllocator::Permission DefaultWritableCodePermissions() {
-  return FLAG_jitless ? PageAllocator::kReadWrite
-                      : PageAllocator::kReadWriteExecute;
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
+  // On MacOS on ARM64 RWX permissions are allowed to be set only when
+  // fast W^X is enabled (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT).
+  return V8_HAS_PTHREAD_JIT_WRITE_PROTECT || FLAG_jitless
+             ? PageAllocator::kReadWrite
+             : PageAllocator::kReadWriteExecute;
 }
 
 }  // namespace
@@ -162,7 +168,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
     if (heap->write_protect_code_memory()) {
       write_unprotect_counter_ =
           heap->code_space_memory_modification_scope_depth();
-    } else {
+    } else if (!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
       size_t page_size = MemoryAllocator::GetCommitPageSize();
       DCHECK(IsAligned(area_start_, page_size));
       size_t area_size = RoundUp(area_end_ - area_start_, page_size);

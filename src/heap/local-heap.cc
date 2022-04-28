@@ -84,6 +84,9 @@ LocalHeap::~LocalHeap() {
     FreeLinearAllocationArea();
 
     if (!is_main_thread()) {
+      CodePageHeaderModificationScope rwx_write_scope(
+          "Publishing of marking barrier results for Code space pages requires "
+          "write access to Code page headers");
       marking_barrier_->Publish();
       WriteBarrier::ClearForThread(marking_barrier_.get());
     }

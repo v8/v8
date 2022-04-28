@@ -188,11 +188,13 @@ inline bool SetPermissions(v8::PageAllocator* page_allocator, Address address,
 // could be released, false otherwise.
 V8_EXPORT_PRIVATE bool OnCriticalMemoryPressure(size_t length);
 
+// Defines whether the address space reservation is going to be used for
+// allocating executable pages.
+enum class JitPermission { kNoJit, kMapAsJittable };
+
 // Represents and controls an area of reserved memory.
 class VirtualMemory final {
  public:
-  enum JitPermission { kNoJit, kMapAsJittable };
-
   // Empty VirtualMemory object, controlling no reserved memory.
   V8_EXPORT_PRIVATE VirtualMemory();
 
@@ -205,7 +207,7 @@ class VirtualMemory final {
   // This may not be at the position returned by address().
   V8_EXPORT_PRIVATE VirtualMemory(v8::PageAllocator* page_allocator,
                                   size_t size, void* hint, size_t alignment = 1,
-                                  JitPermission jit = kNoJit);
+                                  JitPermission jit = JitPermission::kNoJit);
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
@@ -388,6 +390,7 @@ class VirtualMemoryCage {
     size_t base_bias_size;
     size_t page_size;
     Address requested_start_hint;
+    JitPermission jit;
 
     static constexpr size_t kAnyBaseAlignment = 1;
   };

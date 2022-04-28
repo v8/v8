@@ -210,6 +210,9 @@ size_t PagedSpace::CommittedPhysicalMemory() const {
     DCHECK_EQ(0, committed_physical_memory());
     return CommittedMemory();
   }
+  CodePageHeaderModificationScope rwx_write_scope(
+      "Updating high water mark for Code pages requries write access to "
+      "the Code page headers");
   BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
   return committed_physical_memory();
 }
