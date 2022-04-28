@@ -2754,6 +2754,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      ElementsKind higher_reference_kind) {
     return IsInRange(target_kind, lower_reference_kind, higher_reference_kind);
   }
+  TNode<Int32T> GetNonRabGsabElementsKind(TNode<Int32T> elements_kind);
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
@@ -3728,8 +3729,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
       TNode<JSArrayBufferView> array_buffer_view);
 
-  void CheckJSTypedArrayIndex(TNode<UintPtrT> index,
-                              TNode<JSTypedArray> typed_array,
+  void CheckJSTypedArrayIndex(TNode<JSTypedArray> typed_array,
+                              TNode<UintPtrT> index,
                               Label* detached_or_out_of_bounds);
 
   TNode<IntPtrT> RabGsabElementsKindToElementByteSize(

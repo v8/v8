@@ -14311,7 +14311,7 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
 }
 
 void CodeStubAssembler::CheckJSTypedArrayIndex(
-    TNode<UintPtrT> index, TNode<JSTypedArray> typed_array,
+    TNode<JSTypedArray> typed_array, TNode<UintPtrT> index,
     Label* detached_or_out_of_bounds) {
   TNode<UintPtrT> len = LoadJSTypedArrayLengthAndCheckDetached(
       typed_array, detached_or_out_of_bounds);
@@ -14595,6 +14595,22 @@ TNode<BoolT> CodeStubAssembler::IsElementsKindGreaterThanOrEqual(
 TNode<BoolT> CodeStubAssembler::IsElementsKindLessThanOrEqual(
     TNode<Int32T> target_kind, ElementsKind reference_kind) {
   return Int32LessThanOrEqual(target_kind, Int32Constant(reference_kind));
+}
+
+TNode<Int32T> CodeStubAssembler::GetNonRabGsabElementsKind(
+    TNode<Int32T> elements_kind) {
+  Label is_rab_gsab(this), end(this);
+  TVARIABLE(Int32T, result);
+  result = elements_kind;
+  Branch(Int32GreaterThanOrEqual(elements_kind,
+                                 Int32Constant(RAB_GSAB_UINT8_ELEMENTS)),
+         &is_rab_gsab, &end);
+  BIND(&is_rab_gsab);
+  result = Int32Sub(elements_kind,
+                    Int32Constant(RAB_GSAB_UINT8_ELEMENTS - UINT8_ELEMENTS));
+  Goto(&end);
+  BIND(&end);
+  return result.value();
 }
 
 TNode<BoolT> CodeStubAssembler::IsDebugActive() {

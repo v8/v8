@@ -379,9 +379,12 @@ struct Xor {
   V(Uint32, uint32, UINT32, uint32_t) \
   V(Int32, int32, INT32, int32_t)
 
-#define THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name)      \
+#define THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(               \
+    isolate, sta, index, method_name)                                          \
   do {                                                                         \
-    if (V8_UNLIKELY(sta->WasDetached())) {                                     \
+    bool out_of_bounds = false;                                                \
+    auto length = sta->GetLengthOrOutOfBounds(out_of_bounds);                  \
+    if (V8_UNLIKELY(sta->WasDetached() || out_of_bounds || index >= length)) { \
       THROW_NEW_ERROR_RETURN_FAILURE(                                          \
           isolate, NewTypeError(MessageTemplate::kDetachedOperation,           \
                                 isolate->factory()->NewStringFromAsciiChecked( \
@@ -409,7 +412,8 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                        BigInt::FromObject(isolate, value_obj));
 
-    THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name);
+    THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(isolate, sta, index,
+                                                            method_name);
 
     CHECK_LT(index, sta->length());
     if (sta->type() == kExternalBigInt64Array) {
@@ -423,7 +427,8 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value_obj));
 
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, method_name);
+  THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(isolate, sta, index,
+                                                          method_name);
 
   CHECK_LT(index, sta->length());
 
@@ -453,7 +458,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
 
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
-  DCHECK(!sta->WasDetached());
+  DCHECK(!sta->IsDetachedOrOutOfBounds());
   CHECK_LT(index, sta->length());
   if (sta->type() == kExternalBigInt64Array) {
     return Load<int64_t>::Do(isolate, source, index);
@@ -476,11 +481,12 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, value_obj));
 
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta, "Atomics.store");
+  THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(isolate, sta, index,
+                                                          "Atomics.store");
 
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
   if (sta->type() == kExternalBigInt64Array) {
     Store<int64_t>::Do(isolate, source, index, bigint);
     return *bigint;
@@ -514,8 +520,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, new_bigint, BigInt::FromObject(isolate, new_value_obj));
 
-    THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta,
-                                           "Atomics.compareExchange");
+    THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(
+        isolate, sta, index, "Atomics.compareExchange");
 
     CHECK_LT(index, sta->length());
     if (sta->type() == kExternalBigInt64Array) {
@@ -534,8 +540,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_value,
                                      Object::ToInteger(isolate, new_value_obj));
 
-  THROW_ERROR_RETURN_FAILURE_ON_DETACHED(isolate, sta,
-                                         "Atomics.compareExchange");
+  THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(
+      isolate, sta, index, "Atomics.compareExchange");
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype)                  \
