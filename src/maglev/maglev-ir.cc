@@ -387,6 +387,19 @@ void SmiConstant::PrintParams(std::ostream& os,
   os << "(" << value() << ")";
 }
 
+void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  DefineAsRegister(vreg_state, this);
+}
+void Float64Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  __ Move(ToDoubleRegister(result()), value());
+}
+void Float64Constant::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
 void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
                             const ProcessingState& state) {
   DefineAsRegister(vreg_state, this);
@@ -852,6 +865,16 @@ void CheckedFloat64Unbox::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ Movsd(ToDoubleRegister(result()),
            FieldOperand(value, HeapNumber::kValueOffset));
   __ bind(&done);
+}
+
+void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                        const ProcessingState& state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void ChangeInt32ToFloat64::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                        const ProcessingState& state) {
+  __ Cvtlsi2sd(ToDoubleRegister(result()), ToRegister(input()));
 }
 
 void Float64Add::AllocateVreg(MaglevVregAllocationState* vreg_state,

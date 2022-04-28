@@ -369,9 +369,8 @@ class MergePointInterpreterFrameState {
       const MaglevCompilationUnit& info,
       const MergePointInterpreterFrameState& state);
 
-  ValueNode* TagValue(MaglevCompilationUnit& compilation_unit,
-                      ValueNode* value) {
-    // TODO(victorgomes): Support Float64.
+  ValueNode* FromInt32ToTagged(MaglevCompilationUnit& compilation_unit,
+                               ValueNode* value) {
     DCHECK_EQ(value->properties().value_representation(),
               ValueRepresentation::kInt32);
     if (value->Is<CheckedSmiUntag>()) {
@@ -396,16 +395,42 @@ class MergePointInterpreterFrameState {
     return tagged;
   }
 
+  ValueNode* FromFloat64ToTagged(MaglevCompilationUnit& compilation_unit,
+                                 ValueNode* value) {
+    DCHECK_EQ(value->properties().value_representation(),
+              ValueRepresentation::kFloat64);
+    if (value->Is<CheckedFloat64Unbox>()) {
+      return value->input(0).node();
+    }
+    if (value->Is<ChangeInt32ToFloat64>()) {
+      return FromInt32ToTagged(compilation_unit, value->input(0).node());
+    }
+    // Check if the next Node in the block after value is its Float64Box
+    // version and reuse it.
+    if (value->NextNode()) {
+      Float64Box* tagged = value->NextNode()->TryCast<Float64Box>();
+      if (tagged != nullptr && value == tagged->input().node()) {
+        return tagged;
+      }
+    }
+    // Otherwise create a tagged version.
+    ValueNode* tagged = Node::New<Float64Box>(compilation_unit.zone(), {value});
+    Node::List::AddAfter(value, tagged);
+    compilation_unit.RegisterNodeInGraphLabeller(tagged);
+    return tagged;
+  }
+
+  // TODO(victorgomes): Consider refactor this function to share code with
+  // MaglevGraphBuilder::GetTagged.
   ValueNode* EnsureTagged(MaglevCompilationUnit& compilation_unit,
                           ValueNode* value) {
     switch (value->properties().value_representation()) {
       case ValueRepresentation::kTagged:
         return value;
       case ValueRepresentation::kInt32:
-        return TagValue(compilation_unit, value);
+        return FromInt32ToTagged(compilation_unit, value);
       case ValueRepresentation::kFloat64:
-        // TOOD(victorgomes): Support Float64.
-        UNREACHABLE();
+        return FromFloat64ToTagged(compilation_unit, value);
     }
   }
 

@@ -124,7 +124,7 @@ class MaglevCodeGeneratingNodeProcessor {
         compiler::AllocatedOperand source =
             compiler::AllocatedOperand::cast(value_node->result().operand());
         // We shouldn't spill nodes which already output to the stack.
-        if (!source.IsStackSlot()) {
+        if (!source.IsAnyStackSlot()) {
           if (FLAG_code_comments) __ RecordComment("--   Spill:");
           if (source.IsRegister()) {
             __ movq(code_gen_state_->GetStackSlot(value_node->spill_slot()),
@@ -502,7 +502,7 @@ class MaglevCodeGeneratorImpl final {
         translation_array_builder_.StoreInt32StackSlot(stack_slot);
         break;
       case ValueRepresentation::kFloat64:
-        translation_array_builder_.StoreInt64StackSlot(stack_slot);
+        translation_array_builder_.StoreDoubleStackSlot(stack_slot);
         break;
     }
   }

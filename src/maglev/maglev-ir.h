@@ -82,6 +82,8 @@ class CompactInterpreterFrameState;
   V(CheckedSmiUntag)       \
   V(Int32AddWithOverflow)  \
   V(Int32Constant)         \
+  V(Float64Constant)       \
+  V(ChangeInt32ToFloat64)  \
   V(Float64Box)            \
   V(CheckedFloat64Unbox)   \
   V(Float64Add)            \
@@ -734,7 +736,7 @@ class ValueNode : public Node {
 
   bool is_spilled() const {
     DCHECK_EQ(state_, kSpillOrHint);
-    return spill_or_hint_.IsStackSlot();
+    return spill_or_hint_.IsAnyStackSlot();
   }
 
   void Spill(compiler::AllocatedOperand operand) {
@@ -747,6 +749,7 @@ class ValueNode : public Node {
 #endif  // DEBUG
     DCHECK(operand.IsAnyStackSlot());
     spill_or_hint_ = operand;
+    DCHECK(spill_or_hint_.IsAnyStackSlot());
   }
 
   compiler::AllocatedOperand spill_slot() const {
@@ -833,12 +836,6 @@ class ValueNode : public Node {
 
   compiler::AllocatedOperand allocation() const {
     if (has_register()) {
-      if (use_double_register()) {
-        return compiler::AllocatedOperand(
-            compiler::LocationOperand::REGISTER,
-            MachineRepresentation::kFloat64,
-            double_registers_with_result_.first().code());
-      }
       return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                         GetMachineRepresentation(),
                                         FirstRegisterCode());
@@ -1097,6 +1094,25 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   const int32_t value_;
 };
 
+class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
+  using Base = FixedInputValueNodeT<0, Float64Constant>;
+
+ public:
+  explicit Float64Constant(uint32_t bitfield, double value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Float64();
+
+  double value() const { return value_; }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const double value_;
+};
+
 class Int32AddWithOverflow
     : public FixedInputValueNodeT<2, Int32AddWithOverflow> {
   using Base = FixedInputValueNodeT<2, Int32AddWithOverflow>;
@@ -1124,6 +1140,22 @@ class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
   explicit Float64Box(uint32_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::Call();
+
+  Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ChangeInt32ToFloat64
+    : public FixedInputValueNodeT<1, ChangeInt32ToFloat64> {
+  using Base = FixedInputValueNodeT<1, ChangeInt32ToFloat64>;
+
+ public:
+  explicit ChangeInt32ToFloat64(uint32_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Float64();
 
   Input& input() { return Node::input(0); }
 

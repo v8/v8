@@ -63,6 +63,7 @@ class MaglevGraphVerifier {
       case Opcode::kConstant:
       case Opcode::kSmiConstant:
       case Opcode::kInt32Constant:
+      case Opcode::kFloat64Constant:
       case Opcode::kRootConstant:
       case Opcode::kInitialValue:
       case Opcode::kRegisterInput:
@@ -94,6 +95,7 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         break;
       case Opcode::kCheckedSmiTag:
+      case Opcode::kChangeInt32ToFloat64:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         break;

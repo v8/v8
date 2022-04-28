@@ -60,3 +60,29 @@
   assertEquals("4.2!", add(4.2, "!"));
   assertFalse(isMaglevved(add));
 })();
+
+// Emit FloatAdd through SmiAdd bytecode.
+(function() {
+  function inc(x) {
+    return x + 1
+  }
+
+  %PrepareFunctionForOptimization(inc);
+  assertEquals(4.2, inc(3.2));
+
+  %OptimizeMaglevOnNextCall(inc);
+  assertEquals(4.2, inc(3.2));
+})();
+
+// Force the input of FloatAdd to be int32.
+(function() {
+  function add(x, y, z) {
+    return (x + y) + z;
+  }
+
+  %PrepareFunctionForOptimization(add);
+  assertEquals(4.2, add(1, 3, 0.2));
+
+  %OptimizeMaglevOnNextCall(add);
+  assertEquals(4.2, add(1, 3, 0.2));
+})();

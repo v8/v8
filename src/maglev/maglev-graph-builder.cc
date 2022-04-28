@@ -268,18 +268,25 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
 }
 
 template <Operation kOperation>
+void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNode() {
+  // TODO(v8:7700): Do constant folding.
+  ValueNode* left = GetAccumulatorFloat64();
+  double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
+  ValueNode* right = AddNewNode<Float64Constant>({}, constant);
+  SetAccumulator(AddNewFloat64BinaryOperationNode<kOperation>({left, right}));
+}
+
+template <Operation kOperation>
 void MaglevGraphBuilder::BuildFloat64BinaryOperationNode() {
   // TODO(v8:7700): Do constant folding.
   ValueNode *left, *right;
   if (IsRegisterEqualToAccumulator(0)) {
-    left = right = AddNewNode<CheckedFloat64Unbox>({LoadRegisterTagged(0)});
+    left = right = LoadRegisterFloat64(0);
   } else {
-    left = AddNewNode<CheckedFloat64Unbox>({LoadRegisterTagged(0)});
-    right = AddNewNode<CheckedFloat64Unbox>({GetAccumulatorTagged()});
+    left = LoadRegisterFloat64(0);
+    right = GetAccumulatorFloat64();
   }
-  ValueNode* result =
-      AddNewFloat64BinaryOperationNode<kOperation>({left, right});
-  SetAccumulator(AddNewNode<Float64Box>({result}));
+  SetAccumulator(AddNewFloat64BinaryOperationNode<kOperation>({left, right}));
 }
 
 template <Operation kOperation>
@@ -314,6 +321,9 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
     switch (nexus.GetBinaryOperationFeedback()) {
       case BinaryOperationHint::kSignedSmall:
         BuildInt32BinarySmiOperationNode<kOperation>();
+        return;
+      case BinaryOperationHint::kNumber:
+        BuildFloat64BinarySmiOperationNode<kOperation>();
         return;
       default:
         // Fallback to generic node.
