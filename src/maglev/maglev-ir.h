@@ -516,33 +516,11 @@ class NodeBase : public ZoneObject {
     id_ = id;
   }
 
-  int num_temporaries_needed() const {
-#ifdef DEBUG
-    if (kTemporariesState == kUnset) {
-      DCHECK_EQ(num_temporaries_needed_, 0);
-    } else {
-      DCHECK_EQ(kTemporariesState, kNeedsTemporaries);
-    }
-#endif  // DEBUG
-    return num_temporaries_needed_;
-  }
+  int num_temporaries_needed() const { return num_temporaries_needed_; }
 
-  RegList temporaries() const {
-    DCHECK_EQ(kTemporariesState, kHasTemporaries);
-    return temporaries_;
-  }
+  RegList temporaries() const { return temporaries_; }
 
-  void assign_temporaries(RegList list) {
-#ifdef DEBUG
-    if (kTemporariesState == kUnset) {
-      DCHECK_EQ(num_temporaries_needed_, 0);
-    } else {
-      DCHECK_EQ(kTemporariesState, kNeedsTemporaries);
-    }
-    kTemporariesState = kHasTemporaries;
-#endif  // DEBUG
-    temporaries_ = list;
-  }
+  void assign_temporaries(RegList list) { temporaries_ = list; }
 
   void Print(std::ostream& os, MaglevGraphLabeller*) const;
 
@@ -604,13 +582,18 @@ class NodeBase : public ZoneObject {
     bit_field_ = InputCountField::update(bit_field_, input_count() - 1);
   }
 
+  // Specify that there need to be a certain number of registers free (i.e.
+  // useable as scratch registers) on entry into this node.
+  //
+  // Includes any registers requested by RequireSpecificTemporary.
   void set_temporaries_needed(int value) {
-#ifdef DEBUG
-    DCHECK_EQ(kTemporariesState, kUnset);
-    kTemporariesState = kNeedsTemporaries;
-#endif  // DEBUG
+    DCHECK_EQ(num_temporaries_needed_, 0);
     num_temporaries_needed_ = value;
   }
+
+  // Require that a specific register is free (and therefore clobberable) by the
+  // entry into this node.
+  void RequireSpecificTemporary(Register reg) { temporaries_.set(reg); }
 
   EagerDeoptInfo* eager_deopt_info_address() {
     DCHECK(properties().can_eager_deopt());
@@ -656,18 +639,8 @@ class NodeBase : public ZoneObject {
 
  private:
   NodeIdT id_ = kInvalidNodeId;
-
-  union {
-    int num_temporaries_needed_ = 0;
-    RegList temporaries_;
-  };
-#ifdef DEBUG
-  enum {
-    kUnset,
-    kNeedsTemporaries,
-    kHasTemporaries
-  } kTemporariesState = kUnset;
-#endif  // DEBUG
+  uint8_t num_temporaries_needed_ = 0;
+  RegList temporaries_;
 
   NodeBase() = delete;
   NodeBase(const NodeBase&) = delete;

@@ -7,6 +7,7 @@
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register.h"
 #include "src/compiler/backend/instruction.h"
@@ -600,8 +601,14 @@ void LoadDoubleField::PrintParams(std::ostream& os,
 
 void StoreField::AllocateVreg(MaglevVregAllocationState* vreg_state,
                               const ProcessingState& state) {
-  UseRegister(object_input());
+  UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
   UseRegister(value_input());
+  // We need the slot address to be free, and an additional scratch register
+  // for the value.
+  // TODO(leszeks): Add input clobbering to remove the need for this
+  // unconditional value scratch register.
+  RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
+  set_temporaries_needed(2);
 }
 void StoreField::GenerateCode(MaglevCodeGenState* code_gen_state,
                               const ProcessingState& state) {
@@ -609,10 +616,19 @@ void StoreField::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register value = ToRegister(value_input());
 
   if (StoreHandler::IsInobjectBits::decode(this->handler())) {
-    Operand operand = FieldOperand(
-        object,
-        StoreHandler::FieldIndexBits::decode(this->handler()) * kTaggedSize);
-    __ StoreTaggedField(operand, value);
+    RegList temps = temporaries();
+    DCHECK(temporaries().has(WriteBarrierDescriptor::SlotAddressRegister()));
+    temps.clear(WriteBarrierDescriptor::SlotAddressRegister());
+    int offset =
+        StoreHandler::FieldIndexBits::decode(this->handler()) * kTaggedSize;
+    __ StoreTaggedField(FieldOperand(object, offset), value);
+    // TODO(leszeks): Add input clobbering to remove the need for this
+    // unconditional value scratch register.
+    Register value_scratch = temps.PopFirst();
+    __ movq(value_scratch, value);
+    __ RecordWriteField(object, offset, value_scratch,
+                        WriteBarrierDescriptor::SlotAddressRegister(),
+                        SaveFPRegsMode::kSave);
   } else {
     // TODO(victorgomes): Out-of-object properties.
     UNSUPPORTED("StoreField out-of-object property");

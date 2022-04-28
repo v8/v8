@@ -861,6 +861,15 @@ compiler::InstructionOperand RegisterFrameState<RegisterT>::TryAllocateRegister(
 
 void StraightForwardRegisterAllocator::AssignTemporaries(NodeBase* node) {
   // TODO(victorgomes): Support double registers as temporaries.
+  RegList initial_temporaries = node->temporaries();
+
+  // Make sure that any initially set temporaries are definitely free.
+  for (Register reg : initial_temporaries) {
+    if (general_registers_.free().has(reg)) continue;
+    DropRegisterValue(general_registers_, reg);
+    general_registers_.AddToFree(reg);
+  }
+
   int num_temporaries_needed = node->num_temporaries_needed();
   int num_free_registers = general_registers_.free().Count();
 
@@ -870,6 +879,8 @@ void StraightForwardRegisterAllocator::AssignTemporaries(NodeBase* node) {
   }
 
   DCHECK_GE(general_registers_.free().Count(), num_temporaries_needed);
+  DCHECK_EQ(general_registers_.free() | initial_temporaries,
+            general_registers_.free());
   node->assign_temporaries(general_registers_.free());
 }
 
