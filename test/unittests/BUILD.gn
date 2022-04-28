@@ -388,6 +388,8 @@ v8_source_set("unittests_sources") {
     "libplatform/single-threaded-default-platform-unittest.cc",
     "libplatform/task-queue-unittest.cc",
     "libplatform/worker-thread-unittest.cc",
+    "libsampler/sampler-unittest.cc",
+    "libsampler/signals-and-mutexes-unittest.cc",
     "logging/counters-unittest.cc",
     "logging/log-unittest.cc",
     "numbers/bigint-unittest.cc",

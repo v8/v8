@@ -9,9 +9,12 @@
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/libsampler/sampler.h"  // for USE_SIGNALS
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
+using SignalAndMutexTest = TestWithContext;
 namespace sampler {
 
 // There seem to be problems with pthread_rwlock_t and signal handling on
@@ -42,7 +45,7 @@ static void RestoreSignalHandler() {
   sigaction(SIGPROF, &old_signal_handler, nullptr);
 }
 
-TEST(SignalsPlusSharedMutexes) {
+TEST_F(SignalAndMutexTest, SignalsPlusSharedMutexes) {
   static constexpr int kNumMutexes = 1024;
   // 10us * 10000 = 100ms
   static constexpr auto kSleepBetweenSamples =
@@ -134,7 +137,7 @@ TEST(SignalsPlusSharedMutexes) {
 
   InstallSignalHandler();
 
-  auto* rng = CcTest::i_isolate()->random_number_generator();
+  auto* rng = i_isolate()->random_number_generator();
 
   // First start the mutex threads, then the sampling thread.
   std::vector<std::unique_ptr<SharedMutexTestThread>> threads(4);

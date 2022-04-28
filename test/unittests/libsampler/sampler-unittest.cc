@@ -3,14 +3,19 @@
 // found in the LICENSE file.
 // Tests of sampler functionalities.
 
+#include "src/libsampler/sampler.h"
+
 #include "include/v8-external.h"
 #include "include/v8-function.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/libsampler/sampler.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
+using SamplerTest = TestWithContext;
+
 namespace sampler {
 
 namespace {
@@ -36,7 +41,6 @@ class TestSamplingThread : public base::Thread {
   Sampler* sampler_;
 };
 
-
 class TestSampler : public Sampler {
  public:
   explicit TestSampler(Isolate* isolate) : Sampler(isolate) {}
@@ -52,21 +56,16 @@ class TestSampler : public Sampler {
   }
 };
 
-
 class TestApiCallbacks {
  public:
   TestApiCallbacks() = default;
 
   static void Getter(v8::Local<v8::String> name,
-                     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  }
+                     const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
-  static void Setter(v8::Local<v8::String> name,
-                     v8::Local<v8::Value> value,
-                     const v8::PropertyCallbackInfo<void>& info) {
-  }
+  static void Setter(v8::Local<v8::String> name, v8::Local<v8::Value> value,
+                     const v8::PropertyCallbackInfo<void>& info) {}
 };
-
 
 static void RunSampler(v8::Local<v8::Context> env,
                        v8::Local<v8::Function> function,
@@ -88,49 +87,49 @@ static void RunSampler(v8::Local<v8::Context> env,
 
 }  // namespace
 
-static const char* sampler_test_source = "function start(count) {\n"
-"  for (var i = 0; i < count; i++) {\n"
-"    var o = instance.foo;\n"
-"    instance.foo = o + 1;\n"
-"  }\n"
-"}\n";
+static const char* sampler_test_source =
+    "function start(count) {\n"
+    "  for (var i = 0; i < count; i++) {\n"
+    "    var o = instance.foo;\n"
+    "    instance.foo = o + 1;\n"
+    "  }\n"
+    "}\n";
 
 static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
                                            const char* name) {
   return env->Global()
-      ->Get(env, v8_str(name))
+      ->Get(env, String::NewFromUtf8(env->GetIsolate(), name).ToLocalChecked())
       .ToLocalChecked()
       .As<v8::Function>();
 }
 
-
-TEST(LibSamplerCollectSample) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(SamplerTest, LibSamplerCollectSample) {
+  v8::HandleScope scope(isolate());
 
   v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(isolate);
+      v8::FunctionTemplate::New(isolate());
   v8::Local<v8::ObjectTemplate> instance_template =
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors;
-  v8::Local<v8::External> data =
-      v8::External::New(isolate, &accessors);
-  instance_template->SetAccessor(v8_str("foo"), &TestApiCallbacks::Getter,
+  v8::Local<v8::External> data = v8::External::New(isolate(), &accessors);
+  instance_template->SetAccessor(NewString("foo"), &TestApiCallbacks::Getter,
                                  &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func =
-      func_template->GetFunction(env.local()).ToLocalChecked();
+      func_template->GetFunction(context()).ToLocalChecked();
   v8::Local<v8::Object> instance =
-      func->NewInstance(env.local()).ToLocalChecked();
-  env->Global()->Set(env.local(), v8_str("instance"), instance).FromJust();
+      func->NewInstance(context()).ToLocalChecked();
+  context()
+      ->Global()
+      ->Set(context(), NewString("instance"), instance)
+      .FromJust();
 
-  CompileRun(sampler_test_source);
-  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+  RunJS(sampler_test_source);
+  v8::Local<v8::Function> function = GetFunction(context(), "start");
 
   int32_t repeat_count = 100;
-  v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, repeat_count)};
-  RunSampler(env.local(), function, args, arraysize(args), 100, 100);
+  v8::Local<v8::Value> args[] = {v8::Integer::New(isolate(), repeat_count)};
+  RunSampler(context(), function, args, arraysize(args), 100, 100);
 }
 
 #ifdef USE_SIGNALS
@@ -149,12 +148,9 @@ class CountingSampler : public Sampler {
   int sample_count_ = 0;
 };
 
-TEST(SamplerManager_AddRemoveSampler) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-
+TEST_F(SamplerTest, SamplerManager_AddRemoveSampler) {
   SamplerManager* manager = SamplerManager::instance();
-  CountingSampler sampler1(isolate);
+  CountingSampler sampler1(isolate());
   sampler1.set_active(true);
   sampler1.set_should_record_sample();
   CHECK_EQ(0, sampler1.sample_count());
@@ -174,13 +170,10 @@ TEST(SamplerManager_AddRemoveSampler) {
   CHECK_EQ(1, sampler1.sample_count());
 }
 
-TEST(SamplerManager_DoesNotReAdd) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-
+TEST_F(SamplerTest, SamplerManager_DoesNotReAdd) {
   // Add the same sampler twice, but check we only get one sample for it.
   SamplerManager* manager = SamplerManager::instance();
-  CountingSampler sampler1(isolate);
+  CountingSampler sampler1(isolate());
   sampler1.set_active(true);
   sampler1.set_should_record_sample();
   manager->AddSampler(&sampler1);
@@ -192,7 +185,7 @@ TEST(SamplerManager_DoesNotReAdd) {
   sampler1.set_active(false);
 }
 
-TEST(AtomicGuard_GetNonBlockingSuccess) {
+TEST_F(SamplerTest, AtomicGuard_GetNonBlockingSuccess) {
   std::atomic_bool atomic{false};
   {
     AtomicGuard guard(&atomic, false);
@@ -205,7 +198,7 @@ TEST(AtomicGuard_GetNonBlockingSuccess) {
   CHECK(guard.is_success());
 }
 
-TEST(AtomicGuard_GetBlockingSuccess) {
+TEST_F(SamplerTest, AtomicGuard_GetBlockingSuccess) {
   std::atomic_bool atomic{false};
   {
     AtomicGuard guard(&atomic);

@@ -3,6 +3,12 @@
 # found in the LICENSE file.
 
 [
+
+[ALWAYS, {
+  # BUG(5193). The cpu profiler tests are notoriously flaky.
+  'SamplerTest.LibSamplerCollectSample': [SKIP],
+}],  # ALWAYS
+
 ##############################################################################
 ['system == macos and asan', {
   # BUG(820416).
