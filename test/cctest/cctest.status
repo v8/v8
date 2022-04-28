@@ -638,18 +638,6 @@
   'test-js-context-specialization/*': [SKIP],
   'test-macro-assembler-x64/EmbeddedObj': [SKIP],
   'test-multiple-return/*': [SKIP],
-  'test-regexp/MacroAssemblernativeAtStart': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackReferenceUC16': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackRefNoCase': [SKIP],
-  'test-regexp/MacroAssemblerNativeBacktrack': [SKIP],
-  'test-regexp/MacroAssemblerNativeLotsOfRegisters': [SKIP],
-  'test-regexp/MacroAssemblerNativeRegisters': [SKIP],
-  'test-regexp/MacroAssemblerNativeSimple': [SKIP],
-  'test-regexp/MacroAssemblerNativeSimpleUC16': [SKIP],
-  'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
-  'test-regexp/MacroAssemblerStackOverflow': [SKIP],
-  'test-regexp/Graph': [SKIP],
   'test-run-bytecode-graph-builder/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
   'test-run-deopt/*': [SKIP],
@@ -678,9 +666,6 @@
 
   # Instruction cache flushing is disabled in jitless mode.
   'test-icache/*': [SKIP],
-
-  # Tests generated irregexp code.
-  'test-regexp/RegExpInterruptReentrantExecution': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################
@@ -736,10 +721,6 @@
   'test-cpu-profiler/MultipleIsolates': [PASS, ['arch == arm64 and system == macos and simulator_run', SKIP]],
 }], # variant == jitless
 
-##############################################################################
-['no_i18n == True', {
-  'test-regexp/UnicodePropertyEscapeCodeSize': [SKIP],
-}],  # no_i18n == True
 
 ################################################################################
 ['variant == stress_snapshot', {

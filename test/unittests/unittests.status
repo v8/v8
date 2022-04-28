@@ -147,4 +147,30 @@
   'RegExpTest.Peephole*': [SKIP],
 }],  # 'byteorder == big'
 
+##############################################################################
+['lite_mode or variant == jitless', {
+
+  # Tests that generate code at runtime.
+  'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackReferenceUC16': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackRefNoCase': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBacktrack': [SKIP],
+  'RegExpTest.MacroAssemblerNativeLotsOfRegisters': [SKIP],
+  'RegExpTest.MacroAssemblerNativeRegisters': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSimple': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSimpleUC16': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSuccess': [SKIP],
+  'RegExpTest.MacroAssemblerStackOverflow': [SKIP],
+  'RegExpTest.Graph': [SKIP],
+
+  # Tests generated irregexp code.
+  'RegExpTestWithContext.RegExpInterruptReentrantExecution': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['no_i18n == True', {
+  'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
+}],  # no_i18n == True
+
 ]
