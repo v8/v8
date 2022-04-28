@@ -3800,35 +3800,47 @@ bool Isolate::InitWithSnapshot(SnapshotData* startup_snapshot_data,
               shared_heap_snapshot_data, can_rehash);
 }
 
-static std::string AddressToString(uintptr_t address) {
+namespace {
+static std::string ToHexString(uintptr_t address) {
   std::stringstream stream_address;
   stream_address << "0x" << std::hex << address;
   return stream_address.str();
 }
+}  // namespace
 
 void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
   DCHECK_NOT_NULL(add_crash_key_callback_);
 
   const uintptr_t isolate_address = reinterpret_cast<uintptr_t>(this);
   add_crash_key_callback_(v8::CrashKeyId::kIsolateAddress,
-                          AddressToString(isolate_address));
+                          ToHexString(isolate_address));
 
   const uintptr_t ro_space_firstpage_address =
       heap()->read_only_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
-                          AddressToString(ro_space_firstpage_address));
+                          ToHexString(ro_space_firstpage_address));
 
   if (heap()->map_space()) {
     const uintptr_t map_space_firstpage_address =
         heap()->map_space()->FirstPageAddress();
     add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
-                            AddressToString(map_space_firstpage_address));
+                            ToHexString(map_space_firstpage_address));
   }
 
   const uintptr_t code_space_firstpage_address =
       heap()->code_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
-                          AddressToString(code_space_firstpage_address));
+                          ToHexString(code_space_firstpage_address));
+
+  const v8::StartupData* data = Snapshot::DefaultSnapshotBlob();
+  // TODO(cbruni): Implement strategy to infrequently collect this.
+  const uint32_t v8_snapshot_checkum_calculated = 0;
+  add_crash_key_callback_(v8::CrashKeyId::kSnapshotChecksumCalculated,
+                          ToHexString(v8_snapshot_checkum_calculated));
+  const uint32_t v8_snapshot_checkum_expected =
+      Snapshot::GetExpectedChecksum(data);
+  add_crash_key_callback_(v8::CrashKeyId::kSnapshotChecksumExpected,
+                          ToHexString(v8_snapshot_checkum_expected));
 }
 
 void Isolate::InitializeCodeRanges() {

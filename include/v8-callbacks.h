@@ -233,6 +233,8 @@ enum class CrashKeyId {
   kMapSpaceFirstPageAddress,
   kCodeSpaceFirstPageAddress,
   kDumpType,
+  kSnapshotChecksumCalculated,
+  kSnapshotChecksumExpected,
 };
 
 using AddCrashKeyCallback = void (*)(CrashKeyId id, const std::string& value);
