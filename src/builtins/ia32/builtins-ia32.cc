@@ -4369,6 +4369,24 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   Generate_BaselineOrInterpreterEntry(masm, false, true);
 }
 
+void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
+  // Frame is being dropped:
+  // - Look up current function on the frame.
+  // - Leave the frame.
+  // - Restart the frame by calling the function.
+
+  __ mov(edi, Operand(ebp, StandardFrameConstants::kFunctionOffset));
+  __ mov(eax, Operand(ebp, StandardFrameConstants::kArgCOffset));
+
+  __ LeaveFrame(StackFrame::INTERPRETED);
+
+  // The arguments are already in the stack (including any necessary padding),
+  // we should not try to massage the arguments again.
+  __ mov(ecx, Immediate(kDontAdaptArgumentsSentinel));
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+  __ InvokeFunctionCode(edi, no_reg, ecx, eax, InvokeType::kJump);
+}
+
 #undef __
 
 }  // namespace internal

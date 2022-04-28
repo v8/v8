@@ -104,6 +104,7 @@ namespace internal {
   V(LookupBaseline)                                  \
   V(NewHeapNumber)                                   \
   V(NoContext)                                       \
+  V(RestartFrameTrampoline)                          \
   V(ResumeGenerator)                                 \
   V(ResumeGeneratorBaseline)                         \
   V(RunMicrotasks)                                   \
@@ -1866,6 +1867,13 @@ class SuspendGeneratorBaselineDescriptor final
                          MachineType::IntPtr(),     // kRegisterCount
   )
   DECLARE_DESCRIPTOR(SuspendGeneratorBaselineDescriptor)
+};
+
+class RestartFrameTrampolineDescriptor final
+    : public StaticCallInterfaceDescriptor<RestartFrameTrampolineDescriptor> {
+ public:
+  DEFINE_PARAMETERS()
+  DECLARE_DESCRIPTOR(RestartFrameTrampolineDescriptor)
 };
 
 class RunMicrotasksEntryDescriptor final

@@ -5186,6 +5186,23 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   Generate_BaselineOrInterpreterEntry(masm, false, true);
 }
 
+void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
+  // Restart the current frame:
+  // - Look up current function on the frame.
+  // - Leave the frame.
+  // - Restart the frame by calling the function.
+
+  __ movq(rdi, Operand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ movq(rax, Operand(rbp, StandardFrameConstants::kArgCOffset));
+
+  __ LeaveFrame(StackFrame::INTERPRETED);
+
+  // The arguments are already in the stack (including any necessary padding),
+  // we should not try to massage the arguments again.
+  __ movq(rbx, Immediate(kDontAdaptArgumentsSentinel));
+  __ InvokeFunction(rdi, no_reg, rbx, rax, InvokeType::kJump);
+}
+
 #undef __
 
 }  // namespace internal

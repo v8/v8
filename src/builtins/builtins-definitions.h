@@ -249,6 +249,7 @@ namespace internal {
                                                                                \
   /* Debugger */                                                               \
   TFJ(DebugBreakTrampoline, kDontAdaptArgumentsSentinel)                       \
+  ASM(RestartFrameTrampoline, RestartFrameTrampoline)                          \
                                                                                \
   /* Type conversions */                                                       \
   TFC(ToNumber, TypeConversion)                                                \
