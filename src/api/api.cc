@@ -5087,28 +5087,6 @@ Local<v8::Object> v8::Object::Clone() {
   return Utils::ToLocal(result);
 }
 
-namespace {
-Local<v8::Context> CreationContextImpl(i::Handle<i::JSReceiver> self) {
-  i::Handle<i::Context> context;
-  if (self->GetCreationContext().ToHandle(&context)) {
-    return Utils::ToLocal(context);
-  }
-
-  return Local<v8::Context>();
-}
-}  // namespace
-
-Local<v8::Context> v8::Object::CreationContext() {
-  auto self = Utils::OpenHandle(this);
-  return CreationContextImpl(self);
-}
-
-Local<v8::Context> v8::Object::CreationContext(
-    const PersistentBase<Object>& object) {
-  auto self = Utils::OpenHandle(object.val_);
-  return CreationContextImpl(self);
-}
-
 MaybeLocal<v8::Context> v8::Object::GetCreationContext() {
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Context> context;
@@ -8763,12 +8741,6 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
     AbortOnUncaughtExceptionCallback callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->SetAbortOnUncaughtExceptionCallback(callback);
-}
-
-void Isolate::SetHostImportModuleDynamicallyCallback(
-    HostImportModuleDynamicallyWithImportAssertionsCallback callback) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->SetHostImportModuleDynamicallyCallback(callback);
 }
 
 void Isolate::SetHostImportModuleDynamicallyCallback(

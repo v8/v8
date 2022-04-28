@@ -57,9 +57,6 @@ bool Locker::IsLocked(v8::Isolate* isolate) {
 }
 
 // static
-bool Locker::IsActive() { return WasEverUsed(); }
-
-// static
 bool Locker::WasEverUsed() {
   return base::Relaxed_Load(&g_locker_was_ever_used_) != 0;
 }

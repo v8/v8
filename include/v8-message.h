@@ -87,7 +87,7 @@ class V8_EXPORT ScriptOrigin {
   V8_INLINE int ColumnOffset() const;
   V8_INLINE int ScriptId() const;
   V8_INLINE Local<Value> SourceMapUrl() const;
-  V8_DEPRECATE_SOON("Use GetHostDefinedOptions")
+  V8_DEPRECATED("Use GetHostDefinedOptions")
   Local<PrimitiveArray> HostDefinedOptions() const;
   V8_INLINE Local<Data> GetHostDefinedOptions() const;
   V8_INLINE ScriptOriginOptions Options() const { return options_; }
