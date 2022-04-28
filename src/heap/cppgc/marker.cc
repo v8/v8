@@ -462,13 +462,6 @@ bool MarkerBase::JoinConcurrentMarkingIfNeeded() {
   return true;
 }
 
-void MarkerBase::NotifyConcurrentMarkingOfWorkIfNeeded(
-    cppgc::TaskPriority priority) {
-  if (concurrent_marker_->IsActive()) {
-    concurrent_marker_->NotifyOfWorkIfNeeded(priority);
-  }
-}
-
 bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
                                           size_t marked_bytes_limit) {
   bool is_done = false;
