@@ -1083,8 +1083,8 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
                                           return_offset, return_count);
       break;
     }
-    case FrameStateType::kArgumentsAdaptor:
-      translations_.BeginArgumentsAdaptorFrame(shared_info_id, height);
+    case FrameStateType::kInlinedExtraArguments:
+      translations_.BeginInlinedExtraArguments(shared_info_id, height);
       break;
     case FrameStateType::kConstructStub:
       DCHECK(bailout_id.IsValidForConstructStub());

@@ -161,9 +161,9 @@ void TranslationArrayBuilder::BeginConstructStubFrame(
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
 }
 
-void TranslationArrayBuilder::BeginArgumentsAdaptorFrame(int literal_id,
+void TranslationArrayBuilder::BeginInlinedExtraArguments(int literal_id,
                                                          unsigned height) {
-  auto opcode = TranslationOpcode::ARGUMENTS_ADAPTOR_FRAME;
+  auto opcode = TranslationOpcode::INLINED_EXTRA_ARGUMENTS;
   Add(opcode);
   Add(literal_id);
   Add(height);

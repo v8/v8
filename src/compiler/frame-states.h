@@ -68,7 +68,7 @@ class OutputFrameStateCombine {
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
   kUnoptimizedFunction,            // Represents an UnoptimizedFrame.
-  kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
+  kInlinedExtraArguments,          // Represents inlined extra arguments.
   kConstructStub,                  // Represents a ConstructStubFrame.
   kBuiltinContinuation,            // Represents a continuation to a stub.
 #if V8_ENABLE_WEBASSEMBLY          // ↓ WebAssembly only

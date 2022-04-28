@@ -857,8 +857,8 @@ void Deoptimizer::DoComputeOutputFrames() {
         DoComputeUnoptimizedFrame(translated_frame, frame_index,
                                   handle_exception);
         break;
-      case TranslatedFrame::kArgumentsAdaptor:
-        DoComputeArgumentsAdaptorFrame(translated_frame, frame_index);
+      case TranslatedFrame::kInlinedExtraArguments:
+        DoComputeInlinedExtraArguments(translated_frame, frame_index);
         break;
       case TranslatedFrame::kConstructStub:
         DoComputeConstructStubFrame(translated_frame, frame_index);
@@ -943,13 +943,13 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const int parameters_count =
       shared.internal_formal_parameter_count_with_receiver();
 
-  // If this is the bottom most frame or the previous frame was the arguments
-  // adaptor fake frame, then we already have extra arguments in the stack
+  // If this is the bottom most frame or the previous frame was the inlined
+  // extra arguments frame, then we already have extra arguments in the stack
   // (including any extra padding). Therefore we should not try to add any
   // padding.
   bool should_pad_arguments =
       !is_bottommost && (translated_state_.frames()[frame_index - 1]).kind() !=
-                            TranslatedFrame::kArgumentsAdaptor;
+                            TranslatedFrame::kInlinedExtraArguments;
 
   const int locals_count = translated_frame->height();
   UnoptimizedFrameInfo frame_info = UnoptimizedFrameInfo::Precise(
@@ -1097,7 +1097,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   } else {
     TranslatedFrame::Kind previous_frame_kind =
         (translated_state_.frames()[frame_index - 1]).kind();
-    argc = previous_frame_kind == TranslatedFrame::kArgumentsAdaptor
+    argc = previous_frame_kind == TranslatedFrame::kInlinedExtraArguments
                ? output_[frame_index - 1]->parameter_count()
                : parameters_count;
   }
@@ -1231,17 +1231,15 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   }
 }
 
-void Deoptimizer::DoComputeArgumentsAdaptorFrame(
+void Deoptimizer::DoComputeInlinedExtraArguments(
     TranslatedFrame* translated_frame, int frame_index) {
-  // Arguments adaptor can not be top most, nor the bottom most frames.
+  // Inlined arguments frame can not be the topmost, nor the bottom most frame.
   CHECK(frame_index < output_count_ - 1);
   CHECK_GT(frame_index, 0);
   CHECK_NULL(output_[frame_index]);
 
-  // During execution, V8 does not understand arguments adaptor frames anymore,
-  // so during deoptimization we only push the extra arguments (arguments with
-  // index greater than the formal parameter count). Therefore we call this
-  // TranslatedFrame the fake adaptor frame.
+  // During deoptimization we need push the extra arguments of inlined functions
+  // (arguments with index greater than the formal parameter count).
   // For more info, see the design document:
   // https://docs.google.com/document/d/150wGaUREaZI6YWqOQFD5l2mWQXaPbbZjcAIJLOFrzMs
 

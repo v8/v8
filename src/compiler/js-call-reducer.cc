@@ -4149,8 +4149,8 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
   // some other function (and same for the {arg_array}).
   FrameState outer_state{frame_state.outer_frame_state()};
   FrameStateInfo outer_info = outer_state.frame_state_info();
-  if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
-    // Need to take the parameters from the arguments adaptor.
+  if (outer_info.type() == FrameStateType::kInlinedExtraArguments) {
+    // Need to take the parameters from the inlined extra arguments frame state.
     frame_state = outer_state;
   }
   // Add the actual parameters to the {node}, skipping the receiver.

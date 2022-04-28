@@ -149,7 +149,7 @@ class Deoptimizer : public Malloced {
   void DoComputeOutputFrames();
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
-  void DoComputeArgumentsAdaptorFrame(TranslatedFrame* translated_frame,
+  void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,
                                       int frame_index);
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
