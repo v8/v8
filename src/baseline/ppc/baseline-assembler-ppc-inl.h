@@ -616,7 +616,29 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm_);
+  Label fallthrough, jump_table;
+  if (case_value_base != 0) {
+    __ AddS64(reg, reg, Operand(-case_value_base));
+  }
+
+  // Mostly copied from code-generator-arm.cc
+  JumpIf(Condition::kUnsignedGreaterThanEqual, reg, Operand(num_labels),
+         &fallthrough);
+  // Ensure to emit the constant pool first if necessary.
+  int entry_size_log2 = 3;
+  __ ShiftLeftU32(reg, reg, Operand(entry_size_log2));
+  __ mov_label_addr(ip, &jump_table);
+  __ AddS64(reg, reg, ip);
+  __ Jump(reg);
+  __ b(&fallthrough);
+  __ bind(&jump_table);
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
+  for (int i = 0; i < num_labels; ++i) {
+    __ b(labels[i]);
+    __ nop();
+  }
+  __ bind(&fallthrough);
 }
 
 void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
