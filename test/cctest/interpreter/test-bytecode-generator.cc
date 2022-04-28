@@ -52,7 +52,7 @@ class V8_NODISCARD InitializedIgnitionHandleScope
     : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
-    i::FLAG_always_opt = false;
+    i::FLAG_always_turbofan = false;
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_enable_lazy_source_positions = false;
   }

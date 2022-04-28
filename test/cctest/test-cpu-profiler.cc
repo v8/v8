@@ -1229,7 +1229,7 @@ TEST(BoundFunctionCall) {
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
 #ifndef V8_LITE_MODE
-  FLAG_opt = optimize;
+  FLAG_turbofan = optimize;
 #endif  // V8_LITE_MODE
   CcTest::InitializeVM();
   LocalContext env;
@@ -2288,7 +2288,7 @@ TEST(FunctionDetails) {
 }
 
 TEST(FunctionDetailsInlining) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2496,7 +2496,7 @@ const char* GetBranchDeoptReason(v8::Local<v8::Context> context,
 
 // deopt at top function
 TEST(CollectDeoptEvents) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2611,7 +2611,7 @@ TEST(CollectDeoptEvents) {
 }
 
 TEST(SourceLocation) {
-  i::FLAG_always_opt = true;
+  i::FLAG_always_turbofan = true;
   LocalContext env;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2634,7 +2634,7 @@ static const char* inlined_source =
 
 // deopt at the first level inlined function
 TEST(DeoptAtFirstLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2706,7 +2706,7 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 
 // deopt at the second level inlined function
 TEST(DeoptAtSecondLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2784,7 +2784,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
 
 // deopt in untracked function
 TEST(DeoptUntrackedFunction) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -4297,7 +4297,7 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
   i::FLAG_detailed_line_info = false;
   i::FLAG_turbo_inlining = true;
   i::FLAG_stress_inline = true;
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -4445,12 +4445,12 @@ TEST(FastApiCPUProfiler) {
   // None of the following configurations include JSCallReducer.
   if (i::FLAG_jitless) return;
 
-  FLAG_SCOPE(opt);
+  FLAG_SCOPE(turbofan);
   FLAG_SCOPE(turbo_fast_api_calls);
   FLAG_SCOPE(allow_natives_syntax);
-  // Disable --always_opt, otherwise we haven't generated the necessary
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  FLAG_VALUE_SCOPE(always_opt, false);
+  FLAG_VALUE_SCOPE(always_turbofan, false);
   FLAG_VALUE_SCOPE(prof_browser_mode, false);
 
   CcTest::InitializeVM();
@@ -4542,8 +4542,8 @@ TEST(FastApiCPUProfiler) {
 
 TEST(BytecodeFlushEventsEagerLogging) {
 #ifndef V8_LITE_MODE
-  FLAG_opt = false;
-  FLAG_always_opt = false;
+  FLAG_turbofan = false;
+  FLAG_always_turbofan = false;
   i::FLAG_optimize_for_size = false;
 #endif  // V8_LITE_MODE
 #if ENABLE_SPARKPLUG

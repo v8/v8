@@ -8,7 +8,7 @@
 // and may deoptimize eagerly or lazily.
 // This test ensures the get @@iterator lazy deoptimization is handled correctly.
 
-// Flags: --allow-natives-syntax --no-always-opt
+// Flags: --allow-natives-syntax --no-always-turbofan
 
 var triggerLazyDeopt = false
 var iteratorCount = 0;

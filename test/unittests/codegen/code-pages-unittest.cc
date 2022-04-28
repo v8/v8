@@ -151,8 +151,8 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
   AbstractCode abstract_code = foo->abstract_code(i_isolate());
-  // We don't produce optimized code when run with --no-opt.
-  if (!abstract_code.IsCode() && FLAG_opt == false) return;
+  // We don't produce optimized code when run with --no-turbofan.
+  if (!abstract_code.IsCode() && !FLAG_turbofan) return;
   EXPECT_TRUE(abstract_code.IsCode());
   Code foo_code = abstract_code.GetCode();
 
@@ -201,8 +201,8 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
         return;
       }
       AbstractCode abstract_code = foo->abstract_code(i_isolate());
-      // We don't produce optimized code when run with --no-opt.
-      if (!abstract_code.IsCode() && FLAG_opt == false) return;
+      // We don't produce optimized code when run with --no-turbofan.
+      if (!abstract_code.IsCode() && !FLAG_turbofan) return;
       EXPECT_TRUE(abstract_code.IsCode());
       Code foo_code = abstract_code.GetCode();
 

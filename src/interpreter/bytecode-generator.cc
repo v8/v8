@@ -2520,7 +2520,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope(),
-      info()->flags().might_always_opt());
+      info()->flags().might_always_turbofan());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   builder()->CreateClosure(entry, GetCachedCreateClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));

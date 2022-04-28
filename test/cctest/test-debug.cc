@@ -4343,7 +4343,7 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
 }
 
 TEST(DebugCoverage) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4398,7 +4398,7 @@ v8::debug::Coverage::ScriptData GetScriptDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithCoverageOutOfScope) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4469,7 +4469,7 @@ v8::debug::Coverage::FunctionData GetFunctionDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithScriptDataOutOfScope) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);

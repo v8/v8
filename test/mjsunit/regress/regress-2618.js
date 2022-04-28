@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr --allow-natives-syntax --opt
-// Flags: --no-always-opt
+// Flags: --use-osr --allow-natives-syntax --turbofan
+// Flags: --no-always-turbofan
 
-// Can't OSR with always-opt or in Lite mode.
+// Can't OSR with always-turbofan or in Lite mode.
 if (isNeverOptimizeLiteMode()) {
   print("Warning: skipping test that requires optimization in Lite mode.");
   testRunner.quit(0);

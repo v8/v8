@@ -4491,7 +4491,7 @@ void PreProcessUnicodeFilenameArg(char* argv[], int i) {
 
 bool Shell::SetOptions(int argc, char* argv[]) {
   bool logfile_per_isolate = false;
-  bool no_always_opt = false;
+  bool no_always_turbofan = false;
   options.d8_path = argv[0];
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--") == 0) {
@@ -4514,9 +4514,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
-               strcmp(argv[i], "--no-always-opt") == 0) {
-      no_always_opt = true;
+    } else if (strcmp(argv[i], "--noalways-turbofan") == 0 ||
+               strcmp(argv[i], "--no-always-turbofan") == 0) {
+      no_always_turbofan = true;
     } else if (strcmp(argv[i], "--fuzzing") == 0 ||
                strcmp(argv[i], "--no-abort-on-contradictory-flags") == 0 ||
                strcmp(argv[i], "--noabort-on-contradictory-flags") == 0) {
@@ -4722,8 +4722,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
 
-  if (options.stress_opt && no_always_opt && check_d8_flag_contradictions) {
-    FATAL("Flag --no-always-opt is incompatible with --stress-opt.");
+  if (options.stress_opt && no_always_turbofan &&
+      check_d8_flag_contradictions) {
+    FATAL("Flag --no-always-turbofan is incompatible with --stress-opt.");
   }
 
   const char* usage =
@@ -5271,15 +5272,15 @@ class D8Testing {
    */
   static void PrepareStressRun(int run) {
     static const char* kLazyOptimizations =
-        "--prepare-always-opt "
+        "--prepare-always-turbofan "
         "--max-inlined-bytecode-size=999999 "
         "--max-inlined-bytecode-size-cumulative=999999 "
-        "--noalways-opt";
+        "--noalways-turbofan";
 
     if (run == 0) {
       V8::SetFlagsFromString(kLazyOptimizations);
     } else if (run == GetStressRuns() - 1) {
-      i::FLAG_always_opt = true;
+      i::FLAG_always_turbofan = true;
     }
   }
 

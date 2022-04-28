@@ -392,7 +392,7 @@ void FeedbackVector::SetOptimizedCode(Handle<CodeT> code) {
          optimized_code().marked_for_deoptimization() ||
          FLAG_stress_concurrent_inlining_attach_code);
   // TODO(mythria): We could see a CompileOptimized state here either from
-  // tests that use %OptimizeFunctionOnNextCall, --always-opt or because we
+  // tests that use %OptimizeFunctionOnNextCall, --always-turbofan or because we
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // TieringState::kRequestTurbofan*.

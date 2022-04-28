@@ -31,7 +31,8 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
   set_collect_type_profile(isolate->is_collecting_type_profile());
   set_coverage_enabled(!isolate->is_best_effort_code_coverage());
   set_block_coverage_enabled(isolate->is_block_code_coverage());
-  set_might_always_opt(FLAG_always_opt || FLAG_prepare_always_opt);
+  set_might_always_turbofan(FLAG_always_turbofan ||
+                            FLAG_prepare_always_turbofan);
   set_allow_natives_syntax(FLAG_allow_natives_syntax);
   set_allow_lazy_compile(true);
   set_collect_source_positions(!FLAG_enable_lazy_source_positions ||

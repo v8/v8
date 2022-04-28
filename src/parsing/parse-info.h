@@ -55,7 +55,7 @@ class Zone;
   V(private_name_lookup_skips_outer_class, bool, 1, _)          \
   V(requires_instance_members_initializer, bool, 1, _)          \
   V(has_static_private_methods_or_accessors, bool, 1, _)        \
-  V(might_always_opt, bool, 1, _)                               \
+  V(might_always_turbofan, bool, 1, _)                          \
   V(allow_natives_syntax, bool, 1, _)                           \
   V(allow_lazy_compile, bool, 1, _)                             \
   V(post_parallel_compile_tasks_for_eager_toplevel, bool, 1, _) \

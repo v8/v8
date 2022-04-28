@@ -201,7 +201,7 @@ class CompilerTracer : public AllStatic {
     if (!FLAG_trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "optimizing", function, code_kind);
-    PrintF(scope.file(), " because --always-opt");
+    PrintF(scope.file(), " because --always-turbofan");
     PrintTraceSuffix(scope);
   }
 
@@ -211,7 +211,8 @@ class CompilerTracer : public AllStatic {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[marking ");
     function->ShortPrint(scope.file());
-    PrintF(scope.file(), " for optimized recompilation because --always-opt");
+    PrintF(scope.file(),
+           " for optimized recompilation because --always-turbofan");
     PrintF(scope.file(), "]\n");
   }
 
@@ -1060,7 +1061,7 @@ bool ShouldOptimize(CodeKind code_kind, Handle<SharedFunctionInfo> shared) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
   switch (code_kind) {
     case CodeKind::TURBOFAN:
-      return FLAG_opt && shared->PassesFilter(FLAG_turbo_filter);
+      return FLAG_turbofan && shared->PassesFilter(FLAG_turbo_filter);
     case CodeKind::MAGLEV:
       return FLAG_maglev && shared->PassesFilter(FLAG_maglev_filter);
     default:
@@ -2067,11 +2068,11 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // immediately after a flush would be better.
   JSFunction::InitializeFeedbackCell(function, is_compiled_scope, true);
 
-  // Optimize now if --always-opt is enabled.
+  // Optimize now if --always-turbofan is enabled.
 #if V8_ENABLE_WEBASSEMBLY
-  if (FLAG_always_opt && !function->shared().HasAsmWasmData()) {
+  if (FLAG_always_turbofan && !function->shared().HasAsmWasmData()) {
 #else
-  if (FLAG_always_opt) {
+  if (FLAG_always_turbofan) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     CompilerTracer::TraceOptimizeForAlwaysOpt(isolate, function,
                                               CodeKindForTopTier());
@@ -3484,7 +3485,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
       }
     }
 
-    if (FLAG_always_opt && shared->allows_lazy_compilation() &&
+    if (FLAG_always_turbofan && shared->allows_lazy_compilation() &&
         !shared->optimization_disabled() &&
         !function->HasAvailableOptimizedCode()) {
       CompilerTracer::TraceMarkForAlwaysOpt(isolate, function);

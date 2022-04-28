@@ -372,7 +372,7 @@ class TestCase(object):
       timeout *= 4
     if "--jitless" in params:
       timeout *= 2
-    if "--no-opt" in params:
+    if "--no-turbofan" in params:
       timeout *= 2
     if "--noenable-vfp3" in params:
       timeout *= 2

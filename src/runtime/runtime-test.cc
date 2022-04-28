@@ -242,7 +242,7 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-  if (!FLAG_opt) return false;
+  if (!FLAG_turbofan) return false;
 
   if (function->shared().optimization_disabled() &&
       function->shared().disabled_optimization_reason() ==
@@ -346,7 +346,7 @@ bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
   // If the JSFunction isn't compiled but it has a initialized feedback cell
   // then no need to compile. CompileLazy builtin would handle these cases by
   // installing the code from SFI. Calling compile here may cause another
-  // optimization if FLAG_always_opt is set.
+  // optimization if FLAG_always_turbofan is set.
   bool needs_compilation =
       !function->is_compiled() && !function->has_closure_feedback_cell_array();
   if (needs_compilation &&
@@ -581,7 +581,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
-  if (V8_UNLIKELY(!FLAG_opt) || V8_UNLIKELY(!FLAG_use_osr)) {
+  if (V8_UNLIKELY(!FLAG_turbofan) || V8_UNLIKELY(!FLAG_use_osr)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -716,7 +716,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (FLAG_always_opt || FLAG_prepare_always_opt) {
+  if (FLAG_always_turbofan || FLAG_prepare_always_turbofan) {
     status |= static_cast<int>(OptimizationStatus::kAlwaysOptimize);
   }
   if (FLAG_deopt_every_n_times) {

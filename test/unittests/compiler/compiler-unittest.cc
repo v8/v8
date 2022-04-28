@@ -280,7 +280,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
 }
 
 TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
-  if (i::FLAG_always_opt || !i::FLAG_opt) return;
+  if (i::FLAG_always_turbofan || !i::FLAG_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   if (!i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(isolate());
@@ -323,7 +323,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
 }
 
 TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
-  if (i::FLAG_always_opt || !i::FLAG_lazy || i::FLAG_lite_mode) {
+  if (i::FLAG_always_turbofan || !i::FLAG_lazy || i::FLAG_lite_mode) {
     return;
   }
   v8::HandleScope scope(isolate());
@@ -403,7 +403,7 @@ TEST_F(CompilerTest, OptimizedCodeSharing1) {
 }
 
 TEST_F(CompilerTest, CompileFunction) {
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   v8::HandleScope scope(isolate());
   RunJS("var r = 10;");
   v8::Local<v8::Object> math = v8::Local<v8::Object>::Cast(
@@ -730,7 +730,7 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 TEST_F(CompilerTest, InvocationCount) {
   if (FLAG_lite_mode) return;
   FLAG_allow_natives_syntax = true;
-  FLAG_always_opt = false;
+  FLAG_always_turbofan = false;
   v8::HandleScope scope(isolate());
 
   RunJS(
@@ -750,7 +750,7 @@ TEST_F(CompilerTest, InvocationCount) {
 }
 
 TEST_F(CompilerTest, ShallowEagerCompilation) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f(x) {"
@@ -770,7 +770,7 @@ TEST_F(CompilerTest, ShallowEagerCompilation) {
 }
 
 TEST_F(CompilerTest, DeepEagerCompilation) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f(x) {"
@@ -796,7 +796,7 @@ TEST_F(CompilerTest, DeepEagerCompilation) {
 }
 
 TEST_F(CompilerTest, DeepEagerCompilationPeakMemory) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> source = NewString(
       "function f() {"

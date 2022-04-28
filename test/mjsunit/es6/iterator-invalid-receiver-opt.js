@@ -8,7 +8,7 @@
 // This test ensures that the optimized version of the GetIterator bytecode
 // correctly handle the SymbolIteratorInvalid exception without deoptimizing.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --turbofan
 
 var iteratorCount = 0;
 var exceptionCount = 0;

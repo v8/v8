@@ -1476,7 +1476,7 @@ config("toolchain") {
 
 # For code that is hot during mksnapshot. In fast-mksnapshot builds, we
 # optimize some files even in debug builds to speed up mksnapshot times.
-config("always_optimize") {
+config("always_turbofanimize") {
   configs = [ ":internal_config" ]
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
@@ -4043,7 +4043,7 @@ v8_source_set("v8_compiler_opt") {
   if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
     # The :no_optimize config is added to v8_add_configs in v8.gni.
     remove_configs = [ "//build/config/compiler:no_optimize" ]
-    configs = [ ":always_optimize" ]
+    configs = [ ":always_turbofanimize" ]
   } else {
     # Without this else branch, gn fails to generate build files for non-debug
     # builds (because we try to remove a config that is not present).
@@ -5106,7 +5106,7 @@ v8_source_set("torque_base") {
   if (is_debug && !v8_optimized_debug && v8_enable_fast_torque) {
     # The :no_optimize config is added to v8_add_configs in v8.gni.
     remove_configs += [ "//build/config/compiler:no_optimize" ]
-    configs += [ ":always_optimize" ]
+    configs += [ ":always_turbofanimize" ]
   }
 }
 

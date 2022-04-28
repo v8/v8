@@ -380,7 +380,7 @@ TEST(OldLargeObjectSpace) {
 // process (jumbo builds).
 TEST(SizeOfInitialHeap) {
   ManualGCScope manual_gc_scope;
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
   // Bootstrapping without a snapshot causes more allocations.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

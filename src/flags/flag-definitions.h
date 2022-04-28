@@ -537,7 +537,7 @@ DEFINE_BOOL(jitless, V8_LITE_BOOL,
             "Disable runtime allocation of executable memory.")
 
 // Jitless V8 has a few implications:
-DEFINE_NEG_IMPLICATION(jitless, opt)
+DEFINE_NEG_IMPLICATION(jitless, turbofan)
 // Field type tracking is only used by TurboFan.
 DEFINE_NEG_IMPLICATION(jitless, track_field_types)
 // Regexps are interpreted.
@@ -787,7 +787,8 @@ DEFINE_INT(deopt_every_n_times, 0,
 DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
 
 // Flags for TurboFan.
-DEFINE_BOOL(opt, true, "use adaptive optimizations")
+DEFINE_BOOL(turbofan, true, "use adaptive optimizations")
+
 DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(
@@ -1563,10 +1564,10 @@ DEFINE_BOOL(trace_deopt_verbose, false, "extra verbose deoptimization tracing")
 DEFINE_IMPLICATION(trace_deopt_verbose, trace_deopt)
 DEFINE_BOOL(trace_file_names, false,
             "include file names in trace-opt/trace-deopt output")
-DEFINE_BOOL(always_opt, false, "always try to optimize functions")
-DEFINE_IMPLICATION(always_opt, opt)
+DEFINE_BOOL(always_turbofan, false, "always try to optimize functions")
+DEFINE_IMPLICATION(always_turbofan, turbofan)
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
-DEFINE_BOOL(prepare_always_opt, false, "prepare for turning on always opt")
+DEFINE_BOOL(prepare_always_turbofan, false, "prepare for turning on always opt")
 
 DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
 #ifdef DEBUG

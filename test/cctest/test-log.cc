@@ -555,7 +555,7 @@ UNINITIALIZED_TEST(LogAll) {
     CHECK(logger.ContainsLine({"code-creation,Script", ":1:1"}));
     CHECK(logger.ContainsLine({"code-creation,LazyCompile,", "testAddFn"}));
 
-    if (i::FLAG_opt && !i::FLAG_always_opt) {
+    if (i::FLAG_turbofan && !i::FLAG_always_turbofan) {
       CHECK(logger.ContainsLine({"code-deopt,", "not a Smi"}));
       CHECK(logger.ContainsLine({"timer-event-start", "V8.DeoptimizeCode"}));
       CHECK(logger.ContainsLine({"timer-event-end", "V8.DeoptimizeCode"}));
@@ -592,7 +592,7 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
 UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
   SETUP_FLAGS();
   i::FLAG_interpreted_frames_native_stack = true;
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
@@ -1102,7 +1102,7 @@ UNINITIALIZED_TEST(ConsoleTimeEvents) {
 
 UNINITIALIZED_TEST(LogFunctionEvents) {
   // Always opt and stress opt will break the fine-grained log order.
-  if (i::FLAG_always_opt) return;
+  if (i::FLAG_always_turbofan) return;
 
   SETUP_FLAGS();
   i::FLAG_log_function_events = true;

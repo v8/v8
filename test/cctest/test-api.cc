@@ -24101,9 +24101,9 @@ TEST(ModuleCodeCache) {
 
   // Test that the cache is consumed and execution still works.
   {
-    // Disable --always_opt, otherwise we try to optimize during module
+    // Disable --always_turbofan, otherwise we try to optimize during module
     // instantiation, violating the DisallowCompilation scope.
-    i::FLAG_always_opt = false;
+    i::FLAG_always_turbofan = false;
     v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Isolate::Scope iscope(isolate);
@@ -24642,7 +24642,7 @@ TEST(StringConcatOverflow) {
 
 TEST(TurboAsmDisablesDetach) {
 #ifndef V8_LITE_MODE
-  i::FLAG_opt = true;
+  i::FLAG_turbofan = true;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
@@ -28251,12 +28251,12 @@ TEST(FastApiStackSlot) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
 
-  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbofan = true;
   v8::internal::FLAG_turbo_fast_api_calls = true;
   v8::internal::FLAG_allow_natives_syntax = true;
-  // Disable --always_opt, otherwise we haven't generated the necessary
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  v8::internal::FLAG_always_opt = false;
+  v8::internal::FLAG_always_turbofan = false;
   v8::internal::FlagList::EnforceFlagImplications();
 
   v8::Isolate* isolate = CcTest::isolate();
@@ -28303,12 +28303,12 @@ TEST(FastApiCalls) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
 
-  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbofan = true;
   v8::internal::FLAG_turbo_fast_api_calls = true;
   v8::internal::FLAG_allow_natives_syntax = true;
-  // Disable --always_opt, otherwise we haven't generated the necessary
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  v8::internal::FLAG_always_opt = false;
+  v8::internal::FLAG_always_turbofan = false;
   v8::internal::FlagList::EnforceFlagImplications();
 
   CcTest::InitializeVM();
@@ -28853,12 +28853,12 @@ TEST(FastApiSequenceOverloads) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
 
-  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbofan = true;
   v8::internal::FLAG_turbo_fast_api_calls = true;
   v8::internal::FLAG_allow_natives_syntax = true;
-  // Disable --always_opt, otherwise we haven't generated the necessary
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  v8::internal::FLAG_always_opt = false;
+  v8::internal::FLAG_always_turbofan = false;
   v8::internal::FlagList::EnforceFlagImplications();
 
   v8::Isolate* isolate = CcTest::isolate();
@@ -28911,12 +28911,12 @@ TEST(FastApiOverloadResolution) {
 #ifndef V8_LITE_MODE
   if (i::FLAG_jitless) return;
 
-  v8::internal::FLAG_opt = true;
+  v8::internal::FLAG_turbofan = true;
   v8::internal::FLAG_turbo_fast_api_calls = true;
   v8::internal::FLAG_allow_natives_syntax = true;
-  // Disable --always_opt, otherwise we haven't generated the necessary
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  v8::internal::FLAG_always_opt = false;
+  v8::internal::FLAG_always_turbofan = false;
   v8::internal::FlagList::EnforceFlagImplications();
 
   v8::CFunction typed_array_callback =

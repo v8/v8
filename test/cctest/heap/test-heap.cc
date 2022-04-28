@@ -1101,8 +1101,8 @@ TEST(Iteration) {
 
 TEST(TestBytecodeFlushing) {
 #ifndef V8_LITE_MODE
-  FLAG_opt = false;
-  FLAG_always_opt = false;
+  FLAG_turbofan = false;
+  FLAG_always_turbofan = false;
   i::FLAG_optimize_for_size = false;
 #endif  // V8_LITE_MODE
 #if ENABLE_SPARKPLUG
@@ -1167,8 +1167,8 @@ HEAP_TEST(Regress10560) {
   i::FLAG_flush_bytecode = true;
   i::FLAG_allow_natives_syntax = true;
   // Disable flags that allocate a feedback vector eagerly.
-  i::FLAG_opt = false;
-  i::FLAG_always_opt = false;
+  i::FLAG_turbofan = false;
+  i::FLAG_always_turbofan = false;
 #if ENABLE_SPARKPLUG
   FLAG_always_sparkplug = false;
 #endif  // ENABLE_SPARKPLUG
@@ -1340,8 +1340,8 @@ UNINITIALIZED_TEST(Regress12777) {
 
 TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   if (FLAG_single_generation) return;
-  FLAG_opt = true;
-  FLAG_always_opt = false;
+  FLAG_turbofan = true;
+  FLAG_always_turbofan = false;
 #if ENABLE_SPARKPLUG
   FLAG_always_sparkplug = false;
 #endif  // ENABLE_SPARKPLUG
@@ -1425,9 +1425,9 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
 
 TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
   if (!FLAG_incremental_marking) return;
-  // Turn off always_opt because it interferes with running the built-in for
-  // the last call to g().
-  FLAG_always_opt = false;
+  // Turn off always_turbofan because it interferes with running the built-in
+  // for the last call to g().
+  FLAG_always_turbofan = false;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -1564,7 +1564,7 @@ int CountNativeContexts() {
 }
 
 TEST(TestInternalWeakLists) {
-  FLAG_always_opt = false;
+  FLAG_always_turbofan = false;
   FLAG_allow_natives_syntax = true;
 
   // Some flags turn Scavenge collections into Mark-sweep collections
@@ -2477,7 +2477,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   FLAG_allow_natives_syntax = true;
   FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking)
     return;
@@ -2515,7 +2515,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
@@ -2565,7 +2565,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation) {
     return;
@@ -2604,7 +2604,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation) {
     return;
@@ -2646,7 +2646,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
@@ -2693,7 +2693,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
@@ -2732,7 +2732,7 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
@@ -2770,7 +2770,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
@@ -2820,7 +2820,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
@@ -2870,7 +2870,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation)
     return;
@@ -2920,7 +2920,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
 TEST(OptimizedAllocationArrayLiterals) {
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking)
     return;
@@ -3127,8 +3127,8 @@ TEST(ReleaseOverReservedPages) {
   FLAG_trace_gc = true;
   // The optimizer can allocate stuff, messing up the test.
 #ifndef V8_LITE_MODE
-  FLAG_opt = false;
-  FLAG_always_opt = false;
+  FLAG_turbofan = false;
+  FLAG_always_turbofan = false;
 #endif  // V8_LITE_MODE
   // - Parallel compaction increases fragmentation, depending on how existing
   //   memory is distributed. Since this is non-deterministic because of
@@ -3236,7 +3236,7 @@ TEST(PrintSharedFunctionInfo) {
 TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   if (!FLAG_use_ic) return;
   if (!FLAG_incremental_marking) return;
-  if (FLAG_always_opt) return;
+  if (FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3293,7 +3293,7 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
 
 TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   if (!FLAG_incremental_marking) return;
-  if (FLAG_always_opt) return;
+  if (FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3321,7 +3321,7 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (!FLAG_use_ic) return;
   if (!FLAG_incremental_marking) return;
-  if (FLAG_always_opt) return;
+  if (FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3347,7 +3347,7 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
 TEST(IncrementalMarkingPreservesPolymorphicIC) {
   if (!FLAG_use_ic) return;
   if (!FLAG_incremental_marking) return;
-  if (FLAG_always_opt) return;
+  if (FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3390,7 +3390,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
 TEST(ContextDisposeDoesntClearPolymorphicIC) {
   if (!FLAG_use_ic) return;
   if (!FLAG_incremental_marking) return;
-  if (FLAG_always_opt) return;
+  if (FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -3667,7 +3667,7 @@ TEST(DetailedErrorStackTraceBuiltinExit) {
 TEST(Regress169928) {
   FLAG_allow_natives_syntax = true;
 #ifndef V8_LITE_MODE
-  FLAG_opt = false;
+  FLAG_turbofan = false;
 #endif  // V8_LITE_MODE
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -3956,7 +3956,10 @@ static int SlimAllocationSiteCount(Heap* heap) {
 }
 
 TEST(EnsureAllocationSiteDependentCodesProcessed) {
-  if (FLAG_always_opt || !FLAG_opt || !V8_ALLOCATION_SITE_TRACKING_BOOL) return;
+  if (FLAG_always_turbofan || !FLAG_turbofan ||
+      !V8_ALLOCATION_SITE_TRACKING_BOOL) {
+    return;
+  }
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4034,7 +4037,7 @@ void CheckNumberOfAllocations(Heap* heap, const char* source,
 }
 
 TEST(AllocationSiteCreation) {
-  FLAG_always_opt = false;
+  FLAG_always_turbofan = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -4121,7 +4124,7 @@ TEST(AllocationSiteCreation) {
 }
 
 TEST(CellsInOptimizedCodeAreWeak) {
-  if (FLAG_always_opt || !FLAG_opt) return;
+  if (FLAG_always_turbofan || !FLAG_turbofan) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4168,7 +4171,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
 
 TEST(ObjectsInOptimizedCodeAreWeak) {
-  if (FLAG_always_opt || !FLAG_opt) return;
+  if (FLAG_always_turbofan || !FLAG_turbofan) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4212,7 +4215,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 }
 
 TEST(NewSpaceObjectsInOptimizedCode) {
-  if (FLAG_always_opt || !FLAG_opt || FLAG_single_generation) return;
+  if (FLAG_always_turbofan || !FLAG_turbofan || FLAG_single_generation) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4275,7 +4278,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 }
 
 TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
-  if (FLAG_always_opt || !FLAG_opt) return;
+  if (FLAG_always_turbofan || !FLAG_turbofan) return;
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4351,7 +4354,7 @@ static int GetCodeChainLength(Code code) {
 
 
 TEST(NextCodeLinkIsWeak) {
-  FLAG_always_opt = false;
+  FLAG_always_turbofan = false;
   FLAG_allow_natives_syntax = true;
   FLAG_stress_concurrent_inlining = false;  // Test needs deterministic timing.
   CcTest::InitializeVM();
@@ -4383,7 +4386,7 @@ TEST(NextCodeLinkIsWeak) {
 }
 
 TEST(NextCodeLinkInCodeDataContainerIsCleared) {
-  FLAG_always_opt = false;
+  FLAG_always_turbofan = false;
   FLAG_allow_natives_syntax = true;
   FLAG_stress_concurrent_inlining = false;  // Test needs deterministic timing.
   CcTest::InitializeVM();
@@ -4473,7 +4476,7 @@ static void ClearWeakIC(
 
 
 TEST(WeakFunctionInConstructor) {
-  if (FLAG_always_opt) return;
+  if (FLAG_always_turbofan) return;
   FLAG_stress_compaction = false;
   FLAG_stress_incremental_marking = false;
   FLAG_allow_natives_syntax = true;
@@ -4745,7 +4748,7 @@ void CheckIC(Handle<JSFunction> function, int slot_index,
 
 TEST(MonomorphicStaysMonomorphicAfterGC) {
   if (!FLAG_use_ic) return;
-  if (FLAG_always_opt) return;
+  if (FLAG_always_turbofan) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4781,7 +4784,7 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
 
 TEST(PolymorphicStaysPolymorphicAfterGC) {
   if (!FLAG_use_ic) return;
-  if (FLAG_always_opt) return;
+  if (FLAG_always_turbofan) return;
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -5360,7 +5363,7 @@ TEST(MessageObjectLeak) {
 
   const char* flag = "--turbo-filter=*";
   FlagList::SetFlagsFromString(flag, strlen(flag));
-  FLAG_always_opt = true;
+  FLAG_always_turbofan = true;
 
   CompileRun(test);
 }

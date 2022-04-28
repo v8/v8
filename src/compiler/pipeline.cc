@@ -1169,7 +1169,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     return AbortOptimization(BailoutReason::kFunctionTooBig);
   }
 
-  if (!FLAG_always_opt) {
+  if (!FLAG_always_turbofan) {
     compilation_info()->set_bailout_on_uninitialized();
   }
   if (FLAG_turbo_loop_peeling) {
