@@ -24,6 +24,7 @@
 #include "src/heap/cppgc/process-heap.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc/write-barrier.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 #if defined(CPPGC_CAGED_HEAP)
@@ -214,7 +215,25 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   MarkingType marking_support() const { return marking_support_; }
   SweepingType sweeping_support() const { return sweeping_support_; }
 
+  bool generational_gc_supported() const {
+    const bool supported =
+        (generation_support_ == GenerationSupport::kYoungAndOldGenerations);
+#if defined(CPPGC_YOUNG_GENERATION)
+    DCHECK_IMPLIES(supported, YoungGenerationEnabler::IsEnabled());
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+    return supported;
+  }
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  void DisableGenerationalGCForTesting();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
  protected:
+  enum class GenerationSupport : uint8_t {
+    kSingleGeneration,
+    kYoungAndOldGenerations,
+  };
+
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
@@ -227,7 +246,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   size_t ExecutePreFinalizers();
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  void ResetRememberedSet();
+  void ResetRememberedSetAndEnableMinorGCIfNeeded();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   PageAllocator* page_allocator() const;
@@ -286,6 +305,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   const MarkingType marking_support_;
   const SweepingType sweeping_support_;
+  GenerationSupport generation_support_;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;

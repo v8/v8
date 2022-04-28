@@ -553,7 +553,8 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
   collection_type_ = collection_type;
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (*collection_type_ == CollectionType::kMajor)
+  if (generational_gc_supported() &&
+      *collection_type_ == CollectionType::kMajor)
     cppgc::internal::SequentialUnmarker unmarker(raw_heap());
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
@@ -661,7 +662,11 @@ void CppHeap::TraceEpilogue() {
   USE(bytes_allocated_in_prefinalizers);
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  ResetRememberedSet();
+  // Check if the young generation was enabled via flag.
+  if (FLAG_cppgc_young_generation)
+    cppgc::internal::YoungGenerationEnabler::Enable();
+
+  ResetRememberedSetAndEnableMinorGCIfNeeded();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   {
@@ -679,6 +684,7 @@ void CppHeap::TraceEpilogue() {
                    SweepingType::kAtomic == sweeping_config.sweeping_type);
     sweeper().Start(sweeping_config);
   }
+
   in_atomic_pause_ = false;
   collection_type_.reset();
   sweeper().NotifyDoneIfNeeded();
@@ -687,6 +693,7 @@ void CppHeap::TraceEpilogue() {
 void CppHeap::RunMinorGC(StackState stack_state) {
   DCHECK(!sweeper_.IsSweepingInProgress());
 
+  if (!generational_gc_supported()) return;
   if (in_no_gc_scope()) return;
   // Minor GC does not support nesting in full GCs.
   if (IsMarking()) return;

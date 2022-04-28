@@ -75,6 +75,7 @@ struct CagedHeapLocalData final {
   CagedHeapLocalData(HeapBase&, PageAllocator&);
 
   bool is_incremental_marking_in_progress = false;
+  bool is_young_generation_enabled = false;
   HeapBase& heap_base;
 #if defined(CPPGC_YOUNG_GENERATION)
   AgeTable age_table;

@@ -30,6 +30,8 @@ void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
 #if defined(CPPGC_YOUNG_GENERATION)
   DCHECK_LT(begin, end);
 
+  if (!page->heap().generational_gc_supported()) return;
+
   // Then, if the page is newly allocated, force the first and last cards to be
   // marked as young.
   const bool new_page =

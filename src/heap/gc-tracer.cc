@@ -1668,7 +1668,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
 #if defined(CPPGC_YOUNG_GENERATION)
   // Managed C++ heap statistics:
   auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
-  if (cpp_heap) {
+  if (cpp_heap && cpp_heap->generational_gc_supported()) {
     auto* metric_recorder = cpp_heap->GetMetricRecorder();
     const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
         optional_cppgc_event = metric_recorder->ExtractLastYoungGcEvent();

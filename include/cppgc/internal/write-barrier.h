@@ -95,12 +95,10 @@ class V8_EXPORT WriteBarrier final {
   static void CheckParams(Type expected_type, const Params& params) {}
 #endif  // !V8_ENABLE_CHECKS
 
-  // The IncrementalOrConcurrentUpdater class allows cppgc internal to update
-  // |incremental_or_concurrent_marking_flag_|.
-  class IncrementalOrConcurrentMarkingFlagUpdater;
-  static bool IsAnyIncrementalOrConcurrentMarking() {
-    return incremental_or_concurrent_marking_flag_.MightBeEntered();
-  }
+  // The FlagUpdater class allows cppgc internal to update
+  // |write_barrier_enabled_|.
+  class FlagUpdater;
+  static bool IsEnabled() { return write_barrier_enabled_.MightBeEntered(); }
 
  private:
   WriteBarrier() = delete;
@@ -130,7 +128,7 @@ class V8_EXPORT WriteBarrier final {
       const CagedHeapLocalData& local_data, const void* object);
 #endif  // CPPGC_YOUNG_GENERATION
 
-  static AtomicEntryFlag incremental_or_concurrent_marking_flag_;
+  static AtomicEntryFlag write_barrier_enabled_;
 };
 
 template <WriteBarrier::Type type>
@@ -216,17 +214,17 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
   static V8_INLINE WriteBarrier::Type Get(const void* slot, const void* value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback) {
-#if !defined(CPPGC_YOUNG_GENERATION)
-    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
+    if (V8_LIKELY(!WriteBarrier::IsEnabled()))
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
-    }
-#endif  // !CPPGC_YOUNG_GENERATION
-    bool within_cage = TryGetCagedHeap(slot, value, params);
-    if (!within_cage) {
-      return WriteBarrier::Type::kNone;
-    }
-    if (V8_LIKELY(!params.caged_heap().is_incremental_marking_in_progress)) {
+
+    const bool within_cage = TryGetCagedHeap(slot, value, params);
+    if (!within_cage) return WriteBarrier::Type::kNone;
+
+    const auto& caged_heap = params.caged_heap();
+    if (V8_LIKELY(!caged_heap.is_incremental_marking_in_progress)) {
 #if defined(CPPGC_YOUNG_GENERATION)
+      if (!caged_heap.is_young_generation_enabled)
+        return WriteBarrier::Type::kNone;
       params.heap = reinterpret_cast<HeapHandle*>(params.start);
       params.slot_offset = reinterpret_cast<uintptr_t>(slot) - params.start;
       params.value_offset = reinterpret_cast<uintptr_t>(value) - params.start;
@@ -235,6 +233,8 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
 #endif  // !CPPGC_YOUNG_GENERATION
     }
+
+    // Use marking barrier.
     params.heap = reinterpret_cast<HeapHandle*>(params.start);
     return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
   }
@@ -247,10 +247,15 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
   static V8_INLINE WriteBarrier::Type Get(const void* slot, const void*,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
+    if (V8_LIKELY(!WriteBarrier::IsEnabled()))
+      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+
 #if defined(CPPGC_YOUNG_GENERATION)
     HeapHandle& handle = callback();
     if (V8_LIKELY(!IsMarking(handle, params))) {
       // params.start is populated by IsMarking().
+      if (!params.caged_heap().is_young_generation_enabled)
+        return WriteBarrier::Type::kNone;
       params.heap = &handle;
       params.slot_offset = reinterpret_cast<uintptr_t>(slot) - params.start;
       // params.value_offset stays 0.
@@ -260,15 +265,12 @@ struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
       }
       return SetAndReturnType<WriteBarrier::Type::kGenerational>(params);
     }
-#else   // !CPPGC_YOUNG_GENERATION
-    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
-      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
-    }
+#else   // !defined(CPPGC_YOUNG_GENERATION)
     HeapHandle& handle = callback();
     if (V8_UNLIKELY(!subtle::HeapState::IsMarking(handle))) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
-#endif  // !CPPGC_YOUNG_GENERATION
+#endif  // !defined(CPPGC_YOUNG_GENERATION)
     params.heap = &handle;
     return SetAndReturnType<WriteBarrier::Type::kMarking>(params);
   }
@@ -317,7 +319,7 @@ struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
     if (object <= static_cast<void*>(kSentinelPointer)) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
-    if (V8_LIKELY(!WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
+    if (V8_LIKELY(!WriteBarrier::IsEnabled())) {
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
     }
     if (IsMarking(object, &params.heap)) {
@@ -334,7 +336,7 @@ struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
   static V8_INLINE WriteBarrier::Type Get(const void*, const void*,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
-    if (V8_UNLIKELY(WriteBarrier::IsAnyIncrementalOrConcurrentMarking())) {
+    if (V8_UNLIKELY(WriteBarrier::IsEnabled())) {
       HeapHandle& handle = callback();
       if (IsMarking(handle)) {
         params.heap = &handle;

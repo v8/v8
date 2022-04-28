@@ -21,7 +21,14 @@ namespace cppgc {
 namespace internal {
 
 // static
-AtomicEntryFlag WriteBarrier::incremental_or_concurrent_marking_flag_;
+AtomicEntryFlag WriteBarrier::write_barrier_enabled_;
+
+#if defined(CPPGC_YOUNG_GENERATION)
+// static
+bool YoungGenerationEnabler::is_enabled_;
+// static
+v8::base::LeakyObject<v8::base::Mutex> YoungGenerationEnabler::mutex_;
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 namespace {
 
@@ -198,6 +205,29 @@ bool WriteBarrierTypeForCagedHeapPolicy::IsMarking(
 }
 
 #endif  // CPPGC_CAGED_HEAP
+
+#if defined(CPPGC_YOUNG_GENERATION)
+void YoungGenerationEnabler::Enable() {
+  v8::base::LockGuard _(mutex_.get());
+  if (is_enabled_) return;
+  // Enter the flag so that the check in the write barrier will always trigger
+  // when young generation is enabled.
+  WriteBarrier::FlagUpdater::Enter();
+  is_enabled_ = true;
+}
+
+void YoungGenerationEnabler::DisableForTesting() {
+  v8::base::LockGuard _(mutex_.get());
+  if (!is_enabled_) return;
+  WriteBarrier::FlagUpdater::Exit();
+  is_enabled_ = false;
+}
+
+bool YoungGenerationEnabler::IsEnabled() {
+  v8::base::LockGuard _(mutex_.get());
+  return is_enabled_;
+}
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 }  // namespace internal
 }  // namespace cppgc

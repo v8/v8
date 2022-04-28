@@ -64,9 +64,18 @@ struct OtherType<Large> {
 
 class MinorGCTest : public testing::TestWithHeap {
  public:
-  MinorGCTest() {
+  MinorGCTest() : testing::TestWithHeap() {
+    // Enable young generation flag and run GC. After the first run the heap
+    // will enable minor GC.
+    YoungGenerationEnabler::Enable();
     CollectMajor();
+
     SimpleGCedBase::destructed_objects = 0;
+  }
+
+  ~MinorGCTest() override {
+    YoungGenerationEnabler::DisableForTesting();
+    Heap::From(GetHeap())->DisableGenerationalGCForTesting();
   }
 
   static size_t DestructedObjects() {

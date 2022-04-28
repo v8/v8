@@ -190,7 +190,7 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   USE(bytes_allocated_in_prefinalizers);
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  ResetRememberedSet();
+  ResetRememberedSetAndEnableMinorGCIfNeeded();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   subtle::NoGarbageCollectionScope no_gc(*this);

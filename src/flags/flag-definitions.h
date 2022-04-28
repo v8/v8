@@ -1257,6 +1257,8 @@ DEFINE_INT(scavenge_task_trigger, 80,
 DEFINE_BOOL(scavenge_separate_stack_scanning, false,
             "use a separate phase for stack scanning in scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
+DEFINE_BOOL(cppgc_young_generation, false,
+            "run young generation garbage collections in Oilpan")
 DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
 #if defined(V8_ATOMIC_OBJECT_FIELD_WRITES)
 #define V8_CONCURRENT_MARKING_BOOL true

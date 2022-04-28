@@ -77,5 +77,11 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
       v8::base::PageFreeingMode::kMakeInaccessible);
 }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+void CagedHeap::EnableGenerationalGC() {
+  local_data().is_young_generation_enabled = true;
+}
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
 }  // namespace internal
 }  // namespace cppgc
