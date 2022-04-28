@@ -45,7 +45,7 @@ try_builder(
 try_builder(
     name = "v8_fuchsia_compile_rel",
     bucket = "try",
-    cq_properties = CQ.OPTIONAL,
+    cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
     use_goma = GOMA.DEFAULT,
