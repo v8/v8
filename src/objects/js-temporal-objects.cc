@@ -6186,6 +6186,44 @@ MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
                                           {result.days, 0, 0, 0, 0, 0, 0}});
 }
 
+// #sec-temporal.calendar.prototype.day
+MaybeHandle<Smi> JSTemporalCalendar::Day(Isolate* isolate,
+                                         Handle<JSTemporalCalendar> calendar,
+                                         Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]] or [[InitializedTemporalMonthDay]]
+  // internal slot, then
+  if (!(temporal_date_like->IsJSTemporalPlainDate() ||
+        temporal_date_like->IsJSTemporalPlainDateTime() ||
+        temporal_date_like->IsJSTemporalPlainMonthDay())) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       isolate->factory()->NewJSObjectWithNullProto(),
+                       "Temporal.Calendar.prototype.day"),
+        Smi);
+  }
+
+  // 5. Let day be ! ISODay(temporalDateLike).
+  int32_t day;
+  if (temporal_date_like->IsJSTemporalPlainDate()) {
+    day = Handle<JSTemporalPlainDate>::cast(temporal_date_like)->iso_day();
+  } else if (temporal_date_like->IsJSTemporalPlainDateTime()) {
+    day = Handle<JSTemporalPlainDateTime>::cast(temporal_date_like)->iso_day();
+  } else {
+    DCHECK(temporal_date_like->IsJSTemporalPlainMonthDay());
+    day = Handle<JSTemporalPlainMonthDay>::cast(temporal_date_like)->iso_day();
+  }
+
+  // 6. Return 𝔽(day).
+  return handle(Smi::FromInt(day), isolate);
+}
+
 // #sec-temporal.calendar.prototype.tostring
 MaybeHandle<String> JSTemporalCalendar::ToString(
     Isolate* isolate, Handle<JSTemporalCalendar> calendar,

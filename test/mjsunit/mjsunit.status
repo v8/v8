@@ -48,7 +48,6 @@
   'temporal/calendar-date-add': [FAIL],
   'temporal/calendar-date-from-fields': [FAIL],
   'temporal/calendar-date-until': [FAIL],
-  'temporal/calendar-day': [FAIL],
   'temporal/calendar-month': [FAIL],
   'temporal/calendar-month-code': [FAIL],
   'temporal/calendar-month-day-from-fields': [FAIL],
