@@ -613,7 +613,8 @@ class MarkCompactCollector final {
   void UpdatePointersInClientHeap(Isolate* client);
 
   // Marks object reachable from harmony weak maps and wrapper tracing.
-  void ProcessEphemeronMarking();
+  void MarkTransitiveClosure();
+  void VerifyEphemeronMarking();
 
   // If the call-site of the top optimized code was not prepared for
   // deoptimization, then treat embedded pointers in the code as strong as
@@ -628,18 +629,20 @@ class MarkCompactCollector final {
   // Returns true if value was actually marked.
   bool ProcessEphemeron(HeapObject key, HeapObject value);
 
-  // Marks ephemerons and drains marking worklist iteratively
-  // until a fixpoint is reached. Returns false if too many iterations have been
-  // tried and the linear approach should be used.
-  bool ProcessEphemeronsUntilFixpoint();
+  // Marks the transitive closure by draining the marking worklist iteratively,
+  // applying ephemerons semantics and invoking embedder tracing until a
+  // fixpoint is reached. Returns false if too many iterations have been tried
+  // and the linear approach should be used.
+  bool MarkTransitiveClosureUntilFixpoint();
+
+  // Marks the transitive closure applying ephemeron semantics and invoking
+  // embedder tracing with a linear algorithm for ephemerons. Only used if
+  // fixpoint iteration doesn't finish within a few iterations.
+  void MarkTransitiveClosureLinear();
 
   // Drains ephemeron and marking worklists. Single iteration of the
   // fixpoint iteration.
   bool ProcessEphemerons();
-
-  // Mark ephemerons and drain marking worklist with a linear algorithm.
-  // Only used if fixpoint iteration doesn't finish within a few iterations.
-  void ProcessEphemeronsLinear();
 
   // Perform Wrapper Tracing if in use.
   void PerformWrapperTracing();
@@ -745,6 +748,7 @@ class MarkCompactCollector final {
   bool compacting_ = false;
   bool black_allocation_ = false;
   bool have_code_to_deoptimize_ = false;
+  bool parallel_marking_ = false;
 
   MarkingWorklists marking_worklists_;
 

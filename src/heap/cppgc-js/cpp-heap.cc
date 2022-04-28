@@ -604,6 +604,10 @@ bool CppHeap::AdvanceTracing(double max_duration) {
                        : v8::base::TimeDelta::FromMillisecondsD(max_duration);
   const size_t marked_bytes_limit = in_atomic_pause_ ? SIZE_MAX : 0;
   DCHECK_NOT_NULL(marker_);
+  if (in_atomic_pause_) {
+    marker_->NotifyConcurrentMarkingOfWorkIfNeeded(
+        cppgc::TaskPriority::kUserBlocking);
+  }
   // TODO(chromium:1056170): Replace when unified heap transitions to
   // bytes-based deadline.
   marking_done_ =
