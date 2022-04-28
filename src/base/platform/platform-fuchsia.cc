@@ -167,7 +167,7 @@ bool SetPermissionsInternal(const zx::vmar& vmar, size_t page_size,
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % page_size);
   DCHECK_EQ(0, size % page_size);
   uint32_t prot = GetProtectionFromMemoryPermission(access);
-  zx_status_t result =
+  zx_status_t status =
       vmar.protect(prot, reinterpret_cast<uintptr_t>(address), size);
 
   // Any failure that's not OOM likely indicates a bug in the caller (e.g.
