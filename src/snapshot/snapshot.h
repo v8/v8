@@ -111,6 +111,7 @@ class Snapshot : public AllStatic {
 
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();
+  static bool ShouldVerifyChecksum(const v8::StartupData* data);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);

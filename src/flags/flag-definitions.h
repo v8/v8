@@ -1777,9 +1777,10 @@ DEFINE_BOOL(rcs_cpu_time, false,
 DEFINE_IMPLICATION(rcs_cpu_time, rcs)
 
 // snapshot-common.cc
-DEFINE_BOOL(verify_snapshot_checksum, true,
+DEFINE_BOOL(verify_snapshot_checksum, DEBUG_BOOL,
             "Verify snapshot checksums when deserializing snapshots. Enable "
-            "checksum creation and verification for code caches.")
+            "checksum creation and verification for code caches. Enabled by "
+            "default in debug builds and once per process for Android.")
 DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 DEFINE_BOOL(serialization_statistics, false,
