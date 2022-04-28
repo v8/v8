@@ -216,6 +216,7 @@ v8_source_set("unittests_sources") {
     "api/isolate-unittest.cc",
     "api/remote-object-unittest.cc",
     "api/resource-constraints-unittest.cc",
+    "api/v8-maybe-unittest.cc",
     "api/v8-object-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
