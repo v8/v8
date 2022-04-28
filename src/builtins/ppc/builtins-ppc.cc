@@ -3887,8 +3887,8 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
   // - Leave the frame.
   // - Restart the frame by calling the function.
 
-  __ LoadP(r4, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadP(r3, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+  __ LoadU64(r4, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ LoadU64(r3, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // The arguments are already in the stack (including any necessary padding),
