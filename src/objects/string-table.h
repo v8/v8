@@ -111,6 +111,7 @@ class StringForwardingTable {
       kBitsPerInt - base::bits::CountLeadingZeros32(kInitialBlockSize) - 1;
   // Initial capacity in the block vector.
   static constexpr int kInitialBlockVectorCapacity = 4;
+  static constexpr Smi deleted_element() { return Smi::FromInt(0); }
 
   explicit StringForwardingTable(Isolate* isolate);
   ~StringForwardingTable();
@@ -120,18 +121,14 @@ class StringForwardingTable {
   int Add(Isolate* isolate, String string, String forward_to);
   String GetForwardString(Isolate* isolate, int index) const;
   static Address GetForwardStringAddress(Isolate* isolate, int index);
-  // Clears the table and transitions all alive strings to ThinStrings.
-  void CleanUpDuringGC(
-      std::function<bool(HeapObject object)> is_dead,
-      std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
-          record_thin_slot);
+  void IterateElements(RootVisitor* visitor);
+  void Reset();
   void UpdateAfterScavenge();
 
  private:
   class Block;
   class BlockVector;
 
-  static constexpr Smi deleted_element() { return Smi::FromInt(0); }
   // Returns the block for a given index and sets the index within this block
   // as out parameter.
   static inline uint32_t BlockForIndex(int index, uint32_t* index_in_block_out);
@@ -144,11 +141,6 @@ class StringForwardingTable {
   // inserted into the BlockVector. The BlockVector itself might grow (to double
   // the capacity).
   BlockVector* EnsureCapacity(uint32_t block);
-  void TransitionAliveStrings(
-      Block* block, int up_to_index,
-      std::function<bool(HeapObject object)> is_dead,
-      std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
-          record_thin_slot);
 
   Isolate* isolate_;
   std::atomic<BlockVector*> blocks_;

@@ -882,6 +882,7 @@ void GCTracer::PrintNVP() const {
           "heap.external.weak_global_handles=%.1f "
           "clear=%1.f "
           "clear.external_string_table=%.1f "
+          "clear.string_forwarding_table=%.1f "
           "clear.weak_global_handles=%.1f "
           "clear.dependent_code=%.1f "
           "clear.maps=%.1f "
@@ -971,6 +972,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MC_CLEAR),
           current_scope(Scope::MC_CLEAR_EXTERNAL_STRING_TABLE),
+          current_scope(Scope::MC_CLEAR_STRING_FORWARDING_TABLE),
           current_scope(Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES),
           current_scope(Scope::MC_CLEAR_DEPENDENT_CODE),
           current_scope(Scope::MC_CLEAR_MAPS),

@@ -1388,6 +1388,64 @@ class InternalizedStringTableCleaner final : public RootVisitor {
   int pointers_removed_ = 0;
 };
 
+class StringForwardingTableCleaner final : public RootVisitor {
+ public:
+  explicit StringForwardingTableCleaner(Heap* heap) : heap_(heap) {}
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    UNREACHABLE();
+  }
+
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override {
+    DCHECK_EQ(root, Root::kStringForwardingTable);
+    // Visit all HeapObject pointers in [start, end).
+    // The forwarding table is organized in pairs of [orig string, forward
+    // string].
+    auto* marking_state =
+        heap_->mark_compact_collector()->non_atomic_marking_state();
+    Isolate* isolate = heap_->isolate();
+    for (OffHeapObjectSlot p = start; p < end; p += 2) {
+      Object original = p.load(isolate);
+      if (!original.IsHeapObject()) {
+        // Only if we always use the forwarding table, the string could be a
+        // smi, indicating that the entry died during scavenge.
+        DCHECK(FLAG_always_use_string_forwarding_table);
+        DCHECK_EQ(original, StringForwardingTable::deleted_element());
+        continue;
+      }
+      if (marking_state->IsBlack(HeapObject::cast(original))) {
+        String original_string = String::cast(original);
+        // Check if the string was already transitioned. This happens if we have
+        // multiple entries for the same string in the table.
+        if (original_string.IsThinString()) continue;
+
+        // The second slot of each record is the forward string.
+        Object forward = (p + 1).load(isolate);
+        String forward_string = String::cast(forward);
+
+        // Mark the forwarded string.
+        marking_state->WhiteToBlack(forward_string);
+
+        // Transition the original string to a ThinString and override the
+        // forwarding index with the correct hash.
+        original_string.MakeThin(isolate, forward_string);
+        original_string.set_raw_hash_field(forward_string.raw_hash_field());
+        // Record the slot in the old-to-old remembered set. This is required as
+        // the internalized string could be relocated during compaction.
+        ObjectSlot slot = ThinString::cast(original_string)
+                              .RawField(ThinString::kActualOffset);
+        MarkCompactCollector::RecordSlot(original_string, slot, forward_string);
+      }
+    }
+  }
+
+ private:
+  Heap* heap_;
+};
+
 class ExternalStringTableCleaner : public RootVisitor {
  public:
   explicit ExternalStringTableCleaner(Heap* heap) : heap_(heap) {}
@@ -2563,17 +2621,18 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
 
   if (isolate()->OwnsStringTables()) {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_CLEAR_STRING_FORWARDING_TABLE);
     // Clear string forwarding table. Live strings are transitioned to
     // ThinStrings in the cleanup process.
+    // Clearing the string forwarding table must happen before clearing the
+    // string table, as entries in the forwarding table can keep internalized
+    // strings alive.
     StringForwardingTable* forwarding_table =
         isolate()->string_forwarding_table();
-    auto is_dead = [=](HeapObject object) {
-      return non_atomic_marking_state_.IsWhite(object);
-    };
-    auto record_slot = [](HeapObject object, ObjectSlot slot, Object target) {
-      RecordSlot(object, slot, HeapObject::cast(target));
-    };
-    forwarding_table->CleanUpDuringGC(is_dead, record_slot);
+    StringForwardingTableCleaner visitor(heap());
+    forwarding_table->IterateElements(&visitor);
+    forwarding_table->Reset();
   }
 
   auto clearing_job = std::make_unique<ParallelClearingJob>();

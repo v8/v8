@@ -536,6 +536,7 @@
   TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_EXTERNAL_STRING_TABLE)                  \
+  F(MC_CLEAR_STRING_FORWARDING_TABLE)                \
   F(MC_CLEAR_FLUSHABLE_BYTECODE)                     \
   F(MC_CLEAR_FLUSHED_JS_FUNCTIONS)                   \
   F(MC_CLEAR_JOIN_JOB)                               \
