@@ -219,7 +219,8 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
                                            receiver->RawField(index.offset()));
         if (!FLAG_enable_third_party_heap) {
           MemoryChunk* chunk = MemoryChunk::FromHeapObject(*receiver);
-          chunk->InvalidateRecordedSlots(*receiver);
+          int new_size = parent_map->instance_size();
+          chunk->InvalidateRecordedSlots(*receiver, new_size);
         }
       }
     }
