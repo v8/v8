@@ -725,6 +725,8 @@ DEFINE_NEG_IMPLICATION(jitless, concurrent_sparkplug)
 DEFINE_UINT(
     concurrent_sparkplug_max_threads, 2,
     "max number of threads that concurrent Sparkplug can use (0 for unbounded)")
+DEFINE_BOOL(concurrent_sparkplug_high_priority_threads, false,
+            "use high priority compiler threads for concurrent Sparkplug")
 #else
 DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,

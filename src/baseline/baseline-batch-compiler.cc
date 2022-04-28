@@ -193,10 +193,12 @@ class ConcurrentBaselineCompiler {
 
   explicit ConcurrentBaselineCompiler(Isolate* isolate) : isolate_(isolate) {
     if (FLAG_concurrent_sparkplug) {
+      TaskPriority priority = FLAG_concurrent_sparkplug_high_priority_threads
+                                  ? TaskPriority::kUserBlocking
+                                  : TaskPriority::kUserVisible;
       job_handle_ = V8::GetCurrentPlatform()->PostJob(
-          TaskPriority::kUserVisible,
-          std::make_unique<JobDispatcher>(isolate_, &incoming_queue_,
-                                          &outgoing_queue_));
+          priority, std::make_unique<JobDispatcher>(isolate_, &incoming_queue_,
+                                                    &outgoing_queue_));
     }
   }
 
