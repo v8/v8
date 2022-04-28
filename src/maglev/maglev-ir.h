@@ -65,28 +65,29 @@ class CompactInterpreterFrameState;
   V(GenericGreaterThan)                 \
   V(GenericGreaterThanOrEqual)
 
-#define VALUE_NODE_LIST(V) \
-  V(Call)                  \
-  V(Constant)              \
-  V(InitialValue)          \
-  V(LoadTaggedField)       \
-  V(LoadDoubleField)       \
-  V(LoadGlobal)            \
-  V(LoadNamedGeneric)      \
-  V(SetNamedGeneric)       \
-  V(Phi)                   \
-  V(RegisterInput)         \
-  V(RootConstant)          \
-  V(SmiConstant)           \
-  V(CheckedSmiTag)         \
-  V(CheckedSmiUntag)       \
-  V(Int32AddWithOverflow)  \
-  V(Int32Constant)         \
-  V(Float64Constant)       \
-  V(ChangeInt32ToFloat64)  \
-  V(Float64Box)            \
-  V(CheckedFloat64Unbox)   \
-  V(Float64Add)            \
+#define VALUE_NODE_LIST(V)   \
+  V(Call)                    \
+  V(Constant)                \
+  V(CreateEmptyArrayLiteral) \
+  V(InitialValue)            \
+  V(LoadTaggedField)         \
+  V(LoadDoubleField)         \
+  V(LoadGlobal)              \
+  V(LoadNamedGeneric)        \
+  V(SetNamedGeneric)         \
+  V(Phi)                     \
+  V(RegisterInput)           \
+  V(RootConstant)            \
+  V(SmiConstant)             \
+  V(CheckedSmiTag)           \
+  V(CheckedSmiUntag)         \
+  V(Int32AddWithOverflow)    \
+  V(Int32Constant)           \
+  V(Float64Constant)         \
+  V(ChangeInt32ToFloat64)    \
+  V(Float64Box)              \
+  V(CheckedFloat64Unbox)     \
+  V(Float64Add)              \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define NODE_LIST(V) \
@@ -1280,6 +1281,28 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
 
  private:
   const RootIndex index_;
+};
+
+class CreateEmptyArrayLiteral
+    : public FixedInputValueNodeT<0, CreateEmptyArrayLiteral> {
+  using Base = FixedInputValueNodeT<0, CreateEmptyArrayLiteral>;
+
+ public:
+  explicit CreateEmptyArrayLiteral(uint32_t bitfield,
+                                   const compiler::FeedbackSource& feedback)
+      : Base(bitfield), feedback_(feedback) {}
+
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::FeedbackSource feedback_;
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {

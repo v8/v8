@@ -979,7 +979,14 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(ToString)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateRegExpLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateArrayLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateArrayFromIterable)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEmptyArrayLiteral)
+
+void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
+  // TODO(v8:7700): Consider inlining the allocation.
+  FeedbackSlot slot_index = GetSlotOperand(0);
+  SetAccumulator(AddNewNode<CreateEmptyArrayLiteral>(
+      {}, compiler::FeedbackSource{feedback(), slot_index}));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateObjectLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEmptyObjectLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CloneObject)

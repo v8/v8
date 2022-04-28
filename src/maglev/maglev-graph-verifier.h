@@ -73,6 +73,7 @@ class MaglevGraphVerifier {
       case Opcode::kJumpLoop:
       case Opcode::kJumpToInlined:
       case Opcode::kJumpFromInlined:
+      case Opcode::kCreateEmptyArrayLiteral:
         // No input.
         DCHECK_EQ(node->input_count(), 0);
         break;

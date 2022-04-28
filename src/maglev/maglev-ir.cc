@@ -491,6 +491,19 @@ void RootConstant::PrintParams(std::ostream& os,
   os << "(" << RootsTable::name(index()) << ")";
 }
 
+void CreateEmptyArrayLiteral::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateEmptyArrayLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                           const ProcessingState& state) {
+  using D = CreateEmptyArrayLiteralDescriptor;
+  __ Move(kContextRegister, code_gen_state->native_context().object());
+  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+  __ CallBuiltin(Builtin::kCreateEmptyArrayLiteral);
+}
+
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state,
                              const ProcessingState& state) {
   UseRegister(actual_map_input());
