@@ -208,7 +208,6 @@ v8_source_set("cctest_sources") {
     "test-diy-fp.cc",
     "test-double.cc",
     "test-dtoa.cc",
-    "test-elements-kind.cc",
     "test-factory.cc",
     "test-fast-dtoa.cc",
     "test-feedback-vector.cc",
