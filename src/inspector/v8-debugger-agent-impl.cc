@@ -180,8 +180,8 @@ bool positionComparator(const std::pair<int, int>& a,
 
 String16 breakpointHint(const V8DebuggerScript& script, int lineNumber,
                         int columnNumber) {
-  int offset = script.offset(lineNumber, columnNumber);
-  if (offset == V8DebuggerScript::kNoOffset) return String16();
+  int offset;
+  if (!script.offset(lineNumber, columnNumber).To(&offset)) return String16();
   String16 hint =
       script.source(offset, kBreakpointHintMaxLength).stripWhiteSpace();
   for (size_t i = 0; i < hint.length(); ++i) {
@@ -206,8 +206,8 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
   }
 
   if (hint.isEmpty()) return;
-  intptr_t sourceOffset = script.offset(*lineNumber, *columnNumber);
-  if (sourceOffset == V8DebuggerScript::kNoOffset) return;
+  int sourceOffset;
+  if (!script.offset(*lineNumber, *columnNumber).To(&sourceOffset)) return;
 
   intptr_t searchRegionOffset = std::max(
       sourceOffset - kBreakpointHintMaxSearchOffset, static_cast<intptr_t>(0));
@@ -948,16 +948,6 @@ V8DebuggerAgentImpl::setBreakpointImpl(const String16& breakpointId,
   ScriptsMap::iterator scriptIterator = m_scripts.find(scriptId);
   if (scriptIterator == m_scripts.end()) return nullptr;
   V8DebuggerScript* script = scriptIterator->second.get();
-  if (lineNumber < script->startLine() || script->endLine() < lineNumber) {
-    return nullptr;
-  }
-  if (lineNumber == script->startLine() &&
-      columnNumber < script->startColumn()) {
-    return nullptr;
-  }
-  if (lineNumber == script->endLine() && script->endColumn() < columnNumber) {
-    return nullptr;
-  }
 
   v8::debug::BreakpointId debuggerBreakpointId;
   v8::debug::Location location(lineNumber, columnNumber);

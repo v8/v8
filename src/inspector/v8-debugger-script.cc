@@ -231,7 +231,7 @@ class ActualScript : public V8DebuggerScript {
     v8::debug::ResetBlackboxedStateCache(m_isolate, m_script.Get(m_isolate));
   }
 
-  int offset(int lineNumber, int columnNumber) const override {
+  v8::Maybe<int> offset(int lineNumber, int columnNumber) const override {
     v8::HandleScope scope(m_isolate);
     return m_script.Get(m_isolate)->GetSourceOffset(
         v8::debug::Location(lineNumber, columnNumber));

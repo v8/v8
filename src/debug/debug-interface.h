@@ -215,7 +215,10 @@ class V8_EXPORT_PRIVATE Script {
       const debug::Location& start, const debug::Location& end,
       bool restrict_to_function,
       std::vector<debug::BreakLocation>* locations) const;
-  int GetSourceOffset(const debug::Location& location) const;
+  enum class GetSourceOffsetMode { kStrict, kClamp };
+  Maybe<int> GetSourceOffset(
+      const debug::Location& location,
+      GetSourceOffsetMode mode = GetSourceOffsetMode::kStrict) const;
   v8::debug::Location GetSourceLocation(int offset) const;
   bool SetScriptSource(v8::Local<v8::String> newSource, bool preview,
                        LiveEditResult* result) const;
