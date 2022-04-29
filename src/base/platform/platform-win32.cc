@@ -927,6 +927,13 @@ void* AllocateInternal(void* hint, size_t size, size_t alignment,
   return reinterpret_cast<void*>(base);
 }
 
+void CheckIsOOMError(int error) {
+  // We expect one of ERROR_NOT_ENOUGH_MEMORY or ERROR_COMMITMENT_LIMIT. We'd
+  // still like to get the actual error code when its not one of the expected
+  // errors, so use the construct below to achieve that.
+  if (error != ERROR_NOT_ENOUGH_MEMORY) CHECK_EQ(ERROR_COMMITMENT_LIMIT, error);
+}
+
 }  // namespace
 
 // static
@@ -1002,7 +1009,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   // Any failure that's not OOM likely indicates a bug in the caller (e.g.
   // using an invalid mapping) so attempt to catch that here to facilitate
   // debugging of these failures.
-  if (!result) CHECK_EQ(ERROR_NOT_ENOUGH_MEMORY, GetLastError());
+  if (!result) CheckIsOOMError(GetLastError());
 
   return result != nullptr;
 }
