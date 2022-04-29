@@ -11,10 +11,12 @@
 #include "src/compiler/processed-feedback.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/slots-inl.h"
@@ -1006,7 +1008,30 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
       {}, compiler::FeedbackSource{feedback(), slot_index}));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateObjectLiteral)
+void MaglevGraphBuilder::VisitCreateObjectLiteral() {
+  ValueNode* boilerplate_desc =
+      GetConstant(GetRefOperand<ObjectBoilerplateDescription>(0));
+  FeedbackSlot slot_index = GetSlotOperand(1);
+  int bytecode_flags = GetFlagOperand(2);
+  int literal_flags =
+      interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
+  ValueNode* result;
+  if (interpreter::CreateObjectLiteralFlags::FastCloneSupportedBit::decode(
+          bytecode_flags)) {
+    // TODO(victorgomes): CreateShallowObjectLiteral should not need the
+    // boilerplate descriptor. However the current builtin checks that the
+    // feedback exists and fallsback to CreateObjectLiteral if it doesn't.
+    result = AddNewNode<CreateShallowObjectLiteral>(
+        {boilerplate_desc}, literal_flags,
+        compiler::FeedbackSource{feedback(), slot_index});
+  } else {
+    result = AddNewNode<CreateObjectLiteral>(
+        {boilerplate_desc}, literal_flags,
+        compiler::FeedbackSource{feedback(), slot_index});
+  }
+  SetAccumulator(result);
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEmptyObjectLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CloneObject)
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetTemplateObject)

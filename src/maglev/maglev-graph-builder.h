@@ -269,6 +269,10 @@ class MaglevGraphBuilder {
     return iterator_.GetSlotOperand(operand_index);
   }
 
+  uint32_t GetFlagOperand(int operand_index) const {
+    return iterator_.GetFlagOperand(operand_index);
+  }
+
   template <class T, typename = std::enable_if_t<
                          std::is_convertible<T*, Object*>::value>>
   typename compiler::ref_traits<T>::ref_type GetRefOperand(int operand_index) {

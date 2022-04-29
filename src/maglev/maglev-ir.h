@@ -65,30 +65,32 @@ class CompactInterpreterFrameState;
   V(GenericGreaterThan)                 \
   V(GenericGreaterThanOrEqual)
 
-#define VALUE_NODE_LIST(V)   \
-  V(Call)                    \
-  V(Constant)                \
-  V(Construct)               \
-  V(CreateEmptyArrayLiteral) \
-  V(InitialValue)            \
-  V(LoadTaggedField)         \
-  V(LoadDoubleField)         \
-  V(LoadGlobal)              \
-  V(LoadNamedGeneric)        \
-  V(SetNamedGeneric)         \
-  V(Phi)                     \
-  V(RegisterInput)           \
-  V(RootConstant)            \
-  V(SmiConstant)             \
-  V(CheckedSmiTag)           \
-  V(CheckedSmiUntag)         \
-  V(Int32AddWithOverflow)    \
-  V(Int32Constant)           \
-  V(Float64Constant)         \
-  V(ChangeInt32ToFloat64)    \
-  V(Float64Box)              \
-  V(CheckedFloat64Unbox)     \
-  V(Float64Add)              \
+#define VALUE_NODE_LIST(V)      \
+  V(Call)                       \
+  V(Constant)                   \
+  V(Construct)                  \
+  V(CreateEmptyArrayLiteral)    \
+  V(CreateObjectLiteral)        \
+  V(CreateShallowObjectLiteral) \
+  V(InitialValue)               \
+  V(LoadTaggedField)            \
+  V(LoadDoubleField)            \
+  V(LoadGlobal)                 \
+  V(LoadNamedGeneric)           \
+  V(SetNamedGeneric)            \
+  V(Phi)                        \
+  V(RegisterInput)              \
+  V(RootConstant)               \
+  V(SmiConstant)                \
+  V(CheckedSmiTag)              \
+  V(CheckedSmiUntag)            \
+  V(Int32AddWithOverflow)       \
+  V(Int32Constant)              \
+  V(Float64Constant)            \
+  V(ChangeInt32ToFloat64)       \
+  V(Float64Box)                 \
+  V(CheckedFloat64Unbox)        \
+  V(Float64Add)                 \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define NODE_LIST(V) \
@@ -1276,6 +1278,66 @@ class CreateEmptyArrayLiteral
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
+  const compiler::FeedbackSource feedback_;
+};
+
+class CreateObjectLiteral
+    : public FixedInputValueNodeT<1, CreateObjectLiteral> {
+  using Base = FixedInputValueNodeT<1, CreateObjectLiteral>;
+
+ public:
+  explicit CreateObjectLiteral(uint32_t bitfield, int flags,
+                               const compiler::FeedbackSource& feedback)
+      : Base(bitfield), flags_(flags), feedback_(feedback) {}
+
+  static constexpr int kObjectBoilerplateDescription = 0;
+  Input& boilerplate_descriptor() {
+    return input(kObjectBoilerplateDescription);
+  }
+
+  int flags() const { return flags_; }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const int flags_;
+  const compiler::FeedbackSource feedback_;
+};
+
+class CreateShallowObjectLiteral
+    : public FixedInputValueNodeT<1, CreateShallowObjectLiteral> {
+  using Base = FixedInputValueNodeT<1, CreateShallowObjectLiteral>;
+
+ public:
+  explicit CreateShallowObjectLiteral(uint32_t bitfield, int flags,
+                                      const compiler::FeedbackSource& feedback)
+      : Base(bitfield), flags_(flags), feedback_(feedback) {}
+
+  // TODO(victorgomes): We should not need a boilerplate descriptor in
+  // CreateShallowObjectLiteral.
+  static constexpr int kObjectBoilerplateDescription = 0;
+  Input& boilerplate_descriptor() {
+    return input(kObjectBoilerplateDescription);
+  }
+
+  int flags() const { return flags_; }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const int flags_;
   const compiler::FeedbackSource feedback_;
 };
 
