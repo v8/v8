@@ -13,6 +13,7 @@
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
+#include "src/debug/debug-stack-trace-iterator.h"
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
@@ -313,6 +314,20 @@ void PrepareStep(Isolate* v8_isolate, StepAction action) {
   isolate->debug()->ClearStepping();
   // Prepare step.
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
+}
+
+bool PrepareRestartFrame(Isolate* v8_isolate, int callFrameOrdinal) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8_BASIC(isolate);
+  CHECK(isolate->debug()->CheckExecutionState());
+
+  i::DebugStackTraceIterator it(isolate, callFrameOrdinal);
+  if (it.Done() || !it.CanBeRestarted()) return false;
+
+  // Clear all current stepping setup.
+  isolate->debug()->ClearStepping();
+  it.PrepareRestart();
+  return true;
 }
 
 void ClearStepping(Isolate* v8_isolate) {

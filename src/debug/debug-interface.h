@@ -135,6 +135,7 @@ enum class BreakReason : uint8_t {
 typedef base::EnumSet<BreakReason> BreakReasons;
 
 void PrepareStep(Isolate* isolate, StepAction action);
+bool PrepareRestartFrame(Isolate* isolate, int callFrameOrdinal);
 void ClearStepping(Isolate* isolate);
 V8_EXPORT_PRIVATE void BreakRightNow(
     Isolate* isolate, base::EnumSet<BreakReason> break_reason = {});

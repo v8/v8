@@ -385,6 +385,8 @@ void Debug::ThreadInit() {
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::zero();
   thread_local_.last_breakpoint_id_ = 0;
+  thread_local_.restart_frame_id_ = StackFrameId::NO_ID;
+  thread_local_.restart_inline_frame_index_ = -1;
   clear_suspended_generator();
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
@@ -1379,6 +1381,8 @@ void Debug::ClearStepping() {
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   thread_local_.break_on_next_function_call_ = false;
+  thread_local_.restart_frame_id_ = StackFrameId::NO_ID;
+  thread_local_.restart_inline_frame_index_ = -1;
   UpdateHookOnFunctionCall();
 }
 
@@ -2909,6 +2913,19 @@ bool Debug::GetTemporaryObjectTrackingDisabled() const {
     return temporary_objects_->disabled;
   }
   return false;
+}
+
+void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
+                                int inlined_frame_index) {
+  if (frame->is_optimized()) Deoptimizer::DeoptimizeFunction(frame->function());
+
+  thread_local_.restart_frame_id_ = frame->id();
+  thread_local_.restart_inline_frame_index_ = inlined_frame_index;
+
+  // TODO(crbug.com/1303521): A full "StepInto" is probably not needed. Get the
+  // necessary bits out of PrepareSTep into a separate method or fold them
+  // into Debug::PrepareRestartFrame.
+  PrepareStep(StepInto);
 }
 
 }  // namespace internal

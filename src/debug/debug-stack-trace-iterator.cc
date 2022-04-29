@@ -226,5 +226,13 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
   return Utils::ToLocal(value);
 }
 
+void DebugStackTraceIterator::PrepareRestart() {
+  CHECK(!Done());
+  CHECK(CanBeRestarted());
+
+  isolate_->debug()->PrepareRestartFrame(iterator_.javascript_frame(),
+                                         inlined_frame_index_);
+}
+
 }  // namespace internal
 }  // namespace v8
