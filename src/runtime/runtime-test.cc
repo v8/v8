@@ -615,9 +615,20 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
+  // Ensure that the function is marked for non-concurrent optimization, so that
+  // subsequent runs don't also optimize.
+  if (FLAG_trace_osr) {
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[OSR - OptimizeOsr marking ");
+    function->ShortPrint(scope.file());
+    PrintF(scope.file(), " for non-concurrent optimization]\n");
+  }
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate));
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+  function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
+                                ConcurrencyMode::kSynchronous);
+
   isolate->tiering_manager()->RequestOsrAtNextOpportunity(*function);
 
   // If concurrent OSR is enabled, the testing workflow is a bit tricky. We

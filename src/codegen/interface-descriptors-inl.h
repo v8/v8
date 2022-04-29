@@ -371,10 +371,18 @@ constexpr auto BaselineOnStackReplacementDescriptor::registers() {
 
 // static
 constexpr Register
-BaselineOnStackReplacementDescriptor::MaybeTargetCodeRegister() {
-  // Picking the first register on purpose because it's convenient that this
-  // register is the same as the platform's return-value register.
+BaselineOnStackReplacementDescriptor::CurrentLoopDepthRegister() {
   return registers()[0];
+}
+// static
+constexpr Register
+BaselineOnStackReplacementDescriptor::EncodedCurrentBytecodeOffsetRegister() {
+  return registers()[1];
+}
+// static
+constexpr Register
+BaselineOnStackReplacementDescriptor::OsrUrgencyAndInstallTargetRegister() {
+  return registers()[2];
 }
 
 // static
@@ -385,9 +393,21 @@ constexpr auto InterpreterOnStackReplacementDescriptor::registers() {
 
 // static
 constexpr Register
-InterpreterOnStackReplacementDescriptor::MaybeTargetCodeRegister() {
+InterpreterOnStackReplacementDescriptor::CurrentLoopDepthRegister() {
   using BaselineD = BaselineOnStackReplacementDescriptor;
-  return BaselineD::MaybeTargetCodeRegister();
+  return BaselineD::CurrentLoopDepthRegister();
+}
+// static
+constexpr Register InterpreterOnStackReplacementDescriptor::
+    EncodedCurrentBytecodeOffsetRegister() {
+  using BaselineD = BaselineOnStackReplacementDescriptor;
+  return BaselineD::EncodedCurrentBytecodeOffsetRegister();
+}
+// static
+constexpr Register
+InterpreterOnStackReplacementDescriptor::OsrUrgencyAndInstallTargetRegister() {
+  using BaselineD = BaselineOnStackReplacementDescriptor;
+  return BaselineD::OsrUrgencyAndInstallTargetRegister();
 }
 
 // static

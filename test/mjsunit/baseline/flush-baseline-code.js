@@ -49,12 +49,8 @@ function f1(should_recurse) {
     }
     assertTrue(HasBaselineCode(f1));
     gc();
-    // TODO(jgruber, v8:12161): No longer true since we now always tier up to
-    // available Sparkplug code as early as possible. By the time we reach this
-    // assert, SP code is being executed and is thus alive.
-    // assertFalse(HasBaselineCode(f1));
-    // Also, the active tier is Sparkplug and not Ignition.
-    // assertTrue(ActiveTierIsIgnition(f1));
+    assertFalse(HasBaselineCode(f1));
+    assertTrue(HasByteCode(f1));
   }
   return x.b + 10;
 }

@@ -386,6 +386,7 @@ v8_source_set("unittests_sources") {
     "objects/concurrent-transition-array-unittest.cc",
     "objects/modules-unittest.cc",
     "objects/object-unittest.cc",
+    "objects/osr-optimized-code-cache-unittest.cc",
     "objects/swiss-hash-table-helpers-unittest.cc",
     "objects/value-serializer-unittest.cc",
     "objects/weakarraylist-unittest.cc",

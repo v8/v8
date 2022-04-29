@@ -85,7 +85,12 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.
-    GotoIf(IsMarkedForDeoptimization(optimized_code),
+    TNode<CodeDataContainer> code_data_container =
+        CodeDataContainerFromCodeT(optimized_code);
+    TNode<Int32T> code_kind_specific_flags = LoadObjectField<Int32T>(
+        code_data_container, CodeDataContainer::kKindSpecificFlagsOffset);
+    GotoIf(IsSetWord32<Code::MarkedForDeoptimizationField>(
+               code_kind_specific_flags),
            &heal_optimized_code_slot);
 
     // Optimized code is good, get it into the closure and link the closure into

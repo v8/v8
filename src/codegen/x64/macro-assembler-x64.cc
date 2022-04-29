@@ -2332,24 +2332,6 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   CompareRange(instance_type_out, lower_limit, higher_limit);
 }
 
-void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
-                                                        Register scratch) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    testl(FieldOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset),
-          Immediate(1 << Code::kMarkedForDeoptimizationBit));
-  } else {
-    LoadTaggedPointerField(scratch,
-                           FieldOperand(codet, Code::kCodeDataContainerOffset));
-    testl(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
-          Immediate(1 << Code::kMarkedForDeoptimizationBit));
-  }
-}
-
-Immediate MacroAssembler::ClearedValue() const {
-  return Immediate(
-      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
-}
-
 void TurboAssembler::AssertNotSmi(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
