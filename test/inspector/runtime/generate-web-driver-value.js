@@ -1,4 +1,4 @@
-// Copyright 2018 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,8 +28,8 @@ InspectorTest.runAsyncTestSuite([
     await testExpression("[function qwe(){}, ()=>{}]");
   },
   async function Array() {
-    await testExpression("[1,2]");
-    await testExpression("new Array(1,2)");
+    await testExpression("[1,2,undefined]");
+    await testExpression("new Array(1,2,undefined)");
   },
   async function RegExp() {
     await testExpression("[new RegExp('ab+c'), new RegExp('ab+c', 'ig')]");
@@ -49,7 +49,7 @@ InspectorTest.runAsyncTestSuite([
     await testExpression("new WeakMap([[{valueObject1: 1}, 'keyString1'],[{valueObject2: 2}, 'keyString2']])");
   },
   async function Set() {
-    await testExpression("new Set([{valueObject1: 1}, 'valueString2', new Array()])");
+    await testExpression("new Set([{valueObject1: 1}, 'valueString2', new Array(), undefined])");
   },
   async function Weakset() {
     await testExpression("new WeakSet([{valueObject1: 1}, {valueObject2: 2}])");
@@ -68,7 +68,7 @@ InspectorTest.runAsyncTestSuite([
   },
   async function Object() {
     // Object.
-    await testExpression("{nullKey: null, stringKey: 'foo',boolKey: true,numberKey: 123,bigintKey: 123n,symbolKey: Symbol('foo'),functionKey: () => {},arrayKey:[1]}");
+    await testExpression("{nullKey: null, stringKey: 'foo',boolKey: true,numberKey: 123,bigintKey: 123n,symbolKey: Symbol('foo'),functionKey: () => {},arrayKey:[1],undefinedKey:undefined}");
     // Object in-depth serialization.
     await testExpression("{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}");
  }]);
