@@ -195,6 +195,8 @@ class Deoptimizer : public Malloced {
   static void TraceDeoptAll(Isolate* isolate);
   static void TraceDeoptMarked(Isolate* isolate);
 
+  bool is_restart_frame() const { return restart_frame_index_ >= 0; }
+
   Isolate* isolate_;
   JSFunction function_;
   Code compiled_code_;
@@ -206,6 +208,7 @@ class Deoptimizer : public Malloced {
   bool deoptimizing_throw_;
   int catch_handler_data_;
   int catch_handler_pc_offset_;
+  int restart_frame_index_;
 
   // Input frame description.
   FrameDescription* input_;

@@ -404,6 +404,9 @@ class V8_EXPORT_PRIVATE Debug {
     thread_local_.restart_frame_id_ = StackFrameId::NO_ID;
     thread_local_.restart_inline_frame_index_ = -1;
   }
+  int restart_inline_frame_index() const {
+    return thread_local_.restart_inline_frame_index_;
+  }
 
   inline bool break_disabled() const { return break_disabled_; }
 
