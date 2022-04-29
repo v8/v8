@@ -649,7 +649,56 @@ void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
 
 #define __ basm.
 
-void BaselineAssembler::EmitReturn(MacroAssembler* masm) { UNIMPLEMENTED(); }
+void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
+  ASM_CODE_COMMENT(masm);
+  BaselineAssembler basm(masm);
+
+  Register weight = BaselineLeaveFrameDescriptor::WeightRegister();
+  Register params_size = BaselineLeaveFrameDescriptor::ParamsSizeRegister();
+
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+
+    Label skip_interrupt_label;
+    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
+    {
+      __ masm()->SmiTag(params_size);
+      __ Push(params_size, kInterpreterAccumulatorRegister);
+
+      __ LoadContext(kContextRegister);
+      __ LoadFunction(kJSFunctionRegister);
+      __ Push(kJSFunctionRegister);
+      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt, 1);
+
+      __ Pop(kInterpreterAccumulatorRegister, params_size);
+      __ masm()->SmiUntag(params_size);
+    }
+
+    __ Bind(&skip_interrupt_label);
+  }
+
+  BaselineAssembler::ScratchRegisterScope temps(&basm);
+  Register actual_params_size = temps.AcquireScratch();
+  // Compute the size of the actual parameters + receiver (in bytes).
+  __ Move(actual_params_size,
+          MemOperand(fp, StandardFrameConstants::kArgCOffset));
+
+  // If actual is bigger than formal, then we should use it to free up the stack
+  // arguments.
+  Label corrected_args_count;
+  JumpIfHelper(__ masm(), Condition::kGreaterThanEqual, params_size,
+               actual_params_size, &corrected_args_count);
+  __ masm()->mr(params_size, actual_params_size);
+  __ Bind(&corrected_args_count);
+
+  // Leave the frame (also dropping the register file).
+  __ masm()->LeaveFrame(StackFrame::BASELINE);
+
+  // Drop receiver + arguments.
+  __ masm()->DropArguments(params_size, TurboAssembler::kCountIsInteger,
+                           TurboAssembler::kCountIncludesReceiver);
+  __ masm()->Ret();
+}
 
 #undef __
 
