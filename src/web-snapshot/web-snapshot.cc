@@ -866,11 +866,15 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
 
   auto elements_kind = array->GetElementsKind();
   if (elements_kind != PACKED_SMI_ELEMENTS &&
-      elements_kind != PACKED_ELEMENTS) {
+      elements_kind != PACKED_ELEMENTS &&
+      elements_kind != PACKED_SEALED_ELEMENTS &&
+      elements_kind != PACKED_FROZEN_ELEMENTS) {
     Throw("Unsupported array");
     return;
   }
   // TODO(v8:11525): Support sparse arrays & arrays with holes.
+  // TODO(v8:11525): Handle sealed & frozen elements correctly. (Also: handle
+  // sealed & frozen objects.)
   DisallowGarbageCollection no_gc;
   FixedArray elements = FixedArray::cast(array->elements());
   for (int i = 0; i < elements.length(); ++i) {
