@@ -265,6 +265,11 @@ class MaglevGraphBuilder {
         interpreter::Register::current_context());
   }
 
+  void SetContext(ValueNode* context) {
+    current_interpreter_frame_.set(interpreter::Register::current_context(),
+                                   context);
+  }
+
   FeedbackSlot GetSlotOperand(int operand_index) const {
     return iterator_.GetSlotOperand(operand_index);
   }

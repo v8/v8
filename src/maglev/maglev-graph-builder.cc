@@ -412,8 +412,17 @@ void MaglevGraphBuilder::VisitMov() {
   MoveNodeBetweenRegisters(iterator_.GetRegisterOperand(0),
                            iterator_.GetRegisterOperand(1));
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(PushContext)
-MAGLEV_UNIMPLEMENTED_BYTECODE(PopContext)
+
+void MaglevGraphBuilder::VisitPushContext() {
+  MoveNodeBetweenRegisters(interpreter::Register::current_context(),
+                           iterator_.GetRegisterOperand(0));
+  SetContext(GetAccumulatorTagged());
+}
+
+void MaglevGraphBuilder::VisitPopContext() {
+  SetContext(LoadRegisterTagged(0));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestReferenceEqual)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestUndetectable)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestNull)
