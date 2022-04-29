@@ -180,10 +180,13 @@ declare_args() {
   #      chrome --no-sandbox --disable-extensions
   #        --js-flags="--turbo-profiling-log-builtins --logfile=path/to/v8.log"
   #        "http://localhost/test-suite"
-  # 3. Optionally repeat step 2 for additional workloads, and concatenate all of
-  #    the resulting log files into a single file.
-  # 4. Build again with v8_builtins_profiling_log_file set to the file created
-  #    in steps 2-3.
+  # 3. Run tools/get_hints.py to produce the branch hints, selecting min_count
+  #    and threshold_ratio as you wish.
+  # 4. Optionally repeat steps 2-3 for additional workloads, and use
+  #    tools/combine_hints.py to combine the hints produced in step 3 into a
+  #    single file.
+  # 5. Build again with v8_builtins_profiling_log_file set to the file created
+  #    in step 3 or 4.
   v8_builtins_profiling_log_file = ""
 
   # Enables various testing features.

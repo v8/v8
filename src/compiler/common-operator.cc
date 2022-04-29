@@ -14,7 +14,6 @@
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
 std::ostream& operator<<(std::ostream& os, BranchHint hint) {
   switch (hint) {
@@ -27,6 +26,8 @@ std::ostream& operator<<(std::ostream& os, BranchHint hint) {
   }
   UNREACHABLE();
 }
+
+namespace compiler {
 
 std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
   switch (trap_id) {

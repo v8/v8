@@ -236,6 +236,9 @@ class V8FileLogger : public LogEventListener {
 
   void BasicBlockCounterEvent(const char* name, int block_id, uint32_t count);
 
+  void BasicBlockBranchEvent(const char* name, int true_block_id,
+                             int false_block_id);
+
   void BuiltinHashEvent(const char* name, int hash);
 
   static void EnterExternal(Isolate* isolate);

@@ -23,6 +23,8 @@ namespace internal {
 
 class StringConstantBase;
 
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
+
 namespace compiler {
 
 // Forward declarations.
@@ -39,9 +41,6 @@ class Node;
 // should be treated.
 enum class BranchSemantics { kJS, kMachine };
 
-// Prediction hint for branches.
-enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
-
 inline BranchHint NegateBranchHint(BranchHint hint) {
   switch (hint) {
     case BranchHint::kNone:
@@ -53,10 +52,6 @@ inline BranchHint NegateBranchHint(BranchHint hint) {
   }
   UNREACHABLE();
 }
-
-inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
 enum class TrapId : uint32_t {
 #define DEF_ENUM(Name, ...) k##Name,

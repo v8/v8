@@ -1168,6 +1168,15 @@ void V8FileLogger::BasicBlockCounterEvent(const char* name, int block_id,
   msg.WriteToLogFile();
 }
 
+void V8FileLogger::BasicBlockBranchEvent(const char* name, int true_block_id,
+                                         int false_block_id) {
+  if (!FLAG_turbo_profiling_log_builtins) return;
+  MSG_BUILDER();
+  msg << ProfileDataFromFileConstants::kBlockHintMarker << kNext << name
+      << kNext << true_block_id << kNext << false_block_id;
+  msg.WriteToLogFile();
+}
+
 void V8FileLogger::BuiltinHashEvent(const char* name, int hash) {
   if (!FLAG_turbo_profiling_log_builtins) return;
   MSG_BUILDER();
