@@ -947,7 +947,26 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntime)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntimeForPair)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallJSRuntime)
 MAGLEV_UNIMPLEMENTED_BYTECODE(InvokeIntrinsic)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Construct)
+
+void MaglevGraphBuilder::VisitConstruct() {
+  ValueNode* new_target = GetAccumulatorTagged();
+  ValueNode* constructor = LoadRegisterTagged(0);
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  ValueNode* context = GetContext();
+
+  size_t input_count = args.register_count() + 1 + Construct::kFixedInputCount;
+  Construct* construct =
+      CreateNewNode<Construct>(input_count, constructor, new_target, context);
+  int arg_index = 0;
+  // Add undefined receiver.
+  construct->set_arg(arg_index++,
+                     AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
+  for (int i = 0; i < args.register_count(); i++) {
+    construct->set_arg(arg_index++, GetTaggedValue(args[i]));
+  }
+  SetAccumulator(AddNode(construct));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(ConstructWithSpread)
 
 void MaglevGraphBuilder::VisitTestEqual() {

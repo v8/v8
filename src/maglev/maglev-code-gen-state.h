@@ -57,6 +57,7 @@ class MaglevCodeGenState {
   }
   inline void DefineSafepointStackSlots(
       SafepointTableBuilder::Safepoint& safepoint) const;
+  inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
 
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
@@ -160,6 +161,14 @@ inline void MaglevCodeGenState::DefineSafepointStackSlots(
   for (int stack_slot = 0; stack_slot < tagged_slots_; stack_slot++) {
     safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(stack_slot));
   }
+}
+
+inline void MaglevCodeGenState::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
+  info->deopting_call_return_pc = masm()->pc_offset_for_safepoint();
+  PushLazyDeopt(info);
+  SafepointTableBuilder::Safepoint safepoint =
+      safepoint_table_builder()->DefineSafepoint(masm());
+  DefineSafepointStackSlots(safepoint);
 }
 
 }  // namespace maglev

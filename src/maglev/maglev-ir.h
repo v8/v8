@@ -68,6 +68,7 @@ class CompactInterpreterFrameState;
 #define VALUE_NODE_LIST(V)   \
   V(Call)                    \
   V(Constant)                \
+  V(Construct)               \
   V(CreateEmptyArrayLiteral) \
   V(InitialValue)            \
   V(LoadTaggedField)         \
@@ -1542,6 +1543,45 @@ class Call : public ValueNodeT<Call> {
 
  private:
   ConvertReceiverMode receiver_mode_;
+};
+
+class Construct : public ValueNodeT<Construct> {
+  using Base = ValueNodeT<Construct>;
+
+ public:
+  // We assume function and context as fixed inputs.
+  static constexpr int kFunctionIndex = 0;
+  static constexpr int kNewTargetIndex = 1;
+  static constexpr int kContextIndex = 2;
+  static constexpr int kFixedInputCount = 3;
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  Construct(uint32_t bitfield, ValueNode* function, ValueNode* new_target,
+            ValueNode* context)
+      : Base(bitfield) {
+    set_input(kFunctionIndex, function);
+    set_input(kNewTargetIndex, new_target);
+    set_input(kContextIndex, context);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& function() { return input(kFunctionIndex); }
+  const Input& function() const { return input(kFunctionIndex); }
+  Input& new_target() { return input(kNewTargetIndex); }
+  const Input& new_target() const { return input(kNewTargetIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 // Represents either a direct BasicBlock pointer, or an entry in a list of

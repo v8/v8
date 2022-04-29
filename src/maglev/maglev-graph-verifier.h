@@ -148,6 +148,7 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 1, ValueRepresentation::kFloat64);
         break;
       case Opcode::kCall:
+      case Opcode::kConstruct:
       case Opcode::kPhi:
         // All inputs should be tagged.
         for (int i = 0; i < node->input_count(); i++) {

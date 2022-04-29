@@ -983,13 +983,38 @@ void Call::GenerateCode(MaglevCodeGenState* code_gen_state,
       break;
   }
 
-  lazy_deopt_info()->deopting_call_return_pc = __ pc_offset_for_safepoint();
-  code_gen_state->PushLazyDeopt(lazy_deopt_info());
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
 
-  SafepointTableBuilder::Safepoint safepoint =
-      code_gen_state->safepoint_table_builder()->DefineSafepoint(
-          code_gen_state->masm());
-  code_gen_state->DefineSafepointStackSlots(safepoint);
+void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                             const ProcessingState& state) {
+  using D = ConstructStubDescriptor;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void Construct::GenerateCode(MaglevCodeGenState* code_gen_state,
+                             const ProcessingState& state) {
+  using D = ConstructStubDescriptor;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+
+  for (int i = num_args() - 1; i >= 0; --i) {
+    PushInput(code_gen_state, arg(i));
+  }
+
+  uint32_t arg_count = num_args();
+  __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
+          Immediate(arg_count));
+
+  __ CallBuiltin(Builtin::kConstruct);
+
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
 // ---
