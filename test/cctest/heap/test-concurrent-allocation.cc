@@ -452,8 +452,8 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
   void Run() override {
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
-    RwxMemoryWriteScope rwx_write_scope(
-        "Modification of Code object requires write access");
+    // Modification of Code object requires write access.
+    RwxMemoryWriteScopeForTesting rwx_write_scope;
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
