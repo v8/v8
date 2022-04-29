@@ -180,7 +180,12 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
   }
 
   if (FLAG_print_maglev_graph) {
-    std::cout << "After graph buiding" << std::endl;
+    MaglevCompilationUnit* top_level_unit =
+        compilation_info->toplevel_compilation_unit();
+    std::cout << "Compiling " << Brief(*top_level_unit->function().object())
+              << " with Maglev\n";
+    top_level_unit->bytecode().object()->Disassemble(std::cout);
+    std::cout << "\nAfter graph buiding" << std::endl;
     PrintGraph(std::cout, compilation_info, graph_builder.graph());
   }
 
