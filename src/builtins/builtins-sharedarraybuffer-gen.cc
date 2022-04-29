@@ -557,8 +557,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(Runtime::kAtomicsCompareExchange, context, array,
                      index_number, old_value, new_value));
@@ -677,9 +676,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
-        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-        // || V8_TARGET_ARCH_RISCV64
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
   BIND(&detached_or_out_of_bounds);
   {
@@ -730,8 +727,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(runtime_function, context, array, index_number, value));
 #else
@@ -821,9 +817,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   // // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
-        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-        // || V8_TARGET_ARCH_RISCV64
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
   BIND(&detached_or_out_of_bounds);
   ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
