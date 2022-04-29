@@ -500,7 +500,7 @@ void CreateEmptyArrayLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
                                            const ProcessingState& state) {
   using D = CreateEmptyArrayLiteralDescriptor;
   __ Move(kContextRegister, code_gen_state->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kSlot), Smi::FromInt(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
   __ CallBuiltin(Builtin::kCreateEmptyArrayLiteral);
 }
