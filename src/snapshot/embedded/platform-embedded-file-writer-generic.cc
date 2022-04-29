@@ -41,10 +41,6 @@ void PlatformEmbeddedFileWriterGeneric::SectionText() {
   }
 }
 
-void PlatformEmbeddedFileWriterGeneric::SectionData() {
-  fprintf(fp_, ".section .data\n");
-}
-
 void PlatformEmbeddedFileWriterGeneric::SectionRoData() {
   fprintf(fp_, ".section .rodata\n");
 }
@@ -56,14 +52,6 @@ void PlatformEmbeddedFileWriterGeneric::DeclareUint32(const char* name,
   IndentedDataDirective(kLong);
   fprintf(fp_, "%d", value);
   Newline();
-}
-
-void PlatformEmbeddedFileWriterGeneric::DeclarePointerToSymbol(
-    const char* name, const char* target) {
-  DeclareSymbolGlobal(name);
-  DeclareLabel(name);
-  fprintf(fp_, "  %s %s%s\n", DirectiveAsString(PointerSizeDirective()),
-          SYMBOL_PREFIX, target);
 }
 
 void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {

@@ -54,7 +54,6 @@ class PlatformEmbeddedFileWriterBase {
   FILE* fp() const { return fp_; }
 
   virtual void SectionText() = 0;
-  virtual void SectionData() = 0;
   virtual void SectionRoData() = 0;
 
   virtual void AlignToCodeAlignment() = 0;
@@ -62,7 +61,6 @@ class PlatformEmbeddedFileWriterBase {
   virtual void AlignToDataAlignment() = 0;
 
   virtual void DeclareUint32(const char* name, uint32_t value) = 0;
-  virtual void DeclarePointerToSymbol(const char* name, const char* target) = 0;
 
   virtual void DeclareSymbolGlobal(const char* name) = 0;
   virtual void DeclareLabel(const char* name) = 0;

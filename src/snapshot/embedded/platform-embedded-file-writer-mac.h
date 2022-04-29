@@ -22,7 +22,6 @@ class PlatformEmbeddedFileWriterMac : public PlatformEmbeddedFileWriterBase {
   }
 
   void SectionText() override;
-  void SectionData() override;
   void SectionRoData() override;
 
   void AlignToCodeAlignment() override;
@@ -30,7 +29,6 @@ class PlatformEmbeddedFileWriterMac : public PlatformEmbeddedFileWriterBase {
   void AlignToDataAlignment() override;
 
   void DeclareUint32(const char* name, uint32_t value) override;
-  void DeclarePointerToSymbol(const char* name, const char* target) override;
 
   void DeclareSymbolGlobal(const char* name) override;
   void DeclareLabel(const char* name) override;

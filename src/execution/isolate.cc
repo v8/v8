@@ -141,9 +141,9 @@
 #include "src/execution/simulator-base.h"
 #endif
 
-extern "C" const uint8_t* v8_Default_embedded_blob_code_;
+extern "C" const uint8_t v8_Default_embedded_blob_code_[];
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Default_embedded_blob_data_;
+extern "C" const uint8_t v8_Default_embedded_blob_data_[];
 extern "C" uint32_t v8_Default_embedded_blob_data_size_;
 
 namespace v8 {
@@ -3696,8 +3696,8 @@ void Isolate::InitializeDefaultEmbeddedBlob() {
     }
   }
 
-  if (code == nullptr) {
-    CHECK_EQ(0, code_size);
+  if (code_size == 0) {
+    CHECK_EQ(0, data_size);
   } else {
     SetEmbeddedBlob(code, code_size, data, data_size);
   }
