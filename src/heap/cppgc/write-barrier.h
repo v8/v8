@@ -25,14 +25,14 @@ class WriteBarrier::FlagUpdater final {
 class V8_EXPORT_PRIVATE YoungGenerationEnabler final {
  public:
   static void Enable();
-  static void DisableForTesting();
+  static void Disable();
 
   static bool IsEnabled();
 
  private:
   YoungGenerationEnabler() = delete;
 
-  static bool is_enabled_;
+  static size_t is_enabled_;
   static v8::base::LeakyObject<v8::base::Mutex> mutex_;
 };
 #endif  // defined(CPPGC_YOUNG_GENERATION)

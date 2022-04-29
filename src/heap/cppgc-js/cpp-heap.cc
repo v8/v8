@@ -663,10 +663,9 @@ void CppHeap::TraceEpilogue() {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   // Check if the young generation was enabled via flag.
-  if (FLAG_cppgc_young_generation)
-    cppgc::internal::YoungGenerationEnabler::Enable();
+  if (FLAG_cppgc_young_generation) EnableGenerationalGC();
 
-  ResetRememberedSetAndEnableMinorGCIfNeeded();
+  ResetRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   {

@@ -224,10 +224,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     return supported;
   }
 
-#if defined(CPPGC_YOUNG_GENERATION)
-  void DisableGenerationalGCForTesting();
-#endif  // defined(CPPGC_YOUNG_GENERATION)
-
  protected:
   enum class GenerationSupport : uint8_t {
     kSingleGeneration,
@@ -246,7 +242,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   size_t ExecutePreFinalizers();
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  void ResetRememberedSetAndEnableMinorGCIfNeeded();
+  void EnableGenerationalGC();
+  void ResetRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   PageAllocator* page_allocator() const;

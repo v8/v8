@@ -25,7 +25,7 @@ AtomicEntryFlag WriteBarrier::write_barrier_enabled_;
 
 #if defined(CPPGC_YOUNG_GENERATION)
 // static
-bool YoungGenerationEnabler::is_enabled_;
+size_t YoungGenerationEnabler::is_enabled_;
 // static
 v8::base::LeakyObject<v8::base::Mutex> YoungGenerationEnabler::mutex_;
 #endif  // defined(CPPGC_YOUNG_GENERATION)
@@ -209,18 +209,19 @@ bool WriteBarrierTypeForCagedHeapPolicy::IsMarking(
 #if defined(CPPGC_YOUNG_GENERATION)
 void YoungGenerationEnabler::Enable() {
   v8::base::LockGuard _(mutex_.get());
-  if (is_enabled_) return;
-  // Enter the flag so that the check in the write barrier will always trigger
-  // when young generation is enabled.
-  WriteBarrier::FlagUpdater::Enter();
-  is_enabled_ = true;
+  if (++is_enabled_ == 1) {
+    // Enter the flag so that the check in the write barrier will always trigger
+    // when young generation is enabled.
+    WriteBarrier::FlagUpdater::Enter();
+  }
 }
 
-void YoungGenerationEnabler::DisableForTesting() {
+void YoungGenerationEnabler::Disable() {
   v8::base::LockGuard _(mutex_.get());
-  if (!is_enabled_) return;
-  WriteBarrier::FlagUpdater::Exit();
-  is_enabled_ = false;
+  DCHECK_LT(0, is_enabled_);
+  if (--is_enabled_ == 0) {
+    WriteBarrier::FlagUpdater::Exit();
+  }
 }
 
 bool YoungGenerationEnabler::IsEnabled() {

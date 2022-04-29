@@ -67,16 +67,13 @@ class MinorGCTest : public testing::TestWithHeap {
   MinorGCTest() : testing::TestWithHeap() {
     // Enable young generation flag and run GC. After the first run the heap
     // will enable minor GC.
-    YoungGenerationEnabler::Enable();
+    Heap::From(GetHeap())->EnableGenerationalGC();
     CollectMajor();
 
     SimpleGCedBase::destructed_objects = 0;
   }
 
-  ~MinorGCTest() override {
-    YoungGenerationEnabler::DisableForTesting();
-    Heap::From(GetHeap())->DisableGenerationalGCForTesting();
-  }
+  ~MinorGCTest() override { Heap::From(GetHeap())->Terminate(); }
 
   static size_t DestructedObjects() {
     return SimpleGCedBase::destructed_objects;

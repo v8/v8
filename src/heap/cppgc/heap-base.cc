@@ -122,7 +122,16 @@ size_t HeapBase::ExecutePreFinalizers() {
 }
 
 #if defined(CPPGC_YOUNG_GENERATION)
-void HeapBase::ResetRememberedSetAndEnableMinorGCIfNeeded() {
+void HeapBase::EnableGenerationalGC() {
+  DCHECK(in_atomic_pause());
+  // Notify the global flag that the write barrier must always be enabled.
+  YoungGenerationEnabler::Enable();
+  // Enable young generation for the current heap.
+  caged_heap().EnableGenerationalGC();
+  generation_support_ = GenerationSupport::kYoungAndOldGenerations;
+}
+
+void HeapBase::ResetRememberedSet() {
   DCHECK(in_atomic_pause());
   class AllLABsAreEmpty final : protected HeapVisitor<AllLABsAreEmpty> {
     friend class HeapVisitor<AllLABsAreEmpty>;
@@ -144,27 +153,14 @@ void HeapBase::ResetRememberedSetAndEnableMinorGCIfNeeded() {
   };
   DCHECK(AllLABsAreEmpty(raw_heap()).value());
 
-  if (generational_gc_supported()) {
-    caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
-    remembered_set_.Reset();
+  if (!generational_gc_supported()) {
+    DCHECK(remembered_set_.IsEmpty());
     return;
   }
 
-  DCHECK(remembered_set_.IsEmpty());
-  // Check if the young generation was enabled since the last cycle.
-  if (YoungGenerationEnabler::IsEnabled()) {
-    // Enable young generation for the current heap.
-    caged_heap().EnableGenerationalGC();
-    generation_support_ = GenerationSupport::kYoungAndOldGenerations;
-  }
-}
-
-void HeapBase::DisableGenerationalGCForTesting() {
-  DCHECK(caged_heap().local_data().is_young_generation_enabled);
-  DCHECK_EQ(GenerationSupport::kYoungAndOldGenerations, generation_support_);
-
-  caged_heap().local_data().is_young_generation_enabled = false;
-  generation_support_ = GenerationSupport::kSingleGeneration;
+  caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
+  remembered_set_.Reset();
+  return;
 }
 
 #endif  // defined(CPPGC_YOUNG_GENERATION)
@@ -174,6 +170,17 @@ void HeapBase::Terminate() {
   CHECK(!in_disallow_gc_scope());
 
   sweeper().FinishIfRunning();
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  if (generational_gc_supported()) {
+    DCHECK(caged_heap().local_data().is_young_generation_enabled);
+    DCHECK_EQ(GenerationSupport::kYoungAndOldGenerations, generation_support_);
+
+    caged_heap().local_data().is_young_generation_enabled = false;
+    generation_support_ = GenerationSupport::kSingleGeneration;
+    YoungGenerationEnabler::Disable();
+  }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   constexpr size_t kMaxTerminationGCs = 20;
   size_t gc_count = 0;

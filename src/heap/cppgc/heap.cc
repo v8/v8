@@ -190,7 +190,10 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   USE(bytes_allocated_in_prefinalizers);
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  ResetRememberedSetAndEnableMinorGCIfNeeded();
+  if (generational_gc_enabled_) {
+    HeapBase::EnableGenerationalGC();
+  }
+  ResetRememberedSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
   subtle::NoGarbageCollectionScope no_gc(*this);
@@ -201,6 +204,12 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   sweeper_.Start(sweeping_config);
   in_atomic_pause_ = false;
   sweeper_.NotifyDoneIfNeeded();
+}
+
+void Heap::EnableGenerationalGC() {
+  DCHECK(!IsMarking());
+  DCHECK(!generational_gc_enabled_);
+  generational_gc_enabled_ = true;
 }
 
 void Heap::DisableHeapGrowingForTesting() { growing_.DisableForTesting(); }
