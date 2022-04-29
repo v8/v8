@@ -885,38 +885,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       if (!HandleUnhandledPromiseRejections(isolate)) success = false;
     }
     data->realm_current_ = data->realm_switch_;
-
-    if (options.web_snapshot_config) {
-      const char* web_snapshot_output_file_name = "web.snap";
-      if (options.web_snapshot_output) {
-        web_snapshot_output_file_name = options.web_snapshot_output;
-      }
-
-      MaybeLocal<PrimitiveArray> maybe_exports =
-          ReadLines(isolate, options.web_snapshot_config);
-      Local<PrimitiveArray> exports;
-      if (!maybe_exports.ToLocal(&exports)) {
-        isolate->ThrowError("Web snapshots: unable to read config");
-        CHECK(try_catch.HasCaught());
-        ReportException(isolate, &try_catch);
-        return false;
-      }
-
-      i::WebSnapshotSerializer serializer(isolate);
-      i::WebSnapshotData snapshot_data;
-      if (serializer.TakeSnapshot(context, exports, snapshot_data)) {
-        DCHECK_NOT_NULL(snapshot_data.buffer);
-        WriteChars(web_snapshot_output_file_name, snapshot_data.buffer,
-                   snapshot_data.buffer_size);
-      } else {
-        CHECK(try_catch.HasCaught());
-        return false;
-      }
-    } else if (options.web_snapshot_output) {
-      isolate->ThrowError(
-          "Web snapshots: --web-snapshot-config is needed when "
-          "--web-snapshot-output is passed");
-    }
   }
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
@@ -941,6 +909,51 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     }
   }
   return success;
+}
+
+bool Shell::TakeWebSnapshot(Isolate* isolate) {
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm =
+      Local<Context>::New(isolate, data->realms_[data->realm_current_]);
+  Context::Scope context_scope(realm);
+  Local<Context> context(isolate->GetCurrentContext());
+
+  v8::TryCatch try_catch(isolate);
+  const char* web_snapshot_output_file_name = "web.snap";
+  if (options.web_snapshot_output) {
+    web_snapshot_output_file_name = options.web_snapshot_output;
+  }
+
+  if (!options.web_snapshot_config) {
+    isolate->ThrowError(
+        "Web snapshots: --web-snapshot-config is needed when "
+        "--web-snapshot-output is passed");
+    CHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+    return false;
+  }
+
+  MaybeLocal<PrimitiveArray> maybe_exports =
+      ReadLines(isolate, options.web_snapshot_config);
+  Local<PrimitiveArray> exports;
+  if (!maybe_exports.ToLocal(&exports)) {
+    isolate->ThrowError("Web snapshots: unable to read config");
+    CHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+    return false;
+  }
+
+  i::WebSnapshotSerializer serializer(isolate);
+  i::WebSnapshotData snapshot_data;
+  if (serializer.TakeSnapshot(context, exports, snapshot_data)) {
+    DCHECK_NOT_NULL(snapshot_data.buffer);
+    WriteChars(web_snapshot_output_file_name, snapshot_data.buffer,
+               snapshot_data.buffer_size);
+  } else {
+    CHECK(try_catch.HasCaught());
+    return false;
+  }
+  return true;
 }
 
 namespace {
@@ -4080,6 +4093,13 @@ bool SourceGroup::Execute(Isolate* isolate) {
       success = false;
       break;
     }
+  }
+  if (!success) {
+    return false;
+  }
+  if (Shell::options.web_snapshot_config ||
+      Shell::options.web_snapshot_output) {
+    success = Shell::TakeWebSnapshot(isolate);
   }
   return success;
 }

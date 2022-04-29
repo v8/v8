@@ -495,6 +495,7 @@ class Shell : public i::AllStatic {
                             ReportExceptions report_exceptions,
                             ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
+  static bool TakeWebSnapshot(Isolate* isolate);
   static bool ExecuteWebSnapshot(Isolate* isolate, const char* file_name);
   static bool LoadJSON(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, Local<Message> message,
