@@ -1269,13 +1269,6 @@ struct MachineOperatorGlobalCache {
   };
   DebugBreakOperator kDebugBreak;
 
-  struct UnsafePointerAddOperator final : public Operator {
-    UnsafePointerAddOperator()
-        : Operator(IrOpcode::kUnsafePointerAdd, Operator::kKontrol,
-                   "UnsafePointerAdd", 2, 1, 1, 1, 1, 0) {}
-  };
-  UnsafePointerAddOperator kUnsafePointerAdd;
-
   struct StackPointerGreaterThanOperator : public Operator1<StackCheckKind> {
     explicit StackPointerGreaterThanOperator(StackCheckKind kind)
         : Operator1<StackCheckKind>(
@@ -1619,10 +1612,6 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
       break;
   }
   UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
-  return &cache_.kUnsafePointerAdd;
 }
 
 const Operator* MachineOperatorBuilder::StackPointerGreaterThan(

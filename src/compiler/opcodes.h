@@ -765,7 +765,6 @@
   V(SignExtendWord8ToInt64)              \
   V(SignExtendWord16ToInt64)             \
   V(SignExtendWord32ToInt64)             \
-  V(UnsafePointerAdd)                    \
   V(StackPointerGreaterThan)
 
 #define MACHINE_SIMD_OP_LIST(V)  \

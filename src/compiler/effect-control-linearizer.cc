@@ -5625,8 +5625,8 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
   if (IntPtrMatcher(base).Is(0)) {
     return external;
   } else {
+    base = __ BitcastTaggedToWord(base);
     if (COMPRESS_POINTERS_BOOL) {
-      base = __ BitcastTaggedToWord(base);
       // Zero-extend Tagged_t to UintPtr according to current compression
       // scheme so that the addition with |external_pointer| (which already
       // contains compensated offset value) will decompress the tagged value.
@@ -5634,7 +5634,7 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
       // details.
       base = ChangeUint32ToUintPtr(base);
     }
-    return __ UnsafePointerAdd(base, external);
+    return __ IntPtrAdd(base, external);
   }
 }
 

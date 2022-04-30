@@ -410,7 +410,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Comment(const char* msg);
   const Operator* AbortCSADcheck();
   const Operator* DebugBreak();
-  const Operator* UnsafePointerAdd();
 
   const Operator* Word32And();
   const Operator* Word32Or();

@@ -1940,9 +1940,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitSignExtendWord16ToInt64(node);
     case IrOpcode::kSignExtendWord32ToInt64:
       return MarkAsWord64(node), VisitSignExtendWord32ToInt64(node);
-    case IrOpcode::kUnsafePointerAdd:
-      MarkAsRepresentation(MachineType::PointerRepresentation(), node);
-      return VisitUnsafePointerAdd(node);
     case IrOpcode::kF64x2Splat:
       return MarkAsSimd128(node), VisitF64x2Splat(node);
     case IrOpcode::kF64x2ExtractLane:
@@ -3213,14 +3210,6 @@ void InstructionSelector::VisitComment(Node* node) {
   OperandGenerator g(this);
   InstructionOperand operand(g.UseImmediate(node));
   Emit(kArchComment, 0, nullptr, 1, &operand);
-}
-
-void InstructionSelector::VisitUnsafePointerAdd(Node* node) {
-#if V8_TARGET_ARCH_64_BIT
-  VisitInt64Add(node);
-#else   // V8_TARGET_ARCH_64_BIT
-  VisitInt32Add(node);
-#endif  // V8_TARGET_ARCH_64_BIT
 }
 
 void InstructionSelector::VisitRetain(Node* node) {
