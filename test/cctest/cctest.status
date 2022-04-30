@@ -544,15 +544,6 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
-['variant == stress_js_bg_compile_wasm_code_gc', {
-  # The test relies on deterministic compilation.
-  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
-
-  # The test relies on deterministic allocation during compilation.
-  'test-compiler/DeepEagerCompilationPeakMemory': [SKIP],
-}],  # variant == stress_js_bg_compile_wasm_code_gc
-
-##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
@@ -631,7 +622,6 @@
   'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-code-assembler/*': [SKIP],
   'test-code-generator/*': [SKIP],
-  'test-code-pages/*': [SKIP],
   'test-code-stub-assembler/*': [SKIP],
   'test-debug-helper/GetObjectProperties': [SKIP],
   'test-disasm-x64/DisasmX64': [SKIP],
@@ -830,7 +820,6 @@
   'test-api/NestedIsolates': [SKIP],
   'test-api/RunTwoIsolatesOnSingleThread': [SKIP],
   'test-api/VerifyArrayPrototypeGuarantees': [SKIP],
-  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [SKIP],
   'test-heap/Regress538257': [SKIP],
   'test-heap/ReinitializeStringHashSeed': [SKIP],
@@ -1172,12 +1161,6 @@
   'test-weakmaps/Weakness': [SKIP],
   'test-weaksets/WeakSet_Weakness': [SKIP],
   'test-web-snapshots/SFIDeduplicationAfterBytecodeFlushing': [SKIP],
-  # CodeRange tests
-  'test-code-pages/LargeCodeObjectWithSignalHandler': [SKIP],
-  'test-code-pages/LargeCodeObject': [SKIP],
-  'test-code-pages/OptimizedCodeWithCodeRange': [SKIP],
-  'test-code-pages/Sorted': [SKIP],
-  'test-code-pages/CodeRangeCorrectContents': [SKIP],
   # Timeout (too many GCs)
   'test-heap/Regress8014': [SKIP],
   'test-accessors/HandleScopePop': [SKIP],

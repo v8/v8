@@ -89,6 +89,12 @@
 }],  # tsan == True
 
 ##############################################################################
+['variant == stress_js_bg_compile_wasm_code_gc', {
+  # The test relies on deterministic allocation during compilation.
+  'CompilerTest.DeepEagerCompilationPeakMemory': [SKIP],
+}],  # variant == stress_js_bg_compile_wasm_code_gc
+
+##############################################################################
 ['not pointer_compression', {
   # Tests are irrelevant without pointer compression
   'DecompressionOptimizerTest.*': [SKIP],
@@ -139,6 +145,14 @@
   'LocalHeapTest.GCEpilogue': [SKIP],
   'UnifiedHeapDetachedTest.AllocationBeforeConfigureHeap': [SKIP],
   'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
+
+  # CodeRange tests
+  'CodePagesTest.LargeCodeObjectWithSignalHandler': [SKIP],
+  'CodePagesTest.LargeCodeObject': [SKIP],
+  'CodePagesTest.OptimizedCodeWithCodeRange': [SKIP],
+  'CodePagesTest.Sorted': [SKIP],
+  'CodePagesTest.CodeRangeCorrectContents': [SKIP],
+
 }], # third_party_heap
 
 ##############################################################################
@@ -166,7 +180,16 @@
 
   # Tests generated irregexp code.
   'RegExpTestWithContext.RegExpInterruptReentrantExecution': [SKIP],
+
+  # Tests that generate code at runtime.
+  'CodePagesTest.*': [SKIP],
 }], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == no_wasm_traps', {
+  'APIExceptionTest.*': [SKIP],
+
+}],  # variant == no_wasm_traps
 
 ##############################################################################
 ['no_i18n == True', {
