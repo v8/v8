@@ -21,7 +21,7 @@ namespace internal {
 // that potentially invalidates slots recorded concurrently. The second part
 // of each element is the size of the corresponding object before the layout
 // change.
-using InvalidatedSlots = std::map<HeapObject, int, Object::Comparer>;
+using InvalidatedSlots = std::set<HeapObject, Object::Comparer>;
 
 // This class provides IsValid predicate that takes into account the set
 // of invalidated objects in the given memory chunk.
@@ -45,10 +45,9 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
   InvalidatedSlots::const_iterator iterator_;
   InvalidatedSlots::const_iterator iterator_end_;
   Address sentinel_;
-  Address invalidated_start_{kNullAddress};
-  Address next_invalidated_start_{kNullAddress};
-  int invalidated_size_{0};
-  int next_invalidated_size_{0};
+  Address invalidated_start_;
+  Address next_invalidated_start_;
+  int invalidated_size_;
   InvalidatedSlots empty_;
 #ifdef DEBUG
   Address last_slot_;
