@@ -6435,7 +6435,14 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
   if (!page->InYoungGeneration()) {
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
 
+    // We only need to remove that slot when sweeping is still in progress.
+    // Because in that case, a concurrent sweeper could find that memory and
+    // reuse it for subsequent allocations. The runtime could install another
+    // property at this slot but without unboxed doubles this will always be a
+    // tagged pointer.
     if (!page->SweepingDone()) {
+      // No need to update old-to-old here since that remembered set is gone
+      // after a full GC and not re-recorded until sweeping is finished.
       RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
     }
   }

@@ -378,6 +378,7 @@ template V8_EXPORT_PRIVATE void MemoryChunk::RegisterObjectWithInvalidatedSlots<
 
 template <RememberedSetType type>
 void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
+  DCHECK(!object.IsJSReceiver());
   bool skip_slot_recording;
 
   switch (type) {
@@ -406,23 +407,6 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
   }
 
   invalidated_slots<type>()->insert(object);
-}
-
-void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
-  if (V8_DISABLE_WRITE_BARRIERS_BOOL) return;
-  if (heap()->incremental_marking()->IsCompacting()) {
-    // We cannot check slot_set_[OLD_TO_OLD] here, since the
-    // concurrent markers might insert slots concurrently.
-    RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
-  }
-
-  if (slot_set_[OLD_TO_NEW] != nullptr) {
-    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
-  }
-
-  if (slot_set_[OLD_TO_SHARED] != nullptr) {
-    RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
-  }
 }
 
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(

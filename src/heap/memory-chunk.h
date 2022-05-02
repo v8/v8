@@ -144,7 +144,6 @@ class MemoryChunk : public BasicMemoryChunk {
   void ReleaseInvalidatedSlots();
   template <RememberedSetType type>
   V8_EXPORT_PRIVATE void RegisterObjectWithInvalidatedSlots(HeapObject object);
-  void InvalidateRecordedSlots(HeapObject object);
   template <RememberedSetType type>
   bool RegisteredObjectWithInvalidatedSlots(HeapObject object);
   template <RememberedSetType type>
