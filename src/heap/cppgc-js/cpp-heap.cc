@@ -428,19 +428,6 @@ v8::metrics::Recorder::ContextId CppHeap::MetricRecorderAdapter::GetContextId()
       GetIsolate()->native_context());
 }
 
-namespace {
-
-CppHeap::MarkingType GetSupportedMarkingType() {
-  // Keep the selection simple for now as production configurations do not turn
-  // off parallel and/or concurrent marking independently.
-  if (!FLAG_parallel_marking || !FLAG_concurrent_marking)
-    return CppHeap::MarkingType::kIncremental;
-
-  return CppHeap::MarkingType::kIncrementalAndConcurrent;
-}
-
-}  // namespace
-
 CppHeap::CppHeap(
     v8::Platform* platform,
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
@@ -449,7 +436,8 @@ CppHeap::CppHeap(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          GetSupportedMarkingType(),
+          FLAG_single_threaded_gc ? MarkingType::kIncremental
+                                  : MarkingType::kIncrementalAndConcurrent,
           FLAG_single_threaded_gc ? SweepingType::kIncremental
                                   : SweepingType::kIncrementalAndConcurrent),
       wrapper_descriptor_(wrapper_descriptor) {
@@ -617,10 +605,6 @@ bool CppHeap::AdvanceTracing(double max_duration) {
                        : v8::base::TimeDelta::FromMillisecondsD(max_duration);
   const size_t marked_bytes_limit = in_atomic_pause_ ? SIZE_MAX : 0;
   DCHECK_NOT_NULL(marker_);
-  if (in_atomic_pause_) {
-    marker_->NotifyConcurrentMarkingOfWorkIfNeeded(
-        cppgc::TaskPriority::kUserBlocking);
-  }
   // TODO(chromium:1056170): Replace when unified heap transitions to
   // bytes-based deadline.
   marking_done_ =
