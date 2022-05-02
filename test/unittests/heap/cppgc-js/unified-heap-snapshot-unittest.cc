@@ -120,7 +120,7 @@ constexpr const char kExpectedCppCrossThreadRootsName[] =
 template <typename T>
 constexpr const char* GetExpectedName() {
   if (std::is_base_of<cppgc::NameProvider, T>::value ||
-      !cppgc::NameProvider::HideInternalNames()) {
+      cppgc::NameProvider::SupportsCppClassNamesAsObjectNames()) {
     return T::kExpectedName;
   } else {
     return cppgc::NameProvider::kHiddenName;
@@ -157,7 +157,7 @@ TEST_F(UnifiedHeapSnapshotTest, RetainingUnnamedType) {
       cppgc::MakeGarbageCollected<BaseWithoutName>(allocation_handle());
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
-  if (cppgc::NameProvider::HideInternalNames()) {
+  if (!cppgc::NameProvider::SupportsCppClassNamesAsObjectNames()) {
     EXPECT_FALSE(ContainsRetainingPath(
         *snapshot, {kExpectedCppRootsName, cppgc::NameProvider::kHiddenName}));
   } else {

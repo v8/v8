@@ -73,6 +73,8 @@ class PageBackend;
 class PreFinalizerHandler;
 class StatsCollector;
 
+enum class HeapObjectNameForUnnamedObject : uint8_t;
+
 // Base class for heap implementations.
 class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
  public:
@@ -222,6 +224,14 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     DCHECK_IMPLIES(supported, YoungGenerationEnabler::IsEnabled());
 #endif  // defined(CPPGC_YOUNG_GENERATION)
     return supported;
+  }
+
+  // Returns whether objects should derive their name from C++ class names. Also
+  // requires build-time support through `CPPGC_SUPPORTS_OBJECT_NAMES`.
+  HeapObjectNameForUnnamedObject name_of_unnamed_object() const {
+    // TODO(chromium:1321620): Wire up flag with heap snapshot if exposing
+    // internals is requested.
+    return HeapObjectNameForUnnamedObject::kUseClassNameIfSupported;
   }
 
  protected:
