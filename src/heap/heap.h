@@ -1127,7 +1127,8 @@ class Heap {
   // manually.
   void NotifyObjectLayoutChange(
       HeapObject object, const DisallowGarbageCollection&,
-      InvalidateRecordedSlots invalidate_recorded_slots, int new_size = 0);
+      InvalidateRecordedSlots invalidate_recorded_slots =
+          InvalidateRecordedSlots::kYes);
 
   // The runtime uses this function to inform the GC of object size changes. The
   // GC will fill this area with a filler object and might clear recorded slots
@@ -1602,9 +1603,6 @@ class Heap {
   // created.
   void VerifyReadOnlyHeap();
   void VerifyRememberedSetFor(HeapObject object);
-
-  // Verify that cached size of invalidated object is up-to-date.
-  void VerifyInvalidatedObjectSize();
 #endif
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
@@ -1820,9 +1818,6 @@ class Heap {
   // Zaps the memory of a code object.
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
                                        int size_in_bytes);
-
-  // Updates invalidated object size in all remembered sets.
-  void UpdateInvalidatedObjectSize(HeapObject object, int new_size);
 
   enum class VerifyNoSlotsRecorded { kYes, kNo };
 
