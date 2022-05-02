@@ -45,6 +45,8 @@ class WebSnapshotSerializerDeserializer {
     TRUE_CONSTANT,
     NULL_CONSTANT,
     UNDEFINED_CONSTANT,
+    // It corresponds to the hole value.
+    NO_ELEMENT_CONSTANT,
     INTEGER,
     DOUBLE,
     STRING_ID,

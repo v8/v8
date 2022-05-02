@@ -835,7 +835,8 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
   if (elements_kind != PACKED_SMI_ELEMENTS &&
       elements_kind != PACKED_ELEMENTS &&
       elements_kind != PACKED_SEALED_ELEMENTS &&
-      elements_kind != PACKED_FROZEN_ELEMENTS) {
+      elements_kind != PACKED_FROZEN_ELEMENTS &&
+      elements_kind != HOLEY_SMI_ELEMENTS && elements_kind != HOLEY_ELEMENTS) {
     Throw("Unsupported array");
     return;
   }
@@ -1026,18 +1027,25 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
 //   - Serialized value
 void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
   auto elements_kind = array->GetElementsKind();
-  if (elements_kind != PACKED_SMI_ELEMENTS &&
-      elements_kind != PACKED_ELEMENTS) {
-    Throw("Unsupported array");
-    return;
-  }
-  // TODO(v8:11525): Support sparse arrays & arrays with holes.
-  uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
-  array_serializer_.WriteUint32(length);
-  Handle<FixedArray> elements =
-      handle(FixedArray::cast(array->elements()), isolate_);
-  for (uint32_t i = 0; i < length; ++i) {
-    WriteValue(handle(elements->get(i), isolate_), array_serializer_);
+  // TODO(v8:11525): Support sparse arrays and double arrays.
+  switch (elements_kind) {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS: {
+      uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
+      array_serializer_.WriteUint32(length);
+      Handle<FixedArray> elements =
+          handle(FixedArray::cast(array->elements()), isolate_);
+      for (uint32_t i = 0; i < length; ++i) {
+        WriteValue(handle(elements->get(i), isolate_), array_serializer_);
+      }
+      break;
+    }
+    default: {
+      Throw("Unsupported array");
+      return;
+    }
   }
 }
 
@@ -1092,6 +1100,9 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
           return;
         case Oddball::kUndefined:
           serializer.WriteUint32(ValueType::UNDEFINED_CONSTANT);
+          return;
+        case Oddball::kTheHole:
+          serializer.WriteUint32(ValueType::NO_ELEMENT_CONSTANT);
           return;
         default:
           UNREACHABLE();
@@ -2065,13 +2076,21 @@ void WebSnapshotDeserializer::DeserializeArrays() {
     }
     Handle<FixedArray> elements = factory()->NewFixedArray(length);
     ElementsKind elements_kind = PACKED_SMI_ELEMENTS;
+    bool has_hole = false;
     for (uint32_t i = 0; i < length; ++i) {
       Object value = ReadValue(elements, i);
       DisallowGarbageCollection no_gc;
       if (!value.IsSmi()) {
         elements_kind = PACKED_ELEMENTS;
       }
+      if (value.IsTheHole()) {
+        has_hole = true;
+      }
       elements->set(static_cast<int>(i), value);
+    }
+    if (has_hole) {
+      elements_kind = elements_kind == PACKED_ELEMENTS ? HOLEY_ELEMENTS
+                                                       : HOLEY_SMI_ELEMENTS;
     }
     Handle<JSArray> array =
         factory()->NewJSArrayWithElements(elements, elements_kind, length);
@@ -2176,6 +2195,8 @@ Object WebSnapshotDeserializer::ReadValue(Handle<HeapObject> container,
       return roots_.null_value();
     case ValueType::UNDEFINED_CONSTANT:
       return roots_.undefined_value();
+    case ValueType::NO_ELEMENT_CONSTANT:
+      return roots_.the_hole_value();
     case ValueType::INTEGER:
       return ReadInteger();
     case ValueType::DOUBLE:

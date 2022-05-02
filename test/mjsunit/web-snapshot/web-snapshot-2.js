@@ -54,6 +54,23 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals([5, 6, 7], foo.array);
 })();
 
+(function TestHoleySmiElementsArray() {
+  function createObjects() {
+    globalThis.foo = [1,,2];
+  }
+  const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([1,,2], foo);
+})();
+
+(function TestHoleyElementsArray() {
+  function createObjects() {
+    globalThis.foo = [1,,"123"];
+  }
+  const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([1,,"123"], foo);
+})();
+
+
 (function TestEmptyArray() {
   function createObjects() {
     globalThis.foo = {
