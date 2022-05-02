@@ -1361,10 +1361,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg, rc);
   }
 
-  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch1,
-                                          Register scratch2);
-  Operand ClearedValue() const;
-
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
