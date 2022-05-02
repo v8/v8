@@ -670,9 +670,11 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
 
   DisallowGarbageCollection no_gc;
 
+  int length = string.length();
   // The source hash is usable if it is not from a sliced string.
-  // For sliced strings we need to recalculate the hash from the given offset.
-  const bool is_source_hash_usable = start == 0;
+  // For sliced strings we need to recalculate the hash from the given offset
+  // with the correct length.
+  const bool is_source_hash_usable = start == 0 && length == source.length();
 
   // First check if the string constains a forwarding index.
   uint32_t raw_hash_field = source.raw_hash_field(kAcquireLoad);
@@ -684,8 +686,6 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   }
 
   uint64_t seed = HashSeed(isolate);
-
-  int length = string.length();
 
   std::unique_ptr<Char[]> buffer;
   const Char* chars;
@@ -699,17 +699,16 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
   } else {
     chars = source.GetChars<Char>(isolate, no_gc, access_guard) + start;
   }
+
+  if (!Name::IsHashFieldComputed(raw_hash_field) || !is_source_hash_usable) {
+    raw_hash_field =
+        StringHasher::HashSequentialString<Char>(chars, length, seed);
+  }
   // TODO(verwaest): Internalize to one-byte when possible.
-  SequentialStringKey<Char> key =
-      Name::IsHashFieldComputed(raw_hash_field) && is_source_hash_usable
-          ? SequentialStringKey<Char>(
-                raw_hash_field, base::Vector<const Char>(chars, length), seed)
-          : SequentialStringKey<Char>(base::Vector<const Char>(chars, length),
-                                      seed);
+  SequentialStringKey<Char> key(raw_hash_field,
+                                base::Vector<const Char>(chars, length), seed);
 
   // String could be an array index.
-  raw_hash_field = key.raw_hash_field();
-
   if (Name::ContainsCachedArrayIndex(raw_hash_field)) {
     return Smi::FromInt(String::ArrayIndexValueBits::decode(raw_hash_field))
         .ptr();
