@@ -14,6 +14,10 @@
 #include "cppgc/platform.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
+#if __cpp_lib_bitopts
+#include <bit>
+#endif  // __cpp_lib_bitopts
+
 namespace cppgc {
 namespace internal {
 
@@ -57,7 +61,15 @@ class V8_EXPORT AgeTable final {
  private:
   V8_INLINE size_t card(uintptr_t offset) const {
     constexpr size_t kGranularityBits =
+#if __cpp_lib_bitopts
+        std::countr_zero(static_cast<uint32_t>(kCardSizeInBytes));
+#elif V8_HAS_BUILTIN_CTZ
         __builtin_ctz(static_cast<uint32_t>(kCardSizeInBytes));
+#else   //! V8_HAS_BUILTIN_CTZ
+        // Hardcode and check with assert.
+        9;
+#endif  // !V8_HAS_BUILTIN_CTZ
+    static_assert((1 << kGranularityBits) == kCardSizeInBytes);
     const size_t entry = offset >> kGranularityBits;
     CPPGC_DCHECK(table_.size() > entry);
     return entry;

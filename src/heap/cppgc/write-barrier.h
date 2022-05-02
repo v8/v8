@@ -30,10 +30,15 @@ class V8_EXPORT_PRIVATE YoungGenerationEnabler final {
   static bool IsEnabled();
 
  private:
-  YoungGenerationEnabler() = delete;
+  template <typename T>
+  friend class v8::base::LeakyObject;
 
-  static size_t is_enabled_;
-  static v8::base::LeakyObject<v8::base::Mutex> mutex_;
+  static YoungGenerationEnabler& Instance();
+
+  YoungGenerationEnabler() = default;
+
+  size_t is_enabled_;
+  v8::base::Mutex mutex_;
 };
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 

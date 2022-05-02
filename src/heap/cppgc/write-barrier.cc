@@ -23,13 +23,6 @@ namespace internal {
 // static
 AtomicEntryFlag WriteBarrier::write_barrier_enabled_;
 
-#if defined(CPPGC_YOUNG_GENERATION)
-// static
-size_t YoungGenerationEnabler::is_enabled_;
-// static
-v8::base::LeakyObject<v8::base::Mutex> YoungGenerationEnabler::mutex_;
-#endif  // defined(CPPGC_YOUNG_GENERATION)
-
 namespace {
 
 template <MarkerBase::WriteBarrierType type>
@@ -207,9 +200,17 @@ bool WriteBarrierTypeForCagedHeapPolicy::IsMarking(
 #endif  // CPPGC_CAGED_HEAP
 
 #if defined(CPPGC_YOUNG_GENERATION)
+
+// static
+YoungGenerationEnabler& YoungGenerationEnabler::Instance() {
+  static v8::base::LeakyObject<YoungGenerationEnabler> instance;
+  return *instance.get();
+}
+
 void YoungGenerationEnabler::Enable() {
-  v8::base::LockGuard _(mutex_.get());
-  if (++is_enabled_ == 1) {
+  auto& instance = Instance();
+  v8::base::LockGuard _(&instance.mutex_);
+  if (++instance.is_enabled_ == 1) {
     // Enter the flag so that the check in the write barrier will always trigger
     // when young generation is enabled.
     WriteBarrier::FlagUpdater::Enter();
@@ -217,17 +218,20 @@ void YoungGenerationEnabler::Enable() {
 }
 
 void YoungGenerationEnabler::Disable() {
-  v8::base::LockGuard _(mutex_.get());
-  DCHECK_LT(0, is_enabled_);
-  if (--is_enabled_ == 0) {
+  auto& instance = Instance();
+  v8::base::LockGuard _(&instance.mutex_);
+  DCHECK_LT(0, instance.is_enabled_);
+  if (--instance.is_enabled_ == 0) {
     WriteBarrier::FlagUpdater::Exit();
   }
 }
 
 bool YoungGenerationEnabler::IsEnabled() {
-  v8::base::LockGuard _(mutex_.get());
-  return is_enabled_;
+  auto& instance = Instance();
+  v8::base::LockGuard _(&instance.mutex_);
+  return instance.is_enabled_;
 }
+
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
 }  // namespace internal
