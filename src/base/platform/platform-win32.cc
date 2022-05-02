@@ -868,7 +868,8 @@ DWORD GetFileViewAccessFromMemoryPermission(OS::MemoryPermission access) {
 void* VirtualAllocWrapper(void* address, size_t size, DWORD flags,
                           DWORD protect) {
   if (VirtualAlloc2) {
-    return VirtualAlloc2(nullptr, address, size, flags, protect, NULL, 0);
+    return VirtualAlloc2(GetCurrentProcess(), address, size, flags, protect,
+                         NULL, 0);
   } else {
     return VirtualAlloc(address, size, flags, protect);
   }
@@ -1266,7 +1267,8 @@ bool AddressSpaceReservation::Allocate(void* address, size_t size,
                     ? MEM_RESERVE | MEM_REPLACE_PLACEHOLDER
                     : MEM_RESERVE | MEM_COMMIT | MEM_REPLACE_PLACEHOLDER;
   DWORD protect = GetProtectionFromMemoryPermission(access);
-  return VirtualAlloc2(nullptr, address, size, flags, protect, nullptr, 0);
+  return VirtualAlloc2(GetCurrentProcess(), address, size, flags, protect,
+                       nullptr, 0);
 }
 
 bool AddressSpaceReservation::Free(void* address, size_t size) {
@@ -1283,15 +1285,16 @@ bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
 
   DWORD protect = GetProtectionFromMemoryPermission(access);
   HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
-  return MapViewOfFile3(file_mapping, nullptr, address, offset, size,
-                        MEM_REPLACE_PLACEHOLDER, protect, nullptr, 0);
+  return MapViewOfFile3(file_mapping, GetCurrentProcess(), address, offset,
+                        size, MEM_REPLACE_PLACEHOLDER, protect, nullptr, 0);
 }
 
 bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
   DCHECK(Contains(address, size));
   CHECK(UnmapViewOfFile2);
 
-  return UnmapViewOfFile2(nullptr, address, MEM_PRESERVE_PLACEHOLDER);
+  return UnmapViewOfFile2(GetCurrentProcess(), address,
+                          MEM_PRESERVE_PLACEHOLDER);
 }
 
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
