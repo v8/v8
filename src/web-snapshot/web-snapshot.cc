@@ -197,6 +197,7 @@ WebSnapshotSerializer::WebSnapshotSerializer(v8::Isolate* isolate)
 WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
     : WebSnapshotSerializerDeserializer(isolate),
       string_serializer_(isolate_, nullptr),
+      symbol_serializer_(isolate_, nullptr),
       map_serializer_(isolate_, nullptr),
       context_serializer_(isolate_, nullptr),
       function_serializer_(isolate_, nullptr),
@@ -206,6 +207,7 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
       export_serializer_(isolate_, nullptr),
       external_objects_ids_(isolate_->heap()),
       string_ids_(isolate_->heap()),
+      symbol_ids_(isolate_->heap()),
       map_ids_(isolate_->heap()),
       context_ids_(isolate_->heap()),
       function_ids_(isolate_->heap()),
@@ -214,13 +216,14 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
       object_ids_(isolate_->heap()),
       all_strings_(isolate_->heap()) {
   auto empty_array_list = factory()->empty_array_list();
+  strings_ = empty_array_list;
+  symbols_ = empty_array_list;
+  maps_ = empty_array_list;
   contexts_ = empty_array_list;
   functions_ = empty_array_list;
   classes_ = empty_array_list;
   arrays_ = empty_array_list;
   objects_ = empty_array_list;
-  strings_ = empty_array_list;
-  maps_ = empty_array_list;
 }
 
 WebSnapshotSerializer::~WebSnapshotSerializer() {}
@@ -316,6 +319,11 @@ void WebSnapshotSerializer::SerializePendingItems() {
     SerializeString(string, string_serializer_);
   }
 
+  for (int i = 0; i < symbols_->Length(); ++i) {
+    Handle<Symbol> symbol = handle(Symbol::cast(symbols_->Get(i)), isolate_);
+    SerializeSymbol(symbol);
+  }
+
   for (int i = 0; i < maps_->Length(); ++i) {
     Handle<Map> map = handle(Map::cast(maps_->Get(i)), isolate_);
     SerializeMap(map);
@@ -355,6 +363,9 @@ void WebSnapshotSerializer::SerializePendingItems() {
 // - String count
 // - For each string:
 //   - Serialized string
+// - Symbol count
+// - For each symbol:
+//   - Serialized symbol
 // - Shape count
 // - For each shape:
 //   - Serialized shape
@@ -380,10 +391,11 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
   ValueSerializer total_serializer(isolate_, nullptr);
   size_t needed_size =
       sizeof(kMagicNumber) + string_serializer_.buffer_size_ +
-      map_serializer_.buffer_size_ + context_serializer_.buffer_size_ +
-      function_serializer_.buffer_size_ + class_serializer_.buffer_size_ +
-      array_serializer_.buffer_size_ + object_serializer_.buffer_size_ +
-      export_serializer_.buffer_size_ + 8 * sizeof(uint32_t);
+      symbol_serializer_.buffer_size_ + map_serializer_.buffer_size_ +
+      context_serializer_.buffer_size_ + function_serializer_.buffer_size_ +
+      class_serializer_.buffer_size_ + array_serializer_.buffer_size_ +
+      object_serializer_.buffer_size_ + export_serializer_.buffer_size_ +
+      8 * sizeof(uint32_t);
   if (total_serializer.ExpandBuffer(needed_size).IsNothing()) {
     Throw("Out of memory");
     return;
@@ -391,6 +403,7 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
 
   total_serializer.WriteRawBytes(kMagicNumber, 4);
   WriteObjects(total_serializer, string_count(), string_serializer_, "strings");
+  WriteObjects(total_serializer, symbol_count(), symbol_serializer_, "symbols");
   WriteObjects(total_serializer, map_count(), map_serializer_, "maps");
   WriteObjects(total_serializer, context_count(), context_serializer_,
                "contexts");
@@ -455,6 +468,23 @@ void WebSnapshotSerializer::SerializeString(Handle<String> string,
     serializer.WriteRawBytes(buffer.get(), length * sizeof(uint8_t));
   } else {
     UNREACHABLE();
+  }
+}
+
+// Format (serialized symbol):
+// - 0 if the symbol is non-global and there's no description, 1 if the symbol
+// is non-global and there is a description, 2 if the symbol is global (there
+// must be a description).
+void WebSnapshotSerializer::SerializeSymbol(Handle<Symbol> symbol) {
+  if (symbol->description().IsUndefined()) {
+    CHECK(!symbol->is_in_public_symbol_table());
+    symbol_serializer_.WriteUint32(SymbolType::NonGlobalNoDesription);
+  } else {
+    symbol_serializer_.WriteUint32(symbol->is_in_public_symbol_table()
+                                       ? SymbolType::Global
+                                       : SymbolType::NonGlobal);
+    WriteStringId(handle(String::cast(symbol->description()), isolate_),
+                  symbol_serializer_);
   }
 }
 
@@ -648,6 +678,9 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
         break;
       case JS_ARRAY_TYPE:
         DiscoverArray(Handle<JSArray>::cast(object));
+        break;
+      case SYMBOL_TYPE:
+        DiscoverSymbol(Handle<Symbol>::cast(object));
         break;
       case ODDBALL_TYPE:
       case HEAP_NUMBER_TYPE:
@@ -891,6 +924,18 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   }
 }
 
+void WebSnapshotSerializer::DiscoverSymbol(Handle<Symbol> symbol) {
+  uint32_t id;
+  if (InsertIntoIndexMap(symbol_ids_, *symbol, id)) return;
+
+  DCHECK_EQ(id, symbols_->Length());
+  symbols_ = ArrayList::Add(isolate_, symbols_, symbol);
+
+  if (!symbol->description().IsUndefined()) {
+    DiscoverString(handle(String::cast(symbol->description()), isolate_));
+  }
+}
+
 // Format (serialized function):
 // - 0 if there's no context, 1 + context id otherwise
 // - String id (source snippet)
@@ -1113,6 +1158,10 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       serializer.WriteUint32(ValueType::ARRAY_ID);
       serializer.WriteUint32(GetArrayId(JSArray::cast(*heap_object)));
       break;
+    case SYMBOL_TYPE:
+      serializer.WriteUint32(ValueType::SYMBOL_ID);
+      serializer.WriteUint32(GetSymbolId(Symbol::cast(*heap_object)));
+      break;
     case JS_REG_EXP_TYPE: {
       Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(heap_object);
       if (regexp->map() != isolate_->regexp_function()->initial_map()) {
@@ -1173,6 +1222,14 @@ uint32_t WebSnapshotSerializer::GetStringId(Handle<String> string,
 #endif
   int id = 0;
   in_place = !string_ids_.Lookup(*string, &id);
+  return static_cast<uint32_t>(id);
+}
+
+uint32_t WebSnapshotSerializer::GetSymbolId(Symbol symbol) {
+  int id;
+  bool return_value = symbol_ids_.Lookup(symbol, &id);
+  DCHECK(return_value);
+  USE(return_value);
   return static_cast<uint32_t>(id);
 }
 
@@ -1257,6 +1314,7 @@ WebSnapshotDeserializer::WebSnapshotDeserializer(
       roots_(isolate) {
   Handle<FixedArray> empty_array = factory()->empty_fixed_array();
   strings_handle_ = empty_array;
+  symbols_handle_ = empty_array;
   maps_handle_ = empty_array;
   contexts_handle_ = empty_array;
   functions_handle_ = empty_array;
@@ -1274,6 +1332,7 @@ WebSnapshotDeserializer::~WebSnapshotDeserializer() {
 
 void WebSnapshotDeserializer::UpdatePointers() {
   strings_ = *strings_handle_;
+  symbols_ = *strings_handle_;
   maps_ = *maps_handle_;
   contexts_ = *contexts_handle_;
   functions_ = *functions_handle_;
@@ -1338,6 +1397,7 @@ base::Vector<const uint8_t> WebSnapshotDeserializer::ExtractScriptBuffer(
 
 void WebSnapshotDeserializer::Throw(const char* message) {
   string_count_ = 0;
+  symbol_count_ = 0;
   map_count_ = 0;
   context_count_ = 0;
   class_count_ = 0;
@@ -1397,6 +1457,7 @@ bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
   }
 
   DeserializeStrings();
+  DeserializeSymbols();
   DeserializeMaps();
   DeserializeContexts();
   DeserializeFunctions();
@@ -1495,6 +1556,54 @@ String WebSnapshotDeserializer::ReadInPlaceString(bool internalize) {
     string = factory()->InternalizeString(string);
   }
   return *string;
+}
+
+Object WebSnapshotDeserializer::ReadSymbol() {
+  DCHECK(!strings_handle_->is_null());
+  uint32_t symbol_id;
+  if (!deserializer_.ReadUint32(&symbol_id) || symbol_id >= symbol_count_) {
+    Throw("malformed symbol id\n");
+    return roots_.undefined_value();
+  }
+  return symbols_.get(symbol_id);
+}
+
+void WebSnapshotDeserializer::DeserializeSymbols() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Symbols);
+  if (!deserializer_.ReadUint32(&symbol_count_) ||
+      symbol_count_ > kMaxItemCount) {
+    Throw("Malformed symbol table");
+    return;
+  }
+  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  symbols_handle_ = factory()->NewFixedArray(symbol_count_);
+  symbols_ = *symbols_handle_;
+  for (uint32_t i = 0; i < symbol_count_; ++i) {
+    uint32_t symbol_type;
+    if (!deserializer_.ReadUint32(&symbol_type) || symbol_type > 2) {
+      Throw("malformed symbol\n");
+    }
+
+    Handle<Symbol> symbol;
+    if (symbol_type == SymbolType::NonGlobalNoDesription) {
+      symbol = factory()->NewSymbol();
+    } else {  // Symbol with description
+      uint32_t string_id;
+      if (!deserializer_.ReadUint32(&string_id) || string_id >= string_count_) {
+        Throw("malformed string id\n");
+      }
+      if (symbol_type == SymbolType::NonGlobal) {
+        symbol = factory()->NewSymbol();
+        symbol->set_description(String::cast(strings_.get(string_id)));
+      } else {
+        DCHECK_EQ(SymbolType::Global, symbol_type);
+        symbol = isolate_->SymbolFor(
+            RootIndex::kPublicSymbolTable,
+            handle(String::cast(strings_.get(string_id)), isolate_), false);
+      }
+    }
+    symbols_.set(i, *symbol);
+  }
 }
 
 void WebSnapshotDeserializer::DeserializeMaps() {
@@ -2188,6 +2297,8 @@ Object WebSnapshotDeserializer::ReadValue(Handle<HeapObject> container,
       return ReadClass(container, container_index);
     case ValueType::REGEXP:
       return ReadRegexp();
+    case ValueType::SYMBOL_ID:
+      return ReadSymbol();
     case ValueType::EXTERNAL_ID:
       return ReadExternalReference();
     case ValueType::IN_PLACE_STRING_ID:

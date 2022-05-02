@@ -335,3 +335,26 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
   assertEquals('bar', foo());
 })();
+
+(function TestNonGlobalSymbol() {
+  function createObjects() {
+    const s = Symbol('description');
+    globalThis.foo = {mySymbol: s, innerObject: { symbolHereToo: s}};
+  }
+  const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(foo.mySymbol, foo.innerObject.symbolHereToo);
+  assertEquals('description', foo.mySymbol.description);
+  assertNotEquals(foo.mySymbol, Symbol('description'));
+  assertNotEquals(foo.mySymbol, Symbol.for('description'));
+})();
+
+(function TestNonGlobalSymbol() {
+  function createObjects() {
+    const s = Symbol.for('this is global');
+    globalThis.foo = {mySymbol: s, innerObject: { symbolHereToo: s}};
+  }
+  const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(foo.mySymbol, foo.innerObject.symbolHereToo);
+  assertEquals('this is global', foo.mySymbol.description);
+  assertEquals(foo.mySymbol, Symbol.for('this is global'));
+})();
