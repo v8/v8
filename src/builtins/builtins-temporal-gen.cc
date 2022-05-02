@@ -106,8 +106,8 @@ TNode<JSArray> TemporalBuiltinsAssembler::CalendarFieldsArrayFromIterable(
     // Notice this spec text is in the Chapter 15 of the #sup part not #sec
     // part.
     // 7. If calendar.[[Identifier]] is "iso8601", then
-    const TNode<Int32T> flags = LoadAndUntagToWord32ObjectField(
-        calendar, JSTemporalCalendar::kFlagsOffset);
+    const TNode<Uint32T> flags =
+        LoadObjectField<Uint32T>(calendar, JSTemporalCalendar::kFlagsOffset);
     // calendar is "iso8601" while the index of calendar is 0
     const TNode<IntPtrT> index = Signed(
         DecodeWordFromWord32<JSTemporalCalendar::CalendarIndexBits>(flags));
