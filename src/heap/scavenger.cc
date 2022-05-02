@@ -517,6 +517,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
   surviving_new_large_objects_.clear();
+  heap_->new_lo_space()->set_objects_size(0);
 }
 
 void ScavengerCollector::MergeSurvivingNewLargeObjects(

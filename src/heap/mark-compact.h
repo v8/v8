@@ -26,6 +26,7 @@ namespace internal {
 class EvacuationJobTraits;
 class HeapObjectVisitor;
 class ItemParallelJob;
+class LargeObjectSpace;
 class LargePage;
 class MigrationObserver;
 class ReadOnlySpace;
@@ -696,8 +697,9 @@ class MarkCompactCollector final {
 
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
-  void StartSweepSpaces();
+  void Sweep();
   void StartSweepSpace(PagedSpace* space);
+  void SweepLargeSpace(LargeObjectSpace* space);
 
   void EvacuatePrologue();
   void EvacuateEpilogue();
