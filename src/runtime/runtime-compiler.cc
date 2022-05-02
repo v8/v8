@@ -312,37 +312,14 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   BytecodeOffset osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
   DCHECK(!osr_offset.IsNone());
 
-  ConcurrencyMode mode =
+  const ConcurrencyMode mode =
       V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
                 FLAG_concurrent_osr)
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
-  Handle<JSFunction> function(frame->function(), isolate);
-  if (IsConcurrent(mode)) {
-    // The synchronous fallback mechanism triggers if we've already got OSR'd
-    // code for the current function but at a different OSR offset - that may
-    // indicate we're having trouble hitting the correct JumpLoop for code
-    // installation. In this case, fall back to synchronous OSR.
-    base::Optional<BytecodeOffset> cached_osr_offset =
-        function->native_context().osr_code_cache().FirstOsrOffsetFor(
-            function->shared());
-    if (cached_osr_offset.has_value() &&
-        cached_osr_offset.value() != osr_offset) {
-      if (V8_UNLIKELY(FLAG_trace_osr)) {
-        CodeTracer::Scope scope(isolate->GetCodeTracer());
-        PrintF(
-            scope.file(),
-            "[OSR - falling back to synchronous compilation due to mismatched "
-            "cached entry. function: %s, requested: %d, cached: %d]\n",
-            function->DebugNameCStr().get(), osr_offset.ToInt(),
-            cached_osr_offset.value().ToInt());
-      }
-      mode = ConcurrencyMode::kSynchronous;
-    }
-  }
-
   Handle<CodeT> result;
+  Handle<JSFunction> function(frame->function(), isolate);
   if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, frame, mode)
            .ToHandle(&result)) {
     // An empty result can mean one of two things:
@@ -386,25 +363,6 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
     // a function for optimization. We should instead change it to be based
     // based on number of ticks.
     function->reset_tiering_state();
-  }
-
-  // TODO(mythria): Once we have OSR code cache we may not need to mark
-  // the function for non-concurrent compilation. We could arm the loops
-  // early so the second execution uses the already compiled OSR code and
-  // the optimization occurs concurrently off main thread.
-  if (!function->HasAvailableOptimizedCode() &&
-      function->feedback_vector().invocation_count() > 1) {
-    // If we're not already optimized, set to optimize non-concurrently on the
-    // next call, otherwise we'd run unoptimized once more and potentially
-    // compile for OSR again.
-    if (FLAG_trace_osr) {
-      CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(),
-             "[OSR - forcing synchronous optimization on next entry. function: "
-             "%s]\n",
-             function->DebugNameCStr().get());
-    }
-    function->set_tiering_state(TieringState::kRequestTurbofan_Synchronous);
   }
 
   return *result;

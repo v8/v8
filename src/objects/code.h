@@ -956,8 +956,6 @@ DEFINE_OPERATORS_FOR_FLAGS(DependentCode::DependencyGroups)
 class BytecodeArray
     : public TorqueGeneratedBytecodeArray<BytecodeArray, FixedArrayBase> {
  public:
-  DEFINE_TORQUE_GENERATED_OSRURGENCY_AND_INSTALL_TARGET()
-
   enum Age {
     kNoAgeBytecodeAge = 0,
     kQuadragenarianBytecodeAge,
@@ -996,47 +994,9 @@ class BytecodeArray
   inline void set_incoming_new_target_or_generator_register(
       interpreter::Register incoming_new_target_or_generator_register);
 
-  // The [osr_urgency] controls when OSR is attempted, and is incremented as
-  // the function becomes hotter. When the current loop depth is less than the
-  // osr_urgency, JumpLoop calls into runtime to attempt OSR optimization.
-  static constexpr int kMaxOsrUrgency = 6;
-  STATIC_ASSERT(kMaxOsrUrgency <= OsrUrgencyBits::kMax);
-  inline int osr_urgency() const;
-  inline void set_osr_urgency(int urgency);
-  inline void reset_osr_urgency();
-  inline void RequestOsrAtNextOpportunity();
-
-  // The [osr_install_target] is used upon finishing concurrent OSR
-  // compilation; instead of bumping the osr_urgency (which would target all
-  // JumpLoops of appropriate loop_depth), we target a specific JumpLoop at the
-  // given bytecode offset.
-  static constexpr int kNoOsrInstallTarget = 0;
-  static constexpr int OsrInstallTargetFor(BytecodeOffset offset) {
-    // Any set `osr_install_target` must be non-zero since zero is the 'unset'
-    // value and is ignored by generated code. For branchless code (both here
-    // and in generated code), we simply OR in a 1.
-    STATIC_ASSERT(kNoOsrInstallTarget == 0);
-    return (offset.ToInt() | 1) &
-           (OsrInstallTargetBits::kMask >> OsrInstallTargetBits::kShift);
-  }
-
-  inline int osr_install_target();
-  inline void set_osr_install_target(BytecodeOffset jump_loop_offset);
-  inline void reset_osr_install_target();
-
-  inline void reset_osr_urgency_and_install_target();
-
   static constexpr int kBytecodeAgeSize = kUInt16Size;
   static_assert(kBytecodeAgeOffset + kBytecodeAgeSize - 1 ==
                 kBytecodeAgeOffsetEnd);
-
-  // InterpreterEntryTrampoline and other builtins expect these fields to be
-  // next to each other and fill 32 bits in total, since they write a 32-bit
-  // value to reset them.
-  static constexpr bool kOsrStateAndBytecodeAgeAreContiguous32Bits =
-      kBytecodeAgeOffset == kOsrUrgencyAndInstallTargetOffset + kUInt16Size &&
-      kBytecodeAgeSize == kUInt16Size;
-  static_assert(kOsrStateAndBytecodeAgeAreContiguous32Bits);
 
   inline Age bytecode_age() const;
   inline void set_bytecode_age(Age age);

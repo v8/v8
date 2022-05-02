@@ -2668,8 +2668,6 @@ TEST(CodeSerializerAfterExecute) {
 
     Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
     CHECK(sfi->HasBytecodeArray());
-    BytecodeArray bytecode = sfi->GetBytecodeArray(i_isolate2);
-    CHECK_EQ(bytecode.osr_urgency(), 0);
 
     {
       DisallowCompilation no_compile_expected(i_isolate2);

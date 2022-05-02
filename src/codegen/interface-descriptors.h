@@ -1726,16 +1726,11 @@ class InterpreterOnStackReplacementDescriptor
     : public StaticCallInterfaceDescriptor<
           InterpreterOnStackReplacementDescriptor> {
  public:
-  DEFINE_PARAMETERS(kCurrentLoopDepth, kEncodedCurrentBytecodeOffset,
-                    kOsrUrgencyAndInstallTarget)
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),  // kCurrentLoopDepth
-                         MachineType::Int32(),  // kEncodedCurrentBytecodeOffset
-                         MachineType::Int32())  // kOsrUrgencyAndInstallTarget
+  DEFINE_PARAMETERS(kMaybeTargetCode)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())  // kMaybeTargetCode
   DECLARE_DESCRIPTOR(InterpreterOnStackReplacementDescriptor)
 
-  static constexpr inline Register CurrentLoopDepthRegister();
-  static constexpr inline Register EncodedCurrentBytecodeOffsetRegister();
-  static constexpr inline Register OsrUrgencyAndInstallTargetRegister();
+  static constexpr inline Register MaybeTargetCodeRegister();
 
   static constexpr inline auto registers();
 };
@@ -1744,16 +1739,11 @@ class BaselineOnStackReplacementDescriptor
     : public StaticCallInterfaceDescriptor<
           BaselineOnStackReplacementDescriptor> {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kCurrentLoopDepth, kEncodedCurrentBytecodeOffset,
-                               kOsrUrgencyAndInstallTarget)
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),  // kCurrentLoopDepth
-                         MachineType::Int32(),  // kEncodedCurrentBytecodeOffset
-                         MachineType::Int32())  // kOsrUrgencyAndInstallTarget
+  DEFINE_PARAMETERS_NO_CONTEXT(kMaybeTargetCode)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())  // kMaybeTargetCode
   DECLARE_DESCRIPTOR(BaselineOnStackReplacementDescriptor)
 
-  static constexpr inline Register CurrentLoopDepthRegister();
-  static constexpr inline Register EncodedCurrentBytecodeOffsetRegister();
-  static constexpr inline Register OsrUrgencyAndInstallTargetRegister();
+  static constexpr inline Register MaybeTargetCodeRegister();
 
   static constexpr inline auto registers();
 };

@@ -63,7 +63,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
-#include "src/objects/osr-optimized-code-cache-inl.h"
 #include "src/objects/primitive-heap-object-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-array-inl.h"
