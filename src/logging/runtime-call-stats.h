@@ -490,7 +490,6 @@ class RuntimeCallTimer final {
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
   V(WebSnapshotDeserialize_Strings)            \
-  V(WebSnapshotDeserialize_Symbols)            \
   V(WrappedFunctionLengthGetter)               \
   V(WrappedFunctionNameGetter)
 
