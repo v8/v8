@@ -713,11 +713,29 @@ int32_t JSNumberFormat::MinimumIntegerDigitsFromSkeleton(
 //                            123
 //                               4567
 // Set The minimum as 3 and maximum as 7.
+// We also treat the following  special cases as both minimum and maximum are 0
+// while there are no . in the skeleton:
+// 1. While there are "precision-integer" in the skeleton.
+// 2. While there are "precision-increment/" in the skeleton but no . after it.
+// Examples:
+// "currency/JPY precision-integer rounding-mode-half-up"
+// "precision-increment/2 rounding-mode-half-up"
 bool JSNumberFormat::FractionDigitsFromSkeleton(
     const icu::UnicodeString& skeleton, int32_t* minimum, int32_t* maximum) {
-  icu::UnicodeString search(".");
-  int32_t index = skeleton.indexOf(search);
-  if (index < 0) return false;
+  int32_t index = skeleton.indexOf(".");
+  if (index < 0) {
+    // https://unicode-org.github.io/icu/userguide/format_parse/numbers/skeletons.html#precision
+    // Note that the stem . is considered valid and is equivalent to
+    // precision-integer.
+    // Also, if there are "precision-increment/" but no "." we consider both
+    // minimum and maximum fraction digits as 0.
+    if (skeleton.indexOf("precision-integer") >= 0 ||
+        skeleton.indexOf("precision-increment/") >= 0) {
+      *minimum = *maximum = 0;
+      return true;
+    }
+    return false;
+  }
   *minimum = 0;
   index++;  // skip the '.'
   while (index < skeleton.length() && IsDecimalDigit(skeleton[index])) {
@@ -742,8 +760,7 @@ bool JSNumberFormat::FractionDigitsFromSkeleton(
 // Set The minimum as 5 and maximum as 12.
 bool JSNumberFormat::SignificantDigitsFromSkeleton(
     const icu::UnicodeString& skeleton, int32_t* minimum, int32_t* maximum) {
-  icu::UnicodeString search("@");
-  int32_t index = skeleton.indexOf(search);
+  int32_t index = skeleton.indexOf("@");
   if (index < 0) return false;
   *minimum = 1;
   index++;  // skip the first '@'
@@ -1010,26 +1027,30 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
           Just(kDontThrow))
           .FromJust());
 
-  int32_t minimum = 0, maximum = 0;
-  if (SignificantDigitsFromSkeleton(skeleton, &minimum, &maximum)) {
+  int32_t mnsd = 0, mxsd = 0, mnfd = 0, mxfd = 0;
+  bool has_significant_digits =
+      SignificantDigitsFromSkeleton(skeleton, &mnsd, &mxsd);
+  if (has_significant_digits) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->minimumSignificantDigits_string(),
-              factory->NewNumberFromInt(minimum), Just(kDontThrow))
+              factory->NewNumberFromInt(mnsd), Just(kDontThrow))
               .FromJust());
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->maximumSignificantDigits_string(),
-              factory->NewNumberFromInt(maximum), Just(kDontThrow))
+              factory->NewNumberFromInt(mxsd), Just(kDontThrow))
               .FromJust());
-  } else {
-    FractionDigitsFromSkeleton(skeleton, &minimum, &maximum);
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->minimumFractionDigits_string(),
-              factory->NewNumberFromInt(minimum), Just(kDontThrow))
-              .FromJust());
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->maximumFractionDigits_string(),
-              factory->NewNumberFromInt(maximum), Just(kDontThrow))
-              .FromJust());
+  }
+  if ((FLAG_harmony_intl_number_format_v3 || !has_significant_digits)) {
+    if (FractionDigitsFromSkeleton(skeleton, &mnfd, &mxfd)) {
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->minimumFractionDigits_string(),
+                factory->NewNumberFromInt(mnfd), Just(kDontThrow))
+                .FromJust());
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->maximumFractionDigits_string(),
+                factory->NewNumberFromInt(mxfd), Just(kDontThrow))
+                .FromJust());
+    }
   }
 
   if (FLAG_harmony_intl_number_format_v3) {
