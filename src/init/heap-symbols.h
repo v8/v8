@@ -566,11 +566,12 @@
   F(MC_MARK_CLIENT_HEAPS)                            \
   F(MC_MARK_EMBEDDER_PROLOGUE)                       \
   F(MC_MARK_EMBEDDER_TRACING)                        \
+  F(MC_MARK_EMBEDDER_TRACING_CLOSURE)                \
   F(MC_MARK_FINISH_INCREMENTAL)                      \
-  F(MC_MARK_FULL_CLOSURE_PARALLEL)                   \
-  F(MC_MARK_FULL_CLOSURE_PARALLEL_JOIN)              \
+  F(MC_MARK_MAIN)                                    \
   F(MC_MARK_ROOTS)                                   \
-  F(MC_MARK_FULL_CLOSURE)                            \
+  F(MC_MARK_WEAK_CLOSURE)                            \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON)                  \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)           \
   F(MC_SWEEP_CODE)                                   \
