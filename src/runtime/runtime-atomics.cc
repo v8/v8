@@ -415,7 +415,7 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
     THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(isolate, sta, index,
                                                             method_name);
 
-    CHECK_LT(index, sta->length());
+    CHECK_LT(index, sta->GetLength());
     if (sta->type() == kExternalBigInt64Array) {
       return Op<int64_t>::Do(isolate, source, index, bigint);
     }
@@ -430,7 +430,7 @@ Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
   THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(isolate, sta, index,
                                                           method_name);
 
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -459,7 +459,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
   DCHECK(!sta->IsDetachedOrOutOfBounds());
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
   if (sta->type() == kExternalBigInt64Array) {
     return Load<int64_t>::Do(isolate, source, index);
   }
@@ -507,7 +507,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   size_t index = NumberToSize(args[1]);
   Handle<Object> old_value_obj = args.at(2);
   Handle<Object> new_value_obj = args.at(3);
-  CHECK_LT(index, sta->length());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -523,7 +522,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
     THROW_ERROR_RETURN_FAILURE_ON_DETACHED_OR_OUT_OF_BOUNDS(
         isolate, sta, index, "Atomics.compareExchange");
 
-    CHECK_LT(index, sta->length());
+    CHECK_LT(index, sta->GetLength());
     if (sta->type() == kExternalBigInt64Array) {
       return DoCompareExchange<int64_t>(isolate, source, index, old_bigint,
                                         new_bigint);
