@@ -4373,6 +4373,7 @@ void Genesis::InitializeCallSiteBuiltins() {
       {"getPromiseIndex", Builtin::kCallSitePrototypeGetPromiseIndex},
       {"getScriptNameOrSourceURL",
        Builtin::kCallSitePrototypeGetScriptNameOrSourceURL},
+      {"getScriptHash", Builtin::kCallSitePrototypeGetScriptHash},
       {"getThis", Builtin::kCallSitePrototypeGetThis},
       {"getTypeName", Builtin::kCallSitePrototypeGetTypeName},
       {"isAsync", Builtin::kCallSitePrototypeIsAsync},

@@ -477,6 +477,15 @@ MaybeLocal<String> Script::SourceMappingURL() const {
   return Utils::ToLocal(i::Handle<i::String>::cast(value));
 }
 
+MaybeLocal<String> Script::GetSha256Hash() const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::String> value =
+      script->GetScriptHash(/* forceForInspector: */ true);
+  return Utils::ToLocal(handle_scope.CloseAndEscape(value));
+}
+
 Maybe<int> Script::ContextId() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Object value = script->context_data();

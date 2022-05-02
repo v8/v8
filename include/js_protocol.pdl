@@ -559,7 +559,7 @@ domain Debugger
       integer endColumn
       # Specifies script creation context.
       Runtime.ExecutionContextId executionContextId
-      # Content hash of the script.
+      # Content hash of the script, SHA-256.
       string hash
       # Embedder-specific auxiliary data.
       optional object executionContextAuxData
@@ -598,7 +598,7 @@ domain Debugger
       integer endColumn
       # Specifies script creation context.
       Runtime.ExecutionContextId executionContextId
-      # Content hash of the script.
+      # Content hash of the script, SHA-256.
       string hash
       # Embedder-specific auxiliary data.
       optional object executionContextAuxData
