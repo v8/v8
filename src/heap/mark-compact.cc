@@ -2018,7 +2018,7 @@ void MarkCompactCollector::RevisitObject(HeapObject obj) {
   marking_visitor_->Visit(obj.map(marking_visitor_->cage_base()), obj);
 }
 
-bool MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
+bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
   int iterations = 0;
   int max_iterations = FLAG_ephemeron_fixpoint_iterations;
 
@@ -2042,20 +2042,13 @@ bool MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
-
-      if (FLAG_parallel_marking) {
-        heap_->concurrent_marking()->RescheduleJobIfNeeded(
-            TaskPriority::kUserBlocking);
-      }
-
       another_ephemeron_iteration_main_thread = ProcessEphemerons();
-      FinishConcurrentMarking();
     }
 
-    CHECK(
-        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-    CHECK(local_weak_objects()
-              ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
+    // Can only check for local emptiness here as parallel marking tasks may
+    // still be running. The caller performs the CHECKs for global emptiness.
+    CHECK(local_weak_objects()->current_ephemerons_local.IsLocalEmpty());
+    CHECK(local_weak_objects()->discovered_ephemerons_local.IsLocalEmpty());
 
     ++iterations;
   } while (another_ephemeron_iteration_main_thread ||
@@ -2064,10 +2057,6 @@ bool MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
            !local_marking_worklists()->IsWrapperEmpty() ||
            !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
 
-  CHECK(local_marking_worklists()->IsEmpty());
-  CHECK(local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-  CHECK(local_weak_objects()
-            ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
   return true;
 }
 
@@ -2109,7 +2098,7 @@ bool MarkCompactCollector::ProcessEphemerons() {
   return another_ephemeron_iteration;
 }
 
-void MarkCompactCollector::ProcessEphemeronsLinear() {
+void MarkCompactCollector::MarkTransitiveClosureLinear() {
   TRACE_GC(heap()->tracer(),
            GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR);
   CHECK(heap()->concurrent_marking()->IsStopped());
@@ -2233,6 +2222,9 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   PtrComprCageBase cage_base(isolate);
   CodePageHeaderModificationScope rwx_write_scope(
       "Marking of Code objects require write access to Code page headers");
+  if (parallel_marking_)
+    heap_->concurrent_marking()->RescheduleJobIfNeeded(
+        TaskPriority::kUserBlocking);
   while (local_marking_worklists()->Pop(&object) ||
          local_marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
@@ -2299,19 +2291,7 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   return false;
 }
 
-void MarkCompactCollector::ProcessEphemeronMarking() {
-  DCHECK(local_marking_worklists()->IsEmpty());
-
-  // Incremental marking might leave ephemerons in main task's local
-  // buffer, flush it into global pool.
-  local_weak_objects()->next_ephemerons_local.Publish();
-
-  if (!ProcessEphemeronsUntilFixpoint()) {
-    // Fixpoint iteration needed too many iterations and was cancelled. Use the
-    // guaranteed linear algorithm.
-    ProcessEphemeronsLinear();
-  }
-
+void MarkCompactCollector::VerifyEphemeronMarking() {
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Ephemeron ephemeron;
@@ -2323,10 +2303,19 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
       CHECK(!ProcessEphemeron(ephemeron.key, ephemeron.value));
     }
   }
-#endif
+#endif  // VERIFY_HEAP
+}
 
-  CHECK(local_marking_worklists()->IsEmpty());
-  CHECK(heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
+void MarkCompactCollector::MarkTransitiveClosure() {
+  // Incremental marking might leave ephemerons in main task's local
+  // buffer, flush it into global pool.
+  local_weak_objects()->next_ephemerons_local.Publish();
+
+  if (!MarkTransitiveClosureUntilFixpoint()) {
+    // Fixpoint iteration needed too many iterations and was cancelled. Use the
+    // guaranteed linear algorithm.
+    MarkTransitiveClosureLinear();
+  }
 }
 
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
@@ -2407,50 +2396,32 @@ void MarkCompactCollector::MarkLiveObjects() {
     MarkObjectsFromClientHeaps();
   }
 
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_MAIN);
-    if (FLAG_parallel_marking) {
-      heap_->concurrent_marking()->RescheduleJobIfNeeded(
-          TaskPriority::kUserBlocking);
+  if (FLAG_parallel_marking) {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE_PARALLEL);
+    parallel_marking_ = true;
+    heap_->concurrent_marking()->RescheduleJobIfNeeded(
+        TaskPriority::kUserBlocking);
+    MarkTransitiveClosure();
+    {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_MARK_FULL_CLOSURE_PARALLEL_JOIN);
+      FinishConcurrentMarking();
     }
-    DrainMarkingWorklist();
-
-    FinishConcurrentMarking();
-    DrainMarkingWorklist();
+    parallel_marking_ = false;
   }
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE);
-
-    DCHECK(local_marking_worklists()->IsEmpty());
-
-    // Mark objects reachable through the embedder heap. This phase is
-    // opportunistic as it may not discover graphs that are only reachable
-    // through ephemerons.
-    {
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_MARK_EMBEDDER_TRACING_CLOSURE);
-      do {
-        // PerformWrapperTracing() also empties the work items collected by
-        // concurrent markers. As a result this call needs to happen at least
-        // once.
-        PerformWrapperTracing();
-        DrainMarkingWorklist();
-      } while (!heap_->local_embedder_heap_tracer()->IsRemoteTracingDone() ||
-               !local_marking_worklists()->IsWrapperEmpty());
-      DCHECK(local_marking_worklists()->IsWrapperEmpty());
-      DCHECK(local_marking_worklists()->IsEmpty());
-    }
-
-    // The objects reachable from the roots are marked, yet unreachable objects
-    // are unmarked. Mark objects reachable due to embedder heap tracing or
-    // harmony weak maps.
-    {
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON);
-      ProcessEphemeronMarking();
-      DCHECK(local_marking_worklists()->IsEmpty());
-    }
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE);
+    // Complete the transitive closure single-threaded to avoid races with
+    // multiple threads when processing weak maps and embedder heaps.
+    MarkTransitiveClosure();
+    CHECK(local_marking_worklists()->IsEmpty());
+    CHECK(
+        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
+    CHECK(local_weak_objects()
+              ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
+    CHECK(heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
+    VerifyEphemeronMarking();
   }
 
   if (was_marked_incrementally) {
