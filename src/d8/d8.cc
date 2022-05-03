@@ -919,6 +919,7 @@ bool Shell::TakeWebSnapshot(Isolate* isolate) {
   Local<Context> context(isolate->GetCurrentContext());
 
   v8::TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
   const char* web_snapshot_output_file_name = "web.snap";
   if (options.web_snapshot_output) {
     web_snapshot_output_file_name = options.web_snapshot_output;
