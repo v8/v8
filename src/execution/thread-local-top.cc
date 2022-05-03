@@ -37,9 +37,6 @@ void ThreadLocalTop::Clear() {
   current_embedder_state_ = nullptr;
   failed_access_check_callback_ = nullptr;
   thread_in_wasm_flag_address_ = kNullAddress;
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  stack_ = ::heap::base::Stack(nullptr);
-#endif
 }
 
 void ThreadLocalTop::Initialize(Isolate* isolate) {
@@ -52,10 +49,6 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef USE_SIMULATOR
   simulator_ = Simulator::current(isolate);
-#endif
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  stack_ = ::heap::base::Stack(base::Stack::GetStackStart());
 #endif
 }
 

@@ -567,9 +567,6 @@ if (v8_enable_single_generation == true) {
       "Requires unconditional write barriers or none (which disables incremental marking)")
 }
 
-assert(!v8_enable_conservative_stack_scanning || v8_enable_single_generation,
-       "Conservative stack scanning requires single generation")
-
 if (v8_fuchsia_use_vmex_resource) {
   assert(target_os == "fuchsia", "VMEX resource only available on Fuchsia")
 }

@@ -23,6 +23,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/baseline/baseline-batch-compiler.h"
@@ -131,11 +132,6 @@
 #if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/base/platform/wrappers.h"
-#include "src/heap/conservative-stack-visitor.h"
-#endif
 
 #if USE_SIMULATOR
 #include "src/execution/simulator-base.h"
@@ -569,11 +565,6 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
         Root::kStackRoots, nullptr,
         FullObjectSlot(reinterpret_cast<Address>(&(block->message_obj_))));
   }
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  ConservativeStackVisitor stack_visitor(this, v);
-  thread_local_top()->stack_.IteratePointers(&stack_visitor);
-#endif
 
   // Iterate over pointers on native execution stack.
 #if V8_ENABLE_WEBASSEMBLY

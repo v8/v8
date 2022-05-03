@@ -77,6 +77,7 @@ bool PagedSpaceObjectIterator::AdvanceToNextPage() {
   DCHECK(cur_page->SweepingDone());
   return true;
 }
+
 Page* PagedSpace::InitializePage(MemoryChunk* chunk) {
   Page* page = static_cast<Page*>(chunk);
   DCHECK_EQ(

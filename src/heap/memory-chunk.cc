@@ -197,7 +197,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   if (heap->IsShared()) SetFlag(MemoryChunk::IN_SHARED_HEAP);
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  chunk->object_start_bitmap_ = ObjectStartBitmap(chunk->area_start());
+  object_start_bitmap_ = ObjectStartBitmap(area_start_);
 #endif
 
 #ifdef DEBUG
