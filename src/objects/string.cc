@@ -395,11 +395,6 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
 
-  if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, no_gc,
-                                              InvalidateRecordedSlots::kYes);
-  }
-
   base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
       isolate->internalized_string_access());
   // Morph the string to an external string by replacing the map and
@@ -423,6 +418,12 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
+
+  if (has_pointers) {
+    isolate->heap()->NotifyObjectLayoutChange(
+        *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
+  }
+
   if (!isolate->heap()->IsLargeObject(*this)) {
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,
@@ -479,11 +480,6 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
 
-  if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, no_gc,
-                                              InvalidateRecordedSlots::kYes);
-  }
-
   base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
       isolate->internalized_string_access());
   // Morph the string to an external string by replacing the map and
@@ -507,6 +503,11 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   if (!isolate->heap()->IsLargeObject(*this)) {
     // Byte size of the external String object.
     int new_size = this->SizeFromMap(new_map);
+
+    if (has_pointers) {
+      isolate->heap()->NotifyObjectLayoutChange(
+          *this, no_gc, InvalidateRecordedSlots::kYes, new_size);
+    }
 
     isolate->heap()->NotifyObjectSizeChange(
         *this, size, new_size,
