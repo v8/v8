@@ -1171,6 +1171,7 @@
   'd8/d8-worker-shutdown': [SKIP],
   'd8/d8-worker-shutdown-gc': [SKIP],
   'harmony/futex': [SKIP],
+  'typedarray-growablesharedarraybuffer-atomics': [SKIP],
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
