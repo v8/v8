@@ -358,3 +358,18 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals('this is global', foo.mySymbol.description);
   assertEquals(Symbol.for('this is global'), foo.mySymbol);
 })();
+
+(function TestSymbolAsMapKey() {
+  function createObjects() {
+    globalThis.obj1 = {};
+    const global_symbol = Symbol.for('this is global');
+    obj1[global_symbol] = 'global symbol value';
+    globalThis.obj2 = {};
+    const nonglobal_symbol = Symbol('this is not global');
+    obj2[nonglobal_symbol] = 'nonglobal symbol value';
+  }
+  const {obj1, obj2} = takeAndUseWebSnapshot(createObjects, ['obj1', 'obj2']);
+  assertEquals('global symbol value', obj1[Symbol.for('this is global')]);
+  const nonglobal_symbol = Object.getOwnPropertySymbols(obj2)[0];
+  assertEquals('nonglobal symbol value', obj2[nonglobal_symbol]);
+})();

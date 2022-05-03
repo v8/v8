@@ -494,18 +494,18 @@ void WebSnapshotSerializer::SerializeSymbol(Handle<Symbol> symbol) {
 //   otherwise
 // - Property count
 // - For each property
-//   - String id (name)
+//   - Name: STRING_ID + String id or SYMBOL_ID + Symbol id or in-place string
 //   - If the PropertyAttributesType is CUSTOM: attributes
 void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
   int first_custom_index = -1;
-  std::vector<Handle<String>> keys;
+  std::vector<Handle<Name>> keys;
   std::vector<uint32_t> attributes;
   keys.reserve(map->NumberOfOwnDescriptors());
   attributes.reserve(map->NumberOfOwnDescriptors());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
                      isolate_);
-    keys.push_back(Handle<String>::cast(key));
+    keys.push_back(key);
 
     PropertyDetails details =
         map->instance_descriptors(kRelaxedLoad).GetDetails(i);
@@ -543,6 +543,15 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
 
   uint32_t default_flags = GetDefaultAttributeFlags();
   for (size_t i = 0; i < keys.size(); ++i) {
+    if (keys[i]->IsString()) {
+      WriteStringMaybeInPlace(Handle<String>::cast(keys[i]), map_serializer_);
+    } else if (keys[i]->IsSymbol()) {
+      map_serializer_.WriteUint32(ValueType::SYMBOL_ID);
+      map_serializer_.WriteUint32(GetSymbolId(Symbol::cast(*keys[i])));
+    } else {
+      // This error should've been recognized in the discovery phase.
+      CHECK(false);
+    }
     if (first_custom_index >= 0) {
       if (static_cast<int>(i) < first_custom_index) {
         map_serializer_.WriteUint32(default_flags);
@@ -550,7 +559,6 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
         map_serializer_.WriteUint32(attributes[i - first_custom_index]);
       }
     }
-    WriteStringId(keys[i], map_serializer_);
   }
 }
 
@@ -731,11 +739,14 @@ void WebSnapshotSerializer::DiscoverMap(Handle<Map> map) {
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
                      isolate_);
-    if (!key->IsString()) {
-      Throw("Key is not a string");
+    if (key->IsString()) {
+      DiscoverString(Handle<String>::cast(key), AllowInPlace::Yes);
+    } else if (key->IsSymbol()) {
+      DiscoverSymbol(Handle<Symbol>::cast(key));
+    } else {
+      Throw("Map key is not a String / Symbol");
       return;
     }
-    DiscoverString(Handle<String>::cast(key));
   }
 }
 
@@ -930,6 +941,11 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
 }
 
 void WebSnapshotSerializer::DiscoverSymbol(Handle<Symbol> symbol) {
+  if (symbol->is_well_known_symbol()) {
+    // TODO(v8:11525): Support well-known Symbols.
+    Throw("Well known Symbols aren't supported");
+    return;
+  }
   uint32_t id;
   if (InsertIntoIndexMap(symbol_ids_, *symbol, id)) return;
 
@@ -1544,7 +1560,8 @@ void WebSnapshotDeserializer::DeserializeStrings() {
   }
 }
 
-String WebSnapshotDeserializer::ReadString(bool internalize) {
+String WebSnapshotDeserializer::ReadString(
+    InternalizeStrings internalize_strings) {
   DCHECK(!strings_handle_->is_null());
   uint32_t string_id;
   if (!deserializer_.ReadUint32(&string_id) || string_id >= string_count_) {
@@ -1552,14 +1569,16 @@ String WebSnapshotDeserializer::ReadString(bool internalize) {
     return roots_.empty_string();
   }
   String string = String::cast(strings_.get(string_id));
-  if (internalize && !string.IsInternalizedString(isolate_)) {
+  if (internalize_strings == InternalizeStrings::kYes &&
+      !string.IsInternalizedString(isolate_)) {
     string = *factory()->InternalizeString(handle(string, isolate_));
     strings_.set(string_id, string);
   }
   return string;
 }
 
-String WebSnapshotDeserializer::ReadInPlaceString(bool internalize) {
+String WebSnapshotDeserializer::ReadInPlaceString(
+    InternalizeStrings internalize_strings) {
   MaybeHandle<String> maybe_string =
       deserializer_.ReadUtf8String(AllocationType::kOld);
   Handle<String> string;
@@ -1567,7 +1586,7 @@ String WebSnapshotDeserializer::ReadInPlaceString(bool internalize) {
     Throw("Malformed string");
     return roots_.empty_string();
   }
-  if (internalize) {
+  if (internalize_strings == InternalizeStrings::kYes) {
     string = factory()->InternalizeString(string);
   }
   return *string;
@@ -1679,6 +1698,15 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     Handle<DescriptorArray> descriptors =
         factory()->NewDescriptorArray(property_count, 0);
     for (InternalIndex i : InternalIndex::Range(property_count)) {
+      // No deferred references here, since strings and symbols have already
+      // been deserialized.
+      Handle<Object> key =
+          handle(ReadValue(Handle<HeapObject>(), 0, InternalizeStrings::kYes),
+                 isolate_);
+      if (!key->IsName()) {
+        Throw("Invalid map key");
+        return;
+      }
       PropertyAttributes attributes = PropertyAttributes::NONE;
       if (has_custom_property_attributes) {
         uint32_t flags;
@@ -1688,13 +1716,11 @@ void WebSnapshotDeserializer::DeserializeMaps() {
         }
         attributes = FlagsToAttributes(flags);
       }
-
-      Handle<String> key(ReadString(true), isolate_);
-
       // Use the "none" representation until we see the first object having this
       // map. At that point, modify the representation.
-      Descriptor desc = Descriptor::DataField(
-          isolate_, key, i.as_int(), attributes, Representation::None());
+      Descriptor desc =
+          Descriptor::DataField(isolate_, Handle<Name>::cast(key), i.as_int(),
+                                attributes, Representation::None());
       descriptors->Set(i, &desc);
     }
     DCHECK_EQ(descriptors->number_of_descriptors(), property_count);
@@ -1780,7 +1806,7 @@ void WebSnapshotDeserializer::DeserializeContexts() {
     for (int variable_index = 0;
          variable_index < static_cast<int>(variable_count); ++variable_index) {
       {
-        String name = ReadString(true);
+        String name = ReadString(InternalizeStrings::kYes);
         if (has_inlined_local_names) {
           scope_info->set(context_local_base + variable_index, name);
         } else {
@@ -1995,7 +2021,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
       return;
     }
     {
-      String source = ReadString(false);
+      String source = ReadString();
       DisallowGarbageCollection no_gc;
       if (current_function_count_ == 0) {
         script_->set_source(source);
@@ -2055,7 +2081,7 @@ void WebSnapshotDeserializer::DeserializeClasses() {
     }
 
     {
-      String source = ReadString(false);
+      String source = ReadString();
       if (current_function_count_ + current_class_count_ == 0) {
         script_->set_source(source);
       } else {
@@ -2220,7 +2246,8 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
     // them. This is useful for stress testing; otherwise the GlobalDictionary
     // handling below dominates.
     for (uint32_t i = 0; i < count; ++i) {
-      Handle<String> export_name(ReadString(true), isolate_);
+      Handle<String> export_name(ReadString(InternalizeStrings::kYes),
+                                 isolate_);
       // No deferred references should occur at this point, since all objects
       // have been deserialized.
       Object export_value = ReadValue();
@@ -2246,7 +2273,7 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
   // LookupIterator::ExtendingNonExtensible.
   InternalIndex entry = InternalIndex::NotFound();
   for (uint32_t i = 0; i < count; ++i) {
-    Handle<String> export_name(ReadString(true), isolate_);
+    Handle<String> export_name(ReadString(InternalizeStrings::kYes), isolate_);
     // No deferred references should occur at this point, since all objects have
     // been deserialized.
     Object export_value = ReadValue();
@@ -2285,8 +2312,9 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
   JSObject::InvalidatePrototypeChains(global->map(isolate_));
 }
 
-Object WebSnapshotDeserializer::ReadValue(Handle<HeapObject> container,
-                                          uint32_t container_index) {
+Object WebSnapshotDeserializer::ReadValue(
+    Handle<HeapObject> container, uint32_t container_index,
+    InternalizeStrings internalize_strings) {
   uint32_t value_type;
   // TODO(v8:11525): Consider adding a ReadByte.
   if (!deserializer_.ReadUint32(&value_type)) {
@@ -2311,7 +2339,7 @@ Object WebSnapshotDeserializer::ReadValue(Handle<HeapObject> container,
     case ValueType::DOUBLE:
       return ReadNumber();
     case ValueType::STRING_ID:
-      return ReadString(false);
+      return ReadString(internalize_strings);
     case ValueType::ARRAY_ID:
       return ReadArray(container, container_index);
     case ValueType::OBJECT_ID:
@@ -2327,7 +2355,7 @@ Object WebSnapshotDeserializer::ReadValue(Handle<HeapObject> container,
     case ValueType::EXTERNAL_ID:
       return ReadExternalReference();
     case ValueType::IN_PLACE_STRING_ID:
-      return ReadInPlaceString(false);
+      return ReadInPlaceString(internalize_strings);
     default:
       // TODO(v8:11525): Handle other value types.
       Throw("Unsupported value type");
@@ -2411,8 +2439,8 @@ Object WebSnapshotDeserializer::ReadClass(Handle<HeapObject> container,
 }
 
 Object WebSnapshotDeserializer::ReadRegexp() {
-  Handle<String> pattern(ReadString(false), isolate_);
-  Handle<String> flags_string(ReadString(false), isolate_);
+  Handle<String> pattern(ReadString(), isolate_);
+  Handle<String> flags_string(ReadString(), isolate_);
   base::Optional<JSRegExp::Flags> flags =
       JSRegExp::FlagsFromString(isolate_, flags_string);
   if (!flags.has_value()) {

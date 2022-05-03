@@ -321,6 +321,11 @@ class V8_EXPORT WebSnapshotDeserializer
   MaybeHandle<Object> value() const { return return_value_; }
 
  private:
+  enum class InternalizeStrings {
+    kNo,
+    kYes,
+  };
+
   WebSnapshotDeserializer(Isolate* isolate, Handle<Object> script_name,
                           base::Vector<const uint8_t> buffer);
   base::Vector<const uint8_t> ExtractScriptBuffer(
@@ -350,12 +355,15 @@ class V8_EXPORT WebSnapshotDeserializer
 
   Object ReadValue(
       Handle<HeapObject> object_for_deferred_reference = Handle<HeapObject>(),
-      uint32_t index_for_deferred_reference = 0);
+      uint32_t index_for_deferred_reference = 0,
+      InternalizeStrings internalize_strings = InternalizeStrings::kNo);
 
   Object ReadInteger();
   Object ReadNumber();
-  String ReadString(bool internalize = false);
-  String ReadInPlaceString(bool internalize = false);
+  String ReadString(
+      InternalizeStrings internalize_strings = InternalizeStrings::kNo);
+  String ReadInPlaceString(
+      InternalizeStrings internalize_strings = InternalizeStrings::kNo);
   Object ReadSymbol();
   Object ReadArray(Handle<HeapObject> container, uint32_t container_index);
   Object ReadObject(Handle<HeapObject> container, uint32_t container_index);
