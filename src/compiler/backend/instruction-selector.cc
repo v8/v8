@@ -1152,7 +1152,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     } else {
       if (location.IsNullRegister()) {
         EmitMoveFPRToParam(&op, location);
-      };
+      }
       buffer->instruction_args.push_back(op);
     }
   }

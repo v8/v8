@@ -8,6 +8,7 @@ import {DeoptLogEntry} from '../log/code.mjs';
 import {TickLogEntry} from '../log/tick.mjs';
 import {Flame, FlameBuilder, ProfileNode} from '../profiling.mjs';
 import {Timeline} from '../timeline.mjs';
+
 import {ToolTipEvent} from './events.mjs';
 import {CollapsableElement, CSSColor, DOM, LazyTable} from './helper.mjs';
 import {Track} from './timeline/timeline-overview.mjs';

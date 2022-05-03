@@ -5,9 +5,7 @@
 import {Script, SourcePosition} from '../profile.mjs';
 
 import {State} from './app-model.mjs';
-import {CodeLogEntry} from './log/code.mjs';
-import {DeoptLogEntry} from './log/code.mjs';
-import {SharedLibLogEntry} from './log/code.mjs';
+import {CodeLogEntry, DeoptLogEntry, SharedLibLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {LogEntry} from './log/log.mjs';
 import {MapLogEntry} from './log/map.mjs';
