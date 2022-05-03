@@ -302,8 +302,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthDayFromFields)
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateAdd)
 /* Temporal #sec-temporal.calendar.prototype.month */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonth)
-/* Temporal #sec-temporal.calendar.prototype.monthcode */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthCode)
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 /* Temporal #sec-temporal.calendar.prototype.tojson */
@@ -799,6 +797,7 @@ TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfWeek, dayOfWeek)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfYear, dayOfYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD2(Calendar, MergeFields, mergeFields)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthCode, monthCode)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthsInYear, monthsInYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
 TEMPORAL_TO_STRING(Calendar)

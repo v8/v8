@@ -6224,6 +6224,51 @@ MaybeHandle<Smi> JSTemporalCalendar::Day(Isolate* isolate,
   return handle(Smi::FromInt(day), isolate);
 }
 
+// #sec-temporal.calendar.prototype.monthcode
+MaybeHandle<String> JSTemporalCalendar::MonthCode(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]],
+  // [[InitializedTemporalMonthDay]], or
+  // [[InitializedTemporalYearMonth]] internal slot, then
+  if (!(IsPlainDatePlainDateTimeOrPlainYearMonth(temporal_date_like) ||
+        temporal_date_like->IsJSTemporalPlainMonthDay())) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       isolate->factory()->NewJSObjectWithNullProto(),
+                       "Temporal.Calendar.prototype.monthCode"),
+        String);
+  }
+
+  // 5. Return ! ISOMonthCode(temporalDateLike).
+  int32_t month;
+  if (temporal_date_like->IsJSTemporalPlainDate()) {
+    month = Handle<JSTemporalPlainDate>::cast(temporal_date_like)->iso_month();
+  } else if (temporal_date_like->IsJSTemporalPlainDateTime()) {
+    month =
+        Handle<JSTemporalPlainDateTime>::cast(temporal_date_like)->iso_month();
+  } else if (temporal_date_like->IsJSTemporalPlainMonthDay()) {
+    month =
+        Handle<JSTemporalPlainMonthDay>::cast(temporal_date_like)->iso_month();
+  } else {
+    DCHECK(temporal_date_like->IsJSTemporalPlainYearMonth());
+    month =
+        Handle<JSTemporalPlainYearMonth>::cast(temporal_date_like)->iso_month();
+  }
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCString((month < 10) ? "M0" : "M");
+  builder.AppendInt(month);
+
+  return builder.Finish();
+}
+
 // #sec-temporal.calendar.prototype.tostring
 MaybeHandle<String> JSTemporalCalendar::ToString(
     Isolate* isolate, Handle<JSTemporalCalendar> calendar,

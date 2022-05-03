@@ -82,6 +82,11 @@ class JSTemporalCalendar
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
       Handle<Object> temporal_date_like);
 
+  // #sec-temporal.calendar.prototype.dateuntil
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> DateUntil(
+      Isolate* isolate, Handle<JSTemporalCalendar> calendar, Handle<Object> one,
+      Handle<Object> two, Handle<Object> options);
+
   // #sec-temporal.calendar.prototype.daysinmonth
   V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> DaysInMonth(
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
@@ -102,10 +107,10 @@ class JSTemporalCalendar
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
       Handle<Object> fields, Handle<Object> additional_fields);
 
-  // #sec-temporal.calendar.prototype.dateuntil
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> DateUntil(
-      Isolate* isolate, Handle<JSTemporalCalendar> calendar, Handle<Object> one,
-      Handle<Object> two, Handle<Object> options);
+  // #sec-temporal.calendar.prototype.monthcode
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> MonthCode(
+      Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+      Handle<Object> temporal_date_like);
 
   // #sec-temporal.calendar.prototype.day
   V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Day(
