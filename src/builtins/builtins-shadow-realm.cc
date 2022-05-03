@@ -75,7 +75,7 @@ MaybeHandle<Object> GetWrappedValue(Isolate* isolate,
         isolate,
         NewError(Handle<JSFunction>(creation_context->type_error_function(),
                                     isolate),
-                 MessageTemplate::kNotCallable),
+                 MessageTemplate::kNotCallable, value),
         {});
   }
   // 1b. Return ? WrappedFunctionCreate(callerRealm, value).
