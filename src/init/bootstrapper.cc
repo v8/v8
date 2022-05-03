@@ -1759,6 +1759,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(isolate_, proto, factory->constructor_string(),
                           array_function, DONT_ENUM);
 
+    SimpleInstallFunction(isolate_, proto, "at", Builtin::kArrayPrototypeAt, 1,
+                          true);
     SimpleInstallFunction(isolate_, proto, "concat",
                           Builtin::kArrayPrototypeConcat, 1, false);
     SimpleInstallFunction(isolate_, proto, "copyWithin",
@@ -1835,6 +1837,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                               Builtin::kArrayPrototypeToString, 0, false);
 
     Handle<JSObject> unscopables = factory->NewJSObjectWithNullProto();
+    InstallTrueValuedProperty(isolate_, unscopables, "at");
     InstallTrueValuedProperty(isolate_, unscopables, "copyWithin");
     InstallTrueValuedProperty(isolate_, unscopables, "entries");
     InstallTrueValuedProperty(isolate_, unscopables, "fill");
@@ -2047,6 +2050,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install the String.prototype methods.
     SimpleInstallFunction(isolate_, prototype, "anchor",
                           Builtin::kStringPrototypeAnchor, 1, false);
+    SimpleInstallFunction(isolate_, prototype, "at",
+                          Builtin::kStringPrototypeAt, 1, true);
     SimpleInstallFunction(isolate_, prototype, "big",
                           Builtin::kStringPrototypeBig, 0, false);
     SimpleInstallFunction(isolate_, prototype, "blink",
@@ -3347,6 +3352,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           values, DONT_ENUM);
 
     // TODO(caitp): alphasort accessors/methods
+    SimpleInstallFunction(isolate_, prototype, "at",
+                          Builtin::kTypedArrayPrototypeAt, 1, true);
     SimpleInstallFunction(isolate_, prototype, "copyWithin",
                           Builtin::kTypedArrayPrototypeCopyWithin, 2, false);
     SimpleInstallFunction(isolate_, prototype, "every",
@@ -4684,46 +4691,6 @@ void Genesis::InitializeGlobal_regexp_linear_flag() {
 
   // Store regexp prototype map again after change.
   native_context()->set_regexp_prototype_map(regexp_prototype->map());
-}
-
-void Genesis::InitializeGlobal_harmony_relative_indexing_methods() {
-  if (!FLAG_harmony_relative_indexing_methods) return;
-
-  {
-    Handle<JSFunction> array_function(native_context()->array_function(),
-                                      isolate());
-    Handle<JSObject> array_prototype(
-        JSObject::cast(array_function->instance_prototype()), isolate());
-
-    SimpleInstallFunction(isolate(), array_prototype, "at",
-                          Builtin::kArrayPrototypeAt, 1, true);
-
-    Handle<JSObject> unscopables = Handle<JSObject>::cast(
-        JSReceiver::GetProperty(isolate(), array_prototype,
-                                factory()->unscopables_symbol())
-            .ToHandleChecked());
-    InstallTrueValuedProperty(isolate(), unscopables, "at");
-  }
-
-  {
-    Handle<JSFunction> string_function(native_context()->string_function(),
-                                       isolate());
-    Handle<JSObject> string_prototype(
-        JSObject::cast(string_function->instance_prototype()), isolate());
-
-    SimpleInstallFunction(isolate(), string_prototype, "at",
-                          Builtin::kStringPrototypeAt, 1, true);
-  }
-
-  {
-    Handle<JSFunction> typed_array_function(
-        native_context()->typed_array_function(), isolate());
-    Handle<JSObject> typed_array_prototype(
-        JSObject::cast(typed_array_function->instance_prototype()), isolate());
-
-    SimpleInstallFunction(isolate(), typed_array_prototype, "at",
-                          Builtin::kTypedArrayPrototypeAt, 1, true);
-  }
 }
 
 void Genesis::InitializeGlobal_harmony_rab_gsab() {
