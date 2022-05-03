@@ -346,7 +346,7 @@ TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForSentinels) {
   {
     ExpectNoRememberedSlotsAdded _(*this);
     // Try issuing generational barrier for sentinel.
-    old->next = static_cast<Type*>(kSentinelPointer);
+    old->next = kSentinelPointer;
   }
 }
 
