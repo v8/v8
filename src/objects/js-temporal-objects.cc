@@ -1699,6 +1699,18 @@ Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate,
       ShowOverflow::kConstrain);
 }
 
+// #sec-temporal-totemporaldisambiguation
+Maybe<Disambiguation> ToTemporalDisambiguation(Isolate* isolate,
+                                               Handle<JSReceiver> options,
+                                               const char* method_name) {
+  return GetStringOption<Disambiguation>(
+      isolate, options, "disambiguation", method_name,
+      {"compatible", "earlier", "later", "reject"},
+      {Disambiguation::kCompatible, Disambiguation::kEarlier,
+       Disambiguation::kLater, Disambiguation::kReject},
+      Disambiguation::kCompatible);
+}
+
 // #sec-temporal-builtintimezonegetinstantfor
 MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantFor(
     Isolate* isolate, Handle<JSReceiver> time_zone,
@@ -6334,6 +6346,49 @@ MaybeHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
   }
   // 5. Return ? CreateTemporalTimeZone(canonical, NewTarget).
   return CreateTemporalTimeZone(isolate, target, new_target, canonical);
+}
+
+namespace {
+
+MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
+    Isolate* isolate, Handle<Object> item_obj, Handle<JSReceiver> options,
+    const char* method_name);
+
+}  // namespace
+
+// #sec-temporal.timezone.prototype.getinstantfor
+MaybeHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> date_time_obj, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.TimeZone.prototype.getInstantFor";
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  // 3. Set dateTime to ? ToTemporalDateTime(dateTime).
+  Handle<JSTemporalPlainDateTime> date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_time,
+      ToTemporalDateTime(isolate, date_time_obj,
+                         isolate->factory()->NewJSObjectWithNullProto(),
+                         method_name),
+      JSTemporalInstant);
+
+  // 4. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalInstant);
+
+  // 5. Let disambiguation be ? ToTemporalDisambiguation(options).
+  Maybe<Disambiguation> maybe_disambiguation =
+      ToTemporalDisambiguation(isolate, options, method_name);
+  MAYBE_RETURN(maybe_disambiguation, Handle<JSTemporalInstant>());
+  Disambiguation disambiguation = maybe_disambiguation.FromJust();
+
+  // 6. Return ? BuiltinTimeZoneGetInstantFor(timeZone, dateTime,
+  // disambiguation).
+  return BuiltinTimeZoneGetInstantFor(isolate, time_zone, date_time,
+                                      disambiguation, method_name);
 }
 
 // #sec-temporal.timezone.prototype.tostring

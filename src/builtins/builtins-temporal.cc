@@ -282,8 +282,6 @@ TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetNanosecondsFor)
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetStringFor)
 /* Temporal #sec-temporal.timezone.prototype.getplaindatetimefor */
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPlainDateTimeFor)
-/* Temporal #sec-temporal.timezone.prototype.getinstantfor */
-TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetInstantFor)
 /* Temporal #sec-temporal.timezone.prototype.getpossibleinstantsfor */
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPossibleInstantsFor)
 /* Temporal #sec-temporal.timezone.prototype.getnexttransition */
@@ -813,6 +811,7 @@ BUILTIN(TemporalCalendarFrom) {
 TEMPORAL_CONSTRUCTOR1(TimeZone)
 TEMPORAL_ID_BY_TO_STRING(TimeZone)
 TEMPORAL_TO_STRING(TimeZone)
+TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetInstantFor, getInstantFor)
 // #sec-temporal.timezone.from
 BUILTIN(TemporalTimeZoneFrom) {
   HandleScope scope(isolate);

@@ -383,6 +383,11 @@ class JSTemporalTimeZone
       Isolate* isolate, Handle<JSFunction> target,
       Handle<HeapObject> new_target, Handle<Object> identifier);
 
+  // #sec-temporal.timezone.prototype.getinstantfor
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> GetInstantFor(
+      Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+      Handle<Object> dateTime, Handle<Object> options);
+
   // #sec-temporal.timezone.prototype.tostring
   static MaybeHandle<Object> ToString(Isolate* isolate,
                                       Handle<JSTemporalTimeZone> time_zone,
