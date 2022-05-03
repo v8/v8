@@ -790,6 +790,9 @@ if (cppgc_enable_object_names) {
 }
 if (cppgc_enable_caged_heap) {
   enabled_external_cppgc_defines += [ "CPPGC_CAGED_HEAP" ]
+
+  # Always enable young generation compile time flag if caged heap is enabled.
+  cppgc_enable_young_generation = true
 }
 if (cppgc_enable_young_generation) {
   enabled_external_cppgc_defines += [ "CPPGC_YOUNG_GENERATION" ]
