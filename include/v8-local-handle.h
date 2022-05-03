@@ -354,7 +354,7 @@ class MaybeLocal {
 
   /**
    * Converts this MaybeLocal<> to a Local<>. If this MaybeLocal<> is empty,
-   * |false| is returned and |out| is left untouched.
+   * |false| is returned and |out| is assigned with nullptr.
    */
   template <class S>
   V8_WARN_UNUSED_RESULT V8_INLINE bool ToLocal(Local<S>* out) const {
