@@ -131,12 +131,9 @@
   # https://crbug.com/v8/10948
   'wasm/atomics': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
-  # https://crbug.com/v8/12472 Stack overflow during regexp node generation.
+  # crbug.com/v8/12472 Stack overflow during regexp node generation.
   'regress/regress-crbug-595657': [SKIP],
   'regress/regress-475705': [SKIP],
-
-  # https://crbug.com/v8/12697
-  'math-abs': [SKIP],
 
   ##############################################################################
   # Tests where variants make no sense.
