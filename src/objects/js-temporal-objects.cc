@@ -6281,6 +6281,47 @@ MaybeHandle<String> JSTemporalCalendar::MonthCode(
   return builder.Finish();
 }
 
+// #sec-temporal.calendar.prototype.month
+MaybeHandle<Smi> JSTemporalCalendar::Month(Isolate* isolate,
+                                           Handle<JSTemporalCalendar> calendar,
+                                           Handle<Object> temporal_date_like) {
+  // 4. If Type(temporalDateLike) is Object and temporalDateLike has an
+  // [[InitializedTemporalMonthDay]] internal slot, then
+  if (temporal_date_like->IsJSTemporalPlainMonthDay()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), Smi);
+  }
+  // 5. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]],
+  // or [[InitializedTemporalYearMonth]]
+  // internal slot, then
+  if (!IsPlainDatePlainDateTimeOrPlainYearMonth(temporal_date_like)) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       isolate->factory()->NewJSObjectWithNullProto(),
+                       "Temporal.Calendar.prototype.month"),
+        Smi);
+  }
+
+  // 6. Return ! ISOMonth(temporalDateLike).
+  int32_t month;
+  if (temporal_date_like->IsJSTemporalPlainDate()) {
+    month = Handle<JSTemporalPlainDate>::cast(temporal_date_like)->iso_month();
+  } else if (temporal_date_like->IsJSTemporalPlainDateTime()) {
+    month =
+        Handle<JSTemporalPlainDateTime>::cast(temporal_date_like)->iso_month();
+  } else {
+    DCHECK(temporal_date_like->IsJSTemporalPlainYearMonth());
+    month =
+        Handle<JSTemporalPlainYearMonth>::cast(temporal_date_like)->iso_month();
+  }
+
+  // 7. Return 𝔽(month).
+  return handle(Smi::FromInt(month), isolate);
+}
+
 // #sec-temporal.calendar.prototype.tostring
 MaybeHandle<String> JSTemporalCalendar::ToString(
     Isolate* isolate, Handle<JSTemporalCalendar> calendar,

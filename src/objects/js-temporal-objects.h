@@ -112,6 +112,11 @@ class JSTemporalCalendar
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
       Handle<Object> temporal_date_like);
 
+  // #sec-temporal.calendar.prototype.month
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Month(
+      Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+      Handle<Object> temporal_date_like);
+
   // #sec-temporal.calendar.prototype.day
   V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Day(
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
