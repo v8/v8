@@ -109,9 +109,9 @@ TYPED_TEST_SUITE(MinorGCTestForType, ObjectTypes);
 namespace {
 template <typename... Args>
 void RunMinorGCAndExpectObjectsPromoted(MinorGCTest& test, Args*... args) {
-  ([args] { EXPECT_TRUE(IsHeapObjectYoung(args)); }(), ...);
+  EXPECT_TRUE((IsHeapObjectYoung(args) && ...));
   test.CollectMinor();
-  ([args] { EXPECT_TRUE(IsHeapObjectOld(args)); }(), ...);
+  EXPECT_TRUE((IsHeapObjectOld(args) && ...));
 }
 
 struct ExpectRememberedSlotsAdded final {
