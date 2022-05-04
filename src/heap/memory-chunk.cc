@@ -370,17 +370,14 @@ void MemoryChunk::ReleaseInvalidatedSlots() {
 }
 
 template V8_EXPORT_PRIVATE void
-MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object,
-                                                            int new_size);
+MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object);
 template V8_EXPORT_PRIVATE void
-MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object,
-                                                            int new_size);
+MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object);
 template V8_EXPORT_PRIVATE void MemoryChunk::RegisterObjectWithInvalidatedSlots<
-    OLD_TO_SHARED>(HeapObject object, int new_size);
+    OLD_TO_SHARED>(HeapObject object);
 
 template <RememberedSetType type>
-void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
-                                                     int new_size) {
+void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
   DCHECK(!object.IsJSReceiver());
   bool skip_slot_recording;
 
@@ -409,42 +406,12 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
     AllocateInvalidatedSlots<type>();
   }
 
-  DCHECK_GT(new_size, 0);
-  InvalidatedSlots& invalidated_slots = *this->invalidated_slots<type>();
-  DCHECK_IMPLIES(invalidated_slots[object] > 0,
-                 new_size <= invalidated_slots[object]);
-  invalidated_slots.insert_or_assign(object, new_size);
-}
-
-template V8_EXPORT_PRIVATE void
-MemoryChunk::UpdateInvalidatedObjectSize<OLD_TO_NEW>(HeapObject object,
-                                                     int new_size);
-template V8_EXPORT_PRIVATE void
-MemoryChunk::UpdateInvalidatedObjectSize<OLD_TO_OLD>(HeapObject object,
-                                                     int new_size);
-template V8_EXPORT_PRIVATE void
-MemoryChunk::UpdateInvalidatedObjectSize<OLD_TO_SHARED>(HeapObject object,
-                                                        int new_size);
-
-template <RememberedSetType type>
-void MemoryChunk::UpdateInvalidatedObjectSize(HeapObject object, int new_size) {
-  DCHECK_GT(new_size, 0);
-
-  if (invalidated_slots<type>() == nullptr) return;
-
-  InvalidatedSlots& invalidated_slots = *this->invalidated_slots<type>();
-  DCHECK_IMPLIES(invalidated_slots[object] > 0,
-                 new_size <= invalidated_slots[object]);
-  if (invalidated_slots.count(object) > 0) {
-    invalidated_slots.insert_or_assign(object, new_size);
-  }
+  invalidated_slots<type>()->insert(object);
 }
 
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(
     HeapObject object);
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(
-    HeapObject object);
-template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_SHARED>(
     HeapObject object);
 
 template <RememberedSetType type>

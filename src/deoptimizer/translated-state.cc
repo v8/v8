@@ -13,7 +13,6 @@
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
-#include "src/heap/heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/arguments.h"
 #include "src/objects/heap-number-inl.h"
@@ -1851,9 +1850,7 @@ void TranslatedState::InitializeJSObjectAt(
   CHECK_GE(children_count, 2);
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, no_gc, InvalidateRecordedSlots::kYes,
-      slot->GetChildrenCount() * kTaggedSize);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
 
   // Fill the property array field.
   {
@@ -1905,9 +1902,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   }
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, no_gc, InvalidateRecordedSlots::kYes,
-      slot->GetChildrenCount() * kTaggedSize);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
 
   // Write the fields to the object.
   for (int i = 1; i < children_count; i++) {

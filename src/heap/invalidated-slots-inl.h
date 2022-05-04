@@ -28,18 +28,22 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
     NextInvalidatedObject();
   }
 
+  HeapObject invalidated_object = HeapObject::FromAddress(invalidated_start_);
+
+  if (invalidated_size_ == 0) {
+    DCHECK(MarkCompactCollector::IsMapOrForwarded(invalidated_object.map()));
+    invalidated_size_ = invalidated_object.Size();
+  }
+
   int offset = static_cast<int>(slot - invalidated_start_);
 
   // OLD_TO_OLD can have slots in map word unlike other remembered sets.
   DCHECK_GE(offset, 0);
   DCHECK_IMPLIES(remembered_set_type_ != OLD_TO_OLD, offset > 0);
 
-  if (offset < invalidated_size_) {
-    if (offset == 0) return true;
-    HeapObject invalidated_object = HeapObject::FromAddress(invalidated_start_);
-    DCHECK(MarkCompactCollector::IsMapOrForwarded(invalidated_object.map()));
-    return invalidated_object.IsValidSlot(invalidated_object.map(), offset);
-  }
+  if (offset < invalidated_size_)
+    return offset == 0 ||
+           invalidated_object.IsValidSlot(invalidated_object.map(), offset);
 
   NextInvalidatedObject();
   return true;
@@ -47,14 +51,12 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
 
 void InvalidatedSlotsFilter::NextInvalidatedObject() {
   invalidated_start_ = next_invalidated_start_;
-  invalidated_size_ = next_invalidated_size_;
+  invalidated_size_ = 0;
 
   if (iterator_ == iterator_end_) {
     next_invalidated_start_ = sentinel_;
-    next_invalidated_size_ = 0;
   } else {
-    next_invalidated_start_ = iterator_->first.address();
-    next_invalidated_size_ = iterator_->second;
+    next_invalidated_start_ = iterator_->address();
     iterator_++;
   }
 }
@@ -85,7 +87,7 @@ void InvalidatedSlotsCleanup::Free(Address free_start, Address free_end) {
 
 void InvalidatedSlotsCleanup::NextInvalidatedObject() {
   if (iterator_ != iterator_end_) {
-    invalidated_start_ = iterator_->first.address();
+    invalidated_start_ = iterator_->address();
   } else {
     invalidated_start_ = sentinel_;
   }
