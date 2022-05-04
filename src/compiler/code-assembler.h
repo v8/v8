@@ -761,6 +761,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   Node* LoadFromObject(MachineType type, TNode<Object> object,
                        TNode<IntPtrT> offset);
+  Node* AtomicLoadFromObject(MachineType type, AtomicMemoryOrder order,
+                             TNode<Object> object, TNode<IntPtrT> offset);
 
 #ifdef V8_MAP_PACKING
   Node* PackMapWord(Node* value);

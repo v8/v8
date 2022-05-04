@@ -1274,6 +1274,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Load<Simd128T>(ptr);
   }
 
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
+                         int>::type = 0>
+  TNode<T> AtomicLoadObjectField(AtomicMemoryOrder order,
+                                 TNode<HeapObject> object, int offset) {
+    return UncheckedCast<T>(
+        AtomicLoadFromObject(MachineTypeOf<T>::value, order, object,
+                             IntPtrConstant(offset - kHeapObjectTag)));
+  }
+
   // Reference is the CSA-equivalent of a Torque reference value, representing
   // an inner pointer into a HeapObject.
   //

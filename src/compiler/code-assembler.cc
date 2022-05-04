@@ -713,6 +713,15 @@ Node* CodeAssembler::LoadFromObject(MachineType type, TNode<Object> object,
   return raw_assembler()->LoadFromObject(type, object, offset);
 }
 
+Node* CodeAssembler::AtomicLoadFromObject(MachineType type,
+                                          AtomicMemoryOrder order,
+                                          TNode<Object> object,
+                                          TNode<IntPtrT> offset) {
+  DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
+  return raw_assembler()->AtomicLoad(AtomicLoadParameters(type, order), object,
+                                     offset);
+}
+
 #ifdef V8_MAP_PACKING
 Node* CodeAssembler::PackMapWord(Node* value) {
   TNode<IntPtrT> map_word =
