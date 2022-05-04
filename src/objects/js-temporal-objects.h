@@ -102,6 +102,11 @@ class JSTemporalCalendar
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
       Handle<Object> fields, Handle<Object> options);
 
+  // #sec-temporal.calendar.prototype.monthdayfromfields
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainMonthDay>
+  MonthDayFromFields(Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+                     Handle<Object> fields, Handle<Object> options);
+
   // #sec-temporal.calendar.prototype.mergefields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> MergeFields(
       Isolate* isolate, Handle<JSTemporalCalendar> calendar,
