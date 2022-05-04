@@ -913,7 +913,7 @@ class Profiler : public base::Thread {
 
   // Inserts collected profiling data into buffer.
   void Insert(TickSample* sample) {
-    if (Succ(head_) == static_cast<int>(base::Relaxed_Load(&tail_))) {
+    if (Succ(head_) == static_cast<int>(base::Acquire_Load(&tail_))) {
       overflow_ = true;
     } else {
       buffer_[head_] = *sample;
@@ -930,7 +930,7 @@ class Profiler : public base::Thread {
     buffer_semaphore_.Wait();  // Wait for an element.
     *sample = buffer_[base::Relaxed_Load(&tail_)];
     bool result = overflow_;
-    base::Relaxed_Store(
+    base::Release_Store(
         &tail_, static_cast<base::Atomic32>(Succ(base::Relaxed_Load(&tail_))));
     overflow_ = false;
     return result;
