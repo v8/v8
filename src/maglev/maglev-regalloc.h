@@ -91,8 +91,12 @@ class StraightForwardRegisterAllocator {
   ~StraightForwardRegisterAllocator();
 
  private:
+  enum class AllocationStage { kAtStart, kAtEnd };
+
   RegisterFrameState<Register> general_registers_;
   RegisterFrameState<DoubleRegister> double_registers_;
+  RegList free_general_registers_before_node_;
+  DoubleRegList free_double_registers_before_node_;
 
   struct SpillSlotInfo {
     SpillSlotInfo(uint32_t slot_index, NodeIdT freed_at_position)
@@ -142,24 +146,30 @@ class StraightForwardRegisterAllocator {
 
   void FreeRegistersUsedBy(ValueNode* node);
   template <typename RegisterT>
-  void FreeSomeRegister(RegisterFrameState<RegisterT>& registers);
-  void FreeSomeGeneralRegister();
-  void FreeSomeDoubleRegister();
+  void FreeSomeRegister(RegisterFrameState<RegisterT>& registers,
+                        AllocationStage stage);
+  void FreeSomeGeneralRegister(AllocationStage stage);
+  void FreeSomeDoubleRegister(AllocationStage stage);
 
   template <typename RegisterT>
   void DropRegisterValue(RegisterFrameState<RegisterT>& registers,
-                         RegisterT reg);
-  void DropRegisterValue(Register reg);
-  void DropRegisterValue(DoubleRegister reg);
+                         RegisterT reg, AllocationStage stage);
+  void DropRegisterValue(Register reg, AllocationStage stage);
+  void DropRegisterValue(DoubleRegister reg, AllocationStage stage);
 
-  compiler::AllocatedOperand AllocateRegister(ValueNode* node);
+  compiler::AllocatedOperand AllocateRegister(ValueNode* node,
+                                              AllocationStage stage);
 
   template <typename RegisterT>
   compiler::AllocatedOperand ForceAllocate(
-      RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node);
-  compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node);
-  compiler::AllocatedOperand ForceAllocate(DoubleRegister reg, ValueNode* node);
-  compiler::AllocatedOperand ForceAllocate(const Input& input, ValueNode* node);
+      RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node,
+      AllocationStage stage);
+  compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node,
+                                           AllocationStage stage);
+  compiler::AllocatedOperand ForceAllocate(DoubleRegister reg, ValueNode* node,
+                                           AllocationStage stage);
+  compiler::AllocatedOperand ForceAllocate(const Input& input, ValueNode* node,
+                                           AllocationStage stage);
 
   template <typename Function>
   void ForEachMergePointRegisterState(

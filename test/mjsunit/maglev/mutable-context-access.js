@@ -43,3 +43,52 @@ assertEquals(5, foo());
 
 %OptimizeMaglevOnNextCall(foo);
 assertEquals(5, foo());
+
+
+
+function nested_factory_mutable() {
+  var x = 1;
+  x = 2;
+  return (function() {
+    var z = 3;
+    z = 4;
+    return function foo(){
+      // Add two values from different contexts to force an
+      // LdaImmutableCurrentContextSlot
+      return x+z;
+    }
+  })();
+}
+
+foo = nested_factory_mutable();
+
+%PrepareFunctionForOptimization(foo);
+assertEquals(6, foo());
+assertEquals(6, foo());
+
+%OptimizeMaglevOnNextCall(foo);
+assertEquals(6, foo());
+
+
+
+function nested_factory_immutable() {
+  var x = 1;
+  return (function() {
+    var z = 3;
+    z = 4;
+    return function foo(){
+      // Add two values from different contexts to force an
+      // LdaImmutableCurrentContextSlot
+      return x+z;
+    }
+  })();
+}
+
+foo = nested_factory_immutable();
+
+%PrepareFunctionForOptimization(foo);
+assertEquals(5, foo());
+assertEquals(5, foo());
+
+%OptimizeMaglevOnNextCall(foo);
+assertEquals(5, foo());
