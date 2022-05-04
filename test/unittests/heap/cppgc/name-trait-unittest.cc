@@ -45,7 +45,7 @@ TEST(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
   // (b) avoid exposing internal types until it has been clarified whether
   //     exposing internals in DevTools is fine.
 #if defined(OFFICIAL_BUILD)
-  EXPECT_TRUE(NameProvider::HideInternalNames());
+  EXPECT_FALSE(NameProvider::SupportsCppClassNamesAsObjectNames());
 #endif
 }
 
@@ -64,8 +64,8 @@ TEST(NameTraitTest, DefaultName) {
       NameTrait<OtherNoName>::GetName(
           nullptr, HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
           .value);
-  // The following ignores `NameProvider::HideInternalNames()` and just always
-  // returns the hidden name, independent of the build support.
+  // The following ignores `NameProvider::SupportsCppClassNamesAsObjectNames()`
+  // and just always returns the hidden name, independent of the build support.
   EXPECT_STREQ("InternalNode",
                NameTrait<NoName>::GetName(
                    nullptr, HeapObjectNameForUnnamedObject::kUseHiddenName)
