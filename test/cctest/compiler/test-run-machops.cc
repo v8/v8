@@ -33,10 +33,10 @@ TEST(RunInt32Add) {
 }
 
 static int RunInt32AddShift(bool is_left, int32_t add_left, int32_t add_right,
-                            int32_t shift_left, int32_t shit_right) {
+                            int32_t shift_left, int32_t shift_right) {
   RawMachineAssemblerTester<int32_t> m;
   Node* shift =
-      m.Word32Shl(m.Int32Constant(shift_left), m.Int32Constant(shit_right));
+      m.Word32Shl(m.Int32Constant(shift_left), m.Int32Constant(shift_right));
   Node* add = m.Int32Add(m.Int32Constant(add_left), m.Int32Constant(add_right));
   Node* lsa = is_left ? m.Int32Add(shift, add) : m.Int32Add(add, shift);
   m.Return(lsa);
@@ -45,7 +45,7 @@ static int RunInt32AddShift(bool is_left, int32_t add_left, int32_t add_right,
 
 TEST(RunInt32AddShift) {
   struct Test_case {
-    int32_t add_left, add_right, shift_left, shit_right, expected;
+    int32_t add_left, add_right, shift_left, shift_right, expected;
   };
 
   Test_case tc[] = {
@@ -59,10 +59,10 @@ TEST(RunInt32AddShift) {
   for (size_t i = 0; i < tc_size; ++i) {
     CHECK_EQ(tc[i].expected,
              RunInt32AddShift(false, tc[i].add_left, tc[i].add_right,
-                              tc[i].shift_left, tc[i].shit_right));
+                              tc[i].shift_left, tc[i].shift_right));
     CHECK_EQ(tc[i].expected,
              RunInt32AddShift(true, tc[i].add_left, tc[i].add_right,
-                              tc[i].shift_left, tc[i].shit_right));
+                              tc[i].shift_left, tc[i].shift_right));
   }
 }
 
@@ -939,7 +939,7 @@ TEST(RunInt64SubWithOverflowInBranchP) {
 
 static int64_t RunInt64AddShift(bool is_left, int64_t add_left,
                                 int64_t add_right, int64_t shift_left,
-                                int64_t shit_right) {
+                                int64_t shift_right) {
   RawMachineAssemblerTester<int64_t> m;
   Node* shift = m.Word64Shl(m.Int64Constant(4), m.Int64Constant(2));
   Node* add = m.Int64Add(m.Int64Constant(20), m.Int64Constant(22));
@@ -950,7 +950,7 @@ static int64_t RunInt64AddShift(bool is_left, int64_t add_left,
 
 TEST(RunInt64AddShift) {
   struct Test_case {
-    int64_t add_left, add_right, shift_left, shit_right, expected;
+    int64_t add_left, add_right, shift_left, shift_right, expected;
   };
 
   Test_case tc[] = {
@@ -964,9 +964,9 @@ TEST(RunInt64AddShift) {
 
   for (size_t i = 0; i < tc_size; ++i) {
     CHECK_EQ(58, RunInt64AddShift(false, tc[i].add_left, tc[i].add_right,
-                                  tc[i].shift_left, tc[i].shit_right));
+                                  tc[i].shift_left, tc[i].shift_right));
     CHECK_EQ(58, RunInt64AddShift(true, tc[i].add_left, tc[i].add_right,
-                                  tc[i].shift_left, tc[i].shit_right));
+                                  tc[i].shift_left, tc[i].shift_right));
   }
 }
 
