@@ -1256,6 +1256,60 @@ void Assembler::plfd(DoubleRegister dst, const MemOperand& src) {
   pload_store_mls(Operand(hi));
   lfd(dst, MemOperand(src.ra(), lo));
 }
+
+void Assembler::pstb(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stb(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::psth(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  sth(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstw(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stw(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstd(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPSTD | src.code() * B21 | dst.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::pstfs(const DoubleRegister src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stfs(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstfd(const DoubleRegister src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stfd(src, MemOperand(dst.ra(), lo));
+}
 #undef GENERATE_PREFIX_SUFFIX_BITS
 
 int Assembler::instructions_required_for_mov(Register dst,

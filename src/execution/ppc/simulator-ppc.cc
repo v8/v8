@@ -1651,6 +1651,71 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           set_d_register(frt, dptr);
           break;
         }
+        // Prefixed STB.
+        case STB: {
+          int ra = next_instr->RAValue();
+          int rs = next_instr->RSValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          WriteB(ra_val + im_val, get_register(rs));
+          break;
+        }
+        // Prefixed STH.
+        case STH: {
+          int ra = next_instr->RAValue();
+          int rs = next_instr->RSValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          WriteH(ra_val + im_val, get_register(rs));
+          break;
+        }
+        // Prefixed STW.
+        case STW: {
+          int ra = next_instr->RAValue();
+          int rs = next_instr->RSValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          WriteW(ra_val + im_val, get_register(rs));
+          break;
+        }
+        // Prefixed STD.
+        case PPSTD: {
+          int ra = next_instr->RAValue();
+          int rs = next_instr->RSValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          WriteDW(ra_val + im_val, get_register(rs));
+          break;
+        }
+        // Prefixed STFS.
+        case STFS: {
+          int frs = next_instr->RSValue();
+          int ra = next_instr->RAValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          float frs_val = static_cast<float>(get_double_from_d_register(frs));
+          int32_t* p;
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+          // Conversion using double changes sNan to qNan on ia32/x64
+          int32_t sval = 0;
+          int64_t dval = get_d_register(frs);
+          if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
+            sval = ((dval & 0xC000000000000000) >> 32) |
+                   ((dval & 0x07FFFFFFE0000000) >> 29);
+            p = &sval;
+          } else {
+            p = reinterpret_cast<int32_t*>(&frs_val);
+          }
+#else
+          p = reinterpret_cast<int32_t*>(&frs_val);
+#endif
+          WriteW(ra_val + im_val, *p);
+          break;
+        }
+        // Prefixed STFD.
+        case STFD: {
+          int frs = next_instr->RSValue();
+          int ra = next_instr->RAValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          int64_t frs_val = get_d_register(frs);
+          WriteDW(ra_val + im_val, frs_val);
+          break;
+        }
         default:
           UNREACHABLE();
       }

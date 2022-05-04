@@ -322,7 +322,12 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     selector->Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
     ArchOpcode opcode;
-    ImmediateMode mode = kInt16Imm;
+    ImmediateMode mode;
+    if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+      mode = kInt34Imm;
+    } else {
+      mode = kInt16Imm;
+    }
     NodeMatcher m(value);
     switch (rep) {
       case MachineRepresentation::kFloat32:
@@ -358,12 +363,12 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:
-        mode = kInt16Imm_4ByteAligned;
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
         opcode = kPPC_StoreCompressTagged;
         break;
       case MachineRepresentation::kWord64:
         opcode = kPPC_StoreWord64;
-        mode = kInt16Imm_4ByteAligned;
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
         if (m.IsWord64ReverseBytes()) {
           opcode = kPPC_StoreByteRev64;
           value = value->InputAt(0);

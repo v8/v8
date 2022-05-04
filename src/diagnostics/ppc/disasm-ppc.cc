@@ -514,7 +514,7 @@ void Decoder::DecodeExtP(Instruction* instr) {
         }
           // Prefixed LD.
         case PPLD: {
-          Format(next_instr, "pld    'rt, 'int34('ra)");
+          Format(next_instr, "pld     'rt, 'int34('ra)");
           break;
         }
           // Prefixed LFS.
@@ -525,6 +525,36 @@ void Decoder::DecodeExtP(Instruction* instr) {
         // Prefixed LFD.
         case LFD: {
           Format(next_instr, "plfd    'Dt, 'int34('ra)");
+          break;
+        }
+          // Prefixed STB.
+        case STB: {
+          Format(next_instr, "pstb    'rs, 'int34('ra)");
+          break;
+        }
+        // Prefixed STH.
+        case STH: {
+          Format(next_instr, "psth    'rs, 'int34('ra)");
+          break;
+        }
+        // Prefixed STW.
+        case STW: {
+          Format(next_instr, "pstw    'rs, 'int34('ra)");
+          break;
+        }
+        // Prefixed STD.
+        case PPSTD: {
+          Format(next_instr, "pstd    'rs, 'int34('ra)");
+          break;
+        }
+        // Prefixed STFS.
+        case STFS: {
+          Format(next_instr, "pstfs   'Dt, 'int34('ra)");
+          break;
+        }
+        // Prefixed STFD.
+        case STFD: {
+          Format(next_instr, "pstfd   'Dt, 'int34('ra)");
           break;
         }
         default: {

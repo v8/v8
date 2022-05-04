@@ -595,6 +595,14 @@ void TurboAssembler::StoreTaggedField(const Register& value,
     StoreU32(value, dst_field_operand, scratch);
     RecordComment("]");
   } else {
+    // TODO(miladfarca): move this block into StoreU64.
+    if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+      if (dst_field_operand.rb() == no_reg &&
+          is_int34(dst_field_operand.offset())) {
+        pstd(value, dst_field_operand);
+        return;
+      }
+    }
     StoreU64(value, dst_field_operand, scratch);
   }
 }
