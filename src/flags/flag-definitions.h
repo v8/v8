@@ -786,7 +786,10 @@ DEFINE_INT(deopt_every_n_times, 0,
 DEFINE_BOOL(print_deopt_stress, false, "print number of possible deopt points")
 
 // Flags for TurboFan.
-DEFINE_BOOL(turbofan, true, "use adaptive optimizations")
+DEFINE_BOOL(turbofan, true, "use the Turbofan optimizing compiler")
+// TODO(leszeks): Temporary alias until we make sure all our infra is passing
+// --turbofan instead of --opt.
+DEFINE_ALIAS_BOOL(opt, turbofan)
 
 DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
