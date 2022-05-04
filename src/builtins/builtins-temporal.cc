@@ -288,8 +288,6 @@ TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPossibleInstantsFor)
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetNextTransition)
 /* Temporal #sec-temporal.timezone.prototype.getprevioustransition */
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPreviousTransition)
-/* Temporal #sec-temporal.timezone.prototype.tojson */
-TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeToJSON)
 
 /* Temporal.Calendar */
 /* Temporal #sec-temporal.calendar.prototype.yearmonthfromfields */
@@ -298,8 +296,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeYearMonthFromFields)
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateAdd)
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
-/* Temporal #sec-temporal.calendar.prototype.tojson */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeToJSON)
 
 #ifdef V8_INTL_SUPPORT
 /* Temporal */
@@ -338,39 +334,17 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
                                    args.atOrUndefined(isolate, 1)));          \
   }
 
-#define TEMPORAL_ID_BY_TO_STRING(T)                               \
-  BUILTIN(Temporal##T##PrototypeId) {                             \
-    HandleScope scope(isolate);                                   \
-    Handle<String> id;                                            \
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                           \
-        isolate, id, Object::ToString(isolate, args.receiver())); \
-    return *id;                                                   \
-  }
-
-#define TEMPORAL_TO_STRING(T)                                       \
-  BUILTIN(Temporal##T##PrototypeToString) {                         \
-    HandleScope scope(isolate);                                     \
-    const char* method = "Temporal." #T ".prototype.toString";      \
-    CHECK_RECEIVER(JSTemporal##T, t, method);                       \
-    Handle<Object> ret;                                             \
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                             \
-        isolate, ret, JSTemporal##T::ToString(isolate, t, method)); \
-    return *ret;                                                    \
-  }
-
 #define TEMPORAL_PROTOTYPE_METHOD0(T, METHOD, name)                          \
   BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
     HandleScope scope(isolate);                                              \
-    const char* method = "Temporal." #T ".prototype." #name;                 \
-    CHECK_RECEIVER(JSTemporal##T, obj, method);                              \
+    CHECK_RECEIVER(JSTemporal##T, obj, "Temporal." #T ".prototype." #name);  \
     RETURN_RESULT_OR_FAILURE(isolate, JSTemporal##T ::METHOD(isolate, obj)); \
   }
 
 #define TEMPORAL_PROTOTYPE_METHOD1(T, METHOD, name)                            \
   BUILTIN(Temporal##T##Prototype##METHOD) {                                    \
     HandleScope scope(isolate);                                                \
-    const char* method = "Temporal." #T ".prototype." #name;                   \
-    CHECK_RECEIVER(JSTemporal##T, obj, method);                                \
+    CHECK_RECEIVER(JSTemporal##T, obj, "Temporal." #T ".prototype." #name);    \
     RETURN_RESULT_OR_FAILURE(                                                  \
         isolate,                                                               \
         JSTemporal##T ::METHOD(isolate, obj, args.atOrUndefined(isolate, 1))); \
@@ -379,8 +353,7 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
 #define TEMPORAL_PROTOTYPE_METHOD2(T, METHOD, name)                          \
   BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
     HandleScope scope(isolate);                                              \
-    const char* method = "Temporal." #T ".prototype." #name;                 \
-    CHECK_RECEIVER(JSTemporal##T, obj, method);                              \
+    CHECK_RECEIVER(JSTemporal##T, obj, "Temporal." #T ".prototype." #name);  \
     RETURN_RESULT_OR_FAILURE(                                                \
         isolate,                                                             \
         JSTemporal##T ::METHOD(isolate, obj, args.atOrUndefined(isolate, 1), \
@@ -390,8 +363,7 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
 #define TEMPORAL_PROTOTYPE_METHOD3(T, METHOD, name)                          \
   BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
     HandleScope scope(isolate);                                              \
-    const char* method = "Temporal." #T ".prototype." #name;                 \
-    CHECK_RECEIVER(JSTemporal##T, obj, method);                              \
+    CHECK_RECEIVER(JSTemporal##T, obj, "Temporal." #T ".prototype." #name);  \
     RETURN_RESULT_OR_FAILURE(                                                \
         isolate,                                                             \
         JSTemporal##T ::METHOD(isolate, obj, args.atOrUndefined(isolate, 1), \
@@ -428,12 +400,12 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
                                   ".prototype.compare for comparison.")));   \
   }
 
-#define TEMPORAL_GET_SMI(T, METHOD, field)                        \
-  BUILTIN(Temporal##T##Prototype##METHOD) {                       \
-    HandleScope scope(isolate);                                   \
-    const char* method = "get Temporal." #T ".prototype." #field; \
-    CHECK_RECEIVER(JSTemporal##T, obj, method);                   \
-    return Smi::FromInt(obj->field());                            \
+#define TEMPORAL_GET_SMI(T, METHOD, field)                   \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                  \
+    HandleScope scope(isolate);                              \
+    CHECK_RECEIVER(JSTemporal##T, obj,                       \
+                   "get Temporal." #T ".prototype." #field); \
+    return Smi::FromInt(obj->field());                       \
   }
 
 #define TEMPORAL_METHOD1(T, METHOD)                                       \
@@ -444,19 +416,18 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
         JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1))); \
   }
 
-#define TEMPORAL_GET(T, METHOD, field)                            \
-  BUILTIN(Temporal##T##Prototype##METHOD) {                       \
-    HandleScope scope(isolate);                                   \
-    const char* method = "get Temporal." #T ".prototype." #field; \
-    CHECK_RECEIVER(JSTemporal##T, obj, method);                   \
-    return obj->field();                                          \
+#define TEMPORAL_GET(T, METHOD, field)                                       \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
+    HandleScope scope(isolate);                                              \
+    CHECK_RECEIVER(JSTemporal##T, obj, "Temporal." #T ".prototype." #field); \
+    return obj->field();                                                     \
   }
 
 #define TEMPORAL_GET_NUMBER_AFTER_DIVID(T, M, field, scale, name)         \
   BUILTIN(Temporal##T##Prototype##M) {                                    \
     HandleScope scope(isolate);                                           \
-    const char* method = "get Temporal." #T ".prototype." #name;          \
-    CHECK_RECEIVER(JSTemporal##T, handle, method);                        \
+    CHECK_RECEIVER(JSTemporal##T, handle,                                 \
+                   "get Temporal." #T ".prototype." #name);               \
     Handle<BigInt> value;                                                 \
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                   \
         isolate, value,                                                   \
@@ -470,33 +441,32 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
 #define TEMPORAL_GET_BIGINT_AFTER_DIVID(T, M, field, scale, name)         \
   BUILTIN(Temporal##T##Prototype##M) {                                    \
     HandleScope scope(isolate);                                           \
-    const char* method = "get Temporal." #T ".prototype." #name;          \
-    CHECK_RECEIVER(JSTemporal##T, handle, method);                        \
-    Handle<BigInt> value;                                                 \
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                   \
-        isolate, value,                                                   \
+    CHECK_RECEIVER(JSTemporal##T, handle,                                 \
+                   "get Temporal." #T ".prototype." #name);               \
+    RETURN_RESULT_OR_FAILURE(                                             \
+        isolate,                                                          \
         BigInt::Divide(isolate, Handle<BigInt>(handle->field(), isolate), \
                        BigInt::FromUint64(isolate, scale)));              \
-    return *value;                                                        \
   }
 
-#define TEMPORAL_GET_BY_FORWARD_CALENDAR(T, METHOD, name)                     \
-  BUILTIN(Temporal##T##Prototype##METHOD) {                                   \
-    HandleScope scope(isolate);                                               \
-    const char* method = "get Temporal." #T ".prototype." #name;              \
-    CHECK_RECEIVER(JSTemporal##T, temporal_date, method);                     \
-    Handle<JSReceiver> calendar = handle(temporal_date->calendar(), isolate); \
-    RETURN_RESULT_OR_FAILURE(isolate, temporal::Calendar##METHOD(             \
-                                          isolate, calendar, temporal_date)); \
+#define TEMPORAL_GET_BY_FORWARD_CALENDAR(T, METHOD, name)                 \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                               \
+    HandleScope scope(isolate);                                           \
+    CHECK_RECEIVER(JSTemporal##T, temporal_date,                          \
+                   "get Temporal." #T ".prototype." #name);               \
+    RETURN_RESULT_OR_FAILURE(                                             \
+        isolate, temporal::Calendar##METHOD(                              \
+                     isolate, handle(temporal_date->calendar(), isolate), \
+                     temporal_date));                                     \
   }
 
 #define TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(T, METHOD, name)              \
   BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
     HandleScope scope(isolate);                                              \
-    const char* method = "get Temporal." #T ".prototype." #name;             \
     /* 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporal  \
      * #T]]). */                                                             \
-    CHECK_RECEIVER(JSTemporal##T, date_like, method);                        \
+    CHECK_RECEIVER(JSTemporal##T, date_like,                                 \
+                   "get Temporal." #T ".prototype." #name);                  \
     /* 3. Let calendar be temporalDate.[[Calendar]]. */                      \
     Handle<JSReceiver> calendar = handle(date_like->calendar(), isolate);    \
     /* 2. Return ? Invoke(calendar, "name", « dateLike »).  */             \
@@ -659,11 +629,11 @@ TEMPORAL_VALUE_OF(PlainMonthDay)
 
 #define TEMPORAL_ZONED_DATE_TIME_GET_PREPARE(M)                               \
   HandleScope scope(isolate);                                                 \
-  const char* method = "get Temporal.ZonedDateTime.prototype." #M;            \
+  const char* method_name = "get Temporal.ZonedDateTime.prototype." #M;       \
   /* 1. Let zonedDateTime be the this value. */                               \
   /* 2. Perform ? RequireInternalSlot(zonedDateTime, */                       \
   /* [[InitializedTemporalZonedDateTime]]). */                                \
-  CHECK_RECEIVER(JSTemporalZonedDateTime, zoned_date_time, method);           \
+  CHECK_RECEIVER(JSTemporalZonedDateTime, zoned_date_time, method_name);      \
   /* 3. Let timeZone be zonedDateTime.[[TimeZone]]. */                        \
   Handle<JSReceiver> time_zone =                                              \
       handle(zoned_date_time->time_zone(), isolate);                          \
@@ -683,7 +653,7 @@ TEMPORAL_VALUE_OF(PlainMonthDay)
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
       isolate, temporal_date_time,                                            \
       temporal::BuiltinTimeZoneGetPlainDateTimeFor(                           \
-          isolate, time_zone, instant, calendar, method));
+          isolate, time_zone, instant, calendar, method_name));
 
 #define TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(M, field) \
   BUILTIN(TemporalZonedDateTimePrototype##M) {                          \
@@ -780,7 +750,44 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
 
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
-TEMPORAL_ID_BY_TO_STRING(Calendar)
+
+// #sec-get-temporal.calendar.prototype.id
+BUILTIN(TemporalCalendarPrototypeId) {
+  HandleScope scope(isolate);
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  CHECK_RECEIVER(JSTemporalCalendar, calendar,
+                 "Temporal.Calendar.prototype.id");
+  // 3. Return ? ToString(calendar).
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, calendar));
+}
+
+// #sec-temporal.calendar.prototype.tojson
+BUILTIN(TemporalCalendarPrototypeToJSON) {
+  HandleScope scope(isolate);
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  CHECK_RECEIVER(JSTemporalCalendar, calendar,
+                 "Temporal.Calendar.prototype.toJSON");
+  // 3. Return ? ToString(calendar).
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, calendar));
+}
+
+// #sec-temporal.calendar.prototype.tostring
+BUILTIN(TemporalCalendarPrototypeToString) {
+  HandleScope scope(isolate);
+  const char* method_name = "Temporal.Calendar.prototype.toString";
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  CHECK_RECEIVER(JSTemporalCalendar, calendar, method_name);
+  // 3. Return calendar.[[Identifier]].
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSTemporalCalendar::ToString(isolate, calendar, method_name));
+}
+
 TEMPORAL_PROTOTYPE_METHOD2(Calendar, DateFromFields, dateFromFields)
 TEMPORAL_PROTOTYPE_METHOD3(Calendar, DateUntil, dateUntil)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Day, day)
@@ -796,7 +803,7 @@ TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthCode, monthCode)
 TEMPORAL_PROTOTYPE_METHOD2(Calendar, MonthDayFromFields, monthDayFromFields)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthsInYear, monthsInYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
-TEMPORAL_TO_STRING(Calendar)
+
 // #sec-temporal.calendar.from
 BUILTIN(TemporalCalendarFrom) {
   HandleScope scope(isolate);
@@ -807,9 +814,45 @@ BUILTIN(TemporalCalendarFrom) {
 
 // TimeZone
 TEMPORAL_CONSTRUCTOR1(TimeZone)
-TEMPORAL_ID_BY_TO_STRING(TimeZone)
-TEMPORAL_TO_STRING(TimeZone)
 TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetInstantFor, getInstantFor)
+
+// #sec-get-temporal.timezone.prototype.id
+BUILTIN(TemporalTimeZonePrototypeId) {
+  HandleScope scope(isolate);
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  CHECK_RECEIVER(JSTemporalTimeZone, time_zone,
+                 "Temporal.TimeZone.prototype.id");
+  // 3. Return ? ToString(timeZone).
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, time_zone));
+}
+
+// #sec-temporal.timezone.prototype.tojson
+BUILTIN(TemporalTimeZonePrototypeToJSON) {
+  HandleScope scope(isolate);
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  CHECK_RECEIVER(JSTemporalTimeZone, time_zone,
+                 "Temporal.TimeZone.prototype.toJSON");
+  // 3. Return ? ToString(timeZone).
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToString(isolate, time_zone));
+}
+
+// #sec-temporal.timezone.prototype.tostring
+BUILTIN(TemporalTimeZonePrototypeToString) {
+  HandleScope scope(isolate);
+  const char* method_name = "Temporal.TimeZone.prototype.toString";
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  CHECK_RECEIVER(JSTemporalTimeZone, time_zone, method_name);
+  // 3. Return timeZone.[[Identifier]].
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSTemporalTimeZone::ToString(isolate, time_zone, method_name));
+}
+
 // #sec-temporal.timezone.from
 BUILTIN(TemporalTimeZoneFrom) {
   HandleScope scope(isolate);
