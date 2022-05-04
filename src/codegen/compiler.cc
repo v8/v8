@@ -913,30 +913,28 @@ class OptimizedCodeCache : public AllStatic {
     return handle(code, isolate);
   }
 
-  static void Insert(Isolate* isolate,
-                     OptimizedCompilationInfo* compilation_info) {
-    const CodeKind kind = compilation_info->code_kind();
+  static void Insert(Isolate* isolate, JSFunction function,
+                     BytecodeOffset osr_offset, CodeT code,
+                     bool is_function_context_specializing) {
+    const CodeKind kind = code.kind();
     if (!CodeKindIsStoredInOptimizedCodeCache(kind)) return;
 
-    Handle<JSFunction> function = compilation_info->closure();
-    Handle<CodeT> code = ToCodeT(compilation_info->code(), isolate);
-    const BytecodeOffset osr_offset = compilation_info->osr_offset();
-    FeedbackVector feedback_vector = function->feedback_vector();
+    FeedbackVector feedback_vector = function.feedback_vector();
 
     if (IsOSR(osr_offset)) {
       DCHECK(CodeKindCanOSR(kind));
-      DCHECK(!compilation_info->function_context_specializing());
-      SharedFunctionInfo shared = function->shared();
+      DCHECK(!is_function_context_specializing);
+      SharedFunctionInfo shared = function.shared();
       Handle<BytecodeArray> bytecode(shared.GetBytecodeArray(isolate), isolate);
       interpreter::BytecodeArrayIterator it(bytecode, osr_offset.ToInt());
       DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
-      feedback_vector.SetOptimizedOsrCode(it.GetSlotOperand(2), *code);
+      feedback_vector.SetOptimizedOsrCode(it.GetSlotOperand(2), code);
       return;
     }
 
     DCHECK(!IsOSR(osr_offset));
 
-    if (compilation_info->function_context_specializing()) {
+    if (is_function_context_specializing) {
       // Function context specialization folds-in the function context, so no
       // sharing can occur. Make sure the optimized code cache is cleared.
       if (feedback_vector.has_optimized_code()) {
@@ -996,7 +994,10 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   // Success!
   job->RecordCompilationStats(ConcurrencyMode::kSynchronous, isolate);
   DCHECK(!isolate->has_pending_exception());
-  OptimizedCodeCache::Insert(isolate, compilation_info);
+  OptimizedCodeCache::Insert(isolate, *compilation_info->closure(),
+                             compilation_info->osr_offset(),
+                             ToCodeT(*compilation_info->code()),
+                             compilation_info->function_context_specializing());
   job->RecordFunctionCompilation(LogEventListener::LAZY_COMPILE_TAG, isolate);
   return true;
 }
@@ -1175,6 +1176,9 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
     }
 
     RecordMaglevFunctionCompilation(isolate, function);
+    const bool kIsContextSpecializing = false;
+    OptimizedCodeCache::Insert(isolate, *function, osr_offset, function->code(),
+                               kIsContextSpecializing);
     return handle(function->code(), isolate);
   }
 
@@ -3420,7 +3424,10 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
                                      isolate);
       if (V8_LIKELY(use_result)) {
         ResetTieringState(*function, osr_offset);
-        OptimizedCodeCache::Insert(isolate, compilation_info);
+        OptimizedCodeCache::Insert(
+            isolate, *compilation_info->closure(),
+            compilation_info->osr_offset(), ToCodeT(*compilation_info->code()),
+            compilation_info->function_context_specializing());
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
         if (!IsOSR(osr_offset)) {
           function->set_code(*compilation_info->code(), kReleaseStore);
@@ -3446,6 +3453,9 @@ bool Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                             Isolate* isolate) {
 #ifdef V8_ENABLE_MAGLEV
   VMState<COMPILER> state(isolate);
+  const bool kIsContextSpecializing = false;
+  OptimizedCodeCache::Insert(isolate, *job->function(), BytecodeOffset::None(),
+                             job->function()->code(), kIsContextSpecializing);
   RecordMaglevFunctionCompilation(isolate, job->function());
 #endif
   return CompilationJob::SUCCEEDED;
