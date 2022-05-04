@@ -6129,10 +6129,10 @@ if (is_fuchsia && !build_with_chromium) {
     package_name_override = "d8"
   }
 
-  fuchsia_package_runner("d8_fuchsia") {
+  fuchsia_package_installer("d8_fuchsia") {
     testonly = true
     package = ":d8_fuchsia_pkg"
-    package_name_override = "d8"
+    package_name = "d8"
   }
 }
 

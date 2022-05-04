@@ -14,11 +14,11 @@ if (is_fuchsia) {
     package_name_override = "v8_unittests"
   }
 
-  fuchsia_package_runner("v8_unittests_fuchsia") {
+  fuchsia_test_runner("v8_unittests_fuchsia") {
     testonly = true
     use_cfv2 = false
     package = ":v8_unittests_pkg"
-    package_name_override = "v8_unittests"
+    package_name = "v8_unittests"
   }
 }
 
