@@ -234,15 +234,13 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
         }
       }
       // First object is going to be evacuated.
-      HeapObject front_object = *compaction_page_handles.front();
       to_be_aborted_page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(
-          front_object, front_object.Size());
+          *compaction_page_handles.front());
       // Last object is NOT going to be evacuated.
       // This happens since not all objects fit on the only other page in the
       // old space, the GC isn't allowed to allocate another page.
-      HeapObject back_object = *compaction_page_handles.back();
       to_be_aborted_page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(
-          back_object, back_object.Size());
+          *compaction_page_handles.back());
       to_be_aborted_page->SetFlag(
           MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
 
