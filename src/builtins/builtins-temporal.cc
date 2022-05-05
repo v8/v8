@@ -290,8 +290,6 @@ TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetNextTransition)
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPreviousTransition)
 
 /* Temporal.Calendar */
-/* Temporal #sec-temporal.calendar.prototype.yearmonthfromfields */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeYearMonthFromFields)
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 
@@ -802,6 +800,7 @@ TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthCode, monthCode)
 TEMPORAL_PROTOTYPE_METHOD2(Calendar, MonthDayFromFields, monthDayFromFields)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthsInYear, monthsInYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
+TEMPORAL_PROTOTYPE_METHOD2(Calendar, YearMonthFromFields, yearMonthFromFields)
 
 // #sec-temporal.calendar.from
 BUILTIN(TemporalCalendarFrom) {

@@ -764,6 +764,15 @@ MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
   return object;
 }
 
+MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
+    Isolate* isolate, int32_t iso_year, int32_t iso_month,
+    Handle<JSReceiver> calendar, int32_t reference_iso_day) {
+  TEMPORAL_ENTER_FUNC();
+  return CreateTemporalYearMonth(isolate, CONSTRUCTOR(plain_year_month),
+                                 CONSTRUCTOR(plain_year_month), iso_year,
+                                 iso_month, calendar, reference_iso_day);
+}
+
 // #sec-temporal-createtemporalzoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
@@ -5569,6 +5578,31 @@ Maybe<DateRecordCommon> RegulateISODate(Isolate* isolate, ShowOverflow overflow,
   }
 }
 
+// #sec-temporal-regulateisoyearmonth
+Maybe<int32_t> RegulateISOYearMonth(Isolate* isolate, ShowOverflow overflow,
+                                    int32_t month) {
+  // 1. Assert: year and month are integers.
+  // 2. Assert: overflow is either "constrain" or "reject".
+  switch (overflow) {
+    // 3. If overflow is "constrain", then
+    case ShowOverflow::kConstrain:
+      // a. Return ! ConstrainISOYearMonth(year, month).
+      return Just(std::max(std::min(month, 12), 1));
+    // 4. If overflow is "reject", then
+    case ShowOverflow::kReject:
+      // a. If ! IsValidISOMonth(month) is false, throw a RangeError exception.
+      if (month < 1 || 12 < month) {
+        THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                     Nothing<int32_t>());
+      }
+      // b. Return the new Record { [[Year]]: year, [[Month]]: month }.
+      return Just(month);
+    default:
+      UNREACHABLE();
+  }
+}
+
 // #sec-temporal-resolveisomonth
 Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
   Factory* factory = isolate->factory();
@@ -5933,6 +5967,56 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
     default:
       UNREACHABLE();
   }
+}
+
+// #sec-temporal-isoyearmonthfromfields
+Maybe<DateRecordCommon> ISOYearMonthFromFields(Isolate* isolate,
+                                               Handle<JSReceiver> fields,
+                                               Handle<JSReceiver> options,
+                                               const char* method_name) {
+  Factory* factory = isolate->factory();
+  // 1. Assert: Type(fields) is Object.
+  // 2. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Nothing<DateRecordCommon>());
+  // 3. Set fields to ? PrepareTemporalFields(fields, « "month", "monthCode",
+  // "year" », «»).
+  Handle<FixedArray> field_names = factory->NewFixedArray(3);
+  field_names->set(0, ReadOnlyRoots(isolate).month_string());
+  field_names->set(1, ReadOnlyRoots(isolate).monthCode_string());
+  field_names->set(2, ReadOnlyRoots(isolate).year_string());
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, fields,
+      PrepareTemporalFields(isolate, fields, field_names,
+                            RequiredFields::kNone),
+      Nothing<DateRecordCommon>());
+
+  // 4. Let year be ! Get(fields, "year").
+  Handle<Object> year_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->year_string())
+          .ToHandleChecked();
+  // 5. If year is undefined, throw a TypeError exception.
+  if (year_obj->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DateRecordCommon>());
+  }
+  DateRecordCommon result;
+  result.year = FastD2I(floor(year_obj->Number()));
+  // 6. Let month be ? ResolveISOMonth(fields).
+  int32_t month;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, month,
+                                         ResolveISOMonth(isolate, fields),
+                                         Nothing<DateRecordCommon>());
+  // 7. Let result be ? RegulateISOYearMonth(year, month, overflow).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result.month, RegulateISOYearMonth(isolate, overflow, month),
+      Nothing<DateRecordCommon>());
+  // 8. Return the new Record { [[Year]]: result.[[Year]], [[Month]]:
+  // result.[[Month]], [[ReferenceISODay]]: 1 }.
+  result.day = 1;
+  return Just(result);
 }
 
 }  // namespace
@@ -6557,6 +6641,45 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalCalendar::MonthDayFromFields(
     // calendar, result.[[ReferenceISOYear]]).
     return CreateTemporalMonthDay(isolate, result.month, result.day, calendar,
                                   result.year);
+  }
+  // TODO(ftang) add intl code inside #ifdef V8_INTL_SUPPORT
+  UNREACHABLE();
+}
+
+// #sec-temporal.calendar.prototype.yearmonthfromfields
+MaybeHandle<JSTemporalPlainYearMonth> JSTemporalCalendar::YearMonthFromFields(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> fields_obj, Handle<Object> options_obj) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  const char* method_name = "Temporal.Calendar.prototype.yearMonthFromFields";
+  // 4. If Type(fields) is not Object, throw a TypeError exception.
+  if (!fields_obj->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCalledOnNonObject,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     method_name)),
+                    JSTemporalPlainYearMonth);
+  }
+  Handle<JSReceiver> fields = Handle<JSReceiver>::cast(fields_obj);
+  // 5. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainYearMonth);
+  // 6. Let result be ? ISOYearMonthFromFields(fields, options).
+  if (calendar->calendar_index() == 0) {
+    DateRecordCommon result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        ISOYearMonthFromFields(isolate, fields, options, method_name),
+        Handle<JSTemporalPlainYearMonth>());
+    // 7. Return ? CreateTemporalYearMonth(result.[[Year]], result.[[Month]],
+    // calendar, result.[[ReferenceISODay]]).
+    return CreateTemporalYearMonth(isolate, result.year, result.month, calendar,
+                                   result.day);
   }
   // TODO(ftang) add intl code inside #ifdef V8_INTL_SUPPORT
   UNREACHABLE();
