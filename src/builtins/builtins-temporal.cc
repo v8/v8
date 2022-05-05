@@ -292,8 +292,6 @@ TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPreviousTransition)
 /* Temporal.Calendar */
 /* Temporal #sec-temporal.calendar.prototype.yearmonthfromfields */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeYearMonthFromFields)
-/* Temporal #sec-temporal.calendar.prototype.dateadd */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateAdd)
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 
@@ -788,6 +786,7 @@ BUILTIN(TemporalCalendarPrototypeToString) {
       isolate, JSTemporalCalendar::ToString(isolate, calendar, method_name));
 }
 
+TEMPORAL_PROTOTYPE_METHOD3(Calendar, DateAdd, dateAdd)
 TEMPORAL_PROTOTYPE_METHOD2(Calendar, DateFromFields, dateFromFields)
 TEMPORAL_PROTOTYPE_METHOD3(Calendar, DateUntil, dateUntil)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Day, day)

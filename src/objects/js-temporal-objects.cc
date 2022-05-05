@@ -5908,6 +5908,86 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
 
 }  // namespace
 
+// #sec-temporal.calendar.prototype.dateadd
+MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateAdd(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> date_obj, Handle<Object> duration_obj,
+    Handle<Object> options_obj) {
+  const char* method_name = "Temporal.Calendar.prototype.dateAdd";
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. Set date to ? ToTemporalDate(date).
+  Handle<JSTemporalPlainDate> date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date,
+      ToTemporalDate(isolate, date_obj,
+                     isolate->factory()->NewJSObjectWithNullProto(),
+                     method_name),
+      JSTemporalPlainDate);
+
+  // 5. Set duration to ? ToTemporalDuration(duration).
+  Handle<JSTemporalDuration> duration;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, duration,
+      temporal::ToTemporalDuration(isolate, duration_obj, method_name),
+      JSTemporalPlainDate);
+
+  // 6. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainDate);
+
+  // 7. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Handle<JSTemporalPlainDate>());
+
+  // 8. Let balanceResult be ! BalanceDuration(duration.[[Days]],
+  // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
+  // duration.[[Milliseconds]], duration.[[Microseconds]],
+  // duration.[[Nanoseconds]], "day").
+  TimeDurationRecord balance_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, balance_result,
+      BalanceDuration(
+          isolate, Unit::kDay,
+          {duration->days().Number(), duration->hours().Number(),
+           duration->minutes().Number(), duration->seconds().Number(),
+           duration->milliseconds().Number(), duration->microseconds().Number(),
+           duration->nanoseconds().Number()},
+          method_name),
+      Handle<JSTemporalPlainDate>());
+  DateRecordCommon result;
+  // If calendar.[[Identifier]] is "iso8601", then
+  if (calendar->calendar_index() == 0) {
+    // 9. Let result be ? AddISODate(date.[[ISOYear]], date.[[ISOMonth]],
+    // date.[[ISODay]], duration.[[Years]], duration.[[Months]],
+    // duration.[[Weeks]], balanceResult.[[Days]], overflow).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        AddISODate(isolate,
+                   {date->iso_year(), date->iso_month(), date->iso_day()},
+                   {duration->years().Number(), duration->months().Number(),
+                    duration->weeks().Number(), balance_result.days},
+                   overflow),
+        Handle<JSTemporalPlainDate>());
+  } else {
+#ifdef V8_INTL_SUPPORT
+    // TODO(ftang) add code for other calendar.
+    UNIMPLEMENTED();
+#else   // V8_INTL_SUPPORT
+    UNREACHABLE();
+#endif  // V8_INTL_SUPPORT
+  }
+  // 10. Return ? CreateTemporalDate(result.[[Year]], result.[[Month]],
+  // result.[[Day]], calendar).
+  return CreateTemporalDate(isolate, result, calendar);
+}
+
 // #sec-temporal.calendar.prototype.daysinyear
 MaybeHandle<Smi> JSTemporalCalendar::DaysInYear(
     Isolate* isolate, Handle<JSTemporalCalendar> calendar,
