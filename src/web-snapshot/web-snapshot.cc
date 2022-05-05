@@ -1107,7 +1107,6 @@ void WebSnapshotSerializer::SerializeObjectPropertiesWithDictionaryMap(T dict) {
     if (!dict->IsKey(roots, key)) {
       continue;
     }
-    PropertyDetails details = dict->DetailsAt(index);
     WriteValue(handle(key, isolate_), object_serializer_);
     WriteValue(handle(dict->ValueAt(index), isolate_), object_serializer_);
     if (first_custom_index >= 0) {
