@@ -280,14 +280,8 @@ TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToPlainDate)
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetNanosecondsFor)
 /* Temporal #sec-temporal.timezone.prototype.getoffsetstringfor */
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetStringFor)
-/* Temporal #sec-temporal.timezone.prototype.getplaindatetimefor */
-TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPlainDateTimeFor)
 /* Temporal #sec-temporal.timezone.prototype.getpossibleinstantsfor */
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPossibleInstantsFor)
-/* Temporal #sec-temporal.timezone.prototype.getnexttransition */
-TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetNextTransition)
-/* Temporal #sec-temporal.timezone.prototype.getprevioustransition */
-TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPreviousTransition)
 
 /* Temporal.Calendar */
 /* Temporal #sec-temporal.calendar.prototype.yearmonthfromfields */
@@ -852,6 +846,10 @@ BUILTIN(TemporalTimeZonePrototypeToString) {
       isolate, JSTemporalTimeZone::ToString(isolate, time_zone, method_name));
 }
 
+TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetNextTransition, getNextTransition)
+TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetPlainDateTimeFor, getPlainDateTimeFor)
+TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPreviousTransition,
+                           getPreviousTransition)
 // #sec-temporal.timezone.from
 BUILTIN(TemporalTimeZoneFrom) {
   HandleScope scope(isolate);
