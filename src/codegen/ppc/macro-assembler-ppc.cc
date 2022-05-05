@@ -3231,8 +3231,9 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
   }
 
 #define MEM_OP_WITH_ALIGN_LIST(V) \
-  V(LoadU64, ld, ldx)             \
   V(LoadS32, lwa, lwax)           \
+  V(LoadU64, ld, ldx)             \
+  V(LoadU64WithUpdate, ldu, ldux) \
   V(StoreU64, std, stdx)          \
   V(StoreU64WithUpdate, stdu, stdux)
 
@@ -3257,7 +3258,6 @@ MEM_OP_WITH_ALIGN_LIST(MEM_OP_WITH_ALIGN_FUNCTION)
   V(LoadF32, DoubleRegister, lfs, lfsx)                \
   V(StoreF64, DoubleRegister, stfd, stfdx)             \
   V(StoreF32, DoubleRegister, stfs, stfsx)             \
-  V(LoadU64WithUpdate, Register, ldu, ldux)            \
   V(LoadF64WithUpdate, DoubleRegister, lfdu, lfdux)    \
   V(LoadF32WithUpdate, DoubleRegister, lfsu, lfsux)    \
   V(StoreF64WithUpdate, DoubleRegister, stfdu, stfdux) \
