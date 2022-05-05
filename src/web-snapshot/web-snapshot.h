@@ -203,6 +203,8 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverArray(Handle<JSArray> array);
   void DiscoverObject(Handle<JSObject> object);
   void DiscoverSource(Handle<JSFunction> function);
+  template <typename T>
+  void DiscoverObjectPropertiesWithDictionaryMap(T dict);
   void ConstructSource();
 
   void SerializeFunctionInfo(ValueSerializer* serializer,
@@ -211,6 +213,10 @@ class V8_EXPORT WebSnapshotSerializer
   void SerializeString(Handle<String> string, ValueSerializer& serializer);
   void SerializeSymbol(Handle<Symbol> symbol);
   void SerializeMap(Handle<Map> map);
+  void SerializeObjectPrototype(Handle<Map> map, ValueSerializer& serializer);
+
+  template <typename T>
+  void SerializeObjectPropertiesWithDictionaryMap(T dict);
   void SerializeFunction(Handle<JSFunction> function);
   void SerializeClass(Handle<JSFunction> function);
   void SerializeContext(Handle<Context> context);
@@ -352,6 +358,11 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeArrays();
   void DeserializeObjects();
   void DeserializeExports(bool skip_exports);
+  void DeserializeObjectPrototype(Handle<Map> map, uint32_t prototype_id);
+
+  template <typename T>
+  void DeserializeObjectPropertiesWithDictionaryMap(
+      T dict, uint32_t property_count, bool has_custom_property_attributes);
 
   Object ReadValue(
       Handle<HeapObject> object_for_deferred_reference = Handle<HeapObject>(),
@@ -371,6 +382,7 @@ class V8_EXPORT WebSnapshotDeserializer
   Object ReadClass(Handle<HeapObject> container, uint32_t container_index);
   Object ReadRegexp();
   Object ReadExternalReference();
+  bool ReadMapType();
 
   void ReadFunctionPrototype(Handle<JSFunction> function);
   bool SetFunctionPrototype(JSFunction function, JSReceiver prototype);
