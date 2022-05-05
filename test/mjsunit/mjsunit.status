@@ -1084,16 +1084,6 @@
 
   # https://crbug.com/v8/9984
   'compiler/opt-higher-order-functions': [SKIP],
-
-  # BUG(v8:11656) Skipped until we make progress on NumFuzz.
-  'baseline/test-osr': [SKIP],
-
-  # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
-  'compiler/concurrent-inlining-1': [SKIP],
-  'compiler/inlined-call-polymorphic': [SKIP],
-
-  # BUG(v8:12826) Skipped until we remove flakes on NumFuzz.
-  'turboshaft/simple': [SKIP],
 }],  # 'deopt_fuzzer'
 
 ##############################################################################
@@ -1130,19 +1120,22 @@
   'regress/regress-v8-9267-*': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
-  # BUG(v8:11656) Skipped until we make progress on NumFuzz.
-  'baseline/test-osr': [SKIP],
-
   # BUG(v8:11826) Skipped until we remove flakes on NumFuzz.
   'regress/wasm/regress-1231950': [SKIP],
-
-  # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
-  'compiler/concurrent-inlining-1': [SKIP],
-  'compiler/inlined-call-polymorphic': [SKIP],
-
-  # BUG(v8:12826) Skipped until we remove flakes on NumFuzz.
-  'turboshaft/simple': [SKIP],
 }],  # 'gc_fuzzer'
+
+##############################################################################
+['gc_fuzzer or deopt_fuzzer', {
+    # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
+    'compiler/concurrent-inlining-1': [SKIP],
+    'compiler/inlined-call-polymorphic': [SKIP],
+
+    # BUG(v8:11656) Skipped until we make progress on NumFuzz.
+    'baseline/test-osr': [SKIP],
+
+    # BUG(v8:12826) Skipped until we remove flakes on NumFuzz.
+    'turboshaft/simple': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer
 
 ##############################################################################
 ['endurance_fuzzer', {
