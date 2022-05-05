@@ -232,7 +232,7 @@ class WasmGraphAssembler : public GraphAssembler {
     return branch;
   }
 
-  Node* NumberConstant(volatile double value) {
+  Node* NumberConstant(double value) {
     return graph()->NewNode(mcgraph()->common()->NumberConstant(value));
   }
 

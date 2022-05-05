@@ -172,11 +172,11 @@ MachineOperatorReducer::MachineOperatorReducer(Editor* editor,
 MachineOperatorReducer::~MachineOperatorReducer() = default;
 
 
-Node* MachineOperatorReducer::Float32Constant(volatile float value) {
+Node* MachineOperatorReducer::Float32Constant(float value) {
   return graph()->NewNode(common()->Float32Constant(value));
 }
 
-Node* MachineOperatorReducer::Float64Constant(volatile double value) {
+Node* MachineOperatorReducer::Float64Constant(double value) {
   return mcgraph()->Float64Constant(value);
 }
 

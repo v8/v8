@@ -1174,7 +1174,7 @@ const Operator* CommonOperatorBuilder::TaggedIndexConstant(int32_t value) {
       value);                                           // parameter
 }
 
-const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
+const Operator* CommonOperatorBuilder::Float32Constant(float value) {
   return zone()->New<Operator1<float>>(             // --
       IrOpcode::kFloat32Constant, Operator::kPure,  // opcode
       "Float32Constant",                            // name
@@ -1183,7 +1183,7 @@ const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
 }
 
 
-const Operator* CommonOperatorBuilder::Float64Constant(volatile double value) {
+const Operator* CommonOperatorBuilder::Float64Constant(double value) {
   return zone()->New<Operator1<double>>(            // --
       IrOpcode::kFloat64Constant, Operator::kPure,  // opcode
       "Float64Constant",                            // name
@@ -1202,7 +1202,7 @@ const Operator* CommonOperatorBuilder::ExternalConstant(
 }
 
 
-const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
+const Operator* CommonOperatorBuilder::NumberConstant(double value) {
   return zone()->New<Operator1<double>>(           // --
       IrOpcode::kNumberConstant, Operator::kPure,  // opcode
       "NumberConstant",                            // name
