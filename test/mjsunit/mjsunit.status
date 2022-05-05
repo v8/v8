@@ -1135,6 +1135,11 @@
 
     # BUG(v8:12826) Skipped until we remove flakes on NumFuzz.
     'turboshaft/simple': [SKIP],
+
+    # BUG(v8:12842) Skipped until we remove flakes on NumFuzz.
+    'compiler/regress-1224277': [SKIP],
+    'regress/regress-1220974': [SKIP],
+    'regress/regress-992389': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer
 
 ##############################################################################
