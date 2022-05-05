@@ -487,22 +487,6 @@ void WebSnapshotSerializer::SerializeSymbol(Handle<Symbol> symbol) {
                   symbol_serializer_);
   }
 }
-void WebSnapshotSerializer::SerializeObjectPrototype(
-    Handle<Map> map, ValueSerializer& serializer) {
-  if (map->prototype() ==
-      isolate_->native_context()->initial_object_prototype()) {
-    serializer.WriteUint32(0);
-  } else {
-    // TODO(v8:11525): Support non-JSObject prototypes, at least null. Recognize
-    // well-known objects to that we don't end up encoding them in the snapshot.
-    if (!map->prototype().IsJSObject()) {
-      Throw("Non-JSObject __proto__s not supported");
-      return;
-    }
-    uint32_t prototype_id = GetObjectId(JSObject::cast(map->prototype()));
-    serializer.WriteUint32(prototype_id + 1);
-  }
-}
 
 // Format (serialized shape):
 // - PropertyAttributesType
@@ -513,7 +497,6 @@ void WebSnapshotSerializer::SerializeObjectPrototype(
 //   - Name: STRING_ID + String id or SYMBOL_ID + Symbol id or in-place string
 //   - If the PropertyAttributesType is CUSTOM: attributes
 void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
-  DCHECK(!map->is_dictionary_map());
   int first_custom_index = -1;
   std::vector<Handle<Name>> keys;
   std::vector<uint32_t> attributes;
@@ -541,7 +524,21 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
   map_serializer_.WriteUint32(first_custom_index == -1
                                   ? PropertyAttributesType::DEFAULT
                                   : PropertyAttributesType::CUSTOM);
-  SerializeObjectPrototype(map, map_serializer_);
+
+  if (map->prototype() ==
+      isolate_->native_context()->initial_object_prototype()) {
+    map_serializer_.WriteUint32(0);
+  } else {
+    // TODO(v8:11525): Support non-JSObject prototypes, at least null. Recognize
+    // well-known objects to that we don't end up encoding them in the snapshot.
+    if (!map->prototype().IsJSObject()) {
+      Throw("Non-JSObject __proto__s not supported");
+      return;
+    }
+    uint32_t prototype_id = GetObjectId(JSObject::cast(map->prototype()));
+    map_serializer_.WriteUint32(prototype_id + 1);
+  }
+
   map_serializer_.WriteUint32(static_cast<uint32_t>(keys.size()));
 
   uint32_t default_flags = GetDefaultAttributeFlags();
@@ -733,11 +730,6 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
 }
 
 void WebSnapshotSerializer::DiscoverMap(Handle<Map> map) {
-  // Dictionary map object names get discovered in DiscoverObject.
-  if (map->is_dictionary_map()) {
-    return;
-  }
-
   uint32_t id;
   if (InsertIntoIndexMap(map_ids_, *map, id)) {
     return;
@@ -904,34 +896,6 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
   }
 }
 
-template <typename T>
-void WebSnapshotSerializer::DiscoverObjectPropertiesWithDictionaryMap(T dict) {
-  DisallowGarbageCollection no_gc;
-
-  ReadOnlyRoots roots(isolate_);
-  for (InternalIndex index : dict->IterateEntries()) {
-    Handle<Object> key = handle(dict->KeyAt(index), isolate_);
-    if (!dict->IsKey(roots, *key)) {
-      // Ignore deleted entries.
-      continue;
-    }
-    if (key->IsString()) {
-      DiscoverString(Handle<String>::cast(key), AllowInPlace::Yes);
-    } else if (key->IsSymbol()) {
-      DiscoverSymbol(Handle<Symbol>::cast(key));
-    } else {
-      Throw("Object property is not a String / Symbol");
-      return;
-    }
-    Handle<Object> value = handle(dict->ValueAt(index), isolate_);
-    if (!value->IsHeapObject()) {
-      continue;
-    } else {
-      discovery_queue_.push(Handle<HeapObject>::cast(value));
-    }
-  }
-}
-
 void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   uint32_t id;
   if (InsertIntoIndexMap(object_ids_, *object, id)) return;
@@ -942,6 +906,9 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   // TODO(v8:11525): Support objects with so many properties that they can't be
   // in fast mode.
   JSObject::MigrateSlowToFast(object, 0, "Web snapshot");
+  if (!object->HasFastProperties()) {
+    Throw("Dictionary mode objects not supported");
+  }
 
   Handle<Map> map(object->map(), isolate_);
   DiscoverMap(map);
@@ -952,28 +919,15 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
     discovery_queue_.push(handle(map->prototype(), isolate_));
   }
 
-  if (object->HasFastProperties()) {
-    // Discover property values.
-    for (InternalIndex i : map->IterateOwnDescriptors()) {
-      PropertyDetails details =
-          map->instance_descriptors(kRelaxedLoad).GetDetails(i);
-      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-      Handle<Object> value = JSObject::FastPropertyAt(
-          isolate_, object, details.representation(), field_index);
-      if (!value->IsHeapObject()) continue;
-      discovery_queue_.push(Handle<HeapObject>::cast(value));
-    }
-  } else {
-    ReadOnlyRoots roots(isolate_);
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      Handle<SwissNameDictionary> swiss_dictionary =
-          handle(object->property_dictionary_swiss(), isolate_);
-      DiscoverObjectPropertiesWithDictionaryMap(swiss_dictionary);
-    } else {
-      Handle<NameDictionary> dictionary =
-          handle(object->property_dictionary(), isolate_);
-      DiscoverObjectPropertiesWithDictionaryMap(dictionary);
-    }
+  // Discover property values.
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    PropertyDetails details =
+        map->instance_descriptors(kRelaxedLoad).GetDetails(i);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+    Handle<Object> value = JSObject::FastPropertyAt(
+        isolate_, object, details.representation(), field_index);
+    if (!value->IsHeapObject()) continue;
+    discovery_queue_.push(Handle<HeapObject>::cast(value));
   }
 
   // Discover elements.
@@ -1075,67 +1029,10 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
   }
 }
 
-template <typename T>
-void WebSnapshotSerializer::SerializeObjectPropertiesWithDictionaryMap(T dict) {
-  DisallowGarbageCollection no_gc;
-
-  std::vector<uint32_t> attributes;
-  attributes.reserve(dict->NumberOfElements());
-  HandleScope scope(isolate_);
-  int first_custom_index = -1;
-
-  ReadOnlyRoots roots(isolate_);
-  for (InternalIndex index : dict->IterateEntries()) {
-    if (!dict->IsKey(roots, dict->KeyAt(index))) {
-      continue;
-    }
-    PropertyDetails details = dict->DetailsAt(index);
-    if (first_custom_index >= 0 || details.IsReadOnly() ||
-        !details.IsConfigurable() || details.IsDontEnum()) {
-      if (first_custom_index == -1) first_custom_index = index.as_int();
-      attributes.push_back(AttributesToFlags(details));
-    }
-  }
-  object_serializer_.WriteUint32(first_custom_index == -1
-                                     ? PropertyAttributesType::DEFAULT
-                                     : PropertyAttributesType::CUSTOM);
-  object_serializer_.WriteUint32(dict->NumberOfElements());
-
-  uint32_t default_flags = GetDefaultAttributeFlags();
-  for (InternalIndex index : dict->IterateEntries()) {
-    Object key = dict->KeyAt(index);
-    if (!dict->IsKey(roots, key)) {
-      continue;
-    }
-    PropertyDetails details = dict->DetailsAt(index);
-    WriteValue(handle(key, isolate_), object_serializer_);
-    WriteValue(handle(dict->ValueAt(index), isolate_), object_serializer_);
-    if (first_custom_index >= 0) {
-      if (index.as_int() < first_custom_index) {
-        map_serializer_.WriteUint32(default_flags);
-      } else {
-        map_serializer_.WriteUint32(
-            attributes[index.as_int() - first_custom_index]);
-      }
-    }
-  }
-}
-
 // Format (serialized object):
-// - 0 if there's no shape (dictionary map), 1 + shape id otherwise
-// If has shape
+// - Shape id
 // - For each property:
 //   - Serialized value
-// Else (dictionary map)
-//  - 0 if the __proto__ is Object.prototype, 1 + object id for the __proto__
-//   otherwise
-// - PropertyAttributesType
-// - Property count
-// - For each property
-//   - Name: STRING_ID + String id or SYMBOL_ID + Symbol id or in-place string
-//   - Serialized value
-//   - If the PropertyAttributesType is CUSTOM: attributes
-
 // - Max element index + 1 (or 0 if there are no elements)
 // - For each element:
 //   - Index
@@ -1143,34 +1040,17 @@ void WebSnapshotSerializer::SerializeObjectPropertiesWithDictionaryMap(T dict) {
 // TODO(v8:11525): Support packed elements with a denser format.
 void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
   Handle<Map> map(object->map(), isolate_);
-  if (map->is_dictionary_map()) {
-    object_serializer_.WriteUint32(0);
-  } else {
-    uint32_t map_id = GetMapId(*map);
-    object_serializer_.WriteUint32(map_id + 1);
-  }
+  uint32_t map_id = GetMapId(*map);
+  object_serializer_.WriteUint32(map_id);
 
-  if (object->HasFastProperties()) {
-    // Properties.
-    for (InternalIndex i : map->IterateOwnDescriptors()) {
-      PropertyDetails details =
-          map->instance_descriptors(kRelaxedLoad).GetDetails(i);
-      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-      Handle<Object> value = JSObject::FastPropertyAt(
-          isolate_, object, details.representation(), field_index);
-      WriteValue(value, object_serializer_);
-    }
-  } else {
-    SerializeObjectPrototype(map, object_serializer_);
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      Handle<SwissNameDictionary> swiss_dictionary =
-          handle(object->property_dictionary_swiss(), isolate_);
-      SerializeObjectPropertiesWithDictionaryMap(swiss_dictionary);
-    } else {
-      Handle<NameDictionary> dictionary =
-          handle(object->property_dictionary(), isolate_);
-      SerializeObjectPropertiesWithDictionaryMap(dictionary);
-    }
+  // Properties.
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    PropertyDetails details =
+        map->instance_descriptors(kRelaxedLoad).GetDetails(i);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+    Handle<Object> value = JSObject::FastPropertyAt(
+        isolate_, object, details.representation(), field_index);
+    WriteValue(value, object_serializer_);
   }
 
   // Elements.
@@ -1770,7 +1650,23 @@ void WebSnapshotDeserializer::DeserializeMaps() {
   maps_handle_ = factory()->NewFixedArray(map_count_);
   maps_ = *maps_handle_;
   for (uint32_t i = 0; i < map_count_; ++i) {
-    bool has_custom_property_attributes = ReadMapType();
+    uint32_t map_type;
+    if (!deserializer_.ReadUint32(&map_type)) {
+      Throw("Malformed shape");
+      return;
+    }
+    bool has_custom_property_attributes;
+    switch (map_type) {
+      case PropertyAttributesType::DEFAULT:
+        has_custom_property_attributes = false;
+        break;
+      case PropertyAttributesType::CUSTOM:
+        has_custom_property_attributes = true;
+        break;
+      default:
+        Throw("Unsupported map type");
+        return;
+    }
 
     uint32_t prototype_id;
     if (!deserializer_.ReadUint32(&prototype_id) ||
@@ -1786,8 +1682,6 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     }
     // TODO(v8:11525): Consider passing the upper bound as a param and
     // systematically enforcing it on the ValueSerializer side.
-    // TODO(v8:11525): Allow "objects with map" which need to be turned to
-    // dictionary mode objects.
     if (property_count > kMaxNumberOfDescriptors) {
       Throw("Malformed shape: too many properties");
       return;
@@ -1817,7 +1711,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
       if (has_custom_property_attributes) {
         uint32_t flags;
         if (!deserializer_.ReadUint32(&flags)) {
-          Throw("Malformed property attributes");
+          Throw("Malformed shape");
           return;
         }
         attributes = FlagsToAttributes(flags);
@@ -1836,7 +1730,22 @@ void WebSnapshotDeserializer::DeserializeMaps() {
                                         HOLEY_ELEMENTS, 0);
     map->InitializeDescriptors(isolate_, *descriptors);
     // TODO(v8:11525): Set 'constructor'.
-    DeserializeObjectPrototype(map, prototype_id);
+
+    if (prototype_id == 0) {
+      // Use Object.prototype as the prototype.
+      map->set_prototype(isolate_->native_context()->initial_object_prototype(),
+                         UPDATE_WRITE_BARRIER);
+    } else {
+      // TODO(v8::11525): Implement stricter checks, e.g., disallow cycles.
+      --prototype_id;
+      if (prototype_id < current_object_count_) {
+        map->set_prototype(HeapObject::cast(objects_.get(prototype_id)),
+                           UPDATE_WRITE_BARRIER);
+      } else {
+        // The object hasn't been deserialized yet.
+        AddDeferredReference(map, 0, OBJECT_ID, prototype_id);
+      }
+    }
     maps_.set(i, *map);
   }
 }
@@ -2204,75 +2113,6 @@ void WebSnapshotDeserializer::DeserializeClasses() {
   }
 }
 
-void WebSnapshotDeserializer::DeserializeObjectPrototype(
-    Handle<Map> map, uint32_t prototype_id) {
-  if (prototype_id == 0) {
-    // Use Object.prototype as the prototype.
-    map->set_prototype(isolate_->native_context()->initial_object_prototype(),
-                       UPDATE_WRITE_BARRIER);
-  } else {
-    // TODO(v8::11525): Implement stricter checks, e.g., disallow cycles.
-    --prototype_id;
-    if (prototype_id < current_object_count_) {
-      map->set_prototype(HeapObject::cast(objects_.get(prototype_id)),
-                         UPDATE_WRITE_BARRIER);
-    } else {
-      // The object hasn't been deserialized yet.
-      AddDeferredReference(map, 0, OBJECT_ID, prototype_id);
-    }
-  }
-}
-
-template <typename T>
-void WebSnapshotDeserializer::DeserializeObjectPropertiesWithDictionaryMap(
-    T dict, uint32_t property_count, bool has_custom_property_attributes) {
-  for (uint32_t i = 0; i < property_count; i++) {
-    Handle<Object> key(
-        ReadValue(Handle<HeapObject>(), 0, InternalizeStrings::kYes), isolate_);
-    if (!key->IsName()) {
-      Throw("Invalid map key");
-      return;
-    }
-    Handle<Object> value(ReadValue(), isolate_);
-    PropertyAttributes attributes = PropertyAttributes::NONE;
-    if (has_custom_property_attributes) {
-      uint32_t flags;
-      if (!deserializer_.ReadUint32(&flags)) {
-        Throw("Malformed property attributes");
-        return;
-      }
-      attributes = FlagsToAttributes(flags);
-    }
-
-    PropertyDetails details(PropertyKind::kData, attributes,
-                            PropertyDetails::kConstIfDictConstnessTracking);
-    auto new_dict =
-        dict->Add(isolate_, dict, Handle<Name>::cast(key), value, details);
-    // The dictionary didn't grow, since it was preallocated to be large enough
-    // in DeserializeObjects.
-    DCHECK_EQ(*new_dict, *dict);
-    USE(new_dict);
-  }
-}
-
-bool WebSnapshotDeserializer::ReadMapType() {
-  uint32_t map_type;
-  if (!deserializer_.ReadUint32(&map_type)) {
-    Throw("Malformed shape");
-    return false;
-  }
-
-  switch (map_type) {
-    case PropertyAttributesType::DEFAULT:
-      return false;
-    case PropertyAttributesType::CUSTOM:
-      return true;
-    default:
-      Throw("Unsupported map type");
-      return false;
-  }
-}
-
 void WebSnapshotDeserializer::DeserializeObjects() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Objects);
   if (!deserializer_.ReadUint32(&object_count_) ||
@@ -2285,84 +2125,40 @@ void WebSnapshotDeserializer::DeserializeObjects() {
   objects_ = *objects_handle_;
   for (; current_object_count_ < object_count_; ++current_object_count_) {
     uint32_t map_id;
-    if (!deserializer_.ReadUint32(&map_id) || map_id >= map_count_ + 1) {
+    if (!deserializer_.ReadUint32(&map_id) || map_id >= map_count_) {
       Throw("Malformed object");
       return;
     }
-    Handle<JSObject> object;
-    if (map_id > 0) {
-      map_id--;  // Subtract 1 to get the real map_id.
-      Map raw_map = Map::cast(maps_.get(map_id));
-      Handle<DescriptorArray> descriptors =
-          handle(raw_map.instance_descriptors(kRelaxedLoad), isolate_);
-      int no_properties = raw_map.NumberOfOwnDescriptors();
-      // TODO(v8:11525): In-object properties.
-      Handle<Map> map(raw_map, isolate_);
-      Handle<PropertyArray> property_array =
-          factory()->NewPropertyArray(no_properties);
-      for (int i = 0; i < no_properties; ++i) {
-        Object value = ReadValue(property_array, i);
-        DisallowGarbageCollection no_gc;
-        // Read the representation from the map.
-        DescriptorArray raw_descriptors = *descriptors;
-        PropertyDetails details = raw_descriptors.GetDetails(InternalIndex(i));
-        CHECK_EQ(details.location(), PropertyLocation::kField);
-        CHECK_EQ(PropertyKind::kData, details.kind());
-        Representation r = details.representation();
-        if (r.IsNone()) {
-          // Switch over to wanted_representation.
-          details = details.CopyWithRepresentation(Representation::Tagged());
-          raw_descriptors.SetDetails(InternalIndex(i), details);
-        } else if (!r.Equals(Representation::Tagged())) {
-          // TODO(v8:11525): Support this case too.
-          UNREACHABLE();
-        }
-        property_array->set(i, value);
+    Map raw_map = Map::cast(maps_.get(map_id));
+    Handle<DescriptorArray> descriptors =
+        handle(raw_map.instance_descriptors(kRelaxedLoad), isolate_);
+    int no_properties = raw_map.NumberOfOwnDescriptors();
+    // TODO(v8:11525): In-object properties.
+    Handle<Map> map(raw_map, isolate_);
+    Handle<PropertyArray> property_array =
+        factory()->NewPropertyArray(no_properties);
+    for (int i = 0; i < no_properties; ++i) {
+      Object value = ReadValue(property_array, i);
+      DisallowGarbageCollection no_gc;
+      // Read the representation from the map.
+      DescriptorArray raw_descriptors = *descriptors;
+      PropertyDetails details = raw_descriptors.GetDetails(InternalIndex(i));
+      CHECK_EQ(details.location(), PropertyLocation::kField);
+      CHECK_EQ(PropertyKind::kData, details.kind());
+      Representation r = details.representation();
+      if (r.IsNone()) {
+        // Switch over to wanted_representation.
+        details = details.CopyWithRepresentation(Representation::Tagged());
+        raw_descriptors.SetDetails(InternalIndex(i), details);
+      } else if (!r.Equals(Representation::Tagged())) {
+        // TODO(v8:11525): Support this case too.
+        UNREACHABLE();
       }
-      object = factory()->NewJSObjectFromMap(map);
-      object->set_raw_properties_or_hash(*property_array, kRelaxedStore);
-    } else {
-      Handle<Map> map = factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                                          HOLEY_ELEMENTS, 0);
-      map->set_may_have_interesting_symbols(true);
-      map->set_is_dictionary_map(true);
-      uint32_t prototype_id;
-      if (!deserializer_.ReadUint32(&prototype_id)) {
-        Throw("Malformed prototype id");
-        return;
-      }
-      DeserializeObjectPrototype(map, prototype_id);
-
-      bool has_custom_property_attributes = ReadMapType();
-
-      uint32_t property_count;
-      if (!deserializer_.ReadUint32(&property_count)) {
-        Throw("Malformed object");
-        return;
-      }
-      // TODO(v8:11525): Allow "non-map" objects which are small enough to have
-      // a fast map.
-      if (property_count <= kMaxNumberOfDescriptors) {
-        Throw("Malformed object: too few properties for 'no map' object");
-        return;
-      }
-
-      object = factory()->NewJSObjectFromMap(map);
-      if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-        Handle<SwissNameDictionary> swiss_dictionary =
-            isolate_->factory()->NewSwissNameDictionary(property_count);
-        DeserializeObjectPropertiesWithDictionaryMap(
-            swiss_dictionary, property_count, has_custom_property_attributes);
-        object->SetProperties(*swiss_dictionary);
-      } else {
-        Handle<NameDictionary> dictionary =
-            isolate_->factory()->NewNameDictionary(property_count);
-        DeserializeObjectPropertiesWithDictionaryMap(
-            dictionary, property_count, has_custom_property_attributes);
-        object->SetProperties(*dictionary);
-      }
+      property_array->set(i, value);
     }
-    DCHECK(!object->is_null());
+    Handle<JSObject> object = factory()->NewJSObjectFromMap(map);
+    object->set_raw_properties_or_hash(*property_array, kRelaxedStore);
+
     uint32_t max_element_index = 0;
     if (!deserializer_.ReadUint32(&max_element_index) ||
         max_element_index > kMaxItemCount + 1) {
