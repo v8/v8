@@ -1008,11 +1008,8 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
     return CreateTemporalTimeZoneUTC(isolate, target, new_target);
   }
 #ifdef V8_INTL_SUPPORT
-  int32_t time_zone_index;
-  Maybe<bool> maybe_time_zone_index =
-      Intl::GetTimeZoneIndex(isolate, identifier, &time_zone_index);
-  MAYBE_RETURN(maybe_time_zone_index, Handle<JSTemporalTimeZone>());
-  if (maybe_time_zone_index.FromJust()) {
+  int32_t time_zone_index = Intl::GetTimeZoneIndex(isolate, identifier);
+  if (time_zone_index >= 0) {
     return CreateTemporalTimeZoneFromIndex(isolate, target, new_target,
                                            time_zone_index);
   }
@@ -1025,10 +1022,11 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
   // a. Assert: ! CanonicalizeTimeZoneName(identifier) is identifier.
   // b. Set object.[[OffsetNanoseconds]] to undefined.
   // 6. Return object.
-  Maybe<int64_t> maybe_offset_nanoseconds =
-      ParseTimeZoneOffsetString(isolate, identifier, false);
-  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<JSTemporalTimeZone>());
-  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      ParseTimeZoneOffsetString(isolate, identifier, false),
+      Handle<JSTemporalTimeZone>());
 
   ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
                                    JSTemporalTimeZone)
@@ -1078,34 +1076,28 @@ MaybeHandle<JSTemporalTimeZone> SystemTimeZone(Isolate* isolate) {
   return temporal::CreateTemporalTimeZone(isolate, default_time_zone);
 }
 
-Maybe<DateTimeRecordCommon> GetISOPartsFromEpoch(
-    Isolate* isolate, Handle<BigInt> epoch_nanoseconds) {
+DateTimeRecordCommon GetISOPartsFromEpoch(Isolate* isolate,
+                                          Handle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   DateTimeRecordCommon result;
   // 1. Let remainderNs be epochNanoseconds modulo 10^6.
   Handle<BigInt> million = BigInt::FromInt64(isolate, 1000000);
-  Handle<BigInt> remainder_ns;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, remainder_ns,
-      BigInt::Remainder(isolate, epoch_nanoseconds, million),
-      Nothing<DateTimeRecordCommon>());
+  Handle<BigInt> remainder_ns =
+      BigInt::Remainder(isolate, epoch_nanoseconds, million).ToHandleChecked();
   // Need to do some remainder magic to negative remainder.
   if (remainder_ns->IsNegative()) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, remainder_ns, BigInt::Add(isolate, remainder_ns, million),
-        Nothing<DateTimeRecordCommon>());
+    remainder_ns =
+        BigInt::Add(isolate, remainder_ns, million).ToHandleChecked();
   }
 
   // 2. Let epochMilliseconds be (epochNanoseconds − remainderNs) / 10^6.
-  Handle<BigInt> bigint;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, bigint,
-      BigInt::Subtract(isolate, epoch_nanoseconds, remainder_ns),
-      Nothing<DateTimeRecordCommon>());
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, bigint,
-                                   BigInt::Divide(isolate, bigint, million),
-                                   Nothing<DateTimeRecordCommon>());
-  int64_t epoch_milliseconds = bigint->AsInt64();
+  int64_t epoch_milliseconds =
+      BigInt::Divide(isolate,
+                     BigInt::Subtract(isolate, epoch_nanoseconds, remainder_ns)
+                         .ToHandleChecked(),
+                     million)
+          .ToHandleChecked()
+          ->AsInt64();
   int year = 0;
   int month = 0;
   int day = 0;
@@ -1152,7 +1144,7 @@ Maybe<DateTimeRecordCommon> GetISOPartsFromEpoch(
   result.time.nanosecond = remainder % 1000;
   DCHECK_GE(result.time.nanosecond, 0);
   DCHECK_LE(result.time.nanosecond, 999);
-  return Just(result);
+  return result;
 }
 
 // #sec-temporal-balanceisodatetime
@@ -1187,20 +1179,19 @@ MaybeHandle<JSTemporalPlainDateTime> BuiltinTimeZoneGetPlainDateTimeFor(
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let offsetNanoseconds be ? GetOffsetNanosecondsFor(timeZone, instant).
-  Maybe<int64_t> maybe_offset_nanoseconds =
-      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name);
-  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<JSTemporalPlainDateTime>());
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name),
+      Handle<JSTemporalPlainDateTime>());
   // 2. Let result be ! GetISOPartsFromEpoch(instant.[[Nanoseconds]]).
-  Maybe<DateTimeRecordCommon> maybe_result = GetISOPartsFromEpoch(
+  DateTimeRecordCommon result = GetISOPartsFromEpoch(
       isolate, Handle<BigInt>(instant->nanoseconds(), isolate));
-  MAYBE_RETURN(maybe_result, Handle<JSTemporalPlainDateTime>());
-  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
 
   // 3. Set result to ! BalanceISODateTime(result.[[Year]], result.[[Month]],
   // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
   // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]] +
   // offsetNanoseconds).
-  DateTimeRecordCommon result = maybe_result.FromJust();
 
   // Note: Since offsetNanoseconds is bounded 86400x 10^9, the
   // result of result.[[Nanosecond]] + offsetNanoseconds may overflow int32_t
@@ -1367,17 +1358,20 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
       temporal::CreateTemporalInstant(isolate, day_after_ns),
       JSTemporalInstant);
   // 10. Let offsetBefore be ? GetOffsetNanosecondsFor(timeZone, dayBefore).
-  Maybe<int64_t> maybe_offset_before =
-      GetOffsetNanosecondsFor(isolate, time_zone, day_before, method_name);
-  MAYBE_RETURN(maybe_offset_before, Handle<JSTemporalInstant>());
+  int64_t offset_before;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_before,
+      GetOffsetNanosecondsFor(isolate, time_zone, day_before, method_name),
+      Handle<JSTemporalInstant>());
   // 11. Let offsetAfter be ? GetOffsetNanosecondsFor(timeZone, dayAfter).
-  Maybe<int64_t> maybe_offset_after =
-      GetOffsetNanosecondsFor(isolate, time_zone, day_after, method_name);
-  MAYBE_RETURN(maybe_offset_after, Handle<JSTemporalInstant>());
+  int64_t offset_after;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_after,
+      GetOffsetNanosecondsFor(isolate, time_zone, day_after, method_name),
+      Handle<JSTemporalInstant>());
 
   // 12. Let nanoseconds be offsetAfter − offsetBefore.
-  double nanoseconds =
-      maybe_offset_after.FromJust() - maybe_offset_before.FromJust();
+  double nanoseconds = offset_after - offset_before;
 
   // 13. If disambiguation is "earlier", then
   if (disambiguation == Disambiguation::kEarlier) {
@@ -1388,18 +1382,20 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
     // dateTime.[[ISOMicrosecond]], dateTime.[[ISONanosecond]],
     // dateTime.[[Calendar]], 0, 0, 0, 0, 0, 0, 0, 0, 0, −nanoseconds,
     // undefined).
-    Maybe<DateTimeRecordCommon> maybe_earlier = AddDateTime(
-        isolate,
-        {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
-         {date_time->iso_hour(), date_time->iso_minute(),
-          date_time->iso_second(), date_time->iso_millisecond(),
-          date_time->iso_microsecond(), date_time->iso_nanosecond()}},
-        handle(date_time->calendar(), isolate),
-        {0, 0, 0, {0, 0, 0, 0, 0, 0, -nanoseconds}},
-        isolate->factory()->undefined_value());
-    MAYBE_RETURN(maybe_earlier, Handle<JSTemporalInstant>());
-    DateTimeRecordCommon earlier = maybe_earlier.FromJust();
-
+    DateTimeRecordCommon earlier;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, earlier,
+        AddDateTime(
+            isolate,
+            {{date_time->iso_year(), date_time->iso_month(),
+              date_time->iso_day()},
+             {date_time->iso_hour(), date_time->iso_minute(),
+              date_time->iso_second(), date_time->iso_millisecond(),
+              date_time->iso_microsecond(), date_time->iso_nanosecond()}},
+            handle(date_time->calendar(), isolate),
+            {0, 0, 0, {0, 0, 0, 0, 0, 0, -nanoseconds}},
+            isolate->factory()->undefined_value()),
+        Handle<JSTemporalInstant>());
     // See https://github.com/tc39/proposal-temporal/issues/1816
     // b. Let earlierDateTime be ? CreateTemporalDateTime(earlier.[[Year]],
     // earlier.[[Month]], earlier.[[Day]], earlier.[[Hour]], earlier.[[Minute]],
@@ -1437,17 +1433,19 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   // dateTime.[[ISOSecond]], dateTime.[[ISOMillisecond]],
   // dateTime.[[ISOMicrosecond]], dateTime.[[ISONanosecond]],
   // dateTime.[[Calendar]], 0, 0, 0, 0, 0, 0, 0, 0, 0, nanoseconds, undefined).
-  Maybe<DateTimeRecordCommon> maybe_later = AddDateTime(
-      isolate,
-      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
-       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
-        date_time->iso_millisecond(), date_time->iso_microsecond(),
-        date_time->iso_nanosecond()}},
-      handle(date_time->calendar(), isolate),
-      {0, 0, 0, {0, 0, 0, 0, 0, 0, nanoseconds}},
-      isolate->factory()->undefined_value());
-  MAYBE_RETURN(maybe_later, Handle<JSTemporalInstant>());
-  DateTimeRecordCommon later = maybe_later.FromJust();
+  DateTimeRecordCommon later;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, later,
+      AddDateTime(isolate,
+                  {{date_time->iso_year(), date_time->iso_month(),
+                    date_time->iso_day()},
+                   {date_time->iso_hour(), date_time->iso_minute(),
+                    date_time->iso_second(), date_time->iso_millisecond(),
+                    date_time->iso_microsecond(), date_time->iso_nanosecond()}},
+                  handle(date_time->calendar(), isolate),
+                  {0, 0, 0, {0, 0, 0, 0, 0, 0, nanoseconds}},
+                  isolate->factory()->undefined_value()),
+      Handle<JSTemporalInstant>());
 
   // See https://github.com/tc39/proposal-temporal/issues/1816
   // 16. Let laterDateTime be ? CreateTemporalDateTime(later.[[Year]],
@@ -1805,11 +1803,12 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
 
     // b. If ? HasProperty(temporalCalendarLike, "calendar") is false, return
     // temporalCalendarLike.
-    Maybe<bool> maybe_has =
-        JSReceiver::HasProperty(isolate, obj, factory->calendar_string());
-
-    MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
-    if (!maybe_has.FromJust()) {
+    bool has;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, has,
+        JSReceiver::HasProperty(isolate, obj, factory->calendar_string()),
+        Handle<JSReceiver>());
+    if (!has) {
       return obj;
     }
     // c.  Set temporalCalendarLike to ? Get(temporalCalendarLike, "calendar").
@@ -1821,10 +1820,11 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
     if (temporal_calendar_like->IsJSReceiver()) {
       obj = Handle<JSReceiver>::cast(temporal_calendar_like);
       // and ? HasProperty(temporalCalendarLike, "calendar") is false,
-      maybe_has =
-          JSReceiver::HasProperty(isolate, obj, factory->calendar_string());
-      MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
-      if (!maybe_has.FromJust()) {
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, has,
+          JSReceiver::HasProperty(isolate, obj, factory->calendar_string()),
+          Handle<JSReceiver>());
+      if (!has) {
         // return temporalCalendarLike.
         return obj;
       }
@@ -1956,9 +1956,11 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
     return DateFromFields(isolate, calendar, fields, options);
   }
   // 4. Perform ? ToTemporalOverflow(options).
-  Maybe<ShowOverflow> maybe_overflow =
-      ToTemporalOverflow(isolate, options, method_name);
-  MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainDate>());
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Handle<JSTemporalPlainDate>());
+  USE(overflow);
 
   // 5. Let string be ? ToString(item).
   Handle<String> string;
@@ -1966,9 +1968,10 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
                              Object::ToString(isolate, item_obj),
                              JSTemporalPlainDate);
   // 6. Let result be ? ParseTemporalDateString(string).
-  Maybe<DateRecord> maybe_result = ParseTemporalDateString(isolate, string);
-  MAYBE_RETURN(maybe_result, MaybeHandle<JSTemporalPlainDate>());
-  DateRecord result = maybe_result.FromJust();
+  DateRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseTemporalDateString(isolate, string),
+      Handle<JSTemporalPlainDate>());
 
   // 7. Assert: ! IsValidISODate(result.[[Year]], result.[[Month]],
   // result.[[Day]]) is true.
@@ -2149,17 +2152,15 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
                       JSTemporalPlainTime);
     }
     // f. Let result be ? ToTemporalTimeRecord(item).
-    Maybe<TimeRecord> maybe_time_result =
-        ToTemporalTimeRecord(isolate, item, method_name);
-    MAYBE_RETURN(maybe_time_result, Handle<JSTemporalPlainTime>());
-    result = maybe_time_result.FromJust();
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, ToTemporalTimeRecord(isolate, item, method_name),
+        Handle<JSTemporalPlainTime>());
     // g. Set result to ? RegulateTime(result.[[Hour]], result.[[Minute]],
     // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
     // result.[[Nanosecond]], overflow).
-    Maybe<TimeRecord> maybe_regulate_time =
-        RegulateTime(isolate, result, overflow);
-    MAYBE_RETURN(maybe_regulate_time, Handle<JSTemporalPlainTime>());
-    result = maybe_regulate_time.FromJust();
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, RegulateTime(isolate, result, overflow),
+        Handle<JSTemporalPlainTime>());
   } else {
     // 4. Else,
     // a. Let string be ? ToString(item).
@@ -2168,9 +2169,9 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
                                Object::ToString(isolate, item_obj),
                                JSTemporalPlainTime);
     // b. Let result be ? ParseTemporalTimeString(string).
-    Maybe<TimeRecord> maybe_result = ParseTemporalTimeString(isolate, string);
-    MAYBE_RETURN(maybe_result, MaybeHandle<JSTemporalPlainTime>());
-    result = maybe_result.FromJust();
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, ParseTemporalTimeString(isolate, string),
+        Handle<JSTemporalPlainTime>());
     // c. Assert: ! IsValidTime(result.[[Hour]], result.[[Minute]],
     // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
     // result.[[Nanosecond]]) is true.
@@ -2264,11 +2265,11 @@ Maybe<DurationRecord> ToTemporalDurationRecord(
       // i. Set any to true.
       any = true;
       // ii. Let val be 𝔽(? ToIntegerWithoutRounding(val)).
-      Maybe<double> maybe_integer = ToIntegerWithoutRounding(isolate, val);
-      MAYBE_RETURN(maybe_integer, Nothing<DurationRecord>());
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, *(row.second), ToIntegerWithoutRounding(isolate, val),
+          Nothing<DurationRecord>());
       // iii. Set result's field whose name is the Field Name value of the
       // current row to val.
-      *(row.second) = maybe_integer.FromJust();
     }
   }
 
@@ -2306,10 +2307,9 @@ MaybeHandle<JSTemporalDuration> ToTemporalDuration(Isolate* isolate,
     return Handle<JSTemporalDuration>::cast(item);
   }
   // 2. Let result be ? ToTemporalDurationRecord(item).
-  Maybe<DurationRecord> maybe_result =
-      ToTemporalDurationRecord(isolate, item, method_name);
-  MAYBE_RETURN(maybe_result, Handle<JSTemporalDuration>());
-  result = maybe_result.FromJust();
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ToTemporalDurationRecord(isolate, item, method_name),
+      Handle<JSTemporalDuration>());
 
   // 3. Return ? CreateTemporalDuration(result.[[Years]], result.[[Months]],
   // result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]],
@@ -2337,10 +2337,12 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     }
     Handle<JSReceiver> obj = Handle<JSReceiver>::cast(temporal_time_zone_like);
     // b. If ? HasProperty(temporalTimeZoneLike, "timeZone") is false,
-    Maybe<bool> maybe_has =
-        JSReceiver::HasProperty(isolate, obj, factory->timeZone_string());
-    MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
-    if (!maybe_has.FromJust()) {
+    bool has;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, has,
+        JSReceiver::HasProperty(isolate, obj, factory->timeZone_string()),
+        Handle<JSReceiver>());
+    if (!has) {
       // return temporalTimeZoneLike.
       return obj;
     }
@@ -2354,10 +2356,11 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     if (temporal_time_zone_like->IsJSReceiver()) {
       // is Object and ? HasProperty(temporalTimeZoneLike, "timeZone") is false,
       obj = Handle<JSReceiver>::cast(temporal_time_zone_like);
-      maybe_has =
-          JSReceiver::HasProperty(isolate, obj, factory->timeZone_string());
-      MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
-      if (!maybe_has.FromJust()) {
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, has,
+          JSReceiver::HasProperty(isolate, obj, factory->timeZone_string()),
+          Handle<JSReceiver>());
+      if (!has) {
         // return temporalTimeZoneLike.
         return obj;
       }
@@ -2520,10 +2523,11 @@ MaybeHandle<String> BuiltinTimeZoneGetOffsetStringFor(
     Handle<JSTemporalInstant> instant, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let offsetNanoseconds be ? GetOffsetNanosecondsFor(timeZone, instant).
-  Maybe<int64_t> maybe_offset_nanoseconds =
-      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name);
-  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<String>());
-  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name),
+      Handle<String>());
 
   // 2. Return ! FormatTimeZoneOffsetString(offsetNanoseconds).
   return FormatTimeZoneOffsetString(isolate, offset_nanoseconds);
@@ -2634,7 +2638,6 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
   }
-  MAYBE_RETURN(maybe_parsed, Nothing<DateRecord>());
 
   ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. If _isoString_ contains a |UTCDesignator|, then
@@ -2644,11 +2647,10 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
   }
   // 3. Let result be ? ParseISODateTime(isoString).
-  Maybe<DateTimeRecord> maybe_result =
-      ParseISODateTime(isolate, iso_string, parsed);
-
-  MAYBE_RETURN(maybe_result, Nothing<DateRecord>());
-  DateTimeRecord result = maybe_result.FromJust();
+  DateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseISODateTime(isolate, iso_string, parsed),
+      Nothing<DateRecord>());
   // 4. Return the Record { [[Year]]: result.[[Year]], [[Month]]:
   // result.[[Month]], [[Day]]: result.[[Day]], [[Calendar]]:
   // result.[[Calendar]] }.
@@ -2681,10 +2683,10 @@ Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
   }
 
   // 3. Let result be ? ParseISODateTime(isoString).
-  Maybe<DateTimeRecord> maybe_result =
-      ParseISODateTime(isolate, iso_string, parsed);
-  MAYBE_RETURN(maybe_result, Nothing<TimeRecord>());
-  DateTimeRecord result = maybe_result.FromJust();
+  DateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseISODateTime(isolate, iso_string, parsed),
+      Nothing<TimeRecord>());
   // 4. Return the Record { [[Hour]]: result.[[Hour]], [[Minute]]:
   // result.[[Minute]], [[Second]]: result.[[Second]], [[Millisecond]]:
   // result.[[Millisecond]], [[Microsecond]]: result.[[Microsecond]],
@@ -2710,17 +2712,18 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
   }
 
   // 3. Let result be ! ParseISODateTime(isoString).
-  Maybe<DateTimeRecord> maybe_result =
-      ParseISODateTime(isolate, iso_string, maybe_parsed.FromJust());
-
-  MAYBE_RETURN(maybe_result, Nothing<InstantRecord>());
-  DateTimeRecord result = maybe_result.FromJust();
+  DateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      ParseISODateTime(isolate, iso_string, maybe_parsed.FromJust()),
+      Nothing<InstantRecord>());
 
   // 4. Let timeZoneResult be ? ParseTemporalTimeZoneString(isoString).
-  Maybe<TimeZoneRecord> maybe_time_zone_result =
-      ParseTemporalTimeZoneString(isolate, iso_string);
-  MAYBE_RETURN(maybe_time_zone_result, Nothing<InstantRecord>());
-  TimeZoneRecord time_zone_result = maybe_time_zone_result.FromJust();
+  TimeZoneRecord time_zone_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone_result,
+      ParseTemporalTimeZoneString(isolate, iso_string),
+      Nothing<InstantRecord>());
   // 5. Let offsetString be timeZoneResult.[[OffsetString]].
   Handle<String> offset_string = time_zone_result.offset_string;
   // 6. If timeZoneResult.[[Z]] is true, then
@@ -2751,10 +2754,10 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   Factory* factory = isolate->factory();
   // 1. Assert: Type(isoString) is String.
   // 2. Let result be ? ParseTemporalInstantString(isoString).
-  Maybe<InstantRecord> maybe_result =
-      ParseTemporalInstantString(isolate, iso_string);
-  MAYBE_RETURN(maybe_result, Handle<BigInt>());
-  InstantRecord result = maybe_result.FromJust();
+  InstantRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseTemporalInstantString(isolate, iso_string),
+      Handle<BigInt>());
 
   // 3. Let offsetString be result.[[TimeZoneOffsetString]].
   // 4. Assert: offsetString is not undefined.
@@ -2777,10 +2780,11 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), BigInt);
   }
   // 7. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(offsetString).
-  Maybe<int64_t> maybe_offset_nanoseconds =
-      ParseTimeZoneOffsetString(isolate, result.offset_string);
-  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<BigInt>());
-  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      ParseTimeZoneOffsetString(isolate, result.offset_string),
+      Handle<BigInt>());
 
   // 8. Return utc − offsetNanoseconds.
   return BigInt::Subtract(isolate, utc,
@@ -2958,7 +2962,6 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   // (see 13.33), then
   Maybe<ParsedISO8601Result> maybe_parsed =
       TemporalParser::ParseTemporalTimeZoneString(isolate, iso_string);
-  MAYBE_RETURN(maybe_parsed, Nothing<TimeZoneRecord>());
   if (maybe_parsed.IsNothing()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
@@ -3073,10 +3076,10 @@ MaybeHandle<String> ParseTemporalTimeZone(Isolate* isolate,
   TEMPORAL_ENTER_FUNC();
 
   // 2. Let result be ? ParseTemporalTimeZoneString(string).
-  Maybe<TimeZoneRecord> maybe_result =
-      ParseTemporalTimeZoneString(isolate, string);
-  MAYBE_RETURN(maybe_result, Handle<String>());
-  TimeZoneRecord result = maybe_result.FromJust();
+  TimeZoneRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseTemporalTimeZoneString(isolate, string),
+      Handle<String>());
 
   // 3. If result.[[Name]] is not undefined, return result.[[Name]].
   if (result.name->length() > 0) {
@@ -3094,7 +3097,7 @@ MaybeHandle<String> ParseTemporalTimeZone(Isolate* isolate,
 
 Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
                                          Handle<String> iso_string,
-                                         bool throwIfNotSatisfy) {
+                                         bool throw_if_not_satisfy) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: Type(offsetString) is String.
@@ -3102,12 +3105,12 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
   // TimeZoneNumericUTCOffset (see 13.33), then
   Maybe<ParsedISO8601Result> maybe_parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
-  MAYBE_RETURN(maybe_parsed, Nothing<int64_t>());
-  if (throwIfNotSatisfy && maybe_parsed.IsNothing()) {
+  if (throw_if_not_satisfy && maybe_parsed.IsNothing()) {
     /* a. Throw a RangeError exception. */
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
+  MAYBE_RETURN(maybe_parsed, Nothing<int64_t>());
   ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let sign, hours, minutes, seconds, and fraction be the parts of
   // offsetString produced respectively by the TimeZoneUTCOffsetSign,
@@ -3169,7 +3172,6 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
   // (see 13.33), then a. Throw a RangeError exception.
   Maybe<ParsedISO8601Result> maybe_parsed =
       TemporalParser::ParseTemporalCalendarString(isolate, iso_string);
-  MAYBE_RETURN(maybe_parsed, Handle<String>());
   if (maybe_parsed.IsNothing()) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), String);
   }
@@ -3367,9 +3369,9 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
     // b. If propValue is not undefined, then
     if (!prop_value->IsUndefined()) {
       // 1. Perform ! CreateDataPropertyOrThrow(merged, nextKey, propValue).
-      Maybe<bool> maybe_created = JSReceiver::CreateDataProperty(
-          isolate, merged, next_key_string, prop_value, Just(kThrowOnError));
-      MAYBE_RETURN(maybe_created, Handle<JSReceiver>());
+      CHECK(JSReceiver::CreateDataProperty(isolate, merged, next_key_string,
+                                           prop_value, Just(kDontThrow))
+                .FromJust());
     }
     new_keys_has_month_or_month_code |=
         String::Equals(isolate, factory->month_string(), next_key_string) ||
@@ -3822,34 +3824,35 @@ Maybe<Unit> ToLargestTemporalUnit(Isolate* isolate,
   // "day", "days", "hour", "hours", "minute", "minutes", "second", "seconds",
   // "millisecond", "milliseconds", "microsecond", "microseconds", "nanosecond",
   // "nanoseconds" », fallback).
-  Maybe<Unit> maybe_largest_unit = GetStringOption<Unit>(
-      isolate, normalized_options, "largestUnit", method,
-      {"auto",         "year",        "years",        "month",
-       "months",       "week",        "weeks",        "day",
-       "days",         "hour",        "hours",        "minute",
-       "minutes",      "second",      "seconds",      "millisecond",
-       "milliseconds", "microsecond", "microseconds", "nanosecond",
-       "nanoseconds"},
-      {Unit::kAuto,        Unit::kYear,        Unit::kYear,
-       Unit::kMonth,       Unit::kMonth,       Unit::kWeek,
-       Unit::kWeek,        Unit::kDay,         Unit::kDay,
-       Unit::kHour,        Unit::kHour,        Unit::kMinute,
-       Unit::kMinute,      Unit::kSecond,      Unit::kSecond,
-       Unit::kMillisecond, Unit::kMillisecond, Unit::kMicrosecond,
-       Unit::kMicrosecond, Unit::kNanosecond,  Unit::kNanosecond},
-      fallback);
-  MAYBE_RETURN(maybe_largest_unit, Nothing<Unit>());
+  Unit largest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, largest_unit,
+      GetStringOption<Unit>(
+          isolate, normalized_options, "largestUnit", method,
+          {"auto",         "year",        "years",        "month",
+           "months",       "week",        "weeks",        "day",
+           "days",         "hour",        "hours",        "minute",
+           "minutes",      "second",      "seconds",      "millisecond",
+           "milliseconds", "microsecond", "microseconds", "nanosecond",
+           "nanoseconds"},
+          {Unit::kAuto,        Unit::kYear,        Unit::kYear,
+           Unit::kMonth,       Unit::kMonth,       Unit::kWeek,
+           Unit::kWeek,        Unit::kDay,         Unit::kDay,
+           Unit::kHour,        Unit::kHour,        Unit::kMinute,
+           Unit::kMinute,      Unit::kSecond,      Unit::kSecond,
+           Unit::kMillisecond, Unit::kMillisecond, Unit::kMicrosecond,
+           Unit::kMicrosecond, Unit::kNanosecond,  Unit::kNanosecond},
+          fallback),
+      Nothing<Unit>());
   // 4. If largestUnit is "auto" and autoValue is present, then
-  if (maybe_largest_unit.FromJust() == Unit::kAuto &&
-      auto_value != Unit::kNotPresent) {
+  if (largest_unit == Unit::kAuto && auto_value != Unit::kNotPresent) {
     // a. Return autoValue.
     return Just(auto_value);
   }
   // 5. If largestUnit is in the Plural column of Table 12, then
   // a. Set largestUnit to the corresponding Singular value of the same row.
   // 6. If disallowedUnits contains largestUnit, then
-  if (disallowed_units.find(maybe_largest_unit.FromJust()) !=
-      disallowed_units.end()) {
+  if (disallowed_units.find(largest_unit) != disallowed_units.end()) {
     // a. Throw a RangeError exception.
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
@@ -3859,7 +3862,7 @@ Maybe<Unit> ToLargestTemporalUnit(Isolate* isolate,
         Nothing<Unit>());
   }
   // 7. Return largestUnit.
-  return maybe_largest_unit;
+  return Just(largest_unit);
 }
 
 // #sec-temporal-tointegerthrowoninfinity
@@ -4114,10 +4117,12 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
   if (largest_unit == Unit::kYear || largest_unit == Unit::kMonth ||
       largest_unit == Unit::kWeek || largest_unit == Unit::kDay) {
     // a. Let result be ? NanosecondsToDays(nanoseconds, relativeTo).
-    Maybe<NanosecondsToDaysResult> maybe_result = NanosecondsToDays(
-        isolate, duration.nanoseconds, relative_to_obj, method_name);
-    MAYBE_RETURN(maybe_result, Nothing<TimeDurationRecord>());
-    NanosecondsToDaysResult result = maybe_result.FromJust();
+    NanosecondsToDaysResult result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        NanosecondsToDays(isolate, duration.nanoseconds, relative_to_obj,
+                          method_name),
+        Nothing<TimeDurationRecord>());
     duration.days = result.days;
     // b. Set days to result.[[Days]].
     // c. Set nanoseconds to result.[[Nanoseconds]].
@@ -4457,22 +4462,25 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
   // endDateTime.[[ISOSecond]], endDateTime.[[ISOMillisecond]],
   // endDateTime.[[ISOMicrosecond]], endDateTime.[[ISONanosecond]],
   // relativeTo.[[Calendar]], "day").
-  Maybe<DurationRecord> maybe_date_difference = DifferenceISODateTime(
-      isolate,
-      {{start_date_time->iso_year(), start_date_time->iso_month(),
-        start_date_time->iso_day()},
-       {start_date_time->iso_hour(), start_date_time->iso_minute(),
-        start_date_time->iso_second(), start_date_time->iso_millisecond(),
-        start_date_time->iso_microsecond(), start_date_time->iso_nanosecond()}},
-      {{end_date_time->iso_year(), end_date_time->iso_month(),
-        end_date_time->iso_day()},
-       {end_date_time->iso_hour(), end_date_time->iso_minute(),
-        end_date_time->iso_second(), end_date_time->iso_millisecond(),
-        end_date_time->iso_microsecond(), end_date_time->iso_nanosecond()}},
-      calendar, Unit::kDay, relative_to, method_name);
-  MAYBE_RETURN(maybe_date_difference, Nothing<NanosecondsToDaysResult>());
+  DurationRecord date_difference;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, date_difference,
+      DifferenceISODateTime(
+          isolate,
+          {{start_date_time->iso_year(), start_date_time->iso_month(),
+            start_date_time->iso_day()},
+           {start_date_time->iso_hour(), start_date_time->iso_minute(),
+            start_date_time->iso_second(), start_date_time->iso_millisecond(),
+            start_date_time->iso_microsecond(),
+            start_date_time->iso_nanosecond()}},
+          {{end_date_time->iso_year(), end_date_time->iso_month(),
+            end_date_time->iso_day()},
+           {end_date_time->iso_hour(), end_date_time->iso_minute(),
+            end_date_time->iso_second(), end_date_time->iso_millisecond(),
+            end_date_time->iso_microsecond(), end_date_time->iso_nanosecond()}},
+          calendar, Unit::kDay, relative_to, method_name),
+      Nothing<NanosecondsToDaysResult>());
 
-  DurationRecord date_difference = maybe_date_difference.FromJust();
   // 14. Let days be dateDifference.[[Days]].
   double days = date_difference.time_duration.days;
 
@@ -4580,10 +4588,11 @@ Maybe<DurationRecord> DifferenceISODateTime(
   }
   // 3. Let timeDifference be ! DifferenceTime(h1, min1, s1, ms1, mus1, ns1, h2,
   // min2, s2, ms2, mus2, ns2).
-  Maybe<TimeDurationRecord> maybe_time_difference =
-      DifferenceTime(isolate, date_time1.time, date_time2.time);
-  MAYBE_RETURN(maybe_time_difference, Nothing<DurationRecord>());
-  TimeDurationRecord time_difference = maybe_time_difference.FromJust();
+  TimeDurationRecord time_difference;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_difference,
+      DifferenceTime(isolate, date_time1.time, date_time2.time),
+      Nothing<DurationRecord>());
 
   result.time_duration = time_difference;
   result.time_duration.days = 0;
@@ -4614,14 +4623,15 @@ Maybe<DurationRecord> DifferenceISODateTime(
     // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]],
     // largestUnit).
 
-    Maybe<TimeDurationRecord> maybe_time_difference = BalanceDuration(
-        isolate, largest_unit,
-        {-time_sign, time_difference.hours, time_difference.minutes,
-         time_difference.seconds, time_difference.milliseconds,
-         time_difference.microseconds, time_difference.nanoseconds},
-        method_name);
-    MAYBE_RETURN(maybe_time_difference, Nothing<DurationRecord>());
-    result.time_duration = maybe_time_difference.FromJust();
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result.time_duration,
+        BalanceDuration(
+            isolate, largest_unit,
+            {-time_sign, time_difference.hours, time_difference.minutes,
+             time_difference.seconds, time_difference.milliseconds,
+             time_difference.microseconds, time_difference.nanoseconds},
+            method_name),
+        Nothing<DurationRecord>());
   }
   // 8. Let date1 be ? CreateTemporalDate(balanceResult.[[Year]],
   // balanceResult.[[Month]], balanceResult.[[Day]], calendar).
@@ -4657,15 +4667,17 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]],
   // largestUnit).
 
-  Maybe<TimeDurationRecord> maybe_balance_result = BalanceDuration(
-      isolate, largest_unit,
-      {date_difference->days().Number(), time_difference.hours,
-       time_difference.minutes, time_difference.seconds,
-       time_difference.milliseconds, time_difference.microseconds,
-       time_difference.nanoseconds},
-      method_name);
-  MAYBE_RETURN(maybe_balance_result, Nothing<DurationRecord>());
-  TimeDurationRecord balance_result = maybe_balance_result.FromJust();
+  TimeDurationRecord balance_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, balance_result,
+      BalanceDuration(
+          isolate, largest_unit,
+          {date_difference->days().Number(), time_difference.hours,
+           time_difference.minutes, time_difference.seconds,
+           time_difference.milliseconds, time_difference.microseconds,
+           time_difference.nanoseconds},
+          method_name),
+      Nothing<DurationRecord>());
 
   result.time_duration = balance_result;
   // 14. Return the Record { [[Years]]: dateDifference.[[Years]], [[Months]]:
@@ -5244,54 +5256,64 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
                     JSTemporalDuration);
   }
   // 2. Let y be ? ToIntegerWithoutRounding(years).
-  Maybe<double> maybe_y = ToIntegerWithoutRounding(isolate, years);
-  MAYBE_RETURN(maybe_y, Handle<JSTemporalDuration>());
-  double y = maybe_y.FromJust();
+  double y;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, y, ToIntegerWithoutRounding(isolate, years),
+      Handle<JSTemporalDuration>());
 
   // 3. Let mo be ? ToIntegerWithoutRounding(months).
-  Maybe<double> maybe_mo = ToIntegerWithoutRounding(isolate, months);
-  MAYBE_RETURN(maybe_mo, Handle<JSTemporalDuration>());
-  double mo = maybe_mo.FromJust();
+  double mo;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, mo, ToIntegerWithoutRounding(isolate, months),
+      Handle<JSTemporalDuration>());
 
   // 4. Let w be ? ToIntegerWithoutRounding(weeks).
-  Maybe<double> maybe_w = ToIntegerWithoutRounding(isolate, weeks);
-  MAYBE_RETURN(maybe_w, Handle<JSTemporalDuration>());
-  double w = maybe_w.FromJust();
+  double w;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, w, ToIntegerWithoutRounding(isolate, weeks),
+      Handle<JSTemporalDuration>());
 
   // 5. Let d be ? ToIntegerWithoutRounding(days).
-  Maybe<double> maybe_d = ToIntegerWithoutRounding(isolate, days);
-  MAYBE_RETURN(maybe_d, Handle<JSTemporalDuration>());
-  double d = maybe_d.FromJust();
+  double d;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, d, ToIntegerWithoutRounding(isolate, days),
+      Handle<JSTemporalDuration>());
 
   // 6. Let h be ? ToIntegerWithoutRounding(hours).
-  Maybe<double> maybe_h = ToIntegerWithoutRounding(isolate, hours);
-  MAYBE_RETURN(maybe_h, Handle<JSTemporalDuration>());
-  double h = maybe_h.FromJust();
+  double h;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, h, ToIntegerWithoutRounding(isolate, hours),
+      Handle<JSTemporalDuration>());
 
   // 7. Let m be ? ToIntegerWithoutRounding(minutes).
-  Maybe<double> maybe_m = ToIntegerWithoutRounding(isolate, minutes);
-  MAYBE_RETURN(maybe_m, Handle<JSTemporalDuration>());
-  double m = maybe_m.FromJust();
+  double m;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, m, ToIntegerWithoutRounding(isolate, minutes),
+      Handle<JSTemporalDuration>());
 
   // 8. Let s be ? ToIntegerWithoutRounding(seconds).
-  Maybe<double> maybe_s = ToIntegerWithoutRounding(isolate, seconds);
-  MAYBE_RETURN(maybe_s, Handle<JSTemporalDuration>());
-  double s = maybe_s.FromJust();
+  double s;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, s, ToIntegerWithoutRounding(isolate, seconds),
+      Handle<JSTemporalDuration>());
 
   // 9. Let ms be ? ToIntegerWithoutRounding(milliseconds).
-  Maybe<double> maybe_ms = ToIntegerWithoutRounding(isolate, milliseconds);
-  MAYBE_RETURN(maybe_ms, Handle<JSTemporalDuration>());
-  double ms = maybe_ms.FromJust();
+  double ms;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ms, ToIntegerWithoutRounding(isolate, milliseconds),
+      Handle<JSTemporalDuration>());
 
   // 10. Let mis be ? ToIntegerWithoutRounding(microseconds).
-  Maybe<double> maybe_mis = ToIntegerWithoutRounding(isolate, microseconds);
-  MAYBE_RETURN(maybe_mis, Handle<JSTemporalDuration>());
-  double mis = maybe_mis.FromJust();
+  double mis;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, mis, ToIntegerWithoutRounding(isolate, microseconds),
+      Handle<JSTemporalDuration>());
 
   // 11. Let ns be ? ToIntegerWithoutRounding(nanoseconds).
-  Maybe<double> maybe_ns = ToIntegerWithoutRounding(isolate, nanoseconds);
-  MAYBE_RETURN(maybe_ns, Handle<JSTemporalDuration>());
-  double ns = maybe_ns.FromJust();
+  double ns;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ns, ToIntegerWithoutRounding(isolate, nanoseconds),
+      Handle<JSTemporalDuration>());
 
   // 12. Return ? CreateTemporalDuration(y, mo, w, d, h, m, s, ms, mis, ns,
   // NewTarget).
@@ -5632,9 +5654,10 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
 
   // 1. Assert: Type(fields) is Object.
   // 2. Let overflow be ? ToTemporalOverflow(options).
-  Maybe<ShowOverflow> maybe_overflow =
-      ToTemporalOverflow(isolate, options, method_name);
-  MAYBE_RETURN(maybe_overflow, Nothing<DateRecordCommon>());
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Nothing<DateRecordCommon>());
   // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
   // "monthCode", "year" », «»).
   Handle<FixedArray> field_names = factory->NewFixedArray(4);
@@ -5663,8 +5686,10 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
   DCHECK(year_obj->IsSmi() || year_obj->IsHeapNumber());
 
   // 6. Let month be ? ResolveISOMonth(fields).
-  Maybe<int32_t> maybe_month = ResolveISOMonth(isolate, fields);
-  MAYBE_RETURN(maybe_month, Nothing<DateRecordCommon>());
+  int32_t month;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, month,
+                                         ResolveISOMonth(isolate, fields),
+                                         Nothing<DateRecordCommon>());
 
   // 7. Let day be ! Get(fields, "day").
   Handle<Object> day_obj =
@@ -5680,9 +5705,9 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
   // Therefore the day_obj is always an integer.
   DCHECK(day_obj->IsSmi() || day_obj->IsHeapNumber());
   // 9. Return ? RegulateISODate(year, month, day, overflow).
-  return RegulateISODate(isolate, maybe_overflow.FromJust(),
-                         {FastD2I(year_obj->Number()), maybe_month.FromJust(),
-                          FastD2I(day_obj->Number())});
+  return RegulateISODate(
+      isolate, overflow,
+      {FastD2I(year_obj->Number()), month, FastD2I(day_obj->Number())});
 }
 
 // #sec-temporal-addisodate
@@ -5703,10 +5728,10 @@ Maybe<DateRecordCommon> AddISODate(Isolate* isolate,
   BalanceISOYearMonth(isolate, &intermediate.year, &intermediate.month);
   // 4. Let intermediate be ? RegulateISODate(intermediate.[[Year]],
   // intermediate.[[Month]], day, overflow).
-  Maybe<DateRecordCommon> maybe_intermediate =
-      RegulateISODate(isolate, overflow, intermediate);
-  MAYBE_RETURN(maybe_intermediate, Nothing<DateRecordCommon>());
-  intermediate = maybe_intermediate.FromJust();
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, intermediate, RegulateISODate(isolate, overflow, intermediate),
+      Nothing<DateRecordCommon>());
+
   // 5. Set days to days + 7 × weeks.
   // 6. Let d be intermediate.[[Day]] + days.
   intermediate.day += duration.days + 7 * duration.weeks;
@@ -5750,10 +5775,12 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
       // e. Let years be end.[[Year]] − start.[[Year]].
       double years = end.year - start.year;
       // f. Let mid be ! AddISODate(y1, m1, d1, years, 0, 0, 0, "constrain").
-      Maybe<DateRecordCommon> maybe_mid = AddISODate(
-          isolate, date1, {years, 0, 0, 0}, ShowOverflow::kConstrain);
-      MAYBE_RETURN(maybe_mid, Nothing<DateDurationRecord>());
-      DateRecordCommon mid = maybe_mid.FromJust();
+      DateRecordCommon mid;
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, mid,
+          AddISODate(isolate, date1, {years, 0, 0, 0},
+                     ShowOverflow::kConstrain),
+          Nothing<DateDurationRecord>());
 
       // g. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
       // mid.[[Day]], y2, m2, d2)).
@@ -5780,10 +5807,11 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
       }
       // k. Set mid be ! AddISODate(y1, m1, d1, years, months, 0, 0,
       // "constrain").
-      maybe_mid = AddISODate(isolate, date1, {years, months, 0, 0},
-                             ShowOverflow::kConstrain);
-      MAYBE_RETURN(maybe_mid, Nothing<DateDurationRecord>());
-      mid = maybe_mid.FromJust();
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, mid,
+          AddISODate(isolate, date1, {years, months, 0, 0},
+                     ShowOverflow::kConstrain),
+          Nothing<DateDurationRecord>());
       // l. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
       // mid.[[Day]], y2, m2, d2)).
       mid_sign = -CompareISODate(isolate, mid, date2);
@@ -5811,10 +5839,11 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
         }
         // iii. Set mid be ! AddISODate(y1, m1, d1, years, months, 0, 0,
         // "constrain").
-        maybe_mid = AddISODate(isolate, date1, {years, months, 0, 0},
-                               ShowOverflow::kConstrain);
-        MAYBE_RETURN(maybe_mid, Nothing<DateDurationRecord>());
-        mid = maybe_mid.FromJust();
+        MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, mid,
+            AddISODate(isolate, date1, {years, months, 0, 0},
+                       ShowOverflow::kConstrain),
+            Nothing<DateDurationRecord>());
         // iv. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
         // mid.[[Day]], y2, m2, d2)).
         mid_sign = -CompareISODate(isolate, mid, date2);
@@ -6265,13 +6294,14 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateFromFields(
       JSTemporalPlainDate);
   if (calendar->calendar_index() == 0) {
     // 6. Let result be ? ISODateFromFields(fields, options).
-    Maybe<DateRecordCommon> maybe_result =
-        ISODateFromFields(isolate, fields, options, method_name);
-    MAYBE_RETURN(maybe_result, Handle<JSTemporalPlainDate>());
-    DateRecordCommon date = maybe_result.FromJust();
+    DateRecordCommon result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        ISODateFromFields(isolate, fields, options, method_name),
+        Handle<JSTemporalPlainDate>());
     // 7. Return ? CreateTemporalDate(result.[[Year]], result.[[Month]],
     // result.[[Day]], calendar).
-    return CreateTemporalDate(isolate, date, calendar);
+    return CreateTemporalDate(isolate, result, calendar);
   }
   // TODO(ftang) add intl implementation inside #ifdef V8_INTL_SUPPORT
   UNREACHABLE();
@@ -6339,25 +6369,31 @@ MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
       JSTemporalDuration);
   // 7. Let largestUnit be ? ToLargestTemporalUnit(options, « "hour", "minute",
   // "second", "millisecond", "microsecond", "nanosecond" », "auto", "day").
-  Maybe<Unit> maybe_largest_unit = ToLargestTemporalUnit(
-      isolate, options,
-      std::set<Unit>({Unit::kHour, Unit::kMinute, Unit::kSecond,
-                      Unit::kMillisecond, Unit::kMicrosecond,
-                      Unit::kNanosecond}),
-      Unit::kAuto, Unit::kDay, method_name);
-  MAYBE_RETURN(maybe_largest_unit, Handle<JSTemporalDuration>());
+  Unit largest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, largest_unit,
+      ToLargestTemporalUnit(
+          isolate, options,
+          std::set<Unit>({Unit::kHour, Unit::kMinute, Unit::kSecond,
+                          Unit::kMillisecond, Unit::kMicrosecond,
+                          Unit::kNanosecond}),
+          Unit::kAuto, Unit::kDay, method_name),
+      Handle<JSTemporalDuration>());
 
   // 8. Let result be ! DifferenceISODate(one.[[ISOYear]], one.[[ISOMonth]],
   // one.[[ISODay]], two.[[ISOYear]], two.[[ISOMonth]], two.[[ISODay]],
   // largestUnit).
-  Maybe<DateDurationRecord> maybe_result = DifferenceISODate(
-      isolate, {one->iso_year(), one->iso_month(), one->iso_day()},
-      {two->iso_year(), two->iso_month(), two->iso_day()},
-      maybe_largest_unit.FromJust(), method_name);
-  MAYBE_RETURN(maybe_result, Handle<JSTemporalDuration>());
+  DateDurationRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      DifferenceISODate(isolate,
+                        {one->iso_year(), one->iso_month(), one->iso_day()},
+                        {two->iso_year(), two->iso_month(), two->iso_day()},
+                        largest_unit, method_name),
+      Handle<JSTemporalDuration>());
+
   // 9. Return ! CreateTemporalDuration(result.[[Years]], result.[[Months]],
   // result.[[Weeks]], result.[[Days]], 0, 0, 0, 0, 0, 0).
-  DateDurationRecord result = maybe_result.FromJust();
   return CreateTemporalDuration(isolate, {result.years,
                                           result.months,
                                           result.weeks,
@@ -6559,16 +6595,19 @@ MaybeHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
   Handle<String> canonical;
   // 3. If identifier satisfies the syntax of a TimeZoneNumericUTCOffset
   // (see 13.33), then
-  Maybe<bool> maybe_valid =
-      IsValidTimeZoneNumericUTCOffsetString(isolate, identifier);
-  MAYBE_RETURN(maybe_valid, Handle<JSTemporalTimeZone>());
+  bool valid;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, valid,
+      IsValidTimeZoneNumericUTCOffsetString(isolate, identifier),
+      Handle<JSTemporalTimeZone>());
 
-  if (maybe_valid.FromJust()) {
+  if (valid) {
     // a. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(identifier).
-    Maybe<int64_t> maybe_offset_nanoseconds =
-        ParseTimeZoneOffsetString(isolate, identifier);
-    MAYBE_RETURN(maybe_offset_nanoseconds, Handle<JSTemporalTimeZone>());
-    int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+    int64_t offset_nanoseconds;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, offset_nanoseconds,
+        ParseTimeZoneOffsetString(isolate, identifier),
+        Handle<JSTemporalTimeZone>());
 
     // b. Let canonical be ! FormatTimeZoneOffsetString(offsetNanoseconds).
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -6625,10 +6664,11 @@ MaybeHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
       JSTemporalInstant);
 
   // 5. Let disambiguation be ? ToTemporalDisambiguation(options).
-  Maybe<Disambiguation> maybe_disambiguation =
-      ToTemporalDisambiguation(isolate, options, method_name);
-  MAYBE_RETURN(maybe_disambiguation, Handle<JSTemporalInstant>());
-  Disambiguation disambiguation = maybe_disambiguation.FromJust();
+  Disambiguation disambiguation;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, disambiguation,
+      ToTemporalDisambiguation(isolate, options, method_name),
+      Handle<JSTemporalInstant>());
 
   // 6. Return ? BuiltinTimeZoneGetInstantFor(timeZone, dateTime,
   // disambiguation).
@@ -6791,9 +6831,11 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
   // internal slot, then
   if (item->IsJSTemporalPlainDate()) {
     // a. Perform ? ToTemporalOverflow(options).
-    Maybe<ShowOverflow> maybe_overflow =
-        ToTemporalOverflow(isolate, options, method_name);
-    MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainDate>());
+    ShowOverflow overflow;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+        Handle<JSTemporalPlainDate>());
+    USE(overflow);
     // b. Return ? CreateTemporalDate(item.[[ISOYear]], item.[[ISOMonth]],
     // item.[[ISODay]], item.[[Calendar]]).
     Handle<JSTemporalPlainDate> date = Handle<JSTemporalPlainDate>::cast(item);
@@ -6894,39 +6936,44 @@ Maybe<DateTimeRecord> InterpretTemporalDateTimeFields(
     Handle<JSReceiver> options, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
-  DateTimeRecord result;
   // 1. Let timeResult be ? ToTemporalTimeRecord(fields).
-  Maybe<TimeRecord> maybe_time_result =
-      ToTemporalTimeRecord(isolate, fields, method_name);
-  MAYBE_RETURN(maybe_time_result, Nothing<DateTimeRecord>());
-  TimeRecord time_result = maybe_time_result.FromJust();
+  TimeRecord time_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_result, ToTemporalTimeRecord(isolate, fields, method_name),
+      Nothing<DateTimeRecord>());
+
   // 2. Let temporalDate be ? DateFromFields(calendar, fields, options).
   Handle<JSTemporalPlainDate> temporal_date;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, temporal_date,
       DateFromFields(isolate, calendar, fields, options),
       Nothing<DateTimeRecord>());
+
   // 3. Let overflow be ? ToTemporalOverflow(options).
-  Maybe<ShowOverflow> maybe_overflow =
-      ToTemporalOverflow(isolate, options, method_name);
-  MAYBE_RETURN(maybe_overflow, Nothing<DateTimeRecord>());
-  ShowOverflow overflow = maybe_overflow.FromJust();
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Nothing<DateTimeRecord>());
+
   // 4. Let timeResult be ? RegulateTime(timeResult.[[Hour]],
   // timeResult.[[Minute]], timeResult.[[Second]], timeResult.[[Millisecond]],
   // timeResult.[[Microsecond]], timeResult.[[Nanosecond]], overflow).
-  Maybe<TimeRecord> maybe_regulate_time_result =
-      temporal::RegulateTime(isolate, time_result, overflow);
-  MAYBE_RETURN(maybe_regulate_time_result, Nothing<DateTimeRecord>());
-  time_result = maybe_regulate_time_result.FromJust();
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_result,
+      temporal::RegulateTime(isolate, time_result, overflow),
+      Nothing<DateTimeRecord>());
   // 5. Return the new Record { [[Year]]: temporalDate.[[ISOYear]], [[Month]]:
   // temporalDate.[[ISOMonth]], [[Day]]: temporalDate.[[ISODay]], [[Hour]]:
   // timeResult.[[Hour]], [[Minute]]: timeResult.[[Minute]], [[Second]]:
   // timeResult.[[Second]], [[Millisecond]]: timeResult.[[Millisecond]],
   // [[Microsecond]]: timeResult.[[Microsecond]], [[Nanosecond]]:
   // timeResult.[[Nanosecond]] }.
-  result.time = time_result.time;
-  result.date = {temporal_date->iso_year(), temporal_date->iso_month(),
-                 temporal_date->iso_day()};
+
+  DateTimeRecord result = {
+      {temporal_date->iso_year(), temporal_date->iso_month(),
+       temporal_date->iso_day()},
+      time_result.time,
+      Handle<String>()};
   return Just(result);
 }
 
@@ -6945,7 +6992,6 @@ Maybe<DateTimeRecord> ParseTemporalDateTimeString(Isolate* isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DateTimeRecord>());
   }
-  MAYBE_RETURN(maybe_parsed, Nothing<DateTimeRecord>());
 
   ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. If _isoString_ contains a |UTCDesignator|, then
@@ -7040,16 +7086,19 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
                                JSTemporalPlainDateTime);
     // g. Let result be ?
     // InterpretTemporalDateTimeFields(calendar, fields, options).
-    Maybe<DateTimeRecord> maybe_result = InterpretTemporalDateTimeFields(
-        isolate, calendar, fields, options, method_name);
-    MAYBE_RETURN(maybe_result, Handle<JSTemporalPlainDateTime>());
-    result = maybe_result.FromJust();
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        InterpretTemporalDateTimeFields(isolate, calendar, fields, options,
+                                        method_name),
+        Handle<JSTemporalPlainDateTime>());
   } else {
     // 3. Else,
     // a. Perform ? ToTemporalOverflow(options).
-    Maybe<ShowOverflow> maybe_overflow =
-        ToTemporalOverflow(isolate, options, method_name);
-    MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainDateTime>());
+    ShowOverflow overflow;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+        Handle<JSTemporalPlainDateTime>());
+    USE(overflow);
 
     // b. Let string be ? ToString(item).
     Handle<String> string;
@@ -7057,10 +7106,9 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
                                Object::ToString(isolate, item_obj),
                                JSTemporalPlainDateTime);
     // c. Let result be ? ParseTemporalDateTimeString(string).
-    Maybe<DateTimeRecord> maybe_result =
-        ParseTemporalDateTimeString(isolate, string);
-    MAYBE_RETURN(maybe_result, MaybeHandle<JSTemporalPlainDateTime>());
-    result = maybe_result.FromJust();
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, ParseTemporalDateTimeString(isolate, string),
+        Handle<JSTemporalPlainDateTime>());
     // d. Assert: ! IsValidISODate(result.[[Year]], result.[[Month]],
     // result.[[Day]]) is true.
     DCHECK(IsValidISODate(isolate, result.date));
@@ -7103,9 +7151,11 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
   // internal slot, then
   if (item->IsJSTemporalPlainDateTime()) {
     // a. Perform ? ToTemporalOverflow(options).
-    Maybe<ShowOverflow> maybe_overflow =
-        ToTemporalOverflow(isolate, options, method_name);
-    MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainDateTime>());
+    ShowOverflow overflow;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+        Handle<JSTemporalPlainDateTime>());
+    USE(overflow);
     // b. Return ? CreateTemporalDateTime(item.[[ISYear]], item.[[ISOMonth]],
     // item.[[ISODay]], item.[[ISOHour]], item.[[ISOMinute]],
     // item.[[ISOSecond]], item.[[ISOMillisecond]], item.[[ISOMicrosecond]],
@@ -7435,10 +7485,10 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
       isolate, options, GetOptionsObject(isolate, options_obj, method_name),
       JSTemporalPlainTime);
   // 2. Let overflow be ? ToTemporalOverflow(options).
-  Maybe<ShowOverflow> maybe_overflow =
-      ToTemporalOverflow(isolate, options, method_name);
-  MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainTime>());
-  ShowOverflow overflow = maybe_overflow.FromJust();
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Handle<JSTemporalPlainTime>());
   // 3. If Type(item) is Object and item has an [[InitializedTemporalTime]]
   // internal slot, then
   if (item_obj->IsJSTemporalPlainTime()) {
@@ -7795,11 +7845,14 @@ MaybeHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
           isolate, handle(zoned_date_time->nanoseconds(), isolate)),
       Object);
   // 5. Return 𝔽(? GetOffsetNanosecondsFor(timeZone, instant)).
-  Maybe<int64_t> maybe_result = GetOffsetNanosecondsFor(
-      isolate, time_zone, instant,
-      "Temporal.ZonedDateTime.prototype.offsetNanoseconds");
-  MAYBE_RETURN(maybe_result, Handle<Object>());
-  return isolate->factory()->NewNumberFromInt64(maybe_result.FromJust());
+  int64_t result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      GetOffsetNanosecondsFor(
+          isolate, time_zone, instant,
+          "Temporal.ZonedDateTime.prototype.offsetNanoseconds"),
+      Handle<Object>());
+  return isolate->factory()->NewNumberFromInt64(result);
 }
 
 // #sec-get-temporal.zoneddatetime.prototype.offset

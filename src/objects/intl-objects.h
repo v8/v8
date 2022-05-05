@@ -356,8 +356,10 @@ class Intl {
   // Function to support Temporal
   V8_WARN_UNUSED_RESULT static std::string TimeZoneIdFromIndex(int32_t index);
 
-  V8_WARN_UNUSED_RESULT static Maybe<bool> GetTimeZoneIndex(
-      Isolate* isolate, Handle<String> identifier, int32_t* index);
+  // Return the index of timezone which later could be used with
+  // TimeZoneIdFromIndex. Returns -1 while the identifier is not a built-in
+  // TimeZone name.
+  static int32_t GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
       Isolate* isolate, Handle<String> identifier);
