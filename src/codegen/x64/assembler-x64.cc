@@ -1070,6 +1070,7 @@ void Assembler::cdq() {
 void Assembler::cmovq(Condition cc, Register dst, Register src) {
   if (cc == always) {
     movq(dst, src);
+    return;
   } else if (cc == never) {
     return;
   }
@@ -1087,6 +1088,7 @@ void Assembler::cmovq(Condition cc, Register dst, Register src) {
 void Assembler::cmovq(Condition cc, Register dst, Operand src) {
   if (cc == always) {
     movq(dst, src);
+    return;
   } else if (cc == never) {
     return;
   }
@@ -1102,6 +1104,7 @@ void Assembler::cmovq(Condition cc, Register dst, Operand src) {
 void Assembler::cmovl(Condition cc, Register dst, Register src) {
   if (cc == always) {
     movl(dst, src);
+    return;
   } else if (cc == never) {
     return;
   }
@@ -1117,6 +1120,7 @@ void Assembler::cmovl(Condition cc, Register dst, Register src) {
 void Assembler::cmovl(Condition cc, Register dst, Operand src) {
   if (cc == always) {
     movl(dst, src);
+    return;
   } else if (cc == never) {
     return;
   }
