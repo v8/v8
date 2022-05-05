@@ -408,6 +408,21 @@ class JSTemporalTimeZone
       Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
       Handle<Object> dateTime, Handle<Object> options);
 
+  // #sec-temporal.timezone.prototype.getplaindatetimefor
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime>
+  GetPlainDateTimeFor(Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+                      Handle<Object> instance, Handle<Object> calendar_like);
+
+  // #sec-temporal.timezone.prototype.getnexttransition
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetNextTransition(
+      Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+      Handle<Object> starting_point);
+
+  // #sec-temporal.timezone.prototype.getprevioustransition
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPreviousTransition(
+      Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+      Handle<Object> starting_point);
+
   // #sec-temporal.timezone.prototype.tostring
   static MaybeHandle<Object> ToString(Isolate* isolate,
                                       Handle<JSTemporalTimeZone> time_zone,

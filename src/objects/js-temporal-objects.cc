@@ -6799,6 +6799,118 @@ MaybeHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
                                       disambiguation, method_name);
 }
 
+namespace {
+
+// #sec-temporal-getianatimezonenexttransition
+MaybeHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
+                                                  Handle<BigInt> nanoseconds,
+                                                  int32_t time_zone_index) {
+#ifdef V8_INTL_SUPPORT
+  // TODO(ftang) Add support for non UTC timezone
+  DCHECK_EQ(time_zone_index, 0);
+  return isolate->factory()->null_value();
+#else   // V8_INTL_SUPPORT
+  return isolate->factory()->null_value();
+#endif  // V8_INTL_SUPPORT
+}
+
+// #sec-temporal-getianatimezoneprevioustransition
+MaybeHandle<Object> GetIANATimeZonePreviousTransition(
+    Isolate* isolate, Handle<BigInt> nanoseconds, int32_t time_zone_index) {
+#ifdef V8_INTL_SUPPORT
+  // TODO(ftang) Add support for non UTC timezone
+  DCHECK_EQ(time_zone_index, 0);
+  return isolate->factory()->null_value();
+#else   // V8_INTL_SUPPORT
+  return isolate->factory()->null_value();
+#endif  // V8_INTL_SUPPORT
+}
+
+}  // namespace
+
+// #sec-temporal.timezone.prototype.getplaindatetimefor
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalTimeZone::GetPlainDateTimeFor(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> instant_obj, Handle<Object> calendar_like) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.TimeZone.prototype.getPlainDateTimeFor";
+  // 1. 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  // 3. Set instant to ? ToTemporalInstant(instant).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant, ToTemporalInstant(isolate, instant_obj, method_name),
+      JSTemporalPlainDateTime);
+  // 4. Let calendar be ? ToTemporalCalendarWithISODefault(calendarLike).
+  Handle<JSReceiver> calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      ToTemporalCalendarWithISODefault(isolate, calendar_like, method_name),
+      JSTemporalPlainDateTime);
+
+  // 5. Return ? BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant,
+  // calendar).
+  return temporal::BuiltinTimeZoneGetPlainDateTimeFor(
+      isolate, time_zone, instant, calendar, method_name);
+}
+
+// template for shared code of Temporal.TimeZone.prototype.getNextTransition and
+// Temporal.TimeZone.prototype.getPreviousTransition
+template <MaybeHandle<Object> (*iana_func)(Isolate*, Handle<BigInt>, int32_t)>
+MaybeHandle<Object> GetTransition(Isolate* isolate,
+                                  Handle<JSTemporalTimeZone> time_zone,
+                                  Handle<Object> starting_point_obj,
+                                  const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  // 3. Set startingPoint to ? ToTemporalInstant(startingPoint).
+  Handle<JSTemporalInstant> starting_point;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, starting_point,
+      ToTemporalInstant(isolate, starting_point_obj, method_name), Object);
+  // 4. If timeZone.[[OffsetNanoseconds]] is not undefined, return null.
+  if (time_zone->is_offset()) {
+    return isolate->factory()->null_value();
+  }
+  // 5. Let transition be ?
+  // GetIANATimeZoneNextTransition(startingPoint.[[Nanoseconds]],
+  // timeZone.[[Identifier]]).
+  Handle<Object> transition_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, transition_obj,
+      iana_func(isolate, Handle<BigInt>(starting_point->nanoseconds(), isolate),
+                time_zone->time_zone_index()),
+      Object);
+  // 6. If transition is null, return null.
+  if (transition_obj->IsNull()) {
+    return isolate->factory()->null_value();
+  }
+  DCHECK(transition_obj->IsBigInt());
+  Handle<BigInt> transition = Handle<BigInt>::cast(transition_obj);
+  // 7. Return ! CreateTemporalInstant(transition).
+  return temporal::CreateTemporalInstant(isolate, transition);
+}
+
+// #sec-temporal.timezone.prototype.getnexttransition
+MaybeHandle<Object> JSTemporalTimeZone::GetNextTransition(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> starting_point_obj) {
+  return GetTransition<GetIANATimeZoneNextTransition>(
+      isolate, time_zone, starting_point_obj,
+      "Temporal.TimeZone.prototype.getNextTransition");
+}
+// #sec-temporal.timezone.prototype.getprevioustransition
+MaybeHandle<Object> JSTemporalTimeZone::GetPreviousTransition(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> starting_point_obj) {
+  return GetTransition<GetIANATimeZonePreviousTransition>(
+      isolate, time_zone, starting_point_obj,
+      "Temporal.TimeZone.prototype.getPreviousTransition");
+}
+
 // #sec-temporal.timezone.prototype.tostring
 MaybeHandle<Object> JSTemporalTimeZone::ToString(
     Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
