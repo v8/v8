@@ -20,6 +20,9 @@
 #define DEFINE_WEAK_IMPLICATION(whenflag, thenflag) \
   DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, true)
 
+#define DEFINE_WEAK_NEG_IMPLICATION(whenflag, thenflag) \
+  DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, false)
+
 #define DEFINE_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, false)
 
@@ -524,7 +527,7 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
-DEFINE_WEAK_VALUE_IMPLICATION(future, write_protect_code_memory, false)
+DEFINE_WEAK_NEG_IMPLICATION(future, write_protect_code_memory)
 DEFINE_WEAK_IMPLICATION(future, compact_maps)
 
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
@@ -1120,6 +1123,9 @@ DEFINE_BOOL(asm_wasm_lazy_compilation, false,
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
 DEFINE_BOOL(wasm_lazy_compilation, false,
             "enable lazy compilation for all wasm modules")
+// Write protect code causes too much overhead for lazy compilation.
+DEFINE_WEAK_NEG_IMPLICATION(wasm_lazy_compilation,
+                            wasm_write_protect_code_memory)
 DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
                   "trace lazy compilation of wasm functions")
 DEFINE_BOOL(wasm_lazy_validation, false,
@@ -2264,6 +2270,7 @@ DEFINE_BOOL(enable_embedded_constant_pool, V8_EMBEDDED_CONSTANT_POOL,
 #undef DEFINE_FLOAT
 #undef DEFINE_IMPLICATION
 #undef DEFINE_WEAK_IMPLICATION
+#undef DEFINE_WEAK_NEG_IMPLICATION
 #undef DEFINE_NEG_IMPLICATION
 #undef DEFINE_NEG_VALUE_IMPLICATION
 #undef DEFINE_VALUE_IMPLICATION
