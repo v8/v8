@@ -804,8 +804,11 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   inner_graph_builder.ProcessMergePoint(
       inner_graph_builder.inline_exit_offset());
   inner_graph_builder.StartNewBlock(inner_graph_builder.inline_exit_offset());
-  BasicBlock* end_block =
-      inner_graph_builder.CreateBlock<JumpFromInlined>({}, &end_ref);
+  // See also: InterpreterAssembler::UpdateInterruptBudgetOnReturn.
+  const uint32_t relative_jump_bytecode_offset =
+      inner_graph_builder.iterator_.current_offset();
+  BasicBlock* end_block = inner_graph_builder.CreateBlock<JumpFromInlined>(
+      {}, &end_ref, relative_jump_bytecode_offset);
   inner_graph_builder.ResolveJumpsToBlockAtOffset(
       end_block, inner_graph_builder.inline_exit_offset());
 
@@ -1055,20 +1058,30 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(CreateUnmappedArguments)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateRestParameter)
 
 void MaglevGraphBuilder::VisitJumpLoop() {
+  const uint32_t relative_jump_bytecode_offset =
+      iterator_.GetUnsignedImmediateOperand(0);
+  const int32_t loop_offset = iterator_.GetImmediateOperand(1);
+  const FeedbackSlot feedback_slot = iterator_.GetSlotOperand(2);
   int target = iterator_.GetJumpTargetOffset();
   BasicBlock* block =
       target == iterator_.current_offset()
-          ? FinishBlock<JumpLoop>(next_offset(), {}, &jump_targets_[target])
-          : FinishBlock<JumpLoop>(next_offset(), {},
-                                  jump_targets_[target].block_ptr());
+          ? FinishBlock<JumpLoop>(next_offset(), {}, &jump_targets_[target],
+                                  relative_jump_bytecode_offset, loop_offset,
+                                  feedback_slot)
+          : FinishBlock<JumpLoop>(
+                next_offset(), {}, jump_targets_[target].block_ptr(),
+                relative_jump_bytecode_offset, loop_offset, feedback_slot);
 
   merge_states_[target]->MergeLoop(*compilation_unit_,
                                    current_interpreter_frame_, block, target);
   block->set_predecessor_id(0);
 }
 void MaglevGraphBuilder::VisitJump() {
+  const uint32_t relative_jump_bytecode_offset =
+      iterator_.GetUnsignedImmediateOperand(0);
   BasicBlock* block = FinishBlock<Jump>(
-      next_offset(), {}, &jump_targets_[iterator_.GetJumpTargetOffset()]);
+      next_offset(), {}, &jump_targets_[iterator_.GetJumpTargetOffset()],
+      relative_jump_bytecode_offset);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   DCHECK_LT(next_offset(), bytecode().length());
 }
@@ -1195,8 +1208,11 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(SetPendingMessage)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Throw)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ReThrow)
 void MaglevGraphBuilder::VisitReturn() {
+  // See also: InterpreterAssembler::UpdateInterruptBudgetOnReturn.
+  const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
   if (!is_inline()) {
-    FinishBlock<Return>(next_offset(), {GetAccumulatorTagged()});
+    FinishBlock<Return>(next_offset(), {GetAccumulatorTagged()},
+                        relative_jump_bytecode_offset);
     return;
   }
 
@@ -1205,8 +1221,9 @@ void MaglevGraphBuilder::VisitReturn() {
   // execution of the caller.
   // TODO(leszeks): Consider shortcutting this Jump for cases where there is
   // only one return and no need to merge return states.
-  BasicBlock* block = FinishBlock<Jump>(next_offset(), {},
-                                        &jump_targets_[inline_exit_offset()]);
+  BasicBlock* block =
+      FinishBlock<Jump>(next_offset(), {}, &jump_targets_[inline_exit_offset()],
+                        relative_jump_bytecode_offset);
   MergeIntoInlinedReturnFrameState(block);
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowReferenceErrorIfHole)

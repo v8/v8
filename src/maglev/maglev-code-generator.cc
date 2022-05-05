@@ -65,6 +65,10 @@ class MaglevCodeGeneratingNodeProcessor {
     __ Push(kJSFunctionRegister);              // Callee's JS function.
     __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 
+    // TODO(v8:7700): Handle TieringState and cached optimized code. See also:
+    // LoadTieringStateAndJumpIfNeedsProcessing and
+    // MaybeOptimizeCodeOrTailCallOptimizedCodeSlot.
+
     // Extend rsp by the size of the frame.
     code_gen_state_->set_untagged_slots(graph->untagged_stack_slots());
     code_gen_state_->set_tagged_slots(graph->tagged_stack_slots());

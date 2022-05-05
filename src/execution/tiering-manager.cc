@@ -395,6 +395,8 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
 
   function_obj.feedback_vector().SaturatingIncrementProfilerTicks();
 
+  // TODO(v8:7700): When tiering up from ML we no longer have an
+  // UnoptimizedFrame. Add logic to handle this case as well.
   JavaScriptFrameIterator it(isolate_);
   UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
   const CodeKind code_kind = function_obj.GetActiveTier().value();
