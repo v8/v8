@@ -1083,7 +1083,7 @@ int Map::NumberOfEnumerableProperties() const {
   int result = 0;
   DescriptorArray descs = instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : IterateOwnDescriptors()) {
-    if ((descs.GetDetails(i).attributes() & ONLY_ENUMERABLE) == 0 &&
+    if ((int{descs.GetDetails(i).attributes()} & ONLY_ENUMERABLE) == 0 &&
         !descs.GetKey(i).FilterKey(ENUMERABLE_STRINGS)) {
       result++;
     }

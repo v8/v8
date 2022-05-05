@@ -676,7 +676,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   static int ArrayMapIndex(ElementsKind elements_kind) {
     DCHECK(IsFastElementsKind(elements_kind));
-    return elements_kind + FIRST_JS_ARRAY_MAP_SLOT;
+    return int{elements_kind} + FIRST_JS_ARRAY_MAP_SLOT;
   }
 
   inline Map GetInitialJSArrayMap(ElementsKind kind) const;

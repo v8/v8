@@ -758,7 +758,7 @@ base::Optional<int> CollectOwnPropertyNamesInternal(
     bool is_shadowing_key = false;
     PropertyDetails details = descs->GetDetails(i);
 
-    if ((details.attributes() & filter) != 0) {
+    if ((int{details.attributes()} & filter) != 0) {
       if (mode == KeyCollectionMode::kIncludePrototypes) {
         is_shadowing_key = true;
       } else {
@@ -918,7 +918,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
       if (!raw_dictionary.ToKey(roots, i, &key)) continue;
       if (key.FilterKey(filter)) continue;
       PropertyDetails details = raw_dictionary.DetailsAt(i);
-      if ((details.attributes() & filter) != 0) {
+      if ((int{details.attributes()} & filter) != 0) {
         AllowGarbageCollection gc;
         // This might allocate, but {key} is not used afterwards.
         keys->AddShadowingKey(key, &gc);

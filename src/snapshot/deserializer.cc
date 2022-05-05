@@ -1147,7 +1147,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       }
 
       // Advance to the end of the code object.
-      return (Code::kDataStart - HeapObject::kHeaderSize) / kTaggedSize +
+      return (int{Code::kDataStart} - HeapObject::kHeaderSize) / kTaggedSize +
              size_in_tagged;
     }
 
