@@ -633,7 +633,7 @@ void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
     if (!is_the_hole(i)) {
       uint64_t value = get_representation(i);
       uint64_t unexpected =
-          bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()) &
+          base::bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()) &
           uint64_t{0x7FF8000000000000};
       // Create implementation specific sNaN by inverting relevant bit.
       unexpected ^= uint64_t{0x0008000000000000};

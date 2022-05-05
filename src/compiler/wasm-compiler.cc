@@ -3456,7 +3456,7 @@ Node* WasmGraphBuilder::BuildChangeUint32ToUintPtr(Node* node) {
   Uint32Matcher matcher(node);
   if (matcher.HasResolvedValue()) {
     uintptr_t value = matcher.ResolvedValue();
-    return mcgraph()->IntPtrConstant(bit_cast<intptr_t>(value));
+    return mcgraph()->IntPtrConstant(base::bit_cast<intptr_t>(value));
   }
   return gasm_->ChangeUint32ToUint64(node);
 }

@@ -608,7 +608,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           }
 
           uint64_t bits =
-              bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
+              base::bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
           // Allocate simple heapnumber with immortal map, with non-pointer
           // payload, so we can skip notifying object layout change.
 

@@ -34,7 +34,7 @@ class RiscvOperandGenerator final : public OperandGenerator {
   InstructionOperand UseRegisterOrImmediateZero(Node* node) {
     if ((IsIntegerConstant(node) && (GetIntegerConstantValue(node) == 0)) ||
         (IsFloatConstant(node) &&
-         (bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
+         (base::bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
       return UseImmediate(node);
     }
     return UseRegister(node);
@@ -43,7 +43,7 @@ class RiscvOperandGenerator final : public OperandGenerator {
   bool IsIntegerConstant(Node* node) {
     if (node->opcode() == IrOpcode::kNumberConstant) {
       const double value = OpParameter<double>(node->op());
-      return bit_cast<int64_t>(value) == 0;
+      return base::bit_cast<int64_t>(value) == 0;
     }
     return (node->opcode() == IrOpcode::kInt32Constant) ||
            (node->opcode() == IrOpcode::kInt64Constant);
@@ -57,8 +57,8 @@ class RiscvOperandGenerator final : public OperandGenerator {
     }
     DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
     const double value = OpParameter<double>(node->op());
-    DCHECK_EQ(bit_cast<int64_t>(value), 0);
-    return bit_cast<int64_t>(value);
+    DCHECK_EQ(base::bit_cast<int64_t>(value), 0);
+    return base::bit_cast<int64_t>(value);
   }
 
   bool IsFloatConstant(Node* node) {

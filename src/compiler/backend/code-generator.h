@@ -79,8 +79,10 @@ class DeoptimizationLiteral {
 
   bool operator==(const DeoptimizationLiteral& other) const {
     return kind_ == other.kind_ && object_.equals(other.object_) &&
-           bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_) &&
-           bit_cast<intptr_t>(string_) == bit_cast<intptr_t>(other.string_);
+           base::bit_cast<uint64_t>(number_) ==
+               base::bit_cast<uint64_t>(other.number_) &&
+           base::bit_cast<intptr_t>(string_) ==
+               base::bit_cast<intptr_t>(other.string_);
   }
 
   Handle<Object> Reify(Isolate* isolate) const;

@@ -40,8 +40,8 @@ class SwitchInfo {
       DCHECK_LE(min_value, max_value);
       // Note that {value_range} can be 0 if {min_value} is -2^31 and
       // {max_value} is 2^31-1, so don't assume that it's non-zero below.
-      value_range_ =
-          1u + bit_cast<uint32_t>(max_value) - bit_cast<uint32_t>(min_value);
+      value_range_ = 1u + base::bit_cast<uint32_t>(max_value) -
+                     base::bit_cast<uint32_t>(min_value);
     } else {
       value_range_ = 0;
     }

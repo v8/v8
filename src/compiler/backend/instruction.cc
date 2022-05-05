@@ -570,7 +570,7 @@ Handle<CodeT> Constant::ToCode() const {
 const StringConstantBase* Constant::ToDelayedStringConstant() const {
   DCHECK_EQ(kDelayedStringConstant, type());
   const StringConstantBase* value =
-      bit_cast<StringConstantBase*>(static_cast<intptr_t>(value_));
+      base::bit_cast<StringConstantBase*>(static_cast<intptr_t>(value_));
   return value;
 }
 

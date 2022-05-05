@@ -358,7 +358,7 @@ void RunF128CompareOpConstImmTest(
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(FloatType); i++) {
       WriteLittleEndianValue<FloatType>(
-          bit_cast<FloatType*>(&const_buffer[0]) + i, x);
+          base::bit_cast<FloatType*>(&const_buffer[0]) + i, x);
     }
     BUILD(r,
           WASM_LOCAL_SET(temp,
@@ -665,7 +665,7 @@ void RunICompareOpConstImmTest(TestExecutionTier execution_tier,
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
       WriteLittleEndianValue<ScalarType>(
-          bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+          base::bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
     }
     BUILD(r,
           WASM_LOCAL_SET(temp,
@@ -1563,7 +1563,7 @@ void RunS128ConstBinOpTest(TestExecutionTier execution_tier,
     uint8_t const_buffer[16];
     for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
       WriteLittleEndianValue<ScalarType>(
-          bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+          base::bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
     }
     BUILD(
         r,

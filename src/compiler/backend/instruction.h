@@ -1114,16 +1114,19 @@ class V8_EXPORT_PRIVATE Constant final {
 
   explicit Constant(int32_t v);
   explicit Constant(int64_t v) : type_(kInt64), value_(v) {}
-  explicit Constant(float v) : type_(kFloat32), value_(bit_cast<int32_t>(v)) {}
-  explicit Constant(double v) : type_(kFloat64), value_(bit_cast<int64_t>(v)) {}
+  explicit Constant(float v)
+      : type_(kFloat32), value_(base::bit_cast<int32_t>(v)) {}
+  explicit Constant(double v)
+      : type_(kFloat64), value_(base::bit_cast<int64_t>(v)) {}
   explicit Constant(ExternalReference ref)
-      : type_(kExternalReference), value_(bit_cast<intptr_t>(ref.address())) {}
+      : type_(kExternalReference),
+        value_(base::bit_cast<intptr_t>(ref.address())) {}
   explicit Constant(Handle<HeapObject> obj, bool is_compressed = false)
       : type_(is_compressed ? kCompressedHeapObject : kHeapObject),
-        value_(bit_cast<intptr_t>(obj)) {}
+        value_(base::bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
   explicit Constant(const StringConstantBase* str)
-      : type_(kDelayedStringConstant), value_(bit_cast<intptr_t>(str)) {}
+      : type_(kDelayedStringConstant), value_(base::bit_cast<intptr_t>(str)) {}
   explicit Constant(RelocatablePtrConstantInfo info);
 
   Type type() const { return type_; }
@@ -1155,17 +1158,17 @@ class V8_EXPORT_PRIVATE Constant final {
     // representation of a signalling NaN, then returning it as float can cause
     // the signalling bit to flip, and value_ is returned as a quiet NaN.
     DCHECK_EQ(kFloat32, type());
-    return bit_cast<float>(static_cast<int32_t>(value_));
+    return base::bit_cast<float>(static_cast<int32_t>(value_));
   }
 
   uint32_t ToFloat32AsInt() const {
     DCHECK_EQ(kFloat32, type());
-    return bit_cast<uint32_t>(static_cast<int32_t>(value_));
+    return base::bit_cast<uint32_t>(static_cast<int32_t>(value_));
   }
 
   base::Double ToFloat64() const {
     DCHECK_EQ(kFloat64, type());
-    return base::Double(bit_cast<uint64_t>(value_));
+    return base::Double(base::bit_cast<uint64_t>(value_));
   }
 
   ExternalReference ToExternalReference() const {

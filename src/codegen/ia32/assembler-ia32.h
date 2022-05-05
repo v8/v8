@@ -154,7 +154,7 @@ class Immediate {
 
   ExternalReference external_reference() const {
     DCHECK(is_external_reference());
-    return bit_cast<ExternalReference>(immediate());
+    return base::bit_cast<ExternalReference>(immediate());
   }
 
   bool is_zero() const {

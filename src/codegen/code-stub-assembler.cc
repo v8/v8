@@ -5142,8 +5142,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
     if (if_hole == &store_double_hole) {
       BIND(&store_double_hole);
       // Don't use doubles to store the hole double, since manipulating the
-      // signaling NaN used for the hole in C++, e.g. with bit_cast, will
-      // change its value on ia32 (the x87 stack is used to return values
+      // signaling NaN used for the hole in C++, e.g. with base::bit_cast,
+      // will change its value on ia32 (the x87 stack is used to return values
       // and stores to the stack silently clear the signalling bit).
       //
       // TODO(danno): When we have a Float32/Float64 wrapper class that

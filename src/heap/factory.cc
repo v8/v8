@@ -3220,7 +3220,7 @@ V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, Smi number) {
 
 V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, double number) {
   int mask = (cache->length() >> 1) - 1;
-  int64_t bits = bit_cast<int64_t>(number);
+  int64_t bits = base::bit_cast<int64_t>(number);
   return (static_cast<int>(bits) ^ static_cast<int>(bits >> 32)) & mask;
 }
 

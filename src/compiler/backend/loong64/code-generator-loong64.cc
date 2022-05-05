@@ -2483,12 +2483,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
+        if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ St_d(zero_reg, dst);
         } else {
           UseScratchRegisterScope temps(tasm());
           Register scratch = temps.Acquire();
-          __ li(scratch, Operand(bit_cast<int32_t>(src.ToFloat32())));
+          __ li(scratch, Operand(base::bit_cast<int32_t>(src.ToFloat32())));
           __ St_d(scratch, dst);
         }
       } else {

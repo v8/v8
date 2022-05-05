@@ -26,7 +26,7 @@ class ArmOperandGenerator : public OperandGenerator {
   }
 
   bool CanBeImmediate(uint32_t value) const {
-    return CanBeImmediate(bit_cast<int32_t>(value));
+    return CanBeImmediate(base::bit_cast<int32_t>(value));
   }
 
   bool CanBeImmediate(Node* node, InstructionCode opcode) {

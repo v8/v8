@@ -44,7 +44,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   CPURegister InputFloat32OrZeroRegister(size_t index) {
     if (instr_->InputAt(index)->IsImmediate()) {
-      DCHECK_EQ(0, bit_cast<int32_t>(InputFloat32(index)));
+      DCHECK_EQ(0, base::bit_cast<int32_t>(InputFloat32(index)));
       return wzr;
     }
     DCHECK(instr_->InputAt(index)->IsFPRegister());
@@ -53,7 +53,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   CPURegister InputFloat64OrZeroRegister(size_t index) {
     if (instr_->InputAt(index)->IsImmediate()) {
-      DCHECK_EQ(0, bit_cast<int64_t>(InputDouble(index)));
+      DCHECK_EQ(0, base::bit_cast<int64_t>(InputDouble(index)));
       return xzr;
     }
     DCHECK(instr_->InputAt(index)->IsDoubleRegister());
@@ -3453,7 +3453,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         MoveConstantToRegister(temp, src);
         __ Str(temp, dst);
       } else if (destination->IsFloatStackSlot()) {
-        if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
+        if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ Str(wzr, dst);
         } else {
           UseScratchRegisterScope scope(tasm());

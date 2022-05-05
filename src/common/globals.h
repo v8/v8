@@ -1033,7 +1033,9 @@ enum class InlineCacheState {
   GENERIC,
 };
 
-inline size_t hash_value(InlineCacheState mode) { return bit_cast<int>(mode); }
+inline size_t hash_value(InlineCacheState mode) {
+  return base::bit_cast<int>(mode);
+}
 
 // Printing support.
 inline const char* InlineCacheState2String(InlineCacheState state) {
@@ -1157,7 +1159,7 @@ enum class ConvertReceiverMode : unsigned {
 };
 
 inline size_t hash_value(ConvertReceiverMode mode) {
-  return bit_cast<unsigned>(mode);
+  return base::bit_cast<unsigned>(mode);
 }
 
 inline std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
@@ -1188,7 +1190,7 @@ enum class CreateArgumentsType : uint8_t {
 };
 
 inline size_t hash_value(CreateArgumentsType type) {
-  return bit_cast<uint8_t>(type);
+  return base::bit_cast<uint8_t>(type);
 }
 
 inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
@@ -1469,7 +1471,7 @@ enum class InterpreterPushArgsMode : unsigned {
 };
 
 inline size_t hash_value(InterpreterPushArgsMode mode) {
-  return bit_cast<unsigned>(mode);
+  return base::bit_cast<unsigned>(mode);
 }
 
 inline std::ostream& operator<<(std::ostream& os,

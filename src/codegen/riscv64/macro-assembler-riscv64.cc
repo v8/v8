@@ -2415,13 +2415,14 @@ void TurboAssembler::InsertLowWordF64(FPURegister dst, Register src_low) {
 
 void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint32_t src) {
   // Handle special values first.
-  if (src == bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
+  if (src == base::bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
     if (dst != kDoubleRegZero) fmv_s(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint32_t>(-0.0f) && has_single_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint32_t>(-0.0f) &&
+             has_single_zero_reg_set_) {
     Neg_s(dst, kDoubleRegZero);
   } else {
     if (dst == kDoubleRegZero) {
-      DCHECK(src == bit_cast<uint32_t>(0.0f));
+      DCHECK(src == base::bit_cast<uint32_t>(0.0f));
       fmv_w_x(dst, zero_reg);
       has_single_zero_reg_set_ = true;
       has_double_zero_reg_set_ = false;
@@ -2436,13 +2437,14 @@ void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint32_t src) {
 
 void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (src == bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
+  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
     if (dst != kDoubleRegZero) fmv_d(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint64_t>(-0.0) && has_double_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
+             has_double_zero_reg_set_) {
     Neg_d(dst, kDoubleRegZero);
   } else {
     if (dst == kDoubleRegZero) {
-      DCHECK(src == bit_cast<uint64_t>(0.0));
+      DCHECK(src == base::bit_cast<uint64_t>(0.0));
       fmv_d_x(dst, zero_reg);
       has_double_zero_reg_set_ = true;
       has_single_zero_reg_set_ = false;

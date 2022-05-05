@@ -59,10 +59,10 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
           DCHECK_EQ(0, InputInt32(index));
           break;
         case Constant::kFloat32:
-          DCHECK_EQ(0, bit_cast<int32_t>(InputFloat32(index)));
+          DCHECK_EQ(0, base::bit_cast<int32_t>(InputFloat32(index)));
           break;
         case Constant::kFloat64:
-          DCHECK_EQ(0, bit_cast<int64_t>(InputDouble(index)));
+          DCHECK_EQ(0, base::bit_cast<int64_t>(InputDouble(index)));
           break;
         default:
           UNREACHABLE();
@@ -4157,10 +4157,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
+        if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ Sw(zero_reg, dst);
         } else {
-          __ li(kScratchReg, Operand(bit_cast<int32_t>(src.ToFloat32())));
+          __ li(kScratchReg, Operand(base::bit_cast<int32_t>(src.ToFloat32())));
           __ Sw(kScratchReg, dst);
         }
       } else {

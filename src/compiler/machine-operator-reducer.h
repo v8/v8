@@ -42,10 +42,10 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<int32_t>(value));
+    return Int32Constant(base::bit_cast<int32_t>(value));
   }
   Node* Uint64Constant(uint64_t value) {
-    return Int64Constant(bit_cast<int64_t>(value));
+    return Int64Constant(base::bit_cast<int64_t>(value));
   }
   Node* Float64Mul(Node* lhs, Node* rhs);
   Node* Float64PowHalf(Node* value);

@@ -175,8 +175,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    li(value, Operand(bit_cast<int32_t>(kZapValue + 4)));
-    li(dst, Operand(bit_cast<int32_t>(kZapValue + 8)));
+    li(value, Operand(base::bit_cast<int32_t>(kZapValue + 4)));
+    li(dst, Operand(base::bit_cast<int32_t>(kZapValue + 8)));
   }
 }
 
@@ -331,9 +331,9 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    li(address, Operand(bit_cast<int32_t>(kZapValue + 12)));
-    li(value, Operand(bit_cast<int32_t>(kZapValue + 16)));
-    li(slot_address, Operand(bit_cast<int32_t>(kZapValue + 20)));
+    li(address, Operand(base::bit_cast<int32_t>(kZapValue + 12)));
+    li(value, Operand(base::bit_cast<int32_t>(kZapValue + 16)));
+    li(slot_address, Operand(base::bit_cast<int32_t>(kZapValue + 20)));
   }
 }
 
@@ -2329,9 +2329,10 @@ void TurboAssembler::Move(FPURegister dst, uint32_t src) {
 
 void TurboAssembler::Move(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (src == bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
+  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
     mov_d(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint64_t>(-0.0) && has_double_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
+             has_double_zero_reg_set_) {
     Neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo = src & 0xFFFFFFFF;

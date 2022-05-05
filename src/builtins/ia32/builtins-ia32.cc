@@ -3266,7 +3266,7 @@ void PrepareCallApiFunction(MacroAssembler* masm, int argc, Register scratch) {
   ASM_CODE_COMMENT(masm);
   __ EnterApiExitFrame(argc, scratch);
   if (FLAG_debug_code) {
-    __ mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
+    __ mov(esi, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
 }
 

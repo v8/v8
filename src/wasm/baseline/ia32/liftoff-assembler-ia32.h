@@ -490,7 +490,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       // Compute the operand for the load of the upper half.
       Operand upper_src_op =
           offset_reg == no_reg
-              ? Operand(src_addr, bit_cast<int32_t>(offset_imm + 4))
+              ? Operand(src_addr, base::bit_cast<int32_t>(offset_imm + 4))
               : Operand(src_addr, offset_reg, times_1, offset_imm + 4);
       // The high word has to be mov'ed first, such that this is the protected
       // instruction. The mov of the low word cannot segfault.
@@ -558,7 +558,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       // Compute the operand for the store of the upper half.
       Operand upper_dst_op =
           offset_reg == no_reg
-              ? Operand(dst_addr, bit_cast<int32_t>(offset_imm + 4))
+              ? Operand(dst_addr, base::bit_cast<int32_t>(offset_imm + 4))
               : Operand(dst_addr, offset_reg, times_1, offset_imm + 4);
       // The high word has to be mov'ed first, such that this is the protected
       // instruction. The mov of the low word cannot segfault.

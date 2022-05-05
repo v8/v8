@@ -808,7 +808,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <class T>
   void LoadF64(DoubleRegister result, T value, Register scratch) {
     static_assert(sizeof(T) == kDoubleSize, "Expect input size to be 8");
-    uint64_t int_val = bit_cast<uint64_t, T>(value);
+    uint64_t int_val = base::bit_cast<uint64_t, T>(value);
     // Load the 64-bit value into a GPR, then transfer it to FPR via LDGR
     uint32_t hi_32 = int_val >> 32;
     uint32_t lo_32 = static_cast<uint32_t>(int_val);
@@ -828,7 +828,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <class T>
   void LoadF32(DoubleRegister result, T value, Register scratch) {
     static_assert(sizeof(T) == kFloatSize, "Expect input size to be 4");
-    uint32_t int_val = bit_cast<uint32_t, T>(value);
+    uint32_t int_val = base::bit_cast<uint32_t, T>(value);
     LoadF64(result, static_cast<uint64_t>(int_val) << 32, scratch);
   }
 
