@@ -150,11 +150,23 @@ class Vector {
                      input.size() * sizeof(S) / sizeof(T));
   }
 
-  bool operator==(const Vector<const T> other) const {
+  bool operator==(const Vector<T>& other) const {
     return std::equal(begin(), end(), other.begin(), other.end());
   }
 
-  bool operator!=(const Vector<const T> other) const {
+  bool operator!=(const Vector<T>& other) const {
+    return !operator==(other);
+  }
+
+  template<typename TT = T>
+  std::enable_if_t<!std::is_const_v<TT>, bool> operator==(
+      const Vector<const T>& other) const {
+    return std::equal(begin(), end(), other.begin(), other.end());
+  }
+
+  template<typename TT = T>
+  std::enable_if_t<!std::is_const_v<TT>, bool> operator!=(
+      const Vector<const T>& other) const {
     return !operator==(other);
   }
 

@@ -355,10 +355,10 @@ class PageIteratorImpl
   explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
   PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
   PAGE_TYPE* operator*() { return p_; }
-  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
     return rhs.p_ == p_;
   }
-  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
     return rhs.p_ != p_;
   }
   inline PageIteratorImpl<PAGE_TYPE>& operator++();
