@@ -1068,8 +1068,6 @@ void Assembler::cdq() {
 }
 
 void Assembler::cmovq(Condition cc, Register dst, Register src) {
-  DCHECK_LE(0, cc);  // Check for standard and degenerate 'no_condition'.
-
   EnsureSpace ensure_space(this);
   // Opcode: REX.W 0f 40 + cc /r.
   emit_rex_64(dst, src);
@@ -1079,8 +1077,6 @@ void Assembler::cmovq(Condition cc, Register dst, Register src) {
 }
 
 void Assembler::cmovq(Condition cc, Register dst, Operand src) {
-  DCHECK_LE(0, cc);  // Check for standard and degenerate 'no_condition'.
-
   EnsureSpace ensure_space(this);
   // Opcode: REX.W 0f 40 + cc /r.
   emit_rex_64(dst, src);
@@ -1090,8 +1086,6 @@ void Assembler::cmovq(Condition cc, Register dst, Operand src) {
 }
 
 void Assembler::cmovl(Condition cc, Register dst, Register src) {
-  DCHECK_LE(0, cc);  // Check for standard and degenerate 'no_condition'.
-
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
   emit_optional_rex_32(dst, src);
@@ -1101,8 +1095,6 @@ void Assembler::cmovl(Condition cc, Register dst, Register src) {
 }
 
 void Assembler::cmovl(Condition cc, Register dst, Operand src) {
-  DCHECK_LE(0, cc);  // Check for standard and degenerate 'no_condition'.
-
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
   emit_optional_rex_32(dst, src);

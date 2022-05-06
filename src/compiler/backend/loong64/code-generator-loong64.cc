@@ -1852,7 +1852,6 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
 #define __ tasm->
   Loong64OperandConverter i(gen, instr);
 
-  Condition cc = kNoCondition;
   // LOONG64 does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
   // emit loong64 pseudo-instructions, which are handled here by branch
@@ -1861,14 +1860,14 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   // they are tested here.
 
   if (instr->arch_opcode() == kLoong64Tst) {
-    cc = FlagsConditionToConditionTst(condition);
+    Condition cc = FlagsConditionToConditionTst(condition);
     __ Branch(tlabel, cc, t8, Operand(zero_reg));
   } else if (instr->arch_opcode() == kLoong64Add_d ||
              instr->arch_opcode() == kLoong64Sub_d) {
     UseScratchRegisterScope temps(tasm);
     Register scratch = temps.Acquire();
     Register scratch2 = temps.Acquire();
-    cc = FlagsConditionToConditionOvf(condition);
+    Condition cc = FlagsConditionToConditionOvf(condition);
     __ srai_d(scratch, i.OutputRegister(), 32);
     __ srai_w(scratch2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, scratch2, Operand(scratch));
@@ -1898,10 +1897,10 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         UNSUPPORTED_COND(kLoong64MulOvf_w, condition);
     }
   } else if (instr->arch_opcode() == kLoong64Cmp) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     DCHECK((cc == ls) || (cc == hi));
     if (cc == ls) {
       __ xori(i.TempRegister(0), i.TempRegister(0), 1);
@@ -2009,13 +2008,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // last output of the instruction.
   DCHECK_NE(0u, instr->OutputCount());
   Register result = i.OutputRegister(instr->OutputCount() - 1);
-  Condition cc = kNoCondition;
   // Loong64 does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
   // emit loong64 pseudo-instructions, which are checked and handled here.
 
   if (instr->arch_opcode() == kLoong64Tst) {
-    cc = FlagsConditionToConditionTst(condition);
+    Condition cc = FlagsConditionToConditionTst(condition);
     if (cc == eq) {
       __ Sltu(result, t8, 1);
     } else {
@@ -2026,7 +2024,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kLoong64Sub_d) {
     UseScratchRegisterScope temps(tasm());
     Register scratch = temps.Acquire();
-    cc = FlagsConditionToConditionOvf(condition);
+    Condition cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
     __ srli_d(scratch, i.OutputRegister(), 63);
     __ srli_w(result, i.OutputRegister(), 31);
@@ -2042,7 +2040,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, t8, zero_reg);
   } else if (instr->arch_opcode() == kLoong64Cmp) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     switch (cc) {
       case eq:
       case ne: {
@@ -2139,7 +2137,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     return;
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     DCHECK((cc == ls) || (cc == hi));
     if (cc == ls) {
       __ xori(i.OutputRegister(), i.TempRegister(0), 1);
