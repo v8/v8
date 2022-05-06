@@ -10229,12 +10229,24 @@ void HeapProfiler::ClearObjectIds() {
 }
 
 const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(
-    ActivityControl* control, ObjectNameResolver* resolver,
-    bool treat_global_objects_as_roots, bool capture_numeric_value) {
+    const HeapSnapshotOptions& options) {
   return reinterpret_cast<const HeapSnapshot*>(
-      reinterpret_cast<i::HeapProfiler*>(this)->TakeSnapshot(
-          control, resolver, treat_global_objects_as_roots,
-          capture_numeric_value));
+      reinterpret_cast<i::HeapProfiler*>(this)->TakeSnapshot(options));
+}
+
+const HeapSnapshot* HeapProfiler::TakeHeapSnapshot(ActivityControl* control,
+                                                   ObjectNameResolver* resolver,
+                                                   bool hide_internals,
+                                                   bool capture_numeric_value) {
+  HeapSnapshotOptions options;
+  options.control = control;
+  options.global_object_name_resolver = resolver;
+  options.snapshot_mode = hide_internals ? HeapSnapshotMode::kRegular
+                                         : HeapSnapshotMode::kExposeInternals;
+  options.numerics_mode = capture_numeric_value
+                              ? NumericsMode::kExposeNumericValues
+                              : NumericsMode::kHideNumericValues;
+  return TakeHeapSnapshot(options);
 }
 
 void HeapProfiler::StartTrackingHeapObjects(bool track_allocations) {

@@ -41,6 +41,14 @@
 #include "src/utils/allocation.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
+namespace cppgc {
+namespace internal {
+
+enum class HeapObjectNameForUnnamedObject : uint8_t;
+
+}  // namespace internal
+}  // namespace cppgc
+
 namespace v8 {
 
 namespace debug {
@@ -2881,6 +2889,17 @@ class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
 
   LocalEmbedderHeapTracer* const local_tracer_;
   const EmbedderHeapTracer::EmbedderStackState old_stack_state_;
+};
+
+class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {
+ public:
+  explicit CppClassNamesAsHeapObjectNameScope(v8::CppHeap* heap);
+  ~CppClassNamesAsHeapObjectNameScope();
+
+ private:
+  CppHeap* const cpp_heap_;
+  const cppgc::internal::HeapObjectNameForUnnamedObject
+      saved_heap_object_name_value_;
 };
 
 }  // namespace internal

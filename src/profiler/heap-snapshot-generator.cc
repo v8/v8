@@ -386,11 +386,12 @@ const char* HeapEntry::TypeAsString() const {
   }
 }
 
-HeapSnapshot::HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots,
-                           bool capture_numeric_value)
+HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
+                           v8::HeapProfiler::HeapSnapshotMode snapshot_mode,
+                           v8::HeapProfiler::NumericsMode numerics_mode)
     : profiler_(profiler),
-      treat_global_objects_as_roots_(global_objects_as_roots),
-      capture_numeric_value_(capture_numeric_value) {
+      snapshot_mode_(snapshot_mode),
+      numerics_mode_(numerics_mode) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
   STATIC_ASSERT(kSystemPointerSize != 4 || sizeof(HeapGraphEdge) == 12);
@@ -2291,7 +2292,7 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
 
   // For full heap snapshots we do not emit user roots but rather rely on
   // regular GC roots to retain objects.
-  if (!snapshot_->treat_global_objects_as_roots()) return;
+  if (snapshot_->expose_internals()) return;
 
   // Add a shortcut to JS global object reference at snapshot root.
   // That allows the user to easily find global objects. They are

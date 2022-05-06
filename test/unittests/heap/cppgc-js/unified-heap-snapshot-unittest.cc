@@ -32,7 +32,8 @@ class UnifiedHeapSnapshotTest : public UnifiedHeapTest {
  public:
   const v8::HeapSnapshot* TakeHeapSnapshot() {
     v8::HeapProfiler* heap_profiler = v8_isolate()->GetHeapProfiler();
-    return heap_profiler->TakeHeapSnapshot();
+    return heap_profiler->TakeHeapSnapshot(nullptr, nullptr,
+                                           false /* hide internals */);
   }
 };
 

@@ -7566,5 +7566,18 @@ EmbedderStackStateScope::~EmbedderStackStateScope() {
   local_tracer_->embedder_stack_state_ = old_stack_state_;
 }
 
+CppClassNamesAsHeapObjectNameScope::CppClassNamesAsHeapObjectNameScope(
+    v8::CppHeap* heap)
+    : cpp_heap_(CppHeap::From(heap)),
+      saved_heap_object_name_value_(cpp_heap_->name_of_unnamed_object()) {
+  cpp_heap_->set_name_of_unnamed_object(
+      cppgc::internal::HeapObjectNameForUnnamedObject::
+          kUseClassNameIfSupported);
+}
+
+CppClassNamesAsHeapObjectNameScope::~CppClassNamesAsHeapObjectNameScope() {
+  cpp_heap_->set_name_of_unnamed_object(saved_heap_object_name_value_);
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "include/v8-function.h"
+#include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/numbers/double.h"
 #include "src/base/platform/mutex.h"
@@ -996,10 +997,10 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   HeapProfiler* heap_profiler = isolate->heap_profiler();
   // Since this API is intended for V8 devs, we do not treat globals as roots
   // here on purpose.
-  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(
-      /* control = */ nullptr, /* resolver = */ nullptr,
-      /* treat_global_objects_as_roots = */ false,
-      /* capture_numeric_value = */ true);
+  v8::HeapProfiler::HeapSnapshotOptions options;
+  options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
+  options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
+  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(options);
   FileOutputStream stream(filename.c_str());
   HeapSnapshotJSONSerializer serializer(snapshot);
   serializer.Serialize(&stream);

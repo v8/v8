@@ -229,9 +229,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   // Returns whether objects should derive their name from C++ class names. Also
   // requires build-time support through `CPPGC_SUPPORTS_OBJECT_NAMES`.
   HeapObjectNameForUnnamedObject name_of_unnamed_object() const {
-    // TODO(chromium:1321620): Wire up flag with heap snapshot if exposing
-    // internals is requested.
-    return HeapObjectNameForUnnamedObject::kUseClassNameIfSupported;
+    return name_for_unnamed_object_;
+  }
+  void set_name_of_unnamed_object(HeapObjectNameForUnnamedObject value) {
+    name_for_unnamed_object_ = value;
   }
 
  protected:
@@ -313,6 +314,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   const MarkingType marking_support_;
   const SweepingType sweeping_support_;
   GenerationSupport generation_support_;
+
+  HeapObjectNameForUnnamedObject name_for_unnamed_object_ =
+      HeapObjectNameForUnnamedObject::kUseHiddenName;
 
   friend class MarkerBase::IncrementalMarkingTask;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;
