@@ -3434,18 +3434,8 @@ class LiftoffCompiler {
 
   template <ValueKind src_kind, ValueKind result_kind,
             ValueKind result_lane_kind = kVoid, typename EmitFn>
-  void EmitTerOp(EmitFn fn) {
-    static constexpr RegClass src_rc = reg_class_for(src_kind);
-    static constexpr RegClass result_rc = reg_class_for(result_kind);
-    LiftoffRegister src3 = __ PopToRegister();
-    LiftoffRegister src2 = __ PopToRegister(LiftoffRegList{src3});
-    LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src3, src2});
-    // Reusing src1 and src2 will complicate codegen for select for some
-    // backend, so we allow only reusing src3 (the mask), and pin src1 and src2.
-    LiftoffRegister dst = src_rc == result_rc
-                              ? __ GetUnusedRegister(result_rc, {src3},
-                                                     LiftoffRegList{src1, src2})
-                              : __ GetUnusedRegister(result_rc, {});
+  void EmitTerOp(EmitFn fn, LiftoffRegister dst, LiftoffRegister src1,
+                 LiftoffRegister src2, LiftoffRegister src3) {
     CallEmitFn(fn, dst, src1, src2, src3);
     if (V8_UNLIKELY(nondeterminism_)) {
       LiftoffRegList pinned = {dst};
@@ -3458,6 +3448,45 @@ class LiftoffCompiler {
       }
     }
     __ PushRegister(result_kind, dst);
+  }
+
+  template <ValueKind src_kind, ValueKind result_kind,
+            ValueKind result_lane_kind = kVoid, typename EmitFn>
+  void EmitTerOp(EmitFn fn) {
+    LiftoffRegister src3 = __ PopToRegister();
+    LiftoffRegister src2 = __ PopToRegister(LiftoffRegList{src3});
+    LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src3, src2});
+    static constexpr RegClass src_rc = reg_class_for(src_kind);
+    static constexpr RegClass result_rc = reg_class_for(result_kind);
+    // Reusing src1 and src2 will complicate codegen for select for some
+    // backend, so we allow only reusing src3 (the mask), and pin src1 and src2.
+    LiftoffRegister dst = src_rc == result_rc
+                              ? __ GetUnusedRegister(result_rc, {src3},
+                                                     LiftoffRegList{src1, src2})
+                              : __ GetUnusedRegister(result_rc, {});
+    EmitTerOp<src_kind, result_kind, result_lane_kind, EmitFn>(fn, dst, src1,
+                                                               src2, src3);
+  }
+
+  void EmitRelaxedLaneSelect() {
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+    if (!CpuFeatures::IsSupported(AVX)) {
+      LiftoffRegister mask(xmm0);
+      __ PopToFixedRegister(mask);
+      LiftoffRegister src2 = __ PopToModifiableRegister(LiftoffRegList{mask});
+      LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src2, mask});
+      EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_relaxed_laneselect,
+                              src2, src1, src2, mask);
+      return;
+    }
+#endif
+    LiftoffRegList pinned;
+    LiftoffRegister mask = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister src2 = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister src1 = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister dst = __ GetUnusedRegister(RegClass::kFpReg, {}, pinned);
+    EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_relaxed_laneselect,
+                            dst, src1, src2, mask);
   }
 
   template <typename EmitFn, typename EmitFnImm>
@@ -4033,6 +4062,11 @@ class LiftoffCompiler {
         return EmitSimdFmaOp(&LiftoffAssembler::emit_f64x2_qfma);
       case wasm::kExprF64x2Qfms:
         return EmitSimdFmaOp(&LiftoffAssembler::emit_f64x2_qfms);
+      case wasm::kExprI16x8RelaxedLaneSelect:
+      case wasm::kExprI8x16RelaxedLaneSelect:
+      case wasm::kExprI32x4RelaxedLaneSelect:
+      case wasm::kExprI64x2RelaxedLaneSelect:
+        return EmitRelaxedLaneSelect();
       default:
         unsupported(decoder, kSimd, "simd");
     }

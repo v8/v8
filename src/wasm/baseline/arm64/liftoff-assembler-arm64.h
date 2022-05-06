@@ -1781,6 +1781,13 @@ void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
   bailout(kSimd, "emit_i8x16_relaxed_swizzle");
 }
 
+void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
+                                                    LiftoffRegister src1,
+                                                    LiftoffRegister src2,
+                                                    LiftoffRegister mask) {
+  bailout(kSimd, "emit_s128_relaxed_laneselect");
+}
+
 void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   Dup(dst.fp().V2D(), src.fp().D(), 0);
