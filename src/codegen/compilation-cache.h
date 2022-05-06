@@ -65,9 +65,11 @@ class CompilationSubCache {
   Isolate* isolate() const { return isolate_; }
 
   // Ageing occurs either by removing the oldest generation, or with
-  // custom logic implemented in CompilationCacheTable::Age.
+  // custom subclass logic.
   static void AgeByGeneration(CompilationSubCache* c);
-  static void AgeCustom(CompilationSubCache* c);
+
+  // Returns null if there is no first table.
+  CompilationCacheTable MaybeGetFirstTable();
 
  private:
   Isolate* const isolate_;
@@ -82,12 +84,11 @@ class CompilationCacheScript : public CompilationSubCache {
  public:
   explicit CompilationCacheScript(Isolate* isolate);
 
-  MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                         const ScriptDetails& script_details,
-                                         LanguageMode language_mode);
+  using LookupResult = CompilationCacheScriptLookupResult;
+  LookupResult Lookup(Handle<String> source,
+                      const ScriptDetails& script_details);
 
-  void Put(Handle<String> source, LanguageMode language_mode,
-           Handle<SharedFunctionInfo> function_info);
+  void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
   void Age() override;
 
@@ -154,10 +155,10 @@ class V8_EXPORT_PRIVATE CompilationCache {
   CompilationCache(const CompilationCache&) = delete;
   CompilationCache& operator=(const CompilationCache&) = delete;
 
-  // Finds the script shared function info for a source
-  // string. Returns an empty handle if the cache doesn't contain a
-  // script for the given source string with the right origin.
-  MaybeHandle<SharedFunctionInfo> LookupScript(
+  // Finds the Script and root SharedFunctionInfo for a script source string.
+  // Returns empty handles if the cache doesn't contain a script for the given
+  // source string with the right origin.
+  CompilationCacheScript::LookupResult LookupScript(
       Handle<String> source, const ScriptDetails& script_details,
       LanguageMode language_mode);
 
@@ -174,7 +175,7 @@ class V8_EXPORT_PRIVATE CompilationCache {
   MaybeHandle<FixedArray> LookupRegExp(Handle<String> source,
                                        JSRegExp::Flags flags);
 
-  // Associate the (source, kind) pair to the shared function
+  // Associate the source string to the shared function
   // info. This may overwrite an existing mapping.
   void PutScript(Handle<String> source, LanguageMode language_mode,
                  Handle<SharedFunctionInfo> function_info);
@@ -223,6 +224,11 @@ class V8_EXPORT_PRIVATE CompilationCache {
 
   bool IsEnabledScriptAndEval() const {
     return FLAG_compilation_cache && enabled_script_and_eval_;
+  }
+  bool IsEnabledScript(LanguageMode language_mode) {
+    // Tests can change FLAG_use_strict at runtime. The compilation cache only
+    // contains scripts which were compiled with the default language mode.
+    return IsEnabledScriptAndEval() && language_mode == LanguageMode::kSloppy;
   }
 
   Isolate* isolate() const { return isolate_; }

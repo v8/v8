@@ -65,17 +65,75 @@ void CompilationSubCache::AgeByGeneration(CompilationSubCache* c) {
   c->tables_[0] = ReadOnlyRoots(c->isolate()).undefined_value();
 }
 
-// static
-void CompilationSubCache::AgeCustom(CompilationSubCache* c) {
-  DCHECK_EQ(c->generations(), 1);
-  if (c->tables_[0].IsUndefined(c->isolate())) return;
-  CompilationCacheTable::cast(c->tables_[0]).Age(c->isolate());
+CompilationCacheTable CompilationSubCache::MaybeGetFirstTable() {
+  DCHECK_GE(generations(), 1);
+  if (tables_[0].IsUndefined(isolate())) return {};
+  return CompilationCacheTable::cast(tables_[0]);
 }
 
 void CompilationCacheScript::Age() {
-  if (FLAG_isolate_script_cache_ageing) AgeCustom(this);
+  DisallowGarbageCollection no_gc;
+  if (!FLAG_isolate_script_cache_ageing) return;
+  DCHECK_EQ(generations(), 1);
+  CompilationCacheTable table = MaybeGetFirstTable();
+  if (table.is_null()) return;
+
+  for (InternalIndex entry : table.IterateEntries()) {
+    Object key;
+    if (!table.ToKey(isolate(), entry, &key)) continue;
+    DCHECK(key.IsWeakFixedArray());
+
+    Object value = table.PrimaryValueAt(entry);
+    if (!value.IsUndefined(isolate())) {
+      SharedFunctionInfo info = SharedFunctionInfo::cast(value);
+      if (!info.is_compiled() || (info.HasBytecodeArray() &&
+                                  info.GetBytecodeArray(isolate()).IsOld())) {
+        table.SetPrimaryValueAt(entry,
+                                ReadOnlyRoots(isolate()).undefined_value());
+      }
+    }
+  }
 }
-void CompilationCacheEval::Age() { AgeCustom(this); }
+
+void CompilationCacheEval::Age() {
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(generations(), 1);
+  CompilationCacheTable table = MaybeGetFirstTable();
+  if (table.is_null()) return;
+
+  for (InternalIndex entry : table.IterateEntries()) {
+    Object key;
+    if (!table.ToKey(isolate(), entry, &key)) continue;
+
+    if (key.IsNumber(isolate())) {
+      // The ageing mechanism for the initial dummy entry in the eval cache.
+      // The 'key' is the hash represented as a Number. The 'value' is a smi
+      // counting down from kHashGenerations. On reaching zero, the entry is
+      // cleared.
+      // Note: The following static assert only establishes an explicit
+      // connection between initialization- and use-sites of the smi value
+      // field.
+      STATIC_ASSERT(CompilationCacheTable::kHashGenerations);
+      const int new_count = Smi::ToInt(table.PrimaryValueAt(entry)) - 1;
+      if (new_count == 0) {
+        table.RemoveEntry(entry);
+      } else {
+        DCHECK_GT(new_count, 0);
+        table.SetPrimaryValueAt(entry, Smi::FromInt(new_count),
+                                SKIP_WRITE_BARRIER);
+      }
+    } else {
+      DCHECK(key.IsFixedArray());
+      // The ageing mechanism for eval caches.
+      SharedFunctionInfo info =
+          SharedFunctionInfo::cast(table.PrimaryValueAt(entry));
+      if (info.HasBytecodeArray() && info.GetBytecodeArray(isolate()).IsOld()) {
+        table.RemoveEntry(entry);
+      }
+    }
+  }
+}
+
 void CompilationCacheRegExp::Age() { AgeByGeneration(this); }
 
 void CompilationSubCache::Iterate(RootVisitor* v) {
@@ -110,10 +168,8 @@ namespace {
 // We only re-use a cached function for some script source code if the
 // script originates from the same place. This is to avoid issues
 // when reporting errors, etc.
-bool HasOrigin(Isolate* isolate, Handle<SharedFunctionInfo> function_info,
+bool HasOrigin(Isolate* isolate, Handle<Script> script,
                const ScriptDetails& script_details) {
-  Handle<Script> script =
-      Handle<Script>(Script::cast(function_info->script()), isolate);
   // If the script name isn't set, the boilerplate script should have
   // an undefined name to have the same origin.
   Handle<Object> name;
@@ -165,10 +221,10 @@ bool HasOrigin(Isolate* isolate, Handle<SharedFunctionInfo> function_info,
 // be cached in the same script generation. Currently the first use
 // will be cached, but subsequent code from different source / line
 // won't.
-MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
-    Handle<String> source, const ScriptDetails& script_details,
-    LanguageMode language_mode) {
-  MaybeHandle<SharedFunctionInfo> result;
+CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
+    Handle<String> source, const ScriptDetails& script_details) {
+  LookupResult result;
+  LookupResult::RawObjects raw_result;
 
   // Probe the script generation tables. Make sure not to leak handles
   // into the caller's handle scope.
@@ -177,28 +233,33 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     const int generation = 0;
     DCHECK_EQ(generations(), 1);
     Handle<CompilationCacheTable> table = GetTable(generation);
-    MaybeHandle<SharedFunctionInfo> probe = CompilationCacheTable::LookupScript(
-        table, source, language_mode, isolate());
-    Handle<SharedFunctionInfo> function_info;
-    if (probe.ToHandle(&function_info)) {
-      // Break when we've found a suitable shared function info that
-      // matches the origin.
-      if (HasOrigin(isolate(), function_info, script_details)) {
-        result = scope.CloseAndEscape(function_info);
+    LookupResult probe =
+        CompilationCacheTable::LookupScript(table, source, isolate());
+    Handle<Script> script;
+    if (probe.script().ToHandle(&script)) {
+      // Break when we've found a suitable script that matches the origin.
+      if (HasOrigin(isolate(), script, script_details)) {
+        raw_result = probe.GetRawObjects();
       }
     }
   }
+  result = LookupResult::FromRawObjects(raw_result, isolate());
 
   // Once outside the manacles of the handle scope, we need to recheck
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
-  Handle<SharedFunctionInfo> function_info;
-  if (result.ToHandle(&function_info)) {
-    // Since HasOrigin can allocate, we need to protect the SharedFunctionInfo
-    // with handles during the call.
-    DCHECK(HasOrigin(isolate(), function_info, script_details));
-    isolate()->counters()->compilation_cache_hits()->Increment();
-    LOG(isolate(), CompilationCacheEvent("hit", "script", *function_info));
+  Handle<Script> script;
+  if (result.script().ToHandle(&script)) {
+    // Since HasOrigin can allocate, we need to protect the lookup result with
+    // handles during the call.
+    DCHECK(HasOrigin(isolate(), script, script_details));
+    Handle<SharedFunctionInfo> sfi;
+    if (result.toplevel_sfi().ToHandle(&sfi)) {
+      isolate()->counters()->compilation_cache_hits()->Increment();
+      LOG(isolate(), CompilationCacheEvent("hit", "script", *sfi));
+    } else {
+      isolate()->counters()->compilation_cache_partial_hits()->Increment();
+    }
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
   }
@@ -206,12 +267,11 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
 }
 
 void CompilationCacheScript::Put(Handle<String> source,
-                                 LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(CompilationCacheTable::PutScript(table, source, language_mode,
-                                                 function_info, isolate()));
+  SetFirstTable(CompilationCacheTable::PutScript(table, source, function_info,
+                                                 isolate()));
 }
 
 InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
@@ -293,11 +353,11 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
   script_.Remove(function_info);
 }
 
-MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
+CompilationCacheScript::LookupResult CompilationCache::LookupScript(
     Handle<String> source, const ScriptDetails& script_details,
     LanguageMode language_mode) {
-  if (!IsEnabledScriptAndEval()) return MaybeHandle<SharedFunctionInfo>();
-  return script_.Lookup(source, script_details, language_mode);
+  if (!IsEnabledScript(language_mode)) return {};
+  return script_.Lookup(source, script_details);
 }
 
 InfoCellPair CompilationCache::LookupEval(Handle<String> source,
@@ -338,10 +398,10 @@ MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
 void CompilationCache::PutScript(Handle<String> source,
                                  LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
-  if (!IsEnabledScriptAndEval()) return;
+  if (!IsEnabledScript(language_mode)) return;
   LOG(isolate(), CompilationCacheEvent("put", "script", *function_info));
 
-  script_.Put(source, language_mode, function_info);
+  script_.Put(source, function_info);
 }
 
 void CompilationCache::PutEval(Handle<String> source,
