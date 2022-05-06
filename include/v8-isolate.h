@@ -286,6 +286,10 @@ class V8_EXPORT Isolate {
      * Callbacks to invoke in case of fatal or OOM errors.
      */
     FatalErrorCallback fatal_error_callback = nullptr;
+    LegacyOOMErrorCallback legacy_oom_error_callback = nullptr;
+    V8_DEPRECATE_SOON(
+        "Use legacy_oom_error_callback; OOMErrorCallback will be changed soon "
+        "(https://crbug.com/1323177)")
     OOMErrorCallback oom_error_callback = nullptr;
 
     /**
@@ -1475,7 +1479,7 @@ class V8_EXPORT Isolate {
   void SetFatalErrorHandler(FatalErrorCallback that);
 
   /** Set the callback to invoke in case of OOM errors. */
-  void SetOOMErrorHandler(OOMErrorCallback that);
+  void SetOOMErrorHandler(LegacyOOMErrorCallback that);
 
   /**
    * Add a callback to invoke in case the heap size is close to the heap limit.

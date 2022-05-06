@@ -172,7 +172,9 @@
 
 namespace v8 {
 
-static OOMErrorCallback g_oom_error_callback = nullptr;
+// TODO(chromium:1323177): Add a separate global for OOMErrorCallback once the
+// types diverge.
+static LegacyOOMErrorCallback g_oom_error_callback = nullptr;
 
 static ScriptOrigin GetScriptOriginForScript(i::Isolate* i_isolate,
                                              i::Handle<i::Script> script) {
@@ -330,7 +332,7 @@ void Utils::ReportApiFailure(const char* location, const char* message) {
 
 void Utils::ReportOOMFailure(i::Isolate* i_isolate, const char* location,
                              bool is_heap_oom) {
-  OOMErrorCallback oom_callback = i_isolate->oom_behavior();
+  LegacyOOMErrorCallback oom_callback = i_isolate->oom_behavior();
   if (oom_callback == nullptr) {
     // TODO(wfh): Remove this fallback once Blink is setting OOM handler. See
     // crbug.com/614440.
@@ -6118,7 +6120,7 @@ void V8::SetUnhandledExceptionCallback(
 #endif  // V8_OS_WIN
 
 void v8::V8::SetFatalMemoryErrorCallback(
-    v8::OOMErrorCallback oom_error_callback) {
+    v8::LegacyOOMErrorCallback oom_error_callback) {
   g_oom_error_callback = oom_error_callback;
 }
 
@@ -8629,9 +8631,18 @@ void Isolate::Initialize(Isolate* v8_isolate,
     v8_isolate->SetFatalErrorHandler(params.fatal_error_callback);
   }
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
   if (params.oom_error_callback) {
     v8_isolate->SetOOMErrorHandler(params.oom_error_callback);
+  } else if (params.legacy_oom_error_callback) {
+    v8_isolate->SetOOMErrorHandler(params.legacy_oom_error_callback);
   }
+#if __clang__
+#pragma clang diagnostic pop
+#endif
 
   if (params.counter_lookup_callback) {
     v8_isolate->SetCounterFunction(params.counter_lookup_callback);
@@ -9373,7 +9384,7 @@ size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
   }
 
 CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
-CALLBACK_SETTER(OOMErrorHandler, OOMErrorCallback, oom_behavior)
+CALLBACK_SETTER(OOMErrorHandler, LegacyOOMErrorCallback, oom_behavior)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback2,
                 modify_code_gen_callback2)

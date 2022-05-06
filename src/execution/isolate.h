@@ -465,7 +465,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
 #define ISOLATE_INIT_LIST(V)                                                  \
   /* Assembler state. */                                                      \
   V(FatalErrorCallback, exception_behavior, nullptr)                          \
-  V(OOMErrorCallback, oom_behavior, nullptr)                                  \
+  V(LegacyOOMErrorCallback, oom_behavior, nullptr)                            \
   V(LogEventCallback, event_logger, nullptr)                                  \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
   V(ModifyCodeGenerationFromStringsCallback, modify_code_gen_callback,        \

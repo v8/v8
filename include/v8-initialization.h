@@ -271,7 +271,7 @@ class V8_EXPORT V8 {
    * exceptions in V8-generated code.
    */
   static void SetUnhandledExceptionCallback(
-      UnhandledExceptionCallback unhandled_exception_callback);
+      UnhandledExceptionCallback callback);
 #endif
 
   /**
@@ -279,8 +279,7 @@ class V8_EXPORT V8 {
    * v8 has encountered a fatal failure to allocate memory and is about to
    * terminate.
    */
-
-  static void SetFatalMemoryErrorCallback(OOMErrorCallback oom_error_callback);
+  static void SetFatalMemoryErrorCallback(LegacyOOMErrorCallback callback);
 
   /**
    * Get statistics about the shared memory usage.
