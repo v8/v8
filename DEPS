@@ -36,6 +36,9 @@ vars = {
   'check_v8_header_includes': False,
   'checkout_reclient': False,
 
+  # By default, download the fuchsia sdk from the public sdk directory.
+  'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/gn/',
+
   # reclient CIPD package version
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
@@ -44,6 +47,11 @@ vars = {
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:2aa3d7e5e8662c5193059a490f07b7d91331933e',
+
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling Fuchsia sdk
+  # and whatever else without interference from each other.
+  'fuchsia_version': 'version:8.20220504.0.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -216,9 +224,15 @@ deps = {
   },
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6a1494e5d76a4d03d4a0ba1847110df1a8d1c868',
-  'third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '7c9c220d13ab367d49420144a257886ebfbce278',
+  'third_party/fuchsia-sdk/sdk': {
+    'packages': [
+        {
+            'package': Var('fuchsia_sdk_cipd_prefix') + '${{platform}}',
+            'version': Var('fuchsia_version'),
+        },
+    ],
     'condition': 'checkout_fuchsia',
+    'dep_type': 'cipd',
   },
   'third_party/google_benchmark/src': {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '8d86026c67e41b1f74e67c1b20cc8f73871bc76e',
@@ -579,15 +593,6 @@ hooks = [
     'pattern': '.',
     'action': ['python3', 'build/util/lastchange.py',
                '-o', 'build/util/LASTCHANGE'],
-  },
-  {
-    'name': 'Download Fuchsia SDK',
-    'pattern': '.',
-    'condition': 'checkout_fuchsia',
-    'action': [
-      'python3',
-      'build/fuchsia/update_sdk.py',
-    ],
   },
   {
     'name': 'Download Fuchsia system images',
