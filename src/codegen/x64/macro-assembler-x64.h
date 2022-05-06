@@ -416,8 +416,8 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(const ExternalReference& reference);
   void Jump(Operand op);
-  void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode,
-            Condition cc = always);
+  void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode);
+  void Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode, Condition cc);
 
   void BailoutIfDeoptimized(Register scratch);
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,

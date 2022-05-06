@@ -261,6 +261,19 @@ void RegisterEagerDeopt(MaglevCodeGenState* code_gen_state,
   }
 }
 
+void EmitEagerDeopt(MaglevCodeGenState* code_gen_state,
+                    EagerDeoptInfo* deopt_info) {
+  RegisterEagerDeopt(code_gen_state, deopt_info);
+  __ RecordComment("-- Jump to eager deopt");
+  __ jmp(&deopt_info->deopt_entry_label);
+}
+
+template <typename NodeT>
+void EmitEagerDeopt(MaglevCodeGenState* code_gen_state, NodeT* node) {
+  STATIC_ASSERT(NodeT::kProperties.can_eager_deopt());
+  EmitEagerDeopt(code_gen_state, node->eager_deopt_info());
+}
+
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
                       EagerDeoptInfo* deopt_info) {
   RegisterEagerDeopt(code_gen_state, deopt_info);
@@ -1148,7 +1161,7 @@ void Deopt::AllocateVreg(MaglevVregAllocationState* vreg_state,
                          const ProcessingState& state) {}
 void Deopt::GenerateCode(MaglevCodeGenState* code_gen_state,
                          const ProcessingState& state) {
-  EmitEagerDeoptIf(always, code_gen_state, this);
+  EmitEagerDeopt(code_gen_state, this);
 }
 
 void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state,

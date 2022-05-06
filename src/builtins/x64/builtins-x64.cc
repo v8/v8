@@ -1254,7 +1254,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     Label loop_header;
     Label loop_check;
     __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
-    __ j(always, &loop_check, Label::kNear);
+    __ jmp(&loop_check, Label::kNear);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
     __ Push(kInterpreterAccumulatorRegister);

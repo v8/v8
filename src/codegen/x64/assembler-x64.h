@@ -83,10 +83,6 @@ enum Condition {
   less_equal = 14,
   greater = 15,
 
-  // Fake conditions that are handled by the
-  // opcodes using them.
-  always = 16,
-  never = 17,
   // aliases
   carry = below,
   not_carry = above_equal,
@@ -94,7 +90,6 @@ enum Condition {
   not_zero = not_equal,
   sign = negative,
   not_sign = positive,
-  last_condition = greater
 };
 
 // Returns the equivalent of !cc.
