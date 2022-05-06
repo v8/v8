@@ -1253,11 +1253,17 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
     // This path cannot rely on ip containing code entry.
     PushCommonFrame();
     LoadConstantPoolPointerRegister();
-    mov(ip, Operand(StackFrame::TypeToMarker(type)));
-    push(ip);
+    if (!StackFrame::IsJavaScript(type)) {
+      mov(ip, Operand(StackFrame::TypeToMarker(type)));
+      push(ip);
+    }
   } else {
-    mov(ip, Operand(StackFrame::TypeToMarker(type)));
-    PushCommonFrame(ip);
+    Register scratch = no_reg;
+    if (!StackFrame::IsJavaScript(type)) {
+      scratch = ip;
+      mov(scratch, Operand(StackFrame::TypeToMarker(type)));
+    }
+    PushCommonFrame(scratch);
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
