@@ -423,6 +423,11 @@ class JSTemporalTimeZone
       Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
       Handle<Object> starting_point);
 
+  // #sec-temporal.timezone.prototype.getpossibleinstantsfor
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetPossibleInstantsFor(
+      Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+      Handle<Object> date_time);
+
   // #sec-temporal.timezone.prototype.tostring
   static MaybeHandle<Object> ToString(Isolate* isolate,
                                       Handle<JSTemporalTimeZone> time_zone,
@@ -440,6 +445,8 @@ class JSTemporalTimeZone
   DECLARE_TEMPORAL_INLINE_GETTER_SETTER(offset_sub_milliseconds)
 
   int32_t time_zone_index() const;
+  static constexpr uint32_t kUTCTimeZoneIndex = 0;
+
   int64_t offset_nanoseconds() const;
   void set_offset_nanoseconds(int64_t offset_nanoseconds);
 

@@ -280,8 +280,6 @@ TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToPlainDate)
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetNanosecondsFor)
 /* Temporal #sec-temporal.timezone.prototype.getoffsetstringfor */
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetStringFor)
-/* Temporal #sec-temporal.timezone.prototype.getpossibleinstantsfor */
-TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPossibleInstantsFor)
 
 /* Temporal.Calendar */
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
@@ -807,6 +805,8 @@ BUILTIN(TemporalCalendarFrom) {
 // TimeZone
 TEMPORAL_CONSTRUCTOR1(TimeZone)
 TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetInstantFor, getInstantFor)
+TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPossibleInstantsFor,
+                           getPossibleInstantFor)
 
 // #sec-get-temporal.timezone.prototype.id
 BUILTIN(TemporalTimeZonePrototypeId) {

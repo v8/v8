@@ -256,8 +256,8 @@ V8_WARN_UNUSED_RESULT Maybe<NanosecondsToDaysResult> NanosecondsToDays(
 enum class OffsetBehaviour { kOption, kExact, kWall };
 
 V8_WARN_UNUSED_RESULT
-MaybeHandle<BigInt> GetEpochFromISOParts(Isolate* isolate,
-                                         const DateTimeRecordCommon& date_time);
+Handle<BigInt> GetEpochFromISOParts(Isolate* isolate,
+                                    const DateTimeRecordCommon& date_time);
 
 int32_t DurationSign(Isolate* isolaet, const DurationRecord& dur);
 
@@ -1018,7 +1018,7 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
   }
 #ifdef V8_INTL_SUPPORT
   int32_t time_zone_index = Intl::GetTimeZoneIndex(isolate, identifier);
-  if (time_zone_index >= 0) {
+  if (time_zone_index >= JSTemporalTimeZone::kUTCTimeZoneIndex) {
     return CreateTemporalTimeZoneFromIndex(isolate, target, new_target,
                                            time_zone_index);
   }
@@ -1329,17 +1329,12 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
   // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
   // dateTime.[[ISONanosecond]]).
-  Handle<BigInt> epoch_nanoseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, epoch_nanoseconds,
-      GetEpochFromISOParts(
-          isolate,
-          {{date_time->iso_year(), date_time->iso_month(),
-            date_time->iso_day()},
-           {date_time->iso_hour(), date_time->iso_minute(),
-            date_time->iso_second(), date_time->iso_millisecond(),
-            date_time->iso_microsecond(), date_time->iso_nanosecond()}}),
-      JSTemporalInstant);
+  Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(
+      isolate,
+      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+        date_time->iso_millisecond(), date_time->iso_microsecond(),
+        date_time->iso_nanosecond()}});
 
   // 8. Let dayBefore be ! CreateTemporalInstant(epochNanoseconds − 8.64 ×
   // 10^13).
@@ -2775,10 +2770,8 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   // 5. Let utc be ? GetEpochFromISOParts(result.[[Year]], result.[[Month]],
   // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
   // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]]).
-  Handle<BigInt> utc;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, utc, GetEpochFromISOParts(isolate, {result.date, result.time}),
-      BigInt);
+  Handle<BigInt> utc =
+      GetEpochFromISOParts(isolate, {result.date, result.time});
 
   // 6. If utc < −8.64 × 10^21 or utc > 8.64 × 10^21, then
   if ((BigInt::CompareToNumber(utc, factory->NewNumber(-8.64e21)) ==
@@ -4789,8 +4782,8 @@ bool IsValidEpochNanoseconds(Isolate* isolate,
   return !(ns < -86400 * 1e17 || ns > 86400 * 1e17);
 }
 
-MaybeHandle<BigInt> GetEpochFromISOParts(
-    Isolate* isolate, const DateTimeRecordCommon& date_time) {
+Handle<BigInt> GetEpochFromISOParts(Isolate* isolate,
+                                    const DateTimeRecordCommon& date_time) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: year, month, day, hour, minute, second, millisecond,
   // microsecond, and nanosecond are integers.
@@ -4809,28 +4802,25 @@ MaybeHandle<BigInt> GetEpochFromISOParts(
   double ms = MakeDate(date, time);
   // 7. Assert: ms is finite.
   // 8. Return ℝ(ms) × 10^6 + microsecond × 10^3 + nanosecond.
-  Handle<BigInt> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      BigInt::FromNumber(isolate, isolate->factory()->NewNumber(ms)), BigInt);
-
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      BigInt::Multiply(isolate, result, BigInt::FromInt64(isolate, 1000000)),
-      BigInt);
-
-  Handle<BigInt> temp;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate,
-                       BigInt::FromInt64(isolate, date_time.time.microsecond),
-                       BigInt::FromInt64(isolate, 1000)),
-      BigInt);
-
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             BigInt::Add(isolate, result, temp), BigInt);
-  return BigInt::Add(isolate, result,
-                     BigInt::FromInt64(isolate, date_time.time.nanosecond));
+  return BigInt::Add(
+             isolate,
+             BigInt::Add(
+                 isolate,
+                 BigInt::Multiply(
+                     isolate,
+                     BigInt::FromNumber(isolate,
+                                        isolate->factory()->NewNumber(ms))
+                         .ToHandleChecked(),
+                     BigInt::FromInt64(isolate, 1000000))
+                     .ToHandleChecked(),
+                 BigInt::Multiply(
+                     isolate,
+                     BigInt::FromInt64(isolate, date_time.time.microsecond),
+                     BigInt::FromInt64(isolate, 1000))
+                     .ToHandleChecked())
+                 .ToHandleChecked(),
+             BigInt::FromInt64(isolate, date_time.time.nanosecond))
+      .ToHandleChecked();
 }
 
 // #sec-temporal-durationsign
@@ -6807,7 +6797,7 @@ MaybeHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
                                                   int32_t time_zone_index) {
 #ifdef V8_INTL_SUPPORT
   // TODO(ftang) Add support for non UTC timezone
-  DCHECK_EQ(time_zone_index, 0);
+  DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
   return isolate->factory()->null_value();
 #else   // V8_INTL_SUPPORT
   return isolate->factory()->null_value();
@@ -6819,7 +6809,7 @@ MaybeHandle<Object> GetIANATimeZonePreviousTransition(
     Isolate* isolate, Handle<BigInt> nanoseconds, int32_t time_zone_index) {
 #ifdef V8_INTL_SUPPORT
   // TODO(ftang) Add support for non UTC timezone
-  DCHECK_EQ(time_zone_index, 0);
+  DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
   return isolate->factory()->null_value();
 #else   // V8_INTL_SUPPORT
   return isolate->factory()->null_value();
@@ -6911,6 +6901,102 @@ MaybeHandle<Object> JSTemporalTimeZone::GetPreviousTransition(
       "Temporal.TimeZone.prototype.getPreviousTransition");
 }
 
+// #sec-temporal.timezone.prototype.getpossibleinstantsfor
+// #sec-temporal-getianatimezoneepochvalue
+MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
+    Isolate* isolate, int32_t time_zone_index,
+    const DateTimeRecordCommon& date_time) {
+  Factory* factory = isolate->factory();
+  // 6. Let possibleInstants be a new empty List.
+  Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(isolate, date_time);
+  Handle<FixedArray> fixed_array;
+  if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
+    fixed_array = factory->NewFixedArray(1);
+    // 7. For each value epochNanoseconds in possibleEpochNanoseconds, do
+    // a. Let instant be ! CreateTemporalInstant(epochNanoseconds).
+    Handle<JSTemporalInstant> instant =
+        temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
+            .ToHandleChecked();
+    // b. Append instant to possibleInstants.
+    fixed_array->set(0, *instant);
+  } else {
+#ifdef V8_INTL_SUPPORT
+    // TODO(ftang) put in 402 version of implementation calling intl classes.
+    UNIMPLEMENTED();
+#else
+    UNREACHABLE();
+#endif  // V8_INTL_SUPPORT
+  }
+
+  // 8. Return ! CreateArrayFromList(possibleInstants).
+  return factory->NewJSArrayWithElements(fixed_array);
+}
+
+namespace {
+MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
+    Isolate* isolate, Handle<Object> item_obj, Handle<JSReceiver> options,
+    const char* method_name);
+}  // namespace
+
+// #sec-temporal.timezone.prototype.getpossibleinstantsfor
+MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> date_time_obj) {
+  Factory* factory = isolate->factory();
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimezone]]).
+  // 3. Set dateTime to ? ToTemporalDateTime(dateTime).
+  Handle<JSTemporalPlainDateTime> date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_time,
+      ToTemporalDateTime(isolate, date_time_obj,
+                         isolate->factory()->NewJSObjectWithNullProto(),
+                         "Temporal.TimeZone.prototype.getPossibleInstantsFor"),
+      JSArray);
+  DateTimeRecordCommon date_time_record = {
+      {date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+      {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+       date_time->iso_millisecond(), date_time->iso_microsecond(),
+       date_time->iso_nanosecond()}};
+  // 4. If timeZone.[[OffsetNanoseconds]] is not undefined, then
+  if (time_zone->is_offset()) {
+    // a. Let epochNanoseconds be ! GetEpochFromISOParts(dateTime.[[ISOYear]],
+    // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+    // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+    // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+    // dateTime.[[ISONanosecond]]).
+    Handle<BigInt> epoch_nanoseconds =
+        GetEpochFromISOParts(isolate, date_time_record);
+    // b. Let instant be ! CreateTemporalInstant(epochNanoseconds −
+    // timeZone.[[OffsetNanoseconds]]).
+    Handle<JSTemporalInstant> instant =
+        temporal::CreateTemporalInstant(
+            isolate,
+            BigInt::Subtract(
+                isolate, epoch_nanoseconds,
+                BigInt::FromInt64(isolate, time_zone->offset_nanoseconds()))
+                .ToHandleChecked())
+            .ToHandleChecked();
+    // c. Return ! CreateArrayFromList(« instant »).
+    Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+    fixed_array->set(0, *instant);
+    return factory->NewJSArrayWithElements(fixed_array);
+  }
+
+  // 5. Let possibleEpochNanoseconds be ?
+  // GetIANATimeZoneEpochValue(timeZone.[[Identifier]], dateTime.[[ISOYear]],
+  // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+  // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+  // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+  // dateTime.[[ISONanosecond]]).
+
+  // ... Step 5-8 put into GetIANATimeZoneEpochValueAsArrayOfInstant
+  // 8. Return ! CreateArrayFromList(possibleInstants).
+  return GetIANATimeZoneEpochValueAsArrayOfInstant(
+      isolate, time_zone->time_zone_index(), date_time_record);
+}
+
 // #sec-temporal.timezone.prototype.tostring
 MaybeHandle<Object> JSTemporalTimeZone::ToString(
     Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
@@ -6943,7 +7029,7 @@ MaybeHandle<String> JSTemporalTimeZone::id(Isolate* isolate) const {
       Intl::TimeZoneIdFromIndex(offset_milliseconds_or_time_zone_index());
   return isolate->factory()->NewStringFromAsciiChecked(id.c_str());
 #else   // V8_INTL_SUPPORT
-  DCHECK_EQ(0, offset_milliseconds_or_time_zone_index());
+  DCHECK_EQ(kUTCTimeZoneIndex, offset_milliseconds_or_time_zone_index());
   return isolate->factory()->UTC_string();
 #endif  // V8_INTL_SUPPORT
 }
