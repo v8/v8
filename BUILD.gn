@@ -501,6 +501,17 @@ if (v8_enable_sandbox == "") {
       v8_enable_external_code_space
 }
 
+# Enable sandboxed pointers on desktop when the sandbox is enabled.
+if (v8_enable_sandbox) {
+  # When sanitizers are enabled, PartitionAlloc forwards allocations to malloc
+  # instead of allocating from its Pools and so isn't compatible with the
+  # sandbox. As such, disable the sandbox there. See https://crbug.com/1323174
+  if (!is_asan && !is_hwasan && !is_lsan && !is_tsan && !is_msan) {
+    v8_enable_sandboxed_pointers =
+        target_os != "fuchsia" && target_os != "android"
+  }
+}
+
 # Enable all available sandbox features if sandbox future is enabled.
 if (v8_enable_sandbox_future) {
   v8_enable_sandboxed_pointers = true
