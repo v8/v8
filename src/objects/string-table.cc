@@ -482,8 +482,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   // For lookup misses, the internalized string map is the same map in RO space
   // regardless of which thread is doing the lookup.
   //
-  // For lookup hits, String::MakeThin is threadsafe and spinlocks on
-  // migrating into a ThinString.
+  // For lookup hits, we use the StringForwardingTable for shared strings to
+  // delay the transition into a ThinString to the next stop-the-world GC.
 
   string = String::Flatten(isolate, string);
   if (string->IsInternalizedString()) return string;

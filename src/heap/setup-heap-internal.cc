@@ -406,9 +406,6 @@ bool Heap::CreateInitialMaps() {
       if (StringShape(entry.type).IsCons()) map.mark_unstable();
       roots_table()[entry.index] = map.ptr();
     }
-    ALLOCATE_VARSIZE_MAP(SHARED_STRING_TYPE, seq_string_migration_sentinel);
-    ALLOCATE_VARSIZE_MAP(SHARED_ONE_BYTE_STRING_TYPE,
-                         one_byte_seq_string_migration_sentinel);
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     roots.fixed_double_array_map().set_elements_kind(HOLEY_DOUBLE_ELEMENTS);

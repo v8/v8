@@ -1070,25 +1070,6 @@ MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
 }
 
 template <typename Impl>
-Handle<Map> FactoryBase<Impl>::GetStringMigrationSentinelMap(
-    InstanceType from_string_type) {
-  Handle<Map> map;
-  switch (from_string_type) {
-    case SHARED_STRING_TYPE:
-      map = read_only_roots().seq_string_migration_sentinel_map_handle();
-      break;
-    case SHARED_ONE_BYTE_STRING_TYPE:
-      map =
-          read_only_roots().one_byte_seq_string_migration_sentinel_map_handle();
-      break;
-    default:
-      UNREACHABLE();
-  }
-  DCHECK_EQ(map->instance_type(), from_string_type);
-  return map;
-}
-
-template <typename Impl>
 AllocationType
 FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
     AllocationType allocation, Map string_map) {

@@ -150,10 +150,6 @@ class Symbol;
   V(Map, shared_string_map, SharedStringMap)                                   \
   V(Map, shared_thin_one_byte_string_map, SharedThinOneByteStringMap)          \
   V(Map, shared_thin_string_map, SharedThinStringMap)                          \
-  V(Map, seq_string_migration_sentinel_map,                                    \
-    TwoByteSeqStringMigrationSentinelMap)                                      \
-  V(Map, one_byte_seq_string_migration_sentinel_map,                           \
-    OneByteSeqStringMigrationSentinelMap)                                      \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \
