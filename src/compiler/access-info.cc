@@ -482,12 +482,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       dependencies()->FieldTypeDependencyOffTheRecord(
           map, descriptor, descriptors_field_type_ref.value()));
 
-  PropertyConstness constness;
-  if (details.IsReadOnly() && !details.IsConfigurable()) {
-    constness = PropertyConstness::kConst;
-  } else {
-    constness = dependencies()->DependOnFieldConstness(map, descriptor);
-  }
+  PropertyConstness constness =
+      dependencies()->DependOnFieldConstness(map, descriptor);
 
   // Note: FindFieldOwner may be called multiple times throughout one
   // compilation. This is safe since its result is fixed for a given map and
