@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0c83e78c82d2e24d751711c0ecde15bff4b564eb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a1147fb865fb7ffbd72aca0ba48a4eedf62be5b0',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7208eddba161d85108097c3c5975264c04e3cad8',
   'buildtools/clang_format/script':
@@ -111,9 +111,9 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '79a2e924d96e2fc1e4b937c42efd08898fa472d7',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'ce96725bdddd44e1302417f22634e369531ff25c',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'fb82ddb71cd5bbeee7367086dd76d4ca9b0ff240',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'f1108b6ba347b4d22f6354c0e5eba3b6e4972ee1',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '3d54d41c27afba1e3a83303c1bc005d303d40eb6',
   'buildtools/win': {
     'packages': [
       {
@@ -207,7 +207,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '58f3286ec232f469dbae285d75b060af2e61d8a6',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '7979ffe0227feed94a5825d73851811d3501963f',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -215,7 +215,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '443d9135cc33f3156d5fe25ebec33f9adffbab65',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6a1494e5d76a4d03d4a0ba1847110df1a8d1c868',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '7c9c220d13ab367d49420144a257886ebfbce278',
     'condition': 'checkout_fuchsia',
