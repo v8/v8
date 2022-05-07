@@ -3139,6 +3139,13 @@ void LiftoffStackSlots::Construct(int param_slots) {
   }
 }
 
+void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
+                                                    LiftoffRegister src1,
+                                                    LiftoffRegister src2,
+                                                    LiftoffRegister mask) {
+  bailout(kSimd, "emit_s128_relaxed_laneselect");
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
