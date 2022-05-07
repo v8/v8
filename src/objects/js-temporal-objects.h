@@ -445,7 +445,7 @@ class JSTemporalTimeZone
   DECLARE_TEMPORAL_INLINE_GETTER_SETTER(offset_sub_milliseconds)
 
   int32_t time_zone_index() const;
-  static constexpr uint32_t kUTCTimeZoneIndex = 0;
+  static constexpr int32_t kUTCTimeZoneIndex = 0;
 
   int64_t offset_nanoseconds() const;
   void set_offset_nanoseconds(int64_t offset_nanoseconds);

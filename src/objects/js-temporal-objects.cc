@@ -1018,7 +1018,7 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
   }
 #ifdef V8_INTL_SUPPORT
   int32_t time_zone_index = Intl::GetTimeZoneIndex(isolate, identifier);
-  if (time_zone_index >= JSTemporalTimeZone::kUTCTimeZoneIndex) {
+  if (time_zone_index >= 0) {
     return CreateTemporalTimeZoneFromIndex(isolate, target, new_target,
                                            time_zone_index);
   }
