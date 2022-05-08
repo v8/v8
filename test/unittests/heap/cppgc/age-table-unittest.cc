@@ -196,5 +196,15 @@ TEST_F(AgeTableTest, SetAgeForMultipleCardsConsiderAdjacentCards) {
   EXPECT_EQ(Age::kYoung, GetAge(object_end));
 }
 
+TEST_F(AgeTableTest, MarkAllCardsAsYoung) {
+  void* heap_start = Heap::From(GetHeap())->caged_heap().base();
+  void* heap_end =
+      static_cast<uint8_t*>(heap_start) + kCagedHeapReservationSize - 1;
+  AssertAgeForAddressRange(heap_start, heap_end, Age::kOld);
+  SetAgeForAddressRange(heap_start, heap_end, Age::kYoung,
+                        AdjacentCardsPolicy::kIgnore);
+  AssertAgeForAddressRange(heap_start, heap_end, Age::kYoung);
+}
+
 }  // namespace internal
 }  // namespace cppgc
