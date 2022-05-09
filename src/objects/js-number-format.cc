@@ -1648,23 +1648,11 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   icu::number::LocalizedNumberFormatter icu_number_formatter =
       settings.locale(icu_locale);
 
-  icu::number::LocalizedNumberRangeFormatter icu_number_range_formatter =
-      icu::number::UnlocalizedNumberRangeFormatter()
-          .numberFormatterBoth(settings)
-          .locale(icu_locale);
-
   Handle<Managed<icu::number::LocalizedNumberFormatter>>
       managed_number_formatter =
           Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
               isolate, 0,
               new icu::number::LocalizedNumberFormatter(icu_number_formatter));
-
-  Handle<Managed<icu::number::LocalizedNumberRangeFormatter>>
-      managed_number_range_formatter =
-          Managed<icu::number::LocalizedNumberRangeFormatter>::FromRawPtr(
-              isolate, 0,
-              new icu::number::LocalizedNumberRangeFormatter(
-                  icu_number_range_formatter));
 
   // Now all properties are ready, so we can allocate the result object.
   Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>::cast(
@@ -1673,8 +1661,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   number_format->set_locale(*locale_str);
 
   number_format->set_icu_number_formatter(*managed_number_formatter);
-  number_format->set_icu_number_range_formatter(
-      *managed_number_range_formatter);
   number_format->set_bound_format(*factory->undefined_value());
 
   // 31. Return numberFormat.
@@ -2089,11 +2075,16 @@ MaybeHandle<T> PartitionNumberRangePattern(Isolate* isolate,
   Maybe<icu::Formattable> maybe_y = ToFormattable(isolate, y, "end");
   MAYBE_RETURN(maybe_y, MaybeHandle<T>());
 
-  icu::number::LocalizedNumberRangeFormatter* nrfmt =
-      number_format->icu_number_range_formatter().raw();
-  CHECK_NOT_NULL(nrfmt);
+  Maybe<icu::number::LocalizedNumberRangeFormatter> maybe_range_formatter =
+      JSNumberFormat::GetRangeFormatter(
+          isolate, number_format->locale(),
+          *number_format->icu_number_formatter().raw());
+  MAYBE_RETURN(maybe_range_formatter, MaybeHandle<T>());
+
+  icu::number::LocalizedNumberRangeFormatter nrfmt =
+      maybe_range_formatter.FromJust();
   UErrorCode status = U_ZERO_ERROR;
-  icu::number::FormattedNumberRange formatted = nrfmt->formatFormattableRange(
+  icu::number::FormattedNumberRange formatted = nrfmt.formatFormattableRange(
       maybe_x.FromJust(), maybe_y.FromJust(), status);
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR_RETURN_VALUE(
@@ -2139,6 +2130,26 @@ MaybeHandle<JSArray> FormatRangeToJSArray(
 }
 
 }  // namespace
+
+Maybe<icu::number::LocalizedNumberRangeFormatter>
+JSNumberFormat::GetRangeFormatter(
+    Isolate* isolate, String locale,
+    const icu::number::LocalizedNumberFormatter& number_formatter) {
+  UErrorCode status = U_ZERO_ERROR;
+  UParseError perror;
+  icu::number::LocalizedNumberRangeFormatter range_formatter =
+      icu::number::UnlocalizedNumberRangeFormatter()
+          .numberFormatterBoth(icu::number::NumberFormatter::forSkeleton(
+              number_formatter.toSkeleton(status), perror, status))
+          .locale(
+              icu::Locale::forLanguageTag(locale.ToCString().get(), status));
+  if (U_FAILURE(status)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewTypeError(MessageTemplate::kIcuError),
+        Nothing<icu::number::LocalizedNumberRangeFormatter>());
+  }
+  return Just(range_formatter);
+}
 
 MaybeHandle<String> JSNumberFormat::FormatNumeric(
     Isolate* isolate,

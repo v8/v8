@@ -72,8 +72,6 @@ class JSPluralRules
   DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
   DECL_ACCESSORS(icu_number_formatter,
                  Managed<icu::number::LocalizedNumberFormatter>)
-  DECL_ACCESSORS(icu_number_range_formatter,
-                 Managed<icu::number::LocalizedNumberRangeFormatter>)
 
   TQ_OBJECT_CONSTRUCTORS(JSPluralRules)
 };

@@ -88,12 +88,15 @@ class JSNumberFormat
       const Intl::NumberFormatDigitOptions& digit_options,
       int rounding_increment, ShowTrailingZeros show);
 
+  V8_WARN_UNUSED_RESULT static Maybe<icu::number::LocalizedNumberRangeFormatter>
+  GetRangeFormatter(
+      Isolate* isolate, String locale,
+      const icu::number::LocalizedNumberFormatter& number_formatter);
+
   DECL_PRINTER(JSNumberFormat)
 
   DECL_ACCESSORS(icu_number_formatter,
                  Managed<icu::number::LocalizedNumberFormatter>)
-  DECL_ACCESSORS(icu_number_range_formatter,
-                 Managed<icu::number::LocalizedNumberRangeFormatter>)
 
   TQ_OBJECT_CONSTRUCTORS(JSNumberFormat)
 };
