@@ -163,21 +163,23 @@ TEST(MemoryChunk) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   size_t area_size;
 
+  bool jitless = isolate->jitless();
+
   for (int i = 0; i < 100; i++) {
     area_size =
         RoundUp(PseudorandomAreaSize(), page_allocator->CommitPageSize());
 
     // With CodeRange.
     const size_t code_range_size = 32 * MB;
-    VirtualMemory code_range_reservation(page_allocator, code_range_size,
-                                         nullptr, MemoryChunk::kAlignment,
-                                         JitPermission::kMapAsJittable);
+    VirtualMemory code_range_reservation(
+        page_allocator, code_range_size, nullptr, MemoryChunk::kAlignment,
+        jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable);
 
     base::PageFreeingMode page_freeing_mode =
         base::PageFreeingMode::kMakeInaccessible;
 
     // On MacOS on ARM64 the code range reservation must be committed as RWX.
-    if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
+    if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !jitless) {
       page_freeing_mode = base::PageFreeingMode::kDiscard;
       void* base = reinterpret_cast<void*>(code_range_reservation.address());
       CHECK(page_allocator->SetPermissions(base, code_range_size,

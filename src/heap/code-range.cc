@@ -131,7 +131,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   params.page_size = MemoryChunk::kPageSize;
   params.requested_start_hint =
       GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
-  params.jit = JitPermission::kMapAsJittable;
+  params.jit =
+      FLAG_jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable;
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 
