@@ -2020,8 +2020,13 @@ namespace {
 // separate code spaces being allocated (compile time and runtime overhead),
 // choosing them too large results in over-reservation (virtual address space
 // only).
-// In doubt, choose the numbers slightly too large, because over-reservation is
-// less critical than multiple separate code spaces (especially on 64-bit).
+// In doubt, choose the numbers slightly too large on 64-bit systems (where
+// {kNeedsFarJumpsBetweenCodeSpaces} is {true}). Over-reservation is less
+// critical in a 64-bit address space, but separate code spaces cause overhead.
+// On 32-bit systems (where {kNeedsFarJumpsBetweenCodeSpaces} is {false}), the
+// opposite is true: Multiple code spaces are cheaper, and address space is
+// scarce, hence choose numbers slightly too small.
+//
 // Numbers can be determined by running benchmarks with
 // --trace-wasm-compilation-times, and piping the output through
 // tools/wasm/code-size-factors.py.
@@ -2033,13 +2038,13 @@ constexpr size_t kLiftoffCodeSizeMultiplier = 4;
 constexpr size_t kImportSize = 640;
 #elif V8_TARGET_ARCH_IA32
 constexpr size_t kTurbofanFunctionOverhead = 20;
-constexpr size_t kTurbofanCodeSizeMultiplier = 4;
+constexpr size_t kTurbofanCodeSizeMultiplier = 3;
 constexpr size_t kLiftoffFunctionOverhead = 48;
-constexpr size_t kLiftoffCodeSizeMultiplier = 5;
-constexpr size_t kImportSize = 320;
+constexpr size_t kLiftoffCodeSizeMultiplier = 3;
+constexpr size_t kImportSize = 600;
 #elif V8_TARGET_ARCH_ARM
 constexpr size_t kTurbofanFunctionOverhead = 44;
-constexpr size_t kTurbofanCodeSizeMultiplier = 4;
+constexpr size_t kTurbofanCodeSizeMultiplier = 3;
 constexpr size_t kLiftoffFunctionOverhead = 96;
 constexpr size_t kLiftoffCodeSizeMultiplier = 5;
 constexpr size_t kImportSize = 550;
