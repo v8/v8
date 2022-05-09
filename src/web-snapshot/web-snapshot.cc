@@ -23,7 +23,6 @@ namespace v8 {
 namespace internal {
 
 constexpr uint8_t WebSnapshotSerializerDeserializer::kMagicNumber[4];
-constexpr int WebSnapshotSerializerDeserializer::kBuiltinObjectCount;
 
 // When encountering an error during deserializing, we note down the error but
 // don't bail out from processing the snapshot further. This is to speed up
@@ -46,16 +45,6 @@ void WebSnapshotSerializerDeserializer::Throw(const char* message) {
         MessageTemplate::kWebSnapshotError,
         factory()->NewStringFromAsciiChecked(error_message_)));
   }
-}
-
-void WebSnapshotSerializerDeserializer::IterateBuiltinObjects(
-    std::function<void(String, HeapObject)> func) {
-  // TODO(v8:11525): Add more builtins.
-  auto roots = ReadOnlyRoots(isolate_);
-  func(roots.Error_string(), isolate_->context().error_function());
-  func(*factory()->NewStringFromAsciiChecked("Error.prototype"),
-       isolate_->context().error_function().instance_prototype());
-  STATIC_ASSERT(kBuiltinObjectCount == 2);
 }
 
 uint32_t WebSnapshotSerializerDeserializer::FunctionKindToFunctionFlags(
@@ -210,14 +199,13 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
       string_serializer_(isolate_, nullptr),
       symbol_serializer_(isolate_, nullptr),
       map_serializer_(isolate_, nullptr),
-      builtin_object_serializer_(isolate_, nullptr),
       context_serializer_(isolate_, nullptr),
       function_serializer_(isolate_, nullptr),
       class_serializer_(isolate_, nullptr),
       array_serializer_(isolate_, nullptr),
       object_serializer_(isolate_, nullptr),
       export_serializer_(isolate_, nullptr),
-      external_object_ids_(isolate_->heap()),
+      external_objects_ids_(isolate_->heap()),
       string_ids_(isolate_->heap()),
       symbol_ids_(isolate_->heap()),
       map_ids_(isolate_->heap()),
@@ -226,8 +214,6 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
       class_ids_(isolate_->heap()),
       array_ids_(isolate_->heap()),
       object_ids_(isolate_->heap()),
-      builtin_object_to_name_(isolate_->heap()),
-      builtin_object_ids_(isolate_->heap()),
       all_strings_(isolate_->heap()) {
   auto empty_array_list = factory()->empty_array_list();
   strings_ = empty_array_list;
@@ -252,10 +238,6 @@ bool WebSnapshotSerializer::TakeSnapshot(
   if (!maybe_externals.is_null()) {
     ShallowDiscoverExternals(*maybe_externals.ToHandleChecked());
   }
-
-  v8::Local<v8::Context> context =
-      reinterpret_cast<v8::Isolate*>(isolate_)->GetCurrentContext();
-  ShallowDiscoverBuiltinObjects(context);
 
   if (object->IsHeapObject()) Discover(Handle<HeapObject>::cast(object));
 
@@ -283,10 +265,8 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
   }
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
 
-  ShallowDiscoverBuiltinObjects(context);
-
-  Handle<FixedArray> export_objects =
-      isolate_->factory()->NewFixedArray(exports->Length());
+  std::unique_ptr<Handle<JSObject>[]> export_objects(
+      new Handle<JSObject>[exports->Length()]);
   for (int i = 0, length = exports->Length(); i < length; ++i) {
     v8::Local<v8::String> str =
         exports->Get(v8_isolate, i)->ToString(context).ToLocalChecked();
@@ -305,15 +285,8 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
       Throw("Exported object not found");
       return false;
     }
-    auto object = Handle<JSObject>::cast(Utils::OpenHandle(*v8_object));
-    export_objects->set(i, *object);
-    Discover(object);
-    // The error messages will be confusing if we continue running code when
-    // already in the error state.
-    if (has_error()) {
-      isolate_->ReportPendingMessages();
-      return false;
-    }
+    export_objects[i] = Handle<JSObject>::cast(Utils::OpenHandle(*v8_object));
+    Discover(export_objects[i]);
   }
 
   ConstructSource();
@@ -324,7 +297,7 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
     if (str->Length() == 0) {
       continue;
     }
-    SerializeExport(handle(export_objects->get(i), isolate_),
+    SerializeExport(export_objects[i],
                     Handle<String>::cast(Utils::OpenHandle(*str)));
   }
 
@@ -354,9 +327,6 @@ void WebSnapshotSerializer::SerializePendingItems() {
   for (int i = 0; i < maps_->Length(); ++i) {
     Handle<Map> map = handle(Map::cast(maps_->Get(i)), isolate_);
     SerializeMap(map);
-  }
-  for (auto name_id : builtin_objects_) {
-    SerializeBuiltinObject(name_id);
   }
 
   // Serialize the items in the reverse order. The items at the end of the
@@ -396,9 +366,6 @@ void WebSnapshotSerializer::SerializePendingItems() {
 // - Symbol count
 // - For each symbol:
 //   - Serialized symbol
-// - Builtin object count
-// - For each builtin object:
-//   - Id of the builtin object name string
 // - Shape count
 // - For each shape:
 //   - Serialized shape
@@ -424,8 +391,7 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
   ValueSerializer total_serializer(isolate_, nullptr);
   size_t needed_size =
       sizeof(kMagicNumber) + string_serializer_.buffer_size_ +
-      symbol_serializer_.buffer_size_ +
-      builtin_object_serializer_.buffer_size_ + map_serializer_.buffer_size_ +
+      symbol_serializer_.buffer_size_ + map_serializer_.buffer_size_ +
       context_serializer_.buffer_size_ + function_serializer_.buffer_size_ +
       class_serializer_.buffer_size_ + array_serializer_.buffer_size_ +
       object_serializer_.buffer_size_ + export_serializer_.buffer_size_ +
@@ -438,8 +404,6 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
   total_serializer.WriteRawBytes(kMagicNumber, 4);
   WriteObjects(total_serializer, string_count(), string_serializer_, "strings");
   WriteObjects(total_serializer, symbol_count(), symbol_serializer_, "symbols");
-  WriteObjects(total_serializer, builtin_object_count(),
-               builtin_object_serializer_, "builtin_objects");
   WriteObjects(total_serializer, map_count(), map_serializer_, "maps");
   WriteObjects(total_serializer, context_count(), context_serializer_,
                "contexts");
@@ -474,6 +438,9 @@ bool WebSnapshotSerializer::InsertIntoIndexMap(ObjectCacheIndexMap& map,
                                                uint32_t& id) {
   DisallowGarbageCollection no_gc;
   int index_out;
+  if (external_objects_ids_.Lookup(heap_object, &index_out)) {
+    return true;
+  }
   bool found = map.LookupOrInsert(heap_object, &index_out);
   id = static_cast<uint32_t>(index_out);
   return found;
@@ -598,10 +565,6 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
   }
 }
 
-void WebSnapshotSerializer::SerializeBuiltinObject(uint32_t name_id) {
-  builtin_object_serializer_.WriteUint32(name_id);
-}
-
 // Construct the minimal source string to be included in the snapshot. Maintain
 // the "inner function is textually inside its outer function" relationship.
 // Example:
@@ -699,30 +662,9 @@ void WebSnapshotSerializer::ShallowDiscoverExternals(FixedArray externals) {
     Object object = externals.get(i);
     if (!object.IsHeapObject()) continue;
     uint32_t unused_id = 0;
-    InsertIntoIndexMap(external_object_ids_, HeapObject::cast(object),
+    InsertIntoIndexMap(external_objects_ids_, HeapObject::cast(object),
                        unused_id);
   }
-}
-
-void WebSnapshotSerializer::ShallowDiscoverBuiltinObjects(
-    v8::Local<v8::Context> context) {
-  // Fill in builtin_object_to_name_. Don't discover them or their
-  // names, so that they won't be included in the snapshot unless needed.
-
-  builtin_object_name_strings_ =
-      isolate_->factory()->NewFixedArray(kBuiltinObjectCount);
-
-  int i = 0;
-  IterateBuiltinObjects([&](String name, HeapObject object) {
-    builtin_object_name_strings_->set(i, name);
-    uint32_t id;
-    bool already_exists =
-        InsertIntoIndexMap(builtin_object_to_name_, object, id);
-    CHECK(!already_exists);
-    CHECK_EQ(static_cast<int>(id), i);
-    ++i;
-  });
-  DCHECK_EQ(i, kBuiltinObjectCount);
 }
 
 void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
@@ -779,9 +721,9 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
           // strings.
           DiscoverString(Handle<String>::cast(object), AllowInPlace::Yes);
           break;
-        } else if (external_object_ids_.size() > 0) {
+        } else if (external_objects_ids_.size() > 0) {
           int unused_id;
-          external_object_ids_.LookupOrInsert(*object, &unused_id);
+          external_objects_ids_.LookupOrInsert(*object, &unused_id);
         } else {
           Throw("Unsupported object");
         }
@@ -843,10 +785,6 @@ void WebSnapshotSerializer::DiscoverString(Handle<String> string,
 }
 
 void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
-  if (DiscoverIfBuiltinObject(function)) {
-    return;
-  }
-
   uint32_t id;
   if (InsertIntoIndexMap(function_ids_, *function, id)) {
     return;
@@ -995,13 +933,6 @@ void WebSnapshotSerializer::DiscoverObjectPropertiesWithDictionaryMap(T dict) {
 }
 
 void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
-  if (GetExternalId(*object)) {
-    return;
-  }
-  if (DiscoverIfBuiltinObject(object)) {
-    return;
-  }
-
   uint32_t id;
   if (InsertIntoIndexMap(object_ids_, *object, id)) return;
 
@@ -1053,32 +984,6 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
     if (!object.IsHeapObject()) continue;
     discovery_queue_.push(handle(HeapObject::cast(object), isolate_));
   }
-}
-
-bool WebSnapshotSerializer::DiscoverIfBuiltinObject(Handle<HeapObject> object) {
-  uint32_t name_index;
-  if (!GetBuiltinObjectNameIndex(*object, name_index)) {
-    return false;
-  }
-  CHECK_LT(name_index, builtin_object_name_strings_->length());
-  Handle<String> name_string = handle(
-      String::cast(builtin_object_name_strings_->get(name_index)), isolate_);
-  DiscoverString(name_string, AllowInPlace::No);
-
-  // Ensure the builtin object reference gets included in the snapshot.
-  uint32_t id;
-  if (InsertIntoIndexMap(builtin_object_ids_, *object, id)) {
-    // The builtin object is already referred to by something else.
-    return true;
-  }
-  DCHECK_EQ(id, builtin_objects_.size());
-
-  bool in_place = false;
-  uint32_t name_id = GetStringId(name_string, in_place);
-  DCHECK(!in_place);
-  USE(in_place);
-  builtin_objects_.push_back(name_id);
-  return true;
 }
 
 void WebSnapshotSerializer::DiscoverSymbol(Handle<Symbol> symbol) {
@@ -1352,16 +1257,10 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
     return;
   }
 
-  uint32_t id;
-  if (GetExternalId(HeapObject::cast(*object), &id)) {
+  int external_id;
+  if (external_objects_ids_.Lookup(HeapObject::cast(*object), &external_id)) {
     serializer.WriteUint32(ValueType::EXTERNAL_ID);
-    serializer.WriteUint32(id);
-    return;
-  }
-
-  if (GetBuiltinObjectId(HeapObject::cast(*object), id)) {
-    serializer.WriteUint32(ValueType::BUILTIN_OBJECT_ID);
-    serializer.WriteUint32(id);
+    serializer.WriteUint32(static_cast<uint32_t>(external_id));
     return;
   }
 
@@ -1532,33 +1431,16 @@ uint32_t WebSnapshotSerializer::GetObjectId(JSObject object) {
   return static_cast<uint32_t>(object_ids_.size() - 1 - id);
 }
 
-bool WebSnapshotSerializer::GetExternalId(HeapObject object, uint32_t* id) {
-  int id_int;
-  bool return_value = external_object_ids_.Lookup(object, &id_int);
-  if (id != nullptr) {
-    *id = static_cast<uint32_t>(id_int);
-  }
-  return return_value;
-}
-
-bool WebSnapshotSerializer::GetBuiltinObjectNameIndex(HeapObject object,
-                                                      uint32_t& index) {
-  int index_int = 0;
-  bool return_value = builtin_object_to_name_.Lookup(object, &index_int);
-  index = static_cast<uint32_t>(index_int);
-  return return_value;
-}
-
-bool WebSnapshotSerializer::GetBuiltinObjectId(HeapObject object,
-                                               uint32_t& id) {
-  int id_int;
-  bool return_value = builtin_object_ids_.Lookup(object, &id_int);
-  id = static_cast<uint32_t>(id_int);
-  return return_value;
+uint32_t WebSnapshotSerializer::GetExternalId(HeapObject object) {
+  int id;
+  bool return_value = external_objects_ids_.Lookup(object, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(id);
 }
 
 Handle<FixedArray> WebSnapshotSerializer::GetExternals() {
-  return external_object_ids_.Values(isolate_);
+  return external_objects_ids_.Values(isolate_);
 }
 
 WebSnapshotDeserializer::WebSnapshotDeserializer(v8::Isolate* isolate,
@@ -1601,7 +1483,6 @@ WebSnapshotDeserializer::~WebSnapshotDeserializer() {
 void WebSnapshotDeserializer::UpdatePointers() {
   strings_ = *strings_handle_;
   symbols_ = *symbols_handle_;
-  builtin_objects_ = *builtin_objects_handle_;
   maps_ = *maps_handle_;
   contexts_ = *contexts_handle_;
   functions_ = *functions_handle_;
@@ -1668,7 +1549,6 @@ void WebSnapshotDeserializer::Throw(const char* message) {
   string_count_ = 0;
   symbol_count_ = 0;
   map_count_ = 0;
-  builtin_object_count_ = 0;
   context_count_ = 0;
   class_count_ = 0;
   function_count_ = 0;
@@ -1717,8 +1597,6 @@ bool WebSnapshotDeserializer::Deserialize(
 }
 
 bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
-  CollectBuiltinObjects();
-
   deferred_references_ = ArrayList::New(isolate_, 30);
 
   const void* magic_bytes;
@@ -1730,7 +1608,6 @@ bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
 
   DeserializeStrings();
   DeserializeSymbols();
-  DeserializeBuiltinObjects();
   DeserializeMaps();
   DeserializeContexts();
   DeserializeFunctions();
@@ -1742,28 +1619,6 @@ bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
   DCHECK_EQ(0, deferred_references_->Length());
 
   return !has_error();
-}
-
-void WebSnapshotDeserializer::CollectBuiltinObjects() {
-  // TODO(v8:11525): Look up the builtin objects from the global object.
-  builtin_object_name_to_object_ =
-      ObjectHashTable::New(isolate_, kBuiltinObjectCount);
-#if DEBUG
-  int i = 0;
-#endif
-  IterateBuiltinObjects([&](String name, HeapObject object) {
-    auto new_builtin_object_name_to_object =
-        ObjectHashTable::Put(builtin_object_name_to_object_,
-                             handle(name, isolate_), handle(object, isolate_));
-    USE(new_builtin_object_name_to_object);
-    // We preallocated the correct size, so the hash table doesn't grow.
-    DCHECK_EQ(*new_builtin_object_name_to_object,
-              *builtin_object_name_to_object_);
-#if DEBUG
-    ++i;
-#endif
-  });
-  DCHECK_EQ(i, kBuiltinObjectCount);
 }
 
 bool WebSnapshotDeserializer::DeserializeScript() {
@@ -1982,24 +1837,6 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     // TODO(v8:11525): Set 'constructor'.
     DeserializeObjectPrototype(map, prototype_id);
     maps_.set(i, *map);
-  }
-}
-
-void WebSnapshotDeserializer::DeserializeBuiltinObjects() {
-  RCS_SCOPE(isolate_,
-            RuntimeCallCounterId::kWebSnapshotDeserialize_BuiltinObjects);
-  if (!deserializer_.ReadUint32(&builtin_object_count_) ||
-      builtin_object_count_ > kMaxItemCount) {
-    Throw("Malformed builtin object table");
-    return;
-  }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
-  builtin_objects_handle_ = factory()->NewFixedArray(builtin_object_count_);
-  builtin_objects_ = *builtin_objects_handle_;
-  for (uint32_t i = 0; i < builtin_object_count_; ++i) {
-    Handle<String> name = handle(ReadString(), isolate_);
-    builtin_objects_.set(static_cast<int>(i),
-                         builtin_object_name_to_object_->Lookup(name));
   }
 }
 
@@ -2721,8 +2558,6 @@ Object WebSnapshotDeserializer::ReadValue(
       return ReadSymbol();
     case ValueType::EXTERNAL_ID:
       return ReadExternalReference();
-    case ValueType::BUILTIN_OBJECT_ID:
-      return ReadBuiltinObjectReference();
     case ValueType::IN_PLACE_STRING_ID:
       return ReadInPlaceString(internalize_strings);
     default:
@@ -2834,16 +2669,6 @@ Object WebSnapshotDeserializer::ReadExternalReference() {
     return Smi::zero();
   }
   return external_references_.get(ref_id);
-}
-
-Object WebSnapshotDeserializer::ReadBuiltinObjectReference() {
-  uint32_t ref_id;
-  if (!deserializer_.ReadUint32(&ref_id) ||
-      ref_id >= static_cast<uint32_t>(builtin_objects_.length())) {
-    Throw("Invalid builtin object reference");
-    return Smi::zero();
-  }
-  return builtin_objects_.get(ref_id);
 }
 
 void WebSnapshotDeserializer::ReadFunctionPrototype(

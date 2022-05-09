@@ -42,7 +42,7 @@ BUILTIN(WebSnapshotSerialize) {
   }
   if (!block_list_js_array.is_null() &&
       static_cast<uint32_t>(block_list->length()) <
-          serializer.external_object_count()) {
+          serializer.external_objects_count()) {
     Handle<FixedArray> externals = serializer.GetExternals();
     Handle<Map> map = JSObject::GetElementsTransitionMap(block_list_js_array,
                                                          PACKED_ELEMENTS);

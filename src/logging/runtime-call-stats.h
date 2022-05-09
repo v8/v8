@@ -483,7 +483,6 @@ class RuntimeCallTimer final {
   V(UpdateProtector)                           \
   V(WebSnapshotDeserialize)                    \
   V(WebSnapshotDeserialize_Arrays)             \
-  V(WebSnapshotDeserialize_BuiltinObjects)     \
   V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Contexts)           \
   V(WebSnapshotDeserialize_Exports)            \
