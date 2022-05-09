@@ -218,6 +218,7 @@ v8_source_set("unittests_sources") {
     "api/resource-constraints-unittest.cc",
     "api/v8-maybe-unittest.cc",
     "api/v8-object-unittest.cc",
+    "api/v8-script-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
     "base/bignum-unittest.cc",

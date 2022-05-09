@@ -261,6 +261,8 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   }
   name_buffer_->AppendByte(':');
   name_buffer_->AppendInt(line);
+  name_buffer_->AppendByte(':');
+  name_buffer_->AppendInt(column);
   LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
 }
 

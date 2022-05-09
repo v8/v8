@@ -2063,6 +2063,20 @@ int UnboundScript::GetLineNumber(int code_pos) {
   }
 }
 
+int UnboundScript::GetColumnNumber(int code_pos) {
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
+  i::Isolate* i_isolate = obj->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  API_RCS_SCOPE(i_isolate, UnboundScript, GetColumnNumber);
+  if (obj->script().IsScript()) {
+    i::Handle<i::Script> script(i::Script::cast(obj->script()), i_isolate);
+    return i::Script::GetColumnNumber(script, code_pos);
+  } else {
+    return -1;
+  }
+}
+
 Local<Value> UnboundScript::GetScriptName() {
   i::Handle<i::SharedFunctionInfo> obj =
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
