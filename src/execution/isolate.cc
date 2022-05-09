@@ -1607,13 +1607,11 @@ void Isolate::CancelTerminateExecution() {
   if (try_catch_handler()) {
     try_catch_handler()->has_terminated_ = false;
   }
-  if (has_pending_exception() &&
-      pending_exception() == ReadOnlyRoots(this).termination_exception()) {
+  if (has_pending_exception() && is_execution_termination_pending()) {
     thread_local_top()->external_caught_exception_ = false;
     clear_pending_exception();
   }
-  if (has_scheduled_exception() &&
-      scheduled_exception() == ReadOnlyRoots(this).termination_exception()) {
+  if (has_scheduled_exception() && is_execution_terminating()) {
     thread_local_top()->external_caught_exception_ = false;
     clear_scheduled_exception();
   }
@@ -2328,12 +2326,10 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
   DCHECK(has_scheduled_exception());
   if (reinterpret_cast<void*>(scheduled_exception().ptr()) ==
       handler->exception_) {
-    DCHECK_NE(scheduled_exception(),
-              ReadOnlyRoots(heap()).termination_exception());
+    DCHECK(!is_execution_terminating());
     clear_scheduled_exception();
   } else {
-    DCHECK_EQ(scheduled_exception(),
-              ReadOnlyRoots(heap()).termination_exception());
+    DCHECK(is_execution_terminating());
     // Clear termination once we returned from all V8 frames.
     if (thread_local_top()->CallDepthIsZero()) {
       thread_local_top()->external_caught_exception_ = false;
@@ -2611,10 +2607,7 @@ bool Isolate::OptionalRescheduleException(bool clear_exception) {
   PropagatePendingExceptionToExternalTryCatch(
       TopExceptionHandlerType(pending_exception()));
 
-  bool is_termination_exception =
-      pending_exception() == ReadOnlyRoots(this).termination_exception();
-
-  if (is_termination_exception) {
+  if (is_execution_termination_pending()) {
     if (clear_exception) {
       thread_local_top()->external_caught_exception_ = false;
       clear_pending_exception();
@@ -3620,6 +3613,7 @@ void Isolate::InitializeThreadLocal() {
 }
 
 void Isolate::SetTerminationOnExternalTryCatch() {
+  DCHECK(is_execution_termination_pending() || is_execution_terminating());
   if (try_catch_handler() == nullptr) return;
   try_catch_handler()->can_continue_ = false;
   try_catch_handler()->has_terminated_ = true;
@@ -5113,6 +5107,7 @@ void Isolate::OnPromiseAfter(Handle<JSPromise> promise) {
 }
 
 void Isolate::OnTerminationDuringRunMicrotasks() {
+  DCHECK(is_execution_terminating());
   // This performs cleanup for when RunMicrotasks (in
   // builtins-microtask-queue-gen.cc) is aborted via a termination exception.
   // This has to be kept in sync with the code in said file. Currently this

@@ -96,6 +96,16 @@ void Isolate::set_scheduled_exception(Object exception) {
   thread_local_top()->scheduled_exception_ = exception;
 }
 
+bool Isolate::is_execution_termination_pending() {
+  return thread_local_top()->pending_exception_ ==
+         i::ReadOnlyRoots(this).termination_exception();
+}
+
+bool Isolate::is_execution_terminating() {
+  return thread_local_top()->scheduled_exception_ ==
+         i::ReadOnlyRoots(this).termination_exception();
+}
+
 #ifdef DEBUG
 Object Isolate::VerifyBuiltinsResult(Object result) {
   if (has_pending_exception()) {
@@ -128,11 +138,6 @@ bool Isolate::is_catchable_by_wasm(Object exception) {
                     factory()->wasm_uncatchable_symbol(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   return !JSReceiver::HasProperty(&it).FromJust();
-}
-
-bool Isolate::is_execution_terminating() {
-  return thread_local_top()->scheduled_exception_ ==
-         i::ReadOnlyRoots(this).termination_exception();
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {

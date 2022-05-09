@@ -34,25 +34,38 @@ namespace v8 {
 namespace debug {
 
 void SetContextId(Local<Context> context, int id) {
-  Utils::OpenHandle(*context)->set_debug_context_id(i::Smi::FromInt(id));
+  auto v8_context = Utils::OpenHandle(*context);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(v8_context->GetIsolate());
+  v8_context->set_debug_context_id(i::Smi::FromInt(id));
 }
 
 int GetContextId(Local<Context> context) {
-  i::Object value = Utils::OpenHandle(*context)->debug_context_id();
+  auto v8_context = Utils::OpenHandle(*context);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(v8_context->GetIsolate());
+  i::Object value = v8_context->debug_context_id();
   return (value.IsSmi()) ? i::Smi::ToInt(value) : 0;
 }
 
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector* inspector) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->set_inspector(inspector);
+  if (inspector == nullptr) {
+    DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate);
+    i_isolate->set_inspector(nullptr);
+  } else {
+    DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+    i_isolate->set_inspector(inspector);
+  }
 }
 
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate) {
-  return reinterpret_cast<i::Isolate*>(isolate)->inspector();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(i_isolate);
+  return i_isolate->inspector();
 }
 
 Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::BigInt> i_bigint = Utils::OpenHandle(*bigint);
   // For large BigInts computing the decimal string representation
   // can take a long time, so we go with hexadecimal in that case.
@@ -88,16 +101,20 @@ Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint) {
 Local<String> GetDateDescription(Local<Date> date) {
   auto receiver = Utils::OpenHandle(*date);
   i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(receiver);
-  i::Isolate* isolate = jsdate->GetIsolate();
-  auto buffer = i::ToDateString(jsdate->value().Number(), isolate->date_cache(),
-                                i::ToDateStringMode::kLocalDateAndTime);
-  return Utils::ToLocal(isolate->factory()
+  i::Isolate* i_isolate = jsdate->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  auto buffer =
+      i::ToDateString(jsdate->value().Number(), i_isolate->date_cache(),
+                      i::ToDateStringMode::kLocalDateAndTime);
+  return Utils::ToLocal(i_isolate->factory()
                             ->NewStringFromUtf8(base::VectorOf(buffer))
                             .ToHandleChecked());
 }
 
 Local<String> GetFunctionDescription(Local<Function> function) {
   auto receiver = Utils::OpenHandle(*function);
+  auto i_isolate = receiver->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   if (receiver->IsJSBoundFunction()) {
     return Utils::ToLocal(i::JSBoundFunction::ToString(
         i::Handle<i::JSBoundFunction>::cast(receiver)));
@@ -106,18 +123,18 @@ Local<String> GetFunctionDescription(Local<Function> function) {
     auto js_function = i::Handle<i::JSFunction>::cast(receiver);
 #if V8_ENABLE_WEBASSEMBLY
     if (js_function->shared().HasWasmExportedFunctionData()) {
-      auto isolate = js_function->GetIsolate();
+      auto i_isolate = js_function->GetIsolate();
       auto func_index =
           js_function->shared().wasm_exported_function_data().function_index();
       auto instance = i::handle(
           js_function->shared().wasm_exported_function_data().instance(),
-          isolate);
+          i_isolate);
       if (instance->module()->origin == i::wasm::kWasmOrigin) {
         // For asm.js functions, we can still print the source
         // code (hopefully), so don't bother with them here.
         auto debug_name =
-            i::GetWasmFunctionDebugName(isolate, instance, func_index);
-        i::IncrementalStringBuilder builder(isolate);
+            i::GetWasmFunctionDebugName(i_isolate, instance, func_index);
+        i::IncrementalStringBuilder builder(i_isolate);
         builder.AppendCStringLiteral("function ");
         builder.AppendString(debug_name);
         builder.AppendCStringLiteral("() { [native code] }");
@@ -132,13 +149,15 @@ Local<String> GetFunctionDescription(Local<Function> function) {
 }
 
 void SetBreakOnNextFunctionCall(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->debug()->SetBreakOnNextFunctionCall();
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i_isolate->debug()->SetBreakOnNextFunctionCall();
 }
 
 void ClearBreakOnNextFunctionCall(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)
-      ->debug()
-      ->ClearBreakOnNextFunctionCall();
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i_isolate->debug()->ClearBreakOnNextFunctionCall();
 }
 
 MaybeLocal<Array> GetInternalProperties(Isolate* v8_isolate,
@@ -158,6 +177,7 @@ void CollectPrivateMethodsAndAccessorsFromContext(
     i::Isolate* isolate, i::Handle<i::Context> context,
     i::IsStaticFlag is_static_flag, std::vector<Local<Value>>* names_out,
     std::vector<Local<Value>>* values_out) {
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
   for (auto it : i::ScopeInfo::IterateLocalNames(scope_info)) {
     i::Handle<i::String> name(it->name(), isolate);
@@ -294,6 +314,7 @@ MaybeLocal<Context> GetCreationContext(Local<Object> value) {
 
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i_isolate->debug()->ChangeBreakOnException(i::BreakException,
                                              type == BreakOnAnyException);
   i_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
@@ -995,8 +1016,13 @@ Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
 
 void SetConsoleDelegate(Isolate* v8_isolate, ConsoleDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  isolate->set_console_delegate(delegate);
+  if (delegate == nullptr) {
+    DCHECK_NO_SCRIPT_NO_EXCEPTION_MAYBE_TEARDOWN(isolate);
+    isolate->set_console_delegate(nullptr);
+  } else {
+    DCHECK_NO_SCRIPT_NO_EXCEPTION(isolate);
+    isolate->set_console_delegate(delegate);
+  }
 }
 
 ConsoleCallArguments::ConsoleCallArguments(

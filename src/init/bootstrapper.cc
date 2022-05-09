@@ -6006,8 +6006,7 @@ bool Genesis::InstallExtension(Isolate* isolate,
     // terminating.
     DCHECK(isolate->has_pending_exception() ||
            (isolate->has_scheduled_exception() &&
-            isolate->scheduled_exception() ==
-                ReadOnlyRoots(isolate).termination_exception()));
+            isolate->is_execution_terminating()));
     if (isolate->has_pending_exception()) {
       // We print out the name of the extension that fail to install.
       // When an error is thrown during bootstrapping we automatically print
