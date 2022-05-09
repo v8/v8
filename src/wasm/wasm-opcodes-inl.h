@@ -581,6 +581,13 @@ constexpr bool WasmOpcodes::IsRelaxedSimdOpcode(WasmOpcode opcode) {
   }
 }
 
+constexpr byte WasmOpcodes::ExtractPrefix(WasmOpcode opcode) {
+  // If the decoded opcode exceeds two bytes, shift an additional
+  // byte. For decoded opcodes that exceed 3 bytes, this would
+  // need to be fixed.
+  return (opcode > 0xffff) ? opcode >> 12 : opcode >> 8;
+}
+
 namespace impl {
 
 #define DECLARE_SIG_ENUM(name, ...) kSigEnum_##name,
@@ -618,8 +625,14 @@ constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(byte opcode) {
 
 constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
-  return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
+  return FOREACH_SIMD_MVP_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
       FOREACH_SIMD_MEM_1_OPERAND_OPCODE(CASE) kSigEnum_None;
+#undef CASE
+}
+
+constexpr WasmOpcodeSig GetRelaxedSimdOpcodeSigIndex(byte opcode) {
+#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
+  return FOREACH_RELAXED_SIMD_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
 
@@ -644,6 +657,8 @@ constexpr std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable =
     base::make_array<256>(GetAsmJsOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
     base::make_array<256>(GetSimdOpcodeSigIndex);
+constexpr std::array<WasmOpcodeSig, 256> kRelaxedSimdExprSigTable =
+    base::make_array<256>(GetRelaxedSimdOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
     base::make_array<256>(GetAtomicOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
@@ -652,11 +667,14 @@ constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
 }  // namespace impl
 
 constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
-  switch (opcode >> 8) {
+  switch (ExtractPrefix(opcode)) {
     case 0:
       return impl::kCachedSigs[impl::kShortSigTable[opcode]];
-    case kSimdPrefix:
+    case kSimdPrefix: {
+      if (IsRelaxedSimdOpcode(opcode))
+        return impl::kCachedSigs[impl::kRelaxedSimdExprSigTable[opcode & 0xFF]];
       return impl::kCachedSigs[impl::kSimdExprSigTable[opcode & 0xFF]];
+    }
     case kAtomicPrefix:
       return impl::kCachedSigs[impl::kAtomicExprSigTable[opcode & 0xFF]];
     case kNumericPrefix:

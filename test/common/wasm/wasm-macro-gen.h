@@ -304,6 +304,13 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   }
 }
 
+// This method handles upcodes with decoded length of 3-bytes
+// update is we exceed that opcode length. (More details in
+// wasm-opcodes.h)
+inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
+  return (opcode > 0xffff) ? opcode & 0x0fff : opcode & 0xff;
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
@@ -915,7 +922,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 //------------------------------------------------------------------------------
 #define TO_BYTE(val) static_cast<byte>(val)
 // Encode all simd ops as a 2-byte LEB.
-#define WASM_SIMD_OP(op) kSimdPrefix, U32V_2(op & 0xff)
+#define WASM_SIMD_OP(op) kSimdPrefix, U32V_2(ExtractPrefixedOpcodeBytes(op))
 #define WASM_SIMD_OPN(op, ...) __VA_ARGS__, WASM_SIMD_OP(op)
 #define WASM_SIMD_SPLAT(Type, ...) __VA_ARGS__, WASM_SIMD_OP(kExpr##Type##Splat)
 #define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
