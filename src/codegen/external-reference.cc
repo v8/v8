@@ -550,6 +550,12 @@ ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
   return ExternalReference(&FLAG_mock_arraybuffer_allocator);
 }
 
+// TODO(jgruber): Update the other extrefs pointing at FLAG_ addresses to be
+// called address_of_FLAG_foo (easier grep-ability).
+ExternalReference ExternalReference::address_of_FLAG_trace_osr() {
+  return ExternalReference(&FLAG_trace_osr);
+}
+
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&FLAG_builtin_subclassing);
 }

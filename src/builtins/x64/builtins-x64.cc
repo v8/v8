@@ -2748,6 +2748,25 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   __ bind(&jump_to_optimized_code);
   DCHECK_EQ(maybe_target_code, rax);  // Already in the right spot.
 
+  // OSR entry tracing.
+  {
+    Label next;
+    __ cmpb(
+        __ ExternalReferenceAsOperand(
+            ExternalReference::address_of_FLAG_trace_osr(), kScratchRegister),
+        Immediate(0));
+    __ j(equal, &next, Label::kNear);
+
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(rax);  // Preserve the code object.
+      __ CallRuntime(Runtime::kTraceOptimizedOSREntry, 0);
+      __ Pop(rax);
+    }
+
+    __ bind(&next);
+  }
+
   if (source == OsrSourceTier::kInterpreter) {
     // Drop the handler frame that is be sitting on top of the actual
     // JavaScript frame. This is the case then OSR is triggered from bytecode.

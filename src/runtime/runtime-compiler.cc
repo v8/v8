@@ -337,18 +337,12 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   DCHECK(result->is_turbofanned());  // TODO(v8:7700): Support Maglev.
   DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
 
+#ifdef DEBUG
   DeoptimizationData data =
       DeoptimizationData::cast(result->deoptimization_data());
   DCHECK_EQ(BytecodeOffset(data.OsrBytecodeOffset().value()), osr_offset);
   DCHECK_GE(data.OsrPcOffset().value(), 0);
-
-  if (FLAG_trace_osr) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(),
-           "[OSR - entry. function: %s, osr offset: %d, pc offset: %d]\n",
-           function->DebugNameCStr().get(), osr_offset.ToInt(),
-           data.OsrPcOffset().value());
-  }
+#endif  // DEBUG
 
   if (function->feedback_vector().invocation_count() <= 1 &&
       !IsNone(function->tiering_state()) &&
@@ -366,6 +360,27 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   }
 
   return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_TraceOptimizedOSREntry) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(0, args.length());
+  CHECK(FLAG_trace_osr);
+
+  // Determine the frame that triggered the OSR request.
+  JavaScriptFrameIterator it(isolate);
+  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+
+  // Determine the entry point for which this OSR request has been fired.
+  BytecodeOffset osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
+  DCHECK(!osr_offset.IsNone());
+
+  Handle<JSFunction> function(frame->function(), isolate);
+  PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
+         "[OSR - entry. function: %s, osr offset: %d]\n",
+         function->DebugNameCStr().get(), osr_offset.ToInt());
+
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 static Object CompileGlobalEval(Isolate* isolate,

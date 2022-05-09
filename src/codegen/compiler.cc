@@ -120,13 +120,37 @@ class CompilerTracer : public AllStatic {
     PrintTraceSuffix(scope);
   }
 
-  static void TraceOptimizeOSR(Isolate* isolate, Handle<JSFunction> function,
-                               BytecodeOffset osr_offset,
-                               ConcurrencyMode mode) {
+  static void TraceOptimizeOSRStarted(Isolate* isolate,
+                                      Handle<JSFunction> function,
+                                      BytecodeOffset osr_offset,
+                                      ConcurrencyMode mode) {
+    if (!FLAG_trace_osr) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(
+        scope.file(),
+        "[OSR - compilation started. function: %s, osr offset: %d, mode: %s]\n",
+        function->DebugNameCStr().get(), osr_offset.ToInt(), ToString(mode));
+  }
+
+  static void TraceOptimizeOSRFinished(Isolate* isolate,
+                                       Handle<JSFunction> function,
+                                       BytecodeOffset osr_offset) {
     if (!FLAG_trace_osr) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(),
-           "[OSR - started. function: %s, osr offset: %d, mode: %s]\n",
+           "[OSR - compilation finished. function: %s, osr offset: %d]\n",
+           function->DebugNameCStr().get(), osr_offset.ToInt());
+  }
+
+  static void TraceOptimizeOSRAvailable(Isolate* isolate,
+                                        Handle<JSFunction> function,
+                                        BytecodeOffset osr_offset,
+                                        ConcurrencyMode mode) {
+    if (!FLAG_trace_osr) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(),
+           "[OSR - available (compilation completed or cache hit). function: "
+           "%s, osr offset: %d, mode: %s]\n",
            function->DebugNameCStr().get(), osr_offset.ToInt(), ToString(mode));
   }
 
@@ -3365,13 +3389,16 @@ MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
 
   function->feedback_vector().reset_osr_urgency();
 
-  CompilerTracer::TraceOptimizeOSR(isolate, function, osr_offset, mode);
+  CompilerTracer::TraceOptimizeOSRStarted(isolate, function, osr_offset, mode);
   MaybeHandle<CodeT> result = GetOrCompileOptimized(
       isolate, function, mode, CodeKind::TURBOFAN, osr_offset, frame);
 
   if (result.is_null()) {
     CompilerTracer::TraceOptimizeOSRUnavailable(isolate, function, osr_offset,
                                                 mode);
+  } else {
+    CompilerTracer::TraceOptimizeOSRAvailable(isolate, function, osr_offset,
+                                              mode);
   }
 
   return result;
@@ -3429,7 +3456,10 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
             compilation_info->osr_offset(), ToCodeT(*compilation_info->code()),
             compilation_info->function_context_specializing());
         CompilerTracer::TraceCompletedJob(isolate, compilation_info);
-        if (!IsOSR(osr_offset)) {
+        if (IsOSR(osr_offset)) {
+          CompilerTracer::TraceOptimizeOSRFinished(isolate, function,
+                                                   osr_offset);
+        } else {
           function->set_code(*compilation_info->code(), kReleaseStore);
         }
       }

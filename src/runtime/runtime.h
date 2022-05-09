@@ -108,6 +108,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I) \
   F(CompileOptimizedOSR, 0, 1)            \
+  F(TraceOptimizedOSREntry, 0, 1)         \
   F(CompileLazy, 1, 1)                    \
   F(CompileBaseline, 1, 1)                \
   F(CompileMaglev_Concurrent, 1, 1)       \

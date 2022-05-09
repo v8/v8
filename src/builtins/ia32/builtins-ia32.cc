@@ -2844,6 +2844,25 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   __ ret(0);
 
   __ bind(&jump_to_optimized_code);
+  DCHECK_EQ(maybe_target_code, eax);  // Already in the right spot.
+
+  // OSR entry tracing.
+  {
+    Label next;
+    __ cmpb(__ ExternalReferenceAsOperand(
+                ExternalReference::address_of_FLAG_trace_osr(), ecx),
+            Immediate(0));
+    __ j(equal, &next, Label::kNear);
+
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(eax);  // Preserve the code object.
+      __ CallRuntime(Runtime::kTraceOptimizedOSREntry, 0);
+      __ Pop(eax);
+    }
+
+    __ bind(&next);
+  }
 
   if (source == OsrSourceTier::kInterpreter) {
     // Drop the handler frame that is be sitting on top of the actual
