@@ -205,13 +205,14 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
   }
-  V8FileLogger* logger() const { return logger_; }
+  // TODO(cbruni): Switch this back to the main logger.
+  V8FileLogger* v8_file_logger() const { return v8_file_logger_; }
   LazyCompileDispatcher* dispatcher() const { return dispatcher_; }
 
  private:
   uint64_t hash_seed_;
   AccountingAllocator* allocator_;
-  V8FileLogger* logger_;
+  V8FileLogger* v8_file_logger_;
   LazyCompileDispatcher* dispatcher_;
   const AstStringConstants* ast_string_constants_;
   Zone ast_raw_string_zone_;
@@ -251,7 +252,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   const AstStringConstants* ast_string_constants() const {
     return reusable_state_->ast_string_constants();
   }
-  V8FileLogger* logger() const { return reusable_state_->logger(); }
+  V8FileLogger* v8_file_logger() const {
+    return reusable_state_->v8_file_logger();
+  }
   LazyCompileDispatcher* dispatcher() const {
     return reusable_state_->dispatcher();
   }

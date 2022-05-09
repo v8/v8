@@ -174,7 +174,7 @@ ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
     Isolate* isolate)
     : hash_seed_(HashSeed(isolate)),
       allocator_(isolate->allocator()),
-      logger_(isolate->logger()),
+      v8_file_logger_(isolate->v8_file_logger()),
       dispatcher_(isolate->lazy_compile_dispatcher()),
       ast_string_constants_(isolate->ast_string_constants()),
       ast_raw_string_zone_(allocator_,
@@ -188,7 +188,7 @@ ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
     LocalIsolate* isolate)
     : hash_seed_(HashSeed(isolate)),
       allocator_(isolate->allocator()),
-      logger_(isolate->main_thread_logger()),
+      v8_file_logger_(isolate->main_thread_logger()),
       dispatcher_(isolate->lazy_compile_dispatcher()),
       ast_string_constants_(isolate->ast_string_constants()),
       ast_raw_string_zone_(allocator_,

@@ -9311,7 +9311,7 @@ void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   // Ensure that logging is initialized for our isolate.
   i_isolate->InitializeLoggingAndCounters();
-  i_isolate->logger()->SetCodeEventHandler(options, event_handler);
+  i_isolate->v8_file_logger()->SetCodeEventHandler(options, event_handler);
 }
 
 void Isolate::SetStackLimit(uintptr_t stack_limit) {

@@ -246,7 +246,7 @@ class ParserBase {
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              AstValueFactory* ast_value_factory,
              PendingCompilationErrorHandler* pending_error_handler,
-             RuntimeCallStats* runtime_call_stats, V8FileLogger* logger,
+             RuntimeCallStats* runtime_call_stats, V8FileLogger* v8_file_logger,
              UnoptimizedCompileFlags flags, bool parsing_on_main_thread)
       : scope_(nullptr),
         original_scope_(nullptr),
@@ -255,7 +255,7 @@ class ParserBase {
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory, zone),
         runtime_call_stats_(runtime_call_stats),
-        logger_(logger),
+        v8_file_logger_(v8_file_logger),
         parsing_on_main_thread_(parsing_on_main_thread),
         stack_limit_(stack_limit),
         pending_error_handler_(pending_error_handler),
@@ -1562,7 +1562,7 @@ class ParserBase {
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
   RuntimeCallStats* runtime_call_stats_;
-  internal::V8FileLogger* logger_;
+  internal::V8FileLogger* v8_file_logger_;
   bool parsing_on_main_thread_;
   uintptr_t stack_limit_;
   PendingCompilationErrorHandler* pending_error_handler_;
@@ -4661,9 +4661,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     const char* event_name =
         is_lazy_top_level_function ? "preparse-no-resolution" : "parse";
     const char* name = "arrow function";
-    logger_->FunctionEvent(event_name, flags().script_id(), ms,
-                           scope->start_position(), scope->end_position(), name,
-                           strlen(name));
+    v8_file_logger_->FunctionEvent(event_name, flags().script_id(), ms,
+                                   scope->start_position(),
+                                   scope->end_position(), name, strlen(name));
   }
 
   return function_literal;

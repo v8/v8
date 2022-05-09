@@ -70,14 +70,14 @@ class SourcePosition;
 class Ticker;
 
 #undef LOG
-#define LOG(isolate, Call)                                 \
-  do {                                                     \
-    if (v8::internal::FLAG_log) (isolate)->logger()->Call; \
+#define LOG(isolate, Call)                                         \
+  do {                                                             \
+    if (v8::internal::FLAG_log) (isolate)->v8_file_logger()->Call; \
   } while (false)
 
 #define LOG_CODE_EVENT(isolate, Call)                        \
   do {                                                       \
-    auto&& logger = (isolate)->logger();                     \
+    auto&& logger = (isolate)->v8_file_logger();             \
     if (logger->is_listening_to_code_events()) logger->Call; \
   } while (false)
 

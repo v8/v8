@@ -84,13 +84,14 @@ class V8_NODISCARD ScopedLoggerInitializer {
         isolate_scope_(isolate),
         scope_(isolate),
         env_(v8::Context::New(isolate)),
-        logger_(reinterpret_cast<i::Isolate*>(isolate)->logger()) {
+        v8_file_logger_(
+            reinterpret_cast<i::Isolate*>(isolate)->v8_file_logger()) {
     env_->Enter();
   }
 
   ~ScopedLoggerInitializer() {
     env_->Exit();
-    FILE* log_file = logger_->TearDownAndGetLogFile();
+    FILE* log_file = v8_file_logger_->TearDownAndGetLogFile();
     if (log_file != nullptr) fclose(log_file);
   }
 
@@ -103,7 +104,7 @@ class V8_NODISCARD ScopedLoggerInitializer {
 
   i::Isolate* i_isolate() { return reinterpret_cast<i::Isolate*>(isolate()); }
 
-  V8FileLogger* logger() { return logger_; }
+  V8FileLogger* v8_file_logger() { return v8_file_logger_; }
 
   v8::Local<v8::String> GetLogString() {
     int length = static_cast<int>(raw_log_.size());
@@ -202,16 +203,16 @@ class V8_NODISCARD ScopedLoggerInitializer {
     return result;
   }
 
-  void LogCodeObjects() { logger_->LogCodeObjects(); }
-  void LogCompiledFunctions() { logger_->LogCompiledFunctions(); }
+  void LogCodeObjects() { v8_file_logger_->LogCodeObjects(); }
+  void LogCompiledFunctions() { v8_file_logger_->LogCompiledFunctions(); }
 
   void StringEvent(const char* name, const char* value) {
-    logger_->StringEvent(name, value);
+    v8_file_logger_->StringEvent(name, value);
   }
 
  private:
   FILE* StopLoggingGetTempFile() {
-    temp_file_ = logger_->TearDownAndGetLogFile();
+    temp_file_ = v8_file_logger_->TearDownAndGetLogFile();
     CHECK(temp_file_);
     rewind(temp_file_);
     return temp_file_;
@@ -222,7 +223,7 @@ class V8_NODISCARD ScopedLoggerInitializer {
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope scope_;
   v8::Local<v8::Context> env_;
-  V8FileLogger* logger_;
+  V8FileLogger* v8_file_logger_;
 
   std::string raw_log_;
   std::vector<std::string> log_;
@@ -323,7 +324,7 @@ TEST_F(TestWithIsolate, Issue23768) {
   i_source->SetResource(i_isolate(), nullptr);
 
   // Must not crash.
-  i_isolate()->logger()->LogCompiledFunctions();
+  i_isolate()->v8_file_logger()->LogCompiledFunctions();
 }
 
 static void ObjMethod1(const v8::FunctionCallbackInfo<v8::Value>& args) {}
@@ -385,7 +386,7 @@ TEST_F(LogTest, LogAccessorCallbacks) {
     inst->SetAccessor(NewString("prop1"), Prop1Getter, Prop1Setter);
     inst->SetAccessor(NewString("prop2"), Prop2Getter);
 
-    logger.logger()->LogAccessorCallbacks();
+    logger.v8_file_logger()->LogAccessorCallbacks();
 
     logger.StopLogging();
 
@@ -462,7 +463,7 @@ TEST_F(LogTest, Issue539892) {
 
   {
     ScopedLoggerInitializer logger(isolate());
-    logger.logger()->AddLogEventListener(&code_event_logger);
+    logger.v8_file_logger()->AddLogEventListener(&code_event_logger);
 
     // Function with a really large name.
     const char* source_text =
@@ -490,7 +491,7 @@ TEST_F(LogTest, Issue539892) {
 
     // Must not crash.
     logger.LogCompiledFunctions();
-    logger.logger()->RemoveLogEventListener(&code_event_logger);
+    logger.v8_file_logger()->RemoveLogEventListener(&code_event_logger);
   }
 }
 

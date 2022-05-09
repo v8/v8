@@ -1125,7 +1125,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   TieringManager* tiering_manager() { return tiering_manager_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
-  V8FileLogger* logger() {
+  V8FileLogger* v8_file_logger() {
     // Call InitializeLoggingAndCounters() if logging is needed before
     // the isolate is fully initialized.
     DCHECK_NOT_NULL(v8_file_logger_);

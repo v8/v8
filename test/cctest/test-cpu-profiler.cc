@@ -187,7 +187,7 @@ TEST(CodeEvents) {
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer.code_entries(),
                                      *code_observer.weak_code_registry());
-  isolate->logger()->AddLogEventListener(&profiler_listener);
+  isolate->v8_file_logger()->AddLogEventListener(&profiler_listener);
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
@@ -203,7 +203,7 @@ TEST(CodeEvents) {
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
 
-  isolate->logger()->RemoveLogEventListener(&profiler_listener);
+  isolate->v8_file_logger()->RemoveLogEventListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of the symbolizer.
@@ -255,7 +255,7 @@ TEST(TickEvents) {
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer->code_entries(),
                                      *code_observer->weak_code_registry());
-  isolate->logger()->AddLogEventListener(&profiler_listener);
+  isolate->v8_file_logger()->AddLogEventListener(&profiler_listener);
 
   profiler_listener.CodeCreateEvent(i::V8FileLogger::BUILTIN_TAG, frame1_code,
                                     "bbb");
@@ -274,7 +274,7 @@ TEST(TickEvents) {
                          frame2_code->raw_instruction_end() - 1,
                          frame1_code->raw_instruction_end() - 1);
 
-  isolate->logger()->RemoveLogEventListener(&profiler_listener);
+  isolate->v8_file_logger()->RemoveLogEventListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling(id);
   CHECK(profile);
@@ -1296,7 +1296,7 @@ static void TickLines(bool optimize) {
   // LogCompiledFunctions so that source positions are collected everywhere.
   // This would normally happen automatically with CpuProfiler::StartProfiling
   // but doesn't because it's constructed with a symbolizer and a processor.
-  isolate->logger()->LogCompiledFunctions();
+  isolate->v8_file_logger()->LogCompiledFunctions();
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer->code_entries(),

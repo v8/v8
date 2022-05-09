@@ -1029,7 +1029,7 @@ void Profiler::Engage() {
   CHECK(Start());
 
   // Register to get ticks.
-  V8FileLogger* logger = isolate_->logger();
+  V8FileLogger* logger = isolate_->v8_file_logger();
   logger->ticker_->SetProfiler(this);
 
   LOG(isolate_, ProfilerBeginEvent());
@@ -1037,7 +1037,7 @@ void Profiler::Engage() {
 
 void Profiler::Disengage() {
   // Stop receiving ticks.
-  isolate_->logger()->ticker_->ClearProfiler();
+  isolate_->v8_file_logger()->ticker_->ClearProfiler();
 
   // Terminate the worker thread by setting running_ to false,
   // inserting a fake element in the queue and then wait for

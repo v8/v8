@@ -2100,18 +2100,18 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope handle_scope(isolate);
 
-  std::string file_name = i_isolate->logger()->file_name();
+  std::string file_name = i_isolate->v8_file_logger()->file_name();
   if (!i::LogFile::IsLoggingToTemporaryFile(file_name)) {
     isolate->ThrowError("Only capturing from temporary files is supported.");
     return;
   }
-  if (!i_isolate->logger()->is_logging()) {
+  if (!i_isolate->v8_file_logger()->is_logging()) {
     isolate->ThrowError("Logging not enabled.");
     return;
   }
 
   std::string raw_log;
-  FILE* log_file = i_isolate->logger()->TearDownAndGetLogFile();
+  FILE* log_file = i_isolate->v8_file_logger()->TearDownAndGetLogFile();
   if (!log_file) {
     isolate->ThrowError("Log file does not exist.");
     return;

@@ -203,16 +203,16 @@ void BasicBlockProfilerData::Log(Isolate* isolate) {
   for (size_t i = 0; i < n_blocks(); ++i) {
     if (counts_[i] > 0) {
       any_nonzero_counter = true;
-      isolate->logger()->BasicBlockCounterEvent(function_name_.c_str(),
-                                                block_ids_[i], counts_[i]);
+      isolate->v8_file_logger()->BasicBlockCounterEvent(
+          function_name_.c_str(), block_ids_[i], counts_[i]);
     }
   }
   if (any_nonzero_counter) {
     for (size_t i = 0; i < branches_.size(); ++i) {
-      isolate->logger()->BasicBlockBranchEvent(
+      isolate->v8_file_logger()->BasicBlockBranchEvent(
           function_name_.c_str(), branches_[i].first, branches_[i].second);
     }
-    isolate->logger()->BuiltinHashEvent(function_name_.c_str(), hash_);
+    isolate->v8_file_logger()->BuiltinHashEvent(function_name_.c_str(), hash_);
   }
 }
 

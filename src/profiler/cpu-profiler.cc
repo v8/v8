@@ -81,7 +81,7 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  V8FileLogger* logger = isolate_->logger();
+  V8FileLogger* logger = isolate_->v8_file_logger();
   logger->AddLogEventListener(listener_);
   // Populate the ProfilerCodeObserver with the initial functions and
   // callbacks on the heap.
@@ -95,7 +95,7 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
 }
 
 ProfilingScope::~ProfilingScope() {
-  isolate_->logger()->RemoveLogEventListener(listener_);
+  isolate_->v8_file_logger()->RemoveLogEventListener(listener_);
 
   size_t profiler_count = isolate_->num_cpu_profilers();
   DCHECK_GT(profiler_count, 0);

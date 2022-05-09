@@ -289,7 +289,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (!isolate->logger()->is_listening_to_code_events() &&
+  if (!isolate->v8_file_logger()->is_listening_to_code_events() &&
       !isolate->is_profiling() && !FLAG_log_function_events &&
       !isolate->log_event_dispatcher()->is_listening_to_code_events()) {
     return;

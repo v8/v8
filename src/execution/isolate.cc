@@ -3320,8 +3320,8 @@ void Isolate::ClearSerializerData() {
 }
 
 bool Isolate::LogObjectRelocation() {
-  return FLAG_verify_predictable || logger()->is_logging() || is_profiling() ||
-         heap()->isolate()->logger()->is_listening_to_code_events() ||
+  return FLAG_verify_predictable || v8_file_logger()->is_logging() ||
+         is_profiling() || v8_file_logger()->is_listening_to_code_events() ||
          (heap_profiler() != nullptr &&
           heap_profiler()->is_tracking_object_moves()) ||
          heap()->has_heap_object_allocation_tracker();

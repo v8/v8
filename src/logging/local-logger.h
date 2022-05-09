@@ -30,7 +30,7 @@ class LocalLogger {
   void MapDetails(Map map);
 
  private:
-  V8FileLogger* logger_;
+  V8FileLogger* v8_file_logger_;
   bool is_logging_;
   bool is_listening_to_code_events_;
 };
