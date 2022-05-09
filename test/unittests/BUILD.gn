@@ -375,6 +375,7 @@ v8_source_set("unittests_sources") {
     "libplatform/task-queue-unittest.cc",
     "libplatform/worker-thread-unittest.cc",
     "logging/counters-unittest.cc",
+    "logging/log-unittest.cc",
     "numbers/bigint-unittest.cc",
     "numbers/conversions-unittest.cc",
     "objects/array-list-unittest.cc",

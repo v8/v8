@@ -117,6 +117,23 @@
   'LoggingTest.SourceLocation':[SKIP]  # issue-174
 }],
 
+##############################################################################
+['lite_mode', {
+  # TODO(mythria): Code logging tests that currently fail with lazy feedback
+  # allocation. Fix logging to work without feedback vectors and enable these
+  # tests in lite_mode.
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+}], # lite_mode
+
+['variant == jitless', {
+  # --interpreted-frames-native-stack tests
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+}], # jitless
+
 ################################################################################
 ['third_party_heap', {
   # Tests on OptimizingCompileDispatcher
@@ -140,6 +157,8 @@
   'SpacesTest.WriteBarrierInYoungGenerationFromSpace': [SKIP],
   # Requires a second isolate
   'ValueSerializerTest.DecodeArrayBufferOOM': [SKIP],
+  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   # Performs GC
   'APIExceptionTest.ExceptionMessageDoesNotKeepContextAlive': [SKIP],
   'LocalHeapTest.GCEpilogue': [SKIP],
@@ -188,7 +207,17 @@
 ##############################################################################
 ['variant == no_wasm_traps', {
   'APIExceptionTest.*': [SKIP],
-
+  'LogTest.*': [SKIP],
+  'TestWithIsolate.Issue23768': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'LogExternalLogEventListenerTest.ExternalLogEventListener': [SKIP],
+  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogMapsTest.*': [SKIP],
+  'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
+  'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
 }],  # variant == no_wasm_traps
 
 ##############################################################################

@@ -137,6 +137,16 @@ class WithIsolateScopeMixin : public TMixin {
                      .ToLocalChecked());
   }
 
+  Local<Script> CompileWithOrigin(Local<String> source,
+                                  Local<String> origin_url,
+                                  bool is_shared_cross_origin) {
+    Isolate* isolate = Isolate::GetCurrent();
+    ScriptOrigin origin(isolate, origin_url, 0, 0, is_shared_cross_origin);
+    ScriptCompiler::Source script_source(source, origin);
+    return ScriptCompiler::Compile(isolate->GetCurrentContext(), &script_source)
+        .ToLocalChecked();
+  }
+
   void CollectGarbage(i::AllocationSpace space) {
     i_isolate()->heap()->CollectGarbage(space,
                                         i::GarbageCollectionReason::kTesting);

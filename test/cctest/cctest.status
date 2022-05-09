@@ -345,9 +345,6 @@
 
 ##############################################################################
 ['arch == arm', {
-  # BUG(355): Test crashes on ARM.
-  'test-log/ProfLazyMode': [SKIP],
-
   # BUG(1075): Unresolved crashes.
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
@@ -560,7 +557,6 @@
   'test-parsing/*': [SKIP],
   'test-page-promotion/*': [SKIP],
   'test-decls/*': [SKIP],
-  'test-log/*': [SKIP],
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
@@ -662,9 +658,6 @@
   # TODO(mythria): Code logging tests that currently fail with lazy feedback
   # allocation. Fix logging to work without feedback vectors and enable these
   # tests in lite_mode.
-  'test-log/ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP]
 }], # lite_mode
 
@@ -692,9 +685,6 @@
   'test-verify-type/*': [SKIP],
 
   # --interpreted-frames-native-stack tests
-  'test-log/ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
   'test-interpreter/InterpreterWithNativeStack': [SKIP],
 
@@ -820,8 +810,6 @@
   'test-heap/Regress538257': [SKIP],
   'test-heap/ReinitializeStringHashSeed': [SKIP],
   'test-lockers/*': [SKIP],
-  'test-log/ExternalLogEventListenerInnerFunctions': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-managed/*': [SKIP],
   'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
   'test-memory-measurement/RandomizedTimeout': [SKIP],
