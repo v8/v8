@@ -385,8 +385,7 @@ void Debug::ThreadInit() {
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::zero();
   thread_local_.last_breakpoint_id_ = 0;
-  thread_local_.restart_frame_id_ = StackFrameId::NO_ID;
-  thread_local_.restart_inline_frame_index_ = -1;
+  clear_restart_frame();
   clear_suspended_generator();
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
@@ -1381,8 +1380,7 @@ void Debug::ClearStepping() {
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   thread_local_.break_on_next_function_call_ = false;
-  thread_local_.restart_frame_id_ = StackFrameId::NO_ID;
-  thread_local_.restart_inline_frame_index_ = -1;
+  clear_restart_frame();
   UpdateHookOnFunctionCall();
 }
 

@@ -64,7 +64,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   // If the user requested to restart a frame, there is no need
   // to get the return value or check the bytecode for side-effects.
-  if (isolate->debug()->ShouldRestartFrame()) {
+  if (isolate->debug()->IsRestartFrameScheduled()) {
     Object exception = isolate->TerminateExecution();
     return MakePair(exception,
                     Smi::FromInt(static_cast<uint8_t>(Bytecode::kIllegal)));
@@ -148,7 +148,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
     isolate->debug()->HandleDebugBreak(
         kIgnoreIfTopFrameBlackboxed,
         v8::debug::BreakReasons({v8::debug::BreakReason::kDebuggerStatement}));
-    if (isolate->debug()->ShouldRestartFrame()) {
+    if (isolate->debug()->IsRestartFrameScheduled()) {
       return isolate->TerminateExecution();
     }
   }

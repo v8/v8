@@ -394,8 +394,15 @@ class V8_EXPORT_PRIVATE Debug {
     return thread_local_.break_on_next_function_call_;
   }
 
-  bool ShouldRestartFrame() const {
+  bool IsRestartFrameScheduled() const {
     return thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
+  }
+  bool ShouldRestartFrame(StackFrameId id) const {
+    return IsRestartFrameScheduled() && thread_local_.restart_frame_id_ == id;
+  }
+  void clear_restart_frame() {
+    thread_local_.restart_frame_id_ = StackFrameId::NO_ID;
+    thread_local_.restart_inline_frame_index_ = -1;
   }
 
   inline bool break_disabled() const { return break_disabled_; }

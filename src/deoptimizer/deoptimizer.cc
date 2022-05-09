@@ -482,6 +482,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
                        ? new CodeTracer::Scope(isolate->GetCodeTracer())
                        : nullptr) {
   if (isolate->deoptimizer_lazy_throw()) {
+    CHECK_EQ(kind, DeoptimizeKind::kLazy);
     isolate->set_deoptimizer_lazy_throw(false);
     deoptimizing_throw_ = true;
   }
