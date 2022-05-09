@@ -3978,11 +3978,11 @@ void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
   DCHECK_IMPLIES(is_background,
                  clear_recorded_slots == ClearRecordedSlots::kNo);
 
-  const ClearFreedMemoryMode clear_memory_mode =
-      is_background ? ClearFreedMemoryMode::kDontClearFreedMemory
-                    : ClearFreedMemoryMode::kClearFreedMemory;
   const VerifyNoSlotsRecorded verify_no_slots_recorded =
       is_background ? VerifyNoSlotsRecorded::kNo : VerifyNoSlotsRecorded::kYes;
+
+  const ClearFreedMemoryMode clear_memory_mode =
+      ClearFreedMemoryMode::kDontClearFreedMemory;
 
   const Address filler = object.address() + new_size;
   const int filler_size = old_size - new_size;
