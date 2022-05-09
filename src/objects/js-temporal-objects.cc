@@ -1701,11 +1701,18 @@ MaybeHandle<JSTemporalPlainMonthDay> MonthDayFromFields(
 }
 
 // #sec-temporal-totemporaloverflow
-Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate,
-                                       Handle<JSReceiver> options,
+Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate, Handle<Object> options,
                                        const char* method_name) {
+  // 1. If options is undefined, return "constrain".
+  if (options->IsUndefined()) {
+    return Just(ShowOverflow::kConstrain);
+  }
+  DCHECK(options->IsJSReceiver());
+  // 2. Return ? GetOption(options, "overflow", « String », « "constrain",
+  // "reject" », "constrain").
   return GetStringOption<ShowOverflow>(
-      isolate, options, "overflow", method_name, {"constrain", "reject"},
+      isolate, Handle<JSReceiver>::cast(options), "overflow", method_name,
+      {"constrain", "reject"},
       {ShowOverflow::kConstrain, ShowOverflow::kReject},
       ShowOverflow::kConstrain);
 }
@@ -1873,12 +1880,13 @@ MaybeHandle<JSReceiver> ToTemporalCalendarWithISODefault(
 // #sec-temporal-totemporaldate
 MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
                                                 Handle<Object> item_obj,
-                                                Handle<JSReceiver> options,
+                                                Handle<Object> options,
                                                 const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   Factory* factory = isolate->factory();
-  // 2. Assert: Type(options) is Object.
+  // 2. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 3. If Type(item) is Object, then
   if (item_obj->IsJSReceiver()) {
     Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
@@ -1995,6 +2003,14 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
   // 9. Return ? CreateTemporalDate(result.[[Year]], result.[[Month]],
   // result.[[Day]], calendar).
   return CreateTemporalDate(isolate, result.date, calendar);
+}
+
+MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
+                                                Handle<Object> item_obj,
+                                                const char* method_name) {
+  // 1. If options is not present, set options to undefined.
+  return ToTemporalDate(isolate, item_obj,
+                        isolate->factory()->undefined_value(), method_name);
 }
 
 // #sec-isintegralnumber
@@ -3243,7 +3259,8 @@ MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(Isolate* isolate,
 MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
     Isolate* isolate, Handle<JSReceiver> calendar, Handle<Object> date,
     Handle<Object> duration, Handle<Object> options, Handle<Object> date_add) {
-  // 1. Assert: Type(calendar) is Object.
+  // 1. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 2. If dateAdd is not present, set dateAdd to ? GetMethod(calendar,
   // "dateAdd").
   if (date_add->IsUndefined()) {
@@ -6023,12 +6040,9 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateAdd(
   // 3. Assert: calendar.[[Identifier]] is "iso8601".
   // 4. Set date to ? ToTemporalDate(date).
   Handle<JSTemporalPlainDate> date;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, date,
-      ToTemporalDate(isolate, date_obj,
-                     isolate->factory()->NewJSObjectWithNullProto(),
-                     method_name),
-      JSTemporalPlainDate);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, date,
+                             ToTemporalDate(isolate, date_obj, method_name),
+                             JSTemporalPlainDate);
 
   // 5. Set duration to ? ToTemporalDuration(duration).
   Handle<JSTemporalDuration> duration;
@@ -6107,7 +6121,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInYear(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.daysInYear"),
         Smi);
   }
@@ -6145,7 +6158,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInMonth(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.daysInMonth"),
         Smi);
   }
@@ -6189,7 +6201,6 @@ MaybeHandle<Smi> JSTemporalCalendar::Year(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.year"),
         Smi);
   }
@@ -6224,7 +6235,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DayOfYear(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temporal_date,
       ToTemporalDate(isolate, temporal_date_like,
-                     isolate->factory()->NewJSObjectWithNullProto(),
                      "Temporal.Calendar.prototype.dayOfYear"),
       Smi);
   // a. Let value be ! ToISODayOfYear(temporalDate.[[ISOYear]],
@@ -6248,7 +6258,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DayOfWeek(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temporal_date,
       ToTemporalDate(isolate, temporal_date_like,
-                     isolate->factory()->NewJSObjectWithNullProto(),
                      "Temporal.Calendar.prototype.dayOfWeek"),
       Smi);
   // a. Let value be ! ToISODayOfWeek(temporalDate.[[ISOYear]],
@@ -6275,7 +6284,6 @@ MaybeHandle<Smi> JSTemporalCalendar::MonthsInYear(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.monthsInYear"),
         Smi);
   }
@@ -6302,7 +6310,6 @@ MaybeHandle<Oddball> JSTemporalCalendar::InLeapYear(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.inLeapYear"),
         Oddball);
   }
@@ -6335,7 +6342,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInWeek(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date,
       ToTemporalDate(isolate, temporal_date_like,
-                     isolate->factory()->NewJSObjectWithNullProto(),
                      "Temporal.Calendar.prototype.daysInWeek"),
       Smi);
   // 5. Return 7𝔽.
@@ -6422,20 +6428,14 @@ MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
   // 3. Assert: calendar.[[Identifier]] is "iso8601".
   // 4. Set one to ? ToTemporalDate(one).
   Handle<JSTemporalPlainDate> one;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, one,
-      ToTemporalDate(isolate, one_obj,
-                     isolate->factory()->NewJSObjectWithNullProto(),
-                     method_name),
-      JSTemporalDuration);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
+                             ToTemporalDate(isolate, one_obj, method_name),
+                             JSTemporalDuration);
   // 5. Set two to ? ToTemporalDate(two).
   Handle<JSTemporalPlainDate> two;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, two,
-      ToTemporalDate(isolate, two_obj,
-                     isolate->factory()->NewJSObjectWithNullProto(),
-                     method_name),
-      JSTemporalDuration);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, two,
+                             ToTemporalDate(isolate, two_obj, method_name),
+                             JSTemporalDuration);
   // 6. Set options to ? GetOptionsObject(options).
   Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -6492,7 +6492,6 @@ MaybeHandle<Smi> JSTemporalCalendar::Day(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.day"),
         Smi);
   }
@@ -6530,7 +6529,6 @@ MaybeHandle<String> JSTemporalCalendar::MonthCode(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.monthCode"),
         String);
   }
@@ -6576,7 +6574,6 @@ MaybeHandle<Smi> JSTemporalCalendar::Month(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.month"),
         Smi);
   }
@@ -6748,8 +6745,15 @@ MaybeHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
 namespace {
 
 MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
-    Isolate* isolate, Handle<Object> item_obj, Handle<JSReceiver> options,
+    Isolate* isolate, Handle<Object> item_obj, Handle<Object> options,
     const char* method_name);
+
+MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
+    Isolate* isolate, Handle<Object> item_obj, const char* method_name) {
+  // 1. If options is not present, set options to undefined.
+  return ToTemporalDateTime(isolate, item_obj,
+                            isolate->factory()->undefined_value(), method_name);
+}
 
 }  // namespace
 
@@ -6765,9 +6769,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
   Handle<JSTemporalPlainDateTime> date_time;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time,
-      ToTemporalDateTime(isolate, date_time_obj,
-                         isolate->factory()->NewJSObjectWithNullProto(),
-                         method_name),
+      ToTemporalDateTime(isolate, date_time_obj, method_name),
       JSTemporalInstant);
 
   // 4. Set options to ? GetOptionsObject(options).
@@ -6932,12 +6934,6 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-namespace {
-MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
-    Isolate* isolate, Handle<Object> item_obj, Handle<JSReceiver> options,
-    const char* method_name);
-}  // namespace
-
 // #sec-temporal.timezone.prototype.getpossibleinstantsfor
 MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
     Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
@@ -6951,7 +6947,6 @@ MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time,
       ToTemporalDateTime(isolate, date_time_obj,
-                         isolate->factory()->NewJSObjectWithNullProto(),
                          "Temporal.TimeZone.prototype.getPossibleInstantsFor"),
       JSArray);
   DateTimeRecordCommon date_time_record = {
@@ -7254,7 +7249,7 @@ namespace {
 // #sec-temporal-interprettemporaldatetimefields
 Maybe<DateTimeRecord> InterpretTemporalDateTimeFields(
     Isolate* isolate, Handle<JSReceiver> calendar, Handle<JSReceiver> fields,
-    Handle<JSReceiver> options, const char* method_name) {
+    Handle<Object> options, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Let timeResult be ? ToTemporalTimeRecord(fields).
@@ -7330,9 +7325,11 @@ Maybe<DateTimeRecord> ParseTemporalDateTimeString(Isolate* isolate,
 
 // #sec-temporal-totemporaldatetime
 MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
-    Isolate* isolate, Handle<Object> item_obj, Handle<JSReceiver> options,
+    Isolate* isolate, Handle<Object> item_obj, Handle<Object> options,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
+  // 2. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
 
   Factory* factory = isolate->factory();
   Handle<JSReceiver> calendar;
@@ -7457,6 +7454,7 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
   return temporal::CreateTemporalDateTime(isolate, {result.date, result.time},
                                           calendar);
 }
+
 }  // namespace
 
 // #sec-temporal.plaindatetime.from

@@ -356,7 +356,6 @@
 
   'built-ins/Temporal/Instant/from/instant-string-multiple-offsets': [SKIP],
 
-  # Calendar.dateAdd with null instead of undefined
   # https://github.com/tc39/test262/issues/3262
   'built-ins/Temporal/Duration/prototype/add/calendar-dateadd-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/calendar-dateadd-called-with-options-undefined': [FAIL],
@@ -380,23 +379,10 @@
   'built-ins/Temporal/PlainDateTime/prototype/until/largestunit-undefined': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
-  'built-ins/Temporal/Calendar/prototype/dateAdd/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/dateUntil/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/day/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/dayOfWeek/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/dayOfYear/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/daysInMonth/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/daysInWeek/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/daysInYear/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/inLeapYear/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/month/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/monthCode/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/monthsInYear/calendar-datefromfields-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-plaindate': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-plaindatetime': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-string': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/year/calendar-datefromfields-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/balance-negative-time-units': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/calendar-dateuntil-called-with-singular-largestunit': [SKIP],
   'built-ins/Temporal/Duration/prototype/add/relativeto-string-zoneddatetime': [SKIP],
@@ -428,6 +414,8 @@
   'built-ins/Temporal/Calendar/prototype/daysInYear/basic': [FAIL],
   'built-ins/Temporal/Calendar/prototype/month/basic': [FAIL],
   'built-ins/Temporal/Calendar/prototype/monthCode/basic': [FAIL],
+  'built-ins/Temporal/Calendar/prototype/year/basic': [FAIL],
+
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-string-with-utc-designator': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
@@ -439,7 +427,7 @@
   'built-ins/Temporal/Calendar/prototype/weekOfYear/calendar-temporal-object': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/cross-year': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/infinity-throws-rangeerror': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/year/basic': [FAIL],
+
   'built-ins/Temporal/Duration/compare/argument-string-negative-fractional-units': [FAIL],
   'built-ins/Temporal/Duration/compare/calendar-dateadd-called-with-plaindate-instance': [FAIL],
   'built-ins/Temporal/Duration/compare/options-undefined': [FAIL],
