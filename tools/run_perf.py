@@ -1241,7 +1241,7 @@ def Main(argv):
       try:
         for runnable in FlattenRunnables(root, NodeCB):
           runnable_name = '/'.join(runnable.graphs)
-          if args.filter and args.filter.search(runnable_name):
+          if args.filter and not args.filter.match(runnable_name):
             logging.info('Skipping suite "%s" due to filter', runnable_name)
             continue
           logging.info('>>> Running suite: %s', runnable_name)

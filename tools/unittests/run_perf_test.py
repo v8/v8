@@ -583,6 +583,37 @@ class PerfTest(unittest.TestCase):
     self._VerifyMock(
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
 
+  def testFilterInvalidRegexp(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
+    self.assertNotEqual(0, self._CallMain("--filter=((("))
+    self._VerifyMock(os.path.join('out', 'Release', 'd7'), '--flag', 'run.js')
+
+  def testFilterRegexpMatchAll(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
+    self.assertEqual(0, self._CallMain("--filter=test"))
+    self._VerifyResults('test', 'score', [
+        {
+            'name': 'Richards',
+            'results': [1.234],
+            'stddev': ''
+        },
+        {
+            'name': 'DeltaBlue',
+            'results': [10657567.0],
+            'stddev': ''
+        },
+    ])
+    self._VerifyMock(
+        os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testFilterRegexpSkipAll(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
+    self.assertEqual(0, self._CallMain("--filter=NonExistingName"))
+    self._VerifyResults('test', 'score', [])
+
   def testOneRunCrashed(self):
     test_input = dict(V8_JSON)
     test_input['retry_count'] = 1
