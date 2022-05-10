@@ -960,6 +960,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
 void MarkCompactCollector::AbortCompaction() {
   if (compacting_) {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Changing Code page flags and remembered sets require write access "
+        "to the page header");
     RememberedSet<OLD_TO_OLD>::ClearAll(heap());
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       RememberedSet<OLD_TO_CODE>::ClearAll(heap());
