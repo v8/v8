@@ -3670,10 +3670,14 @@ base::Optional<BicImmParam> BicImmConstHelper(Node* const_node, bool not_imm) {
   return BicImm32bitHelper(not_imm ? ~val[0] : val[0]);
 }
 
-base::Optional<BicImmResult> BicImmHelper(Node* or_node, bool not_imm) {
-  Node* left = or_node->InputAt(0);
-  Node* right = or_node->InputAt(1);
-  if (left->opcode() == IrOpcode::kS128Const) {
+base::Optional<BicImmResult> BicImmHelper(Node* and_node, bool not_imm) {
+  Node* left = and_node->InputAt(0);
+  Node* right = and_node->InputAt(1);
+  // If we are negating the immediate then we are producing And(x, imm), and so
+  // can take the immediate from the left or right input. Otherwise we are
+  // producing And(x, Not(imm)), which can only be used when the immediate is
+  // the right (negated) input.
+  if (not_imm && left->opcode() == IrOpcode::kS128Const) {
     return BicImmResult(BicImmConstHelper(left, not_imm), left, right);
   }
   if (right->opcode() == IrOpcode::kS128Const) {
@@ -3709,6 +3713,7 @@ void InstructionSelector::VisitS128AndNot(Node* node) {
 }
 
 void InstructionSelector::VisitS128And(Node* node) {
+  // AndNot can be used if we negate the immediate input of And.
   if (!TryEmitS128AndNotImm(this, node, true)) {
     VisitRRR(this, kArm64S128And, node);
   }

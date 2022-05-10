@@ -5575,6 +5575,7 @@ struct SIMDConstAndTest {
   const uint8_t data[16];
   const Operator* (MachineOperatorBuilder::*simd_op)();
   const ArchOpcode expected_op;
+  const bool symmetrical;
   const uint8_t lane_size;
   const uint8_t shift_amount;
   const int32_t expected_imm;
@@ -5586,6 +5587,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0xFF, 0xFE, 0xFF, 0xFE},
      &MachineOperatorBuilder::S128And,
      kArm64S128AndNot,
+     true,
      16,
      8,
      0x01,
@@ -5594,6 +5596,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0xFE, 0xFF, 0xFE, 0xFF},
      &MachineOperatorBuilder::S128And,
      kArm64S128AndNot,
+     true,
      16,
      0,
      0x01,
@@ -5603,6 +5606,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0xFF, 0xFF, 0xFF, 0xFE},
      &MachineOperatorBuilder::S128And,
      kArm64S128AndNot,
+     true,
      32,
      24,
      0x01,
@@ -5611,6 +5615,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0xFF, 0xFF, 0xFE, 0xFF},
      &MachineOperatorBuilder::S128And,
      kArm64S128AndNot,
+     true,
      32,
      16,
      0x01,
@@ -5619,6 +5624,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0xFF, 0xFE, 0xFF, 0xFF},
      &MachineOperatorBuilder::S128And,
      kArm64S128AndNot,
+     true,
      32,
      8,
      0x01,
@@ -5627,6 +5633,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0xFE, 0xFF, 0xFF, 0xFF},
      &MachineOperatorBuilder::S128And,
      kArm64S128AndNot,
+     true,
      32,
      0,
      0x01,
@@ -5636,6 +5643,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0xEE, 0xEE, 0xEE, 0xEE},
      &MachineOperatorBuilder::S128And,
      kArm64S128And,
+     true,
      0,
      0,
      0x00,
@@ -5645,6 +5653,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0x00, 0x01, 0x00, 0x01},
      &MachineOperatorBuilder::S128AndNot,
      kArm64S128AndNot,
+     false,
      16,
      8,
      0x01,
@@ -5653,6 +5662,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0x01, 0x00, 0x01, 0x00},
      &MachineOperatorBuilder::S128AndNot,
      kArm64S128AndNot,
+     false,
      16,
      0,
      0x01,
@@ -5662,6 +5672,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0x00, 0x00, 0x00, 0x01},
      &MachineOperatorBuilder::S128AndNot,
      kArm64S128AndNot,
+     false,
      32,
      24,
      0x01,
@@ -5670,6 +5681,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0x00, 0x00, 0x01, 0x00},
      &MachineOperatorBuilder::S128AndNot,
      kArm64S128AndNot,
+     false,
      32,
      16,
      0x01,
@@ -5678,6 +5690,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0x00, 0x01, 0x00, 0x00},
      &MachineOperatorBuilder::S128AndNot,
      kArm64S128AndNot,
+     false,
      32,
      8,
      0x01,
@@ -5686,6 +5699,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0x01, 0x00, 0x00, 0x00},
      &MachineOperatorBuilder::S128AndNot,
      kArm64S128AndNot,
+     false,
      32,
      0,
      0x01,
@@ -5695,6 +5709,7 @@ static const SIMDConstAndTest SIMDConstAndTests[] = {
       0xEE, 0xEE, 0xEE, 0xEE},
      &MachineOperatorBuilder::S128AndNot,
      kArm64S128AndNot,
+     false,
      0,
      0,
      0x00,
@@ -5713,8 +5728,11 @@ TEST_P(InstructionSelectorSIMDConstAndTest, ConstAnd) {
     Node* op = m.AddNode((m.machine()->*param.simd_op)(), cnst, m.Parameter(0));
     m.Return(op);
     Stream s = m.Build();
-    ASSERT_EQ(param.size, s.size());
-    if (param.size == 1) {
+
+    // Bic cannot always be applied when the immediate is on the left
+    size_t expected_size = param.symmetrical ? param.size : 2;
+    ASSERT_EQ(expected_size, s.size());
+    if (expected_size == 1) {
       EXPECT_EQ(param.expected_op, s[0]->arch_opcode());
       EXPECT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(1U, s[0]->OutputCount());
