@@ -19,3 +19,25 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertTrue(obj1.a === Realm.eval(realm, "Error"));
   assertTrue(obj2.b === Realm.eval(realm, "Error.prototype"));
 })();
+
+(function TestObjectPrototype() {
+  function createObjects() {
+    globalThis.obj = {a: 1, __proto__: {x: 1}};
+  }
+  const realm = Realm.create();
+  const {obj} = takeAndUseWebSnapshot(createObjects, ['obj'], realm);
+  assertEquals(1, obj.x);
+  assertEquals(1, obj.__proto__.x);
+  assertSame(Realm.eval(realm, 'Object.prototype'), obj.__proto__.__proto__);
+})();
+
+(function TestEmptyObjectPrototype() {
+  function createObjects() {
+    globalThis.obj = {__proto__: {x: 1}};
+  }
+  const realm = Realm.create();
+  const {obj} = takeAndUseWebSnapshot(createObjects, ['obj'], realm);
+  assertEquals(1, obj.x);
+  assertEquals(1, obj.__proto__.x);
+  assertSame(Realm.eval(realm, 'Object.prototype'), obj.__proto__.__proto__);
+})();

@@ -1939,10 +1939,17 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     }
 
     if (property_count == 0) {
-      DisallowGarbageCollection no_gc;
-      Map empty_map =
-          isolate_->native_context()->object_function().initial_map();
-      maps_.set(i, empty_map);
+      if (prototype_id == 0) {
+        DisallowGarbageCollection no_gc;
+        Map empty_map =
+            isolate_->native_context()->object_function().initial_map();
+        maps_.set(i, empty_map);
+      } else {
+        Handle<Map> map = factory()->NewMap(
+            JS_OBJECT_TYPE, JSObject::kHeaderSize, HOLEY_ELEMENTS, 0);
+        DeserializeObjectPrototype(map, prototype_id);
+        maps_.set(i, *map);
+      }
       continue;
     }
 
@@ -2371,14 +2378,17 @@ void WebSnapshotDeserializer::DeserializeObjectPrototype(
     Handle<Map> map, uint32_t prototype_id) {
   if (prototype_id == 0) {
     // Use Object.prototype as the prototype.
-    map->set_prototype(isolate_->native_context()->initial_object_prototype(),
-                       UPDATE_WRITE_BARRIER);
+    Map::SetPrototype(
+        isolate_, map,
+        handle(isolate_->native_context()->initial_object_prototype(),
+               isolate_));
   } else {
     // TODO(v8::11525): Implement stricter checks, e.g., disallow cycles.
     --prototype_id;
     if (prototype_id < current_object_count_) {
-      map->set_prototype(HeapObject::cast(objects_.get(prototype_id)),
-                         UPDATE_WRITE_BARRIER);
+      HeapObject prototype = HeapObject::cast(objects_.get(prototype_id));
+      prototype.map().set_is_prototype_map(true);
+      Map::SetPrototype(isolate_, map, handle(prototype, isolate_));
     } else {
       // The object hasn't been deserialized yet.
       AddDeferredReference(map, 0, OBJECT_ID, prototype_id);
@@ -2997,8 +3007,14 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
       // The only deferred reference allowed for a Map is the __proto__.
       DCHECK_EQ(index, 0);
       DCHECK(target.IsJSReceiver());
-      Map::cast(container).set_prototype(HeapObject::cast(target),
-                                         UPDATE_WRITE_BARRIER);
+      HeapObject prototype = HeapObject::cast(target);
+      prototype.map().set_is_prototype_map(true);
+      {
+        AllowGarbageCollection allow_gc;
+        Map::SetPrototype(isolate_, handle(Map::cast(container), isolate_),
+                          handle(prototype, isolate_));
+      }
+      raw_deferred_references = *deferred_references_;
     } else {
       UNREACHABLE();
     }
