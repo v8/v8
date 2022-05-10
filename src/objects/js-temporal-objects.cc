@@ -6,6 +6,7 @@
 
 #include <set>
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
@@ -2651,17 +2652,15 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalDateString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalDateString(isolate, iso_string);
-  if (maybe_parsed.IsNothing()) {
+  if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
   }
-
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. If _isoString_ contains a |UTCDesignator|, then
-  if (parsed.utc_designator) {
+  if (parsed->utc_designator) {
     // a. Throw a *RangeError* exception.
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
@@ -2669,7 +2668,7 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
   // 3. Let result be ? ParseISODateTime(isoString).
   DateTimeRecord result;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result, ParseISODateTime(isolate, iso_string, parsed),
+      isolate, result, ParseISODateTime(isolate, iso_string, *parsed),
       Nothing<DateRecord>());
   // 4. Return the Record { [[Year]]: result.[[Year]], [[Month]]:
   // result.[[Month]], [[Day]]: result.[[Day]], [[Calendar]]:
@@ -2686,17 +2685,16 @@ Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalTimeString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalTimeString(isolate, iso_string);
-  ParsedISO8601Result parsed;
-  if (!maybe_parsed.To(&parsed)) {
+  if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<TimeRecord>());
   }
 
   // 3. If _isoString_ contains a |UTCDesignator|, then
-  if (parsed.utc_designator) {
+  if (parsed->utc_designator) {
     // a. Throw a *RangeError* exception.
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<TimeRecord>());
@@ -2705,7 +2703,7 @@ Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
   // 3. Let result be ? ParseISODateTime(isoString).
   DateTimeRecord result;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result, ParseISODateTime(isolate, iso_string, parsed),
+      isolate, result, ParseISODateTime(isolate, iso_string, *parsed),
       Nothing<TimeRecord>());
   // 4. Return the Record { [[Hour]]: result.[[Hour]], [[Minute]]:
   // result.[[Minute]], [[Second]]: result.[[Second]], [[Millisecond]]:
@@ -2723,9 +2721,9 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalInstantString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalInstantString(isolate, iso_string);
-  if (maybe_parsed.IsNothing()) {
+  if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<InstantRecord>());
@@ -2734,8 +2732,7 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
   // 3. Let result be ! ParseISODateTime(isoString).
   DateTimeRecord result;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result,
-      ParseISODateTime(isolate, iso_string, maybe_parsed.FromJust()),
+      isolate, result, ParseISODateTime(isolate, iso_string, *parsed),
       Nothing<InstantRecord>());
 
   // 4. Let timeZoneResult be ? ParseTemporalTimeZoneString(isoString).
@@ -2859,33 +2856,32 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
   // DurationWholeMinutes, DurationMinutesFraction, DurationWholeSeconds, and
   // DurationSecondsFraction Parse Node enclosed by duration, or an empty
   // sequence of code points if not present.
-  Maybe<ParsedISO8601Duration> maybe_parsed =
+  base::Optional<ParsedISO8601Duration> parsed =
       TemporalParser::ParseTemporalDurationString(isolate, iso_string);
-  if (maybe_parsed.IsNothing()) {
+  if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DurationRecord>());
   }
-  ParsedISO8601Duration parsed = maybe_parsed.FromJust();
   // 4. Let yearsMV be ! ToIntegerOrInfinity(CodePointsToString(years)).
-  double years_mv = IfEmptyReturnZero(parsed.years);
+  double years_mv = IfEmptyReturnZero(parsed->years);
   // 5. Let monthsMV be ! ToIntegerOrInfinity(CodePointsToString(months)).
-  double months_mv = IfEmptyReturnZero(parsed.months);
+  double months_mv = IfEmptyReturnZero(parsed->months);
   // 6. Let weeksMV be ! ToIntegerOrInfinity(CodePointsToString(weeks)).
-  double weeks_mv = IfEmptyReturnZero(parsed.weeks);
+  double weeks_mv = IfEmptyReturnZero(parsed->weeks);
   // 7. Let daysMV be ! ToIntegerOrInfinity(CodePointsToString(days)).
-  double days_mv = IfEmptyReturnZero(parsed.days);
+  double days_mv = IfEmptyReturnZero(parsed->days);
   // 8. Let hoursMV be ! ToIntegerOrInfinity(CodePointsToString(hours)).
-  double hours_mv = IfEmptyReturnZero(parsed.whole_hours);
+  double hours_mv = IfEmptyReturnZero(parsed->whole_hours);
   // 9. If fHours is not empty, then
   double minutes_mv;
-  if (parsed.hours_fraction != ParsedISO8601Duration::kEmpty) {
+  if (parsed->hours_fraction != ParsedISO8601Duration::kEmpty) {
     // a. If any of minutes, fMinutes, seconds, fSeconds is not empty, throw a
     // RangeError exception.
-    if (parsed.whole_minutes != ParsedISO8601Duration::kEmpty ||
-        parsed.minutes_fraction != ParsedISO8601Duration::kEmpty ||
-        parsed.whole_seconds != ParsedISO8601Duration::kEmpty ||
-        parsed.seconds_fraction != ParsedISO8601Duration::kEmpty) {
+    if (parsed->whole_minutes != ParsedISO8601Duration::kEmpty ||
+        parsed->minutes_fraction != ParsedISO8601Duration::kEmpty ||
+        parsed->whole_seconds != ParsedISO8601Duration::kEmpty ||
+        parsed->seconds_fraction != ParsedISO8601Duration::kEmpty) {
       THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                    NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                    Nothing<DurationRecord>());
@@ -2893,19 +2889,19 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
     // b. Let fHoursDigits be the substring of CodePointsToString(fHours)
     // from 1. c. Let fHoursScale be the length of fHoursDigits. d. Let
     // minutesMV be ! ToIntegerOrInfinity(fHoursDigits) / 10^fHoursScale × 60.
-    minutes_mv = IfEmptyReturnZero(parsed.hours_fraction) * 60.0 / 1e9;
+    minutes_mv = IfEmptyReturnZero(parsed->hours_fraction) * 60.0 / 1e9;
     // 10. Else,
   } else {
     // a. Let minutesMV be ! ToIntegerOrInfinity(CodePointsToString(minutes)).
-    minutes_mv = IfEmptyReturnZero(parsed.whole_minutes);
+    minutes_mv = IfEmptyReturnZero(parsed->whole_minutes);
   }
   double seconds_mv;
   // 11. If fMinutes is not empty, then
-  if (parsed.minutes_fraction != ParsedISO8601Duration::kEmpty) {
+  if (parsed->minutes_fraction != ParsedISO8601Duration::kEmpty) {
     // a. If any of seconds, fSeconds is not empty, throw a RangeError
     // exception.
-    if (parsed.whole_seconds != ParsedISO8601Duration::kEmpty ||
-        parsed.seconds_fraction != ParsedISO8601Duration::kEmpty) {
+    if (parsed->whole_seconds != ParsedISO8601Duration::kEmpty ||
+        parsed->seconds_fraction != ParsedISO8601Duration::kEmpty) {
       THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                    NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                    Nothing<DurationRecord>());
@@ -2914,11 +2910,11 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
     // from 1. c. Let fMinutesScale be the length of fMinutesDigits. d. Let
     // secondsMV be ! ToIntegerOrInfinity(fMinutesDigits) / 10^fMinutesScale
     // × 60.
-    seconds_mv = IfEmptyReturnZero(parsed.minutes_fraction) * 60.0 / 1e9;
+    seconds_mv = IfEmptyReturnZero(parsed->minutes_fraction) * 60.0 / 1e9;
     // 12. Else if seconds is not empty, then
-  } else if (parsed.whole_seconds != ParsedISO8601Duration::kEmpty) {
+  } else if (parsed->whole_seconds != ParsedISO8601Duration::kEmpty) {
     // a. Let secondsMV be ! ToIntegerOrInfinity(CodePointsToString(seconds)).
-    seconds_mv = parsed.whole_seconds;
+    seconds_mv = parsed->whole_seconds;
     // 13. Else,
   } else {
     // a. Let secondsMV be remainder(minutesMV, 1) × 60.
@@ -2927,14 +2923,14 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
   int32_t milliseconds_mv;
   int32_t nanoseconds_mv;
   // 14. If fSeconds is not empty, then
-  if (parsed.seconds_fraction != ParsedISO8601Duration::kEmpty) {
+  if (parsed->seconds_fraction != ParsedISO8601Duration::kEmpty) {
     // a. Let fSecondsDigits be the substring of CodePointsToString(fSeconds)
     // from 1. b. Let fSecondsScale be the length of fSecondsDigits. c. Let
     // millisecondsMV be ! ToIntegerOrInfinity(fSecondsDigits) /
     // 10^fSecondsScale × 1000.
-    DCHECK_LE(IfEmptyReturnZero(parsed.seconds_fraction), 1e9);
+    DCHECK_LE(IfEmptyReturnZero(parsed->seconds_fraction), 1e9);
     nanoseconds_mv =
-        static_cast<int32_t>(IfEmptyReturnZero(parsed.seconds_fraction));
+        static_cast<int32_t>(IfEmptyReturnZero(parsed->seconds_fraction));
     // 15. Else,
   } else {
     // a. Let millisecondsMV be remainder(secondsMV, 1) × 1000.
@@ -2953,7 +2949,7 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
   // SIGN), then a. Let factor be −1.
   // 19. Else,
   // a. Let factor be 1.
-  double factor = parsed.sign;
+  double factor = parsed->sign;
 
   // 20. Return ? CreateDurationRecord(yearsMV × factor, monthsMV × factor,
   // weeksMV × factor, daysMV × factor, hoursMV × factor, floor(minutesMV) ×
@@ -2978,27 +2974,26 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalTimeZoneString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalTimeZoneString(isolate, iso_string);
-  if (maybe_parsed.IsNothing()) {
+  if (!parsed.has_value()) {
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<TimeZoneRecord>());
   }
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let z, sign, hours, minutes, seconds, fraction and name be the parts of
   // isoString produced respectively by the UTCDesignator,
   // TimeZoneUTCOffsetSign, TimeZoneUTCOffsetHour, TimeZoneUTCOffsetMinute,
   // TimeZoneUTCOffsetSecond, TimeZoneUTCOffsetFraction, and TimeZoneIANAName
   // productions, or undefined if not present.
   // 4. If z is not undefined, then
-  if (parsed.utc_designator) {
+  if (parsed->utc_designator) {
     // a. Return the Record { [[Z]]: true, [[OffsetString]]: undefined,
     // [[Name]]: name }.
-    if (parsed.tzi_name_length > 0) {
+    if (parsed->tzi_name_length > 0) {
       Handle<String> name = isolate->factory()->NewSubString(
-          iso_string, parsed.tzi_name_start,
-          parsed.tzi_name_start + parsed.tzi_name_length);
+          iso_string, parsed->tzi_name_start,
+          parsed->tzi_name_start + parsed->tzi_name_length);
       TimeZoneRecord ret({true, isolate->factory()->empty_string(), name});
       return Just(ret);
     }
@@ -3012,29 +3007,29 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   // 6. Else,
   Handle<String> offset_string;
   bool offset_string_is_defined = false;
-  if (!parsed.tzuo_hour_is_undefined()) {
+  if (!parsed->tzuo_hour_is_undefined()) {
     // a. Assert: sign is not undefined.
-    DCHECK(!parsed.tzuo_sign_is_undefined());
+    DCHECK(!parsed->tzuo_sign_is_undefined());
     // b. Set hours to ! ToIntegerOrInfinity(hours).
-    int32_t hours = parsed.tzuo_hour;
+    int32_t hours = parsed->tzuo_hour;
     // c. If sign is the code unit 0x002D (HYPHEN-MINUS) or the code unit 0x2212
     // (MINUS SIGN), then i. Set sign to −1. d. Else, i. Set sign to 1.
-    int32_t sign = parsed.tzuo_sign;
+    int32_t sign = parsed->tzuo_sign;
     // e. Set minutes to ! ToIntegerOrInfinity(minutes).
     int32_t minutes =
-        parsed.tzuo_minute_is_undefined() ? 0 : parsed.tzuo_minute;
+        parsed->tzuo_minute_is_undefined() ? 0 : parsed->tzuo_minute;
     // f. Set seconds to ! ToIntegerOrInfinity(seconds).
     int32_t seconds =
-        parsed.tzuo_second_is_undefined() ? 0 : parsed.tzuo_second;
+        parsed->tzuo_second_is_undefined() ? 0 : parsed->tzuo_second;
     // g. If fraction is not undefined, then
     int32_t nanoseconds;
-    if (!parsed.tzuo_nanosecond_is_undefined()) {
+    if (!parsed->tzuo_nanosecond_is_undefined()) {
       // i. Set fraction to the string-concatenation of the previous value of
       // fraction and the string "000000000".
       // ii. Let nanoseconds be the String value equal to the substring of
       // fraction from 0 to 9. iii. Set nanoseconds to !
       // ToIntegerOrInfinity(nanoseconds).
-      nanoseconds = parsed.tzuo_nanosecond;
+      nanoseconds = parsed->tzuo_nanosecond;
       // h. Else,
     } else {
       // i. Let nanoseconds be 0.
@@ -3054,10 +3049,10 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   }
   // 7. If name is not undefined, then
   Handle<String> name;
-  if (parsed.tzi_name_length > 0) {
+  if (parsed->tzi_name_length > 0) {
     name = isolate->factory()->NewSubString(
-        iso_string, parsed.tzi_name_start,
-        parsed.tzi_name_start + parsed.tzi_name_length);
+        iso_string, parsed->tzi_name_start,
+        parsed->tzi_name_start + parsed->tzi_name_length);
 
     // a. If ! IsValidTimeZoneName(name) is false, throw a RangeError exception.
     if (!IsValidTimeZoneName(isolate, name)) {
@@ -3121,21 +3116,19 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
   // 1. Assert: Type(offsetString) is String.
   // 2. If offsetString does not satisfy the syntax of a
   // TimeZoneNumericUTCOffset (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
-  if (throw_if_not_satisfy && maybe_parsed.IsNothing()) {
+  if (throw_if_not_satisfy && !parsed.has_value()) {
     /* a. Throw a RangeError exception. */
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
-  MAYBE_RETURN(maybe_parsed, Nothing<int64_t>());
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let sign, hours, minutes, seconds, and fraction be the parts of
   // offsetString produced respectively by the TimeZoneUTCOffsetSign,
   // TimeZoneUTCOffsetHour, TimeZoneUTCOffsetMinute, TimeZoneUTCOffsetSecond,
   // and TimeZoneUTCOffsetFraction productions, or undefined if not present.
   // 4. If either hours or sign are undefined, throw a RangeError exception.
-  if (parsed.tzuo_hour_is_undefined() || parsed.tzuo_sign_is_undefined()) {
+  if (parsed->tzuo_hour_is_undefined() || parsed->tzuo_sign_is_undefined()) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
@@ -3143,23 +3136,25 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
   // then a. Set sign to −1.
   // 6. Else,
   // a. Set sign to 1.
-  int64_t sign = parsed.tzuo_sign;
+  int64_t sign = parsed->tzuo_sign;
 
   // 7. Set hours to ! ToIntegerOrInfinity(hours).
-  int64_t hours = parsed.tzuo_hour;
+  int64_t hours = parsed->tzuo_hour;
   // 8. Set minutes to ! ToIntegerOrInfinity(minutes).
-  int64_t minutes = parsed.tzuo_minute_is_undefined() ? 0 : parsed.tzuo_minute;
+  int64_t minutes =
+      parsed->tzuo_minute_is_undefined() ? 0 : parsed->tzuo_minute;
   // 9. Set seconds to ! ToIntegerOrInfinity(seconds).
-  int64_t seconds = parsed.tzuo_second_is_undefined() ? 0 : parsed.tzuo_second;
+  int64_t seconds =
+      parsed->tzuo_second_is_undefined() ? 0 : parsed->tzuo_second;
   // 10. If fraction is not undefined, then
   int64_t nanoseconds;
-  if (!parsed.tzuo_nanosecond_is_undefined()) {
+  if (!parsed->tzuo_nanosecond_is_undefined()) {
     // a. Set fraction to the string-concatenation of the previous value of
     // fraction and the string "000000000".
     // b. Let nanoseconds be the String value equal to the substring of fraction
     // consisting of the code units with indices 0 (inclusive) through 9
     // (exclusive). c. Set nanoseconds to ! ToIntegerOrInfinity(nanoseconds).
-    nanoseconds = parsed.tzuo_nanosecond;
+    nanoseconds = parsed->tzuo_nanosecond;
     // 11. Else,
   } else {
     // a. Let nanoseconds be 0.
@@ -3175,9 +3170,9 @@ Maybe<bool> IsValidTimeZoneNumericUTCOffsetString(Isolate* isolate,
                                                   Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
 
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
-  return Just(maybe_parsed.IsJust());
+  return Just(parsed.has_value());
 }
 
 // #sec-temporal-parsetemporalcalendarstring
@@ -3188,22 +3183,21 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalCalendarString
   // (see 13.33), then a. Throw a RangeError exception.
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalCalendarString(isolate, iso_string);
-  if (maybe_parsed.IsNothing()) {
+  if (!parsed.has_value()) {
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), String);
   }
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let id be the part of isoString produced by the CalendarName production,
   // or undefined if not present.
   // 4. If id is undefined, then
-  if (parsed.calendar_name_length == 0) {
+  if (parsed->calendar_name_length == 0) {
     // a. Return "iso8601".
     return isolate->factory()->iso8601_string();
   }
   Handle<String> id = isolate->factory()->NewSubString(
-      iso_string, parsed.calendar_name_start,
-      parsed.calendar_name_start + parsed.calendar_name_length);
+      iso_string, parsed->calendar_name_start,
+      parsed->calendar_name_start + parsed->calendar_name_length);
   // 5. If ! IsBuiltinCalendar(id) is false, then
   if (!IsBuiltinCalendar(isolate, id)) {
     // a. Throw a RangeError exception.
@@ -7300,18 +7294,17 @@ Maybe<DateTimeRecord> ParseTemporalDateTimeString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalDateTimeString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalDateTimeString(isolate, iso_string);
-  if (maybe_parsed.IsNothing()) {
+  if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DateTimeRecord>());
   }
 
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. If _isoString_ contains a |UTCDesignator|, then
-  if (parsed.utc_designator) {
+  if (parsed->utc_designator) {
     // a. Throw a *RangeError* exception.
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
@@ -7320,7 +7313,7 @@ Maybe<DateTimeRecord> ParseTemporalDateTimeString(Isolate* isolate,
 
   // 3. Let result be ? ParseISODateTime(isoString).
   // 4. Return result.
-  return ParseISODateTime(isolate, iso_string, parsed);
+  return ParseISODateTime(isolate, iso_string, *parsed);
 }
 
 // #sec-temporal-totemporaldatetime

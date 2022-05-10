@@ -53,16 +53,16 @@ void CheckTimeZoneNumericUTCOffset(const ParsedISO8601Result& actual,
   CHECK_EQ(tzuo_nanosecond, actual.tzuo_nanosecond);
 }
 
-#define IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(R)                     \
-  void VerifyParseTemporal##R##StringSuccess(                                 \
-      Isolate* isolate, const char* str, int32_t date_year,                   \
-      int32_t date_month, int32_t date_day, const char* calendar_name) {      \
-    Handle<String> input = CcTest::MakeString(str);                           \
-    ParsedISO8601Result actual =                                              \
-        TemporalParser::ParseTemporal##R##String(isolate, input).ToChecked(); \
-    CheckDate(actual, date_year, date_month, date_day);                       \
-    CheckCalendar(isolate, input, actual.calendar_name_start,                 \
-                  actual.calendar_name_length, calendar_name);                \
+#define IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(R)                \
+  void VerifyParseTemporal##R##StringSuccess(                            \
+      Isolate* isolate, const char* str, int32_t date_year,              \
+      int32_t date_month, int32_t date_day, const char* calendar_name) { \
+    Handle<String> input = CcTest::MakeString(str);                      \
+    ParsedISO8601Result actual =                                         \
+        *TemporalParser::ParseTemporal##R##String(isolate, input);       \
+    CheckDate(actual, date_year, date_month, date_day);                  \
+    CheckCalendar(isolate, input, actual.calendar_name_start,            \
+                  actual.calendar_name_length, calendar_name);           \
   }
 
 IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(Date)
@@ -70,19 +70,19 @@ IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(YearMonth)
 IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(MonthDay)
 IMPL_VERIFY_PARSE_TEMPORAL_DATE_STRING_SUCCESS(RelativeTo)
 
-#define IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(R)                \
-  void VerifyParseTemporal##R##StringSuccess(                                 \
-      Isolate* isolate, const char* str, int32_t date_year,                   \
-      int32_t date_month, int32_t date_day, int32_t time_hour,                \
-      int32_t time_minute, int32_t time_second, int32_t time_nanosecond,      \
-      const char* calendar_name) {                                            \
-    Handle<String> input = CcTest::MakeString(str);                           \
-    ParsedISO8601Result actual =                                              \
-        TemporalParser::ParseTemporal##R##String(isolate, input).ToChecked(); \
-    CheckDate(actual, date_year, date_month, date_day);                       \
-    CheckCalendar(isolate, input, actual.calendar_name_start,                 \
-                  actual.calendar_name_length, calendar_name);                \
-    CheckTime(actual, time_hour, time_minute, time_second, time_nanosecond);  \
+#define IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(R)               \
+  void VerifyParseTemporal##R##StringSuccess(                                \
+      Isolate* isolate, const char* str, int32_t date_year,                  \
+      int32_t date_month, int32_t date_day, int32_t time_hour,               \
+      int32_t time_minute, int32_t time_second, int32_t time_nanosecond,     \
+      const char* calendar_name) {                                           \
+    Handle<String> input = CcTest::MakeString(str);                          \
+    ParsedISO8601Result actual =                                             \
+        *TemporalParser::ParseTemporal##R##String(isolate, input);           \
+    CheckDate(actual, date_year, date_month, date_day);                      \
+    CheckCalendar(isolate, input, actual.calendar_name_start,                \
+                  actual.calendar_name_length, calendar_name);               \
+    CheckTime(actual, time_hour, time_minute, time_second, time_nanosecond); \
   }
 
 IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(DateTime)
@@ -98,7 +98,7 @@ IMPL_VERIFY_PARSE_TEMPORAL_DATE_TIME_STRING_SUCCESS(RelativeTo)
       bool utc_designator, const char* tzi_name) {                             \
     Handle<String> input = CcTest::MakeString(str);                            \
     ParsedISO8601Result actual =                                               \
-        TemporalParser::ParseTemporal##R##String(isolate, input).ToChecked();  \
+        *TemporalParser::ParseTemporal##R##String(isolate, input);             \
     CheckDate(actual, date_year, date_month, date_day);                        \
     CheckCalendar(isolate, input, actual.calendar_name_start,                  \
                   actual.calendar_name_length, calendar_name);                 \
@@ -122,7 +122,7 @@ void VerifyParseTemporalInstantStringSuccess(
     int32_t tzuo_nanosecond) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Result actual =
-      TemporalParser::ParseTemporalInstantString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalInstantString(isolate, input);
   CHECK_EQ(utc_designator, actual.utc_designator);
   if (!utc_designator) {
     CheckTimeZoneNumericUTCOffset(actual, tzuo_sign, tzuo_hour, tzuo_minute,
@@ -134,15 +134,15 @@ void VerifyParseTemporalCalendarStringSuccess(
     Isolate* isolate, const char* str, const std::string& calendar_name) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Result actual =
-      TemporalParser::ParseTemporalCalendarString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalCalendarString(isolate, input);
   CheckCalendar(isolate, input, actual.calendar_name_start,
                 actual.calendar_name_length, calendar_name);
 }
 
-#define VERIFY_PARSE_FAIL(R, str)                                \
-  do {                                                           \
-    Handle<String> input = CcTest::MakeString(str);              \
-    CHECK(TemporalParser::Parse##R(isolate, input).IsNothing()); \
+#define VERIFY_PARSE_FAIL(R, str)                                 \
+  do {                                                            \
+    Handle<String> input = CcTest::MakeString(str);               \
+    CHECK(!TemporalParser::Parse##R(isolate, input).has_value()); \
   } while (false)
 
 void VerifyParseTemporalTimeStringSuccess(
@@ -150,7 +150,7 @@ void VerifyParseTemporalTimeStringSuccess(
     int32_t time_second, int32_t time_nanosecond, const char* calendar_name) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Result actual =
-      TemporalParser::ParseTemporalTimeString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalTimeString(isolate, input);
   CheckTime(actual, time_hour, time_minute, time_second, time_nanosecond);
   CheckCalendar(isolate, input, actual.calendar_name_start,
                 actual.calendar_name_length, calendar_name);
@@ -1969,10 +1969,10 @@ void VerifyParseDurationSuccess(Isolate* isolate, const char* str, int64_t sign,
                                 int64_t minutes_fraction, int64_t whole_seconds,
                                 int64_t seconds_fraction) {
   Handle<String> input = CcTest::MakeString(str);
-  CheckDuration(
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked(),
-      sign, years, months, weeks, days, whole_hours, hours_fraction,
-      whole_minutes, minutes_fraction, whole_seconds, seconds_fraction);
+  CheckDuration(*TemporalParser::ParseTemporalDurationString(isolate, input),
+                sign, years, months, weeks, days, whole_hours, hours_fraction,
+                whole_minutes, minutes_fraction, whole_seconds,
+                seconds_fraction);
 }
 
 void VerifyParseDurationSuccess(Isolate* isolate, const char* str,
@@ -1987,7 +1987,7 @@ void VerifyParseDurationSuccess(Isolate* isolate, const char* str,
 void VerifyParseDurationWithPositiveSign(Isolate* isolate, const char* str) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Duration expected =
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalDurationString(isolate, input);
   std::string with_sign("+");
   with_sign += str;
   VerifyParseDurationSuccess(isolate, with_sign.c_str(), expected);
@@ -1998,7 +1998,7 @@ void VerifyParseDurationWithMinusSign(Isolate* isolate, const char* str) {
   with_sign += str;
   Handle<String> input = CcTest::MakeString(with_sign.c_str());
   ParsedISO8601Duration expected =
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalDurationString(isolate, input);
   with_sign = "\u2212";
   with_sign += str;
   VerifyParseDurationSuccess(isolate, with_sign.c_str(), expected);
@@ -2011,7 +2011,7 @@ char asciitolower(char in) {
 void VerifyParseDurationWithLowerCase(Isolate* isolate, const char* str) {
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Duration expected =
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalDurationString(isolate, input);
   std::string lower(str);
   std::transform(lower.begin(), lower.end(), lower.begin(), asciitolower);
   VerifyParseDurationSuccess(isolate, lower.c_str(), expected);
@@ -2023,7 +2023,7 @@ void VerifyParseDurationWithComma(Isolate* isolate, const char* str) {
   std::transform(period.begin(), period.end(), period.begin(), commatoperiod);
   Handle<String> input = CcTest::MakeString(str);
   ParsedISO8601Duration expected =
-      TemporalParser::ParseTemporalDurationString(isolate, input).ToChecked();
+      *TemporalParser::ParseTemporalDurationString(isolate, input);
   VerifyParseDurationSuccess(isolate, str, expected);
 }
 
@@ -2322,8 +2322,8 @@ void VerifyParseTimeZoneNumericUTCOffsetSuccess(
     int32_t tzuo_minute, int32_t tzuo_second, int32_t tzuo_nanosecond) {
   Handle<String> input = CcTest::MakeString(str);
   CheckTimeZoneNumericUTCOffset(
-      TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, input).ToChecked(),
-      tzuo_sign, tzuo_hour, tzuo_minute, tzuo_second, tzuo_nanosecond);
+      *TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, input), tzuo_sign,
+      tzuo_hour, tzuo_minute, tzuo_second, tzuo_nanosecond);
 }
 
 TEST(TimeZoneNumericUTCOffsetBasic) {
