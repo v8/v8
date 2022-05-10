@@ -6200,7 +6200,6 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     BuildLiteralCompareNil(expr->op(), BytecodeArrayBuilder::kNullValue);
   } else {
     if (expr->op() == Token::IN && expr->left()->IsPrivateName()) {
-      DCHECK(FLAG_harmony_private_brand_checks);
       Variable* var = expr->left()->AsVariableProxy()->var();
       if (IsPrivateMethodOrAccessorVariableMode(var->mode())) {
         BuildPrivateMethodIn(var, expr->right());

@@ -3241,8 +3241,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
 
   // "#foo in ShiftExpression" needs to be parsed separately, since private
   // identifiers are not valid PrimaryExpressions.
-  if (V8_UNLIKELY(FLAG_harmony_private_brand_checks &&
-                  peek() == Token::PRIVATE_NAME)) {
+  if (V8_UNLIKELY(peek() == Token::PRIVATE_NAME)) {
     ExpressionT x = ParsePropertyOrPrivatePropertyName();
     int prec1 = Token::Precedence(peek(), accept_IN_);
     if (peek() != Token::IN || prec1 < prec) {

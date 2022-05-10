@@ -329,7 +329,6 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #define HARMONY_SHIPPING_BASE(V)                                      \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
   V(harmony_atomics, "harmony atomics")                               \
-  V(harmony_private_brand_checks, "harmony private brand checks")     \
   V(harmony_error_cause, "harmony error cause property")              \
   V(harmony_object_has_own, "harmony Object.hasOwn")                  \
   V(harmony_class_static_blocks, "harmony static initializer blocks") \
