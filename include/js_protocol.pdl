@@ -713,18 +713,24 @@ experimental domain HeapProfiler
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken
       # when the tracking is stopped.
       optional boolean reportProgress
-      optional boolean treatGlobalObjectsAsRoots
+      # Deprecated in favor of `exposeInternals`.
+      deprecated optional boolean treatGlobalObjectsAsRoots
       # If true, numerical values are included in the snapshot
       optional boolean captureNumericValue
+      # If true, exposes internals of the snapshot.
+      experimental optional boolean exposeInternals
 
   command takeHeapSnapshot
     parameters
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken.
       optional boolean reportProgress
-      # If true, a raw snapshot without artificial roots will be generated
-      optional boolean treatGlobalObjectsAsRoots
+      # If true, a raw snapshot without artificial roots will be generated.
+      # Deprecated in favor of `exposeInternals`.
+      deprecated optional boolean treatGlobalObjectsAsRoots
       # If true, numerical values are included in the snapshot
       optional boolean captureNumericValue
+      # If true, exposes internals of the snapshot.
+      experimental optional boolean exposeInternals
 
   event addHeapSnapshotChunk
     parameters
