@@ -6,7 +6,6 @@
     {"app_args": "--future", "app_name": "d8", "probability": 0.25},
     {"app_args": "--interrupt-budget=1000", "app_name": "d8", "probability": 0.25},
     {"app_args": "--jitless", "app_name": "d8", "probability": 0.1},
-    {"app_args": "--maglev", "app_name": "d8", "probability": 0.1},
     {"app_args": "--random-gc-interval=2000", "app_name": "d8", "probability": 0.05},
     {"app_args": "--noanalyze-environment-liveness", "app_name": "d8", "probability": 0.1},
     {"app_args": "--no-enable-avx", "app_name": "d8", "probability": 0.1},
