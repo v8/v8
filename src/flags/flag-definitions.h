@@ -757,6 +757,10 @@ DEFINE_IMPLICATION(harmony_struct, shared_string_table)
 DEFINE_BOOL(
     always_use_string_forwarding_table, false,
     "use string forwarding table instead of thin strings for all strings")
+// TOOD(pthier): The code behind this flag is not going to ship.
+// We enable it behind --future to get performance numbers and coverage from
+// bots.
+DEFINE_WEAK_IMPLICATION(future, always_use_string_forwarding_table)
 
 DEFINE_BOOL(write_code_using_rwx, true,
             "flip permissions to rwx to write page instead of rw")
