@@ -946,23 +946,46 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
   arrays_ = ArrayList::Add(isolate_, arrays_, array);
 
   auto elements_kind = array->GetElementsKind();
-  if (elements_kind != PACKED_SMI_ELEMENTS &&
-      elements_kind != PACKED_ELEMENTS &&
-      elements_kind != PACKED_SEALED_ELEMENTS &&
-      elements_kind != PACKED_FROZEN_ELEMENTS &&
-      elements_kind != HOLEY_SMI_ELEMENTS && elements_kind != HOLEY_ELEMENTS) {
-    Throw("Unsupported array");
-    return;
-  }
+
+  DisallowGarbageCollection no_gc;
+
   // TODO(v8:11525): Support sparse arrays & arrays with holes.
   // TODO(v8:11525): Handle sealed & frozen elements correctly. (Also: handle
   // sealed & frozen objects.)
-  DisallowGarbageCollection no_gc;
-  FixedArray elements = FixedArray::cast(array->elements());
-  for (int i = 0; i < elements.length(); ++i) {
-    Object object = elements.get(i);
-    if (!object.IsHeapObject()) continue;
-    discovery_queue_.push(handle(HeapObject::cast(object), isolate_));
+  switch (elements_kind) {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS: {
+      FixedArray elements = FixedArray::cast(array->elements());
+      for (int i = 0; i < elements.length(); ++i) {
+        Object object = elements.get(i);
+        if (!object.IsHeapObject()) continue;
+        discovery_queue_.push(handle(HeapObject::cast(object), isolate_));
+      }
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      Handle<NumberDictionary> dict(array->element_dictionary(), isolate_);
+      ReadOnlyRoots roots(isolate_);
+      for (InternalIndex index : dict->IterateEntries()) {
+        Handle<Object> key = handle(dict->KeyAt(index), isolate_);
+        if (!dict->IsKey(roots, *key)) {
+          continue;
+        }
+        DCHECK(key->IsNumber());
+        Handle<Object> object = handle(dict->ValueAt(index), isolate_);
+        if (!object->IsHeapObject()) continue;
+        discovery_queue_.push(Handle<HeapObject>::cast(object));
+      }
+      break;
+    }
+    default: {
+      Throw("Unsupported array");
+      return;
+    }
   }
 }
 
@@ -1297,23 +1320,47 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
 }
 
 // Format (serialized array):
+// - Array Type (dense or sparse)
 // - Length
-// - For each element:
-//   - Serialized value
+// If dense array
+//   - For each element:
+//     - Serialized value
+// If sparse array
+//   - For each element:
+//     - Element index
+//     - Serialized value
 void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
   auto elements_kind = array->GetElementsKind();
-  // TODO(v8:11525): Support sparse arrays and double arrays.
+  // TODO(v8:11525): Support double arrays.
   switch (elements_kind) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS: {
+      array_serializer_.WriteUint32(ArrayType::kDense);
       uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
       array_serializer_.WriteUint32(length);
       Handle<FixedArray> elements =
           handle(FixedArray::cast(array->elements()), isolate_);
       for (uint32_t i = 0; i < length; ++i) {
         WriteValue(handle(elements->get(i), isolate_), array_serializer_);
+      }
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      DisallowGarbageCollection no_gc;
+      ReadOnlyRoots roots(isolate_);
+      array_serializer_.WriteUint32(ArrayType::kSparse);
+      Handle<NumberDictionary> dict =
+          handle(array->element_dictionary(), isolate_);
+      array_serializer_.WriteUint32(dict->NumberOfElements());
+      for (InternalIndex index : dict->IterateEntries()) {
+        Handle<Object> key = handle(dict->KeyAt(index), isolate_);
+        if (!dict->IsKey(roots, *key)) continue;
+        DCHECK(key->IsNumber());
+        uint32_t element_index = static_cast<uint32_t>(key->Number());
+        array_serializer_.WriteUint32(element_index);
+        WriteValue(handle(dict->ValueAt(index), isolate_), array_serializer_);
       }
       break;
     }
@@ -2571,6 +2618,76 @@ void WebSnapshotDeserializer::DeserializeObjects() {
   }
 }
 
+WebSnapshotDeserializer::ArrayType WebSnapshotDeserializer::ReadArrayType() {
+  uint32_t array_type;
+  if (!deserializer_.ReadUint32(&array_type)) {
+    Throw("Malformed array type");
+    return ArrayType::kDense;
+  }
+  if (array_type != ArrayType::kDense && array_type != ArrayType::kSparse) {
+    Throw("Unknown array type");
+    return ArrayType::kDense;
+  }
+  return static_cast<ArrayType>(array_type);
+}
+
+Handle<JSArray> WebSnapshotDeserializer::ReadDenseArrayElements(
+    uint32_t length) {
+  Handle<FixedArray> elements = factory()->NewFixedArray(length);
+  ElementsKind elements_kind = PACKED_SMI_ELEMENTS;
+  bool has_hole = false;
+  for (uint32_t i = 0; i < length; ++i) {
+    Object value = ReadValue(elements, i);
+    DisallowGarbageCollection no_gc;
+    if (!value.IsSmi()) {
+      elements_kind = PACKED_ELEMENTS;
+    }
+    if (value.IsTheHole()) {
+      has_hole = true;
+    }
+    elements->set(static_cast<int>(i), value);
+  }
+  if (has_hole) {
+    elements_kind =
+        elements_kind == PACKED_ELEMENTS ? HOLEY_ELEMENTS : HOLEY_SMI_ELEMENTS;
+  }
+  return factory()->NewJSArrayWithElements(elements, elements_kind, length);
+}
+
+Handle<JSArray> WebSnapshotDeserializer::ReadSparseArrayElements(
+    uint32_t length) {
+  Handle<NumberDictionary> dict = NumberDictionary::New(isolate_, length);
+  uint32_t max_element_index = 0;
+  for (uint32_t i = 0; i < length; ++i) {
+    uint32_t element_index;
+    if (!deserializer_.ReadUint32(&element_index)) {
+      Throw("Malformed element index in sparse array");
+      return isolate_->factory()->NewJSArray(0);
+    }
+    Object value = ReadValue(dict, element_index);
+    Handle<NumberDictionary> new_dict =
+        dict->Set(isolate_, dict, element_index, handle(value, isolate_));
+    // The number dictionary didn't grow, since it was preallocated to be
+    // large enough before.
+    DCHECK_EQ(*new_dict, *dict);
+    USE(new_dict);
+    if (element_index > max_element_index) {
+      max_element_index = element_index;
+    }
+  }
+  Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
+
+  Handle<Object> array_length =
+      isolate_->factory()->NewNumberFromUint(max_element_index + 1);
+  Handle<Map> map =
+      JSObject::GetElementsTransitionMap(array, DICTIONARY_ELEMENTS);
+  DisallowGarbageCollection no_gc;
+  array->set_length(*array_length);
+  array->set_elements(*dict);
+  array->set_map(*map, kReleaseStore);
+  return array;
+}
+
 void WebSnapshotDeserializer::DeserializeArrays() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Arrays);
   if (!deserializer_.ReadUint32(&array_count_) ||
@@ -2583,30 +2700,21 @@ void WebSnapshotDeserializer::DeserializeArrays() {
   arrays_ = *arrays_handle_;
   for (; current_array_count_ < array_count_; ++current_array_count_) {
     uint32_t length;
+    ArrayType array_type = ReadArrayType();
     if (!deserializer_.ReadUint32(&length) || length > kMaxItemCount) {
       Throw("Malformed array");
       return;
     }
-    Handle<FixedArray> elements = factory()->NewFixedArray(length);
-    ElementsKind elements_kind = PACKED_SMI_ELEMENTS;
-    bool has_hole = false;
-    for (uint32_t i = 0; i < length; ++i) {
-      Object value = ReadValue(elements, i);
-      DisallowGarbageCollection no_gc;
-      if (!value.IsSmi()) {
-        elements_kind = PACKED_ELEMENTS;
-      }
-      if (value.IsTheHole()) {
-        has_hole = true;
-      }
-      elements->set(static_cast<int>(i), value);
+
+    Handle<JSArray> array;
+    // TODO(v8::11525): we need to convert array to dictionary mode if there are
+    // too many elements for a dense array.
+    if (array_type == ArrayType::kDense) {
+      array = ReadDenseArrayElements(length);
+    } else {
+      array = ReadSparseArrayElements(length);
     }
-    if (has_hole) {
-      elements_kind = elements_kind == PACKED_ELEMENTS ? HOLEY_ELEMENTS
-                                                       : HOLEY_SMI_ELEMENTS;
-    }
-    Handle<JSArray> array =
-        factory()->NewJSArrayWithElements(elements, elements_kind, length);
+    DCHECK(!array->is_null());
     arrays_.set(static_cast<int>(current_array_count_), *array);
   }
 }
@@ -2990,6 +3098,19 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
       PropertyArray::cast(container).set(index, target);
     } else if (InstanceTypeChecker::IsContext(instance_type)) {
       Context::cast(container).set(index, target);
+    } else if (InstanceTypeChecker::IsNumberDictionary(instance_type)) {
+      // NumberDictionary::Set may need create HeapNumber for index.
+      AllowGarbageCollection allow_gc;
+      Handle<NumberDictionary> new_container = NumberDictionary::Set(
+          isolate_, handle(NumberDictionary::cast(container), isolate_), index,
+          handle(target, isolate_));
+      // The number dictionary didn't grow, since it was preallocated to be
+      // large enough in DeserializeArrays.
+      DCHECK_EQ(*new_container, container);
+      USE(new_container);
+      // We also need to reload raw_deferred_references because
+      // NumberDictionary::Set may allocate.
+      raw_deferred_references = *deferred_references_;
     } else if (InstanceTypeChecker::IsFixedArray(instance_type)) {
       FixedArray::cast(container).set(index, target);
     } else if (InstanceTypeChecker::IsJSFunction(instance_type)) {

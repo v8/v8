@@ -67,6 +67,8 @@ class WebSnapshotSerializerDeserializer {
     kGlobal = 2
   };
 
+  enum ArrayType : uint8_t { kDense = 0, kSparse = 1 };
+
   static constexpr uint8_t kMagicNumber[4] = {'+', '+', '+', ';'};
 
   enum ContextType : uint8_t { FUNCTION, BLOCK };
@@ -421,6 +423,9 @@ class V8_EXPORT WebSnapshotDeserializer
   Object ReadBuiltinObjectReference();
   Object ReadExternalReference();
   bool ReadMapType();
+  ArrayType ReadArrayType();
+  Handle<JSArray> ReadDenseArrayElements(uint32_t length);
+  Handle<JSArray> ReadSparseArrayElements(uint32_t length);
 
   void ReadFunctionPrototype(Handle<JSFunction> function);
   bool SetFunctionPrototype(JSFunction function, JSReceiver prototype);
