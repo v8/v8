@@ -7777,8 +7777,18 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() ||
       !inference.AllOfInstanceTypesAre(instance_type)) {
-    return NoChange();
+    return inference.NoChange();
   }
+
+  // TODO(v8:11111): We skip this optimization for RAB/GSAB for now. Should
+  // have some optimization here eventually.
+  for (const auto& map : inference.GetMaps()) {
+    if (IsRabGsabTypedArrayElementsKind(map.elements_kind())) {
+      return inference.NoChange();
+    }
+  }
+
+  CHECK(inference.RelyOnMapsViaStability(dependencies()));
 
   // Load the {receiver}s field.
   Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
