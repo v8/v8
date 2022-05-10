@@ -2694,8 +2694,6 @@ void Heap::EvacuateYoungGeneration() {
     DCHECK(CanPromoteYoungAndExpandOldGeneration(0));
   }
 
-  mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
-
   // Move pages from new->old generation.
   PageRange range(new_space()->first_allocatable_address(), new_space()->top());
   for (auto it = range.begin(); it != range.end();) {
@@ -2775,8 +2773,6 @@ void Heap::Scavenge() {
   PauseAllocationObserversScope pause_observers(this);
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
-
-  mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
 
   SetGCState(SCAVENGE);
 
@@ -3350,11 +3346,11 @@ void Heap::CreateFillerObjectAtBackground(Address addr, int size) {
                           ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
 }
 
-void Heap::CreateFillerObjectAtSweeper(Address addr, int size,
-                                       ClearFreedMemoryMode clear_memory_mode) {
+void Heap::CreateFillerObjectAtSweeper(Address addr, int size) {
   // Do not verify whether slots are cleared here: the concurrent sweeper is not
   // allowed to access the main thread's remembered set.
-  CreateFillerObjectAtRaw(addr, size, clear_memory_mode,
+  CreateFillerObjectAtRaw(addr, size,
+                          ClearFreedMemoryMode::kDontClearFreedMemory,
                           ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
 }
 

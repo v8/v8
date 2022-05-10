@@ -607,7 +607,6 @@
   F(MINOR_MC_MARK_WEAK)                              \
   F(MINOR_MC_MARKING_DEQUE)                          \
   F(MINOR_MC_RESET_LIVENESS)                         \
-  F(MINOR_MC_SWEEPING)                               \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \

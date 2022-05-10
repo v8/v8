@@ -818,7 +818,6 @@ void GCTracer::PrintNVP() const {
           "gc=%s "
           "reduce_memory=%d "
           "minor_mc=%.2f "
-          "finish_sweeping=%.2f "
           "time_to_safepoint=%.2f "
           "mark=%.2f "
           "mark.seed=%.2f "
@@ -842,7 +841,6 @@ void GCTracer::PrintNVP() const {
           "reset_liveness=%.2f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
           current_scope(Scope::MINOR_MC),
-          current_scope(Scope::MINOR_MC_SWEEPING),
           current_scope(Scope::TIME_TO_SAFEPOINT),
           current_scope(Scope::MINOR_MC_MARK),
           current_scope(Scope::MINOR_MC_MARK_SEED),

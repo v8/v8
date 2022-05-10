@@ -1831,10 +1831,8 @@ class Heap {
 
   // This method is used by the sweeper on free memory ranges to make the page
   // iterable again. Unlike `CreateFillerObjectAt` this method will not verify
-  // slots since the sweeper can run concurrently. The sweeper can also
-  // optionally clear the object payload.
-  void CreateFillerObjectAtSweeper(Address addr, int size,
-                                   ClearFreedMemoryMode clear_memory_mode);
+  // slots since the sweeper can run concurrently.
+  void CreateFillerObjectAtSweeper(Address addr, int size);
 
   // Creates a filler object in the specificed memory area. This method is the
   // internal method used by all CreateFillerObjectAtXXX-methods.

@@ -1097,7 +1097,6 @@ void MarkCompactCollector::Finish() {
   }
 
   sweeper()->StartSweeperTasks();
-  sweeper()->StartIterabilityTasks();
   // Give pages that are queued to be freed back to the OS.
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 
@@ -5515,11 +5514,6 @@ void MinorMarkCompactCollector::CollectGarbage() {
   // Minor MC does not support processing the ephemeron remembered set.
   DCHECK(heap()->ephemeron_remembered_set_.empty());
 
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEPING);
-    heap()->mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
-  }
-
   heap()->array_buffer_sweeper()->EnsureFinished();
 
   MarkLiveObjects();
@@ -5590,7 +5584,7 @@ void MinorMarkCompactCollector::MakeIterable(
       full_collector->non_atomic_marking_state()->bitmap(p)->ClearRange(
           p->AddressToMarkbitIndex(free_start),
           p->AddressToMarkbitIndex(free_end));
-      if (free_space_mode == ZAP_FREE_SPACE) {
+      if (free_space_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
         ZapCode(free_start, size);
       }
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size));
@@ -5607,7 +5601,7 @@ void MinorMarkCompactCollector::MakeIterable(
     full_collector->non_atomic_marking_state()->bitmap(p)->ClearRange(
         p->AddressToMarkbitIndex(free_start),
         p->AddressToMarkbitIndex(p->area_end()));
-    if (free_space_mode == ZAP_FREE_SPACE) {
+    if (free_space_mode == FreeSpaceTreatmentMode::kZapFreeSpace) {
       ZapCode(free_start, size);
     }
     p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size));
@@ -6171,13 +6165,14 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
           marking_state->live_bytes(chunk));
       if (!chunk->IsLargePage()) {
         if (heap()->ShouldZapGarbage()) {
-          collector_->MakeIterable(static_cast<Page*>(chunk), ZAP_FREE_SPACE);
+          collector_->MakeIterable(static_cast<Page*>(chunk),
+                                   FreeSpaceTreatmentMode::kZapFreeSpace);
         } else if (heap()->incremental_marking()->IsMarking()) {
           // When incremental marking is on, we need to clear the mark bits of
           // the full collector. We cannot yet discard the young generation mark
           // bits as they are still relevant for pointers updating.
           collector_->MakeIterable(static_cast<Page*>(chunk),
-                                   IGNORE_FREE_SPACE);
+                                   FreeSpaceTreatmentMode::kIgnoreFreeSpace);
         }
       }
       break;
@@ -6189,12 +6184,14 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
           marking_state->live_bytes(chunk));
       DCHECK(!chunk->IsLargePage());
       if (heap()->ShouldZapGarbage()) {
-        collector_->MakeIterable(static_cast<Page*>(chunk), ZAP_FREE_SPACE);
+        collector_->MakeIterable(static_cast<Page*>(chunk),
+                                 FreeSpaceTreatmentMode::kZapFreeSpace);
       } else if (heap()->incremental_marking()->IsMarking()) {
         // When incremental marking is on, we need to clear the mark bits of
         // the full collector. We cannot yet discard the young generation mark
         // bits as they are still relevant for pointers updating.
-        collector_->MakeIterable(static_cast<Page*>(chunk), IGNORE_FREE_SPACE);
+        collector_->MakeIterable(static_cast<Page*>(chunk),
+                                 FreeSpaceTreatmentMode::kIgnoreFreeSpace);
       }
       break;
     case kObjectsOldToOld:
