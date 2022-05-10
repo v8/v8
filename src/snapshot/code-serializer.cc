@@ -356,7 +356,7 @@ void FinalizeDeserialization(Isolate* isolate,
   const bool log_code_creation =
       isolate->v8_file_logger()->is_listening_to_code_events() ||
       isolate->is_profiling() ||
-      isolate->log_event_dispatcher()->is_listening_to_code_events();
+      isolate->logger()->is_listening_to_code_events();
 
 #ifndef V8_TARGET_ARCH_ARM
   if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack))

@@ -429,7 +429,7 @@ void ExternalLogEventListener::StartListening(
     return;
   }
   code_event_handler_ = code_event_handler;
-  is_listening_ = isolate_->log_event_dispatcher()->AddListener(this);
+  is_listening_ = isolate_->logger()->AddListener(this);
   if (is_listening_) {
     LogExistingCode();
   }
@@ -440,7 +440,7 @@ void ExternalLogEventListener::StopListening() {
     return;
   }
 
-  isolate_->log_event_dispatcher()->RemoveListener(this);
+  isolate_->logger()->RemoveListener(this);
   is_listening_ = false;
 }
 
@@ -1088,12 +1088,12 @@ int64_t V8FileLogger::Time() {
 }
 
 void V8FileLogger::AddLogEventListener(LogEventListener* listener) {
-  bool result = isolate_->log_event_dispatcher()->AddListener(listener);
+  bool result = isolate_->logger()->AddListener(listener);
   CHECK(result);
 }
 
 void V8FileLogger::RemoveLogEventListener(LogEventListener* listener) {
-  isolate_->log_event_dispatcher()->RemoveListener(listener);
+  isolate_->logger()->RemoveListener(listener);
 }
 
 void V8FileLogger::ProfilerBeginEvent() {
@@ -2068,7 +2068,7 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
     gdb_jit_logger_ =
         std::make_unique<JitLogger>(isolate, i::GDBJITInterface::EventHandler);
     AddLogEventListener(gdb_jit_logger_.get());
-    CHECK(isolate->log_event_dispatcher()->is_listening_to_code_events());
+    CHECK(isolate->logger()->is_listening_to_code_events());
   }
 #endif  // ENABLE_GDB_JIT_INTERFACE
 
@@ -2077,7 +2077,7 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
     etw_jit_logger_ =
         std::make_unique<JitLogger>(isolate, i::ETWJITInterface::EventHandler);
     AddLogEventListener(etw_jit_logger_.get());
-    CHECK(isolate->log_event_dispatcher()->is_listening_to_code_events());
+    CHECK(isolate->logger()->is_listening_to_code_events());
   }
 #endif  // defined(V8_OS_WIN)
 
@@ -2100,7 +2100,7 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
 }
 
 void V8FileLogger::LateSetup(Isolate* isolate) {
-  if (!isolate->log_event_dispatcher()->is_listening_to_code_events()) return;
+  if (!isolate->logger()->is_listening_to_code_events()) return;
   Builtins::EmitCodeCreateEvents(isolate);
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->EnableCodeLogging(isolate);

@@ -291,7 +291,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
   // enabled as finding the line number is not free.
   if (!isolate->v8_file_logger()->is_listening_to_code_events() &&
       !isolate->is_profiling() && !FLAG_log_function_events &&
-      !isolate->log_event_dispatcher()->is_listening_to_code_events()) {
+      !isolate->logger()->is_listening_to_code_events()) {
     return;
   }
 

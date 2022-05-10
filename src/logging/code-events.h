@@ -61,7 +61,7 @@ using WasmName = base::Vector<const char>;
   LOG_EVENTS_LIST(V)                \
   TAGS_LIST(V)
 
-#define PROFILE(the_isolate, Call) (the_isolate)->log_event_dispatcher()->Call;
+#define PROFILE(the_isolate, Call) (the_isolate)->logger()->Call;
 
 class LogEventListener {
  public:
@@ -117,13 +117,13 @@ class LogEventListener {
 };
 
 // Dispatches code events to a set of registered listeners.
-class LogEventDispatcher {
+class Logger {
  public:
   using LogEventsAndTags = LogEventListener::LogEventsAndTags;
 
-  LogEventDispatcher() = default;
-  LogEventDispatcher(const LogEventDispatcher&) = delete;
-  LogEventDispatcher& operator=(const LogEventDispatcher&) = delete;
+  Logger() = default;
+  Logger(const Logger&) = delete;
+  Logger& operator=(const Logger&) = delete;
 
   bool AddListener(LogEventListener* listener) {
     base::MutexGuard guard(&mutex_);
