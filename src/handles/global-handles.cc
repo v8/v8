@@ -1125,7 +1125,6 @@ void GlobalHandles::DestroyTracedReference(Address* location) {
     // still be spuriously marked as live and is then only reclaimed on the
     // next cycle.
     node->clear_object();
-    node->set_parameter(nullptr);
   }
 }
 
