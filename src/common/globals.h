@@ -188,8 +188,7 @@ using CodeT = Code;
 //
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT && \
     !(defined(V8_COMPRESS_POINTERS) && !defined(V8_EXTERNAL_CODE_SPACE))
-// TODO(v8:12797): enable fast W^X permissions switching on Apple Silicon.
-#define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT false
+#define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT true
 #else
 #define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT false
 #endif
