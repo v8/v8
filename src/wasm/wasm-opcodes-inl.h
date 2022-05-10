@@ -422,6 +422,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(RefTestStatic, "ref.test_static")
     CASE_OP(RefCast, "ref.cast")
     CASE_OP(RefCastStatic, "ref.cast_static")
+    CASE_OP(RefCastNopStatic, "ref.cast_nop_static")
     CASE_OP(BrOnCast, "br_on_cast")
     CASE_OP(BrOnCastStatic, "br_on_cast_static")
     CASE_OP(BrOnCastFail, "br_on_cast_fail")

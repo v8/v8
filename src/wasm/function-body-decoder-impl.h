@@ -1881,6 +1881,7 @@ class WasmDecoder : public Decoder {
           case kExprRttCanon:
           case kExprRefTestStatic:
           case kExprRefCastStatic:
+          case kExprRefCastNopStatic:
           case kExprBrOnCastStatic:
           case kExprBrOnCastStaticFail: {
             IndexImmediate<validate> imm(decoder, pc + length, "type index");
@@ -2053,6 +2054,7 @@ class WasmDecoder : public Decoder {
           case kExprArrayLen:
           case kExprRefTestStatic:
           case kExprRefCastStatic:
+          case kExprRefCastNopStatic:
           case kExprBrOnCastStatic:
           case kExprBrOnCastStaticFail:
             return {1, 1};
@@ -4497,6 +4499,35 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           }
         }
         Drop(2);
+        Push(value);
+        return opcode_length;
+      }
+      case kExprRefCastNopStatic: {
+        // Temporary non-standard instruction, for performance experiments.
+        if (!VALIDATE(this->enabled_.has_ref_cast_nop())) {
+          this->DecodeError(
+              "Invalid opcode 0xfb48 (enable with "
+              "--experimental-wasm-ref-cast-nop)");
+          return 0;
+        }
+        IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
+                                     "type index");
+        if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
+        opcode_length += imm.length;
+        Value obj = Peek(0);
+        if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
+                      IsSubtypeOf(obj.type,
+                                  ValueType::Ref(HeapType::kData, kNullable),
+                                  this->module_) ||
+                      obj.type.is_bottom())) {
+          PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
+          return 0;
+        }
+        Value value = CreateValue(ValueType::Ref(
+            imm.index,
+            obj.type.is_bottom() ? kNonNullable : obj.type.nullability()));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, &value);
+        Drop(obj);
         Push(value);
         return opcode_length;
       }

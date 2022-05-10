@@ -707,6 +707,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RefCastStatic, 0xfb45, _)                                                  \
   V(BrOnCastStatic, 0xfb46, _)                                                 \
   V(BrOnCastStaticFail, 0xfb47, _)                                             \
+  V(RefCastNopStatic, 0xfb48, _)                                               \
   V(RefIsFunc, 0xfb50, _)                                                      \
   V(RefIsData, 0xfb51, _)                                                      \
   V(RefIsI31, 0xfb52, _)                                                       \
