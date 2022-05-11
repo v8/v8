@@ -102,11 +102,6 @@
 #define CHECK(condition) assert(condition)
 #endif
 
-#define TRACE_BS(...)                                     \
-  do {                                                    \
-    if (i::FLAG_trace_backing_store) PrintF(__VA_ARGS__); \
-  } while (false)
-
 namespace v8 {
 
 namespace {
@@ -5722,4 +5717,3 @@ int main(int argc, char* argv[]) { return v8::Shell::Main(argc, argv); }
 
 #undef CHECK
 #undef DCHECK
-#undef TRACE_BS

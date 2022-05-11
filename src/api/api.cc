@@ -165,11 +165,6 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/api/api-macros.h"
 
-#define TRACE_BS(...)                                     \
-  do {                                                    \
-    if (i::FLAG_trace_backing_store) PrintF(__VA_ARGS__); \
-  } while (false)
-
 namespace v8 {
 
 // TODO(chromium:1323177): Add a separate global for OOMErrorCallback once the
@@ -10775,5 +10770,4 @@ TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
 
 }  // namespace v8
 
-#undef TRACE_BS
 #include "src/api/api-macros-undef.h"
