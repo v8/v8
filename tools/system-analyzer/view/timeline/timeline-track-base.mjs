@@ -244,6 +244,7 @@ export class TimelineTrackBase extends V8CustomElement {
     this.hitPanelNode.style.width = `${width}px`;
 
     const ratio = this._scaleContent(width) || 1;
+    this.timelineChunks.style.width = `${width / Math.min(1, ratio)}px`;
     this._drawMarkers();
     this._selectionHandler.update();
 
