@@ -38,35 +38,28 @@ bool SemiSpace::ContainsSlow(Address a) const {
 }
 
 // --------------------------------------------------------------------------
-// NewSpaceBase
+// NewSpace
 
-bool NewSpaceBase::Contains(Object o) const {
+bool NewSpace::Contains(Object o) const {
   return o.IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
-bool NewSpaceBase::Contains(HeapObject o) const {
+bool NewSpace::Contains(HeapObject o) const {
   return BasicMemoryChunk::FromHeapObject(o)->InNewSpace();
 }
 
-V8_WARN_UNUSED_RESULT inline AllocationResult
-NewSpaceBase::AllocateRawSynchronized(int size_in_bytes,
-                                      AllocationAlignment alignment,
-                                      AllocationOrigin origin) {
+V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
   base::MutexGuard guard(&mutex_);
   return AllocateRaw(size_in_bytes, alignment, origin);
 }
 
 // -----------------------------------------------------------------------------
-// NewSpace
+// SemiSpaceNewSpace
 
-bool NewSpace::ContainsSlow(Address a) const {
-  return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
-}
-
-V8_INLINE bool NewSpace::EnsureAllocation(int size_in_bytes,
-                                          AllocationAlignment alignment,
-                                          AllocationOrigin origin,
-                                          int* out_max_aligned_size) {
+V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
+    int* out_max_aligned_size) {
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 #if DEBUG
   VerifyTop();

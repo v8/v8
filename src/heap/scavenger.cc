@@ -404,11 +404,14 @@ void ScavengerCollector::CollectGarbage() {
     }
   }
 
+  SemiSpaceNewSpace* semi_space_new_space =
+      SemiSpaceNewSpace::From(heap_->new_space());
+
   if (FLAG_concurrent_marking) {
     // Ensure that concurrent marker does not track pages that are
     // going to be unmapped.
     for (Page* p :
-         PageRange(heap_->new_space()->from_space().first_page(), nullptr)) {
+         PageRange(semi_space_new_space->from_space().first_page(), nullptr)) {
       heap_->concurrent_marking()->ClearMemoryChunkData(p);
     }
   }
@@ -416,7 +419,7 @@ void ScavengerCollector::CollectGarbage() {
   ProcessWeakReferences(&ephemeron_table_list);
 
   // Set age mark.
-  heap_->new_space_->set_age_mark(heap_->new_space()->top());
+  semi_space_new_space->set_age_mark(semi_space_new_space->top());
 
   // Since we promote all surviving large objects immediatelly, all remaining
   // large objects must be dead.
@@ -532,7 +535,10 @@ void ScavengerCollector::MergeSurvivingNewLargeObjects(
 int ScavengerCollector::NumberOfScavengeTasks() {
   if (!FLAG_parallel_scavenge) return 1;
   const int num_scavenge_tasks =
-      static_cast<int>(heap_->new_space()->TotalCapacity()) / MB + 1;
+      static_cast<int>(
+          SemiSpaceNewSpace::From(heap_->new_space())->TotalCapacity()) /
+          MB +
+      1;
   static int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
   int tasks = std::max(
       1, std::min({num_scavenge_tasks, kMaxScavengerTasks, num_cores}));

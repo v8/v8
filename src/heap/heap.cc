@@ -49,6 +49,7 @@
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-allocator.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-layout-tracer.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -1015,7 +1016,10 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
   deferred_counters_[feature]++;
 }
 
-bool Heap::UncommitFromSpace() { return new_space_->UncommitFromSpace(); }
+void Heap::UncommitFromSpace() {
+  DCHECK_NOT_NULL(new_space_);
+  SemiSpaceNewSpace::From(new_space_)->UncommitFromSpace();
+}
 
 void Heap::GarbageCollectionPrologue(
     GarbageCollectionReason gc_reason,
@@ -2159,11 +2163,7 @@ void Heap::CopyRange(HeapObject dst_object, const TSlot dst_slot,
 
 void Heap::EnsureFromSpaceIsCommitted() {
   if (!new_space_) return;
-  if (new_space_->CommitFromSpaceIfNeeded()) return;
-
-  // Committing memory to from space failed.
-  // Memory is exhausted and we will die.
-  FatalProcessOutOfMemory("Committing semi space failed.");
+  SemiSpaceNewSpace::From(new_space_)->CommitFromSpaceIfNeeded();
 }
 
 bool Heap::CollectionRequested() {
@@ -2699,22 +2699,25 @@ void Heap::EvacuateYoungGeneration() {
     DCHECK(CanPromoteYoungAndExpandOldGeneration(0));
   }
 
+  SemiSpaceNewSpace* semi_space_new_space =
+      SemiSpaceNewSpace::From(new_space());
   // Move pages from new->old generation.
-  PageRange range(new_space()->first_allocatable_address(), new_space()->top());
+  PageRange range(semi_space_new_space->first_allocatable_address(),
+                  semi_space_new_space->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* p = (*++it)->prev_page();
-    new_space()->from_space().RemovePage(p);
+    semi_space_new_space->from_space().RemovePage(p);
     Page::ConvertNewToOld(p);
     if (incremental_marking()->IsMarking())
       mark_compact_collector()->RecordLiveSlotsOnPage(p);
   }
 
   // Reset new space.
-  if (!new_space()->Rebalance()) {
+  if (!semi_space_new_space->Rebalance()) {
     FatalProcessOutOfMemory("NewSpace::Rebalance");
   }
-  new_space()->ResetLinearAllocationArea();
-  new_space()->set_age_mark(new_space()->top());
+  semi_space_new_space->ResetLinearAllocationArea();
+  semi_space_new_space->set_age_mark(semi_space_new_space->top());
 
   for (auto it = new_lo_space()->begin(); it != new_lo_space()->end();) {
     LargePage* page = *it;
@@ -2783,8 +2786,12 @@ void Heap::Scavenge() {
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
-  new_space()->Flip();
-  new_space()->ResetLinearAllocationArea();
+  {
+    SemiSpaceNewSpace* semi_space_new_space =
+        SemiSpaceNewSpace::From(new_space());
+    semi_space_new_space->Flip();
+    semi_space_new_space->ResetLinearAllocationArea();
+  }
 
   // We also flip the young generation large object space. All large objects
   // will be in the from space.
@@ -3232,7 +3239,7 @@ void* Heap::AllocateExternalBackingStore(
     const std::function<void*(size_t)>& allocate, size_t byte_length) {
   if (!always_allocate() && new_space()) {
     size_t new_space_backing_store_bytes =
-        new_space()->ExternalBackingStoreBytes();
+        new_space()->ExternalBackingStoreOverallBytes();
     if (new_space_backing_store_bytes >= 2 * kMaxSemiSpaceSize &&
         new_space_backing_store_bytes >= byte_length) {
       // Performing a young generation GC amortizes over the allocated backing
@@ -4853,8 +4860,11 @@ void Heap::VerifyCommittedPhysicalMemory() {
 #endif  // DEBUG
 
 void Heap::ZapFromSpace() {
-  if (!new_space_ || !new_space_->IsFromSpaceCommitted()) return;
-  for (Page* page : PageRange(new_space_->from_space().first_page(), nullptr)) {
+  if (!new_space_) return;
+  SemiSpaceNewSpace* semi_space_new_space = SemiSpaceNewSpace::From(new_space_);
+  if (!semi_space_new_space->IsFromSpaceCommitted()) return;
+  for (Page* page :
+       PageRange(semi_space_new_space->from_space().first_page(), nullptr)) {
     memory_allocator()->ZapBlock(page->area_start(),
                                  page->HighWaterMark() - page->area_start(),
                                  ZapValue());
@@ -5831,7 +5841,7 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   DCHECK_NOT_NULL(read_only_space_);
   const bool has_young_gen = !FLAG_single_generation && !IsShared();
   if (has_young_gen) {
-    space_[NEW_SPACE] = new_space_ = new NewSpace(
+    space_[NEW_SPACE] = new_space_ = new SemiSpaceNewSpace(
         this, memory_allocator_->data_page_allocator(), initial_semispace_size_,
         max_semi_space_size_, new_allocation_info);
     space_[NEW_LO_SPACE] = new_lo_space_ =

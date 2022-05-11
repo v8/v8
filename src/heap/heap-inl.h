@@ -323,13 +323,6 @@ Heap* Heap::FromWritableHeapObject(HeapObject obj) {
   return heap;
 }
 
-bool Heap::ShouldBePromoted(Address old_address) {
-  Page* page = Page::FromAddress(old_address);
-  Address age_mark = new_space_->age_mark();
-  return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
-         (!page->ContainsLimit(age_mark) || old_address < age_mark);
-}
-
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   DCHECK(IsAligned(byte_size, kTaggedSize));
   CopyTagged(dst, src, static_cast<size_t>(byte_size / kTaggedSize));

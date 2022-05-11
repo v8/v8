@@ -40,6 +40,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
+#include "src/heap/new-spaces.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/parallel-work-item.h"
@@ -1860,7 +1861,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
       return true;
     }
 
-    if (heap_->ShouldBePromoted(object.address()) &&
+    if (heap_->new_space()->ShouldBePromoted(object.address()) &&
         TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
       promoted_size_ += size;
       return true;
@@ -1948,11 +1949,14 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   static void Move(Page* page) {
     switch (mode) {
       case NEW_TO_NEW:
-        page->heap()->new_space()->MovePageFromSpaceToSpace(page);
+        SemiSpaceNewSpace::From(page->heap()->new_space())
+            ->MovePageFromSpaceToSpace(page);
         page->SetFlag(Page::PAGE_NEW_NEW_PROMOTION);
         break;
       case NEW_TO_OLD: {
-        page->heap()->new_space()->from_space().RemovePage(page);
+        SemiSpaceNewSpace::From(page->heap()->new_space())
+            ->from_space()
+            .RemovePage(page);
         Page* new_page = Page::ConvertNewToOld(page);
         DCHECK(!new_page->InYoungGeneration());
         new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
@@ -3616,7 +3620,7 @@ void MarkCompactCollector::EvacuatePrologue() {
          PageRange(new_space->first_allocatable_address(), new_space->top())) {
       new_space_evacuation_pages_.push_back(p);
     }
-    new_space->Flip();
+    SemiSpaceNewSpace::From(new_space)->Flip();
     new_space->ResetLinearAllocationArea();
 
     DCHECK_EQ(new_space->Size(), 0);
@@ -3640,7 +3644,8 @@ void MarkCompactCollector::EvacuateEpilogue() {
 
   // New space.
   if (heap()->new_space()) {
-    heap()->new_space()->set_age_mark(heap()->new_space()->top());
+    SemiSpaceNewSpace::From(heap()->new_space())
+        ->set_age_mark(heap()->new_space()->top());
     DCHECK_EQ(0, heap()->new_space()->Size());
   }
 
@@ -3814,7 +3819,8 @@ void Evacuator::EvacuatePage(MemoryChunk* chunk) {
                  chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
                      chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
                  chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
-                 chunk->Contains(heap()->new_space()->age_mark()),
+                 chunk->Contains(
+                     SemiSpaceNewSpace::From(heap()->new_space())->age_mark()),
                  saved_live_bytes, evacuation_time,
                  chunk->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
   }
@@ -4030,7 +4036,8 @@ bool ShouldMovePage(Page* p, intptr_t live_bytes,
                     AlwaysPromoteYoung always_promote_young) {
   Heap* heap = p->heap();
   const bool reduce_memory = heap->ShouldReduceMemory();
-  const Address age_mark = heap->new_space()->age_mark();
+  const Address age_mark =
+      SemiSpaceNewSpace::From(heap->new_space())->age_mark();
   return !reduce_memory && !p->NeverEvacuate() &&
          (live_bytes > Evacuator::NewSpacePageEvacuationThreshold()) &&
          (always_promote_young == AlwaysPromoteYoung::kYes ||
@@ -4270,7 +4277,7 @@ void MarkCompactCollector::Evacuate() {
 
   if (heap()->new_space()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
-    if (!heap()->new_space()->Rebalance()) {
+    if (!SemiSpaceNewSpace::From(heap()->new_space())->Rebalance()) {
       heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
   }
@@ -5543,8 +5550,10 @@ void MinorMarkCompactCollector::CollectGarbage() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_RESET_LIVENESS);
-    for (Page* p :
-         PageRange(heap()->new_space()->from_space().first_page(), nullptr)) {
+    for (Page* p : PageRange(SemiSpaceNewSpace::From(heap()->new_space())
+                                 ->from_space()
+                                 .first_page(),
+                             nullptr)) {
       DCHECK_EQ(promoted_pages_.end(),
                 std::find(promoted_pages_.begin(), promoted_pages_.end(), p));
       non_atomic_marking_state()->ClearLiveness(p);
@@ -5703,7 +5712,7 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
     new_space_evacuation_pages_.push_back(p);
   }
 
-  new_space->Flip();
+  SemiSpaceNewSpace::From(new_space)->Flip();
   new_space->ResetLinearAllocationArea();
 
   heap()->new_lo_space()->Flip();
@@ -5711,7 +5720,8 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
 }
 
 void MinorMarkCompactCollector::EvacuateEpilogue() {
-  heap()->new_space()->set_age_mark(heap()->new_space()->top());
+  SemiSpaceNewSpace::From(heap()->new_space())
+      ->set_age_mark(heap()->new_space()->top());
   // Give pages that are queued to be freed back to the OS.
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
@@ -6096,7 +6106,7 @@ void MinorMarkCompactCollector::Evacuate() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_REBALANCE);
-    if (!heap()->new_space()->Rebalance()) {
+    if (!SemiSpaceNewSpace::From(heap()->new_space())->Rebalance()) {
       heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
   }

@@ -737,10 +737,6 @@ class Heap {
 
   void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
-  // An object should be promoted if the object has survived a
-  // scavenge operation.
-  inline bool ShouldBePromoted(Address old_address);
-
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
 
   inline int NextScriptId();
@@ -1818,7 +1814,7 @@ class Heap {
   void EnsureFromSpaceIsCommitted();
 
   // Uncommit unused semi space.
-  V8_EXPORT_PRIVATE bool UncommitFromSpace();
+  V8_EXPORT_PRIVATE void UncommitFromSpace();
 
   // Fill in bogus values in from space
   void ZapFromSpace();

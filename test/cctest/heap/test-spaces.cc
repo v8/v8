@@ -289,7 +289,7 @@ TEST(ComputeDiscardMemoryAreas) {
   CHECK_EQ(memory_area.size(), page_size * 2);
 }
 
-TEST(NewSpace) {
+TEST(SemiSpaceNewSpace) {
   if (FLAG_single_generation) return;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -297,10 +297,11 @@ TEST(NewSpace) {
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
   LinearAllocationArea allocation_info;
 
-  std::unique_ptr<NewSpace> new_space = std::make_unique<NewSpace>(
-      heap, memory_allocator->data_page_allocator(),
-      CcTest::heap()->InitialSemiSpaceSize(),
-      CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
+  std::unique_ptr<SemiSpaceNewSpace> new_space =
+      std::make_unique<SemiSpaceNewSpace>(
+          heap, memory_allocator->data_page_allocator(),
+          CcTest::heap()->InitialSemiSpaceSize(),
+          CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
   CHECK(new_space->MaximumCapacity());
 
   while (new_space->Available() >= kMaxRegularHeapObjectSize) {
@@ -312,7 +313,6 @@ TEST(NewSpace) {
   new_space.reset();
   memory_allocator->unmapper()->EnsureUnmappingCompleted();
 }
-
 
 TEST(OldSpace) {
   Isolate* isolate = CcTest::i_isolate();

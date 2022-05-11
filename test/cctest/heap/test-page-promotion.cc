@@ -78,7 +78,8 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
     CHECK_GT(handles.size(), 0u);
     Page* const to_be_promoted_page = FindLastPageInNewSpace(handles);
     CHECK_NOT_NULL(to_be_promoted_page);
-    CHECK(!to_be_promoted_page->Contains(heap->new_space()->age_mark()));
+    CHECK(!to_be_promoted_page->Contains(
+        SemiSpaceNewSpace::From(heap->new_space())->age_mark()));
     // To perform a sanity check on live bytes we need to mark the heap.
     heap::SimulateIncrementalMarking(heap, true);
     // Sanity check that the page meets the requirements for promotion.

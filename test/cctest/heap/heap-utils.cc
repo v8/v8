@@ -5,6 +5,7 @@
 #include "test/cctest/heap/heap-utils.h"
 
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
@@ -134,6 +135,18 @@ bool FillCurrentPage(v8::internal::NewSpace* space,
   return heap::FillCurrentPageButNBytes(space, 0, out_handles);
 }
 
+namespace {
+int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
+  Address top = space->top();
+  if ((top & kPageAlignmentMask) == 0) {
+    // `top` points to the start of a page signifies that there is not room in
+    // the current page.
+    return 0;
+  }
+  return static_cast<int>(Page::FromAddress(space->top())->area_end() - top);
+}
+}  // namespace
+
 bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
                               std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
@@ -142,8 +155,7 @@ bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   // the current allocation pointer.
   DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
                  space->limit() == space->top());
-  int space_remaining =
-      static_cast<int>(space->to_space().page_high() - space->top());
+  int space_remaining = GetSpaceRemainingOnCurrentPage(space);
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
   if (new_linear_size == 0) return false;
