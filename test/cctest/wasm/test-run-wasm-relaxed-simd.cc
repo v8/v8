@@ -381,11 +381,7 @@ WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF32x4U) {
   IntRelaxedTruncFloatTest<uint32_t, float>(
       execution_tier, kExprI32x4RelaxedTruncF32x4U, kExprF32x4Splat);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_RISCV64
 WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
   // Output is only defined for indices in the range [0,15].
   WasmRunner<int32_t> r(execution_tier);
@@ -408,7 +404,7 @@ WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
   }
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_RISCV64
+        // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
 
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
 WASM_RELAXED_SIMD_TEST(I16x8RelaxedQ15MulRS) {
