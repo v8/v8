@@ -204,10 +204,6 @@ Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
 
 // --- E x c e p t i o n   B e h a v i o r ---
 
-void i::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location) {
-  i::V8::FatalProcessOutOfMemory(i_isolate, location, false);
-}
-
 // When V8 cannot allocate memory FatalProcessOutOfMemory is called. The default
 // OOM error handler is called and execution is stopped.
 void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
@@ -4060,7 +4056,7 @@ std::unique_ptr<v8::BackingStore> v8::BackingStore::Reallocate(
   i::BackingStore* i_backing_store =
       reinterpret_cast<i::BackingStore*>(backing_store.get());
   if (!i_backing_store->Reallocate(i_isolate, byte_length)) {
-    i::FatalProcessOutOfMemory(i_isolate, "v8::BackingStore::Reallocate");
+    i::V8::FatalProcessOutOfMemory(i_isolate, "v8::BackingStore::Reallocate");
   }
   return backing_store;
 }
@@ -7975,7 +7971,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* v8_isolate,
   if (!result.ToHandle(&array_buffer)) {
     // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
     // version that throws an exception or otherwise does not crash.
-    i::FatalProcessOutOfMemory(i_isolate, "v8::ArrayBuffer::New");
+    i::V8::FatalProcessOutOfMemory(i_isolate, "v8::ArrayBuffer::New");
   }
 
   return Utils::ToLocal(array_buffer);
@@ -8009,7 +8005,8 @@ std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
                                 i::SharedFlag::kNotShared,
                                 i::InitializedFlag::kZeroInitialized);
   if (!backing_store) {
-    i::FatalProcessOutOfMemory(i_isolate, "v8::ArrayBuffer::NewBackingStore");
+    i::V8::FatalProcessOutOfMemory(i_isolate,
+                                   "v8::ArrayBuffer::NewBackingStore");
   }
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));
@@ -8172,7 +8169,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* v8_isolate,
   if (!backing_store) {
     // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
     // version that throws an exception or otherwise does not crash.
-    i::FatalProcessOutOfMemory(i_isolate, "v8::SharedArrayBuffer::New");
+    i::V8::FatalProcessOutOfMemory(i_isolate, "v8::SharedArrayBuffer::New");
   }
 
   i::Handle<i::JSArrayBuffer> obj =
@@ -8210,8 +8207,8 @@ std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
       i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
                                 i::InitializedFlag::kZeroInitialized);
   if (!backing_store) {
-    i::FatalProcessOutOfMemory(i_isolate,
-                               "v8::SharedArrayBuffer::NewBackingStore");
+    i::V8::FatalProcessOutOfMemory(i_isolate,
+                                   "v8::SharedArrayBuffer::NewBackingStore");
   }
   return std::unique_ptr<v8::BackingStore>(
       static_cast<v8::BackingStore*>(backing_store.release()));

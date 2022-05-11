@@ -26,11 +26,6 @@ class Isolate;
 // allocation fails, these functions call back into the embedder, then attempt
 // the allocation a second time. The embedder callback must not reenter V8.
 
-// Called when allocation routines fail to allocate, even with a possible retry.
-// This function should not return, but should terminate the current processing.
-[[noreturn]] V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(
-    Isolate* isolate, const char* message);
-
 // Superclass for classes managed with new & delete.
 class V8_EXPORT_PRIVATE Malloced {
  public:
@@ -44,7 +39,7 @@ T* NewArray(size_t size) {
   if (result == nullptr) {
     V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
     result = new (std::nothrow) T[size];
-    if (result == nullptr) FatalProcessOutOfMemory(nullptr, "NewArray");
+    if (result == nullptr) V8::FatalProcessOutOfMemory(nullptr, "NewArray");
   }
   return result;
 }

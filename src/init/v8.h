@@ -26,9 +26,8 @@ class V8 : public AllStatic {
   // This function will not return, but will terminate the execution.
   // IMPORTANT: Update the Google-internal crash processer if this signature
   // changes to be able to extract detailed v8::internal::HeapStats on OOM.
-  [[noreturn]] static void FatalProcessOutOfMemory(Isolate* isolate,
-                                                   const char* location,
-                                                   bool is_heap_oom = false);
+  [[noreturn]] V8_EXPORT_PRIVATE static void FatalProcessOutOfMemory(
+      Isolate* isolate, const char* location, bool is_heap_oom = false);
 
 #ifdef V8_SANDBOX
   static bool InitializeSandbox();

@@ -3952,7 +3952,7 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
 
 void RegExpCompiler::ToNodeCheckForStackOverflow() {
   if (StackLimitCheck{isolate()}.HasOverflowed()) {
-    FatalProcessOutOfMemory(isolate(), "RegExpCompiler");
+    V8::FatalProcessOutOfMemory(isolate(), "RegExpCompiler");
   }
 }
 
