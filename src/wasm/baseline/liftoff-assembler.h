@@ -1248,6 +1248,9 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
                                        LiftoffRegister src1,
                                        LiftoffRegister src2);
+  inline void emit_relaxed_i16x8_q15mulr_s(LiftoffRegister dst,
+                                           LiftoffRegister src1,
+                                           LiftoffRegister src2);
   inline void emit_i32x4_neg(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i32x4_alltrue(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i32x4_bitmask(LiftoffRegister dst, LiftoffRegister src);

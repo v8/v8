@@ -376,6 +376,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32x4_OP(RelaxedTruncF32x4U, "relaxed_trunc_f32x4_u");
     CASE_I32x4_OP(RelaxedTruncF64x2SZero, "relaxed_trunc_f64x2_s_zero");
     CASE_I32x4_OP(RelaxedTruncF64x2UZero, "relaxed_trunc_f64x2_u_zero");
+    CASE_I16x8_OP(RelaxedQ15MulRS, "relaxed_q15mulr_s")
 
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")

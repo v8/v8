@@ -410,6 +410,13 @@ WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
         // V8_TARGET_ARCH_RISCV64
 
+#if V8_TARGET_ARCH_ARM64
+WASM_RELAXED_SIMD_TEST(I16x8RelaxedQ15MulRS) {
+  RunI16x8BinOpTest<int16_t>(execution_tier, kExprI16x8RelaxedQ15MulRS,
+                             SaturateRoundingQMul<int16_t>);
+}
+#endif  // V8_TARGET_ARCH_ARM64
+
 #undef WASM_RELAXED_SIMD_TEST
 }  // namespace test_run_wasm_relaxed_simd
 }  // namespace wasm

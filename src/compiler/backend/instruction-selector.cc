@@ -2370,6 +2370,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4RelaxedTruncF32x4S(node);
     case IrOpcode::kI32x4RelaxedTruncF32x4U:
       return MarkAsSimd128(node), VisitI32x4RelaxedTruncF32x4U(node);
+    case IrOpcode::kI16x8RelaxedQ15MulRS:
+      return MarkAsSimd128(node), VisitI16x8RelaxedQ15MulRS(node);
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());
@@ -2821,6 +2823,12 @@ void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
         // && !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARM
+
+#if !V8_TARGET_ARCH_ARM64
+void InstructionSelector::VisitI16x8RelaxedQ15MulRS(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_ARM64
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
     !V8_TARGET_ARCH_RISCV64
