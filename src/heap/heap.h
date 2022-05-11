@@ -2626,6 +2626,18 @@ class V8_NODISCARD CodePageCollectionMemoryModificationScope {
   Heap* heap_;
 };
 
+// Same as the CodePageCollectionMemoryModificationScope but without inlining
+// the code. This is a workaround for component build issue (crbug/1316800),
+// when a thread_local value can't be properly exported.
+class V8_EXPORT_PRIVATE V8_NODISCARD
+    CodePageCollectionMemoryModificationScopeForTesting
+    : public CodePageCollectionMemoryModificationScope {
+ public:
+  V8_NOINLINE explicit CodePageCollectionMemoryModificationScopeForTesting(
+      Heap* heap);
+  V8_NOINLINE ~CodePageCollectionMemoryModificationScopeForTesting();
+};
+
 // The CodePageHeaderModificationScope enables write access to Code space page
 // headers.
 // On most of the configurations it's a no-op because Code space page headers

@@ -6981,7 +6981,7 @@ TEST(CodeObjectRegistry) {
 
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  CodePageCollectionMemoryModificationScope code_scope(heap);
+  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
 
   Handle<Code> code1;
   HandleScope outer_scope(heap->isolate());
@@ -7165,7 +7165,7 @@ HEAP_TEST(CodeLargeObjectSpace) {
   TestAllocationTracker allocation_tracker{size_in_bytes};
   heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
-  CodePageCollectionMemoryModificationScope code_scope(heap);
+  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
   HeapObject obj;
   {
     AllocationResult allocation = heap->AllocateRaw(
@@ -7199,7 +7199,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
     TestAllocationTracker allocation_tracker{size_in_bytes};
     heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
-    CodePageCollectionMemoryModificationScope code_scope(heap);
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     HeapObject obj;
     {
       AllocationResult allocation = heap->AllocateRaw(
@@ -7221,7 +7221,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
     TestAllocationTracker allocation_tracker{size_in_bytes};
     heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
-    CodePageCollectionMemoryModificationScope code_scope(heap);
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     HeapObject obj;
     {
       AllocationResult allocation = heap->AllocateRaw(
@@ -7317,10 +7317,10 @@ TEST(Regress10900) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   {
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(
+        isolate->heap());
     for (int i = 0; i < 100; i++) {
       // Generate multiple code pages.
-      CodePageCollectionMemoryModificationScope modification_scope(
-          isolate->heap());
       factory->CopyCode(code);
     }
   }
