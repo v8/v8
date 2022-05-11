@@ -108,6 +108,13 @@
 namespace v8 {
 namespace internal {
 
+CodePageCollectionMemoryModificationScopeForTesting::
+    CodePageCollectionMemoryModificationScopeForTesting(Heap* heap)
+    : CodePageCollectionMemoryModificationScope(heap) {}
+
+CodePageCollectionMemoryModificationScopeForTesting::
+    ~CodePageCollectionMemoryModificationScopeForTesting() = default;
+
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
   return reinterpret_cast<Isolate*>(

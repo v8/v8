@@ -483,7 +483,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   {
     Code code;
     HeapObject value;
-    CodePageCollectionMemoryModificationScope modification_scope(heap);
+    CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
     {
       HandleScope handle_scope(i_isolate);
       i::byte buffer[i::Assembler::kDefaultBufferSize];
