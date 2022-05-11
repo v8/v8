@@ -142,6 +142,15 @@ class JSTemporalCalendar
                                       Handle<JSTemporalCalendar> calendar,
                                       const char* method_name);
 
+#ifdef V8_INTL_SUPPORT
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Era(
+      Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+      Handle<Object> temporal_date_like);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> EraYear(
+      Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+      Handle<Object> temporal_date_like);
+#endif  // V8_INTL_SUPPORT
+
   DECL_PRINTER(JSTemporalCalendar)
 
   DEFINE_TORQUE_GENERATED_JS_TEMPORAL_CALENDAR_FLAGS()

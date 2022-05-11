@@ -6666,6 +6666,71 @@ MaybeHandle<JSTemporalPlainYearMonth> JSTemporalCalendar::YearMonthFromFields(
   UNREACHABLE();
 }
 
+#ifdef V8_INTL_SUPPORT
+// #sup-temporal.calendar.prototype.era
+MaybeHandle<Object> JSTemporalCalendar::Era(Isolate* isolate,
+                                            Handle<JSTemporalCalendar> calendar,
+                                            Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]],
+  // or [[InitializedTemporalYearMonth]]
+  // internal slot, then
+  if (!IsPlainDatePlainDateTimeOrPlainYearMonth(temporal_date_like)) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       "Temporal.Calendar.prototype.era"),
+        Object);
+  }
+  // 4. If calendar.[[Identifier]] is "iso8601", then
+  if (calendar->calendar_index() == 0) {
+    // a. Return undefined.
+    return isolate->factory()->undefined_value();
+  }
+  UNIMPLEMENTED();
+  // TODO(ftang) implement other calendars
+  // 5. Return ! CalendarDateEra(calendar.[[Identifier]], temporalDateLike).
+}
+
+// #sup-temporal.calendar.prototype.erayear
+MaybeHandle<Object> JSTemporalCalendar::EraYear(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]],
+  // or [[InitializedTemporalYearMonth]]
+  // internal slot, then
+  if (!IsPlainDatePlainDateTimeOrPlainYearMonth(temporal_date_like)) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       "Temporal.Calendar.prototype.eraYear"),
+        Object);
+  }
+  // 4. If calendar.[[Identifier]] is "iso8601", then
+  if (calendar->calendar_index() == 0) {
+    // a. Return undefined.
+    return isolate->factory()->undefined_value();
+  }
+  UNIMPLEMENTED();
+  // TODO(ftang) implement other calendars
+  // 5. Let eraYear be ! CalendarDateEraYear(calendar.[[Identifier]],
+  // temporalDateLike).
+  // 6. If eraYear is undefined, then
+  // a. Return undefined.
+  // 7. Return 𝔽(eraYear).
+}
+
+#endif  // V8_INTL_SUPPORT
+
 // #sec-temporal.calendar.prototype.tostring
 MaybeHandle<String> JSTemporalCalendar::ToString(
     Isolate* isolate, Handle<JSTemporalCalendar> calendar,

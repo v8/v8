@@ -287,10 +287,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 
 #ifdef V8_INTL_SUPPORT
 /* Temporal */
-/* Temporal #sec-temporal.calendar.prototype.era */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeEra)
-/* Temporal #sec-temporal.calendar.prototype.erayear */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeEraYear)
 /* Temporal #sec-temporal.duration.prototype.tolocalestring */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeToLocaleString)
 /* Temporal #sec-temporal.instant.prototype.tolocalestring */
@@ -858,6 +854,9 @@ BUILTIN(TemporalTimeZoneFrom) {
 }
 
 #ifdef V8_INTL_SUPPORT
+// Temporal.Calendar.prototype.era/eraYear
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, Era, era)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, EraYear, eraYEar)
 // get Temporal.*.prototype.era/eraYear
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Era, era)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, EraYear, eraYear)
