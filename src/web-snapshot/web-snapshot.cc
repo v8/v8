@@ -55,7 +55,11 @@ void WebSnapshotSerializerDeserializer::IterateBuiltinObjects(
   func(roots.Error_string(), isolate_->context().error_function());
   func(*factory()->NewStringFromAsciiChecked("Error.prototype"),
        isolate_->context().error_function().instance_prototype());
-  STATIC_ASSERT(kBuiltinObjectCount == 2);
+  func(roots.Object_string(), isolate_->context().object_function());
+  func(*factory()->NewStringFromAsciiChecked("Object.prototype"),
+       isolate_->context().initial_object_prototype());
+
+  STATIC_ASSERT(kBuiltinObjectCount == 4);
 }
 
 uint32_t WebSnapshotSerializerDeserializer::FunctionKindToFunctionFlags(
@@ -429,7 +433,7 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
       context_serializer_.buffer_size_ + function_serializer_.buffer_size_ +
       class_serializer_.buffer_size_ + array_serializer_.buffer_size_ +
       object_serializer_.buffer_size_ + export_serializer_.buffer_size_ +
-      8 * sizeof(uint32_t);
+      10 * sizeof(uint32_t);
   if (total_serializer.ExpandBuffer(needed_size).IsNothing()) {
     Throw("Out of memory");
     return;
@@ -520,31 +524,14 @@ void WebSnapshotSerializer::SerializeSymbol(Handle<Symbol> symbol) {
                   symbol_serializer_);
   }
 }
-void WebSnapshotSerializer::SerializeObjectPrototype(
-    Handle<Map> map, ValueSerializer& serializer) {
-  if (map->prototype() ==
-      isolate_->native_context()->initial_object_prototype()) {
-    serializer.WriteUint32(0);
-  } else {
-    // TODO(v8:11525): Support non-JSObject prototypes, at least null. Recognize
-    // well-known objects to that we don't end up encoding them in the snapshot.
-    if (!map->prototype().IsJSObject()) {
-      Throw("Non-JSObject __proto__s not supported");
-      return;
-    }
-    uint32_t prototype_id = GetObjectId(JSObject::cast(map->prototype()));
-    serializer.WriteUint32(prototype_id + 1);
-  }
-}
 
 // Format (serialized shape):
 // - PropertyAttributesType
-// - 0 if the __proto__ is Object.prototype, 1 + object id for the __proto__
-//   otherwise
 // - Property count
 // - For each property
 //   - Name: STRING_ID + String id or SYMBOL_ID + Symbol id or in-place string
 //   - If the PropertyAttributesType is CUSTOM: attributes
+// - __proto__: Serialized value
 void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
   DCHECK(!map->is_dictionary_map());
   int first_custom_index = -1;
@@ -574,7 +561,7 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
   map_serializer_.WriteUint32(first_custom_index == -1
                                   ? PropertyAttributesType::DEFAULT
                                   : PropertyAttributesType::CUSTOM);
-  SerializeObjectPrototype(map, map_serializer_);
+
   map_serializer_.WriteUint32(static_cast<uint32_t>(keys.size()));
 
   uint32_t default_flags = GetDefaultAttributeFlags();
@@ -596,6 +583,8 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
       }
     }
   }
+
+  WriteValue(handle(map->prototype(), isolate_), map_serializer_);
 }
 
 void WebSnapshotSerializer::SerializeBuiltinObject(uint32_t name_id) {
@@ -743,6 +732,7 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
         DiscoverClass(Handle<JSFunction>::cast(object));
         break;
       case JS_OBJECT_TYPE:
+      case JS_OBJECT_PROTOTYPE_TYPE:
         DiscoverObject(Handle<JSObject>::cast(object));
         break;
       case JS_ARRAY_TYPE:
@@ -1039,10 +1029,7 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   DiscoverMap(map);
 
   // Discover __proto__.
-  if (map->prototype() !=
-      isolate_->native_context()->initial_object_prototype()) {
-    discovery_queue_.push(handle(map->prototype(), isolate_));
-  }
+  discovery_queue_.push(handle(map->prototype(), isolate_));
 
   if (object->HasFastProperties()) {
     // Discover property values.
@@ -1079,6 +1066,9 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
 }
 
 bool WebSnapshotSerializer::DiscoverIfBuiltinObject(Handle<HeapObject> object) {
+  // TODO(v8:11525): Consider speccing a set of fixed builtins (such as
+  // Object.prototype) for objects which are almost always included in the
+  // snapshot.
   uint32_t name_index;
   if (!GetBuiltinObjectNameIndex(*object, name_index)) {
     return false;
@@ -1241,18 +1231,16 @@ void WebSnapshotSerializer::SerializeObjectPropertiesWithDictionaryMap(T dict) {
 // Format (serialized object):
 // - 0 if there's no shape (dictionary map), 1 + shape id otherwise
 // If has shape
-// - For each property:
-//   - Serialized value
+//   - For each property:
+//     - Serialized value
 // Else (dictionary map)
-//  - 0 if the __proto__ is Object.prototype, 1 + object id for the __proto__
-//   otherwise
-// - PropertyAttributesType
-// - Property count
-// - For each property
-//   - Name: STRING_ID + String id or SYMBOL_ID + Symbol id or in-place string
-//   - Serialized value
-//   - If the PropertyAttributesType is CUSTOM: attributes
-
+//   - PropertyAttributesType
+//   - Property count
+//   - For each property
+//     - Name: STRING_ID + String id or SYMBOL_ID + Symbol id or in-place string
+//     - Serialized value
+//     - If the PropertyAttributesType is CUSTOM: attributes
+//   - __proto__: serialized value
 // - Max element index + 1 (or 0 if there are no elements)
 // - For each element:
 //   - Index
@@ -1278,7 +1266,6 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
       WriteValue(value, object_serializer_);
     }
   } else {
-    SerializeObjectPrototype(map, object_serializer_);
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> swiss_dictionary =
           handle(object->property_dictionary_swiss(), isolate_);
@@ -1288,6 +1275,7 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
           handle(object->property_dictionary(), isolate_);
       SerializeObjectPropertiesWithDictionaryMap(dictionary);
     }
+    WriteValue(handle(map->prototype(), isolate_), object_serializer_);
   }
 
   // Elements.
@@ -1964,13 +1952,6 @@ void WebSnapshotDeserializer::DeserializeMaps() {
   for (uint32_t i = 0; i < map_count_; ++i) {
     bool has_custom_property_attributes = ReadMapType();
 
-    uint32_t prototype_id;
-    if (!deserializer_.ReadUint32(&prototype_id) ||
-        prototype_id > kMaxItemCount) {
-      Throw("Malformed shape");
-      return;
-    }
-
     uint32_t property_count;
     if (!deserializer_.ReadUint32(&property_count)) {
       Throw("Malformed shape");
@@ -1986,17 +1967,8 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     }
 
     if (property_count == 0) {
-      if (prototype_id == 0) {
-        DisallowGarbageCollection no_gc;
-        Map empty_map =
-            isolate_->native_context()->object_function().initial_map();
-        maps_.set(i, empty_map);
-      } else {
-        Handle<Map> map = factory()->NewMap(
-            JS_OBJECT_TYPE, JSObject::kHeaderSize, HOLEY_ELEMENTS, 0);
-        DeserializeObjectPrototype(map, prototype_id);
-        maps_.set(i, *map);
-      }
+      Handle<Map> map = DeserializeObjectPrototypeAndCreateEmptyMap();
+      maps_.set(i, *map);
       continue;
     }
 
@@ -2005,10 +1977,10 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     for (InternalIndex i : InternalIndex::Range(property_count)) {
       // No deferred references here, since strings and symbols have already
       // been deserialized.
-      Handle<Object> key =
-          handle(ReadValue(Handle<HeapObject>(), 0, InternalizeStrings::kYes),
-                 isolate_);
-      if (!key->IsName()) {
+      Object key = std::get<0>(
+          ReadValue(Handle<HeapObject>(), 0, InternalizeStrings::kYes));
+      DisallowGarbageCollection no_gc;
+      if (!key.IsName()) {
         Throw("Invalid map key");
         return;
       }
@@ -2024,8 +1996,8 @@ void WebSnapshotDeserializer::DeserializeMaps() {
       // Use the "none" representation until we see the first object having this
       // map. At that point, modify the representation.
       Descriptor desc =
-          Descriptor::DataField(isolate_, Handle<Name>::cast(key), i.as_int(),
-                                attributes, Representation::None());
+          Descriptor::DataField(isolate_, handle(Name::cast(key), isolate_),
+                                i.as_int(), attributes, Representation::None());
       descriptors->Set(i, &desc);
     }
     DCHECK_EQ(descriptors->number_of_descriptors(), property_count);
@@ -2035,7 +2007,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
                                         HOLEY_ELEMENTS, 0);
     map->InitializeDescriptors(isolate_, *descriptors);
     // TODO(v8:11525): Set 'constructor'.
-    DeserializeObjectPrototype(map, prototype_id);
+    DeserializeObjectPrototype(map);
     maps_.set(i, *map);
   }
 }
@@ -2161,7 +2133,7 @@ void WebSnapshotDeserializer::DeserializeContexts() {
     for (int variable_index = 0;
          variable_index < static_cast<int>(variable_count); ++variable_index) {
       int context_index = scope_info->ContextHeaderLength() + variable_index;
-      Object value = ReadValue(context, context_index);
+      Object value = std::get<0>(ReadValue(context, context_index));
       context->set(context_index, value);
     }
     contexts_.set(i, *context);
@@ -2421,25 +2393,47 @@ void WebSnapshotDeserializer::DeserializeClasses() {
   }
 }
 
-void WebSnapshotDeserializer::DeserializeObjectPrototype(
-    Handle<Map> map, uint32_t prototype_id) {
-  if (prototype_id == 0) {
-    // Use Object.prototype as the prototype.
-    Map::SetPrototype(
-        isolate_, map,
-        handle(isolate_->native_context()->initial_object_prototype(),
-               isolate_));
+void WebSnapshotDeserializer::DeserializeObjectPrototype(Handle<Map> map) {
+  auto result = ReadValue(map, 0, InternalizeStrings::kNo);
+  Object prototype = std::get<0>(result);
+  bool was_deferred = std::get<1>(result);
+  if (!was_deferred) {
+    SetPrototype(map, handle(prototype, isolate_));
+  }
+}
+
+Handle<Map>
+WebSnapshotDeserializer::DeserializeObjectPrototypeAndCreateEmptyMap() {
+  Handle<Map> map = factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                                      HOLEY_ELEMENTS, 0);
+  auto result = ReadValue(map, 0, InternalizeStrings::kNo);
+  Object prototype = std::get<0>(result);
+  bool was_deferred = std::get<1>(result);
+  // If we got a deferred reference, the prototype cannot be a builtin; those
+  // references aren't deferred.
+  // TODO(v8:11525): if the object order is relaxed, it's possible to have a
+  // deferred reference to Object.prototype, and we'll need to recognize and
+  // handle that case.
+  if (prototype == isolate_->context().initial_object_prototype()) {
+    // TODO(v8:11525): Avoid map creation (above) in this case.
+    return handle(isolate_->native_context()->object_function().initial_map(),
+                  isolate_);
+  }
+  if (!was_deferred) {
+    SetPrototype(map, handle(prototype, isolate_));
+  }
+  return map;
+}
+
+void WebSnapshotDeserializer::SetPrototype(Handle<Map> map,
+                                           Handle<Object> prototype) {
+  if (prototype->IsJSObject()) {
+    HeapObject::cast(*prototype).map().set_is_prototype_map(true);
+    Map::SetPrototype(isolate_, map, Handle<JSObject>::cast(prototype));
+  } else if (prototype->IsNull(isolate_)) {
+    map->set_prototype(HeapObject::cast(*prototype));
   } else {
-    // TODO(v8::11525): Implement stricter checks, e.g., disallow cycles.
-    --prototype_id;
-    if (prototype_id < current_object_count_) {
-      HeapObject prototype = HeapObject::cast(objects_.get(prototype_id));
-      prototype.map().set_is_prototype_map(true);
-      Map::SetPrototype(isolate_, map, handle(prototype, isolate_));
-    } else {
-      // The object hasn't been deserialized yet.
-      AddDeferredReference(map, 0, OBJECT_ID, prototype_id);
-    }
+    Throw("Invalid prototype");
   }
 }
 
@@ -2447,13 +2441,14 @@ template <typename T>
 void WebSnapshotDeserializer::DeserializeObjectPropertiesWithDictionaryMap(
     T dict, uint32_t property_count, bool has_custom_property_attributes) {
   for (uint32_t i = 0; i < property_count; i++) {
-    Handle<Object> key(
-        ReadValue(Handle<HeapObject>(), 0, InternalizeStrings::kYes), isolate_);
+    Handle<Object> key(std::get<0>(ReadValue(Handle<HeapObject>(), 0,
+                                             InternalizeStrings::kYes)),
+                       isolate_);
     if (!key->IsName()) {
       Throw("Invalid map key");
       return;
     }
-    Handle<Object> value(ReadValue(), isolate_);
+    Handle<Object> value(std::get<0>(ReadValue()), isolate_);
     PropertyAttributes attributes = PropertyAttributes::NONE;
     if (has_custom_property_attributes) {
       uint32_t flags;
@@ -2521,7 +2516,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
       Handle<PropertyArray> property_array =
           factory()->NewPropertyArray(no_properties);
       for (int i = 0; i < no_properties; ++i) {
-        Object value = ReadValue(property_array, i);
+        Object value = std::get<0>(ReadValue(property_array, i));
         DisallowGarbageCollection no_gc;
         // Read the representation from the map.
         DescriptorArray raw_descriptors = *descriptors;
@@ -2546,12 +2541,6 @@ void WebSnapshotDeserializer::DeserializeObjects() {
                                           HOLEY_ELEMENTS, 0);
       map->set_may_have_interesting_symbols(true);
       map->set_is_dictionary_map(true);
-      uint32_t prototype_id;
-      if (!deserializer_.ReadUint32(&prototype_id)) {
-        Throw("Malformed prototype id");
-        return;
-      }
-      DeserializeObjectPrototype(map, prototype_id);
 
       bool has_custom_property_attributes = ReadMapType();
 
@@ -2582,6 +2571,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
         object = factory()->NewJSObjectFromMap(map);
         object->SetProperties(*dictionary);
       }
+      DeserializeObjectPrototype(map);
     }
     DCHECK(!object->is_null());
     uint32_t max_element_index = 0;
@@ -2602,7 +2592,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
           Throw("Malformed object");
           return;
         }
-        Object value = ReadValue(elements, index);
+        Object value = std::get<0>(ReadValue(elements, index));
         elements->set(index, value);
         if (index == max_element_index) {
           break;
@@ -2637,7 +2627,7 @@ Handle<JSArray> WebSnapshotDeserializer::ReadDenseArrayElements(
   ElementsKind elements_kind = PACKED_SMI_ELEMENTS;
   bool has_hole = false;
   for (uint32_t i = 0; i < length; ++i) {
-    Object value = ReadValue(elements, i);
+    Object value = std::get<0>(ReadValue(elements, i));
     DisallowGarbageCollection no_gc;
     if (!value.IsSmi()) {
       elements_kind = PACKED_ELEMENTS;
@@ -2664,7 +2654,7 @@ Handle<JSArray> WebSnapshotDeserializer::ReadSparseArrayElements(
       Throw("Malformed element index in sparse array");
       return isolate_->factory()->NewJSArray(0);
     }
-    Object value = ReadValue(dict, element_index);
+    Object value = std::get<0>(ReadValue(dict, element_index));
     Handle<NumberDictionary> new_dict =
         dict->Set(isolate_, dict, element_index, handle(value, isolate_));
     // The number dictionary didn't grow, since it was preallocated to be
@@ -2736,7 +2726,7 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
                                  isolate_);
       // No deferred references should occur at this point, since all objects
       // have been deserialized.
-      Object export_value = ReadValue();
+      Object export_value = std::get<0>(ReadValue());
       USE(export_name);
       USE(export_value);
     }
@@ -2762,7 +2752,7 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
     Handle<String> export_name(ReadString(InternalizeStrings::kYes), isolate_);
     // No deferred references should occur at this point, since all objects have
     // been deserialized.
-    Object export_value = ReadValue();
+    Object export_value = std::get<0>(ReadValue());
 
     if (export_name->length() == 0 && i == 0) {
       // Hack: treat the first empty-string-named export value as a return value
@@ -2798,34 +2788,34 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
   JSObject::InvalidatePrototypeChains(global->map(isolate_));
 }
 
-Object WebSnapshotDeserializer::ReadValue(
+std::tuple<Object, bool> WebSnapshotDeserializer::ReadValue(
     Handle<HeapObject> container, uint32_t container_index,
     InternalizeStrings internalize_strings) {
   uint32_t value_type;
   // TODO(v8:11525): Consider adding a ReadByte.
   if (!deserializer_.ReadUint32(&value_type)) {
     Throw("Malformed variable");
-    // Set "value" here so that the "keep on trucking" error handling won't fail
-    // when dereferencing the handle.
-    return Smi::zero();
+    // Return a placeholder "value" so that the "keep on trucking" error
+    // handling won't fail.
+    return std::make_tuple(Smi::zero(), false);
   }
   switch (value_type) {
     case ValueType::FALSE_CONSTANT:
-      return roots_.false_value();
+      return std::make_tuple(roots_.false_value(), false);
     case ValueType::TRUE_CONSTANT:
-      return roots_.true_value();
+      return std::make_tuple(roots_.true_value(), false);
     case ValueType::NULL_CONSTANT:
-      return roots_.null_value();
+      return std::make_tuple(roots_.null_value(), false);
     case ValueType::UNDEFINED_CONSTANT:
-      return roots_.undefined_value();
+      return std::make_tuple(roots_.undefined_value(), false);
     case ValueType::NO_ELEMENT_CONSTANT:
-      return roots_.the_hole_value();
+      return std::make_tuple(roots_.the_hole_value(), false);
     case ValueType::INTEGER:
-      return ReadInteger();
+      return std::make_tuple(ReadInteger(), false);
     case ValueType::DOUBLE:
-      return ReadNumber();
+      return std::make_tuple(ReadNumber(), false);
     case ValueType::STRING_ID:
-      return ReadString(internalize_strings);
+      return std::make_tuple(ReadString(internalize_strings), false);
     case ValueType::ARRAY_ID:
       return ReadArray(container, container_index);
     case ValueType::OBJECT_ID:
@@ -2835,19 +2825,19 @@ Object WebSnapshotDeserializer::ReadValue(
     case ValueType::CLASS_ID:
       return ReadClass(container, container_index);
     case ValueType::REGEXP:
-      return ReadRegexp();
+      return std::make_tuple(ReadRegexp(), false);
     case ValueType::SYMBOL_ID:
-      return ReadSymbol();
+      return std::make_tuple(ReadSymbol(), false);
     case ValueType::EXTERNAL_ID:
-      return ReadExternalReference();
+      return std::make_tuple(ReadExternalReference(), false);
     case ValueType::BUILTIN_OBJECT_ID:
-      return ReadBuiltinObjectReference();
+      return std::make_tuple(ReadBuiltinObjectReference(), false);
     case ValueType::IN_PLACE_STRING_ID:
-      return ReadInPlaceString(internalize_strings);
+      return std::make_tuple(ReadInPlaceString(internalize_strings), false);
     default:
       // TODO(v8:11525): Handle other value types.
       Throw("Unsupported value type");
-      return Smi::zero();
+      return std::make_tuple(Smi::zero(), false);
   }
 }
 
@@ -2869,61 +2859,65 @@ Object WebSnapshotDeserializer::ReadNumber() {
   return *factory()->NewNumber(number);
 }
 
-Object WebSnapshotDeserializer::ReadArray(Handle<HeapObject> container,
-                                          uint32_t index) {
+std::tuple<Object, bool> WebSnapshotDeserializer::ReadArray(
+    Handle<HeapObject> container, uint32_t index) {
   uint32_t array_id;
   if (!deserializer_.ReadUint32(&array_id) || array_id >= kMaxItemCount) {
     Throw("Malformed variable");
-    return Smi::zero();
+    return std::make_tuple(Smi::zero(), false);
   }
   if (array_id < current_array_count_) {
-    return arrays_.get(array_id);
+    return std::make_tuple(arrays_.get(array_id), false);
   }
   // The array hasn't been deserialized yet.
-  return AddDeferredReference(container, index, ARRAY_ID, array_id);
+  return std::make_tuple(
+      AddDeferredReference(container, index, ARRAY_ID, array_id), true);
 }
 
-Object WebSnapshotDeserializer::ReadObject(Handle<HeapObject> container,
-                                           uint32_t index) {
+std::tuple<Object, bool> WebSnapshotDeserializer::ReadObject(
+    Handle<HeapObject> container, uint32_t index) {
   uint32_t object_id;
   if (!deserializer_.ReadUint32(&object_id) || object_id > kMaxItemCount) {
     Throw("Malformed variable");
-    return Smi::zero();
+    return std::make_tuple(Smi::zero(), false);
   }
   if (object_id < current_object_count_) {
-    return objects_.get(object_id);
+    return std::make_tuple(objects_.get(object_id), false);
   }
   // The object hasn't been deserialized yet.
-  return AddDeferredReference(container, index, OBJECT_ID, object_id);
+  return std::make_tuple(
+      AddDeferredReference(container, index, OBJECT_ID, object_id), true);
 }
 
-Object WebSnapshotDeserializer::ReadFunction(Handle<HeapObject> container,
-                                             uint32_t index) {
+std::tuple<Object, bool> WebSnapshotDeserializer::ReadFunction(
+    Handle<HeapObject> container, uint32_t index) {
   uint32_t function_id;
   if (!deserializer_.ReadUint32(&function_id) ||
       function_id >= function_count_) {
     Throw("Malformed object property");
-    return Smi::zero();
+    return std::make_tuple(Smi::zero(), false);
   }
   if (function_id < current_function_count_) {
-    return functions_.get(function_id);
+    return std::make_tuple(functions_.get(function_id), false);
   }
   // The function hasn't been deserialized yet.
-  return AddDeferredReference(container, index, FUNCTION_ID, function_id);
+  return std::make_tuple(
+      AddDeferredReference(container, index, FUNCTION_ID, function_id), true);
 }
 
-Object WebSnapshotDeserializer::ReadClass(Handle<HeapObject> container,
-                                          uint32_t index) {
+std::tuple<Object, bool> WebSnapshotDeserializer::ReadClass(
+    Handle<HeapObject> container, uint32_t index) {
   uint32_t class_id;
   if (!deserializer_.ReadUint32(&class_id) || class_id >= kMaxItemCount) {
     Throw("Malformed object property");
-    return Smi::zero();
+    return std::make_tuple(Smi::zero(), false);
   }
   if (class_id < current_class_count_) {
-    return classes_.get(class_id);
+    return std::make_tuple(classes_.get(class_id), false);
   }
   // The class hasn't been deserialized yet.
-  return AddDeferredReference(container, index, CLASS_ID, class_id);
+  return std::make_tuple(
+      AddDeferredReference(container, index, CLASS_ID, class_id), true);
 }
 
 Object WebSnapshotDeserializer::ReadRegexp() {
@@ -3128,13 +3122,9 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
       // The only deferred reference allowed for a Map is the __proto__.
       DCHECK_EQ(index, 0);
       DCHECK(target.IsJSReceiver());
-      HeapObject prototype = HeapObject::cast(target);
-      prototype.map().set_is_prototype_map(true);
-      {
-        AllowGarbageCollection allow_gc;
-        Map::SetPrototype(isolate_, handle(Map::cast(container), isolate_),
-                          handle(prototype, isolate_));
-      }
+      AllowGarbageCollection allow_gc;
+      SetPrototype(handle(Map::cast(container), isolate_),
+                   handle(target, isolate_));
       raw_deferred_references = *deferred_references_;
     } else {
       UNREACHABLE();

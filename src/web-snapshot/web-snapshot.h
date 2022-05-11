@@ -99,7 +99,7 @@ class WebSnapshotSerializerDeserializer {
 
   void IterateBuiltinObjects(std::function<void(String, HeapObject)> func);
 
-  static constexpr int kBuiltinObjectCount = 2;
+  static constexpr int kBuiltinObjectCount = 4;
 
   inline Factory* factory() const { return isolate_->factory(); }
 
@@ -397,13 +397,16 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeArrays();
   void DeserializeObjects();
   void DeserializeExports(bool skip_exports);
-  void DeserializeObjectPrototype(Handle<Map> map, uint32_t prototype_id);
+  void DeserializeObjectPrototype(Handle<Map> map);
+  Handle<Map> DeserializeObjectPrototypeAndCreateEmptyMap();
+  void SetPrototype(Handle<Map> map, Handle<Object> prototype);
 
   template <typename T>
   void DeserializeObjectPropertiesWithDictionaryMap(
       T dict, uint32_t property_count, bool has_custom_property_attributes);
 
-  Object ReadValue(
+  // Return value: (object, was_deferred)
+  std::tuple<Object, bool> ReadValue(
       Handle<HeapObject> object_for_deferred_reference = Handle<HeapObject>(),
       uint32_t index_for_deferred_reference = 0,
       InternalizeStrings internalize_strings = InternalizeStrings::kNo);
@@ -415,10 +418,14 @@ class V8_EXPORT WebSnapshotDeserializer
   String ReadInPlaceString(
       InternalizeStrings internalize_strings = InternalizeStrings::kNo);
   Object ReadSymbol();
-  Object ReadArray(Handle<HeapObject> container, uint32_t container_index);
-  Object ReadObject(Handle<HeapObject> container, uint32_t container_index);
-  Object ReadFunction(Handle<HeapObject> container, uint32_t container_index);
-  Object ReadClass(Handle<HeapObject> container, uint32_t container_index);
+  std::tuple<Object, bool> ReadArray(Handle<HeapObject> container,
+                                     uint32_t container_index);
+  std::tuple<Object, bool> ReadObject(Handle<HeapObject> container,
+                                      uint32_t container_index);
+  std::tuple<Object, bool> ReadFunction(Handle<HeapObject> container,
+                                        uint32_t container_index);
+  std::tuple<Object, bool> ReadClass(Handle<HeapObject> container,
+                                     uint32_t container_index);
   Object ReadRegexp();
   Object ReadBuiltinObjectReference();
   Object ReadExternalReference();

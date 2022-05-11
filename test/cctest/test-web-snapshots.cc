@@ -90,9 +90,9 @@ TEST(Minimal) {
   const char* snapshot_source = "var foo = {'key': 'lol'};";
   const char* test_source = "foo.key";
   const char* expected_result = "lol";
-  uint32_t kStringCount = 1;  // 'foo'; 'key' is in-place.
+  uint32_t kStringCount = 2;  // 'foo', 'Object.prototype'; 'key' is in-place.
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
@@ -106,9 +106,9 @@ TEST(Minimal) {
 TEST(EmptyObject) {
   const char* snapshot_source = "var foo = {}";
   const char* test_source = "foo";
-  uint32_t kStringCount = 1;  // 'foo'
+  uint32_t kStringCount = 2;  // 'foo', 'Object.prototype'
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
@@ -138,9 +138,10 @@ TEST(Numbers) {
       "           'f': Number.NEGATIVE_INFINITY,\n"
       "}";
   const char* test_source = "foo";
-  uint32_t kStringCount = 1;  // 'foo'; 'a'...'f' are in-place.
+  uint32_t kStringCount =
+      2;  // 'foo', 'Object.prototype'; 'a'...'f' are in-place.
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
@@ -195,9 +196,10 @@ TEST(Oddballs) {
       "           'd': undefined,\n"
       "}";
   const char* test_source = "foo";
-  uint32_t kStringCount = 1;  // 'foo'; 'a'...'d' are in-place.
+  // 'foo', 'Object.prototype'; 'a'...'d' are in-place.
+  uint32_t kStringCount = 2;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
@@ -226,9 +228,10 @@ TEST(Function) {
       "var foo = {'key': function() { return '11525'; }};";
   const char* test_source = "foo.key()";
   const char* expected_result = "11525";
-  uint32_t kStringCount = 2;  // 'foo', function source code. 'key' is in-place.
+  // 'foo', 'Object.prototype', function source code. 'key' is in-place.
+  uint32_t kStringCount = 3;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 1;
@@ -248,10 +251,11 @@ TEST(InnerFunctionWithContext) {
       "                   })()};";
   const char* test_source = "foo.key()";
   const char* expected_result = "11525";
-  // Strings: 'foo', 'result', function source code (inner). 'key' is in-place.
-  uint32_t kStringCount = 3;
+  // Strings: 'foo', 'result', 'Object.prototype'. function source code (inner).
+  // 'key' is in-place.
+  uint32_t kStringCount = 4;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 1;
   uint32_t kFunctionCount = 1;
@@ -277,10 +281,11 @@ TEST(InnerFunctionWithContextAndParentContext) {
       "                   })()};";
   const char* test_source = "foo.key()";
   const char* expected_result = "11525";
-  // Strings: 'foo', function source code (innerinner), 'part1', 'part2'.
-  uint32_t kStringCount = 4;
+  // Strings: 'foo', 'Object.prototype', function source code (innerinner),
+  // 'part1', 'part2'.
+  uint32_t kStringCount = 5;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 2;
   uint32_t kFunctionCount = 1;
@@ -294,9 +299,10 @@ TEST(InnerFunctionWithContextAndParentContext) {
 TEST(RegExp) {
   const char* snapshot_source = "var foo = {'re': /ab+c/gi}";
   const char* test_source = "foo";
-  uint32_t kStringCount = 3;  // 'foo', RegExp pattern, RegExp flags
+  // 'foo', 'Object.prototype', RegExp pattern, RegExp flags
+  uint32_t kStringCount = 4;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
@@ -327,9 +333,10 @@ TEST(RegExp) {
 TEST(RegExpNoFlags) {
   const char* snapshot_source = "var foo = {'re': /ab+c/}";
   const char* test_source = "foo";
-  uint32_t kStringCount = 3;  // 'foo', RegExp pattern, RegExp flags
+  // 'foo', , 'Object.prototype RegExp pattern, RegExp flags
+  uint32_t kStringCount = 4;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
@@ -719,9 +726,10 @@ TEST(FunctionKinds) {
       "           f: async function*() {}\n"
       "}";
   const char* test_source = "foo";
-  uint32_t kStringCount = 2;  // 'foo', source code. 'a'...'f' in-place.
+  // 'foo', 'Object.prototype', source code. 'a'...'f' in-place.
+  uint32_t kStringCount = 3;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 6;
@@ -931,10 +939,10 @@ TEST(InPlaceStringsInObjects) {
   const char* snapshot_source = "var foo =  {a: 'one', b: 'two', c: 'three'};";
   const char* test_source = "foo.a + foo.b + foo.c;";
   const char* expected_result = "onetwothree";
-  // 'foo'. Other strings are in-place.
-  uint32_t kStringCount = 1;
+  // 'foo', 'Object.prototype'. Other strings are in-place.
+  uint32_t kStringCount = 2;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
+  uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
@@ -949,26 +957,8 @@ TEST(RepeatedInPlaceStringsInObjects) {
   const char* snapshot_source = "var foo =  {a: 'one', b: 'two', c: 'one'};";
   const char* test_source = "foo.a + foo.b + foo.c;";
   const char* expected_result = "onetwoone";
-  // 'foo', 'one'. Other strings are in-place.
-  uint32_t kStringCount = 2;
-  uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 0;
-  uint32_t kMapCount = 1;
-  uint32_t kContextCount = 0;
-  uint32_t kFunctionCount = 0;
-  uint32_t kObjectCount = 1;
-  uint32_t kArrayCount = 0;
-  TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
-                  kSymbolCount, kBuiltinObjectCount, kMapCount, kContextCount,
-                  kFunctionCount, kObjectCount, kArrayCount);
-}
-
-TEST(builtin_objects) {
-  const char* snapshot_source = "var foo = {a: Error.prototype};";
-  const char* test_source = "foo.a == Error.prototype ? \"pass\" : \"fail\"";
-  const char* expected_result = "pass";
-  // 'foo', 'Error.prototype'. Other strings are in-place.
-  uint32_t kStringCount = 2;
+  // 'foo', 'one', 'Object.prototype'. Other strings are in-place.
+  uint32_t kStringCount = 3;
   uint32_t kSymbolCount = 0;
   uint32_t kBuiltinObjectCount = 1;
   uint32_t kMapCount = 1;
@@ -981,15 +971,33 @@ TEST(builtin_objects) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(builtin_objectsDeduplicated) {
+TEST(BuiltinObjects) {
+  const char* snapshot_source = "var foo = {a: Error.prototype};";
+  const char* test_source = "foo.a == Error.prototype ? \"pass\" : \"fail\"";
+  const char* expected_result = "pass";
+  // 'foo', 'Error.prototype', 'Object.prototype'. Other strings are in-place.
+  uint32_t kStringCount = 3;
+  uint32_t kSymbolCount = 0;
+  uint32_t kBuiltinObjectCount = 2;
+  uint32_t kMapCount = 1;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
+  TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
+                  kSymbolCount, kBuiltinObjectCount, kMapCount, kContextCount,
+                  kFunctionCount, kObjectCount, kArrayCount);
+}
+
+TEST(BuiltinObjectsDeduplicated) {
   const char* snapshot_source =
       "var foo = {a: Error.prototype, b: Error.prototype}";
   const char* test_source = "foo.a === Error.prototype ? \"pass\" : \"fail\"";
   const char* expected_result = "pass";
-  // 'foo', 'Error.prototype'. Other strings are in-place.
-  uint32_t kStringCount = 2;
+  // 'foo', 'Error.prototype', 'Object.prototype'. Other strings are in-place.
+  uint32_t kStringCount = 3;
   uint32_t kSymbolCount = 0;
-  uint32_t kBuiltinObjectCount = 1;
+  uint32_t kBuiltinObjectCount = 2;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
