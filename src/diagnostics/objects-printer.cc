@@ -1626,7 +1626,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - function_map_index: " << function_map_index();
   os << "\n - formal_parameter_count: "
      << internal_formal_parameter_count_without_receiver();
-  os << "\n - expected_nof_properties: " << expected_nof_properties();
+  os << "\n - expected_nof_properties: "
+     << static_cast<int>(expected_nof_properties());
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data(kAcquireLoad));
   os << "\n - code (from data): ";
