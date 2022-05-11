@@ -8089,8 +8089,8 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
       Label if_thinstring(this), if_has_cached_index(this),
           if_forwarding_index(this);
 
-      TNode<Uint32T> raw_hash_field = AtomicLoadObjectField<Uint32T>(
-          AtomicMemoryOrder::kAcqRel, CAST(key), Name::kRawHashFieldOffset);
+      // TODO(v8:12007): LoadNameRawHashField() should be an acquire load.
+      TNode<Uint32T> raw_hash_field = LoadNameRawHashField(CAST(key));
       GotoIf(IsClearWord32(raw_hash_field,
                            Name::kDoesNotContainCachedArrayIndexMask),
              &if_has_cached_index);
