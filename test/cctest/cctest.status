@@ -40,6 +40,9 @@
   # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
   # the test passed).
   'test-verifiers/Fail*': [FAIL, CRASH],
+  # BUG(chromium:1310062): these tests must crash once the side effect check
+  # is enabled.
+  #'test-api-interceptors/Crash*': [FAIL, CRASH],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
   'test-debug/LiveEditDisabled': [FAIL],

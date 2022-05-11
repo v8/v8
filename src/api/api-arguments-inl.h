@@ -148,6 +148,17 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   return GetReturnValue<Object>(isolate);
 }
 
+PropertyCallbackArguments::~PropertyCallbackArguments(){
+#ifdef DEBUG
+// TODO(chromium:1310062): enable this check.
+// if (javascript_execution_counter_) {
+//   CHECK_WITH_MSG(javascript_execution_counter_ ==
+//                      isolate()->javascript_execution_counter(),
+//                  "Unexpected side effect detected");
+// }
+#endif  // DEBUG
+}
+
 Handle<JSObject> PropertyCallbackArguments::CallNamedEnumerator(
     Handle<InterceptorInfo> interceptor) {
   DCHECK(interceptor->is_named());
@@ -296,6 +307,10 @@ Handle<Object> PropertyCallbackArguments::CallAccessorGetter(
     Handle<AccessorInfo> info, Handle<Name> name) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorGetterCallback);
+  // Unlike interceptor callbacks we know that the property exists, so
+  // the callback is allowed to have side effects.
+  AcceptSideEffects();
+
   AccessorNameGetterCallback f =
       ToCData<AccessorNameGetterCallback>(info->getter());
   return BasicCallNamedGetterCallback(f, name, info,
@@ -307,6 +322,10 @@ Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
     Handle<Object> value) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorSetterCallback);
+  // Unlike interceptor callbacks we know that the property exists, so
+  // the callback is allowed to have side effects.
+  AcceptSideEffects();
+
   AccessorNameSetterCallback f =
       ToCData<AccessorNameSetterCallback>(accessor_info->setter());
   PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, void, accessor_info,

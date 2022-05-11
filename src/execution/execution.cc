@@ -377,6 +377,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     V8::GetCurrentPlatform()->DumpWithoutCrashing();
     return isolate->factory()->undefined_value();
   }
+  isolate->IncrementJavascriptExecutionCounter();
 
   if (params.execution_target == Execution::Target::kCallable) {
     Handle<Context> context = isolate->native_context();

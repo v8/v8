@@ -3332,14 +3332,22 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
         isolate, receiver, Object::ConvertReceiver(isolate, receiver));
   }
 
-  Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(), isolate);
-  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *holder, Just(kDontThrow));
-  Handle<Object> result = arguments.CallNamedGetter(interceptor, name);
+  {
+    Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(), isolate);
+    PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                        *holder, Just(kDontThrow));
 
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+    Handle<Object> result = arguments.CallNamedGetter(interceptor, name);
 
-  if (!result.is_null()) return *result;
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
+
+    if (!result.is_null()) {
+      arguments.AcceptSideEffects();
+      return *result;
+    }
+    // If the interceptor didn't handle the request, then there must be no
+    // side effects.
+  }
 
   LookupIterator it(isolate, receiver, name, holder);
   // Skip any lookup work until we hit the (possibly non-masking) interceptor.
@@ -3350,6 +3358,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   }
   // Skip past the interceptor.
   it.Next();
+  Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
 
   if (it.IsFound()) return *result;
@@ -3387,16 +3396,20 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
         handle(JSObject::cast(receiver->map().prototype()), isolate);
   }
   DCHECK(interceptor_holder->HasNamedInterceptor());
-  Handle<InterceptorInfo> interceptor(interceptor_holder->GetNamedInterceptor(),
-                                      isolate);
+  {
+    Handle<InterceptorInfo> interceptor(
+        interceptor_holder->GetNamedInterceptor(), isolate);
 
-  DCHECK(!interceptor->non_masking());
-  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *receiver, Just(kDontThrow));
+    DCHECK(!interceptor->non_masking());
+    PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                        *receiver, Just(kDontThrow));
 
-  Handle<Object> result = arguments.CallNamedSetter(interceptor, name, value);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  if (!result.is_null()) return *value;
+    Handle<Object> result = arguments.CallNamedSetter(interceptor, name, value);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
+    if (!result.is_null()) return *value;
+    // If the interceptor didn't handle the request, then there must be no
+    // side effects.
+  }
 
   LookupIterator it(isolate, receiver, name, receiver);
   // Skip past any access check on the receiver.
@@ -3426,7 +3439,7 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
                                       *receiver, Just(kDontThrow));
   Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
 
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
 
   if (result.is_null()) {
     LookupIterator it(isolate, receiver, index, receiver);
@@ -3465,24 +3478,30 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
   DCHECK_GE(args.smi_value_at(1), 0);
   uint32_t index = args.smi_value_at(1);
 
-  Handle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
-                                      isolate);
-  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *receiver, Just(kDontThrow));
+  {
+    Handle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
+                                        isolate);
+    PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                        *receiver, Just(kDontThrow));
 
-  if (!interceptor->query().IsUndefined(isolate)) {
-    Handle<Object> result = arguments.CallIndexedQuery(interceptor, index);
-    if (!result.is_null()) {
-      int32_t value;
-      CHECK(result->ToInt32(&value));
-      return value == ABSENT ? ReadOnlyRoots(isolate).false_value()
-                             : ReadOnlyRoots(isolate).true_value();
+    if (!interceptor->query().IsUndefined(isolate)) {
+      Handle<Object> result = arguments.CallIndexedQuery(interceptor, index);
+      if (!result.is_null()) {
+        int32_t value;
+        CHECK(result->ToInt32(&value));
+        if (value == ABSENT) return ReadOnlyRoots(isolate).false_value();
+        arguments.AcceptSideEffects();
+        return ReadOnlyRoots(isolate).true_value();
+      }
+    } else if (!interceptor->getter().IsUndefined(isolate)) {
+      Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
+      if (!result.is_null()) {
+        arguments.AcceptSideEffects();
+        return ReadOnlyRoots(isolate).true_value();
+      }
     }
-  } else if (!interceptor->getter().IsUndefined(isolate)) {
-    Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
-    if (!result.is_null()) {
-      return ReadOnlyRoots(isolate).true_value();
-    }
+    // If the interceptor didn't handle the request, then there must be no
+    // side effects.
   }
 
   LookupIterator it(isolate, receiver, index, receiver);

@@ -12,7 +12,12 @@ namespace internal {
 PropertyCallbackArguments::PropertyCallbackArguments(
     Isolate* isolate, Object data, Object self, JSObject holder,
     Maybe<ShouldThrow> should_throw)
-    : Super(isolate) {
+    : Super(isolate)
+#ifdef DEBUG
+      ,
+      javascript_execution_counter_(isolate->javascript_execution_counter())
+#endif  // DEBUG
+{
   slot_at(T::kThisIndex).store(self);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kDataIndex).store(data);

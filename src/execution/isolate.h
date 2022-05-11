@@ -180,6 +180,16 @@ class StackMemory;
     }                                                  \
   } while (false)
 
+#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, detector) \
+  do {                                                                    \
+    Isolate* __isolate__ = (isolate);                                     \
+    DCHECK(!__isolate__->has_pending_exception());                        \
+    if (__isolate__->has_scheduled_exception()) {                         \
+      detector.AcceptSideEffects();                                       \
+      return __isolate__->PromoteScheduledException();                    \
+    }                                                                     \
+  } while (false)
+
 // Macros for MaybeHandle.
 
 #define RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, value) \
@@ -191,6 +201,10 @@ class StackMemory;
       return value;                                         \
     }                                                       \
   } while (false)
+
+#define RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, detector, value) \
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate,                                 \
+                                      (detector.AcceptSideEffects(), value))
 
 #define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
@@ -518,6 +532,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, javascript_execution_assert, true)                                  \
   V(bool, javascript_execution_throws, true)                                  \
   V(bool, javascript_execution_dump, true)                                    \
+  V(uint32_t, javascript_execution_counter, 0)                                \
   V(bool, deoptimization_assert, true)                                        \
   V(bool, compilation_assert, true)                                           \
   V(bool, no_exception_assert, true)
@@ -1653,6 +1668,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Address javascript_execution_assert_address() {
     return reinterpret_cast<Address>(&javascript_execution_assert_);
+  }
+
+  void IncrementJavascriptExecutionCounter() {
+    javascript_execution_counter_++;
   }
 
   Address handle_scope_implementer_address() {

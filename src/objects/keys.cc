@@ -660,6 +660,7 @@ KeyAccumulator::FilterForEnumerableProperties(
     if (!accessor->HasEntry(*result, entry)) continue;
 
     // args are invalid after args.Call(), create a new one in every iteration.
+    // Query callbacks are not expected to have side effects.
     PropertyCallbackArguments args(isolate_, interceptor->data(), *receiver,
                                    *object, Just(kDontThrow));
 
@@ -702,8 +703,13 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
       result = enum_args.CallNamedEnumerator(interceptor);
     }
   }
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate_, enum_args,
+                                               Nothing<bool>());
   if (result.is_null()) return Just(true);
+
+  // Request was successfully intercepted, so accept potential side effects
+  // happened up to this point.
+  enum_args.AcceptSideEffects();
 
   if ((filter_ & ONLY_ENUMERABLE) &&
       !interceptor->query().IsUndefined(isolate_)) {

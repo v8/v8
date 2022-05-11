@@ -58,7 +58,15 @@ class CustomArguments : public CustomArgumentsBase {
 
 // Note: Calling args.Call() sets the return value on args. For multiple
 // Call()'s, a new args should be used every time.
-class PropertyCallbackArguments
+// This class also serves as a side effects detection scope (JavaScript code
+// execution). It is used for ensuring correctness of the interceptor callback
+// implementations. The idea is that the interceptor callback that does not
+// intercept an operation must not produce side effects. If the callback
+// signals that it has handled the operation (by either returning a respective
+// result or by throwing an exception) then the AcceptSideEffects() method
+// must be called to "accept" the side effects that have happened during the
+// lifetime of the PropertyCallbackArguments object.
+class PropertyCallbackArguments final
     : public CustomArguments<PropertyCallbackInfo<Value> > {
  public:
   using T = PropertyCallbackInfo<Value>;
@@ -74,6 +82,7 @@ class PropertyCallbackArguments
 
   PropertyCallbackArguments(Isolate* isolate, Object data, Object self,
                             JSObject holder, Maybe<ShouldThrow> should_throw);
+  inline ~PropertyCallbackArguments();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
   // same prev_ pointer.
@@ -128,6 +137,14 @@ class PropertyCallbackArguments
   inline Handle<JSObject> CallIndexedEnumerator(
       Handle<InterceptorInfo> interceptor);
 
+  // Accept potential JavaScript side effects that might occurr during life
+  // time of this object.
+  inline void AcceptSideEffects() {
+#ifdef DEBUG
+    javascript_execution_counter_ = 0;
+#endif  // DEBUG
+  }
+
  private:
   /*
    * The following Call functions wrap the calling of all callbacks to handle
@@ -148,6 +165,13 @@ class PropertyCallbackArguments
 
   inline JSObject holder();
   inline Object receiver();
+
+#ifdef DEBUG
+  // This stores current value of Isolate::javascript_execution_counter().
+  // It's used for detecting whether JavaScript code was executed between
+  // PropertyCallbackArguments's constructior and destructor.
+  uint32_t javascript_execution_counter_;
+#endif  // DEBUG
 };
 
 class FunctionCallbackArguments
