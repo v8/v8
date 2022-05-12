@@ -491,6 +491,81 @@ void NewSpace::VerifyTop() const {
 }
 #endif  // DEBUG
 
+#ifdef VERIFY_HEAP
+// We do not use the SemiSpaceObjectIterator because verification doesn't assume
+// that it works (it depends on the invariants we are checking).
+void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
+                          Address current_address) const {
+  DCHECK(current_page->ContainsLimit(current_address));
+
+  size_t external_space_bytes[kNumTypes];
+  for (int i = 0; i < kNumTypes; i++) {
+    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
+  }
+
+  CHECK(!current_page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+  CHECK(!current_page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+
+  PtrComprCageBase cage_base(isolate);
+  VerifyPointersVisitor visitor(heap());
+  const Page* page = current_page;
+  while (current_address != top()) {
+    if (!Page::IsAlignedToPageSize(current_address)) {
+      // The allocation pointer should not be in the middle of an object.
+      CHECK(!Page::FromAddress(current_address)->ContainsLimit(top()) ||
+            current_address < top());
+
+      HeapObject object = HeapObject::FromAddress(current_address);
+
+      // The first word should be a map, and we expect all map pointers to
+      // be in map space or read-only space.
+      Map map = object.map(cage_base);
+      CHECK(map.IsMap(cage_base));
+      CHECK(ReadOnlyHeap::Contains(map) ||
+            isolate->heap()->space_for_maps()->Contains(map));
+
+      // The object should not be code or a map.
+      CHECK(!object.IsMap(cage_base));
+      CHECK(!object.IsAbstractCode(cage_base));
+
+      // The object itself should look OK.
+      object.ObjectVerify(isolate);
+
+      // All the interior pointers should be contained in the heap.
+      int size = object.Size(cage_base);
+      object.IterateBody(map, size, &visitor);
+
+      if (object.IsExternalString(cage_base)) {
+        ExternalString external_string = ExternalString::cast(object);
+        size_t string_size = external_string.ExternalPayloadSize();
+        external_space_bytes[ExternalBackingStoreType::kExternalString] +=
+            string_size;
+      }
+
+      current_address += size;
+    } else {
+      // At end of page, switch to next page.
+      page = page->next_page();
+      CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+      CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+      current_address = page->area_start();
+    }
+  }
+
+  for (int i = 0; i < kNumTypes; i++) {
+    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
+    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
+  }
+
+  if (!FLAG_concurrent_array_buffer_sweeping) {
+    size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
+    CHECK_EQ(bytes,
+             ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
+  }
+}
+#endif
+
 // -----------------------------------------------------------------------------
 // SemiSpaceNewSpace implementation
 
@@ -691,72 +766,7 @@ void SemiSpaceNewSpace::Verify(Isolate* isolate) const {
   Address current = to_space_.first_page()->area_start();
   CHECK_EQ(current, to_space_.space_start());
 
-  size_t external_space_bytes[kNumTypes];
-  for (int i = 0; i < kNumTypes; i++) {
-    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-  }
-
-  CHECK(!Page::FromAllocationAreaAddress(current)->IsFlagSet(
-      Page::PAGE_NEW_OLD_PROMOTION));
-  CHECK(!Page::FromAllocationAreaAddress(current)->IsFlagSet(
-      Page::PAGE_NEW_NEW_PROMOTION));
-
-  PtrComprCageBase cage_base(isolate);
-  while (current != top()) {
-    if (!Page::IsAlignedToPageSize(current)) {
-      // The allocation pointer should not be in the middle of an object.
-      CHECK(!Page::FromAllocationAreaAddress(current)->ContainsLimit(top()) ||
-            current < top());
-
-      HeapObject object = HeapObject::FromAddress(current);
-
-      // The first word should be a map, and we expect all map pointers to
-      // be in map space or read-only space.
-      Map map = object.map(cage_base);
-      CHECK(map.IsMap(cage_base));
-      CHECK(ReadOnlyHeap::Contains(map) ||
-            isolate->heap()->space_for_maps()->Contains(map));
-
-      // The object should not be code or a map.
-      CHECK(!object.IsMap(cage_base));
-      CHECK(!object.IsAbstractCode(cage_base));
-
-      // The object itself should look OK.
-      object.ObjectVerify(isolate);
-
-      // All the interior pointers should be contained in the heap.
-      VerifyPointersVisitor visitor(heap());
-      int size = object.Size(cage_base);
-      object.IterateBody(map, size, &visitor);
-
-      if (object.IsExternalString(cage_base)) {
-        ExternalString external_string = ExternalString::cast(object);
-        size_t string_size = external_string.ExternalPayloadSize();
-        external_space_bytes[ExternalBackingStoreType::kExternalString] +=
-            string_size;
-      }
-
-      current += size;
-    } else {
-      // At end of page, switch to next page.
-      Page* page = Page::FromAllocationAreaAddress(current)->next_page();
-      CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
-      CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
-      current = page->area_start();
-    }
-  }
-
-  for (int i = 0; i < kNumTypes; i++) {
-    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
-  }
-
-  if (!FLAG_concurrent_array_buffer_sweeping) {
-    size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
-    CHECK_EQ(bytes,
-             ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
-  }
+  VerifyImpl(isolate, Page::FromAllocationAreaAddress(current), current);
 
   // Check semi-spaces.
   CHECK_EQ(from_space_.id(), kFromSpace);

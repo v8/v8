@@ -309,6 +309,11 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
 #ifdef VERIFY_HEAP
   virtual void Verify(Isolate* isolate) const = 0;
+  // VerifyImpl verifies objects on the space starting from |page| and
+  // |address|. |address| should be a valid limit on |page| (see
+  // BasicMemoryChunk::ContainsLimit).
+  void VerifyImpl(Isolate* isolate, const Page* current_page,
+                  Address current_address) const;
 #endif
 
   virtual iterator begin() = 0;
