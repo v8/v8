@@ -1193,10 +1193,6 @@
 
 ['arch != ia32 and arch != x64', {
   # TODO(12284): Implement relaxed SIMD in Liftoff on missing architectures.
-  'test-run-wasm-relaxed-simd/RunWasm_I8x16RelaxedLaneSelect_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I16x8RelaxedLaneSelect_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedLaneSelect_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I64x2RelaxedLaneSelect_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_liftoff': [SKIP],

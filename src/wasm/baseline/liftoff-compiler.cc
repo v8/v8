@@ -3484,7 +3484,8 @@ class LiftoffCompiler {
     LiftoffRegister mask = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister src2 = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister src1 = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst = __ GetUnusedRegister(RegClass::kFpReg, {}, pinned);
+    LiftoffRegister dst =
+        __ GetUnusedRegister(reg_class_for(kS128), {}, pinned);
     EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_relaxed_laneselect,
                             dst, src1, src2, mask);
   }
