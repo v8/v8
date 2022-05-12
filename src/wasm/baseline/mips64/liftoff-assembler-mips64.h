@@ -2235,6 +2235,12 @@ void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
   mulr_q_h(dst.fp().toW(), src1.fp().toW(), src2.fp().toW());
 }
 
+void LiftoffAssembler::emit_relaxed_i16x8_q15mulr_s(LiftoffRegister dst,
+                                                    LiftoffRegister src1,
+                                                    LiftoffRegister src2) {
+  bailout(kSimd, "emit_relaxed_i16x8_q15mulr_s");
+}
+
 void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   ceq_b(dst.fp().toW(), lhs.fp().toW(), rhs.fp().toW());

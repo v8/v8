@@ -1912,6 +1912,12 @@ void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
   bailout(kSimd, "i16x8_q15mulr_sat_s");
 }
 
+void LiftoffAssembler::emit_relaxed_i16x8_q15mulr_s(LiftoffRegister dst,
+                                                    LiftoffRegister src1,
+                                                    LiftoffRegister src2) {
+  bailout(kSimd, "emit_relaxed_i16x8_q15mulr_s");
+}
+
 void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
   bailout(kSimd, "emit_i8x16_eq");
