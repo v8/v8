@@ -38,8 +38,35 @@ Evaluating z:
     }
 }
 Restarting function "foo" ...
-Failed to restart function "foo":
+Paused at (after restart):
+function foo() {
+  var x = #'some var';
+  const y = 'some const';
+
+Evaluating x:
 {
-    code : -32000
-    message : Frame restarting not supported
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Evaluating y:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Evaluating z:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
 }

@@ -6,7 +6,7 @@ restartFrame result:
 {
     error : {
         code : -32000
-        message : Frame restarting not supported
+        message : Restarting frame without 'mode' not supported
     }
     id : <messageId>
 }

@@ -13,7 +13,7 @@ Restarting function "asyncFn" ...
 Failed to restart function "asyncFn":
 {
     code : -32000
-    message : Frame restarting not supported
+    message : Restarting frame failed
 }
 
 Check that a generator function cannot be restarted.
@@ -29,7 +29,7 @@ Restarting function "generatorFn" ...
 Failed to restart function "generatorFn":
 {
     code : -32000
-    message : Frame restarting not supported
+    message : Restarting frame failed
 }
 
 Check that a function cannot be restarted when a generator function is on the stack above
@@ -47,5 +47,5 @@ Restarting function "bar" ...
 Failed to restart function "bar":
 {
     code : -32000
-    message : Frame restarting not supported
+    message : Restarting frame failed
 }

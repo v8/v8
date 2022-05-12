@@ -12,5 +12,5 @@ Restarting function "entrypoint" ...
 Failed to restart function "entrypoint":
 {
     code : -32000
-    message : Frame restarting not supported
+    message : Restarting frame failed
 }

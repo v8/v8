@@ -16,6 +16,7 @@ void construct_stub_create_deopt_addr();
 void construct_stub_invoke_deopt_addr();
 void Builtins_BaselineOrInterpreterEnterAtBytecode();
 void Builtins_BaselineOrInterpreterEnterAtNextBytecode();
+void Builtins_RestartFrameTrampoline();
 typedef void (*function_ptr)();
 }
 
@@ -34,6 +35,7 @@ constexpr function_ptr builtins[] = {
     &construct_stub_invoke_deopt_addr,
     &Builtins_BaselineOrInterpreterEnterAtBytecode,
     &Builtins_BaselineOrInterpreterEnterAtNextBytecode,
+    &Builtins_RestartFrameTrampoline,
 };
 
 bool Deoptimizer::IsValidReturnAddress(Address address) {
