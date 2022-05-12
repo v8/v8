@@ -139,10 +139,14 @@ class ArrayType : public ZoneObject {
     return rep_ != other.rep_ || mutability_ != other.mutability_;
   }
 
+  static const intptr_t kRepOffset;
+
  private:
   const ValueType rep_;
   const bool mutability_;
 };
+
+inline constexpr intptr_t ArrayType::kRepOffset = offsetof(ArrayType, rep_);
 
 }  // namespace wasm
 }  // namespace internal

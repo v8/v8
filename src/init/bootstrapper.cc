@@ -572,19 +572,6 @@ V8_NOINLINE Handle<JSFunction> InstallFunctionWithBuiltinId(
   return fun;
 }
 
-V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
-    Isolate* isolate, Handle<JSObject> base, const char* name, Builtin call,
-    int len, bool adapt, PropertyAttributes attrs = DONT_ENUM) {
-  // Although function name does not have to be internalized the property name
-  // will be internalized during property addition anyway, so do it here now.
-  Handle<String> internalized_name =
-      isolate->factory()->InternalizeUtf8String(name);
-  Handle<JSFunction> fun =
-      SimpleCreateFunction(isolate, internalized_name, call, len, adapt);
-  JSObject::AddProperty(isolate, base, internalized_name, fun, attrs);
-  return fun;
-}
-
 V8_NOINLINE Handle<JSFunction> InstallFunctionAtSymbol(
     Isolate* isolate, Handle<JSObject> base, Handle<Symbol> symbol,
     const char* symbol_string, Builtin call, int len, bool adapt,
@@ -907,6 +894,21 @@ Handle<Map> CreateNonConstructorMap(Isolate* isolate, Handle<Map> source_map,
 }
 
 }  // namespace
+
+Handle<JSFunction> SimpleInstallFunction(Isolate* isolate,
+                                         Handle<JSObject> base,
+                                         const char* name, Builtin call,
+                                         int len, bool adapt,
+                                         PropertyAttributes attrs) {
+  // Although function name does not have to be internalized the property name
+  // will be internalized during property addition anyway, so do it here now.
+  Handle<String> internalized_name =
+      isolate->factory()->InternalizeUtf8String(name);
+  Handle<JSFunction> fun =
+      SimpleCreateFunction(isolate, internalized_name, call, len, adapt);
+  JSObject::AddProperty(isolate, base, internalized_name, fun, attrs);
+  return fun;
+}
 
 void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   // Create iterator-related meta-objects.

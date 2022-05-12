@@ -315,7 +315,7 @@ builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
 
 macro WasmAllocateArray(
     rtt: Map, length: uint32, elementSize: uint32,
-    initializationMode: constexpr InitializationMode): HeapObject {
+    initializationMode: constexpr InitializationMode): WasmArray {
   // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
   //              + WasmArray::kHeaderSize
   const instanceSize: intptr =
@@ -328,7 +328,7 @@ macro WasmAllocateArray(
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
   %RawDownCast<WasmArray>(result).length = length;
-  return result;
+  return %RawDownCast<WasmArray>(result);
 }
 
 builtin WasmAllocateArray_Uninitialized(
@@ -662,5 +662,106 @@ builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
 
 builtin ThrowWasmTrapArrayTooLarge(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayTooLarge));
+}
+
+macro TryNumberToIntptr(value: JSAny): intptr labels Failure {
+  typeswitch (value) {
+    case (s: Smi): {
+      return Convert<intptr>(s);
+    }
+    case (hn: HeapNumber): deferred {
+      let value = Convert<float64>(hn);
+      if (Float64IsNaN(value)) goto Failure;
+      value = math::Float64Trunc(value);
+      return ChangeFloat64ToIntPtr(value);
+    }
+    case (JSAny): deferred {
+      goto Failure;
+    }
+  }
+}
+
+macro WasmTypeInfo(map: Map): WasmTypeInfo {
+  return UnsafeCast<WasmTypeInfo>(
+      map.constructor_or_back_pointer_or_native_context);
+}
+
+const kWasmI16ValueType: constexpr int32
+    generates 'wasm::ValueType::Primitive(wasm::kI16).raw_bit_field()';
+
+const kWasmArrayTypeRepOffset:
+    constexpr intptr generates 'wasm::ArrayType::kRepOffset';
+const kWasmValueTypeBitFieldOffset:
+    constexpr intptr generates 'wasm::ValueType::kBitFieldOffset';
+
+macro IsWord16WasmArrayMap(map: Map): bool {
+  const arrayTypePtr: RawPtr<int32> = %RawDownCast<RawPtr<int32>>(
+      WasmTypeInfo(map).foreign_address_ptr + kWasmArrayTypeRepOffset +
+      kWasmValueTypeBitFieldOffset);
+  const arrayTypeRef: &int32 =
+      torque_internal::unsafe::NewOffHeapReference(arrayTypePtr);
+  return *arrayTypeRef == kWasmI16ValueType;
+}
+
+// Non-standard experimental feature.
+transitioning javascript builtin ExperimentalWasmConvertArrayToString(
+    js-implicit context: NativeContext)(
+    array: JSAny, start: JSAny, count: JSAny): String {
+  try {
+    const start = TryNumberToIntptr(start) otherwise goto InvalidArgument;
+    const count = TryNumberToIntptr(count) otherwise goto InvalidArgument;
+
+    const array = Cast<WasmArray>(array) otherwise goto InvalidArgument;
+    if (!IsWord16WasmArrayMap(array.map)) goto InvalidArgument;
+    const arrayContent = torque_internal::unsafe::NewConstSlice<char16>(
+        array, kWasmArrayHeaderSize, Convert<intptr>(array.length));
+
+    return AllocateSeqTwoByteString(
+        Convert<uint32>(Unsigned(count)),
+        (Subslice(arrayContent, start, count) otherwise goto InvalidArgument)
+            .Iterator());
+  } label InvalidArgument deferred {
+    ThrowTypeError(MessageTemplate::kInvalidArgument);
+  }
+}
+
+// Non-standard experimental feature.
+transitioning javascript builtin ExperimentalWasmConvertStringToArray(
+    js-implicit context: NativeContext)(
+    string: JSAny, sampleArray: JSAny): WasmArray {
+  try {
+    const sampleArray =
+        Cast<WasmArray>(sampleArray) otherwise goto InvalidArgument;
+    const arrayMap = sampleArray.map;
+    if (!IsWord16WasmArrayMap(arrayMap)) goto InvalidArgument;
+
+    const string = Cast<String>(string) otherwise goto InvalidArgument;
+    const length = string.length;
+
+    const result = WasmAllocateArray(
+        arrayMap, Unsigned(length), 2, InitializationMode::kUninitialized);
+    const arrayContent = torque_internal::unsafe::NewMutableSlice<char16>(
+        result, kWasmArrayHeaderSize, Convert<intptr>(length));
+    try {
+      StringToSlice(string) otherwise OneByte, TwoByte;
+    } label OneByte(slice: ConstSlice<char8>) {
+      let fromIt = slice.Iterator();
+      let toIt = arrayContent.Iterator();
+      while (true) {
+        let toRef = toIt.NextReference() otherwise break;
+        *toRef = %RawDownCast<char16>(Convert<uint16>(fromIt.NextNotEmpty()));
+      }
+    } label TwoByte(slice: ConstSlice<char16>) {
+      let fromIt = slice.Iterator();
+      let toIt = arrayContent.Iterator();
+      while (true) {
+        let toRef = toIt.NextReference() otherwise break;
+        *toRef = fromIt.NextNotEmpty();
+      }
+    }
+    return result;
+  } label InvalidArgument deferred {
+    ThrowTypeError(MessageTemplate::kInvalidArgument);
+  }
 }
 }

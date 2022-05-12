@@ -2797,6 +2797,17 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
 
+  // TODO(tebbi): Put this behind its own flag once --wasm-gc-js-interop gets
+  // closer to shipping.
+  if (FLAG_wasm_gc_js_interop) {
+    SimpleInstallFunction(
+        isolate, webassembly, "experimentalConvertArrayToString",
+        Builtin::kExperimentalWasmConvertArrayToString, 0, true);
+    SimpleInstallFunction(
+        isolate, webassembly, "experimentalConvertStringToArray",
+        Builtin::kExperimentalWasmConvertStringToArray, 0, true);
+  }
+
   if (FLAG_wasm_test_streaming) {
     isolate->set_wasm_streaming_callback(WasmStreamingCallbackForTesting);
   }
