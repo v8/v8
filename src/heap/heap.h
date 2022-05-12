@@ -109,6 +109,7 @@ class ObjectIterator;
 class ObjectStats;
 class Page;
 class PagedSpace;
+class PromoteYoungGenerationGC;
 class ReadOnlyHeap;
 class RootVisitor;
 class RwxMemoryWriteScope;
@@ -1941,7 +1942,7 @@ class Heap {
 
   // Performs a minor collection in new generation.
   void Scavenge();
-  void EvacuateYoungGeneration();
+  void PromoteYoungGeneration();
 
   void UpdateYoungReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
@@ -2324,6 +2325,7 @@ class Heap {
   std::unique_ptr<MarkCompactCollector> mark_compact_collector_;
   std::unique_ptr<MinorMarkCompactCollector> minor_mark_compact_collector_;
   std::unique_ptr<ScavengerCollector> scavenger_collector_;
+  std::unique_ptr<PromoteYoungGenerationGC> promote_young_generation_gc_;
   std::unique_ptr<ArrayBufferSweeper> array_buffer_sweeper_;
 
   std::unique_ptr<MemoryAllocator> memory_allocator_;
@@ -2487,6 +2489,7 @@ class Heap {
   friend class ObjectStatsCollector;
   friend class Page;
   friend class PagedSpace;
+  friend class PromoteYoungGenerationGC;
   friend class ReadOnlyRoots;
   friend class Scavenger;
   friend class ScavengerCollector;

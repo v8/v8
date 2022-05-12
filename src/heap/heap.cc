@@ -70,6 +70,7 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/parked-scope.h"
+#include "src/heap/promote-young-generation.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -2298,16 +2299,15 @@ size_t Heap::PerformGarbageCollection(
   size_t start_young_generation_size =
       NewSpaceSize() + (new_lo_space() ? new_lo_space()->SizeOfObjects() : 0);
 
-  switch (collector) {
-    case GarbageCollector::MARK_COMPACTOR:
-      MarkCompact();
-      break;
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
-      MinorMarkCompact();
-      break;
-    case GarbageCollector::SCAVENGER:
-      Scavenge();
-      break;
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    MarkCompact();
+  } else if (fast_promotion_mode_ && CanPromoteYoungAndExpandOldGeneration(0)) {
+    PromoteYoungGeneration();
+  } else if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
+    MinorMarkCompact();
+  } else {
+    DCHECK_EQ(GarbageCollector::SCAVENGER, collector);
+    Scavenge();
   }
 
   ProcessPretenuringFeedback();
@@ -2683,58 +2683,10 @@ void Heap::CheckNewSpaceExpansionCriteria() {
   new_lo_space()->SetCapacity(new_space()->Capacity());
 }
 
-void Heap::EvacuateYoungGeneration() {
-  TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_FAST_PROMOTE);
-  base::MutexGuard guard(relocation_mutex());
-  // Young generation garbage collection is orthogonal from full GC marking. It
-  // is possible that objects that are currently being processed for marking are
-  // reclaimed in the young generation GC that interleaves concurrent marking.
-  // Pause concurrent markers to allow processing them using
-  // `UpdateMarkingWorklistAfterYoungGenGC()`.
-  ConcurrentMarking::PauseScope pause_js_marking(concurrent_marking());
-  CppHeap::PauseConcurrentMarkingScope pause_cpp_marking(
-      CppHeap::From(cpp_heap_));
-  if (!FLAG_concurrent_marking) {
-    DCHECK(fast_promotion_mode_);
-    DCHECK(CanPromoteYoungAndExpandOldGeneration(0));
-  }
-
-  SemiSpaceNewSpace* semi_space_new_space =
-      SemiSpaceNewSpace::From(new_space());
-  // Move pages from new->old generation.
-  PageRange range(semi_space_new_space->first_allocatable_address(),
-                  semi_space_new_space->top());
-  for (auto it = range.begin(); it != range.end();) {
-    Page* p = (*++it)->prev_page();
-    semi_space_new_space->from_space().RemovePage(p);
-    Page::ConvertNewToOld(p);
-    if (incremental_marking()->IsMarking())
-      mark_compact_collector()->RecordLiveSlotsOnPage(p);
-  }
-
-  // Reset new space.
-  if (!semi_space_new_space->Rebalance()) {
-    FatalProcessOutOfMemory("NewSpace::Rebalance");
-  }
-  semi_space_new_space->ResetLinearAllocationArea();
-  semi_space_new_space->set_age_mark(semi_space_new_space->top());
-
-  for (auto it = new_lo_space()->begin(); it != new_lo_space()->end();) {
-    LargePage* page = *it;
-    // Increment has to happen after we save the page, because it is going to
-    // be removed below.
-    it++;
-    lo_space()->PromoteNewLargeObject(page);
-  }
-
-  // Fix up special trackers.
-  external_string_table_.PromoteYoung();
-  // GlobalHandles are updated in PostGarbageCollectonProcessing
-
-  size_t promoted = new_space()->Size() + new_lo_space()->Size();
-  IncrementYoungSurvivorsCounter(promoted);
-  IncrementPromotedObjectsSize(promoted);
-  IncrementSemiSpaceCopiedObjectSize(0);
+void Heap::PromoteYoungGeneration() {
+  tracer()->NotifyYoungGenerationHandling(
+      YoungGenerationHandling::kFastPromotionDuringScavenge);
+  promote_young_generation_gc_->EvacuateYoungGeneration();
 }
 
 void Heap::Scavenge() {
@@ -2746,12 +2698,6 @@ void Heap::Scavenge() {
         "[IncrementalMarking] Scavenge during marking.\n");
   }
 
-  if (fast_promotion_mode_ && CanPromoteYoungAndExpandOldGeneration(0)) {
-    tracer()->NotifyYoungGenerationHandling(
-        YoungGenerationHandling::kFastPromotionDuringScavenge);
-    EvacuateYoungGeneration();
-    return;
-  }
   tracer()->NotifyYoungGenerationHandling(
       YoungGenerationHandling::kRegularScavenge);
 
@@ -5762,6 +5708,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   mark_compact_collector_.reset(new MarkCompactCollector(this));
 
   scavenger_collector_.reset(new ScavengerCollector(this));
+  promote_young_generation_gc_.reset(new PromoteYoungGenerationGC(this));
   minor_mark_compact_collector_.reset(new MinorMarkCompactCollector(this));
 
   incremental_marking_.reset(
@@ -6168,6 +6115,7 @@ void Heap::TearDown() {
   }
 
   scavenger_collector_.reset();
+  promote_young_generation_gc_.reset();
   array_buffer_sweeper_.reset();
   incremental_marking_.reset();
   concurrent_marking_.reset();

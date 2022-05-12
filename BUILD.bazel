@@ -1502,6 +1502,8 @@ filegroup(
         "src/heap/parallel-work-item.h",
         "src/heap/parked-scope.h",
         "src/heap/progress-bar.h",
+        "src/heap/promote-young-generation.cc",
+        "src/heap/promote-young-generation.h",
         "src/heap/read-only-heap-inl.h",
         "src/heap/read-only-heap.cc",
         "src/heap/read-only-heap.h",
