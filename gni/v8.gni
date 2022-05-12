@@ -88,6 +88,9 @@ declare_args() {
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
 
+  # Enable pointer compression in cppgc.
+  cppgc_enable_pointer_compression = false
+
   # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
   # depending on platform. Disabled on Android to save binary size.
   v8_advanced_bigint_algorithms = !is_android

@@ -573,6 +573,9 @@ assert(!cppgc_enable_caged_heap || v8_current_cpu == "x64" ||
 assert(!cppgc_enable_young_generation || cppgc_enable_caged_heap,
        "Young generation in CppGC requires caged heap")
 
+assert(!cppgc_enable_pointer_compression || cppgc_enable_caged_heap,
+       "Pointer compression in CppGC requires caged heap")
+
 if (v8_enable_single_generation == true) {
   assert(
       v8_enable_unconditional_write_barriers || v8_disable_write_barriers,
@@ -790,6 +793,7 @@ external_cppgc_defines = [
   "CPPGC_SUPPORTS_OBJECT_NAMES",
   "CPPGC_CAGED_HEAP",
   "CPPGC_YOUNG_GENERATION",
+  "CPPGC_POINTER_COMPRESSION",
 ]
 
 enabled_external_cppgc_defines = []
@@ -805,6 +809,9 @@ if (cppgc_enable_caged_heap) {
 }
 if (cppgc_enable_young_generation) {
   enabled_external_cppgc_defines += [ "CPPGC_YOUNG_GENERATION" ]
+}
+if (cppgc_enable_pointer_compression) {
+  enabled_external_cppgc_defines += [ "CPPGC_POINTER_COMPRESSION" ]
 }
 
 disabled_external_cppgc_defines =
@@ -5718,6 +5725,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/marking-visitor.h",
     "src/heap/cppgc/marking-worklists.cc",
     "src/heap/cppgc/marking-worklists.h",
+    "src/heap/cppgc/member.cc",
     "src/heap/cppgc/memory.cc",
     "src/heap/cppgc/memory.h",
     "src/heap/cppgc/metric-recorder.h",

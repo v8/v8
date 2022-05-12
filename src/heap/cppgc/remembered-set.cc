@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "include/cppgc/member.h"
 #include "include/cppgc/visitor.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -34,7 +35,14 @@ void VisitRememberedSlots(const std::set<void*>& slots, const HeapBase& heap,
     // or by reintroducing nested allocation scopes that avoid finalization.
     DCHECK(!slot_header.template IsInConstruction<AccessMode::kNonAtomic>());
 
+#if defined(CPPGC_POINTER_COMPRESSION)
+    // Transform slot.
+    void* value =
+        CompressedPointer::Decompress(*reinterpret_cast<uint32_t*>(slot));
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
     void* value = *reinterpret_cast<void**>(slot);
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+
     // Slot could be updated to nullptr or kSentinelPointer by the mutator.
     if (value == kSentinelPointer || value == nullptr) continue;
 

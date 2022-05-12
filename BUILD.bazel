@@ -68,6 +68,7 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # cppgc_enable_caged_heap
 # cppgc_enable_check_assignments_in_prefinalizers
 # cppgc_enable_object_names
+# cppgc_enable_pointer_compression
 # cppgc_enable_verify_heap
 # cppgc_enable_young_generation
 # v8_enable_zone_compression
@@ -3001,6 +3002,7 @@ filegroup(
         "src/heap/cppgc/marking-visitor.h",
         "src/heap/cppgc/marking-worklists.cc",
         "src/heap/cppgc/marking-worklists.h",
+        "src/heap/cppgc/member.cc",
         "src/heap/cppgc/memory.cc",
         "src/heap/cppgc/memory.h",
         "src/heap/cppgc/metric-recorder.h",

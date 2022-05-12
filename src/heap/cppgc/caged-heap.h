@@ -38,6 +38,7 @@ class CagedHeap final {
   }
 
   CagedHeap(HeapBase& heap, PageAllocator& platform_allocator);
+  ~CagedHeap();
 
   CagedHeap(const CagedHeap&) = delete;
   CagedHeap& operator=(const CagedHeap&) = delete;
