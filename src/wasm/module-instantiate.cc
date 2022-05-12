@@ -661,7 +661,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // list.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
-    if (FLAG_wasm_type_canonicalization) {
+    if (FLAG_wasm_type_canonicalization &&
+        module_->isorecursive_canonical_type_ids.size() > 0) {
       uint32_t maximum_canonical_type_index =
           *std::max_element(module_->isorecursive_canonical_type_ids.begin(),
                             module_->isorecursive_canonical_type_ids.end());
