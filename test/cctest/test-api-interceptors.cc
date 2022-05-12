@@ -4,6 +4,8 @@
 
 #include <stdlib.h>
 
+#include <optional>
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
