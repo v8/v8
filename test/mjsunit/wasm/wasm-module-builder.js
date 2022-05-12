@@ -68,6 +68,7 @@ let kCodeSectionCode = 10;       // Function code
 let kDataSectionCode = 11;       // Data segments
 let kDataCountSectionCode = 12;  // Data segment count (between Element & Code)
 let kTagSectionCode = 13;        // Tag section (between Memory & Global)
+let kLastKnownSectionCode = 13;
 
 // Name section types
 let kModuleNameCode = 0;

@@ -116,7 +116,7 @@ enum SectionCode : int8_t {
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kBranchHintsSectionCode,
+  kLastKnownModuleSection = kTagSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
