@@ -8,8 +8,8 @@ Pause stack:
   foo:3 (canBeRestarted = true)
 
 Restarting function "foo" ...
-Paused at (after restart):
-function foo() {
-  const x = #1;
-  const y = 2;
-
+Failed to restart function "foo":
+{
+    code : -32000
+    message : Frame restarting not supported
+}

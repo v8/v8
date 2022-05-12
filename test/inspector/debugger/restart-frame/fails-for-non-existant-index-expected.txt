@@ -11,7 +11,7 @@ Attempting to restart frame with non-existent index 2
 {
     error : {
         code : -32000
-        message : Restarting frame failed
+        message : Frame restarting not supported
     }
     id : <messageId>
 }

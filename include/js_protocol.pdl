@@ -273,35 +273,18 @@ domain Debugger
     parameters
       BreakpointId breakpointId
 
-  # Restarts particular call frame from the beginning. The old, deprecated
-  # behavior of `restartFrame` is to stay paused and allow further CDP commands
-  # after a restart was scheduled. This can cause problems with restarting, so
-  # we now continue execution immediatly after it has been scheduled until we
-  # reach the beginning of the restarted frame.
-  #
-  # To stay back-wards compatible, `restartFrame` now expects a `mode`
-  # parameter to be present. If the `mode` parameter is missing, `restartFrame`
-  # errors out.
-  #
-  # The various return values are deprecated and `callFrames` is always empty.
-  # Use the call frames from the `Debugger#paused` events instead, that fires
-  # once V8 pauses at the beginning of the restarted function.
-  command restartFrame
+  # Restarts particular call frame from the beginning.
+  deprecated command restartFrame
     parameters
       # Call frame identifier to evaluate on.
       CallFrameId callFrameId
-      # The `mode` parameter must be present and set to 'StepInto', otherwise
-      # `restartFrame` will error out.
-      experimental optional enum mode
-        # Pause at the beginning of the restarted function
-        StepInto
     returns
       # New stack trace.
-      deprecated array of CallFrame callFrames
+      array of CallFrame callFrames
       # Async stack trace, if any.
-      deprecated optional Runtime.StackTrace asyncStackTrace
+      optional Runtime.StackTrace asyncStackTrace
       # Async stack trace, if any.
-      deprecated optional Runtime.StackTraceId asyncStackTraceId
+      experimental optional Runtime.StackTraceId asyncStackTraceId
 
   # Resumes JavaScript execution.
   command resume

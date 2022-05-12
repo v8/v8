@@ -1050,30 +1050,11 @@ Response V8DebuggerAgentImpl::setScriptSource(
 }
 
 Response V8DebuggerAgentImpl::restartFrame(
-    const String16& callFrameId, Maybe<String16> mode,
+    const String16& callFrameId,
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
     Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) {
-  if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
-  if (!mode.isJust()) {
-    return Response::ServerError(
-        "Restarting frame without 'mode' not supported");
-  }
-  CHECK_EQ(mode.fromJust(),
-           protocol::Debugger::RestartFrame::ModeEnum::StepInto);
-
-  InjectedScript::CallFrameScope scope(m_session, callFrameId);
-  Response response = scope.initialize();
-  if (!response.IsSuccess()) return response;
-  int callFrameOrdinal = static_cast<int>(scope.frameOrdinal());
-
-  if (!m_debugger->restartFrame(m_session->contextGroupId(),
-                                callFrameOrdinal)) {
-    return Response::ServerError("Restarting frame failed");
-  }
-  m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  *newCallFrames = std::make_unique<Array<CallFrame>>();
-  return Response::Success();
+  return Response::ServerError("Frame restarting not supported");
 }
 
 Response V8DebuggerAgentImpl::getScriptSource(
