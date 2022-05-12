@@ -4792,6 +4792,10 @@ void Heap::VerifyCountersBeforeConcurrentSweeping() {
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
+    // We need to refine the counters on pages that are already swept and have
+    // not been moved over to the actual space. Otherwise, the AccountingStats
+    // are just an over approximation.
+    space->RefillFreeList();
     space->VerifyCountersBeforeConcurrentSweeping();
   }
 }

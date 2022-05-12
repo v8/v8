@@ -388,6 +388,23 @@ class PageRange {
   Page* end_;
 };
 
+class ConstPageRange {
+ public:
+  using iterator = ConstPageIterator;
+  ConstPageRange(const Page* begin, const Page* end)
+      : begin_(begin), end_(end) {}
+  explicit ConstPageRange(const Page* page)
+      : ConstPageRange(page, page->next_page()) {}
+  inline ConstPageRange(Address start, Address limit);
+
+  iterator begin() { return iterator(begin_); }
+  iterator end() { return iterator(end_); }
+
+ private:
+  const Page* begin_;
+  const Page* end_;
+};
+
 // -----------------------------------------------------------------------------
 // A space has a circular list of pages. The next page can be accessed via
 // Page::next_page() call.

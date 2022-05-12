@@ -263,7 +263,7 @@ class MajorMarkingState final
     chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
   }
 
-  intptr_t live_bytes(MemoryChunk* chunk) const {
+  intptr_t live_bytes(const MemoryChunk* chunk) const {
     return chunk->live_byte_count_.load(std::memory_order_relaxed);
   }
 
@@ -306,7 +306,7 @@ class MajorNonAtomicMarkingState final
     chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
   }
 
-  intptr_t live_bytes(MemoryChunk* chunk) const {
+  intptr_t live_bytes(const MemoryChunk* chunk) const {
     return chunk->live_byte_count_.load(std::memory_order_relaxed);
   }
 

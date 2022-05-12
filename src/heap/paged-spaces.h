@@ -30,7 +30,7 @@ class Isolate;
 class ObjectVisitor;
 
 // -----------------------------------------------------------------------------
-// Heap object iterator in old/map spaces.
+// Heap object iterator in paged spaces.
 //
 // A PagedSpaceObjectIterator iterates objects from the bottom of the given
 // space to its top or from the bottom of the given page to its top.
@@ -41,8 +41,9 @@ class ObjectVisitor;
 class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
  public:
   // Creates a new object iterator in a given space.
-  PagedSpaceObjectIterator(Heap* heap, PagedSpace* space);
-  PagedSpaceObjectIterator(Heap* heap, PagedSpace* space, Page* page);
+  PagedSpaceObjectIterator(Heap* heap, const PagedSpace* space);
+  PagedSpaceObjectIterator(Heap* heap, const PagedSpace* space,
+                           const Page* page);
 
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
@@ -70,8 +71,8 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
   Address cur_addr_;  // Current iteration point.
   Address cur_end_;   // End iteration point.
   const PagedSpace* const space_;
-  PageRange page_range_;
-  PageRange::iterator current_page_;
+  ConstPageRange page_range_;
+  ConstPageRange::iterator current_page_;
 #if V8_COMPRESS_POINTERS
   const PtrComprCageBase cage_base_;
 #endif  // V8_COMPRESS_POINTERS
@@ -233,9 +234,9 @@ class V8_EXPORT_PRIVATE PagedSpace
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.
-  virtual void Verify(Isolate* isolate, ObjectVisitor* visitor);
+  virtual void Verify(Isolate* isolate, ObjectVisitor* visitor) const;
 
-  void VerifyLiveBytes();
+  void VerifyLiveBytes() const;
 
   // Overridden by subclasses to verify space-specific object
   // properties (e.g., only maps or free-list nodes are in map space).
@@ -243,8 +244,8 @@ class V8_EXPORT_PRIVATE PagedSpace
 #endif
 
 #ifdef DEBUG
-  void VerifyCountersAfterSweeping(Heap* heap);
-  void VerifyCountersBeforeConcurrentSweeping();
+  void VerifyCountersAfterSweeping(Heap* heap) const;
+  void VerifyCountersBeforeConcurrentSweeping() const;
   // Print meta info and objects in this space.
   void Print() override;
 
