@@ -17,6 +17,9 @@
   'wpt/global/type.tentative': [FAIL],
   'wpt/table/type.tentative': [FAIL],
 
+  # TODO(v8:12864): Failing spec test after update
+  'wpt/global/constructor': [FAIL],
+
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
   'proposals/memory64/table/get-set': [FAIL],
