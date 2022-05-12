@@ -18,71 +18,41 @@ class Handle;
 class RootVisitor;
 struct ScriptDetails;
 
-// The compilation cache consists of several generational sub-caches which uses
-// this class as a base class. A sub-cache contains a compilation cache tables
-// for each generation of the sub-cache. Since the same source code string has
-// different compiled code for scripts and evals, we use separate sub-caches
-// for different compilation modes, to avoid retrieving the wrong result.
-class CompilationSubCache {
+// The compilation cache consists of several sub-caches: one each for evals and
+// scripts, which use this class as a base class, and a separate generational
+// sub-cache for RegExps. Since the same source code string has different
+// compiled code for scripts and evals, we use separate sub-caches for different
+// compilation modes, to avoid retrieving the wrong result.
+class CompilationCacheEvalOrScript {
  public:
-  CompilationSubCache(Isolate* isolate, int generations)
-      : isolate_(isolate), generations_(generations) {
-    DCHECK_LE(generations, kMaxGenerations);
-  }
+  explicit CompilationCacheEvalOrScript(Isolate* isolate) : isolate_(isolate) {}
 
-  static constexpr int kFirstGeneration = 0;
-  static constexpr int kMaxGenerations = 2;
-
-  // Get the compilation cache tables for a specific generation.
-  Handle<CompilationCacheTable> GetTable(int generation);
-
-  // Accessors for first generation.
-  Handle<CompilationCacheTable> GetFirstTable() {
-    return GetTable(kFirstGeneration);
-  }
-  void SetFirstTable(Handle<CompilationCacheTable> value) {
-    DCHECK_LT(kFirstGeneration, generations_);
-    tables_[kFirstGeneration] = *value;
-  }
-
-  // Age the sub-cache by evicting the oldest generation and creating a new
-  // young generation.
-  virtual void Age() = 0;
+  // Allocates the table if it didn't yet exist.
+  Handle<CompilationCacheTable> GetTable();
 
   // GC support.
   void Iterate(RootVisitor* v);
 
-  // Clear this sub-cache evicting all its content.
+  // Clears this sub-cache evicting all its content.
   void Clear();
 
-  // Remove given shared function info from sub-cache.
+  // Removes given shared function info from sub-cache.
   void Remove(Handle<SharedFunctionInfo> function_info);
-
-  // Number of generations in this sub-cache.
-  int generations() const { return generations_; }
 
  protected:
   Isolate* isolate() const { return isolate_; }
 
-  // Ageing occurs either by removing the oldest generation, or with
-  // custom subclass logic.
-  static void AgeByGeneration(CompilationSubCache* c);
-
-  // Returns null if there is no first table.
-  CompilationCacheTable MaybeGetFirstTable();
-
- private:
   Isolate* const isolate_;
-  const int generations_;
-  Object tables_[kMaxGenerations];  // One for each generation.
+  Object table_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationSubCache);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEvalOrScript);
 };
 
 // Sub-cache for scripts.
-class CompilationCacheScript : public CompilationSubCache {
+class CompilationCacheScript : public CompilationCacheEvalOrScript {
  public:
-  explicit CompilationCacheScript(Isolate* isolate);
+  explicit CompilationCacheScript(Isolate* isolate)
+      : CompilationCacheEvalOrScript(isolate) {}
 
   using LookupResult = CompilationCacheScriptLookupResult;
   LookupResult Lookup(Handle<String> source,
@@ -90,7 +60,7 @@ class CompilationCacheScript : public CompilationSubCache {
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
-  void Age() override;
+  void Age();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
@@ -108,10 +78,10 @@ class CompilationCacheScript : public CompilationSubCache {
 //    More specifically these are the CompileString, DebugEvaluate and
 //    DebugEvaluateGlobal runtime functions.
 // 4. The start position of the calling scope.
-class CompilationCacheEval : public CompilationSubCache {
+class CompilationCacheEval : public CompilationCacheEvalOrScript {
  public:
   explicit CompilationCacheEval(Isolate* isolate)
-      : CompilationSubCache(isolate, 1) {}
+      : CompilationCacheEvalOrScript(isolate) {}
 
   InfoCellPair Lookup(Handle<String> source,
                       Handle<SharedFunctionInfo> outer_info,
@@ -123,26 +93,45 @@ class CompilationCacheEval : public CompilationSubCache {
            Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
            int position);
 
-  void Age() override;
+  void Age();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
 };
 
 // Sub-cache for regular expressions.
-class CompilationCacheRegExp : public CompilationSubCache {
+class CompilationCacheRegExp {
  public:
-  CompilationCacheRegExp(Isolate* isolate, int generations)
-      : CompilationSubCache(isolate, generations) {}
+  CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
 
   MaybeHandle<FixedArray> Lookup(Handle<String> source, JSRegExp::Flags flags);
 
   void Put(Handle<String> source, JSRegExp::Flags flags,
            Handle<FixedArray> data);
 
-  void Age() override;
+  // The number of generations for the RegExp sub cache.
+  static const int kGenerations = 2;
+
+  // Gets the compilation cache tables for a specific generation. Allocates the
+  // table if it does not yet exist.
+  Handle<CompilationCacheTable> GetTable(int generation);
+
+  // Ages the sub-cache by evicting the oldest generation and creating a new
+  // young generation.
+  void Age();
+
+  // GC support.
+  void Iterate(RootVisitor* v);
+
+  // Clears this sub-cache evicting all its content.
+  void Clear();
 
  private:
+  Isolate* isolate() const { return isolate_; }
+
+  Isolate* const isolate_;
+  Object tables_[kGenerations];  // One for each generation.
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
 };
 
@@ -239,9 +228,6 @@ class V8_EXPORT_PRIVATE CompilationCache {
   CompilationCacheEval eval_global_;
   CompilationCacheEval eval_contextual_;
   CompilationCacheRegExp reg_exp_;
-
-  static constexpr int kSubCacheCount = 4;
-  CompilationSubCache* subcaches_[kSubCacheCount];
 
   // Current enable state of the compilation cache for scripts and eval.
   bool enabled_script_and_eval_;
