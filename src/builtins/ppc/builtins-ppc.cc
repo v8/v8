@@ -1399,7 +1399,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Increment invocation count for the function.
   {
-    Register invocation_count = r13;
+    Register invocation_count = r11;
     __ LoadU64(invocation_count,
                FieldMemOperand(feedback_vector,
                                FeedbackVector::kInvocationCountOffset),
@@ -1432,14 +1432,14 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // the frame, so load it into a register.
     Register bytecodeArray = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
-    ResetBytecodeAge(masm, bytecodeArray, r13);
+    ResetBytecodeAge(masm, bytecodeArray, r11);
 
     __ Push(argc, bytecodeArray);
 
     // Baseline code frames store the feedback vector where interpreter would
     // store the bytecode offset.
     if (FLAG_debug_code) {
-      Register scratch = r13;
+      Register scratch = r11;
       __ CompareObjectType(feedback_vector, scratch, scratch,
                            FEEDBACK_VECTOR_TYPE);
       __ Assert(eq, AbortReason::kExpectedFeedbackVector);
@@ -1458,7 +1458,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // limit or tighter. By ensuring we have space until that limit after
     // building the frame we can quickly precheck both at once.
 
-    Register sp_minus_frame_size = r13;
+    Register sp_minus_frame_size = r11;
     Register interrupt_limit = r0;
     __ SubS64(sp_minus_frame_size, sp, frame_size);
     __ LoadStackLimit(interrupt_limit, StackLimitKind::kInterruptStackLimit);
