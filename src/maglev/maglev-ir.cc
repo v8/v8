@@ -10,6 +10,8 @@
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/ic/handler-configuration.h"
 #include "src/maglev/maglev-code-gen-state.h"
@@ -1074,7 +1076,6 @@ void AttemptOnStackReplacement(MaglevCodeGenState* code_gen_state,
 void UpdateInterruptBudgetAndMaybeCallRuntime(
     MaglevCodeGenState* code_gen_state, Register scratch,
     int32_t relative_jump_bytecode_offset) {
-  Label out;
   // TODO(v8:7700): Remove once regalloc is fixed. See crrev.com/c/3625978.
   __ Push(scratch);
   __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
@@ -1082,13 +1083,24 @@ void UpdateInterruptBudgetAndMaybeCallRuntime(
       scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
   __ addl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
           Immediate(relative_jump_bytecode_offset));
-  __ j(greater_equal, &out);
 
-  __ Move(kContextRegister, code_gen_state->native_context().object());
-  __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-  __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
+  // Only check the interrupt if the above add can drop the interrupt budget
+  // below zero.
+  if (relative_jump_bytecode_offset < 0) {
+    JumpToDeferredIf(
+        less, code_gen_state,
+        [](MaglevCodeGenState* code_gen_state, Label* return_label) {
+          // TODO(leszeks): Only save registers if they're not free (requires
+          // fixing the regalloc, same as for scratch).
+          __ PushCallerSaved(SaveFPRegsMode::kSave);
+          __ Move(kContextRegister, code_gen_state->native_context().object());
+          __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+          __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
+          __ PopCallerSaved(SaveFPRegsMode::kSave);
+          __ jmp(return_label);
+        });
+  }
 
-  __ bind(&out);
   // TODO(v8:7700): Remove once regalloc is fixed. See crrev.com/c/3625978.
   __ Pop(scratch);
 }
