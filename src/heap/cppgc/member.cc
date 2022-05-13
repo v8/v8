@@ -8,7 +8,8 @@ namespace cppgc {
 namespace internal {
 
 #if defined(CPPGC_POINTER_COMPRESSION)
-thread_local uintptr_t CageBaseGlobal::g_base_ = 0u;
+thread_local uintptr_t CageBaseGlobal::g_base_ =
+    CageBaseGlobal::kLowerHalfWordMask;
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
 }  // namespace internal

@@ -10,6 +10,7 @@
 #include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/member.h"
 #include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {
@@ -63,12 +64,14 @@ namespace {
 class PointerCompressionCageScope final {
  public:
   explicit PointerCompressionCageScope(HeapBase& heap)
-      : prev_cage_base_(CageBaseGlobal::Get()) {
-    CageBaseGlobal::Update(
+      : prev_cage_base_(CageBaseGlobalUpdater::GetCageBase()) {
+    CageBaseGlobalUpdater::UpdateCageBase(
         reinterpret_cast<uintptr_t>(heap.caged_heap().base()));
   }
 
-  ~PointerCompressionCageScope() { CageBaseGlobal::Update(prev_cage_base_); }
+  ~PointerCompressionCageScope() {
+    CageBaseGlobalUpdater::UpdateCageBase(prev_cage_base_);
+  }
 
  private:
   const uintptr_t prev_cage_base_;

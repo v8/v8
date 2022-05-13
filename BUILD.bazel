@@ -3003,6 +3003,7 @@ filegroup(
         "src/heap/cppgc/marking-worklists.cc",
         "src/heap/cppgc/marking-worklists.h",
         "src/heap/cppgc/member.cc",
+        "src/heap/cppgc/member.h",
         "src/heap/cppgc/memory.cc",
         "src/heap/cppgc/memory.h",
         "src/heap/cppgc/metric-recorder.h",

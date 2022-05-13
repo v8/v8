@@ -16,6 +16,7 @@
 #include "src/base/platform/platform.h"
 #include "src/heap/cppgc/caged-heap.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/member.h"
 
 namespace cppgc {
 namespace internal {
@@ -54,8 +55,9 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
 
 #if defined(CPPGC_POINTER_COMPRESSION)
   // With pointer compression only single heap per thread is allowed.
-  CHECK(!CageBaseGlobal::Get());
-  CageBaseGlobal::Update(reinterpret_cast<uintptr_t>(reserved_area_.address()));
+  CHECK(!CageBaseGlobal::IsSet());
+  CageBaseGlobalUpdater::UpdateCageBase(
+      reinterpret_cast<uintptr_t>(reserved_area_.address()));
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
   const bool is_not_oom = platform_allocator.SetPermissions(
@@ -86,8 +88,8 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
 CagedHeap::~CagedHeap() {
 #if defined(CPPGC_POINTER_COMPRESSION)
   CHECK_EQ(reinterpret_cast<uintptr_t>(reserved_area_.address()),
-           CageBaseGlobal::Get());
-  CageBaseGlobal::Update(0u);
+           CageBaseGlobalUpdater::GetCageBase());
+  CageBaseGlobalUpdater::UpdateCageBase(0u);
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 }
 

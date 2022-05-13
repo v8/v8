@@ -25,19 +25,34 @@ namespace internal {
 
 class CageBaseGlobal final {
  public:
-  V8_INLINE static void Update(uintptr_t base) {
-    CPPGC_DCHECK(0u ==
-                 (base & (api_constants::kCagedHeapReservationAlignment - 1)));
-    g_base_ = base;
+  V8_INLINE static uintptr_t Get() {
+    CPPGC_DCHECK(IsBaseConsistent());
+    return g_base_;
   }
 
-  V8_INLINE static uintptr_t Get() { return g_base_; }
+  V8_INLINE static bool IsSet() {
+    CPPGC_DCHECK(IsBaseConsistent());
+    return (g_base_ & ~kLowerHalfWordMask) != 0;
+  }
 
  private:
+  // We keep the lower halfword as ones to speed up decompression.
+  static constexpr uintptr_t kLowerHalfWordMask =
+      (api_constants::kCagedHeapReservationAlignment - 1);
+
   static thread_local V8_EXPORT uintptr_t g_base_
-      __attribute__((require_constant_initialization));
+#if !V8_CC_MSVC
+      __attribute__((require_constant_initialization))
+#endif  // !V8_CC_MSVC
+      ;
 
   CageBaseGlobal() = delete;
+
+  V8_INLINE static bool IsBaseConsistent() {
+    return kLowerHalfWordMask == (g_base_ & kLowerHalfWordMask);
+  }
+
+  friend class CageBaseGlobalUpdater;
 };
 
 class CompressedPointer final {
@@ -64,22 +79,36 @@ class CompressedPointer final {
   V8_INLINE void StoreRaw(Storage value) { value_ = value; }
 
   static V8_INLINE Storage Compress(const void* ptr) {
+    static_assert(
+        SentinelPointer::kSentinelValue == 0b10,
+        "The compression scheme relies on the sentinel encoded as 0b10");
     static constexpr size_t kGigaCageMask =
         ~(api_constants::kCagedHeapReservationAlignment - 1);
+
+    CPPGC_DCHECK(CageBaseGlobal::IsSet());
     const uintptr_t base = CageBaseGlobal::Get();
-    CPPGC_DCHECK(base);
     CPPGC_DCHECK(!ptr || ptr == kSentinelPointer ||
-                 base == (reinterpret_cast<uintptr_t>(ptr) & kGigaCageMask));
-    return static_cast<Storage>(reinterpret_cast<uintptr_t>(ptr));
+                 (base & kGigaCageMask) ==
+                     (reinterpret_cast<uintptr_t>(ptr) & kGigaCageMask));
+
+    const auto uptr = reinterpret_cast<uintptr_t>(ptr);
+    // Truncate the pointer and shift right by one.
+    auto compressed = static_cast<Storage>(uptr) >> 1;
+    // If the pointer is regular, set the most significant bit.
+    if (V8_LIKELY(compressed > 1)) {
+      CPPGC_DCHECK((reinterpret_cast<uintptr_t>(ptr) &
+                    (api_constants::kAllocationGranularity - 1)) == 0);
+      compressed |= 0x80000000;
+    }
+    return compressed;
   }
 
   static V8_INLINE void* Decompress(Storage ptr) {
+    CPPGC_DCHECK(CageBaseGlobal::IsSet());
     const uintptr_t base = CageBaseGlobal::Get();
-    CPPGC_DCHECK(base);
-    // We have to preserve nullptr and kSentinel, Members can't point to
-    // GigaCage metadata.
-    if (V8_UNLIKELY(ptr <= 1)) return reinterpret_cast<void*>(ptr);
-    return reinterpret_cast<void*>(base | static_cast<uintptr_t>(ptr));
+    // Sign extend the pointer and shift left by one.
+    const int64_t mask = static_cast<int64_t>(static_cast<int32_t>(ptr)) << 1;
+    return reinterpret_cast<void*>(mask & base);
   }
 
  private:

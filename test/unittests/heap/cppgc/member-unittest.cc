@@ -566,6 +566,28 @@ TEST_F(MemberHeapDeathTest, CheckForOnHeapMemberCrashesOnInitialAssignment) {
 }
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
+#if defined(CPPGC_POINTER_COMPRESSION)
+TEST_F(MemberTest, CompressDecompress) {
+  CompressedPointer cp;
+  EXPECT_EQ(nullptr, cp.Load());
+
+  Member<GCed> member;
+  cp.Store(member.Get());
+  EXPECT_EQ(nullptr, cp.Load());
+
+  cp.Store(kSentinelPointer);
+  EXPECT_EQ(kSentinelPointer, cp.Load());
+
+  member = kSentinelPointer;
+  cp.Store(member.Get());
+  EXPECT_EQ(kSentinelPointer, cp.Load());
+
+  member = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  cp.Store(member.Get());
+  EXPECT_EQ(member.Get(), cp.Load());
+}
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+
 #endif  // V8_ENABLE_CHECKS
 
 }  // namespace internal
