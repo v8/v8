@@ -347,6 +347,13 @@ class MaglevCodeGeneratorImpl final {
     processor_.ProcessGraph(graph_);
     EmitDeferredCode();
     EmitDeopts();
+
+    // Add the bytecode to the deopt literals to make sure it's held strongly.
+    // TODO(leszeks): Do this fo inlined functions too.
+    GetDeoptLiteral(*code_gen_state_.compilation_info()
+                         ->toplevel_compilation_unit()
+                         ->bytecode()
+                         .object());
   }
 
   void EmitDeferredCode() {
