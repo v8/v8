@@ -49,6 +49,11 @@
 ['system == aix', {
   # PASE does not support detecting physical memory size
   'SysInfoTest.AmountOfPhysicalMemory': [SKIP],
+  # intermittent crashes when tests are ran with test-runner.
+  'LogTest.LogAccessorCallbacks': [SKIP],
+  'LogTest.BuiltinsNotLoggedAsLazyCompile': [SKIP],
+  'LogTest.LogCallbacks': [SKIP],
+  'LogTest.Issue539892': [SKIP],
 }],  # system == aix
 
 ##############################################################################
