@@ -109,6 +109,7 @@ class StackHandler {
   IF_WASM(V, WASM_COMPILE_LAZY, WasmCompileLazyFrame)                     \
   V(INTERPRETED, InterpretedFrame)                                        \
   V(BASELINE, BaselineFrame)                                              \
+  V(MAGLEV, MaglevFrame)                                                  \
   V(OPTIMIZED, OptimizedFrame)                                            \
   V(STUB, StubFrame)                                                      \
   V(BUILTIN_CONTINUATION, BuiltinContinuationFrame)                       \
@@ -220,6 +221,7 @@ class StackFrame {
   }
   bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_baseline() const { return type() == BASELINE; }
+  bool is_maglev() const { return type() == MAGLEV; }
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm() const { return this->type() == WASM; }
   bool is_c_wasm_entry() const { return type() == C_WASM_ENTRY; }
@@ -244,7 +246,8 @@ class StackFrame {
 
   static bool IsJavaScript(Type t) {
     STATIC_ASSERT(INTERPRETED + 1 == BASELINE);
-    STATIC_ASSERT(BASELINE + 1 == OPTIMIZED);
+    STATIC_ASSERT(BASELINE + 1 == MAGLEV);
+    STATIC_ASSERT(MAGLEV + 1 == OPTIMIZED);
     return t >= INTERPRETED && t <= OPTIMIZED;
   }
   bool is_java_script() const { return IsJavaScript(type()); }
@@ -927,6 +930,22 @@ class BaselineFrame : public UnoptimizedFrame {
 
  protected:
   inline explicit BaselineFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class MaglevFrame : public JavaScriptFrame {
+ public:
+  Type type() const override { return MAGLEV; }
+
+  static MaglevFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_maglev());
+    return static_cast<MaglevFrame*>(frame);
+  }
+
+ protected:
+  inline explicit MaglevFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

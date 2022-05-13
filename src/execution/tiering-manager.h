@@ -44,11 +44,9 @@ class TieringManager {
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
   // This function is also responsible for bumping the OSR urgency.
-  void MaybeOptimizeFrame(JSFunction function, UnoptimizedFrame* frame,
-                          CodeKind code_kind);
+  void MaybeOptimizeFrame(JSFunction function, CodeKind code_kind);
 
-  OptimizationDecision ShouldOptimize(JSFunction function, CodeKind code_kind,
-                                      JavaScriptFrame* frame);
+  OptimizationDecision ShouldOptimize(JSFunction function, CodeKind code_kind);
   void Optimize(JSFunction function, OptimizationDecision decision);
   void Baseline(JSFunction function, OptimizationReason reason);
 

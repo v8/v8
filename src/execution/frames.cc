@@ -1132,6 +1132,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
       case OPTIMIZED:
       case INTERPRETED:
       case BASELINE:
+      case MAGLEV:
       case BUILTIN:
         // These frame types have a context, but they are actually stored
         // in the place on the stack that one finds the frame type.

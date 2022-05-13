@@ -234,7 +234,6 @@ void TieringManager::RequestOsrAtNextOpportunity(JSFunction function) {
 }
 
 void TieringManager::MaybeOptimizeFrame(JSFunction function,
-                                        UnoptimizedFrame* frame,
                                         CodeKind code_kind) {
   const TieringState tiering_state = function.feedback_vector().tiering_state();
   const TieringState osr_tiering_state =
@@ -278,13 +277,12 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 
   DCHECK(!is_marked_for_any_optimization &&
          !function.HasAvailableOptimizedCode());
-  OptimizationDecision d = ShouldOptimize(function, code_kind, frame);
+  OptimizationDecision d = ShouldOptimize(function, code_kind);
   if (d.should_optimize()) Optimize(function, d);
 }
 
 OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
-                                                    CodeKind code_kind,
-                                                    JavaScriptFrame* frame) {
+                                                    CodeKind code_kind) {
   DCHECK_EQ(code_kind, function.GetActiveTier().value());
 
   if (TiersUpToMaglev(code_kind) &&
@@ -395,12 +393,8 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
 
   function_obj.feedback_vector().SaturatingIncrementProfilerTicks();
 
-  // TODO(v8:7700): When tiering up from ML we no longer have an
-  // UnoptimizedFrame. Add logic to handle this case as well.
-  JavaScriptFrameIterator it(isolate_);
-  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
   const CodeKind code_kind = function_obj.GetActiveTier().value();
-  MaybeOptimizeFrame(function_obj, frame, code_kind);
+  MaybeOptimizeFrame(function_obj, code_kind);
 }
 
 }  // namespace internal

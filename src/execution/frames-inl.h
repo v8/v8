@@ -219,6 +219,9 @@ inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
 inline BaselineFrame::BaselineFrame(StackFrameIteratorBase* iterator)
     : UnoptimizedFrame(iterator) {}
 
+inline MaglevFrame::MaglevFrame(StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
+
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
     : TypedFrameWithJSLinkage(iterator) {}
 

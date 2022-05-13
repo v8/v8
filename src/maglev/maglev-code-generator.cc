@@ -56,7 +56,7 @@ class MaglevCodeGeneratingNodeProcessor {
 
     __ BailoutIfDeoptimized(rbx);
 
-    __ EnterFrame(StackFrame::BASELINE);
+    __ EnterFrame(StackFrame::MAGLEV);
 
     // Save arguments in frame.
     // TODO(leszeks): Consider eliding this frame if we don't make any calls
