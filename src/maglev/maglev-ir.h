@@ -295,9 +295,8 @@ class ValueLocation {
   }
 
   // Only to be used on inputs that inherit allocation.
-  template <typename... Args>
-  void InjectAllocated(Args&&... args) {
-    operand_ = compiler::AllocatedOperand(args...);
+  void InjectLocation(compiler::InstructionOperand location) {
+    operand_ = location;
   }
 
   template <typename... Args>
@@ -703,27 +702,33 @@ class ValueNode : public Node {
     return spill_or_hint_;
   }
 
-  void SetNoSpillOrHint() {
-    DCHECK_EQ(state_, kLastUse);
-#ifdef DEBUG
-    state_ = kSpillOrHint;
-#endif  // DEBUG
-    spill_or_hint_ = compiler::InstructionOperand();
+  bool is_loadable() const {
+    DCHECK_EQ(state_, kSpillOrHint);
+    return spill_or_hint_.IsConstant() || spill_or_hint_.IsAnyStackSlot();
   }
 
-  bool is_spilled() const {
-    DCHECK_EQ(state_, kSpillOrHint);
-    return spill_or_hint_.IsAnyStackSlot();
-  }
+  bool is_spilled() const { return spill_or_hint_.IsAnyStackSlot(); }
+
+  void SetNoSpillOrHint();
+
+  /* For constants only. */
+  void LoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
+  void LoadToRegister(MaglevCodeGenState*, Register);
+  Handle<Object> Reify(Isolate* isolate);
 
   void Spill(compiler::AllocatedOperand operand) {
 #ifdef DEBUG
     if (state_ == kLastUse) {
       state_ = kSpillOrHint;
     } else {
-      DCHECK(!is_spilled());
+      DCHECK(!is_loadable());
     }
 #endif  // DEBUG
+    DCHECK(!Is<Constant>());
+    DCHECK(!Is<SmiConstant>());
+    DCHECK(!Is<RootConstant>());
+    DCHECK(!Is<Int32Constant>());
+    DCHECK(!Is<Float64Constant>());
     DCHECK(operand.IsAnyStackSlot());
     spill_or_hint_ = operand;
     DCHECK(spill_or_hint_.IsAnyStackSlot());
@@ -811,14 +816,14 @@ class ValueNode : public Node {
     return registers_with_result_ != kEmptyRegList;
   }
 
-  compiler::AllocatedOperand allocation() const {
+  compiler::InstructionOperand allocation() const {
     if (has_register()) {
       return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                         GetMachineRepresentation(),
                                         FirstRegisterCode());
     }
-    DCHECK(is_spilled());
-    return compiler::AllocatedOperand::cast(spill_or_hint_);
+    DCHECK(is_loadable());
+    return spill_or_hint_;
   }
 
  protected:
@@ -843,6 +848,12 @@ class ValueNode : public Node {
     }
     return registers_with_result_.first().code();
   }
+
+  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand) {
+    UNREACHABLE();
+  }
+  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  Handle<Object> DoReify(Isolate* isolate) { UNREACHABLE(); }
 
   // Rename for better pairing with `end_id`.
   NodeIdT start_id() const { return id(); }
@@ -1056,6 +1067,8 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   using Base = FixedInputValueNodeT<0, Int32Constant>;
 
  public:
+  using OutputRegister = Register;
+
   explicit Int32Constant(uint32_t bitfield, int32_t value)
       : Base(bitfield), value_(value) {}
 
@@ -1067,6 +1080,10 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
+  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  Handle<Object> DoReify(Isolate* isolate);
+
  private:
   const int32_t value_;
 };
@@ -1075,6 +1092,8 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   using Base = FixedInputValueNodeT<0, Float64Constant>;
 
  public:
+  using OutputRegister = DoubleRegister;
+
   explicit Float64Constant(uint32_t bitfield, double value)
       : Base(bitfield), value_(value) {}
 
@@ -1085,6 +1104,11 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
+  void DoLoadToRegister(MaglevCodeGenState*, Register) { UNREACHABLE(); }
+  void DoLoadToRegister(MaglevCodeGenState*, DoubleRegister);
+  Handle<Object> DoReify(Isolate* isolate);
 
  private:
   const double value_;
@@ -1223,6 +1247,10 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
+  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  Handle<Object> DoReify(Isolate* isolate);
+
  private:
   const Smi value_;
 };
@@ -1237,6 +1265,10 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
+  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  Handle<Object> DoReify(Isolate* isolate);
 
  private:
   const compiler::HeapObjectRef object_;
@@ -1254,6 +1286,10 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
+  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  Handle<Object> DoReify(Isolate* isolate);
 
  private:
   const RootIndex index_;
@@ -1519,19 +1555,22 @@ class GapMove : public FixedInputNodeT<0, GapMove> {
   using Base = FixedInputNodeT<0, GapMove>;
 
  public:
-  GapMove(uint32_t bitfield, compiler::AllocatedOperand source,
+  GapMove(uint32_t bitfield, ValueNode* node,
+          compiler::InstructionOperand source,
           compiler::AllocatedOperand target)
-      : Base(bitfield), source_(source), target_(target) {}
+      : Base(bitfield), node_(node), source_(source), target_(target) {}
 
-  compiler::AllocatedOperand source() const { return source_; }
+  compiler::InstructionOperand source() const { return source_; }
   compiler::AllocatedOperand target() const { return target_; }
+  ValueNode* node() const { return node_; }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  compiler::AllocatedOperand source_;
+  ValueNode* node_;
+  compiler::InstructionOperand source_;
   compiler::AllocatedOperand target_;
 };
 

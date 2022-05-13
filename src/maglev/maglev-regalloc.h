@@ -133,7 +133,8 @@ class StraightForwardRegisterAllocator {
   void AssignTemporaries(NodeBase* node);
   void TryAllocateToInput(Phi* phi);
 
-  void AddMoveBeforeCurrentNode(compiler::AllocatedOperand source,
+  void AddMoveBeforeCurrentNode(ValueNode* node,
+                                compiler::InstructionOperand source,
                                 compiler::AllocatedOperand target);
 
   void AllocateSpillSlot(ValueNode* node);

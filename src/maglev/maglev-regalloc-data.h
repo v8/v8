@@ -67,10 +67,10 @@ constexpr bool operator==(const RegisterStateFlags& left,
 typedef base::PointerWithPayload<void, RegisterStateFlags, 2> RegisterState;
 
 struct RegisterMerge {
-  compiler::AllocatedOperand* operands() {
-    return reinterpret_cast<compiler::AllocatedOperand*>(this + 1);
+  compiler::InstructionOperand* operands() {
+    return reinterpret_cast<compiler::InstructionOperand*>(this + 1);
   }
-  compiler::AllocatedOperand& operand(size_t i) { return operands()[i]; }
+  compiler::InstructionOperand& operand(size_t i) { return operands()[i]; }
 
   ValueNode* node;
 };

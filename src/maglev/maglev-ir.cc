@@ -61,6 +61,10 @@ void DefineAsRegister(MaglevVregAllocationState* vreg_state, Node* node) {
       compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
       vreg_state->AllocateVirtualRegister());
 }
+void DefineAsConstant(MaglevVregAllocationState* vreg_state, Node* node) {
+  node->result().SetUnallocated(compiler::UnallocatedOperand::NONE,
+                                vreg_state->AllocateVirtualRegister());
+}
 
 void DefineAsFixed(MaglevVregAllocationState* vreg_state, Node* node,
                    Register reg) {
@@ -98,16 +102,21 @@ void UseFixed(Input& input, DoubleRegister reg) {
 // ---
 
 void PushInput(MaglevCodeGenState* code_gen_state, const Input& input) {
-  // TODO(leszeks): Consider special casing the value. (Toon: could possibly
-  // be done through Input directly?)
-  const compiler::AllocatedOperand& operand =
-      compiler::AllocatedOperand::cast(input.operand());
-
-  if (operand.IsRegister()) {
-    __ Push(operand.GetRegister());
+  if (input.operand().IsConstant()) {
+    input.node()->LoadToRegister(code_gen_state, kScratchRegister);
+    __ Push(kScratchRegister);
   } else {
-    DCHECK(operand.IsStackSlot());
-    __ Push(code_gen_state->GetStackSlot(operand));
+    // TODO(leszeks): Consider special casing the value. (Toon: could possibly
+    // be done through Input directly?)
+    const compiler::AllocatedOperand& operand =
+        compiler::AllocatedOperand::cast(input.operand());
+
+    if (operand.IsRegister()) {
+      __ Push(operand.GetRegister());
+    } else {
+      DCHECK(operand.IsStackSlot());
+      __ Push(code_gen_state->GetStackSlot(operand));
+    }
   }
 }
 
@@ -390,13 +399,79 @@ DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
 // ---
 // Nodes
 // ---
+void ValueNode::LoadToRegister(MaglevCodeGenState* code_gen_state,
+                               compiler::AllocatedOperand op) {
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return this->Cast<Name>()->DoLoadToRegister(code_gen_state, op);
+    VALUE_NODE_LIST(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+}
+void ValueNode::LoadToRegister(MaglevCodeGenState* code_gen_state,
+                               Register reg) {
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return this->Cast<Name>()->DoLoadToRegister(code_gen_state, reg);
+    VALUE_NODE_LIST(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+}
+void ValueNode::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                 Register reg) {
+  DCHECK(is_spilled());
+  __ movq(reg, code_gen_state->GetStackSlot(
+                   compiler::AllocatedOperand::cast(spill_slot())));
+}
+Handle<Object> ValueNode::Reify(Isolate* isolate) {
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return this->Cast<Name>()->DoReify(isolate);
+    VALUE_NODE_LIST(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+}
+
+void ValueNode::SetNoSpillOrHint() {
+  DCHECK_EQ(state_, kLastUse);
+#ifdef DEBUG
+  state_ = kSpillOrHint;
+#endif  // DEBUG
+  if (Is<Constant>() || Is<SmiConstant>() || Is<RootConstant>() ||
+      Is<Int32Constant>() || Is<Float64Constant>()) {
+    spill_or_hint_ = compiler::ConstantOperand(
+        compiler::UnallocatedOperand::cast(result().operand())
+            .virtual_register());
+  } else {
+    spill_or_hint_ = compiler::InstructionOperand();
+  }
+}
+
 void SmiConstant::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                const ProcessingState& state) {
-  DefineAsRegister(vreg_state, this);
+  DefineAsConstant(vreg_state, this);
 }
 void SmiConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
-                               const ProcessingState& state) {
-  __ Move(ToRegister(result()), Immediate(value()));
+                               const ProcessingState& state) {}
+void SmiConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                   compiler::AllocatedOperand op) {
+  DoLoadToRegister(code_gen_state, op.GetRegister());
+}
+Handle<Object> SmiConstant::DoReify(Isolate* isolate) {
+  return handle(value_, isolate);
+}
+void SmiConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                   Register reg) {
+  __ Move(reg, Immediate(value()));
 }
 void SmiConstant::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
@@ -405,11 +480,20 @@ void SmiConstant::PrintParams(std::ostream& os,
 
 void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                    const ProcessingState& state) {
-  DefineAsRegister(vreg_state, this);
+  DefineAsConstant(vreg_state, this);
 }
 void Float64Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                   const ProcessingState& state) {
-  __ Move(ToDoubleRegister(result()), value());
+                                   const ProcessingState& state) {}
+void Float64Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                       compiler::AllocatedOperand op) {
+  DoLoadToRegister(code_gen_state, op.GetDoubleRegister());
+}
+Handle<Object> Float64Constant::DoReify(Isolate* isolate) {
+  return isolate->factory()->NewNumber(value_);
+}
+void Float64Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                       DoubleRegister reg) {
+  __ Move(reg, value());
 }
 void Float64Constant::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
@@ -418,12 +502,19 @@ void Float64Constant::PrintParams(std::ostream& os,
 
 void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
                             const ProcessingState& state) {
-  DefineAsRegister(vreg_state, this);
+  DefineAsConstant(vreg_state, this);
 }
 void Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
-                            const ProcessingState& state) {
-  __ Move(ToRegister(result()), object_.object());
+                            const ProcessingState& state) {}
+void Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                compiler::AllocatedOperand op) {
+  DoLoadToRegister(code_gen_state, op.GetRegister());
 }
+void Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                Register reg) {
+  __ Move(reg, object_.object());
+}
+Handle<Object> Constant::DoReify(Isolate* isolate) { return object_.object(); }
 void Constant::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {
   os << "(" << object_ << ")";
@@ -493,14 +584,20 @@ void RegisterInput::PrintParams(std::ostream& os,
 
 void RootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                 const ProcessingState& state) {
-  DefineAsRegister(vreg_state, this);
+  DefineAsConstant(vreg_state, this);
 }
 void RootConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                const ProcessingState& state) {
-  if (!has_valid_live_range()) return;
-
-  Register reg = ToRegister(result());
+                                const ProcessingState& state) {}
+void RootConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                    compiler::AllocatedOperand op) {
+  DoLoadToRegister(code_gen_state, op.GetRegister());
+}
+void RootConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                    Register reg) {
   __ LoadRoot(reg, index());
+}
+Handle<Object> RootConstant::DoReify(Isolate* isolate) {
+  return isolate->root_handle(index());
 }
 void RootConstant::PrintParams(std::ostream& os,
                                MaglevGraphLabeller* graph_labeller) const {
@@ -742,7 +839,9 @@ void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void GapMove::GenerateCode(MaglevCodeGenState* code_gen_state,
                            const ProcessingState& state) {
-  if (source().IsRegister()) {
+  if (source().IsConstant()) {
+    node_->LoadToRegister(code_gen_state, target());
+  } else if (source().IsRegister()) {
     Register source_reg = ToRegister(source());
     if (target().IsAnyRegister()) {
       DCHECK(target().IsRegister());
@@ -875,11 +974,20 @@ void CheckedSmiTag::GenerateCode(MaglevCodeGenState* code_gen_state,
 
 void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                  const ProcessingState& state) {
-  DefineAsRegister(vreg_state, this);
+  DefineAsConstant(vreg_state, this);
 }
 void Int32Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                 const ProcessingState& state) {
-  __ Move(ToRegister(result()), Immediate(value()));
+                                 const ProcessingState& state) {}
+void Int32Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                     compiler::AllocatedOperand op) {
+  DoLoadToRegister(code_gen_state, op.GetRegister());
+}
+void Int32Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                     Register reg) {
+  __ Move(reg, Immediate(value()));
+}
+Handle<Object> Int32Constant::DoReify(Isolate* isolate) {
+  return isolate->factory()->NewNumber(value());
 }
 void Int32Constant::PrintParams(std::ostream& os,
                                 MaglevGraphLabeller* graph_labeller) const {

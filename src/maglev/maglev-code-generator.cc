@@ -8,6 +8,7 @@
 #include "src/codegen/code-desc.h"
 #include "src/codegen/register.h"
 #include "src/codegen/safepoint-table.h"
+#include "src/codegen/x64/register-x64.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/execution/frame-constants.h"
 #include "src/interpreter/bytecode-register.h"
@@ -41,8 +42,7 @@ std::array<T, N> repeat(T value) {
 }
 
 using RegisterMoves = std::array<Register, Register::kNumRegisters>;
-using StackToRegisterMoves =
-    std::array<compiler::InstructionOperand, Register::kNumRegisters>;
+using RegisterReloads = std::array<ValueNode*, Register::kNumRegisters>;
 
 class MaglevCodeGeneratingNodeProcessor {
  public:
@@ -189,22 +189,15 @@ class MaglevCodeGeneratingNodeProcessor {
     RecursivelyEmitParallelMoveChain(source, source, target, moves);
   }
 
-  void EmitStackToRegisterGapMove(compiler::InstructionOperand source,
-                                  Register target) {
-    if (!source.IsAllocated()) return;
-    __ movq(target, code_gen_state_->GetStackSlot(
-                        compiler::AllocatedOperand::cast(source)));
+  void EmitRegisterReload(ValueNode* node, Register target) {
+    if (node == nullptr) return;
+    node->LoadToRegister(code_gen_state_, target);
   }
 
-  void RecordGapMove(compiler::AllocatedOperand source, Register target_reg,
-                     RegisterMoves& register_moves,
-                     StackToRegisterMoves& stack_to_register_moves) {
-    if (source.IsStackSlot()) {
-      // For stack->reg moves, don't emit the move yet, but instead record the
-      // move in the set of stack-to-register moves, to be executed after the
-      // reg->reg parallel moves.
-      stack_to_register_moves[target_reg.code()] = source;
-    } else {
+  void RecordGapMove(ValueNode* node, compiler::InstructionOperand source,
+                     Register target_reg, RegisterMoves& register_moves,
+                     RegisterReloads& register_reloads) {
+    if (source.IsAnyRegister()) {
       // For reg->reg moves, don't emit the move yet, but instead record the
       // move in the set of parallel register moves, to be resolved later.
       Register source_reg = ToRegister(source);
@@ -212,26 +205,31 @@ class MaglevCodeGeneratingNodeProcessor {
         DCHECK(!register_moves[source_reg.code()].is_valid());
         register_moves[source_reg.code()] = target_reg;
       }
+    } else {
+      // For register loads from memory, don't emit the move yet, but instead
+      // record the move in the set of register reloads, to be executed after
+      // the reg->reg parallel moves.
+      register_reloads[target_reg.code()] = node;
     }
   }
 
-  void RecordGapMove(compiler::AllocatedOperand source,
+  void RecordGapMove(ValueNode* node, compiler::InstructionOperand source,
                      compiler::AllocatedOperand target,
                      RegisterMoves& register_moves,
-                     StackToRegisterMoves& stack_to_register_moves) {
+                     RegisterReloads& stack_to_register_moves) {
     if (target.IsRegister()) {
-      RecordGapMove(source, ToRegister(target), register_moves,
+      RecordGapMove(node, source, ToRegister(target), register_moves,
                     stack_to_register_moves);
       return;
     }
 
-    // stack->stack and reg->stack moves should be executed before registers are
-    // clobbered by reg->reg or stack->reg, so emit them immediately.
+    // memory->stack and reg->stack moves should be executed before registers
+    // are clobbered by reg->reg or memory->reg, so emit them immediately.
     if (source.IsRegister()) {
       Register source_reg = ToRegister(source);
       __ movq(code_gen_state_->GetStackSlot(target), source_reg);
     } else {
-      __ movq(kScratchRegister, code_gen_state_->GetStackSlot(source));
+      EmitRegisterReload(node, kScratchRegister);
       __ movq(code_gen_state_->GetStackSlot(target), kScratchRegister);
     }
   }
@@ -253,34 +251,38 @@ class MaglevCodeGeneratingNodeProcessor {
     RegisterMoves register_moves =
         repeat<Register::kNumRegisters>(Register::no_reg());
 
-    // Save stack to register moves in an array, so that we can execute them
-    // after the parallel moves have read the register values. Note that the
-    // mapping is:
+    // Save registers restored from a memory location in an array, so that we
+    // can execute them after the parallel moves have read the register values.
+    // Note that the mapping is:
     //
-    //     stack_to_register_moves[target] = source.
-    StackToRegisterMoves stack_to_register_moves;
+    //     register_reloads[target] = node.
+    ValueNode* n = nullptr;
+    RegisterReloads register_reloads = repeat<Register::kNumRegisters>(n);
 
     __ RecordComment("--   Gap moves:");
 
     target->state()->register_state().ForEachGeneralRegister(
         [&](Register reg, RegisterState& state) {
+          ValueNode* node;
           RegisterMerge* merge;
-          if (LoadMergeState(state, &merge)) {
-            compiler::AllocatedOperand source = merge->operand(predecessor_id);
+          if (LoadMergeState(state, &node, &merge)) {
+            compiler::InstructionOperand source =
+                merge->operand(predecessor_id);
             if (FLAG_code_comments) {
               std::stringstream ss;
               ss << "--   * " << source << " → " << reg;
               __ RecordComment(ss.str());
             }
-            RecordGapMove(source, reg, register_moves, stack_to_register_moves);
+            RecordGapMove(node, source, reg, register_moves, register_reloads);
           }
         });
 
     if (target->has_phi()) {
       Phi::List* phis = target->phis();
       for (Phi* phi : *phis) {
-        compiler::AllocatedOperand source = compiler::AllocatedOperand::cast(
-            phi->input(state.block()->predecessor_id()).operand());
+        Input& input = phi->input(state.block()->predecessor_id());
+        ValueNode* node = input.node();
+        compiler::InstructionOperand source = input.operand();
         compiler::AllocatedOperand target =
             compiler::AllocatedOperand::cast(phi->result().operand());
         if (FLAG_code_comments) {
@@ -289,7 +291,7 @@ class MaglevCodeGeneratingNodeProcessor {
              << graph_labeller()->NodeId(phi) << ")";
           __ RecordComment(ss.str());
         }
-        RecordGapMove(source, target, register_moves, stack_to_register_moves);
+        RecordGapMove(node, source, target, register_moves, register_reloads);
       }
     }
 
@@ -298,7 +300,7 @@ class MaglevCodeGeneratingNodeProcessor {
 #undef EMIT_MOVE_FOR_REG
 
 #define EMIT_MOVE_FOR_REG(Name) \
-  EmitStackToRegisterGapMove(stack_to_register_moves[Name.code()], Name);
+  EmitRegisterReload(register_reloads[Name.code()], Name);
     ALLOCATABLE_GENERAL_REGISTERS(EMIT_MOVE_FOR_REG)
 #undef EMIT_MOVE_FOR_REG
   }
@@ -520,13 +522,18 @@ class MaglevCodeGeneratorImpl final {
 
   void EmitDeoptFrameSingleValue(ValueNode* value,
                                  const InputLocation& input_location) {
-    const compiler::AllocatedOperand& operand =
-        compiler::AllocatedOperand::cast(input_location.operand());
-    ValueRepresentation repr = value->properties().value_representation();
-    if (operand.IsRegister()) {
-      EmitDeoptStoreRegister(operand, repr);
+    if (input_location.operand().IsConstant()) {
+      translation_array_builder_.StoreLiteral(
+          GetDeoptLiteral(*value->Reify(isolate())));
     } else {
-      EmitDeoptStoreStackSlot(operand, repr);
+      const compiler::AllocatedOperand& operand =
+          compiler::AllocatedOperand::cast(input_location.operand());
+      ValueRepresentation repr = value->properties().value_representation();
+      if (operand.IsRegister()) {
+        EmitDeoptStoreRegister(operand, repr);
+      } else {
+        EmitDeoptStoreStackSlot(operand, repr);
+      }
     }
   }
 

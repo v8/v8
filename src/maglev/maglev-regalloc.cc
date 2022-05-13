@@ -386,7 +386,7 @@ void StraightForwardRegisterAllocator::UpdateUse(
         // Skip over the result location.
         if (reg == deopt_info.result_location) return;
         InputLocation* input = &deopt_info.input_locations[index++];
-        input->InjectAllocated(node->allocation());
+        input->InjectLocation(node->allocation());
         UpdateUse(node, input);
       });
 }
@@ -402,7 +402,7 @@ void StraightForwardRegisterAllocator::UpdateUse(
   checkpoint_state->ForEachValue(
       unit, [&](ValueNode* node, interpreter::Register reg) {
         InputLocation* input = &input_locations[index++];
-        input->InjectAllocated(node->allocation());
+        input->InjectLocation(node->allocation());
         UpdateUse(node, input);
       });
 }
@@ -495,10 +495,15 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
       break;
     }
 
-    case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
     case compiler::UnallocatedOperand::NONE:
+      DCHECK(node->Is<Constant>() || node->Is<RootConstant>() ||
+             node->Is<SmiConstant>() || node->Is<Int32Constant>() ||
+             node->Is<Float64Constant>());
+      break;
+
     case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
     case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
+    case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
       UNREACHABLE();
   }
 
@@ -527,8 +532,9 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   // Remove the register from the node's list.
   node->RemoveRegister(reg);
 
-  // Return if the removed value already has another register or is spilled.
-  if (node->has_register() || node->is_spilled()) return;
+  // Return if the removed value already has another register or is loadable
+  // from memory.
+  if (node->has_register() || node->is_loadable()) return;
 
   // If we are at the end of the current node, and the last use of the given
   // node is the current node, allow it to be dropped.
@@ -551,7 +557,7 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
           << "gap move: " << PrintNodeLabel(graph_labeller(), node) << ": "
           << target << " ← " << source << std::endl;
     }
-    AddMoveBeforeCurrentNode(source, target);
+    AddMoveBeforeCurrentNode(node, source, target);
     return;
   }
 
@@ -607,7 +613,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
       Phi::List* phis = target->phis();
       for (Phi* phi : *phis) {
         Input& input = phi->input(block->predecessor_id());
-        input.InjectAllocated(input.node()->allocation());
+        input.InjectLocation(input.node()->allocation());
       }
       for (Phi* phi : *phis) UpdateUse(&phi->input(block->predecessor_id()));
     }
@@ -661,9 +667,10 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
 }
 
 void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
-    compiler::AllocatedOperand source, compiler::AllocatedOperand target) {
+    ValueNode* node, compiler::InstructionOperand source,
+    compiler::AllocatedOperand target) {
   GapMove* gap_move =
-      Node::New<GapMove>(compilation_info_->zone(), {}, source, target);
+      Node::New<GapMove>(compilation_info_->zone(), {}, node, source, target);
   if (compilation_info_->has_graph_labeller()) {
     graph_labeller()->RegisterNode(gap_move);
   }
@@ -678,7 +685,7 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
 }
 
 void StraightForwardRegisterAllocator::Spill(ValueNode* node) {
-  if (node->is_spilled()) return;
+  if (node->is_loadable()) return;
   AllocateSpillSlot(node);
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->os()
@@ -691,13 +698,12 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
   compiler::UnallocatedOperand operand =
       compiler::UnallocatedOperand::cast(input.operand());
   ValueNode* node = input.node();
-  compiler::AllocatedOperand location = node->allocation();
+  compiler::InstructionOperand location = node->allocation();
 
   switch (operand.extended_policy()) {
-    case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
     case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
-      input.SetAllocated(location);
-      break;
+      input.InjectLocation(location);
+      return;
 
     case compiler::UnallocatedOperand::FIXED_REGISTER: {
       Register reg = Register::from_code(operand.fixed_register_index());
@@ -707,7 +713,7 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
 
     case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
       if (location.IsAnyRegister()) {
-        input.SetAllocated(location);
+        input.SetAllocated(compiler::AllocatedOperand::cast(location));
       } else {
         input.SetAllocated(AllocateRegister(node, AllocationStage::kAtStart));
       }
@@ -720,6 +726,7 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
       break;
     }
 
+    case compiler::UnallocatedOperand::REGISTER_OR_SLOT:
     case compiler::UnallocatedOperand::SAME_AS_INPUT:
     case compiler::UnallocatedOperand::NONE:
     case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
@@ -733,7 +740,7 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
       printing_visitor_->os()
           << "gap move: " << allocated << " ← " << location << std::endl;
     }
-    AddMoveBeforeCurrentNode(location, allocated);
+    AddMoveBeforeCurrentNode(node, location, allocated);
   }
 }
 
@@ -761,7 +768,7 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
 }
 
 void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
-  DCHECK(!node->is_spilled());
+  DCHECK(!node->is_loadable());
   uint32_t free_slot;
   bool is_tagged = (node->properties().value_representation() ==
                     ValueRepresentation::kTagged);
@@ -1062,14 +1069,14 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
 
       // If there's a value in the incoming state, that value is either
       // already spilled or in another place in the merge state.
-      if (incoming != nullptr && incoming->is_spilled()) {
+      if (incoming != nullptr && incoming->is_loadable()) {
         EnsureInRegister(target_state, incoming);
       }
       return;
     }
 
     DCHECK_IMPLIES(node == nullptr, incoming != nullptr);
-    if (node == nullptr && !incoming->is_spilled()) {
+    if (node == nullptr && !incoming->is_loadable()) {
       // If the register is unallocated at the merge point, and the incoming
       // value isn't spilled, that means we must have seen it already in a
       // different register.
