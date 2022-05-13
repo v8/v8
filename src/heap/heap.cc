@@ -3480,8 +3480,9 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
 #ifdef DEBUG
   if (MayContainRecordedSlots(object)) {
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-    DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
     DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
+    DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
+    DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_SHARED>(object));
   }
 #endif
 
@@ -3898,7 +3899,7 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
 
 void Heap::NotifyObjectLayoutChange(
     HeapObject object, const DisallowGarbageCollection&,
-    InvalidateRecordedSlots invalidate_recorded_slots) {
+    InvalidateRecordedSlots invalidate_recorded_slots, int new_size) {
   if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes) {
     const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
 
@@ -3906,15 +3907,15 @@ void Heap::NotifyObjectLayoutChange(
       incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
       if (may_contain_recorded_slots && incremental_marking()->IsCompacting()) {
         MemoryChunk::FromHeapObject(object)
-            ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
+            ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, new_size);
       }
     }
 
     if (may_contain_recorded_slots) {
       MemoryChunk::FromHeapObject(object)
-          ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
+          ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object, new_size);
       MemoryChunk::FromHeapObject(object)
-          ->RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
+          ->RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object, new_size);
     }
   }
 #ifdef VERIFY_HEAP
@@ -3930,6 +3931,8 @@ void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
   DCHECK_LE(new_size, old_size);
   if (new_size == old_size) return;
 
+  UpdateInvalidatedObjectSize(object, new_size);
+
   const bool is_background = LocalHeap::Current() != nullptr;
   DCHECK_IMPLIES(is_background,
                  clear_recorded_slots == ClearRecordedSlots::kNo);
@@ -3944,6 +3947,20 @@ void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
   const int filler_size = old_size - new_size;
   CreateFillerObjectAtRaw(filler, filler_size, clear_memory_mode,
                           clear_recorded_slots, verify_no_slots_recorded);
+}
+
+void Heap::UpdateInvalidatedObjectSize(HeapObject object, int new_size) {
+  if (!MayContainRecordedSlots(object)) return;
+
+  if (incremental_marking()->IsCompacting()) {
+    MemoryChunk::FromHeapObject(object)
+        ->UpdateInvalidatedObjectSize<OLD_TO_OLD>(object, new_size);
+  }
+
+  MemoryChunk::FromHeapObject(object)->UpdateInvalidatedObjectSize<OLD_TO_NEW>(
+      object, new_size);
+  MemoryChunk::FromHeapObject(object)
+      ->UpdateInvalidatedObjectSize<OLD_TO_SHARED>(object, new_size);
 }
 
 #ifdef VERIFY_HEAP
@@ -4615,9 +4632,33 @@ void Heap::Verify() {
   if (new_lo_space_) new_lo_space_->Verify(isolate());
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 
+  VerifyInvalidatedObjectSize();
+
 #if DEBUG
   VerifyCommittedPhysicalMemory();
 #endif  // DEBUG
+}
+
+namespace {
+void VerifyInvalidatedSlots(InvalidatedSlots* invalidated_slots) {
+  if (!invalidated_slots) return;
+  for (std::pair<HeapObject, int> object_and_size : *invalidated_slots) {
+    HeapObject object = object_and_size.first;
+    int size = object_and_size.second;
+    CHECK_EQ(object.Size(), size);
+  }
+}
+}  // namespace
+
+void Heap::VerifyInvalidatedObjectSize() {
+  OldGenerationMemoryChunkIterator chunk_iterator(this);
+  MemoryChunk* chunk;
+
+  while ((chunk = chunk_iterator.next()) != nullptr) {
+    VerifyInvalidatedSlots(chunk->invalidated_slots<OLD_TO_NEW>());
+    VerifyInvalidatedSlots(chunk->invalidated_slots<OLD_TO_OLD>());
+    VerifyInvalidatedSlots(chunk->invalidated_slots<OLD_TO_SHARED>());
+  }
 }
 
 void Heap::VerifyReadOnlyHeap() {
