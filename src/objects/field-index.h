@@ -121,7 +121,7 @@ class FieldIndex final {
   // Offset of first inobject property from beginning of object.
   using FirstInobjectPropertyOffsetBits =
       InObjectPropertyBits::Next<int, kFirstInobjectPropertyOffsetBitCount>;
-  STATIC_ASSERT(FirstInobjectPropertyOffsetBits::kLastUsedBit < 64);
+  static_assert(FirstInobjectPropertyOffsetBits::kLastUsedBit < 64);
 
   uint64_t bit_field_;
 };

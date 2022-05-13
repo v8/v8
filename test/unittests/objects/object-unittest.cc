@@ -23,7 +23,7 @@ namespace {
 bool IsInStringInstanceTypeList(InstanceType instance_type) {
   switch (instance_type) {
 #define ASSERT_INSTANCE_TYPE(type, ...) \
-  STATIC_ASSERT(InstanceType::type < InstanceType::FIRST_NONSTRING_TYPE);
+  static_assert(InstanceType::type < InstanceType::FIRST_NONSTRING_TYPE);
     STRING_TYPE_LIST(ASSERT_INSTANCE_TYPE)
 #undef ASSERT_INSTANCE_TYPE
 #define TEST_INSTANCE_TYPE(type, ...) case InstanceType::type:
@@ -108,7 +108,7 @@ TEST_F(ObjectWithIsolate, DictionaryGrowth) {
 
   // This test documents the expected growth behavior of a dictionary getting
   // elements added to it one by one.
-  STATIC_ASSERT(HashTableBase::kMinCapacity == 4);
+  static_assert(HashTableBase::kMinCapacity == 4);
   uint32_t i = 1;
   // 3 elements fit into the initial capacity.
   for (; i <= 3; i++) {

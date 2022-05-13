@@ -132,9 +132,9 @@ class SourceTextModule
   // If 0, this module is not async or has not been async evaluated.
   static constexpr unsigned kNotAsyncEvaluated = 0;
   static constexpr unsigned kAsyncEvaluateDidFinish = 1;
-  STATIC_ASSERT(kNotAsyncEvaluated < kAsyncEvaluateDidFinish);
-  STATIC_ASSERT(kAsyncEvaluateDidFinish < kFirstAsyncEvaluatingOrdinal);
-  STATIC_ASSERT(kMaxModuleAsyncEvaluatingOrdinal ==
+  static_assert(kNotAsyncEvaluated < kAsyncEvaluateDidFinish);
+  static_assert(kAsyncEvaluateDidFinish < kFirstAsyncEvaluatingOrdinal);
+  static_assert(kMaxModuleAsyncEvaluatingOrdinal ==
                 AsyncEvaluatingOrdinalBits::kMax);
   DECL_PRIMITIVE_ACCESSORS(async_evaluating_ordinal, unsigned)
 

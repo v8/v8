@@ -600,7 +600,7 @@ void SharedFunctionInfo::UpdateExpectedNofPropertiesFromEstimate(
     FunctionLiteral* literal) {
   // Limit actual estimate to fit in a 8 bit field, we will never allocate
   // more than this in any case.
-  STATIC_ASSERT(JSObject::kMaxInObjectProperties <= kMaxUInt8);
+  static_assert(JSObject::kMaxInObjectProperties <= kMaxUInt8);
   int estimate = get_property_estimate_from_literal(literal);
   set_expected_nof_properties(std::min(estimate, kMaxUInt8));
 }
@@ -619,7 +619,7 @@ void SharedFunctionInfo::UpdateAndFinalizeExpectedNofPropertiesFromEstimate(
 
   // Limit actual estimate to fit in a 8 bit field, we will never allocate
   // more than this in any case.
-  STATIC_ASSERT(JSObject::kMaxInObjectProperties <= kMaxUInt8);
+  static_assert(JSObject::kMaxInObjectProperties <= kMaxUInt8);
   estimate = std::min(estimate, kMaxUInt8);
 
   set_expected_nof_properties(estimate);

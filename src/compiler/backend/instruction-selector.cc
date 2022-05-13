@@ -2859,7 +2859,7 @@ LinkageLocation ExceptionLocation() {
 constexpr InstructionCode EncodeCallDescriptorFlags(
     InstructionCode opcode, CallDescriptor::Flags flags) {
   // Note: Not all bits of `flags` are preserved.
-  STATIC_ASSERT(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
+  static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
                 MiscField::kSize);
   DCHECK(Instruction::IsCallWithDescriptorFlags(opcode));
   return opcode | MiscField::encode(flags & MiscField::kMax);
@@ -2990,7 +2990,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 #if ABI_USES_FUNCTION_DESCRIPTORS
       // Highest fp_param_count bit is used on AIX to indicate if a CFunction
       // call has function descriptor or not.
-      STATIC_ASSERT(FPParamField::kSize == kHasFunctionDescriptorBitShift + 1);
+      static_assert(FPParamField::kSize == kHasFunctionDescriptorBitShift + 1);
       if (!call_descriptor->NoFunctionDescriptor()) {
         fp_param_count |= 1 << kHasFunctionDescriptorBitShift;
       }

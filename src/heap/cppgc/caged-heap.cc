@@ -21,9 +21,9 @@
 namespace cppgc {
 namespace internal {
 
-STATIC_ASSERT(api_constants::kCagedHeapReservationSize ==
+static_assert(api_constants::kCagedHeapReservationSize ==
               kCagedHeapReservationSize);
-STATIC_ASSERT(api_constants::kCagedHeapReservationAlignment ==
+static_assert(api_constants::kCagedHeapReservationAlignment ==
               kCagedHeapReservationAlignment);
 
 namespace {

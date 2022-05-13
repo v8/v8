@@ -189,8 +189,8 @@ void StringBuiltinsAssembler::StringEqual_Core(
 
   // Check if both {lhs} and {rhs} are direct strings, and that in case of
   // ExternalStrings the data pointer is cached.
-  STATIC_ASSERT(kUncachedExternalStringTag != 0);
-  STATIC_ASSERT(kIsIndirectStringTag != 0);
+  static_assert(kUncachedExternalStringTag != 0);
+  static_assert(kIsIndirectStringTag != 0);
   int const kBothDirectStringMask =
       kIsIndirectStringMask | kUncachedExternalStringMask |
       ((kIsIndirectStringMask | kUncachedExternalStringMask) << 8);
@@ -320,8 +320,8 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
 
   // Determine the resulting ConsString map to use depending on whether
   // any of {left} or {right} has two byte encoding.
-  STATIC_ASSERT(kOneByteStringTag != 0);
-  STATIC_ASSERT(kTwoByteStringTag == 0);
+  static_assert(kOneByteStringTag != 0);
+  static_assert(kTwoByteStringTag == 0);
   TNode<Int32T> combined_instance_type =
       Word32And(left_instance_type, right_instance_type);
   TNode<Map> result_map = CAST(Select<Object>(
@@ -473,7 +473,7 @@ void StringBuiltinsAssembler::DerefIndirectString(TVariable<String>* var_string,
   BIND(&can_deref);
 #endif  // DEBUG
 
-  STATIC_ASSERT(static_cast<int>(ThinString::kActualOffset) ==
+  static_assert(static_cast<int>(ThinString::kActualOffset) ==
                 static_cast<int>(ConsString::kFirstOffset));
   *var_string =
       LoadObjectField<String>(var_string->value(), ThinString::kActualOffset);
@@ -523,7 +523,7 @@ TNode<String> StringBuiltinsAssembler::DerefIndirectString(
   Label deref(this);
   BranchIfCanDerefIndirectString(string, instance_type, &deref, cannot_deref);
   BIND(&deref);
-  STATIC_ASSERT(static_cast<int>(ThinString::kActualOffset) ==
+  static_assert(static_cast<int>(ThinString::kActualOffset) ==
                 static_cast<int>(ConsString::kFirstOffset));
   return LoadObjectField<String>(string, ThinString::kActualOffset);
 }
@@ -1539,7 +1539,7 @@ void StringBuiltinsAssembler::CopyStringCharacters(
 
   ElementsKind from_kind = from_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
   ElementsKind to_kind = to_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
-  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  static_assert(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
   int header_size = SeqOneByteString::kHeaderSize - kHeapObjectTag;
   TNode<IntPtrT> from_offset =
       ElementOffsetFromIndex(from_index, from_kind, header_size);

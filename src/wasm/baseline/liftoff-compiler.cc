@@ -545,7 +545,7 @@ class LiftoffCompiler {
 
   int GetFeedbackVectorSlots() const {
     // The number of instructions is capped by max function size.
-    STATIC_ASSERT(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max());
+    static_assert(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max());
     return static_cast<int>(num_call_instructions_) * 2;
   }
 
@@ -5570,7 +5570,7 @@ class LiftoffCompiler {
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
     if (SmiValuesAre31Bits()) {
-      STATIC_ASSERT(kSmiTag == 0);
+      static_assert(kSmiTag == 0);
       __ emit_i32_shli(dst.gp(), src.gp(), kSmiTagSize);
     } else {
       DCHECK(SmiValuesAre32Bits());
@@ -6122,7 +6122,7 @@ class LiftoffCompiler {
               kPointerLoadType, pinned);
     }
     // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
-    STATIC_ASSERT((1 << 2) == kInt32Size);
+    static_assert((1 << 2) == kInt32Size);
     __ emit_i32_shli(index, index, 2);
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
             pinned);

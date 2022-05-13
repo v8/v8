@@ -10,7 +10,7 @@
 #define V8_WASM_MEMORY_PROTECTION_KEY_H_
 
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-#include <sys/mman.h>  // For STATIC_ASSERT of permission values.
+#include <sys/mman.h>  // For static_assert of permission values.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 #endif
 
@@ -44,8 +44,8 @@ enum MemoryProtectionKeyPermission {
 // If sys/mman.h has PKEY support (on newer Linux distributions), ensure that
 // our definitions of the permissions is consistent with the ones in glibc.
 #if defined(PKEY_DISABLE_ACCESS)
-STATIC_ASSERT(kDisableAccess == PKEY_DISABLE_ACCESS);
-STATIC_ASSERT(kDisableWrite == PKEY_DISABLE_WRITE);
+static_assert(kDisableAccess == PKEY_DISABLE_ACCESS);
+static_assert(kDisableWrite == PKEY_DISABLE_WRITE);
 #endif
 
 // Call exactly once per process to determine if PKU is supported on this

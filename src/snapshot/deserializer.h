@@ -149,7 +149,7 @@ class Deserializer : public SerializerDeserializer {
    private:
     static const int kSize = kHotObjectCount;
     static const int kSizeMask = kSize - 1;
-    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
+    static_assert(base::bits::IsPowerOfTwo(kSize));
     Handle<HeapObject> circular_queue_[kSize];
     int index_ = 0;
   };

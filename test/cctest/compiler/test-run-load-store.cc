@@ -298,7 +298,7 @@ void RunLoadStore(MachineType type, TestAlignment t) {
   uintptr_t zap_data[] = {kZapValue, kZapValue};
   CType zap_value;
 
-  STATIC_ASSERT(sizeof(CType) <= sizeof(zap_data));
+  static_assert(sizeof(CType) <= sizeof(zap_data));
   MemCopy(&zap_value, &zap_data, sizeof(CType));
   InitBuffer(in_buffer, kNumElems, type);
 

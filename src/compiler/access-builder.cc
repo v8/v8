@@ -854,7 +854,7 @@ FieldAccess AccessBuilder::ForJSStringIteratorIndex() {
 // static
 FieldAccess AccessBuilder::ForArgumentsLength() {
   constexpr int offset = JSStrictArgumentsObject::kLengthOffset;
-  STATIC_ASSERT(offset == JSSloppyArgumentsObject::kLengthOffset);
+  static_assert(offset == JSSloppyArgumentsObject::kLengthOffset);
   FieldAccess access = {kTaggedBase,         offset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::NonInternal(), MachineType::AnyTagged(),
@@ -1135,7 +1135,7 @@ FieldAccess AccessBuilder::ForHashTableBaseCapacity() {
 FieldAccess AccessBuilder::ForOrderedHashMapOrSetNextTable() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  STATIC_ASSERT(OrderedHashMap::NextTableOffset() ==
+  static_assert(OrderedHashMap::NextTableOffset() ==
                 OrderedHashSet::NextTableOffset());
   FieldAccess const access = {
       kTaggedBase,         OrderedHashMap::NextTableOffset(),
@@ -1149,7 +1149,7 @@ FieldAccess AccessBuilder::ForOrderedHashMapOrSetNextTable() {
 FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfBuckets() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  STATIC_ASSERT(OrderedHashMap::NumberOfBucketsOffset() ==
+  static_assert(OrderedHashMap::NumberOfBucketsOffset() ==
                 OrderedHashSet::NumberOfBucketsOffset());
   FieldAccess const access = {kTaggedBase,
                               OrderedHashMap::NumberOfBucketsOffset(),
@@ -1165,7 +1165,7 @@ FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfBuckets() {
 FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfDeletedElements() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  STATIC_ASSERT(OrderedHashMap::NumberOfDeletedElementsOffset() ==
+  static_assert(OrderedHashMap::NumberOfDeletedElementsOffset() ==
                 OrderedHashSet::NumberOfDeletedElementsOffset());
   FieldAccess const access = {kTaggedBase,
                               OrderedHashMap::NumberOfDeletedElementsOffset(),
@@ -1181,7 +1181,7 @@ FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfDeletedElements() {
 FieldAccess AccessBuilder::ForOrderedHashMapOrSetNumberOfElements() {
   // TODO(turbofan): This will be redundant with the HashTableBase
   // methods above once the hash table unification is done.
-  STATIC_ASSERT(OrderedHashMap::NumberOfElementsOffset() ==
+  static_assert(OrderedHashMap::NumberOfElementsOffset() ==
                 OrderedHashSet::NumberOfElementsOffset());
   FieldAccess const access = {kTaggedBase,
                               OrderedHashMap::NumberOfElementsOffset(),

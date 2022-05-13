@@ -152,7 +152,7 @@ namespace module_decoder_unittest {
 
 #define EXPECT_OFF_END_FAILURE(data, min)                              \
   do {                                                                 \
-    STATIC_ASSERT(min < arraysize(data));                              \
+    static_assert(min < arraysize(data));                              \
     for (size_t _length = min; _length < arraysize(data); _length++) { \
       EXPECT_FAILURE_LEN(data, _length);                               \
     }                                                                  \
@@ -1354,7 +1354,7 @@ TEST_F(WasmModuleVerifyTest, TagSectionBeforeMemory) {
 }
 
 TEST_F(WasmModuleVerifyTest, TagSectionAfterTableBeforeMemory) {
-  STATIC_ASSERT(kMemorySectionCode + 1 == kGlobalSectionCode);
+  static_assert(kMemorySectionCode + 1 == kGlobalSectionCode);
   static const byte data[] = {SECTION(Table, ENTRY_COUNT(0)),
                               SECTION(Tag, ENTRY_COUNT(0)),
                               SECTION(Memory, ENTRY_COUNT(0))};
@@ -3373,7 +3373,7 @@ TEST_F(WasmModuleVerifyTest, DataCountSectionBeforeElement) {
 }
 
 TEST_F(WasmModuleVerifyTest, DataCountSectionAfterStartBeforeElement) {
-  STATIC_ASSERT(kStartSectionCode + 1 == kElementSectionCode);
+  static_assert(kStartSectionCode + 1 == kElementSectionCode);
   static const byte data[] = {
       // We need the start section for this test, but the start section must
       // reference a valid function, which requires the type and function

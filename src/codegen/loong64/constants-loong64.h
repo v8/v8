@@ -137,7 +137,7 @@ enum SoftwareInterruptCodes {
 //   debugger.
 const uint32_t kMaxWatchpointCode = 31;
 const uint32_t kMaxStopCode = 127;
-STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
+static_assert(kMaxWatchpointCode < kMaxStopCode);
 
 // ----- Fields offset and length.
 const int kRjShift = 5;

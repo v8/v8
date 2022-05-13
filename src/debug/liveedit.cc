@@ -210,7 +210,7 @@ class Differencer {
   // This method only holds static assert statement (unfortunately you cannot
   // place one in class scope).
   void StaticAssertHolder() {
-    STATIC_ASSERT(MAX_DIRECTION_FLAG_VALUE < (1 << kDirectionSizeBits));
+    static_assert(MAX_DIRECTION_FLAG_VALUE < (1 << kDirectionSizeBits));
   }
 
   class ResultWriter {

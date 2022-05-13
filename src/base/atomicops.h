@@ -75,7 +75,7 @@ using AtomicWord = Atomic64;
 #else
 using AtomicWord = Atomic32;
 #endif
-STATIC_ASSERT(sizeof(void*) == sizeof(AtomicWord));
+static_assert(sizeof(void*) == sizeof(AtomicWord));
 
 namespace helper {
 template <typename T>

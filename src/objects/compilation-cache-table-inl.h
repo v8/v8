@@ -36,7 +36,7 @@ void CompilationCacheTable::SetPrimaryValueAt(InternalIndex entry, Object value,
 }
 
 Object CompilationCacheTable::EvalFeedbackValueAt(InternalIndex entry) {
-  STATIC_ASSERT(CompilationCacheShape::kEntrySize == 3);
+  static_assert(CompilationCacheShape::kEntrySize == 3);
   return get(EntryToIndex(entry) + 2);
 }
 
@@ -106,7 +106,7 @@ uint32_t CompilationCacheShape::EvalHash(String source,
     Script script(Script::cast(shared.script()));
     hash ^= String::cast(script.source()).EnsureHash();
   }
-  STATIC_ASSERT(LanguageModeSize == 2);
+  static_assert(LanguageModeSize == 2);
   if (is_strict(language_mode)) hash ^= 0x8000;
   hash += position;
   return hash;

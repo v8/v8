@@ -42,7 +42,7 @@ void ExternalPointerTable::Init(Isolate* isolate) {
 
   // Set up the special null entry. This entry must contain nullptr so that
   // empty EmbedderDataSlots represent nullptr.
-  STATIC_ASSERT(kNullExternalPointer == 0);
+  static_assert(kNullExternalPointer == 0);
   store(kNullExternalPointer, kNullAddress);
 }
 
@@ -125,7 +125,7 @@ uint32_t ExternalPointerTable::Allocate() {
 
 void ExternalPointerTable::Mark(uint32_t index) {
   DCHECK_LT(index, capacity_);
-  STATIC_ASSERT(sizeof(base::Atomic64) == sizeof(Address));
+  static_assert(sizeof(base::Atomic64) == sizeof(Address));
 
   base::Atomic64 old_val = load_atomic(index);
   DCHECK(!is_free(old_val));

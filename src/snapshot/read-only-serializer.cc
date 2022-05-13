@@ -26,7 +26,7 @@ ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
       did_serialize_not_mapped_symbol_(false)
 #endif
 {
-  STATIC_ASSERT(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
+  static_assert(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
 }
 
 ReadOnlySerializer::~ReadOnlySerializer() {

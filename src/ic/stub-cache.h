@@ -82,7 +82,7 @@ class V8_EXPORT_PRIVATE StubCache {
   // causes the bit field inside the hash field to get shifted out implicitly.
   // Note that kCacheIndexShift must not get too large, because
   // sizeof(Entry) needs to be a multiple of 1 << kCacheIndexShift (see
-  // the STATIC_ASSERT below, in {entry(...)}).
+  // the static_assert below, in {entry(...)}).
   static const int kCacheIndexShift = Name::HashBits::kShift;
 
   static const int kPrimaryTableBits = 11;
@@ -128,7 +128,7 @@ class V8_EXPORT_PRIVATE StubCache {
   // in the hashed offset computations.
   static Entry* entry(Entry* table, int offset) {
     // The size of {Entry} must be a multiple of 1 << kCacheIndexShift.
-    STATIC_ASSERT((sizeof(*table) >> kCacheIndexShift) << kCacheIndexShift ==
+    static_assert((sizeof(*table) >> kCacheIndexShift) << kCacheIndexShift ==
                   sizeof(*table));
     const int multiplier = sizeof(*table) >> kCacheIndexShift;
     return reinterpret_cast<Entry*>(reinterpret_cast<Address>(table) +

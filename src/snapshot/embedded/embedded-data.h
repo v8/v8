@@ -198,30 +198,30 @@ class EmbeddedData final {
     uint32_t code_comments_offset_offset;
     uint32_t unwinding_info_offset_offset;
   };
-  STATIC_ASSERT(offsetof(LayoutDescription, instruction_offset) ==
+  static_assert(offsetof(LayoutDescription, instruction_offset) ==
                 0 * kUInt32Size);
-  STATIC_ASSERT(offsetof(LayoutDescription, instruction_length) ==
+  static_assert(offsetof(LayoutDescription, instruction_length) ==
                 1 * kUInt32Size);
-  STATIC_ASSERT(offsetof(LayoutDescription, metadata_offset) ==
+  static_assert(offsetof(LayoutDescription, metadata_offset) ==
                 2 * kUInt32Size);
-  STATIC_ASSERT(offsetof(LayoutDescription, metadata_length) ==
+  static_assert(offsetof(LayoutDescription, metadata_length) ==
                 3 * kUInt32Size);
-  STATIC_ASSERT(offsetof(LayoutDescription, handler_table_offset) ==
+  static_assert(offsetof(LayoutDescription, handler_table_offset) ==
                 4 * kUInt32Size);
 #if V8_EMBEDDED_CONSTANT_POOL
-  STATIC_ASSERT(offsetof(LayoutDescription, constant_pool_offset) ==
+  static_assert(offsetof(LayoutDescription, constant_pool_offset) ==
                 5 * kUInt32Size);
-  STATIC_ASSERT(offsetof(LayoutDescription, code_comments_offset_offset) ==
+  static_assert(offsetof(LayoutDescription, code_comments_offset_offset) ==
                 6 * kUInt32Size);
-  STATIC_ASSERT(offsetof(LayoutDescription, unwinding_info_offset_offset) ==
+  static_assert(offsetof(LayoutDescription, unwinding_info_offset_offset) ==
                 7 * kUInt32Size);
-  STATIC_ASSERT(sizeof(LayoutDescription) == 8 * kUInt32Size);
+  static_assert(sizeof(LayoutDescription) == 8 * kUInt32Size);
 #else
-  STATIC_ASSERT(offsetof(LayoutDescription, code_comments_offset_offset) ==
+  static_assert(offsetof(LayoutDescription, code_comments_offset_offset) ==
                 5 * kUInt32Size);
-  STATIC_ASSERT(offsetof(LayoutDescription, unwinding_info_offset_offset) ==
+  static_assert(offsetof(LayoutDescription, unwinding_info_offset_offset) ==
                 6 * kUInt32Size);
-  STATIC_ASSERT(sizeof(LayoutDescription) == 7 * kUInt32Size);
+  static_assert(sizeof(LayoutDescription) == 7 * kUInt32Size);
 #endif
 
   // The layout of the blob is as follows:

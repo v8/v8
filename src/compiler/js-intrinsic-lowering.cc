@@ -336,7 +336,7 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   int const arity =
       static_cast<int>(CallRuntimeParametersOf(node->op()).arity());
   static constexpr int kTargetAndReceiver = 2;
-  STATIC_ASSERT(JSCallNode::kFeedbackVectorIsLastInput);
+  static_assert(JSCallNode::kFeedbackVectorIsLastInput);
   Node* feedback = jsgraph()->UndefinedConstant();
   node->InsertInput(graph()->zone(), arity, feedback);
   NodeProperties::ChangeOp(

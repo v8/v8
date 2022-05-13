@@ -76,7 +76,7 @@ class DataRange {
   T get() {
     // Bool needs special handling (see template specialization below).
     static_assert(!std::is_same<T, bool>::value, "bool needs special handling");
-    STATIC_ASSERT(max_bytes <= sizeof(T));
+    static_assert(max_bytes <= sizeof(T));
     // We want to support the case where we have less than sizeof(T) bytes
     // remaining in the slice. For example, if we emit an i32 constant, it's
     // okay if we don't have a full four bytes available, we'll just use what
@@ -712,7 +712,7 @@ class WasmGenerator {
 
   template <ValueKind wanted_kind>
   void local_op(DataRange* data, WasmOpcode opcode) {
-    STATIC_ASSERT(wanted_kind == kVoid || is_convertible_kind(wanted_kind));
+    static_assert(wanted_kind == kVoid || is_convertible_kind(wanted_kind));
     Var local = GetRandomLocal(data);
     // If there are no locals and no parameters, just generate any value (if a
     // value is needed), or do nothing.
@@ -766,7 +766,7 @@ class WasmGenerator {
 
   template <ValueKind wanted_kind>
   void global_op(DataRange* data) {
-    STATIC_ASSERT(wanted_kind == kVoid || is_convertible_kind(wanted_kind));
+    static_assert(wanted_kind == kVoid || is_convertible_kind(wanted_kind));
     constexpr bool is_set = wanted_kind == kVoid;
     Var global = GetRandomGlobal(data, is_set);
     // If there are no globals, just generate any value (if a value is needed),

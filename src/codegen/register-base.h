@@ -62,7 +62,7 @@ class RegisterBase {
 
  private:
   int8_t reg_code_;
-  STATIC_ASSERT(kAfterLastRegister <= kMaxInt8);
+  static_assert(kAfterLastRegister <= kMaxInt8);
 };
 
 template <typename RegType,
@@ -77,7 +77,7 @@ inline std::ostream& operator<<(std::ostream& os, RegType reg) {
 #define DEFINE_REGISTER_NAMES(RegType, LIST)                                   \
   inline const char* RegisterName(RegType reg) {                               \
     static constexpr const char* Names[] = {LIST(DEFINE_REGISTER_NAMES_NAME)}; \
-    STATIC_ASSERT(arraysize(Names) == RegType::kNumRegisters);                 \
+    static_assert(arraysize(Names) == RegType::kNumRegisters);                 \
     return reg.is_valid() ? Names[reg.code()] : "invalid";                     \
   }
 

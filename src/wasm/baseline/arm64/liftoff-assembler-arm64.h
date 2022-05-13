@@ -991,7 +991,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
       IsImmLSUnscaled(-start - 12)) {
     // Special straight-line code for up to 12 slots. Generates one
     // instruction per two slots (<= 7 instructions total).
-    STATIC_ASSERT(kStackSlotSize == kSystemPointerSize);
+    static_assert(kStackSlotSize == kSystemPointerSize);
     uint32_t remainder = size;
     for (; remainder >= 2 * kStackSlotSize; remainder -= 2 * kStackSlotSize) {
       stp(xzr, xzr, liftoff::GetStackSlot(start + remainder));

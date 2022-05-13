@@ -797,7 +797,7 @@ class Heap::AllocationTrackerForDebugging final
     MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
     AllocationSpace allocation_space = memory_chunk->owner_identity();
 
-    STATIC_ASSERT(kSpaceTagSize + kPageSizeBits <= 32);
+    static_assert(kSpaceTagSize + kPageSizeBits <= 32);
     uint32_t value =
         static_cast<uint32_t>(object_address - memory_chunk->address()) |
         (static_cast<uint32_t>(allocation_space) << kPageSizeBits);
@@ -3120,19 +3120,19 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   external_string_table_.IterateAll(&external_string_table_visitor);
 }
 
-STATIC_ASSERT(IsAligned(FixedDoubleArray::kHeaderSize, kDoubleAlignment));
+static_assert(IsAligned(FixedDoubleArray::kHeaderSize, kDoubleAlignment));
 
 #ifdef V8_COMPRESS_POINTERS
 // TODO(ishell, v8:8875): When pointer compression is enabled the kHeaderSize
 // is only kTaggedSize aligned but we can keep using unaligned access since
 // both x64 and arm64 architectures (where pointer compression supported)
 // allow unaligned access to doubles.
-STATIC_ASSERT(IsAligned(ByteArray::kHeaderSize, kTaggedSize));
+static_assert(IsAligned(ByteArray::kHeaderSize, kTaggedSize));
 #else
-STATIC_ASSERT(IsAligned(ByteArray::kHeaderSize, kDoubleAlignment));
+static_assert(IsAligned(ByteArray::kHeaderSize, kDoubleAlignment));
 #endif
 
-STATIC_ASSERT(!USE_ALLOCATION_ALIGNMENT_BOOL ||
+static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL ||
               (HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
 
 int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
@@ -3461,9 +3461,9 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   DCHECK(!IsLargeObject(object));
   DCHECK(object.map() != ReadOnlyRoots(this).fixed_cow_array_map());
 
-  STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset == kTaggedSize);
-  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kTaggedSize);
+  static_assert(FixedArrayBase::kMapOffset == 0);
+  static_assert(FixedArrayBase::kLengthOffset == kTaggedSize);
+  static_assert(FixedArrayBase::kHeaderSize == 2 * kTaggedSize);
 
   const int len = object.length();
   DCHECK(elements_to_trim <= len);
@@ -5117,7 +5117,7 @@ void Heap::IterateBuiltins(RootVisitor* v) {
   }
 
   // The entry table doesn't need to be updated since all builtins are embedded.
-  STATIC_ASSERT(Builtins::AllBuiltinsAreIsolateIndependent());
+  static_assert(Builtins::AllBuiltinsAreIsolateIndependent());
 }
 
 void Heap::IterateStackRoots(RootVisitor* v) {
@@ -7310,9 +7310,9 @@ template <int kModeMask, typename TSlot>
 void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
                                     TSlot start_slot, TSlot end_slot) {
   // At least one of generational or marking write barrier should be requested.
-  STATIC_ASSERT(kModeMask & (kDoGenerational | kDoMarking));
+  static_assert(kModeMask & (kDoGenerational | kDoMarking));
   // kDoEvacuationSlotRecording implies kDoMarking.
-  STATIC_ASSERT(!(kModeMask & kDoEvacuationSlotRecording) ||
+  static_assert(!(kModeMask & kDoEvacuationSlotRecording) ||
                 (kModeMask & kDoMarking));
 
   MarkingBarrier* marking_barrier = WriteBarrier::CurrentMarkingBarrier(this);

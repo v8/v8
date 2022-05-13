@@ -69,15 +69,15 @@ void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
   fprintf(fp_, ".balign 4096\n");
 #elif V8_TARGET_ARCH_X64
   // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
-  STATIC_ASSERT(64 >= kCodeAlignment);
+  static_assert(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");
 #elif V8_TARGET_ARCH_PPC64
   // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
   // don't cross 64-byte boundaries.
-  STATIC_ASSERT(64 >= kCodeAlignment);
+  static_assert(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");
 #else
-  STATIC_ASSERT(32 >= kCodeAlignment);
+  static_assert(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
 #endif
 }
@@ -95,7 +95,7 @@ void PlatformEmbeddedFileWriterGeneric::AlignToDataAlignment() {
   // instructions are used to retrieve v8_Default_embedded_blob_ and/or
   // v8_Default_embedded_blob_size_. The generated instructions require the
   // load target to be aligned at 8 bytes (2^3).
-  STATIC_ASSERT(8 >= Code::kMetadataAlignment);
+  static_assert(8 >= Code::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 

@@ -317,12 +317,12 @@ void SharedFunctionInfo::set_osr_code_cache_state(
 }
 
 LanguageMode SharedFunctionInfo::language_mode() const {
-  STATIC_ASSERT(LanguageModeSize == 2);
+  static_assert(LanguageModeSize == 2);
   return construct_language_mode(IsStrictBit::decode(flags(kRelaxedLoad)));
 }
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
-  STATIC_ASSERT(LanguageModeSize == 2);
+  static_assert(LanguageModeSize == 2);
   // We only allow language mode transitions that set the same language mode
   // again or go up in the chain:
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
@@ -333,7 +333,7 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
-  STATIC_ASSERT(FunctionKindBits::kSize == kFunctionKindBitSize);
+  static_assert(FunctionKindBits::kSize == kFunctionKindBitSize);
   return FunctionKindBits::decode(flags(kRelaxedLoad));
 }
 
@@ -378,7 +378,7 @@ int SharedFunctionInfo::function_map_index() const {
 }
 
 void SharedFunctionInfo::set_function_map_index(int index) {
-  STATIC_ASSERT(Context::LAST_FUNCTION_MAP_INDEX <=
+  static_assert(Context::LAST_FUNCTION_MAP_INDEX <=
                 Context::FIRST_FUNCTION_MAP_INDEX + FunctionMapIndexBits::kMax);
   DCHECK_LE(Context::FIRST_FUNCTION_MAP_INDEX, index);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
@@ -828,9 +828,9 @@ void SharedFunctionInfo::ClearPreparseData() {
   // We are basically trimming that object to its supertype, so recorded slots
   // within the object don't need to be invalidated.
   heap->NotifyObjectLayoutChange(data, no_gc, InvalidateRecordedSlots::kNo);
-  STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize <
+  static_assert(UncompiledDataWithoutPreparseData::kSize <
                 UncompiledDataWithPreparseData::kSize);
-  STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
+  static_assert(UncompiledDataWithoutPreparseData::kSize ==
                 UncompiledData::kHeaderSize);
 
   // Fill the remaining space with filler and clear slots in the trimmed area.

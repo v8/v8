@@ -98,7 +98,7 @@ class SerializerReference {
 };
 
 // SerializerReference has to fit in an IdentityMap value field.
-STATIC_ASSERT(sizeof(SerializerReference) <= sizeof(void*));
+static_assert(sizeof(SerializerReference) <= sizeof(void*));
 
 class SerializerReferenceMap {
  public:

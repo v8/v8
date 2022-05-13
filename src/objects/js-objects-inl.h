@@ -916,7 +916,7 @@ static inline bool ShouldConvertToSlowElements(JSObject object,
                                                uint32_t capacity,
                                                uint32_t index,
                                                uint32_t* new_capacity) {
-  STATIC_ASSERT(JSObject::kMaxUncheckedOldFastElementsLength <=
+  static_assert(JSObject::kMaxUncheckedOldFastElementsLength <=
                 JSObject::kMaxUncheckedFastElementsLength);
   if (index < capacity) {
     *new_capacity = capacity;

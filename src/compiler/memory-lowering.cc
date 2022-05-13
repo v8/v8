@@ -420,7 +420,7 @@ Node* MemoryLowering::DecodeExternalPointer(
   // Clone the load node and put it here.
   // TODO(turbofan): consider adding GraphAssembler::Clone() suitable for
   // cloning nodes from arbitrary locaions in effect/control chains.
-  STATIC_ASSERT(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+  static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
   Node* shifted_index = __ AddNode(graph()->CloneNode(node));
   Node* shift_amount =
       __ Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);

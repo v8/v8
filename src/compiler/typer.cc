@@ -1371,7 +1371,7 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
       4398046511103.0, 8796093022207.0, 17592186044415.0, 35184372088831.0,
       70368744177663.0, 140737488355327.0, 281474976710655.0,
       562949953421311.0};
-  STATIC_ASSERT(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
+  static_assert(arraysize(kWeakenMinLimits) == arraysize(kWeakenMaxLimits));
 
   // If the types have nothing to do with integers, return the types.
   Type const integer = typer_->cache_->kInteger;
@@ -1863,7 +1863,7 @@ Type Typer::Visitor::TypeJSForInNext(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSForInPrepare(Node* node) {
-  STATIC_ASSERT(Map::Bits3::EnumLengthBits::kMax <= FixedArray::kMaxLength);
+  static_assert(Map::Bits3::EnumLengthBits::kMax <= FixedArray::kMaxLength);
   Type const cache_type =
       Type::Union(Type::SignedSmall(), Type::OtherInternal(), zone());
   Type const cache_array = Type::OtherInternal();

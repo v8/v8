@@ -3598,7 +3598,7 @@ void InstructionSelector::VisitS128Const(Node* node) {
   Arm64OperandGenerator g(this);
   static const int kUint32Immediates = 4;
   uint32_t val[kUint32Immediates];
-  STATIC_ASSERT(sizeof(val) == kSimd128Size);
+  static_assert(sizeof(val) == kSimd128Size);
   memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
   // If all bytes are zeros, avoid emitting code for generic constants
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
@@ -3661,7 +3661,7 @@ base::Optional<BicImmParam> BicImm32bitHelper(uint32_t val) {
 base::Optional<BicImmParam> BicImmConstHelper(Node* const_node, bool not_imm) {
   const int kUint32Immediates = 4;
   uint32_t val[kUint32Immediates];
-  STATIC_ASSERT(sizeof(val) == kSimd128Size);
+  static_assert(sizeof(val) == kSimd128Size);
   memcpy(val, S128ImmediateParameterOf(const_node->op()).data(), kSimd128Size);
   // If 4 uint32s are not the same, cannot emit Bic
   if (!(val[0] == val[1] && val[1] == val[2] && val[2] == val[3])) {

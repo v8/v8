@@ -100,7 +100,7 @@ class SnapshotImpl : public AllStatic {
 
   static base::Vector<const byte> ChecksummedContent(
       const v8::StartupData* data) {
-    STATIC_ASSERT(kVersionStringOffset == kChecksumOffset + kUInt32Size);
+    static_assert(kVersionStringOffset == kChecksumOffset + kUInt32Size);
     const uint32_t kChecksumStart = kVersionStringOffset;
     return base::Vector<const byte>(
         reinterpret_cast<const byte*>(data->data + kChecksumStart),

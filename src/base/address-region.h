@@ -39,12 +39,12 @@ class AddressRegion {
   bool is_empty() const { return size_ == 0; }
 
   bool contains(Address address) const {
-    STATIC_ASSERT(std::is_unsigned<Address>::value);
+    static_assert(std::is_unsigned<Address>::value);
     return (address - begin()) < size();
   }
 
   bool contains(Address address, size_t size) const {
-    STATIC_ASSERT(std::is_unsigned<Address>::value);
+    static_assert(std::is_unsigned<Address>::value);
     Address offset = address - begin();
     return (offset < size_) && (offset + size <= size_);
   }

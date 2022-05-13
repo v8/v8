@@ -61,7 +61,7 @@ class PreParserIdentifier {
   bool IsAsync() const { return type_ == kAsyncIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
   bool IsEvalOrArguments() const {
-    STATIC_ASSERT(kEvalIdentifier + 1 == kArgumentsIdentifier);
+    static_assert(kEvalIdentifier + 1 == kArgumentsIdentifier);
     return base::IsInRange(type_, kEvalIdentifier, kArgumentsIdentifier);
   }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
@@ -226,7 +226,7 @@ class PreParserExpression {
   }
 
   bool IsPattern() const {
-    STATIC_ASSERT(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
+    static_assert(kObjectLiteralExpression + 1 == kArrayLiteralExpression);
     return base::IsInRange(TypeField::decode(code_), kObjectLiteralExpression,
                            kArrayLiteralExpression);
   }

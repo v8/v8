@@ -783,7 +783,7 @@ class NativeContext : public Context {
                       Handle<Object> parent);
 
  private:
-  STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
+  static_assert(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
                 Internals::kNativeContextEmbedderDataOffset);
 
   OBJECT_CONSTRUCTORS(NativeContext, Context);

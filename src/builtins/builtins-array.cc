@@ -1464,8 +1464,8 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
   }
   // We shouldn't overflow when adding another len.
   const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
-  STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
-  STATIC_ASSERT(FixedDoubleArray::kMaxLength < kHalfOfMaxInt);
+  static_assert(FixedArray::kMaxLength < kHalfOfMaxInt);
+  static_assert(FixedDoubleArray::kMaxLength < kHalfOfMaxInt);
   USE(kHalfOfMaxInt);
 
   int n_arguments = args->length();

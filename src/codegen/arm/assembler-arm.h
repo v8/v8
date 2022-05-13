@@ -104,11 +104,11 @@ class V8_EXPORT_PRIVATE Operand {
     return Operand(rm, ASR, kSmiTagSize);
   }
   V8_INLINE static Operand PointerOffsetFromSmiKey(Register key) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize);
   }
   V8_INLINE static Operand DoubleOffsetFromSmiKey(Register key) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kDoubleSizeLog2);
     return Operand(key, LSL, kDoubleSizeLog2 - kSmiTagSize);
   }
 
@@ -209,7 +209,7 @@ class V8_EXPORT_PRIVATE MemOperand {
   V8_INLINE static MemOperand PointerAddressFromSmiKey(Register array,
                                                        Register key,
                                                        AddrMode am = Offset) {
-    STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+    static_assert(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
     return MemOperand(array, key, LSL, kPointerSizeLog2 - kSmiTagSize, am);
   }
 
@@ -1259,7 +1259,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value

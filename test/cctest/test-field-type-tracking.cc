@@ -778,7 +778,7 @@ void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
                          ChangeAlertMechanism expected_alert) {
   // Check the cases when the map being reconfigured is a part of the
   // transition tree.
-  STATIC_ASSERT(kPropCount > 4);
+  static_assert(kPropCount > 4);
   int indices[] = {0, 2, kPropCount - 1};
   for (int i = 0; i < static_cast<int>(arraysize(indices)); i++) {
     TestGeneralizeField(-1, indices[i], from, to, expected, expected_alert);
@@ -3011,7 +3011,7 @@ TEST(NormalizeToMigrationTarget) {
 }
 
 TEST(RepresentationPredicatesAreInSync) {
-  STATIC_ASSERT(Representation::kNumRepresentations == 6);
+  static_assert(Representation::kNumRepresentations == 6);
   static Representation reps[] = {
       Representation::None(),   Representation::Smi(),
       Representation::Double(), Representation::HeapObject(),

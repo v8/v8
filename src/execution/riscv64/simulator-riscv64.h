@@ -753,7 +753,7 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOpFMA(Func fn, T dst, T src1, T src2) {
-    STATIC_ASSERT(std::is_floating_point<T>::value);
+    static_assert(std::is_floating_point<T>::value);
     auto alu_out = fn(dst, src1, src2);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
@@ -768,7 +768,7 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp3(Func fn) {
-    STATIC_ASSERT(std::is_floating_point<T>::value);
+    static_assert(std::is_floating_point<T>::value);
     T src1 = std::is_same<float, T>::value ? frs1() : drs1();
     T src2 = std::is_same<float, T>::value ? frs2() : drs2();
     T src3 = std::is_same<float, T>::value ? frs3() : drs3();
@@ -786,7 +786,7 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp2(Func fn) {
-    STATIC_ASSERT(std::is_floating_point<T>::value);
+    static_assert(std::is_floating_point<T>::value);
     T src1 = std::is_same<float, T>::value ? frs1() : drs1();
     T src2 = std::is_same<float, T>::value ? frs2() : drs2();
     auto alu_out = fn(src1, src2);
@@ -802,7 +802,7 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp1(Func fn) {
-    STATIC_ASSERT(std::is_floating_point<T>::value);
+    static_assert(std::is_floating_point<T>::value);
     T src1 = std::is_same<float, T>::value ? frs1() : drs1();
     auto alu_out = fn(src1);
     // if any input or result is NaN, the result is quiet_NaN

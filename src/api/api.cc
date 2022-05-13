@@ -1078,7 +1078,7 @@ Context::BackupIncumbentScope::~BackupIncumbentScope() {
   i_isolate->set_top_backup_incumbent_scope(prev_);
 }
 
-STATIC_ASSERT(i::Internals::kEmbedderDataSlotSize == i::kEmbedderDataSlotSize);
+static_assert(i::Internals::kEmbedderDataSlotSize == i::kEmbedderDataSlotSize);
 
 static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
                                                        int index, bool can_grow,
@@ -5157,7 +5157,7 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
                                              i_isolate);
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
-  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
@@ -5176,7 +5176,7 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   i::NestedTimedHistogramScope execute_timer(i_isolate->counters()->execute(),
                                              i_isolate);
   auto self = Utils::OpenHandle(this);
-  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
@@ -5215,7 +5215,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   i::NestedTimedHistogramScope execute_timer(i_isolate->counters()->execute(),
                                              i_isolate);
   auto self = Utils::OpenHandle(this);
-  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   bool should_set_has_no_side_effect =
       side_effect_type == SideEffectType::kHasNoSideEffect &&
       i_isolate->debug_execution_mode() == i::DebugInfo::kSideEffects;
@@ -5269,7 +5269,7 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
   Utils::ApiCheck(!self.is_null(), "v8::Function::Call",
                   "Function to be called is a null pointer");
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
-  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
@@ -5587,7 +5587,7 @@ static int WriteUtf8Impl(base::Vector<const Char> string, char* write_start,
   int prev_char = unibrow::Utf16::kNoPreviousCharacter;
   // Do a fast loop where there is no exit capacity check.
   // Need enough space to write everything but one character.
-  STATIC_ASSERT(unibrow::Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit == 3);
+  static_assert(unibrow::Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit == 3);
   static const int kMaxSizePerChar = sizeof(Char) == 1 ? 2 : 3;
   while (read_index < read_length) {
     int up_to = read_length;
@@ -6768,7 +6768,7 @@ bool FunctionTemplate::IsLeafTemplateForApiObject(
 }
 
 Local<External> v8::External::New(Isolate* v8_isolate, void* value) {
-  STATIC_ASSERT(sizeof(value) == sizeof(i::Address));
+  static_assert(sizeof(value) == sizeof(i::Address));
   // Nullptr is not allowed here because serialization/deserialization of
   // nullptr external api references is not possible as nullptr is used as an
   // external_references table terminator, see v8::SnapshotCreator()
@@ -6836,7 +6836,7 @@ inline i::MaybeHandle<i::String> NewString(
   return factory->NewStringFromTwoByte(string);
 }
 
-STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
+static_assert(v8::String::kMaxLength == i::String::kMaxLength);
 
 }  // anonymous namespace
 
@@ -7267,7 +7267,7 @@ double v8::Date::ValueOf() const {
 // Assert that the static TimeZoneDetection cast in
 // DateTimeConfigurationChangeNotification is valid.
 #define TIME_ZONE_DETECTION_ASSERT_EQ(value)                     \
-  STATIC_ASSERT(                                                 \
+  static_assert(                                                 \
       static_cast<int>(v8::Isolate::TimeZoneDetection::value) == \
       static_cast<int>(base::TimezoneCache::TimeZoneDetection::value));
 TIME_ZONE_DETECTION_ASSERT_EQ(kSkip)
@@ -7313,7 +7313,7 @@ Local<v8::String> v8::RegExp::GetSource() const {
 
 // Assert that the static flags cast in GetFlags is valid.
 #define REGEXP_FLAG_ASSERT_EQ(flag)                   \
-  STATIC_ASSERT(static_cast<int>(v8::RegExp::flag) == \
+  static_assert(static_cast<int>(v8::RegExp::flag) == \
                 static_cast<int>(i::JSRegExp::flag))
 REGEXP_FLAG_ASSERT_EQ(kNone);
 REGEXP_FLAG_ASSERT_EQ(kGlobal);
@@ -9077,7 +9077,7 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   // Try to check for unreasonably large or small values from the embedder.
   const int64_t kMaxReasonableBytes = int64_t(1) << 60;
   const int64_t kMinReasonableBytes = -kMaxReasonableBytes;
-  STATIC_ASSERT(kMaxReasonableBytes >= i::JSArrayBuffer::kMaxByteLength);
+  static_assert(kMaxReasonableBytes >= i::JSArrayBuffer::kMaxByteLength);
 
   CHECK(kMinReasonableBytes <= change_in_bytes &&
         change_in_bytes < kMaxReasonableBytes);

@@ -519,7 +519,7 @@ Handle<FixedArray> GetOrCreateInstanceProxyCache(
 template <typename Proxy>
 Handle<JSObject> GetOrCreateInstanceProxy(Isolate* isolate,
                                           Handle<WasmInstanceObject> instance) {
-  STATIC_ASSERT(Proxy::kId < kNumInstanceProxies);
+  static_assert(Proxy::kId < kNumInstanceProxies);
   Handle<FixedArray> proxies = GetOrCreateInstanceProxyCache(isolate, instance);
   if (!proxies->is_the_hole(isolate, Proxy::kId)) {
     return handle(JSObject::cast(proxies->get(Proxy::kId)), isolate);

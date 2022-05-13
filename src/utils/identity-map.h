@@ -103,9 +103,9 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
 template <typename V, class AllocationPolicy>
 class IdentityMap : public IdentityMapBase {
  public:
-  STATIC_ASSERT(sizeof(V) <= sizeof(uintptr_t));
-  STATIC_ASSERT(std::is_trivially_copyable<V>::value);
-  STATIC_ASSERT(std::is_trivially_destructible<V>::value);
+  static_assert(sizeof(V) <= sizeof(uintptr_t));
+  static_assert(std::is_trivially_copyable<V>::value);
+  static_assert(std::is_trivially_destructible<V>::value);
 
   explicit IdentityMap(Heap* heap,
                        AllocationPolicy allocator = AllocationPolicy())

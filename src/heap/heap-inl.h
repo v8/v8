@@ -502,7 +502,7 @@ int Heap::NextScriptId() {
   Smi new_id, last_id_before_cas;
   do {
     if (last_id.value() == Smi::kMaxValue) {
-      STATIC_ASSERT(v8::UnboundScript::kNoScriptId == 0);
+      static_assert(v8::UnboundScript::kNoScriptId == 0);
       new_id = Smi::FromInt(1);
     } else {
       new_id = Smi::FromInt(last_id.value() + 1);

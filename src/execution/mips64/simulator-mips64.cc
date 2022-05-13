@@ -2408,7 +2408,7 @@ void Simulator::SoftwareInterrupt() {
     int64_t arg17 = stack_pointer[9];
     int64_t arg18 = stack_pointer[10];
     int64_t arg19 = stack_pointer[11];
-    STATIC_ASSERT(kMaxCParameters == 20);
+    static_assert(kMaxCParameters == 20);
 
     bool fp_call =
         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||

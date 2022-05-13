@@ -532,22 +532,22 @@ void NativeContext::IncrementErrorsThrown() {
 
 int NativeContext::GetErrorsThrown() { return errors_thrown().value(); }
 
-STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 2);
-STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS == 3);
-STATIC_ASSERT(NativeContext::kScopeInfoOffset ==
+static_assert(Context::MIN_CONTEXT_SLOTS == 2);
+static_assert(Context::MIN_CONTEXT_EXTENDED_SLOTS == 3);
+static_assert(NativeContext::kScopeInfoOffset ==
               Context::OffsetOfElementAt(NativeContext::SCOPE_INFO_INDEX));
-STATIC_ASSERT(NativeContext::kPreviousOffset ==
+static_assert(NativeContext::kPreviousOffset ==
               Context::OffsetOfElementAt(NativeContext::PREVIOUS_INDEX));
-STATIC_ASSERT(NativeContext::kExtensionOffset ==
+static_assert(NativeContext::kExtensionOffset ==
               Context::OffsetOfElementAt(NativeContext::EXTENSION_INDEX));
 
-STATIC_ASSERT(NativeContext::kStartOfStrongFieldsOffset ==
+static_assert(NativeContext::kStartOfStrongFieldsOffset ==
               Context::OffsetOfElementAt(-1));
-STATIC_ASSERT(NativeContext::kStartOfWeakFieldsOffset ==
+static_assert(NativeContext::kStartOfWeakFieldsOffset ==
               Context::OffsetOfElementAt(NativeContext::FIRST_WEAK_SLOT));
-STATIC_ASSERT(NativeContext::kMicrotaskQueueOffset ==
+static_assert(NativeContext::kMicrotaskQueueOffset ==
               Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS));
-STATIC_ASSERT(NativeContext::kSize ==
+static_assert(NativeContext::kSize ==
               (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
                kSystemPointerSize));
 

@@ -27,7 +27,7 @@ constexpr inline
     typename std::enable_if<std::is_unsigned<T>::value && sizeof(T) <= 8,
                             unsigned>::type
     CountPopulation(T value) {
-  STATIC_ASSERT(sizeof(T) <= 8);
+  static_assert(sizeof(T) <= 8);
 #if V8_HAS_BUILTIN_POPCOUNT
   return sizeof(T) == 8 ? __builtin_popcountll(static_cast<uint64_t>(value))
                         : __builtin_popcount(static_cast<uint32_t>(value));
@@ -60,7 +60,7 @@ constexpr inline
 // ReverseBits(value) returns |value| in reverse bit order.
 template <typename T>
 T ReverseBits(T value) {
-  STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+  static_assert((sizeof(value) == 1) || (sizeof(value) == 2) ||
                 (sizeof(value) == 4) || (sizeof(value) == 8));
   T result = 0;
   for (unsigned i = 0; i < (sizeof(value) * 8); i++) {
@@ -167,7 +167,7 @@ template <typename T,
 inline constexpr int WhichPowerOfTwo(T value) {
   DCHECK(IsPowerOfTwo(value));
 #if V8_HAS_BUILTIN_CTZ
-  STATIC_ASSERT(sizeof(T) <= 8);
+  static_assert(sizeof(T) <= 8);
   return sizeof(T) == 8 ? __builtin_ctzll(static_cast<uint64_t>(value))
                         : __builtin_ctz(static_cast<uint32_t>(value));
 #else

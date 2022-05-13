@@ -104,7 +104,7 @@ TEST(DeoptExitSizeIsFixed) {
 
   AssemblerBufferWriteScope rw_scope(*buffer);
 
-  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     Label before_exit;

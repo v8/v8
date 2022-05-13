@@ -1657,7 +1657,7 @@ TEST(InvalidExternalString) {
     CcTest::InitializeVM();                                              \
     LocalContext context;                                                \
     Isolate* isolate = CcTest::i_isolate();                              \
-    STATIC_ASSERT(String::kMaxLength < kMaxInt);                         \
+    static_assert(String::kMaxLength < kMaxInt);                         \
     static const int invalid = String::kMaxLength + 1;                   \
     HandleScope scope(isolate);                                          \
     v8::base::Vector<TYPE> dummy = v8::base::Vector<TYPE>::New(invalid); \

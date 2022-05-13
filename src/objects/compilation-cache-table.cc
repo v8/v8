@@ -46,7 +46,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
                            Handle<FeedbackCell> feedback_cell) {
   Isolate* isolate = native_context->GetIsolate();
   DCHECK(native_context->IsNativeContext());
-  STATIC_ASSERT(kLiteralEntryLength == 2);
+  static_assert(kLiteralEntryLength == 2);
   Handle<WeakFixedArray> new_literals_map;
   int entry;
 
@@ -333,7 +333,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
   Object obj = table->PrimaryValueAt(entry);
   if (!obj.IsSharedFunctionInfo()) return empty_result;
 
-  STATIC_ASSERT(CompilationCacheShape::kEntrySize == 3);
+  static_assert(CompilationCacheShape::kEntrySize == 3);
   FeedbackCell feedback_cell =
       SearchLiteralsMap(*table, entry, *native_context);
   return InfoCellPair(isolate, SharedFunctionInfo::cast(obj), feedback_cell);

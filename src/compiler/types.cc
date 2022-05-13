@@ -1183,10 +1183,10 @@ Handle<TurbofanType> Type::AllocateOnHeap(Factory* factory) {
 }
 
 #define VERIFY_TORQUE_LOW_BITSET_AGREEMENT(Name, _)           \
-  STATIC_ASSERT(static_cast<uint32_t>(BitsetType::k##Name) == \
+  static_assert(static_cast<uint32_t>(BitsetType::k##Name) == \
                 static_cast<uint32_t>(TurbofanTypeLowBits::k##Name));
 #define VERIFY_TORQUE_HIGH_BITSET_AGREEMENT(Name, _)                     \
-  STATIC_ASSERT(static_cast<uint32_t>(                                   \
+  static_assert(static_cast<uint32_t>(                                   \
                     static_cast<uint64_t>(BitsetType::k##Name) >> 32) == \
                 static_cast<uint32_t>(TurbofanTypeHighBits::k##Name));
 INTERNAL_BITSET_TYPE_LIST(VERIFY_TORQUE_LOW_BITSET_AGREEMENT)

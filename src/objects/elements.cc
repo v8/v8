@@ -1988,7 +1988,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     // normalization frequently enough. At a minimum, it should be large
     // enough to reliably hit the "window" of remaining elements count where
     // normalization would be beneficial.
-    STATIC_ASSERT(kLengthFraction >=
+    static_assert(kLengthFraction >=
                   NumberDictionary::kEntrySize *
                       NumberDictionary::kPreferFastElementsSizeFactor);
     size_t current_counter = isolate->elements_deletion_counter();
@@ -2613,7 +2613,7 @@ class FastSmiOrObjectElementsAccessor
     // elements->get(k) can return the hole, for which the StrictEquals will
     // always fail.
     FixedArray elements = FixedArray::cast(receiver->elements());
-    STATIC_ASSERT(FixedArray::kMaxLength <=
+    static_assert(FixedArray::kMaxLength <=
                   std::numeric_limits<uint32_t>::max());
     for (size_t k = start_from; k < length; ++k) {
       if (value.StrictEquals(elements.get(static_cast<uint32_t>(k)))) {
@@ -3012,7 +3012,7 @@ class FastDoubleElementsAccessor
     double numeric_search_value = value.Number();
     FixedDoubleArray elements = FixedDoubleArray::cast(receiver->elements());
 
-    STATIC_ASSERT(FixedDoubleArray::kMaxLength <=
+    static_assert(FixedDoubleArray::kMaxLength <=
                   std::numeric_limits<int>::max());
     for (size_t k = start_from; k < length; ++k) {
       int k_int = static_cast<int>(k);
@@ -3110,7 +3110,7 @@ class TypedElementsAccessor
     if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr),
                   alignof(std::atomic<ElementType>))) {
       // Use a single relaxed atomic store.
-      STATIC_ASSERT(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
+      static_assert(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
       reinterpret_cast<std::atomic<ElementType>*>(data_ptr)->store(
           value, std::memory_order_relaxed);
       return;
@@ -3133,7 +3133,7 @@ class TypedElementsAccessor
     CHECK_EQ(sizeof(words), sizeof(value));
     memcpy(words, &value, sizeof(value));
     for (size_t word = 0; word < kNumWords; ++word) {
-      STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
+      static_assert(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
       reinterpret_cast<std::atomic<uint32_t>*>(data_ptr)[word].store(
           words[word], std::memory_order_relaxed);
     }
@@ -3173,7 +3173,7 @@ class TypedElementsAccessor
     if (IsAligned(reinterpret_cast<uintptr_t>(data_ptr),
                   alignof(std::atomic<ElementType>))) {
       // Use a single relaxed atomic load.
-      STATIC_ASSERT(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
+      static_assert(sizeof(std::atomic<ElementType>) == sizeof(ElementType));
       // Note: acquire semantics are not needed here, but clang seems to merge
       // this atomic load with the non-atomic load above if we use relaxed
       // semantics. This will result in TSan failures.
@@ -3196,7 +3196,7 @@ class TypedElementsAccessor
         std::max(size_t{1}, sizeof(ElementType) / kInt32Size);
     uint32_t words[kNumWords];
     for (size_t word = 0; word < kNumWords; ++word) {
-      STATIC_ASSERT(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
+      static_assert(sizeof(std::atomic<uint32_t>) == sizeof(uint32_t));
       words[word] =
           reinterpret_cast<std::atomic<uint32_t>*>(data_ptr)[word].load(
               std::memory_order_relaxed);
@@ -5277,7 +5277,7 @@ void ElementsAccessor::InitializeOncePerProcess() {
 #undef ACCESSOR_ARRAY
   };
 
-  STATIC_ASSERT((sizeof(accessor_array) / sizeof(*accessor_array)) ==
+  static_assert((sizeof(accessor_array) / sizeof(*accessor_array)) ==
                 kElementsKindCount);
 
   elements_accessors_ = accessor_array;

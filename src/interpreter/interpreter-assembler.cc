@@ -313,7 +313,7 @@ void InterpreterAssembler::StoreRegisterForShortStar(TNode<Object> value,
   constexpr int short_star_to_operand =
       Register(0).ToOperand() - static_cast<int>(Bytecode::kStar0);
   // Make sure the values count in the right direction.
-  STATIC_ASSERT(short_star_to_operand ==
+  static_assert(short_star_to_operand ==
                 Register(1).ToOperand() - static_cast<int>(Bytecode::kStar1));
 
   TNode<IntPtrT> offset =
@@ -1176,9 +1176,9 @@ void InterpreterAssembler::StarDispatchLookahead(TNode<WordT> target_bytecode) {
   // opcodes are never deliberately written, so we can use a one-sided check.
   // This is no less secure than the normal-length Star handler, which performs
   // no validation on its operand.
-  STATIC_ASSERT(static_cast<int>(Bytecode::kLastShortStar) + 1 ==
+  static_assert(static_cast<int>(Bytecode::kLastShortStar) + 1 ==
                 static_cast<int>(Bytecode::kIllegal));
-  STATIC_ASSERT(Bytecode::kIllegal == Bytecode::kLast);
+  static_assert(Bytecode::kIllegal == Bytecode::kLast);
   TNode<Int32T> first_short_star_bytecode =
       Int32Constant(static_cast<int>(Bytecode::kFirstShortStar));
   TNode<BoolT> is_star = Uint32GreaterThanOrEqual(

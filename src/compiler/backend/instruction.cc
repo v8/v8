@@ -335,7 +335,7 @@ Instruction::Instruction(InstructionCode opcode)
   parallel_moves_[1] = nullptr;
 
   // PendingOperands are required to be 8 byte aligned.
-  STATIC_ASSERT(offsetof(Instruction, operands_) % 8 == 0);
+  static_assert(offsetof(Instruction, operands_) % 8 == 0);
 }
 
 Instruction::Instruction(InstructionCode opcode, size_t output_count,

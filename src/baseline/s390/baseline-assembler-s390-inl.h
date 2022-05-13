@@ -70,7 +70,7 @@ enum class Condition : uint32_t {
 };
 
 inline internal::Condition AsMasmCondition(Condition cond) {
-  STATIC_ASSERT(sizeof(internal::Condition) == sizeof(Condition));
+  static_assert(sizeof(internal::Condition) == sizeof(Condition));
   switch (cond) {
     case Condition::kEqual:
       return eq;

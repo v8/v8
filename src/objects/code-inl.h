@@ -536,7 +536,7 @@ int Code::CodeSize() const { return SizeFor(raw_body_size()); }
 DEF_GETTER(Code, Size, int) { return CodeSize(); }
 
 CodeKind Code::kind() const {
-  STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
+  static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
   return KindField::decode(flags);
 }
@@ -612,7 +612,7 @@ void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
                    IsTurbofannedField::encode(is_turbofanned) |
                    StackSlotsField::encode(stack_slots) |
                    IsOffHeapTrampoline::encode(is_off_heap_trampoline);
-  STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
+  static_assert(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   RELAXED_WRITE_UINT32_FIELD(*this, kFlagsOffset, flags);
   DCHECK_IMPLIES(stack_slots != 0, uses_safepoint_table());
   DCHECK_IMPLIES(!uses_safepoint_table(), stack_slots == 0);
@@ -909,7 +909,7 @@ bool Code::IsExecutable() {
 
 // This field has to have relaxed atomic accessors because it is accessed in the
 // concurrent marker.
-STATIC_ASSERT(FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) ==
+static_assert(FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) ==
               kInt32Size);
 RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
                         kKindSpecificFlagsOffset)
@@ -1072,8 +1072,8 @@ RELAXED_UINT16_ACCESSORS(CodeDataContainer, flags, kFlagsOffset)
 // Ensure builtin_id field fits into int16_t, so that we can rely on sign
 // extension to convert int16_t{-1} to kNoBuiltinId.
 // If the asserts fail, update the code that use kBuiltinIdOffset below.
-STATIC_ASSERT(static_cast<int>(Builtin::kNoBuiltinId) == -1);
-STATIC_ASSERT(Builtins::kBuiltinCount < std::numeric_limits<int16_t>::max());
+static_assert(static_cast<int>(Builtin::kNoBuiltinId) == -1);
+static_assert(Builtins::kBuiltinCount < std::numeric_limits<int16_t>::max());
 
 void CodeDataContainer::initialize_flags(CodeKind kind, Builtin builtin_id) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
@@ -1093,7 +1093,7 @@ Builtin CodeDataContainer::builtin_id() const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   // Rely on sign-extension when converting int16_t to int to preserve
   // kNoBuiltinId value.
-  STATIC_ASSERT(static_cast<int>(static_cast<int16_t>(Builtin::kNoBuiltinId)) ==
+  static_assert(static_cast<int>(static_cast<int16_t>(Builtin::kNoBuiltinId)) ==
                 static_cast<int>(Builtin::kNoBuiltinId));
   int value = ReadField<int16_t>(kBuiltinIdOffset);
   return static_cast<Builtin>(value);

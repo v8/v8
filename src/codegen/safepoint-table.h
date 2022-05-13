@@ -116,8 +116,8 @@ class SafepointTable {
     int deopt_index = SafepointEntry::kNoDeoptIndex;
     int trampoline_pc = SafepointEntry::kNoTrampolinePC;
     if (has_deopt_data()) {
-      STATIC_ASSERT(SafepointEntry::kNoDeoptIndex == -1);
-      STATIC_ASSERT(SafepointEntry::kNoTrampolinePC == -1);
+      static_assert(SafepointEntry::kNoDeoptIndex == -1);
+      static_assert(SafepointEntry::kNoTrampolinePC == -1);
       // `-1` to restore the original value, see also
       // SafepointTableBuilder::Emit.
       deopt_index = read_bytes(&entry_ptr, deopt_index_size()) - 1;

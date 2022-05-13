@@ -378,7 +378,7 @@ class BasicMemoryChunk {
 
 DEFINE_OPERATORS_FOR_FLAGS(BasicMemoryChunk::MainThreadFlags)
 
-STATIC_ASSERT(std::is_standard_layout<BasicMemoryChunk>::value);
+static_assert(std::is_standard_layout<BasicMemoryChunk>::value);
 
 }  // namespace internal
 }  // namespace v8

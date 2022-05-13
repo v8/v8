@@ -59,7 +59,7 @@ void WebSnapshotSerializerDeserializer::IterateBuiltinObjects(
   func(*factory()->NewStringFromAsciiChecked("Object.prototype"),
        isolate_->context().initial_object_prototype());
 
-  STATIC_ASSERT(kBuiltinObjectCount == 4);
+  static_assert(kBuiltinObjectCount == 4);
 }
 
 uint32_t WebSnapshotSerializerDeserializer::FunctionKindToFunctionFlags(
@@ -1870,7 +1870,7 @@ void WebSnapshotDeserializer::DeserializeStrings() {
     Throw("Malformed string table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
   strings_handle_ = factory()->NewFixedArray(string_count_);
   strings_ = *strings_handle_;
   for (uint32_t i = 0; i < string_count_; ++i) {
@@ -1934,7 +1934,7 @@ void WebSnapshotDeserializer::DeserializeSymbols() {
     Throw("Malformed symbol table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
   symbols_handle_ = factory()->NewFixedArray(symbol_count_);
   symbols_ = *symbols_handle_;
   for (uint32_t i = 0; i < symbol_count_; ++i) {
@@ -1971,7 +1971,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     Throw("Malformed shape table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
   maps_handle_ = factory()->NewFixedArray(map_count_);
   maps_ = *maps_handle_;
   for (uint32_t i = 0; i < map_count_; ++i) {
@@ -2045,7 +2045,7 @@ void WebSnapshotDeserializer::DeserializeBuiltinObjects() {
     Throw("Malformed builtin object table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
   builtin_objects_handle_ = factory()->NewFixedArray(builtin_object_count_);
   builtin_objects_ = *builtin_objects_handle_;
   for (uint32_t i = 0; i < builtin_object_count_; ++i) {
@@ -2062,7 +2062,7 @@ void WebSnapshotDeserializer::DeserializeContexts() {
     Throw("Malformed context table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
   contexts_handle_ = factory()->NewFixedArray(context_count_);
   contexts_ = *contexts_handle_;
   for (uint32_t i = 0; i < context_count_; ++i) {
@@ -2298,7 +2298,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     Throw("Malformed function table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount + 1 <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount + 1 <= FixedArray::kMaxLength);
   functions_handle_ = factory()->NewFixedArray(function_count_);
   functions_ = *functions_handle_;
 
@@ -2366,7 +2366,7 @@ void WebSnapshotDeserializer::DeserializeClasses() {
     Throw("Malformed class table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount + 1 <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount + 1 <= FixedArray::kMaxLength);
   classes_handle_ = factory()->NewFixedArray(class_count_);
   classes_ = *classes_handle_;
 
@@ -2520,7 +2520,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
     Throw("Malformed objects table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
   objects_handle_ = factory()->NewFixedArray(object_count_);
   objects_ = *objects_handle_;
   for (; current_object_count_ < object_count_; ++current_object_count_) {
@@ -2730,7 +2730,7 @@ void WebSnapshotDeserializer::DeserializeArrays() {
     Throw("Malformed array table");
     return;
   }
-  STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
   arrays_handle_ = factory()->NewFixedArray(array_count_);
   arrays_ = *arrays_handle_;
   for (; current_array_count_ < array_count_; ++current_array_count_) {

@@ -1989,7 +1989,7 @@ Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
 
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* check = __ Uint32LessThanOrEqual(
       __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObject, FeedbackSource(),
@@ -2006,8 +2006,8 @@ Node* EffectControlLinearizer::LowerCheckReceiverOrNullOrUndefined(
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
 
   // Rule out all primitives except oddballs (true, false, undefined, null).
-  STATIC_ASSERT(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  static_assert(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* check0 = __ Uint32LessThanOrEqual(__ Uint32Constant(ODDBALL_TYPE),
                                           value_instance_type);
   __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
@@ -3388,7 +3388,7 @@ Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* check1 = __ Uint32LessThanOrEqual(
       __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
   __ GotoIfNot(check1, &if_primitive);
@@ -3433,7 +3433,7 @@ Node* EffectControlLinearizer::LowerObjectIsReceiver(Node* node) {
 
   __ GotoIf(ObjectIsSmi(value), &if_smi);
 
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
@@ -3721,8 +3721,8 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   auto if_onebyte = __ MakeLabel();
   auto if_twobyte = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
-  STATIC_ASSERT(kOneByteStringTag != 0);
-  STATIC_ASSERT(kTwoByteStringTag == 0);
+  static_assert(kOneByteStringTag != 0);
+  static_assert(kTwoByteStringTag == 0);
   Node* instance_type = __ Word32And(first_instance_type, second_instance_type);
   Node* encoding =
       __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask));
@@ -6110,7 +6110,7 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
 
       // Check if {value} is already a JSReceiver.
       __ GotoIf(ObjectIsSmi(value), &convert_to_object);
-      STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+      static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
       Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
       Node* value_instance_type =
           __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
@@ -6143,7 +6143,7 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
 
       // Check if {value} is already a JSReceiver, or null/undefined.
       __ GotoIf(ObjectIsSmi(value), &convert_to_object);
-      STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+      static_assert(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
       Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
       Node* value_instance_type =
           __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);

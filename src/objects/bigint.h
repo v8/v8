@@ -59,10 +59,10 @@ class BigIntBase : public PrimitiveHeapObject {
   // Sign and length are stored in the same bitfield.  Since the GC needs to be
   // able to read the length concurrently, the getters and setters are atomic.
   static const int kLengthFieldBits = 30;
-  STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
+  static_assert(kMaxLength <= ((1 << kLengthFieldBits) - 1));
   using SignBits = base::BitField<bool, 0, 1>;
   using LengthBits = SignBits::Next<int, kLengthFieldBits>;
-  STATIC_ASSERT(LengthBits::kLastUsedBit < 32);
+  static_assert(LengthBits::kLastUsedBit < 32);
 
   // Layout description.
 #define BIGINT_FIELDS(V)                                                  \
@@ -90,7 +90,7 @@ class BigIntBase : public PrimitiveHeapObject {
   using digit_t = uintptr_t;
   static const int kDigitSize = sizeof(digit_t);
   // kMaxLength definition assumes this:
-  STATIC_ASSERT(kDigitSize == kSystemPointerSize);
+  static_assert(kDigitSize == kSystemPointerSize);
 
   static const int kDigitBits = kDigitSize * kBitsPerByte;
   static const int kHalfDigitBits = kDigitBits / 2;

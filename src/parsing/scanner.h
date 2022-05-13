@@ -482,7 +482,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Call this after setting source_ to the input.
   void Init() {
     // Set c0_ (one character ahead)
-    STATIC_ASSERT(kCharacterLookaheadBufferSize == 1);
+    static_assert(kCharacterLookaheadBufferSize == 1);
     Advance();
 
     current_ = &token_storage_[0];

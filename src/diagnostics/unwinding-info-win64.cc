@@ -287,7 +287,7 @@ struct V8UnwindData {
     // error is acceptable when the unwinding info for the caller frame also
     // depends on fp rather than sp, as is the case for V8 builtins and runtime-
     // generated code.
-    STATIC_ASSERT(kNumberOfUnwindCodeWords >= 1);
+    static_assert(kNumberOfUnwindCodeWords >= 1);
     unwind_codes[0] = Combine8BitUnwindCodes(
         OpSetFp, MakeOpSaveFpLrX(-CommonFrameConstants::kCallerSPOffset),
         OpEnd);
@@ -346,7 +346,7 @@ std::vector<uint8_t> GetUnwindInfoForBuiltinFunction(
 
   if (fp_adjustment.IsDefault()) {
     // One code word is plenty.
-    STATIC_ASSERT(kDefaultNumberOfUnwindCodeWords <
+    static_assert(kDefaultNumberOfUnwindCodeWords <
                   kMaxNumberOfUnwindCodeWords);
     xdata.unwind_info.CodeWords = kDefaultNumberOfUnwindCodeWords;
   } else {

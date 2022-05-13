@@ -104,7 +104,7 @@ void RelocInfoWriter::WriteShortData(intptr_t data_delta) {
 }
 
 void RelocInfoWriter::WriteMode(RelocInfo::Mode rmode) {
-  STATIC_ASSERT(RelocInfo::NUMBER_OF_MODES <= (1 << kLongTagBits));
+  static_assert(RelocInfo::NUMBER_OF_MODES <= (1 << kLongTagBits));
   *--pos_ = static_cast<int>((rmode << kTagBits) | kDefaultTag);
 }
 

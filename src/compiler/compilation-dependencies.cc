@@ -508,7 +508,7 @@ class OwnConstantDictionaryPropertyDependency final
         index_(index),
         value_(value) {
     // We depend on map() being cached.
-    STATIC_ASSERT(ref_traits<JSObject>::ref_serialization_kind !=
+    static_assert(ref_traits<JSObject>::ref_serialization_kind !=
                   RefSerializationKind::kNeverSerialized);
   }
 

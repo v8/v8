@@ -196,8 +196,8 @@ class CodeDataContainer : public HeapObject {
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
-  STATIC_ASSERT(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
-  STATIC_ASSERT(!V8_EXTERNAL_CODE_SPACE_BOOL ||
+  static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
+  static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL ||
                 (FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                  FIELD_SIZE(CodeDataContainer::kFlagsOffset) * kBitsPerByte));
 
@@ -672,7 +672,7 @@ class Code : public HeapObject {
 #else
 #error Unknown architecture.
 #endif
-  STATIC_ASSERT(FIELD_SIZE(kOptionalPaddingOffset) == kHeaderPaddingSize);
+  static_assert(FIELD_SIZE(kOptionalPaddingOffset) == kHeaderPaddingSize);
 
   class BodyDescriptor;
 
@@ -684,9 +684,9 @@ class Code : public HeapObject {
   V(IsOffHeapTrampoline, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
 #undef CODE_FLAGS_BIT_FIELDS
-  STATIC_ASSERT(kCodeKindCount <= KindField::kNumValues);
-  STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 30);
-  STATIC_ASSERT(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+  static_assert(kCodeKindCount <= KindField::kNumValues);
+  static_assert(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 30);
+  static_assert(CODE_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
 
   // KindSpecificFlags layout.
@@ -697,8 +697,8 @@ class Code : public HeapObject {
   V(IsPromiseRejectionField, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
-  STATIC_ASSERT(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
+  static_assert(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
+  static_assert(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(CodeDataContainer::kKindSpecificFlagsOffset) *
                     kBitsPerByte);
 

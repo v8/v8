@@ -191,7 +191,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   friend class InterruptsScope;
 };
 
-STATIC_ASSERT(StackGuard::kSizeInBytes == sizeof(StackGuard));
+static_assert(StackGuard::kSizeInBytes == sizeof(StackGuard));
 
 }  // namespace internal
 }  // namespace v8

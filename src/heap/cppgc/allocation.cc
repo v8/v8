@@ -18,7 +18,7 @@
 namespace cppgc {
 namespace internal {
 
-STATIC_ASSERT(api_constants::kLargeObjectSizeThreshold ==
+static_assert(api_constants::kLargeObjectSizeThreshold ==
               kLargeObjectSizeThreshold);
 
 #if !(defined(V8_TARGET_ARCH_32_BIT) && defined(V8_CC_GNU))

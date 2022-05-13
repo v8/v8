@@ -202,7 +202,7 @@ bool Context::HasSameSecurityTokenAs(Context that) const {
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
-#define CHECK_FOLLOWS2(v1, v2) STATIC_ASSERT((v1 + 1) == (v2))
+#define CHECK_FOLLOWS2(v1, v2) static_assert((v1 + 1) == (v2))
 #define CHECK_FOLLOWS4(v1, v2, v3, v4) \
   CHECK_FOLLOWS2(v1, v2);              \
   CHECK_FOLLOWS2(v2, v3);              \

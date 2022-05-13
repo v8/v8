@@ -1898,18 +1898,18 @@ namespace {
 
 DEFINE_TORQUE_GENERATED_STRING_INSTANCE_TYPE()
 
-STATIC_ASSERT(kStringRepresentationMask == RepresentationBits::kMask);
+static_assert(kStringRepresentationMask == RepresentationBits::kMask);
 
-STATIC_ASSERT(kStringEncodingMask == IsOneByteBit::kMask);
-STATIC_ASSERT(kTwoByteStringTag == IsOneByteBit::encode(false));
-STATIC_ASSERT(kOneByteStringTag == IsOneByteBit::encode(true));
+static_assert(kStringEncodingMask == IsOneByteBit::kMask);
+static_assert(kTwoByteStringTag == IsOneByteBit::encode(false));
+static_assert(kOneByteStringTag == IsOneByteBit::encode(true));
 
-STATIC_ASSERT(kUncachedExternalStringMask == IsUncachedBit::kMask);
-STATIC_ASSERT(kUncachedExternalStringTag == IsUncachedBit::encode(true));
+static_assert(kUncachedExternalStringMask == IsUncachedBit::kMask);
+static_assert(kUncachedExternalStringTag == IsUncachedBit::encode(true));
 
-STATIC_ASSERT(kIsNotInternalizedMask == IsNotInternalizedBit::kMask);
-STATIC_ASSERT(kNotInternalizedTag == IsNotInternalizedBit::encode(true));
-STATIC_ASSERT(kInternalizedTag == IsNotInternalizedBit::encode(false));
+static_assert(kIsNotInternalizedMask == IsNotInternalizedBit::kMask);
+static_assert(kNotInternalizedTag == IsNotInternalizedBit::encode(true));
+static_assert(kInternalizedTag == IsNotInternalizedBit::encode(false));
 }  // namespace
 
 }  // namespace internal

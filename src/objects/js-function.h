@@ -32,7 +32,7 @@ class JSFunctionOrBoundFunctionOrWrappedFunction
       Handle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
       Handle<JSReceiver> target, Handle<String> prefix, int arg_count);
 
-  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  static_assert(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
 };
 

@@ -1756,7 +1756,7 @@ class ModuleDecoderImpl : public Decoder {
 
   uint8_t validate_table_flags(const char* name) {
     uint8_t flags = consume_u8("table limits flags");
-    STATIC_ASSERT(kNoMaximum < kWithMaximum);
+    static_assert(kNoMaximum < kWithMaximum);
     if (V8_UNLIKELY(flags > kWithMaximum)) {
       errorf(pc() - 1, "invalid %s limits flags", name);
     }

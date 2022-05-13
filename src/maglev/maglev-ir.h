@@ -414,7 +414,7 @@ class NodeBase : public ZoneObject {
  private:
   // Bitfield specification.
   using OpcodeField = base::BitField<Opcode, 0, 6>;
-  STATIC_ASSERT(OpcodeField::is_valid(kLastOpcode));
+  static_assert(OpcodeField::is_valid(kLastOpcode));
   using OpPropertiesField =
       OpcodeField::Next<OpProperties, OpProperties::kSize>;
   using InputCountField = OpPropertiesField::Next<uint16_t, 16>;
@@ -451,7 +451,7 @@ class NodeBase : public ZoneObject {
       new (node->eager_deopt_info_address())
           EagerDeoptInfo(zone, compilation_unit, checkpoint);
     } else {
-      STATIC_ASSERT(Derived::kProperties.can_lazy_deopt());
+      static_assert(Derived::kProperties.can_lazy_deopt());
       new (node->lazy_deopt_info_address())
           LazyDeoptInfo(zone, compilation_unit, checkpoint);
     }
@@ -886,7 +886,7 @@ ValueLocation& Node::result() {
 
 template <class Derived>
 class NodeT : public Node {
-  STATIC_ASSERT(!IsValueNode(opcode_of<Derived>));
+  static_assert(!IsValueNode(opcode_of<Derived>));
 
  public:
   constexpr Opcode opcode() const { return opcode_of<Derived>; }
@@ -918,7 +918,7 @@ class FixedInputNodeT : public NodeT<Derived> {
 
 template <class Derived>
 class ValueNodeT : public ValueNode {
-  STATIC_ASSERT(IsValueNode(opcode_of<Derived>));
+  static_assert(IsValueNode(opcode_of<Derived>));
 
  public:
   constexpr Opcode opcode() const { return opcode_of<Derived>; }
@@ -1784,7 +1784,7 @@ class UnconditionalControlNode : public ControlNode {
 
 template <class Derived>
 class UnconditionalControlNodeT : public UnconditionalControlNode {
-  STATIC_ASSERT(IsUnconditionalControlNode(opcode_of<Derived>));
+  static_assert(IsUnconditionalControlNode(opcode_of<Derived>));
   static constexpr size_t kInputCount = 0;
 
  public:
@@ -1828,7 +1828,7 @@ class ConditionalControlNode : public ControlNode {
 
 template <size_t InputCount, class Derived>
 class ConditionalControlNodeT : public ConditionalControlNode {
-  STATIC_ASSERT(IsConditionalControlNode(opcode_of<Derived>));
+  static_assert(IsConditionalControlNode(opcode_of<Derived>));
   static constexpr size_t kInputCount = InputCount;
 
  public:

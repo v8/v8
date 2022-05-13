@@ -81,7 +81,7 @@ const char* Marking::kImpossibleBitPattern = "01";
 
 // The following has to hold in order for {MarkingState::MarkBitFrom} to not
 // produce invalid {kImpossibleBitPattern} in the marking bitmap by overlapping.
-STATIC_ASSERT(Heap::kMinObjectSizeInTaggedWords >= 2);
+static_assert(Heap::kMinObjectSizeInTaggedWords >= 2);
 
 // =============================================================================
 // Verifiers
@@ -2752,7 +2752,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // The size of the bytecode array should always be larger than an
   // UncompiledData object.
-  STATIC_ASSERT(BytecodeArray::SizeFor(0) >=
+  static_assert(BytecodeArray::SizeFor(0) >=
                 UncompiledDataWithoutPreparseData::kSize);
 
   // Replace bytecode array with an uncompiled data array.

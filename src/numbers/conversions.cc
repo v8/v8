@@ -462,7 +462,7 @@ void StringToIntHelper<IsolateT>::DetectRadixInternal(Char current,
   }
 
   DCHECK(radix_ >= 2 && radix_ <= 36);
-  STATIC_ASSERT(String::kMaxLength <= INT_MAX);
+  static_assert(String::kMaxLength <= INT_MAX);
   cursor_ = static_cast<int>(current - start);
 }
 

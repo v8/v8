@@ -177,7 +177,7 @@ SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
                                       uint64_t* value) {                    \
     *type = value_type_id;                                                  \
     *value = 0;                                                             \
-    STATIC_ASSERT(sizeof(arg) <= sizeof(*value));                           \
+    static_assert(sizeof(arg) <= sizeof(*value));                           \
     memcpy(value, &arg, sizeof(arg));                                       \
   }
 INTERNAL_DECLARE_SET_TRACE_VALUE(double, TRACE_VALUE_TYPE_DOUBLE)

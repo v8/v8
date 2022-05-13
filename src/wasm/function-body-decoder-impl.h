@@ -136,7 +136,7 @@ void DecodeError(Decoder* decoder, const byte* pc, const char* str,
                  Args&&... args) {
   CHECK(validate == Decoder::kFullValidation ||
         validate == Decoder::kBooleanValidation);
-  STATIC_ASSERT(sizeof...(Args) > 0);
+  static_assert(sizeof...(Args) > 0);
   if (validate == Decoder::kBooleanValidation) {
     decoder->MarkError();
   } else {
@@ -161,7 +161,7 @@ template <Decoder::ValidateFlag validate, typename... Args>
 void DecodeError(Decoder* decoder, const char* str, Args&&... args) {
   CHECK(validate == Decoder::kFullValidation ||
         validate == Decoder::kBooleanValidation);
-  STATIC_ASSERT(sizeof...(Args) > 0);
+  static_assert(sizeof...(Args) > 0);
   if (validate == Decoder::kBooleanValidation) {
     decoder->MarkError();
   } else {
@@ -3261,7 +3261,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         LoadType::kI32Load16S, LoadType::kI32Load16U, LoadType::kI64Load8S,
         LoadType::kI64Load8U,  LoadType::kI64Load16S, LoadType::kI64Load16U,
         LoadType::kI64Load32S, LoadType::kI64Load32U};
-    STATIC_ASSERT(arraysize(kLoadTypes) == kMaxOpcode - kMinOpcode + 1);
+    static_assert(arraysize(kLoadTypes) == kMaxOpcode - kMinOpcode + 1);
     DCHECK_LE(kMinOpcode, opcode);
     DCHECK_GE(kMaxOpcode, opcode);
     return DecodeLoadMem(kLoadTypes[opcode - kMinOpcode]);
@@ -3277,7 +3277,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         StoreType::kI32Store,  StoreType::kI64Store,   StoreType::kF32Store,
         StoreType::kF64Store,  StoreType::kI32Store8,  StoreType::kI32Store16,
         StoreType::kI64Store8, StoreType::kI64Store16, StoreType::kI64Store32};
-    STATIC_ASSERT(arraysize(kStoreTypes) == kMaxOpcode - kMinOpcode + 1);
+    static_assert(arraysize(kStoreTypes) == kMaxOpcode - kMinOpcode + 1);
     DCHECK_LE(kMinOpcode, opcode);
     DCHECK_GE(kMaxOpcode, opcode);
     return DecodeStoreMem(kStoreTypes[opcode - kMinOpcode]);

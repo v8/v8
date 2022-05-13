@@ -96,7 +96,7 @@ Bytecodes::kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount] = {
 
 // Make sure kFirstShortStar and kLastShortStar are set correctly.
 #define ASSERT_SHORT_STAR_RANGE(Name, ...)                        \
-  STATIC_ASSERT(Bytecode::k##Name >= Bytecode::kFirstShortStar && \
+  static_assert(Bytecode::k##Name >= Bytecode::kFirstShortStar && \
                 Bytecode::k##Name <= Bytecode::kLastShortStar);
 SHORT_STAR_BYTECODE_LIST(ASSERT_SHORT_STAR_RANGE)
 #undef ASSERT_SHORT_STAR_RANGE

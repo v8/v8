@@ -45,13 +45,13 @@ static const int kAllocatableSIMD128Codes[] = {
 #undef REGISTER_CODE
 #endif  // V8_TARGET_ARCH_RISCV64
 
-STATIC_ASSERT(RegisterConfiguration::kMaxGeneralRegisters >=
+static_assert(RegisterConfiguration::kMaxGeneralRegisters >=
               Register::kNumRegisters);
-STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
+static_assert(RegisterConfiguration::kMaxFPRegisters >=
               FloatRegister::kNumRegisters);
-STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
+static_assert(RegisterConfiguration::kMaxFPRegisters >=
               DoubleRegister::kNumRegisters);
-STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
+static_assert(RegisterConfiguration::kMaxFPRegisters >=
               Simd128Register::kNumRegisters);
 
 static int get_num_simd128_registers() {
@@ -296,9 +296,9 @@ RegisterConfiguration::RegisterConfiguration(
 }
 
 // Assert that kFloat32, kFloat64, and kSimd128 are consecutive values.
-STATIC_ASSERT(static_cast<int>(MachineRepresentation::kSimd128) ==
+static_assert(static_cast<int>(MachineRepresentation::kSimd128) ==
               static_cast<int>(MachineRepresentation::kFloat64) + 1);
-STATIC_ASSERT(static_cast<int>(MachineRepresentation::kFloat64) ==
+static_assert(static_cast<int>(MachineRepresentation::kFloat64) ==
               static_cast<int>(MachineRepresentation::kFloat32) + 1);
 
 int RegisterConfiguration::GetAliases(MachineRepresentation rep, int index,

@@ -200,7 +200,7 @@ class V8_NODISCARD BytecodeGenerator::ControlScope::DeferredCommands final {
     // There's always a rethrow path.
     // TODO(leszeks): We could decouple deferred_ index and token to allow us
     // to still push this lazily.
-    STATIC_ASSERT(kRethrowToken == 0);
+    static_assert(kRethrowToken == 0);
     deferred_.push_back({CMD_RETHROW, nullptr, kRethrowToken});
   }
 
@@ -4724,7 +4724,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
       Runtime::kInlineGeneratorGetResumeMode, generator_object());
 
   // Now dispatch on resume mode.
-  STATIC_ASSERT(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
+  static_assert(JSGeneratorObject::kNext + 1 == JSGeneratorObject::kReturn);
   BytecodeJumpTable* jump_table =
       builder()->AllocateJumpTable(2, JSGeneratorObject::kNext);
 
@@ -4873,7 +4873,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
         // Fallthrough to default case.
         // TODO(ignition): Add debug code to check that {resume_mode} really is
         // {JSGeneratorObject::kNext} in this case.
-        STATIC_ASSERT(JSGeneratorObject::kNext == 0);
+        static_assert(JSGeneratorObject::kNext == 0);
         {
           FeedbackSlot slot = feedback_spec()->AddCallICSlot();
           builder()->CallProperty(iterator.next(), iterator_and_input,
@@ -4881,7 +4881,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           builder()->Jump(after_switch.New());
         }
 
-        STATIC_ASSERT(JSGeneratorObject::kReturn == 1);
+        static_assert(JSGeneratorObject::kReturn == 1);
         builder()->Bind(switch_jump_table, JSGeneratorObject::kReturn);
         {
           const AstRawString* return_string =
@@ -4902,7 +4902,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           }
         }
 
-        STATIC_ASSERT(JSGeneratorObject::kThrow == 2);
+        static_assert(JSGeneratorObject::kThrow == 2);
         builder()->Bind(switch_jump_table, JSGeneratorObject::kThrow);
         {
           const AstRawString* throw_string =

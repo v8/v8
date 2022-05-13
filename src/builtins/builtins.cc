@@ -42,9 +42,9 @@ struct BuiltinMetadata {
     interpreter::OperandScale scale : 8;
   };
 
-  STATIC_ASSERT(sizeof(interpreter::Bytecode) == 1);
-  STATIC_ASSERT(sizeof(interpreter::OperandScale) == 1);
-  STATIC_ASSERT(sizeof(BytecodeAndScale) <= sizeof(Address));
+  static_assert(sizeof(interpreter::Bytecode) == 1);
+  static_assert(sizeof(interpreter::OperandScale) == 1);
+  static_assert(sizeof(BytecodeAndScale) <= sizeof(Address));
 
   // The `data` field has kind-specific contents.
   union KindSpecificData {
@@ -347,7 +347,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
                                      Builtins::name(FromInt(i))));
   }
 
-  STATIC_ASSERT(kLastBytecodeHandlerPlusOne == kBuiltinCount);
+  static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
     Code builtin_code = FromCodeT(CodeT::cast(Object(builtins[i])));
     Handle<AbstractCode> code(AbstractCode::cast(builtin_code), isolate);

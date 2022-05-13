@@ -152,10 +152,10 @@ class ConstantExpression {
   using KindField = LengthField::Next<Kind, kKindBits>;
 
   // Make sure we reserve enough bits for a {WireBytesRef}'s length and offset.
-  STATIC_ASSERT(kV8MaxWasmModuleSize <= LengthField::kMax + 1);
-  STATIC_ASSERT(kV8MaxWasmModuleSize <= OffsetField::kMax + 1);
+  static_assert(kV8MaxWasmModuleSize <= LengthField::kMax + 1);
+  static_assert(kV8MaxWasmModuleSize <= OffsetField::kMax + 1);
   // Make sure kind fits in kKindBits.
-  STATIC_ASSERT(kLastKind <= KindField::kMax + 1);
+  static_assert(kLastKind <= KindField::kMax + 1);
 
   explicit ConstantExpression(uint64_t bit_field) : bit_field_(bit_field) {}
 
@@ -164,7 +164,7 @@ class ConstantExpression {
 
 // We want to keep {ConstantExpression} small to reduce memory usage during
 // compilation/instantiation.
-STATIC_ASSERT(sizeof(ConstantExpression) <= 8);
+static_assert(sizeof(ConstantExpression) <= 8);
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {

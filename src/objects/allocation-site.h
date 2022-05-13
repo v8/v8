@@ -78,7 +78,7 @@ class AllocationSite : public Struct {
   using MementoFoundCountBits = base::BitField<int, 0, 26>;
   using PretenureDecisionBits = base::BitField<PretenureDecision, 26, 3>;
   using DeoptDependentCodeBit = base::BitField<bool, 29, 1>;
-  STATIC_ASSERT(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
+  static_assert(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
   // Increments the mementos found counter and returns true when the first
   // memento was found for a given allocation site.

@@ -136,7 +136,7 @@ Address EmbeddedData::InstructionStartOfBytecodeHandlers() const {
 }
 
 Address EmbeddedData::InstructionEndOfBytecodeHandlers() const {
-  STATIC_ASSERT(static_cast<int>(Builtin::kFirstBytecodeHandler) +
+  static_assert(static_cast<int>(Builtin::kFirstBytecodeHandler) +
                     kNumberOfBytecodeHandlers +
                     2 * kNumberOfWideBytecodeHandlers ==
                 Builtins::kBuiltinCount);

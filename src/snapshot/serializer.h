@@ -354,7 +354,7 @@ class Serializer : public SerializerDeserializer {
    private:
     static const int kSize = kHotObjectCount;
     static const int kSizeMask = kSize - 1;
-    STATIC_ASSERT(base::bits::IsPowerOfTwo(kSize));
+    static_assert(base::bits::IsPowerOfTwo(kSize));
     Heap* heap_;
     StrongRootsEntry* strong_roots_entry_;
     Address circular_queue_[kSize] = {kNullAddress};

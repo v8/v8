@@ -14,7 +14,7 @@ namespace internal {
 class MarkBit {
  public:
   using CellType = uint32_t;
-  STATIC_ASSERT(sizeof(CellType) == sizeof(base::Atomic32));
+  static_assert(sizeof(CellType) == sizeof(base::Atomic32));
 
   inline MarkBit(CellType* cell, CellType mask) : cell_(cell), mask_(mask) {}
 
@@ -400,7 +400,7 @@ class Marking : public AllStatic {
 
   template <AccessMode mode = AccessMode::NON_ATOMIC>
   V8_INLINE static void MarkWhite(MarkBit markbit) {
-    STATIC_ASSERT(mode == AccessMode::NON_ATOMIC);
+    static_assert(mode == AccessMode::NON_ATOMIC);
     markbit.Clear<mode>();
     markbit.Next().Clear<mode>();
   }

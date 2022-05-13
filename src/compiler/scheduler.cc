@@ -1173,7 +1173,7 @@ BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   // Try to find the common dominator by walking, if there is a chance of
   // finding it quickly.
   constexpr int kCacheGranularity = 63;
-  STATIC_ASSERT((kCacheGranularity & (kCacheGranularity + 1)) == 0);
+  static_assert((kCacheGranularity & (kCacheGranularity + 1)) == 0);
   int depth_difference = b1->dominator_depth() - b2->dominator_depth();
   if (depth_difference > -kCacheGranularity &&
       depth_difference < kCacheGranularity) {

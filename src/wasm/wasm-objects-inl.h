@@ -507,7 +507,7 @@ wasm::StructType* WasmStruct::GcSafeType(Map map) {
 int WasmStruct::Size(const wasm::StructType* type) {
   // Object size must fit into a Smi (because of filler objects), and its
   // computation must not overflow.
-  STATIC_ASSERT(Smi::kMaxValue <= kMaxInt);
+  static_assert(Smi::kMaxValue <= kMaxInt);
   DCHECK_LE(type->total_fields_size(), Smi::kMaxValue - kHeaderSize);
   return std::max(kHeaderSize + static_cast<int>(type->total_fields_size()),
                   Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
@@ -520,7 +520,7 @@ void WasmStruct::EncodeInstanceSizeInMap(int instance_size, Map map) {
   // map so that the GC can read it without relying on any other objects
   // still being around. To solve this problem, we store the instance size
   // in two other fields that are otherwise unused for WasmStructs.
-  STATIC_ASSERT(0xFFFF - kHeaderSize >
+  static_assert(0xFFFF - kHeaderSize >
                 wasm::kMaxValueTypeSize * wasm::kV8MaxWasmStructFields);
   map.SetWasmByte1(instance_size & 0xFF);
   map.SetWasmByte2(instance_size >> 8);

@@ -1350,7 +1350,7 @@ base::Optional<ObjectRef> FixedArrayRef::TryGet(int i) const {
 }
 
 Float64 FixedDoubleArrayRef::GetFromImmutableFixedDoubleArray(int i) const {
-  STATIC_ASSERT(ref_traits<FixedDoubleArray>::ref_serialization_kind ==
+  static_assert(ref_traits<FixedDoubleArray>::ref_serialization_kind ==
                 RefSerializationKind::kNeverSerialized);
   CHECK(data_->should_access_heap());
   return Float64::FromBits(object()->get_representation(i));
@@ -1640,7 +1640,7 @@ void* JSTypedArrayRef::data_ptr() const {
   // is_on_heap release/acquire semantics (external_pointer store happens-before
   // base_pointer store, and this external_pointer load happens-after
   // base_pointer load).
-  STATIC_ASSERT(JSTypedArray::kOffHeapDataPtrEqualsExternalPointer);
+  static_assert(JSTypedArray::kOffHeapDataPtrEqualsExternalPointer);
   return object()->DataPtr();
 }
 
@@ -2106,7 +2106,7 @@ Handle<T> TinyRef<T>::object() const {
 #define V(Name)                                  \
   template class TinyRef<Name>;                  \
   /* TinyRef should contain only one pointer. */ \
-  STATIC_ASSERT(sizeof(TinyRef<Name>) == kSystemPointerSize);
+  static_assert(sizeof(TinyRef<Name>) == kSystemPointerSize);
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 

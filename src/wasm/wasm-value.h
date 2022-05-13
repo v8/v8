@@ -144,8 +144,8 @@ class WasmValue {
   }
 
   void CopyTo(byte* to) const {
-    STATIC_ASSERT(sizeof(float) == sizeof(Float32));
-    STATIC_ASSERT(sizeof(double) == sizeof(Float64));
+    static_assert(sizeof(float) == sizeof(Float32));
+    static_assert(sizeof(double) == sizeof(Float64));
     DCHECK(type_.is_numeric());
     memcpy(to, bit_pattern_, type_.value_kind_size());
   }

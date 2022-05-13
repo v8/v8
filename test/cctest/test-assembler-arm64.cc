@@ -14985,7 +14985,7 @@ TEST(jump_tables_forward) {
   Label done;
 
   const Register& index = x0;
-  STATIC_ASSERT(sizeof(results[0]) == 4);
+  static_assert(sizeof(results[0]) == 4);
   const Register& value = w1;
   const Register& target = x2;
 
@@ -15046,7 +15046,7 @@ TEST(jump_tables_backward) {
   Label done;
 
   const Register& index = x0;
-  STATIC_ASSERT(sizeof(results[0]) == 4);
+  static_assert(sizeof(results[0]) == 4);
   const Register& value = w1;
   const Register& target = x2;
 

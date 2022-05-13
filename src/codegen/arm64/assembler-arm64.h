@@ -2614,8 +2614,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Emit the instruction at pc_.
   void Emit(Instr instruction) {
-    STATIC_ASSERT(sizeof(*pc_) == 1);
-    STATIC_ASSERT(sizeof(instruction) == kInstrSize);
+    static_assert(sizeof(*pc_) == 1);
+    static_assert(sizeof(instruction) == kInstrSize);
     DCHECK_LE(pc_ + sizeof(instruction), buffer_start_ + buffer_->size());
 
     memcpy(pc_, &instruction, sizeof(instruction));
@@ -2660,7 +2660,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // relocation info entries, and debug strings encoded in the instruction
   // stream.
   static constexpr int kGap = 64;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
  public:
 #ifdef DEBUG

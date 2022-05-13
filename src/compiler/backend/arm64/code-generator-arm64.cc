@@ -3062,11 +3062,11 @@ void CodeGenerator::AssembleConstructFrame() {
   if (frame_access_state()->has_frame()) {
     // Link the frame
     if (call_descriptor->IsJSFunctionCall()) {
-      STATIC_ASSERT(InterpreterFrameConstants::kFixedFrameSize % 16 == 8);
+      static_assert(InterpreterFrameConstants::kFixedFrameSize % 16 == 8);
       DCHECK_EQ(required_slots % 2, 1);
       __ Prologue();
       // Update required_slots count since we have just claimed one extra slot.
-      STATIC_ASSERT(TurboAssembler::kExtraSlotClaimedByPrologue == 1);
+      static_assert(TurboAssembler::kExtraSlotClaimedByPrologue == 1);
       required_slots -= TurboAssembler::kExtraSlotClaimedByPrologue;
     } else {
       __ Push<TurboAssembler::kSignLR>(lr, fp);
@@ -3332,7 +3332,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   // Emit the jumps to deoptimization entries.
   UseScratchRegisterScope scope(tasm());
   Register scratch = scope.AcquireX();
-  STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
+  static_assert(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     if (!saw_deopt_kind[i]) continue;
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);

@@ -496,7 +496,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 // Increase the limit if needed, but first check if the size increase is
 // justified.
 #ifndef V8_GC_MOLE
-STATIC_ASSERT(sizeof(WasmCode) <= 88);
+static_assert(sizeof(WasmCode) <= 88);
 #endif
 
 WasmCode::Kind GetCodeKind(const WasmCompilationResult& result);

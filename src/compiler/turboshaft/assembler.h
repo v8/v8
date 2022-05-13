@@ -191,8 +191,8 @@ class Assembler
 
   template <class Op, class... Args>
   OpIndex Emit(Args... args) {
-    STATIC_ASSERT((std::is_base_of<Operation, Op>::value));
-    STATIC_ASSERT(!(std::is_same<Op, Operation>::value));
+    static_assert((std::is_base_of<Operation, Op>::value));
+    static_assert(!(std::is_same<Op, Operation>::value));
     DCHECK_NOT_NULL(current_block_);
     OpIndex result = graph().Add<Op>(args...);
     if (Op::properties.is_block_terminator) FinalizeBlock();

@@ -237,7 +237,7 @@ class JsonParser final {
     // There's at least 1 character, we always consume a character and compare
     // the next character. The first character was compared before we jumped
     // to ScanLiteral.
-    STATIC_ASSERT(N > 2);
+    static_assert(N > 2);
     size_t remaining = static_cast<size_t>(end_ - cursor_);
     if (V8_LIKELY(remaining >= N - 1 &&
                   CompareCharsEqual(s + 1, cursor_ + 1, N - 2))) {

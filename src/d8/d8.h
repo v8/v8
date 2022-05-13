@@ -48,7 +48,7 @@ class Counter {
   void Bind(const char* name, bool histogram);
   // TODO(12482): Return pointer to an atomic.
   int* ptr() {
-    STATIC_ASSERT(sizeof(int) == sizeof(count_));
+    static_assert(sizeof(int) == sizeof(count_));
     return reinterpret_cast<int*>(&count_);
   }
   int count() const { return count_.load(std::memory_order_relaxed); }

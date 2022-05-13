@@ -616,7 +616,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   // Inline {JSConstruct} requires some additional magic.
   if (node->opcode() == IrOpcode::kJSConstruct) {
-    STATIC_ASSERT(JSCallOrConstructNode::kHaveIdenticalLayouts);
+    static_assert(JSCallOrConstructNode::kHaveIdenticalLayouts);
     JSConstructNode n(node);
 
     new_target = n.new_target();

@@ -209,7 +209,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::unique_ptr<FreeList> free_list_;
 };
 
-STATIC_ASSERT(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
+static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 256K. Large object pages may be larger.
@@ -334,9 +334,9 @@ class Page : public MemoryChunk {
 };
 
 // Validate our estimates on the header size.
-STATIC_ASSERT(sizeof(BasicMemoryChunk) <= BasicMemoryChunk::kHeaderSize);
-STATIC_ASSERT(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
-STATIC_ASSERT(sizeof(Page) <= MemoryChunk::kHeaderSize);
+static_assert(sizeof(BasicMemoryChunk) <= BasicMemoryChunk::kHeaderSize);
+static_assert(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
+static_assert(sizeof(Page) <= MemoryChunk::kHeaderSize);
 
 // -----------------------------------------------------------------------------
 // Interface for heap object iterator to be implemented by all object space

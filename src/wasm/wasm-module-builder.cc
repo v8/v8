@@ -529,10 +529,10 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
     case WasmInitExpr::kStructNewWithRtt:
     case WasmInitExpr::kStructNewDefault:
     case WasmInitExpr::kStructNewDefaultWithRtt:
-      STATIC_ASSERT((kExprStructNew >> 8) == kGCPrefix);
-      STATIC_ASSERT((kExprStructNewWithRtt >> 8) == kGCPrefix);
-      STATIC_ASSERT((kExprStructNewDefault >> 8) == kGCPrefix);
-      STATIC_ASSERT((kExprStructNewDefaultWithRtt >> 8) == kGCPrefix);
+      static_assert((kExprStructNew >> 8) == kGCPrefix);
+      static_assert((kExprStructNewWithRtt >> 8) == kGCPrefix);
+      static_assert((kExprStructNewDefault >> 8) == kGCPrefix);
+      static_assert((kExprStructNewDefaultWithRtt >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
@@ -559,8 +559,8 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       break;
     case WasmInitExpr::kArrayInit:
     case WasmInitExpr::kArrayInitStatic:
-      STATIC_ASSERT((kExprArrayInit >> 8) == kGCPrefix);
-      STATIC_ASSERT((kExprArrayInitStatic >> 8) == kGCPrefix);
+      static_assert((kExprArrayInit >> 8) == kGCPrefix);
+      static_assert((kExprArrayInitStatic >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
@@ -572,7 +572,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u32v(static_cast<uint32_t>(init.operands()->size() - 1));
       break;
     case WasmInitExpr::kRttCanon:
-      STATIC_ASSERT((kExprRttCanon >> 8) == kGCPrefix);
+      static_assert((kExprRttCanon >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprRttCanon));
       buffer->write_i32v(static_cast<int32_t>(init.immediate().index));

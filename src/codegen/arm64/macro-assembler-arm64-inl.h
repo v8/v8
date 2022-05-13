@@ -1106,7 +1106,7 @@ void TurboAssembler::SmiToInt32(Register smi) {
 
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Label* not_smi_label) {
-  STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
+  static_assert((kSmiTagSize == 1) && (kSmiTag == 0));
   // Check if the tag bit is set.
   if (smi_label) {
     Tbz(value, 0, smi_label);

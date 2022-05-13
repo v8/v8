@@ -58,7 +58,7 @@ enum class Condition : uint32_t {
 };
 
 inline internal::Condition AsMasmCondition(Condition cond) {
-  STATIC_ASSERT(sizeof(internal::Condition) == sizeof(Condition));
+  static_assert(sizeof(internal::Condition) == sizeof(Condition));
   return static_cast<internal::Condition>(cond);
 }
 

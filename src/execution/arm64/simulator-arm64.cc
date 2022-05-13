@@ -678,7 +678,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   const int64_t arg17 = stack_pointer[9];
   const int64_t arg18 = stack_pointer[10];
   const int64_t arg19 = stack_pointer[11];
-  STATIC_ASSERT(kMaxCParameters == 20);
+  static_assert(kMaxCParameters == 20);
 
   switch (redirection->type()) {
     default:
@@ -6050,7 +6050,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   // Read the arguments encoded inline in the instruction stream.
   uint32_t arg_count;
   uint32_t arg_pattern_list;
-  STATIC_ASSERT(sizeof(*instr) == 1);
+  static_assert(sizeof(*instr) == 1);
   memcpy(&arg_count, instr + kPrintfArgCountOffset, sizeof(arg_count));
   memcpy(&arg_pattern_list, instr + kPrintfArgPatternListOffset,
          sizeof(arg_pattern_list));

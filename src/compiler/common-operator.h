@@ -665,7 +665,7 @@ class StartNode final : public CommonNodeWrapperBase {
     constexpr int kNewTarget = 1;
     constexpr int kArgCount = 1;
     constexpr int kContext = 1;
-    STATIC_ASSERT(kClosure + kNewTarget + kArgCount + kContext ==
+    static_assert(kClosure + kNewTarget + kArgCount + kContext ==
                   kExtraOutputCount);
     // Checking related linkage methods here since they rely on Start node
     // layout.

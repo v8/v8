@@ -206,8 +206,8 @@ void RegExpMacroAssemblerIA32::CheckGreedyLoop(Label* on_equal) {
 }
 
 void RegExpMacroAssemblerIA32::PushCallerSavedRegisters() {
-  STATIC_ASSERT(backtrack_stackpointer() == ecx);
-  STATIC_ASSERT(current_character() == edx);
+  static_assert(backtrack_stackpointer() == ecx);
+  static_assert(current_character() == edx);
   __ push(ecx);
   __ push(edx);
 }
@@ -689,7 +689,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(
 }
 
 void RegExpMacroAssemblerIA32::Fail() {
-  STATIC_ASSERT(FAILURE == 0);  // Return value for failure is zero.
+  static_assert(FAILURE == 0);  // Return value for failure is zero.
   if (!global()) {
     __ Move(eax, Immediate(FAILURE));
   }
@@ -749,23 +749,23 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(esi);
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
-  STATIC_ASSERT(kLastCalleeSaveRegister == kBackup_ebx);
+  static_assert(kLastCalleeSaveRegister == kBackup_ebx);
 
-  STATIC_ASSERT(kSuccessfulCaptures ==
+  static_assert(kSuccessfulCaptures ==
                 kLastCalleeSaveRegister - kSystemPointerSize);
   __ push(Immediate(0));  // Number of successful matches in a global regexp.
-  STATIC_ASSERT(kStringStartMinusOne ==
+  static_assert(kStringStartMinusOne ==
                 kSuccessfulCaptures - kSystemPointerSize);
   __ push(Immediate(0));  // Make room for "string start - 1" constant.
-  STATIC_ASSERT(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
+  static_assert(kBacktrackCount == kStringStartMinusOne - kSystemPointerSize);
   __ push(Immediate(0));  // The backtrack counter.
-  STATIC_ASSERT(kRegExpStackBasePointer ==
+  static_assert(kRegExpStackBasePointer ==
                 kBacktrackCount - kSystemPointerSize);
   __ push(Immediate(0));  // The regexp stack base ptr.
 
   // Initialize backtrack stack pointer. It must not be clobbered from here on.
   // Note the backtrack_stackpointer is *not* callee-saved.
-  STATIC_ASSERT(backtrack_stackpointer() == ecx);
+  static_assert(backtrack_stackpointer() == ecx);
   LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
   // Store the regexp base pointer - we'll later restore it / write it to

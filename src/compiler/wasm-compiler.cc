@@ -378,7 +378,7 @@ void WasmGraphBuilder::StackCheck(
         Operator::kNoThrow | Operator::kNoWrite;
     // If we ever want to mark this call as  kNoDeopt, we'll have to make it
     // non-eliminatable some other way.
-    STATIC_ASSERT((properties & Operator::kEliminatable) !=
+    static_assert((properties & Operator::kEliminatable) !=
                   Operator::kEliminatable);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(),                    // zone
@@ -2881,7 +2881,7 @@ Node* WasmGraphBuilder::BuildLoadExternalPointerFromObject(
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   Node* external_pointer = gasm_->LoadFromObject(
       MachineType::Uint32(), object, wasm::ObjectAccess::ToTagged(offset));
-  STATIC_ASSERT(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+  static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
   Node* shift_amount =
       gasm_->Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
   Node* scaled_index = gasm_->Word32Shr(external_pointer, shift_amount);
@@ -5060,7 +5060,7 @@ void WasmGraphBuilder::DataDrop(uint32_t data_segment_index,
 
   Node* seg_size_array =
       LOAD_INSTANCE_FIELD(DataSegmentSizes, MachineType::Pointer());
-  STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >> 2);
+  static_assert(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >> 2);
   auto access = ObjectAccess(MachineType::Int32(), kNoWriteBarrier);
   gasm_->StoreToObject(access, seg_size_array, data_segment_index << 2,
                        Int32Constant(0));
@@ -6205,7 +6205,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   void BuildCheckValidRefValue(Node* input, Node* js_context,
                                wasm::ValueType type) {
     // Make sure ValueType fits in a Smi.
-    STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+    static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
     // The instance node is always defined: if an instance is not available, it
     // is the undefined value.
     Node* inputs[] = {GetInstance(), input,
@@ -6434,7 +6434,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildCallAllocateJSArray(Node* array_length, Node* context) {
     // Since we don't check that args will fit in an array,
     // we make sure this is true based on statically known limits.
-    STATIC_ASSERT(wasm::kV8MaxWasmFunctionReturns <=
+    static_assert(wasm::kV8MaxWasmFunctionReturns <=
                   JSArray::kInitialMaxFastElementArray);
     return gasm_->CallBuiltin(Builtin::kWasmAllocateJSArray,
                               Operator::kEliminatable, array_length, context);

@@ -448,8 +448,8 @@ class V8_EXPORT_PRIVATE FreeListManyCachedFastPath : public FreeListManyCached {
   // Objects in the 15th category are at least 256 bytes
   static const FreeListCategoryType kFastPathFallBackTiny = 15;
 
-  STATIC_ASSERT(categories_min[kFastPathFirstCategory] == kFastPathStart);
-  STATIC_ASSERT(categories_min[kFastPathFallBackTiny] ==
+  static_assert(categories_min[kFastPathFirstCategory] == kFastPathStart);
+  static_assert(categories_min[kFastPathFallBackTiny] ==
                 kTinyObjectMaxSize * 2);
 
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(

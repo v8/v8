@@ -137,7 +137,7 @@ class IsolateData final {
   // it's the case then the value can be accessed indirectly through the root
   // register.
   bool contains(Address address) const {
-    STATIC_ASSERT(std::is_unsigned<Address>::value);
+    static_assert(std::is_unsigned<Address>::value);
     Address start = reinterpret_cast<Address>(this);
     return (address - start) < sizeof(*this);
   }
@@ -224,7 +224,7 @@ class IsolateData final {
   // int64_t fields.
   // In order to avoid dealing with zero-size arrays the padding size is always
   // in the range [8, 15).
-  STATIC_ASSERT(kPaddingOffsetEnd + 1 - kPaddingOffset >= 8);
+  static_assert(kPaddingOffsetEnd + 1 - kPaddingOffset >= 8);
   char padding_[kPaddingOffsetEnd + 1 - kPaddingOffset];
 
   V8_INLINE static void AssertPredictableLayout();
@@ -240,15 +240,15 @@ class IsolateData final {
 // issues because of different compilers used for snapshot generator and
 // actual V8 code.
 void IsolateData::AssertPredictableLayout() {
-  STATIC_ASSERT(std::is_standard_layout<RootsTable>::value);
-  STATIC_ASSERT(std::is_standard_layout<ThreadLocalTop>::value);
-  STATIC_ASSERT(std::is_standard_layout<ExternalReferenceTable>::value);
-  STATIC_ASSERT(std::is_standard_layout<IsolateData>::value);
+  static_assert(std::is_standard_layout<RootsTable>::value);
+  static_assert(std::is_standard_layout<ThreadLocalTop>::value);
+  static_assert(std::is_standard_layout<ExternalReferenceTable>::value);
+  static_assert(std::is_standard_layout<IsolateData>::value);
 #define V(Offset, Size, Name) \
-  STATIC_ASSERT(offsetof(IsolateData, Name##_) == Offset);
+  static_assert(offsetof(IsolateData, Name##_) == Offset);
   ISOLATE_DATA_FIELDS(V)
 #undef V
-  STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);
+  static_assert(sizeof(IsolateData) == IsolateData::kSize);
 }
 
 #undef ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS

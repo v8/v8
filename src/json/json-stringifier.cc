@@ -677,7 +677,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
     uint32_t limit = std::min(length, kInterruptLength);
     const uint32_t kMaxAllowedFastPackedLength =
         std::numeric_limits<uint32_t>::max() - kInterruptLength;
-    STATIC_ASSERT(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
+    static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
     switch (object->GetElementsKind(cage_base)) {
       case PACKED_SMI_ELEMENTS: {
         Handle<FixedArray> elements(

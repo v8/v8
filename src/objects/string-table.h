@@ -106,7 +106,7 @@ class StringForwardingTable {
  public:
   // Capacity for the first block.
   static constexpr int kInitialBlockSize = 16;
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kInitialBlockSize));
+  static_assert(base::bits::IsPowerOfTwo(kInitialBlockSize));
   static constexpr int kInitialBlockSizeHighestBit =
       kBitsPerInt - base::bits::CountLeadingZeros32(kInitialBlockSize) - 1;
   // Initial capacity in the block vector.

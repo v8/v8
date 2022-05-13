@@ -177,7 +177,7 @@ WorkerThreadRuntimeCallStats* GCTracer::worker_thread_runtime_call_stats() {
 }
 
 RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
-  STATIC_ASSERT(Scope::FIRST_SCOPE == Scope::MC_INCREMENTAL);
+  static_assert(Scope::FIRST_SCOPE == Scope::MC_INCREMENTAL);
   return static_cast<RuntimeCallCounterId>(
       static_cast<int>(RuntimeCallCounterId::kGC_MC_INCREMENTAL) +
       static_cast<int>(id));

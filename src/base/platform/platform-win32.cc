@@ -39,25 +39,25 @@
 #endif               // defined(_MSC_VER)
 
 // Check that type sizes and alignments match.
-STATIC_ASSERT(sizeof(V8_CONDITION_VARIABLE) == sizeof(CONDITION_VARIABLE));
-STATIC_ASSERT(alignof(V8_CONDITION_VARIABLE) == alignof(CONDITION_VARIABLE));
-STATIC_ASSERT(sizeof(V8_SRWLOCK) == sizeof(SRWLOCK));
-STATIC_ASSERT(alignof(V8_SRWLOCK) == alignof(SRWLOCK));
-STATIC_ASSERT(sizeof(V8_CRITICAL_SECTION) == sizeof(CRITICAL_SECTION));
-STATIC_ASSERT(alignof(V8_CRITICAL_SECTION) == alignof(CRITICAL_SECTION));
+static_assert(sizeof(V8_CONDITION_VARIABLE) == sizeof(CONDITION_VARIABLE));
+static_assert(alignof(V8_CONDITION_VARIABLE) == alignof(CONDITION_VARIABLE));
+static_assert(sizeof(V8_SRWLOCK) == sizeof(SRWLOCK));
+static_assert(alignof(V8_SRWLOCK) == alignof(SRWLOCK));
+static_assert(sizeof(V8_CRITICAL_SECTION) == sizeof(CRITICAL_SECTION));
+static_assert(alignof(V8_CRITICAL_SECTION) == alignof(CRITICAL_SECTION));
 
 // Check that CRITICAL_SECTION offsets match.
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, DebugInfo) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, DebugInfo) ==
               offsetof(CRITICAL_SECTION, DebugInfo));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, LockCount) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, LockCount) ==
               offsetof(CRITICAL_SECTION, LockCount));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, RecursionCount) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, RecursionCount) ==
               offsetof(CRITICAL_SECTION, RecursionCount));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, OwningThread) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, OwningThread) ==
               offsetof(CRITICAL_SECTION, OwningThread));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, LockSemaphore) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, LockSemaphore) ==
               offsetof(CRITICAL_SECTION, LockSemaphore));
-STATIC_ASSERT(offsetof(V8_CRITICAL_SECTION, SpinCount) ==
+static_assert(offsetof(V8_CRITICAL_SECTION, SpinCount) ==
               offsetof(CRITICAL_SECTION, SpinCount));
 
 // Extra functions for MinGW. Most of these are the _s functions which are in

@@ -308,7 +308,7 @@ constexpr int kMaxTFSBuiltinRegisterParams = 3;
 constexpr int kMaxBuiltinRegisterParams = 5;
 constexpr int kMaxTFSBuiltinRegisterParams = kMaxBuiltinRegisterParams;
 #endif
-STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
+static_assert(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
 constexpr int kJSBuiltinRegisterParams = 4;
 
 // Polymorphic base class for call interface descriptors, which defines getters

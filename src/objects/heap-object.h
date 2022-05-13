@@ -224,7 +224,7 @@ class HeapObject : public Object {
   DEFINE_FIELD_OFFSET_CONSTANTS(Object::kHeaderSize, HEAP_OBJECT_FIELDS)
 #undef HEAP_OBJECT_FIELDS
 
-  STATIC_ASSERT(kMapOffset == Internals::kHeapObjectMapOffset);
+  static_assert(kMapOffset == Internals::kHeapObjectMapOffset);
 
   using MapField = TaggedField<MapWord, HeapObject::kMapOffset>;
 

@@ -256,7 +256,7 @@ class Expression : public AstNode {
   bool IsCompileTimeValue();
 
   bool IsPattern() {
-    STATIC_ASSERT(kObjectLiteral + 1 == kArrayLiteral);
+    static_assert(kObjectLiteral + 1 == kArrayLiteral);
     return base::IsInRange(node_type(), kObjectLiteral, kArrayLiteral);
   }
 
@@ -635,7 +635,7 @@ class ReturnStatement final : public JumpStatement {
   // This constant is used to indicate that the return position
   // from the FunctionLiteral should be used when emitting code.
   static constexpr int kFunctionLiteralReturnPosition = -2;
-  STATIC_ASSERT(kFunctionLiteralReturnPosition == kNoSourcePosition - 1);
+  static_assert(kFunctionLiteralReturnPosition == kNoSourcePosition - 1);
 
   int end_position() const { return end_position_; }
 
@@ -1107,7 +1107,7 @@ class LiteralBoilerplateBuilder {
   enum DepthKind { kUninitialized, kShallow, kNotShallow };
 
   static constexpr int kDepthKindBits = 2;
-  STATIC_ASSERT((1 << kDepthKindBits) > kNotShallow);
+  static_assert((1 << kDepthKindBits) > kNotShallow);
 
   bool is_initialized() const {
     return kUninitialized != DepthField::decode(bit_field_);
@@ -1354,7 +1354,7 @@ class ObjectLiteral final : public AggregateLiteral {
     kFastElements = 1 << 3,
     kHasNullPrototype = 1 << 4,
   };
-  STATIC_ASSERT(
+  static_assert(
       static_cast<int>(AggregateLiteral::kNeedsInitialAllocationSite) <
       static_cast<int>(kFastElements));
 

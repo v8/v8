@@ -603,11 +603,11 @@ struct StackHandlerMarker {
   Address next;
   Address padding;
 };
-STATIC_ASSERT(offsetof(StackHandlerMarker, next) ==
+static_assert(offsetof(StackHandlerMarker, next) ==
               StackHandlerConstants::kNextOffset);
-STATIC_ASSERT(offsetof(StackHandlerMarker, padding) ==
+static_assert(offsetof(StackHandlerMarker, padding) ==
               StackHandlerConstants::kPaddingOffset);
-STATIC_ASSERT(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
+static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 
 #if V8_ENABLE_WEBASSEMBLY
 void Execution::CallWasm(Isolate* isolate, Handle<CodeT> wrapper_code,
@@ -641,10 +641,10 @@ void Execution::CallWasm(Isolate* isolate, Handle<CodeT> wrapper_code,
 
   {
     RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
-    STATIC_ASSERT(compiler::CWasmEntryParameters::kCodeEntry == 0);
-    STATIC_ASSERT(compiler::CWasmEntryParameters::kObjectRef == 1);
-    STATIC_ASSERT(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
-    STATIC_ASSERT(compiler::CWasmEntryParameters::kCEntryFp == 3);
+    static_assert(compiler::CWasmEntryParameters::kCodeEntry == 0);
+    static_assert(compiler::CWasmEntryParameters::kObjectRef == 1);
+    static_assert(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
+    static_assert(compiler::CWasmEntryParameters::kCEntryFp == 3);
     Address result = stub_entry.Call(wasm_call_target, object_ref->ptr(),
                                      packed_args, saved_c_entry_fp);
     if (result != kNullAddress) {

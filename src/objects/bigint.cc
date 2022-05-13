@@ -207,7 +207,7 @@ Handle<BigInt> MutableBigInt::NewFromInt(Isolate* isolate, int value) {
     result->set_digit(0, value);
   } else {
     if (value == kMinInt) {
-      STATIC_ASSERT(kMinInt == -kMaxInt - 1);
+      static_assert(kMinInt == -kMaxInt - 1);
       result->set_digit(0, static_cast<BigInt::digit_t>(kMaxInt) + 1);
     } else {
       result->set_digit(0, -value);
@@ -397,7 +397,7 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Isolate* isolate, Handle<BigInt> base,
   }
   // For all bases >= 2, very large exponents would lead to unrepresentable
   // results.
-  STATIC_ASSERT(kMaxLengthBits < std::numeric_limits<digit_t>::max());
+  static_assert(kMaxLengthBits < std::numeric_limits<digit_t>::max());
   if (exponent->length() > 1) {
     return ThrowBigIntTooBig<BigInt>(isolate);
   }
@@ -406,7 +406,7 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Isolate* isolate, Handle<BigInt> base,
   if (exp_value >= kMaxLengthBits) {
     return ThrowBigIntTooBig<BigInt>(isolate);
   }
-  STATIC_ASSERT(kMaxLengthBits <= kMaxInt);
+  static_assert(kMaxLengthBits <= kMaxInt);
   int n = static_cast<int>(exp_value);
   if (base->length() == 1 && base->digit(0) == 2) {
     // Fast path for 2^n.
@@ -777,7 +777,7 @@ bool BigInt::EqualToNumber(Handle<BigInt> x, Handle<Object> y) {
     int value = Smi::ToInt(*y);
     if (value == 0) return x->is_zero();
     // Any multi-digit BigInt is bigger than a Smi.
-    STATIC_ASSERT(sizeof(digit_t) >= sizeof(value));
+    static_assert(sizeof(digit_t) >= sizeof(value));
     return (x->length() == 1) && (x->sign() == (value < 0)) &&
            (x->digit(0) ==
             static_cast<digit_t>(std::abs(static_cast<int64_t>(value))));
@@ -801,7 +801,7 @@ ComparisonResult BigInt::CompareToNumber(Handle<BigInt> x, Handle<Object> y) {
                           : ComparisonResult::kLessThan;
     }
     // Any multi-digit BigInt is bigger than a Smi.
-    STATIC_ASSERT(sizeof(digit_t) >= sizeof(y_value));
+    static_assert(sizeof(digit_t) >= sizeof(y_value));
     if (x->length() > 1) return AbsoluteGreater(x_sign);
 
     digit_t abs_value = std::abs(static_cast<int64_t>(y_value));
@@ -1297,7 +1297,7 @@ Handle<BigInt> MutableBigInt::RightShiftByMaximum(Isolate* isolate, bool sign) {
 Maybe<BigInt::digit_t> MutableBigInt::ToShiftAmount(Handle<BigIntBase> x) {
   if (x->length() > 1) return Nothing<digit_t>();
   digit_t value = x->digit(0);
-  STATIC_ASSERT(kMaxLengthBits < std::numeric_limits<digit_t>::max());
+  static_assert(kMaxLengthBits < std::numeric_limits<digit_t>::max());
   if (value > kMaxLengthBits) return Nothing<digit_t>();
   return Just(value);
 }
@@ -1336,7 +1336,7 @@ uint32_t BigInt::GetBitfieldForSerialization() const {
   // In order to make the serialization format the same on 32/64 bit builds,
   // we convert the length-in-digits to length-in-bytes for serialization.
   // Being able to do this depends on having enough LengthBits:
-  STATIC_ASSERT(kMaxLength * kDigitSize <= LengthBits::kMax);
+  static_assert(kMaxLength * kDigitSize <= LengthBits::kMax);
   int bytelength = length() * kDigitSize;
   return SignBits::encode(sign()) | LengthBits::encode(bytelength);
 }
@@ -1448,7 +1448,7 @@ MaybeHandle<BigInt> BigInt::AsUintN(Isolate* isolate, uint64_t n,
 
 Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
   if (n == 0) return MutableBigInt::Zero(isolate);
-  STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
+  static_assert(kDigitBits == 64 || kDigitBits == 32);
   int length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
       MutableBigInt::Cast(isolate->factory()->NewBigInt(length));
@@ -1470,7 +1470,7 @@ Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
 
 Handle<BigInt> BigInt::FromUint64(Isolate* isolate, uint64_t n) {
   if (n == 0) return MutableBigInt::Zero(isolate);
-  STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
+  static_assert(kDigitBits == 64 || kDigitBits == 32);
   int length = 64 / kDigitBits;
   Handle<MutableBigInt> result =
       MutableBigInt::Cast(isolate->factory()->NewBigInt(length));
@@ -1486,7 +1486,7 @@ MaybeHandle<BigInt> BigInt::FromWords64(Isolate* isolate, int sign_bit,
     return ThrowBigIntTooBig<BigInt>(isolate);
   }
   if (words64_count == 0) return MutableBigInt::Zero(isolate);
-  STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
+  static_assert(kDigitBits == 64 || kDigitBits == 32);
   int length = (64 / kDigitBits) * words64_count;
   DCHECK_GT(length, 0);
   if (kDigitBits == 32 && words[words64_count - 1] <= (1ULL << 32)) length--;
@@ -1514,7 +1514,7 @@ MaybeHandle<BigInt> BigInt::FromWords64(Isolate* isolate, int sign_bit,
 }
 
 int BigInt::Words64Count() {
-  STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
+  static_assert(kDigitBits == 64 || kDigitBits == 32);
   return length() / (64 / kDigitBits) +
          (kDigitBits == 32 && length() % 2 == 1 ? 1 : 0);
 }
@@ -1546,7 +1546,7 @@ uint64_t MutableBigInt::GetRawBits(BigIntBase x, bool* lossless) {
   if (lossless != nullptr) *lossless = true;
   if (x.is_zero()) return 0;
   int len = x.length();
-  STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
+  static_assert(kDigitBits == 64 || kDigitBits == 32);
   if (lossless != nullptr && len > 64 / kDigitBits) *lossless = false;
   uint64_t raw = static_cast<uint64_t>(x.digit(0));
   if (kDigitBits == 32 && len > 1) {
@@ -1570,7 +1570,7 @@ uint64_t BigInt::AsUint64(bool* lossless) {
 }
 
 void MutableBigInt::set_64_bits(uint64_t bits) {
-  STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
+  static_assert(kDigitBits == 64 || kDigitBits == 32);
   if (kDigitBits == 64) {
     set_digit(0, static_cast<digit_t>(bits));
   } else {

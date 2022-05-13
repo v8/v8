@@ -110,7 +110,7 @@ RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
   Handle<Object> raw_instance = args.at(0);
   Handle<Object> value = args.at(1);
   // Make sure ValueType fits properly in a Smi.
-  STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+  static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
   int raw_type = args.smi_value_at(2);
 
   const wasm::WasmModule* module =

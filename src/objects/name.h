@@ -130,8 +130,8 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
       HashFieldTypeBits::encode(HashFieldType::kEmpty);
 
   // Empty hash and forwarding indices can not be used as hash.
-  STATIC_ASSERT((kEmptyHashField & kHashNotComputedMask) != 0);
-  STATIC_ASSERT((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
+  static_assert((kEmptyHashField & kHashNotComputedMask) != 0);
+  static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
                  kHashNotComputedMask) != 0);
 
   // Array index strings this short can keep their index in the hash field.
@@ -155,8 +155,8 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   static const int kArrayIndexLengthBits =
       kBitsPerInt - kArrayIndexValueBits - HashFieldTypeBits::kSize;
 
-  STATIC_ASSERT(kArrayIndexLengthBits > 0);
-  STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
+  static_assert(kArrayIndexLengthBits > 0);
+  static_assert(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   using ArrayIndexValueBits =
       HashFieldTypeBits::Next<unsigned int, kArrayIndexValueBits>;
@@ -171,7 +171,7 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
 
   // When any of these bits is set then the hash field does not contain a cached
   // array index.
-  STATIC_ASSERT(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
+  static_assert(HashFieldTypeBits::encode(HashFieldType::kIntegerIndex) == 0);
   static const unsigned int kDoesNotContainCachedArrayIndexMask =
       (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
        << ArrayIndexLengthBits::kShift) |

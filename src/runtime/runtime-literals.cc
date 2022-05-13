@@ -567,7 +567,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
     vector->SynchronizedSet(literals_slot, *site);
   }
 
-  STATIC_ASSERT(static_cast<int>(ObjectLiteral::kDisableMementos) ==
+  static_assert(static_cast<int>(ObjectLiteral::kDisableMementos) ==
                 static_cast<int>(ArrayLiteral::kDisableMementos));
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
 

@@ -3727,7 +3727,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
 
   CHECK_NOT_NULL(var);
   CHECK_IMPLIES(input.assigned, var->is_used());
-  STATIC_ASSERT(true == i::kMaybeAssigned);
+  static_assert(true == i::kMaybeAssigned);
   CHECK_EQ(input.assigned, var->maybe_assigned() == i::kMaybeAssigned);
 }
 

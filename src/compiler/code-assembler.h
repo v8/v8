@@ -543,7 +543,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <typename E,
             typename = typename std::enable_if<std::is_enum<E>::value>::type>
   TNode<Smi> SmiConstant(E value) {
-    STATIC_ASSERT(sizeof(E) <= sizeof(int));
+    static_assert(sizeof(E) <= sizeof(int));
     return SmiConstant(static_cast<int>(value));
   }
   TNode<HeapObject> UntypedHeapConstant(Handle<HeapObject> object);

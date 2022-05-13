@@ -129,7 +129,7 @@ int FeedbackVector::osr_urgency() const {
 
 void FeedbackVector::set_osr_urgency(int urgency) {
   DCHECK(0 <= urgency && urgency <= FeedbackVector::kMaxOsrUrgency);
-  STATIC_ASSERT(FeedbackVector::kMaxOsrUrgency <= OsrUrgencyBits::kMax);
+  static_assert(FeedbackVector::kMaxOsrUrgency <= OsrUrgencyBits::kMax);
   set_osr_state(OsrUrgencyBits::update(osr_state(), urgency));
 }
 

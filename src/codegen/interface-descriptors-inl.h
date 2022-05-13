@@ -268,7 +268,7 @@ constexpr Register LoadNoFeedbackDescriptor::ICKindRegister() {
 // need to choose a new register here.
 // static
 constexpr Register LoadGlobalWithVectorDescriptor::VectorRegister() {
-  STATIC_ASSERT(!LoadWithVectorDescriptor::VectorRegister().is_valid());
+  static_assert(!LoadWithVectorDescriptor::VectorRegister().is_valid());
   return LoadDescriptor::ReceiverRegister();
 }
 #else
@@ -342,7 +342,7 @@ constexpr auto BaselineOutOfLinePrologueDescriptor::registers() {
       kJavaScriptCallExtraArg1Register, kJavaScriptCallNewTargetRegister,
       kInterpreterBytecodeArrayRegister);
 #elif V8_TARGET_ARCH_IA32
-  STATIC_ASSERT(kJSFunctionRegister == kInterpreterBytecodeArrayRegister);
+  static_assert(kJSFunctionRegister == kInterpreterBytecodeArrayRegister);
   return RegisterArray(
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       kJavaScriptCallExtraArg1Register, kJavaScriptCallNewTargetRegister);

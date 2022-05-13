@@ -1494,7 +1494,7 @@ bool IntPtrKeyToSize(intptr_t index, Handle<HeapObject> receiver, size_t* out) {
   }
 #else
   // On 32-bit platforms, any intptr_t is less than kMaxElementIndex.
-  STATIC_ASSERT(
+  static_assert(
       static_cast<double>(std::numeric_limits<decltype(index)>::max()) <=
       static_cast<double>(JSObject::kMaxElementIndex));
 #endif

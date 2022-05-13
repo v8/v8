@@ -83,7 +83,7 @@ class StoreLookupSlotFlags {
  public:
   using LanguageModeBit = base::BitField8<LanguageMode, 0, 1>;
   using LookupHoistingModeBit = LanguageModeBit::Next<bool, 1>;
-  STATIC_ASSERT(LanguageModeSize <= LanguageModeBit::kNumValues);
+  static_assert(LanguageModeSize <= LanguageModeBit::kNumValues);
 
   static uint8_t Encode(LanguageMode language_mode,
                         LookupHoistingMode lookup_hoisting_mode);

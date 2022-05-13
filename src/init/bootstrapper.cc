@@ -1720,7 +1720,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
 
-    STATIC_ASSERT(JSArray::kLengthDescriptorIndex == 0);
+    static_assert(JSArray::kLengthDescriptorIndex == 0);
     {  // Add length.
       Descriptor d = Descriptor::AccessorConstant(
           factory->length_string(), factory->array_length_accessor(), attribs);
@@ -3843,7 +3843,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // length
-      STATIC_ASSERT(
+      static_assert(
           JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex ==
           0);
       Descriptor d = Descriptor::AccessorConstant(
@@ -3853,7 +3853,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {  // name
-      STATIC_ASSERT(
+      static_assert(
           JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex ==
           1);
       Descriptor d = Descriptor::AccessorConstant(
@@ -4528,7 +4528,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
     Map::EnsureDescriptorSlack(isolate_, map, 2);
     {  // length
-      STATIC_ASSERT(
+      static_assert(
           JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex ==
           0);
       Descriptor d = Descriptor::AccessorConstant(
@@ -4538,7 +4538,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
     }
 
     {  // name
-      STATIC_ASSERT(
+      static_assert(
           JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex ==
           1);
       Descriptor d = Descriptor::AccessorConstant(

@@ -1574,7 +1574,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   std::shared_ptr<const WasmModule> module;
   // Task 0 is any main thread (there might be multiple from multiple isolates),
   // worker threads start at 1 (thus the "+ 1").
-  STATIC_ASSERT(kMainTaskId == 0);
+  static_assert(kMainTaskId == 0);
   int task_id = delegate ? (int{delegate->GetTaskId()} + 1) : kMainTaskId;
   DCHECK_LE(0, task_id);
   CompilationUnitQueues::Queue* queue;

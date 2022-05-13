@@ -3369,7 +3369,7 @@ TEST(ARMv8_vsel) {
 #endif
     auto f = GeneratedCode<F_ippii>::FromCode(*code);
 
-    STATIC_ASSERT(kResultPass == -kResultFail);
+    static_assert(kResultPass == -kResultFail);
 #define CHECK_VSEL(n, z, c, v, vseleq, vselge, vselgt, vselvs)     \
   do {                                                             \
     ResultsF32 results_f32;                                        \

@@ -1071,7 +1071,7 @@ constexpr uint8_t kCollationWeightsL3[256] = {
     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0,
 };
 constexpr int kCollationWeightsLength = arraysize(kCollationWeightsL1);
-STATIC_ASSERT(kCollationWeightsLength == arraysize(kCollationWeightsL3));
+static_assert(kCollationWeightsLength == arraysize(kCollationWeightsL3));
 // clang-format on
 
 // Normalize a comparison delta (usually `lhs - rhs`) to UCollationResult

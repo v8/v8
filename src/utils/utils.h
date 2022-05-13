@@ -231,7 +231,7 @@ inline T RoundingAverageUnsigned(T a, T b) {
 
 // Compare two offsets with static cast
 #define STATIC_ASSERT_FIELD_OFFSETS_EQUAL(Offset1, Offset2) \
-  STATIC_ASSERT(static_cast<int>(Offset1) == Offset2)
+  static_assert(static_cast<int>(Offset1) == Offset2)
 // ----------------------------------------------------------------------------
 // Hash function.
 
@@ -324,8 +324,8 @@ class SetOncePointer {
 template <typename lchar, typename rchar>
 inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
                                       size_t chars) {
-  STATIC_ASSERT(std::is_unsigned<lchar>::value);
-  STATIC_ASSERT(std::is_unsigned<rchar>::value);
+  static_assert(std::is_unsigned<lchar>::value);
+  static_assert(std::is_unsigned<rchar>::value);
   if (sizeof(*lhs) == sizeof(*rhs)) {
     // memcmp compares byte-by-byte, but for equality it doesn't matter whether
     // two-byte char comparison is little- or big-endian.
@@ -350,8 +350,8 @@ inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
 template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
                                 size_t chars) {
-  STATIC_ASSERT(std::is_unsigned<lchar>::value);
-  STATIC_ASSERT(std::is_unsigned<rchar>::value);
+  static_assert(std::is_unsigned<lchar>::value);
+  static_assert(std::is_unsigned<rchar>::value);
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
     // strings on little-endian systems.

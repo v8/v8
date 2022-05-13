@@ -271,7 +271,7 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
 
   uint32_t new_size = old_size + count;
   // Even with 2x over-allocation, there should not be an integer overflow.
-  STATIC_ASSERT(wasm::kV8MaxWasmTableSize <= kMaxInt / 2);
+  static_assert(wasm::kV8MaxWasmTableSize <= kMaxInt / 2);
   DCHECK_GE(kMaxInt, new_size);
   int old_capacity = table->entries().length();
   if (new_size > static_cast<uint32_t>(old_capacity)) {

@@ -94,7 +94,7 @@ class OptimizationDecision {
         concurrency_mode(concurrency_mode) {}
 };
 // Since we pass by value:
-STATIC_ASSERT(sizeof(OptimizationDecision) <= kInt32Size);
+static_assert(sizeof(OptimizationDecision) <= kInt32Size);
 
 namespace {
 

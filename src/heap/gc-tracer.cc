@@ -167,10 +167,10 @@ GCTracer::GCTracer(Heap* heap)
       previous_mark_compact_end_time_(0) {
   // All accesses to incremental_marking_scope assume that incremental marking
   // scopes come first.
-  STATIC_ASSERT(0 == Scope::FIRST_INCREMENTAL_SCOPE);
+  static_assert(0 == Scope::FIRST_INCREMENTAL_SCOPE);
   // We assume that MC_INCREMENTAL is the first scope so that we can properly
   // map it to RuntimeCallStats.
-  STATIC_ASSERT(0 == Scope::MC_INCREMENTAL);
+  static_assert(0 == Scope::MC_INCREMENTAL);
   current_.end_time = MonotonicallyIncreasingTimeInMs();
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     background_counter_[i].total_duration_ms = 0;

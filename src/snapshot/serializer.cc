@@ -252,7 +252,7 @@ void Serializer::PutRoot(RootIndex root) {
 
   // Assert that the first 32 root array items are a conscious choice. They are
   // chosen so that the most common ones can be encoded more efficiently.
-  STATIC_ASSERT(static_cast<int>(RootIndex::kArgumentsMarker) ==
+  static_assert(static_cast<int>(RootIndex::kArgumentsMarker) ==
                 kRootArrayConstantsCount - 1);
 
   // TODO(ulan): Check that it works with young large objects.
@@ -270,8 +270,8 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
   // Serializing a smi root in compressed pointer builds will serialize the
   // full object slot (of kSystemPointerSize) to avoid complications during
   // deserialization (endianness or smi sequences).
-  STATIC_ASSERT(decltype(slot)::kSlotDataSize == sizeof(Address));
-  STATIC_ASSERT(decltype(slot)::kSlotDataSize == kSystemPointerSize);
+  static_assert(decltype(slot)::kSlotDataSize == sizeof(Address));
+  static_assert(decltype(slot)::kSlotDataSize == kSystemPointerSize);
   static constexpr int bytes_to_output = decltype(slot)::kSlotDataSize;
   static constexpr int size_in_tagged = bytes_to_output >> kTaggedSizeLog2;
   sink_.Put(FixedRawDataWithSize::Encode(size_in_tagged), "Smi");
@@ -1100,7 +1100,7 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code host,
   // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
   // consider using raw_instruction_size() instead of raw_body_size() in the
   // future.
-  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+  static_assert(Code::kOnHeapBodyIsContiguous);
   DCHECK_LE(target_offset, Handle<Code>::cast(object_)->raw_body_size());
   sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");
@@ -1114,7 +1114,7 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
-  STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::kBuiltinCount);
+  static_assert(EmbeddedData::kTableSize == Builtins::kBuiltinCount);
 
   Address addr = rinfo->target_off_heap_target();
   CHECK_NE(kNullAddress, addr);

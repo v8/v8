@@ -333,8 +333,8 @@ struct OperationT : Operation {
     // This is an optimized computation of:
     //   round_up(size_in_bytes / sizeof(StorageSlot))
     constexpr size_t r = sizeof(OperationStorageSlot) / sizeof(OpIndex);
-    STATIC_ASSERT(sizeof(OperationStorageSlot) % sizeof(OpIndex) == 0);
-    STATIC_ASSERT(sizeof(Derived) % sizeof(OpIndex) == 0);
+    static_assert(sizeof(OperationStorageSlot) % sizeof(OpIndex) == 0);
+    static_assert(sizeof(Derived) % sizeof(OpIndex) == 0);
     size_t result = std::max<size_t>(
         2, (r - 1 + sizeof(Derived) / sizeof(OpIndex) + input_count) / r);
     DCHECK_EQ(result, Operation::StorageSlotCount(opcode, input_count));
@@ -360,11 +360,11 @@ struct OperationT : Operation {
   }
 
   explicit OperationT(size_t input_count) : Operation(opcode, input_count) {
-    STATIC_ASSERT((std::is_base_of<OperationT, Derived>::value));
+    static_assert((std::is_base_of<OperationT, Derived>::value));
 #if !V8_CC_MSVC
-    STATIC_ASSERT(std::is_trivially_copyable<Derived>::value);
+    static_assert(std::is_trivially_copyable<Derived>::value);
 #endif  // !V8_CC_MSVC
-    STATIC_ASSERT(std::is_trivially_destructible<Derived>::value);
+    static_assert(std::is_trivially_destructible<Derived>::value);
   }
   explicit OperationT(base::Vector<const OpIndex> inputs)
       : OperationT(inputs.size()) {
@@ -1320,7 +1320,7 @@ inline const OpProperties& Operation::properties() const {
 inline size_t Operation::StorageSlotCount(Opcode opcode, size_t input_count) {
   size_t size = kOperationSizeDividedBySizeofOpIndexTable[OpcodeIndex(opcode)];
   constexpr size_t r = sizeof(OperationStorageSlot) / sizeof(OpIndex);
-  STATIC_ASSERT(sizeof(OperationStorageSlot) % sizeof(OpIndex) == 0);
+  static_assert(sizeof(OperationStorageSlot) % sizeof(OpIndex) == 0);
   return std::max<size_t>(2, (r - 1 + size + input_count) / r);
 }
 

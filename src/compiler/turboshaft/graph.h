@@ -319,8 +319,8 @@ class Graph {
 
   template <class Op, class... Args>
   void Replace(OpIndex replaced, Args... args) {
-    STATIC_ASSERT((std::is_base_of<Operation, Op>::value));
-    STATIC_ASSERT(std::is_trivially_destructible<Op>::value);
+    static_assert((std::is_base_of<Operation, Op>::value));
+    static_assert(std::is_trivially_destructible<Op>::value);
 
     OperationBuffer::ReplaceScope replace_scope(&operations_, replaced);
     Op::New(this, args...);

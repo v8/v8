@@ -428,9 +428,9 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   };
 
   Node() {
-    STATIC_ASSERT(static_cast<int>(NodeState::kMask) ==
+    static_assert(static_cast<int>(NodeState::kMask) ==
                   Internals::kNodeStateMask);
-    STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);
+    static_assert(WEAK == Internals::kNodeStateIsWeakValue);
     set_in_young_list(false);
   }
 

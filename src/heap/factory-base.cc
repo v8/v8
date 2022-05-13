@@ -34,7 +34,7 @@ namespace internal {
 template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
-  STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
+  static_assert(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
   Map map = read_only_roots().heap_number_map();
   HeapObject result = AllocateRawWithImmortalMap(HeapNumber::kSize, allocation,
                                                  map, kDoubleUnaligned);
@@ -738,11 +738,11 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
   // If the resulting string is small make a flat string.
   if (length < ConsString::kMinLength) {
     // Note that neither of the two inputs can be a slice because:
-    STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
+    static_assert(ConsString::kMinLength <= SlicedString::kMinLength);
     DCHECK(left->IsFlat());
     DCHECK(right->IsFlat());
 
-    STATIC_ASSERT(ConsString::kMinLength <= String::kMaxLength);
+    static_assert(ConsString::kMinLength <= String::kMaxLength);
     if (is_one_byte) {
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length, allocation).ToHandleChecked();

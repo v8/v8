@@ -21146,8 +21146,8 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%GetProperty(other, 'x')");
   CheckCorrectThrow("%SetKeyedProperty(other, 'x', 'foo')");
   CheckCorrectThrow("%SetNamedProperty(other, 'y', 'foo')");
-  STATIC_ASSERT(static_cast<int>(i::LanguageMode::kSloppy) == 0);
-  STATIC_ASSERT(static_cast<int>(i::LanguageMode::kStrict) == 1);
+  static_assert(static_cast<int>(i::LanguageMode::kSloppy) == 0);
+  static_assert(static_cast<int>(i::LanguageMode::kStrict) == 1);
   CheckCorrectThrow("%DeleteProperty(other, 'x', 0)");  // 0 == SLOPPY
   CheckCorrectThrow("%DeleteProperty(other, 'x', 1)");  // 1 == STRICT
   CheckCorrectThrow("%DeleteProperty(other, '1', 0)");
@@ -21176,7 +21176,7 @@ const uint16_t kTwoByteSubjectString[] = {
     'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
 
 const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
-STATIC_ASSERT(arraysize(kOneByteSubjectString) ==
+static_assert(arraysize(kOneByteSubjectString) ==
               arraysize(kTwoByteSubjectString));
 
 OneByteVectorResource one_byte_string_resource(v8::base::Vector<const char>(

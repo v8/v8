@@ -219,9 +219,9 @@ LargePage* LargePage::Create(PageBackend& page_backend, LargePageSpace& space,
                              size_t size) {
   // Ensure that the API-provided alignment guarantees does not violate the
   // internally guaranteed alignment of large page allocations.
-  STATIC_ASSERT(kGuaranteedObjectAlignment <=
+  static_assert(kGuaranteedObjectAlignment <=
                 api_constants::kMaxSupportedAlignment);
-  STATIC_ASSERT(
+  static_assert(
       api_constants::kMaxSupportedAlignment % kGuaranteedObjectAlignment == 0);
 
   DCHECK_LE(kLargeObjectSizeThreshold, size);

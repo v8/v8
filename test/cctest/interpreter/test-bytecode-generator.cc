@@ -1530,7 +1530,7 @@ TEST(ContextVariables) {
   // The wide check below relies on MIN_CONTEXT_SLOTS + 3 + 250 == 256, if this
   // ever changes, the REPEAT_XXX should be changed to output the correct number
   // of unique variables to trigger the wide slot load / store.
-  STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS + 3 + 250 == 256);
+  static_assert(Context::MIN_CONTEXT_EXTENDED_SLOTS + 3 + 250 == 256);
 
   // For historical reasons, this test expects the first unique identifier
   // to be 896.

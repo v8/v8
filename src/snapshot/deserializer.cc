@@ -199,7 +199,7 @@ template <typename TSlot>
 int Deserializer<IsolateT>::WriteAddress(TSlot dest, Address value) {
   DCHECK(!next_reference_is_weak_);
   memcpy(dest.ToVoidPtr(), &value, kSystemPointerSize);
-  STATIC_ASSERT(IsAligned(kSystemPointerSize, TSlot::kSlotDataSize));
+  static_assert(IsAligned(kSystemPointerSize, TSlot::kSlotDataSize));
   return (kSystemPointerSize / TSlot::kSlotDataSize);
 }
 
@@ -252,7 +252,7 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
   // We start the indices here at 1, so that we can distinguish between an
   // actual index and an empty backing store (serialized as
   // kEmptyBackingStoreRefSentinel) in a deserialized object requiring fix-up.
-  STATIC_ASSERT(kEmptyBackingStoreRefSentinel == 0);
+  static_assert(kEmptyBackingStoreRefSentinel == 0);
   backing_stores_.push_back({});
 
 #ifdef DEBUG
@@ -817,7 +817,7 @@ void DeserializerRelocInfoVisitor::VisitInternalReference(Code host,
   // TODO(jgruber,v8:11036): We are being permissive for this DCHECK, but
   // consider using raw_instruction_size() instead of raw_body_size() in the
   // future.
-  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+  static_assert(Code::kOnHeapBodyIsContiguous);
   DCHECK_LT(static_cast<unsigned>(target_offset),
             static_cast<unsigned>(host.raw_body_size()));
   Address target = host.entry() + target_offset;
@@ -868,7 +868,7 @@ namespace {
 // given number of cases matches the number of expected cases for that bytecode.
 template <int byte_code_count, int expected>
 constexpr byte VerifyBytecodeCount(byte bytecode) {
-  STATIC_ASSERT(byte_code_count == expected);
+  static_assert(byte_code_count == expected);
   return bytecode;
 }
 
@@ -1221,9 +1221,9 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     case CASE_RANGE(kRootArrayConstants, 32): {
       // First kRootArrayConstantsCount roots are guaranteed to be in
       // the old space.
-      STATIC_ASSERT(static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) ==
+      static_assert(static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) ==
                     0);
-      STATIC_ASSERT(kRootArrayConstantsCount <=
+      static_assert(kRootArrayConstantsCount <=
                     static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
 
       RootIndex root_index = RootArrayConstant::Decode(data);
@@ -1241,7 +1241,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     case CASE_RANGE(kFixedRawData, 32): {
       // Deserialize raw data of fixed length from 1 to 32 times kTaggedSize.
       int size_in_tagged = FixedRawDataWithSize::Decode(data);
-      STATIC_ASSERT(TSlot::kSlotDataSize == kTaggedSize ||
+      static_assert(TSlot::kSlotDataSize == kTaggedSize ||
                     TSlot::kSlotDataSize == 2 * kTaggedSize);
       int size_in_slots = size_in_tagged / (TSlot::kSlotDataSize / kTaggedSize);
       // kFixedRawData can have kTaggedSize != TSlot::kSlotDataSize when

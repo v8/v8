@@ -28,14 +28,14 @@ namespace internal {
 // can't overlap with the lower 32 bits of cleared weak reference value and
 // therefore it's enough to compare only the lower 32 bits of a MaybeObject in
 // order to figure out if it's a cleared weak reference or not.
-STATIC_ASSERT(kClearedWeakHeapObjectLower32 < LargePage::kHeaderSize);
+static_assert(kClearedWeakHeapObjectLower32 < LargePage::kHeaderSize);
 
 LargePage::LargePage(Heap* heap, BaseSpace* space, size_t chunk_size,
                      Address area_start, Address area_end,
                      VirtualMemory reservation, Executability executable)
     : MemoryChunk(heap, space, chunk_size, area_start, area_end,
                   std::move(reservation), executable, PageSize::kLarge) {
-  STATIC_ASSERT(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
+  static_assert(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
 
   if (executable && chunk_size > LargePage::kMaxCodePageSize) {
     FATAL("Code page is too large.");
@@ -48,7 +48,7 @@ LargePage::LargePage(Heap* heap, BaseSpace* space, size_t chunk_size,
 LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
                                  Executability executable) {
   if (executable && chunk->size() > LargePage::kMaxCodePageSize) {
-    STATIC_ASSERT(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
+    static_assert(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
     FATAL("Code page is too large.");
   }
 

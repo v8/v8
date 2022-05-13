@@ -306,7 +306,7 @@ void HeapEntry::SetNamedAutoIndexReference(HeapGraphEdge::Type type,
 
 void HeapEntry::Print(const char* prefix, const char* edge_name, int max_depth,
                       int indent) const {
-  STATIC_ASSERT(sizeof(unsigned) == sizeof(id()));
+  static_assert(sizeof(unsigned) == sizeof(id()));
   base::OS::Print("%6zu @%6u %*c %s%s: ", self_size(), id(), indent, ' ',
                   prefix, edge_name);
   if (type() != kString) {
@@ -394,13 +394,13 @@ HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
       numerics_mode_(numerics_mode) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
-  STATIC_ASSERT(kSystemPointerSize != 4 || sizeof(HeapGraphEdge) == 12);
-  STATIC_ASSERT(kSystemPointerSize != 8 || sizeof(HeapGraphEdge) == 24);
-  STATIC_ASSERT(kSystemPointerSize != 4 || sizeof(HeapEntry) == 32);
+  static_assert(kSystemPointerSize != 4 || sizeof(HeapGraphEdge) == 12);
+  static_assert(kSystemPointerSize != 8 || sizeof(HeapGraphEdge) == 24);
+  static_assert(kSystemPointerSize != 4 || sizeof(HeapEntry) == 32);
 #if V8_CC_MSVC
-  STATIC_ASSERT(kSystemPointerSize != 8 || sizeof(HeapEntry) == 48);
+  static_assert(kSystemPointerSize != 8 || sizeof(HeapEntry) == 48);
 #else   // !V8_CC_MSVC
-  STATIC_ASSERT(kSystemPointerSize != 8 || sizeof(HeapEntry) == 40);
+  static_assert(kSystemPointerSize != 8 || sizeof(HeapEntry) == 40);
 #endif  // !V8_CC_MSVC
   memset(&gc_subroot_entries_, 0, sizeof(gc_subroot_entries_));
 }
@@ -1220,7 +1220,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
                          JSGlobalObject::kNativeContextOffset);
     SetInternalReference(entry, "global_proxy", global_obj.global_proxy(),
                          JSGlobalObject::kGlobalProxyOffset);
-    STATIC_ASSERT(JSGlobalObject::kHeaderSize - JSObject::kHeaderSize ==
+    static_assert(JSGlobalObject::kHeaderSize - JSObject::kHeaderSize ==
                   2 * kTaggedSize);
   } else if (obj.IsJSArrayBufferView()) {
     JSArrayBufferView view = JSArrayBufferView::cast(obj);
@@ -1362,10 +1362,10 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
                      context.get(Context::DEOPTIMIZED_CODE_LIST),
                      Context::OffsetOfElementAt(Context::DEOPTIMIZED_CODE_LIST),
                      HeapEntry::kCustomWeakPointer);
-    STATIC_ASSERT(Context::OPTIMIZED_CODE_LIST == Context::FIRST_WEAK_SLOT);
-    STATIC_ASSERT(Context::NEXT_CONTEXT_LINK + 1 ==
+    static_assert(Context::OPTIMIZED_CODE_LIST == Context::FIRST_WEAK_SLOT);
+    static_assert(Context::NEXT_CONTEXT_LINK + 1 ==
                   Context::NATIVE_CONTEXT_SLOTS);
-    STATIC_ASSERT(Context::FIRST_WEAK_SLOT + 3 ==
+    static_assert(Context::FIRST_WEAK_SLOT + 3 ==
                   Context::NATIVE_CONTEXT_SLOTS);
   }
 }
@@ -2931,7 +2931,7 @@ template<> struct ToUnsigned<8> {
 template <typename T>
 static int utoa_impl(T value, const base::Vector<char>& buffer,
                      int buffer_pos) {
-  STATIC_ASSERT(static_cast<T>(-1) > 0);  // Check that T is unsigned
+  static_assert(static_cast<T>(-1) > 0);  // Check that T is unsigned
   int number_of_digits = 0;
   T t = value;
   do {
@@ -2951,7 +2951,7 @@ static int utoa_impl(T value, const base::Vector<char>& buffer,
 template <typename T>
 static int utoa(T value, const base::Vector<char>& buffer, int buffer_pos) {
   typename ToUnsigned<sizeof(value)>::Type unsigned_value = value;
-  STATIC_ASSERT(sizeof(value) == sizeof(unsigned_value));
+  static_assert(sizeof(value) == sizeof(unsigned_value));
   return utoa_impl(unsigned_value, buffer, buffer_pos);
 }
 

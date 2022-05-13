@@ -116,7 +116,7 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
   DCHECK_EQ(index, static_cast<uint64_t>(index));
 #if V8_TARGET_ARCH_32_BIT
   if (index <= JSObject::kMaxElementIndex) {
-    STATIC_ASSERT(JSObject::kMaxElementIndex <=
+    static_assert(JSObject::kMaxElementIndex <=
                   std::numeric_limits<size_t>::max());
     index_ = static_cast<size_t>(index);
   } else {

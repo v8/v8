@@ -477,7 +477,7 @@ class RootsTable {
   // initialization.
   // Generated code can treat direct references to these roots as constants.
   static constexpr bool IsImmortalImmovable(RootIndex root_index) {
-    STATIC_ASSERT(static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) ==
+    static_assert(static_cast<int>(RootIndex::kFirstImmortalImmovableRoot) ==
                   0);
     return static_cast<unsigned>(root_index) <=
            static_cast<unsigned>(RootIndex::kLastImmortalImmovableRoot);
@@ -494,7 +494,7 @@ class RootsTable {
 
   // Used for iterating over all of the read-only and mutable strong roots.
   FullObjectSlot strong_or_read_only_roots_begin() const {
-    STATIC_ASSERT(static_cast<size_t>(RootIndex::kLastReadOnlyRoot) ==
+    static_assert(static_cast<size_t>(RootIndex::kLastReadOnlyRoot) ==
                   static_cast<size_t>(RootIndex::kFirstStrongRoot) - 1);
     return FullObjectSlot(
         &roots_[static_cast<size_t>(RootIndex::kFirstStrongOrReadOnlyRoot)]);

@@ -98,7 +98,7 @@ class ThreadLocalTop {
   // be cleaner to make it an "Address raw_context_", and construct a Context
   // object in the getter. Same for {pending_handler_context_} below. In the
   // meantime, assert that the memory layout is the same.
-  STATIC_ASSERT(sizeof(Context) == kSystemPointerSize);
+  static_assert(sizeof(Context) == kSystemPointerSize);
   Context context_;
   std::atomic<ThreadId> thread_id_;
   Object pending_exception_;

@@ -14,12 +14,12 @@
 namespace cppgc {
 namespace internal {
 
-STATIC_ASSERT((kAllocationGranularity % sizeof(HeapObjectHeader)) == 0);
+static_assert((kAllocationGranularity % sizeof(HeapObjectHeader)) == 0);
 
 void HeapObjectHeader::CheckApiConstants() {
-  STATIC_ASSERT(api_constants::kFullyConstructedBitMask ==
+  static_assert(api_constants::kFullyConstructedBitMask ==
                 FullyConstructedField::kMask);
-  STATIC_ASSERT(api_constants::kFullyConstructedBitFieldOffsetFromPayload ==
+  static_assert(api_constants::kFullyConstructedBitFieldOffsetFromPayload ==
                 (sizeof(encoded_high_) + sizeof(encoded_low_)));
 }
 

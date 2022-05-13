@@ -196,7 +196,7 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
     TNode<Int32T> kind) {
-  STATIC_ASSERT(BIGUINT64_ELEMENTS + 1 == BIGINT64_ELEMENTS);
+  static_assert(BIGUINT64_ELEMENTS + 1 == BIGINT64_ELEMENTS);
   return Word32Or(
       IsElementsKindInRange(kind, BIGUINT64_ELEMENTS, BIGINT64_ELEMENTS),
       IsElementsKindInRange(kind, RAB_GSAB_BIGUINT64_ELEMENTS,
@@ -399,7 +399,7 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
       TYPED_ARRAYS(TYPED_ARRAY_CASE) RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
-  STATIC_ASSERT(arraysize(elements_kinds) == arraysize(elements_kind_labels));
+  static_assert(arraysize(elements_kinds) == arraysize(elements_kind_labels));
 
   Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
          arraysize(elements_kinds));

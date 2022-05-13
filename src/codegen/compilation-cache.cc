@@ -51,7 +51,7 @@ Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
 }
 
 void CompilationCacheRegExp::Age() {
-  STATIC_ASSERT(kGenerations > 1);
+  static_assert(kGenerations > 1);
 
   // Age the generations implicitly killing off the oldest.
   for (int i = kGenerations - 1; i > 0; i--) {
@@ -102,7 +102,7 @@ void CompilationCacheEval::Age() {
       // Note: The following static assert only establishes an explicit
       // connection between initialization- and use-sites of the smi value
       // field.
-      STATIC_ASSERT(CompilationCacheTable::kHashGenerations);
+      static_assert(CompilationCacheTable::kHashGenerations);
       const int new_count = Smi::ToInt(table.PrimaryValueAt(entry)) - 1;
       if (new_count == 0) {
         table.RemoveEntry(entry);

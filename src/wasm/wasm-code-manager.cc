@@ -296,10 +296,10 @@ void WasmCode::Validate() const {
   // The packing strategy for {tagged_parameter_slots} only works if both the
   // max number of parameters and their max combined stack slot usage fits into
   // their respective half of the result value.
-  STATIC_ASSERT(wasm::kV8MaxWasmFunctionParams <
+  static_assert(wasm::kV8MaxWasmFunctionParams <
                 std::numeric_limits<uint16_t>::max());
   static constexpr int kMaxSlotsPerParam = 4;  // S128 on 32-bit platforms.
-  STATIC_ASSERT(wasm::kV8MaxWasmFunctionParams * kMaxSlotsPerParam <
+  static_assert(wasm::kV8MaxWasmFunctionParams * kMaxSlotsPerParam <
                 std::numeric_limits<uint16_t>::max());
 
 #ifdef DEBUG
@@ -1077,7 +1077,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                                source_pos_table->length());
   }
   CHECK(!code->is_off_heap_trampoline());
-  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+  static_assert(Code::kOnHeapBodyIsContiguous);
   base::Vector<const byte> instructions(
       reinterpret_cast<byte*>(code->raw_body_start()),
       static_cast<size_t>(code->raw_body_size()));
@@ -1633,7 +1633,7 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
         WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
 #undef RUNTIME_STUB
 #undef RUNTIME_STUB_TRAP
-    STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+    static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
     Address builtin_addresses[WasmCode::kRuntimeStubCount];
     for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
       Builtin builtin = stub_names[i];
@@ -2589,7 +2589,7 @@ Builtin RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId stub_id) {
       WASM_RUNTIME_STUB_LIST(RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP)};
 #undef RUNTIME_STUB_NAME
 #undef RUNTIME_STUB_NAME_TRAP
-  STATIC_ASSERT(arraysize(builtin_names) == WasmCode::kRuntimeStubCount);
+  static_assert(arraysize(builtin_names) == WasmCode::kRuntimeStubCount);
 
   DCHECK_GT(arraysize(builtin_names), stub_id);
   return builtin_names[stub_id];
@@ -2602,7 +2602,7 @@ const char* GetRuntimeStubName(WasmCode::RuntimeStubId stub_id) {
       RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP) "<unknown>"};
 #undef RUNTIME_STUB_NAME
 #undef RUNTIME_STUB_NAME_TRAP
-  STATIC_ASSERT(arraysize(runtime_stub_names) ==
+  static_assert(arraysize(runtime_stub_names) ==
                 WasmCode::kRuntimeStubCount + 1);
 
   DCHECK_GT(arraysize(runtime_stub_names), stub_id);

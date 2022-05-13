@@ -23,7 +23,7 @@ class SmallVector {
   // Currently only support trivially copyable and trivially destructible data
   // types, as it uses memcpy to copy elements and never calls destructors.
   ASSERT_TRIVIALLY_COPYABLE(T);
-  STATIC_ASSERT(std::is_trivially_destructible<T>::value);
+  static_assert(std::is_trivially_destructible<T>::value);
 
  public:
   static constexpr size_t kInlineSize = kSize;

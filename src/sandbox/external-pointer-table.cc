@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-STATIC_ASSERT(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);
+static_assert(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);
 
 // static
 uint32_t ExternalPointerTable::AllocateEntry(ExternalPointerTable* table) {

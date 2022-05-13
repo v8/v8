@@ -254,7 +254,7 @@ void AtomicStoreTagged(MachineType type, AtomicMemoryOrder order) {
   uintptr_t zap_data[] = {kZapValue, kZapValue};
   TaggedT zap_value;
 
-  STATIC_ASSERT(sizeof(TaggedT) <= sizeof(zap_data));
+  static_assert(sizeof(TaggedT) <= sizeof(zap_data));
   MemCopy(&zap_value, &zap_data, sizeof(TaggedT));
   InitBuffer(in_buffer, kNumElems, type);
 

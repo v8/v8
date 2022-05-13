@@ -364,7 +364,7 @@ class UnallocatedOperand final : public InstructionOperand {
   // The slot index is a signed value which requires us to decode it manually
   // instead of using the base::BitField utility class.
 
-  STATIC_ASSERT(KindField::kSize == 3);
+  static_assert(KindField::kSize == 3);
 
   using VirtualRegisterField = base::BitField64<uint32_t, 3, 32>;
 
@@ -408,7 +408,7 @@ class ConstantOperand : public InstructionOperand {
 
   INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT)
 
-  STATIC_ASSERT(KindField::kSize == 3);
+  static_assert(KindField::kSize == 3);
   using VirtualRegisterField = base::BitField64<uint32_t, 3, 32>;
 };
 
@@ -446,7 +446,7 @@ class ImmediateOperand : public InstructionOperand {
 
   INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE)
 
-  STATIC_ASSERT(KindField::kSize == 3);
+  static_assert(KindField::kSize == 3);
   using TypeField = base::BitField64<ImmediateType, 3, 2>;
   using ValueField = base::BitField64<int32_t, 32, 32>;
 };
@@ -483,9 +483,9 @@ class PendingOperand : public InstructionOperand {
   // Operands are uint64_t values and so are aligned to 8 byte boundaries,
   // therefore we can shift off the bottom three zeros without losing data.
   static const uint64_t kPointerShift = 3;
-  STATIC_ASSERT(alignof(InstructionOperand) >= (1 << kPointerShift));
+  static_assert(alignof(InstructionOperand) >= (1 << kPointerShift));
 
-  STATIC_ASSERT(KindField::kSize == 3);
+  static_assert(KindField::kSize == 3);
   using NextOperandField = base::BitField64<uint64_t, 3, 61>;
 };
 
@@ -590,7 +590,7 @@ class LocationOperand : public InstructionOperand {
     return *static_cast<const LocationOperand*>(&op);
   }
 
-  STATIC_ASSERT(KindField::kSize == 3);
+  static_assert(KindField::kSize == 3);
   using LocationKindField = base::BitField64<LocationKind, 3, 2>;
   using RepresentationField = base::BitField64<MachineRepresentation, 5, 8>;
   using IndexField = base::BitField64<int32_t, 35, 29>;
@@ -984,7 +984,7 @@ class V8_EXPORT_PRIVATE Instruction final {
   }
   bool HasCallDescriptorFlag(CallDescriptor::Flag flag) const {
     DCHECK(IsCallWithDescriptorFlags());
-    STATIC_ASSERT(CallDescriptor::kFlagsBitsEncodedInInstructionCode == 10);
+    static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode == 10);
 #ifdef DEBUG
     static constexpr int kInstructionCodeFlagsMask =
         ((1 << CallDescriptor::kFlagsBitsEncodedInInstructionCode) - 1);

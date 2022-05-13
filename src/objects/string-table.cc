@@ -187,10 +187,10 @@ void* StringTable::Data::operator new(size_t size, int capacity) {
   DCHECK_EQ(size, sizeof(StringTable::Data));
   // Make sure that the elements_ array is at the end of Data, with no padding,
   // so that subsequent elements can be accessed as offsets from elements_.
-  STATIC_ASSERT(offsetof(StringTable::Data, elements_) ==
+  static_assert(offsetof(StringTable::Data, elements_) ==
                 sizeof(StringTable::Data) - sizeof(Tagged_t));
   // Make sure that elements_ is aligned when StringTable::Data is aligned.
-  STATIC_ASSERT(
+  static_assert(
       (alignof(StringTable::Data) + offsetof(StringTable::Data, elements_)) %
           kTaggedSize ==
       0);
@@ -755,9 +755,9 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
 
   // Valid array indices are >= 0, so they cannot be mixed up with any of
   // the result sentinels, which are negative.
-  STATIC_ASSERT(
+  static_assert(
       !String::ArrayIndexValueBits::is_valid(ResultSentinel::kUnsupported));
-  STATIC_ASSERT(
+  static_assert(
       !String::ArrayIndexValueBits::is_valid(ResultSentinel::kNotFound));
 
   size_t start = 0;
@@ -886,10 +886,10 @@ void* StringForwardingTable::Block::operator new(size_t size, int capacity) {
   DCHECK_EQ(size, sizeof(StringForwardingTable::Block));
   // Make sure that the elements_ array is at the end of Block, with no padding,
   // so that subsequent elements can be accessed as offsets from elements_.
-  STATIC_ASSERT(offsetof(StringForwardingTable::Block, elements_) ==
+  static_assert(offsetof(StringForwardingTable::Block, elements_) ==
                 sizeof(StringForwardingTable::Block) - sizeof(Tagged_t) * 1);
   // Make sure that elements_ is aligned when StringTable::Block is aligned.
-  STATIC_ASSERT((alignof(StringForwardingTable::Block) +
+  static_assert((alignof(StringForwardingTable::Block) +
                  offsetof(StringForwardingTable::Block, elements_)) %
                     kTaggedSize ==
                 0);

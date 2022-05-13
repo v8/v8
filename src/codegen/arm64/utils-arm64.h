@@ -14,8 +14,8 @@ namespace v8 {
 namespace internal {
 
 // These are global assumptions in v8.
-STATIC_ASSERT((static_cast<int32_t>(-1) >> 1) == -1);
-STATIC_ASSERT((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
+static_assert((static_cast<int32_t>(-1) >> 1) == -1);
+static_assert((static_cast<uint32_t>(-1) >> 1) == 0x7FFFFFFF);
 
 uint32_t float_sign(float val);
 uint32_t float_exp(float val);

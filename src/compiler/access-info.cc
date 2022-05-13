@@ -36,7 +36,7 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
   // load and the holder is a prototype. The latter ensures a 1:1
   // relationship between the map and the object (and therefore the property
   // dictionary).
-  STATIC_ASSERT(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
+  static_assert(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
   if (map.object()->IsBooleanMap()) return true;
   if (map.instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
   if (map.object()->IsJSObjectMap()) {

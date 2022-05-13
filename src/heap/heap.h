@@ -374,8 +374,8 @@ class Heap {
   static constexpr size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
 #endif
 
-  STATIC_ASSERT(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
-  STATIC_ASSERT(kMaxSemiSpaceSize % (1 << kPageSizeBits) == 0);
+  static_assert(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
+  static_assert(kMaxSemiSpaceSize % (1 << kPageSizeBits) == 0);
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
@@ -391,17 +391,17 @@ class Heap {
 
   static const int kMinPromotedPercentForFastPromotionMode = 90;
 
-  STATIC_ASSERT(static_cast<int>(RootIndex::kUndefinedValue) ==
+  static_assert(static_cast<int>(RootIndex::kUndefinedValue) ==
                 Internals::kUndefinedValueRootIndex);
-  STATIC_ASSERT(static_cast<int>(RootIndex::kTheHoleValue) ==
+  static_assert(static_cast<int>(RootIndex::kTheHoleValue) ==
                 Internals::kTheHoleValueRootIndex);
-  STATIC_ASSERT(static_cast<int>(RootIndex::kNullValue) ==
+  static_assert(static_cast<int>(RootIndex::kNullValue) ==
                 Internals::kNullValueRootIndex);
-  STATIC_ASSERT(static_cast<int>(RootIndex::kTrueValue) ==
+  static_assert(static_cast<int>(RootIndex::kTrueValue) ==
                 Internals::kTrueValueRootIndex);
-  STATIC_ASSERT(static_cast<int>(RootIndex::kFalseValue) ==
+  static_assert(static_cast<int>(RootIndex::kFalseValue) ==
                 Internals::kFalseValueRootIndex);
-  STATIC_ASSERT(static_cast<int>(RootIndex::kempty_string) ==
+  static_assert(static_cast<int>(RootIndex::kempty_string) ==
                 Internals::kEmptyStringRootIndex);
 
   // Calculates the maximum amount of filler that could be required by the

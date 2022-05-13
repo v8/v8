@@ -17,11 +17,11 @@ V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
                                         ExternalPointer_t encoded_pointer,
                                         ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  STATIC_ASSERT(kExternalPointerSize == kInt32Size);
+  static_assert(kExternalPointerSize == kInt32Size);
   uint32_t index = encoded_pointer >> kExternalPointerIndexShift;
   return isolate->external_pointer_table().Get(index, tag);
 #else
-  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+  static_assert(kExternalPointerSize == kSystemPointerSize);
   return encoded_pointer;
 #endif
 }

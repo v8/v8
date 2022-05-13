@@ -377,7 +377,7 @@ uint32_t Isolate::CurrentEmbeddedBlobDataSize() {
 // static
 base::AddressRegion Isolate::GetShortBuiltinsCallRegion() {
   // Update calculations below if the assert fails.
-  STATIC_ASSERT(kMaxPCRelativeCodeRangeInMB <= 4096);
+  static_assert(kMaxPCRelativeCodeRangeInMB <= 4096);
   if (kMaxPCRelativeCodeRangeInMB == 0) {
     // Return empty region if pc-relative calls/jumps are not supported.
     return base::AddressRegion(kNullAddress, 0);
@@ -430,16 +430,16 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     // they change when creating the off-heap trampolines. Other data fields
     // must remain the same.
 #ifdef V8_EXTERNAL_CODE_SPACE
-    STATIC_ASSERT(Code::kMainCageBaseUpper32BitsOffset == Code::kDataStart);
-    STATIC_ASSERT(Code::kInstructionSizeOffset ==
+    static_assert(Code::kMainCageBaseUpper32BitsOffset == Code::kDataStart);
+    static_assert(Code::kInstructionSizeOffset ==
                   Code::kMainCageBaseUpper32BitsOffsetEnd + 1);
 #else
-    STATIC_ASSERT(Code::kInstructionSizeOffset == Code::kDataStart);
+    static_assert(Code::kInstructionSizeOffset == Code::kDataStart);
 #endif  // V8_EXTERNAL_CODE_SPACE
-    STATIC_ASSERT(Code::kMetadataSizeOffset ==
+    static_assert(Code::kMetadataSizeOffset ==
                   Code::kInstructionSizeOffsetEnd + 1);
-    STATIC_ASSERT(Code::kFlagsOffset == Code::kMetadataSizeOffsetEnd + 1);
-    STATIC_ASSERT(Code::kBuiltinIndexOffset == Code::kFlagsOffsetEnd + 1);
+    static_assert(Code::kFlagsOffset == Code::kMetadataSizeOffsetEnd + 1);
+    static_assert(Code::kBuiltinIndexOffset == Code::kFlagsOffsetEnd + 1);
     static constexpr int kStartOffset = Code::kBuiltinIndexOffset;
 
     for (int j = kStartOffset; j < Code::kUnalignedHeaderSize; j++) {
@@ -3330,10 +3330,10 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)),
            Internals::kIsolateRootsOffset);
 
-  STATIC_ASSERT(Internals::kStackGuardSize == sizeof(StackGuard));
-  STATIC_ASSERT(Internals::kBuiltinTier0TableSize ==
+  static_assert(Internals::kStackGuardSize == sizeof(StackGuard));
+  static_assert(Internals::kBuiltinTier0TableSize ==
                 Builtins::kBuiltinTier0Count * kSystemPointerSize);
-  STATIC_ASSERT(Internals::kBuiltinTier0EntryTableSize ==
+  static_assert(Internals::kBuiltinTier0EntryTableSize ==
                 Builtins::kBuiltinTier0Count * kSystemPointerSize);
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
@@ -3679,7 +3679,7 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
 
   EmbeddedData d = EmbeddedData::FromBlob(isolate);
 
-  STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Address instruction_start = d.InstructionStartOfBuiltin(builtin);

@@ -3559,7 +3559,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
 
         // We don't need a release store because the optimized code was
         // stored with release semantics into the vector
-        STATIC_ASSERT(
+        static_assert(
             FeedbackVector::kFeedbackVectorMaybeOptimizedCodeIsStoreRelease);
         function->set_code(code);
       }

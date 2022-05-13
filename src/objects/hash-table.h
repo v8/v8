@@ -170,7 +170,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;
-  STATIC_ASSERT(kEntrySize > 0);
+  static_assert(kEntrySize > 0);
   static const int kEntryKeyIndex = 0;
   static const int kElementsStartOffset =
       kHeaderSize + kElementsStartIndex * kTaggedSize;
@@ -250,13 +250,13 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
-  STATIC_ASSERT(EntryToIndex(InternalIndex(kMaxRegularCapacity)) <
+  static_assert(EntryToIndex(InternalIndex(kMaxRegularCapacity)) <
                 kMaxRegularLength);
-  STATIC_ASSERT(v8::base::bits::IsPowerOfTwo(kMaxRegularCapacity));
+  static_assert(v8::base::bits::IsPowerOfTwo(kMaxRegularCapacity));
   static const int kMaxRegularEntry = kMaxRegularCapacity / kEntrySize;
   static const int kMaxRegularIndex =
       EntryToIndex(InternalIndex(kMaxRegularEntry));
-  STATIC_ASSERT(OffsetOfElementAt(kMaxRegularIndex) <
+  static_assert(OffsetOfElementAt(kMaxRegularIndex) <
                 kMaxRegularHeapObjectSize);
 
   // Sets the capacity of the hash table.

@@ -128,7 +128,7 @@ int AllocateMemoryProtectionKey() {
   // errno, e.g., EINVAL vs ENOSPC vs ENOSYS. See manpages and glibc manual
   // (the latter is the authorative source):
   // https://www.gnu.org/software/libc/manual/html_mono/libc.html#Memory-Protection-Keys
-  STATIC_ASSERT(kNoMemoryProtectionKey == -1);
+  static_assert(kNoMemoryProtectionKey == -1);
   return pkey_alloc(/* flags, unused */ 0, kDisableAccess);
 }
 

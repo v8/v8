@@ -109,7 +109,7 @@ class RelocInfo {
     FIRST_SHAREABLE_RELOC_MODE = WASM_CALL,
   };
 
-  STATIC_ASSERT(NUMBER_OF_MODES <= kBitsPerInt);
+  static_assert(NUMBER_OF_MODES <= kBitsPerInt);
 
   RelocInfo() = default;
 

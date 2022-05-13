@@ -559,7 +559,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   Handle<ByteArray> mutable_double_buffer;
   // Allocate enough space so we can double-align the payload.
   const int kMutableDoubleSize = sizeof(double) * 2;
-  STATIC_ASSERT(HeapNumber::kSize <= kMutableDoubleSize);
+  static_assert(HeapNumber::kSize <= kMutableDoubleSize);
   if (new_mutable_double > 0) {
     mutable_double_buffer =
         factory()->NewByteArray(kMutableDoubleSize * new_mutable_double);
@@ -937,8 +937,8 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         return handle(Smi::FromInt(0), isolate_);
       }
       c = CurrentCharacter();
-      STATIC_ASSERT(Smi::IsValid(-999999999));
-      STATIC_ASSERT(Smi::IsValid(999999999));
+      static_assert(Smi::IsValid(-999999999));
+      static_assert(Smi::IsValid(999999999));
       const int kMaxSmiLength = 9;
       if ((cursor_ - smi_start) <= kMaxSmiLength &&
           (!base::IsInRange(c, 0,

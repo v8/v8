@@ -685,10 +685,10 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
 
   TNode<Int32T> elements_kind = LoadElementsKind(array);
   TNode<FixedArrayBase> elements = LoadElements(array);
-  STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
-  STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
-  STATIC_ASSERT(PACKED_ELEMENTS == 2);
-  STATIC_ASSERT(HOLEY_ELEMENTS == 3);
+  static_assert(PACKED_SMI_ELEMENTS == 0);
+  static_assert(HOLEY_SMI_ELEMENTS == 1);
+  static_assert(PACKED_ELEMENTS == 2);
+  static_assert(HOLEY_ELEMENTS == 3);
   GotoIf(IsElementsKindLessThanOrEqual(elements_kind, HOLEY_ELEMENTS),
          &if_smiorobjects);
   GotoIf(
@@ -1740,12 +1740,12 @@ void ArrayBuiltinsAssembler::CreateArrayDispatchSingleArgument(
     TNode<Smi> transition_info = LoadTransitionInfo(*allocation_site);
 
     // Least significant bit in fast array elements kind means holeyness.
-    STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
-    STATIC_ASSERT(HOLEY_SMI_ELEMENTS == 1);
-    STATIC_ASSERT(PACKED_ELEMENTS == 2);
-    STATIC_ASSERT(HOLEY_ELEMENTS == 3);
-    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS == 4);
-    STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == 5);
+    static_assert(PACKED_SMI_ELEMENTS == 0);
+    static_assert(HOLEY_SMI_ELEMENTS == 1);
+    static_assert(PACKED_ELEMENTS == 2);
+    static_assert(HOLEY_ELEMENTS == 3);
+    static_assert(PACKED_DOUBLE_ELEMENTS == 4);
+    static_assert(HOLEY_DOUBLE_ELEMENTS == 5);
 
     Label normal_sequence(this);
     TVARIABLE(Int32T, var_elements_kind,

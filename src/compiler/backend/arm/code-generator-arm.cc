@@ -3665,7 +3665,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
   if (!saves_fp.is_empty()) {
     // Save callee-saved FP registers.
-    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
+    static_assert(DwVfpRegister::kNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp.bits()) - 1;
     uint32_t first = base::bits::CountTrailingZeros32(saves_fp.bits());
     DCHECK_EQ((last - first + 1), saves_fp.Count());
@@ -3782,7 +3782,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (!saves_fp.is_empty()) {
     // Save callee-saved FP registers.
-    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
+    static_assert(DwVfpRegister::kNumRegisters == 32);
     __ vstm(db_w, sp, saves_fp.first(), saves_fp.last());
   }
 
@@ -3814,7 +3814,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // Restore FP registers.
   const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   if (!saves_fp.is_empty()) {
-    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
+    static_assert(DwVfpRegister::kNumRegisters == 32);
     __ vldm(ia_w, sp, saves_fp.first(), saves_fp.last());
   }
 

@@ -153,7 +153,7 @@ class BufferedRawMachineAssemblerTester
   ReturnType Call(Params... p) {
     uintptr_t zap_data[] = {kZapValue, kZapValue};
     ReturnType return_value;
-    STATIC_ASSERT(sizeof(return_value) <= sizeof(zap_data));
+    static_assert(sizeof(return_value) <= sizeof(zap_data));
     MemCopy(&return_value, &zap_data, sizeof(return_value));
     CSignature::VerifyParams<Params...>(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p)...,

@@ -272,7 +272,7 @@ void EmitEagerDeopt(MaglevCodeGenState* code_gen_state,
 
 template <typename NodeT>
 void EmitEagerDeopt(MaglevCodeGenState* code_gen_state, NodeT* node) {
-  STATIC_ASSERT(NodeT::kProperties.can_eager_deopt());
+  static_assert(NodeT::kProperties.can_eager_deopt());
   EmitEagerDeopt(code_gen_state, node->eager_deopt_info());
 }
 
@@ -286,7 +286,7 @@ void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
 template <typename NodeT>
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
                       NodeT* node) {
-  STATIC_ASSERT(NodeT::kProperties.can_eager_deopt());
+  static_assert(NodeT::kProperties.can_eager_deopt());
   EmitEagerDeoptIf(cond, code_gen_state, node->eager_deopt_info());
 }
 

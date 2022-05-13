@@ -185,14 +185,14 @@ template <typename Descriptor, int ArgIndex, bool kIsRegister>
 struct ArgumentSettingHelper<Descriptor, ArgIndex, kIsRegister> {
   static void Set(BaselineAssembler* masm) {
     // Should only ever be called for the end of register arguments.
-    STATIC_ASSERT(ArgIndex == Descriptor::GetRegisterParameterCount());
+    static_assert(ArgIndex == Descriptor::GetRegisterParameterCount());
   }
 };
 
 template <typename Descriptor, int ArgIndex, typename Arg, typename... Args>
 struct ArgumentSettingHelper<Descriptor, ArgIndex, true, Arg, Args...> {
   static void Set(BaselineAssembler* masm, Arg arg, Args... args) {
-    STATIC_ASSERT(ArgIndex < Descriptor::GetRegisterParameterCount());
+    static_assert(ArgIndex < Descriptor::GetRegisterParameterCount());
     Register target = Descriptor::GetRegisterParameter(ArgIndex);
     CheckSettingDoesntClobber(target, args...);
     masm->Move(target, arg);
@@ -207,7 +207,7 @@ template <typename Descriptor, int ArgIndex>
 struct ArgumentSettingHelper<Descriptor, ArgIndex, true,
                              interpreter::RegisterList> {
   static void Set(BaselineAssembler* masm, interpreter::RegisterList list) {
-    STATIC_ASSERT(ArgIndex < Descriptor::GetRegisterParameterCount());
+    static_assert(ArgIndex < Descriptor::GetRegisterParameterCount());
     DCHECK_EQ(ArgIndex + list.register_count(),
               Descriptor::GetRegisterParameterCount());
     for (int i = 0; ArgIndex + i < Descriptor::GetRegisterParameterCount();
@@ -652,7 +652,7 @@ void BaselineCompiler::JumpIfToBoolean(bool do_jump_if_true, Label* label,
   // ToBooleanForBaselineJump returns the ToBoolean value into return reg 1, and
   // the original value into kInterpreterAccumulatorRegister, so we don't have
   // to worry about it getting clobbered.
-  STATIC_ASSERT(kReturnRegister0 == kInterpreterAccumulatorRegister);
+  static_assert(kReturnRegister0 == kInterpreterAccumulatorRegister);
   __ JumpIfSmi(do_jump_if_true ? Condition::kNotEqual : Condition::kEqual,
                kReturnRegister1, Smi::FromInt(0), label, distance);
 }
@@ -1595,7 +1595,7 @@ void BaselineCompiler::VisitTestTypeOf() {
     case interpreter::TestTypeOfFlags::LiteralFlag::kString: {
       Label is_smi, bad_instance_type;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
-      STATIC_ASSERT(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
+      static_assert(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
       __ JumpIfObjectType(Condition::kGreaterThanEqual,
                           kInterpreterAccumulatorRegister, FIRST_NONSTRING_TYPE,
                           scratch_scope.AcquireScratch(), &bad_instance_type,
@@ -1709,7 +1709,7 @@ void BaselineCompiler::VisitTestTypeOf() {
                     &is_null, Label::kNear);
 
       // If the object's instance type isn't within the range, return false.
-      STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+      static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
       Register map = scratch_scope.AcquireScratch();
       __ JumpIfObjectType(Condition::kLessThan, kInterpreterAccumulatorRegister,
                           FIRST_JS_RECEIVER_TYPE, map, &bad_instance_type,

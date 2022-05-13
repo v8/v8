@@ -147,8 +147,8 @@ class DescriptorArray
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  STATIC_ASSERT(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
-  STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
+  static_assert(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
+  static_assert(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
   DECL_INT16_ACCESSORS(raw_number_of_marked_descriptors)

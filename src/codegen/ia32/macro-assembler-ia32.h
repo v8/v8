@@ -533,8 +533,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Smi tagging support.
   void SmiTag(Register reg) {
-    STATIC_ASSERT(kSmiTag == 0);
-    STATIC_ASSERT(kSmiTagSize == 1);
+    static_assert(kSmiTag == 0);
+    static_assert(kSmiTagSize == 1);
     add(reg, reg);
   }
 

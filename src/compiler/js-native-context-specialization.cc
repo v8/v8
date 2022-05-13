@@ -436,7 +436,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     NodeProperties::ReplaceValueInput(node, constructor, 0);
     NodeProperties::ReplaceValueInput(node, object, 1);
     NodeProperties::ReplaceEffectInput(node, effect);
-    STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
+    static_assert(n.FeedbackVectorIndex() == 2);
     node->RemoveInput(n.FeedbackVectorIndex());
     NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
     return Changed(node).FollowedBy(ReduceJSOrdinaryHasInstance(node));
@@ -482,7 +482,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     Node* target = jsgraph()->Constant(*constant);
     Node* feedback = jsgraph()->UndefinedConstant();
     // Value inputs plus context, frame state, effect, control.
-    STATIC_ASSERT(JSCallNode::ArityForArgc(1) + 4 == 8);
+    static_assert(JSCallNode::ArityForArgc(1) + 4 == 8);
     node->EnsureInputCount(graph()->zone(), 8);
     node->ReplaceInput(JSCallNode::TargetIndex(), target);
     node->ReplaceInput(JSCallNode::ReceiverIndex(), constructor);
@@ -1049,7 +1049,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
          node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
-  STATIC_ASSERT(JSLoadNamedNode::ObjectIndex() == 0 &&
+  static_assert(JSLoadNamedNode::ObjectIndex() == 0 &&
                 JSSetNamedPropertyNode::ObjectIndex() == 0 &&
                 JSLoadPropertyNode::ObjectIndex() == 0 &&
                 JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
@@ -1058,7 +1058,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                 JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
                 JSHasPropertyNode::ObjectIndex() == 0 &&
                 JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
-  STATIC_ASSERT(JSLoadNamedFromSuperNode::ReceiverIndex() == 0);
+  static_assert(JSLoadNamedFromSuperNode::ReceiverIndex() == 0);
 
   Node* context = NodeProperties::GetContextInput(node);
   FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
@@ -1715,7 +1715,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
          node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
-  STATIC_ASSERT(JSLoadPropertyNode::ObjectIndex() == 0 &&
+  static_assert(JSLoadPropertyNode::ObjectIndex() == 0 &&
                 JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
                 JSStoreInArrayLiteralNode::ArrayIndex() == 0 &&
                 JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
@@ -1957,7 +1957,7 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
   NumberMatcher mkey(key);
   if (mkey.IsInteger() &&
       mkey.IsInRange(0.0, static_cast<double>(JSObject::kMaxElementIndex))) {
-    STATIC_ASSERT(JSObject::kMaxElementIndex <= kMaxUInt32);
+    static_assert(JSObject::kMaxElementIndex <= kMaxUInt32);
     const uint32_t index = static_cast<uint32_t>(mkey.ResolvedValue());
     base::Optional<ObjectRef> element;
 

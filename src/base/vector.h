@@ -142,8 +142,8 @@ class Vector {
   static Vector<T> cast(Vector<S> input) {
     // Casting is potentially dangerous, so be really restrictive here. This
     // might be lifted once we have use cases for that.
-    STATIC_ASSERT(std::is_pod<S>::value);
-    STATIC_ASSERT(std::is_pod<T>::value);
+    static_assert(std::is_pod<S>::value);
+    static_assert(std::is_pod<T>::value);
     DCHECK_EQ(0, (input.size() * sizeof(S)) % sizeof(T));
     DCHECK_EQ(0, reinterpret_cast<uintptr_t>(input.begin()) % alignof(T));
     return Vector<T>(reinterpret_cast<T*>(input.begin()),
@@ -207,7 +207,7 @@ class OwnedVector {
                 std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
   OwnedVector(OwnedVector<U>&& other)
       : data_(std::move(other.data_)), length_(other.length_) {
-    STATIC_ASSERT(sizeof(U) == sizeof(T));
+    static_assert(sizeof(U) == sizeof(T));
     other.length_ = 0;
   }
 

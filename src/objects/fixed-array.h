@@ -89,7 +89,7 @@ class FixedArrayBase
   // which is necessary for being able to create a free space filler for the
   // whole array of kMaxSize.
   static const int kMaxSize = 128 * kTaggedSize * MB - kTaggedSize;
-  STATIC_ASSERT(Smi::IsValid(kMaxSize));
+  static_assert(Smi::IsValid(kMaxSize));
 
  protected:
   TQ_OBJECT_CONSTRUCTORS(FixedArrayBase)
@@ -182,7 +182,7 @@ class FixedArray
 
   // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) {
-    STATIC_ASSERT(kObjectsOffset == SizeFor(0));
+    static_assert(kObjectsOffset == SizeFor(0));
     return SizeFor(index);
   }
 
@@ -195,7 +195,7 @@ class FixedArray
                 "FixedArray maxLength not a Smi");
 
   // Maximally allowed length for regular (non large object space) object.
-  STATIC_ASSERT(kMaxRegularHeapObjectSize < kMaxSize);
+  static_assert(kMaxRegularHeapObjectSize < kMaxSize);
   static const int kMaxRegularLength =
       (kMaxRegularHeapObjectSize - kHeaderSize) / kTaggedSize;
 
@@ -216,7 +216,7 @@ class FixedArray
                                        Object value);
 
  private:
-  STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
+  static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
   TQ_OBJECT_CONSTRUCTORS(FixedArray)
 };
@@ -315,7 +315,7 @@ class WeakFixedArray
   int AllocatedSize();
 
   static int OffsetOfElementAt(int index) {
-    STATIC_ASSERT(kObjectsOffset == SizeFor(0));
+    static_assert(kObjectsOffset == SizeFor(0));
     return SizeFor(index);
   }
 
@@ -483,7 +483,7 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
 
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
-  STATIC_ASSERT(kHeaderFields == kFirstIndex);
+  static_assert(kHeaderFields == kFirstIndex);
 
   DECL_VERIFIER(ArrayList)
 

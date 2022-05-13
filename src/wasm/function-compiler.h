@@ -98,7 +98,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 // {WasmCompilationUnit} should be trivially copyable and small enough so we can
 // efficiently pass it by value.
 ASSERT_TRIVIALLY_COPYABLE(WasmCompilationUnit);
-STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
+static_assert(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:

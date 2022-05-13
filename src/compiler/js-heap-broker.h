@@ -466,9 +466,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   int boilerplate_migration_mutex_depth_ = 0;
 
   static constexpr uint32_t kMinimalRefsBucketCount = 8;
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
+  static_assert(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
   static constexpr uint32_t kInitialRefsBucketCount = 1024;
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
+  static_assert(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
 };
 
 class V8_NODISCARD TraceScope {

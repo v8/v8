@@ -878,7 +878,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
-  STATIC_ASSERT(JSFunction::TorqueGeneratedClass::kHeaderSize ==
+  static_assert(JSFunction::TorqueGeneratedClass::kHeaderSize ==
                 8 * kTaggedSize);
 
   JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
@@ -1797,7 +1797,7 @@ void DataHandler::DataHandlerVerify(Isolate* isolate) {
 
   // This assertion exists to encourage updating this verification function if
   // new fields are added in the Torque class layout definition.
-  STATIC_ASSERT(DataHandler::kHeaderSize == 6 * kTaggedSize);
+  static_assert(DataHandler::kHeaderSize == 6 * kTaggedSize);
 
   StructVerify(isolate);
   CHECK(IsDataHandler());

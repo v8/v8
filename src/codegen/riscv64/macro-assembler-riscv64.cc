@@ -3359,9 +3359,9 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin) {
-  STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiTag == 0);
+  static_assert(kSystemPointerSize == 8);
+  static_assert(kSmiTagSize == 1);
+  static_assert(kSmiTag == 0);
 
   // The builtin register contains the builtin index as a Smi.
   SmiUntag(builtin, builtin);
@@ -3598,8 +3598,8 @@ void TurboAssembler::Push(Handle<HeapObject> handle) {
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kSystemPointerSize);
+  static_assert(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
+  static_assert(StackHandlerConstants::kNextOffset == 0 * kSystemPointerSize);
 
   Push(Smi::zero());  // Padding.
 
@@ -3617,7 +3617,7 @@ void MacroAssembler::PushStackHandler() {
 }
 
 void MacroAssembler::PopStackHandler() {
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  static_assert(StackHandlerConstants::kNextOffset == 0);
   pop(a1);
   Add64(sp, sp,
         Operand(static_cast<int64_t>(StackHandlerConstants::kSize -
@@ -4357,10 +4357,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
          frame_type == StackFrame::BUILTIN_EXIT);
 
   // Set up the frame structure on the stack.
-  STATIC_ASSERT(2 * kSystemPointerSize ==
+  static_assert(2 * kSystemPointerSize ==
                 ExitFrameConstants::kCallerSPDisplacement);
-  STATIC_ASSERT(1 * kSystemPointerSize == ExitFrameConstants::kCallerPCOffset);
-  STATIC_ASSERT(0 * kSystemPointerSize == ExitFrameConstants::kCallerFPOffset);
+  static_assert(1 * kSystemPointerSize == ExitFrameConstants::kCallerPCOffset);
+  static_assert(0 * kSystemPointerSize == ExitFrameConstants::kCallerFPOffset);
 
   // This is how the stack will look:
   // fp + 2 (==kCallerSPDisplacement) - old stack's end
@@ -4593,7 +4593,7 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
 void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
     Check(ne, reason, kScratchReg, Operand(zero_reg));
@@ -4603,7 +4603,7 @@ void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
 void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
     Check(eq, reason, kScratchReg, Operand(zero_reg));
@@ -4615,7 +4615,7 @@ void MacroAssembler::AssertConstructor(Register object) {
     ASM_CODE_COMMENT(this);
     DCHECK(object != kScratchReg);
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     SmiTst(object, kScratchReg);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, kScratchReg,
           Operand(zero_reg));
@@ -4632,7 +4632,7 @@ void MacroAssembler::AssertFunction(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     SmiTst(object, kScratchReg);
     Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, kScratchReg,
@@ -4651,7 +4651,7 @@ void MacroAssembler::AssertFunction(Register object) {
 void MacroAssembler::AssertCallableFunction(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
-  STATIC_ASSERT(kSmiTag == 0);
+  static_assert(kSmiTag == 0);
   AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
   push(object);
   LoadMap(object, object);
@@ -4668,7 +4668,7 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    STATIC_ASSERT(kSmiTag == 0);
+    static_assert(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     SmiTst(object, kScratchReg);
     Check(ne, AbortReason::kOperandIsASmiAndNotABoundFunction, kScratchReg,
@@ -4683,7 +4683,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  STATIC_ASSERT(kSmiTag == 0);
+  static_assert(kSmiTag == 0);
   DCHECK(object != kScratchReg);
   SmiTst(object, kScratchReg);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, kScratchReg,
@@ -5149,7 +5149,7 @@ void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
       break;
     }
     case kCountIsSmi: {
-      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      static_assert(kSmiTagSize == 1 && kSmiTag == 0);
       DCHECK_NE(scratch, no_reg);
       SmiScale(scratch, count, kPointerSizeLog2);
       Add64(sp, sp, scratch);

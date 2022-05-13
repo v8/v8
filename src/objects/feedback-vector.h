@@ -147,11 +147,11 @@ inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsSetNamedICKind(kind) || IsDefineNamedOwnICKind(kind) ||
          IsStoreGlobalICKind(kind) || IsKeyedStoreICKind(kind) ||
          IsDefineKeyedOwnICKind(kind));
-  STATIC_ASSERT(FeedbackSlotKind::kStoreGlobalSloppy <=
+  static_assert(FeedbackSlotKind::kStoreGlobalSloppy <=
                 FeedbackSlotKind::kLastSloppyKind);
-  STATIC_ASSERT(FeedbackSlotKind::kSetKeyedSloppy <=
+  static_assert(FeedbackSlotKind::kSetKeyedSloppy <=
                 FeedbackSlotKind::kLastSloppyKind);
-  STATIC_ASSERT(FeedbackSlotKind::kSetNamedSloppy <=
+  static_assert(FeedbackSlotKind::kSetNamedSloppy <=
                 FeedbackSlotKind::kLastSloppyKind);
   return (kind <= FeedbackSlotKind::kLastSloppyKind) ? LanguageMode::kSloppy
                                                      : LanguageMode::kStrict;
@@ -199,7 +199,7 @@ class FeedbackVector
   NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_OSR_STATE()
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
-  STATIC_ASSERT(TieringState::kLastTieringState <= TieringStateBits::kMax);
+  static_assert(TieringState::kLastTieringState <= TieringStateBits::kMax);
 
   static const bool kFeedbackVectorMaybeOptimizedCodeIsStoreRelease = true;
   using TorqueGeneratedFeedbackVector<FeedbackVector,
@@ -229,7 +229,7 @@ class FeedbackVector
   // the function becomes hotter. When the current loop depth is less than the
   // osr_urgency, JumpLoop calls into runtime to attempt OSR optimization.
   static constexpr int kMaxOsrUrgency = 6;
-  STATIC_ASSERT(kMaxOsrUrgency <= OsrUrgencyBits::kMax);
+  static_assert(kMaxOsrUrgency <= OsrUrgencyBits::kMax);
   inline int osr_urgency() const;
   inline void set_osr_urgency(int urgency);
   inline void reset_osr_urgency();
@@ -436,7 +436,7 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
   }
 
   FeedbackSlotKind GetStoreICSlot(LanguageMode language_mode) {
-    STATIC_ASSERT(LanguageModeSize == 2);
+    static_assert(LanguageModeSize == 2);
     return is_strict(language_mode) ? FeedbackSlotKind::kSetNamedStrict
                                     : FeedbackSlotKind::kSetNamedSloppy;
   }
@@ -456,14 +456,14 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
   }
 
   FeedbackSlot AddStoreGlobalICSlot(LanguageMode language_mode) {
-    STATIC_ASSERT(LanguageModeSize == 2);
+    static_assert(LanguageModeSize == 2);
     return AddSlot(is_strict(language_mode)
                        ? FeedbackSlotKind::kStoreGlobalStrict
                        : FeedbackSlotKind::kStoreGlobalSloppy);
   }
 
   FeedbackSlotKind GetKeyedStoreICSlotKind(LanguageMode language_mode) {
-    STATIC_ASSERT(LanguageModeSize == 2);
+    static_assert(LanguageModeSize == 2);
     return is_strict(language_mode) ? FeedbackSlotKind::kSetKeyedStrict
                                     : FeedbackSlotKind::kSetKeyedSloppy;
   }
@@ -518,7 +518,7 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
 
   void append(FeedbackSlotKind kind) { slot_kinds_.push_back(kind); }
 
-  STATIC_ASSERT(sizeof(FeedbackSlotKind) == sizeof(uint8_t));
+  static_assert(sizeof(FeedbackSlotKind) == sizeof(uint8_t));
   ZoneVector<FeedbackSlotKind> slot_kinds_;
   int create_closure_slot_count_ = 0;
 
@@ -617,7 +617,7 @@ class FeedbackMetadata : public HeapObject {
   inline int length() const;
 
   static const int kFeedbackSlotKindBits = 5;
-  STATIC_ASSERT(kFeedbackSlotKindCount <= (1 << kFeedbackSlotKindBits));
+  static_assert(kFeedbackSlotKindCount <= (1 << kFeedbackSlotKindBits));
 
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
 
@@ -630,10 +630,10 @@ class FeedbackMetadata : public HeapObject {
 
 // Verify that an empty hash field looks like a tagged object, but can't
 // possibly be confused with a pointer.
-STATIC_ASSERT((Name::kEmptyHashField & kHeapObjectTag) == kHeapObjectTag);
-STATIC_ASSERT(Name::kEmptyHashField == 0x3);
+static_assert((Name::kEmptyHashField & kHeapObjectTag) == kHeapObjectTag);
+static_assert(Name::kEmptyHashField == 0x3);
 // Verify that a set hash field will not look like a tagged object.
-STATIC_ASSERT(Name::kHashNotComputedMask == kHeapObjectTag);
+static_assert(Name::kHashNotComputedMask == kHeapObjectTag);
 
 class FeedbackMetadataIterator {
  public:
@@ -871,7 +871,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 #undef LEXICAL_MODE_BIT_FIELDS
 
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(LEXICAL_MODE_BIT_FIELDS_Ranges::kBitsCount <= kSmiValueSize);
+  static_assert(LEXICAL_MODE_BIT_FIELDS_Ranges::kBitsCount <= kSmiValueSize);
 
   // For TypeProfile feedback vector slots.
   // ResetTypeProfile will always reset type profile information.

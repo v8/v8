@@ -43,8 +43,8 @@ namespace internal {
 // object can't overlap with the lower 32 bits of cleared weak reference value
 // and therefore it's enough to compare only the lower 32 bits of a MaybeObject
 // in order to figure out if it's a cleared weak reference or not.
-STATIC_ASSERT(kClearedWeakHeapObjectLower32 > 0);
-STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
+static_assert(kClearedWeakHeapObjectLower32 > 0);
+static_assert(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
 
 // static
 constexpr Page::MainThreadFlags Page::kCopyOnFlipFlagsMask;

@@ -235,7 +235,7 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
 
   static constexpr int kJumpTableSlotsPerLine =
       kJumpTableLineSize / kJumpTableSlotSize;
-  STATIC_ASSERT(kJumpTableSlotsPerLine >= 1);
+  static_assert(kJumpTableSlotsPerLine >= 1);
 
   // {JumpTableAssembler} is never used during snapshot generation, and its code
   // must be independent of the code range of any isolate anyway. Just ensure
