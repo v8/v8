@@ -454,6 +454,7 @@
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
     WriteBarrier::Marking(object, (object).RawField(offset), value); \
     GenerationalBarrier(object, (object).RawField(offset), value);   \
+    SharedHeapBarrier(object, (object).RawField(offset), value);     \
   } while (false)
 #endif
 
@@ -465,6 +466,7 @@
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
     WriteBarrier::Marking(object, (object).RawMaybeWeakField(offset), value); \
     GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value);   \
+    SharedHeapBarrier(object, (object).RawMaybeWeakField(offset), value);     \
   } while (false)
 #endif
 
@@ -480,6 +482,7 @@
     EphemeronHashTable table = EphemeronHashTable::cast(object);              \
     WriteBarrier::Marking(object, (object).RawField(offset), value);          \
     GenerationalEphemeronKeyBarrier(table, (object).RawField(offset), value); \
+    SharedHeapBarrier(object, (object).RawField(offset), value);              \
   } while (false)
 #endif
 
@@ -498,6 +501,7 @@
         WriteBarrier::Marking(object, (object).RawField(offset), value); \
       }                                                                  \
       GenerationalBarrier(object, (object).RawField(offset), value);     \
+      SharedHeapBarrier(object, (object).RawField(offset), value);       \
     } else {                                                             \
       SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));             \
     }                                                                    \
@@ -520,6 +524,7 @@
                               value);                                         \
       }                                                                       \
       GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
+      SharedHeapBarrier(object, (object).RawMaybeWeakField(offset), value);   \
     } else {                                                                  \
       SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                  \
     }                                                                         \
@@ -540,6 +545,7 @@
       }                                                                      \
       GenerationalEphemeronKeyBarrier(table, (object).RawField(offset),      \
                                       value);                                \
+      SharedHeapBarrier(table, (object).RawField(offset), value);            \
     } else {                                                                 \
       SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                 \
     }                                                                        \

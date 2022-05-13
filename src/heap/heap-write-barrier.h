@@ -43,6 +43,12 @@ void GenerationalEphemeronKeyBarrier(EphemeronHashTable table, ObjectSlot slot,
                                      Object value);
 void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 
+// Shared heap write barrier.
+void SharedHeapBarrier(HeapObject object, ObjectSlot slot, Object value);
+void SharedHeapBarrier(HeapObject object, MaybeObjectSlot slot,
+                       MaybeObject value);
+void SharedHeapBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
+
 inline bool IsReadOnlyHeapObject(HeapObject object);
 
 class V8_EXPORT_PRIVATE WriteBarrier {

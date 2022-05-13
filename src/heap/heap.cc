@@ -143,6 +143,11 @@ void Heap_GenerationalBarrierSlow(HeapObject object, Address slot,
   Heap::GenerationalBarrierSlow(object, slot, value);
 }
 
+void Heap_SharedHeapBarrierSlow(HeapObject object, Address slot,
+                                HeapObject value) {
+  Heap::SharedHeapBarrierSlow(object, slot, value);
+}
+
 void Heap_WriteBarrierForCodeSlow(Code host) {
   Heap::WriteBarrierForCodeSlow(host);
 }
@@ -150,6 +155,11 @@ void Heap_WriteBarrierForCodeSlow(Code host) {
 void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                          HeapObject object) {
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
+}
+
+void Heap_SharedHeapBarrierForCodeSlow(Code host, RelocInfo* rinfo,
+                                       HeapObject object) {
+  Heap::SharedHeapBarrierForCodeSlow(host, rinfo, object);
 }
 
 void Heap_GenerationalEphemeronKeyBarrierSlow(Heap* heap,
@@ -7310,6 +7320,12 @@ void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
   RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
 }
 
+void Heap::SharedHeapBarrierSlow(HeapObject object, Address slot,
+                                 HeapObject value) {
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk, slot);
+}
+
 void Heap::RecordEphemeronKeyWrite(EphemeronHashTable table, Address slot) {
   DCHECK(ObjectInYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
   if (FLAG_minor_mc) {
@@ -7446,6 +7462,16 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
 
   RememberedSet<OLD_TO_NEW>::InsertTyped(info.memory_chunk, info.slot_type,
                                          info.offset);
+}
+
+void Heap::SharedHeapBarrierForCodeSlow(Code host, RelocInfo* rinfo,
+                                        HeapObject object) {
+  DCHECK(object.InSharedHeap());
+  const MarkCompactCollector::RecordRelocSlotInfo info =
+      MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);
+
+  RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk, info.slot_type,
+                                            info.offset);
 }
 
 bool Heap::PageFlagsAreConsistent(HeapObject object) {

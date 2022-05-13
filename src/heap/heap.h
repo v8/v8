@@ -494,12 +494,18 @@ class Heap {
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
                                                         Address slot,
                                                         HeapObject value);
+  V8_EXPORT_PRIVATE static void SharedHeapBarrierSlow(HeapObject object,
+                                                      Address slot,
+                                                      HeapObject value);
   V8_EXPORT_PRIVATE inline void RecordEphemeronKeyWrite(
       EphemeronHashTable table, Address key_slot);
   V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(
       Address raw_object, Address address, Isolate* isolate);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
       Code host, RelocInfo* rinfo, HeapObject value);
+  V8_EXPORT_PRIVATE static void SharedHeapBarrierForCodeSlow(Code host,
+                                                             RelocInfo* rinfo,
+                                                             HeapObject value);
   V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject object);
 
   // Notifies the heap that is ok to start marking or other activities that
