@@ -238,6 +238,7 @@ v8_source_set("unittests_sources") {
     "base/platform/semaphore-unittest.cc",
     "base/platform/time-unittest.cc",
     "base/region-allocator-unittest.cc",
+    "base/string-format-unittest.cc",
     "base/sys-info-unittest.cc",
     "base/template-utils-unittest.cc",
     "base/threaded-list-unittest.cc",

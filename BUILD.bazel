@@ -659,6 +659,7 @@ filegroup(
         "src/base/safe_conversions_arm_impl.h",
         "src/base/safe_conversions_impl.h",
         "src/base/small-vector.h",
+        "src/base/string-format.h",
         "src/base/strings.cc",
         "src/base/strings.h",
         "src/base/sys-info.cc",
