@@ -15,6 +15,10 @@
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/third-party/heap-api.h"
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#include "src/heap/object-start-bitmap-inl.h"
+#endif
+
 namespace v8 {
 namespace internal {
 

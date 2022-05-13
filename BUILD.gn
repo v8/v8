@@ -3644,6 +3644,7 @@ v8_header_set("v8_internal_headers") {
   if (v8_enable_conservative_stack_scanning) {
     sources += [
       "src/heap/conservative-stack-visitor.h",
+      "src/heap/object-start-bitmap-inl.h",
       "src/heap/object-start-bitmap.h",
     ]
   }

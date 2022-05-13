@@ -237,10 +237,8 @@ HEAP_TEST(ObjectStartBitmap) {
 
   auto* factory = isolate->factory();
 
-  // TODO(v8:12851): Using handles because conservative stack scanning currently
-  // does not work.
-  Handle<String> h1 = factory->NewStringFromStaticChars("hello");
-  Handle<String> h2 = factory->NewStringFromStaticChars("world");
+  Handle<HeapObject> h1 = factory->NewStringFromStaticChars("hello");
+  Handle<HeapObject> h2 = factory->NewStringFromStaticChars("world");
 
   HeapObject obj1 = *h1;
   HeapObject obj2 = *h2;
@@ -250,53 +248,61 @@ HEAP_TEST(ObjectStartBitmap) {
   CHECK(page1->object_start_bitmap()->CheckBit(obj1.address()));
   CHECK(page2->object_start_bitmap()->CheckBit(obj2.address()));
 
-  for (int k = 0; k < obj1.Size(); ++k) {
-    Address obj1_inner_ptr = obj1.address() + k;
-    CHECK_EQ(obj1.address(),
-             page1->object_start_bitmap()->FindBasePtr(obj1_inner_ptr));
+  {
+    // We need a safepoint for calling FindBasePtr.
+    SafepointScope scope(heap);
+
+    for (int k = 0; k < obj1.Size(); ++k) {
+      Address obj1_inner_ptr = obj1.address() + k;
+      CHECK_EQ(obj1.address(),
+               page1->object_start_bitmap()->FindBasePtr(obj1_inner_ptr));
+    }
+    for (int k = 0; k < obj2.Size(); ++k) {
+      Address obj2_inner_ptr = obj2.address() + k;
+      CHECK_EQ(obj2.address(),
+               page2->object_start_bitmap()->FindBasePtr(obj2_inner_ptr));
+    }
   }
-  for (int k = 0; k < obj2.Size(); ++k) {
-    Address obj2_inner_ptr = obj2.address() + k;
-    CHECK_EQ(obj2.address(),
-             page2->object_start_bitmap()->FindBasePtr(obj2_inner_ptr));
-  }
+
+  // TODO(v8:12851): Patch the location of handle h2 with an inner pointer.
+  // For now, garbage collection doesn't work with inner pointers in handles,
+  // so we're sticking to a zero offset.
+  const size_t offset = 0;
+  h2.PatchValue(String::FromAddress(h2->address() + offset));
 
   CcTest::CollectAllGarbage();
 
   obj1 = *h1;
-  obj2 = *h2;
+  obj2 = HeapObject::FromAddress(h2->address() - offset);
   page1 = Page::FromAddress(obj1.ptr());
   page2 = Page::FromAddress(obj2.ptr());
 
   CHECK(obj1.IsString());
   CHECK(obj2.IsString());
 
-  // TODO(v8:12851): Bits set in the object_start_bitmap are currently not
-  // preserved when objects are evacuated. For this reason, in the following
-  // checks, FindBasePtr is expected to return null after garbage collection.
-  for (int k = 0; k < obj1.Size(); ++k) {
-    Address obj1_inner_ptr = obj1.address() + k;
-    CHECK_EQ(kNullAddress,
-             page1->object_start_bitmap()->FindBasePtr(obj1_inner_ptr));
-  }
-  for (int k = 0; k < obj2.Size(); ++k) {
-    Address obj2_inner_ptr = obj2.address() + k;
-    CHECK_EQ(kNullAddress,
-             page2->object_start_bitmap()->FindBasePtr(obj2_inner_ptr));
-  }
-
-  obj1 = *h1;
-  obj2 = *h2;
-  page1 = Page::FromAddress(obj1.ptr());
-  page2 = Page::FromAddress(obj2.ptr());
-
-  CHECK(obj1.IsString());
-  CHECK(obj2.IsString());
-
-  // TODO(v8:12851): Bits set in the object_start_bitmap are currently not
-  // preserved when objects are evacuated.
+  // Bits set in the object_start_bitmap are not preserved when objects are
+  // evacuated.
   CHECK(!page1->object_start_bitmap()->CheckBit(obj1.address()));
   CHECK(!page2->object_start_bitmap()->CheckBit(obj2.address()));
+
+  {
+    // We need a safepoint for calling FindBasePtr.
+    SafepointScope scope(heap);
+
+    // After FindBasePtr, the bits should be properly set again.
+    for (int k = 0; k < obj1.Size(); ++k) {
+      Address obj1_inner_ptr = obj1.address() + k;
+      CHECK_EQ(obj1.address(),
+               page1->object_start_bitmap()->FindBasePtr(obj1_inner_ptr));
+    }
+    CHECK(page1->object_start_bitmap()->CheckBit(obj1.address()));
+    for (int k = obj2.Size() - 1; k >= 0; --k) {
+      Address obj2_inner_ptr = obj2.address() + k;
+      CHECK_EQ(obj2.address(),
+               page2->object_start_bitmap()->FindBasePtr(obj2_inner_ptr));
+    }
+    CHECK(page2->object_start_bitmap()->CheckBit(obj2.address()));
+  }
 #endif
 }
 

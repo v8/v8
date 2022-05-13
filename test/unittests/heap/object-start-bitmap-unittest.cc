@@ -5,12 +5,11 @@
 #include "src/heap/object-start-bitmap.h"
 
 #include "src/base/macros.h"
+#include "src/heap/object-start-bitmap-inl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
-
-class ObjectStartBitmap;
 
 namespace {
 
@@ -128,47 +127,51 @@ TEST(V8ObjectStartBitmapTest, FindBasePtrExact) {
   ObjectStartBitmap bitmap(TestObject::kBaseOffset);
   TestObject object(654);
   bitmap.SetBit(object);
-  EXPECT_EQ(object.base_ptr(), bitmap.FindBasePtr(object.base_ptr()));
+  EXPECT_EQ(object.base_ptr(), bitmap.FindBasePtrImpl(object.base_ptr()));
 }
 
 TEST(V8ObjectStartBitmapTest, FindBasePtrApproximate) {
-  static const size_t kInternalDelta = 37;
+  const size_t kInternalDelta = 37;
   ObjectStartBitmap bitmap(TestObject::kBaseOffset);
   TestObject object(654);
   bitmap.SetBit(object);
   EXPECT_EQ(object.base_ptr(),
-            bitmap.FindBasePtr(object.base_ptr() + kInternalDelta));
+            bitmap.FindBasePtrImpl(object.base_ptr() + kInternalDelta));
 }
 
 TEST(V8ObjectStartBitmapTest, FindBasePtrIteratingWholeBitmap) {
+  const size_t kLastWordDelta = ObjectStartBitmap::MaxEntries() - 1;
   ObjectStartBitmap bitmap(TestObject::kBaseOffset);
-  TestObject object_to_find(TestObject(0));
-  Address hint_index = TestObject(ObjectStartBitmap::MaxEntries() - 1);
+  TestObject object_to_find(0);
   bitmap.SetBit(object_to_find);
-  EXPECT_EQ(object_to_find.base_ptr(), bitmap.FindBasePtr(hint_index));
+  Address hint_index = TestObject(kLastWordDelta);
+  EXPECT_EQ(object_to_find.base_ptr(), bitmap.FindBasePtrImpl(hint_index));
 }
 
 TEST(V8ObjectStartBitmapTest, FindBasePtrNextCell) {
   // This white box test makes use of the fact that cells are of type uint32_t.
   const size_t kCellSize = sizeof(uint32_t);
   ObjectStartBitmap bitmap(TestObject::kBaseOffset);
-  TestObject object_to_find(TestObject(kCellSize - 1));
+  TestObject object_to_find(kCellSize - 1);
   Address hint = TestObject(kCellSize);
   bitmap.SetBit(TestObject(0));
   bitmap.SetBit(object_to_find);
-  EXPECT_EQ(object_to_find.base_ptr(), bitmap.FindBasePtr(hint));
+  EXPECT_EQ(object_to_find.base_ptr(), bitmap.FindBasePtrImpl(hint));
 }
 
 TEST(V8ObjectStartBitmapTest, FindBasePtrSameCell) {
   // This white box test makes use of the fact that cells are of type uint32_t.
   const size_t kCellSize = sizeof(uint32_t);
   ObjectStartBitmap bitmap(TestObject::kBaseOffset);
-  TestObject object_to_find(TestObject(kCellSize - 1));
+  TestObject object_to_find(kCellSize - 1);
+  Address hint = object_to_find;
   bitmap.SetBit(TestObject(0));
   bitmap.SetBit(object_to_find);
-  EXPECT_EQ(object_to_find.base_ptr(),
-            bitmap.FindBasePtr(object_to_find.base_ptr()));
+  EXPECT_EQ(object_to_find.base_ptr(), bitmap.FindBasePtrImpl(hint));
 }
+
+// TODO(v8:12851): If the ObjectStartBitmap implementation stays, unit tests
+// should be added to test the functionality of method FindBasePtr.
 
 }  // namespace internal
 }  // namespace v8
