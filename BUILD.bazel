@@ -2134,6 +2134,7 @@ filegroup(
         "src/utils/scoped-list.h",
         "src/utils/sha-256.cc",
         "src/utils/sha-256.h",
+        "src/utils/sparse-bit-vector.h",
         "src/utils/utils-inl.h",
         "src/utils/utils.cc",
         "src/utils/utils.h",
