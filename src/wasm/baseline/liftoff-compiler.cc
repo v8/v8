@@ -4070,7 +4070,7 @@ class LiftoffCompiler {
         return EmitRelaxedLaneSelect();
       case wasm::kExprI16x8RelaxedQ15MulRS:
         return EmitBinOp<kS128, kS128>(
-            &LiftoffAssembler::emit_relaxed_i16x8_q15mulr_s);
+            &LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s);
       default:
         unsupported(decoder, kSimd, "simd");
     }
