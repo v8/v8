@@ -85,8 +85,8 @@ class MaglevGraphBuilder {
     BasicBlockRef* old_jump_targets = jump_targets_[offset].Reset();
     while (old_jump_targets != nullptr) {
       BasicBlock* predecessor = merge_state.predecessor_at(predecessor_index);
-      if (predecessor == nullptr) {
-        // We can have null predecessors if the predecessor is dead.
+      if (predecessor == MergePointInterpreterFrameState::kDeadPredecessor) {
+        // We might have dead predecessors.
         predecessor_index--;
         continue;
       }

@@ -398,7 +398,8 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
   // moves).
   for (int i = 0; i < phi->input_count(); ++i) {
     if (i > 0) os_ << ", ";
-    if (state.block()->predecessor_at(i) == nullptr) {
+    if (state.block()->predecessor_at(i) ==
+        MergePointInterpreterFrameState::kDeadPredecessor) {
       os_ << "<dead>";
     } else {
       os_ << PrintNodeLabel(graph_labeller, phi->input(i).node());
