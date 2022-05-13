@@ -41,7 +41,7 @@ class Isolate;
 class LargeObjectSpace;
 class LargePage;
 class Page;
-class PagedSpace;
+class PagedSpaceBase;
 class SemiSpace;
 
 // -----------------------------------------------------------------------------
@@ -477,11 +477,43 @@ class LocalAllocationBuffer {
   LinearAllocationArea allocation_info_;
 };
 
+class LinearAreaOriginalData {
+ public:
+  Address get_original_top_acquire() const {
+    return original_top_.load(std::memory_order_acquire);
+  }
+  Address get_original_limit_relaxed() const {
+    return original_limit_.load(std::memory_order_relaxed);
+  }
+
+  void set_original_top_release(Address top) {
+    original_top_.store(top, std::memory_order_release);
+  }
+  void set_original_limit_relaxed(Address limit) {
+    original_limit_.store(limit, std::memory_order_relaxed);
+  }
+
+  base::SharedMutex* linear_area_lock() { return &linear_area_lock_; }
+
+ private:
+  // The top and the limit at the time of setting the linear allocation area.
+  // These values can be accessed by background tasks. Protected by
+  // pending_allocation_mutex_.
+  std::atomic<Address> original_top_ = 0;
+  std::atomic<Address> original_limit_ = 0;
+
+  // Protects original_top_ and original_limit_.
+  base::SharedMutex linear_area_lock_;
+};
+
 class SpaceWithLinearArea : public Space {
  public:
   SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list,
-                      LinearAllocationArea* allocation_info)
-      : Space(heap, id, free_list), allocation_info_(allocation_info) {}
+                      LinearAllocationArea* allocation_info,
+                      LinearAreaOriginalData& linear_area_original_data)
+      : Space(heap, id, free_list),
+        allocation_info_(allocation_info),
+        linear_area_original_data_(linear_area_original_data) {}
 
   virtual bool SupportsAllocationObserver() const = 0;
 
@@ -546,6 +578,24 @@ class SpaceWithLinearArea : public Space {
   AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
                      AllocationOrigin origin = AllocationOrigin::kRuntime);
 
+  base::SharedMutex* linear_area_lock() {
+    return linear_area_original_data_.linear_area_lock();
+  }
+
+  Address original_top_acquire() const {
+    return linear_area_original_data_.get_original_top_acquire();
+  }
+  Address original_limit_relaxed() const {
+    return linear_area_original_data_.get_original_limit_relaxed();
+  }
+
+  void MoveOriginalTopForward() {
+    base::SharedMutexGuard<base::kExclusive> guard(linear_area_lock());
+    DCHECK_GE(top(), linear_area_original_data_.get_original_top_acquire());
+    DCHECK_LE(top(), linear_area_original_data_.get_original_limit_relaxed());
+    linear_area_original_data_.set_original_top_release(top());
+  }
+
  protected:
   V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);
 
@@ -581,6 +631,8 @@ class SpaceWithLinearArea : public Space {
 #endif  // DEBUG
 
   LinearAllocationArea* const allocation_info_;
+  LinearAreaOriginalData& linear_area_original_data_;
+
   bool use_lab_ = true;
 
   size_t allocations_origins_[static_cast<int>(

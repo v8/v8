@@ -20,7 +20,7 @@ namespace internal {
 class InvalidatedSlotsCleanup;
 class MajorNonAtomicMarkingState;
 class Page;
-class PagedSpace;
+class PagedSpaceBase;
 class Space;
 
 enum class FreeSpaceTreatmentMode { kIgnoreFreeSpace, kZapFreeSpace };
@@ -106,7 +106,7 @@ class Sweeper {
   // Support concurrent sweepers from main thread
   void SupportConcurrentSweeping();
 
-  Page* GetSweptPageSafe(PagedSpace* space);
+  Page* GetSweptPageSafe(PagedSpaceBase* space);
 
  private:
   class IncrementalSweeperTask;

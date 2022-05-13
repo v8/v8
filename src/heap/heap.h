@@ -2493,7 +2493,7 @@ class Heap {
   friend class NewSpace;
   friend class ObjectStatsCollector;
   friend class Page;
-  friend class PagedSpace;
+  friend class PagedSpaceBase;
   friend class PromoteYoungGenerationGC;
   friend class ReadOnlyRoots;
   friend class Scavenger;

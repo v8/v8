@@ -448,7 +448,8 @@ void SemiSpaceObjectIterator::Initialize(Address start, Address end) {
 // NewSpace implementation
 
 NewSpace::NewSpace(Heap* heap, LinearAllocationArea* allocation_info)
-    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList(), allocation_info) {}
+    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList(), allocation_info,
+                          linear_area_original_data_) {}
 
 void NewSpace::ResetParkedAllocationBuffers() {
   parked_allocation_buffers_.clear();
@@ -456,7 +457,8 @@ void NewSpace::ResetParkedAllocationBuffers() {
 
 void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
   if (allocation_info_->MergeIfAdjacent(info)) {
-    original_top_.store(allocation_info_->top(), std::memory_order_release);
+    linear_area_original_data_.set_original_top_release(
+        allocation_info_->top());
   }
 
 #if DEBUG
@@ -484,10 +486,12 @@ void NewSpace::VerifyTop() const {
 
   // Ensure that original_top_ always >= LAB start. The delta between start_
   // and top_ is still to be processed by allocation observers.
-  DCHECK_GE(original_top_, allocation_info_->start());
+  DCHECK_GE(linear_area_original_data_.get_original_top_acquire(),
+            allocation_info_->start());
 
   // Ensure that limit() is <= original_limit_.
-  DCHECK_LE(allocation_info_->limit(), original_limit_);
+  DCHECK_LE(allocation_info_->limit(),
+            linear_area_original_data_.get_original_limit_relaxed());
 }
 #endif  // DEBUG
 
@@ -654,9 +658,9 @@ void SemiSpaceNewSpace::UpdateLinearAllocationArea(Address known_top) {
   // The order of the following two stores is important.
   // See the corresponding loads in ConcurrentMarking::Run.
   {
-    base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
-    original_limit_.store(limit(), std::memory_order_relaxed);
-    original_top_.store(top(), std::memory_order_release);
+    base::SharedMutexGuard<base::kExclusive> guard(linear_area_lock());
+    linear_area_original_data_.set_original_limit_relaxed(limit());
+    linear_area_original_data_.set_original_top_release(top());
   }
 
   to_space_.AddRangeToActiveSystemPages(top(), limit());
@@ -744,13 +748,9 @@ bool SemiSpaceNewSpace::AddParkedAllocationBuffer(
 void SemiSpaceNewSpace::VerifyTop() const {
   NewSpace::VerifyTop();
 
-  // Ensure that original_top_ always >= LAB start. The delta between start_
-  // and top_ is still to be processed by allocation observers.
-  DCHECK_GE(original_top_, allocation_info_->start());
-
   // original_limit_ always needs to be end of curent to space page.
-  DCHECK_LE(allocation_info_->limit(), original_limit_);
-  DCHECK_EQ(original_limit_, to_space_.page_high());
+  DCHECK_EQ(linear_area_original_data_.get_original_limit_relaxed(),
+            to_space_.page_high());
 }
 #endif  // DEBUG
 

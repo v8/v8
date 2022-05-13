@@ -175,7 +175,7 @@ void Sweeper::StartSweeperTasks() {
   }
 }
 
-Page* Sweeper::GetSweptPageSafe(PagedSpace* space) {
+Page* Sweeper::GetSweptPageSafe(PagedSpaceBase* space) {
   base::MutexGuard guard(&mutex_);
   SweptList& list = swept_list_[GetSweepSpaceIndex(space->identity())];
   if (!list.empty()) {
