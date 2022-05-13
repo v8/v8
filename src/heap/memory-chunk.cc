@@ -378,7 +378,8 @@ template V8_EXPORT_PRIVATE void MemoryChunk::RegisterObjectWithInvalidatedSlots<
 
 template <RememberedSetType type>
 void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
-  DCHECK(!object.IsJSReceiver());
+  // ByteArray and FixedArray are still invalidated in tests.
+  DCHECK(object.IsString() || object.IsByteArray() || object.IsFixedArray());
   bool skip_slot_recording;
 
   switch (type) {
