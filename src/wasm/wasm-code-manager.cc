@@ -14,6 +14,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
+#include "src/base/string-format.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -620,15 +621,11 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
                total_reserved / 4);
 
   if (V8_UNLIKELY(minimum_size > WasmCodeAllocator::kMaxCodeSpaceSize)) {
-    constexpr auto format = base::StaticCharVector(
-        "wasm code reservation: required minimum (%zu) is bigger than "
-        "supported maximum (%zu)");
-    constexpr int kMaxMessageLength =
-        format.size() - 6 + 2 * std::numeric_limits<size_t>::digits10;
-    base::EmbeddedVector<char, kMaxMessageLength + 1> message;
-    SNPrintF(message, format.begin(), minimum_size,
-             WasmCodeAllocator::kMaxCodeSpaceSize);
-    V8::FatalProcessOutOfMemory(nullptr, message.begin());
+    auto oom_msg = base::FormattedString{}
+                   << "wasm code reservation: required minimum ("
+                   << minimum_size << ") is bigger than supported maximum ("
+                   << WasmCodeAllocator::kMaxCodeSpaceSize << ")";
+    V8::FatalProcessOutOfMemory(nullptr, oom_msg.PrintToArray().data());
     UNREACHABLE();
   }
 
@@ -730,13 +727,10 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     VirtualMemory new_mem =
         code_manager->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) {
-      constexpr auto format = base::StaticCharVector(
-          "Cannot allocate more code space (%zu bytes, currently %zu)");
-      constexpr int kMaxMessageLength =
-          format.size() - 6 + 2 * std::numeric_limits<size_t>::digits10;
-      base::EmbeddedVector<char, kMaxMessageLength + 1> message;
-      SNPrintF(message, format.begin(), total_reserved, reserve_size);
-      V8::FatalProcessOutOfMemory(nullptr, message.begin());
+      auto oom_msg = base::FormattedString{}
+                     << "Cannot allocate more code space (" << reserve_size
+                     << " bytes, currently " << total_reserved << ")";
+      V8::FatalProcessOutOfMemory(nullptr, oom_msg.PrintToArray().data());
       UNREACHABLE();
     }
 
@@ -2196,13 +2190,10 @@ base::AddressRegion WasmCodeManager::AllocateAssemblerBufferSpace(int size) {
     void* mapped = AllocatePages(page_allocator, nullptr, size, page_size,
                                  PageAllocator::kNoAccess);
     if (V8_UNLIKELY(!mapped)) {
-      constexpr auto format = base::StaticCharVector(
-          "Cannot allocate %d more bytes for assembler buffers");
-      constexpr int kMaxMessageLength =
-          format.size() - 3 + std::numeric_limits<size_t>::digits10;
-      base::EmbeddedVector<char, kMaxMessageLength + 1> message;
-      SNPrintF(message, format.begin(), size);
-      V8::FatalProcessOutOfMemory(nullptr, message.begin());
+      auto oom_msg = base::FormattedString{}
+                     << "Cannot allocate " << size
+                     << " more bytes for assembler buffers";
+      V8::FatalProcessOutOfMemory(nullptr, oom_msg.PrintToArray().data());
       UNREACHABLE();
     }
     auto region =
@@ -2263,13 +2254,10 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     code_space = TryAllocate(code_vmem_size);
     if (code_space.IsReserved()) break;
     if (retries == kAllocationRetries) {
-      constexpr auto format = base::StaticCharVector(
-          "NewNativeModule cannot allocate code space of %zu bytes");
-      constexpr int kMaxMessageLength =
-          format.size() - 3 + std::numeric_limits<size_t>::digits10;
-      base::EmbeddedVector<char, kMaxMessageLength + 1> message;
-      SNPrintF(message, format.begin(), code_vmem_size);
-      V8::FatalProcessOutOfMemory(isolate, message.begin());
+      auto oom_msg = base::FormattedString{}
+                     << "NewNativeModule cannot allocate code space of "
+                     << code_vmem_size << " bytes";
+      V8::FatalProcessOutOfMemory(isolate, oom_msg.PrintToArray().data());
       UNREACHABLE();
     }
     // Run one GC, then try the allocation again.
