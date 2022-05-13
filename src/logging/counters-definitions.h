@@ -109,7 +109,7 @@ namespace internal {
   HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
   SANDBOXED_HISTOGRAM_LIST(HR)
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 #define SANDBOXED_HISTOGRAM_LIST(HR)                                          \
   /* Number of in-use external pointers in the external pointer table */      \
   /* Counted after sweeping the table at the end of mark-compact GC */        \
@@ -117,7 +117,7 @@ namespace internal {
      kMaxSandboxedExternalPointers, 101)
 #else
 #define SANDBOXED_HISTOGRAM_LIST(HR)
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */       \

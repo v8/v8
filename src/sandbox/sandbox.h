@@ -15,7 +15,7 @@ namespace v8 {
 
 namespace internal {
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 
 /**
  * The V8 Sandbox.
@@ -173,9 +173,9 @@ class V8_EXPORT_PRIVATE Sandbox {
 #endif
 };
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
 // This function is only available when the sandbox is actually used.
 V8_EXPORT_PRIVATE Sandbox* GetProcessWideSandbox();
 #endif

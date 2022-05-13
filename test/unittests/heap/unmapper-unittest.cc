@@ -279,7 +279,7 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
 
 // This test is currently incompatible with the sandbox. Enable it
 // once the VirtualAddressSpace interface is stable.
-#if !V8_OS_FUCHSIA && !V8_SANDBOX
+#if !V8_OS_FUCHSIA && !V8_ENABLE_SANDBOX
 
 template <typename TMixin>
 class SequentialUnmapperTestMixin : public TMixin {
@@ -319,7 +319,7 @@ class SequentialUnmapperTest : public                                     //
     // TrackingPageAllocator.
     // The pointer cage must be destroyed before the sandbox.
     IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
     // Reinitialze the sandbox so it uses the TrackingPageAllocator.
     GetProcessWideSandbox()->TearDown();
     constexpr bool use_guard_regions = false;
@@ -336,7 +336,7 @@ class SequentialUnmapperTest : public                                     //
     // freed until process teardown.
     IsolateAllocator::FreeProcessWidePtrComprCageForTesting();
 #endif
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
     GetProcessWideSandbox()->TearDown();
 #endif
     i::FLAG_concurrent_sweeping = old_flag_;
@@ -432,7 +432,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
   tracking_page_allocator()->CheckIsFree(page->address(), page_size);
 #endif  // V8_COMPRESS_POINTERS
 }
-#endif  // !V8_OS_FUCHSIA && !V8_SANDBOX
+#endif  // !V8_OS_FUCHSIA && !V8_ENABLE_SANDBOX
 
 }  // namespace internal
 }  // namespace v8

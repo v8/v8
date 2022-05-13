@@ -37,9 +37,9 @@ class WithDefaultPlatformMixin : public TMixin {
         0, v8::platform::IdleTaskSupport::kEnabled);
     CHECK_NOT_NULL(platform_.get());
     v8::V8::InitializePlatform(platform_.get());
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
     CHECK(v8::V8::InitializeSandbox());
-#endif  // V8_SANDBOX
+#endif  // V8_ENABLE_SANDBOX
     v8::V8::Initialize();
   }
 

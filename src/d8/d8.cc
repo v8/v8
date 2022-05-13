@@ -5439,7 +5439,7 @@ int Shell::Main(int argc, char* argv[]) {
     V8::SetFlagsFromString("--redirect-code-traces-to=code.asm");
   }
   v8::V8::InitializePlatform(g_platform.get());
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   if (!v8::V8::InitializeSandbox()) {
     FATAL("Could not initialize the sandbox");
   }

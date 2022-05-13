@@ -29,9 +29,9 @@ void TestWithPlatform::SetUpTestSuite() {
   // For non-standalone builds, we need to initialize V8's platform so that it
   // can be looked-up by trace-event.h.
   v8::V8::InitializePlatform(platform_->GetV8Platform());
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   CHECK(v8::V8::InitializeSandbox());
-#endif  // V8_SANDBOX
+#endif  // V8_ENABLE_SANDBOX
   v8::V8::Initialize();
 #endif  // !CPPGC_IS_STANDALONE
 }

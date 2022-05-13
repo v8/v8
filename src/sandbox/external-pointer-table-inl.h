@@ -10,7 +10,7 @@
 #include "src/sandbox/external-pointer.h"
 #include "src/utils/allocation.h"
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 
 namespace v8 {
 namespace internal {
@@ -144,6 +144,6 @@ void ExternalPointerTable::Mark(uint32_t index) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX
 
 #endif  // V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_

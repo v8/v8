@@ -101,7 +101,7 @@ V8_EXPORT_PRIVATE v8::PageAllocator* GetPlatformPageAllocator();
 // pointer.
 V8_EXPORT_PRIVATE v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace();
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
 // Returns the page allocator instance for allocating pages inside the sandbox.
 // Guaranteed to be a valid pointer.
 V8_EXPORT_PRIVATE v8::PageAllocator* GetSandboxPageAllocator();
@@ -112,7 +112,7 @@ V8_EXPORT_PRIVATE v8::PageAllocator* GetSandboxPageAllocator();
 // sandbox and so this will be the SandboxPageAllocator. Otherwise it will be
 // the PlatformPageAllocator.
 inline v8::PageAllocator* GetArrayBufferPageAllocator() {
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   return GetSandboxPageAllocator();
 #else
   return GetPlatformPageAllocator();

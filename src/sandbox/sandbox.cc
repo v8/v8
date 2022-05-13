@@ -26,7 +26,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 
 // Best-effort helper function to determine the size of the userspace virtual
 // address space. Used to determine appropriate sandbox size and placement.
@@ -322,9 +322,9 @@ void Sandbox::TearDown() {
   disabled_ = false;
 }
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Sandbox, GetProcessWideSandbox)
 #endif
 

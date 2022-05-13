@@ -157,7 +157,7 @@ V8_INLINE static constexpr internal::Address IntToSmi(int value) {
  * Sandbox related types, constants, and functions.
  */
 constexpr bool SandboxIsEnabled() {
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   return true;
 #else
   return false;
@@ -185,7 +185,7 @@ using ExternalPointer_t = uint32_t;
 using ExternalPointer_t = Address;
 #endif
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 
 // Size of the sandbox, excluding the guard regions surrounding it.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
@@ -276,7 +276,7 @@ static_assert((1 << (32 - kExternalPointerIndexShift)) ==
               "kExternalPointerTableReservationSize and "
               "kExternalPointerIndexShift don't match");
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX
 
 // If sandboxed external pointers are enabled, these tag values will be ORed
 // with the external pointers in the external pointer table to prevent use of

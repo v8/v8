@@ -96,7 +96,7 @@ v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
   return vas.get();
 }
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
 v8::PageAllocator* GetSandboxPageAllocator() {
   // TODO(chromium:1218005) remove this code once the cage is no longer
   // optional.

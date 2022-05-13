@@ -185,7 +185,7 @@ class V8_EXPORT V8 {
    */
   static void DisposePlatform();
 
-#ifdef V8_SANDBOX
+#if defined(V8_ENABLE_SANDBOX)
   //
   // Sandbox related API.
   //
@@ -200,8 +200,9 @@ class V8_EXPORT V8 {
    * Returns true on success, false otherwise.
    *
    * TODO(saelo) Once it is no longer optional to initialize the sandbox when
-   * compiling with V8_SANDBOX, the sandbox initialization will likely happen
-   * as part of V8::Initialize, at which point this function should be removed.
+   * compiling with V8_ENABLE_SANDBOX, the sandbox initialization will likely
+   * happen as part of V8::Initialize, at which point this function should be
+   * removed.
    */
   static bool InitializeSandbox();
   V8_DEPRECATED("Use InitializeSandbox()")
@@ -250,7 +251,7 @@ class V8_EXPORT V8 {
   static bool IsUsingSecureVirtualMemoryCage() {
     return IsSandboxConfiguredSecurely();
   }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
   /**
    * Activate trap-based bounds checking for WebAssembly.

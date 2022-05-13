@@ -10,7 +10,7 @@
 #include "src/logging/counters.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 
 namespace v8 {
 namespace internal {
@@ -94,4 +94,4 @@ uint32_t ExternalPointerTable::Grow() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX

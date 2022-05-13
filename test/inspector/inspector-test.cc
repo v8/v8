@@ -795,7 +795,7 @@ int InspectorTestMain(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<Platform> platform(platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   if (!v8::V8::InitializeSandbox()) {
     FATAL("Could not initialize the sandbox");
   }

@@ -117,7 +117,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   // Start up V8.
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   if (!v8::V8::InitializeSandbox()) {
     FATAL("Could not initialize the sandbox");
   }

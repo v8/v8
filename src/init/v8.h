@@ -29,7 +29,7 @@ class V8 : public AllStatic {
   [[noreturn]] V8_EXPORT_PRIVATE static void FatalProcessOutOfMemory(
       Isolate* isolate, const char* location, bool is_heap_oom = false);
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   static bool InitializeSandbox();
 #endif
 

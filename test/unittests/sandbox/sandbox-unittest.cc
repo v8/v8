@@ -9,7 +9,7 @@
 #include "src/base/virtual-address-space.h"
 #include "test/unittests/test-utils.h"
 
-#ifdef V8_SANDBOX_IS_AVAILABLE
+#ifdef V8_ENABLE_SANDBOX
 
 namespace v8 {
 namespace internal {
@@ -152,4 +152,4 @@ TEST(SandboxTest, PartiallyReservedSandboxPageAllocation) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SANDBOX_IS_AVAILABLE
+#endif  // V8_ENABLE_SANDBOX

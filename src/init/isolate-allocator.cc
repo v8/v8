@@ -76,7 +76,7 @@ void IsolateAllocator::InitializeOncePerProcess() {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   PtrComprCageReservationParams params;
   base::AddressRegion existing_reservation;
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   // For now, we allow the sandbox to be disabled even when compiling with
   // v8_enable_sandbox. This fallback will be disallowed in the future, at the
   // latest once sandboxed pointers are enabled.

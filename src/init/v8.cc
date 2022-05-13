@@ -103,14 +103,14 @@ void V8::InitializePlatform(v8::Platform* platform) {
   AdvanceStartupState(V8StartupState::kPlatformInitialized);
 }
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
 bool V8::InitializeSandbox() {
   // Platform must have been initialized already.
   CHECK(platform_);
   v8::VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
   return GetProcessWideSandbox()->Initialize(vas);
 }
-#endif  // V8_SANDBOX
+#endif  // V8_ENABLE_SANDBOX
 
 #define DISABLE_FLAG(flag)                                                    \
   if (FLAG_##flag) {                                                          \
@@ -123,14 +123,14 @@ void V8::Initialize() {
   AdvanceStartupState(V8StartupState::kV8Initializing);
   CHECK(platform_);
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   if (!GetProcessWideSandbox()->is_initialized()) {
     // For now, we still allow the cage to be disabled even if V8 was compiled
-    // with V8_SANDBOX. This will eventually be forbidden.
+    // with V8_ENABLE_SANDBOX. This will eventually be forbidden.
     CHECK(kAllowBackingStoresOutsideSandbox);
     GetProcessWideSandbox()->Disable();
   }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
   // Update logging information before enforcing flag implications.
   bool* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
@@ -286,11 +286,11 @@ void V8::DisposePlatform() {
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   // TODO(chromium:1218005) alternatively, this could move to its own
   // public TearDownSandbox function.
   GetProcessWideSandbox()->TearDown();
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
   platform_ = nullptr;
   AdvanceStartupState(V8StartupState::kPlatformDisposed);

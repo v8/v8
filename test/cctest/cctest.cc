@@ -119,7 +119,7 @@ void CcTest::Run(const char* snapshot_directory) {
     platform = std::move(underlying_default_platform);
   }
   v8::V8::InitializePlatform(platform.get());
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   CHECK(v8::V8::InitializeSandbox());
 #endif
   cppgc::InitializeProcess(platform->GetPageAllocator());

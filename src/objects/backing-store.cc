@@ -115,7 +115,7 @@ void RecordStatus(Isolate* isolate, AllocationStatus status) {
 // that the memory could not be allocated at all.
 void RecordSandboxMemoryAllocationResult(Isolate* isolate, void* result) {
   // This metric is only meaningful when the sandbox is active.
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   if (GetProcessWideSandbox()->is_initialized()) {
     CagedMemoryAllocationOutcome outcome;
     if (result) {
@@ -128,7 +128,7 @@ void RecordSandboxMemoryAllocationResult(Isolate* isolate, void* result) {
     isolate->counters()->caged_memory_allocation_outcome()->AddSample(
         static_cast<int>(outcome));
   }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 }
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
@@ -211,13 +211,13 @@ BackingStore::~BackingStore() {
   // TODO(saelo) here and elsewhere in this file, replace with
   // GetArrayBufferPageAllocator once the fallback to the platform page
   // allocator is no longer allowed.
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
   if (GetProcessWideSandbox()->Contains(buffer_start_)) {
     page_allocator = GetSandboxPageAllocator();
   } else {
     DCHECK(kAllowBackingStoresOutsideSandbox);
   }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
 #if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory_) {
@@ -426,7 +426,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   void* allocation_base = nullptr;
   PageAllocator* page_allocator = GetPlatformPageAllocator();
   auto allocate_pages = [&] {
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
     page_allocator = GetSandboxPageAllocator();
     allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
                                     page_size, PageAllocator::kNoAccess);
@@ -439,7 +439,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     // or not.
     if (!kAllowBackingStoresOutsideSandbox) return false;
     page_allocator = GetPlatformPageAllocator();
-#endif
+#endif  // V8_ENABLE_SANDBOX
     allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
                                     page_size, PageAllocator::kNoAccess);
     return allocation_base != nullptr;

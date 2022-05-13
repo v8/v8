@@ -301,7 +301,7 @@ declare_args() {
   v8_enable_zone_compression = ""
 
   # Enable the experimental V8 sandbox.
-  # Sets -DV8_SANDBOX.
+  # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
 
   # Enable external pointer sandboxing. Requires v8_enable_sandbox.
@@ -718,7 +718,8 @@ external_v8_defines = [
   "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE",
   "V8_31BIT_SMIS_ON_64BIT_ARCH",
   "V8_COMPRESS_ZONES",
-  "V8_SANDBOX",
+  "V8_ENABLE_SANDBOX",
+  "V8_SANDBOX",  # TODO(saelo) remove once no longer used in blink
   "V8_SANDBOXED_POINTERS",
   "V8_SANDBOXED_EXTERNAL_POINTERS",
   "V8_DEPRECATION_WARNINGS",
@@ -750,6 +751,7 @@ if (v8_enable_zone_compression) {
 }
 if (v8_enable_sandbox) {
   enabled_external_v8_defines += [ "V8_SANDBOX" ]
+  enabled_external_v8_defines += [ "V8_ENABLE_SANDBOX" ]
 }
 if (v8_enable_sandboxed_pointers) {
   enabled_external_v8_defines += [ "V8_SANDBOXED_POINTERS" ]

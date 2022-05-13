@@ -6038,9 +6038,9 @@ void v8::V8::InitializePlatform(Platform* platform) {
   i::V8::InitializePlatform(platform);
 }
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
 bool v8::V8::InitializeSandbox() { return i::V8::InitializeSandbox(); }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
 void v8::V8::DisposePlatform() { i::V8::DisposePlatform(); }
 
@@ -6075,12 +6075,12 @@ bool v8::V8::Initialize(const int build_config) {
   }
 
   const bool kEmbedderSandbox = (build_config & kSandbox) != 0;
-  if (kEmbedderSandbox != V8_SANDBOX_BOOL) {
+  if (kEmbedderSandbox != V8_ENABLE_SANDBOX_BOOL) {
     FATAL(
         "Embedder-vs-V8 build configuration mismatch. On embedder side "
         "sandbox is %s while on V8 side it's %s.",
         kEmbedderSandbox ? "ENABLED" : "DISABLED",
-        V8_SANDBOX_BOOL ? "ENABLED" : "DISABLED");
+        V8_ENABLE_SANDBOX_BOOL ? "ENABLED" : "DISABLED");
   }
 
   i::V8::Initialize();
@@ -6205,7 +6205,7 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
-#ifdef V8_SANDBOX
+#ifdef V8_ENABLE_SANDBOX
 VirtualAddressSpace* v8::V8::GetSandboxAddressSpace() {
   Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
                   "v8::V8::GetSandboxAddressSpace",
@@ -6238,7 +6238,7 @@ bool v8::V8::IsSandboxConfiguredSecurely() {
   // insecure because these pointers can then access memory outside of them.
   return !i::GetProcessWideSandbox()->is_partially_reserved();
 }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
 void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
   i::ReadOnlyHeap::PopulateReadOnlySpaceStatistics(statistics);
