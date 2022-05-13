@@ -846,7 +846,7 @@ class V8_EXPORT Isolate {
    * Returns the number of phantom handles without callbacks that were reset
    * by the garbage collector since the last call to this function.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Information cannot be relied on anymore as internal representation may "
       "change.")
   size_t NumberOfPhantomHandleResetsSinceLastCall();
@@ -1608,7 +1608,7 @@ class V8_EXPORT Isolate {
    * Iterates through all the persistent handles in the current isolate's heap
    * that have class_ids.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Information cannot be relied on anymore as internal representation may "
       "change.")
   void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor);
@@ -1618,7 +1618,7 @@ class V8_EXPORT Isolate {
    * that have class_ids and are weak to be marked as inactive if there is no
    * pending activity for the handle.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Information cannot be relied on anymore as internal representation may "
       "change.")
   void VisitWeakHandles(PersistentHandleVisitor* visitor);
