@@ -3899,21 +3899,23 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
 void Heap::NotifyObjectLayoutChange(
     HeapObject object, const DisallowGarbageCollection&,
     InvalidateRecordedSlots invalidate_recorded_slots) {
-  if (incremental_marking()->IsMarking()) {
-    incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
-    if (incremental_marking()->IsCompacting() &&
-        invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
-        MayContainRecordedSlots(object)) {
-      MemoryChunk::FromHeapObject(object)
-          ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
+  if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes) {
+    const bool may_contain_recorded_slots = MayContainRecordedSlots(object);
+
+    if (incremental_marking()->IsMarking()) {
+      incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
+      if (may_contain_recorded_slots && incremental_marking()->IsCompacting()) {
+        MemoryChunk::FromHeapObject(object)
+            ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
+      }
     }
-  }
-  if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
-      MayContainRecordedSlots(object)) {
-    MemoryChunk::FromHeapObject(object)
-        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
-    MemoryChunk::FromHeapObject(object)
-        ->RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
+
+    if (may_contain_recorded_slots) {
+      MemoryChunk::FromHeapObject(object)
+          ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
+      MemoryChunk::FromHeapObject(object)
+          ->RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
+    }
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
