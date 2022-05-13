@@ -390,7 +390,11 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kI31:
-      // TODO(7748): Implement once we have struct/arrays/i31ref tables.
+    case wasm::HeapType::kString:
+    case wasm::HeapType::kStringViewWtf8:
+    case wasm::HeapType::kStringViewWtf16:
+    case wasm::HeapType::kStringViewIter:
+      // TODO(7748): Implement once we have struct/arrays/i31ref/string tables.
       UNREACHABLE();
     case wasm::HeapType::kBottom:
       UNREACHABLE();

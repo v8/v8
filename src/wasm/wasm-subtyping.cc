@@ -177,6 +177,13 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
     case HeapType::kArray:
       return super_heap == HeapType::kArray || super_heap == HeapType::kData ||
              super_heap == HeapType::kEq || super_heap == HeapType::kAny;
+    case HeapType::kString:
+    case HeapType::kStringViewWtf8:
+    case HeapType::kStringViewWtf16:
+    case HeapType::kStringViewIter:
+      // stringref is a subtype of anyref (aka externref) under wasm-gc.
+      return sub_heap == super_heap ||
+             (FLAG_experimental_wasm_gc && super_heap == HeapType::kAny);
     case HeapType::kBottom:
       UNREACHABLE();
     default:
@@ -199,6 +206,11 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
       return false;
     case HeapType::kAny:
       return true;
+    case HeapType::kString:
+    case HeapType::kStringViewWtf8:
+    case HeapType::kStringViewWtf16:
+    case HeapType::kStringViewIter:
+      return false;
     case HeapType::kBottom:
       UNREACHABLE();
     default:

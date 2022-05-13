@@ -216,6 +216,18 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
       case kAnyRefCode:
       case kFuncRefCode:
         return HeapType::from_code(code);
+      case kStringRefCode:
+      case kStringViewWtf8Code:
+      case kStringViewWtf16Code:
+      case kStringViewIterCode:
+        if (!VALIDATE(enabled.has_stringref())) {
+          DecodeError<validate>(decoder, pc,
+                                "invalid heap type '%s', enable with "
+                                "--experimental-wasm-stringref",
+                                HeapType::from_code(code).name().c_str());
+          return HeapType(HeapType::kBottom);
+        }
+        return HeapType::from_code(code);
       default:
         DecodeError<validate>(decoder, pc, "Unknown heap type %" PRId64,
                               heap_index);
@@ -288,6 +300,19 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
               ? kNonNullable
               : kNullable;
       return ValueType::Ref(heap_type, nullability);
+    }
+    case kStringRefCode:
+    case kStringViewWtf8Code:
+    case kStringViewWtf16Code:
+    case kStringViewIterCode: {
+      if (!VALIDATE(enabled.has_stringref())) {
+        DecodeError<validate>(decoder, pc,
+                              "invalid value type '%sref', enable with "
+                              "--experimental-wasm-stringref",
+                              HeapType::from_code(code).name().c_str());
+        return kWasmBottom;
+      }
+      return ValueType::Ref(HeapType::from_code(code), kNullable);
     }
     case kI32Code:
       return kWasmI32;

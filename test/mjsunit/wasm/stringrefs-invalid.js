@@ -13,15 +13,15 @@ function assertInvalid(fn, message) {
                `WebAssembly.Module(): ${message}`);
 }
 
-let kStringSectionCodeStr = '0x0' + kStringRefSectionCode.toString(16);
+let enableMessage = 'enable with --experimental-wasm-stringref'
 assertInvalid(builder => builder.addLiteralStringRef("foo"),
-              `unknown section code #${kStringSectionCodeStr} @+10`);
+              `unexpected section <StringRef> (${enableMessage}) @+10`);
 
 for (let [name, code] of [['string', kWasmStringRef],
                           ['stringview_wtf8', kWasmStringViewWtf8],
                           ['stringview_wtf16', kWasmStringViewWtf16],
                           ['stringview_iter', kWasmStringViewIter]]) {
-  let message = `invalid value type 0x${(code & kLeb128Mask).toString(16)}`;
+  let message = `invalid value type '${name}ref', ${enableMessage}`;
   let default_init = WasmInitExpr.RefNull(code);
 
   assertInvalid(b => b.addType(makeSig([code], [])),

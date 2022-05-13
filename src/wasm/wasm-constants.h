@@ -49,7 +49,11 @@ enum ValueTypeCode : uint8_t {
   kRttWithDepthCode = 0x69,
   kRttCode = 0x68,
   kDataRefCode = 0x67,
-  kArrayRefCode = 0x66
+  kArrayRefCode = 0x66,
+  kStringRefCode = 0x65,
+  kStringViewWtf8Code = 0x64,
+  kStringViewWtf16Code = 0x63,
+  kStringViewIterCode = 0x62,
 };
 
 // Binary encoding of type definitions.
@@ -103,6 +107,7 @@ enum SectionCode : int8_t {
   kDataSectionCode = 11,       // Data segments
   kDataCountSectionCode = 12,  // Number of data segments
   kTagSectionCode = 13,        // Tag section
+  kStringRefSectionCode = 14,  // Stringref literal section
 
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
@@ -116,7 +121,7 @@ enum SectionCode : int8_t {
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kTagSectionCode,
+  kLastKnownModuleSection = kStringRefSectionCode,
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
