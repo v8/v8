@@ -1230,6 +1230,10 @@ TEST(BoundFunctionCall) {
 static void TickLines(bool optimize) {
 #ifndef V8_LITE_MODE
   FLAG_turbofan = optimize;
+#ifdef V8_ENABLE_MAGLEV
+  // TODO(v8:7700): Also test maglev here.
+  FLAG_maglev = false;
+#endif  // V8_ENABLE_MAGLEV
 #endif  // V8_LITE_MODE
   CcTest::InitializeVM();
   LocalContext env;
