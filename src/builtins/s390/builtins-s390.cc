@@ -293,7 +293,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   {
     Label next;
     __ Move(r3, ExternalReference::address_of_FLAG_trace_osr());
-    __ LoadU64(r3, MemOperand(r3));
+    __ LoadU8(r3, MemOperand(r3));
     __ tmll(r3, Operand(0xFF));  // Mask to the LSB.
     __ beq(&next);
 
