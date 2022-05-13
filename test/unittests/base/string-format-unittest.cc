@@ -34,7 +34,7 @@ TEST(FormattedStringTest, Int) {
   // +1 for null-termination.
   EXPECT_EQ(kMaxPrintedIntLen + 1, decltype(message)::kMaxLen);
 
-  EXPECT_THAT(message.PrintToArray().begin(), ::testing::StrEq("42"));
+  EXPECT_THAT(message.PrintToArray().data(), ::testing::StrEq("42"));
 }
 
 TEST(FormattedStringTest, MaxInt) {
@@ -43,7 +43,7 @@ TEST(FormattedStringTest, MaxInt) {
   // We *nearly* used the full reserved array size (the minimum integer is still
   // one character longer)..
   EXPECT_EQ(size_t{decltype(message)::kMaxLen}, result_arr.size());
-  EXPECT_THAT(result_arr.begin(), ::testing::StrEq("2147483647"));
+  EXPECT_THAT(result_arr.data(), ::testing::StrEq("2147483647"));
 }
 
 TEST(FormattedStringTest, MinInt) {
@@ -51,7 +51,7 @@ TEST(FormattedStringTest, MinInt) {
   auto result_arr = message.PrintToArray();
   // We used the full reserved array size.
   EXPECT_EQ(size_t{decltype(message)::kMaxLen}, result_arr.size());
-  EXPECT_THAT(result_arr.begin(), ::testing::StrEq("-2147483648"));
+  EXPECT_THAT(result_arr.data(), ::testing::StrEq("-2147483648"));
 }
 
 TEST(FormattedStringTest, SizeT) {
@@ -60,7 +60,7 @@ TEST(FormattedStringTest, SizeT) {
   // +1 for null-termination.
   EXPECT_EQ(kMaxPrintedSizetLen + 1, decltype(message)::kMaxLen);
 
-  EXPECT_THAT(message.PrintToArray().begin(), ::testing::StrEq("42"));
+  EXPECT_THAT(message.PrintToArray().data(), ::testing::StrEq("42"));
 }
 
 TEST(FormattedStringTest, MaxSizeT) {
@@ -70,7 +70,7 @@ TEST(FormattedStringTest, MaxSizeT) {
   EXPECT_EQ(size_t{decltype(message)::kMaxLen}, result_arr.size());
   constexpr const char* kMaxSizeTStr =
       sizeof(size_t) == 4 ? "4294967295" : "18446744073709551615";
-  EXPECT_THAT(result_arr.begin(), ::testing::StrEq(kMaxSizeTStr));
+  EXPECT_THAT(result_arr.data(), ::testing::StrEq(kMaxSizeTStr));
 }
 
 TEST(FormattedStringTest, Combination) {
@@ -81,7 +81,7 @@ TEST(FormattedStringTest, Combination) {
       strlen("Expected  got !") + kMaxPrintedIntLen + kMaxPrintedSizetLen + 1;
   EXPECT_EQ(expected_array_len, size_t{decltype(message)::kMaxLen});
 
-  EXPECT_THAT(message.PrintToArray().begin(),
+  EXPECT_THAT(message.PrintToArray().data(),
               ::testing::StrEq("Expected 11 got 42!"));
 }
 
