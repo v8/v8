@@ -70,6 +70,54 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals([1,,"123"], foo);
 })();
 
+(function TestPackedDoubleElementsArray() {
+  function createObjects() {
+    globalThis.foo = [1.2, 2.3];
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([1.2, 2.3], foo);
+})();
+
+(function TestArrayContainingDoubleAndSmi() {
+  function createObjects() {
+    globalThis.foo = [1.2, 1];
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([1.2, 1], foo);
+})();
+
+(function TestHoleyArrayContainingDoubleAndSmi() {
+  function createObjects() {
+    globalThis.foo = [1.2, , 1];
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([1.2, , 1], foo);
+})();
+
+(function TestArrayContainingDoubleAndObject() {
+  function createObjects() {
+    globalThis.foo = [1.2, {'key': 'value'}];
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([1.2, {'key': 'value'}], foo);
+})();
+
+(function TestHoleyArrayContainingDoubleAndObject() {
+  function createObjects() {
+    globalThis.foo = [1.2, , {'key': 'value'}];
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([1.2, , {'key': 'value'}], foo);
+})();
+
+(function TestHoleyDoubleElementsArray() {
+  function createObjects() {
+    globalThis.foo = [1.2, , 2.3];
+  }
+  const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([1.2, , 2.3], foo);
+})();
+
 (function TestDictionaryElementsArray() {
   function createObjects() {
     const array = [];

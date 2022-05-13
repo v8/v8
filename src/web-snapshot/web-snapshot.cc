@@ -972,6 +972,10 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
       }
       break;
     }
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS: {
+      break;
+    }
     default: {
       Throw("Unsupported array");
       return;
@@ -1332,6 +1336,27 @@ void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
           handle(FixedArray::cast(array->elements()), isolate_);
       for (uint32_t i = 0; i < length; ++i) {
         WriteValue(handle(elements->get(i), isolate_), array_serializer_);
+      }
+      break;
+    }
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS: {
+      array_serializer_.WriteUint32(ArrayType::kDense);
+      uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
+      array_serializer_.WriteUint32(length);
+      Handle<FixedDoubleArray> elements =
+          handle(FixedDoubleArray::cast(array->elements()), isolate_);
+      ReadOnlyRoots roots(isolate_);
+      for (uint32_t i = 0; i < length; ++i) {
+        if (!elements->is_the_hole(i)) {
+          double double_value = elements->get_scalar(i);
+          Handle<Object> element_value =
+              isolate_->factory()->NewNumber(double_value);
+          WriteValue(element_value, array_serializer_);
+        } else {
+          WriteValue(handle(roots.the_hole_value(), isolate_),
+                     array_serializer_);
+        }
       }
       break;
     }
@@ -2626,11 +2651,15 @@ Handle<JSArray> WebSnapshotDeserializer::ReadDenseArrayElements(
   Handle<FixedArray> elements = factory()->NewFixedArray(length);
   ElementsKind elements_kind = PACKED_SMI_ELEMENTS;
   bool has_hole = false;
+  bool has_non_number = false;
   for (uint32_t i = 0; i < length; ++i) {
     Object value = std::get<0>(ReadValue(elements, i));
     DisallowGarbageCollection no_gc;
     if (!value.IsSmi()) {
       elements_kind = PACKED_ELEMENTS;
+    }
+    if (!value.IsNumber()) {
+      has_non_number = true;
     }
     if (value.IsTheHole()) {
       has_hole = true;
@@ -2641,6 +2670,22 @@ Handle<JSArray> WebSnapshotDeserializer::ReadDenseArrayElements(
     elements_kind =
         elements_kind == PACKED_ELEMENTS ? HOLEY_ELEMENTS : HOLEY_SMI_ELEMENTS;
   }
+  // If all elements are number and not all elements are smi, we could convert
+  // the array to double array.
+  if (!has_non_number && !IsSmiElementsKind(elements_kind)) {
+    DCHECK(IsObjectElementsKind(elements_kind));
+    ElementsKind new_elements_kind =
+        has_hole ? HOLEY_DOUBLE_ELEMENTS : PACKED_DOUBLE_ELEMENTS;
+    Handle<FixedArrayBase> new_elements =
+        isolate_->factory()->NewFixedDoubleArray(length);
+    ElementsAccessor* element_accessor =
+        ElementsAccessor::ForKind(new_elements_kind);
+    element_accessor->CopyElements(isolate_, elements, elements_kind,
+                                   new_elements, length);
+    return factory()->NewJSArrayWithElements(new_elements, new_elements_kind,
+                                             length);
+  }
+
   return factory()->NewJSArrayWithElements(elements, elements_kind, length);
 }
 
@@ -2697,11 +2742,13 @@ void WebSnapshotDeserializer::DeserializeArrays() {
     }
 
     Handle<JSArray> array;
-    // TODO(v8::11525): we need to convert array to dictionary mode if there are
+    // TODO(v8:11525): we need to convert array to dictionary mode if there are
     // too many elements for a dense array.
     if (array_type == ArrayType::kDense) {
       array = ReadDenseArrayElements(length);
     } else {
+      // TODO(v8:11525): we need to convert sparse array to dense array,
+      // including double array if the elements fit into fast array kind.
       array = ReadSparseArrayElements(length);
     }
     DCHECK(!array->is_null());
