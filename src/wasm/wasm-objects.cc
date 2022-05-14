@@ -2250,6 +2250,18 @@ Handle<AsmWasmData> AsmWasmData::New(
 
 namespace wasm {
 
+bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value) {
+  if (in_out_value->IsUndefined(isolate)) return false;
+  if (in_out_value->IsNull(isolate)) return true;
+  if (!in_out_value->IsJSObject()) return false;
+  Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
+  LookupIterator it(isolate, in_out_value, key,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
+  if (it.state() != LookupIterator::DATA) return false;
+  in_out_value = it.GetDataValue();
+  return true;
+}
+
 bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                        Handle<Object> value, ValueType expected,
                        const char** error_message) {
@@ -2280,16 +2292,12 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           // TODO(7748): Change this when we have a decision on the JS API for
           // structs/arrays.
           if (!FLAG_wasm_gc_js_interop) {
-            Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
-            LookupIterator it(isolate, value, key,
-                              LookupIterator::OWN_SKIP_INTERCEPTOR);
-            if (it.state() != LookupIterator::DATA) {
+            if (!TryUnpackObjectWrapper(isolate, value)) {
               *error_message =
                   "eqref/dataref/i31ref object must be null (if nullable) or "
                   "wrapped with the wasm object wrapper";
               return false;
             }
-            value = it.GetDataValue();
           }
 
           if (repr == HeapType::kI31) {
