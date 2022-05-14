@@ -47,9 +47,10 @@ void PipelineStatistics::CommonStats::End(
   timer_.Stop();
 }
 
-PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
-                                       CompilationStatistics* compilation_stats,
-                                       ZoneStats* zone_stats)
+PipelineStatistics::PipelineStatistics(
+    OptimizedCompilationInfo* info,
+    std::shared_ptr<CompilationStatistics> compilation_stats,
+    ZoneStats* zone_stats)
     : outer_zone_(info->zone()),
       zone_stats_(zone_stats),
       compilation_stats_(compilation_stats),
