@@ -354,6 +354,8 @@ class MaglevGraphBuilder {
       case ValueRepresentation::kTagged: {
         if (value->Is<CheckedSmiTag>()) {
           return value->input(0).node();
+        } else if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
+          return AddNewNode<Int32Constant>({}, constant->value().value());
         }
         return AddNewConversionNode<CheckedSmiUntag>(reg, value);
       }
