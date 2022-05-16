@@ -223,10 +223,10 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
           address_space_.get());
 
   initialized_ = true;
-  is_partially_reserved_ = false;
 
   InitializeConstants();
 
+  DCHECK(!is_partially_reserved());
   return true;
 }
 
@@ -283,7 +283,6 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
   end_ = base_ + size_;
   reservation_size_ = size_to_reserve;
   initialized_ = true;
-  is_partially_reserved_ = true;
   address_space_ = std::make_unique<base::EmulatedVirtualAddressSubspace>(
       vas, reservation_base_, reservation_size_, size_);
   sandbox_page_allocator_ =
@@ -292,6 +291,7 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
 
   InitializeConstants();
 
+  DCHECK(is_partially_reserved());
   return true;
 }
 
@@ -314,7 +314,6 @@ void Sandbox::TearDown() {
     reservation_base_ = kNullAddress;
     reservation_size_ = 0;
     initialized_ = false;
-    is_partially_reserved_ = false;
 #ifdef V8_SANDBOXED_POINTERS
     constants_.Reset();
 #endif

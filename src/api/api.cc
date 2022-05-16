@@ -6213,13 +6213,6 @@ VirtualAddressSpace* v8::V8::GetSandboxAddressSpace() {
   return i::GetProcessWideSandbox()->address_space();
 }
 
-PageAllocator* v8::V8::GetVirtualMemoryCagePageAllocator() {
-  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
-                  "v8::V8::GetVirtualMemoryCagePageAllocator",
-                  "The sandbox must be initialized first.");
-  return i::GetProcessWideSandbox()->page_allocator();
-}
-
 size_t v8::V8::GetSandboxSizeInBytes() {
   if (!i::GetProcessWideSandbox()->is_initialized()) {
     return 0;
@@ -6228,14 +6221,20 @@ size_t v8::V8::GetSandboxSizeInBytes() {
   }
 }
 
+size_t v8::V8::GetSandboxReservationSizeInBytes() {
+  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+                  "v8::V8::GetSandboxReservationSizeInBytes",
+                  "The sandbox must be initialized first.");
+  return i::GetProcessWideSandbox()->reservation_size();
+}
+
 bool v8::V8::IsSandboxConfiguredSecurely() {
   Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
                   "v8::V8::IsSandoxConfiguredSecurely",
                   "The sandbox must be initialized first.");
-  // TODO(saelo) For now, we only treat a partially reserved sandbox as
-  // insecure. Once we use sandboxed pointers, which assume that the sandbox
-  // has a fixed size, we'll also treat sandboxes with a smaller size as
-  // insecure because these pointers can then access memory outside of them.
+  // The sandbox is (only) configured insecurely if it is a partially reserved
+  // sandbox, since in that case unrelated memory mappings may end up inside
+  // the sandbox address space where they could be corrupted by an attacker.
   return !i::GetProcessWideSandbox()->is_partially_reserved();
 }
 #endif  // V8_ENABLE_SANDBOX

@@ -124,10 +124,11 @@ void V8::Initialize() {
   CHECK(platform_);
 
 #ifdef V8_ENABLE_SANDBOX
-  if (!GetProcessWideSandbox()->is_initialized()) {
-    // For now, we still allow the cage to be disabled even if V8 was compiled
-    // with V8_ENABLE_SANDBOX. This will eventually be forbidden.
-    CHECK(kAllowBackingStoresOutsideSandbox);
+  if (!kAllowBackingStoresOutsideSandbox) {
+    CHECK(GetProcessWideSandbox()->is_initialized());
+  } else if (!GetProcessWideSandbox()->is_initialized()) {
+    // For now, we still allow the sandbox to be disabled even if V8 was
+    // compiled with V8_SANDBOX. This will eventually be forbidden.
     GetProcessWideSandbox()->Disable();
   }
 #endif  // V8_ENABLE_SANDBOX
