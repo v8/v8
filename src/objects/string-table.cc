@@ -847,8 +847,8 @@ class StringForwardingTable::Block {
     visitor->VisitRootPointers(Root::kStringForwardingTable, nullptr,
                                first_slot, end_slot);
   }
-  void UpdateAfterScavenge(Isolate* isolate);
-  void UpdateAfterScavenge(Isolate* isolate, int up_to_index);
+  void UpdateAfterEvacuation(Isolate* isolate);
+  void UpdateAfterEvacuation(Isolate* isolate, int up_to_index);
 
  private:
   static constexpr int kRecordSize = 2;
@@ -911,12 +911,12 @@ std::unique_ptr<StringForwardingTable::Block> StringForwardingTable::Block::New(
   return std::unique_ptr<Block>(new (capacity) Block(capacity));
 }
 
-void StringForwardingTable::Block::UpdateAfterScavenge(Isolate* isolate) {
-  UpdateAfterScavenge(isolate, capacity_);
+void StringForwardingTable::Block::UpdateAfterEvacuation(Isolate* isolate) {
+  UpdateAfterEvacuation(isolate, capacity_);
 }
 
-void StringForwardingTable::Block::UpdateAfterScavenge(Isolate* isolate,
-                                                       int up_to_index) {
+void StringForwardingTable::Block::UpdateAfterEvacuation(Isolate* isolate,
+                                                         int up_to_index) {
   DCHECK(FLAG_always_use_string_forwarding_table);
   for (int index = 0; index < up_to_index; ++index) {
     Object original = Get(isolate, IndexOfOriginalString(index));
@@ -1111,7 +1111,7 @@ void StringForwardingTable::Reset() {
   next_free_index_ = 0;
 }
 
-void StringForwardingTable::UpdateAfterScavenge() {
+void StringForwardingTable::UpdateAfterEvacuation() {
   DCHECK(FLAG_always_use_string_forwarding_table);
 
   if (next_free_index_ == 0) return;  // Early exit if table is empty.
@@ -1120,12 +1120,12 @@ void StringForwardingTable::UpdateAfterScavenge() {
   const unsigned int last_block = static_cast<unsigned int>(blocks->size() - 1);
   for (unsigned int block = 0; block < last_block; ++block) {
     Block* data = blocks->LoadBlock(block, kAcquireLoad);
-    data->UpdateAfterScavenge(isolate_);
+    data->UpdateAfterEvacuation(isolate_);
   }
   // Handle last block separately, as it is not filled to capacity.
   const int max_index = IndexInBlock(next_free_index_ - 1, last_block) + 1;
   blocks->LoadBlock(last_block, kAcquireLoad)
-      ->UpdateAfterScavenge(isolate_, max_index);
+      ->UpdateAfterEvacuation(isolate_, max_index);
 }
 
 }  // namespace internal

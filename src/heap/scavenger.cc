@@ -400,7 +400,7 @@ void ScavengerCollector::CollectGarbage() {
     }
 
     if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table)) {
-      isolate_->string_forwarding_table()->UpdateAfterScavenge();
+      isolate_->string_forwarding_table()->UpdateAfterEvacuation();
     }
   }
 

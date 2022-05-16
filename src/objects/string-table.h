@@ -123,7 +123,7 @@ class StringForwardingTable {
   static Address GetForwardStringAddress(Isolate* isolate, int index);
   void IterateElements(RootVisitor* visitor);
   void Reset();
-  void UpdateAfterScavenge();
+  void UpdateAfterEvacuation();
 
  private:
   class Block;

@@ -4793,6 +4793,10 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     heap_->UpdateReferencesInExternalStringTable(
         &UpdateReferenceInExternalStringTableEntry);
 
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table)) {
+      isolate()->string_forwarding_table()->UpdateAfterEvacuation();
+    }
+
     EvacuationWeakObjectRetainer evacuation_object_retainer;
     heap()->ProcessWeakListRoots(&evacuation_object_retainer);
   }
