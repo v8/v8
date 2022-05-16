@@ -61,39 +61,40 @@ class MaglevGraphVerifier {
   void Process(NodeBase* node, const ProcessingState& state) {
     switch (node->opcode()) {
       case Opcode::kConstant:
-      case Opcode::kSmiConstant:
-      case Opcode::kInt32Constant:
-      case Opcode::kFloat64Constant:
-      case Opcode::kRootConstant:
-      case Opcode::kInitialValue:
-      case Opcode::kRegisterInput:
-      case Opcode::kGapMove:
+      case Opcode::kConstantGapMove:
+      case Opcode::kCreateEmptyArrayLiteral:
       case Opcode::kDeopt:
+      case Opcode::kFloat64Constant:
+      case Opcode::kGapMove:
+      case Opcode::kInitialValue:
+      case Opcode::kInt32Constant:
       case Opcode::kJump:
+      case Opcode::kJumpFromInlined:
       case Opcode::kJumpLoop:
       case Opcode::kJumpToInlined:
-      case Opcode::kJumpFromInlined:
-      case Opcode::kCreateEmptyArrayLiteral:
+      case Opcode::kRegisterInput:
+      case Opcode::kRootConstant:
+      case Opcode::kSmiConstant:
         // No input.
         DCHECK_EQ(node->input_count(), 0);
         break;
-      case Opcode::kGenericNegate:
-      case Opcode::kGenericIncrement:
-      case Opcode::kGenericDecrement:
       case Opcode::kCheckedSmiUntag:
       case Opcode::kGenericBitwiseNot:
-      case Opcode::kLoadTaggedField:
+      case Opcode::kGenericDecrement:
+      case Opcode::kGenericIncrement:
+      case Opcode::kGenericNegate:
       case Opcode::kLoadDoubleField:
       case Opcode::kLoadGlobal:
+      case Opcode::kLoadTaggedField:
       // TODO(victorgomes): Can we check that the input is actually a map?
       case Opcode::kCheckMaps:
       // TODO(victorgomes): Can we check that the input is Boolean?
-      case Opcode::kBranchIfTrue:
       case Opcode::kBranchIfToBooleanTrue:
-      case Opcode::kReturn:
+      case Opcode::kBranchIfTrue:
       case Opcode::kCheckedFloat64Unbox:
       case Opcode::kCreateObjectLiteral:
       case Opcode::kCreateShallowObjectLiteral:
+      case Opcode::kReturn:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         break;
@@ -107,25 +108,25 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         break;
       case Opcode::kGenericAdd:
-      case Opcode::kGenericSubtract:
-      case Opcode::kGenericMultiply:
-      case Opcode::kGenericDivide:
-      case Opcode::kGenericModulus:
-      case Opcode::kGenericExponentiate:
       case Opcode::kGenericBitwiseAnd:
       case Opcode::kGenericBitwiseOr:
       case Opcode::kGenericBitwiseXor:
+      case Opcode::kGenericDivide:
+      case Opcode::kGenericExponentiate:
+      case Opcode::kGenericModulus:
+      case Opcode::kGenericMultiply:
       case Opcode::kGenericShiftLeft:
       case Opcode::kGenericShiftRight:
       case Opcode::kGenericShiftRightLogical:
+      case Opcode::kGenericSubtract:
       // TODO(victorgomes): Can we use the fact that these nodes return a
       // Boolean?
       case Opcode::kGenericEqual:
-      case Opcode::kGenericStrictEqual:
-      case Opcode::kGenericLessThan:
-      case Opcode::kGenericLessThanOrEqual:
       case Opcode::kGenericGreaterThan:
       case Opcode::kGenericGreaterThanOrEqual:
+      case Opcode::kGenericLessThan:
+      case Opcode::kGenericLessThanOrEqual:
+      case Opcode::kGenericStrictEqual:
       // TODO(victorgomes): Can we check that first input is an Object?
       case Opcode::kStoreField:
       case Opcode::kLoadNamedGeneric:

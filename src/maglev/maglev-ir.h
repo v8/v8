@@ -65,9 +65,15 @@ class CompactInterpreterFrameState;
   V(GenericGreaterThan)                 \
   V(GenericGreaterThanOrEqual)
 
+#define CONSTANT_VALUE_NODE_LIST(V) \
+  V(Constant)                       \
+  V(Float64Constant)                \
+  V(Int32Constant)                  \
+  V(RootConstant)                   \
+  V(SmiConstant)
+
 #define VALUE_NODE_LIST(V)      \
   V(Call)                       \
-  V(Constant)                   \
   V(Construct)                  \
   V(CreateEmptyArrayLiteral)    \
   V(CreateObjectLiteral)        \
@@ -80,23 +86,24 @@ class CompactInterpreterFrameState;
   V(SetNamedGeneric)            \
   V(Phi)                        \
   V(RegisterInput)              \
-  V(RootConstant)               \
-  V(SmiConstant)                \
   V(CheckedSmiTag)              \
   V(CheckedSmiUntag)            \
   V(Int32AddWithOverflow)       \
-  V(Int32Constant)              \
-  V(Float64Constant)            \
   V(ChangeInt32ToFloat64)       \
   V(Float64Box)                 \
   V(CheckedFloat64Unbox)        \
   V(Float64Add)                 \
+  CONSTANT_VALUE_NODE_LIST(V)   \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
-#define NODE_LIST(V) \
-  V(CheckMaps)       \
-  V(GapMove)         \
-  V(StoreField)      \
+#define GAP_MOVE_NODE_LIST(V) \
+  V(ConstantGapMove)          \
+  V(GapMove)
+
+#define NODE_LIST(V)    \
+  V(CheckMaps)          \
+  V(StoreField)         \
+  GAP_MOVE_NODE_LIST(V) \
   VALUE_NODE_LIST(V)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -139,6 +146,14 @@ static constexpr Opcode kFirstValueNodeOpcode =
     std::min({VALUE_NODE_LIST(V) kLastOpcode});
 static constexpr Opcode kLastValueNodeOpcode =
     std::max({VALUE_NODE_LIST(V) kFirstOpcode});
+static constexpr Opcode kFirstConstantNodeOpcode =
+    std::min({CONSTANT_VALUE_NODE_LIST(V) kLastOpcode});
+static constexpr Opcode kLastConstantNodeOpcode =
+    std::max({CONSTANT_VALUE_NODE_LIST(V) kFirstOpcode});
+static constexpr Opcode kFirstGapMoveNodeOpcode =
+    std::min({GAP_MOVE_NODE_LIST(V) kLastOpcode});
+static constexpr Opcode kLastGapMoveNodeOpcode =
+    std::max({GAP_MOVE_NODE_LIST(V) kFirstOpcode});
 
 static constexpr Opcode kFirstNodeOpcode = std::min({NODE_LIST(V) kLastOpcode});
 static constexpr Opcode kLastNodeOpcode = std::max({NODE_LIST(V) kFirstOpcode});
@@ -161,6 +176,13 @@ static constexpr Opcode kLastControlNodeOpcode =
 
 constexpr bool IsValueNode(Opcode opcode) {
   return kFirstValueNodeOpcode <= opcode && opcode <= kLastValueNodeOpcode;
+}
+constexpr bool IsConstantNode(Opcode opcode) {
+  return kFirstConstantNodeOpcode <= opcode &&
+         opcode <= kLastConstantNodeOpcode;
+}
+constexpr bool IsGapMoveNode(Opcode opcode) {
+  return kFirstGapMoveNodeOpcode <= opcode && opcode <= kLastGapMoveNodeOpcode;
 }
 constexpr bool IsConditionalControlNode(Opcode opcode) {
   return kFirstConditionalControlNodeOpcode <= opcode &&
@@ -712,7 +734,6 @@ class ValueNode : public Node {
   void SetNoSpillOrHint();
 
   /* For constants only. */
-  void LoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
   void LoadToRegister(MaglevCodeGenState*, Register);
   Handle<Object> Reify(Isolate* isolate);
 
@@ -724,11 +745,7 @@ class ValueNode : public Node {
       DCHECK(!is_loadable());
     }
 #endif  // DEBUG
-    DCHECK(!Is<Constant>());
-    DCHECK(!Is<SmiConstant>());
-    DCHECK(!Is<RootConstant>());
-    DCHECK(!Is<Int32Constant>());
-    DCHECK(!Is<Float64Constant>());
+    DCHECK(!IsConstantNode(opcode()));
     DCHECK(operand.IsAnyStackSlot());
     spill_or_hint_ = operand;
     DCHECK(spill_or_hint_.IsAnyStackSlot());
@@ -849,11 +866,7 @@ class ValueNode : public Node {
     return registers_with_result_.first().code();
   }
 
-  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand) {
-    UNREACHABLE();
-  }
   void DoLoadToRegister(MaglevCodeGenState*, Register);
-  Handle<Object> DoReify(Isolate* isolate) { UNREACHABLE(); }
 
   // Rename for better pairing with `end_id`.
   NodeIdT start_id() const { return id(); }
@@ -1080,8 +1093,7 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
-  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  void DoLoadToRegister(MaglevCodeGenState*, OutputRegister);
   Handle<Object> DoReify(Isolate* isolate);
 
  private:
@@ -1105,9 +1117,8 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
   void DoLoadToRegister(MaglevCodeGenState*, Register) { UNREACHABLE(); }
-  void DoLoadToRegister(MaglevCodeGenState*, DoubleRegister);
+  void DoLoadToRegister(MaglevCodeGenState*, OutputRegister);
   Handle<Object> DoReify(Isolate* isolate);
 
  private:
@@ -1238,6 +1249,8 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
   using Base = FixedInputValueNodeT<0, SmiConstant>;
 
  public:
+  using OutputRegister = Register;
+
   explicit SmiConstant(uint32_t bitfield, Smi value)
       : Base(bitfield), value_(value) {}
 
@@ -1247,8 +1260,7 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
-  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  void DoLoadToRegister(MaglevCodeGenState*, OutputRegister);
   Handle<Object> DoReify(Isolate* isolate);
 
  private:
@@ -1259,6 +1271,8 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   using Base = FixedInputValueNodeT<0, Constant>;
 
  public:
+  using OutputRegister = Register;
+
   explicit Constant(uint32_t bitfield, const compiler::HeapObjectRef& object)
       : Base(bitfield), object_(object) {}
 
@@ -1266,8 +1280,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
-  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  void DoLoadToRegister(MaglevCodeGenState*, OutputRegister);
   Handle<Object> DoReify(Isolate* isolate);
 
  private:
@@ -1278,6 +1291,8 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   using Base = FixedInputValueNodeT<0, RootConstant>;
 
  public:
+  using OutputRegister = Register;
+
   explicit RootConstant(uint32_t bitfield, RootIndex index)
       : Base(bitfield), index_(index) {}
 
@@ -1287,8 +1302,7 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  void DoLoadToRegister(MaglevCodeGenState*, compiler::AllocatedOperand);
-  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  void DoLoadToRegister(MaglevCodeGenState*, OutputRegister);
   Handle<Object> DoReify(Isolate* isolate);
 
  private:
@@ -1555,12 +1569,30 @@ class GapMove : public FixedInputNodeT<0, GapMove> {
   using Base = FixedInputNodeT<0, GapMove>;
 
  public:
-  GapMove(uint32_t bitfield, ValueNode* node,
-          compiler::InstructionOperand source,
+  GapMove(uint32_t bitfield, compiler::AllocatedOperand source,
           compiler::AllocatedOperand target)
-      : Base(bitfield), node_(node), source_(source), target_(target) {}
+      : Base(bitfield), source_(source), target_(target) {}
 
-  compiler::InstructionOperand source() const { return source_; }
+  compiler::AllocatedOperand source() const { return source_; }
+  compiler::AllocatedOperand target() const { return target_; }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  compiler::AllocatedOperand source_;
+  compiler::AllocatedOperand target_;
+};
+
+class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
+  using Base = FixedInputNodeT<0, ConstantGapMove>;
+
+ public:
+  ConstantGapMove(uint32_t bitfield, ValueNode* node,
+                  compiler::AllocatedOperand target)
+      : Base(bitfield), node_(node), target_(target) {}
+
   compiler::AllocatedOperand target() const { return target_; }
   ValueNode* node() const { return node_; }
 

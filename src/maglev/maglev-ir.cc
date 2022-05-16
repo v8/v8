@@ -400,18 +400,6 @@ DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
 // Nodes
 // ---
 void ValueNode::LoadToRegister(MaglevCodeGenState* code_gen_state,
-                               compiler::AllocatedOperand op) {
-  switch (opcode()) {
-#define V(Name)         \
-  case Opcode::k##Name: \
-    return this->Cast<Name>()->DoLoadToRegister(code_gen_state, op);
-    VALUE_NODE_LIST(V)
-#undef V
-    default:
-      UNREACHABLE();
-  }
-}
-void ValueNode::LoadToRegister(MaglevCodeGenState* code_gen_state,
                                Register reg) {
   switch (opcode()) {
 #define V(Name)         \
@@ -434,7 +422,7 @@ Handle<Object> ValueNode::Reify(Isolate* isolate) {
 #define V(Name)         \
   case Opcode::k##Name: \
     return this->Cast<Name>()->DoReify(isolate);
-    VALUE_NODE_LIST(V)
+    CONSTANT_VALUE_NODE_LIST(V)
 #undef V
     default:
       UNREACHABLE();
@@ -446,8 +434,7 @@ void ValueNode::SetNoSpillOrHint() {
 #ifdef DEBUG
   state_ = kSpillOrHint;
 #endif  // DEBUG
-  if (Is<Constant>() || Is<SmiConstant>() || Is<RootConstant>() ||
-      Is<Int32Constant>() || Is<Float64Constant>()) {
+  if (IsConstantNode(opcode())) {
     spill_or_hint_ = compiler::ConstantOperand(
         compiler::UnallocatedOperand::cast(result().operand())
             .virtual_register());
@@ -462,10 +449,6 @@ void SmiConstant::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void SmiConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
                                const ProcessingState& state) {}
-void SmiConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
-                                   compiler::AllocatedOperand op) {
-  DoLoadToRegister(code_gen_state, op.GetRegister());
-}
 Handle<Object> SmiConstant::DoReify(Isolate* isolate) {
   return handle(value_, isolate);
 }
@@ -484,10 +467,6 @@ void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void Float64Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
                                    const ProcessingState& state) {}
-void Float64Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
-                                       compiler::AllocatedOperand op) {
-  DoLoadToRegister(code_gen_state, op.GetDoubleRegister());
-}
 Handle<Object> Float64Constant::DoReify(Isolate* isolate) {
   return isolate->factory()->NewNumber(value_);
 }
@@ -506,10 +485,6 @@ void Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
                             const ProcessingState& state) {}
-void Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
-                                compiler::AllocatedOperand op) {
-  DoLoadToRegister(code_gen_state, op.GetRegister());
-}
 void Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                 Register reg) {
   __ Move(reg, object_.object());
@@ -588,10 +563,6 @@ void RootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void RootConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
                                 const ProcessingState& state) {}
-void RootConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
-                                    compiler::AllocatedOperand op) {
-  DoLoadToRegister(code_gen_state, op.GetRegister());
-}
 void RootConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                     Register reg) {
   __ LoadRoot(reg, index());
@@ -839,9 +810,7 @@ void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void GapMove::GenerateCode(MaglevCodeGenState* code_gen_state,
                            const ProcessingState& state) {
-  if (source().IsConstant()) {
-    node_->LoadToRegister(code_gen_state, target());
-  } else if (source().IsRegister()) {
+  if (source().IsRegister()) {
     Register source_reg = ToRegister(source());
     if (target().IsAnyRegister()) {
       DCHECK(target().IsRegister());
@@ -874,6 +843,46 @@ void GapMove::GenerateCode(MaglevCodeGenState* code_gen_state,
 void GapMove::PrintParams(std::ostream& os,
                           MaglevGraphLabeller* graph_labeller) const {
   os << "(" << source() << " → " << target() << ")";
+}
+void ConstantGapMove::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UNREACHABLE();
+}
+
+namespace {
+template <typename T>
+struct GetRegister;
+template <>
+struct GetRegister<Register> {
+  static Register Get(compiler::AllocatedOperand target) {
+    return target.GetRegister();
+  }
+};
+template <>
+struct GetRegister<DoubleRegister> {
+  static DoubleRegister Get(compiler::AllocatedOperand target) {
+    return target.GetDoubleRegister();
+  }
+};
+};  // namespace
+void ConstantGapMove::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  switch (node_->opcode()) {
+#define CASE(Name)                                \
+  case Opcode::k##Name:                           \
+    return node_->Cast<Name>()->DoLoadToRegister( \
+        code_gen_state, GetRegister<Name::OutputRegister>::Get(target()));
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+void ConstantGapMove::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(";
+  graph_labeller->PrintNodeLabel(os, node_);
+  os << " → " << target() << ")";
 }
 
 namespace {
@@ -978,10 +987,6 @@ void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void Int32Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
                                  const ProcessingState& state) {}
-void Int32Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
-                                     compiler::AllocatedOperand op) {
-  DoLoadToRegister(code_gen_state, op.GetRegister());
-}
 void Int32Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                      Register reg) {
   __ Move(reg, Immediate(value()));

@@ -496,9 +496,7 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
     }
 
     case compiler::UnallocatedOperand::NONE:
-      DCHECK(node->Is<Constant>() || node->Is<RootConstant>() ||
-             node->Is<SmiConstant>() || node->Is<Int32Constant>() ||
-             node->Is<Float64Constant>());
+      DCHECK(IsConstantNode(node->opcode()));
       break;
 
     case compiler::UnallocatedOperand::MUST_HAVE_SLOT:
@@ -669,8 +667,16 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
 void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
     ValueNode* node, compiler::InstructionOperand source,
     compiler::AllocatedOperand target) {
-  GapMove* gap_move =
-      Node::New<GapMove>(compilation_info_->zone(), {}, node, source, target);
+  Node* gap_move;
+  DCHECK_EQ(source.IsConstant(), IsConstantNode(node->opcode()));
+  if (source.IsConstant()) {
+    gap_move =
+        Node::New<ConstantGapMove>(compilation_info_->zone(), {}, node, target);
+  } else {
+    gap_move =
+        Node::New<GapMove>(compilation_info_->zone(), {},
+                           compiler::AllocatedOperand::cast(source), target);
+  }
   if (compilation_info_->has_graph_labeller()) {
     graph_labeller()->RegisterNode(gap_move);
   }

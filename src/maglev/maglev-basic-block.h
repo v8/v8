@@ -33,7 +33,7 @@ class BasicBlock {
     if (has_phi()) return phis()->first()->id();
     if (!nodes_.is_empty()) {
       for (const Node* node : nodes_) {
-        if (node->Is<GapMove>()) continue;
+        if (IsGapMoveNode(node->opcode())) continue;
         return node->id();
       }
     }
