@@ -661,6 +661,11 @@ V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
 
 inline bool RoundUpToPageSize(size_t byte_length, size_t page_size,
                               size_t max_allowed_byte_length, size_t* pages) {
+  // This check is needed, since the arithmetic in RoundUp only works when
+  // byte_length is not too close to the size_t limit.
+  if (byte_length > max_allowed_byte_length) {
+    return false;
+  }
   size_t bytes_wanted = RoundUp(byte_length, page_size);
   if (bytes_wanted > max_allowed_byte_length) {
     return false;

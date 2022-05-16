@@ -338,11 +338,16 @@ constexpr inline T RoundDown(T x) {
 template <typename T>
 inline T RoundUp(T x, intptr_t m) {
   static_assert(std::is_integral<T>::value);
-  return RoundDown<T>(static_cast<T>(x + m - 1), m);
+  DCHECK_GE(x, 0);
+  DCHECK_GE(std::numeric_limits<T>::max() - x, m - 1);  // Overflow check.
+  return RoundDown<T>(static_cast<T>(x + (m - 1)), m);
 }
+
 template <intptr_t m, typename T>
 constexpr inline T RoundUp(T x) {
   static_assert(std::is_integral<T>::value);
+  DCHECK_GE(x, 0);
+  DCHECK_GE(std::numeric_limits<T>::max() - x, m - 1);  // Overflow check.
   return RoundDown<m, T>(static_cast<T>(x + (m - 1)));
 }
 
