@@ -392,6 +392,7 @@ v8_source_set("unittests_sources") {
     "objects/elements-kind-unittest.cc",
     "objects/modules-unittest.cc",
     "objects/object-unittest.cc",
+    "objects/representation-unittest.cc",
     "objects/swiss-hash-table-helpers-unittest.cc",
     "objects/value-serializer-unittest.cc",
     "objects/weakarraylist-unittest.cc",

@@ -25,26 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "test/cctest/cctest.h"
-
 #include "src/objects/property-details.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
+using RepresentationTest = ::testing::Test;
 void TestPairPositive(Representation more_general,
-              Representation less_general) {
+                      Representation less_general) {
   CHECK(more_general.is_more_general_than(less_general));
 }
 
-
 void TestPairNegative(Representation more_general,
-              Representation less_general) {
+                      Representation less_general) {
   CHECK(!more_general.is_more_general_than(less_general));
 }
 
-
-TEST(RepresentationMoreGeneralThan) {
+TEST_F(RepresentationTest, RepresentationMoreGeneralThan) {
   TestPairNegative(Representation::None(), Representation::None());
   TestPairPositive(Representation::Smi(), Representation::None());
   TestPairPositive(Representation::HeapObject(), Representation::None());
