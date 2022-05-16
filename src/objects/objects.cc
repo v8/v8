@@ -1035,8 +1035,8 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
           isolate, array, length);
     } else if (object->IsJSTypedArray()) {
       Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(object);
-      size_t length = array->length();
-      if (array->WasDetached() ||
+      size_t length = array->GetLength();
+      if (array->IsDetachedOrOutOfBounds() ||
           length > static_cast<size_t>(FixedArray::kMaxLength)) {
         return MaybeHandle<FixedArray>();
       }

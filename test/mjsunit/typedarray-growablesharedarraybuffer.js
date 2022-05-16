@@ -3682,3 +3682,37 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
     Object.freeze(lengthTrackingWithOffset);
   }
 })();
+
+(function FunctionApply() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    function func(...args) {
+      return [...args];
+    }
+
+    assertEquals([0, 1, 2, 3], ToNumbers(func.apply(null, fixedLength)));
+    assertEquals([2, 3], ToNumbers(func.apply(null, fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3], ToNumbers(func.apply(null, lengthTracking)));
+    assertEquals([2, 3], ToNumbers(func.apply(null, lengthTrackingWithOffset)));
+
+    // Grow.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    assertEquals([0, 1, 2, 3], ToNumbers(func.apply(null, fixedLength)));
+    assertEquals([2, 3], ToNumbers(func.apply(null, fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3, 0, 0],
+                 ToNumbers(func.apply(null, lengthTracking)));
+    assertEquals([2, 3, 0, 0],
+                 ToNumbers(func.apply(null, lengthTrackingWithOffset)));
+  }
+})();

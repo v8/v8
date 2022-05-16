@@ -1487,3 +1487,35 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertThrows(() => { helper(lengthTracking, evil, 8); }, TypeError);
   }
 })();
+
+(function FunctionApply() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    function func(...args) {
+      return [...args];
+    }
+
+    assertEquals([0, 1, 2, 3], ToNumbers(func.apply(null, fixedLength)));
+    assertEquals([2, 3], ToNumbers(func.apply(null, fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3], ToNumbers(func.apply(null, lengthTracking)));
+    assertEquals([2, 3], ToNumbers(func.apply(null, lengthTrackingWithOffset)));
+
+    %ArrayBufferDetach(rab);
+
+    assertEquals([], ToNumbers(func.apply(null, fixedLength)));
+    assertEquals([], ToNumbers(func.apply(null, fixedLengthWithOffset)));
+    assertEquals([], ToNumbers(func.apply(null, lengthTracking)));
+    assertEquals([], ToNumbers(func.apply(null, lengthTrackingWithOffset)));
+  }
+})();
