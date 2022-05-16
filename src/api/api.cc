@@ -10584,23 +10584,19 @@ char* HandleScopeImplementer::Iterate(RootVisitor* v, char* storage) {
 }
 
 std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
-    Address* prev_limit) {
+    Address* first_block) {
   std::unique_ptr<PersistentHandles> ph(new PersistentHandles(isolate()));
-  DCHECK_NOT_NULL(prev_limit);
+  DCHECK_NOT_NULL(first_block);
 
-  while (!blocks_.empty()) {
-    Address* block_start = blocks_.back();
-    Address* block_limit = &block_start[kHandleBlockSize];
-    // We should not need to check for SealHandleScope here. Assert this.
-    DCHECK_IMPLIES(block_start <= prev_limit && prev_limit <= block_limit,
-                   prev_limit == block_limit);
-    if (prev_limit == block_limit) break;
+  Address* block_start;
+  do {
+    block_start = blocks_.back();
     ph->blocks_.push_back(blocks_.back());
 #if DEBUG
     ph->ordered_blocks_.insert(blocks_.back());
 #endif
     blocks_.pop_back();
-  }
+  } while (block_start != first_block);
 
   // ph->blocks_ now contains the blocks installed on the
   // HandleScope stack since BeginDeferredScope was called, but in
@@ -10612,7 +10608,7 @@ std::unique_ptr<PersistentHandles> HandleScopeImplementer::DetachPersistent(
   std::swap(ph->blocks_.front(), ph->blocks_.back());
 
   ph->block_next_ = isolate()->handle_scope_data()->next;
-  Address* block_start = ph->blocks_.back();
+  block_start = ph->blocks_.back();
   ph->block_limit_ = block_start + kHandleBlockSize;
 
   DCHECK_NOT_NULL(last_handle_before_deferred_block_);

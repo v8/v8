@@ -425,7 +425,7 @@ class HandleScopeImplementer {
   }
 
   void BeginDeferredScope();
-  std::unique_ptr<PersistentHandles> DetachPersistent(Address* prev_limit);
+  std::unique_ptr<PersistentHandles> DetachPersistent(Address* first_block);
 
   Isolate* isolate_;
   DetachableVector<Address*> blocks_;
