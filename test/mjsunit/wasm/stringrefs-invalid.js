@@ -40,6 +40,7 @@ for (let [name, code] of [['string', kWasmStringRef],
                 `${message} @+12`);
   assertInvalid(b => b.addTag(makeSig([code], [])),
                 `${message} @+13`);
-  assertInvalid(b => b.addFunction(undefined, kSig_v_v).addLocals(code, 1),
-                `Compiling function #0 failed: ${message} @+24`);
+  assertInvalid(
+    b => b.addFunction(undefined, kSig_v_v).addLocals(code, 1).addBody([]),
+    `Compiling function #0 failed: ${message} @+24`);
 }

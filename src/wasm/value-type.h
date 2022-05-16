@@ -66,7 +66,7 @@ class HeapType {
     kData,                    // shorthand: o
     kArray,                   // shorthand: g
     kAny,                     // shorthand: a. Aka kExtern.
-    kString,                  // shorthand: s.
+    kString,                  // shorthand: w.
     kStringViewWtf8,          // shorthand: x.
     kStringViewWtf16,         // shorthand: y.
     kStringViewIter,          // shorthand: z.

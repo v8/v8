@@ -146,6 +146,15 @@ enum NameSectionKindCode : uint8_t {
   kFieldCode = 10
 };
 
+// What to do when treating a stringref as WTF-8 and we see an isolated
+// surrogate.
+enum StringRefWtf8Policy : uint8_t {
+  kWtf8PolicyReject = 0,   // Strict UTF-8; no isolated surrogates allowed.
+  kWtf8PolicyAccept = 1,   // Follow WTF-8 encoding of isolates surrogates.
+  kWtf8PolicyReplace = 2,  // Replace isolated surrogates with U+FFFD.
+  kLastWtf8Policy = kWtf8PolicyReplace
+};
+
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
 static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");

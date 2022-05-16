@@ -136,6 +136,16 @@ class Decoder {
     return read_leb<int64_t, validate, kNoTrace, 33>(pc, length, name);
   }
 
+  template <ValidateFlag validate>
+  WasmOpcode read_two_byte_opcode(const byte* pc, uint32_t* length,
+                                  const char* name = "prefixed opcode") {
+    DCHECK(*pc == kGCPrefix);
+    uint32_t index = read_u8<validate>(pc + 1, name);
+    index |= kGCPrefix << 8;
+    *length = 2;
+    return static_cast<WasmOpcode>(index);
+  }
+
   // Convenient overload for callers who don't care about length.
   template <ValidateFlag validate>
   WasmOpcode read_prefixed_opcode(const byte* pc) {
@@ -149,6 +159,10 @@ class Decoder {
   template <ValidateFlag validate>
   WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length,
                                   const char* name = "prefixed opcode") {
+    if (*pc == kGCPrefix) {
+      return read_two_byte_opcode<validate>(pc, length, name);
+    }
+
     uint32_t index;
 
     // Prefixed opcodes all use LEB128 encoding.

@@ -194,6 +194,12 @@ struct WasmTag {
   const WasmTagSig* sig;  // type signature of the tag.
 };
 
+// Static representation of a wasm literal stringref.
+struct WasmStringRefLiteral {
+  explicit WasmStringRefLiteral(uint32_t offset) : offset(offset) {}
+  uint32_t offset;  // Offset into string literals table.
+};
+
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
   // Construct an active segment.
@@ -510,6 +516,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmImport> import_table;
   std::vector<WasmExport> export_table;
   std::vector<WasmTag> tags;
+  std::vector<WasmStringRefLiteral> stringref_literals;
   std::vector<WasmElemSegment> elem_segments;
   std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;

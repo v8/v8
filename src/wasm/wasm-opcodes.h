@@ -724,7 +724,32 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(BrOnNonFunc, 0xfb63, _)                                                    \
   V(BrOnNonData, 0xfb64, _)                                                    \
   V(BrOnNonI31, 0xfb65, _)                                                     \
-  V(BrOnNonArray, 0xfb67, _)
+  V(BrOnNonArray, 0xfb67, _)                                                   \
+  V(StringNewWtf8, 0xfb80, _)                                                  \
+  V(StringNewWtf16, 0xfb81, _)                                                 \
+  V(StringConst, 0xfb82, _)                                                    \
+  V(StringMeasureUtf8, 0xfb83, _)                                              \
+  V(StringMeasureWtf8, 0xfb84, _)                                              \
+  V(StringMeasureWtf16, 0xfb85, _)                                             \
+  V(StringEncodeWtf8, 0xfb86, _)                                               \
+  V(StringEncodeWtf16, 0xfb87, _)                                              \
+  V(StringConcat, 0xfb88, _)                                                   \
+  V(StringEq, 0xfb89, _)                                                       \
+  V(StringIsUSVSequence, 0xfb8a, _)                                            \
+  V(StringAsWtf8, 0xfb90, _)                                                   \
+  V(StringViewWtf8Advance, 0xfb91, _)                                          \
+  V(StringViewWtf8Encode, 0xfb92, _)                                           \
+  V(StringViewWtf8Slice, 0xfb93, _)                                            \
+  V(StringAsWtf16, 0xfb98, _)                                                  \
+  V(StringViewWtf16Length, 0xfb99, _)                                          \
+  V(StringViewWtf16GetCodeUnit, 0xfb9a, _)                                     \
+  V(StringViewWtf16Encode, 0xfb9b, _)                                          \
+  V(StringViewWtf16Slice, 0xfb9c, _)                                           \
+  V(StringAsIter, 0xfba0, _)                                                   \
+  V(StringViewIterCur, 0xfba1, _)                                              \
+  V(StringViewIterAdvance, 0xfba2, _)                                          \
+  V(StringViewIterRewind, 0xfba3, _)                                           \
+  V(StringViewIterSlice, 0xfba4, _)
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \
