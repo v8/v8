@@ -5533,7 +5533,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
         heap()->concurrent_marking()->ClearMemoryChunkData(p);
       }
     }
-    // Since we promote all surviving large objects immediatelly, all remaining
+    // Since we promote all surviving large objects immediately, all remaining
     // large objects must be dead.
     // TODO(v8:11685): Don't free all as soon as we have an intermediate
     // generation.

@@ -837,7 +837,7 @@ void IncrementalMarking::FetchBytesMarkedConcurrently() {
   if (FLAG_concurrent_marking) {
     size_t current_bytes_marked_concurrently =
         heap()->concurrent_marking()->TotalMarkedBytes();
-    // The concurrent_marking()->TotalMarkedBytes() is not monothonic for a
+    // The concurrent_marking()->TotalMarkedBytes() is not monotonic for a
     // short period of time when a concurrent marking task is finishing.
     if (current_bytes_marked_concurrently > bytes_marked_concurrently_) {
       bytes_marked_ +=
@@ -865,7 +865,7 @@ size_t IncrementalMarking::ComputeStepSizeInBytes(StepOrigin step_origin) {
           (bytes_marked_ - scheduled_bytes_to_mark_) / KB);
     }
   }
-  // Allow steps on allocation to get behind the schedule by small ammount.
+  // Allow steps on allocation to get behind the schedule by small amount.
   // This gives higher priority to steps in tasks.
   size_t kScheduleMarginInBytes = step_origin == StepOrigin::kV8 ? 1 * MB : 0;
   if (bytes_marked_ + kScheduleMarginInBytes > scheduled_bytes_to_mark_)

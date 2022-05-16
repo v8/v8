@@ -2510,7 +2510,7 @@ inline void setcc_32_no_spill(LiftoffAssembler* assm, Condition cond,
   assm->movzx_b(dst, tmp_byte_reg);
 }
 
-// Setcc into dst register (no contraints). Might spill.
+// Setcc into dst register (no constraints). Might spill.
 inline void setcc_32(LiftoffAssembler* assm, Condition cond, Register dst) {
   Register tmp_byte_reg = GetTmpByteRegister(assm, dst);
   setcc_32_no_spill(assm, cond, dst, tmp_byte_reg);

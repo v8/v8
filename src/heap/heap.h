@@ -347,7 +347,7 @@ class Heap {
   static const int kPointerMultiplier = kTaggedSize / 4;
   // The heap limit needs to be computed based on the system pointer size
   // because we want a pointer-compressed heap to have larger limit than
-  // an orinary 32-bit which that is contrained by 2GB virtual address space.
+  // an ordinary 32-bit which that is constrained by 2GB virtual address space.
   static const int kHeapLimitMultiplier = kSystemPointerSize / 4;
 #endif
 
@@ -383,7 +383,7 @@ class Heap {
   static const int kNoGCFlags = 0;
   static const int kReduceMemoryFootprintMask = 1;
   // GCs that are forced, either through testing configurations (requring
-  // --expose-gc) or through DevTools (using LowMemoryNotificaton).
+  // --expose-gc) or through DevTools (using LowMemoryNotification).
   static const int kForcedGC = 2;
 
   // The minimum size of a HeapObject on the heap.
@@ -436,7 +436,7 @@ class Heap {
   }
 
   // Helper function to get the bytecode flushing mode based on the flags. This
-  // is required because it is not safe to acess flags in concurrent marker.
+  // is required because it is not safe to access flags in concurrent marker.
   static inline base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate);
 
   static uintptr_t ZapValue() {
@@ -602,7 +602,7 @@ class Heap {
     return reinterpret_cast<Address>(&allocation_sites_list_);
   }
 
-  // Traverse all the allocaions_sites [nested_site and weak_next] in the list
+  // Traverse all the allocation_sites [nested_site and weak_next] in the list
   // and foreach call the visitor
   void ForeachAllocationSite(
       Object list, const std::function<void(AllocationSite)>& visitor);
@@ -1354,7 +1354,7 @@ class Heap {
   // Returns the amount of executable memory currently committed for the heap.
   size_t CommittedMemoryExecutable();
 
-  // Returns the amount of phyical memory currently committed for the heap.
+  // Returns the amount of physical memory currently committed for the heap.
   size_t CommittedPhysicalMemory();
 
   // Returns the maximum amount of memory ever committed for the heap.
@@ -2262,7 +2262,7 @@ class Heap {
   // Observer that can cause early scavenge start.
   StressScavengeObserver* stress_scavenge_observer_ = nullptr;
 
-  // The maximum percent of the marking limit reached wihout causing marking.
+  // The maximum percent of the marking limit reached without causing marking.
   // This is tracked when specyfing --fuzzer-gc-analysis.
   double max_marking_limit_reached_ = 0.0;
 
@@ -2460,7 +2460,7 @@ class Heap {
   // ephemeron is stored in this map.
   std::unordered_map<HeapObject, HeapObject, Object::Hasher>
       ephemeron_retainer_;
-  // For each index inthe retaining_path_targets_ array this map
+  // For each index in the retaining_path_targets_ array this map
   // stores the option of the corresponding target.
   std::unordered_map<int, RetainingPathOption> retaining_path_target_option_;
 

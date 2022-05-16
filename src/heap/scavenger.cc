@@ -421,7 +421,7 @@ void ScavengerCollector::CollectGarbage() {
   // Set age mark.
   semi_space_new_space->set_age_mark(semi_space_new_space->top());
 
-  // Since we promote all surviving large objects immediatelly, all remaining
+  // Since we promote all surviving large objects immediately, all remaining
   // large objects must be dead.
   // TODO(hpayer): Don't free all as soon as we have an intermediate generation.
   heap_->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
@@ -464,7 +464,7 @@ void ScavengerCollector::IterateStackAndScavenge(
     RootScavengeVisitor* root_scavenge_visitor,
     std::vector<std::unique_ptr<Scavenger>>* scavengers, int main_thread_id) {
   // Scan the stack, scavenge the newly discovered objects, and report
-  // the survival statistics before and afer the stack scanning.
+  // the survival statistics before and after the stack scanning.
   // This code is not intended for production.
   TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_STACK_ROOTS);
   size_t survived_bytes_before = 0;

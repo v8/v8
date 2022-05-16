@@ -1020,7 +1020,7 @@
   'test-global-handles/FinalizerDiesAndKeepsPhantomAliveOnMarkCompact': [SKIP],
   'test-global-handles/FinalizerWeakness': [SKIP],
   'test-global-handles/GCFromWeakCallbacks': [SKIP],
-  'test-global-handles/PhatomHandlesWithoutCallbacks': [SKIP],
+  'test-global-handles/PhantomHandlesWithoutCallbacks': [SKIP],
   'test-global-handles/SecondPassPhantomCallbacks': [SKIP],
   'test-global-handles/WeakHandleToUnmodifiedJSApiObjectDiesOnMarkCompact': [SKIP],
   'test-global-handles/WeakHandleToUnmodifiedJSObjectDiesOnMarkCompact': [SKIP],
