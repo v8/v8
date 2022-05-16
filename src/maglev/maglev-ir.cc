@@ -538,6 +538,7 @@ void LoadGlobal::GenerateCode(MaglevCodeGenState* code_gen_state,
 
   // TODO(jgruber): Implement full LoadGlobal handling.
   __ CallBuiltin(Builtin::kLoadGlobalIC_NoFeedback);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 void LoadGlobal::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
@@ -773,6 +774,7 @@ void LoadNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kLoadIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 void LoadNamedGeneric::PrintParams(std::ostream& os,
                                    MaglevGraphLabeller* graph_labeller) const {
@@ -798,6 +800,7 @@ void SetNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kStoreIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 void SetNamedGeneric::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
@@ -916,6 +919,7 @@ void UnaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
   __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
   __ CallBuiltin(BuiltinFor(kOperation));
+  code_gen_state->DefineLazyDeoptPoint(this->lazy_deopt_info());
 }
 
 template <class Derived, Operation kOperation>
@@ -937,6 +941,7 @@ void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
   __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
   __ CallBuiltin(BuiltinFor(kOperation));
+  code_gen_state->DefineLazyDeoptPoint(this->lazy_deopt_info());
 }
 
 #define DEF_OPERATION(Name)                                      \
