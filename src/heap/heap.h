@@ -1819,15 +1819,6 @@ class Heap {
   void CreateInternalAccessorInfoObjects();
   void CreateInitialObjects();
 
-  // Commits from space if it is uncommitted.
-  void EnsureFromSpaceIsCommitted();
-
-  // Uncommit unused semi space.
-  V8_EXPORT_PRIVATE void UncommitFromSpace();
-
-  // Fill in bogus values in from space
-  void ZapFromSpace();
-
   // Zaps the memory of a code object.
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
                                        int size_in_bytes);

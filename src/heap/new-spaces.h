@@ -308,7 +308,11 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   virtual bool AddFreshPage() = 0;
 
+  virtual void Prologue() {}
+
   virtual void EvacuatePrologue() = 0;
+
+  virtual void ZapUnusedMemory() {}
 
  protected:
   static const int kAllocationBufferParkingThreshold = 4 * KB;
@@ -464,20 +468,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void Print() override { to_space_.Print(); }
 #endif
 
-  // Return whether the operation succeeded.
-  bool CommitFromSpaceIfNeeded() {
-    if (from_space_.IsCommitted() || from_space_.Commit()) return true;
-
-    // Committing memory to from space failed.
-    // Memory is exhausted and we will die.
-    heap_->FatalProcessOutOfMemory("Committing semi space failed.");
-  }
-
-  void UncommitFromSpace() {
-    if (!from_space_.IsCommitted()) return;
-    from_space_.Uncommit();
-  }
-
   bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
 
   SemiSpace* active_space() { return &to_space_; }
@@ -503,7 +493,11 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   bool ShouldBePromoted(Address address) const final;
 
+  void Prologue() final;
+
   void EvacuatePrologue() final;
+
+  void ZapUnusedMemory() final;
 
  private:
   // Reset the allocation pointer to the beginning of the active semispace.

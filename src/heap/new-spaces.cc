@@ -629,6 +629,8 @@ void SemiSpaceNewSpace::Shrink() {
     from_space_.ShrinkTo(rounded_new_capacity);
   }
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  if (!from_space_.IsCommitted()) return;
+  from_space_.Uncommit();
 }
 
 size_t SemiSpaceNewSpace::CommittedPhysicalMemory() const {
@@ -818,11 +820,28 @@ size_t SemiSpaceNewSpace::AllocatedSinceLastGC() const {
   return allocated;
 }
 
+void SemiSpaceNewSpace::Prologue() {
+  if (from_space_.IsCommitted() || from_space_.Commit()) return;
+
+  // Committing memory to from space failed.
+  // Memory is exhausted and we will die.
+  heap_->FatalProcessOutOfMemory("Committing semi space failed.");
+}
+
 void SemiSpaceNewSpace::EvacuatePrologue() {
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   SemiSpace::Swap(&from_space_, &to_space_);
   ResetLinearAllocationArea();
+}
+
+void SemiSpaceNewSpace::ZapUnusedMemory() {
+  if (!IsFromSpaceCommitted()) return;
+  for (Page* page : PageRange(from_space().first_page(), nullptr)) {
+    heap_->memory_allocator()->ZapBlock(
+        page->area_start(), page->HighWaterMark() - page->area_start(),
+        heap_->ZapValue());
+  }
 }
 
 }  // namespace internal

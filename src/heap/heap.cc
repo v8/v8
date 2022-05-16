@@ -1028,11 +1028,6 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
   deferred_counters_[feature]++;
 }
 
-void Heap::UncommitFromSpace() {
-  DCHECK_NOT_NULL(new_space_);
-  SemiSpaceNewSpace::From(new_space_)->UncommitFromSpace();
-}
-
 void Heap::GarbageCollectionPrologue(
     GarbageCollectionReason gc_reason,
     const v8::GCCallbackFlags gc_callback_flags) {
@@ -1454,11 +1449,10 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   if (FLAG_check_handle_count) CheckHandleCount();
 #endif
 
-  if (Heap::ShouldZapGarbage() || FLAG_clear_free_memory) {
-    ZapFromSpace();
-  }
-
   if (new_space()) {
+    if (Heap::ShouldZapGarbage() || FLAG_clear_free_memory) {
+      new_space()->ZapUnusedMemory();
+    }
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
     ReduceNewSpaceSize();
   }
@@ -2173,11 +2167,6 @@ void Heap::CopyRange(HeapObject dst_object, const TSlot dst_slot,
   WriteBarrierForRange(dst_object, dst_slot, dst_end);
 }
 
-void Heap::EnsureFromSpaceIsCommitted() {
-  if (!new_space_) return;
-  SemiSpaceNewSpace::From(new_space_)->CommitFromSpaceIfNeeded();
-}
-
 bool Heap::CollectionRequested() {
   return collection_barrier_->WasGCRequested();
 }
@@ -2305,7 +2294,7 @@ size_t Heap::PerformGarbageCollection(
 
   GarbageCollectionPrologueInSafepoint();
 
-  EnsureFromSpaceIsCommitted();
+  if (new_space()) new_space()->Prologue();
 
   size_t start_young_generation_size =
       NewSpaceSize() + (new_lo_space() ? new_lo_space()->SizeOfObjects() : 0);
@@ -3821,7 +3810,6 @@ void Heap::ReduceNewSpaceSize() {
        (allocation_throughput < kLowAllocationThroughput))) {
     new_space_->Shrink();
     new_lo_space_->SetCapacity(new_space_->Capacity());
-    UncommitFromSpace();
   }
 }
 
@@ -4855,18 +4843,6 @@ void Heap::VerifyCommittedPhysicalMemory() {
   }
 }
 #endif  // DEBUG
-
-void Heap::ZapFromSpace() {
-  if (!new_space_) return;
-  SemiSpaceNewSpace* semi_space_new_space = SemiSpaceNewSpace::From(new_space_);
-  if (!semi_space_new_space->IsFromSpaceCommitted()) return;
-  for (Page* page :
-       PageRange(semi_space_new_space->from_space().first_page(), nullptr)) {
-    memory_allocator()->ZapBlock(page->area_start(),
-                                 page->HighWaterMark() - page->area_start(),
-                                 ZapValue());
-  }
-}
 
 void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #ifdef DEBUG
