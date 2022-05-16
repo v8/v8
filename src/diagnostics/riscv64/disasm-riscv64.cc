@@ -1631,7 +1631,9 @@ void Decoder::DecodeIType(Instruction* instr) {
       break;
     default:
 #ifdef CAN_USE_RVV_INSTRUCTIONS
-      if (!DecodeRvvVL()) {
+      if (instr->vl_vs_width() != -1) {
+        DecodeRvvVL(instr);
+      } else {
         UNSUPPORTED_RISCV();
       }
       break;
@@ -1667,7 +1669,9 @@ void Decoder::DecodeSType(Instruction* instr) {
       break;
     default:
 #ifdef CAN_USE_RVV_INSTRUCTIONS
-      if (!DecodeRvvVS()) {
+      if (instr->vl_vs_width() != -1) {
+        DecodeRvvVS(instr);
+      } else {
         UNSUPPORTED_RISCV();
       }
       break;
