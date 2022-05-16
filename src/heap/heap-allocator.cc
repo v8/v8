@@ -127,8 +127,8 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
     return result;
   }
 
-  v8::internal::V8::FatalProcessOutOfMemory(heap_->isolate(),
-                                            "CALL_AND_RETRY_LAST", true);
+  V8::FatalProcessOutOfMemory(heap_->isolate(), "CALL_AND_RETRY_LAST",
+                              V8::kHeapOOM);
 }
 
 #ifdef DEBUG

@@ -49,7 +49,8 @@ void PromoteYoungGenerationGC::EvacuateYoungGeneration() {
   // Reset new space.
   semi_space_new_space->EvacuatePrologue();
   if (!semi_space_new_space->Rebalance()) {
-    V8::FatalProcessOutOfMemory(heap_->isolate(), "NewSpace::Rebalance", true);
+    V8::FatalProcessOutOfMemory(heap_->isolate(), "NewSpace::Rebalance",
+                                V8::kHeapOOM);
   }
   semi_space_new_space->set_age_mark(semi_space_new_space->top());
 

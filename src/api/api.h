@@ -156,7 +156,7 @@ class Utils {
     return condition;
   }
   static void ReportOOMFailure(v8::internal::Isolate* isolate,
-                               const char* location, bool is_heap_oom);
+                               const char* location, const OOMDetails& details);
 
   static inline Local<debug::AccessorPair> ToLocal(
       v8::internal::Handle<v8::internal::AccessorPair> obj);

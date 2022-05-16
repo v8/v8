@@ -476,10 +476,17 @@ V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
 
 using DebugObjectCache = std::vector<Handle<HeapObject>>;
 
+// Redefine LegacyOOMErrorCallback here for internal usage. We still need to
+// support it but it is deprecated so would trigger warnings.
+// TODO(chromium:1323177): Remove this.
+using DeprecatedLegacyOOMErrorCallback = void (*)(const char* location,
+                                                  bool is_heap_oom);
+
 #define ISOLATE_INIT_LIST(V)                                                  \
   /* Assembler state. */                                                      \
   V(FatalErrorCallback, exception_behavior, nullptr)                          \
-  V(LegacyOOMErrorCallback, oom_behavior, nullptr)                            \
+  V(DeprecatedLegacyOOMErrorCallback, legacy_oom_behavior, nullptr)           \
+  V(OOMErrorCallback, oom_behavior, nullptr)                                  \
   V(LogEventCallback, event_logger, nullptr)                                  \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
   V(ModifyCodeGenerationFromStringsCallback, modify_code_gen_callback,        \

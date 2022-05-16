@@ -6363,7 +6363,7 @@ void Heap::CompactRetainedMaps(WeakArrayList retained_maps) {
 }
 
 void Heap::FatalProcessOutOfMemory(const char* location) {
-  v8::internal::V8::FatalProcessOutOfMemory(isolate(), location, true);
+  V8::FatalProcessOutOfMemory(isolate(), location, V8::kHeapOOM);
 }
 
 #ifdef DEBUG

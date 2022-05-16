@@ -9,6 +9,7 @@
 
 namespace v8 {
 
+struct OOMDetails;
 class Platform;
 class StartupData;
 
@@ -27,7 +28,13 @@ class V8 : public AllStatic {
   // IMPORTANT: Update the Google-internal crash processer if this signature
   // changes to be able to extract detailed v8::internal::HeapStats on OOM.
   [[noreturn]] V8_EXPORT_PRIVATE static void FatalProcessOutOfMemory(
-      Isolate* isolate, const char* location, bool is_heap_oom = false);
+      Isolate* isolate, const char* location,
+      const OOMDetails& details = kNoOOMDetails);
+
+  // Constants to be used for V8::FatalProcessOutOfMemory. They avoid having
+  // to include v8-callbacks.h in all callers.
+  V8_EXPORT_PRIVATE static const OOMDetails kNoOOMDetails;
+  V8_EXPORT_PRIVATE static const OOMDetails kHeapOOM;
 
 #ifdef V8_ENABLE_SANDBOX
   static bool InitializeSandbox();

@@ -38,7 +38,10 @@
 namespace v8 {
 namespace internal {
 
+// static
 v8::Platform* V8::platform_ = nullptr;
+const OOMDetails V8::kNoOOMDetails{false, nullptr};
+const OOMDetails V8::kHeapOOM{true, nullptr};
 
 namespace {
 enum class V8StartupState {
