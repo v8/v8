@@ -88,14 +88,17 @@ std::array<char, kMaxLen> PrintFormattedStringToArray(Parts... parts) {
       "Don't generate overly large strings; this limit can be increased, but "
       "consider that the array lives on the stack of the caller.");
 
-  // This special case is needed because clang does not consider the empty
-  // string_view a valid format string (but "" is fine).
-  constexpr const char* kFormatString =
-      kFormat.size() == 0 ? "" : kFormat.data();
-  int characters = base::OS::SNPrintF(message.data(), kMaxLen, kFormatString,
-                                      parts.value...);
-  CHECK(characters >= 0 && characters < kMaxLen);
-  DCHECK_EQ('\0', message[characters]);
+  // Add a special case for empty strings, because compilers complain about
+  // empty format strings.
+  static_assert((kFormat.size() == 0) == (sizeof...(Parts) == 0));
+  if constexpr (kFormat.size() == 0) {
+    message[0] = '\0';
+  } else {
+    int characters = base::OS::SNPrintF(message.data(), kMaxLen, kFormat.data(),
+                                        parts.value...);
+    CHECK(characters >= 0 && characters < kMaxLen);
+    DCHECK_EQ('\0', message[characters]);
+  }
 
   return message;
 }
