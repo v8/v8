@@ -36,39 +36,9 @@ void WasmInliner::Trace(Node* call, int inlinee, const char* decision) {
         call->id(), inlinee, decision);
 }
 
-uint32_t WasmInliner::FindOriginatingFunction(Node* call) {
-  DCHECK_EQ(inlined_functions_.size(), first_node_id_.size());
-  NodeId id = call->id();
-  if (inlined_functions_.size() == 0 || id < first_node_id_[0]) {
-    return function_index_;
-  }
-  for (size_t i = 1; i < first_node_id_.size(); i++) {
-    if (id < first_node_id_[i]) return inlined_functions_[i - 1];
-  }
-  DCHECK_GE(id, first_node_id_.back());
-  return inlined_functions_.back();
-}
-
 int WasmInliner::GetCallCount(Node* call) {
   if (!FLAG_wasm_speculative_inlining) return 0;
-  base::MutexGuard guard(&module()->type_feedback.mutex);
-  wasm::WasmCodePosition position =
-      source_positions_->GetSourcePosition(call).ScriptOffset();
-  uint32_t func = FindOriginatingFunction(call);
-  auto maybe_feedback =
-      module()->type_feedback.feedback_for_function.find(func);
-  if (maybe_feedback == module()->type_feedback.feedback_for_function.end()) {
-    return 0;
-  }
-  wasm::FunctionTypeFeedback feedback = maybe_feedback->second;
-  // It's possible that we haven't processed the feedback yet. Currently,
-  // this can happen for targets of call_direct that haven't gotten hot yet,
-  // and for functions where Liftoff bailed out.
-  if (feedback.feedback_vector.size() == 0) return 0;
-  auto index_in_vector = feedback.positions.find(position);
-  if (index_in_vector == feedback.positions.end()) return 0;
-  return feedback.feedback_vector[index_in_vector->second]
-      .absolute_call_frequency;
+  return mcgraph()->GetCallCount(call->id());
 }
 
 // TODO(12166): Save inlined frames for trap/--trace-wasm purposes. Consider
@@ -232,9 +202,6 @@ void WasmInliner::Finalize() {
     size_t additional_nodes = graph()->NodeCount() - subgraph_min_node_id;
     Trace(candidate, "inlining!");
     current_graph_size_ += additional_nodes;
-    inlined_functions_.push_back(candidate.inlinee_index);
-    static_assert(std::is_same_v<NodeId, uint32_t>);
-    first_node_id_.push_back(static_cast<uint32_t>(subgraph_min_node_id));
 
     if (call->opcode() == IrOpcode::kCall) {
       InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,

@@ -8402,6 +8402,14 @@ const wasm::FunctionSig* WasmGraphBuilder::Int64LoweredSig(
              : sig;
 }
 
+void WasmGraphBuilder::StoreCallCount(Node* call, int count) {
+  mcgraph()->StoreCallCount(call->id(), count);
+}
+
+void WasmGraphBuilder::ReserveCallCounts(size_t num_call_instructions) {
+  mcgraph()->ReserveCallCounts(num_call_instructions);
+}
+
 CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, const CallDescriptor* call_descriptor) {
   return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 2,

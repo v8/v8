@@ -79,8 +79,6 @@ class WasmInliner final : public AdvancedReducer {
     }
   };
 
-  uint32_t FindOriginatingFunction(Node* call);
-
   Zone* zone() const { return mcgraph_->zone(); }
   CommonOperatorBuilder* common() const { return mcgraph_->common(); }
   Graph* graph() const { return mcgraph_->graph(); }
@@ -113,11 +111,6 @@ class WasmInliner final : public AdvancedReducer {
                       LexicographicOrdering>
       inlining_candidates_;
   std::unordered_set<Node*> seen_;
-  std::vector<uint32_t> inlined_functions_;
-  // Stores the graph size before an inlining was performed, to make it
-  // possible to map back from nodes to the function they came from.
-  // Guaranteed to have the same length as {inlined_functions_}.
-  std::vector<uint32_t> first_node_id_;
 };
 
 }  // namespace compiler

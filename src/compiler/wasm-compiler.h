@@ -560,6 +560,9 @@ class WasmGraphBuilder {
   static const wasm::FunctionSig* Int64LoweredSig(Zone* zone,
                                                   const wasm::FunctionSig* sig);
 
+  void StoreCallCount(Node* call, int count);
+  void ReserveCallCounts(size_t num_call_instructions);
+
  protected:
   V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
                                      MachineGraph* mcgraph,

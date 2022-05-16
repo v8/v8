@@ -6118,8 +6118,7 @@ class LiftoffCompiler {
     if (FLAG_wasm_speculative_inlining) {
       base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
       decoder->module_->type_feedback.feedback_for_function[func_index_]
-          .positions[decoder->position()] =
-          static_cast<int>(num_call_instructions_);
+          .call_targets.push_back(imm.index);
       num_call_instructions_++;
     }
 
@@ -6359,8 +6358,7 @@ class LiftoffCompiler {
       {
         base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
         decoder->module_->type_feedback.feedback_for_function[func_index_]
-            .positions[decoder->position()] =
-            static_cast<int>(num_call_instructions_);
+            .call_targets.push_back(FunctionTypeFeedback::kNonDirectCall);
       }
       num_call_instructions_++;
       __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
