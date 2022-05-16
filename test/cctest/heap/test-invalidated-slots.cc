@@ -53,7 +53,8 @@ HEAP_TEST(InvalidatedSlotsNoInvalidatedRanges) {
   Heap* heap = CcTest::heap();
   std::vector<ByteArray> byte_arrays;
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
+  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
+      page, InvalidatedSlotsFilter::LivenessCheck::kNo);
   for (ByteArray byte_array : byte_arrays) {
     Address start = byte_array.address() + ByteArray::kHeaderSize;
     Address end = byte_array.address() + byte_array.Size();
@@ -75,7 +76,8 @@ HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
     page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_array,
                                                          byte_array.Size());
   }
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
+  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
+      page, InvalidatedSlotsFilter::LivenessCheck::kNo);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
     Address start = byte_array.address() + ByteArray::kHeaderSize;
@@ -102,7 +104,8 @@ HEAP_TEST(InvalidatedSlotsAllInvalidatedRanges) {
     page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_array,
                                                          byte_array.Size());
   }
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
+  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
+      page, InvalidatedSlotsFilter::LivenessCheck::kNo);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
     Address start = byte_array.address() + ByteArray::kHeaderSize;
@@ -132,7 +135,8 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
     Address end = byte_array.address() + byte_array.Size();
     heap->RightTrimFixedArray(byte_array, byte_array.length());
 
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
+    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
+        page, InvalidatedSlotsFilter::LivenessCheck::kNo);
     for (Address addr = start; addr < end; addr += kTaggedSize) {
       CHECK_EQ(filter.IsValid(addr), page->SweepingDone());
     }
@@ -155,7 +159,8 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
                                                          byte_array.Size());
   }
   // All slots must still be valid.
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
+  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
+      page, InvalidatedSlotsFilter::LivenessCheck::kNo);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
     Address start = byte_array.address() + ByteArray::kHeaderSize;
@@ -181,7 +186,8 @@ HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
                                                          byte_array.Size());
   }
   // All slots must still be invalid.
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
+  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
+      page, InvalidatedSlotsFilter::LivenessCheck::kNo);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
     ByteArray byte_array = byte_arrays[i];
     Address start = byte_array.address() + ByteArray::kHeaderSize;

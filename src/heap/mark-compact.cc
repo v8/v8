@@ -31,6 +31,7 @@
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/invalidated-slots-inl.h"
+#include "src/heap/invalidated-slots.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking-barrier.h"
@@ -4496,7 +4497,16 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
   void UpdateUntypedPointers() {
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
-      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
+      // Marking bits are cleared already when the page is already swept. This
+      // is fine since in that case the sweeper has already removed dead invalid
+      // objects as well.
+      InvalidatedSlotsFilter::LivenessCheck liveness_check =
+          updating_mode_ == RememberedSetUpdatingMode::ALL &&
+                  !chunk_->SweepingDone()
+              ? InvalidatedSlotsFilter::LivenessCheck::kYes
+              : InvalidatedSlotsFilter::LivenessCheck::kNo;
+      InvalidatedSlotsFilter filter =
+          InvalidatedSlotsFilter::OldToNew(chunk_, liveness_check);
       int slots = RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
           [this, &filter](MaybeObjectSlot slot) {
@@ -4520,7 +4530,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
-      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(chunk_);
+      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(
+          chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
       PtrComprCageBase cage_base = heap_->isolate();
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
@@ -4572,8 +4583,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       if (chunk_->slot_set<OLD_TO_SHARED, AccessMode::NON_ATOMIC>()) {
         // Client GCs need to remove invalidated OLD_TO_SHARED slots.
         DCHECK(!heap_->IsShared());
-        InvalidatedSlotsFilter filter =
-            InvalidatedSlotsFilter::OldToShared(chunk_);
+        InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
+            chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
         RememberedSet<OLD_TO_SHARED>::Iterate(
             chunk_,
             [&filter](MaybeObjectSlot slot) {
@@ -4817,7 +4828,8 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     MemoryChunk* chunk = chunk_iterator.Next();
     CodePageMemoryModificationScope unprotect_code_page(chunk);
 
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(chunk);
+    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
+        chunk, InvalidatedSlotsFilter::LivenessCheck::kNo);
     RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
         [cage_base, &filter](MaybeObjectSlot slot) {
@@ -5797,7 +5809,8 @@ class PageMarkingItem : public ParallelWorkItem {
   inline Heap* heap() { return chunk_->heap(); }
 
   void MarkUntypedPointers(YoungGenerationMarkingTask* task) {
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
+    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(
+        chunk_, InvalidatedSlotsFilter::LivenessCheck::kNo);
     RememberedSet<OLD_TO_NEW>::Iterate(
         chunk_,
         [this, task, &filter](MaybeObjectSlot slot) {
