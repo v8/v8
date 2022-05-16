@@ -3591,8 +3591,7 @@ void MarkCompactCollector::EvacuatePrologue() {
          PageRange(new_space->first_allocatable_address(), new_space->top())) {
       new_space_evacuation_pages_.push_back(p);
     }
-    SemiSpaceNewSpace::From(new_space)->Flip();
-    new_space->ResetLinearAllocationArea();
+    new_space->EvacuatePrologue();
 
     DCHECK_EQ(new_space->Size(), 0);
   }
@@ -5683,8 +5682,7 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
     new_space_evacuation_pages_.push_back(p);
   }
 
-  SemiSpaceNewSpace::From(new_space)->Flip();
-  new_space->ResetLinearAllocationArea();
+  new_space->EvacuatePrologue();
 
   heap()->new_lo_space()->Flip();
   heap()->new_lo_space()->ResetPendingObject();

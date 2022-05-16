@@ -601,8 +601,6 @@ SemiSpaceNewSpace::~SemiSpaceNewSpace() {
   from_space_.TearDown();
 }
 
-void SemiSpaceNewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
-
 void SemiSpaceNewSpace::Grow() {
   heap()->safepoint()->AssertActive();
   // Double the semispace size but only up to maximum capacity.
@@ -818,6 +816,13 @@ size_t SemiSpaceNewSpace::AllocatedSinceLastGC() const {
   allocated += top() - current_page->area_start();
   DCHECK_LE(allocated, Size());
   return allocated;
+}
+
+void SemiSpaceNewSpace::EvacuatePrologue() {
+  // Flip the semispaces.  After flipping, to space is empty, from space has
+  // live objects.
+  SemiSpace::Swap(&from_space_, &to_space_);
+  ResetLinearAllocationArea();
 }
 
 }  // namespace internal

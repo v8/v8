@@ -65,6 +65,7 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/memory-reducer.h"
+#include "src/heap/new-spaces.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
@@ -2740,14 +2741,7 @@ void Heap::Scavenge() {
 
   SetGCState(SCAVENGE);
 
-  // Flip the semispaces.  After flipping, to space is empty, from space has
-  // live objects.
-  {
-    SemiSpaceNewSpace* semi_space_new_space =
-        SemiSpaceNewSpace::From(new_space());
-    semi_space_new_space->Flip();
-    semi_space_new_space->ResetLinearAllocationArea();
-  }
+  SemiSpaceNewSpace::From(new_space())->EvacuatePrologue();
 
   // We also flip the young generation large object space. All large objects
   // will be in the from space.

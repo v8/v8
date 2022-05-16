@@ -306,9 +306,9 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   virtual Address first_allocatable_address() const = 0;
 
-  virtual void ResetLinearAllocationArea() = 0;
-
   virtual bool AddFreshPage() = 0;
+
+  virtual void EvacuatePrologue() = 0;
 
  protected:
   static const int kAllocationBufferParkingThreshold = 4 * KB;
@@ -342,9 +342,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   ~SemiSpaceNewSpace() final;
 
   bool ContainsSlow(Address a) const final;
-
-  // Flip the pair of spaces.
-  void Flip();
 
   // Grow the capacity of the semispaces.  Assumes that they are not at
   // their maximum capacity.
@@ -441,9 +438,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
-  // Reset the allocation pointer to the beginning of the active semispace.
-  void ResetLinearAllocationArea() final;
-
   // When inline allocation stepping is active, either because of incremental
   // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
   // inline allocation every once in a while. This is done by setting
@@ -509,7 +503,12 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   bool ShouldBePromoted(Address address) const final;
 
+  void EvacuatePrologue() final;
+
  private:
+  // Reset the allocation pointer to the beginning of the active semispace.
+  void ResetLinearAllocationArea();
+
   // Update linear allocation area to match the current to-space page.
   void UpdateLinearAllocationArea(Address known_top = 0);
 
