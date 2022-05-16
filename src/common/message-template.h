@@ -481,9 +481,40 @@ namespace internal {
   T(InvalidUnusedPrivateStaticMethodAccessedByDebugger,                        \
     "Unused static private method '%' cannot be accessed at debug time")       \
   T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
-  T(JsonParseUnexpectedToken, "Unexpected token % in JSON at position %")      \
   T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
   T(JsonParseUnexpectedTokenString, "Unexpected string in JSON at position %") \
+  T(JsonParseUnterminatedString, "Unterminated string in JSON at position %")  \
+  T(JsonParseExpectedPropNameOrRBrace,                                         \
+    "Expected property name or '}' in JSON at position %")                     \
+  T(JsonParseExpectedCommaOrRBrack,                                            \
+    "Expected ',' or ']' after array element in JSON at position %")           \
+  T(JsonParseExpectedCommaOrRBrace,                                            \
+    "Expected ',' or '}' after property value in JSON at position "            \
+    "%")                                                                       \
+  T(JsonParseExpectedDoubleQuotedPropertyName,                                 \
+    "Expected double-quoted property name in JSON at position %")              \
+  T(JsonParseExponentPartMissingNumber,                                        \
+    "Exponent part is missing a number in JSON at position %")                 \
+  T(JsonParseExpectedColonAfterPropertyName,                                   \
+    "Expected ':' after property name in JSON at position %")                  \
+  T(JsonParseUnterminatedFractionalNumber,                                     \
+    "Unterminated fractional number in JSON at position %")                    \
+  T(JsonParseUnexpectedNonWhiteSpaceCharacter,                                 \
+    "Unexpected non-whitespace character after JSON at position "              \
+    "%")                                                                       \
+  T(JsonParseBadEscapedCharacter,                                              \
+    "Bad escaped character in JSON at position %")                             \
+  T(JsonParseNoNumberAfterMinusSign,                                           \
+    "No number after minus sign in JSON at position %")                        \
+  T(JsonParseShortString, "\"%\" is not valid JSON")                           \
+  T(JsonParseUnexpectedTokenShortString,                                       \
+    "Unexpected token '%', \"%\" is not valid JSON")                           \
+  T(JsonParseUnexpectedTokenSurroundStringWithContext,                         \
+    "Unexpected token '%', ...\"%\"... is not valid JSON")                     \
+  T(JsonParseUnexpectedTokenEndStringWithContext,                              \
+    "Unexpected token '%', ...\"%\" is not valid JSON")                        \
+  T(JsonParseUnexpectedTokenStartStringWithContext,                            \
+    "Unexpected token '%', \"%\"... is not valid JSON")                        \
   T(LabelRedeclaration, "Label '%' has already been declared")                 \
   T(LabelledFunctionDeclaration,                                               \
     "Labelled function declaration not allowed as the body of a control flow " \

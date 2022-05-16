@@ -211,17 +211,21 @@ class JsonParser final {
     advance();
   }
 
-  void Expect(JsonToken token) {
+  void Expect(JsonToken token,
+              base::Optional<MessageTemplate> errorMessage = base::nullopt) {
     if (V8_LIKELY(peek() == token)) {
       advance();
     } else {
-      ReportUnexpectedToken(peek());
+      errorMessage ? ReportUnexpectedToken(peek(), errorMessage.value())
+                   : ReportUnexpectedToken(peek());
     }
   }
 
-  void ExpectNext(JsonToken token) {
+  void ExpectNext(
+      JsonToken token,
+      base::Optional<MessageTemplate> errorMessage = base::nullopt) {
     SkipWhitespace();
-    Expect(token);
+    errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
   }
 
   bool Check(JsonToken token) {
@@ -301,10 +305,22 @@ class JsonParser final {
       const JsonContinuation& cont,
       const SmallVector<Handle<Object>>& element_stack);
 
+  static const int kMaxContextCharacters = 10;
+  static const int kMinOriginalSourceLengthForContext =
+      (kMaxContextCharacters * 2) + 1;
+
   // Mark that a parsing error has happened at the current character.
   void ReportUnexpectedCharacter(base::uc32 c);
+  bool IsSpecialString();
+  MessageTemplate GetErrorMessageWithEllipses(Handle<Object>& arg,
+                                              Handle<Object>& arg2, int pos);
+  MessageTemplate LookUpErrorMessageForJsonToken(JsonToken token,
+                                                 Handle<Object>& arg,
+                                                 Handle<Object>& arg2, int pos);
   // Mark that a parsing error has happened at the current token.
-  void ReportUnexpectedToken(JsonToken token);
+  void ReportUnexpectedToken(
+      JsonToken token,
+      base::Optional<MessageTemplate> errorMessage = base::nullopt);
 
   inline Isolate* isolate() { return isolate_; }
   inline Factory* factory() { return isolate_->factory(); }
