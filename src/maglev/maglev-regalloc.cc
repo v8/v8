@@ -668,8 +668,8 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
     ValueNode* node, compiler::InstructionOperand source,
     compiler::AllocatedOperand target) {
   Node* gap_move;
-  DCHECK_EQ(source.IsConstant(), IsConstantNode(node->opcode()));
   if (source.IsConstant()) {
+    DCHECK(IsConstantNode(node->opcode()));
     gap_move =
         Node::New<ConstantGapMove>(compilation_info_->zone(), {}, node, target);
   } else {
