@@ -662,9 +662,14 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
   }
 
   serializer->WriteUint32(source_id_);
+  Handle<Script> script =
+      handle(Script::cast(function->shared().script()), isolate_);
   int start = function->shared().StartPosition();
   int end = function->shared().EndPosition();
-  serializer->WriteUint32(source_offset_to_compacted_source_offset_[start]);
+  int final_offset =
+      source_offset_to_compacted_source_offset_[script_offsets_[script->id()] +
+                                                start];
+  serializer->WriteUint32(final_offset);
   serializer->WriteUint32(end - start);
 
   serializer->WriteUint32(
@@ -915,16 +920,42 @@ void WebSnapshotSerializer::DiscoverSource(Handle<JSFunction> function) {
     Throw("Function without source code");
     return;
   }
-  source_intervals_.emplace(function->shared().StartPosition(),
-                            function->shared().EndPosition());
+  // There might be multiple scripts where functions are coming from. Construct
+  // a combined source code for them by simply concatenating the sources (and
+  // keep track which script source is where); the source code will be later
+  // optimized by ConstructSource.
+  Handle<Script> script =
+      handle(Script::cast(function->shared().script()), isolate_);
   Handle<String> function_script_source =
-      handle(String::cast(Script::cast(function->shared().script()).source()),
-             isolate_);
+      handle(String::cast(script->source()), isolate_);
+  int script_offset_int;
   if (full_source_.is_null()) {
+    // This is the first script.
+    script_offset_int = 0;
     full_source_ = function_script_source;
-  } else if (!full_source_->Equals(*function_script_source)) {
-    Throw("Cannot include functions from multiple scripts");
+    script_offsets_.insert({script->id(), script_offset_int});
+  } else {
+    auto it = script_offsets_.find(script->id());
+    if (it == script_offsets_.end()) {
+      // This script hasn't been encountered yet and its source code has to be
+      // added to full_source_.
+      DCHECK(!full_source_.is_null());
+      script_offset_int = full_source_->length();
+      script_offsets_.insert({script->id(), script_offset_int});
+      if (!factory()
+               ->NewConsString(full_source_, function_script_source)
+               .ToHandle(&full_source_)) {
+        Throw("Can't construct source");
+        return;
+      }
+    } else {
+      // The script source is already somewhere in full_source_.
+      script_offset_int = it->second;
+    }
   }
+  source_intervals_.emplace(
+      script_offset_int + function->shared().StartPosition(),
+      script_offset_int + function->shared().EndPosition());
 }
 
 void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {

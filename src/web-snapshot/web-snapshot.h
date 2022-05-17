@@ -323,6 +323,9 @@ class V8_EXPORT WebSnapshotSerializer
 
   // For constructing the minimal, "compacted", source string to cover all
   // function bodies.
+  // --------------------------------
+  // Script id -> offset of the script source code in full_source_.
+  std::map<int, int> script_offsets_;
   Handle<String> full_source_;
   uint32_t source_id_;
   // Ordered set of (start, end) pairs of all functions we've discovered.
@@ -330,6 +333,7 @@ class V8_EXPORT WebSnapshotSerializer
   // Maps function positions in the real source code into the function positions
   // in the constructed source code (which we'll include in the web snapshot).
   std::unordered_map<int, int> source_offset_to_compacted_source_offset_;
+  // --------------------------------
 };
 
 class V8_EXPORT WebSnapshotDeserializer
