@@ -9,10 +9,13 @@
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"
 #include "src/roots/roots-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using RootsTest = TestWithIsolate;
 
 namespace {
 AllocationSpace GetSpaceFromObject(Object object) {
@@ -30,8 +33,8 @@ AllocationSpace GetSpaceFromObject(Object object) {
 
 // The following tests check that all the roots accessible via ReadOnlyRoots are
 // in RO_SPACE.
-TEST(TestReadOnlyRoots) {
-  ReadOnlyRoots roots(CcTest::i_isolate());
+TEST_F(RootsTest, TestReadOnlyRoots) {
+  ReadOnlyRoots roots(i_isolate());
 
   READ_ONLY_ROOT_LIST(CHECK_IN_RO_SPACE)
 }
@@ -75,16 +78,16 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
   Handle<Object> name = factory->name();                                     \
   CHECK_EQ(*name, heap->name());                                             \
   if (name->IsHeapObject() && IsInitiallyMutable(factory, name.address()) && \
-      !name->IsUndefined(CcTest::i_isolate())) {                             \
+      !name->IsUndefined(i_isolate())) {                                     \
     CHECK_NE(RO_SPACE, GetSpaceFromObject(HeapObject::cast(*name)));         \
   }
 
 // The following tests check that all the roots accessible via public Heap
 // accessors are not in RO_SPACE with the exception of the objects listed in
 // INITIALLY_READ_ONLY_ROOT_LIST.
-TEST(TestHeapRootsNotReadOnly) {
-  Factory* factory = CcTest::i_isolate()->factory();
-  Heap* heap = CcTest::i_isolate()->heap();
+TEST_F(RootsTest, TestHeapRootsNotReadOnly) {
+  Factory* factory = i_isolate()->factory();
+  Heap* heap = i_isolate()->heap();
 
   MUTABLE_ROOT_LIST(CHECK_NOT_IN_RO_SPACE)
 }

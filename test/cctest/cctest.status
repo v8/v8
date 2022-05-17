@@ -759,9 +759,6 @@
   # Read data from read_only_space->pages()
   'test-serialize/CodeSerializerExternalScriptName': [SKIP],
   'test-serialize/CodeSerializerThreeBigStrings': [SKIP],
-  # Access chunk metadata
-  'test-roots/TestHeapRootsNotReadOnly': [SKIP],
-  'test-roots/TestReadOnlyRoots': [SKIP],
   # Requires heap::SimulateFullSpace
   'test-invalidated-slots/InvalidatedSlotsAfterTrimming': [SKIP],
   'test-invalidated-slots/InvalidatedSlotsAllInvalidatedRanges': [SKIP],

@@ -177,6 +177,9 @@
   'CodePagesTest.Sorted': [SKIP],
   'CodePagesTest.CodeRangeCorrectContents': [SKIP],
 
+  # Access chunk metadata
+  'RootsTest.TestHeapRootsNotReadOnly': [SKIP],
+  'RootsTest.TestReadOnlyRoots': [SKIP],
 }], # third_party_heap
 
 ##############################################################################
