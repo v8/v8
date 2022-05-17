@@ -129,9 +129,13 @@ class StraightForwardRegisterAllocator {
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);
   void AllocateNodeResult(ValueNode* node);
-  void AssignInput(Input& input);
+  void AssignFixedInput(Input& input);
+  void AssignArbitraryRegisterInput(Input& input);
+  void AssignInputs(NodeBase* node);
   void AssignTemporaries(NodeBase* node);
   void TryAllocateToInput(Phi* phi);
+
+  void VerifyInputs(NodeBase* node);
 
   void AddMoveBeforeCurrentNode(ValueNode* node,
                                 compiler::InstructionOperand source,

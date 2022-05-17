@@ -413,8 +413,9 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
         << "Allocating " << PrintNodeLabel(graph_labeller(), node)
         << " inputs...\n";
   }
-  for (Input& input : *node) AssignInput(input);
+  AssignInputs(node);
   AssignTemporaries(node);
+  VerifyInputs(node);
 
   if (node->properties().is_call()) SpillAndClearRegisters();
 
@@ -537,8 +538,9 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   // If we are at the end of the current node, and the last use of the given
   // node is the current node, allow it to be dropped.
   if (stage == AllocationStage::kAtEnd &&
-      node->live_range().end == node_it_->id())
+      node->live_range().end == node_it_->id()) {
     return;
+  }
 
   // Try to move the value to another register.
   if (!registers.FreeIsEmpty()) {
@@ -549,12 +551,6 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
                                       mach_repr, reg.code());
     compiler::AllocatedOperand target(compiler::LocationOperand::REGISTER,
                                       mach_repr, target_reg.code());
-
-    if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->os()
-          << "gap move: " << PrintNodeLabel(graph_labeller(), node) << ": "
-          << target << " ← " << source << std::endl;
-    }
     AddMoveBeforeCurrentNode(node, source, target);
     return;
   }
@@ -595,8 +591,9 @@ void StraightForwardRegisterAllocator::InitializeConditionalBranchRegisters(
 
 void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
-  for (Input& input : *node) AssignInput(input);
+  AssignInputs(node);
   AssignTemporaries(node);
+  VerifyInputs(node);
   if (node->properties().can_eager_deopt()) {
     UpdateUse(*node->eager_deopt_info());
   }
@@ -670,9 +667,19 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
   Node* gap_move;
   if (source.IsConstant()) {
     DCHECK(IsConstantNode(node->opcode()));
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->os()
+          << "constant gap move: " << target << " ← "
+          << PrintNodeLabel(graph_labeller(), node) << std::endl;
+    }
     gap_move =
         Node::New<ConstantGapMove>(compilation_info_->zone(), {}, node, target);
   } else {
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->os() << "gap move: " << target << " ← "
+                              << PrintNodeLabel(graph_labeller(), node) << ":"
+                              << source << std::endl;
+    }
     gap_move =
         Node::New<GapMove>(compilation_info_->zone(), {},
                            compiler::AllocatedOperand::cast(source), target);
@@ -700,15 +707,28 @@ void StraightForwardRegisterAllocator::Spill(ValueNode* node) {
   }
 }
 
-void StraightForwardRegisterAllocator::AssignInput(Input& input) {
+void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
   compiler::UnallocatedOperand operand =
       compiler::UnallocatedOperand::cast(input.operand());
   ValueNode* node = input.node();
   compiler::InstructionOperand location = node->allocation();
 
   switch (operand.extended_policy()) {
+    case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
+      // Allocated in AssignArbitraryRegisterInput.
+      return;
+
     case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
+      // TODO(leszeks): These can be invalidated by arbitrary register inputs
+      // dropping a register's value. In practice this currently won't happen,
+      // because this policy is only used for Call/Construct arguments and there
+      // won't be any "MUST_HAVE_REGISTER" inputs after those. But if it ever
+      // were to happen (VerifyInputs will catch this issue), we'd need to do it
+      // in a third loop, after AssignArbitraryRegisterInput.
       input.InjectLocation(location);
+      // We return insted of breaking since we might not be able to cast to an
+      // allocated operand and we definitely don't want to allocate a gap move
+      // anyway.
       return;
 
     case compiler::UnallocatedOperand::FIXED_REGISTER: {
@@ -716,14 +736,6 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
       input.SetAllocated(ForceAllocate(reg, node, AllocationStage::kAtStart));
       break;
     }
-
-    case compiler::UnallocatedOperand::MUST_HAVE_REGISTER:
-      if (location.IsAnyRegister()) {
-        input.SetAllocated(compiler::AllocatedOperand::cast(location));
-      } else {
-        input.SetAllocated(AllocateRegister(node, AllocationStage::kAtStart));
-      }
-      break;
 
     case compiler::UnallocatedOperand::FIXED_FP_REGISTER: {
       DoubleRegister reg =
@@ -742,12 +754,56 @@ void StraightForwardRegisterAllocator::AssignInput(Input& input) {
   compiler::AllocatedOperand allocated =
       compiler::AllocatedOperand::cast(input.operand());
   if (location != allocated) {
-    if (FLAG_trace_maglev_regalloc) {
-      printing_visitor_->os()
-          << "gap move: " << allocated << " ← " << location << std::endl;
-    }
     AddMoveBeforeCurrentNode(node, location, allocated);
   }
+}
+
+void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
+    Input& input) {
+  // Already assigned in AssignFixedInput
+  if (!input.operand().IsUnallocated()) return;
+
+  ValueNode* node = input.node();
+  compiler::InstructionOperand location = node->allocation();
+
+  DCHECK_EQ(
+      compiler::UnallocatedOperand::cast(input.operand()).extended_policy(),
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER);
+
+  if (location.IsAnyRegister()) {
+    input.SetAllocated(compiler::AllocatedOperand::cast(location));
+  } else {
+    compiler::AllocatedOperand allocation =
+        AllocateRegister(node, AllocationStage::kAtStart);
+    input.SetAllocated(allocation);
+    DCHECK_NE(location, allocation);
+    AddMoveBeforeCurrentNode(node, location, allocation);
+  };
+}
+
+void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
+  // We allocate arbitrary register inputs after fixed inputs, since the fixed
+  // inputs may clobber the arbitrarily chosen ones.
+  for (Input& input : *node) AssignFixedInput(input);
+  for (Input& input : *node) AssignArbitraryRegisterInput(input);
+}
+
+void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
+#ifdef DEBUG
+  for (Input& input : *node) {
+    if (input.operand().IsRegister()) {
+      Register reg =
+          compiler::AllocatedOperand::cast(input.operand()).GetRegister();
+      DCHECK_EQ(general_registers_.GetValue(reg), input.node());
+    } else if (input.operand().IsDoubleRegister()) {
+      DoubleRegister reg =
+          compiler::AllocatedOperand::cast(input.operand()).GetDoubleRegister();
+      DCHECK_EQ(double_registers_.GetValue(reg), input.node());
+    } else {
+      DCHECK_EQ(input.operand(), input.node()->allocation());
+    }
+  }
+#endif
 }
 
 void StraightForwardRegisterAllocator::SpillRegisters() {
