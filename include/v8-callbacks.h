@@ -216,7 +216,7 @@ using AddHistogramSampleCallback = void (*)(void* histogram, int sample);
 
 using FatalErrorCallback = void (*)(const char* location, const char* message);
 
-using LegacyOOMErrorCallback V8_DEPRECATE_SOON(
+using LegacyOOMErrorCallback V8_DEPRECATED(
     "Use OOMErrorCallback (https://crbug.com/1323177)") =
     void (*)(const char* location, bool is_heap_oom);
 

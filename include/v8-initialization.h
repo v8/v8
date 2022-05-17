@@ -286,7 +286,7 @@ class V8_EXPORT V8 {
    */
   static void SetFatalMemoryErrorCallback(OOMErrorCallback callback);
 
-  V8_DEPRECATE_SOON("Use OOMErrorCallback (https://crbug.com/1323177)")
+  V8_DEPRECATED("Use OOMErrorCallback (https://crbug.com/1323177)")
   static void SetFatalMemoryErrorCallback(LegacyOOMErrorCallback callback);
 
   /**
