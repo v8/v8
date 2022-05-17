@@ -782,7 +782,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
   if (frame != nullptr) {
     status |= static_cast<int>(OptimizationStatus::kIsExecuting);
-    if (frame->is_optimized()) {
+    if (frame->is_turbofan()) {
       status |=
           static_cast<int>(OptimizationStatus::kTopmostFrameIsTurboFanned);
     } else if (frame->is_interpreted()) {

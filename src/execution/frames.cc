@@ -237,7 +237,7 @@ int StackTraceFrameIterator::FrameFunctionCount() const {
   DCHECK(!done());
   if (!iterator_.frame()->is_optimized()) return 1;
   std::vector<SharedFunctionInfo> infos;
-  OptimizedFrame::cast(iterator_.frame())->GetFunctions(&infos);
+  TurbofanFrame::cast(iterator_.frame())->GetFunctions(&infos);
   return static_cast<int>(infos.size());
 }
 
@@ -377,7 +377,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
   // iterating the stack from this topmost JS frame.
   if (fast_c_fp) {
     DCHECK_NE(kNullAddress, isolate->isolate_data()->fast_c_call_caller_pc());
-    type = StackFrame::Type::OPTIMIZED;
+    type = StackFrame::Type::TURBOFAN;
     top_frame_type_ = type;
     state.fp = fast_c_fp;
     state.sp = sp;
@@ -438,14 +438,14 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
       if (!StackFrame::IsTypeMarker(type_or_context_address))
         top_context_address_ = type_or_context_address;
     } else {
-      // Mark the frame as OPTIMIZED if we cannot determine its type.
-      // We chose OPTIMIZED rather than INTERPRETED because it's closer to
+      // Mark the frame as TURBOFAN if we cannot determine its type.
+      // We chose TURBOFAN rather than INTERPRETED because it's closer to
       // the original value of StackFrame::JAVA_SCRIPT here, in that JAVA_SCRIPT
       // referred to full-codegen frames (now removed from the tree), and
-      // OPTIMIZED refers to turbofan frames, both of which are generated
+      // TURBOFAN refers to turbofan frames, both of which are generated
       // code. INTERPRETED frames refer to bytecode.
       // The frame anyways will be skipped.
-      type = StackFrame::OPTIMIZED;
+      type = StackFrame::TURBOFAN;
       // Top frame is incomplete so we cannot reliably determine its type.
       top_frame_type_ = StackFrame::NO_FRAME_TYPE;
     }
@@ -626,7 +626,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       } else if (IsInterpreterFramePc(iterator->isolate(), pc, state)) {
         return INTERPRETED;
       } else {
-        return OPTIMIZED;
+        return TURBOFAN;
       }
     }
   } else {
@@ -669,14 +669,15 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             // OptimizedFrame for now (all the builtins with JavaScript
             // linkage are actually generated with TurboFan currently, so
             // this is sound).
-            return OPTIMIZED;
+            return TURBOFAN;
           }
           return BUILTIN;
-        case CodeKind::TURBOFAN:
-        case CodeKind::MAGLEV:
-          return OPTIMIZED;
         case CodeKind::BASELINE:
-          return Type::BASELINE;
+          return BASELINE;
+        case CodeKind::MAGLEV:
+          return MAGLEV;
+        case CodeKind::TURBOFAN:
+          return TURBOFAN;
 #if V8_ENABLE_WEBASSEMBLY
         case CodeKind::JS_TO_WASM_FUNCTION:
           return JS_TO_WASM;
@@ -722,13 +723,12 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case STACK_SWITCH:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return candidate;
-    case OPTIMIZED:
-    case INTERPRETED:
+
+    // Any other marker value is likely to be a bogus stack frame when being
+    // called from the profiler (in particular, JavaScript frames, including
+    // interpreted frames, should never have a StackFrame::Type
+    // marker). Consider these frames "native".
     default:
-      // Unoptimized and optimized JavaScript frames, including
-      // interpreted frames, should never have a StackFrame::Type
-      // marker. If we find one, we're likely being called from the
-      // profiler in a bogus stack frame.
       return NATIVE;
   }
 }
@@ -1129,10 +1129,10 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         frame_header_size = WasmFrameConstants::kFixedFrameSizeFromFp;
         break;
 #endif  // V8_ENABLE_WEBASSEMBLY
-      case OPTIMIZED:
       case INTERPRETED:
       case BASELINE:
       case MAGLEV:
+      case TURBOFAN:
       case BUILTIN:
         // These frame types have a context, but they are actually stored
         // in the place on the stack that one finds the frame type.
@@ -1305,7 +1305,7 @@ Code CommonFrameWithJSLinkage::unchecked_code() const {
   return FromCodeT(function().code());
 }
 
-int OptimizedFrame::ComputeParametersCount() const {
+int TurbofanFrame::ComputeParametersCount() const {
   Code code = LookupCode();
   if (code.kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
@@ -1758,7 +1758,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DCHECK(frames->empty());
   DCHECK(is_optimized());
 
-  // Delegate to JS frame in absence of turbofan deoptimization.
+  // Delegate to JS frame in absence of deoptimization info.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code code = LookupCode();
   if (code.kind() == CodeKind::BUILTIN) {
@@ -1835,7 +1835,8 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   }
 }
 
-int OptimizedFrame::LookupExceptionHandlerInTable(
+// TODO(leszeks): Move to OptimizedFrame when/if maglev supports exceptions.
+int TurbofanFrame::LookupExceptionHandlerInTable(
     int* data, HandlerTable::CatchPrediction* prediction) {
   // We cannot perform exception prediction on optimized code. Instead, we need
   // to use FrameSummary to find the corresponding code offset in unoptimized
@@ -1935,10 +1936,6 @@ void OptimizedFrame::GetFunctions(
 int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
   return StandardFrameConstants::kCallerSPOffset -
          ((slot_index + 1) * kSystemPointerSize);
-}
-
-Object OptimizedFrame::StackSlotAt(int index) const {
-  return Object(Memory<Address>(fp() + StackSlotOffsetRelativeToFp(index)));
 }
 
 int UnoptimizedFrame::position() const {

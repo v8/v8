@@ -220,7 +220,10 @@ inline BaselineFrame::BaselineFrame(StackFrameIteratorBase* iterator)
     : UnoptimizedFrame(iterator) {}
 
 inline MaglevFrame::MaglevFrame(StackFrameIteratorBase* iterator)
-    : JavaScriptFrame(iterator) {}
+    : OptimizedFrame(iterator) {}
+
+inline TurbofanFrame::TurbofanFrame(StackFrameIteratorBase* iterator)
+    : OptimizedFrame(iterator) {}
 
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
     : TypedFrameWithJSLinkage(iterator) {}

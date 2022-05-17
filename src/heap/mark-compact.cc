@@ -2407,7 +2407,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
   for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
        it.Advance()) {
     if (it.frame()->is_unoptimized()) return;
-    if (it.frame()->type() == StackFrame::OPTIMIZED) {
+    if (it.frame()->is_optimized()) {
       Code code = it.frame()->LookupCode();
       if (!code.CanDeoptAt(isolate, it.frame()->pc())) {
         PtrComprCageBase cage_base(isolate);
