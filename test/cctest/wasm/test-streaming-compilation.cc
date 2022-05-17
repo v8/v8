@@ -217,8 +217,8 @@ class StreamTester {
 
   void FinishStream() { stream_->Finish(); }
 
-  void SetCompiledModuleBytes(const uint8_t* start, size_t length) {
-    stream_->SetCompiledModuleBytes(base::Vector<const uint8_t>(start, length));
+  void SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
+    stream_->SetCompiledModuleBytes(bytes);
   }
 
   Zone* zone() { return &zone_; }
@@ -1231,7 +1231,7 @@ STREAM_TEST(TestDeserializationBypassesCompilation) {
   ZoneBuffer wire_bytes = GetValidModuleBytes(tester.zone());
   ZoneBuffer module_bytes =
       GetValidCompiledModuleBytes(isolate, tester.zone(), wire_bytes);
-  tester.SetCompiledModuleBytes(module_bytes.begin(), module_bytes.size());
+  tester.SetCompiledModuleBytes(base::VectorOf(module_bytes));
   tester.OnBytesReceived(wire_bytes.begin(), wire_bytes.size());
   tester.FinishStream();
 
@@ -1250,7 +1250,7 @@ STREAM_TEST(TestDeserializationFails) {
   // corrupt header
   byte first_byte = *module_bytes.begin();
   module_bytes.patch_u8(0, first_byte + 1);
-  tester.SetCompiledModuleBytes(module_bytes.begin(), module_bytes.size());
+  tester.SetCompiledModuleBytes(base::VectorOf(module_bytes));
   tester.OnBytesReceived(wire_bytes.begin(), wire_bytes.size());
   tester.FinishStream();
 

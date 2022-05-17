@@ -91,15 +91,13 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
       std::function<void(const std::shared_ptr<NativeModule>&)>;
 
   void SetModuleCompiledCallback(ModuleCompiledCallback callback) {
-    module_compiled_callback_ = callback;
+    module_compiled_callback_ = std::move(callback);
   }
 
   // Passes previously compiled module bytes from the embedder's cache.
   // The content shouldn't be used until Finish(true) is called.
-  bool SetCompiledModuleBytes(
-      base::Vector<const uint8_t> compiled_module_bytes) {
-    compiled_module_bytes_ = compiled_module_bytes;
-    return true;
+  void SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
+    compiled_module_bytes_ = bytes;
   }
 
   virtual void NotifyNativeModuleCreated(

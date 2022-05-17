@@ -82,9 +82,10 @@ class WasmStreaming::WasmStreamingImpl {
         Utils::OpenHandle(*exception.ToLocalChecked()));
   }
 
-  bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
-    if (!i::wasm::IsSupportedVersion({bytes, size})) return false;
-    return streaming_decoder_->SetCompiledModuleBytes({bytes, size});
+  bool SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
+    if (!i::wasm::IsSupportedVersion(bytes)) return false;
+    streaming_decoder_->SetCompiledModuleBytes(bytes);
+    return true;
   }
 
   void SetClient(std::shared_ptr<Client> client) {
@@ -132,7 +133,7 @@ void WasmStreaming::Abort(MaybeLocal<Value> exception) {
 
 bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
   TRACE_EVENT0("v8.wasm", "wasm.SetCompiledModuleBytes");
-  return impl_->SetCompiledModuleBytes(bytes, size);
+  return impl_->SetCompiledModuleBytes(base::VectorOf(bytes, size));
 }
 
 void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
