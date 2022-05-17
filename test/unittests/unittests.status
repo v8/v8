@@ -223,6 +223,8 @@
   'LogMapsTest.*': [SKIP],
   'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
   'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
+  'BignumDtoaTest.*': [SKIP],
+  'DtoaTest.*': [SKIP],
 }],  # variant == no_wasm_traps
 
 ##############################################################################
