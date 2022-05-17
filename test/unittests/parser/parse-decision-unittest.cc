@@ -17,10 +17,21 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/utils/utils.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+class ParseDecisionTest : public TestWithContext {
+ public:
+  Local<v8::Script> Compile(const char* source) {
+    return v8::Script::Compile(
+               context(),
+               v8::String::NewFromUtf8(isolate(), source).ToLocalChecked())
+        .ToLocalChecked();
+  }
+};
 
 namespace {
 
@@ -43,28 +54,24 @@ void GetTopLevelFunctionInfo(
 
 }  // anonymous namespace
 
-TEST(GetTopLevelFunctionInfo) {
+TEST_F(ParseDecisionTest, GetTopLevelFunctionInfo) {
   if (!FLAG_lazy) return;
 
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  LocalContext env;
+  HandleScope scope(i_isolate());
 
   const char src[] = "function foo() { var a; }\n";
   std::unordered_map<std::string, bool> is_compiled;
-  GetTopLevelFunctionInfo(v8_compile(src), &is_compiled);
+  GetTopLevelFunctionInfo(Compile(src), &is_compiled);
 
   // Test that our helper function GetTopLevelFunctionInfo does what it claims:
   DCHECK(is_compiled.find("foo") != is_compiled.end());
   DCHECK(is_compiled.find("bar") == is_compiled.end());
 }
 
-TEST(EagerlyCompileImmediateUseFunctions) {
+TEST_F(ParseDecisionTest, EagerlyCompileImmediateUseFunctions) {
   if (!FLAG_lazy) return;
 
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  LocalContext env;
+  HandleScope scope(i_isolate());
 
   // Test parenthesized, exclaimed, and regular functions. Make sure these
   // occur both intermixed and after each other, to make sure the 'reset'
@@ -80,7 +87,7 @@ TEST(EagerlyCompileImmediateUseFunctions) {
       "function normal4() { var h; }\n";
 
   std::unordered_map<std::string, bool> is_compiled;
-  GetTopLevelFunctionInfo(v8_compile(src), &is_compiled);
+  GetTopLevelFunctionInfo(Compile(src), &is_compiled);
 
   DCHECK(is_compiled["parenthesized"]);
   DCHECK(is_compiled["parenthesized2"]);
@@ -92,16 +99,14 @@ TEST(EagerlyCompileImmediateUseFunctions) {
   DCHECK(!is_compiled["normal4"]);
 }
 
-TEST(CommaFunctionSequence) {
+TEST_F(ParseDecisionTest, CommaFunctionSequence) {
   if (!FLAG_lazy) return;
 
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  LocalContext env;
+  HandleScope scope(i_isolate());
 
   const char src[] = "!function a(){}(),function b(){}(),function c(){}();";
   std::unordered_map<std::string, bool> is_compiled;
-  GetTopLevelFunctionInfo(v8_compile(src), &is_compiled);
+  GetTopLevelFunctionInfo(Compile(src), &is_compiled);
 
   DCHECK(is_compiled["a"]);
   DCHECK(is_compiled["b"]);

@@ -5,42 +5,47 @@
 // Tests v8::internal::Scanner. Note that presently most unit tests for the
 // Scanner are in cctest/test-parsing.cc, rather than here.
 
+#include "src/parsing/scanner.h"
+
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-character-streams.h"
-#include "src/parsing/scanner.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
+class ScannerTest : public TestWithIsolate {
+ public:
+  struct ScannerTestHelper {
+    ScannerTestHelper() = default;
+    ScannerTestHelper(ScannerTestHelper&& other) V8_NOEXCEPT
+        : stream(std::move(other.stream)),
+          scanner(std::move(other.scanner)) {}
+
+    std::unique_ptr<Utf16CharacterStream> stream;
+    std::unique_ptr<Scanner> scanner;
+
+    Scanner* operator->() const { return scanner.get(); }
+    Scanner* get() const { return scanner.get(); }
+  };
+  ScannerTestHelper make_scanner(const char* src) {
+    ScannerTestHelper helper;
+    helper.stream = ScannerStream::ForTesting(src);
+    helper.scanner = std::unique_ptr<Scanner>(new Scanner(
+        helper.stream.get(),
+        UnoptimizedCompileFlags::ForTest(
+            reinterpret_cast<i::Isolate*>(v8::Isolate::GetCurrent()))));
+
+    helper.scanner->Initialize();
+    return helper;
+  }
+};
 namespace {
 
 const char src_simple[] = "function foo() { var x = 2 * a() + b; }";
-
-struct ScannerTestHelper {
-  ScannerTestHelper() = default;
-  ScannerTestHelper(ScannerTestHelper&& other) V8_NOEXCEPT
-      : stream(std::move(other.stream)),
-        scanner(std::move(other.scanner)) {}
-
-  std::unique_ptr<Utf16CharacterStream> stream;
-  std::unique_ptr<Scanner> scanner;
-
-  Scanner* operator->() const { return scanner.get(); }
-  Scanner* get() const { return scanner.get(); }
-};
-
-ScannerTestHelper make_scanner(const char* src) {
-  ScannerTestHelper helper;
-  helper.stream = ScannerStream::ForTesting(src);
-  helper.scanner = std::unique_ptr<Scanner>(
-      new Scanner(helper.stream.get(),
-                  UnoptimizedCompileFlags::ForTest(CcTest::i_isolate())));
-  helper.scanner->Initialize();
-  return helper;
-}
 
 }  // anonymous namespace
 
@@ -48,7 +53,7 @@ ScannerTestHelper make_scanner(const char* src) {
 // names. That should have the same result, but has much nicer error messaages.
 #define CHECK_TOK(a, b) CHECK_EQ(Token::Name(a), Token::Name(b))
 
-TEST(Bookmarks) {
+TEST_F(ScannerTest, Bookmarks) {
   // Scan through the given source and record the tokens for use as reference
   // below.
   std::vector<Token::Value> tokens;
@@ -84,7 +89,7 @@ TEST(Bookmarks) {
   }
 }
 
-TEST(AllThePushbacks) {
+TEST_F(ScannerTest, AllThePushbacks) {
   const struct {
     const char* src;
     const Token::Value tokens[5];  // Large enough for any of the test cases.
