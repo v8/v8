@@ -210,6 +210,7 @@ v8_source_set("unittests_sources") {
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
     "api/access-check-unittest.cc",
+    "api/accessor-unittest.cc",
     "api/deserialize-unittest.cc",
     "api/exception-unittest.cc",
     "api/interceptor-unittest.cc",

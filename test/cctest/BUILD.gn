@@ -178,7 +178,6 @@ v8_source_set("cctest_sources") {
     "test-accessor-assembler.cc",
     "test-accessors.cc",
     "test-allocation.cc",
-    "test-api-accessors.cc",
     "test-api-array-buffer.cc",
     "test-api-icu.cc",
     "test-api-interceptors.cc",

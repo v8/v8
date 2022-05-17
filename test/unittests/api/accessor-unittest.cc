@@ -12,9 +12,17 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gmock-support.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace i = v8::internal;
+
+using testing::IsInt32;
+using testing::IsString;
+using testing::IsUndefined;
+
+using AccessorTest = v8::TestWithContext;
 
 // The goal is to avoid the callback.
 static void UnreachableCallback(
@@ -22,92 +30,91 @@ static void UnreachableCallback(
   UNREACHABLE();
 }
 
-TEST(CachedAccessor) {
+TEST_F(AccessorTest, CachedAccessor) {
   // TurboFan support for fast accessors is not implemented; turbofanned
   // code uses the slow accessor which breaks this test's expectations.
   v8::internal::FLAG_always_turbofan = false;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = context()->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Create 'foo' class, with a hidden property.
   v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
 
   v8::Local<v8::Private> priv =
-      v8::Private::ForApi(isolate, v8_str("Foo#draft"));
+      v8::Private::ForApi(isolate, NewString("Foo#draft"));
 
-  foo->SetAccessorProperty(v8_str("draft"), v8::FunctionTemplate::NewWithCache(
-                                                isolate, UnreachableCallback,
-                                                priv, v8::Local<v8::Value>()));
+  foo->SetAccessorProperty(
+      NewString("draft"),
+      v8::FunctionTemplate::NewWithCache(isolate, UnreachableCallback, priv,
+                                         v8::Local<v8::Value>()));
 
   // Create 'obj', instance of 'foo'.
-  v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
+  v8::Local<v8::Object> obj = foo->NewInstance(context()).ToLocalChecked();
 
   // Install the private property on the instance.
   CHECK(obj->SetPrivate(isolate->GetCurrentContext(), priv,
                         v8::Undefined(isolate))
             .FromJust());
 
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
   // Access cached accessor.
-  ExpectUndefined("obj.draft");
+  EXPECT_THAT(RunJS("obj.draft"), IsUndefined());
 
   // Set hidden property.
   CHECK(obj->SetPrivate(isolate->GetCurrentContext(), priv,
-                        v8_str("Shhh, I'm private!"))
+                        NewString("Shhh, I'm private!"))
             .FromJust());
 
-  ExpectString("obj.draft", "Shhh, I'm private!");
+  EXPECT_THAT(RunJS("obj.draft"), IsString("Shhh, I'm private!"));
 
   // Stress the accessor to use the IC.
-  ExpectString(
-      "var result = '';"
-      "for (var i = 0; i < 10; ++i) { "
-      "  result = obj.draft; "
-      "} "
-      "result; ",
-      "Shhh, I'm private!");
+  EXPECT_THAT(RunJS("var result = '';"
+                    "for (var i = 0; i < 10; ++i) { "
+                    "  result = obj.draft; "
+                    "} "
+                    "result; "),
+              IsString("Shhh, I'm private!"));
 }
 
-TEST(CachedAccessorTurboFan) {
+TEST_F(AccessorTest, CachedAccessorTurboFan) {
   i::FLAG_allow_natives_syntax = true;
   // v8::internal::FLAG_always_turbofan = false;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = context()->GetIsolate();
   v8::HandleScope scope(isolate);
 
   // Create 'foo' class, with a hidden property.
   v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
   v8::Local<v8::Private> priv =
-      v8::Private::ForApi(isolate, v8_str("Foo#draft"));
+      v8::Private::ForApi(isolate, NewString("Foo#draft"));
 
   // Install the private property on the template.
   // foo->SetPrivate(priv, v8::Undefined(isolate));
 
-  foo->SetAccessorProperty(v8_str("draft"), v8::FunctionTemplate::NewWithCache(
-                                                isolate, UnreachableCallback,
-                                                priv, v8::Local<v8::Value>()));
+  foo->SetAccessorProperty(
+      NewString("draft"),
+      v8::FunctionTemplate::NewWithCache(isolate, UnreachableCallback, priv,
+                                         v8::Local<v8::Value>()));
 
   // Create 'obj', instance of 'foo'.
-  v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
+  v8::Local<v8::Object> obj = foo->NewInstance(context()).ToLocalChecked();
 
   // Install the private property on the instance.
   CHECK(obj->SetPrivate(isolate->GetCurrentContext(), priv,
                         v8::Undefined(isolate))
             .FromJust());
 
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
   // Access surrogate accessor.
-  ExpectUndefined("obj.draft");
+  EXPECT_THAT(RunJS("obj.draft"), IsUndefined());
 
   // Set hidden property.
-  CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 123))
+  CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate, 123))
             .FromJust());
 
   // Test ICs.
-  CompileRun(
+  RunJS(
       "function f() {"
       "  var x;"
       "  for (var i = 0; i < 100; i++) {"
@@ -117,21 +124,21 @@ TEST(CachedAccessorTurboFan) {
       "};"
       "%PrepareFunctionForOptimization(f);");
 
-  ExpectInt32("f()", 123);
+  EXPECT_THAT(RunJS("f()"), IsInt32(123));
 
   // Reset hidden property.
-  CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 456))
+  CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate, 456))
             .FromJust());
 
   // Test TurboFan.
-  CompileRun("%OptimizeFunctionOnNextCall(f);");
+  RunJS("%OptimizeFunctionOnNextCall(f);");
 
-  ExpectInt32("f()", 456);
+  EXPECT_THAT(RunJS("f()"), IsInt32(456));
 
-  CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 456))
+  CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate, 456))
             .FromJust());
   // Test non-global ICs.
-  CompileRun(
+  RunJS(
       "function g() {"
       "  var x = obj;"
       "  var r = 0;"
@@ -142,56 +149,53 @@ TEST(CachedAccessorTurboFan) {
       "};"
       "%PrepareFunctionForOptimization(g);");
 
-  ExpectInt32("g()", 456);
+  EXPECT_THAT(RunJS("g()"), IsInt32(456));
 
   // Reset hidden property.
-  CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 789))
+  CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate, 789))
             .FromJust());
 
   // Test non-global access in TurboFan.
-  CompileRun("%OptimizeFunctionOnNextCall(g);");
+  RunJS("%OptimizeFunctionOnNextCall(g);");
 
-  ExpectInt32("g()", 789);
+  EXPECT_THAT(RunJS("g()"), IsInt32(789));
 }
 
-TEST(CachedAccessorOnGlobalObject) {
+TEST_F(AccessorTest, CachedAccessorOnGlobalObject) {
   i::FLAG_allow_natives_syntax = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::HandleScope scope(isolate());
 
-  v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(CcTest::isolate());
+  v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate());
   v8::Local<v8::ObjectTemplate> object_template = templ->InstanceTemplate();
   v8::Local<v8::Private> priv =
-      v8::Private::ForApi(isolate, v8_str("Foo#draft"));
+      v8::Private::ForApi(isolate(), NewString("Foo#draft"));
 
   object_template->SetAccessorProperty(
-      v8_str("draft"),
-      v8::FunctionTemplate::NewWithCache(isolate, UnreachableCallback, priv,
+      NewString("draft"),
+      v8::FunctionTemplate::NewWithCache(isolate(), UnreachableCallback, priv,
                                          v8::Local<v8::Value>()));
 
   v8::Local<v8::Context> ctx =
-      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+      v8::Context::New(isolate(), nullptr, object_template);
   v8::Local<v8::Object> obj = ctx->Global();
 
   // Install the private property on the instance.
-  CHECK(obj->SetPrivate(isolate->GetCurrentContext(), priv,
-                        v8::Undefined(isolate))
+  CHECK(obj->SetPrivate(isolate()->GetCurrentContext(), priv,
+                        v8::Undefined(isolate()))
             .FromJust());
 
   {
     v8::Context::Scope context_scope(ctx);
 
     // Access surrogate accessor.
-    ExpectUndefined("draft");
+    EXPECT_THAT(RunJS("draft"), IsUndefined());
 
     // Set hidden property.
-    CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 123))
+    CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate(), 123))
               .FromJust());
 
     // Test ICs.
-    CompileRun(
+    RunJS(
         "function f() {"
         "  var x;"
         "  for (var i = 0; i < 100; i++) {"
@@ -201,21 +205,21 @@ TEST(CachedAccessorOnGlobalObject) {
         "}"
         "%PrepareFunctionForOptimization(f);");
 
-    ExpectInt32("f()", 123);
+    EXPECT_THAT(RunJS("f()"), IsInt32(123));
 
     // Reset hidden property.
-    CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 456))
+    CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate(), 456))
               .FromJust());
 
     // Test TurboFan.
-    CompileRun("%OptimizeFunctionOnNextCall(f);");
+    RunJS("%OptimizeFunctionOnNextCall(f);");
 
-    ExpectInt32("f()", 456);
+    EXPECT_THAT(RunJS("f()"), IsInt32(456));
 
-    CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 456))
+    CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate(), 456))
               .FromJust());
     // Test non-global ICs.
-    CompileRun(
+    RunJS(
         "var x = this;"
         "function g() {"
         "  var r = 0;"
@@ -226,16 +230,16 @@ TEST(CachedAccessorOnGlobalObject) {
         "}"
         "%PrepareFunctionForOptimization(g);");
 
-    ExpectInt32("g()", 456);
+    EXPECT_THAT(RunJS("g()"), IsInt32(456));
 
     // Reset hidden property.
-    CHECK(obj->SetPrivate(env.local(), priv, v8::Integer::New(isolate, 789))
+    CHECK(obj->SetPrivate(context(), priv, v8::Integer::New(isolate(), 789))
               .FromJust());
 
     // Test non-global access in TurboFan.
-    CompileRun("%OptimizeFunctionOnNextCall(g);");
+    RunJS("%OptimizeFunctionOnNextCall(g);");
 
-    ExpectInt32("g()", 789);
+    EXPECT_THAT(RunJS("g()"), IsInt32(789));
   }
 }
 
@@ -244,7 +248,9 @@ namespace {
 // Getter return value should be non-null to trigger lazy property paths.
 static void Getter(v8::Local<v8::Name> name,
                    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(v8_str("return value"));
+  info.GetReturnValue().Set(
+      v8::String::NewFromUtf8(info.GetIsolate(), "return value")
+          .ToLocalChecked());
 }
 
 static void StringGetter(v8::Local<v8::String> name,
@@ -261,25 +267,23 @@ static void EmptyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {}
 }  // namespace
 
 // Re-declaration of non-configurable accessors should throw.
-TEST(RedeclareAccessor) {
-  v8::HandleScope scope(CcTest::isolate());
-  LocalContext env;
+TEST_F(AccessorTest, RedeclareAccessor) {
+  v8::HandleScope scope(isolate());
 
-  v8::Local<v8::FunctionTemplate> templ =
-      v8::FunctionTemplate::New(CcTest::isolate());
+  v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate());
 
   v8::Local<v8::ObjectTemplate> object_template = templ->InstanceTemplate();
   object_template->SetAccessor(
-      v8_str("foo"), nullptr, Setter, v8::Local<v8::Value>(),
+      NewString("foo"), nullptr, Setter, v8::Local<v8::Value>(),
       v8::AccessControl::DEFAULT, v8::PropertyAttribute::DontDelete);
 
   v8::Local<v8::Context> ctx =
-      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+      v8::Context::New(isolate(), nullptr, object_template);
 
   // Declare function.
-  v8::Local<v8::String> code = v8_str("function foo() {};");
+  v8::Local<v8::String> code = NewString("function foo() {};");
 
-  v8::TryCatch try_catch(CcTest::isolate());
+  v8::TryCatch try_catch(isolate());
   v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty();
   CHECK(try_catch.HasCaught());
 }
@@ -295,7 +299,8 @@ static void CheckSideEffectFreeAccesses(v8::Isolate* isolate,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
-  v8::Local<v8::Script> func = v8_compile(call_getter);
+  v8::Local<v8::Script> func =
+      v8::Script::Compile(context, call_getter).ToLocalChecked();
   // Check getter. Run enough number of times to ensure IC creates data handler.
   for (int i = 0; i < kIterationsCountForICProgression; i++) {
     v8::TryCatch try_catch(isolate);
@@ -311,7 +316,7 @@ static void CheckSideEffectFreeAccesses(v8::Isolate* isolate,
     CHECK(!func->Run(context).IsEmpty());
   }
 
-  func = v8_compile(call_setter);
+  func = v8::Script::Compile(context, call_setter).ToLocalChecked();
   // Check setter. Run enough number of times to ensure IC creates data handler.
   for (int i = 0; i < kIterationsCountForICProgression; i++) {
     v8::TryCatch try_catch(isolate);
@@ -328,202 +333,188 @@ static void CheckSideEffectFreeAccesses(v8::Isolate* isolate,
   }
 }
 
-TEST(AccessorsWithSideEffects) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+TEST_F(AccessorTest, AccessorsWithSideEffects) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
   v8::Local<v8::FunctionTemplate> templ_with_sideffect =
-      v8::FunctionTemplate::New(isolate, EmptyCallback, v8::Local<v8::Value>(),
-                                v8::Local<v8::Signature>(), 0,
-                                v8::ConstructorBehavior::kAllow,
-                                v8::SideEffectType::kHasSideEffect);
+      v8::FunctionTemplate::New(
+          isolate(), EmptyCallback, v8::Local<v8::Value>(),
+          v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kAllow,
+          v8::SideEffectType::kHasSideEffect);
   v8::Local<v8::FunctionTemplate> templ_no_sideffect =
-      v8::FunctionTemplate::New(isolate, EmptyCallback, v8::Local<v8::Value>(),
-                                v8::Local<v8::Signature>(), 0,
-                                v8::ConstructorBehavior::kAllow,
-                                v8::SideEffectType::kHasNoSideEffect);
+      v8::FunctionTemplate::New(
+          isolate(), EmptyCallback, v8::Local<v8::Value>(),
+          v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kAllow,
+          v8::SideEffectType::kHasNoSideEffect);
 
   // Install non-native properties with side effects
   obj->SetAccessorProperty(
-      v8_str("get"),
-      templ_with_sideffect->GetFunction(context).ToLocalChecked(), {},
+      NewString("get"),
+      templ_with_sideffect->GetFunction(context()).ToLocalChecked(), {},
       v8::PropertyAttribute::None, v8::AccessControl::DEFAULT);
 
   obj->SetAccessorProperty(
-      v8_str("set"), templ_no_sideffect->GetFunction(context).ToLocalChecked(),
-      templ_with_sideffect->GetFunction(context).ToLocalChecked(),
+      NewString("set"),
+      templ_no_sideffect->GetFunction(context()).ToLocalChecked(),
+      templ_with_sideffect->GetFunction(context()).ToLocalChecked(),
       v8::PropertyAttribute::None, v8::AccessControl::DEFAULT);
 
-  CheckSideEffectFreeAccesses(isolate, v8_str("obj.get"),
-                              v8_str("obj.set = 123;"));
+  CheckSideEffectFreeAccesses(isolate(), NewString("obj.get"),
+                              NewString("obj.set = 123;"));
 }
 
-TEST(TemplateAccessorsWithSideEffects) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(AccessorTest, TemplateAccessorsWithSideEffects) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
   v8::Local<v8::FunctionTemplate> templ_with_sideffect =
-      v8::FunctionTemplate::New(isolate, EmptyCallback, v8::Local<v8::Value>(),
-                                v8::Local<v8::Signature>(), 0,
-                                v8::ConstructorBehavior::kAllow,
-                                v8::SideEffectType::kHasSideEffect);
+      v8::FunctionTemplate::New(
+          isolate(), EmptyCallback, v8::Local<v8::Value>(),
+          v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kAllow,
+          v8::SideEffectType::kHasSideEffect);
   v8::Local<v8::FunctionTemplate> templ_no_sideffect =
-      v8::FunctionTemplate::New(isolate, EmptyCallback, v8::Local<v8::Value>(),
-                                v8::Local<v8::Signature>(), 0,
-                                v8::ConstructorBehavior::kAllow,
-                                v8::SideEffectType::kHasNoSideEffect);
+      v8::FunctionTemplate::New(
+          isolate(), EmptyCallback, v8::Local<v8::Value>(),
+          v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kAllow,
+          v8::SideEffectType::kHasNoSideEffect);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  templ->SetAccessorProperty(v8_str("get"), templ_with_sideffect);
-  templ->SetAccessorProperty(v8_str("set"), templ_no_sideffect,
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  templ->SetAccessorProperty(NewString("get"), templ_with_sideffect);
+  templ->SetAccessorProperty(NewString("set"), templ_no_sideffect,
                              templ_with_sideffect);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
-  CheckSideEffectFreeAccesses(isolate, v8_str("obj.get"),
-                              v8_str("obj.set = 123;"));
+  CheckSideEffectFreeAccesses(isolate(), NewString("obj.get"),
+                              NewString("obj.set = 123;"));
 }
 
-TEST(NativeTemplateAccessorWithSideEffects) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(AccessorTest, NativeTemplateAccessorWithSideEffects) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  templ->SetAccessor(v8_str("get"), Getter, nullptr, v8::Local<v8::Value>(),
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  templ->SetAccessor(NewString("get"), Getter, nullptr, v8::Local<v8::Value>(),
                      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
                      v8::SideEffectType::kHasSideEffect);
-  templ->SetAccessor(v8_str("set"), Getter, Setter, v8::Local<v8::Value>(),
+  templ->SetAccessor(NewString("set"), Getter, Setter, v8::Local<v8::Value>(),
                      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
                      v8::SideEffectType::kHasNoSideEffect,
                      v8::SideEffectType::kHasSideEffect);
 
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
-  CheckSideEffectFreeAccesses(isolate, v8_str("obj.get"),
-                              v8_str("obj.set = 123;"));
+  CheckSideEffectFreeAccesses(isolate(), NewString("obj.get"),
+                              NewString("obj.set = 123;"));
 }
 
-TEST(NativeAccessorsWithSideEffects) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+TEST_F(AccessorTest, NativeAccessorsWithSideEffects) {
+  v8::HandleScope scope(isolate());
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
   // Install native data property with side effects.
-  obj->SetAccessor(context, v8_str("get"), Getter, nullptr,
+  obj->SetAccessor(context(), NewString("get"), Getter, nullptr,
                    v8::MaybeLocal<v8::Value>(), v8::AccessControl::DEFAULT,
                    v8::PropertyAttribute::None,
                    v8::SideEffectType::kHasSideEffect)
       .ToChecked();
-  obj->SetAccessor(context, v8_str("set"), Getter, Setter,
+  obj->SetAccessor(context(), NewString("set"), Getter, Setter,
                    v8::MaybeLocal<v8::Value>(), v8::AccessControl::DEFAULT,
                    v8::PropertyAttribute::None,
                    v8::SideEffectType::kHasNoSideEffect,
                    v8::SideEffectType::kHasSideEffect)
       .ToChecked();
 
-  CheckSideEffectFreeAccesses(isolate, v8_str("obj.get"),
-                              v8_str("obj.set = 123;"));
+  CheckSideEffectFreeAccesses(isolate(), NewString("obj.get"),
+                              NewString("obj.set = 123;"));
 }
 
 // Accessors can be allowlisted as side-effect-free via SetAccessor.
-TEST(AccessorSetHasNoSideEffect) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+TEST_F(AccessorTest, AccessorSetHasNoSideEffect) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
-  obj->SetAccessor(context, v8_str("foo"), Getter).ToChecked();
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
+  obj->SetAccessor(context(), NewString("foo"), Getter).ToChecked();
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo"),
+            isolate(), NewString("obj.foo"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
 
-  obj->SetAccessor(context, v8_str("foo"), Getter, nullptr,
+  obj->SetAccessor(context(), NewString("foo"), Getter, nullptr,
                    v8::MaybeLocal<v8::Value>(), v8::AccessControl::DEFAULT,
                    v8::PropertyAttribute::None,
                    v8::SideEffectType::kHasNoSideEffect)
       .ToChecked();
   v8::debug::EvaluateGlobal(
-      isolate, v8_str("obj.foo"),
+      isolate(), NewString("obj.foo"),
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
   // Check that setter is not allowlisted.
-  v8::TryCatch try_catch(isolate);
+  v8::TryCatch try_catch(isolate());
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo = 1"),
+            isolate(), NewString("obj.foo = 1"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   CHECK(try_catch.HasCaught());
-  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo"),
+  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate(), NewString("obj.foo"),
                                         v8::debug::EvaluateGlobalMode::kDefault)
                   .ToLocalChecked()
-                  ->Int32Value(env.local())
+                  ->Int32Value(context())
                   .FromJust());
   CHECK_EQ(0, set_accessor_call_count);
 }
 
 // Set accessors can be allowlisted as side-effect-free via SetAccessor.
-TEST(SetAccessorSetSideEffectReceiverCheck1) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(AccessorTest, SetAccessorSetSideEffectReceiverCheck1) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
-  obj->SetAccessor(env.local(), v8_str("foo"), Getter, Setter,
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
+  obj->SetAccessor(context(), NewString("foo"), Getter, Setter,
                    v8::MaybeLocal<v8::Value>(), v8::AccessControl::DEFAULT,
                    v8::PropertyAttribute::None,
                    v8::SideEffectType::kHasNoSideEffect,
                    v8::SideEffectType::kHasSideEffectToReceiver)
       .ToChecked();
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo"),
+            isolate(), NewString("obj.foo"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .ToLocalChecked()
-            ->Equals(env.local(), v8_str("return value"))
+            ->Equals(context(), NewString("return value"))
             .FromJust());
-  v8::TryCatch try_catch(isolate);
+  v8::TryCatch try_catch(isolate());
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo = 1"),
+            isolate(), NewString("obj.foo = 1"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   CHECK(try_catch.HasCaught());
@@ -533,284 +524,279 @@ TEST(SetAccessorSetSideEffectReceiverCheck1) {
 static void ConstructCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
-TEST(SetAccessorSetSideEffectReceiverCheck2) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(AccessorTest, SetAccessorSetSideEffectReceiverCheck2) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(
-      isolate, ConstructCallback, v8::Local<v8::Value>(),
+      isolate(), ConstructCallback, v8::Local<v8::Value>(),
       v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kAllow,
       v8::SideEffectType::kHasNoSideEffect);
   templ->InstanceTemplate()->SetAccessor(
-      v8_str("bar"), Getter, Setter, v8::Local<v8::Value>(),
+      NewString("bar"), Getter, Setter, v8::Local<v8::Value>(),
       v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
       v8::SideEffectType::kHasSideEffectToReceiver,
       v8::SideEffectType::kHasSideEffectToReceiver);
-  CHECK(env->Global()
-            ->Set(env.local(), v8_str("f"),
-                  templ->GetFunction(env.local()).ToLocalChecked())
+  CHECK(context()
+            ->Global()
+            ->Set(context(), NewString("f"),
+                  templ->GetFunction(context()).ToLocalChecked())
             .FromJust());
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("new f().bar"),
+            isolate(), NewString("new f().bar"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .ToLocalChecked()
-            ->Equals(env.local(), v8_str("return value"))
+            ->Equals(context(), NewString("return value"))
             .FromJust());
   v8::debug::EvaluateGlobal(
-      isolate, v8_str("new f().bar = 1"),
+      isolate(), NewString("new f().bar = 1"),
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
   CHECK_EQ(1, set_accessor_call_count);
 }
 
 // Accessors can be allowlisted as side-effect-free via SetNativeDataProperty.
-TEST(AccessorSetNativeDataPropertyHasNoSideEffect) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+TEST_F(AccessorTest, AccessorSetNativeDataPropertyHasNoSideEffect) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
-  obj->SetNativeDataProperty(context, v8_str("foo"), Getter).ToChecked();
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
+  obj->SetNativeDataProperty(context(), NewString("foo"), Getter).ToChecked();
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo"),
+            isolate(), NewString("obj.foo"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
 
   obj->SetNativeDataProperty(
-         context, v8_str("foo"), Getter, nullptr, v8::Local<v8::Value>(),
+         context(), NewString("foo"), Getter, nullptr, v8::Local<v8::Value>(),
          v8::PropertyAttribute::None, v8::SideEffectType::kHasNoSideEffect)
       .ToChecked();
   v8::debug::EvaluateGlobal(
-      isolate, v8_str("obj.foo"),
+      isolate(), NewString("obj.foo"),
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
   // Check that setter is not allowlisted.
-  v8::TryCatch try_catch(isolate);
+  v8::TryCatch try_catch(isolate());
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo = 1"),
+            isolate(), NewString("obj.foo = 1"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   CHECK(try_catch.HasCaught());
-  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo"),
+  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate(), NewString("obj.foo"),
                                         v8::debug::EvaluateGlobalMode::kDefault)
                   .ToLocalChecked()
-                  ->Int32Value(env.local())
+                  ->Int32Value(context())
                   .FromJust());
 }
 
 // Accessors can be allowlisted as side-effect-free via SetLazyDataProperty.
-TEST(AccessorSetLazyDataPropertyHasNoSideEffect) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+TEST_F(AccessorTest, AccessorSetLazyDataPropertyHasNoSideEffect) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
-  obj->SetLazyDataProperty(context, v8_str("foo"), Getter).ToChecked();
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
+  obj->SetLazyDataProperty(context(), NewString("foo"), Getter).ToChecked();
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo"),
+            isolate(), NewString("obj.foo"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
 
-  obj->SetLazyDataProperty(context, v8_str("foo"), Getter,
+  obj->SetLazyDataProperty(context(), NewString("foo"), Getter,
                            v8::Local<v8::Value>(), v8::PropertyAttribute::None,
                            v8::SideEffectType::kHasNoSideEffect)
       .ToChecked();
   v8::debug::EvaluateGlobal(
-      isolate, v8_str("obj.foo"),
+      isolate(), NewString("obj.foo"),
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
   // Check that setter is not allowlisted.
-  v8::TryCatch try_catch(isolate);
+  v8::TryCatch try_catch(isolate());
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo = 1"),
+            isolate(), NewString("obj.foo = 1"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   CHECK(try_catch.HasCaught());
-  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo"),
+  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate(), NewString("obj.foo"),
                                         v8::debug::EvaluateGlobalMode::kDefault)
                   .ToLocalChecked()
-                  ->Int32Value(env.local())
+                  ->Int32Value(context())
                   .FromJust());
 }
 
-TEST(ObjectTemplateSetAccessorHasNoSideEffect) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(AccessorTest, ObjectTemplateSetAccessorHasNoSideEffect) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  templ->SetAccessor(v8_str("foo"), StringGetter);
-  templ->SetAccessor(v8_str("foo2"), StringGetter, nullptr,
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  templ->SetAccessor(NewString("foo"), StringGetter);
+  templ->SetAccessor(NewString("foo2"), StringGetter, nullptr,
                      v8::Local<v8::Value>(), v8::AccessControl::DEFAULT,
                      v8::PropertyAttribute::None,
                      v8::SideEffectType::kHasNoSideEffect);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo"),
+            isolate(), NewString("obj.foo"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   v8::debug::EvaluateGlobal(
-      isolate, v8_str("obj.foo2"),
+      isolate(), NewString("obj.foo2"),
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
   // Check that setter is not allowlisted.
-  v8::TryCatch try_catch(isolate);
+  v8::TryCatch try_catch(isolate());
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo2 = 1"),
+            isolate(), NewString("obj.foo2 = 1"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   CHECK(try_catch.HasCaught());
-  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo2"),
+  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate(), NewString("obj.foo2"),
                                         v8::debug::EvaluateGlobalMode::kDefault)
                   .ToLocalChecked()
-                  ->Int32Value(env.local())
+                  ->Int32Value(context())
                   .FromJust());
 }
 
-TEST(ObjectTemplateSetNativePropertyHasNoSideEffect) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(AccessorTest, ObjectTemplateSetNativePropertyHasNoSideEffect) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  templ->SetNativeDataProperty(v8_str("foo"), Getter);
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  templ->SetNativeDataProperty(NewString("foo"), Getter);
   templ->SetNativeDataProperty(
-      v8_str("foo2"), Getter, nullptr, v8::Local<v8::Value>(),
+      NewString("foo2"), Getter, nullptr, v8::Local<v8::Value>(),
       v8::PropertyAttribute::None, v8::AccessControl::DEFAULT,
       v8::SideEffectType::kHasNoSideEffect);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo"),
+            isolate(), NewString("obj.foo"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   v8::debug::EvaluateGlobal(
-      isolate, v8_str("obj.foo2"),
+      isolate(), NewString("obj.foo2"),
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
   // Check that setter is not allowlisted.
-  v8::TryCatch try_catch(isolate);
+  v8::TryCatch try_catch(isolate());
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo2 = 1"),
+            isolate(), NewString("obj.foo2 = 1"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   CHECK(try_catch.HasCaught());
-  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo2"),
+  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate(), NewString("obj.foo2"),
                                         v8::debug::EvaluateGlobalMode::kDefault)
                   .ToLocalChecked()
-                  ->Int32Value(env.local())
+                  ->Int32Value(context())
                   .FromJust());
 }
 
-TEST(ObjectTemplateSetLazyPropertyHasNoSideEffect) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(AccessorTest, ObjectTemplateSetLazyPropertyHasNoSideEffect) {
+  v8::HandleScope scope(isolate());
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   NoopDelegate delegate;
   i_isolate->debug()->SetDebugDelegate(&delegate);
 
-  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-  templ->SetLazyDataProperty(v8_str("foo"), Getter);
-  templ->SetLazyDataProperty(v8_str("foo2"), Getter, v8::Local<v8::Value>(),
+  v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate());
+  templ->SetLazyDataProperty(NewString("foo"), Getter);
+  templ->SetLazyDataProperty(NewString("foo2"), Getter, v8::Local<v8::Value>(),
                              v8::PropertyAttribute::None,
                              v8::SideEffectType::kHasNoSideEffect);
-  v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
-  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+  v8::Local<v8::Object> obj = templ->NewInstance(context()).ToLocalChecked();
+  CHECK(context()->Global()->Set(context(), NewString("obj"), obj).FromJust());
 
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo"),
+            isolate(), NewString("obj.foo"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   v8::debug::EvaluateGlobal(
-      isolate, v8_str("obj.foo2"),
+      isolate(), NewString("obj.foo2"),
       v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
       .ToLocalChecked();
 
   // Check that setter is not allowlisted.
-  v8::TryCatch try_catch(isolate);
+  v8::TryCatch try_catch(isolate());
   CHECK(v8::debug::EvaluateGlobal(
-            isolate, v8_str("obj.foo2 = 1"),
+            isolate(), NewString("obj.foo2 = 1"),
             v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
             .IsEmpty());
   CHECK(try_catch.HasCaught());
-  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo2"),
+  CHECK_NE(1, v8::debug::EvaluateGlobal(isolate(), NewString("obj.foo2"),
                                         v8::debug::EvaluateGlobalMode::kDefault)
                   .ToLocalChecked()
-                  ->Int32Value(env.local())
+                  ->Int32Value(context())
                   .FromJust());
 }
 
 namespace {
 void FunctionNativeGetter(v8::Local<v8::String> property,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetIsolate()->ThrowError(v8_str("side effect in getter"));
+  info.GetIsolate()->ThrowError(
+      v8::String::NewFromUtf8(info.GetIsolate(), "side effect in getter")
+          .ToLocalChecked());
 }
 }  // namespace
 
-TEST(BindFunctionTemplateSetNativeDataProperty) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+TEST_F(AccessorTest, BindFunctionTemplateSetNativeDataProperty) {
+  v8::HandleScope scope(isolate());
 
   // Check that getter is called on Function.prototype.bind.
   {
-    v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-    templ->SetNativeDataProperty(v8_str("name"), FunctionNativeGetter);
+    v8::Local<v8::FunctionTemplate> templ =
+        v8::FunctionTemplate::New(isolate());
+    templ->SetNativeDataProperty(NewString("name"), FunctionNativeGetter);
     v8::Local<v8::Function> func =
-        templ->GetFunction(env.local()).ToLocalChecked();
-    CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
+        templ->GetFunction(context()).ToLocalChecked();
+    CHECK(context()
+              ->Global()
+              ->Set(context(), NewString("func"), func)
+              .FromJust());
 
-    v8::TryCatch try_catch(isolate);
-    CHECK(CompileRun("func.bind()").IsEmpty());
+    v8::TryCatch try_catch(isolate());
+    CHECK(TryRunJS("func.bind()").IsEmpty());
     CHECK(try_catch.HasCaught());
   }
 
   // Check that getter is called on Function.prototype.bind.
   {
-    v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-    templ->SetNativeDataProperty(v8_str("length"), FunctionNativeGetter);
+    v8::Local<v8::FunctionTemplate> templ =
+        v8::FunctionTemplate::New(isolate());
+    templ->SetNativeDataProperty(NewString("length"), FunctionNativeGetter);
     v8::Local<v8::Function> func =
-        templ->GetFunction(env.local()).ToLocalChecked();
-    CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
+        templ->GetFunction(context()).ToLocalChecked();
+    CHECK(context()
+              ->Global()
+              ->Set(context(), NewString("func"), func)
+              .FromJust());
 
-    v8::TryCatch try_catch(isolate);
-    CHECK(CompileRun("func.bind()").IsEmpty());
+    v8::TryCatch try_catch(isolate());
+    CHECK(TryRunJS("func.bind()").IsEmpty());
     CHECK(try_catch.HasCaught());
   }
 }
@@ -826,24 +812,30 @@ v8::MaybeLocal<v8::Context> TestHostCreateShadowRealmContextCallback(
 
   // Check that getter is called on Function.prototype.bind.
   global_template->SetNativeDataProperty(
-      v8_str("func1"), [](v8::Local<v8::String> property,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+      v8::String::NewFromUtf8(isolate, "func1").ToLocalChecked(),
+      [](v8::Local<v8::String> property,
+         const v8::PropertyCallbackInfo<v8::Value>& info) {
         v8::Isolate* isolate = info.GetIsolate();
         v8::Local<v8::FunctionTemplate> templ =
             v8::FunctionTemplate::New(isolate);
-        templ->SetNativeDataProperty(v8_str("name"), FunctionNativeGetter);
+        templ->SetNativeDataProperty(
+            v8::String::NewFromUtf8(isolate, "name").ToLocalChecked(),
+            FunctionNativeGetter);
         info.GetReturnValue().Set(
             templ->GetFunction(isolate->GetCurrentContext()).ToLocalChecked());
       });
 
   // Check that getter is called on Function.prototype.bind.
   global_template->SetNativeDataProperty(
-      v8_str("func2"), [](v8::Local<v8::String> property,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+      v8::String::NewFromUtf8(isolate, "func2").ToLocalChecked(),
+      [](v8::Local<v8::String> property,
+         const v8::PropertyCallbackInfo<v8::Value>& info) {
         v8::Isolate* isolate = info.GetIsolate();
         v8::Local<v8::FunctionTemplate> templ =
             v8::FunctionTemplate::New(isolate);
-        templ->SetNativeDataProperty(v8_str("length"), FunctionNativeGetter);
+        templ->SetNativeDataProperty(
+            v8::String::NewFromUtf8(isolate, "length").ToLocalChecked(),
+            FunctionNativeGetter);
         info.GetReturnValue().Set(
             templ->GetFunction(isolate->GetCurrentContext()).ToLocalChecked());
       });
@@ -852,26 +844,22 @@ v8::MaybeLocal<v8::Context> TestHostCreateShadowRealmContextCallback(
 }
 }  // namespace
 
-TEST(WrapFunctionTemplateSetNativeDataProperty) {
+TEST_F(AccessorTest, WrapFunctionTemplateSetNativeDataProperty) {
   i::FLAG_harmony_shadow_realm = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  isolate->SetHostCreateShadowRealmContextCallback(
+  isolate()->SetHostCreateShadowRealmContextCallback(
       TestHostCreateShadowRealmContextCallback);
 
-  v8::HandleScope scope(isolate);
+  v8::HandleScope scope(isolate());
   // Check that getter is called on WrappedFunctionCreate.
   {
-    v8::TryCatch try_catch(isolate);
-    CHECK(
-        CompileRun("new ShadowRealm().evaluate('globalThis.func1')").IsEmpty());
+    v8::TryCatch try_catch(isolate());
+    CHECK(TryRunJS("new ShadowRealm().evaluate('globalThis.func1')").IsEmpty());
     CHECK(try_catch.HasCaught());
   }
   // Check that getter is called on WrappedFunctionCreate.
   {
-    v8::TryCatch try_catch(isolate);
-    CHECK(
-        CompileRun("new ShadowRealm().evaluate('globalThis.func2')").IsEmpty());
+    v8::TryCatch try_catch(isolate());
+    CHECK(TryRunJS("new ShadowRealm().evaluate('globalThis.func2')").IsEmpty());
     CHECK(try_catch.HasCaught());
   }
 }
