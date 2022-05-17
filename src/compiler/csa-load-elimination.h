@@ -165,6 +165,7 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
                                         AbstractState const* state) const;
   Node* TruncateAndExtend(Node* node, MachineRepresentation from,
                           MachineType to);
+  Reduction AssertUnreachable(Node* node);
 
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
