@@ -76,7 +76,7 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* Branch(Node* cond, Node** true_node, Node** false_node,
                BranchHint hint);
 
-  Node* NumberConstant(volatile double value) {
+  Node* NumberConstant(double value) {
     return graph()->NewNode(mcgraph()->common()->NumberConstant(value));
   }
 

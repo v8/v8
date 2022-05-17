@@ -32,6 +32,10 @@ namespace internal {
 
 namespace {
 
+// This is to work around ICU's comparison operators not being compliant with
+// clang's -Wambiguous-reversed-operator in >=C++20.
+#define AVOID_AMBIGUOUS_OP_WARNING(x) *static_cast<icu::UObject*>(&x)
+
 // [[Style]] is one of the values "decimal", "percent", "currency",
 // or "unit" identifying the style of the number format.
 enum class Style { DECIMAL, PERCENT, CURRENCY, UNIT };
@@ -300,7 +304,7 @@ Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
   icu::MeasureUnit none = icu::MeasureUnit();
   // 1. If the result of IsSanctionedUnitIdentifier(unitIdentifier) is true,
   // then
-  if (result != none) {
+  if (result != AVOID_AMBIGUOUS_OP_WARNING(none)) {
     // a. Return true.
     std::pair<icu::MeasureUnit, icu::MeasureUnit> pair(result, none);
     return Just(pair);
@@ -319,7 +323,7 @@ Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
 
   // 4. If the result of IsSanctionedUnitIdentifier(numerator) is false, then
   result = IsSanctionedUnitIdentifier(numerator);
-  if (result == none) {
+  if (result == AVOID_AMBIGUOUS_OP_WARNING(none)) {
     // a. Return false.
     return Nothing<std::pair<icu::MeasureUnit, icu::MeasureUnit>>();
   }
@@ -329,7 +333,7 @@ Maybe<std::pair<icu::MeasureUnit, icu::MeasureUnit>> IsWellFormedUnitIdentifier(
 
   // 6. If the result of IsSanctionedUnitIdentifier(denominator) is false, then
   icu::MeasureUnit den_result = IsSanctionedUnitIdentifier(denominator);
-  if (den_result == none) {
+  if (den_result == AVOID_AMBIGUOUS_OP_WARNING(none)) {
     // a. Return false.
     return Nothing<std::pair<icu::MeasureUnit, icu::MeasureUnit>>();
   }
@@ -1388,10 +1392,10 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
     icu::MeasureUnit none = icu::MeasureUnit();
     // 13.b Set intlObj.[[Unit]] to unit.
-    if (unit_pair.first != none) {
+    if (unit_pair.first != AVOID_AMBIGUOUS_OP_WARNING(none)) {
       settings = settings.unit(unit_pair.first);
     }
-    if (unit_pair.second != none) {
+    if (unit_pair.second != AVOID_AMBIGUOUS_OP_WARNING(none)) {
       settings = settings.perUnit(unit_pair.second);
     }
 
