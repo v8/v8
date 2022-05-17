@@ -1346,6 +1346,9 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_gc() &&
              string->StringEquals(v8_str(isolate, "eqref"))) {
     *type = i::wasm::kWasmEqRef;
+  } else if (enabled_features.has_stringref() &&
+             string->StringEquals(v8_str(isolate, "stringref"))) {
+    *type = i::wasm::kWasmStringRef;
   } else {
     // Unrecognized type.
     *type = i::wasm::kWasmVoid;
@@ -1523,13 +1526,28 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
           }
           break;
         }
+        case i::wasm::HeapType::kString: {
+          if (args.Length() < 2) {
+            thrower.TypeError(
+                "Missing initial value when creating stringref global");
+            break;
+          }
+
+          DCHECK_EQ(type.nullability(), i::wasm::kNullable);
+          if (!value->IsNull() && !value->IsString()) {
+            thrower.TypeError(
+                "The value of stringref globals must be null or a string");
+          }
+
+          global_obj->SetStringRef(Utils::OpenHandle(*value));
+          break;
+        }
         case internal::wasm::HeapType::kBottom:
           UNREACHABLE();
         case i::wasm::HeapType::kEq:
         case internal::wasm::HeapType::kI31:
         case internal::wasm::HeapType::kData:
         case internal::wasm::HeapType::kArray:
-        case internal::wasm::HeapType::kString:
         case internal::wasm::HeapType::kStringViewWtf8:
         case internal::wasm::HeapType::kStringViewWtf16:
         case internal::wasm::HeapType::kStringViewIter:
@@ -2434,6 +2452,7 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kOptRef:
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kAny:
+        case i::wasm::HeapType::kString:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
         case i::wasm::HeapType::kFunc: {
@@ -2446,16 +2465,21 @@ void WebAssemblyGlobalGetValueCommon(
           return_value.Set(Utils::ToLocal(result));
           break;
         }
+        case i::wasm::HeapType::kStringViewWtf8:
+          thrower.TypeError("stringview_wtf8 has no JS representation");
+          break;
+        case i::wasm::HeapType::kStringViewWtf16:
+          thrower.TypeError("stringview_wtf16 has no JS representation");
+          break;
+        case i::wasm::HeapType::kStringViewIter:
+          thrower.TypeError("stringview_iter has no JS representation");
+          break;
         case i::wasm::HeapType::kBottom:
           UNREACHABLE();
         case i::wasm::HeapType::kI31:
         case i::wasm::HeapType::kData:
         case i::wasm::HeapType::kArray:
         case i::wasm::HeapType::kEq:
-        case i::wasm::HeapType::kString:
-        case i::wasm::HeapType::kStringViewWtf8:
-        case i::wasm::HeapType::kStringViewWtf16:
-        case i::wasm::HeapType::kStringViewIter:
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();
@@ -2543,16 +2567,40 @@ void WebAssemblyGlobalSetValue(
           }
           break;
         }
+        case i::wasm::HeapType::kString: {
+          if (!args[0]->IsString()) {
+            if (args[0]->IsNull()) {
+              if (receiver->type().nullability() == i::wasm::kNonNullable) {
+                thrower.TypeError(
+                    "Can't set non-nullable stringref global to null");
+                break;
+              }
+            } else {
+              thrower.TypeError(
+                  receiver->type().nullability() == i::wasm::kNonNullable
+                      ? "Non-nullable stringref global can only hold a string"
+                      : "Stringref global can only hold null or a string");
+              break;
+            }
+          }
+          receiver->SetStringRef(Utils::OpenHandle(*args[0]));
+          break;
+        }
+        case i::wasm::HeapType::kStringViewWtf8:
+          thrower.TypeError("stringview_wtf8 has no JS representation");
+          break;
+        case i::wasm::HeapType::kStringViewWtf16:
+          thrower.TypeError("stringview_wtf16 has no JS representation");
+          break;
+        case i::wasm::HeapType::kStringViewIter:
+          thrower.TypeError("stringview_iter has no JS representation");
+          break;
         case i::wasm::HeapType::kBottom:
           UNREACHABLE();
         case i::wasm::HeapType::kI31:
         case i::wasm::HeapType::kData:
         case i::wasm::HeapType::kArray:
         case i::wasm::HeapType::kEq:
-        case i::wasm::HeapType::kString:
-        case i::wasm::HeapType::kStringViewWtf8:
-        case i::wasm::HeapType::kStringViewWtf16:
-        case i::wasm::HeapType::kStringViewIter:
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();

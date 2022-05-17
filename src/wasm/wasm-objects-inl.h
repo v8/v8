@@ -145,7 +145,7 @@ double WasmGlobalObject::GetF64() {
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
-  // We use this getter for externref and funcref.
+  // We use this getter for externref, funcref, and stringref.
   DCHECK(type().is_reference());
   return handle(tagged_buffer().get(offset()), GetIsolate());
 }
@@ -179,6 +179,12 @@ bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
     return true;
   }
   return false;
+}
+
+void WasmGlobalObject::SetStringRef(Handle<Object> value) {
+  DCHECK_EQ(type(), wasm::kWasmStringRef);
+  DCHECK(value->IsNull() || value->IsString());
+  tagged_buffer().set(offset(), *value);
 }
 
 // WasmInstanceObject

@@ -303,6 +303,7 @@ class WasmGlobalObject
   inline void SetF64(double value);
   inline void SetExternRef(Handle<Object> value);
   inline bool SetFuncRef(Isolate* isolate, Handle<Object> value);
+  inline void SetStringRef(Handle<Object> value);
 
  private:
   // This function returns the address of the global's data in the
