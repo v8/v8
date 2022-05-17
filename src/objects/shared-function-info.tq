@@ -17,7 +17,6 @@ extern class InterpreterData extends Struct {
 type FunctionKind extends uint8 constexpr 'FunctionKind';
 type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
 type BailoutReason extends uint8 constexpr 'BailoutReason';
-type OSRCodeCacheStateOfSFI extends uint8 constexpr 'OSRCodeCacheStateOfSFI';
 
 bitfield struct SharedFunctionInfoFlags extends uint32 {
   // Have FunctionKind first to make it cheaper to access.
@@ -38,7 +37,6 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   is_top_level: bool: 1 bit;
   properties_are_final: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
-  osr_code_cache_state: OSRCodeCacheStateOfSFI: 2 bit;
 }
 
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {

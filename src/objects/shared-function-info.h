@@ -41,8 +41,6 @@ class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
 
-enum OSRCodeCacheStateOfSFI : uint8_t;
-
 namespace wasm {
 struct WasmModule;
 class ValueType;
@@ -519,10 +517,6 @@ class SharedFunctionInfo
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
   void DisableOptimization(BailoutReason reason);
-
-  inline OSRCodeCacheStateOfSFI osr_code_cache_state() const;
-
-  inline void set_osr_code_cache_state(OSRCodeCacheStateOfSFI state);
 
   // This class constructor needs to call out to an instance fields
   // initializer. This flag is set when creating the
