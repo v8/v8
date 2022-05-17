@@ -59,6 +59,24 @@ function assertInvalid(fn, message) {
   assertArrayEquals([null, 'foo'], instance.exports.swap('foo', null));
 })();
 
+(function TestCallout() {
+  let kSig_w_w = makeSig([kWasmStringRef], [kWasmStringRef]);
+  let builder = new WasmModuleBuilder();
+
+  builder.addImport("env", "transformer", kSig_w_w)
+  builder.addFunction("transform", kSig_w_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, 0
+    ]);
+
+  let instance = builder.instantiate(
+      { env: { transformer: x=>x.toUpperCase() } });
+
+  assertEquals('FOO', instance.exports.transform('foo'));
+})();
+
 (function TestViewsUnsupported() {
   let kSig_x_v = makeSig([], [kWasmStringViewWtf8]);
   let kSig_y_v = makeSig([], [kWasmStringViewWtf16]);
@@ -214,5 +232,4 @@ function assertInvalid(fn, message) {
   assertEquals('bar', instance.exports.get_stringref());
 })();
 
-// TODO(wingo): Test calls from wasm to JS.
 // TODO(wingo): Test stringrefs in tables.
