@@ -52,11 +52,55 @@ EXTRA_FLAGS = [
     (0.1, '--turbo-force-mid-tier-regalloc'),
 ]
 
+
 def random_extra_flags(rng):
   """Returns a random list of flags chosen from the configurations in
   EXTRA_FLAGS.
   """
   return [flag for prob, flag in EXTRA_FLAGS if rng.random() < prob]
+
+
+def _flag_prefix(flag):
+  """Returns the flag part before an equal sign."""
+  if '=' not in flag:
+    return flag
+  else:
+    return flag[0:flag.index('=')]
+
+
+def _invert_flag(flag):
+  """Flips a --flag and its --no-flag counterpart."""
+  assert flag.startswith('--')
+  if flag.startswith('--no-'):
+    return '--' + flag[len('--no-'):]
+  else:
+    return '--no-' + flag[2:]
+
+
+def _drop_contradictory_flags(new_flags, existing_flags):
+  """Drops flags that have a simple contradiction with an existing flag.
+
+  Contradictions checked for:
+  - Repetition: --flag --flag
+  - Repetition with param: --flag=foo --flag=bar
+  - Negation: --flag --no-flag
+  - Inverse negation: --no-flag --flag
+  - For simplicity also drops combinations of negation and param, which don't
+    occur in practice.
+
+  Args:
+    new_flags: new flags to filter from
+    existing_flags: existing flags checked against
+  Returns: A list of flags without contradictions.
+  """
+  existing_flag_prefixes = set(_flag_prefix(flag) for flag in existing_flags)
+
+  def contradictory_flag(flag):
+    flag_prefix = _flag_prefix(flag)
+    return (flag_prefix in existing_flag_prefixes or
+            _invert_flag(flag_prefix) in existing_flag_prefixes)
+
+  return [flag for flag in new_flags if not contradictory_flag(flag)]
 
 
 class FuzzerConfig(object):
@@ -190,6 +234,8 @@ class FuzzerProc(base.TestProcProducer):
           flags += next(gen)
 
       flags.append('--fuzzer-random-seed=%s' % self._next_seed())
+
+      flags = _drop_contradictory_flags(flags, test.get_flags())
       yield self._create_subtest(test, str(i), flags=flags)
 
       i += 1

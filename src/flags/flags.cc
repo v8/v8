@@ -277,6 +277,8 @@ struct Flag {
           break;
         case SetBy::kCommandLine:
           if (new_set_by == SetBy::kImplication && check_command_line_flags) {
+            // Exit instead of abort for certain testing situations.
+            if (FLAG_exit_on_contradictory_flags) base::OS::ExitProcess(0);
             if (is_bool_flag) {
               FATAL(
                   "Flag --%s: value implied by --%s conflicts with explicit "
@@ -290,6 +292,8 @@ struct Flag {
             }
           } else if (new_set_by == SetBy::kCommandLine &&
                      check_command_line_flags) {
+            // Exit instead of abort for certain testing situations.
+            if (FLAG_exit_on_contradictory_flags) base::OS::ExitProcess(0);
             if (is_bool_flag) {
               FATAL(
                   "Command-line provided flag --%s specified as both true and "

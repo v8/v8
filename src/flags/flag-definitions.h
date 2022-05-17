@@ -277,6 +277,12 @@ DEFINE_BOOL(abort_on_contradictory_flags, false,
 // This implication is also hard-coded into the flags processing to make sure it
 // becomes active before we even process subsequent flags.
 DEFINE_NEG_IMPLICATION(fuzzing, abort_on_contradictory_flags)
+// As abort_on_contradictory_flags, but it will simply exit with return code 0.
+DEFINE_BOOL(exit_on_contradictory_flags, false,
+            "Exit with return code 0 on contradictory flags.")
+// We rely on abort_on_contradictory_flags to turn on the analysis.
+DEFINE_WEAK_IMPLICATION(exit_on_contradictory_flags,
+                        abort_on_contradictory_flags)
 // This is not really a flag, it affects the interpretation of the next flag but
 // doesn't become permanently true when specified. This only works for flags
 // defined in this file, but not for d8 flags defined in src/d8/d8.cc.

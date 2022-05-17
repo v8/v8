@@ -301,8 +301,14 @@ class TestCase(object):
     return self._create_cmd(shell, shell_flags + params, env, timeout)
 
   def _get_cmd_params(self):
-    """Gets command parameters and combines them in the following order:
+    """Gets all command parameters and combines them in the following order:
       - files [empty by default]
+      - all flags
+    """
+    return (self._get_files_params() + self.get_flags())
+
+  def get_flags(self):
+    """Gets all flags and combines them in the following order:
       - random seed
       - mode flags (based on chosen mode)
       - extra flags (from command line)
@@ -315,7 +321,6 @@ class TestCase(object):
     methods for getting partial parameters.
     """
     return (
-        self._get_files_params() +
         self._get_random_seed_flags() +
         self._get_mode_flags() +
         self._get_extra_flags() +
