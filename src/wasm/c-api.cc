@@ -2005,6 +2005,7 @@ auto Table::set(size_t index, const Ref* ref) -> bool {
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
   // TODO(7748): Generalize the condition if other table types are allowed.
+  // TODO(12868): Enforce type restrictions for stringref tables.
   if ((table->type() == i::wasm::kWasmFuncRef || table->type().has_index()) &&
       !obj->IsNull()) {
     obj = i::WasmInternalFunction::FromExternal(obj, isolate).ToHandleChecked();

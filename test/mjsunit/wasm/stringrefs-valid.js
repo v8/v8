@@ -35,8 +35,7 @@ for (let [name, code] of [['string', kWasmStringRef],
   assertValid(b => b.addArray(code, true));
   assertValid(b => b.addType(makeSig([], [code])));
   assertValid(b => b.addGlobal(code, true, default_init));
-  // TODO(wingo): Table of strings not yet implemented.
-  // assertValid(b => b.addTable(code, 0));
+  assertValid(b => b.addTable(code, 0));
   assertValid(b => b.addPassiveElementSegment([default_init], code));
   assertValid(b => b.addTag(makeSig([code], [])));
   assertValid(

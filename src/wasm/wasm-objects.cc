@@ -381,6 +381,10 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
 
   switch (table->type().heap_representation()) {
     case wasm::HeapType::kAny:
+    case wasm::HeapType::kString:
+    case wasm::HeapType::kStringViewWtf8:
+    case wasm::HeapType::kStringViewWtf16:
+    case wasm::HeapType::kStringViewIter:
       entries->set(entry_index, *entry);
       return;
     case wasm::HeapType::kFunc:
@@ -390,10 +394,6 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kI31:
-    case wasm::HeapType::kString:
-    case wasm::HeapType::kStringViewWtf8:
-    case wasm::HeapType::kStringViewWtf16:
-    case wasm::HeapType::kStringViewIter:
       // TODO(7748): Implement once we have struct/arrays/i31ref/string tables.
       UNREACHABLE();
     case wasm::HeapType::kBottom:
@@ -427,6 +427,10 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   switch (table->type().heap_representation()) {
     case wasm::HeapType::kAny:
+    case wasm::HeapType::kString:
+    case wasm::HeapType::kStringViewWtf8:
+    case wasm::HeapType::kStringViewWtf16:
+    case wasm::HeapType::kStringViewIter:
       return entry;
     case wasm::HeapType::kFunc:
       if (entry->IsWasmInternalFunction()) return entry;
@@ -2268,7 +2272,22 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
   DCHECK(expected.is_reference());
   switch (expected.kind()) {
     case kOptRef:
-      if (value->IsNull(isolate)) return true;
+      if (value->IsNull(isolate)) {
+        HeapType::Representation repr = expected.heap_representation();
+        switch (repr) {
+          case HeapType::kStringViewWtf8:
+            *error_message = "stringview_wtf8 has no JS representation";
+            return false;
+          case HeapType::kStringViewWtf16:
+            *error_message = "stringview_wtf16 has no JS representation";
+            return false;
+          case HeapType::kStringViewIter:
+            *error_message = "stringview_iter has no JS representation";
+            return false;
+          default:
+            return true;
+        }
+      }
       V8_FALLTHROUGH;
     case kRef: {
       HeapType::Representation repr = expected.heap_representation();
@@ -2316,6 +2335,19 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           }
           return true;
         }
+        case HeapType::kString:
+          if (value->IsString()) return true;
+          *error_message = "wrong type (expected a string)";
+          return false;
+        case HeapType::kStringViewWtf8:
+          *error_message = "stringview_wtf8 has no JS representation";
+          return false;
+        case HeapType::kStringViewWtf16:
+          *error_message = "stringview_wtf16 has no JS representation";
+          return false;
+        case HeapType::kStringViewIter:
+          *error_message = "stringview_iter has no JS representation";
+          return false;
         default:
           if (module == nullptr) {
             *error_message =

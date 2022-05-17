@@ -232,4 +232,129 @@ function assertInvalid(fn, message) {
   assertEquals('bar', instance.exports.get_stringref());
 })();
 
-// TODO(wingo): Test stringrefs in tables.
+(function TestDefinedTables() {
+  let kSig_w_v = makeSig([], [kWasmStringRef]);
+  let kSig_v_w = makeSig([kWasmStringRef], []);
+  let kSig_x_v = makeSig([], [kWasmStringViewWtf8]);
+  let kSig_y_v = makeSig([], [kWasmStringViewWtf16]);
+  let kSig_z_v = makeSig([], [kWasmStringViewIter]);
+  let builder = new WasmModuleBuilder();
+
+  builder.addTable(kWasmStringRef, 1).exportAs('w');
+  builder.addTable(kWasmStringViewWtf8, 1).exportAs('x');
+  builder.addTable(kWasmStringViewWtf16, 1).exportAs('y');
+  builder.addTable(kWasmStringViewIter, 1).exportAs('z');
+
+  builder.addFunction("get_stringref", kSig_w_v)
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprTableGet, 0,
+    ]);
+  builder.addFunction("set_stringref", kSig_v_w)
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprLocalGet, 0,
+      kExprTableSet, 0,
+    ]);
+
+  builder.addFunction("get_stringview_wtf8", kSig_x_v)
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprTableGet, 1,
+    ]);
+  builder.addFunction("get_stringview_wtf16", kSig_y_v)
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprTableGet, 2,
+    ]);
+  builder.addFunction("get_stringview_iter", kSig_z_v)
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprTableGet, 3,
+    ]);
+
+  let instance = builder.instantiate()
+
+  assertEquals(null, instance.exports.get_stringref());
+  instance.exports.set_stringref('foo');
+  assertEquals('foo', instance.exports.get_stringref());
+
+  assertEquals('foo', instance.exports.w.get(0));
+  instance.exports.w.set(0, 'bar');
+  assertEquals('bar', instance.exports.w.get(0));
+  assertEquals('bar', instance.exports.get_stringref());
+
+  assertThrows(()=>instance.exports.get_stringview_wtf8(),
+               TypeError, "type incompatibility when transforming from/to JS");
+  assertThrows(()=>instance.exports.get_stringview_wtf16(),
+               TypeError, "type incompatibility when transforming from/to JS");
+  assertThrows(()=>instance.exports.get_stringview_iter(),
+               TypeError, "type incompatibility when transforming from/to JS");
+
+  for (let [table, type] of [[instance.exports.x, 'stringview_wtf8'],
+                             [instance.exports.y, 'stringview_wtf16'],
+                             [instance.exports.z, 'stringview_iter']]) {
+    let unsupportedGetMessage =
+        `WebAssembly.Table.get(): ${type} has no JS representation`;
+    let unsupportedSetMessage =
+        'WebAssembly.Table.set(): Argument 1 is invalid for table of type '
+        + `${type}ref`;
+    assertThrows(()=>table.get(0), TypeError, unsupportedGetMessage);
+    assertThrows(()=>{table.set(0, null);}, TypeError, unsupportedSetMessage);
+  }
+})();
+
+(function TestImportedTables() {
+  for (let type of ['stringview_wtf8', 'stringview_wtf16',
+                    'stringview_iter']) {
+    let msg = "WebAssembly.Table(): Descriptor property 'element' must be" +
+        " a WebAssembly reference type";
+
+    assertThrows(()=>new WebAssembly.Table({ element: type, initial: 1 }),
+                 TypeError, msg);
+    assertThrows(()=>new WebAssembly.Table({ element: type, initial: 1 },
+                                            null),
+                 TypeError, msg);
+  }
+
+  assertThrows(()=>new WebAssembly.Table({ element: 'stringref', initial: 1 }),
+               TypeError,
+               "WebAssembly.Table(): " +
+               "Missing initial value when creating stringref table");
+
+  let kSig_w_v = makeSig([], [kWasmStringRef]);
+  let kSig_v_w = makeSig([kWasmStringRef], []);
+  let builder = new WasmModuleBuilder();
+  builder.addImportedTable('env', 't', 0, undefined, kWasmStringRef);
+  builder.addFunction("get_stringref", kSig_w_v)
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprTableGet, 0,
+    ]);
+  builder.addFunction("set_stringref", kSig_v_w)
+    .exportFunc()
+    .addBody([
+      kExprI32Const, 0,
+      kExprLocalGet, 0,
+      kExprTableSet, 0,
+    ]);
+
+  let t = new WebAssembly.Table({ element: 'stringref', initial: 1 },
+                                 null);
+  let instance = builder.instantiate({env: {t: t}})
+
+  assertEquals(null, instance.exports.get_stringref());
+  instance.exports.set_stringref('foo');
+  assertEquals('foo', instance.exports.get_stringref());
+
+  assertEquals('foo', t.get(0));
+  t.set(0, 'bar');
+  assertEquals('bar', t.get(0));
+  assertEquals('bar', instance.exports.get_stringref());
+})();

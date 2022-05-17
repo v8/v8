@@ -1164,6 +1164,9 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     } else if (string->StringEquals(v8_str(isolate, "externref"))) {
       // externref is known as anyref as of wasm-gc.
       type = i::wasm::kWasmAnyRef;
+    } else if (enabled_features.has_stringref() &&
+               string->StringEquals(v8_str(isolate, "stringref"))) {
+      type = i::wasm::kWasmStringRef;
     } else {
       thrower.TypeError(
           "Descriptor property 'element' must be a WebAssembly reference type");
@@ -1221,6 +1224,24 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
     for (uint32_t index = 0; index < static_cast<uint32_t>(initial); ++index) {
       i::WasmTableObject::Set(i_isolate, table_obj, index, element);
+    }
+  } else if (initial > 0) {
+    switch (table_obj->type().heap_representation()) {
+      case i::wasm::HeapType::kString:
+        thrower.TypeError(
+            "Missing initial value when creating stringref table");
+        return;
+      case i::wasm::HeapType::kStringViewWtf8:
+        thrower.TypeError("stringview_wtf8 has no JS representation");
+        return;
+      case i::wasm::HeapType::kStringViewWtf16:
+        thrower.TypeError("stringview_wtf16 has no JS representation");
+        return;
+      case i::wasm::HeapType::kStringViewIter:
+        thrower.TypeError("stringview_iter has no JS representation");
+        return;
+      default:
+        break;
     }
   }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
@@ -2069,6 +2090,19 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   if (!i::WasmTableObject::IsInBounds(i_isolate, receiver, index)) {
     thrower.RangeError("invalid index %u into function table", index);
+    return;
+  }
+
+  if (receiver->type() == i::wasm::kWasmStringViewWtf8) {
+    thrower.TypeError("stringview_wtf8 has no JS representation");
+    return;
+  }
+  if (receiver->type() == i::wasm::kWasmStringViewWtf16) {
+    thrower.TypeError("stringview_wtf16 has no JS representation");
+    return;
+  }
+  if (receiver->type() == i::wasm::kWasmStringViewIter) {
+    thrower.TypeError("stringview_iter has no JS representation");
     return;
   }
 
