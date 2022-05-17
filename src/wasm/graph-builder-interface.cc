@@ -127,8 +127,15 @@ class WasmGraphBuildingInterface {
       base::MutexGuard mutex_guard(&feedbacks.mutex);
       auto feedback = feedbacks.feedback_for_function.find(func_index_);
       if (feedback != feedbacks.feedback_for_function.end()) {
+        // This creates a copy of the vector, which is cheaper than holding on
+        // to the mutex throughout graph building.
         type_feedback_ = feedback->second.feedback_vector;
-        builder_->ReserveCallCounts(type_feedback_.size());
+        // Preallocate space for storing call counts to save Zone memory.
+        int total_calls = 0;
+        for (size_t i = 0; i < type_feedback_.size(); i++) {
+          total_calls += type_feedback_[i].num_cases();
+        }
+        builder_->ReserveCallCounts(static_cast<size_t>(total_calls));
         // We need to keep the feedback in the module to inline later. However,
         // this means we are stuck with it forever.
         // TODO(jkummerow): Reconsider our options here.
@@ -644,7 +651,8 @@ class WasmGraphBuildingInterface {
     int maybe_call_count = -1;
     if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
       const CallSiteFeedback& feedback = next_call_feedback();
-      maybe_call_count = feedback.absolute_call_frequency;
+      DCHECK_EQ(feedback.num_cases(), 1);
+      maybe_call_count = feedback.call_count(0);
     }
     DoCall(decoder, CallInfo::CallDirect(imm.index, maybe_call_count), imm.sig,
            args, returns);
@@ -656,7 +664,8 @@ class WasmGraphBuildingInterface {
     int maybe_call_count = -1;
     if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
       const CallSiteFeedback& feedback = next_call_feedback();
-      maybe_call_count = feedback.absolute_call_frequency;
+      DCHECK_EQ(feedback.num_cases(), 1);
+      maybe_call_count = feedback.call_count(0);
     }
     DoReturnCall(decoder, CallInfo::CallDirect(imm.index, maybe_call_count),
                  imm.sig, args);
@@ -683,14 +692,11 @@ class WasmGraphBuildingInterface {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
-    int maybe_feedback = -1;
-    int maybe_call_count = -1;
+    const CallSiteFeedback* feedback = nullptr;
     if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
-      const CallSiteFeedback& feedback = next_call_feedback();
-      maybe_feedback = feedback.function_index;
-      maybe_call_count = feedback.absolute_call_frequency;
+      feedback = &next_call_feedback();
     }
-    if (maybe_feedback == -1) {
+    if (feedback == nullptr || feedback->num_cases() == 0) {
       DoCall(decoder, CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)),
              sig, args, returns);
       return;
@@ -698,70 +704,80 @@ class WasmGraphBuildingInterface {
 
     // Check for equality against a function at a specific index, and if
     // successful, just emit a direct call.
-    DCHECK_GE(maybe_feedback, 0);
-    const uint32_t expected_function_index = maybe_feedback;
+    int num_cases = feedback->num_cases();
+    std::vector<TFNode*> control_args;
+    std::vector<TFNode*> effect_args;
+    std::vector<Value*> returns_values;
+    control_args.reserve(num_cases + 1);
+    effect_args.reserve(num_cases + 2);
+    returns_values.reserve(num_cases);
+    for (int i = 0; i < num_cases; i++) {
+      const uint32_t expected_function_index = feedback->function_index(i);
 
-    if (FLAG_trace_wasm_speculative_inlining) {
-      PrintF("[Function #%d call #%d: graph support for inlining target #%d]\n",
-             func_index_, feedback_instruction_index_ - 1,
-             expected_function_index);
+      if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function #%d call #%d: graph support for inlining #%d]\n",
+               func_index_, feedback_instruction_index_ - 1,
+               expected_function_index);
+      }
+
+      TFNode* success_control;
+      TFNode* failure_control;
+      builder_->CompareToInternalFunctionAtIndex(
+          func_ref.node, expected_function_index, &success_control,
+          &failure_control, i == num_cases - 1);
+      TFNode* initial_effect = effect();
+
+      builder_->SetControl(success_control);
+      ssa_env_->control = success_control;
+      Value* returns_direct =
+          decoder->zone()->NewArray<Value>(sig->return_count());
+      DoCall(decoder,
+             CallInfo::CallDirect(expected_function_index,
+                                  feedback->call_count(i)),
+             decoder->module_->signature(sig_index), args, returns_direct);
+      control_args.push_back(control());
+      effect_args.push_back(effect());
+      returns_values.push_back(returns_direct);
+
+      builder_->SetEffectControl(initial_effect, failure_control);
+      ssa_env_->effect = initial_effect;
+      ssa_env_->control = failure_control;
     }
-
-    TFNode* success_control;
-    TFNode* failure_control;
-    builder_->CompareToInternalFunctionAtIndex(
-        func_ref.node, expected_function_index, &success_control,
-        &failure_control);
-    TFNode* initial_effect = effect();
-
-    builder_->SetControl(success_control);
-    ssa_env_->control = success_control;
-    Value* returns_direct =
-        decoder->zone()->NewArray<Value>(sig->return_count());
-    DoCall(decoder,
-           CallInfo::CallDirect(expected_function_index, maybe_call_count),
-           decoder->module_->signature(sig_index), args, returns_direct);
-    TFNode* control_direct = control();
-    TFNode* effect_direct = effect();
-
-    builder_->SetEffectControl(initial_effect, failure_control);
-    ssa_env_->effect = initial_effect;
-    ssa_env_->control = failure_control;
     Value* returns_ref = decoder->zone()->NewArray<Value>(sig->return_count());
     DoCall(decoder, CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)),
            sig, args, returns_ref);
 
-    TFNode* control_ref = control();
-    TFNode* effect_ref = effect();
+    control_args.push_back(control());
+    TFNode* control = builder_->Merge(num_cases + 1, control_args.data());
 
-    TFNode* control_args[] = {control_direct, control_ref};
-    TFNode* control = builder_->Merge(2, control_args);
-
-    TFNode* effect_args[] = {effect_direct, effect_ref, control};
-    TFNode* effect = builder_->EffectPhi(2, effect_args);
+    effect_args.push_back(effect());
+    effect_args.push_back(control);
+    TFNode* effect = builder_->EffectPhi(num_cases + 1, effect_args.data());
 
     ssa_env_->control = control;
     ssa_env_->effect = effect;
     builder_->SetEffectControl(effect, control);
 
     for (uint32_t i = 0; i < sig->return_count(); i++) {
-      TFNode* phi_args[] = {returns_direct[i].node, returns_ref[i].node,
-                            control};
-      returns[i].node = builder_->Phi(sig->GetReturn(i), 2, phi_args);
+      std::vector<TFNode*> phi_args;
+      for (int j = 0; j < num_cases; j++) {
+        phi_args.push_back(returns_values[j][i].node);
+      }
+      phi_args.push_back(returns_ref[i].node);
+      phi_args.push_back(control);
+      returns[i].node =
+          builder_->Phi(sig->GetReturn(i), num_cases + 1, phi_args.data());
     }
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
-    int maybe_feedback = -1;
-    int maybe_call_count = -1;
+    const CallSiteFeedback* feedback = nullptr;
     if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
-      const CallSiteFeedback& feedback = next_call_feedback();
-      maybe_feedback = feedback.function_index;
-      maybe_call_count = feedback.absolute_call_frequency;
+      feedback = &next_call_feedback();
     }
-    if (maybe_feedback == -1) {
+    if (feedback == nullptr || feedback->num_cases() == 0) {
       DoReturnCall(decoder,
                    CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)),
                    sig, args);
@@ -770,32 +786,35 @@ class WasmGraphBuildingInterface {
 
     // Check for equality against a function at a specific index, and if
     // successful, just emit a direct call.
-    DCHECK_GE(maybe_feedback, 0);
-    const uint32_t expected_function_index = maybe_feedback;
+    int num_cases = feedback->num_cases();
+    for (int i = 0; i < num_cases; i++) {
+      const uint32_t expected_function_index = feedback->function_index(i);
 
-    if (FLAG_trace_wasm_speculative_inlining) {
-      PrintF("[Function #%d call #%d: graph support for inlining target #%d]\n",
-             func_index_, feedback_instruction_index_ - 1,
-             expected_function_index);
+      if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function #%d call #%d: graph support for inlining #%d]\n",
+               func_index_, feedback_instruction_index_ - 1,
+               expected_function_index);
+      }
+
+      TFNode* success_control;
+      TFNode* failure_control;
+      builder_->CompareToInternalFunctionAtIndex(
+          func_ref.node, expected_function_index, &success_control,
+          &failure_control, i == num_cases - 1);
+      TFNode* initial_effect = effect();
+
+      builder_->SetControl(success_control);
+      ssa_env_->control = success_control;
+      DoReturnCall(decoder,
+                   CallInfo::CallDirect(expected_function_index,
+                                        feedback->call_count(i)),
+                   sig, args);
+
+      builder_->SetEffectControl(initial_effect, failure_control);
+      ssa_env_->effect = initial_effect;
+      ssa_env_->control = failure_control;
     }
 
-    TFNode* success_control;
-    TFNode* failure_control;
-    builder_->CompareToInternalFunctionAtIndex(
-        func_ref.node, expected_function_index, &success_control,
-        &failure_control);
-    TFNode* initial_effect = effect();
-
-    builder_->SetControl(success_control);
-    ssa_env_->control = success_control;
-    DoReturnCall(
-        decoder,
-        CallInfo::CallDirect(expected_function_index, maybe_call_count), sig,
-        args);
-
-    builder_->SetEffectControl(initial_effect, failure_control);
-    ssa_env_->effect = initial_effect;
-    ssa_env_->control = failure_control;
     DoReturnCall(decoder,
                  CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)), sig,
                  args);
@@ -1464,7 +1483,7 @@ class WasmGraphBuildingInterface {
   std::vector<compiler::WasmLoopInfo> loop_infos_;
   InlinedStatus inlined_status_;
   // The entries in {type_feedback_} are indexed by the position of feedback-
-  // consuming instructions (currently only call_ref).
+  // consuming instructions (currently only calls).
   int feedback_instruction_index_ = 0;
   std::vector<CallSiteFeedback> type_feedback_;
 

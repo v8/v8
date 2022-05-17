@@ -2962,9 +2962,11 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
   return call;
 }
 
-void WasmGraphBuilder::CompareToInternalFunctionAtIndex(
-    Node* func_ref, uint32_t function_index, Node** success_control,
-    Node** failure_control) {
+void WasmGraphBuilder::CompareToInternalFunctionAtIndex(Node* func_ref,
+                                                        uint32_t function_index,
+                                                        Node** success_control,
+                                                        Node** failure_control,
+                                                        bool is_last_case) {
   // Since we are comparing to a function reference, it is guaranteed that
   // instance->wasm_internal_functions() has been initialized.
   Node* internal_functions = gasm_->LoadImmutable(
@@ -2974,8 +2976,9 @@ void WasmGraphBuilder::CompareToInternalFunctionAtIndex(
   Node* function_ref_at_index = gasm_->LoadFixedArrayElement(
       internal_functions, gasm_->IntPtrConstant(function_index),
       MachineType::AnyTagged());
+  BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
   gasm_->Branch(gasm_->TaggedEqual(function_ref_at_index, func_ref),
-                success_control, failure_control, BranchHint::kTrue);
+                success_control, failure_control, hint);
 }
 
 Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* real_sig,

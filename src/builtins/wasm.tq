@@ -52,6 +52,8 @@ const kAnyTableType: constexpr int31
     generates 'wasm::kWasmAnyRef.raw_bit_field()';
 const kAnyNonNullTableType: constexpr int31
     generates 'wasm::kWasmAnyNonNullableRef.raw_bit_field()';
+const kMaxPolymorphism:
+    constexpr int31 generates 'wasm::kMaxPolymorphism';
 
 extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
 
@@ -496,7 +498,7 @@ macro GetTargetAndInstance(funcref: WasmInternalFunction): TargetAndInstance {
 // - monomorphic: (funcref, count (smi)). The second slot is a counter for how
 //   often the funcref in the first slot has been seen.
 // - polymorphic: (fixed_array, <unused>). In this case, the array
-//   contains 2..4 pairs (funcref, count (smi)) (like monomorphic data).
+//   contains 2..kMaxPolymorphism pairs (funcref, count (smi))
 // - megamorphic: ("megamorphic" sentinel, <unused>)
 //
 // TODO(rstz): The counter might overflow if it exceeds the range of a Smi.
@@ -533,7 +535,8 @@ builtin CallRefIC(
   } else if (Is<FixedArray>(value)) {
     // Polymorphic miss.
     const entries = UnsafeCast<FixedArray>(value);
-    if (entries.length == SmiConstant(8)) {  // 4 entries, 2 slots each.
+    const kMaxSlots = kMaxPolymorphism * 2;  // 2 slots per entry.
+    if (entries.length == SmiConstant(kMaxSlots)) {
       vector.objects[index] = ic::kMegamorphicSymbol;
       vector.objects[index + 1] = ic::kMegamorphicSymbol;
     } else {

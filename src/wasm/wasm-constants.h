@@ -186,6 +186,9 @@ constexpr uint32_t kGenericWrapperBudget = 1000;
 // gives up some module size for faster access to the supertypes.
 constexpr uint32_t kMinimumSupertypeArraySize = 3;
 
+// Maximum number of call targets tracked per call.
+constexpr int kMaxPolymorphism = 4;
+
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 5 * kSystemPointerSize;
 #endif

@@ -371,7 +371,8 @@ class WasmGraphBuilder {
 
   void CompareToInternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
                                         Node** success_control,
-                                        Node** failure_control);
+                                        Node** failure_control,
+                                        bool is_last_case);
 
   void BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
 

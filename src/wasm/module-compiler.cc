@@ -1284,20 +1284,21 @@ class TransitiveTypeFeedbackProcessor {
  private:
   void Process(int func_index);
 
-  void EnqueueCallees(std::vector<CallSiteFeedback> feedback) {
+  void EnqueueCallees(const std::vector<CallSiteFeedback>& feedback) {
     for (size_t i = 0; i < feedback.size(); i++) {
-      int func = feedback[i].function_index;
-      // Nothing to do for non-inlineable (e.g. megamorphic) calls.
-      if (func == -1) continue;
-      // Don't spend time on calls that have never been executed.
-      if (feedback[i].absolute_call_frequency == 0) continue;
-      // Don't recompute feedback that has already been processed.
-      auto existing = feedback_for_function_.find(func);
-      if (existing != feedback_for_function_.end() &&
-          existing->second.feedback_vector.size() > 0) {
-        continue;
+      const CallSiteFeedback& csf = feedback[i];
+      for (int j = 0; j < csf.num_cases(); j++) {
+        int func = csf.function_index(j);
+        // Don't spend time on calls that have never been executed.
+        if (csf.call_count(j) == 0) continue;
+        // Don't recompute feedback that has already been processed.
+        auto existing = feedback_for_function_.find(func);
+        if (existing != feedback_for_function_.end() &&
+            existing->second.feedback_vector.size() > 0) {
+          continue;
+        }
+        queue_.insert(func);
       }
-      queue_.insert(func);
     }
   }
 
@@ -1306,111 +1307,127 @@ class TransitiveTypeFeedbackProcessor {
   std::unordered_set<int> queue_;
 };
 
+class FeedbackMaker {
+ public:
+  FeedbackMaker(WasmInstanceObject instance, int func_index_, int num_calls)
+      : instance_(instance),
+        num_imported_functions_(
+            static_cast<int>(instance.module()->num_imported_functions)),
+        targets_cache_(kMaxPolymorphism),
+        counts_cache_(kMaxPolymorphism) {
+    result_.reserve(num_calls);
+  }
+
+  void AddCandidate(Object maybe_function, int count) {
+    if (!maybe_function.IsWasmInternalFunction()) return;
+    WasmInternalFunction function = WasmInternalFunction::cast(maybe_function);
+    if (!WasmExportedFunction::IsWasmExportedFunction(function.external())) {
+      return;
+    }
+    WasmExportedFunction target =
+        WasmExportedFunction::cast(function.external());
+    if (target.instance() != instance_) return;
+    if (target.function_index() < num_imported_functions_) return;
+    AddCall(target.function_index(), count);
+  }
+
+  void AddCall(int target, int count) {
+    // Keep the cache sorted (using insertion-sort), highest count first.
+    int insertion_index = 0;
+    while (insertion_index < cache_usage_ &&
+           counts_cache_[insertion_index] >= count) {
+      insertion_index++;
+    }
+    for (int shifted_index = cache_usage_ - 1; shifted_index >= insertion_index;
+         shifted_index--) {
+      targets_cache_[shifted_index + 1] = targets_cache_[shifted_index];
+      counts_cache_[shifted_index + 1] = counts_cache_[shifted_index];
+    }
+    targets_cache_[insertion_index] = target;
+    counts_cache_[insertion_index] = count;
+    cache_usage_++;
+  }
+
+  void FinalizeCall() {
+    if (cache_usage_ == 0) {
+      result_.emplace_back();
+    } else if (cache_usage_ == 1) {
+      if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function #%d call_ref #%zu inlineable (monomorphic)]\n",
+               func_index_, result_.size());
+      }
+      result_.emplace_back(targets_cache_[0], counts_cache_[0]);
+    } else {
+      if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function #%d call_ref #%zu inlineable (polymorphic %d)]\n",
+               func_index_, result_.size(), cache_usage_);
+      }
+      CallSiteFeedback::PolymorphicCase* polymorphic =
+          new CallSiteFeedback::PolymorphicCase[cache_usage_];
+      for (int i = 0; i < cache_usage_; i++) {
+        polymorphic[i].function_index = targets_cache_[i];
+        polymorphic[i].absolute_call_frequency = counts_cache_[i];
+      }
+      result_.emplace_back(polymorphic, cache_usage_);
+    }
+    cache_usage_ = 0;
+  }
+
+  std::vector<CallSiteFeedback>&& GetResult() { return std::move(result_); }
+
+ private:
+  WasmInstanceObject instance_;
+  std::vector<CallSiteFeedback> result_;
+  int num_imported_functions_;
+  int func_index_;
+  int cache_usage_{0};
+  std::vector<int> targets_cache_;
+  std::vector<int> counts_cache_;
+};
+
 void TransitiveTypeFeedbackProcessor::Process(int func_index) {
   int which_vector = declared_function_index(instance_->module(), func_index);
   Object maybe_feedback = instance_->feedback_vectors().get(which_vector);
   if (!maybe_feedback.IsFixedArray()) return;
   FixedArray feedback = FixedArray::cast(maybe_feedback);
-  std::vector<CallSiteFeedback> result(feedback.length() / 2);
-  int imported_functions =
-      static_cast<int>(instance_->module()->num_imported_functions);
   WasmModuleObject module_object = instance_->module_object();
   const NativeModule* native_module = module_object.native_module();
   const WasmModule* module = native_module->module();
   const std::vector<uint32_t>& call_direct_targets(
       module->type_feedback.feedback_for_function[func_index].call_targets);
+  FeedbackMaker fm(*instance_, func_index, feedback.length() / 2);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);
-    if (value.IsWasmInternalFunction() &&
-        WasmExportedFunction::IsWasmExportedFunction(
-            WasmInternalFunction::cast(value).external())) {
-      // Monomorphic, and the internal function points to a wasm-generated
-      // external function (WasmExportedFunction). Mark the target for inlining
-      // if it's defined in the same module.
-      WasmExportedFunction target = WasmExportedFunction::cast(
-          WasmInternalFunction::cast(value).external());
-      if (target.instance() == *instance_ &&
-          target.function_index() >= imported_functions) {
-        if (FLAG_trace_wasm_speculative_inlining) {
-          PrintF("[Function #%d call_ref #%d inlineable (monomorphic)]\n",
-                 func_index, i / 2);
-        }
-        int32_t count = Smi::cast(feedback.get(i + 1)).value();
-        result[i / 2] = {target.function_index(), count};
-        continue;
-      }
+    if (value.IsWasmInternalFunction()) {
+      // Monomorphic.
+      int count = Smi::cast(feedback.get(i + 1)).value();
+      fm.AddCandidate(value, count);
     } else if (value.IsFixedArray()) {
-      // Polymorphic. Pick a target for inlining if there is one that was
-      // seen for most calls, and matches the requirements of the monomorphic
-      // case.
+      // Polymorphic.
       FixedArray polymorphic = FixedArray::cast(value);
-      size_t total_count = 0;
       for (int j = 0; j < polymorphic.length(); j += 2) {
-        total_count += Smi::cast(polymorphic.get(j + 1)).value();
-      }
-      int found_target = -1;
-      int found_count = -1;
-      double best_frequency = 0;
-      for (int j = 0; j < polymorphic.length(); j += 2) {
-        int32_t this_count = Smi::cast(polymorphic.get(j + 1)).value();
-        double frequency = static_cast<double>(this_count) / total_count;
-        if (frequency > best_frequency) best_frequency = frequency;
-        if (frequency < 0.8) continue;
-
-        // We reject this polymorphic entry if:
-        // - it is not defined,
-        // - it is not a wasm-defined function (WasmExportedFunction)
-        // - it was not defined in this module.
-        if (!polymorphic.get(j).IsWasmInternalFunction()) continue;
-        WasmInternalFunction internal =
-            WasmInternalFunction::cast(polymorphic.get(j));
-        if (!WasmExportedFunction::IsWasmExportedFunction(
-                internal.external())) {
-          continue;
-        }
-        WasmExportedFunction target =
-            WasmExportedFunction::cast(internal.external());
-        if (target.instance() != *instance_ ||
-            target.function_index() < imported_functions) {
-          continue;
-        }
-
-        found_target = target.function_index();
-        found_count = static_cast<int>(this_count);
-        if (FLAG_trace_wasm_speculative_inlining) {
-          PrintF("[Function #%d call_ref #%d inlineable (polymorphic %f)]\n",
-                 func_index, i / 2, frequency);
-        }
-        break;
-      }
-      if (found_target >= 0) {
-        result[i / 2] = {found_target, found_count};
-        continue;
-      } else if (FLAG_trace_wasm_speculative_inlining) {
-        PrintF("[Function #%d call_ref #%d: best frequency %f]\n", func_index,
-               i / 2, best_frequency);
+        Object function = polymorphic.get(j);
+        int count = Smi::cast(polymorphic.get(j + 1)).value();
+        fm.AddCandidate(function, count);
       }
     } else if (value.IsSmi()) {
       // Uninitialized, or a direct call collecting call count.
       uint32_t target = call_direct_targets[i / 2];
       if (target != FunctionTypeFeedback::kNonDirectCall) {
         int count = Smi::cast(value).value();
-        if (FLAG_trace_wasm_speculative_inlining) {
-          PrintF("[Function #%d call_direct #%d: frequency %d]\n", func_index,
-                 i / 2, count);
-        }
-        result[i / 2] = {static_cast<int>(target), count};
-        continue;
+        fm.AddCall(static_cast<int>(target), count);
+      } else if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function #%d call #%d: uninitialized]\n", func_index, i / 2);
+      }
+    } else if (FLAG_trace_wasm_speculative_inlining) {
+      if (value ==
+          ReadOnlyRoots(instance_->GetIsolate()).megamorphic_symbol()) {
+        PrintF("[Function #%d call #%d: megamorphic]\n", func_index, i / 2);
       }
     }
-    // If we fall through to here, then this call isn't eligible for inlining.
-    // Possible reasons: uninitialized or megamorphic feedback; or monomorphic
-    // or polymorphic that didn't meet our requirements.
-    if (FLAG_trace_wasm_speculative_inlining) {
-      PrintF("[Function #%d call #%d *not* inlineable]\n", func_index, i / 2);
-    }
-    result[i / 2] = {-1, -1};
+    fm.FinalizeCall();
   }
+  std::vector<CallSiteFeedback> result(fm.GetResult());
   EnqueueCallees(result);
   feedback_for_function_[func_index].feedback_vector = std::move(result);
 }

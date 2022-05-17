@@ -399,9 +399,79 @@ struct V8_EXPORT_PRIVATE WasmDebugSymbols {
   WireBytesRef external_url;
 };
 
-struct CallSiteFeedback {
-  int function_index;
-  int absolute_call_frequency;
+class CallSiteFeedback {
+ public:
+  struct PolymorphicCase {
+    int function_index;
+    int absolute_call_frequency;
+  };
+
+  // Regular constructor: uninitialized/unknown, monomorphic, or polymorphic.
+  CallSiteFeedback() : index_or_count_(-1), frequency_or_ool_(0) {}
+  CallSiteFeedback(int function_index, int call_count)
+      : index_or_count_(function_index), frequency_or_ool_(call_count) {}
+  CallSiteFeedback(PolymorphicCase* polymorphic_cases, int num_cases)
+      : index_or_count_(-num_cases),
+        frequency_or_ool_(reinterpret_cast<intptr_t>(polymorphic_cases)) {}
+
+  // Copying and assignment: prefer moving, as it's cheaper.
+  // The code below makes sure external polymorphic storage is copied and/or
+  // freed as appropriate.
+  CallSiteFeedback(const CallSiteFeedback& other) V8_NOEXCEPT { *this = other; }
+  CallSiteFeedback(CallSiteFeedback&& other) V8_NOEXCEPT { *this = other; }
+  CallSiteFeedback& operator=(const CallSiteFeedback& other) V8_NOEXCEPT {
+    index_or_count_ = other.index_or_count_;
+    if (other.is_polymorphic()) {
+      int num_cases = other.num_cases();
+      PolymorphicCase* polymorphic = new PolymorphicCase[num_cases];
+      for (int i = 0; i < num_cases; i++) {
+        polymorphic[i].function_index = other.function_index(i);
+        polymorphic[i].absolute_call_frequency = other.call_count(i);
+      }
+      frequency_or_ool_ = reinterpret_cast<intptr_t>(polymorphic);
+    } else {
+      frequency_or_ool_ = other.frequency_or_ool_;
+    }
+    return *this;
+  }
+  CallSiteFeedback& operator=(CallSiteFeedback&& other) V8_NOEXCEPT {
+    if (this != &other) {
+      index_or_count_ = other.index_or_count_;
+      frequency_or_ool_ = other.frequency_or_ool_;
+      other.frequency_or_ool_ = 0;
+    }
+    return *this;
+  }
+
+  ~CallSiteFeedback() {
+    if (is_polymorphic()) delete[] polymorphic_storage();
+  }
+
+  int num_cases() const {
+    if (is_monomorphic()) return 1;
+    if (is_invalid()) return 0;
+    return -index_or_count_;
+  }
+  int function_index(int i) const {
+    DCHECK(!is_invalid());
+    if (is_monomorphic()) return index_or_count_;
+    return polymorphic_storage()[i].function_index;
+  }
+  int call_count(int i) const {
+    if (index_or_count_ >= 0) return static_cast<int>(frequency_or_ool_);
+    return polymorphic_storage()[i].absolute_call_frequency;
+  }
+
+ private:
+  bool is_monomorphic() const { return index_or_count_ >= 0; }
+  bool is_polymorphic() const { return index_or_count_ <= -2; }
+  bool is_invalid() const { return index_or_count_ == -1; }
+  const PolymorphicCase* polymorphic_storage() const {
+    return reinterpret_cast<PolymorphicCase*>(frequency_or_ool_);
+  }
+
+  int index_or_count_;
+  intptr_t frequency_or_ool_;
 };
 struct FunctionTypeFeedback {
   std::vector<CallSiteFeedback> feedback_vector;

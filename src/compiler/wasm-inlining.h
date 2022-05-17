@@ -58,8 +58,8 @@ class WasmInliner final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
   void Finalize() final;
 
-  static bool graph_size_allows_inlining(size_t initial_graph_size) {
-    return initial_graph_size < 5000;
+  static bool graph_size_allows_inlining(size_t graph_size) {
+    return graph_size < FLAG_wasm_inlining_budget;
   }
 
  private:

@@ -94,11 +94,12 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 }
 
 bool SmallEnoughToInline(size_t current_graph_size, uint32_t candidate_size) {
-  if (WasmInliner::graph_size_allows_inlining(current_graph_size)) {
+  if (WasmInliner::graph_size_allows_inlining(current_graph_size +
+                                              candidate_size)) {
     return true;
   }
   // For truly tiny functions, let's be a bit more generous.
-  return candidate_size < 10 &&
+  return candidate_size <= 12 &&
          WasmInliner::graph_size_allows_inlining(current_graph_size - 100);
 }
 
