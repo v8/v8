@@ -232,6 +232,7 @@ void WasmGraphBuilder::TerminateThrow(Node* effect, Node* control) {
   Node* terminate =
       graph()->NewNode(mcgraph()->common()->Throw(), effect, control);
   gasm_->MergeControlToEnd(terminate);
+  gasm_->InitializeEffectControl(nullptr, nullptr);
 }
 
 bool WasmGraphBuilder::IsPhiWithMerge(Node* phi, Node* merge) {
@@ -6050,6 +6051,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             } else {
               return BuildAllocateObjectWrapper(node, context);
             }
+          case wasm::HeapType::kString:
+            // Either {node} is already a tagged JS string, or if type.kind() is
+            // wasm::kOptRef, it's the null object.  Either way it's good to go
+            // already to JS.
+            return node;
           case wasm::HeapType::kAny: {
             if (!enabled_features_.has_gc()) return node;
             // Wrap {node} in object wrapper if it is an array/struct.
@@ -6227,6 +6233,25 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                      type_check.merge);
   }
 
+  Node* BuildCheckString(Node* input, Node* js_context, wasm::ValueType type) {
+    auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
+    auto type_error = gasm_->MakeLabel();
+    gasm_->GotoIf(IsSmi(input), &type_error, BranchHint::kFalse);
+    if (type.is_nullable()) gasm_->GotoIf(IsNull(input), &done, input);
+    Node* map = gasm_->LoadMap(input);
+    Node* instance_type = gasm_->LoadInstanceType(map);
+    Node* check = gasm_->Uint32LessThan(
+        instance_type, gasm_->Uint32Constant(FIRST_NONSTRING_TYPE));
+    gasm_->GotoIf(check, &done, BranchHint::kTrue, input);
+    gasm_->Goto(&type_error);
+    gasm_->Bind(&type_error);
+    BuildCallToRuntimeWithContext(Runtime::kWasmThrowJSTypeError, js_context,
+                                  nullptr, 0);
+    TerminateThrow(effect(), control());
+    gasm_->Bind(&done);
+    return done.PhiAt(0);
+  }
+
   Node* FromJS(Node* input, Node* js_context, wasm::ValueType type,
                Node* frame_state = nullptr) {
     switch (type.kind()) {
@@ -6262,6 +6287,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             // anyway).
             return BuildUnpackObjectWrapper(input, js_context,
                                             kLeaveFunctionsAlone);
+          case wasm::HeapType::kString:
+            return BuildCheckString(input, js_context, type);
           default:
             if (module_->has_signature(type.ref_index())) {
               BuildCheckValidRefValue(input, js_context, type);
