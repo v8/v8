@@ -102,10 +102,6 @@ class V8_EXPORT_PRIVATE GCTracer {
     static constexpr int IncrementalOffset(ScopeId id);
 
    private:
-#if DEBUG
-    void AssertMainThread();
-#endif  // DEBUG
-
     GCTracer* const tracer_;
     const ScopeId scope_;
     const ThreadKind thread_kind_;

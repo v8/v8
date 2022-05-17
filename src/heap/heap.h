@@ -893,7 +893,15 @@ class Heap {
 
   inline ConcurrentAllocator* concurrent_allocator_for_maps();
 
-  inline Isolate* isolate();
+  inline Isolate* isolate() const;
+
+#ifdef DEBUG
+  // Check if we run on isolate's main thread.
+  inline bool IsMainThread() const;
+  // Check if we run on the current main thread of the shared isolate during
+  // shared GC.
+  inline bool IsSharedMainThread() const;
+#endif
 
   MarkCompactCollector* mark_compact_collector() {
     return mark_compact_collector_.get();

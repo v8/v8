@@ -45,19 +45,6 @@ CollectionEpoch next_epoch() {
 }
 }  // namespace
 
-#if DEBUG
-void GCTracer::Scope::AssertMainThread() {
-  Isolate* isolate = tracer_->heap_->isolate();
-  Isolate* shared_isolate = isolate->shared_isolate();
-  ThreadId thread_id = ThreadId::Current();
-
-  // Either run on isolate's main thread or on the current main thread of the
-  // shared isolate during shared GCs.
-  DCHECK(isolate->thread_id() == thread_id ||
-         (shared_isolate && shared_isolate->thread_id() == thread_id));
-}
-#endif  // DEBUG
-
 GCTracer::Event::Event(Type type, State state,
                        GarbageCollectionReason gc_reason,
                        const char* collector_reason)
