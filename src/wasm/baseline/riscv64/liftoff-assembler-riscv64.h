@@ -2167,7 +2167,7 @@ void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
   vsmul_vv(dst.fp().toV(), src1.fp().toV(), src2.fp().toV());
 }
 
-void LiftoffAssembler::emit_relaxed_i16x8_q15mulr_s(LiftoffRegister dst,
+void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2) {
   VU.set(kScratchReg, E16, m1);
