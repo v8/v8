@@ -441,7 +441,7 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'shards': 4},
     ],
   },
   'v8_linux64_msan_rel_ng_triggered': {
