@@ -507,6 +507,7 @@ def ci_pair_factory(func):
             "properties",
             "experiments",
             "close_tree",
+            "first_branch_version",
         ]
 
         tester_excluded_properties = [

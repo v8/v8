@@ -172,7 +172,7 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux64_heap_sandbox_dbg",
-    cq_properties = CQ.OPTIONAL,
+    cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )

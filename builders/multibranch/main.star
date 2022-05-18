@@ -29,6 +29,13 @@ in_category(
         close_tree = False,
     ),
     main_multibranch_builder_pair(
+        name = "V8 Linux64 - heap sandbox - debug",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8"},
+        use_goma = GOMA.DEFAULT,
+        first_branch_version = "10.4",
+    ),
+    main_multibranch_builder_pair(
         name = "V8 Linux - shared",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "libv8.so"}},
@@ -39,7 +46,6 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"track_build_dependencies": True, "binary_size_tracking": {"category": "linux64_no_wasm", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
-        first_branch_version = "9.2",
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - noi18n - debug",
@@ -133,7 +139,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Fuchsia",
         parent_builder = "V8 Fuchsia - builder",
-        first_branch_version = "9.3",
         close_tree = False,
     ),
     main_multibranch_builder(
@@ -284,6 +289,5 @@ in_category(
         name = "V8 Test Tools",
         executable = "recipe:v8/test_tools",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        first_branch_version = "9.5",
     ),
 )

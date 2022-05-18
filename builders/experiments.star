@@ -203,19 +203,6 @@ in_category(
             "cq_base": "v8_linux_arm64_sim_heap_sandbox_dbg",
         },
     ),
-    experiment_builder_pair(
-        name = "V8 Linux64 - heap sandbox - debug",
-        bucket = "ci",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8"},
-        use_goma = GOMA.DEFAULT,
-        to_notify = [
-            "saelo@chromium.org",
-            "v8-waterfall-sheriff@grotations.appspotmail.com",
-            "mtv-sf-v8-sheriff@grotations.appspotmail.com",
-        ],
-    ),
 )
 
 in_category(
