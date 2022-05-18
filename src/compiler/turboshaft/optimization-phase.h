@@ -149,6 +149,7 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
         const Operation& op = *it;
         OpIndex index = it.Index();
         OpIndex first_output_index = assembler.graph().next_operation_index();
+        USE(first_output_index);
         if constexpr (trace_reduction) TraceReductionStart(index);
         if (!analyzer.OpIsUsed(index)) {
           if constexpr (trace_reduction) TraceOperationUnused();
