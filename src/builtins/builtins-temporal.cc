@@ -275,12 +275,6 @@ TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToJSON)
 /* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToPlainDate)
 
-/* Temporal.TimeZone */
-/* Temporal #sec-temporal.timezone.prototype.getoffsetnanosecondsfor */
-TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetNanosecondsFor)
-/* Temporal #sec-temporal.timezone.prototype.getoffsetstringfor */
-TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetOffsetStringFor)
-
 /* Temporal.Calendar */
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
@@ -801,8 +795,15 @@ BUILTIN(TemporalCalendarFrom) {
 // TimeZone
 TEMPORAL_CONSTRUCTOR1(TimeZone)
 TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetInstantFor, getInstantFor)
+TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetNextTransition, getNextTransition)
+TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetOffsetNanosecondsFor,
+                           getOffsetNanosecondsFor)
+TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetOffsetStringFor, getOffsetStringFor)
+TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetPlainDateTimeFor, getPlainDateTimeFor)
 TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPossibleInstantsFor,
                            getPossibleInstantFor)
+TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPreviousTransition,
+                           getPreviousTransition)
 
 // #sec-get-temporal.timezone.prototype.id
 BUILTIN(TemporalTimeZonePrototypeId) {
@@ -841,10 +842,6 @@ BUILTIN(TemporalTimeZonePrototypeToString) {
       isolate, JSTemporalTimeZone::ToString(isolate, time_zone, method_name));
 }
 
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetNextTransition, getNextTransition)
-TEMPORAL_PROTOTYPE_METHOD2(TimeZone, GetPlainDateTimeFor, getPlainDateTimeFor)
-TEMPORAL_PROTOTYPE_METHOD1(TimeZone, GetPreviousTransition,
-                           getPreviousTransition)
 // #sec-temporal.timezone.from
 BUILTIN(TemporalTimeZoneFrom) {
   HandleScope scope(isolate);

@@ -437,6 +437,16 @@ class JSTemporalTimeZone
       Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
       Handle<Object> date_time);
 
+  // #sec-temporal.timezone.prototype.getoffsetnanosecondsfor
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetOffsetNanosecondsFor(
+      Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+      Handle<Object> instance);
+
+  // #sec-temporal.timezone.prototype.getoffsetstringfor
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> GetOffsetStringFor(
+      Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+      Handle<Object> instance);
+
   // #sec-temporal.timezone.prototype.tostring
   static MaybeHandle<Object> ToString(Isolate* isolate,
                                       Handle<JSTemporalTimeZone> time_zone,

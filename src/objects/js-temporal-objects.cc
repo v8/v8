@@ -3011,18 +3011,18 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
     // a. Assert: sign is not undefined.
     DCHECK(!parsed->tzuo_sign_is_undefined());
     // b. Set hours to ! ToIntegerOrInfinity(hours).
-    int32_t hours = parsed->tzuo_hour;
+    int64_t hours = parsed->tzuo_hour;
     // c. If sign is the code unit 0x002D (HYPHEN-MINUS) or the code unit 0x2212
     // (MINUS SIGN), then i. Set sign to −1. d. Else, i. Set sign to 1.
-    int32_t sign = parsed->tzuo_sign;
+    int64_t sign = parsed->tzuo_sign;
     // e. Set minutes to ! ToIntegerOrInfinity(minutes).
-    int32_t minutes =
+    int64_t minutes =
         parsed->tzuo_minute_is_undefined() ? 0 : parsed->tzuo_minute;
     // f. Set seconds to ! ToIntegerOrInfinity(seconds).
-    int32_t seconds =
+    int64_t seconds =
         parsed->tzuo_second_is_undefined() ? 0 : parsed->tzuo_second;
     // g. If fraction is not undefined, then
-    int32_t nanoseconds;
+    int64_t nanoseconds;
     if (!parsed->tzuo_nanosecond_is_undefined()) {
       // i. Set fraction to the string-concatenation of the previous value of
       // fraction and the string "000000000".
@@ -3039,7 +3039,7 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
     // seconds) × 10^9 + nanoseconds).
     int64_t offset_nanoseconds =
         sign *
-        (((hours * 60 + minutes) * 60 + seconds) * 1000000000L + nanoseconds);
+        (((hours * 60 + minutes) * 60 + seconds) * 1000000000 + nanoseconds);
     // j. Let offsetString be ! FormatTimeZoneOffsetString(offsetNanoseconds).
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, offset_string,
@@ -6877,6 +6877,21 @@ MaybeHandle<Object> GetIANATimeZonePreviousTransition(
 #endif  // V8_INTL_SUPPORT
 }
 
+MaybeHandle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
+                                                     Handle<BigInt> nanoseconds,
+                                                     int32_t time_zone_index) {
+#ifdef V8_INTL_SUPPORT
+  // TODO(ftang) Handle offset for other timezone
+  if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
+    return handle(Smi::zero(), isolate);
+  }
+  UNREACHABLE();
+#else   // V8_INTL_SUPPORT
+  DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
+  return handle(Smi::zero(), isolate);
+#endif  // V8_INTL_SUPPORT
+}
+
 }  // namespace
 
 // #sec-temporal.timezone.prototype.getplaindatetimefor
@@ -7051,6 +7066,53 @@ MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
       isolate, time_zone->time_zone_index(), date_time_record);
 }
 
+// #sec-temporal.timezone.prototype.getoffsetnanosecondsfor
+MaybeHandle<Object> JSTemporalTimeZone::GetOffsetNanosecondsFor(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> instant_obj) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  // 3. Set instant to ? ToTemporalInstant(instant).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      ToTemporalInstant(isolate, instant_obj,
+                        "Temporal.TimeZone.prototype.getOffsetNanosecondsFor"),
+      Smi);
+  // 4. If timeZone.[[OffsetNanoseconds]] is not undefined, return
+  // timeZone.[[OffsetNanoseconds]].
+  if (time_zone->is_offset()) {
+    return isolate->factory()->NewNumberFromInt64(
+        time_zone->offset_nanoseconds());
+  }
+  // 5. Return ! GetIANATimeZoneOffsetNanoseconds(instant.[[Nanoseconds]],
+  // timeZone.[[Identifier]]).
+  return GetIANATimeZoneOffsetNanoseconds(
+      isolate, Handle<BigInt>(instant->nanoseconds(), isolate),
+      time_zone->time_zone_index());
+}
+
+// #sec-temporal.timezone.prototype.getoffsetstringfor
+MaybeHandle<String> JSTemporalTimeZone::GetOffsetStringFor(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> instant_obj) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.TimeZone.prototype.getOffsetStringFor";
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  // 3. Set instant to ? ToTemporalInstant(instant).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant, ToTemporalInstant(isolate, instant_obj, method_name),
+      String);
+  // 4. Return ? BuiltinTimeZoneGetOffsetStringFor(timeZone, instant).
+  return BuiltinTimeZoneGetOffsetStringFor(isolate, time_zone, instant,
+                                           method_name);
+}
+
 // #sec-temporal.timezone.prototype.tostring
 MaybeHandle<Object> JSTemporalTimeZone::ToString(
     Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
@@ -7066,12 +7128,13 @@ int32_t JSTemporalTimeZone::time_zone_index() const {
 int64_t JSTemporalTimeZone::offset_nanoseconds() const {
   TEMPORAL_ENTER_FUNC();
   DCHECK(is_offset());
-  return 1000000L * offset_milliseconds() + offset_sub_milliseconds();
+  return static_cast<int64_t>(offset_milliseconds()) * 1000000 +
+         static_cast<int64_t>(offset_sub_milliseconds());
 }
 
 void JSTemporalTimeZone::set_offset_nanoseconds(int64_t ns) {
-  this->set_offset_milliseconds(static_cast<int32_t>(ns / 1000000L));
-  this->set_offset_sub_milliseconds(static_cast<int32_t>(ns % 1000000L));
+  this->set_offset_milliseconds(static_cast<int32_t>(ns / 1000000));
+  this->set_offset_sub_milliseconds(static_cast<int32_t>(ns % 1000000));
 }
 
 MaybeHandle<String> JSTemporalTimeZone::id(Isolate* isolate) const {
