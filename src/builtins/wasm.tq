@@ -182,6 +182,49 @@ builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
 
     const entries: FixedArray = table.entries;
     const entry: Object = LoadFixedArrayElement(entries, entryIndex);
+    return entry;
+  } label IndexOutOfRange deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  try {
+    dcheck(IsValidPositiveSmi(tableIndex));
+    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
+
+    const tables: FixedArray = LoadTablesFromInstance(instance);
+    const table: WasmTableObject = %RawDownCast<WasmTableObject>(
+        LoadFixedArrayElement(tables, tableIndex));
+
+    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
+    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+
+    const entries: FixedArray = table.entries;
+    StoreFixedArrayElement(entries, entryIndex, value);
+    return Undefined;
+  } label IndexOutOfRange deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableGetFuncRef(tableIndex: intptr, index: int32): Object {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  try {
+    dcheck(IsValidPositiveSmi(tableIndex));
+    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
+
+    const tables: FixedArray = LoadTablesFromInstance(instance);
+    const table: WasmTableObject = %RawDownCast<WasmTableObject>(
+        LoadFixedArrayElement(tables, tableIndex));
+    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
+    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+
+    const entries: FixedArray = table.entries;
+    const entry: Object = LoadFixedArrayElement(entries, entryIndex);
 
     try {
       const entryObject: HeapObject =
@@ -200,7 +243,8 @@ builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
   }
 }
 
-builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
+builtin WasmTableSetFuncRef(
+    tableIndex: intptr, index: int32, value: Object): Object {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   const entryIndex: intptr = ChangeInt32ToIntPtr(index);
   try {
@@ -211,22 +255,9 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
     const table: WasmTableObject = %RawDownCast<WasmTableObject>(
         LoadFixedArrayElement(tables, tableIndex));
 
-    // Fall back to the runtime to set funcrefs, since we have to update
-    // function dispatch tables.
-    // TODO(7748): Update this if further table types are supported.
-    const tableType: Smi = table.raw_type;
-    if (tableType != SmiConstant(kAnyTableType) &&
-        tableType != SmiConstant(kAnyNonNullTableType)) {
-      goto CallRuntime;
-    }
-
     const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
     if (entryIndex >= entriesCount) goto IndexOutOfRange;
 
-    const entries: FixedArray = table.entries;
-    StoreFixedArrayElement(entries, entryIndex, value);
-    return Undefined;
-  } label CallRuntime deferred {
     tail runtime::WasmFunctionTableSet(
         LoadContextFromInstance(instance), instance, SmiFromIntPtr(tableIndex),
         SmiFromIntPtr(entryIndex), value);

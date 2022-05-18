@@ -2488,9 +2488,13 @@ class LiftoffCompiler {
 
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.back();
 
-    ValueKind result_kind = env_->module->tables[imm.index].type.kind();
-    CallRuntimeStub(WasmCode::kWasmTableGet,
-                    MakeSig::Returns(result_kind).Params(kI32, kI32),
+    auto& table = env_->module->tables[imm.index];
+    ValueKind table_kind = table.type.kind();
+    bool is_funcref = IsSubtypeOf(table.type, kWasmFuncRef, env_->module);
+    auto stub =
+        is_funcref ? WasmCode::kWasmTableGetFuncRef : WasmCode::kWasmTableGet;
+
+    CallRuntimeStub(stub, MakeSig::Returns(table_kind).Params(kI32, kI32),
                     {table_index, index}, decoder->position());
 
     // Pop parameters from the value stack.
@@ -2498,7 +2502,7 @@ class LiftoffCompiler {
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
-    __ PushRegister(result_kind, LiftoffRegister(kReturnRegister0));
+    __ PushRegister(table_kind, LiftoffRegister(kReturnRegister0));
   }
 
   void TableSet(FullDecoder* decoder, const Value&, const Value&,
@@ -2513,10 +2517,13 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
 
-    ValueKind table_kind = env_->module->tables[imm.index].type.kind();
+    auto& table = env_->module->tables[imm.index];
+    ValueKind table_kind = table.type.kind();
+    bool is_funcref = IsSubtypeOf(table.type, kWasmFuncRef, env_->module);
+    auto stub =
+        is_funcref ? WasmCode::kWasmTableSetFuncRef : WasmCode::kWasmTableSet;
 
-    CallRuntimeStub(WasmCode::kWasmTableSet,
-                    MakeSig::Params(kI32, kI32, table_kind),
+    CallRuntimeStub(stub, MakeSig::Params(kI32, kI32, table_kind),
                     {table_index, index, value}, decoder->position());
 
     // Pop parameters from the value stack.

@@ -75,6 +75,8 @@ struct WasmModule;
   V(WasmTableGrow)                        \
   V(WasmTableGet)                         \
   V(WasmTableSet)                         \
+  V(WasmTableGetFuncRef)                  \
+  V(WasmTableSetFuncRef)                  \
   V(WasmStackGuard)                       \
   V(WasmStackOverflow)                    \
   V(WasmAllocateFixedArray)               \
