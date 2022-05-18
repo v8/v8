@@ -32,8 +32,6 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
   static inline uint32_t EvalHash(String source, SharedFunctionInfo shared,
                                   LanguageMode language_mode, int position);
 
-  static inline uint32_t ScriptHash(String source);
-
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;

@@ -57,6 +57,7 @@ void CompilationCacheTable::SetEvalFeedbackValueAt(InternalIndex entry,
 class ScriptCacheKey : public HashTableKey {
  public:
   enum Index {
+    kHash,
     kWeakScript,
     kEnd,
   };
@@ -112,11 +113,6 @@ uint32_t CompilationCacheShape::EvalHash(String source,
   return hash;
 }
 
-uint32_t CompilationCacheShape::ScriptHash(String source) {
-  uint32_t hash = source.EnsureHash();
-  return hash;
-}
-
 uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
                                               Object object) {
   // Eval: The key field contains the hash as a Number.
@@ -129,12 +125,19 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
 
   // Script.
   if (object.IsWeakFixedArray()) {
+    uint32_t result = static_cast<uint32_t>(Smi::ToInt(
+        WeakFixedArray::cast(object).Get(ScriptCacheKey::kHash).ToSmi()));
+#ifdef DEBUG
     base::Optional<String> script_key =
         ScriptCacheKey::SourceFromObject(object);
-    // Rehashing should only happen after we've removed all of the keys
-    // containing cleared weak refs.
-    DCHECK(script_key);
-    return ScriptHash(*script_key);
+    if (script_key) {
+      uint32_t source_hash;
+      if (script_key->TryGetHash(&source_hash)) {
+        DCHECK_EQ(result, source_hash);
+      }
+    }
+#endif
+    return result;
   }
 
   // Eval: See EvalCacheKey::ToHandle for the encoding.

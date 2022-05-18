@@ -226,8 +226,13 @@ class CodeKey : public HashTableKey {
 }  // namespace
 
 ScriptCacheKey::ScriptCacheKey(Handle<String> source)
-    : HashTableKey(CompilationCacheShape::ScriptHash(*source)),
-      source_(source) {}
+    : HashTableKey(source->EnsureHash()), source_(source) {
+  // Hash values must fit within a Smi.
+  static_assert(Name::HashBits::kSize <= kSmiValueSize);
+  DCHECK_EQ(
+      static_cast<uint32_t>(Smi::ToInt(Smi::FromInt(static_cast<int>(Hash())))),
+      Hash());
+}
 
 bool ScriptCacheKey::IsMatch(Object other) {
   DisallowGarbageCollection no_gc;
@@ -241,6 +246,8 @@ Handle<Object> ScriptCacheKey::AsHandle(Isolate* isolate,
   // Any SharedFunctionInfo being stored in the script cache should have a
   // Script.
   DCHECK(shared->script().IsScript());
+  array->Set(kHash,
+             MaybeObject::FromObject(Smi::FromInt(static_cast<int>(Hash()))));
   array->Set(kWeakScript,
              MaybeObject::MakeWeak(MaybeObject::FromObject(shared->script())));
   return array;
@@ -469,12 +476,8 @@ void CompilationCacheTable::RemoveEntry(InternalIndex entry) {
   ElementRemoved();
 
   // This table does not shrink upon deletion. The script cache depends on that
-  // fact, in two ways:
-  // 1. EnsureScriptTableCapacity calls RemoveEntry, at a time when shrinking
-  //    the table would be counterproductive, and
-  // 2. CompilationCacheShape::HashForObject cannot produce a hash for keys that
-  //    contain cleared weak pointers, so rehashing must only occur right after
-  //    all such keys have been cleared.
+  // fact, because EnsureScriptTableCapacity calls RemoveEntry at a time when
+  // shrinking the table would be counterproductive.
 }
 
 }  // namespace internal
