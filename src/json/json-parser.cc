@@ -1270,7 +1270,8 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
           base::uc32 value = ScanUnicodeCharacter();
           if (value == kInvalidUnicodeCharacter) {
             AllowGarbageCollection allow_before_exception;
-            ReportUnexpectedCharacter(CurrentCharacter());
+            ReportUnexpectedToken(JsonToken::ILLEGAL,
+                                  MessageTemplate::kJsonParseBadUnicodeEscape);
             return JsonString();
           }
           bits |= value;
@@ -1294,7 +1295,8 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
 
     DCHECK_LT(*cursor_, 0x20);
     AllowGarbageCollection allow_before_exception;
-    ReportUnexpectedCharacter(*cursor_);
+    ReportUnexpectedToken(JsonToken::ILLEGAL,
+                          MessageTemplate::kJsonParseBadControlCharacter);
     break;
   }
 

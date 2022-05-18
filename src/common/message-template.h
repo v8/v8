@@ -504,6 +504,9 @@ namespace internal {
     "%")                                                                       \
   T(JsonParseBadEscapedCharacter,                                              \
     "Bad escaped character in JSON at position %")                             \
+  T(JsonParseBadControlCharacter,                                              \
+    "Bad control character in string literal in JSON at position %")           \
+  T(JsonParseBadUnicodeEscape, "Bad Unicode escape in JSON at position %")     \
   T(JsonParseNoNumberAfterMinusSign,                                           \
     "No number after minus sign in JSON at position %")                        \
   T(JsonParseShortString, "\"%\" is not valid JSON")                           \

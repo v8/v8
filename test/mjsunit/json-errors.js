@@ -24,7 +24,7 @@ var s = `{"a\u03A9 `;
 TryParse(s, "Unterminated string in JSON at position 5");
 
 var s = `{"a\nb":"b"}`;
-TryParse(s, "Unexpected token '\n', \"{\"a\nb\":\"b\"}\" is not valid JSON");
+TryParse(s, "Bad control character in string literal in JSON at position 3");
 
 var s = `{"a\nb":"b\u03A9"}`;
-TryParse(s, "Unexpected token '\n', \"{\"a\nb\":\"b\u03A9\"}\" is not valid JSON");
+TryParse(s, "Bad control character in string literal in JSON at position 3");

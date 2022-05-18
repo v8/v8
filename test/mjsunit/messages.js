@@ -528,6 +528,16 @@ test(function() {
   JSON.parse('{"b" : "\\a"}');
 }, "Bad escaped character in JSON at position 9", SyntaxError);
 
+// kJsonParseBadControlCharacter
+test(function() {
+  JSON.parse('"a\bz"');
+}, "Bad control character in string literal in JSON at position 2", SyntaxError);
+
+// kJsonParseBadUnicodeEscape
+test(function() {
+  JSON.parse("[\"\\t\\u");
+}, "Bad Unicode escape in JSON at position 6", SyntaxError);
+
 // kJsonParseNoNumberAfterMinusSign
 test(function() {
   JSON.parse('-');
