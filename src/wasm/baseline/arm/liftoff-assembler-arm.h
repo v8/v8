@@ -2639,6 +2639,18 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   vmov(dest.high(), right.high(), gt);
 }
 
+void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  emit_f64x2_pmin(dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_f64x2_relaxed_max(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  emit_f64x2_pmax(dst, lhs, rhs);
+}
+
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   F64x2ConvertLowI32x4S(liftoff::GetSimd128Register(dst),
@@ -2796,6 +2808,20 @@ void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
+  vmax(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
+       liftoff::GetSimd128Register(rhs));
+}
+
+void LiftoffAssembler::emit_f32x4_relaxed_min(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  vmin(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
+       liftoff::GetSimd128Register(rhs));
+}
+
+void LiftoffAssembler::emit_f32x4_relaxed_max(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
   vmax(liftoff::GetSimd128Register(dst), liftoff::GetSimd128Register(lhs),
        liftoff::GetSimd128Register(rhs));
 }

@@ -4068,6 +4068,18 @@ class LiftoffCompiler {
       case wasm::kExprI32x4RelaxedLaneSelect:
       case wasm::kExprI64x2RelaxedLaneSelect:
         return EmitRelaxedLaneSelect();
+      case wasm::kExprF32x4RelaxedMin:
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_relaxed_min);
+      case wasm::kExprF32x4RelaxedMax:
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_relaxed_max);
+      case wasm::kExprF64x2RelaxedMin:
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_relaxed_min);
+      case wasm::kExprF64x2RelaxedMax:
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_relaxed_max);
       case wasm::kExprI16x8RelaxedQ15MulRS:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s);
