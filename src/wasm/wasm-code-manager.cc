@@ -621,11 +621,12 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
                total_reserved / 4);
 
   if (V8_UNLIKELY(minimum_size > WasmCodeAllocator::kMaxCodeSpaceSize)) {
-    auto oom_msg = base::FormattedString{}
-                   << "wasm code reservation: required minimum ("
-                   << minimum_size << ") is bigger than supported maximum ("
-                   << WasmCodeAllocator::kMaxCodeSpaceSize << ")";
-    V8::FatalProcessOutOfMemory(nullptr, oom_msg.PrintToArray().data());
+    auto oom_detail = base::FormattedString{}
+                      << "required reservation minimum (" << minimum_size
+                      << ") is bigger than supported maximum ("
+                      << WasmCodeAllocator::kMaxCodeSpaceSize << ")";
+    V8::FatalProcessOutOfMemory(nullptr, "Wasm code space reservation",
+                                oom_detail.PrintToArray().data());
     UNREACHABLE();
   }
 
@@ -727,10 +728,11 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     VirtualMemory new_mem =
         code_manager->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) {
-      auto oom_msg = base::FormattedString{}
-                     << "Cannot allocate more code space (" << reserve_size
-                     << " bytes, currently " << total_reserved << ")";
-      V8::FatalProcessOutOfMemory(nullptr, oom_msg.PrintToArray().data());
+      auto oom_detail = base::FormattedString{}
+                        << "cannot allocate more code space (" << reserve_size
+                        << " bytes, currently " << total_reserved << ")";
+      V8::FatalProcessOutOfMemory(nullptr, "AllocateForCode",
+                                  oom_detail.PrintToArray().data());
       UNREACHABLE();
     }
 
@@ -1912,9 +1914,12 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
   while (true) {
     DCHECK_GE(max_committed_code_space_, old_value);
     if (region.size() > max_committed_code_space_ - old_value) {
+      auto oom_detail = base::FormattedString{}
+                        << "trying to commit " << region.size()
+                        << ", already committed " << old_value;
       V8::FatalProcessOutOfMemory(
-          nullptr,
-          "WasmCodeManager::Commit: Exceeding maximum wasm code space");
+          nullptr, "WasmCodeManager::Commit: Exceeding maximum wasm code space",
+          oom_detail.PrintToArray().data());
       UNREACHABLE();
     }
     if (total_committed_code_space_.compare_exchange_weak(
@@ -1953,9 +1958,12 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
   }
 
   if (V8_UNLIKELY(!success)) {
+    auto oom_detail = base::FormattedString{} << "region size: "
+                                              << region.size();
     V8::FatalProcessOutOfMemory(
         nullptr,
-        "WasmCodeManager::Commit: Cannot make pre-reserved region writable");
+        "WasmCodeManager::Commit: Cannot make pre-reserved region writable",
+        oom_detail.PrintToArray().data());
     UNREACHABLE();
   }
 }
@@ -2190,10 +2198,12 @@ base::AddressRegion WasmCodeManager::AllocateAssemblerBufferSpace(int size) {
     void* mapped = AllocatePages(page_allocator, nullptr, size, page_size,
                                  PageAllocator::kNoAccess);
     if (V8_UNLIKELY(!mapped)) {
-      auto oom_msg = base::FormattedString{}
-                     << "Cannot allocate " << size
-                     << " more bytes for assembler buffers";
-      V8::FatalProcessOutOfMemory(nullptr, oom_msg.PrintToArray().data());
+      auto oom_detail = base::FormattedString{}
+                        << "cannot allocate " << size
+                        << " more bytes for assembler buffers";
+      V8::FatalProcessOutOfMemory(
+          nullptr, "WasmCodeManager::AllocateAssemblerBufferSpace",
+          oom_detail.PrintToArray().data());
       UNREACHABLE();
     }
     auto region =
@@ -2254,10 +2264,11 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     code_space = TryAllocate(code_vmem_size);
     if (code_space.IsReserved()) break;
     if (retries == kAllocationRetries) {
-      auto oom_msg = base::FormattedString{}
-                     << "NewNativeModule cannot allocate code space of "
-                     << code_vmem_size << " bytes";
-      V8::FatalProcessOutOfMemory(isolate, oom_msg.PrintToArray().data());
+      auto oom_detail = base::FormattedString{}
+                        << "NewNativeModule cannot allocate code space of "
+                        << code_vmem_size << " bytes";
+      V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule",
+                                  oom_detail.PrintToArray().data());
       UNREACHABLE();
     }
     // Run one GC, then try the allocation again.

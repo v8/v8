@@ -316,6 +316,13 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
   FATAL("API fatal error handler returned after process out of memory");
 }
 
+void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
+                                    const char* detail) {
+  OOMDetails details;
+  details.detail = detail;
+  FatalProcessOutOfMemory(i_isolate, location, details);
+}
+
 void Utils::ReportApiFailure(const char* location, const char* message) {
   i::Isolate* i_isolate = i::Isolate::TryGetCurrent();
   FatalErrorCallback callback = nullptr;
