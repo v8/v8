@@ -3250,6 +3250,12 @@ void Pipeline::GenerateCodeForWasmFunction(
   pipeline.Run<MemoryOptimizationPhase>();
   pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
+  if (FLAG_experimental_wasm_gc) {
+    pipeline.Run<DecompressionOptimizationPhase>();
+    pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
+                               true);
+  }
+
   if (FLAG_turbo_splitting && !is_asm_js) {
     data.info()->set_splitting();
   }
