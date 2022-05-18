@@ -870,7 +870,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
       module->origin, owned_wire_bytes.as_vector(), isolate);
   if (shared_native_module == nullptr) {
-    bool dynamic_tiering = isolate->IsWasmDynamicTieringEnabled();
+    const bool dynamic_tiering = FLAG_wasm_dynamic_tiering;
     const bool include_liftoff = !dynamic_tiering;
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(

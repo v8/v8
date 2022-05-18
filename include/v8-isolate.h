@@ -1538,8 +1538,9 @@ class V8_EXPORT Isolate {
 
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
-  void SetWasmDynamicTieringEnabledCallback(
-      WasmDynamicTieringEnabledCallback callback);
+  V8_DEPRECATE_SOON("Dynamic tiering is now enabled by default")
+  void SetWasmDynamicTieringEnabledCallback(WasmDynamicTieringEnabledCallback) {
+  }
 
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);

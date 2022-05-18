@@ -1989,10 +1989,10 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 
   // Create a new {NativeModule} first.
   const bool include_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
-  DynamicTiering dynamic_tiering{isolate->IsWasmDynamicTieringEnabled()};
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          module.get(), include_liftoff, dynamic_tiering);
+          module.get(), include_liftoff,
+          DynamicTiering{FLAG_wasm_dynamic_tiering});
   native_module =
       engine->NewNativeModule(isolate, enabled, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
@@ -2063,7 +2063,7 @@ AsyncCompileJob::AsyncCompileJob(
     : isolate_(isolate),
       api_method_name_(api_method_name),
       enabled_features_(enabled),
-      dynamic_tiering_(DynamicTiering{isolate_->IsWasmDynamicTieringEnabled()}),
+      dynamic_tiering_(DynamicTiering{FLAG_wasm_dynamic_tiering}),
       wasm_lazy_compilation_(FLAG_wasm_lazy_compilation),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes_copy)),

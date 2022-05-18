@@ -2280,8 +2280,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(enabled,
-                   DynamicTiering{isolate->IsWasmDynamicTieringEnabled()},
+  new NativeModule(enabled, DynamicTiering{FLAG_wasm_dynamic_tiering},
                    std::move(code_space), std::move(module),
                    isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.

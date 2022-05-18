@@ -9442,10 +9442,6 @@ CALLBACK_SETTER(WasmSimdEnabledCallback, WasmSimdEnabledCallback,
 CALLBACK_SETTER(WasmExceptionsEnabledCallback, WasmExceptionsEnabledCallback,
                 wasm_exceptions_enabled_callback)
 
-CALLBACK_SETTER(WasmDynamicTieringEnabledCallback,
-                WasmDynamicTieringEnabledCallback,
-                wasm_dynamic_tiering_enabled_callback)
-
 CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)
