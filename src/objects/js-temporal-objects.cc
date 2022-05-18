@@ -191,8 +191,7 @@ V8_WARN_UNUSED_RESULT Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(
 
 // #sec-temporal-parsetimezoneoffsetstring
 V8_WARN_UNUSED_RESULT Maybe<int64_t> ParseTimeZoneOffsetString(
-    Isolate* isolate, Handle<String> offset_string,
-    bool throwIfNotSatisfy = true);
+    Isolate* isolate, Handle<String> offset_string);
 
 // #sec-temporal-parsetemporalinstant
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> ParseTemporalInstant(
@@ -340,8 +339,8 @@ int32_t CalendarIndex(Isolate* isolate, Handle<String> id);
 bool IsValidTimeZoneName(Isolate* isolate, Handle<String> time_zone);
 
 // #sec-canonicalizetimezonename
-V8_WARN_UNUSED_RESULT MaybeHandle<String> CanonicalizeTimeZoneName(
-    Isolate* isolate, Handle<String> identifier);
+Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
+                                        Handle<String> identifier);
 
 // #sec-temporal-tointegerthrowoninfinity
 MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
@@ -1013,39 +1012,46 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
   // 2. Let object be ? OrdinaryCreateFromConstructor(newTarget,
   // "%Temporal.TimeZone.prototype%", « [[InitializedTemporalTimeZone]],
   // [[Identifier]], [[OffsetNanoseconds]] »).
-  // 3. Set object.[[Identifier]] to identifier.
-  if (IsUTC(isolate, identifier)) {
-    return CreateTemporalTimeZoneUTC(isolate, target, new_target);
-  }
+
+  // 3. Let offsetNanosecondsResult be ParseTimeZoneOffsetString(identifier).
+  Maybe<int64_t> maybe_offset_nanoseconds =
+      ParseTimeZoneOffsetString(isolate, identifier);
+  // 4. If offsetNanosecondsResult is an abrupt completion, then
+  if (maybe_offset_nanoseconds.IsNothing()) {
+    DCHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+    // a. Assert: ! CanonicalizeTimeZoneName(identifier) is identifier.
+    DCHECK(String::Equals(isolate, identifier,
+                          CanonicalizeTimeZoneName(isolate, identifier)));
+
+    // b. Set object.[[Identifier]] to identifier.
+    // c. Set object.[[OffsetNanoseconds]] to undefined.
+    if (IsUTC(isolate, identifier)) {
+      return CreateTemporalTimeZoneUTC(isolate, target, new_target);
+    }
 #ifdef V8_INTL_SUPPORT
-  int32_t time_zone_index = Intl::GetTimeZoneIndex(isolate, identifier);
-  if (time_zone_index >= 0) {
+    int32_t time_zone_index = Intl::GetTimeZoneIndex(isolate, identifier);
+    DCHECK_GE(time_zone_index, 0);
     return CreateTemporalTimeZoneFromIndex(isolate, target, new_target,
                                            time_zone_index);
-  }
+#else
+    UNREACHABLE();
 #endif  // V8_INTL_SUPPORT
+    // 5. Else,
+  } else {
+    // a. Set object.[[Identifier]] to !
+    // FormatTimeZoneOffsetString(offsetNanosecondsResult.[[Value]]). b. Set
+    // object.[[OffsetNanoseconds]] to offsetNanosecondsResult.[[Value]].
+    ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
+                                     JSTemporalTimeZone)
+    object->set_flags(0);
+    object->set_details(0);
 
-  // 4. If identifier satisfies the syntax of a TimeZoneNumericUTCOffset
-  // (see 13.33), then a. Set object.[[OffsetNanoseconds]] to !
-  // ParseTimeZoneOffsetString(identifier).
-  // 5. Else,
-  // a. Assert: ! CanonicalizeTimeZoneName(identifier) is identifier.
-  // b. Set object.[[OffsetNanoseconds]] to undefined.
+    object->set_is_offset(true);
+    object->set_offset_nanoseconds(maybe_offset_nanoseconds.FromJust());
+    return object;
+  }
   // 6. Return object.
-  int64_t offset_nanoseconds;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, offset_nanoseconds,
-      ParseTimeZoneOffsetString(isolate, identifier, false),
-      Handle<JSTemporalTimeZone>());
-
-  ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
-                                   JSTemporalTimeZone)
-  object->set_flags(0);
-  object->set_details(0);
-
-  object->set_is_offset(true);
-  object->set_offset_nanoseconds(offset_nanoseconds);
-  return object;
 }
 
 MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZoneDefaultTarget(
@@ -2481,8 +2487,8 @@ MaybeHandle<JSTemporalZonedDateTime> SystemZonedDateTime(
        : ((r) == ComparisonResult::kLessThan ? -1 : 1))
 
 // #sec-temporal-formattimezoneoffsetstring
-MaybeHandle<String> FormatTimeZoneOffsetString(Isolate* isolate,
-                                               int64_t offset_nanoseconds) {
+Handle<String> FormatTimeZoneOffsetString(Isolate* isolate,
+                                          int64_t offset_nanoseconds) {
   IncrementalStringBuilder builder(isolate);
   // 1. Assert: offsetNanoseconds is an integer.
   // 2. If offsetNanoseconds ≥ 0, let sign be "+"; otherwise, let sign be "-".
@@ -2535,7 +2541,7 @@ MaybeHandle<String> FormatTimeZoneOffsetString(Isolate* isolate,
   }
   // 12. Return the string-concatenation of sign, h, the code unit 0x003A
   // (COLON), m, and post.
-  return builder.Finish();
+  return builder.Finish().ToHandleChecked();
 }
 
 // #sec-temporal-builtintimezonegetoffsetstringfor
@@ -2659,6 +2665,7 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
   }
+
   // 3. If _isoString_ contains a |UTCDesignator|, then
   if (parsed->utc_designator) {
     // a. Throw a *RangeError* exception.
@@ -3041,10 +3048,7 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
         sign *
         (((hours * 60 + minutes) * 60 + seconds) * 1000000000 + nanoseconds);
     // j. Let offsetString be ! FormatTimeZoneOffsetString(offsetNanoseconds).
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, offset_string,
-        FormatTimeZoneOffsetString(isolate, offset_nanoseconds),
-        Nothing<TimeZoneRecord>());
+    offset_string = FormatTimeZoneOffsetString(isolate, offset_nanoseconds);
     offset_string_is_defined = true;
   }
   // 7. If name is not undefined, then
@@ -3061,9 +3065,7 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
                                    Nothing<TimeZoneRecord>());
     }
     // b. Set name to ! CanonicalizeTimeZoneName(name).
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, name,
-                                     CanonicalizeTimeZoneName(isolate, name),
-                                     Nothing<TimeZoneRecord>());
+    name = CanonicalizeTimeZoneName(isolate, name);
     // 8. Return the Record { [[Z]]: false, [[OffsetString]]: offsetString,
     // [[Name]]: name }.
     TimeZoneRecord ret({false,
@@ -3109,8 +3111,7 @@ MaybeHandle<String> ParseTemporalTimeZone(Isolate* isolate,
 }
 
 Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
-                                         Handle<String> iso_string,
-                                         bool throw_if_not_satisfy) {
+                                         Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: Type(offsetString) is String.
@@ -3118,7 +3119,7 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
   // TimeZoneNumericUTCOffset (see 13.33), then
   base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
-  if (throw_if_not_satisfy && !parsed.has_value()) {
+  if (!parsed.has_value()) {
     /* a. Throw a RangeError exception. */
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
@@ -3166,13 +3167,13 @@ Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
                       nanoseconds));
 }
 
-Maybe<bool> IsValidTimeZoneNumericUTCOffsetString(Isolate* isolate,
-                                                  Handle<String> iso_string) {
+bool IsValidTimeZoneNumericUTCOffsetString(Isolate* isolate,
+                                           Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
 
   base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
-  return Just(parsed.has_value());
+  return parsed.has_value();
 }
 
 // #sec-temporal-parsetemporalcalendarstring
@@ -3707,9 +3708,9 @@ bool IsValidTimeZoneName(Isolate* isolate, Handle<String> time_zone) {
   return Intl::IsValidTimeZoneName(isolate, time_zone);
 }
 
-MaybeHandle<String> CanonicalizeTimeZoneName(Isolate* isolate,
-                                             Handle<String> identifier) {
-  return Intl::CanonicalizeTimeZoneName(isolate, identifier);
+Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
+                                        Handle<String> identifier) {
+  return Intl::CanonicalizeTimeZoneName(isolate, identifier).ToHandleChecked();
 }
 
 #else   // V8_INTL_SUPPORT
@@ -3731,8 +3732,8 @@ bool IsValidTimeZoneName(Isolate* isolate, Handle<String> time_zone) {
   return IsUTC(isolate, time_zone);
 }
 // #sec-canonicalizetimezonename
-MaybeHandle<String> CanonicalizeTimeZoneName(Isolate* isolate,
-                                             Handle<String> identifier) {
+Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
+                                        Handle<String> identifier) {
   return isolate->factory()->UTC_string();
 }
 #endif  // V8_INTL_SUPPORT
@@ -6764,13 +6765,7 @@ MaybeHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
   Handle<String> canonical;
   // 3. If identifier satisfies the syntax of a TimeZoneNumericUTCOffset
   // (see 13.33), then
-  bool valid;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, valid,
-      IsValidTimeZoneNumericUTCOffsetString(isolate, identifier),
-      Handle<JSTemporalTimeZone>());
-
-  if (valid) {
+  if (IsValidTimeZoneNumericUTCOffsetString(isolate, identifier)) {
     // a. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(identifier).
     int64_t offset_nanoseconds;
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -6779,10 +6774,7 @@ MaybeHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
         Handle<JSTemporalTimeZone>());
 
     // b. Let canonical be ! FormatTimeZoneOffsetString(offsetNanoseconds).
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, canonical,
-        FormatTimeZoneOffsetString(isolate, offset_nanoseconds),
-        JSTemporalTimeZone);
+    canonical = FormatTimeZoneOffsetString(isolate, offset_nanoseconds);
   } else {
     // 4. Else,
     // a. If ! IsValidTimeZoneName(identifier) is false, then
@@ -6793,9 +6785,7 @@ MaybeHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
           JSTemporalTimeZone);
     }
     // b. Let canonical be ! CanonicalizeTimeZoneName(identifier).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, canonical,
-                               CanonicalizeTimeZoneName(isolate, identifier),
-                               JSTemporalTimeZone);
+    canonical = CanonicalizeTimeZoneName(isolate, identifier);
   }
   // 5. Return ? CreateTemporalTimeZone(canonical, NewTarget).
   return CreateTemporalTimeZone(isolate, target, new_target, canonical);
