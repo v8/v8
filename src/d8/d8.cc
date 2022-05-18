@@ -4451,7 +4451,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-#if V8_TARGET_OS_WIN
+#ifdef V8_TARGET_OS_WIN
 // Enable support for unicode filename path on windows.
 // We first convert ansi encoded argv[i] to utf16 encoded, and then
 // convert utf16 encoded to utf8 encoded with setting the argv[i]

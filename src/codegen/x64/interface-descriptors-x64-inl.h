@@ -34,7 +34,7 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::
 
 // static
 constexpr auto WriteBarrierDescriptor::registers() {
-#if V8_TARGET_OS_WIN
+#ifdef V8_TARGET_OS_WIN
   return RegisterArray(rdi, r8, rcx, rax, r9, rdx, rsi);
 #else
   return RegisterArray(rdi, rbx, rdx, rcx, rax, rsi);
