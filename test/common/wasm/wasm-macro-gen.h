@@ -304,9 +304,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   }
 }
 
-// This method handles upcodes with decoded length of 3-bytes
-// update is we exceed that opcode length. (More details in
-// wasm-opcodes.h)
+// See comment on {WasmOpcode} for the encoding.
+// This method handles opcodes with decoded length up to 3 bytes. Update if we
+// exceed that opcode length.
 inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   return (opcode > 0xffff) ? opcode & 0x0fff : opcode & 0xff;
 }

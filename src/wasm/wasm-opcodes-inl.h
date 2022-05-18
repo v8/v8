@@ -598,20 +598,17 @@ constexpr bool WasmOpcodes::IsThrowingOpcode(WasmOpcode opcode) {
 
 // static
 constexpr bool WasmOpcodes::IsRelaxedSimdOpcode(WasmOpcode opcode) {
-  switch (opcode) {
-#define CHECK_OPCODE(name, opcode, _) case kExpr##name:
-    FOREACH_RELAXED_SIMD_OPCODE(CHECK_OPCODE)
+  static_assert(kSimdPrefix == 0xfd);
+#define CHECK_OPCODE(name, opcode, _) \
+  static_assert((opcode & 0xfd100) == 0xfd100);
+  FOREACH_RELAXED_SIMD_OPCODE(CHECK_OPCODE)
 #undef CHECK_OPCODE
-    return true;
-    default:
-      return false;
-  }
+
+  return (opcode & 0xfd100) == 0xfd100;
 }
 
 constexpr byte WasmOpcodes::ExtractPrefix(WasmOpcode opcode) {
-  // If the decoded opcode exceeds two bytes, shift an additional
-  // byte. For decoded opcodes that exceed 3 bytes, this would
-  // need to be fixed.
+  // See comment on {WasmOpcode} for the encoding.
   return (opcode > 0xffff) ? opcode >> 12 : opcode >> 8;
 }
 

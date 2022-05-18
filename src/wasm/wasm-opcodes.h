@@ -831,6 +831,23 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(Simd, 0xfd)           \
   V(Atomic, 0xfe)
 
+// Prefixed opcodes are encoded as 1 prefix byte, followed by LEB encoded
+// opcode bytes. We internally encode them as {WasmOpcode} as follows:
+// 1) non-prefixed opcodes use the opcode itself as {WasmOpcode} enum value;
+// 2) prefixed opcodes in [0, 0xff] use {(prefix << 8) | opcode};
+// 3) prefixed opcodes in [0x100, 0xfff] use {(prefix << 12) | opcode} (this is
+//    only used for relaxed simd so far).
+//
+// This encoding is bijective (i.e. a one-to-one mapping in both directions).
+// The used opcode ranges are:
+// 1) [0, 0xff]  ->  no prefix, 8 bits opcode
+// 2) [0xfb00, 0xfe00]  ->  prefix shifted by 8 bits, and 8 bits opcode
+// 3) [0xfd100, 0xfdfff]  ->  prefix shifted by 12 bits, and 12 bits opcode
+//                            (only [0xfd100, 0xfd1ff] used so far)
+//
+// This allows to compute back the prefix and the non-prefixed opcode from each
+// WasmOpcode, see {WasmOpcodes::ExtractPrefix} and
+// {ExtractPrefixedOpcodeBytes} (for testing).
 enum WasmOpcode {
 // Declare expression opcodes.
 #define DECLARE_NAMED_ENUM(name, opcode, ...) kExpr##name = opcode,
@@ -865,12 +882,8 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr bool IsBreakable(WasmOpcode);
 
   static constexpr MessageTemplate TrapReasonToMessageId(TrapReason);
-  // Prefixed opcodes are encoded as 1 prefix byte, followed by LEB encoded
-  // opcode bytes. With the addition of relaxed SIMD opcodes, the decoded
-  // length of opcode bytes exceeds two bytes. This method, and other mehtods
-  // that operate on prefixed opcodes, handle upto 3 byte opcodes, when
-  // opcodes exceed a decoded length of 3 bytes, this code, and elsewhere
-  // that assumes 3-bytes to be the maximum opcode length should be updated.
+
+  // Extract the prefix byte (or 0x00) from a {WasmOpcode}.
   static constexpr byte ExtractPrefix(WasmOpcode);
   static inline const char* TrapReasonMessage(TrapReason);
 };
