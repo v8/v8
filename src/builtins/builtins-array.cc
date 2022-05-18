@@ -1515,7 +1515,8 @@ BUILTIN(ArrayConcat) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, receiver,
       Object::ToObject(isolate, args.receiver(), "Array.prototype.concat"));
-  args.set_at(0, *receiver);
+  BuiltinArguments::ChangeValueScope set_receiver_value_scope(
+      isolate, &args, BuiltinArguments::kReceiverOffset, *receiver);
 
   Handle<JSArray> result_array;
 

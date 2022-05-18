@@ -50,6 +50,7 @@ class BuiltinArguments : public JavaScriptArguments {
   static constexpr int kTargetOffset = 1;
   static constexpr int kArgcOffset = 2;
   static constexpr int kPaddingOffset = 3;
+  static constexpr int kReceiverOffset = 4;
 
   static constexpr int kNumExtraArgs = 4;
   static constexpr int kNumExtraArgsWithReceiver = 5;

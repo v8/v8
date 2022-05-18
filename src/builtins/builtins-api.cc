@@ -54,6 +54,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Handle<Object> receiver, BuiltinArguments args) {
   Handle<JSReceiver> js_receiver;
   JSReceiver raw_holder;
+  base::Optional<BuiltinArguments::ChangeValueScope> set_receiver_value_scope;
   if (is_construct) {
     DCHECK(args.receiver()->IsTheHole(isolate));
     if (fun_data->GetInstanceTemplate().IsUndefined(isolate)) {
@@ -70,7 +71,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
         ApiNatives::InstantiateObject(isolate, instance_template,
                                       Handle<JSReceiver>::cast(new_target)),
         Object);
-    args.set_at(0, *js_receiver);
+    set_receiver_value_scope.emplace(
+        isolate, &args, BuiltinArguments::kReceiverOffset, *js_receiver);
     DCHECK_EQ(*js_receiver, *args.receiver());
 
     raw_holder = *js_receiver;
@@ -211,8 +213,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc).ptr();
   argv[BuiltinArguments::kPaddingOffset] =
       ReadOnlyRoots(isolate).the_hole_value().ptr();
-  int cursor = BuiltinArguments::kNumExtraArgs;
-  argv[cursor++] = receiver->ptr();
+  argv[BuiltinArguments::kReceiverOffset] = receiver->ptr();
+  int cursor = BuiltinArguments::kNumExtraArgsWithReceiver;
   for (int i = 0; i < argc; ++i) {
     argv[cursor++] = args[i]->ptr();
   }
