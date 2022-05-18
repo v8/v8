@@ -2905,6 +2905,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph.h",
     "src/compiler/turboshaft/operations.h",
+    "src/compiler/turboshaft/optimization-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
     "src/compiler/type-cache.h",
     "src/compiler/type-narrowing-reducer.h",
@@ -4106,6 +4107,7 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/graph-builder.cc",
     "src/compiler/turboshaft/graph.cc",
     "src/compiler/turboshaft/operations.cc",
+    "src/compiler/turboshaft/optimization-phase.cc",
     "src/compiler/turboshaft/recreate-schedule.cc",
   ]
 

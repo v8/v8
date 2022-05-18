@@ -170,7 +170,8 @@ void GraphBuilder::Run() {
         DCHECK_EQ(block->SuccessorCount(), 1);
         Block* destination = Map(block->SuccessorAt(0));
         assembler.Goto(destination);
-        if (destination->IsLoop()) {
+        if (destination->IsBound()) {
+          DCHECK(destination->IsLoop());
           FixLoopPhis(destination, target_block);
         }
         break;

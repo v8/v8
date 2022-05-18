@@ -106,7 +106,7 @@ RecreateScheduleResult ScheduleBuilder::Run() {
   DCHECK_GE(input_graph.block_count(), 1);
   // The schedule needs to contain an dummy end block because the register
   // allocator expects this. This block is not actually reachable with control
-  // flow. It is added here because the TurboShaft grahp doesn't contain such a
+  // flow. It is added here because the Turboshaft grahp doesn't contain such a
   // block.
   blocks.reserve(input_graph.block_count() + 1);
   blocks.push_back(current_block);

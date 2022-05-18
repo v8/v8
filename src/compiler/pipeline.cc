@@ -78,6 +78,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph-builder.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
@@ -2011,12 +2012,22 @@ struct BranchConditionDuplicationPhase {
 };
 
 struct BuildTurboshaftPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(BuildTurboShaft)
+  DECL_PIPELINE_PHASE_CONSTANTS(BuildTurboshaft)
 
   void Run(PipelineData* data, Zone* temp_zone) {
     turboshaft::BuildGraph(data->schedule(), data->graph_zone(), temp_zone,
                            &data->turboshaft_graph());
     data->reset_schedule();
+  }
+};
+
+struct OptimizeTurboshaftPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(OptimizeTurboshaft)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    turboshaft::OptimizationPhase<
+        turboshaft::LivenessAnalyzer,
+        turboshaft::Assembler>::Run(&data->turboshaft_graph(), temp_zone);
   }
 };
 
@@ -2860,9 +2871,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       AllowHandleDereference allow_deref;
       CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
       tracing_scope.stream()
-          << "\n-- TurboShaft Graph ----------------------------\n"
+          << "\n-- Turboshaft Graph ----------------------------\n"
           << data->turboshaft_graph();
     }
+
+    Run<OptimizeTurboshaftPhase>();
 
     Run<TurboshaftRecreateSchedulePhase>(linkage);
     if (data->info()->trace_turbo_graph() || FLAG_trace_turbo_scheduler) {

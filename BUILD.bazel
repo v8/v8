@@ -2828,6 +2828,8 @@ filegroup(
         "src/compiler/turboshaft/graph.h",
         "src/compiler/turboshaft/operations.cc",
         "src/compiler/turboshaft/operations.h",
+        "src/compiler/turboshaft/optimization-phase.cc",
+        "src/compiler/turboshaft/optimization-phase.h",
         "src/compiler/turboshaft/recreate-schedule.cc",
         "src/compiler/turboshaft/recreate-schedule.h",
         "src/compiler/type-cache.cc",

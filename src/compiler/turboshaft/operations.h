@@ -220,7 +220,7 @@ struct OpProperties {
   }
 };
 
-// Baseclass for all TurboShaft operations.
+// Baseclass for all Turboshaft operations.
 // The `alignas(OpIndex)` is necessary because it is followed by an array of
 // `OpIndex` inputs.
 struct alignas(OpIndex) Operation {
@@ -308,24 +308,25 @@ struct OperationT : Operation {
 
   static constexpr OpProperties properties() { return Derived::properties; }
 
+  Derived& derived_this() { return *static_cast<Derived*>(this); }
+  const Derived& derived_this() const {
+    return *static_cast<const Derived*>(this);
+  }
+
   // Shadow Operation::inputs to exploit static knowledge about object size.
   base::Vector<OpIndex> inputs() {
     return {reinterpret_cast<OpIndex*>(reinterpret_cast<char*>(this) +
                                        sizeof(Derived)),
-            input_count};
+            derived_this().input_count};
   }
   base::Vector<const OpIndex> inputs() const {
     return {reinterpret_cast<const OpIndex*>(
                 reinterpret_cast<const char*>(this) + sizeof(Derived)),
-            input_count};
+            derived_this().input_count};
   }
 
-  V8_INLINE OpIndex& input(size_t i) {
-    return static_cast<Derived*>(this)->inputs()[i];
-  }
-  V8_INLINE OpIndex input(size_t i) const {
-    return static_cast<const Derived*>(this)->inputs()[i];
-  }
+  V8_INLINE OpIndex& input(size_t i) { return derived_this().inputs()[i]; }
+  V8_INLINE OpIndex input(size_t i) const { return derived_this().inputs()[i]; }
 
   static size_t StorageSlotCount(size_t input_count) {
     // The operation size in bytes is:
@@ -373,8 +374,8 @@ struct OperationT : Operation {
 
   bool operator==(const Derived& other) const {
     const Derived& derived = *static_cast<const Derived*>(this);
-    if (derived.inputs() != other.inputs()) return false;
-    return derived.options() == other.options();
+    return derived.inputs() == other.inputs() &&
+           derived.options() == other.options();
   }
   size_t hash_value() const {
     const Derived& derived = *static_cast<const Derived*>(this);
@@ -382,7 +383,7 @@ struct OperationT : Operation {
   }
 
   void PrintOptions(std::ostream& os) const {
-    const auto& options = static_cast<const Derived*>(this)->options();
+    const auto& options = derived_this().options();
     constexpr size_t options_count =
         std::tuple_size<std::remove_reference_t<decltype(options)>>::value;
     if (options_count == 0) {
@@ -411,19 +412,8 @@ struct FixedArityOperationT : OperationT<Derived> {
   // Enable concise base access in derived struct.
   using Base = FixedArityOperationT;
 
-  // Shadow OperationT<Derived>::inputs to exploit static knowledge about input
-  // count.
+  // Shadow Operation::input_count to exploit static knowledge.
   static constexpr uint16_t input_count = InputCount;
-  base::Vector<OpIndex> inputs() {
-    return {reinterpret_cast<OpIndex*>(reinterpret_cast<char*>(this) +
-                                       sizeof(Derived)),
-            InputCount};
-  }
-  base::Vector<const OpIndex> inputs() const {
-    return {reinterpret_cast<const OpIndex*>(
-                reinterpret_cast<const char*>(this) + sizeof(Derived)),
-            InputCount};
-  }
 
   template <class... Args>
   explicit FixedArityOperationT(Args... args)
@@ -432,12 +422,6 @@ struct FixedArityOperationT : OperationT<Derived> {
     size_t i = 0;
     OpIndex* inputs = this->inputs().begin();
     ((inputs[i++] = args), ...);
-  }
-
-  bool operator==(const Derived& other) const {
-    return std::equal(inputs().begin(), inputs().end(),
-                      other.inputs().begin()) &&
-           static_cast<const Derived*>(this)->options() == other.options();
   }
 
   // Redefine the input initialization to tell C++ about the static input size.
@@ -695,6 +679,8 @@ struct PhiOp : OperationT<PhiOp> {
 
   static constexpr OpProperties properties = OpProperties::Pure();
 
+  static constexpr size_t kLoopPhiBackEdgeIndex = 1;
+
   explicit PhiOp(base::Vector<const OpIndex> inputs, MachineRepresentation rep)
       : Base(inputs), rep(rep) {}
   auto options() const { return std::tuple{rep}; }
@@ -705,7 +691,7 @@ struct PhiOp : OperationT<PhiOp> {
 struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
   MachineRepresentation rep;
   union {
-    // Used when transforming a TurboShaft graph.
+    // Used when transforming a Turboshaft graph.
     // This is not an input because it refers to the old graph.
     OpIndex old_backedge_index = OpIndex::Invalid();
     // Used when translating from sea-of-nodes.
@@ -896,6 +882,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     }
   }
 
+  auto options() const { return std::tuple{kind, storage}; }
+
   void PrintOptions(std::ostream& os) const;
   size_t hash_value() const {
     switch (kind) {
@@ -985,7 +973,7 @@ struct IndexedLoadOp : FixedArityOperationT<2, IndexedLoadOp> {
         offset(offset) {}
   void PrintOptions(std::ostream& os) const;
   auto options() const {
-    return std::tuple{kind, loaded_rep, element_size_log2, offset};
+    return std::tuple{kind, loaded_rep, offset, element_size_log2};
   }
 };
 
@@ -1047,8 +1035,8 @@ struct IndexedStoreOp : FixedArityOperationT<3, IndexedStoreOp> {
         offset(offset) {}
   void PrintOptions(std::ostream& os) const;
   auto options() const {
-    return std::tuple{kind, stored_rep, write_barrier, element_size_log2,
-                      offset};
+    return std::tuple{kind, stored_rep, write_barrier, offset,
+                      element_size_log2};
   }
 };
 

@@ -22,7 +22,7 @@ namespace v8::internal::compiler::turboshaft {
 class Assembler;
 class VarAssembler;
 
-// `OperationBuffer` is a growable, Zone-allocated buffer to store TurboShaft
+// `OperationBuffer` is a growable, Zone-allocated buffer to store Turboshaft
 // operations. It is part of a `Graph`.
 // The buffer can be seen as an array of 8-byte `OperationStorageSlot` values.
 // The structure is append-only, that is, we only add operations at the end.
@@ -220,7 +220,18 @@ class Block {
     return result;
   }
 
+  Block* LastPredecessor() const { return last_predecessor_; }
+  Block* NeighboringPredecessor() const { return neighboring_predecessor_; }
   bool HasPredecessors() const { return last_predecessor_ != nullptr; }
+
+  // The block from the previous graph which produced the current block. This is
+  // used for translating phi nodes from the previous graph.
+  void SetOrigin(const Block* origin) {
+    DCHECK_NULL(origin_);
+    DCHECK_NE(origin->graph_, graph_);
+    origin_ = origin;
+  }
+  const Block* Origin() const { return origin_; }
 
   OpIndex begin() const {
     DCHECK(begin_.valid());
@@ -243,6 +254,7 @@ class Block {
   BlockIndex index_ = BlockIndex::Invalid();
   Block* last_predecessor_ = nullptr;
   Block* neighboring_predecessor_ = nullptr;
+  const Block* origin_ = nullptr;
 #ifdef DEBUG
   Graph* graph_ = nullptr;
 #endif
@@ -342,7 +354,7 @@ class Graph {
     return result;
   }
 
-  bool Add(Block* block) {
+  V8_INLINE bool Add(Block* block) {
     DCHECK_EQ(block->graph_, this);
     if (!bound_blocks_.empty() && !block->HasPredecessors()) return false;
     bool deferred = true;
@@ -435,12 +447,16 @@ class Graph {
 
   base::iterator_range<ConstOperationIterator> operations(OpIndex begin,
                                                           OpIndex end) const {
+    DCHECK(begin.valid());
+    DCHECK(end.valid());
     return {ConstOperationIterator(begin, this),
             ConstOperationIterator(end, this)};
   }
 
   base::iterator_range<MutableOperationIterator> operations(OpIndex begin,
                                                             OpIndex end) {
+    DCHECK(begin.valid());
+    DCHECK(end.valid());
     return {MutableOperationIterator(begin, this),
             MutableOperationIterator(end, this)};
   }
