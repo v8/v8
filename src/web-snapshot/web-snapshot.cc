@@ -49,17 +49,64 @@ void WebSnapshotSerializerDeserializer::Throw(const char* message) {
 }
 
 void WebSnapshotSerializerDeserializer::IterateBuiltinObjects(
-    std::function<void(String, HeapObject)> func) {
+    std::function<void(Handle<String>, Handle<HeapObject>)> func) {
   // TODO(v8:11525): Add more builtins.
   auto roots = ReadOnlyRoots(isolate_);
-  func(roots.Error_string(), isolate_->context().error_function());
-  func(*factory()->NewStringFromAsciiChecked("Error.prototype"),
-       isolate_->context().error_function().instance_prototype());
-  func(roots.Object_string(), isolate_->context().object_function());
-  func(*factory()->NewStringFromAsciiChecked("Object.prototype"),
-       isolate_->context().initial_object_prototype());
 
-  static_assert(kBuiltinObjectCount == 4);
+  func(handle(roots.Error_string(), isolate_),
+       handle(isolate_->context().error_function(), isolate_));
+
+  func(factory()->NewStringFromAsciiChecked("Error.prototype"),
+       handle(isolate_->context().error_function().instance_prototype(),
+              isolate_));
+
+  func(handle(roots.Object_string(), isolate_),
+       handle(isolate_->context().object_function(), isolate_));
+
+  func(factory()->NewStringFromAsciiChecked("Object.prototype"),
+       handle(isolate_->context().initial_object_prototype(), isolate_));
+
+  func(handle(roots.Function_string(), isolate_),
+       handle(isolate_->context().function_function(), isolate_));
+
+  func(factory()->NewStringFromAsciiChecked("Function.prototype"),
+       handle(isolate_->context().function_prototype(), isolate_));
+
+  // TODO(v8:11525): There are no obvious names for these, since AsyncFunction
+  // etc are not properties of the global object.
+
+  func(factory()->NewStringFromAsciiChecked("AsyncFunction"),
+       handle(isolate_->context().async_function_constructor(), isolate_));
+
+  func(
+      factory()->NewStringFromAsciiChecked("AsyncFunction"),
+      handle(
+          isolate_->context().async_function_constructor().instance_prototype(),
+          isolate_));
+
+  auto generator_function =
+      handle(JSFunction::cast(isolate_->context()
+                                  .generator_function_map()
+                                  .constructor_or_back_pointer()),
+             isolate_);
+  func(factory()->NewStringFromAsciiChecked("GeneratorFunction"),
+       generator_function);
+
+  func(factory()->NewStringFromAsciiChecked("GeneratorFunction.prototype"),
+       handle(generator_function->instance_prototype(), isolate_));
+
+  auto async_generator_function =
+      handle(JSFunction::cast(isolate_->context()
+                                  .async_generator_function_map()
+                                  .constructor_or_back_pointer()),
+             isolate_);
+  func(factory()->NewStringFromAsciiChecked("AsyncGeneratorFunction"),
+       async_generator_function);
+
+  func(factory()->NewStringFromAsciiChecked("AsyncGeneratorFunction.prototype"),
+       handle(async_generator_function->instance_prototype(), isolate_));
+
+  static_assert(kBuiltinObjectCount == 12);
 }
 
 uint32_t WebSnapshotSerializerDeserializer::FunctionKindToFunctionFlags(
@@ -74,6 +121,8 @@ uint32_t WebSnapshotSerializerDeserializer::FunctionKindToFunctionFlags(
     case FunctionKind::kAsyncGeneratorFunction:
     case FunctionKind::kBaseConstructor:
     case FunctionKind::kDefaultBaseConstructor:
+    case FunctionKind::kDerivedConstructor:
+    case FunctionKind::kDefaultDerivedConstructor:
     case FunctionKind::kConciseMethod:
     case FunctionKind::kAsyncConciseMethod:
       break;
@@ -642,8 +691,8 @@ void WebSnapshotSerializer::ConstructSource() {
   DCHECK(!in_place);
 }
 
-void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
-                                                  Handle<JSFunction> function) {
+void WebSnapshotSerializer::SerializeFunctionInfo(Handle<JSFunction> function,
+                                                  ValueSerializer& serializer) {
   if (!function->shared().HasSourceCode()) {
     Throw("Function without source code");
     return;
@@ -653,15 +702,15 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
     DisallowGarbageCollection no_gc;
     Context context = function->context();
     if (context.IsNativeContext() || context.IsScriptContext()) {
-      serializer->WriteUint32(0);
+      serializer.WriteUint32(0);
     } else {
       DCHECK(context.IsFunctionContext() || context.IsBlockContext());
       uint32_t context_id = GetContextId(context);
-      serializer->WriteUint32(context_id + 1);
+      serializer.WriteUint32(context_id + 1);
     }
   }
 
-  serializer->WriteUint32(source_id_);
+  serializer.WriteUint32(source_id_);
   Handle<Script> script =
       handle(Script::cast(function->shared().script()), isolate_);
   int start = function->shared().StartPosition();
@@ -669,22 +718,23 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
   int final_offset =
       source_offset_to_compacted_source_offset_[script_offsets_[script->id()] +
                                                 start];
-  serializer->WriteUint32(final_offset);
-  serializer->WriteUint32(end - start);
+  serializer.WriteUint32(final_offset);
+  serializer.WriteUint32(end - start);
 
-  serializer->WriteUint32(
+  serializer.WriteUint32(
       function->shared().internal_formal_parameter_count_without_receiver());
-  serializer->WriteUint32(
+  serializer.WriteUint32(
       FunctionKindToFunctionFlags(function->shared().kind()));
 
   if (function->has_prototype_slot() && function->has_instance_prototype()) {
     DisallowGarbageCollection no_gc;
     JSObject prototype = JSObject::cast(function->instance_prototype());
     uint32_t prototype_id = GetObjectId(prototype);
-    serializer->WriteUint32(prototype_id + 1);
+    serializer.WriteUint32(prototype_id + 1);
   } else {
-    serializer->WriteUint32(0);
+    serializer.WriteUint32(0);
   }
+  WriteValue(handle(function->map().prototype(), isolate_), serializer);
 }
 
 void WebSnapshotSerializer::ShallowDiscoverExternals(FixedArray externals) {
@@ -707,11 +757,11 @@ void WebSnapshotSerializer::ShallowDiscoverBuiltinObjects(
       isolate_->factory()->NewFixedArray(kBuiltinObjectCount);
 
   int i = 0;
-  IterateBuiltinObjects([&](String name, HeapObject object) {
-    builtin_object_name_strings_->set(i, name);
+  IterateBuiltinObjects([&](Handle<String> name, Handle<HeapObject> object) {
+    builtin_object_name_strings_->set(i, *name);
     uint32_t id;
     bool already_exists =
-        InsertIntoIndexMap(builtin_object_to_name_, object, id);
+        InsertIntoIndexMap(builtin_object_to_name_, *object, id);
     CHECK(!already_exists);
     CHECK_EQ(static_cast<int>(id), i);
     ++i;
@@ -887,6 +937,8 @@ void WebSnapshotSerializer::DiscoverContextAndPrototype(
         handle(function->instance_prototype(), isolate_));
     discovery_queue_.push(prototype);
   }
+
+  discovery_queue_.push(handle(function->map().prototype(), isolate_));
 }
 
 void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
@@ -1157,7 +1209,7 @@ void WebSnapshotSerializer::DiscoverSymbol(Handle<Symbol> symbol) {
 // prototype otherwise
 // TODO(v8:11525): Investigate whether the length is really needed.
 void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
-  SerializeFunctionInfo(&function_serializer_, function);
+  SerializeFunctionInfo(function, function_serializer_);
   // TODO(v8:11525): Support properties in functions.
 }
 
@@ -1170,7 +1222,7 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
 // - Flags (see FunctionFlags)
 // - 1 + object id for the function prototype
 void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function) {
-  SerializeFunctionInfo(&class_serializer_, function);
+  SerializeFunctionInfo(function, class_serializer_);
   // TODO(v8:11525): Support properties in classes.
   // TODO(v8:11525): Support class members.
 }
@@ -1843,10 +1895,9 @@ void WebSnapshotDeserializer::CollectBuiltinObjects() {
 #if DEBUG
   int i = 0;
 #endif
-  IterateBuiltinObjects([&](String name, HeapObject object) {
+  IterateBuiltinObjects([&](Handle<String> name, Handle<HeapObject> object) {
     auto new_builtin_object_name_to_object =
-        ObjectHashTable::Put(builtin_object_name_to_object_,
-                             handle(name, isolate_), handle(object, isolate_));
+        ObjectHashTable::Put(builtin_object_name_to_object_, name, object);
     USE(new_builtin_object_name_to_object);
     // We preallocated the correct size, so the hash table doesn't grow.
     DCHECK_EQ(*new_builtin_object_name_to_object,
@@ -2017,6 +2068,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     // systematically enforcing it on the ValueSerializer side.
     // TODO(v8:11525): Allow "objects with map" which need to be turned to
     // dictionary mode objects.
+    // TODO(v8:11525): Create map trees.
     if (property_count > kMaxNumberOfDescriptors) {
       Throw("Malformed shape: too many properties");
       return;
@@ -2387,6 +2439,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     functions_.set(current_function_count_, *function);
 
     ReadFunctionPrototype(function);
+    DeserializeObjectPrototypeForFunction(function);
   }
 }
 
@@ -2443,9 +2496,10 @@ void WebSnapshotDeserializer::DeserializeClasses() {
     Handle<JSFunction> function = CreateJSFunction(
         function_count_ + current_class_count_ + 1, start_position, length,
         parameter_count, flags, context_id);
-    classes_.set(current_class_count_, *function);
 
     ReadFunctionPrototype(function);
+    DeserializeObjectPrototypeForFunction(function);
+    classes_.set(current_class_count_, *function);
   }
 }
 
@@ -2456,6 +2510,33 @@ void WebSnapshotDeserializer::DeserializeObjectPrototype(Handle<Map> map) {
   if (!was_deferred) {
     SetPrototype(map, handle(prototype, isolate_));
   }
+}
+
+void WebSnapshotDeserializer::DeserializeObjectPrototypeForFunction(
+    Handle<JSFunction> function) {
+  Handle<Map> map(function->map(), isolate_);
+  // Copy the map so that we don't end up modifying the canonical maps.
+  // TODO(v8:11525): Ensure we create the same map tree as for non-websnapshot
+  // functions + add a test.
+  map = Map::Copy(isolate_, map, "Web Snapshot");
+  auto result = ReadValue(map, 0, InternalizeStrings::kNo);
+  Object prototype = std::get<0>(result);
+  bool was_deferred = std::get<1>(result);
+  // If we got a deferred reference, the prototype cannot be a builtin; those
+  // references aren't deferred.
+  // TODO(v8:11525): if the object order is relaxed, it's possible to have a
+  // deferred reference to Function.prototype, and we'll need to recognize and
+  // handle that case.
+  if (prototype == isolate_->context().function_prototype()) {
+    DCHECK_EQ(function->map().prototype(),
+              isolate_->context().function_prototype());
+    // TODO(v8:11525): Avoid map creation (above) in this case.
+    return;
+  }
+  if (!was_deferred) {
+    SetPrototype(map, handle(prototype, isolate_));
+  }
+  function->set_map(*map, kReleaseStore);
 }
 
 Handle<Map>
@@ -2472,6 +2553,9 @@ WebSnapshotDeserializer::DeserializeObjectPrototypeAndCreateEmptyMap() {
   // handle that case.
   if (prototype == isolate_->context().initial_object_prototype()) {
     // TODO(v8:11525): Avoid map creation (above) in this case.
+    // TODO(v8:11525): Should the __proto__ be a property of the map or a
+    // property of the object? Investigate which solution is better for the
+    // other JS engines.
     return handle(isolate_->native_context()->object_function().initial_map(),
                   isolate_);
   }

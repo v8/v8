@@ -97,9 +97,10 @@ class WebSnapshotSerializerDeserializer {
   // Not virtual, on purpose (because it doesn't need to be).
   void Throw(const char* message);
 
-  void IterateBuiltinObjects(std::function<void(String, HeapObject)> func);
+  void IterateBuiltinObjects(
+      std::function<void(Handle<String>, Handle<HeapObject>)> func);
 
-  static constexpr int kBuiltinObjectCount = 4;
+  static constexpr int kBuiltinObjectCount = 12;
 
   inline Factory* factory() const { return isolate_->factory(); }
 
@@ -220,8 +221,8 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverObjectPropertiesWithDictionaryMap(T dict);
   void ConstructSource();
 
-  void SerializeFunctionInfo(ValueSerializer* serializer,
-                             Handle<JSFunction> function);
+  void SerializeFunctionInfo(Handle<JSFunction> function,
+                             ValueSerializer& serializer);
 
   void SerializeString(Handle<String> string, ValueSerializer& serializer);
   void SerializeSymbol(Handle<Symbol> symbol);
@@ -403,6 +404,7 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeExports(bool skip_exports);
   void DeserializeObjectPrototype(Handle<Map> map);
   Handle<Map> DeserializeObjectPrototypeAndCreateEmptyMap();
+  void DeserializeObjectPrototypeForFunction(Handle<JSFunction> function);
   void SetPrototype(Handle<Map> map, Handle<Object> prototype);
 
   template <typename T>

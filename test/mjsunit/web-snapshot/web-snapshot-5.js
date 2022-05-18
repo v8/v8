@@ -87,3 +87,39 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   const obj = new MyError();
   assertTrue(obj.__proto__.__proto__ === Realm.eval(realm, "Error.prototype"));
 })();
+
+(function TestFunctionKinds() {
+  function createObjects() {
+    globalThis.normalFunction = function() {}
+    globalThis.asyncFunction = async function() {}
+    globalThis.generatorFunction = function*() {}
+    globalThis.asyncGeneratorFunction = async function*() {}
+  }
+  const realm = Realm.create();
+  const {normalFunction, asyncFunction, generatorFunction,
+         asyncGeneratorFunction} =
+      takeAndUseWebSnapshot(createObjects, ['normalFunction', 'asyncFunction',
+          'generatorFunction', 'asyncGeneratorFunction'], realm);
+  const newNormalFunction = Realm.eval(realm, 'f1 = function() {}');
+  const newAsyncFunction = Realm.eval(realm, 'f2 = async function() {}');
+  const newGeneratorFunction = Realm.eval(realm, 'f3 = function*() {}');
+  const newAsyncGeneratorFunction =
+      Realm.eval(realm, 'f4 = async function*() {}');
+
+  assertSame(newNormalFunction.__proto__, normalFunction.__proto__);
+  assertSame(newNormalFunction.prototype.__proto__,
+             normalFunction.prototype.__proto__);
+
+  assertSame(newAsyncFunction.__proto__, asyncFunction.__proto__);
+  assertEquals(undefined, asyncFunction.prototype);
+  assertEquals(undefined, newAsyncFunction.prototype);
+
+  assertSame(newGeneratorFunction.__proto__, generatorFunction.__proto__);
+  assertSame(newGeneratorFunction.prototype.__proto__,
+             generatorFunction.prototype.__proto__);
+
+  assertSame(newAsyncGeneratorFunction.__proto__,
+             asyncGeneratorFunction.__proto__);
+  assertSame(newAsyncGeneratorFunction.prototype.__proto__,
+             asyncGeneratorFunction.prototype.__proto__);
+})();

@@ -341,6 +341,35 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals(7, x.f());
 })();
 
+(function TestDerivedClass() {
+  function createObjects() {
+    globalThis.Base = class { f() { return 8; }};
+    globalThis.Foo = class extends Base { };
+  }
+  const realm = Realm.create();
+  const { Foo, Base } = takeAndUseWebSnapshot(createObjects, ['Foo', 'Base'], realm);
+  assertEquals(Base.prototype, Foo.prototype.__proto__);
+  assertEquals(Base, Foo.__proto__);
+  const x = new Foo();
+  assertEquals(8, x.f());
+})();
+
+(function TestDerivedClassWithConstructor() {
+  function createObjects() {
+    globalThis.Base = class { constructor() {this.m = 43;}};
+    globalThis.Foo = class extends Base{
+      constructor() {
+        super();
+        this.n = 42;
+      }
+    };
+  }
+  const { Foo } = takeAndUseWebSnapshot(createObjects, ['Foo']);
+  const x = new Foo();
+  assertEquals(42, x.n);
+  assertEquals(43, x.m);
+})();
+
 (async function TestClassWithAsyncMethods() {
   function createObjects() {
     globalThis.Foo = class {
@@ -444,8 +473,14 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
     globalThis.Sub.prototype = Object.create(Super.prototype);
     globalThis.Sub.prototype.subfunc = function() { return 'subfunc'; };
   }
-  const { Sub } = takeAndUseWebSnapshot(createObjects, ['Sub']);
+  const realm = Realm.create();
+  const { Sub, Super } =
+      takeAndUseWebSnapshot(createObjects, ['Sub', 'Super'], realm);
   const o = new Sub();
   assertEquals('superfunc', o.superfunc());
   assertEquals('subfunc', o.subfunc());
+  assertSame(Super.prototype, Sub.prototype.__proto__);
+  const realmFunctionPrototype = Realm.eval(realm, 'Function.prototype');
+  assertSame(realmFunctionPrototype, Super.__proto__);
+  assertSame(realmFunctionPrototype, Sub.__proto__);
 })();
