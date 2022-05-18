@@ -3043,9 +3043,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
     // First check per-isolate compilation cache.
     CompilationCacheScript::LookupResult lookup_result =
         compilation_cache->LookupScript(source, script_details, language_mode);
-    if (FLAG_isolate_script_cache_recompilation) {
-      maybe_script = lookup_result.script();
-    }
+    maybe_script = lookup_result.script();
     maybe_result = lookup_result.toplevel_sfi();
     is_compiled_scope = lookup_result.is_compiled_scope();
     if (!maybe_result.is_null()) {

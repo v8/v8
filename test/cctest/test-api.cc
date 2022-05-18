@@ -23951,12 +23951,6 @@ TEST(StreamingWithIsolateScriptCacheClearingRootSFI) {
     return;
   }
 
-  // If the compiler is configured to not recompile a flushed root SFI, then
-  // this test is invalid.
-  if (!v8::internal::FLAG_isolate_script_cache_recompilation) {
-    return;
-  }
-
   StreamingWithIsolateScriptCache(true);
 }
 

@@ -1578,12 +1578,6 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     return;
   }
 
-  // If the compiler is configured to not recompile a flushed root SFI, then
-  // this test is invalid.
-  if (flush_root_sfi && !FLAG_isolate_script_cache_recompilation) {
-    return;
-  }
-
   // TODO(v8:12808): Remove this check once background compilation is capable of
   // reusing an existing Script.
   if (flush_root_sfi && FLAG_stress_background_compile) {
