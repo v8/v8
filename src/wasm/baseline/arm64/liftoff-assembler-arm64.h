@@ -1778,7 +1778,7 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
                                                   LiftoffRegister lhs,
                                                   LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i8x16_relaxed_swizzle");
+  Tbl(dst.fp().V16B(), lhs.fp().V16B(), rhs.fp().V16B());
 }
 
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,

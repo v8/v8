@@ -142,10 +142,6 @@
   'test-intl/StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
 
   # TODO(12284): Implement relaxed SIMD in Liftoff.
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4RelaxedMin_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4RelaxedMax_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F64x2RelaxedMin_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F64x2RelaxedMax_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4S_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4U_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2SZero_liftoff': [SKIP],
@@ -1193,7 +1189,6 @@
   'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I8x16RelaxedSwizzle_liftoff': [SKIP],
 }],
 
 ['arch != arm and arch != arm64', {

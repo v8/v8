@@ -2463,7 +2463,7 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
                                                   LiftoffRegister lhs,
                                                   LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i8x16_relaxed_swizzle");
+  emit_i8x16_swizzle(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
