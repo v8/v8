@@ -163,6 +163,8 @@ enum class Disambiguation { kCompatible, kEarlier, kLater, kReject };
 
 // #sec-temporal-totemporaloverflow
 enum class ShowOverflow { kConstrain, kReject };
+// #sec-temporal-toshowcalendaroption
+enum class ShowCalendar { kAuto, kAlways, kNever };
 
 // ISO8601 String Parsing
 
@@ -397,34 +399,37 @@ bool ISODateTimeWithinLimits(Isolate* isolate,
    * Take a short cut and use pre-calculated year/month/day boundary instead.
    *
    * Math:
-   * (-8.64 x 10^21- 8.64 x 10^16,  8.64 x 10^21 + 8.64 x 10^16) ns
-   * = (-8.64 x 9999 x 10^16,  8.64 x 9999 x 10^16) ns
-   * = (-8.64 x 9999 x 10^10,  8.64 x 9999 x 10^10) millisecond
-   * = (-8.64 x 9999 x 10^7,  8.64 x 9999 x 10^7) second
-   * = (-86400 x 9999 x 10^3,  86400 x 9999 x 10^3) second
-   * = (-9999 x 10^3,  9999 x 10^3) days => Because 60*60*24 = 86400
-   * 9999000 days is about 27376 years, 4 months and 7 days.
-   * Therefore 9999000 days before Jan 1 1970 is around Auguest 23, -25407 and
-   * 9999000 days after Jan 1 1970 is around April 9, 29346.
+   * (-8.64 x 10^21- 8.64 x 10^13,  8.64 x 10^21 + 8.64 x 10^13) ns
+   * = (-8.64 x 100000001 x 10^13,  8.64 x 100000001 x 10^13) ns
+   * = (-8.64 x 100000001 x 10^10,  8.64 x 100000001 x 10^10) microsecond
+   * = (-8.64 x 100000001 x 10^7,  8.64 x 100000001 x 10^7) millisecond
+   * = (-8.64 x 100000001 x 10^4,  8.64 x 100000001 x 10^4) second
+   * = (-86400 x 100000001 ,  86400 x 100000001 ) second
+   * = (-100000001,  100000001) days => Because 60*60*24 = 86400
+   * 100000001 days is about 273790 years, 11 months and 4 days.
+   * Therefore 100000001 days before Jan 1 1970 is around Jan 26, -271819 and
+   * 100000001 days after Jan 1 1970 is around Nov 4, 275760.
    */
-  if (date_time.date.year > -25407 && date_time.date.year < 29346) return true;
-  if (date_time.date.year < -25407 || date_time.date.year > 29346) return false;
-  if (date_time.date.year == -25407) {
-    if (date_time.date.month > 8) return true;
-    if (date_time.date.month < 8) return false;
-    return (date_time.date.day > 23);
+  if (date_time.date.year > -271819 && date_time.date.year < 275760)
+    return true;
+  if (date_time.date.year < -271819 || date_time.date.year > 275760)
+    return false;
+  if (date_time.date.year == -271819) {
+    if (date_time.date.month > 11) return true;
+    if (date_time.date.month < 11) return false;
+    return (date_time.date.day > 4);
   } else {
-    DCHECK_EQ(date_time.date.year, 29346);
-    if (date_time.date.month > 4) return false;
-    if (date_time.date.month < 4) return true;
-    return (date_time.date.day > 23);
+    DCHECK_EQ(date_time.date.year, 275760);
+    if (date_time.date.month > 1) return false;
+    if (date_time.date.month < 1) return true;
+    return (date_time.date.day > 26);
   }
   // 1. Assert: year, month, day, hour, minute, second, millisecond,
   // microsecond, and nanosecond are integers.
   // 2. Let ns be ! GetEpochFromISOParts(year, month, day, hour, minute,
   // second, millisecond, microsecond, nanosecond).
-  // 3. If ns ≤ -8.64 × 10^21 - 8.64 × 10^16, then
-  // 4. If ns ≥ 8.64 × 10^21 + 8.64 × 10^16, then
+  // 3. If ns ≤ -8.64 × 10^21 - 8.64 × 10^13, then
+  // 4. If ns ≥ 8.64 × 10^21 + 8.64 × 10^13, then
   // 5. Return true.
 }
 
@@ -2492,7 +2497,7 @@ Handle<String> FormatTimeZoneOffsetString(Isolate* isolate,
   IncrementalStringBuilder builder(isolate);
   // 1. Assert: offsetNanoseconds is an integer.
   // 2. If offsetNanoseconds ≥ 0, let sign be "+"; otherwise, let sign be "-".
-  builder.AppendCString((offset_nanoseconds >= 0) ? "+" : "-");
+  builder.AppendCharacter((offset_nanoseconds >= 0) ? '+' : '-');
   // 3. Let offsetNanoseconds be abs(offsetNanoseconds).
   offset_nanoseconds = std::abs(offset_nanoseconds);
   // 3. Let nanoseconds be offsetNanoseconds modulo 10^9.
@@ -2506,20 +2511,26 @@ Handle<String> FormatTimeZoneOffsetString(Isolate* isolate,
   // 7. Let h be hours, formatted as a two-digit decimal number, padded to the
   // left with a zero if necessary.
   if (hours < 10) {
-    builder.AppendCStringLiteral("0");
+    builder.AppendCharacter('0');
   }
   builder.AppendInt(static_cast<int32_t>(hours));
   // 8. Let m be minutes, formatted as a two-digit decimal number, padded to the
   // left with a zero if necessary.
-  builder.AppendCString((minutes < 10) ? ":0" : ":");
+  builder.AppendCharacter(':');
+  if (minutes < 10) {
+    builder.AppendCharacter('0');
+  }
   builder.AppendInt(static_cast<int>(minutes));
   // 9. Let s be seconds, formatted as a two-digit decimal number, padded to the
   // left with a zero if necessary.
   // 10. If nanoseconds ≠ 0, then
   if (nanoseconds != 0) {
-    builder.AppendCString((seconds < 10) ? ":0" : ":");
+    builder.AppendCharacter(':');
+    if (seconds < 10) {
+      builder.AppendCharacter('0');
+    }
     builder.AppendInt(static_cast<int>(seconds));
-    builder.AppendCStringLiteral(".");
+    builder.AppendCharacter('.');
     // a. Let fraction be nanoseconds, formatted as a nine-digit decimal number,
     // padded to the left with zeroes if necessary.
     // b. Set fraction to the longest possible substring of fraction starting at
@@ -2536,11 +2547,113 @@ Handle<String> FormatTimeZoneOffsetString(Isolate* isolate,
   } else if (seconds != 0) {
     // a. Let post be the string-concatenation of the code unit 0x003A (COLON)
     // and s.
-    builder.AppendCString((seconds < 10) ? ":0" : ":");
+    builder.AppendCharacter(':');
+    if (seconds < 10) {
+      builder.AppendCharacter('0');
+    }
     builder.AppendInt(static_cast<int>(seconds));
   }
   // 12. Return the string-concatenation of sign, h, the code unit 0x003A
   // (COLON), m, and post.
+  return builder.Finish().ToHandleChecked();
+}
+
+int32_t DecimalLength(int32_t n) {
+  int32_t i = 1;
+  while (n >= 10) {
+    n /= 10;
+    i++;
+  }
+  return i;
+}
+
+void ToZeroPaddedDecimalString(IncrementalStringBuilder* builder, int32_t n,
+                               int32_t min_length) {
+  for (int32_t pad = min_length - DecimalLength(n); pad > 0; pad--) {
+    builder->AppendCharacter('0');
+  }
+  builder->AppendInt(n);
+}
+
+// #sec-temporal-padisoyear
+void PadISOYear(IncrementalStringBuilder* builder, int32_t y) {
+  // 1. Assert: y is an integer.
+  // 2. If y ≥ 0 and y ≤ 9999, then
+  if (y >= 0 && y <= 9999) {
+    // a. Return ToZeroPaddedDecimalString(y, 4).
+    ToZeroPaddedDecimalString(builder, y, 4);
+    return;
+  }
+  // 3. If y > 0, let yearSign be "+"; otherwise, let yearSign be "-".
+  if (y > 0) {
+    builder->AppendCharacter('+');
+  } else {
+    builder->AppendCharacter('-');
+  }
+  // 4. Let year be ToZeroPaddedDecimalString(abs(y), 6).
+  ToZeroPaddedDecimalString(builder, std::abs(y), 6);
+  // 5. Return the string-concatenation of yearSign and year.
+}
+
+// #sec-temporal-formatcalendarannotation
+Handle<String> FormatCalendarAnnotation(Isolate* isolate, Handle<String> id,
+                                        ShowCalendar show_calendar) {
+  // 1.Assert: showCalendar is "auto", "always", or "never".
+  // 2. If showCalendar is "never", return the empty String.
+  if (show_calendar == ShowCalendar::kNever) {
+    return isolate->factory()->empty_string();
+  }
+  // 3. If showCalendar is "auto" and id is "iso8601", return the empty String.
+  if (show_calendar == ShowCalendar::kAuto &&
+      String::Equals(isolate, id, isolate->factory()->iso8601_string())) {
+    return isolate->factory()->empty_string();
+  }
+  // 4. Return the string-concatenation of "[u-ca=", id, and "]".
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCStringLiteral("[u-ca=");
+  builder.AppendString(id);
+  builder.AppendCharacter(']');
+  return builder.Finish().ToHandleChecked();
+}
+
+// #sec-temporal-temporaldatetostring
+MaybeHandle<String> TemporalDateToString(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    ShowCalendar show_calendar) {
+  IncrementalStringBuilder builder(isolate);
+  // 1. Assert: Type(temporalDate) is Object.
+  // 2. Assert: temporalDate has an [[InitializedTemporalDate]] internal slot.
+  // 3. Let year be ! PadISOYear(temporalDate.[[ISOYear]]).
+  PadISOYear(&builder, temporal_date->iso_year());
+  // 4. Let month be ToZeroPaddedDecimalString(temporalDate.[[ISOMonth]], 2).
+  int32_t month = temporal_date->iso_month();
+  builder.AppendCharacter('-');
+  if (month < 10) {
+    builder.AppendCharacter('0');
+  }
+  builder.AppendInt(month);
+  // 5. Let day be ToZeroPaddedDecimalString(temporalDate.[[ISODay]], 2).
+  int32_t day = temporal_date->iso_day();
+  builder.AppendCharacter('-');
+  if (day < 10) {
+    builder.AppendCharacter('0');
+  }
+  builder.AppendInt(day);
+  // 6. Let calendarID be ? ToString(temporalDate.[[Calendar]]).
+  Handle<String> calendar_id;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_id,
+      Object::ToString(isolate, handle(temporal_date->calendar(), isolate)),
+      String);
+
+  // 7. Let calendar be ! FormatCalendarAnnotation(calendarID,
+  // showCalendar).
+  Handle<String> calendar_string =
+      FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
+  // 8. Return the string-concatenation of year, the code unit 0x002D
+  // (HYPHEN-MINUS), month, the code unit 0x002D (HYPHEN-MINUS), day, and
+  // calendar.
+  builder.AppendString(calendar_string);
   return builder.Finish().ToHandleChecked();
 }
 
@@ -7310,6 +7423,13 @@ MaybeHandle<JSReceiver> JSTemporalPlainDate::GetISOFields(
   DEFINE_INT_FIELD(fields, isoYear, iso_year, temporal_date)
   // 8. Return fields.
   return fields;
+}
+
+// #sec-temporal.plaindate.prototype.tojson
+MaybeHandle<String> JSTemporalPlainDate::ToJSON(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date) {
+  // #sec-temporal.plaindate.prototype.tolocalestring
+  return TemporalDateToString(isolate, temporal_date, ShowCalendar::kAuto);
 }
 
 // #sec-temporal-createtemporaldatetime

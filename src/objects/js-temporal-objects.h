@@ -262,6 +262,11 @@ class JSTemporalPlainDate
   // #sec-temporal.now.plaindateiso
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> NowISO(
       Isolate* isolate, Handle<Object> temporal_time_zone_like);
+
+  // #sec-temporal.plaindate.prototype.tojson
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
+      Isolate* isolate, Handle<JSTemporalPlainDate> plain_date);
+
   DECL_PRINTER(JSTemporalPlainDate)
 
   DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()

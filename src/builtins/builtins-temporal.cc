@@ -62,8 +62,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToPlainDateTime)
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToZonedDateTime)
 /* Temporal #sec-temporal.plaindate.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToString)
-/* Temporal #sec-temporal.plaindate.prototype.tojson */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToJSON)
 
 /* Temporal.PlaneTime */
 /* Temporal #sec-temporal.plaintime.compare */
@@ -496,6 +494,7 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDate, WithCalendar, withCalendar)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainDate)
+TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToJSON, toJSON)
 
 // PlainTime
 BUILTIN(TemporalPlainTimeConstructor) {

@@ -795,8 +795,6 @@
   'built-ins/Temporal/PlainDate/prototype/subtract/overflow-undefined': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/subtract/overflow-wrong-type': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/subtract/subclassing-ignored': [FAIL],
-  'built-ins/Temporal/PlainDate/prototype/toJSON/branding': [FAIL],
-  'built-ins/Temporal/PlainDate/prototype/toJSON/year-format': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/toLocaleString/branding': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/toLocaleString/return-string': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/toPlainDateTime/argument-string-with-utc-designator': [FAIL],
