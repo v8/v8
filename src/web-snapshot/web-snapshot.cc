@@ -1022,16 +1022,17 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
 
   DisallowGarbageCollection no_gc;
 
-  // TODO(v8:11525): Support sparse arrays & arrays with holes.
   // TODO(v8:11525): Handle sealed & frozen elements correctly. (Also: handle
   // sealed & frozen objects.)
   switch (elements_kind) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
-    case HOLEY_SMI_ELEMENTS:
-    case HOLEY_ELEMENTS: {
+    case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS: {
       FixedArray elements = FixedArray::cast(array->elements());
       for (int i = 0; i < elements.length(); ++i) {
         Object object = elements.get(i);
@@ -1406,12 +1407,17 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
 //     - Serialized value
 void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
   auto elements_kind = array->GetElementsKind();
-  // TODO(v8:11525): Support double arrays.
+  // TODO(v8:11525): Handle sealed & frozen elements correctly. (Also: handle
+  // sealed & frozen objects.)
   switch (elements_kind) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
-    case HOLEY_ELEMENTS: {
+    case HOLEY_ELEMENTS:
+    case PACKED_FROZEN_ELEMENTS:
+    case PACKED_SEALED_ELEMENTS:
+    case HOLEY_FROZEN_ELEMENTS:
+    case HOLEY_SEALED_ELEMENTS: {
       array_serializer_.WriteUint32(ArrayType::kDense);
       uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
       array_serializer_.WriteUint32(length);
