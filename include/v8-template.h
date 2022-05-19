@@ -129,7 +129,8 @@ class V8_EXPORT Template : public Data {
  * Interceptor for get requests on an object.
  *
  * Use `info.GetReturnValue().Set()` to set the return value of the
- * intercepted get request.
+ * intercepted get request. If the property does not exist the callback should
+ * not set the result and must not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -170,9 +171,9 @@ using GenericNamedPropertyGetterCallback =
  * Use `info.GetReturnValue()` to indicate whether the request was intercepted
  * or not. If the setter successfully intercepts the request, i.e., if the
  * request should not be further executed, call
- * `info.GetReturnValue().Set(value)`. If the setter
- * did not intercept the request, i.e., if the request should be handled as
- * if no interceptor is present, do not not call `Set()`.
+ * `info.GetReturnValue().Set(value)`. If the setter did not intercept the
+ * request, i.e., if the request should be handled as if no interceptor is
+ * present, do not not call `Set()` and do not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -195,7 +196,9 @@ using GenericNamedPropertySetterCallback =
  * defineProperty().
  *
  * Use `info.GetReturnValue().Set(value)` to set the property attributes. The
- * value is an integer encoding a `v8::PropertyAttribute`.
+ * value is an integer encoding a `v8::PropertyAttribute`. If the property does
+ * not exist the callback should not set the result and must not produce side
+ * effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -220,7 +223,8 @@ using GenericNamedPropertyQueryCallback =
  * or not. If the deleter successfully intercepts the request, i.e., if the
  * request should not be further executed, call
  * `info.GetReturnValue().Set(value)` with a boolean `value`. The `value` is
- * used as the return value of `delete`.
+ * used as the return value of `delete`. If the deleter does not intercept the
+ * request then it should not set the result and must not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -252,9 +256,9 @@ using GenericNamedPropertyEnumeratorCallback =
  * Use `info.GetReturnValue()` to indicate whether the request was intercepted
  * or not. If the definer successfully intercepts the request, i.e., if the
  * request should not be further executed, call
- * `info.GetReturnValue().Set(value)`. If the definer
- * did not intercept the request, i.e., if the request should be handled as
- * if no interceptor is present, do not not call `Set()`.
+ * `info.GetReturnValue().Set(value)`. If the definer did not intercept the
+ * request, i.e., if the request should be handled as if no interceptor is
+ * present, do not not call `Set()` and do not produce side effects.
  *
  * \param property The name of the property for which the request was
  * intercepted.
