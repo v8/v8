@@ -976,6 +976,10 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
   std::unique_ptr<char[]> DecimalString(bigint::Processor* processor) {
     DCHECK_EQ(behavior_, Behavior::kLiteral);
     this->ParseInt();
+    if (this->state() == State::kZero) {
+      // Input may have been "0x0" or similar.
+      return std::unique_ptr<char[]>(new char[2]{'0', '\0'});
+    }
     DCHECK_EQ(this->state(), State::kDone);
     int num_digits = accumulator_.ResultLength();
     base::SmallVector<bigint::digit_t, 8> digit_storage(num_digits);
