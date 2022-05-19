@@ -239,8 +239,14 @@ class CompilationUnitQueues {
   void AddTopTierPriorityUnit(WasmCompilationUnit unit, size_t priority) {
     base::SharedMutexGuard<base::kShared> queues_guard(&queues_mutex_);
     // Add to the individual queues in a round-robin fashion. No special care is
-    // taken to balance them; they will be balanced by work stealing. We use
-    // the same counter for this reason.
+    // taken to balance them; they will be balanced by work stealing.
+    // Priorities should only be seen as a hint here; without balancing, we
+    // might pop a unit with lower priority from one queue while other queues
+    // still hold higher-priority units.
+    // Since updating priorities in a std::priority_queue is difficult, we just
+    // add new units with higher priorities, and use the
+    // {CompilationUnitQueues::top_tier_compiled_} array to discard units for
+    // functions which are already being compiled.
     int queue_to_add = next_queue_to_add.load(std::memory_order_relaxed);
     while (!next_queue_to_add.compare_exchange_weak(
         queue_to_add, next_task_id(queue_to_add, queues_.size()),
@@ -1440,23 +1446,21 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
                                    kNoDebugging};
 
   const WasmModule* module = native_module->module();
-  size_t priority;
+  int priority;
   {
+    // TODO(clemensb): Try to avoid the MutexGuard here.
     base::MutexGuard mutex_guard(&module->type_feedback.mutex);
-    int saved_priority =
+    int& stored_priority =
         module->type_feedback.feedback_for_function[func_index].tierup_priority;
-    saved_priority++;
-    module->type_feedback.feedback_for_function[func_index].tierup_priority =
-        saved_priority;
-    // Continue to creating a compilation unit if this is the first time
-    // we detect this function as hot, and create a new higher-priority unit
-    // if the number of tierup checks is a power of two (at least 4).
-    if (saved_priority > 1 &&
-        (saved_priority < 4 || (saved_priority & (saved_priority - 1)) != 0)) {
-      return;
-    }
-    priority = saved_priority;
+    if (stored_priority < kMaxInt) ++stored_priority;
+    priority = stored_priority;
   }
+  // Only create a compilation unit if this is the first time we detect this
+  // function as hot (priority == 1), or if the priority increased
+  // significantly. The latter is assumed to be the case if the priority
+  // increased at least to four, and is a power of two.
+  if (priority == 2 || !base::bits::IsPowerOfTwo(priority)) return;
+
   if (FLAG_wasm_speculative_inlining) {
     // TODO(jkummerow): we could have collisions here if different instances
     // of the same module have collected different feedback. If that ever
@@ -3489,11 +3493,11 @@ void CompilationStateImpl::CommitTopTierCompilationUnit(
 
 void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
     WasmCompilationUnit unit, size_t priority) {
-  compilation_unit_queues_.AddTopTierPriorityUnit(unit, priority);
   {
     base::MutexGuard guard(&callbacks_mutex_);
     outstanding_top_tier_functions_++;
   }
+  compilation_unit_queues_.AddTopTierPriorityUnit(unit, priority);
   compile_job_->NotifyConcurrencyIncrease();
 }
 
