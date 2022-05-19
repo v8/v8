@@ -250,8 +250,6 @@ TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeSince)
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeEquals)
 /* Temporal #sec-temporal.plainyearmonth.tostring */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeToString)
-/* Temporal #sec-temporal.plainyearmonth.tojson */
-TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeToJSON)
 /* Temporal #sec-temporal.plainyearmonth.prototype.toplaindate */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeToPlainDate)
 
@@ -582,6 +580,7 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, MonthsInYear,
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD0(PlainYearMonth, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainYearMonth)
+TEMPORAL_PROTOTYPE_METHOD0(PlainYearMonth, ToJSON, toJSON)
 
 // PlainMonthDay
 BUILTIN(TemporalPlainMonthDayConstructor) {

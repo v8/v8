@@ -398,6 +398,10 @@ class JSTemporalPlainYearMonth
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month);
 
+  // #sec-temporal.plainyearmonth.prototype.tojson
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
+      Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month);
+
   // Abstract Operations
 
   DECL_PRINTER(JSTemporalPlainYearMonth)

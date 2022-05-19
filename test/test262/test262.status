@@ -1454,8 +1454,6 @@
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/overflow-undefined': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/overflow-wrong-type': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/subclassing-ignored': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toJSON/branding': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toJSON/year-format': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/toLocaleString/branding': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/argument-not-object': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/branding': [FAIL],

@@ -2567,6 +2567,7 @@ int32_t DecimalLength(int32_t n) {
   return i;
 }
 
+// #sec-tozeropaddeddecimalstring
 void ToZeroPaddedDecimalString(IncrementalStringBuilder* builder, int32_t n,
                                int32_t min_length) {
   for (int32_t pad = min_length - DecimalLength(n); pad > 0; pad--) {
@@ -2626,19 +2627,11 @@ MaybeHandle<String> TemporalDateToString(
   // 3. Let year be ! PadISOYear(temporalDate.[[ISOYear]]).
   PadISOYear(&builder, temporal_date->iso_year());
   // 4. Let month be ToZeroPaddedDecimalString(temporalDate.[[ISOMonth]], 2).
-  int32_t month = temporal_date->iso_month();
   builder.AppendCharacter('-');
-  if (month < 10) {
-    builder.AppendCharacter('0');
-  }
-  builder.AppendInt(month);
+  ToZeroPaddedDecimalString(&builder, temporal_date->iso_month(), 2);
   // 5. Let day be ToZeroPaddedDecimalString(temporalDate.[[ISODay]], 2).
-  int32_t day = temporal_date->iso_day();
   builder.AppendCharacter('-');
-  if (day < 10) {
-    builder.AppendCharacter('0');
-  }
-  builder.AppendInt(day);
+  ToZeroPaddedDecimalString(&builder, temporal_date->iso_day(), 2);
   // 6. Let calendarID be ? ToString(temporalDate.[[Calendar]]).
   Handle<String> calendar_id;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -2681,25 +2674,56 @@ MaybeHandle<String> TemporalMonthDayToString(
     builder.AppendCharacter('-');
   }
   // 3. Let month be ToZeroPaddedDecimalString(monthDay.[[ISOMonth]], 2).
-  int32_t month = month_day->iso_month();
-  if (month < 10) {
-    builder.AppendCharacter('0');
-  }
-  builder.AppendInt(month);
+  ToZeroPaddedDecimalString(&builder, month_day->iso_month(), 2);
   // 5. Let result be the string-concatenation of month, the code unit 0x002D
   // (HYPHEN-MINUS), and day.
   builder.AppendCharacter('-');
   // 4. Let day be ToZeroPaddedDecimalString(monthDay.[[ISODay]], 2).
-  int32_t day = month_day->iso_day();
-  if (day < 10) {
-    builder.AppendCharacter('0');
-  }
-  builder.AppendInt(day);
+  ToZeroPaddedDecimalString(&builder, month_day->iso_day(), 2);
   // 8. Let calendarString be ! FormatCalendarAnnotation(calendarID,
   // showCalendar).
   Handle<String> calendar_string =
       FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
+  // 9. Set result to the string-concatenation of result and calendarString.
+  builder.AppendString(calendar_string);
+  // 10. Return result.
+  return builder.Finish().ToHandleChecked();
+}
 
+// #sec-temporal-temporalyearmonthtostring
+MaybeHandle<String> TemporalYearMonthToString(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    ShowCalendar show_calendar) {
+  // 1. Assert: Type(yearMonth) is Object.
+  // 2. Assert: yearMonth has an [[InitializedTemporalYearMonth]] internal slot.
+  IncrementalStringBuilder builder(isolate);
+  // 3. Let year be ! PadISOYear(yearMonth.[[ISOYear]]).
+  PadISOYear(&builder, year_month->iso_year());
+  // 4. Let month be ToZeroPaddedDecimalString(yearMonth.[[ISOMonth]], 2).
+  // 5. Let result be the string-concatenation of year, the code unit 0x002D
+  // (HYPHEN-MINUS), and month.
+  builder.AppendCharacter('-');
+  ToZeroPaddedDecimalString(&builder, year_month->iso_month(), 2);
+  // 6. Let calendarID be ? ToString(yearMonth.[[Calendar]]).
+  Handle<String> calendar_id;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_id,
+      Object::ToString(isolate, handle(year_month->calendar(), isolate)),
+      String);
+  // 7. If showCalendar is "always" or if *_calendarID_ is not *"iso8601", then
+  if (show_calendar == ShowCalendar::kAlways ||
+      !String::Equals(isolate, calendar_id,
+                      isolate->factory()->iso8601_string())) {
+    // a. Let day be ToZeroPaddedDecimalString(yearMonth.[[ISODay]], 2).
+    // b. Set result to the string-concatenation of result, the code unit 0x002D
+    // (HYPHEN-MINUS), and day.
+    builder.AppendCharacter('-');
+    ToZeroPaddedDecimalString(&builder, year_month->iso_day(), 2);
+  }
+  // 8. Let calendarString be ! FormatCalendarAnnotation(calendarID,
+  // showCalendar).
+  Handle<String> calendar_string =
+      FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
   // 9. Set result to the string-concatenation of result and calendarString.
   builder.AppendString(calendar_string);
   // 10. Return result.
@@ -8024,6 +8048,12 @@ MaybeHandle<JSReceiver> JSTemporalPlainYearMonth::GetISOFields(
   DEFINE_INT_FIELD(fields, isoYear, iso_year, year_month)
   // 8. Return fields.
   return fields;
+}
+
+// #sec-temporal.plainyearmonth.prototype.tojson
+MaybeHandle<String> JSTemporalPlainYearMonth::ToJSON(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month) {
+  return TemporalYearMonthToString(isolate, year_month, ShowCalendar::kAuto);
 }
 
 // #sec-temporal-plaintime-constructor
