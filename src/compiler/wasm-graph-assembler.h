@@ -91,6 +91,29 @@ class WasmGraphAssembler : public GraphAssembler {
     NodeProperties::MergeControlToEnd(graph(), common(), control);
   }
 
+  // Numeric conversions
+  Node* BuildTruncateIntPtrToInt32(Node* value);
+
+  Node* BuildChangeInt32ToIntPtr(Node* value);
+
+  Node* BuildChangeIntPtrToInt64(Node* value);
+
+  Node* BuildChangeUint32ToUintPtr(Node* node);
+
+  Node* BuildSmiShiftBitsConstant();
+
+  Node* BuildSmiShiftBitsConstant32();
+
+  Node* BuildChangeInt32ToSmi(Node* value);
+
+  Node* BuildChangeUint31ToSmi(Node* value);
+
+  Node* BuildChangeSmiToInt32(Node* value);
+
+  Node* BuildConvertUint32ToSmiWithSaturation(Node* value, uint32_t maxval);
+
+  Node* BuildChangeSmiToIntPtr(Node* value);
+
   // Helper functions for dealing with HeapObjects.
   // Rule of thumb: if access to a given field in an object is required in
   // at least two places, put a helper function here.
@@ -220,6 +243,16 @@ class WasmGraphAssembler : public GraphAssembler {
   // Generic HeapObject helpers.
 
   Node* HasInstanceType(Node* heap_object, InstanceType type);
+
+  Node* TrapIf(Node* condition, TrapId reason) {
+    return AddNode(graph()->NewNode(mcgraph()->common()->TrapIf(reason),
+                                    condition, effect(), control()));
+  }
+
+  Node* TrapUnless(Node* condition, TrapId reason) {
+    return AddNode(graph()->NewNode(mcgraph()->common()->TrapUnless(reason),
+                                    condition, effect(), control()));
+  }
 
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 

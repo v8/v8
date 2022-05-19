@@ -4,6 +4,8 @@
 
 #include "src/compiler/wasm-graph-assembler.h"
 
+#include "src/compiler/diamond.h"
+#include "src/compiler/node-matchers.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -46,6 +48,77 @@ Node* WasmGraphAssembler::Branch(Node* cond, Node** true_node,
   *true_node = graph()->NewNode(mcgraph()->common()->IfTrue(), branch);
   *false_node = graph()->NewNode(mcgraph()->common()->IfFalse(), branch);
   return branch;
+}
+
+Node* WasmGraphAssembler::BuildTruncateIntPtrToInt32(Node* value) {
+  return mcgraph()->machine()->Is64() ? TruncateInt64ToInt32(value) : value;
+}
+
+Node* WasmGraphAssembler::BuildChangeInt32ToIntPtr(Node* value) {
+  return mcgraph()->machine()->Is64() ? ChangeInt32ToInt64(value) : value;
+}
+
+Node* WasmGraphAssembler::BuildChangeIntPtrToInt64(Node* value) {
+  return mcgraph()->machine()->Is32() ? ChangeInt32ToInt64(value) : value;
+}
+
+Node* WasmGraphAssembler::BuildChangeUint32ToUintPtr(Node* node) {
+  if (mcgraph()->machine()->Is32()) return node;
+  // Fold instances of ChangeUint32ToUint64(IntConstant) directly.
+  Uint32Matcher matcher(node);
+  if (matcher.HasResolvedValue()) {
+    uintptr_t value = matcher.ResolvedValue();
+    return mcgraph()->IntPtrConstant(base::bit_cast<intptr_t>(value));
+  }
+  return ChangeUint32ToUint64(node);
+}
+
+Node* WasmGraphAssembler::BuildSmiShiftBitsConstant() {
+  return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
+}
+
+Node* WasmGraphAssembler::BuildSmiShiftBitsConstant32() {
+  return Int32Constant(kSmiShiftSize + kSmiTagSize);
+}
+
+Node* WasmGraphAssembler::BuildChangeInt32ToSmi(Node* value) {
+  // With pointer compression, only the lower 32 bits are used.
+  return COMPRESS_POINTERS_BOOL
+             ? Word32Shl(value, BuildSmiShiftBitsConstant32())
+             : WordShl(BuildChangeInt32ToIntPtr(value),
+                       BuildSmiShiftBitsConstant());
+}
+
+Node* WasmGraphAssembler::BuildChangeUint31ToSmi(Node* value) {
+  return COMPRESS_POINTERS_BOOL
+             ? Word32Shl(value, BuildSmiShiftBitsConstant32())
+             : WordShl(BuildChangeUint32ToUintPtr(value),
+                       BuildSmiShiftBitsConstant());
+}
+
+Node* WasmGraphAssembler::BuildChangeSmiToInt32(Node* value) {
+  return COMPRESS_POINTERS_BOOL
+             ? Word32Sar(value, BuildSmiShiftBitsConstant32())
+             : BuildTruncateIntPtrToInt32(
+                   WordSar(value, BuildSmiShiftBitsConstant()));
+}
+
+Node* WasmGraphAssembler::BuildConvertUint32ToSmiWithSaturation(
+    Node* value, uint32_t maxval) {
+  DCHECK(Smi::IsValid(maxval));
+  Node* max = mcgraph()->Uint32Constant(maxval);
+  Node* check = Uint32LessThanOrEqual(value, max);
+  Node* valsmi = BuildChangeUint31ToSmi(value);
+  Node* maxsmi = NumberConstant(maxval);
+  Diamond d(graph(), mcgraph()->common(), check, BranchHint::kTrue);
+  d.Chain(control());
+  return d.Phi(MachineRepresentation::kTagged, valsmi, maxsmi);
+}
+
+Node* WasmGraphAssembler::BuildChangeSmiToIntPtr(Node* value) {
+  return COMPRESS_POINTERS_BOOL ? BuildChangeInt32ToIntPtr(Word32Sar(
+                                      value, BuildSmiShiftBitsConstant32()))
+                                : WordSar(value, BuildSmiShiftBitsConstant());
 }
 
 // Helper functions for dealing with HeapObjects.
