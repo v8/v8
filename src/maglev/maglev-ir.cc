@@ -956,6 +956,239 @@ void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
 GENERIC_OPERATIONS_NODE_LIST(DEF_OPERATION)
 #undef DEF_OPERATION
 
+void Int32AddWithOverflow::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                        const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32AddWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                        const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ addl(left, right);
+  EmitEagerDeoptIf(overflow, code_gen_state, this);
+}
+
+void Int32SubtractWithOverflow::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32SubtractWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                             const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ subl(left, right);
+  EmitEagerDeoptIf(overflow, code_gen_state, this);
+}
+
+void Int32MultiplyWithOverflow::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+  set_temporaries_needed(1);
+}
+
+void Int32MultiplyWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                             const ProcessingState& state) {
+  Register result = ToRegister(this->result());
+  Register right = ToRegister(right_input());
+  DCHECK_EQ(result, ToRegister(left_input()));
+
+  Register saved_left = temporaries().first();
+  __ movl(saved_left, result);
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ imull(result, right);
+  EmitEagerDeoptIf(overflow, code_gen_state, this);
+
+  // If the result is zero, check if either lhs or rhs is negative.
+  Label end;
+  __ cmpl(result, Immediate(0));
+  __ j(not_zero, &end);
+  {
+    __ orl(saved_left, right);
+    __ cmpl(saved_left, Immediate(0));
+    // If one of them is negative, we must have a -0 result, which is non-int32,
+    // so deopt.
+    // TODO(leszeks): Consider merging these deopts.
+    EmitEagerDeoptIf(less, code_gen_state, this);
+  }
+  __ bind(&end);
+}
+
+void Int32DivideWithOverflow::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  UseFixed(left_input(), rax);
+  UseRegister(right_input());
+  DefineAsFixed(vreg_state, this, rax);
+  // rdx is clobbered by idiv.
+  RequireSpecificTemporary(rdx);
+}
+
+void Int32DivideWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                           const ProcessingState& state) {
+  DCHECK_EQ(rax, ToRegister(left_input()));
+  DCHECK(temporaries().has(rdx));
+  Register right = ToRegister(right_input());
+  // Clear rdx so that it doesn't participate in the division.
+  __ xorl(rdx, rdx);
+  // TODO(leszeks): peephole optimise division by a constant.
+  __ idivl(right);
+  __ cmpl(rdx, Immediate(0));
+  EmitEagerDeoptIf(equal, code_gen_state, this);
+}
+
+void Int32BitwiseAnd::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32BitwiseAnd::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ andl(left, right);
+}
+
+void Int32BitwiseOr::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                  const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32BitwiseOr::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                  const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ orl(left, right);
+}
+
+void Int32BitwiseXor::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32BitwiseXor::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  __ xorl(left, right);
+}
+
+void Int32ShiftLeft::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                  const ProcessingState& state) {
+  UseRegister(left_input());
+  // Use the "shift by cl" variant of shl.
+  // TODO(leszeks): peephole optimise shifts by a constant.
+  UseFixed(right_input(), rcx);
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32ShiftLeft::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                  const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  DCHECK_EQ(rcx, ToRegister(right_input()));
+  __ shll_cl(left);
+}
+
+void Int32ShiftRight::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UseRegister(left_input());
+  // Use the "shift by cl" variant of sar.
+  // TODO(leszeks): peephole optimise shifts by a constant.
+  UseFixed(right_input(), rcx);
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32ShiftRight::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  DCHECK_EQ(rcx, ToRegister(right_input()));
+  __ sarl_cl(left);
+}
+
+void Int32ShiftRightLogical::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                          const ProcessingState& state) {
+  UseRegister(left_input());
+  // Use the "shift by cl" variant of shr.
+  // TODO(leszeks): peephole optimise shifts by a constant.
+  UseFixed(right_input(), rcx);
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Int32ShiftRightLogical::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                          const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  DCHECK_EQ(rcx, ToRegister(right_input()));
+  __ shrl_cl(left);
+}
+
+void Float64Add::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                              const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Add::GenerateCode(MaglevCodeGenState* code_gen_state,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  __ Addsd(left, right);
+}
+
+void Float64Subtract::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Subtract::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  __ Subsd(left, right);
+}
+
+void Float64Multiply::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Multiply::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  __ Mulsd(left, right);
+}
+
+void Float64Divide::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                 const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Divide::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                 const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  __ Divsd(left, right);
+}
+
 void CheckedSmiUntag::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                    const ProcessingState& state) {
   UseRegister(input());
@@ -1002,21 +1235,6 @@ Handle<Object> Int32Constant::DoReify(Isolate* isolate) {
 void Int32Constant::PrintParams(std::ostream& os,
                                 MaglevGraphLabeller* graph_labeller) const {
   os << "(" << value() << ")";
-}
-
-void Int32AddWithOverflow::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                                        const ProcessingState& state) {
-  UseRegister(left_input());
-  UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
-}
-
-void Int32AddWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                        const ProcessingState& state) {
-  Register left = ToRegister(left_input());
-  Register right = ToRegister(right_input());
-  __ addl(left, right);
-  EmitEagerDeoptIf(overflow, code_gen_state, this);
 }
 
 void Float64Box::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -1070,20 +1288,6 @@ void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state,
 void ChangeInt32ToFloat64::GenerateCode(MaglevCodeGenState* code_gen_state,
                                         const ProcessingState& state) {
   __ Cvtlsi2sd(ToDoubleRegister(result()), ToRegister(input()));
-}
-
-void Float64Add::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                              const ProcessingState& state) {
-  UseRegister(left_input());
-  UseRegister(right_input());
-  DefineSameAsFirst(vreg_state, this);
-}
-
-void Float64Add::GenerateCode(MaglevCodeGenState* code_gen_state,
-                              const ProcessingState& state) {
-  DoubleRegister left = ToDoubleRegister(left_input());
-  DoubleRegister right = ToDoubleRegister(right_input());
-  __ Addsd(left, right);
 }
 
 void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state,

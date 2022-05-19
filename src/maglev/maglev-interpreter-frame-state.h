@@ -382,7 +382,10 @@ class MergePointInterpreterFrameState {
     if (value->Is<CheckedSmiUntag>()) {
       return value->input(0).node();
     }
-    DCHECK(value->Is<Int32AddWithOverflow>() || value->Is<Int32Constant>());
+#define IS_INT32_OP_NODE(Name) || value->Is<Name>()
+    DCHECK(value->Is<Int32Constant>()
+               INT32_OPERATIONS_NODE_LIST(IS_INT32_OP_NODE));
+#undef IS_INT32_OP_NODE
     // Check if the next Node in the block after value is its CheckedSmiTag
     // version and reuse it.
     if (value->NextNode()) {
@@ -514,7 +517,10 @@ class MergePointInterpreterFrameState {
                       ValueNode* unmerged, int merge_offset) {
     Phi* result = merged->TryCast<Phi>();
     if (result == nullptr || result->merge_offset() != merge_offset) {
-      DCHECK_EQ(merged, unmerged);
+      DCHECK_EQ(merged, (unmerged->Is<CheckedSmiUntag>() ||
+                         unmerged->Is<CheckedFloat64Unbox>())
+                            ? unmerged->input(0).node()
+                            : unmerged);
       return;
     }
     DCHECK_EQ(result->owner(), owner);

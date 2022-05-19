@@ -65,6 +65,47 @@ class CompactInterpreterFrameState;
   V(GenericGreaterThan)                 \
   V(GenericGreaterThanOrEqual)
 
+#define INT32_OPERATIONS_NODE_LIST(V)  \
+  V(Int32AddWithOverflow)              \
+  V(Int32SubtractWithOverflow)         \
+  V(Int32MultiplyWithOverflow)         \
+  V(Int32DivideWithOverflow)           \
+  /*V(Int32ModulusWithOverflow)*/      \
+  /*V(Int32ExponentiateWithOverflow)*/ \
+  V(Int32BitwiseAnd)                   \
+  V(Int32BitwiseOr)                    \
+  V(Int32BitwiseXor)                   \
+  V(Int32ShiftLeft)                    \
+  V(Int32ShiftRight)                   \
+  V(Int32ShiftRightLogical)            \
+  /*V(Int32BitwiseNot)     */          \
+  /*V(Int32NegateWithOverflow) */      \
+  /*V(Int32IncrementWithOverflow)*/    \
+  /*V(Int32DecrementWithOverflow)*/    \
+  /*V(Int32Equal)*/                    \
+  /*V(Int32StrictEqual) */             \
+  /*V(Int32LessThan)*/                 \
+  /*V(Int32LessThanOrEqual) */         \
+  /*V(Int32GreaterThan)*/              \
+  /*V(Int32GreaterThanOrEqual)*/
+
+#define FLOAT64_OPERATIONS_NODE_LIST(V) \
+  V(Float64Add)                         \
+  V(Float64Subtract)                    \
+  V(Float64Multiply)                    \
+  V(Float64Divide)                      \
+  /*V(Float64Modulus)*/                 \
+  /*V(Float64Exponentiate)*/            \
+  /*V(Float64Negate) */                 \
+  /*V(Float64Increment)*/               \
+  /*V(Float64Decrement)*/               \
+  /*V(Float64Equal)*/                   \
+  /*V(Float64StrictEqual) */            \
+  /*V(Float64LessThan)*/                \
+  /*V(Float64LessThanOrEqual) */        \
+  /*V(Float64GreaterThan)*/             \
+  /*V(Float64GreaterThanOrEqual)*/
+
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
   V(Float64Constant)                \
@@ -72,28 +113,28 @@ class CompactInterpreterFrameState;
   V(RootConstant)                   \
   V(SmiConstant)
 
-#define VALUE_NODE_LIST(V)      \
-  V(Call)                       \
-  V(Construct)                  \
-  V(CreateEmptyArrayLiteral)    \
-  V(CreateObjectLiteral)        \
-  V(CreateShallowObjectLiteral) \
-  V(InitialValue)               \
-  V(LoadTaggedField)            \
-  V(LoadDoubleField)            \
-  V(LoadGlobal)                 \
-  V(LoadNamedGeneric)           \
-  V(SetNamedGeneric)            \
-  V(Phi)                        \
-  V(RegisterInput)              \
-  V(CheckedSmiTag)              \
-  V(CheckedSmiUntag)            \
-  V(Int32AddWithOverflow)       \
-  V(ChangeInt32ToFloat64)       \
-  V(Float64Box)                 \
-  V(CheckedFloat64Unbox)        \
-  V(Float64Add)                 \
-  CONSTANT_VALUE_NODE_LIST(V)   \
+#define VALUE_NODE_LIST(V)        \
+  V(Call)                         \
+  V(Construct)                    \
+  V(CreateEmptyArrayLiteral)      \
+  V(CreateObjectLiteral)          \
+  V(CreateShallowObjectLiteral)   \
+  V(InitialValue)                 \
+  V(LoadTaggedField)              \
+  V(LoadDoubleField)              \
+  V(LoadGlobal)                   \
+  V(LoadNamedGeneric)             \
+  V(SetNamedGeneric)              \
+  V(Phi)                          \
+  V(RegisterInput)                \
+  V(CheckedSmiTag)                \
+  V(CheckedSmiUntag)              \
+  V(ChangeInt32ToFloat64)         \
+  V(Float64Box)                   \
+  V(CheckedFloat64Unbox)          \
+  CONSTANT_VALUE_NODE_LIST(V)     \
+  INT32_OPERATIONS_NODE_LIST(V)   \
+  FLOAT64_OPERATIONS_NODE_LIST(V) \
   GENERIC_OPERATIONS_NODE_LIST(V)
 
 #define GAP_MOVE_NODE_LIST(V) \
@@ -434,7 +475,7 @@ NODE_BASE_LIST(DEF_OPCODE_OF)
 class NodeBase : public ZoneObject {
  private:
   // Bitfield specification.
-  using OpcodeField = base::BitField<Opcode, 0, 6>;
+  using OpcodeField = base::BitField<Opcode, 0, 7>;
   static_assert(OpcodeField::is_valid(kLastOpcode));
   using OpPropertiesField =
       OpcodeField::Next<OpProperties, OpProperties::kSize>;
@@ -1045,6 +1086,134 @@ COMPARISON_OPERATION_LIST(DEF_BINARY_WITH_FEEDBACK_NODE)
 #undef DEF_UNARY_WITH_FEEDBACK_NODE
 #undef DEF_BINARY_WITH_FEEDBACK_NODE
 
+#undef DEF_OPERATION_NODE
+
+template <class Derived, Operation kOperation>
+class Int32BinaryWithOverflowNode : public FixedInputValueNodeT<2, Derived> {
+  using Base = FixedInputValueNodeT<2, Derived>;
+
+ public:
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::Int32();
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+ protected:
+  explicit Int32BinaryWithOverflowNode(uint32_t bitfield) : Base(bitfield) {}
+
+  // void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  // void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+#define DEF_OPERATION_NODE(Name, Super, OpName)                            \
+  class Name : public Super<Name, Operation::k##OpName> {                  \
+    using Base = Super<Name, Operation::k##OpName>;                        \
+                                                                           \
+   public:                                                                 \
+    explicit Name(uint32_t bitfield) : Base(bitfield) {}                   \
+    void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&); \
+    void GenerateCode(MaglevCodeGenState*, const ProcessingState&);        \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+  };
+
+#define DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Name)                            \
+  DEF_OPERATION_NODE(Int32##Name##WithOverflow, Int32BinaryWithOverflowNode, \
+                     Name)
+DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Add)
+DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Subtract)
+DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Multiply)
+DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Divide)
+// DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Modulus)
+// DEF_INT32_BINARY_WITH_OVERFLOW_NODE(Exponentiate)
+#undef DEF_INT32_BINARY_WITH_OVERFLOW_NODE
+
+template <class Derived, Operation kOperation>
+class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
+  using Base = FixedInputValueNodeT<2, Derived>;
+
+ public:
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+ protected:
+  explicit Int32BinaryNode(uint32_t bitfield) : Base(bitfield) {}
+
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+#define DEF_OPERATION_NODE(Name, Super, OpName)                            \
+  class Name : public Super<Name, Operation::k##OpName> {                  \
+    using Base = Super<Name, Operation::k##OpName>;                        \
+                                                                           \
+   public:                                                                 \
+    explicit Name(uint32_t bitfield) : Base(bitfield) {}                   \
+    void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&); \
+    void GenerateCode(MaglevCodeGenState*, const ProcessingState&);        \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+  };
+
+#define DEF_INT32_BINARY_NODE(Name) \
+  DEF_OPERATION_NODE(Int32##Name, Int32BinaryNode, Name)
+DEF_INT32_BINARY_NODE(BitwiseAnd)
+DEF_INT32_BINARY_NODE(BitwiseOr)
+DEF_INT32_BINARY_NODE(BitwiseXor)
+DEF_INT32_BINARY_NODE(ShiftLeft)
+DEF_INT32_BINARY_NODE(ShiftRight)
+DEF_INT32_BINARY_NODE(ShiftRightLogical)
+#undef DEF_INT32_BINARY_NODE
+// DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Negate)
+// DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Increment)
+// DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Decrement)
+
+#undef DEF_OPERATION_NODE
+
+template <class Derived, Operation kOperation>
+class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
+  using Base = FixedInputValueNodeT<2, Derived>;
+
+ public:
+  static constexpr OpProperties kProperties = OpProperties::Float64();
+
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+ protected:
+  explicit Float64BinaryNode(uint32_t bitfield) : Base(bitfield) {}
+
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+#define DEF_OPERATION_NODE(Name, Super, OpName)                            \
+  class Name : public Super<Name, Operation::k##OpName> {                  \
+    using Base = Super<Name, Operation::k##OpName>;                        \
+                                                                           \
+   public:                                                                 \
+    explicit Name(uint32_t bitfield) : Base(bitfield) {}                   \
+    void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&); \
+    void GenerateCode(MaglevCodeGenState*, const ProcessingState&);        \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+  };
+
+#define DEF_FLOAT64_BINARY_NODE(Name) \
+  DEF_OPERATION_NODE(Float64##Name, Float64BinaryNode, Name)
+DEF_FLOAT64_BINARY_NODE(Add)
+DEF_FLOAT64_BINARY_NODE(Subtract)
+DEF_FLOAT64_BINARY_NODE(Multiply)
+DEF_FLOAT64_BINARY_NODE(Divide)
+// DEF_FLOAT64_BINARY_NODE(Modulus)
+// DEF_FLOAT64_BINARY_NODE(Exponentiate)
+#undef DEF_FLOAT64_BINARY_NODE
+
 class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
   using Base = FixedInputValueNodeT<1, CheckedSmiTag>;
 
@@ -1125,26 +1294,6 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   const double value_;
 };
 
-class Int32AddWithOverflow
-    : public FixedInputValueNodeT<2, Int32AddWithOverflow> {
-  using Base = FixedInputValueNodeT<2, Int32AddWithOverflow>;
-
- public:
-  explicit Int32AddWithOverflow(uint32_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::Int32();
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input& left_input() { return Node::input(kLeftIndex); }
-  Input& right_input() { return Node::input(kRightIndex); }
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
 class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
   using Base = FixedInputValueNodeT<1, Float64Box>;
 
@@ -1187,24 +1336,6 @@ class CheckedFloat64Unbox
       OpProperties::EagerDeopt() | OpProperties::Float64();
 
   Input& input() { return Node::input(0); }
-
-  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class Float64Add : public FixedInputValueNodeT<2, Float64Add> {
-  using Base = FixedInputValueNodeT<2, Float64Add>;
-
- public:
-  explicit Float64Add(uint32_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::Float64();
-
-  static constexpr int kLeftIndex = 0;
-  static constexpr int kRightIndex = 1;
-  Input& left_input() { return Node::input(kLeftIndex); }
-  Input& right_input() { return Node::input(kRightIndex); }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);

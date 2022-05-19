@@ -156,9 +156,30 @@ using GenericNodeForOperation =
 
 // TODO(victorgomes): Remove this once all operations have fast paths.
 template <Operation kOperation>
-bool BinaryOperationHasFastPath() {
+bool BinaryOperationHasInt32FastPath() {
   switch (kOperation) {
     case Operation::kAdd:
+    case Operation::kSubtract:
+    case Operation::kMultiply:
+    case Operation::kDivide:
+    case Operation::kBitwiseAnd:
+    case Operation::kBitwiseOr:
+    case Operation::kBitwiseXor:
+    case Operation::kShiftLeft:
+    case Operation::kShiftRight:
+    case Operation::kShiftRightLogical:
+      return true;
+    default:
+      return false;
+  }
+}
+template <Operation kOperation>
+bool BinaryOperationHasFloat64FastPath() {
+  switch (kOperation) {
+    case Operation::kAdd:
+    case Operation::kSubtract:
+    case Operation::kMultiply:
+    case Operation::kDivide:
       return true;
     default:
       return false;
@@ -170,17 +191,34 @@ bool BinaryOperationHasFastPath() {
 // MAP_OPERATION_TO_NODES are tuples with the following format:
 // (Operation name,
 //  Int32 operation node,
-//  Unit of int32 operation (e.g, 0 for add/sub and 1 for mul/div),
-//  Float64 operation node).
-#define MAP_OPERATION_TO_NODES(V) V(Add, Int32AddWithOverflow, 0, Float64Add)
+//  Unit of int32 operation (e.g, 0 for add/sub and 1 for mul/div))
+#define MAP_OPERATION_TO_INT32_NODE(V)      \
+  V(Add, Int32AddWithOverflow, 0)           \
+  V(Subtract, Int32SubtractWithOverflow, 0) \
+  V(Multiply, Int32MultiplyWithOverflow, 1) \
+  V(Divide, Int32DivideWithOverflow, 1)     \
+  V(BitwiseAnd, Int32BitwiseAnd, ~0)        \
+  V(BitwiseOr, Int32BitwiseOr, 0)           \
+  V(BitwiseXor, Int32BitwiseXor, 0)         \
+  V(ShiftLeft, Int32ShiftLeft, 0)           \
+  V(ShiftRight, Int32ShiftRight, 0)         \
+  V(ShiftRightLogical, Int32ShiftRightLogical, 0)
+
+// MAP_OPERATION_TO_FLOAT64_NODE are tuples with the following format:
+// (Operation name, Float64 operation node).
+#define MAP_OPERATION_TO_FLOAT64_NODE(V) \
+  V(Add, Float64Add)                     \
+  V(Subtract, Float64Subtract)           \
+  V(Multiply, Float64Multiply)           \
+  V(Divide, Float64Divide)
 
 template <Operation kOperation>
 static int Int32Unit() {
   switch (kOperation) {
-#define CASE(op, _, unit, ...) \
+#define CASE(op, OpNode, unit) \
   case Operation::k##op:       \
     return unit;
-    MAP_OPERATION_TO_NODES(CASE)
+    MAP_OPERATION_TO_INT32_NODE(CASE)
 #undef CASE
     default:
       UNREACHABLE();
@@ -191,10 +229,10 @@ template <Operation kOperation>
 ValueNode* MaglevGraphBuilder::AddNewInt32BinaryOperationNode(
     std::initializer_list<ValueNode*> inputs) {
   switch (kOperation) {
-#define CASE(op, OpNode, ...) \
-  case Operation::k##op:      \
+#define CASE(op, OpNode, unit) \
+  case Operation::k##op:       \
     return AddNewNode<OpNode>(inputs);
-    MAP_OPERATION_TO_NODES(CASE)
+    MAP_OPERATION_TO_INT32_NODE(CASE)
 #undef CASE
     default:
       UNREACHABLE();
@@ -205,10 +243,10 @@ template <Operation kOperation>
 ValueNode* MaglevGraphBuilder::AddNewFloat64BinaryOperationNode(
     std::initializer_list<ValueNode*> inputs) {
   switch (kOperation) {
-#define CASE(op, _, u, OpNode) \
-  case Operation::k##op:       \
+#define CASE(op, OpNode) \
+  case Operation::k##op: \
     return AddNewNode<OpNode>(inputs);
-    MAP_OPERATION_TO_NODES(CASE)
+    MAP_OPERATION_TO_FLOAT64_NODE(CASE)
 #undef CASE
     default:
       UNREACHABLE();
@@ -300,18 +338,29 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
-  if (BinaryOperationHasFastPath<kOperation>()) {
-    switch (nexus.GetBinaryOperationFeedback()) {
-      case BinaryOperationHint::kSignedSmall:
+  switch (nexus.GetBinaryOperationFeedback()) {
+    case BinaryOperationHint::kSignedSmall:
+      if (BinaryOperationHasInt32FastPath<kOperation>()) {
         BuildInt32BinaryOperationNode<kOperation>();
         return;
-      case BinaryOperationHint::kNumber:
+      }
+      break;
+    case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kNumber:
+      if (BinaryOperationHasFloat64FastPath<kOperation>()) {
         BuildFloat64BinaryOperationNode<kOperation>();
         return;
-      default:
-        // Fallback to generic node.
-        break;
-    }
+        // } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
+        //   // Fall back to int32 fast path if there is one (this will be the
+        //   case
+        //   // for operations that deal with bits rather than numbers).
+        //   BuildInt32BinaryOperationNode<kOperation>();
+        //   return;
+      }
+      break;
+    default:
+      // Fallback to generic node.
+      break;
   }
   BuildGenericBinaryOperationNode<kOperation>();
 }
@@ -319,20 +368,59 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinarySmiOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
-  if (BinaryOperationHasFastPath<kOperation>()) {
-    switch (nexus.GetBinaryOperationFeedback()) {
-      case BinaryOperationHint::kSignedSmall:
+  switch (nexus.GetBinaryOperationFeedback()) {
+    case BinaryOperationHint::kSignedSmall:
+      if (BinaryOperationHasInt32FastPath<kOperation>()) {
         BuildInt32BinarySmiOperationNode<kOperation>();
         return;
-      case BinaryOperationHint::kNumber:
+      }
+      break;
+    case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kNumber:
+      if (BinaryOperationHasFloat64FastPath<kOperation>()) {
         BuildFloat64BinarySmiOperationNode<kOperation>();
         return;
-      default:
-        // Fallback to generic node.
-        break;
-    }
+        // } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
+        //   // Fall back to int32 fast path if there is one (this will be the
+        //   case
+        //   // for operations that deal with bits rather than numbers).
+        //   BuildInt32BinarySmiOperationNode<kOperation>();
+        //   return;
+      }
+      break;
+    default:
+      // Fallback to generic node.
+      break;
   }
   BuildGenericBinarySmiOperationNode<kOperation>();
+}
+
+template <Operation kOperation>
+void MaglevGraphBuilder::VisitCompareOperation() {
+  FeedbackNexus nexus = FeedbackNexusForOperand(1);
+  switch (nexus.GetCompareOperationFeedback()) {
+    case CompareOperationHint::kSignedSmall:
+      if (BinaryOperationHasInt32FastPath<kOperation>()) {
+        BuildInt32BinaryOperationNode<kOperation>();
+        return;
+      }
+      break;
+    case CompareOperationHint::kNumber:
+      if (BinaryOperationHasFloat64FastPath<kOperation>()) {
+        BuildFloat64BinaryOperationNode<kOperation>();
+        return;
+      } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
+        // Fall back to int32 fast path if there is one (this will be the case
+        // for operations that deal with bits rather than numbers).
+        BuildInt32BinaryOperationNode<kOperation>();
+        return;
+      }
+      break;
+    default:
+      // Fallback to generic node.
+      break;
+  }
+  BuildGenericBinaryOperationNode<kOperation>();
 }
 
 void MaglevGraphBuilder::VisitLdar() {
@@ -984,22 +1072,22 @@ void MaglevGraphBuilder::VisitConstruct() {
 MAGLEV_UNIMPLEMENTED_BYTECODE(ConstructWithSpread)
 
 void MaglevGraphBuilder::VisitTestEqual() {
-  VisitBinaryOperation<Operation::kEqual>();
+  VisitCompareOperation<Operation::kEqual>();
 }
 void MaglevGraphBuilder::VisitTestEqualStrict() {
-  VisitBinaryOperation<Operation::kStrictEqual>();
+  VisitCompareOperation<Operation::kStrictEqual>();
 }
 void MaglevGraphBuilder::VisitTestLessThan() {
-  VisitBinaryOperation<Operation::kLessThan>();
+  VisitCompareOperation<Operation::kLessThan>();
 }
 void MaglevGraphBuilder::VisitTestLessThanOrEqual() {
-  VisitBinaryOperation<Operation::kLessThanOrEqual>();
+  VisitCompareOperation<Operation::kLessThanOrEqual>();
 }
 void MaglevGraphBuilder::VisitTestGreaterThan() {
-  VisitBinaryOperation<Operation::kGreaterThan>();
+  VisitCompareOperation<Operation::kGreaterThan>();
 }
 void MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
-  VisitBinaryOperation<Operation::kGreaterThanOrEqual>();
+  VisitCompareOperation<Operation::kGreaterThanOrEqual>();
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestInstanceOf)

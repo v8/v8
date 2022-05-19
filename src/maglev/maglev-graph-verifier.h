@@ -141,11 +141,25 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 2, ValueRepresentation::kTagged);
         break;
       case Opcode::kInt32AddWithOverflow:
+      case Opcode::kInt32SubtractWithOverflow:
+      case Opcode::kInt32MultiplyWithOverflow:
+      case Opcode::kInt32DivideWithOverflow:
+      // case Opcode::kInt32ExponentiateWithOverflow:
+      // case Opcode::kInt32ModulusWithOverflow:
+      case Opcode::kInt32BitwiseAnd:
+      case Opcode::kInt32BitwiseOr:
+      case Opcode::kInt32BitwiseXor:
+      case Opcode::kInt32ShiftLeft:
+      case Opcode::kInt32ShiftRight:
+      case Opcode::kInt32ShiftRightLogical:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
         break;
       case Opcode::kFloat64Add:
+      case Opcode::kFloat64Subtract:
+      case Opcode::kFloat64Multiply:
+      case Opcode::kFloat64Divide:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         CheckValueInputIs(node, 1, ValueRepresentation::kFloat64);
