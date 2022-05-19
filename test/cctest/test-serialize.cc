@@ -3596,10 +3596,6 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
       v8::Local<v8::Signature> signature =
           v8::Signature::New(isolate, v8::FunctionTemplate::New(isolate));
 
-      v8::Local<v8::AccessorSignature> accessor_signature =
-          v8::AccessorSignature::New(isolate,
-                                     v8::FunctionTemplate::New(isolate));
-
       v8::ScriptOrigin origin(isolate, v8_str(""), {}, {}, {}, {}, {}, {}, {},
                               true);
       v8::ScriptCompiler::Source source(
@@ -3625,7 +3621,6 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
       CHECK_EQ(3u, creator.AddData(v8::FunctionTemplate::New(isolate)));
       CHECK_EQ(4u, creator.AddData(private_symbol));
       CHECK_EQ(5u, creator.AddData(signature));
-      CHECK_EQ(6u, creator.AddData(accessor_signature));
     }
 
     blob =
@@ -3713,11 +3708,6 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
 
       isolate->GetDataFromSnapshotOnce<v8::Signature>(5).ToLocalChecked();
       CHECK(isolate->GetDataFromSnapshotOnce<v8::Signature>(5).IsEmpty());
-
-      isolate->GetDataFromSnapshotOnce<v8::AccessorSignature>(6)
-          .ToLocalChecked();
-      CHECK(
-          isolate->GetDataFromSnapshotOnce<v8::AccessorSignature>(6).IsEmpty());
 
       CHECK(isolate->GetDataFromSnapshotOnce<v8::Value>(7).IsEmpty());
     }

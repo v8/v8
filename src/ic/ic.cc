@@ -1108,7 +1108,6 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       }
 
       if (v8::ToCData<Address>(info->getter()) == kNullAddress ||
-          !AccessorInfo::IsCompatibleReceiverMap(info, map) ||
           !holder->HasFastProperties() ||
           (info->is_sloppy() && !receiver->IsJSReceiver())) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
@@ -2039,12 +2038,6 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         if (AccessorInfo::cast(*accessors).is_special_data_property() &&
             !lookup->HolderIsReceiverOrHiddenPrototype()) {
           set_slow_stub_reason("special data property in prototype chain");
-          TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
-          return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
-        }
-        if (!AccessorInfo::IsCompatibleReceiverMap(info,
-                                                   lookup_start_object_map())) {
-          set_slow_stub_reason("incompatible receiver type");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
         }
@@ -3306,8 +3299,6 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
                                             StoreOrigin::kMaybeKeyed));
   }
 #endif
-
-  DCHECK(info->IsCompatibleReceiver(*receiver));
 
   PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
                                       Nothing<ShouldThrow>());

@@ -1418,12 +1418,6 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   if (structure->IsAccessorInfo()) {
     Handle<Name> name = it->GetName();
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
-    if (!info->IsCompatibleReceiver(*receiver)) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                   name, receiver),
-                      Object);
-    }
 
     if (!info->has_getter()) return isolate->factory()->undefined_value();
 
@@ -1492,14 +1486,6 @@ Address CallHandlerInfo::redirected_callback() const {
   return ExternalReference::Create(&fun, type).address();
 }
 
-bool AccessorInfo::IsCompatibleReceiverMap(Handle<AccessorInfo> info,
-                                           Handle<Map> map) {
-  if (!info->HasExpectedReceiverType()) return true;
-  if (!map->IsJSObjectMap()) return false;
-  return FunctionTemplateInfo::cast(info->expected_receiver_type())
-      .IsTemplateFor(*map);
-}
-
 Maybe<bool> Object::SetPropertyWithAccessor(
     LookupIterator* it, Handle<Object> value,
     Maybe<ShouldThrow> maybe_should_throw) {
@@ -1521,11 +1507,6 @@ Maybe<bool> Object::SetPropertyWithAccessor(
   if (structure->IsAccessorInfo()) {
     Handle<Name> name = it->GetName();
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
-    if (!info->IsCompatibleReceiver(*receiver)) {
-      isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kIncompatibleMethodReceiver, name, receiver));
-      return Nothing<bool>();
-    }
 
     if (!info->has_setter()) {
       // TODO(verwaest): We should not get here anymore once all AccessorInfos

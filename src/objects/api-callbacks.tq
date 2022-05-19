@@ -51,7 +51,6 @@ bitfield struct AccessorInfoFlags extends uint31 {
 extern class AccessorInfo extends Struct {
   name: Name;
   flags: SmiTagged<AccessorInfoFlags>;
-  expected_receiver_type: Object;
   setter: NonNullForeign|Zero;
   getter: NonNullForeign|Zero;
   // This either points at the same as above, or a trampoline in case we are

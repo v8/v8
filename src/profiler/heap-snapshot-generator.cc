@@ -1484,9 +1484,6 @@ void V8HeapExplorer::ExtractAccessorInfoReferences(HeapEntry* entry,
                                                    AccessorInfo accessor_info) {
   SetInternalReference(entry, "name", accessor_info.name(),
                        AccessorInfo::kNameOffset);
-  SetInternalReference(entry, "expected_receiver_type",
-                       accessor_info.expected_receiver_type(),
-                       AccessorInfo::kExpectedReceiverTypeOffset);
   SetInternalReference(entry, "getter", accessor_info.getter(),
                        AccessorInfo::kGetterOffset);
   SetInternalReference(entry, "setter", accessor_info.setter(),

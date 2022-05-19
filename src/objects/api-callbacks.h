@@ -71,8 +71,6 @@ class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
   using BodyDescriptor = StructBodyDescriptor;
 
  private:
-  inline bool HasExpectedReceiverType();
-
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
 

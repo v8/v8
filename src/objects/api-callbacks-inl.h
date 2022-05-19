@@ -77,17 +77,6 @@ void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
                     AccessorInfo::InitialAttributesBits)
 
-bool AccessorInfo::IsCompatibleReceiver(Object receiver) {
-  if (!HasExpectedReceiverType()) return true;
-  if (!receiver.IsJSObject()) return false;
-  return FunctionTemplateInfo::cast(expected_receiver_type())
-      .IsTemplateFor(JSObject::cast(receiver).map());
-}
-
-bool AccessorInfo::HasExpectedReceiverType() {
-  return expected_receiver_type().IsFunctionTemplateInfo();
-}
-
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                CanInterceptSymbolsBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, AllCanReadBit::kShift)

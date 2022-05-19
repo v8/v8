@@ -14,7 +14,6 @@
 
 namespace v8 {
 
-class AccessorSignature;
 class CFunction;
 class FunctionTemplate;
 class ObjectTemplate;
@@ -83,28 +82,7 @@ class V8_EXPORT Template : public Data {
    *   cross-context access.
    * \param attribute The attributes of the property for which an accessor
    *   is added.
-   * \param signature The signature describes valid receivers for the accessor
-   *   and is used to perform implicit instance checks against them. If the
-   *   receiver is incompatible (i.e. is not an instance of the constructor as
-   *   defined by FunctionTemplate::HasInstance()), an implicit TypeError is
-   *   thrown and no callback is invoked.
    */
-  V8_DEPRECATED("Do signature check in accessor")
-  void SetNativeDataProperty(
-      Local<String> name, AccessorGetterCallback getter,
-      AccessorSetterCallback setter, Local<Value> data,
-      PropertyAttribute attribute, Local<AccessorSignature> signature,
-      AccessControl settings = DEFAULT,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-  V8_DEPRECATED("Do signature check in accessor")
-  void SetNativeDataProperty(
-      Local<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter, Local<Value> data,
-      PropertyAttribute attribute, Local<AccessorSignature> signature,
-      AccessControl settings = DEFAULT,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetNativeDataProperty(
       Local<String> name, AccessorGetterCallback getter,
       AccessorSetterCallback setter = nullptr,
@@ -821,27 +799,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    *   cross-context access.
    * \param attribute The attributes of the property for which an accessor
    *   is added.
-   * \param signature The signature describes valid receivers for the accessor
-   *   and is used to perform implicit instance checks against them. If the
-   *   receiver is incompatible (i.e. is not an instance of the constructor as
-   *   defined by FunctionTemplate::HasInstance()), an implicit TypeError is
-   *   thrown and no callback is invoked.
    */
-  V8_DEPRECATED("Do signature check in accessor")
-  void SetAccessor(
-      Local<String> name, AccessorGetterCallback getter,
-      AccessorSetterCallback setter, Local<Value> data, AccessControl settings,
-      PropertyAttribute attribute, Local<AccessorSignature> signature,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
-  V8_DEPRECATED("Do signature check in accessor")
-  void SetAccessor(
-      Local<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter, Local<Value> data,
-      AccessControl settings, PropertyAttribute attribute,
-      Local<AccessorSignature> signature,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
-      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetAccessor(
       Local<String> name, AccessorGetterCallback getter,
       AccessorSetterCallback setter = nullptr,
@@ -1019,24 +977,6 @@ class V8_EXPORT Signature : public Data {
   static void CheckCast(Data* that);
 };
 
-/**
- * An AccessorSignature specifies which receivers are valid parameters
- * to an accessor callback.
- */
-class V8_EXPORT AccessorSignature : public Data {
- public:
-  static Local<AccessorSignature> New(
-      Isolate* isolate,
-      Local<FunctionTemplate> receiver = Local<FunctionTemplate>());
-
-  V8_INLINE static AccessorSignature* Cast(Data* data);
-
- private:
-  AccessorSignature();
-
-  static void CheckCast(Data* that);
-};
-
 // --- Implementation ---
 
 void Template::Set(Isolate* isolate, const char* name, Local<Data> value,
@@ -1065,13 +1005,6 @@ Signature* Signature::Cast(Data* data) {
   CheckCast(data);
 #endif
   return reinterpret_cast<Signature*>(data);
-}
-
-AccessorSignature* AccessorSignature::Cast(Data* data) {
-#ifdef V8_ENABLE_CHECKS
-  CheckCast(data);
-#endif
-  return reinterpret_cast<AccessorSignature*>(data);
 }
 
 }  // namespace v8

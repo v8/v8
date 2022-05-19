@@ -1435,11 +1435,6 @@ Local<Signature> Signature::New(Isolate* v8_isolate,
   return Utils::SignatureToLocal(Utils::OpenHandle(*receiver));
 }
 
-Local<AccessorSignature> AccessorSignature::New(
-    Isolate* v8_isolate, Local<FunctionTemplate> receiver) {
-  return Utils::AccessorSignatureToLocal(Utils::OpenHandle(*receiver));
-}
-
 #define SET_FIELD_WRAPPED(i_isolate, obj, setter, cdata)        \
   do {                                                          \
     i::Handle<i::Object> foreign = FromCData(i_isolate, cdata); \
@@ -1496,8 +1491,7 @@ template <typename Getter, typename Setter>
 i::Handle<i::AccessorInfo> MakeAccessorInfo(
     i::Isolate* i_isolate, v8::Local<Name> name, Getter getter, Setter setter,
     v8::Local<Value> data, v8::AccessControl settings,
-    v8::Local<AccessorSignature> signature, bool is_special_data_property,
-    bool replace_on_access) {
+    bool is_special_data_property, bool replace_on_access) {
   i::Handle<i::AccessorInfo> obj = i_isolate->factory()->NewAccessorInfo();
   SET_FIELD_WRAPPED(i_isolate, obj, set_getter, getter);
   DCHECK_IMPLIES(replace_on_access,
@@ -1529,9 +1523,6 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
   if (settings & ALL_CAN_READ) raw_obj.set_all_can_read(true);
   if (settings & ALL_CAN_WRITE) raw_obj.set_all_can_write(true);
   raw_obj.set_initial_property_attributes(i::NONE);
-  if (!signature.IsEmpty()) {
-    raw_obj.set_expected_receiver_type(*Utils::OpenHandle(*signature));
-  }
   return obj;
 }
 
@@ -1632,7 +1623,6 @@ template <typename Getter, typename Setter, typename Data, typename Template>
 void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
                          Getter getter, Setter setter, Data data,
                          AccessControl settings, PropertyAttribute attribute,
-                         v8::Local<AccessorSignature> signature,
                          bool is_special_data_property, bool replace_on_access,
                          SideEffectType getter_side_effect_type,
                          SideEffectType setter_side_effect_type) {
@@ -1642,7 +1632,7 @@ void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
   i::HandleScope scope(i_isolate);
   i::Handle<i::AccessorInfo> accessor_info =
       MakeAccessorInfo(i_isolate, name, getter, setter, data, settings,
-                       signature, is_special_data_property, replace_on_access);
+                       is_special_data_property, replace_on_access);
   {
     i::DisallowGarbageCollection no_gc;
     i::AccessorInfo raw = *accessor_info;
@@ -1664,18 +1654,7 @@ void Template::SetNativeDataProperty(v8::Local<String> name,
                                      SideEffectType getter_side_effect_type,
                                      SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      Local<AccessorSignature>(), true, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
-void Template::SetNativeDataProperty(
-    v8::Local<String> name, AccessorGetterCallback getter,
-    AccessorSetterCallback setter, v8::Local<Value> data,
-    PropertyAttribute attribute, v8::Local<AccessorSignature> signature,
-    AccessControl settings, SideEffectType getter_side_effect_type,
-    SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, true, false, getter_side_effect_type,
+                      true, false, getter_side_effect_type,
                       setter_side_effect_type);
 }
 
@@ -1688,18 +1667,7 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      SideEffectType getter_side_effect_type,
                                      SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      Local<AccessorSignature>(), true, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
-void Template::SetNativeDataProperty(
-    v8::Local<Name> name, AccessorNameGetterCallback getter,
-    AccessorNameSetterCallback setter, v8::Local<Value> data,
-    PropertyAttribute attribute, v8::Local<AccessorSignature> signature,
-    AccessControl settings, SideEffectType getter_side_effect_type,
-    SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, true, false, getter_side_effect_type,
+                      true, false, getter_side_effect_type,
                       setter_side_effect_type);
 }
 
@@ -1711,8 +1679,8 @@ void Template::SetLazyDataProperty(v8::Local<Name> name,
                                    SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(this, name, getter,
                       static_cast<AccessorNameSetterCallback>(nullptr), data,
-                      DEFAULT, attribute, Local<AccessorSignature>(), true,
-                      true, getter_side_effect_type, setter_side_effect_type);
+                      DEFAULT, attribute, true, true, getter_side_effect_type,
+                      setter_side_effect_type);
 }
 
 void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
@@ -1734,7 +1702,6 @@ void ObjectTemplate::SetAccessor(v8::Local<String> name,
                                  SideEffectType getter_side_effect_type,
                                  SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      Local<AccessorSignature>(),
                       i::FLAG_disable_old_api_accessors, false,
                       getter_side_effect_type, setter_side_effect_type);
 }
@@ -1747,34 +1714,7 @@ void ObjectTemplate::SetAccessor(v8::Local<Name> name,
                                  SideEffectType getter_side_effect_type,
                                  SideEffectType setter_side_effect_type) {
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      Local<AccessorSignature>(),
                       i::FLAG_disable_old_api_accessors, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
-void ObjectTemplate::SetAccessor(v8::Local<String> name,
-                                 AccessorGetterCallback getter,
-                                 AccessorSetterCallback setter,
-                                 v8::Local<Value> data, AccessControl settings,
-                                 PropertyAttribute attribute,
-                                 v8::Local<AccessorSignature> signature,
-                                 SideEffectType getter_side_effect_type,
-                                 SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, i::FLAG_disable_old_api_accessors, false,
-                      getter_side_effect_type, setter_side_effect_type);
-}
-
-void ObjectTemplate::SetAccessor(v8::Local<Name> name,
-                                 AccessorNameGetterCallback getter,
-                                 AccessorNameSetterCallback setter,
-                                 v8::Local<Value> data, AccessControl settings,
-                                 PropertyAttribute attribute,
-                                 v8::Local<AccessorSignature> signature,
-                                 SideEffectType getter_side_effect_type,
-                                 SideEffectType setter_side_effect_type) {
-  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
-                      signature, i::FLAG_disable_old_api_accessors, false,
                       getter_side_effect_type, setter_side_effect_type);
 }
 
@@ -4870,10 +4810,9 @@ static Maybe<bool> ObjectSetAccessor(
   if (!Utils::OpenHandle(self)->IsJSObject()) return Just(false);
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(self));
-  v8::Local<AccessorSignature> signature;
   i::Handle<i::AccessorInfo> info =
       MakeAccessorInfo(i_isolate, name, getter, setter, data, settings,
-                       signature, is_special_data_property, replace_on_access);
+                       is_special_data_property, replace_on_access);
   info->set_getter_side_effect_type(getter_side_effect_type);
   info->set_setter_side_effect_type(setter_side_effect_type);
   if (info.is_null()) return Nothing<bool>();
@@ -6717,12 +6656,6 @@ void v8::Signature::CheckCast(Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::Signature::Cast",
                   "Value is not a Signature");
-}
-
-void v8::AccessorSignature::CheckCast(Data* that) {
-  i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::AccessorSignature::Cast",
-                  "Value is not an AccessorSignature");
 }
 
 MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
