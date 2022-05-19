@@ -1424,16 +1424,12 @@ static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
 static void InstallError(Isolate* isolate, Handle<JSObject> global,
                          Handle<String> name, int context_index,
                          Builtin error_constructor = Builtin::kErrorConstructor,
-                         int error_function_length = 1,
-                         int in_object_properties = 2) {
+                         int error_function_length = 1) {
   Factory* factory = isolate->factory();
 
-  if (FLAG_harmony_error_cause) {
-    in_object_properties += 1;
-  }
-
-  // Most Error objects consist of a message and a stack trace.
-  // Reserve two in-object properties for these.
+  // Most Error objects consist of a message, a stack trace, and possibly a
+  // cause. Reserve three in-object properties for these.
+  const int in_object_properties = 3;
   const int kErrorObjectSize =
       JSObject::kHeaderSize + in_object_properties * kTaggedSize;
   Handle<JSFunction> error_fun = InstallFunction(
@@ -2695,7 +2691,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   // -- A g g r e g a t e E r r o r
   InstallError(isolate_, global, factory->AggregateError_string(),
                Context::AGGREGATE_ERROR_FUNCTION_INDEX,
-               Builtin::kAggregateErrorConstructor, 2, 2);
+               Builtin::kAggregateErrorConstructor, 2);
 
   // -- E v a l E r r o r
   InstallError(isolate_, global, factory->EvalError_string(),
@@ -4482,7 +4478,6 @@ void Genesis::InitializeConsole(Handle<JSObject> extras_binding) {
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_error_cause)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)

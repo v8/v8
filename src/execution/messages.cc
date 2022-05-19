@@ -550,7 +550,7 @@ MaybeHandle<JSObject> ErrorUtils::Construct(
         JSObject);
   }
 
-  if (FLAG_harmony_error_cause && !options->IsUndefined(isolate)) {
+  if (!options->IsUndefined(isolate)) {
     // If Type(options) is Object and ? HasProperty(options, "cause") then
     //   a. Let cause be ? Get(options, "cause").
     //   b. Perform ! CreateNonEnumerableDataPropertyOrThrow(O, "cause", cause).
