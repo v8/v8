@@ -268,8 +268,6 @@ TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeWith)
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeEquals)
 /* Temporal #sec-temporal.plainmonthday.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToString)
-/* Temporal #sec-temporal.plainmonthday.tojson */
-TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToJSON)
 /* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToPlainDate)
 
@@ -601,6 +599,7 @@ TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, MonthCode, monthCode)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, Day, day)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainMonthDay)
+TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, ToJSON, toJSON)
 
 // ZonedDateTime
 

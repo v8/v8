@@ -46,7 +46,6 @@
   # Temporal tests to be implemented
   # https://crbug.com/v8/11544
   'temporal/calendar-date-until': [FAIL],
-  'temporal/calendar-month-day-from-fields': [FAIL],
   'temporal/calendar-week-of-year': [FAIL],
   'temporal/calendar-year-month-from-fields': [FAIL],
   'temporal/duration-add': [FAIL],

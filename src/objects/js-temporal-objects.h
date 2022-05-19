@@ -338,6 +338,10 @@ class JSTemporalPlainMonthDay
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day);
 
+  // #sec-temporal.plainmonthday.prototype.tojson
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
+      Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day);
+
   DECL_PRINTER(JSTemporalPlainMonthDay)
 
   DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()
