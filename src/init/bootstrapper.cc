@@ -4829,6 +4829,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
   V(since, Since, 1)                       \
   V(equals, Equals, 1)                     \
   V(getISOFields, GetISOFields, 0)         \
+  V(toLocaleString, ToLocaleString, 0)     \
   V(toPlainDateTime, ToPlainDateTime, 0)   \
   V(toZonedDateTime, ToZonedDateTime, 1)   \
   V(toString, ToString, 0)                 \
@@ -4841,20 +4842,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     PLAIN_DATE_FUNC_LIST(INSTALL_PLAIN_DATE_FUNC)
 #undef PLAIN_DATE_FUNC_LIST
 #undef INSTALL_PLAIN_DATE_FUNC
-
-#ifdef V8_INTL_SUPPORT
-#define INSTALL_TO_LOCALE_STRING_FUNC(R)                                   \
-  SimpleInstallFunction(isolate(), prototype, "toLocaleString",            \
-                        Builtin::kTemporal##R##PrototypeToLocaleString, 0, \
-                        false);
-#else
-#define INSTALL_TO_LOCALE_STRING_FUNC(R)                        \
-  /* Install Intl fallback functions. */                        \
-  SimpleInstallFunction(isolate(), prototype, "toLocaleString", \
-                        Builtin::kTemporal##R##PrototypeToString, 0, false);
-#endif  // V8_INTL_SUPPORT
-
-    INSTALL_TO_LOCALE_STRING_FUNC(PlainDate)
   }
   {  // -- P l a i n T i m e
      // #sec-temporal-plaintime-objects
@@ -4891,6 +4878,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
   V(toPlainDateTime, ToPlainDateTime, 1) \
   V(toZonedDateTime, ToZonedDateTime, 1) \
   V(getISOFields, GetISOFields, 0)       \
+  V(toLocaleString, ToLocaleString, 0)   \
   V(toString, ToString, 0)               \
   V(toJSON, ToJSON, 0)                   \
   V(valueOf, ValueOf, 0)
@@ -4901,8 +4889,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     PLAIN_TIME_FUNC_LIST(INSTALL_PLAIN_TIME_FUNC)
 #undef PLAIN_TIME_FUNC_LIST
 #undef INSTALL_PLAIN_TIME_FUNC
-
-    INSTALL_TO_LOCALE_STRING_FUNC(PlainTime)
   }
   {  // -- P l a i n D a t e T i m e
     // #sec-temporal-plaindatetime-objects
@@ -4961,6 +4947,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
   V(since, Since, 1)                       \
   V(round, Round, 1)                       \
   V(equals, Equals, 1)                     \
+  V(toLocaleString, ToLocaleString, 0)     \
   V(toJSON, ToJSON, 0)                     \
   V(toString, ToString, 0)                 \
   V(valueOf, ValueOf, 0)                   \
@@ -4978,8 +4965,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     PLAIN_DATE_TIME_FUNC_LIST(INSTALL_PLAIN_DATE_TIME_FUNC)
 #undef PLAIN_DATE_TIME_FUNC_LIST
 #undef INSTALL_PLAIN_DATE_TIME_FUNC
-
-    INSTALL_TO_LOCALE_STRING_FUNC(PlainDateTime)
   }
   {  // -- Z o n e d D a t e T i m e
     // #sec-temporal-zoneddatetime-objects
@@ -5047,6 +5032,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
   V(since, Since, 1)                       \
   V(round, Round, 1)                       \
   V(equals, Equals, 1)                     \
+  V(toLocaleString, ToLocaleString, 0)     \
   V(toString, ToString, 0)                 \
   V(toJSON, ToJSON, 0)                     \
   V(valueOf, ValueOf, 0)                   \
@@ -5066,8 +5052,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     ZONED_DATE_TIME_FUNC_LIST(INSTALL_ZONED_DATE_TIME_FUNC)
 #undef ZONED_DATE_TIME_FUNC_LIST
 #undef INSTALL_ZONED_DATE_TIME_FUNC
-
-    INSTALL_TO_LOCALE_STRING_FUNC(ZonedDateTime)
   }
   {  // -- D u r a t i o n
     // #sec-temporal-duration-objects
@@ -5098,16 +5082,17 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 #undef DURATION_GETTER_LIST
 #undef INSTALL_DURATION_GETTER_FUNC
 
-#define DURATION_FUNC_LIST(V) \
-  V(with, With, 1)            \
-  V(negated, Negated, 0)      \
-  V(abs, Abs, 0)              \
-  V(add, Add, 1)              \
-  V(subtract, Subtract, 1)    \
-  V(round, Round, 1)          \
-  V(total, Total, 1)          \
-  V(toString, ToString, 0)    \
-  V(toJSON, ToJSON, 0)        \
+#define DURATION_FUNC_LIST(V)          \
+  V(with, With, 1)                     \
+  V(negated, Negated, 0)               \
+  V(abs, Abs, 0)                       \
+  V(add, Add, 1)                       \
+  V(subtract, Subtract, 1)             \
+  V(round, Round, 1)                   \
+  V(total, Total, 1)                   \
+  V(toLocaleString, ToLocaleString, 0) \
+  V(toString, ToString, 0)             \
+  V(toJSON, ToJSON, 0)                 \
   V(valueOf, ValueOf, 0)
 
 #define INSTALL_DURATION_FUNC(p, N, min)          \
@@ -5116,8 +5101,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     DURATION_FUNC_LIST(INSTALL_DURATION_FUNC)
 #undef DURATION_FUNC_LIST
 #undef INSTALL_DURATION_FUNC
-
-    INSTALL_TO_LOCALE_STRING_FUNC(Duration)
   }
   {  // -- I n s t a n t
     // #sec-temporal-instant-objects
@@ -5154,6 +5137,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
   V(since, Since, 1)                     \
   V(round, Round, 1)                     \
   V(equals, Equals, 1)                   \
+  V(toLocaleString, ToLocaleString, 0)   \
   V(toString, ToString, 0)               \
   V(toJSON, ToJSON, 0)                   \
   V(valueOf, ValueOf, 0)                 \
@@ -5166,8 +5150,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     INSTANT_FUNC_LIST(INSTALL_INSTANT_FUNC)
 #undef INSTANT_FUNC_LIST
 #undef INSTALL_INSTANT_FUNC
-
-    INSTALL_TO_LOCALE_STRING_FUNC(Instant)
   }
   {  // -- P l a i n Y e a r M o n t h
     // #sec-temporal-plainyearmonth-objects
@@ -5204,17 +5186,18 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 #undef PLAIN_YEAR_MONTH_GETTER_LIST_INTL
 #undef INSTALL_PLAIN_YEAR_MONTH_GETTER_FUNC
 
-#define PLAIN_YEAR_MONTH_FUNC_LIST(V) \
-  V(with, With, 1)                    \
-  V(add, Add, 1)                      \
-  V(subtract, Subtract, 1)            \
-  V(until, Until, 1)                  \
-  V(since, Since, 1)                  \
-  V(equals, Equals, 1)                \
-  V(toString, ToString, 0)            \
-  V(toJSON, ToJSON, 0)                \
-  V(valueOf, ValueOf, 0)              \
-  V(toPlainDate, ToPlainDate, 1)      \
+#define PLAIN_YEAR_MONTH_FUNC_LIST(V)  \
+  V(with, With, 1)                     \
+  V(add, Add, 1)                       \
+  V(subtract, Subtract, 1)             \
+  V(until, Until, 1)                   \
+  V(since, Since, 1)                   \
+  V(equals, Equals, 1)                 \
+  V(toLocaleString, ToLocaleString, 0) \
+  V(toString, ToString, 0)             \
+  V(toJSON, ToJSON, 0)                 \
+  V(valueOf, ValueOf, 0)               \
+  V(toPlainDate, ToPlainDate, 1)       \
   V(getISOFields, GetISOFields, 0)
 
 #define INSTALL_PLAIN_YEAR_MONTH_FUNC(p, N, min)                           \
@@ -5224,8 +5207,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     PLAIN_YEAR_MONTH_FUNC_LIST(INSTALL_PLAIN_YEAR_MONTH_FUNC)
 #undef PLAIN_YEAR_MONTH_FUNC_LIST
 #undef INSTALL_PLAIN_YEAR_MONTH_FUNC
-
-    INSTALL_TO_LOCALE_STRING_FUNC(PlainYearMonth)
   }
   {  // -- P l a i n M o n t h D a y
     // #sec-temporal-plainmonthday-objects
@@ -5247,13 +5228,14 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 #undef PLAIN_MONTH_DAY_GETTER_LIST
 #undef INSTALL_PLAIN_MONTH_DAY_GETTER_FUNC
 
-#define PLAIN_MONTH_DAY_FUNC_LIST(V) \
-  V(with, With, 1)                   \
-  V(equals, Equals, 1)               \
-  V(toString, ToString, 0)           \
-  V(toJSON, ToJSON, 0)               \
-  V(valueOf, ValueOf, 0)             \
-  V(toPlainDate, ToPlainDate, 1)     \
+#define PLAIN_MONTH_DAY_FUNC_LIST(V)   \
+  V(with, With, 1)                     \
+  V(equals, Equals, 1)                 \
+  V(toLocaleString, ToLocaleString, 0) \
+  V(toString, ToString, 0)             \
+  V(toJSON, ToJSON, 0)                 \
+  V(valueOf, ValueOf, 0)               \
+  V(toPlainDate, ToPlainDate, 1)       \
   V(getISOFields, GetISOFields, 0)
 
 #define INSTALL_PLAIN_MONTH_DAY_FUNC(p, N, min)                           \
@@ -5263,10 +5245,7 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     PLAIN_MONTH_DAY_FUNC_LIST(INSTALL_PLAIN_MONTH_DAY_FUNC)
 #undef PLAIN_MONTH_DAY_FUNC_LIST
 #undef INSTALL_PLAIN_MONTH_DAY_FUNC
-
-    INSTALL_TO_LOCALE_STRING_FUNC(PlainMonthDay)
   }
-#undef INSTALL_TO_LOCALE_STRING_FUNC
   {  // -- T i m e Z o n e
     // #sec-temporal-timezone-objects
     // #sec-temporal.timezone

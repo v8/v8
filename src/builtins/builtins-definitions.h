@@ -1172,6 +1172,8 @@ namespace internal {
   CPP(TemporalPlainDatePrototypeToString)                                      \
   /* Temporal #sec-temporal.plaindate.prototype.tojson */                      \
   CPP(TemporalPlainDatePrototypeToJSON)                                        \
+  /* Temporal #sec-temporal.plaindate.prototype.tolocalestring */              \
+  CPP(TemporalPlainDatePrototypeToLocaleString)                                \
   /* Temporal #sec-temporal.plaindate.prototype.valueof */                     \
   CPP(TemporalPlainDatePrototypeValueOf)                                       \
                                                                                \
@@ -1220,6 +1222,8 @@ namespace internal {
   CPP(TemporalPlainTimePrototypeToString)                                      \
   /* Temporal #sec-temporal.plaindtimeprototype.tojson */                      \
   CPP(TemporalPlainTimePrototypeToJSON)                                        \
+  /* Temporal #sec-temporal.plaintime.prototype.tolocalestring */              \
+  CPP(TemporalPlainTimePrototypeToLocaleString)                                \
   /* Temporal #sec-temporal.plaintime.prototype.valueof */                     \
   CPP(TemporalPlainTimePrototypeValueOf)                                       \
                                                                                \
@@ -1292,6 +1296,8 @@ namespace internal {
   CPP(TemporalPlainDateTimePrototypeToString)                                  \
   /* Temporal #sec-temporal.plainddatetimeprototype.tojson */                  \
   CPP(TemporalPlainDateTimePrototypeToJSON)                                    \
+  /* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */          \
+  CPP(TemporalPlainDateTimePrototypeToLocaleString)                            \
   /* Temporal #sec-temporal.plaindatetime.prototype.valueof */                 \
   CPP(TemporalPlainDateTimePrototypeValueOf)                                   \
   /* Temporal #sec-temporal.plaindatetime.prototype.tozoneddatetime */         \
@@ -1394,6 +1400,8 @@ namespace internal {
   CPP(TemporalZonedDateTimePrototypeToString)                                  \
   /* Temporal #sec-temporal.zonedddatetimeprototype.tojson */                  \
   CPP(TemporalZonedDateTimePrototypeToJSON)                                    \
+  /* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */          \
+  CPP(TemporalZonedDateTimePrototypeToLocaleString)                            \
   /* Temporal #sec-temporal.zoneddatetime.prototype.valueof */                 \
   CPP(TemporalZonedDateTimePrototypeValueOf)                                   \
   /* Temporal #sec-temporal.zoneddatetime.prototype.startofday */              \
@@ -1462,6 +1470,8 @@ namespace internal {
   CPP(TemporalDurationPrototypeToString)                                       \
   /* Temporal #sec-temporal.duration.tojson */                                 \
   CPP(TemporalDurationPrototypeToJSON)                                         \
+  /* Temporal #sec-temporal.duration.prototype.tolocalestring */               \
+  CPP(TemporalDurationPrototypeToLocaleString)                                 \
   /* Temporal #sec-temporal.duration.prototype.valueof */                      \
   CPP(TemporalDurationPrototypeValueOf)                                        \
                                                                                \
@@ -1504,6 +1514,8 @@ namespace internal {
   CPP(TemporalInstantPrototypeToString)                                        \
   /* Temporal #sec-temporal.instant.tojson */                                  \
   CPP(TemporalInstantPrototypeToJSON)                                          \
+  /* Temporal #sec-temporal.instant.prototype.tolocalestring */                \
+  CPP(TemporalInstantPrototypeToLocaleString)                                  \
   /* Temporal #sec-temporal.instant.prototype.valueof */                       \
   CPP(TemporalInstantPrototypeValueOf)                                         \
   /* Temporal #sec-temporal.instant.prototype.tozoneddatetime */               \
@@ -1550,6 +1562,8 @@ namespace internal {
   CPP(TemporalPlainYearMonthPrototypeToString)                                 \
   /* Temporal #sec-temporal.plainyearmonth.tojson */                           \
   CPP(TemporalPlainYearMonthPrototypeToJSON)                                   \
+  /* Temporal #sec-temporal.plainyearmonth.prototype.tolocalestring */         \
+  CPP(TemporalPlainYearMonthPrototypeToLocaleString)                           \
   /* Temporal #sec-temporal.plainyearmonth.prototype.valueof */                \
   CPP(TemporalPlainYearMonthPrototypeValueOf)                                  \
   /* Temporal #sec-temporal.plainyearmonth.prototype.toplaindate */            \
@@ -1578,6 +1592,8 @@ namespace internal {
   CPP(TemporalPlainMonthDayPrototypeToString)                                  \
   /* Temporal #sec-temporal.plainmonthday.tojson */                            \
   CPP(TemporalPlainMonthDayPrototypeToJSON)                                    \
+  /* Temporal #sec-temporal.plainmonthday.prototype.tolocalestring */          \
+  CPP(TemporalPlainMonthDayPrototypeToLocaleString)                            \
   /* Temporal #sec-temporal.plainmonthday.prototype.valueof */                 \
   CPP(TemporalPlainMonthDayPrototypeValueOf)                                   \
   /* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */             \
@@ -1834,38 +1850,22 @@ namespace internal {
   CPP(TemporalCalendarPrototypeEra)                                    \
   /* Temporal #sec-temporal.calendar.prototype.erayear */              \
   CPP(TemporalCalendarPrototypeEraYear)                                \
-  /* Temporal #sec-temporal.duration.prototype.tolocalestring */       \
-  CPP(TemporalDurationPrototypeToLocaleString)                         \
-  /* Temporal #sec-temporal.instant.prototype.tolocalestring */        \
-  CPP(TemporalInstantPrototypeToLocaleString)                          \
   /* Temporal #sec-get-temporal.plaindate.prototype.era */             \
   CPP(TemporalPlainDatePrototypeEra)                                   \
   /* Temporal #sec-get-temporal.plaindate.prototype.erayear */         \
   CPP(TemporalPlainDatePrototypeEraYear)                               \
-  /* Temporal #sec-temporal.plaindate.prototype.tolocalestring */      \
-  CPP(TemporalPlainDatePrototypeToLocaleString)                        \
   /* Temporal #sec-get-temporal.plaindatetime.prototype.era */         \
   CPP(TemporalPlainDateTimePrototypeEra)                               \
   /* Temporal #sec-get-temporal.plaindatetime.prototype.erayear */     \
   CPP(TemporalPlainDateTimePrototypeEraYear)                           \
-  /* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */  \
-  CPP(TemporalPlainDateTimePrototypeToLocaleString)                    \
-  /* Temporal #sec-temporal.plainmonthday.prototype.tolocalestring */  \
-  CPP(TemporalPlainMonthDayPrototypeToLocaleString)                    \
-  /* Temporal #sec-temporal.plaintime.prototype.tolocalestring */      \
-  CPP(TemporalPlainTimePrototypeToLocaleString)                        \
   /* Temporal #sec-get-temporal.plainyearmonth.prototype.era */        \
   CPP(TemporalPlainYearMonthPrototypeEra)                              \
   /* Temporal #sec-get-temporal.plainyearmonth.prototype.erayear */    \
   CPP(TemporalPlainYearMonthPrototypeEraYear)                          \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.tolocalestring */ \
-  CPP(TemporalPlainYearMonthPrototypeToLocaleString)                   \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.era */         \
   CPP(TemporalZonedDateTimePrototypeEra)                               \
   /* Temporal #sec-get-temporal.zoneddatetime.prototype.erayear */     \
   CPP(TemporalZonedDateTimePrototypeEraYear)                           \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */  \
-  CPP(TemporalZonedDateTimePrototypeToLocaleString)                    \
                                                                        \
   CPP(V8BreakIteratorConstructor)                                      \
   CPP(V8BreakIteratorInternalAdoptText)                                \

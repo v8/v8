@@ -7504,7 +7504,63 @@ MaybeHandle<JSReceiver> JSTemporalPlainDate::GetISOFields(
 // #sec-temporal.plaindate.prototype.tojson
 MaybeHandle<String> JSTemporalPlainDate::ToJSON(
     Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date) {
-  // #sec-temporal.plaindate.prototype.tolocalestring
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+  // 3. Return ? TemporalDateToString(temporalDate, "auto").
+  return TemporalDateToString(isolate, temporal_date, ShowCalendar::kAuto);
+}
+
+namespace {
+
+// #sec-temporal-toshowcalendaroption
+Maybe<ShowCalendar> ToShowCalendarOption(Isolate* isolate,
+                                         Handle<JSReceiver> options,
+                                         const char* method) {
+  // 1. Return ? GetOption(normalizedOptions, "calendarName", « String », «
+  // "auto", "always", "never" », "auto").
+  return GetStringOption<ShowCalendar>(
+      isolate, options, "calendarName", method, {"auto", "always", "never"},
+      {ShowCalendar::kAuto, ShowCalendar::kAlways, ShowCalendar::kNever},
+      ShowCalendar::kAuto);
+}
+
+template <typename T,
+          MaybeHandle<String> (*F)(Isolate*, Handle<T>, ShowCalendar)>
+MaybeHandle<String> TemporalToString(Isolate* isolate, Handle<T> temporal,
+                                     Handle<Object> options_obj,
+                                     const char* method_name) {
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+  // 3. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      String);
+  // 4. Let showCalendar be ? ToShowCalendarOption(options).
+  ShowCalendar show_calendar;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, show_calendar,
+      ToShowCalendarOption(isolate, options, method_name), Handle<String>());
+  // 5. Return ? TemporalDateToString(temporalDate, showCalendar).
+  return F(isolate, temporal, show_calendar);
+}
+}  // namespace
+
+// #sec-temporal.plaindate.prototype.tostring
+MaybeHandle<String> JSTemporalPlainDate::ToString(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Handle<Object> options) {
+  return TemporalToString<JSTemporalPlainDate, TemporalDateToString>(
+      isolate, temporal_date, options, "Temporal.PlainDate.prototype.toString");
+}
+
+// #sup-temporal.plaindate.prototype.tolocalestring
+MaybeHandle<String> JSTemporalPlainDate::ToLocaleString(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Handle<Object> locales, Handle<Object> options) {
+  // TODO(ftang) Implement #sup-temporal.plaindate.prototype.tolocalestring
   return TemporalDateToString(isolate, temporal_date, ShowCalendar::kAuto);
 }
 
@@ -7978,6 +8034,22 @@ MaybeHandle<String> JSTemporalPlainMonthDay::ToJSON(
   return TemporalMonthDayToString(isolate, month_day, ShowCalendar::kAuto);
 }
 
+// #sec-temporal.plainmonthday.prototype.tostring
+MaybeHandle<String> JSTemporalPlainMonthDay::ToString(
+    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
+    Handle<Object> options) {
+  return TemporalToString<JSTemporalPlainMonthDay, TemporalMonthDayToString>(
+      isolate, month_day, options, "Temporal.PlainMonthDay.prototype.toString");
+}
+
+// #sec-temporal.plainmonthday.prototype.tolocalestring
+MaybeHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
+    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
+    Handle<Object> locales, Handle<Object> options) {
+  // TODO(ftang) Implement #sup-temporal.plainmonthday.prototype.tolocalestring
+  return TemporalMonthDayToString(isolate, month_day, ShowCalendar::kAuto);
+}
+
 MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Constructor(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
     Handle<Object> iso_year_obj, Handle<Object> iso_month_obj,
@@ -8053,6 +8125,23 @@ MaybeHandle<JSReceiver> JSTemporalPlainYearMonth::GetISOFields(
 // #sec-temporal.plainyearmonth.prototype.tojson
 MaybeHandle<String> JSTemporalPlainYearMonth::ToJSON(
     Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month) {
+  return TemporalYearMonthToString(isolate, year_month, ShowCalendar::kAuto);
+}
+
+// #sec-temporal.plainyearmonth.prototype.tostring
+MaybeHandle<String> JSTemporalPlainYearMonth::ToString(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Handle<Object> options) {
+  return TemporalToString<JSTemporalPlainYearMonth, TemporalYearMonthToString>(
+      isolate, year_month, options,
+      "Temporal.PlainYearMonth.prototype.toString");
+}
+
+// #sec-temporal.plainyearmonth.prototype.tolocalestring
+MaybeHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Handle<Object> locales, Handle<Object> options) {
+  // TODO(ftang) Implement #sup-temporal.plainyearmonth.prototype.tolocalestring
   return TemporalYearMonthToString(isolate, year_month, ShowCalendar::kAuto);
 }
 

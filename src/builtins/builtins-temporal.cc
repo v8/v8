@@ -60,8 +60,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeEquals)
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToPlainDateTime)
 /* Temporal #sec-temporal.plaindate.prototype.tozoneddatetime */
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToZonedDateTime)
-/* Temporal #sec-temporal.plaindate.prototype.tostring */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToString)
 
 /* Temporal.PlaneTime */
 /* Temporal #sec-temporal.plaintime.compare */
@@ -84,6 +82,8 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeEquals)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToPlainDateTime)
 /* Temporal #sec-temporal.plaintime.prototype.tozoneddatetime */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToZonedDateTime)
+/* Temporal #sec-temporal.plaintime.prototype.tolocalestring */
+TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToLocaleString)
 /* Temporal #sec-temporal.plaintime.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToString)
 /* Temporal #sec-temporal.plaindtimeprototype.tojson */
@@ -110,6 +110,8 @@ TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeSince)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeRound)
 /* Temporal #sec-temporal.plaindatetime.prototype.equals */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeEquals)
+/* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */
+TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToLocaleString)
 /* Temporal #sec-temporal.plaindatetime.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToString)
 /* Temporal #sec-temporal.plainddatetimeprototype.tojson */
@@ -202,6 +204,8 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeSubtract)
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeRound)
 /* Temporal #sec-temporal.duration.prototype.total */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeTotal)
+/* Temporal #sec-temporal.duration.prototype.tolocalestring */
+TO_BE_IMPLEMENTED(TemporalDurationPrototypeToLocaleString)
 /* Temporal #sec-temporal.duration.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeToString)
 /* Temporal #sec-temporal.duration.tojson */
@@ -222,6 +226,8 @@ TO_BE_IMPLEMENTED(TemporalInstantPrototypeSince)
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeRound)
 /* Temporal #sec-temporal.instant.prototype.equals */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeEquals)
+/* Temporal #sec-temporal.instant.prototype.tolocalestring */
+TO_BE_IMPLEMENTED(TemporalInstantPrototypeToLocaleString)
 /* Temporal #sec-temporal.instant.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeToString)
 /* Temporal #sec-temporal.instant.tojson */
@@ -248,8 +254,6 @@ TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeSince)
 /* Temporal #sec-temporal.plainyearmonth.prototype.equals */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeEquals)
-/* Temporal #sec-temporal.plainyearmonth.tostring */
-TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeToString)
 /* Temporal #sec-temporal.plainyearmonth.prototype.toplaindate */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeToPlainDate)
 
@@ -264,8 +268,6 @@ TO_BE_IMPLEMENTED(TemporalPlainMonthDayFrom)
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeWith)
 /* Temporal #sec-temporal.plainmonthday.prototype.equals */
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeEquals)
-/* Temporal #sec-temporal.plainmonthday.prototype.tostring */
-TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToString)
 /* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToPlainDate)
 
@@ -273,28 +275,14 @@ TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToPlainDate)
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 
+/* Temporal.ZonedDateTime */
+/* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */
+TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
 #ifdef V8_INTL_SUPPORT
-/* Temporal */
-/* Temporal #sec-temporal.duration.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalDurationPrototypeToLocaleString)
-/* Temporal #sec-temporal.instant.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeToLocaleString)
-/* Temporal #sec-temporal.plaindate.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToLocaleString)
-/* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToLocaleString)
-/* Temporal #sec-temporal.plainmonthday.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToLocaleString)
-/* Temporal #sec-temporal.plaintime.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToLocaleString)
-/* Temporal #sec-temporal.plainyearmonth.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeToLocaleString)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.era */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEra)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.erayear */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEraYear)
-/* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
 #endif  // V8_INTL_SUPPORT
 
 #define TEMPORAL_CONSTRUCTOR1(T)                                              \
@@ -491,6 +479,8 @@ TEMPORAL_PROTOTYPE_METHOD1(PlainDate, WithCalendar, withCalendar)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToJSON, toJSON)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDate, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDate, ToString, toString)
 
 // PlainTime
 BUILTIN(TemporalPlainTimeConstructor) {
@@ -580,7 +570,9 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, MonthsInYear,
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD0(PlainYearMonth, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainYearMonth)
+TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD0(PlainYearMonth, ToJSON, toJSON)
+TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, ToString, toString)
 
 // PlainMonthDay
 BUILTIN(TemporalPlainMonthDayConstructor) {
@@ -599,6 +591,8 @@ TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, Day, day)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, ToJSON, toJSON)
+TEMPORAL_PROTOTYPE_METHOD2(PlainMonthDay, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, ToString, toString)
 
 // ZonedDateTime
 
