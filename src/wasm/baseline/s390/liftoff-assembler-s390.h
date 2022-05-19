@@ -2738,6 +2738,30 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
   bailout(kSimd, "emit_s128_relaxed_laneselect");
 }
 
+void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_f64x2_relaxed_min");
+}
+
+void LiftoffAssembler::emit_f64x2_relaxed_max(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_f64x2_relaxed_max");
+}
+
+void LiftoffAssembler::emit_f32x4_relaxed_min(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_f32x4_relaxed_min");
+}
+
+void LiftoffAssembler::emit_f32x4_relaxed_max(LiftoffRegister dst,
+                                              LiftoffRegister lhs,
+                                              LiftoffRegister rhs) {
+  bailout(kUnsupportedArchitecture, "emit_f32x4_relaxed_max");
+}
+
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
                                                       LiftoffRegister src) {
   F64x2ConvertLowI32x4S(dst.fp(), src.fp());
