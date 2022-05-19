@@ -43,7 +43,7 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:bf4e17dc67b2a2007475415e3f9e1d1cf32f6e35',
+  'gn_version': 'git_revision:c547ca1497e3ff0dcbc0b2cb036b3d40380cbeeb',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:d3db74920e35147955be43f62b5f4ed0cf84c614',
@@ -51,7 +51,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:8.20220516.3.1',
+  'fuchsia_version': 'version:8.20220518.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -91,7 +91,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5b615faee003a974d27e85f4f7b87f195360bd9b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '62419bc615680a8c41e3bf591933d79a570d6413',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7208eddba161d85108097c3c5975264c04e3cad8',
   'buildtools/clang_format/script':
@@ -119,9 +119,9 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '79a2e924d96e2fc1e4b937c42efd08898fa472d7',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'b6827864154d1c622a869912bf93bdd5de5b930e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '75a3853b9d8f7a99c1b134ee67ca8e74eec9c069',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '44c86bbb7ce19845f2b96082c193819a62bbe659',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '837a94efb78ff483883e04c0b5be713c31c72c8c',
   'buildtools/win': {
     'packages': [
       {
@@ -215,7 +215,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ecd2da37113f570444d9d16af0e605f4fd994bde',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '811104909bad1a58c2f05332a9057a3dba347237',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -223,7 +223,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8fb649c42546de08755020c64670009b9a708896',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ab4d2e3fa392b875d8df6be91a9de4c9973c4353',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
@@ -286,9 +286,9 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7085d03b26610af4c62fe3128ab16983cce2a2c6',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '2fe249ae5be151faddb9999c4714323497433e8e',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '56af55b3cb0862430133456e705c91c253c10684',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6e492e7a5c4b7c7d8a59a5568d57d436e17c28e9',
   'tools/luci-go': {
       'packages': [
         {
