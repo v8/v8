@@ -1886,7 +1886,11 @@ NativeModule::~NativeModule() {
 WasmCodeManager::WasmCodeManager()
     : max_committed_code_space_(FLAG_wasm_max_code_space * MB),
       critical_committed_code_space_(max_committed_code_space_ / 2),
-      memory_protection_key_(AllocateMemoryProtectionKey()) {}
+      memory_protection_key_(AllocateMemoryProtectionKey()) {
+  // Ensure that RwxMemoryWriteScope and other dependent scopes (in particular,
+  // wasm::CodeSpaceWriteScope) are allowed to be used.
+  CHECK(RwxMemoryWriteScope::IsAllowed());
+}
 
 WasmCodeManager::~WasmCodeManager() {
   // No more committed code space.

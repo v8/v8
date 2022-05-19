@@ -602,12 +602,13 @@ AlwaysAllocateScopeForTesting::AlwaysAllocateScopeForTesting(Heap* heap)
     : scope_(heap) {}
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
-    : heap_(heap) {
+    :
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+      rwx_write_scope_("A part of CodeSpaceMemoryModificationScope"),
+#endif
+      heap_(heap) {
   DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
   heap_->safepoint()->AssertActive();
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
-    RwxMemoryWriteScope::SetWritable();
-  }
   if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetCodeModificationPermissions();
@@ -633,17 +634,15 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
       page = page->next_page();
     }
   }
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
-    RwxMemoryWriteScope::SetExecutable();
-  }
 }
 
 CodePageCollectionMemoryModificationScope::
     CodePageCollectionMemoryModificationScope(Heap* heap)
-    : heap_(heap) {
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
-    RwxMemoryWriteScope::SetWritable();
-  }
+    :
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+      rwx_write_scope_("A part of CodePageCollectionMemoryModificationScope"),
+#endif
+      heap_(heap) {
   if (heap_->write_protect_code_memory()) {
     heap_->IncrementCodePageCollectionMemoryModificationScopeDepth();
   }
@@ -657,14 +656,17 @@ CodePageCollectionMemoryModificationScope::
       heap_->ProtectUnprotectedMemoryChunks();
     }
   }
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
-    RwxMemoryWriteScope::SetExecutable();
-  }
 }
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
-    : chunk_(nullptr), scope_active_(false) {}
+    :
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+      rwx_write_scope_("A part of CodePageMemoryModificationScope"),
+#endif
+      chunk_(nullptr),
+      scope_active_(false) {
+}
 #else
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
     : CodePageMemoryModificationScope(BasicMemoryChunk::FromHeapObject(code)) {}
@@ -672,12 +674,13 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(Code code)
 
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     BasicMemoryChunk* chunk)
-    : chunk_(chunk),
+    :
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+      rwx_write_scope_("A part of CodePageMemoryModificationScope"),
+#endif
+      chunk_(chunk),
       scope_active_(chunk_->heap()->write_protect_code_memory() &&
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
-    RwxMemoryWriteScope::SetWritable();
-  }
   if (scope_active_) {
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
            (chunk_->owner()->identity() == CODE_LO_SPACE));
@@ -688,9 +691,6 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
 CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
   if (scope_active_) {
     MemoryChunk::cast(chunk_)->SetDefaultCodePermissions();
-  }
-  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
-    RwxMemoryWriteScope::SetExecutable();
   }
 }
 

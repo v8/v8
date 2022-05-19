@@ -24,6 +24,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
+#include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
@@ -2621,6 +2622,9 @@ class V8_NODISCARD CodeSpaceMemoryModificationScope {
   inline ~CodeSpaceMemoryModificationScope();
 
  private:
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+  V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
+#endif
   Heap* heap_;
 };
 
@@ -2632,6 +2636,9 @@ class V8_NODISCARD CodePageCollectionMemoryModificationScope {
   inline ~CodePageCollectionMemoryModificationScope();
 
  private:
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+  V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
+#endif
   Heap* heap_;
 };
 
@@ -2694,6 +2701,9 @@ class V8_NODISCARD CodePageMemoryModificationScope {
   inline ~CodePageMemoryModificationScope();
 
  private:
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+  V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
+#endif
   BasicMemoryChunk* chunk_;
   bool scope_active_;
 

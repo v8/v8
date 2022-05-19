@@ -22,7 +22,9 @@ class CodeSpaceWriteScope;
 // This scope is a wrapper for APRR/MAP_JIT machinery on MacOS on ARM64
 // ("Apple M1"/Apple Silicon) with respective semantics.
 // See pthread_jit_write_protect_np() for details.
-// On other platforms the scope is a no-op.
+// The scope must not be used if the process does not have the
+// "com.apple.security.cs.allow-jit" entitlement (see IsAllowed()).
+// On other platforms the scope is a no-op and thus it's allowed to be used.
 //
 // The semantics is the following: the scope switches permissions between
 // writable and executable for all the pages allocated with RWX permissions.
@@ -41,6 +43,12 @@ class V8_NODISCARD RwxMemoryWriteScope final {
   // a resource and implicit copying of the scope can yield surprising errors.
   RwxMemoryWriteScope(const RwxMemoryWriteScope&) = delete;
   RwxMemoryWriteScope& operator=(const RwxMemoryWriteScope&) = delete;
+
+  // Returns true if the configuration of the binary allows using of MAP_JIT
+  // machinery.
+  // This method is intended to be used for checking that the state of --jitless
+  // flag does not contradict the allowance of the MAP_JIT feature.
+  V8_INLINE static bool IsAllowed();
 
  private:
   friend class CodePageCollectionMemoryModificationScope;
