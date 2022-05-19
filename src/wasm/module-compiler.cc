@@ -1273,12 +1273,11 @@ void ThrowLazyCompilationError(Isolate* isolate,
 
 class TransitiveTypeFeedbackProcessor {
  public:
-  TransitiveTypeFeedbackProcessor(const WasmModule* module,
-                                  Handle<WasmInstanceObject> instance,
-                                  int func_index)
+  TransitiveTypeFeedbackProcessor(WasmInstanceObject instance, int func_index)
       : instance_(instance),
-        feedback_for_function_(module->type_feedback.feedback_for_function) {
-    base::MutexGuard mutex_guard(&module->type_feedback.mutex);
+        module_(instance.module()),
+        feedback_for_function_(module_->type_feedback.feedback_for_function) {
+    base::MutexGuard mutex_guard(&module_->type_feedback.mutex);
     queue_.insert(func_index);
     while (!queue_.empty()) {
       auto next = queue_.cbegin();
@@ -1308,7 +1307,9 @@ class TransitiveTypeFeedbackProcessor {
     }
   }
 
-  Handle<WasmInstanceObject> instance_;
+  DisallowGarbageCollection no_gc_scope_;
+  WasmInstanceObject instance_;
+  const WasmModule* const module_;
   std::map<uint32_t, FunctionTypeFeedback>& feedback_for_function_;
   std::unordered_set<int> queue_;
 };
@@ -1392,16 +1393,13 @@ class FeedbackMaker {
 };
 
 void TransitiveTypeFeedbackProcessor::Process(int func_index) {
-  int which_vector = declared_function_index(instance_->module(), func_index);
-  Object maybe_feedback = instance_->feedback_vectors().get(which_vector);
+  int which_vector = declared_function_index(module_, func_index);
+  Object maybe_feedback = instance_.feedback_vectors().get(which_vector);
   if (!maybe_feedback.IsFixedArray()) return;
   FixedArray feedback = FixedArray::cast(maybe_feedback);
-  WasmModuleObject module_object = instance_->module_object();
-  const NativeModule* native_module = module_object.native_module();
-  const WasmModule* module = native_module->module();
   const std::vector<uint32_t>& call_direct_targets(
-      module->type_feedback.feedback_for_function[func_index].call_targets);
-  FeedbackMaker fm(*instance_, func_index, feedback.length() / 2);
+      module_->type_feedback.feedback_for_function[func_index].call_targets);
+  FeedbackMaker fm(instance_, func_index, feedback.length() / 2);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);
     if (value.IsWasmInternalFunction()) {
@@ -1426,8 +1424,7 @@ void TransitiveTypeFeedbackProcessor::Process(int func_index) {
         PrintF("[Function #%d call #%d: uninitialized]\n", func_index, i / 2);
       }
     } else if (FLAG_trace_wasm_speculative_inlining) {
-      if (value ==
-          ReadOnlyRoots(instance_->GetIsolate()).megamorphic_symbol()) {
+      if (value == ReadOnlyRoots(instance_.GetIsolate()).megamorphic_symbol()) {
         PrintF("[Function #%d call #%d: megamorphic]\n", func_index, i / 2);
       }
     }
@@ -1438,8 +1435,8 @@ void TransitiveTypeFeedbackProcessor::Process(int func_index) {
   feedback_for_function_[func_index].feedback_vector = std::move(result);
 }
 
-void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
-                   int func_index, Handle<WasmInstanceObject> instance) {
+void TriggerTierUp(WasmInstanceObject instance, int func_index) {
+  NativeModule* native_module = instance.module_object().native_module();
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
@@ -1461,11 +1458,13 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
   // increased at least to four, and is a power of two.
   if (priority == 2 || !base::bits::IsPowerOfTwo(priority)) return;
 
+  // Before adding the tier-up unit or increasing priority, do process type
+  // feedback for best code generation.
   if (FLAG_wasm_speculative_inlining) {
     // TODO(jkummerow): we could have collisions here if different instances
     // of the same module have collected different feedback. If that ever
     // becomes a problem, figure out a solution.
-    TransitiveTypeFeedbackProcessor process(module, instance, func_index);
+    TransitiveTypeFeedbackProcessor process(instance, func_index);
   }
 
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);

@@ -316,9 +316,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+  SealHandleScope shs(isolate);
 
   // We're reusing this interrupt mechanism to interrupt long-running loops.
   StackLimitCheck check(isolate);
@@ -328,11 +326,15 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     if (result.IsException()) return result;
   }
 
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(1, args.length());
+  WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
+
   FrameFinder<WasmFrame> frame_finder(isolate);
   int func_index = frame_finder.frame()->function_index();
-  auto* native_module = instance->module_object().native_module();
+  DCHECK_EQ(instance, frame_finder.frame()->wasm_instance());
 
-  wasm::TriggerTierUp(isolate, native_module, func_index, instance);
+  wasm::TriggerTierUp(instance, func_index);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
