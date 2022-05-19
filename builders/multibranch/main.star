@@ -137,11 +137,6 @@ in_category(
         close_tree = False,
     ),
     main_multibranch_builder(
-        name = "V8 Fuchsia",
-        parent_builder = "V8 Fuchsia - builder",
-        close_tree = False,
-    ),
-    main_multibranch_builder(
         name = "V8 Fuchsia - debug builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"target_platform": "fuchsia"},

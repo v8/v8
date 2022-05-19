@@ -101,6 +101,18 @@ in_category(
 )
 
 in_category(
+    "Fuchsia",
+    experiment_builder(
+        name = "V8 Fuchsia",
+        parent_builder = "V8 Fuchsia - builder",
+        bucket = "ci",
+        dimensions = {"host_class": "multibot"},
+        execution_timeout = 19800,
+        properties = {"builder_group": "client.v8"},
+    ),
+)
+
+in_category(
     "FYI",
     experiment_builder(
         name = "V8 Linux64 - bazel - builder",
