@@ -258,12 +258,8 @@ TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeEquals)
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeToPlainDate)
 
 /* Temporal.PlainMonthDay */
-/* Temporal #sec-temporal.plainmonthday.from */
-TO_BE_IMPLEMENTED(TemporalPlainMonthDayFrom)
-
 /* There is no compare for PlainMonthDay. See
  * https://github.com/tc39/proposal-temporal/issues/1547 */
-
 /* Temporal #sec-temporal.plainmonthday.prototype.with */
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeWith)
 /* Temporal #sec-temporal.plainmonthday.prototype.equals */
@@ -588,6 +584,7 @@ BUILTIN(TemporalPlainMonthDayConstructor) {
 TEMPORAL_GET(PlainMonthDay, Calendar, calendar)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, MonthCode, monthCode)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, Day, day)
+TEMPORAL_METHOD2(PlainMonthDay, From)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, ToJSON, toJSON)

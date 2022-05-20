@@ -345,6 +345,10 @@ class JSTemporalPlainMonthDay
       Handle<Object> iso_day, Handle<Object> calendar_like,
       Handle<Object> reference_iso_year);
 
+  // #sec-temporal.plainmonthday.from
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainMonthDay> From(
+      Isolate* isolate, Handle<Object> item, Handle<Object> options);
+
   // #sec-temporal.plainmonthday.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day);
