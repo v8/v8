@@ -109,7 +109,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   const size_t reserved_area = GetWritableReservedAreaSize();
   if (requested < (kMaximalCodeRangeSize - reserved_area)) {
     requested += RoundUp(reserved_area, MemoryChunk::kPageSize);
-    // Fullfilling both reserved pages requirement and huge code area
+    // Fulfilling both reserved pages requirement and huge code area
     // alignments is not supported (requires re-implementation).
     DCHECK_LE(kMinExpectedOSPageSize, page_allocator->AllocatePageSize());
   }

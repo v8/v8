@@ -229,7 +229,7 @@ class Page : public MemoryChunk {
        Address area_end, VirtualMemory reservation, Executability executable);
 
   // Returns the page containing a given address. The address ranges
-  // from [page_addr .. page_addr + kPageSize[. This only works if the object
+  // from [page_addr .. page_addr + kPageSize]. This only works if the object
   // is in fact in a page.
   static Page* FromAddress(Address addr) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);

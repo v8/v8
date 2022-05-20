@@ -74,7 +74,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   // Schedules asynchronous job to perform concurrent marking at |priority| if
   // not already running, otherwise adjusts the number of workers running job
-  // and the priority if diffrent from the default kUserVisible.
+  // and the priority if different from the default kUserVisible.
   void RescheduleJobIfNeeded(
       TaskPriority priority = TaskPriority::kUserVisible);
   // Flushes native context sizes to the given table of the main thread.

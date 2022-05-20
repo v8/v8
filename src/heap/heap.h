@@ -383,7 +383,7 @@ class Heap {
 
   static const int kNoGCFlags = 0;
   static const int kReduceMemoryFootprintMask = 1;
-  // GCs that are forced, either through testing configurations (requring
+  // GCs that are forced, either through testing configurations (requiring
   // --expose-gc) or through DevTools (using LowMemoryNotification).
   static const int kForcedGC = 2;
 
@@ -1473,7 +1473,7 @@ class Heap {
   V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects();
 
   // We allow incremental marking to overshoot the V8 and global allocation
-  // limit for performace reasons. If the overshoot is too large then we are
+  // limit for performance reasons. If the overshoot is too large then we are
   // more eager to finalize incremental marking.
   bool AllocationLimitOvershotByLargeMargin();
 
@@ -1842,7 +1842,7 @@ class Heap {
   // slots since the sweeper can run concurrently.
   void CreateFillerObjectAtSweeper(Address addr, int size);
 
-  // Creates a filler object in the specificed memory area. This method is the
+  // Creates a filler object in the specified memory area. This method is the
   // internal method used by all CreateFillerObjectAtXXX-methods.
   void CreateFillerObjectAtRaw(Address addr, int size,
                                ClearFreedMemoryMode clear_memory_mode,
@@ -2263,7 +2263,7 @@ class Heap {
   StressScavengeObserver* stress_scavenge_observer_ = nullptr;
 
   // The maximum percent of the marking limit reached without causing marking.
-  // This is tracked when specyfing --fuzzer-gc-analysis.
+  // This is tracked when specifying --fuzzer-gc-analysis.
   double max_marking_limit_reached_ = 0.0;
 
   // How many mark-sweep collections happened.
@@ -2691,7 +2691,7 @@ using CodeTPageHeaderModificationScope = NopRwxMemoryWriteScope;
 using CodeTPageHeaderModificationScope = CodePageHeaderModificationScope;
 #endif  // V8_EXTERNAL_CODE_SPACE
 
-// The CodePageMemoryModificationScope does not check if tansitions to
+// The CodePageMemoryModificationScope does not check if transitions to
 // writeable and back to executable are actually allowed, i.e. the MemoryChunk
 // was registered to be executable. It can be used by concurrent threads.
 class V8_NODISCARD CodePageMemoryModificationScope {
@@ -2722,7 +2722,7 @@ class V8_NODISCARD IgnoreLocalGCRequests {
 };
 
 // Visitor class to verify interior pointers in spaces that do not contain
-// or care about intergenerational references. All heap object pointers have to
+// or care about inter-generational references. All heap object pointers have to
 // point into the heap to a location that has a map pointer at its first word.
 // Caveat: Heap::Contains is an approximation because it can return true for
 // objects in a heap space but above the allocation pointer.

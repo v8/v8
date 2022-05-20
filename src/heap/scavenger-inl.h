@@ -531,7 +531,7 @@ int ScavengeVisitor::VisitEphemeronHashTable(Map map,
                                              EphemeronHashTable table) {
   // Register table with the scavenger, so it can take care of the weak keys
   // later. This allows to only iterate the tables' values, which are treated
-  // as strong independetly of whether the key is live.
+  // as strong independently of whether the key is live.
   scavenger_->AddEphemeronHashTable(table);
   for (InternalIndex i : table.IterateEntries()) {
     ObjectSlot value_slot =
