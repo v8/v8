@@ -3696,7 +3696,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // JSArrayBufferView helpers
   TNode<JSArrayBuffer> LoadJSArrayBufferViewBuffer(
       TNode<JSArrayBufferView> array_buffer_view);
-  TNode<UintPtrT> LoadJSArrayBufferViewByteLength(
+  TNode<UintPtrT> LoadJSArrayBufferViewRawByteLength(
       TNode<JSArrayBufferView> array_buffer_view);
 
   TNode<UintPtrT> LoadJSArrayBufferViewByteOffset(

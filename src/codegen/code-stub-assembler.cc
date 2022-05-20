@@ -14126,7 +14126,7 @@ TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(
                                         JSArrayBufferView::kBufferOffset);
 }
 
-TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteLength(
+TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewRawByteLength(
     TNode<JSArrayBufferView> array_buffer_view) {
   return LoadObjectField<UintPtrT>(array_buffer_view,
                                    JSArrayBufferView::kByteLengthOffset);
@@ -14233,7 +14233,7 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
       // Check if the backing RAB has shrunk so that the buffer is out of
       // bounds.
       TNode<UintPtrT> array_byte_length =
-          LoadJSArrayBufferViewByteLength(array);
+          LoadJSArrayBufferViewRawByteLength(array);
       GotoIfNot(UintPtrGreaterThanOrEqual(
                     buffer_byte_length,
                     UintPtrAdd(array_byte_offset, array_byte_length)),
@@ -14278,7 +14278,7 @@ void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
       // Check if the backing RAB has shrunk so that the buffer is out of
       // bounds.
       TNode<UintPtrT> array_byte_length =
-          LoadJSArrayBufferViewByteLength(array_buffer_view);
+          LoadJSArrayBufferViewRawByteLength(array_buffer_view);
       Branch(UintPtrGreaterThanOrEqual(
                  buffer_byte_length,
                  UintPtrAdd(array_byte_offset, array_byte_length)),
