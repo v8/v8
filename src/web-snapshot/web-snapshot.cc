@@ -3071,8 +3071,7 @@ std::tuple<Object, bool> WebSnapshotDeserializer::ReadObject(
 std::tuple<Object, bool> WebSnapshotDeserializer::ReadFunction(
     Handle<HeapObject> container, uint32_t index) {
   uint32_t function_id;
-  if (!deserializer_.ReadUint32(&function_id) ||
-      function_id >= function_count_) {
+  if (!deserializer_.ReadUint32(&function_id)) {
     Throw("Malformed object property");
     return std::make_tuple(Smi::zero(), false);
   }

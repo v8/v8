@@ -143,3 +143,14 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals(35, f1());
   assertEquals(-20, f2());
 })();
+
+(function TestContextReferringToFunction() {
+  function createObjects() {
+    (function outer() {
+      let a = function() { return 10; }
+      globalThis.f = function() { return a(); };
+    })();
+  }
+  const {f} = takeAndUseWebSnapshot(createObjects, ['f']);
+  assertEquals(10, f());
+})();
