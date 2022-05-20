@@ -90,6 +90,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/shared-function-info.h"
@@ -163,9 +164,9 @@ void Heap_SharedHeapBarrierForCodeSlow(Code host, RelocInfo* rinfo,
   Heap::SharedHeapBarrierForCodeSlow(host, rinfo, object);
 }
 
-void Heap_GenerationalEphemeronKeyBarrierSlow(Heap* heap,
-                                              EphemeronHashTable table,
+void Heap_GenerationalEphemeronKeyBarrierSlow(Heap* heap, HeapObject host,
                                               Address slot) {
+  EphemeronHashTable table = EphemeronHashTable::cast(host);
   heap->RecordEphemeronKeyWrite(table, slot);
 }
 
@@ -7321,14 +7322,9 @@ void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
                                             Address key_slot_address,
                                             Isolate* isolate) {
   EphemeronHashTable table = EphemeronHashTable::cast(Object(raw_object));
-  MaybeObjectSlot key_slot(key_slot_address);
-  MaybeObject maybe_key = *key_slot;
-  HeapObject key;
-  if (!maybe_key.GetHeapObject(&key)) return;
-  if (!ObjectInYoungGeneration(table) && ObjectInYoungGeneration(key)) {
-    isolate->heap()->RecordEphemeronKeyWrite(table, key_slot_address);
-  }
-  WriteBarrier::Marking(table, key_slot, maybe_key);
+  ObjectSlot key_slot(key_slot_address);
+  CombinedEphemeronWriteBarrier(table, key_slot, *key_slot,
+                                UPDATE_WRITE_BARRIER);
 }
 
 enum RangeWriteBarrierMode {

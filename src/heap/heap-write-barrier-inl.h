@@ -41,7 +41,7 @@ V8_EXPORT_PRIVATE void Heap_SharedHeapBarrierForCodeSlow(Code host,
                                                          HeapObject object);
 
 V8_EXPORT_PRIVATE void Heap_GenerationalEphemeronKeyBarrierSlow(
-    Heap* heap, EphemeronHashTable table, Address slot);
+    Heap* heap, HeapObject table, Address slot);
 
 // Do not use these internal details anywhere outside of this file. These
 // internals are only intended to shortcut write barrier checks.
@@ -107,37 +107,39 @@ inline void GenerationalBarrierInternal(HeapObject object, Address slot,
   Heap_GenerationalBarrierSlow(object, slot, value);
 }
 
-inline void SharedHeapBarrierInternal(HeapObject object, Address slot,
-                                      HeapObject value) {
-  DCHECK(Heap_PageFlagsAreConsistent(object));
+inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
+                                         HeapObject value,
+                                         WriteBarrierMode mode) {
+  DCHECK(mode == UPDATE_WRITE_BARRIER || mode == UPDATE_WEAK_WRITE_BARRIER);
+
+  heap_internals::MemoryChunk* host_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(host);
+
   heap_internals::MemoryChunk* value_chunk =
       heap_internals::MemoryChunk::FromHeapObject(value);
-  heap_internals::MemoryChunk* object_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
 
-  // We only care about pointers into the shared heap.
-  if (!value_chunk->InSharedHeap()) return;
+  const bool host_in_young_gen = host_chunk->InYoungGeneration();
+  const bool host_in_shared = host_chunk->InSharedHeap();
+  const bool is_marking = host_chunk->IsMarking();
 
-  // Do not record slots in new space or the shared heap itself.
-  if (object_chunk->InYoungGeneration() || object_chunk->InSharedHeap()) return;
+  if (!host_in_young_gen) {
+    if (value_chunk->InYoungGeneration()) {
+      // Generational write barrier (old-to-new).
+      Heap_GenerationalBarrierSlow(host, slot.address(), value);
 
-  Heap_SharedHeapBarrierSlow(object, slot, value);
-}
-
-inline void GenerationalEphemeronKeyBarrierInternal(EphemeronHashTable table,
-                                                    Address slot,
-                                                    HeapObject value) {
-  DCHECK(Heap::PageFlagsAreConsistent(table));
-  heap_internals::MemoryChunk* value_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(value);
-  heap_internals::MemoryChunk* table_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(table);
-
-  if (!value_chunk->InYoungGeneration() || table_chunk->InYoungGeneration()) {
-    return;
+    } else if (value_chunk->InSharedHeap()) {
+      // Shared heap write barrier (old-to-shared).
+      if (!host_in_shared) {
+        Heap_SharedHeapBarrierSlow(host, slot.address(), value);
+      }
+    }
   }
 
-  Heap_GenerationalEphemeronKeyBarrierSlow(table_chunk->GetHeap(), table, slot);
+  // Marking barrier: mark value & record slots when marking is on.
+  if (mode == UPDATE_WRITE_BARRIER && is_marking) {
+    WriteBarrier::MarkingSlow(host_chunk->GetHeap(), host, HeapObjectSlot(slot),
+                              value);
+  }
 }
 
 }  // namespace heap_internals
@@ -158,35 +160,72 @@ inline void WriteBarrierForCode(Code host) {
   Heap_WriteBarrierForCodeSlow(host);
 }
 
-inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
-                                Object value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  DCHECK(!HasWeakHeapObjectTag(value));
+inline void CombinedWriteBarrier(HeapObject host, ObjectSlot slot, Object value,
+                                 WriteBarrierMode mode) {
+  if (mode == SKIP_WRITE_BARRIER) {
+    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+    return;
+  }
+
   if (!value.IsHeapObject()) return;
-  GenerationalBarrier(object, slot, HeapObject::cast(value));
+  heap_internals::CombinedWriteBarrierInternal(host, HeapObjectSlot(slot),
+                                               HeapObject::cast(value), mode);
 }
 
-inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
-                                Code value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  DCHECK(!Heap_ValueMightRequireGenerationalWriteBarrier(value));
+inline void CombinedWriteBarrier(HeapObject host, MaybeObjectSlot slot,
+                                 MaybeObject value, WriteBarrierMode mode) {
+  if (mode == SKIP_WRITE_BARRIER) {
+    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+    return;
+  }
+
+  HeapObject value_object;
+  if (!value->GetHeapObject(&value_object)) return;
+  heap_internals::CombinedWriteBarrierInternal(host, HeapObjectSlot(slot),
+                                               value_object, mode);
 }
 
-inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
-                                HeapObject value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  DCHECK(!HasWeakHeapObjectTag(*slot));
-  heap_internals::GenerationalBarrierInternal(object, slot.address(), value);
-}
+inline void CombinedEphemeronWriteBarrier(EphemeronHashTable host,
+                                          ObjectSlot slot, Object value,
+                                          WriteBarrierMode mode) {
+  if (mode == SKIP_WRITE_BARRIER) {
+    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+    return;
+  }
 
-inline void GenerationalEphemeronKeyBarrier(EphemeronHashTable table,
-                                            ObjectSlot slot, Object value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  DCHECK(!HasWeakHeapObjectTag(*slot));
-  DCHECK(!HasWeakHeapObjectTag(value));
-  DCHECK(value.IsHeapObject());
-  heap_internals::GenerationalEphemeronKeyBarrierInternal(
-      table, slot.address(), HeapObject::cast(value));
+  DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
+  if (!value.IsHeapObject()) return;
+
+  heap_internals::MemoryChunk* host_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(host);
+
+  HeapObject heap_object_value = HeapObject::cast(value);
+  heap_internals::MemoryChunk* value_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(heap_object_value);
+
+  const bool host_in_young_gen = host_chunk->InYoungGeneration();
+  const bool host_in_shared = host_chunk->InSharedHeap();
+  const bool is_marking = host_chunk->IsMarking();
+
+  if (!host_in_young_gen) {
+    if (value_chunk->InYoungGeneration()) {
+      // Generational write barrier (old-to-new).
+      Heap_GenerationalEphemeronKeyBarrierSlow(host_chunk->GetHeap(), host,
+                                               slot.address());
+
+    } else if (value_chunk->InSharedHeap()) {
+      // Shared heap write barrier (old-to-shared).
+      if (!host_in_shared) {
+        Heap_SharedHeapBarrierSlow(host, slot.address(), heap_object_value);
+      }
+    }
+  }
+
+  // Marking barrier: mark value & record slots when marking is on.
+  if (is_marking) {
+    WriteBarrier::MarkingSlow(host_chunk->GetHeap(), host, HeapObjectSlot(slot),
+                              heap_object_value);
+  }
 }
 
 inline void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
@@ -205,23 +244,6 @@ inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
       heap_internals::MemoryChunk::FromHeapObject(object);
   if (!object_chunk->InYoungGeneration()) return;
   Heap_GenerationalBarrierForCodeSlow(host, rinfo, object);
-}
-
-inline void SharedHeapBarrier(HeapObject object, ObjectSlot slot,
-                              Object value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  HeapObject value_heap_object;
-  if (!value.GetHeapObject(&value_heap_object)) return;
-  heap_internals::SharedHeapBarrierInternal(object, slot.address(),
-                                            value_heap_object);
-}
-inline void SharedHeapBarrier(HeapObject object, MaybeObjectSlot slot,
-                              MaybeObject value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  HeapObject value_heap_object;
-  if (!value->GetHeapObject(&value_heap_object)) return;
-  heap_internals::SharedHeapBarrierInternal(object, slot.address(),
-                                            value_heap_object);
 }
 
 inline void SharedHeapBarrierForCode(Code host, RelocInfo* rinfo,

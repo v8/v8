@@ -449,24 +449,22 @@
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
 #else
-#define WRITE_BARRIER(object, offset, value)                         \
-  do {                                                               \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
-    WriteBarrier::Marking(object, (object).RawField(offset), value); \
-    GenerationalBarrier(object, (object).RawField(offset), value);   \
-    SharedHeapBarrier(object, (object).RawField(offset), value);     \
+#define WRITE_BARRIER(object, offset, value)                       \
+  do {                                                             \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));            \
+    CombinedWriteBarrier(object, (object).RawField(offset), value, \
+                         UPDATE_WRITE_BARRIER);                    \
   } while (false)
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WEAK_WRITE_BARRIER(object, offset, value)
 #else
-#define WEAK_WRITE_BARRIER(object, offset, value)                             \
-  do {                                                                        \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
-    WriteBarrier::Marking(object, (object).RawMaybeWeakField(offset), value); \
-    GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value);   \
-    SharedHeapBarrier(object, (object).RawMaybeWeakField(offset), value);     \
+#define WEAK_WRITE_BARRIER(object, offset, value)                           \
+  do {                                                                      \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
+    CombinedWriteBarrier(object, (object).RawMaybeWeakField(offset), value, \
+                         UPDATE_WRITE_BARRIER);                             \
   } while (false)
 #endif
 
@@ -476,13 +474,12 @@
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)                    \
-  do {                                                                        \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
-    EphemeronHashTable table = EphemeronHashTable::cast(object);              \
-    WriteBarrier::Marking(object, (object).RawField(offset), value);          \
-    GenerationalEphemeronKeyBarrier(table, (object).RawField(offset), value); \
-    SharedHeapBarrier(object, (object).RawField(offset), value);              \
+#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)          \
+  do {                                                              \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));             \
+    CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object), \
+                                  (object).RawField(offset), value, \
+                                  UPDATE_WRITE_BARRIER);            \
   } while (false)
 #endif
 
@@ -492,19 +489,10 @@
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)           \
-  do {                                                                   \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                  \
-    DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);                 \
-    if (mode != SKIP_WRITE_BARRIER) {                                    \
-      if (mode == UPDATE_WRITE_BARRIER) {                                \
-        WriteBarrier::Marking(object, (object).RawField(offset), value); \
-      }                                                                  \
-      GenerationalBarrier(object, (object).RawField(offset), value);     \
-      SharedHeapBarrier(object, (object).RawField(offset), value);       \
-    } else {                                                             \
-      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));             \
-    }                                                                    \
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)            \
+  do {                                                                    \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
+    CombinedWriteBarrier(object, (object).RawField(offset), value, mode); \
   } while (false)
 #endif
 
@@ -514,20 +502,11 @@
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)           \
-  do {                                                                        \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
-    DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);                      \
-    if (mode != SKIP_WRITE_BARRIER) {                                         \
-      if (mode == UPDATE_WRITE_BARRIER) {                                     \
-        WriteBarrier::Marking(object, (object).RawMaybeWeakField(offset),     \
-                              value);                                         \
-      }                                                                       \
-      GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
-      SharedHeapBarrier(object, (object).RawMaybeWeakField(offset), value);   \
-    } else {                                                                  \
-      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                  \
-    }                                                                         \
+#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)         \
+  do {                                                                      \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
+    CombinedWriteBarrier(object, (object).RawMaybeWeakField(offset), value, \
+                         mode);                                             \
   } while (false)
 #endif
 
@@ -537,18 +516,8 @@
 #define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode) \
   do {                                                                       \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    DCHECK_NE(mode, UPDATE_EPHEMERON_KEY_WRITE_BARRIER);                     \
-    EphemeronHashTable table = EphemeronHashTable::cast(object);             \
-    if (mode != SKIP_WRITE_BARRIER) {                                        \
-      if (mode == UPDATE_WRITE_BARRIER) {                                    \
-        WriteBarrier::Marking(object, (object).RawField(offset), value);     \
-      }                                                                      \
-      GenerationalEphemeronKeyBarrier(table, (object).RawField(offset),      \
-                                      value);                                \
-      SharedHeapBarrier(table, (object).RawField(offset), value);            \
-    } else {                                                                 \
-      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                 \
-    }                                                                        \
+    CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object),          \
+                                  (object).RawField(offset), value, mode);   \
   } while (false)
 #endif
 
