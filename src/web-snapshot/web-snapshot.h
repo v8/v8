@@ -234,7 +234,7 @@ class V8_EXPORT WebSnapshotSerializer
   void SerializeObjectPropertiesWithDictionaryMap(T dict);
   void SerializeFunction(Handle<JSFunction> function);
   void SerializeClass(Handle<JSFunction> function);
-  void SerializeContext(Handle<Context> context);
+  void SerializeContext(Handle<Context> context, uint32_t id);
   void SerializeArray(Handle<JSArray> array);
   void SerializeObject(Handle<JSObject> object);
 

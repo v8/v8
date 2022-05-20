@@ -412,14 +412,15 @@ void WebSnapshotSerializer::SerializePendingItems() {
     SerializeBuiltinObject(name_id);
   }
 
-  // Serialize the items in the reverse order. The items at the end of the
-  // contexts_ etc get lower IDs and vice versa. IDs which items use for
-  // referring to each other are reversed by Get<item>Id functions().
-  for (int i = contexts_->Length() - 1; i >= 0; --i) {
+  for (int i = 0; i < contexts_->Length(); ++i) {
     Handle<Context> context =
         handle(Context::cast(contexts_->Get(i)), isolate_);
-    SerializeContext(context);
+    SerializeContext(context, static_cast<uint32_t>(i));
   }
+
+  // Serialize the items in the reverse order. The items at the end of the
+  // functions_ etc get lower IDs and vice versa. IDs which items use for
+  // referring to each other are reversed by Get<item>Id() functions.
   for (int i = functions_->Length() - 1; i >= 0; --i) {
     Handle<JSFunction> function =
         handle(JSFunction::cast(functions_->Get(i)), isolate_);
@@ -942,6 +943,13 @@ void WebSnapshotSerializer::DiscoverContextAndPrototype(
 }
 
 void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
+  // Make sure the parent context (if any), gets a smaller ID. This ensures the
+  // parent context references in the snapshot are not deferred.
+  if (!context->previous().IsNativeContext() &&
+      !context->previous().IsScriptContext()) {
+    DiscoverContext(handle(context->previous(), isolate_));
+  }
+
   uint32_t id;
   if (InsertIntoIndexMap(context_ids_, *context, id)) return;
 
@@ -1235,11 +1243,14 @@ void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function) {
 //   - String id (name)
 // - For each variable:
 //   - Serialized value
-void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
+void WebSnapshotSerializer::SerializeContext(Handle<Context> context,
+                                             uint32_t id) {
   uint32_t parent_context_id = 0;
   if (!context->previous().IsNativeContext() &&
       !context->previous().IsScriptContext()) {
-    parent_context_id = GetContextId(context->previous()) + 1;
+    parent_context_id = GetContextId(context->previous());
+    DCHECK_LT(parent_context_id, id);
+    ++parent_context_id;  // 0 is reserved for "no parent context".
   }
 
   // TODO(v8:11525): Use less space for encoding the context type.
@@ -1662,7 +1673,7 @@ uint32_t WebSnapshotSerializer::GetContextId(Context context) {
   bool return_value = context_ids_.Lookup(context, &id);
   DCHECK(return_value);
   USE(return_value);
-  return static_cast<uint32_t>(context_ids_.size() - 1 - id);
+  return static_cast<uint32_t>(id);
 }
 
 uint32_t WebSnapshotSerializer::GetArrayId(JSArray array) {

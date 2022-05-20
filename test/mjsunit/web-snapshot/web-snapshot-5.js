@@ -123,3 +123,23 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertSame(newAsyncGeneratorFunction.prototype.__proto__,
              asyncGeneratorFunction.prototype.__proto__);
 })();
+
+(function TestContextTree() {
+  function createObjects() {
+    (function outer() {
+      let a = 10;
+      let b = 20;
+      (function inner1() {
+        let c = 5;
+        globalThis.f1 = function() { return a + b + c; };
+      })();
+      (function inner2() {
+        let d = 10;
+        globalThis.f2 = function() { return a - b - d; };
+      })();
+    })();
+  }
+  const {f1, f2} = takeAndUseWebSnapshot(createObjects, ['f1', 'f2']);
+  assertEquals(35, f1());
+  assertEquals(-20, f2());
+})();
