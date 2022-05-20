@@ -806,6 +806,7 @@ class ValueNode : public Node {
     end_id_ = id;
     *last_uses_next_use_id_ = id;
     last_uses_next_use_id_ = input_location->get_next_use_id_address();
+    DCHECK_EQ(*last_uses_next_use_id_, kInvalidNodeId);
   }
 
   struct LiveRange {
@@ -872,6 +873,14 @@ class ValueNode : public Node {
       return double_registers_with_result_ != kEmptyDoubleRegList;
     }
     return registers_with_result_ != kEmptyRegList;
+  }
+  bool is_in_register(Register reg) const {
+    DCHECK(!use_double_register());
+    return registers_with_result_.has(reg);
+  }
+  bool is_in_register(DoubleRegister reg) const {
+    DCHECK(use_double_register());
+    return double_registers_with_result_.has(reg);
   }
 
   compiler::InstructionOperand allocation() const {

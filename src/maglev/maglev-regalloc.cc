@@ -446,6 +446,8 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     PrintLiveRegs();
     printing_visitor_->os() << "\n";
   }
+
+  VerifyRegisterState();
 }
 
 void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
@@ -637,6 +639,8 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     printing_visitor_->Process(node,
                                ProcessingState(compilation_info_, block_it_));
   }
+
+  VerifyRegisterState();
 }
 
 void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
@@ -801,6 +805,22 @@ void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
       DCHECK_EQ(double_registers_.GetValue(reg), input.node());
     } else {
       DCHECK_EQ(input.operand(), input.node()->allocation());
+    }
+  }
+#endif
+}
+
+void StraightForwardRegisterAllocator::VerifyRegisterState() {
+#ifdef DEBUG
+  for (Register reg : general_registers_.used()) {
+    ValueNode* node = general_registers_.GetValue(reg);
+    DCHECK(node->is_in_register(reg));
+  }
+  for (DoubleRegister reg : double_registers_.used()) {
+    ValueNode* node = double_registers_.GetValue(reg);
+    if (!node->is_in_register(reg)) {
+      FATAL("Node n%d doesn't think it is in register %s",
+            graph_labeller()->NodeId(node), RegisterName(reg));
     }
   }
 #endif

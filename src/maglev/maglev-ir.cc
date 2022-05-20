@@ -386,13 +386,10 @@ DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
       state(state),
       input_locations(zone->NewArray<InputLocation>(
           GetInputLocationsArraySize(compilation_unit, state))) {
-  // Default initialise if we're printing the graph, to avoid printing junk
-  // values.
-  if (FLAG_print_maglev_graph) {
-    for (size_t i = 0; i < GetInputLocationsArraySize(compilation_unit, state);
-         ++i) {
-      new (&input_locations[i]) InputLocation();
-    }
+  // Initialise InputLocations so that they correctly don't have a next use id.
+  for (size_t i = 0; i < GetInputLocationsArraySize(compilation_unit, state);
+       ++i) {
+    new (&input_locations[i]) InputLocation();
   }
 }
 

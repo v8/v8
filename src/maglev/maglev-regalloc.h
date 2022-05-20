@@ -136,6 +136,7 @@ class StraightForwardRegisterAllocator {
   void TryAllocateToInput(Phi* phi);
 
   void VerifyInputs(NodeBase* node);
+  void VerifyRegisterState();
 
   void AddMoveBeforeCurrentNode(ValueNode* node,
                                 compiler::InstructionOperand source,
