@@ -407,7 +407,10 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
 
   ReusableUnoptimizedCompileState reusable_state(&isolate);
 
-  while (!delegate->ShouldYield()) {
+  while (true) {
+    // Return immediately on yield, avoiding the second loop.
+    if (delegate->ShouldYield()) return;
+
     Job* job = nullptr;
     {
       base::MutexGuard lock(&mutex_);
