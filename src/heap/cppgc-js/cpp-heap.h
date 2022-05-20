@@ -165,6 +165,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();
 
  private:
+  void UpdateSupportedGCTypesFromFlags();
+
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {
     // For unified heap, CppHeap shouldn't finalize independently (i.e.

@@ -311,8 +311,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
-  const MarkingType marking_support_;
-  const SweepingType sweeping_support_;
+  MarkingType marking_support_;
+  SweepingType sweeping_support_;
   GenerationSupport generation_support_;
 
   HeapObjectNameForUnnamedObject name_for_unnamed_object_ =

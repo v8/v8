@@ -428,19 +428,6 @@ v8::metrics::Recorder::ContextId CppHeap::MetricRecorderAdapter::GetContextId()
       GetIsolate()->native_context());
 }
 
-namespace {
-
-CppHeap::MarkingType GetSupportedMarkingType() {
-  // Keep the selection simple for now as production configurations do not turn
-  // off parallel and/or concurrent marking independently.
-  if (!FLAG_parallel_marking || !FLAG_concurrent_marking)
-    return CppHeap::MarkingType::kIncremental;
-
-  return CppHeap::MarkingType::kIncrementalAndConcurrent;
-}
-
-}  // namespace
-
 CppHeap::CppHeap(
     v8::Platform* platform,
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
@@ -449,9 +436,10 @@ CppHeap::CppHeap(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          GetSupportedMarkingType(),
-          FLAG_single_threaded_gc ? SweepingType::kIncremental
-                                  : SweepingType::kIncrementalAndConcurrent),
+          // Default marking and sweeping types are only incremental. The types
+          // are updated respecting flags only on GC as the flags are not set
+          // properly during heap setup.
+          MarkingType::kIncremental, SweepingType::kIncremental),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -548,9 +536,25 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
   return sweeping_support();
 }
 
+void CppHeap::UpdateSupportedGCTypesFromFlags() {
+  // Keep the selection simple for now as production configurations do not turn
+  // off parallel and/or concurrent marking independently.
+  if (!FLAG_parallel_marking || !FLAG_concurrent_marking) {
+    marking_support_ = MarkingType::kIncremental;
+  } else {
+    marking_support_ = MarkingType::kIncrementalAndConcurrent;
+  }
+
+  sweeping_support_ = FLAG_single_threaded_gc
+                          ? CppHeap::SweepingType::kIncremental
+                          : CppHeap::SweepingType::kIncrementalAndConcurrent;
+}
+
 void CppHeap::InitializeTracing(CollectionType collection_type,
                                 GarbageCollectionFlags gc_flags) {
   CHECK(!sweeper_.IsSweepingInProgress());
+
+  UpdateSupportedGCTypesFromFlags();
 
   // Check that previous cycle metrics for the same collection type have been
   // reported.
