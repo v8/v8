@@ -6399,6 +6399,10 @@ if (want_v8_shell) {
       ":internal_config_base",
     ]
 
+    if (is_win && !v8_enable_cet_shadow_stack) {
+      v8_remove_configs += [ "//build/config/compiler:cet_shadow_stack" ]
+    }
+
     deps = [
       ":v8",
       ":v8_libbase",
