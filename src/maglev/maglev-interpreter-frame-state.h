@@ -517,10 +517,11 @@ class MergePointInterpreterFrameState {
                       ValueNode* unmerged, int merge_offset) {
     Phi* result = merged->TryCast<Phi>();
     if (result == nullptr || result->merge_offset() != merge_offset) {
-      DCHECK_EQ(merged, (unmerged->Is<CheckedSmiUntag>() ||
-                         unmerged->Is<CheckedFloat64Unbox>())
-                            ? unmerged->input(0).node()
-                            : unmerged);
+      if (merged != unmerged) {
+        DCHECK(unmerged->Is<CheckedSmiUntag>() ||
+               unmerged->Is<CheckedFloat64Unbox>());
+        DCHECK_EQ(merged, unmerged->input(0).node());
+      }
       return;
     }
     DCHECK_EQ(result->owner(), owner);

@@ -168,6 +168,12 @@ bool BinaryOperationHasInt32FastPath() {
     case Operation::kShiftLeft:
     case Operation::kShiftRight:
     case Operation::kShiftRightLogical:
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+    case Operation::kLessThan:
+    case Operation::kLessThanOrEqual:
+    case Operation::kGreaterThan:
+    case Operation::kGreaterThanOrEqual:
       return true;
     default:
       return false;
@@ -204,6 +210,14 @@ bool BinaryOperationHasFloat64FastPath() {
   V(ShiftRight, Int32ShiftRight, 0)         \
   V(ShiftRightLogical, Int32ShiftRightLogical, 0)
 
+#define MAP_COMPARE_OPERATION_TO_INT32_NODE(V) \
+  V(Equal, Int32Equal)                         \
+  V(StrictEqual, Int32StrictEqual)             \
+  V(LessThan, Int32LessThan)                   \
+  V(LessThanOrEqual, Int32LessThanOrEqual)     \
+  V(GreaterThan, Int32GreaterThan)             \
+  V(GreaterThanOrEqual, Int32GreaterThanOrEqual)
+
 // MAP_OPERATION_TO_FLOAT64_NODE are tuples with the following format:
 // (Operation name, Float64 operation node).
 #define MAP_OPERATION_TO_FLOAT64_NODE(V) \
@@ -233,6 +247,11 @@ ValueNode* MaglevGraphBuilder::AddNewInt32BinaryOperationNode(
   case Operation::k##op:       \
     return AddNewNode<OpNode>(inputs);
     MAP_OPERATION_TO_INT32_NODE(CASE)
+#undef CASE
+#define CASE(op, OpNode) \
+  case Operation::k##op: \
+    return AddNewNode<OpNode>(inputs);
+    MAP_COMPARE_OPERATION_TO_INT32_NODE(CASE)
 #undef CASE
     default:
       UNREACHABLE();
@@ -409,11 +428,12 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       if (BinaryOperationHasFloat64FastPath<kOperation>()) {
         BuildFloat64BinaryOperationNode<kOperation>();
         return;
-      } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
-        // Fall back to int32 fast path if there is one (this will be the case
-        // for operations that deal with bits rather than numbers).
-        BuildInt32BinaryOperationNode<kOperation>();
-        return;
+        // } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
+        //   // Fall back to int32 fast path if there is one (this will be the
+        //   case
+        //   // for operations that deal with bits rather than numbers).
+        //   BuildInt32BinaryOperationNode<kOperation>();
+        //   return;
       }
       break;
     default:

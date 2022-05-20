@@ -82,12 +82,12 @@ class CompactInterpreterFrameState;
   /*V(Int32NegateWithOverflow) */      \
   /*V(Int32IncrementWithOverflow)*/    \
   /*V(Int32DecrementWithOverflow)*/    \
-  /*V(Int32Equal)*/                    \
-  /*V(Int32StrictEqual) */             \
-  /*V(Int32LessThan)*/                 \
-  /*V(Int32LessThanOrEqual) */         \
-  /*V(Int32GreaterThan)*/              \
-  /*V(Int32GreaterThanOrEqual)*/
+  V(Int32Equal)                        \
+  V(Int32StrictEqual)                  \
+  V(Int32LessThan)                     \
+  V(Int32LessThanOrEqual)              \
+  V(Int32GreaterThan)                  \
+  V(Int32GreaterThanOrEqual)
 
 #define FLOAT64_OPERATIONS_NODE_LIST(V) \
   V(Float64Add)                         \
@@ -100,9 +100,9 @@ class CompactInterpreterFrameState;
   /*V(Float64Increment)*/               \
   /*V(Float64Decrement)*/               \
   /*V(Float64Equal)*/                   \
-  /*V(Float64StrictEqual) */            \
+  /*V(Float64StrictEqual)*/             \
   /*V(Float64LessThan)*/                \
-  /*V(Float64LessThanOrEqual) */        \
+  /*V(Float64LessThanOrEqual)*/         \
   /*V(Float64GreaterThan)*/             \
   /*V(Float64GreaterThanOrEqual)*/
 
@@ -149,7 +149,8 @@ class CompactInterpreterFrameState;
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
   V(BranchIfTrue)                        \
-  V(BranchIfToBooleanTrue)
+  V(BranchIfToBooleanTrue)               \
+  V(BranchIfInt32Compare)
 
 #define UNCONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Jump)                                  \
@@ -1182,6 +1183,45 @@ DEF_INT32_BINARY_NODE(ShiftRightLogical)
 // DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Increment)
 // DEF_INT32_UNARY_WITH_OVERFLOW_NODE(Decrement)
 
+template <class Derived, Operation kOperation>
+class Int32CompareNode : public FixedInputValueNodeT<2, Derived> {
+  using Base = FixedInputValueNodeT<2, Derived>;
+
+ public:
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+ protected:
+  explicit Int32CompareNode(uint32_t bitfield) : Base(bitfield) {}
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+#define DEF_OPERATION_NODE(Name, Super, OpName)                            \
+  class Name : public Super<Name, Operation::k##OpName> {                  \
+    using Base = Super<Name, Operation::k##OpName>;                        \
+                                                                           \
+   public:                                                                 \
+    explicit Name(uint32_t bitfield) : Base(bitfield) {}                   \
+    void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&); \
+    void GenerateCode(MaglevCodeGenState*, const ProcessingState&);        \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+  };
+
+#define DEF_INT32_COMPARE_NODE(Name) \
+  DEF_OPERATION_NODE(Int32##Name, Int32CompareNode, Name)
+DEF_INT32_COMPARE_NODE(Equal)
+DEF_INT32_COMPARE_NODE(StrictEqual)
+DEF_INT32_COMPARE_NODE(LessThan)
+DEF_INT32_COMPARE_NODE(LessThanOrEqual)
+DEF_INT32_COMPARE_NODE(GreaterThan)
+DEF_INT32_COMPARE_NODE(GreaterThanOrEqual)
+#undef DEF_INT32_COMPARE_NODE
+
 #undef DEF_OPERATION_NODE
 
 template <class Derived, Operation kOperation>
@@ -1221,6 +1261,12 @@ DEF_FLOAT64_BINARY_NODE(Multiply)
 DEF_FLOAT64_BINARY_NODE(Divide)
 // DEF_FLOAT64_BINARY_NODE(Modulus)
 // DEF_FLOAT64_BINARY_NODE(Exponentiate)
+// DEF_FLOAT64_BINARY_NODE(Equal)
+// DEF_FLOAT64_BINARY_NODE(StrictEqual)
+// DEF_FLOAT64_BINARY_NODE(LessThan)
+// DEF_FLOAT64_BINARY_NODE(LessThanOrEqual)
+// DEF_FLOAT64_BINARY_NODE(GreaterThan)
+// DEF_FLOAT64_BINARY_NODE(GreaterThanOrEqual)
 #undef DEF_FLOAT64_BINARY_NODE
 
 class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
@@ -2214,9 +2260,9 @@ class BranchIfToBooleanTrue
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class BranchIfCompare
-    : public ConditionalControlNodeT<2, BranchIfToBooleanTrue> {
-  using Base = ConditionalControlNodeT<2, BranchIfToBooleanTrue>;
+class BranchIfInt32Compare
+    : public ConditionalControlNodeT<2, BranchIfInt32Compare> {
+  using Base = ConditionalControlNodeT<2, BranchIfInt32Compare>;
 
  public:
   static constexpr int kLeftIndex = 0;
@@ -2224,9 +2270,9 @@ class BranchIfCompare
   Input& left_input() { return NodeBase::input(kLeftIndex); }
   Input& right_input() { return NodeBase::input(kRightIndex); }
 
-  explicit BranchIfCompare(uint32_t bitfield, Operation operation,
-                           BasicBlockRef* if_true_refs,
-                           BasicBlockRef* if_false_refs)
+  explicit BranchIfInt32Compare(uint32_t bitfield, Operation operation,
+                                BasicBlockRef* if_true_refs,
+                                BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);

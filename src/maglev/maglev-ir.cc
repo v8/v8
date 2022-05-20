@@ -1130,6 +1130,74 @@ void Int32ShiftRightLogical::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ shrl_cl(left);
 }
 
+namespace {
+
+constexpr Condition Int32ConditionFor(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return equal;
+    case Operation::kLessThan:
+      return less;
+    case Operation::kLessThanOrEqual:
+      return less_equal;
+    case Operation::kGreaterThan:
+      return greater;
+    case Operation::kGreaterThanOrEqual:
+      return greater_equal;
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
+template <class Derived, Operation kOperation>
+void Int32CompareNode<Derived, kOperation>::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(vreg_state, this);
+}
+
+template <class Derived, Operation kOperation>
+void Int32CompareNode<Derived, kOperation>::GenerateCode(
+    MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register result = ToRegister(this->result());
+  Label is_true, end;
+  __ cmpl(left, right);
+  // TODO(leszeks): Investigate using cmov here.
+  __ j(Int32ConditionFor(kOperation), &is_true);
+  // TODO(leszeks): Investigate loading existing materialisations of roots here,
+  // if available.
+  __ LoadRoot(result, RootIndex::kFalseValue);
+  __ jmp(&end);
+  {
+    __ bind(&is_true);
+    __ LoadRoot(result, RootIndex::kTrueValue);
+  }
+  __ bind(&end);
+}
+
+#define DEF_OPERATION(Name)                                      \
+  void Name::AllocateVreg(MaglevVregAllocationState* vreg_state, \
+                          const ProcessingState& state) {        \
+    Base::AllocateVreg(vreg_state, state);                       \
+  }                                                              \
+  void Name::GenerateCode(MaglevCodeGenState* code_gen_state,    \
+                          const ProcessingState& state) {        \
+    Base::GenerateCode(code_gen_state, state);                   \
+  }
+DEF_OPERATION(Int32Equal)
+DEF_OPERATION(Int32StrictEqual)
+DEF_OPERATION(Int32LessThan)
+DEF_OPERATION(Int32LessThanOrEqual)
+DEF_OPERATION(Int32GreaterThan)
+DEF_OPERATION(Int32GreaterThanOrEqual)
+#undef DEF_OPERATION
+
 void Float64Add::AllocateVreg(MaglevVregAllocationState* vreg_state,
                               const ProcessingState& state) {
   UseRegister(left_input());
@@ -1578,10 +1646,10 @@ void BranchIfTrue::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
 }
 
-void BranchIfCompare::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                                   const ProcessingState& state) {}
-void BranchIfCompare::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                   const ProcessingState& state) {
+void BranchIfInt32Compare::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                        const ProcessingState& state) {}
+void BranchIfInt32Compare::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                        const ProcessingState& state) {
   USE(operation_);
   UNREACHABLE();
 }

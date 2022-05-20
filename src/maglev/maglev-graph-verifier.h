@@ -152,6 +152,13 @@ class MaglevGraphVerifier {
       case Opcode::kInt32ShiftLeft:
       case Opcode::kInt32ShiftRight:
       case Opcode::kInt32ShiftRightLogical:
+      case Opcode::kInt32Equal:
+      case Opcode::kInt32StrictEqual:
+      case Opcode::kInt32LessThan:
+      case Opcode::kInt32LessThanOrEqual:
+      case Opcode::kInt32GreaterThan:
+      case Opcode::kInt32GreaterThanOrEqual:
+      case Opcode::kBranchIfInt32Compare:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
