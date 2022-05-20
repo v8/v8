@@ -3904,7 +3904,16 @@ MaybeHandle<Object> InvokeCalendarMethod(Isolate* isolate,
     /* 4. Return ? Action(result). */                                         \
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Action(isolate, result),      \
                                Object);                                       \
-    return Handle<Smi>(Smi::FromInt(result->Number()), isolate);              \
+    return handle(Smi::FromInt(result->Number()), isolate);                   \
+  }
+
+#define CALENDAR_ABSTRACT_OPERATION(Name, property)                      \
+  MaybeHandle<Object> Calendar##Name(Isolate* isolate,                   \
+                                     Handle<JSReceiver> calendar,        \
+                                     Handle<JSReceiver> date_like) {     \
+    return InvokeCalendarMethod(isolate, calendar,                       \
+                                isolate->factory()->property##_string(), \
+                                date_like);                              \
   }
 
 // #sec-temporal-calendaryear
@@ -3976,6 +3985,23 @@ MaybeHandle<Object> CalendarEra(Isolate* isolate, Handle<JSReceiver> calendar,
 }
 
 #endif  //  V8_INTL_SUPPORT
+
+// #sec-temporal-calendardayofweek
+CALENDAR_ABSTRACT_OPERATION(DayOfWeek, dayOfWeek)
+// #sec-temporal-calendardayofyear
+CALENDAR_ABSTRACT_OPERATION(DayOfYear, dayOfYear)
+// #sec-temporal-calendarweekofyear
+CALENDAR_ABSTRACT_OPERATION(WeekOfYear, weekOfYear)
+// #sec-temporal-calendardaysinweek
+CALENDAR_ABSTRACT_OPERATION(DaysInWeek, daysInWeek)
+// #sec-temporal-calendardaysinmonth
+CALENDAR_ABSTRACT_OPERATION(DaysInMonth, daysInMonth)
+// #sec-temporal-calendardaysinyear
+CALENDAR_ABSTRACT_OPERATION(DaysInYear, daysInYear)
+// #sec-temporal-calendarmonthsinyear
+CALENDAR_ABSTRACT_OPERATION(MonthsInYear, monthsInYear)
+// #sec-temporal-calendarinleapyear
+CALENDAR_ABSTRACT_OPERATION(InLeapYear, inLeapYear)
 
 // #sec-temporal-getiso8601calendar
 MaybeHandle<JSTemporalCalendar> GetISO8601Calendar(Isolate* isolate) {

@@ -132,32 +132,8 @@ TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToPlainTime)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimeFrom)
 /* Temporal #sec-temporal.zoneddatetime.compare */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimeCompare)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.year */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeYear)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.month */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMonth)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.monthcode */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMonthCode)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.day */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDay)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofweek */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDayOfWeek)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofyear */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDayOfYear)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.weekofyear */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWeekOfYear)
 /* Temporal #sec-get-temporal.zoneddatetime.prototype.hoursinday */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeHoursInDay)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.daysinweek */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDaysInWeek)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.daysinmonth */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDaysInMonth)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.daysinyear */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeDaysInYear)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.monthsinyear */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeMonthsInYear)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.inleapyear */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeInLeapYear)
 /* Temporal #sec-temporal.zoneddatetime.prototype.with */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWith)
 /* Temporal #sec-temporal.zoneddatetime.prototype.withplaintime */
@@ -272,12 +248,6 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
 /* Temporal.ZonedDateTime */
 /* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
-#ifdef V8_INTL_SUPPORT
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.era */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEra)
-/* Temporal #sec-get-temporal.zoneddatetime.prototype.erayear */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEraYear)
-#endif  // V8_INTL_SUPPORT
 
 #define TEMPORAL_CONSTRUCTOR1(T)                                              \
   BUILTIN(Temporal##T##Constructor) {                                         \
@@ -619,6 +589,15 @@ TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, ToString, toString)
       temporal::BuiltinTimeZoneGetPlainDateTimeFor(                           \
           isolate, time_zone, instant, calendar, method_name));
 
+#define TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(M) \
+  BUILTIN(TemporalZonedDateTimePrototype##M) {                            \
+    TEMPORAL_ZONED_DATE_TIME_GET_PREPARE(M)                               \
+    /* 7. Return ? Calendar##M(calendar, temporalDateTime). */            \
+    RETURN_RESULT_OR_FAILURE(                                             \
+        isolate,                                                          \
+        temporal::Calendar##M(isolate, calendar, temporal_date_time));    \
+  }
+
 #define TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(M, field) \
   BUILTIN(TemporalZonedDateTimePrototype##M) {                          \
     TEMPORAL_ZONED_DATE_TIME_GET_PREPARE(M)                             \
@@ -637,6 +616,10 @@ BUILTIN(TemporalZonedDateTimeConstructor) {
 }
 TEMPORAL_GET(ZonedDateTime, Calendar, calendar)
 TEMPORAL_GET(ZonedDateTime, TimeZone, time_zone)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Year)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Month)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(MonthCode)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Day)
 TEMPORAL_GET(ZonedDateTime, EpochNanoseconds, nanoseconds)
 TEMPORAL_GET_NUMBER_AFTER_DIVID(ZonedDateTime, EpochSeconds, nanoseconds,
                                 1000000000, epochSeconds)
@@ -653,6 +636,14 @@ TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Microsecond,
                                                       iso_microsecond)
 TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Nanosecond,
                                                       iso_nanosecond)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DayOfWeek)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DayOfYear)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(WeekOfYear)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInWeek)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInMonth)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInYear)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(MonthsInYear)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(InLeapYear)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithCalendar, withCalendar)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithTimeZone, withTimeZone)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainYearMonth, toPlainYearMonth)
@@ -848,6 +839,8 @@ TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDateTime, Era, era)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDateTime, EraYear, eraYear)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, Era, era)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainYearMonth, EraYear, eraYear)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Era)
+TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(EraYear)
 #endif  // V8_INTL_SUPPORT
 }  // namespace internal
 }  // namespace v8
