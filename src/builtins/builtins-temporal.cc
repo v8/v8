@@ -40,10 +40,6 @@ namespace internal {
 
 /* Temporal #sec-temporal.plaindate.compare */
 TO_BE_IMPLEMENTED(TemporalPlainDateCompare)
-/* Temporal #sec-temporal.plaindate.prototype.toplainyearmonth */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToPlainYearMonth)
-/* Temporal #sec-temporal.plaindate.prototype.toplainmonthday */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToPlainMonthDay)
 /* Temporal #sec-temporal.plaindate.prototype.add */
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeAdd)
 /* Temporal #sec-temporal.plaindate.prototype.substract */
@@ -120,10 +116,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToJSON)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToZonedDateTime)
 /* Temporal #sec-temporal.plaindatetime.prototype.toplaindate */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToPlainDate)
-/* Temporal #sec-temporal.plaindatetime.prototype.toplainyearmonth */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToPlainYearMonth)
-/* Temporal #sec-temporal.plaindatetime.prototype.toplainmonthday */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToPlainMonthDay)
 /* Temporal #sec-temporal.plaindatetime.prototype.toplaintime */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToPlainTime)
 
@@ -439,6 +431,8 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, DaysInMonth, daysInMonth)
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, DaysInYear, daysInYear)
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, MonthsInYear, monthsInYear)
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, InLeapYear, inLeapYear)
+TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToPlainYearMonth, toPlainYearMonth)
+TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToPlainMonthDay, toPlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDate, WithCalendar, withCalendar)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainDate)
@@ -509,6 +503,8 @@ TEMPORAL_GET_SMI(PlainDateTime, Millisecond, iso_millisecond)
 TEMPORAL_GET_SMI(PlainDateTime, Microsecond, iso_microsecond)
 TEMPORAL_GET_SMI(PlainDateTime, Nanosecond, iso_nanosecond)
 TEMPORAL_METHOD2(PlainDateTime, From)
+TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainYearMonth, toPlainYearMonth)
+TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainMonthDay, toPlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainDateTime)
 

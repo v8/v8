@@ -7602,6 +7602,56 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
       calendar);
 }
 
+// Template for common code shared by
+// Temporal.PlainDate(Timne)?.prototype.toPlain(YearMonth|MonthDay)
+// #sec-temporal.plaindate.prototype.toplainmonthday
+// #sec-temporal.plaindate.prototype.toplainyearmonth
+// #sec-temporal.plaindatetime.prototype.toplainmonthday
+// #sec-temporal.plaindatetime.prototype.toplainyearmonth
+template <typename T, typename R,
+          MaybeHandle<R> (*from_fields)(Isolate*, Handle<JSReceiver>,
+                                        Handle<JSReceiver>, Handle<Object>)>
+MaybeHandle<R> ToPlain(Isolate* isolate, Handle<T> t, Handle<String> f1,
+                       Handle<String> f2) {
+  Factory* factory = isolate->factory();
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(t, [[InitializedTemporalDate]]).
+  // 3. Let calendar be t.[[Calendar]].
+  Handle<JSReceiver> calendar(t->calendar(), isolate);
+  // 4. Let fieldNames be ? CalendarFields(calendar, « f1 , f2 »).
+  Handle<FixedArray> field_names = factory->NewFixedArray(2);
+  field_names->set(0, *f1);
+  field_names->set(1, *f2);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
+                             CalendarFields(isolate, calendar, field_names), R);
+  // 5. Let fields be ? PrepareTemporalFields(t, fieldNames, «»).
+  Handle<JSReceiver> fields;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, fields,
+      PrepareTemporalFields(isolate, t, field_names, RequiredFields::kNone), R);
+  // 6. Return ? FromFields(calendar, fields).
+  return from_fields(isolate, calendar, fields,
+                     isolate->factory()->undefined_value());
+}
+
+// #sec-temporal.plaindate.prototype.toplainyearmonth
+MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainDate::ToPlainYearMonth(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date) {
+  return ToPlain<JSTemporalPlainDate, JSTemporalPlainYearMonth,
+                 YearMonthFromFields>(isolate, temporal_date,
+                                      isolate->factory()->monthCode_string(),
+                                      isolate->factory()->year_string());
+}
+
+// #sec-temporal.plaindate.prototype.toplainmonthday
+MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainDate::ToPlainMonthDay(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date) {
+  return ToPlain<JSTemporalPlainDate, JSTemporalPlainMonthDay,
+                 MonthDayFromFields>(isolate, temporal_date,
+                                     isolate->factory()->day_string(),
+                                     isolate->factory()->monthCode_string());
+}
+
 // #sec-temporal.now.plaindate
 MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Now(
     Isolate* isolate, Handle<Object> calendar_like,
@@ -8092,6 +8142,24 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithCalendar(
         date_time->iso_millisecond(), date_time->iso_microsecond(),
         date_time->iso_nanosecond()}},
       calendar);
+}
+
+// #sec-temporal.plaindatetime.prototype.toplainyearmonth
+MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainDateTime::ToPlainYearMonth(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+  return ToPlain<JSTemporalPlainDateTime, JSTemporalPlainYearMonth,
+                 YearMonthFromFields>(isolate, date_time,
+                                      isolate->factory()->monthCode_string(),
+                                      isolate->factory()->year_string());
+}
+
+// #sec-temporal.plaindatetime.prototype.toplainmonthday
+MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainDateTime::ToPlainMonthDay(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+  return ToPlain<JSTemporalPlainDateTime, JSTemporalPlainMonthDay,
+                 MonthDayFromFields>(isolate, date_time,
+                                     isolate->factory()->day_string(),
+                                     isolate->factory()->monthCode_string());
 }
 
 // #sec-temporal.now.plaindatetime
