@@ -78,6 +78,10 @@ class MaglevGraphBuilder {
     MergePointInterpreterFrameState& merge_state = *merge_states_[offset];
     current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state);
 
+    // Merges aren't simple fallthroughs, so we should reset the checkpoint
+    // validity.
+    latest_checkpointed_state_.reset();
+
     if (merge_state.predecessor_count() == 1) return;
 
     // Set up edge-split.
@@ -526,11 +530,6 @@ class MaglevGraphBuilder {
         CreateBlock<ControlNodeT>(control_inputs, std::forward<Args>(args)...);
     ResolveJumpsToBlockAtOffset(block, block_offset_);
 
-    // If the next block has merge states, then it's not a simple fallthrough,
-    // and we should reset the checkpoint validity.
-    if (merge_states_[next_block_offset] != nullptr) {
-      latest_checkpointed_state_.reset();
-    }
     // Start a new block for the fallthrough path, unless it's a merge point, in
     // which case we merge our state into it. That merge-point could also be a
     // loop header, in which case the merge state might not exist yet (if the
