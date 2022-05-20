@@ -196,8 +196,8 @@ struct WasmTag {
 
 // Static representation of a wasm literal stringref.
 struct WasmStringRefLiteral {
-  explicit WasmStringRefLiteral(uint32_t offset) : offset(offset) {}
-  uint32_t offset;  // Offset into string literals table.
+  explicit WasmStringRefLiteral(const WireBytesRef& source) : source(source) {}
+  WireBytesRef source;  // start offset in the module bytes.
 };
 
 // Static representation of a wasm data segment.

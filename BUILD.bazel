@@ -2547,6 +2547,8 @@ filegroup(
             "src/wasm/wasm-subtyping.h",
             "src/wasm/wasm-tier.h",
             "src/wasm/wasm-value.h",
+            "src/wasm/wtf8.cc",
+            "src/wasm/wtf8.h",
         ],
         "//conditions:default": [],
     }),

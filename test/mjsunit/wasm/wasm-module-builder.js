@@ -1945,6 +1945,7 @@ class WasmModuleBuilder {
     if (wasm.stringrefs.length > 0) {
       if (debug) print('emitting stringrefs @ ' + binary.length);
       binary.emit_section(kStringRefSectionCode, section => {
+        section.emit_u32v(0);
         section.emit_u32v(wasm.stringrefs.length);
         for (let str of wasm.stringrefs) {
           section.emit_string(str);

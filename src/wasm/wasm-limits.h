@@ -60,6 +60,9 @@ constexpr size_t kV8MaxWasmStructFields = 999;
 constexpr uint32_t kV8MaxRttSubtypingDepth = 31;
 constexpr size_t kV8MaxWasmArrayInitLength = 10000;
 
+// Stringref proposal. This limit is not standardized yet.
+constexpr size_t kV8MaxWasmStringLiterals = 1000000;
+
 static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
               "v8 should not exceed WebAssembly's non-web embedding limits");
 static_assert(kV8MaxWasmTableInitEntries <= kV8MaxWasmTableSize,

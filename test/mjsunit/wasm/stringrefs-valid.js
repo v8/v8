@@ -21,8 +21,7 @@ function assertInvalid(fn, message) {
                `WebAssembly.Module(): ${message}`);
 }
 
-// TODO(wingo): Enable when we start parsing string literal sections.
-// assertValid(builder => builder.addLiteralStringRef("foo"));
+assertValid(builder => builder.addLiteralStringRef("foo"));
 
 for (let [name, code] of [['string', kWasmStringRef],
                           ['stringview_wtf8', kWasmStringViewWtf8],
@@ -86,12 +85,11 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kGCPrefix, kExprStringNewWtf16, 0
     ]);
 
-  // TODO(wingo): Enable when we start parting string literal sections.
-  // builder.addFunction("string.const", kSig_w_v)
-  //   .addLiteralStringRef("foo")
-  //   .addBody([
-  //     kGCPrefix, kExprStringConst, 0
-  //   ]);
+  builder.addLiteralStringRef("foo");
+  builder.addFunction("string.const", kSig_w_v)
+    .addBody([
+      kGCPrefix, kExprStringConst, 0
+    ]);
 
   builder.addFunction("string.measure_utf8", kSig_i_w)
     .addBody([
@@ -243,6 +241,16 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
 
   assertTrue(WebAssembly.validate(builder.toBuffer()));
 })();
+
+assertInvalid(
+  builder => {
+    builder.addFunction("string.const/bad-index", kSig_w_v)
+      .addBody([
+        kGCPrefix, kExprStringConst, 0
+      ]);
+  },
+  "Compiling function #0:\"string.const/bad-index\" failed: " +
+    "Invalid string literal index: 0 @+26");
 
 assertInvalid(
   builder => {
