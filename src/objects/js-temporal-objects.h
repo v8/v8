@@ -193,6 +193,10 @@ class JSTemporalDuration
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Abs(
       Isolate* isolate, Handle<JSTemporalDuration> duration);
 
+  // #sec-temporal.duration.prototype.tojson
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
+      Isolate* isolate, Handle<JSTemporalDuration> duration);
+
   DECL_PRINTER(JSTemporalDuration)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalDuration)

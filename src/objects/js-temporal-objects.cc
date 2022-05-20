@@ -166,6 +166,8 @@ enum class ShowOverflow { kConstrain, kReject };
 // #sec-temporal-toshowcalendaroption
 enum class ShowCalendar { kAuto, kAlways, kNever };
 
+enum class Precision { k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, kAuto, kMinute };
+
 // ISO8601 String Parsing
 
 // #sec-temporal-parsetemporalcalendarstring
@@ -1188,6 +1190,172 @@ DateTimeRecordCommon BalanceISODateTime(Isolate* isolate,
   // [[Microsecond]]: balancedTime.[[Microsecond]], [[Nanosecond]]:
   // balancedTime.[[Nanosecond]] }.
   return {balanced_date, balanced_time.time};
+}
+
+// #sec-temporal-temporaldurationtostring
+Handle<String> TemporalDurationToString(Isolate* isolate,
+                                        Handle<JSTemporalDuration> duration,
+                                        Precision precision) {
+  IncrementalStringBuilder builder(isolate);
+  DurationRecord dur = {
+      duration->years().Number(),
+      duration->months().Number(),
+      duration->weeks().Number(),
+      {duration->days().Number(), duration->hours().Number(),
+       duration->minutes().Number(), duration->seconds().Number(),
+       duration->milliseconds().Number(), duration->microseconds().Number(),
+       duration->nanoseconds().Number()}};
+  // 1. Assert: precision is not "minute".
+  DCHECK(precision != Precision::kMinute);
+  // 2. Set seconds to the mathematical value of seconds.
+  // 3. Set milliseconds to the mathematical value of milliseconds.
+  // 4. Set microseconds to the mathematical value of microseconds.
+  // 5. Set nanoseconds to the mathematical value of nanoseconds.
+  // 6. Let sign be ! DurationSign(years, months, weeks, days, hours, minutes,
+  // seconds, milliseconds, microseconds, nanoseconds).
+  int32_t sign = DurationSign(isolate, dur);
+
+  // 7. Set microseconds to microseconds + the integral part of nanoseconds /
+  // 1000.
+  dur.time_duration.microseconds +=
+      static_cast<int>(dur.time_duration.nanoseconds / 1000);
+  // 8. Set nanoseconds to remainder(nanoseconds, 1000).
+  dur.time_duration.nanoseconds =
+      std::remainder(dur.time_duration.nanoseconds, 1000);
+  // 9. Set milliseconds to milliseconds + the integral part of microseconds /
+  // 1000.
+  dur.time_duration.milliseconds +=
+      static_cast<int>(dur.time_duration.microseconds / 1000);
+  // 10. Set microseconds to microseconds modulo 1000.
+  dur.time_duration.microseconds =
+      std::remainder(dur.time_duration.microseconds, 1000);
+  // 11. Set seconds to seconds + the integral part of milliseconds / 1000.
+  dur.time_duration.seconds +=
+      static_cast<int>(dur.time_duration.milliseconds / 1000);
+  // 12. Set milliseconds to milliseconds modulo 1000.
+  dur.time_duration.milliseconds =
+      std::remainder(dur.time_duration.milliseconds, 1000);
+  if (sign < 0) {
+    builder.AppendCharacter('-');
+  }
+  builder.AppendCharacter('P');
+  // 13. Let datePart be "".
+  // 14. If years is not 0, then
+  // a. Set datePart to the string concatenation of abs(years) formatted as a
+  // decimal number and the code unit 0x0059 (LATIN CAPITAL LETTER Y).
+  if (dur.years != 0) {
+    builder.AppendInt(static_cast<int32_t>(std::abs(dur.years)));
+    builder.AppendCharacter('Y');
+  }
+  // 15. If months is not 0, then
+  // a. Set datePart to the string concatenation of datePart,
+  // abs(months) formatted as a decimal number, and the code unit
+  // 0x004D (LATIN CAPITAL LETTER M).
+  if (dur.months != 0) {
+    builder.AppendInt(static_cast<int32_t>(std::abs(dur.months)));
+    builder.AppendCharacter('M');
+  }
+  // 16. If weeks is not 0, then
+  // a. Set datePart to the string concatenation of datePart,
+  // abs(weeks) formatted as a decimal number, and the code unit
+  // 0x0057 (LATIN CAPITAL LETTER W).
+  if (dur.weeks != 0) {
+    builder.AppendInt(static_cast<int32_t>(std::abs(dur.weeks)));
+    builder.AppendCharacter('W');
+  }
+  // 17. If days is not 0, then
+  // a. Set datePart to the string concatenation of datePart,
+  // abs(days) formatted as a decimal number, and the code unit 0x0044
+  // (LATIN CAPITAL LETTER D).
+  if (dur.time_duration.days != 0) {
+    builder.AppendInt(static_cast<int32_t>(std::abs(dur.time_duration.days)));
+    builder.AppendCharacter('D');
+  }
+  // 18. Let timePart be "".
+  IncrementalStringBuilder time_part(isolate);
+  // 19. If hours is not 0, then
+  // a. Set timePart to the string concatenation of abs(hours) formatted as a
+  // decimal number and the code unit 0x0048 (LATIN CAPITAL LETTER H).
+  if (dur.time_duration.hours != 0) {
+    time_part.AppendInt(
+        static_cast<int32_t>(std::abs(dur.time_duration.hours)));
+    time_part.AppendCharacter('H');
+  }
+  // 20. If minutes is not 0, then
+  // a. Set timePart to the string concatenation of timePart,
+  // abs(minutes) formatted as a decimal number, and the code unit
+  // 0x004D (LATIN CAPITAL LETTER M).
+  if (dur.time_duration.minutes != 0) {
+    time_part.AppendInt(
+        static_cast<int32_t>(std::abs(dur.time_duration.minutes)));
+    time_part.AppendCharacter('M');
+  }
+  // 21. If any of seconds, milliseconds, microseconds, and nanoseconds are not
+  // 0; or years, months, weeks, days, hours, and minutes are all 0, then
+  if ((dur.time_duration.seconds != 0 || dur.time_duration.milliseconds != 0 ||
+       dur.time_duration.microseconds != 0 ||
+       dur.time_duration.nanoseconds != 0) ||
+      (dur.years == 0 && dur.months == 0 && dur.weeks == 0 &&
+       dur.time_duration.days == 0 && dur.time_duration.hours == 0 &&
+       dur.time_duration.minutes == 0)) {
+    // a. Let fraction be abs(milliseconds) × 10^6 + abs(microseconds) × 10^3 +
+    // abs(nanoseconds).
+    int64_t fraction = std::abs(dur.time_duration.milliseconds) * 1000000 +
+                       std::abs(dur.time_duration.microseconds) * 1000 +
+                       std::abs(dur.time_duration.nanoseconds);
+    // b. Let decimalPart be fraction formatted as a nine-digit decimal number,
+    // padded to the left with zeroes if necessary.
+    // e. Let secondsPart be abs(seconds) formatted as a decimal number.
+    {
+      int32_t seconds = std::abs(dur.time_duration.seconds);
+      time_part.AppendInt(seconds);
+    }
+    // 7. If precision is "auto", then
+    int64_t divisor = 100000000;
+    bool output_period = true;
+    if (precision == Precision::kAuto) {
+      // a. Set fraction to the
+      // longest possible substring of fraction starting at position 0 and not
+      // ending with the code unit 0x0030 (DIGIT ZERO).
+      while (fraction > 0) {
+        if (output_period) {
+          time_part.AppendCharacter('.');
+          output_period = false;
+        }
+        time_part.AppendInt(static_cast<int32_t>(fraction / divisor));
+        fraction %= divisor;
+        divisor /= 10;
+      }
+    } else {
+      // c. Set fraction to the substring of fraction from 0 to precision.
+      int32_t precision_len = static_cast<int32_t>(precision);
+      DCHECK_LE(0, precision_len);
+      DCHECK_GE(9, precision_len);
+      for (int32_t len = 0; len < precision_len;
+           len++, divisor /= 10, fraction %= divisor) {
+        if (output_period) {
+          time_part.AppendCharacter('.');
+          output_period = false;
+        }
+        time_part.AppendInt(static_cast<int32_t>(fraction / divisor));
+      }
+    }
+    // g. Set timePart to the string concatenation of timePart, secondsPart, and
+    // the code unit 0x0053 (LATIN CAPITAL LETTER S).
+    time_part.AppendCharacter('S');
+  }
+  // 22. Let signPart be the code unit 0x002D (HYPHEN-MINUS) if sign < 0, and
+  // otherwise the empty String.
+  // 23. Let result be the string concatenation of signPart, the code unit
+  // 0x0050 (LATIN CAPITAL LETTER P) and datePart.
+  // 24. If timePart is not "", then
+  if (time_part.Length() > 0) {
+    // a. Set result to the string concatenation of result, the code unit 0x0054
+    // (LATIN CAPITAL LETTER T), and timePart.
+    builder.AppendCharacter('T');
+    builder.AppendString(time_part.Finish().ToHandleChecked());
+  }
+  return builder.Finish().ToHandleChecked();
 }
 
 }  // namespace
@@ -5597,6 +5765,7 @@ MaybeHandle<Oddball> JSTemporalDuration::Blank(
 }
 
 namespace {
+
 // #sec-temporal-createnegatedtemporalduration
 MaybeHandle<JSTemporalDuration> CreateNegatedTemporalDuration(
     Isolate* isolate, Handle<JSTemporalDuration> duration) {
@@ -5608,7 +5777,6 @@ MaybeHandle<JSTemporalDuration> CreateNegatedTemporalDuration(
   // −duration.[[Hours]], −duration.[[Minutes]], −duration.[[Seconds]],
   // −duration.[[Milliseconds]], −duration.[[Microseconds]],
   // −duration.[[Nanoseconds]]).
-
   return CreateTemporalDuration(
       isolate,
       {-duration->years().Number(),
@@ -5655,6 +5823,21 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Abs(
                                   std::abs(duration->milliseconds().Number()),
                                   std::abs(duration->microseconds().Number()),
                                   std::abs(duration->nanoseconds().Number())}});
+}
+
+// #sec-temporal.duration.prototype.tojson
+MaybeHandle<String> JSTemporalDuration::ToJSON(
+    Isolate* isolate, Handle<JSTemporalDuration> duration) {
+  // 1. Let duration be the this value.
+  // 2. Perform ? RequireInternalSlot(duration,
+  // [[InitializedTemporalDuration]]).
+  // 3. Return ! TemporalDurationToString(duration.[[Years]],
+  // duration.[[Months]], duration.[[Weeks]], duration.[[Days]],
+  // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
+  // duration.[[Milliseconds]], duration.[[Microseconds]],
+  // duration.[[Nanoseconds]], "auto").
+
+  return TemporalDurationToString(isolate, duration, Precision::kAuto);
 }
 
 // #sec-temporal.calendar
