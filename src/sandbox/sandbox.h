@@ -12,7 +12,6 @@
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
-
 namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX

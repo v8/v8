@@ -2021,6 +2021,8 @@ filegroup(
         "src/sandbox/external-pointer-table.cc",
         "src/sandbox/external-pointer-table-inl.h",
         "src/sandbox/external-pointer-table.h",
+        "src/sandbox/testing.cc",
+        "src/sandbox/testing.h",
         "src/sandbox/sandbox.cc",
         "src/sandbox/sandbox.h",
         "src/sandbox/sandboxed-pointer-inl.h",

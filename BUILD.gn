@@ -315,6 +315,11 @@ declare_args() {
   # Enable all available sandbox features. Implies v8_enable_sandbox.
   v8_enable_sandbox_future = false
 
+  # Expose the memory corruption API to JavaScript. Useful for testing the sandbox.
+  # WARNING This will expose builtins that (by design) cause memory corruption.
+  # Sets -DV8_EXPOSE_MEMORY_CORRUPTION_API
+  v8_expose_memory_corruption_api = false
+
   # Experimental feature for collecting per-class zone memory stats.
   # Requires use_rtti = true
   v8_enable_precise_zone_stats = false
@@ -548,6 +553,9 @@ assert(!v8_enable_sandboxed_pointers || v8_enable_sandbox,
 
 assert(!v8_enable_sandboxed_external_pointers || v8_enable_sandbox,
        "Sandboxed external pointers require the sandbox")
+
+assert(!v8_expose_memory_corruption_api || v8_enable_sandbox,
+       "The Memory Corruption API requires the sandbox")
 
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,
@@ -1017,6 +1025,9 @@ config("features") {
   }
   if (v8_fuchsia_use_vmex_resource) {
     defines += [ "V8_USE_VMEX_RESOURCE" ]
+  }
+  if (v8_expose_memory_corruption_api) {
+    defines += [ "V8_EXPOSE_MEMORY_CORRUPTION_API" ]
   }
 }
 
@@ -3418,6 +3429,7 @@ v8_header_set("v8_internal_headers") {
     "src/sandbox/sandbox.h",
     "src/sandbox/sandboxed-pointer-inl.h",
     "src/sandbox/sandboxed-pointer.h",
+    "src/sandbox/testing.h",
     "src/snapshot/code-serializer.h",
     "src/snapshot/context-deserializer.h",
     "src/snapshot/context-serializer.h",
@@ -4534,6 +4546,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime.cc",
     "src/sandbox/external-pointer-table.cc",
     "src/sandbox/sandbox.cc",
+    "src/sandbox/testing.cc",
     "src/snapshot/code-serializer.cc",
     "src/snapshot/context-deserializer.cc",
     "src/snapshot/context-serializer.cc",

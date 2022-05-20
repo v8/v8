@@ -24,6 +24,7 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
+#include "src/sandbox/testing.h"
 #ifdef ENABLE_VTUNE_TRACEMARK
 #include "src/extensions/vtunedomain-support-extension.h"
 #endif  // ENABLE_VTUNE_TRACEMARK
@@ -5890,6 +5891,12 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
     WasmJs::Install(isolate, false);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_EXPOSE_MEMORY_CORRUPTION_API
+  if (GetProcessWideSandbox()->is_initialized()) {
+    MemoryCorruptionApi::Install(isolate);
+  }
+#endif  // V8_EXPOSE_MEMORY_CORRUPTION_API
 
   return true;
 }
