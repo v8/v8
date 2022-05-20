@@ -301,7 +301,7 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
   if (!obj.IsUndefined(isolate)) {
     toplevel_sfi = SharedFunctionInfo::cast(obj);
     DCHECK_EQ(toplevel_sfi.script(), script);
-  } else {
+  } else if (FLAG_isolate_script_cache_recompilation) {
     // Even though this cache no longer holds a strong reference to the root
     // SharedFunctionInfo for the Script, the root SharedFunctionInfo may still
     // exist. If it exists and is already compiled, then we should place it back
