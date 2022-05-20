@@ -416,6 +416,7 @@ v8_source_set("cctest_sources") {
       "wasm/test-wasm-serialization.cc",
       "wasm/test-wasm-shared-engine.cc",
       "wasm/test-wasm-stack.cc",
+      "wasm/test-wasm-strings.cc",
       "wasm/test-wasm-trap-position.cc",
       "wasm/wasm-atomics-utils.h",
       "wasm/wasm-run-utils.cc",

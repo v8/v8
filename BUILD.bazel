@@ -2449,6 +2449,7 @@ filegroup(
             "src/debug/debug-wasm-objects-inl.h",
             "src/runtime/runtime-test-wasm.cc",
             "src/runtime/runtime-wasm.cc",
+            "src/third_party/utf8-decoder/generalized-utf8-decoder.h",
             "src/trap-handler/handler-inside-posix.h",
             "src/trap-handler/handler-inside.cc",
             "src/trap-handler/handler-outside.cc",
