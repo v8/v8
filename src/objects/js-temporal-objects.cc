@@ -9553,7 +9553,6 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
 MaybeHandle<JSTemporalInstant> JSTemporalInstant::From(Isolate* isolate,
                                                        Handle<Object> item) {
   TEMPORAL_ENTER_FUNC();
-  const char* method_name = "Temporal.Instant.from";
   //  1. If Type(item) is Object and item has an [[InitializedTemporalInstant]]
   //  internal slot, then
   if (item->IsJSTemporalInstant()) {
@@ -9562,7 +9561,109 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::From(Isolate* isolate,
         isolate, handle(JSTemporalInstant::cast(*item).nanoseconds(), isolate));
   }
   // 2. Return ? ToTemporalInstant(item).
-  return ToTemporalInstant(isolate, item, method_name);
+  return ToTemporalInstant(isolate, item, "Temporal.Instant.from");
+}
+
+// #sec-temporal.instant.prototype.tozoneddatetime
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTime(
+    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Handle<Object> item_obj) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.Instant.prototype.toZonedDateTime";
+  Factory* factory = isolate->factory();
+  // 1. Let instant be the this value.
+  // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+  // 3. If Type(item) is not Object, then
+  if (!item_obj->IsJSReceiver()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalZonedDateTime);
+  }
+  Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
+  // 4. Let calendarLike be ? Get(item, "calendar").
+  Handle<Object> calendar_like;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_like,
+      Object::GetPropertyOrElement(isolate, item, factory->calendar_string()),
+      JSTemporalZonedDateTime);
+  // 5. If calendarLike is undefined, then
+  if (calendar_like->IsUndefined()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalZonedDateTime);
+  }
+  // 6. Let calendar be ? ToTemporalCalendar(calendarLike).
+  Handle<JSReceiver> calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      temporal::ToTemporalCalendar(isolate, calendar_like, method_name),
+      JSTemporalZonedDateTime);
+
+  // 7. Let temporalTimeZoneLike be ? Get(item, "timeZone").
+  Handle<Object> temporal_time_zone_like;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_time_zone_like,
+      Object::GetPropertyOrElement(isolate, item, factory->timeZone_string()),
+      JSTemporalZonedDateTime);
+  // 8. If temporalTimeZoneLike is undefined, then
+  if (calendar_like->IsUndefined()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalZonedDateTime);
+  }
+  // 9. Let timeZone be ? ToTemporalTimeZone(temporalTimeZoneLike).
+  Handle<JSReceiver> time_zone;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone,
+                             temporal::ToTemporalTimeZone(
+                                 isolate, temporal_time_zone_like, method_name),
+                             JSTemporalZonedDateTime);
+  // 10. Return ? CreateTemporalZonedDateTime(instant.[[Nanoseconds]], timeZone,
+  // calendar).
+  return CreateTemporalZonedDateTime(
+      isolate, Handle<BigInt>(handle->nanoseconds(), isolate), time_zone,
+      calendar);
+}
+
+// #sec-temporal.instant.prototype.tozoneddatetimeiso
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTimeISO(
+    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Handle<Object> item_obj) {
+  TEMPORAL_ENTER_FUNC();
+  Factory* factory = isolate->factory();
+  // 1. Let instant be the this value.
+  // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+  // 3. If Type(item) is Object, then
+  if (item_obj->IsJSReceiver()) {
+    Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
+    // a. Let timeZoneProperty be ? Get(item, "timeZone").
+    Handle<Object> time_zone_property;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time_zone_property,
+        Object::GetPropertyOrElement(isolate, item, factory->timeZone_string()),
+        JSTemporalZonedDateTime);
+    // b. If timeZoneProperty is not undefined, then
+    if (!time_zone_property->IsUndefined()) {
+      // i. Set item to timeZoneProperty.
+      item_obj = time_zone_property;
+    }
+  }
+  // 4. Let timeZone be ? ToTemporalTimeZone(item).
+  Handle<JSReceiver> time_zone;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, time_zone,
+      temporal::ToTemporalTimeZone(
+          isolate, item_obj, "Temporal.Instant.prototype.toZonedDateTimeISO"),
+      JSTemporalZonedDateTime);
+  // 5. Let calendar be ! GetISO8601Calendar().
+  Handle<JSTemporalCalendar> calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar,
+                             temporal::GetISO8601Calendar(isolate),
+                             JSTemporalZonedDateTime);
+  // 6. Return ? CreateTemporalZonedDateTime(instant.[[Nanoseconds]], timeZone,
+  // calendar).
+  return CreateTemporalZonedDateTime(
+      isolate, Handle<BigInt>(handle->nanoseconds(), isolate), time_zone,
+      calendar);
 }
 
 namespace temporal {

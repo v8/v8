@@ -231,6 +231,16 @@ class JSTemporalInstant
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> From(
       Isolate* isolate, Handle<Object> item);
 
+  // #sec-temporal.instant.prototype.tozoneddatetime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
+  ToZonedDateTime(Isolate* isolate, Handle<JSTemporalInstant> instant,
+                  Handle<Object> item);
+
+  // #sec-temporal.instant.prototype.tozoneddatetimeiso
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
+  ToZonedDateTimeISO(Isolate* isolate, Handle<JSTemporalInstant> instant,
+                     Handle<Object> item);
+
   DECL_PRINTER(JSTemporalInstant)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)

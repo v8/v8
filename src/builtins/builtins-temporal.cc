@@ -194,10 +194,6 @@ TO_BE_IMPLEMENTED(TemporalInstantPrototypeToLocaleString)
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeToString)
 /* Temporal #sec-temporal.instant.tojson */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeToJSON)
-/* Temporal #sec-temporal.instant.prototype.tozoneddatetime */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeToZonedDateTime)
-/* Temporal #sec-temporal.instant.prototype.tozoneddatetimeiso */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeToZonedDateTimeISO)
 
 /* Temporal.PlainYearMonth */
 /* Temporal #sec-temporal.plainyearmonth.compare */
@@ -696,6 +692,8 @@ TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochMilliseconds, nanoseconds,
                                 1000000, epochMilliseconds)
 TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
                                 epochMicroseconds)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTimeISO, toZonedDateTimeISO)
 
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
