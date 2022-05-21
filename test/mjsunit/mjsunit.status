@@ -72,7 +72,6 @@
   'temporal/plain-date-time-to-plain-time': [FAIL],
   'temporal/plain-date-time-with': [FAIL],
   'temporal/plain-date-time-with-plain-date': [FAIL],
-  'temporal/plain-date-time-with-plain-time': [FAIL],
   'temporal/plain-date-to-plain-date-time': [FAIL],
   'temporal/plain-date-with': [FAIL],
 

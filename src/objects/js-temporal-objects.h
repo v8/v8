@@ -322,6 +322,11 @@ class JSTemporalPlainDateTime
       Handle<Object> microsecond, Handle<Object> nanosecond,
       Handle<Object> calendar_like);
 
+  // #sec-temporal.plaindatetime.prototype.withplaintime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime>
+  WithPlainTime(Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+                Handle<Object> temporal_time_like);
+
   // #sec-temporal.plaindatetime.prototype.withcalendar
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime>
   WithCalendar(Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,

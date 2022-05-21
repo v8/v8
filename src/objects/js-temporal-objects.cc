@@ -8198,6 +8198,46 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
   return ToTemporalDateTime(isolate, item, options, method_name);
 }
 
+// #sec-temporal.plaindatetime.prototype.withplaintime
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithPlainTime(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> plain_time_like) {
+  // 1. Let temporalDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. If plainTimeLike is undefined, then
+  if (plain_time_like->IsUndefined()) {
+    // a. Return ? CreateTemporalDateTime(temporalDateTime.[[ISOYear]],
+    // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]], 0, 0, 0, 0,
+    // 0, 0, temporalDateTime.[[Calendar]]).
+    return temporal::CreateTemporalDateTime(
+        isolate,
+        {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+         {0, 0, 0, 0, 0, 0}},
+        handle(date_time->calendar(), isolate));
+  }
+  Handle<JSTemporalPlainTime> plain_time;
+  // 4. Let plainTime be ? ToTemporalTime(plainTimeLike).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, plain_time,
+      temporal::ToTemporalTime(
+          isolate, plain_time_like, ShowOverflow::kConstrain,
+          "Temporal.PlainDateTime.prototype.withPlainTime"),
+      JSTemporalPlainDateTime);
+  // 5. Return ? CreateTemporalDateTime(temporalDateTime.[[ISOYear]],
+  // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]],
+  // plainTime.[[ISOHour]], plainTime.[[ISOMinute]], plainTime.[[ISOSecond]],
+  // plainTime.[[ISOMillisecond]], plainTime.[[ISOMicrosecond]],
+  // plainTime.[[ISONanosecond]], temporalDateTime.[[Calendar]]).
+  return temporal::CreateTemporalDateTime(
+      isolate,
+      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+       {plain_time->iso_hour(), plain_time->iso_minute(),
+        plain_time->iso_second(), plain_time->iso_millisecond(),
+        plain_time->iso_microsecond(), plain_time->iso_nanosecond()}},
+      handle(date_time->calendar(), isolate));
+}
+
 // #sec-temporal.plaindatetime.prototype.withcalendar
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithCalendar(
     Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,

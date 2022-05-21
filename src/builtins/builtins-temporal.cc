@@ -88,8 +88,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToString)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimeCompare)
 /* Temporal #sec-temporal.plaindatetime.prototype.with */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeWith)
-/* Temporal #sec-temporal.plaindatetime.prototype.withplainTime */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeWithPlainTime)
 /* Temporal #sec-temporal.plaindatetime.prototype.withplainDate */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeWithPlainDate)
 /* Temporal #sec-temporal.plaindatetime.prototype.add */
@@ -485,6 +483,7 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, MonthsInYear,
                                        monthsInYear)
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDateTime, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithCalendar, withCalendar)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithPlainTime, withPlainTime)
 TEMPORAL_GET_SMI(PlainDateTime, Hour, iso_hour)
 TEMPORAL_GET_SMI(PlainDateTime, Minute, iso_minute)
 TEMPORAL_GET_SMI(PlainDateTime, Second, iso_second)
