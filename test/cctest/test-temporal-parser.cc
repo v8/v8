@@ -176,10 +176,6 @@ TEST(TemporalDateStringSuccess) {
   VerifyParseTemporalDateStringSuccess(isolate, "+0000011231", 1, 12, 31, "");
   VerifyParseTemporalDateStringSuccess(isolate, "+0000000101", 0, 1, 1, "");
   VerifyParseTemporalDateStringSuccess(isolate, "+0000000101", 0, 1, 1, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "-0000000101", 0, 1, 1, "");
-  VerifyParseTemporalDateStringSuccess(isolate, "\u22120000000101", 0, 1, 1,
-                                       "");
-  VerifyParseTemporalDateStringSuccess(isolate, "-0000000101", 0, 1, 1, "");
   VerifyParseTemporalDateStringSuccess(isolate, "+654321-11-03", 654321, 11, 3,
                                        "");
   VerifyParseTemporalDateStringSuccess(isolate, "+999999-12-31", 999999, 12, 31,
@@ -410,6 +406,10 @@ TEST(TemporalDateStringSuccess) {
     VERIFY_PARSE_FAIL(R, "0002021-09-03");                      \
     VERIFY_PARSE_FAIL(R, "-0002021-09-03");                     \
                                                                 \
+    /* It is a Syntax Error if DateExtendedYear is "-000000" */ \
+    VERIFY_PARSE_FAIL(R, "-000000-09-03");                      \
+    VERIFY_PARSE_FAIL(R, "\u2212000000-09-03");                 \
+                                                                \
     /* single digit month */                                    \
     VERIFY_PARSE_FAIL(R, "1900-9-03");                          \
     VERIFY_PARSE_FAIL(R, "1900903");                            \
@@ -553,6 +553,9 @@ TEST(TemporalDateStringIllegal) {
   VERIFY_PARSE_FAIL(TemporalDateString, "-20210304");
   VERIFY_PARSE_FAIL(TemporalDateString, "\u221220210304");
   VERIFY_PARSE_FAIL(TemporalDateString, "210304");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalDateString, "-0000000304");
+  VERIFY_PARSE_FAIL(TemporalDateString, "\u22120000000304");
 }
 
 void VerifyTemporalTimeStringTimeUndefined(Isolate* isolate, const char* str) {
@@ -577,9 +580,6 @@ TEST(TemporalTimeStringSuccess) {
   VerifyTemporalTimeStringTimeUndefined(isolate, "+0000011231");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+0000000101");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+0000000101");
-  VerifyTemporalTimeStringTimeUndefined(isolate, "-0000000101");
-  VerifyTemporalTimeStringTimeUndefined(isolate, "\u22120000000101");
-  VerifyTemporalTimeStringTimeUndefined(isolate, "-0000000101");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+654321-11-03");
   VerifyTemporalTimeStringTimeUndefined(isolate, "+999999-12-31");
   VerifyTemporalTimeStringTimeUndefined(isolate, "-654321-11-03");
@@ -871,12 +871,6 @@ TEST(TemporalTimeStringIllegal) {
                             kUndefined, kUndefined, kUndefined, "");           \
     VerifyParse##R##Success(isolate, "+0000000101", 0, 1, 1, kUndefined,       \
                             kUndefined, kUndefined, kUndefined, "");           \
-    VerifyParse##R##Success(isolate, "-0000000101", 0, 1, 1, kUndefined,       \
-                            kUndefined, kUndefined, kUndefined, "");           \
-    VerifyParse##R##Success(isolate, "\u22120000000101", 0, 1, 1, kUndefined,  \
-                            kUndefined, kUndefined, kUndefined, "");           \
-    VerifyParse##R##Success(isolate, "-0000000101", 0, 1, 1, kUndefined,       \
-                            kUndefined, kUndefined, kUndefined, "");           \
     VerifyParse##R##Success(isolate, "+654321-11-03", 654321, 11, 3,           \
                             kUndefined, kUndefined, kUndefined, kUndefined,    \
                             "");                                               \
@@ -1136,6 +1130,9 @@ TEST(TemporalDateTimeStringIllegal) {
   VERIFY_PARSE_FAIL(TemporalDateTimeString, "-20210304");
   VERIFY_PARSE_FAIL(TemporalDateTimeString, "\u221220210304");
   VERIFY_PARSE_FAIL(TemporalDateTimeString, "210304");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalDateTimeString, "-0000000304");
+  VERIFY_PARSE_FAIL(TemporalDateTimeString, "\u22120000000304");
 }
 
 TEST(TemporalYearMonthStringSuccess) {
@@ -1179,12 +1176,6 @@ TEST(TemporalYearMonthStringSuccess) {
   VerifyParseTemporalYearMonthStringSuccess(isolate, "+0000000101", 0, 1, 1,
                                             "");
   VerifyParseTemporalYearMonthStringSuccess(isolate, "+0000000101", 0, 1, 1,
-                                            "");
-  VerifyParseTemporalYearMonthStringSuccess(isolate, "-0000000101", 0, 1, 1,
-                                            "");
-  VerifyParseTemporalYearMonthStringSuccess(isolate, "\u22120000000101", 0, 1,
-                                            1, "");
-  VerifyParseTemporalYearMonthStringSuccess(isolate, "-0000000101", 0, 1, 1,
                                             "");
   VerifyParseTemporalYearMonthStringSuccess(isolate, "+654321-11-03", 654321,
                                             11, 3, "");
@@ -1408,6 +1399,11 @@ TEST(TemporalYearMonthStringIllegal) {
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "+1");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "-1");
   VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u22121");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "-000000");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u2212000000");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "-00000001");
+  VERIFY_PARSE_FAIL(TemporalYearMonthString, "\u221200000001");
 }
 
 TEST(TemporalMonthDayStringSuccess) {
@@ -1447,10 +1443,6 @@ TEST(TemporalMonthDayStringSuccess) {
                                            "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+0000000101", 0, 1, 1, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+0000000101", 0, 1, 1, "");
-  VerifyParseTemporalMonthDayStringSuccess(isolate, "-0000000101", 0, 1, 1, "");
-  VerifyParseTemporalMonthDayStringSuccess(isolate, "\u22120000000101", 0, 1, 1,
-                                           "");
-  VerifyParseTemporalMonthDayStringSuccess(isolate, "-0000000101", 0, 1, 1, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+654321-11-03", 654321, 11,
                                            3, "");
   VerifyParseTemporalMonthDayStringSuccess(isolate, "+999999-12-31", 999999, 12,
@@ -1806,6 +1798,10 @@ TEST(TemporalInstantStringIllegal) {
   // fraction too long
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109-073401.0000000000");
   VERIFY_PARSE_FAIL(TemporalInstantString, "20211109+073401,9876543219");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalInstantString, "-0000001109+073401,9876543219");
+  VERIFY_PARSE_FAIL(TemporalInstantString,
+                    "\u22120000001109+073401,9876543219");
 }
 
 #define IMPL_ZONED_DATE_TIME_STRING_SUCCESS(R)                                \
@@ -1872,6 +1868,8 @@ TEST(TemporalZonedDateTimeStringSuccess) {
     VERIFY_PARSE_FAIL(R, "2021-03-04t23:59:20.1234[+123456.9876543210]");  \
     VERIFY_PARSE_FAIL(R, "2021-03-04t23:59:20.1234[+123456.]");            \
     VERIFY_PARSE_FAIL(R, "2021-03-04t23:59:20.1234[+123456,]");            \
+    VERIFY_PARSE_FAIL(R, "-000000-03-04t23:59:20.1234[+123456,]");         \
+    VERIFY_PARSE_FAIL(R, "\u2212000000-03-04t23:59:20.1234[+123456,]");    \
   } while (false)
 
 TEST(TemporalZonedDateTimeStringIllegal) {
@@ -1898,6 +1896,9 @@ TEST(TemporalRelativeToStringIllegal) {
   VERIFY_PARSE_FAIL(TemporalRelativeToString, "-20210304");
   VERIFY_PARSE_FAIL(TemporalRelativeToString, "\u221220210304");
   VERIFY_PARSE_FAIL(TemporalRelativeToString, "210304");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalRelativeToString, "-0000000304");
+  VERIFY_PARSE_FAIL(TemporalRelativeToString, "\u22120000000304");
 }
 
 TEST(TemporalCalendarStringSuccess) {
@@ -1942,6 +1943,9 @@ TEST(TemporalCalendarStringIllegal) {
   VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=ab]");
   VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=abcdef-ab]");
   VERIFY_PARSE_FAIL(TemporalCalendarString, "20210304[u-ca=abcdefghijkl]");
+  // It is a Syntax Error if DateExtendedYear is "-000000"
+  VERIFY_PARSE_FAIL(TemporalCalendarString, "-0000000304[u-ca=abcdef-ab]");
+  VERIFY_PARSE_FAIL(TemporalCalendarString, "\u22120000000304[u-ca=abcdef-ab]");
 }
 
 void CheckDuration(const ParsedISO8601Duration& actual, int64_t sign,

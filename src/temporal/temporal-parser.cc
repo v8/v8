@@ -284,6 +284,10 @@ int32_t ScanDateExtendedYear(base::Vector<Char> str, int32_t s, int32_t* out) {
     *out = sign * (ToInt(str[s + 1]) * 100000 + ToInt(str[s + 2]) * 10000 +
                    ToInt(str[s + 3]) * 1000 + ToInt(str[s + 4]) * 100 +
                    ToInt(str[s + 5]) * 10 + ToInt(str[s + 6]));
+    // In the end of #sec-temporal-iso8601grammar
+    // It is a Syntax Error if DateExtendedYear is "-000000" or "−000000"
+    // (U+2212 MINUS SIGN followed by 000000).
+    if (sign == -1 && *out == 0) return 0;
     return 7;
   }
   return 0;
