@@ -1967,6 +1967,17 @@ Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate, Handle<Object> options,
       ShowOverflow::kConstrain);
 }
 
+Maybe<bool> ToTemporalOverflowForSideEffects(Isolate* isolate,
+                                             Handle<Object> options,
+                                             const char* method_name) {
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Nothing<bool>());
+  USE(overflow);
+  return Just(true);
+}
+
 // #sec-temporal-totemporaldisambiguation
 Maybe<Disambiguation> ToTemporalDisambiguation(Isolate* isolate,
                                                Handle<JSReceiver> options,
@@ -2127,12 +2138,22 @@ MaybeHandle<JSReceiver> ToTemporalCalendarWithISODefault(
                                       method_name);
 }
 
+// Create « "day", "month", "monthCode", "year" » in several AOs.
 Handle<FixedArray> DayMonthMonthCodeYearInFixedArray(Isolate* isolate) {
   Handle<FixedArray> field_names = isolate->factory()->NewFixedArray(4);
   field_names->set(0, ReadOnlyRoots(isolate).day_string());
   field_names->set(1, ReadOnlyRoots(isolate).month_string());
   field_names->set(2, ReadOnlyRoots(isolate).monthCode_string());
   field_names->set(3, ReadOnlyRoots(isolate).year_string());
+  return field_names;
+}
+
+// Create « "month", "monthCode", "year" » in several AOs.
+Handle<FixedArray> MonthMonthCodeYearInFixedArray(Isolate* isolate) {
+  Handle<FixedArray> field_names = isolate->factory()->NewFixedArray(3);
+  field_names->set(0, ReadOnlyRoots(isolate).month_string());
+  field_names->set(1, ReadOnlyRoots(isolate).monthCode_string());
+  field_names->set(2, ReadOnlyRoots(isolate).year_string());
   return field_names;
 }
 
@@ -2223,11 +2244,8 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
     return DateFromFields(isolate, calendar, fields, options);
   }
   // 4. Perform ? ToTemporalOverflow(options).
-  ShowOverflow overflow;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
-      Handle<JSTemporalPlainDate>());
-  USE(overflow);
+  MAYBE_RETURN(ToTemporalOverflowForSideEffects(isolate, options, method_name),
+               Handle<JSTemporalPlainDate>());
 
   // 5. Let string be ? ToString(item).
   Handle<String> string;
@@ -7778,11 +7796,9 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
   // internal slot, then
   if (item->IsJSTemporalPlainDate()) {
     // a. Perform ? ToTemporalOverflow(options).
-    ShowOverflow overflow;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+    MAYBE_RETURN(
+        ToTemporalOverflowForSideEffects(isolate, options, method_name),
         Handle<JSTemporalPlainDate>());
-    USE(overflow);
     // b. Return ? CreateTemporalDate(item.[[ISOYear]], item.[[ISOMonth]],
     // item.[[ISODay]], item.[[Calendar]]).
     Handle<JSTemporalPlainDate> date = Handle<JSTemporalPlainDate>::cast(item);
@@ -8105,11 +8121,9 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
   } else {
     // 3. Else,
     // a. Perform ? ToTemporalOverflow(options).
-    ShowOverflow overflow;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+    MAYBE_RETURN(
+        ToTemporalOverflowForSideEffects(isolate, options, method_name),
         Handle<JSTemporalPlainDateTime>());
-    USE(overflow);
 
     // b. Let string be ? ToString(item).
     Handle<String> string;
@@ -8163,11 +8177,9 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
   // internal slot, then
   if (item->IsJSTemporalPlainDateTime()) {
     // a. Perform ? ToTemporalOverflow(options).
-    ShowOverflow overflow;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+    MAYBE_RETURN(
+        ToTemporalOverflowForSideEffects(isolate, options, method_name),
         Handle<JSTemporalPlainDateTime>());
-    USE(overflow);
     // b. Return ? CreateTemporalDateTime(item.[[ISYear]], item.[[ISOMonth]],
     // item.[[ISODay]], item.[[ISOHour]], item.[[ISOMinute]],
     // item.[[ISOSecond]], item.[[ISOMillisecond]], item.[[ISOMicrosecond]],
@@ -8675,6 +8687,155 @@ MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Constructor(
   // 10. Return ? CreateTemporalYearMonth(y, m, calendar, ref, NewTarget).
   return CreateTemporalYearMonth(isolate, target, new_target, iso_year,
                                  iso_month, calendar, ref);
+}
+
+namespace {
+
+// #sec-temporal-parsetemporalyearmonthstring
+Maybe<DateRecord> ParseTemporalYearMonthString(Isolate* isolate,
+                                               Handle<String> iso_string) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: Type(isoString) is String.
+  // 2. If isoString does not satisfy the syntax of a TemporalYearMonthString
+  // (see 13.33), then
+  base::Optional<ParsedISO8601Result> parsed =
+      TemporalParser::ParseTemporalYearMonthString(isolate, iso_string);
+  if (!parsed.has_value()) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
+  }
+
+  // 3. If _isoString_ contains a |UTCDesignator|, then
+  if (parsed->utc_designator) {
+    // a. Throw a *RangeError* exception.
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
+  }
+
+  // 3. Let result be ? ParseISODateTime(isoString).
+  DateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseISODateTime(isolate, iso_string, *parsed),
+      Nothing<DateRecord>());
+
+  // 4. Return the Record { [[Year]]: result.[[Year]], [[Month]]:
+  // result.[[Month]], [[Day]]: result.[[Day]], [[Calendar]]:
+  // result.[[Calendar]] }.
+  DateRecord ret = {{result.date.year, result.date.month, result.date.day},
+                    result.calendar};
+  return Just(ret);
+}
+
+// #sec-temporal-totemporalyearmonth
+MaybeHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
+    Isolate* isolate, Handle<Object> item_obj, Handle<JSReceiver> options,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  Factory* factory = isolate->factory();
+  // 1. If options is not present, set options to ! OrdinaryObjectCreate(null).
+  // 2. Assert: Type(options) is Object.
+  // 3. If Type(item) is Object, then
+  if (item_obj->IsJSReceiver()) {
+    Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
+    // a. If item has an [[InitializedTemporalYearMonth]] internal slot, then
+    // i. Return item.
+    if (item_obj->IsJSTemporalPlainYearMonth()) {
+      return Handle<JSTemporalPlainYearMonth>::cast(item_obj);
+    }
+
+    // b. Let calendar be ? GetTemporalCalendarWithISODefault(item).
+    Handle<JSReceiver> calendar;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, calendar,
+        GetTemporalCalendarWithISODefault(isolate, item, method_name),
+        JSTemporalPlainYearMonth);
+    // c. Let fieldNames be ? CalendarFields(calendar, « "month", "monthCode",
+    // "year" »).
+    Handle<FixedArray> field_names = MonthMonthCodeYearInFixedArray(isolate);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
+                               CalendarFields(isolate, calendar, field_names),
+                               JSTemporalPlainYearMonth);
+    // d. Let fields be ? PrepareTemporalFields(item, fieldNames, «»).
+    Handle<JSReceiver> fields;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, fields,
+                               PrepareTemporalFields(isolate, item, field_names,
+                                                     RequiredFields::kNone),
+                               JSTemporalPlainYearMonth);
+    // e. Return ? YearMonthFromFields(calendar, fields, options).
+    return YearMonthFromFields(isolate, calendar, fields, options);
+  }
+  // 4. Perform ? ToTemporalOverflow(options).
+  MAYBE_RETURN(ToTemporalOverflowForSideEffects(isolate, options, method_name),
+               Handle<JSTemporalPlainYearMonth>());
+  // 5. Let string be ? ToString(item).
+  Handle<String> string;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, string,
+                             Object::ToString(isolate, item_obj),
+                             JSTemporalPlainYearMonth);
+  // 6. Let result be ? ParseTemporalYearMonthString(string).
+  DateRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseTemporalYearMonthString(isolate, string),
+      Handle<JSTemporalPlainYearMonth>());
+  // 7. Let calendar be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
+  Handle<Object> calendar_string;
+  if (result.calendar->length() == 0) {
+    calendar_string = factory->undefined_value();
+  } else {
+    calendar_string = result.calendar;
+  }
+  Handle<JSReceiver> calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      ToTemporalCalendarWithISODefault(isolate, calendar_string, method_name),
+      JSTemporalPlainYearMonth);
+  // 8. Set result to ? CreateTemporalYearMonth(result.[[Year]],
+  // result.[[Month]], calendar, result.[[Day]]).
+  Handle<JSTemporalPlainYearMonth> created_result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, created_result,
+      CreateTemporalYearMonth(isolate, result.date.year, result.date.month,
+                              calendar, result.date.day),
+      JSTemporalPlainYearMonth);
+  // 9. Let canonicalYearMonthOptions be ! OrdinaryObjectCreate(null).
+  Handle<JSReceiver> canonical_year_month_options =
+      factory->NewJSObjectWithNullProto();
+  // 10. Return ? YearMonthFromFields(calendar, result,
+  // canonicalYearMonthOptions).
+  return YearMonthFromFields(isolate, calendar, created_result,
+                             canonical_year_month_options);
+}
+
+}  // namespace
+
+// #sec-temporal.plainyearmonth.from
+MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
+    Isolate* isolate, Handle<Object> item, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainYearMonth.from";
+  // 1. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainYearMonth);
+  // 2. If Type(item) is Object and item has an [[InitializedTemporalYearMonth]]
+  // internal slot, then
+  if (item->IsJSTemporalPlainYearMonth()) {
+    // a. Perform ? ToTemporalOverflow(options).
+    MAYBE_RETURN(
+        ToTemporalOverflowForSideEffects(isolate, options, method_name),
+        Handle<JSTemporalPlainYearMonth>());
+    // b. Return ? CreateTemporalYearMonth(item.[[ISOYear]], item.[[ISOMonth]],
+    // item.[[Calendar]], item.[[ISODay]]).
+    Handle<JSTemporalPlainYearMonth> year_month =
+        Handle<JSTemporalPlainYearMonth>::cast(item);
+    return CreateTemporalYearMonth(
+        isolate, year_month->iso_year(), year_month->iso_month(),
+        handle(year_month->calendar(), isolate), year_month->iso_day());
+  }
+  // 3. Return ? ToTemporalYearMonth(item, options).
+  return ToTemporalYearMonth(isolate, item, options, method_name);
 }
 
 // #sec-temporal.plainyearmonth.prototype.getisofields

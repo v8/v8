@@ -200,8 +200,6 @@ TO_BE_IMPLEMENTED(TemporalInstantPrototypeToZonedDateTime)
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeToZonedDateTimeISO)
 
 /* Temporal.PlainYearMonth */
-/* Temporal #sec-temporal.plainyearmonth.from */
-TO_BE_IMPLEMENTED(TemporalPlainYearMonthFrom)
 /* Temporal #sec-temporal.plainyearmonth.compare */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthCompare)
 /* Temporal #sec-temporal.plainyearmonth.prototype.with */
@@ -525,6 +523,7 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, DaysInMonth, daysInMonth)
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, MonthsInYear,
                                        monthsInYear)
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, InLeapYear, inLeapYear)
+TEMPORAL_METHOD2(PlainYearMonth, From)
 TEMPORAL_PROTOTYPE_METHOD0(PlainYearMonth, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainYearMonth)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, ToLocaleString, toLocaleString)
