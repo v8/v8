@@ -128,8 +128,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimeCompare)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeHoursInDay)
 /* Temporal #sec-temporal.zoneddatetime.prototype.with */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWith)
-/* Temporal #sec-temporal.zoneddatetime.prototype.withplaintime */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWithPlainTime)
 /* Temporal #sec-temporal.zoneddatetime.prototype.withplaindate */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWithPlainDate)
 /* Temporal #sec-temporal.zoneddatetime.prototype.add */
@@ -641,6 +639,7 @@ TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInYear)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(MonthsInYear)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(InLeapYear)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithCalendar, withCalendar)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithPlainTime, withPlainTime)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithTimeZone, withTimeZone)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainYearMonth, toPlainYearMonth)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainMonthDay, toPlainMonthDay)

@@ -558,6 +558,12 @@ class JSTemporalZonedDateTime
                Handle<JSTemporalZonedDateTime> zoned_date_time,
                Handle<Object> calendar_like);
 
+  // #sec-temporal.zoneddatetime.prototype.withplaintime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
+  WithPlainTime(Isolate* isolate,
+                Handle<JSTemporalZonedDateTime> zoned_date_time,
+                Handle<Object> plain_time_like);
+
   // #sec-temporal.zoneddatetime.prototype.withtimezone
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
   WithTimeZone(Isolate* isolate,

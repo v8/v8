@@ -3696,7 +3696,7 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
   // 3. For each element nextKey of originalKeys, do
   for (int i = 0; i < original_keys->length(); i++) {
     // a. If nextKey is not "month" or "monthCode", then
-    Handle<Object> next_key = handle(original_keys->get(i), isolate);
+    Handle<Object> next_key(original_keys->get(i), isolate);
     DCHECK(next_key->IsString());
     Handle<String> next_key_string = Handle<String>::cast(next_key);
     if (!(String::Equals(isolate, factory->month_string(), next_key_string) ||
@@ -3729,7 +3729,7 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
   bool new_keys_has_month_or_month_code = false;
   // 5. For each element nextKey of newKeys, do
   for (int i = 0; i < new_keys->length(); i++) {
-    Handle<Object> next_key = handle(new_keys->get(i), isolate);
+    Handle<Object> next_key(new_keys->get(i), isolate);
     DCHECK(next_key->IsString());
     Handle<String> next_key_string = Handle<String>::cast(next_key);
     // a. Let propValue be ? Get(additionalFields, nextKey).
@@ -8855,9 +8855,85 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithCalendar(
 
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // zonedDateTime.[[TimeZone]], calendar).
-  Handle<BigInt> nanoseconds = handle(zoned_date_time->nanoseconds(), isolate);
-  Handle<JSReceiver> time_zone = handle(zoned_date_time->time_zone(), isolate);
+  Handle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
+}
+
+// #sec-temporal.zoneddatetime.prototype.withplaintime
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainTime(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> plain_time_like) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.ZonedDateTime.prototype.withPlainTime";
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. If plainTimeLike is undefined, then
+  Handle<JSTemporalPlainTime> plain_time;
+  if (plain_time_like->IsUndefined()) {
+    // a. Let plainTime be ? CreateTemporalTime(0, 0, 0, 0, 0, 0).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, plain_time,
+                               CreateTemporalTime(isolate, {0, 0, 0, 0, 0, 0}),
+                               JSTemporalZonedDateTime);
+    // 4. Else,
+  } else {
+    // a. Let plainTime be ? ToTemporalTime(plainTimeLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, plain_time,
+        temporal::ToTemporalTime(isolate, plain_time_like,
+                                 ShowOverflow::kConstrain, method_name),
+        JSTemporalZonedDateTime);
+  }
+  // 5. Let timeZone be zonedDateTime.[[TimeZone]].
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
+  // 6. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      temporal::CreateTemporalInstant(
+          isolate, Handle<BigInt>(zoned_date_time->nanoseconds(), isolate)),
+      JSTemporalZonedDateTime);
+  // 7. Let calendar be zonedDateTime.[[Calendar]].
+  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
+  // 8. Let plainDateTime be ?
+  // temporal::BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant, calendar).
+  Handle<JSTemporalPlainDateTime> plain_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, plain_date_time,
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, instant,
+                                                   calendar, method_name),
+      JSTemporalZonedDateTime);
+  // 9. Let resultPlainDateTime be ?
+  // CreateTemporalDateTime(plainDateTime.[[ISOYear]],
+  // plainDateTime.[[ISOMonth]], plainDateTime.[[ISODay]],
+  // plainTime.[[ISOHour]], plainTime.[[ISOMinute]], plainTime.[[ISOSecond]],
+  // plainTime.[[ISOMillisecond]], plainTime.[[ISOMicrosecond]],
+  // plainTime.[[ISONanosecond]], calendar).
+  Handle<JSTemporalPlainDateTime> result_plain_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result_plain_date_time,
+      temporal::CreateTemporalDateTime(
+          isolate,
+          {{plain_date_time->iso_year(), plain_date_time->iso_month(),
+            plain_date_time->iso_day()},
+           {plain_time->iso_hour(), plain_time->iso_minute(),
+            plain_time->iso_second(), plain_time->iso_millisecond(),
+            plain_time->iso_microsecond(), plain_time->iso_nanosecond()}},
+          calendar),
+      JSTemporalZonedDateTime);
+  // 10. Let instant be ? BuiltinTimeZoneGetInstantFor(timeZone,
+  // resultPlainDateTime, "compatible").
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      BuiltinTimeZoneGetInstantFor(isolate, time_zone, result_plain_date_time,
+                                   Disambiguation::kCompatible, method_name),
+      JSTemporalZonedDateTime);
+  // 11. Return ? CreateTemporalZonedDateTime(instant.[[Nanoseconds]], timeZone,
+  // calendar).
+  return CreateTemporalZonedDateTime(
+      isolate, Handle<BigInt>(instant->nanoseconds(), isolate), time_zone,
+      calendar);
 }
 
 // #sec-temporal.zoneddatetime.prototype.withtimezone
@@ -8878,8 +8954,8 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithTimeZone(
 
   // 4. Return ? CreateTemporalZonedDateTime(zonedDateTime.[[Nanoseconds]],
   // timeZone, zonedDateTime.[[Calendar]]).
-  Handle<BigInt> nanoseconds = handle(zoned_date_time->nanoseconds(), isolate);
-  Handle<JSReceiver> calendar = handle(zoned_date_time->calendar(), isolate);
+  Handle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
+  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
 }
 
@@ -8898,7 +8974,7 @@ MaybeHandle<T> ZonedDateTimeToPlainYearMonthOrMonthDay(
   // 2. Perform ? RequireInternalSlot(zonedDateTime,
   // [[InitializedTemporalZonedDateTime]]).
   // 3. Let timeZone be zonedDateTime.[[TimeZone]].
-  Handle<JSReceiver> time_zone = handle(zoned_date_time->time_zone(), isolate);
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
   // 4. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
   Handle<JSTemporalInstant> instant;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -8907,7 +8983,7 @@ MaybeHandle<T> ZonedDateTimeToPlainYearMonthOrMonthDay(
           isolate, Handle<BigInt>(zoned_date_time->nanoseconds(), isolate)),
       T);
   // 5. Let calendar be zonedDateTime.[[Calendar]].
-  Handle<JSReceiver> calendar = handle(zoned_date_time->calendar(), isolate);
+  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
   // 6. Let temporalDateTime be ?
   // temporal::BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant, calendar).
   Handle<JSTemporalPlainDateTime> temporal_date_time;
@@ -9077,7 +9153,7 @@ MaybeHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
   // 2. Perform ? RequireInternalSlot(zonedDateTime,
   // [[InitializedTemporalZonedDateTime]]).
   // 3. Let timeZone be zonedDateTime.[[TimeZone]].
-  Handle<JSReceiver> time_zone = handle(zoned_date_time->time_zone(), isolate);
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
   // 4. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
   Handle<JSTemporalInstant> instant;
   ASSIGN_RETURN_ON_EXCEPTION(
