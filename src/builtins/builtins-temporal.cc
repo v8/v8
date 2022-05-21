@@ -82,8 +82,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToZonedDateTime)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToLocaleString)
 /* Temporal #sec-temporal.plaintime.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToString)
-/* Temporal #sec-temporal.plaindtimeprototype.tojson */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToJSON)
 
 /* Temporal.PlaneDateTime */
 /* Temporal #sec-temporal.plaindatetime.compare */
@@ -461,6 +459,7 @@ TEMPORAL_GET_SMI(PlainTime, Nanosecond, iso_nanosecond)
 TEMPORAL_METHOD2(PlainTime, From)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainTime)
+TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)
 
 // PlainDateTime
 BUILTIN(TemporalPlainDateTimeConstructor) {

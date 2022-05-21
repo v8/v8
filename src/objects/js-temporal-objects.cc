@@ -1358,6 +1358,77 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
   return builder.Finish().ToHandleChecked();
 }
 
+void ToZeroPaddedDecimalString(IncrementalStringBuilder* builder, int32_t n,
+                               int32_t min_length);
+// #sec-temporal-formatsecondsstringpart
+void FormatSecondsStringPart(IncrementalStringBuilder* builder, int32_t second,
+                             int32_t millisecond, int32_t microsecond,
+                             int32_t nanosecond, Precision precision) {
+  // 1. Assert: second, millisecond, microsecond and nanosecond are integers.
+  // 2. If precision is "minute", return "".
+  if (precision == Precision::kMinute) {
+    return;
+  }
+  // 3. Let secondsString be the string-concatenation of the code unit 0x003A
+  // (COLON) and second formatted as a two-digit decimal number, padded to the
+  // left with zeroes if necessary.
+  builder->AppendCharacter(':');
+  ToZeroPaddedDecimalString(builder, second, 2);
+  // 4. Let fraction be millisecond × 10^6 + microsecond × 10^3 + nanosecond.
+  int32_t fraction = millisecond * 1000000 + microsecond * 1000 + nanosecond;
+  // 5. If fraction is 0, return secondsString.
+  if (fraction == 0) return;
+  // 6. Set fraction to fraction formatted as a nine-digit decimal number,
+  // padded to the left with zeroes if necessary.
+  builder->AppendCharacter('.');
+  // 7. If precision is "auto", then
+  int32_t divisor = 100000000;
+  if (precision == Precision::kAuto) {
+    // a. Set fraction to the
+    // longest possible substring of fraction starting at position 0 and not
+    // ending with the code unit 0x0030 (DIGIT ZERO).
+    do {
+      builder->AppendInt(fraction / divisor);
+      fraction %= divisor;
+      divisor /= 10;
+    } while (fraction > 0);
+  } else {
+    // c. Set fraction to the substring of fraction from 0 to precision.
+    int32_t precision_len = static_cast<int32_t>(precision);
+    DCHECK_LE(0, precision_len);
+    DCHECK_GE(9, precision_len);
+    for (int32_t len = 0; len < precision_len;
+         len++, fraction %= divisor, divisor /= 10) {
+      builder->AppendInt(fraction / divisor);
+    }
+  }
+  // 7. Return the string-concatenation of secondsString, the code unit 0x002E
+  // (FULL STOP), and fraction.
+}
+
+// #sec-temporal-temporaltimetostring
+Handle<String> TemporalTimeToString(Isolate* isolate,
+                                    Handle<JSTemporalPlainTime> temporal_time,
+                                    Precision precision) {
+  // 1. Assert: hour, minute, second, millisecond, microsecond and nanosecond
+  // are integers.
+  IncrementalStringBuilder builder(isolate);
+  // 2. Let hour be ToZeroPaddedDecimalString(hour, 2).
+  ToZeroPaddedDecimalString(&builder, temporal_time->iso_hour(), 2);
+  builder.AppendCharacter('-');
+  // 3. Let minute be ToZeroPaddedDecimalString(minute, 2).
+  ToZeroPaddedDecimalString(&builder, temporal_time->iso_minute(), 2);
+  // 4. Let seconds be ! FormatSecondsStringPart(second, millisecond,
+  // microsecond, nanosecond, precision).
+  FormatSecondsStringPart(&builder, temporal_time->iso_second(),
+                          temporal_time->iso_millisecond(),
+                          temporal_time->iso_microsecond(),
+                          temporal_time->iso_nanosecond(), precision);
+  // 5. Return the string-concatenation of hour, the code unit 0x003A (COLON),
+  // minute, and seconds.
+  return builder.Finish().ToHandleChecked();
+}
+
 }  // namespace
 
 namespace temporal {
@@ -8788,6 +8859,12 @@ MaybeHandle<JSReceiver> JSTemporalPlainTime::GetISOFields(
   DEFINE_INT_FIELD(fields, isoSecond, iso_second, temporal_time)
   // 11. Return fields.
   return fields;
+}
+
+// #sec-temporal.plaintime.prototype.tojson
+MaybeHandle<String> JSTemporalPlainTime::ToJSON(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time) {
+  return TemporalTimeToString(isolate, temporal_time, Precision::kAuto);
 }
 
 // #sec-temporal.zoneddatetime

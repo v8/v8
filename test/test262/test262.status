@@ -1209,7 +1209,6 @@
   'built-ins/Temporal/PlainTime/prototype/subtract/non-integer-throws-rangeerror': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/subtract/order-of-operations': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/subtract/subclassing-ignored': [FAIL],
-  'built-ins/Temporal/PlainTime/prototype/toJSON/branding': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/toLocaleString/branding': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/toLocaleString/return-string': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/toPlainDateTime/argument-plaindatetime': [FAIL],

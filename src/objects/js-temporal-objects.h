@@ -418,6 +418,10 @@ class JSTemporalPlainTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> NowISO(
       Isolate* isolate, Handle<Object> temporal_time_zone_like);
 
+  // #sec-temporal.plaintime.prototype.tojson
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
+      Isolate* isolate, Handle<JSTemporalPlainTime> plain_time);
+
   DECL_PRINTER(JSTemporalPlainTime)
 
   DEFINE_TORQUE_GENERATED_JS_TEMPORAL_HOUR_MINUTE_SECOND()
