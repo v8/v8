@@ -261,6 +261,10 @@ class JSTemporalPlainDate
       Isolate* isolate, Handle<JSTemporalPlainDate> plain_date,
       Handle<Object> calendar_like);
 
+  // #sec-temporal.plaindate.prototype.toplaindatetime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime>
+  ToPlainDateTime(Isolate* isolate, Handle<JSTemporalPlainDate> plain_date,
+                  Handle<Object> temporal_time);
   // #sec-temporal.plaindate.from
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> From(
       Isolate* isolate, Handle<Object> item, Handle<Object> options);
