@@ -8245,6 +8245,48 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainDateTime::ToPlainMonthDay(
                                      isolate->factory()->monthCode_string());
 }
 
+// #sec-temporal.plaindatetime.prototype.tozoneddatetime
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainDateTime::ToZonedDateTime(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> temporal_time_zone_like, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainDateTime.prototype.toZonedDateTime";
+  // 1. Let dateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. Let timeZone be ? ToTemporalTimeZone(temporalTimeZoneLike).
+  Handle<JSReceiver> time_zone;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone,
+                             temporal::ToTemporalTimeZone(
+                                 isolate, temporal_time_zone_like, method_name),
+                             JSTemporalZonedDateTime);
+  // 4. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalZonedDateTime);
+  // 5. Let disambiguation be ? ToTemporalDisambiguation(options).
+  Disambiguation disambiguation;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, disambiguation,
+      ToTemporalDisambiguation(isolate, options, method_name),
+      Handle<JSTemporalZonedDateTime>());
+
+  // 6. Let instant be ? BuiltinTimeZoneGetInstantFor(timeZone, dateTime,
+  // disambiguation).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      BuiltinTimeZoneGetInstantFor(isolate, time_zone, date_time,
+                                   disambiguation, method_name),
+      JSTemporalZonedDateTime);
+
+  // 7. Return ? CreateTemporalZonedDateTime(instant.[[Nanoseconds]],
+  // timeZone, dateTime.[[Calendar]]).
+  return CreateTemporalZonedDateTime(
+      isolate, Handle<BigInt>(instant->nanoseconds(), isolate), time_zone,
+      Handle<JSReceiver>(date_time->calendar(), isolate));
+}
+
 // #sec-temporal.now.plaindatetime
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Now(
     Isolate* isolate, Handle<Object> calendar_like,
