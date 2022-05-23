@@ -88,13 +88,6 @@ class SimulatorBase {
   static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(
       intptr_t ret) {}
 
- private:
-  static base::Mutex* redirection_mutex_;
-  static Redirection* redirection_;
-
-  static base::Mutex* i_cache_mutex_;
-  static base::CustomMatcherHashMap* i_cache_;
-
   // Helper methods to convert arbitrary integer or pointer arguments to the
   // needed generic argument type intptr_t.
 
@@ -128,6 +121,13 @@ class SimulatorBase {
       ConvertArg(T arg) {
     UNREACHABLE();
   }
+
+ private:
+  static base::Mutex* redirection_mutex_;
+  static Redirection* redirection_;
+
+  static base::Mutex* i_cache_mutex_;
+  static base::CustomMatcherHashMap* i_cache_;
 };
 
 // When the generated code calls an external reference we need to catch that in
