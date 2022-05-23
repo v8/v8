@@ -722,7 +722,6 @@ external_v8_defines = [
   "V8_31BIT_SMIS_ON_64BIT_ARCH",
   "V8_COMPRESS_ZONES",
   "V8_ENABLE_SANDBOX",
-  "V8_SANDBOX",  # TODO(saelo) remove once no longer used in blink
   "V8_SANDBOXED_POINTERS",
   "V8_SANDBOXED_EXTERNAL_POINTERS",
   "V8_DEPRECATION_WARNINGS",
@@ -753,7 +752,6 @@ if (v8_enable_zone_compression) {
   enabled_external_v8_defines += [ "V8_COMPRESS_ZONES" ]
 }
 if (v8_enable_sandbox) {
-  enabled_external_v8_defines += [ "V8_SANDBOX" ]
   enabled_external_v8_defines += [ "V8_ENABLE_SANDBOX" ]
 }
 if (v8_enable_sandboxed_pointers) {
