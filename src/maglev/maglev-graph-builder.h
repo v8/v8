@@ -584,6 +584,9 @@ class MaglevGraphBuilder {
   void VisitBinaryOperation();
   template <Operation kOperation>
   void VisitBinarySmiOperation();
+
+  bool TryBuildCompareOperationBranch(Operation operation, ValueNode* left,
+                                      ValueNode* right);
   template <Operation kOperation>
   void VisitCompareOperation();
 

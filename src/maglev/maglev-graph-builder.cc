@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-graph-builder.h"
 
+#include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
@@ -12,6 +13,7 @@
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
@@ -414,13 +416,76 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
   BuildGenericBinarySmiOperationNode<kOperation>();
 }
 
+bool MaglevGraphBuilder::TryBuildCompareOperationBranch(Operation operation,
+                                                        ValueNode* left,
+                                                        ValueNode* right) {
+  // Don't emit the shortcut branch if the next bytecode is a merge target.
+  if (IsOffsetAMergePoint(next_offset())) return false;
+
+  interpreter::Bytecode next_bytecode = iterator_.next_bytecode();
+  int true_offset;
+  int false_offset;
+  switch (next_bytecode) {
+    case interpreter::Bytecode::kJumpIfFalse:
+    case interpreter::Bytecode::kJumpIfFalseConstant:
+    case interpreter::Bytecode::kJumpIfToBooleanFalse:
+    case interpreter::Bytecode::kJumpIfToBooleanFalseConstant:
+      // This jump must kill the accumulator, otherwise we need to
+      // materialize the actual boolean value.
+      if (GetOutLiveness()->AccumulatorIsLive()) return false;
+
+      // Advance the iterator past the test to the jump, skipping
+      // emitting the test.
+      iterator_.Advance();
+
+      true_offset = next_offset();
+      false_offset = iterator_.GetJumpTargetOffset();
+      break;
+    case interpreter::Bytecode::kJumpIfTrue:
+    case interpreter::Bytecode::kJumpIfTrueConstant:
+    case interpreter::Bytecode::kJumpIfToBooleanTrue:
+    case interpreter::Bytecode::kJumpIfToBooleanTrueConstant:
+      // This jump must kill the accumulator, otherwise we need to
+      // materialize the actual boolean value.
+      if (GetOutLiveness()->AccumulatorIsLive()) return false;
+
+      // Advance the iterator past the test to the jump, skipping
+      // emitting the test.
+      iterator_.Advance();
+
+      true_offset = iterator_.GetJumpTargetOffset();
+      false_offset = next_offset();
+      break;
+
+    default:
+      return false;
+  }
+
+  BasicBlock* block = FinishBlock<BranchIfInt32Compare>(
+      next_offset(), {left, right}, operation, &jump_targets_[true_offset],
+      &jump_targets_[false_offset]);
+  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  return true;
+}
+
 template <Operation kOperation>
 void MaglevGraphBuilder::VisitCompareOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetCompareOperationFeedback()) {
     case CompareOperationHint::kSignedSmall:
       if (BinaryOperationHasInt32FastPath<kOperation>()) {
-        BuildInt32BinaryOperationNode<kOperation>();
+        ValueNode *left, *right;
+        if (IsRegisterEqualToAccumulator(0)) {
+          left = right = LoadRegisterInt32(0);
+        } else {
+          left = LoadRegisterInt32(0);
+          right = GetAccumulatorInt32();
+        }
+        if (TryBuildCompareOperationBranch(kOperation, left, right)) {
+          return;
+        }
+        SetAccumulator(
+            AddNewInt32BinaryOperationNode<kOperation>({left, right}));
         return;
       }
       break;

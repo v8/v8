@@ -11,6 +11,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
+#include "src/codegen/x64/assembler-x64.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/ic/handler-configuration.h"
@@ -1647,11 +1648,36 @@ void BranchIfTrue::GenerateCode(MaglevCodeGenState* code_gen_state,
 }
 
 void BranchIfInt32Compare::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                                        const ProcessingState& state) {}
+                                        const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
 void BranchIfInt32Compare::GenerateCode(MaglevCodeGenState* code_gen_state,
                                         const ProcessingState& state) {
-  USE(operation_);
-  UNREACHABLE();
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+
+  auto* next_block = state.next_block();
+
+  __ cmpl(left, right);
+
+  // We don't have any branch probability information, so try to jump
+  // over whatever the next block emitted is.
+  if (if_false() == next_block) {
+    // Jump over the false block if true, otherwise fall through into it.
+    __ j(Int32ConditionFor(operation_), if_true()->label());
+  } else {
+    // Jump to the false block if true.
+    __ j(NegateCondition(Int32ConditionFor(operation_)), if_false()->label());
+    // Jump to the true block if it's not the next block.
+    if (if_true() != next_block) {
+      __ jmp(if_true()->label());
+    }
+  }
+}
+void BranchIfInt32Compare::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation_ << ")";
 }
 
 void BranchIfToBooleanTrue::AllocateVreg(MaglevVregAllocationState* vreg_state,

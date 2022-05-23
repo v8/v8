@@ -105,6 +105,15 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
     return static_cast<int>(cursor_ - start_ - prefix_size_);
   }
   int next_offset() const { return current_offset() + current_bytecode_size(); }
+  Bytecode next_bytecode() const {
+    uint8_t* next_cursor = cursor_ + current_bytecode_size_without_prefix();
+    if (next_cursor == end_) return Bytecode::kIllegal;
+    Bytecode next_bytecode = Bytecodes::FromByte(*next_cursor);
+    if (Bytecodes::IsPrefixScalingBytecode(next_bytecode)) {
+      next_bytecode = Bytecodes::FromByte(*(next_cursor + 1));
+    }
+    return next_bytecode;
+  }
   OperandScale current_operand_scale() const { return operand_scale_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
