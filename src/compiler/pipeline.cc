@@ -1712,7 +1712,7 @@ struct WasmLoopPeelingPhase {
       if (loop_info.can_be_innermost) {
         ZoneUnorderedSet<Node*>* loop =
             LoopFinder::FindSmallInnermostLoopFromHeader(
-                loop_info.header, temp_zone, std::numeric_limits<size_t>::max(),
+                loop_info.header, temp_zone, FLAG_wasm_loop_peeling_max_size,
                 false);
         if (loop == nullptr) continue;
         PeelWasmLoop(loop_info.header, loop, data->graph(), data->common(),
