@@ -1297,7 +1297,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
   if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
   return scope.injectedScript()->wrapEvaluateResult(
       maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""), mode,
-      result, exceptionDetails);
+      throwOnSideEffect.fromMaybe(false), result, exceptionDetails);
 }
 
 Response V8DebuggerAgentImpl::setVariableValue(
