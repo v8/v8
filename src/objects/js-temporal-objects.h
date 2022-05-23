@@ -378,6 +378,14 @@ class JSTemporalPlainDateTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> NowISO(
       Isolate* isolate, Handle<Object> temporal_time_zone_like);
 
+  // #sec-temporal.plaindatetime.prototype.toplaindate
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> ToPlainDate(
+      Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time);
+
+  // #sec-temporal.plaindatetime.prototype.toplaintime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> ToPlainTime(
+      Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time);
+
   DECL_PRINTER(JSTemporalPlainDateTime)
 
   DEFINE_TORQUE_GENERATED_JS_TEMPORAL_YEAR_MONTH_DAY()

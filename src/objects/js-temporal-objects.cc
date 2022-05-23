@@ -8715,6 +8715,36 @@ MaybeHandle<JSReceiver> JSTemporalPlainDateTime::GetISOFields(
   return fields;
 }
 
+// #sec-temporal.plaindatetime.prototype.toplaindate
+MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDateTime::ToPlainDate(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+  // 1. Let dateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. Return ? CreateTemporalDate(dateTime.[[ISOYear]], dateTime.[[ISOMonth]],
+  // dateTime.[[ISODay]], dateTime.[[Calendar]]).
+  return CreateTemporalDate(
+      isolate,
+      {date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+      Handle<JSReceiver>(date_time->calendar(), isolate));
+}
+
+// #sec-temporal.plaindatetime.prototype.toplaintime
+MaybeHandle<JSTemporalPlainTime> JSTemporalPlainDateTime::ToPlainTime(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+  // 1. Let dateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. Return ? CreateTemporalTime(dateTime.[[ISOHour]],
+  // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+  // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+  // dateTime.[[ISONanosecond]]).
+  return CreateTemporalTime(
+      isolate, {date_time->iso_hour(), date_time->iso_minute(),
+                date_time->iso_second(), date_time->iso_millisecond(),
+                date_time->iso_microsecond(), date_time->iso_nanosecond()});
+}
+
 // #sec-temporal.plainmonthday
 MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::Constructor(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
