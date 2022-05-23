@@ -4486,6 +4486,34 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
+void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
+  if (!FLAG_harmony_change_array_by_copy) return;
+
+  {
+    Handle<JSFunction> array_function(native_context()->array_function(),
+                                      isolate());
+    Handle<JSObject> array_prototype(
+        JSObject::cast(array_function->instance_prototype()), isolate());
+
+    SimpleInstallFunction(isolate_, array_prototype, "toReversed",
+                          Builtin::kArrayPrototypeToReversed, 0, true);
+
+    Handle<JSObject> unscopables = Handle<JSObject>::cast(
+        JSObject::GetProperty(isolate(), array_prototype,
+                              isolate()->factory()->unscopables_symbol())
+            .ToHandleChecked());
+
+    InstallTrueValuedProperty(isolate_, unscopables, "toReversed");
+  }
+
+  {
+    Handle<JSObject> prototype(native_context()->typed_array_prototype(),
+                               isolate());
+    SimpleInstallFunction(isolate_, prototype, "toReversed",
+                          Builtin::kTypedArrayPrototypeToReversed, 0, true);
+  }
+}
+
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
   if (!FLAG_harmony_shadow_realm) return;
   Factory* factory = isolate()->factory();
