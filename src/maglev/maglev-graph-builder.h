@@ -366,7 +366,16 @@ class MaglevGraphBuilder {
       case ValueRepresentation::kInt32:
         return value;
       case ValueRepresentation::kFloat64:
-        // We should not be able to request an Int32 from a Float64 input.
+        // We should not be able to request an Int32 from a Float64 input,
+        // unless it's an unboxing of a tagged value or a conversion from int32.
+        if (value->Is<CheckedFloat64Unbox>()) {
+          // TODO(leszeks): Maybe convert the CheckedFloat64Unbox to
+          // ChangeInt32ToFloat64 with this CheckedSmiUntag as the input.
+          return AddNewConversionNode<CheckedSmiUntag>(reg,
+                                                       value->input(0).node());
+        } else if (value->Is<ChangeInt32ToFloat64>()) {
+          return value->input(0).node();
+        }
         UNREACHABLE();
     }
     UNREACHABLE();

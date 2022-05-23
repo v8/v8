@@ -529,7 +529,7 @@ class MaglevCodeGeneratorImpl final {
       const compiler::AllocatedOperand& operand =
           compiler::AllocatedOperand::cast(input_location.operand());
       ValueRepresentation repr = value->properties().value_representation();
-      if (operand.IsRegister()) {
+      if (operand.IsAnyRegister()) {
         EmitDeoptStoreRegister(operand, repr);
       } else {
         EmitDeoptStoreStackSlot(operand, repr);
