@@ -2255,6 +2255,9 @@ size_t Heap::PerformGarbageCollection(
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
+
+    memory_allocator()->unmapper()->EnsureUnmappingCompleted();
+
     // If incremental marking has been activated, the full GC cycle has already
     // started, so don't start a new one.
     if (!incremental_marking_->WasActivated()) {

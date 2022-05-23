@@ -215,6 +215,10 @@ size_t MemoryAllocator::Unmapper::CommittedBufferedMemory() {
   return sum;
 }
 
+bool MemoryAllocator::Unmapper::IsRunning() const {
+  return job_handle_ && job_handle_->IsValid();
+}
+
 bool MemoryAllocator::CommitMemory(VirtualMemory* reservation) {
   Address base = reservation->address();
   size_t size = reservation->size();

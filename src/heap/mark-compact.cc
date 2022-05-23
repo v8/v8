@@ -986,6 +986,10 @@ void MarkCompactCollector::Prepare() {
 
   DCHECK(!sweeping_in_progress());
 
+  // Unmapper tasks needs to be stopped during the GC, otherwise pages queued
+  // for freeing might get unmapped during the GC.
+  DCHECK(!heap_->memory_allocator()->unmapper()->IsRunning());
+
   if (!heap()->incremental_marking()->IsMarking()) {
     const auto embedder_flags = heap_->flags_for_embedder_tracer();
     {
@@ -1102,7 +1106,11 @@ void MarkCompactCollector::Finish() {
   }
 
   sweeper()->StartSweeperTasks();
-  // Give pages that are queued to be freed back to the OS.
+
+  // Give pages that are queued to be freed back to the OS. Ensure unmapper
+  // tasks are stopped such that queued pages aren't freed before this point. We
+  // still need all pages to be accessible for the "update pointers" phase.
+  DCHECK(!heap_->memory_allocator()->unmapper()->IsRunning());
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 
   // Shrink pages if possible after processing and filtering slots.
@@ -4324,12 +4332,6 @@ void MarkCompactCollector::Evacuate() {
       heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
   }
-
-  // Give pages that are queued to be freed back to the OS. Note that filtering
-  // slots only handles old space (for unboxed doubles), and thus map space can
-  // still contain stale pointers. We only free the chunks after pointer updates
-  // to still have access to page headers.
-  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);

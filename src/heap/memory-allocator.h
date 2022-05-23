@@ -84,6 +84,9 @@ class MemoryAllocator {
     V8_EXPORT_PRIVATE int NumberOfChunks();
     size_t CommittedBufferedMemory();
 
+    // Returns true when Unmapper task may be running.
+    bool IsRunning() const;
+
    private:
     static const int kReservedQueueingSlots = 64;
     static const int kMaxUnmapperTasks = 4;
