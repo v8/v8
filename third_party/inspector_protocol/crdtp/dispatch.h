@@ -38,6 +38,7 @@ enum class DispatchCode {
   INVALID_PARAMS = -32602,
   INTERNAL_ERROR = -32603,
   SERVER_ERROR = -32000,
+  SESSION_NOT_FOUND = SERVER_ERROR - 1,
 };
 
 // Information returned by command handlers. Usually returned after command
@@ -75,6 +76,10 @@ class DispatchResponse {
 
   // Used for application level errors, e.g. within protocol agents.
   static DispatchResponse ServerError(std::string message);
+
+  // Indicate that session with the id specified in the protocol message
+  // was not found (e.g. because it has already been detached).
+  static DispatchResponse SessionNotFound(std::string message);
 
  private:
   DispatchResponse() = default;

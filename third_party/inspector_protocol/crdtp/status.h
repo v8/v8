@@ -46,7 +46,7 @@ enum class Error {
   CBOR_INVALID_STRING16 = 0x14,
   CBOR_INVALID_BINARY = 0x15,
   CBOR_UNSUPPORTED_VALUE = 0x16,
-  CBOR_NO_INPUT = 0x17,
+  CBOR_UNEXPECTED_EOF_IN_ENVELOPE = 0x17,
   CBOR_INVALID_START_BYTE = 0x18,
   CBOR_UNEXPECTED_EOF_EXPECTED_VALUE = 0x19,
   CBOR_UNEXPECTED_EOF_IN_ARRAY = 0x1a,
@@ -90,7 +90,7 @@ struct Status {
 
   Error error = Error::OK;
   size_t pos = npos();
-  Status(Error error, size_t pos) : error(error), pos(pos) {}
+  [[nodiscard]] Status(Error error, size_t pos) : error(error), pos(pos) {}
   Status() = default;
 
   bool IsMessageError() const {
