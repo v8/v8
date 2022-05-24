@@ -402,13 +402,6 @@ auto Engine::make(own<Config>&& config) -> own<Engine> {
   // The commandline flags get loaded in V8::Initialize(), so we can override
   // the flag values only afterwards.
   i::FLAG_expose_gc = true;
-  // We disable dynamic tiering because it interferes with serialization. We
-  // only serialize optimized code, but with dynamic tiering not all code gets
-  // optimized. It is then unclear what we should serialize in the first place.
-  i::FLAG_wasm_dynamic_tiering = false;
-  // We disable speculative inlining, because speculative inlining depends on
-  // dynamic tiering.
-  i::FLAG_wasm_speculative_inlining = false;
   return make_own(seal<Engine>(engine));
 }
 
@@ -1188,13 +1181,15 @@ auto Module::exports() const -> ownvec<ExportType> {
   return ExportsImpl(impl(this)->v8_object());
 }
 
+// We serialize the state of the module when calling this method; an arbitrary
+// number of functions can be tiered up to TurboFan, and only those will be
+// serialized.
+// The caller is responsible for "warming up" the module before serializing.
 auto Module::serialize() const -> vec<byte_t> {
   i::wasm::NativeModule* native_module =
       impl(this)->v8_object()->native_module();
   v8::base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   size_t binary_size = wire_bytes.size();
-  // We can only serialize after top-tier compilation (TurboFan) finished.
-  native_module->compilation_state()->WaitForTopTierFinished();
   i::wasm::WasmSerializer serializer(native_module);
   size_t serial_size = serializer.GetSerializedNativeModuleSize();
   size_t size_size = i::wasm::LEBHelper::sizeof_u64v(binary_size);
@@ -1207,7 +1202,13 @@ auto Module::serialize() const -> vec<byte_t> {
   ptr += binary_size;
   if (!serializer.SerializeNativeModule(
           {reinterpret_cast<uint8_t*>(ptr), serial_size})) {
-    buffer.reset();
+    // Serialization failed, because no TurboFan code is present yet. In this
+    // case, the serialized module just contains the wire bytes.
+    buffer = vec<byte_t>::make_uninitialized(size_size + binary_size);
+    byte_t* ptr = buffer.get();
+    i::wasm::LEBHelper::write_u64v(reinterpret_cast<uint8_t**>(&ptr),
+                                   binary_size);
+    std::memcpy(ptr, wire_bytes.begin(), binary_size);
   }
   return buffer;
 }
@@ -1222,13 +1223,23 @@ auto Module::deserialize(Store* store_abs, const vec<byte_t>& serialized)
   ptrdiff_t size_size = ptr - serialized.get();
   size_t serial_size = serialized.size() - size_size - binary_size;
   i::Handle<i::WasmModuleObject> module_obj;
-  size_t data_size = static_cast<size_t>(binary_size);
-  if (!i::wasm::DeserializeNativeModule(
-           isolate,
-           {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
-           {reinterpret_cast<const uint8_t*>(ptr), data_size}, {})
-           .ToHandle(&module_obj)) {
-    return nullptr;
+  if (serial_size > 0) {
+    size_t data_size = static_cast<size_t>(binary_size);
+    if (!i::wasm::DeserializeNativeModule(
+             isolate,
+             {reinterpret_cast<const uint8_t*>(ptr + data_size), serial_size},
+             {reinterpret_cast<const uint8_t*>(ptr), data_size}, {})
+             .ToHandle(&module_obj)) {
+      // We were given a serialized module, but failed to deserialize. Report
+      // this as an error.
+      return nullptr;
+    }
+  } else {
+    // No serialized module was given. This is fine, just create a module from
+    // scratch.
+    vec<byte_t> binary = vec<byte_t>::make_uninitialized(binary_size);
+    std::memcpy(binary.get(), ptr, binary_size);
+    return make(store_abs, binary);
   }
   return implement<Module>::type::make(store, module_obj);
 }
