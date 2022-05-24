@@ -90,9 +90,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                       help='Deprecated. '
                            'Equivalent to passing --variants=default',
                       default=False, dest='no_variants', action='store_true')
-    parser.add_option('--variants',
-                      help='Comma-separated list of testing variants;'
-                      ' default: "%s"' % ','.join(VARIANTS))
+    parser.add_option(
+        '--variants',
+        help='Comma-separated list of testing variants;'
+        ' default: "%s"' % ','.join(ALL_VARIANTS))
     parser.add_option('--exhaustive-variants',
                       default=False, action='store_true',
                       help='Deprecated. '
