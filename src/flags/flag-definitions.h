@@ -763,6 +763,12 @@ DEFINE_IMPLICATION(harmony_struct, shared_string_table)
 DEFINE_BOOL(
     always_use_string_forwarding_table, false,
     "use string forwarding table instead of thin strings for all strings")
+// With --always-use-string-forwarding-table, we can have young generation
+// string entries in the forwarding table, requiring table updates when these
+// strings get promoted to old space. Parallel GCs in client isolates
+// (enabled by --shared-string-table) are not supported using a single shared
+// forwarding table.
+DEFINE_NEG_IMPLICATION(shared_string_table, always_use_string_forwarding_table)
 // TOOD(pthier): The code behind this flag is not going to ship.
 // We enable it behind --future to get performance numbers and coverage from
 // bots.
