@@ -1474,10 +1474,6 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
-
-  # https://crbug.com/v8/12883
-  'shared-memory/shared-string': [PASS, ['tsan', SKIP]],
-  'shared-memory/shared-struct-workers': [PASS, ['tsan', SKIP]],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
