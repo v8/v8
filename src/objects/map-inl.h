@@ -788,9 +788,13 @@ ACCESSORS_CHECKED(Map, wasm_type_info, WasmTypeInfo,
 
 bool Map::IsPrototypeValidityCellValid() const {
   Object validity_cell = prototype_validity_cell();
-  Object value = validity_cell.IsSmi() ? Smi::cast(validity_cell)
-                                       : Cell::cast(validity_cell).value();
-  return value == Smi::FromInt(Map::kPrototypeChainValid);
+  if (validity_cell.IsSmi()) {
+    // Smi validity cells should always be considered valid.
+    DCHECK_EQ(Smi::cast(validity_cell).value(), Map::kPrototypeChainValid);
+    return true;
+  }
+  Smi cell_value = Smi::cast(Cell::cast(validity_cell).value());
+  return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
 DEF_GETTER(Map, GetConstructor, Object) {
