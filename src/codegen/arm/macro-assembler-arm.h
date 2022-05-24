@@ -332,7 +332,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Drop(Register count, Condition cond = al);
 
   void Ret(Condition cond = al);
-  void Ret(int drop, Condition cond = al);
 
   // Compare single values and move the result to the normal condition flags.
   void VFPCompareAndSetFlags(const SwVfpRegister src1, const SwVfpRegister src2,

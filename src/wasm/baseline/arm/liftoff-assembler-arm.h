@@ -385,6 +385,9 @@ constexpr int MaskFromNeonDataType(NeonDataType dt) {
     case NeonS64:
     case NeonU64:
       return 63;
+    default:
+      UNREACHABLE();
+      return 0;
   }
 }
 

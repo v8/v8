@@ -390,7 +390,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ dmb(ISH);                                                       \
     __ bind(&binop);                                                   \
     __ ldrexd(r2, r3, i.TempRegister(0));                              \
-    __ instr1(i.TempRegister(1), r2, i.InputRegister(0), SBit::SetCC); \
+    __ instr1(i.TempRegister(1), r2, i.InputRegister(0), SetCC);       \
     __ instr2(i.TempRegister(2), r3, Operand(i.InputRegister(1)));     \
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                \
     __ strexd(i.TempRegister(3), i.TempRegister(1), i.TempRegister(2), \
@@ -1224,7 +1224,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // i.InputRegister(2) ... right low word.
       // i.InputRegister(3) ... right high word.
       __ add(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2),
-             SBit::SetCC);
+             SetCC);
       __ adc(i.OutputRegister(1), i.InputRegister(1),
              Operand(i.InputRegister(3)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1235,7 +1235,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // i.InputRegister(2) ... right low word.
       // i.InputRegister(3) ... right high word.
       __ sub(i.OutputRegister(0), i.InputRegister(0), i.InputRegister(2),
-             SBit::SetCC);
+             SetCC);
       __ sbc(i.OutputRegister(1), i.InputRegister(1),
              Operand(i.InputRegister(3)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1520,7 +1520,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
         // because INT32_MIN allows easier out-of-bounds detection.
         __ cmn(i.OutputRegister(), Operand(1));
-        __ mov(i.OutputRegister(), Operand(INT32_MIN), SBit::LeaveCC, vs);
+        __ mov(i.OutputRegister(), Operand(INT32_MIN), LeaveCC, vs);
       }
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;

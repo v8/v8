@@ -4388,9 +4388,9 @@ enum IntegerBinOp {
   VQRDMULH
 };
 
-static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
-                             QwNeonRegister dst, QwNeonRegister src1,
-                             QwNeonRegister src2) {
+static Instr EncodeNeonDataTypeBinOp(IntegerBinOp op, NeonDataType dt,
+                                     QwNeonRegister dst, QwNeonRegister src1,
+                                     QwNeonRegister src2) {
   int op_encoding = 0;
   switch (op) {
     case VADD:
@@ -4447,11 +4447,13 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
          n * B7 | B6 | m * B5 | vm | op_encoding;
 }
 
-static Instr EncodeNeonBinOp(IntegerBinOp op, NeonSize size, QwNeonRegister dst,
-                             QwNeonRegister src1, QwNeonRegister src2) {
+static Instr EncodeNeonSizeBinOp(IntegerBinOp op, NeonSize size,
+                                 QwNeonRegister dst, QwNeonRegister src1,
+                                 QwNeonRegister src2) {
   // Map NeonSize values to the signed values in NeonDataType, so the U bit
   // will be 0.
-  return EncodeNeonBinOp(op, static_cast<NeonDataType>(size), dst, src1, src2);
+  return EncodeNeonDataTypeBinOp(op, static_cast<NeonDataType>(size), dst, src1,
+                                 src2);
 }
 
 void Assembler::vadd(QwNeonRegister dst, QwNeonRegister src1,
@@ -4467,7 +4469,7 @@ void Assembler::vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vadd(Qn, Qm) SIMD integer addition.
   // Instruction details available in ARM DDI 0406C.b, A8-828.
-  emit(EncodeNeonBinOp(VADD, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VADD, size, dst, src1, src2));
 }
 
 void Assembler::vqadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
@@ -4475,7 +4477,7 @@ void Assembler::vqadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vqadd(Qn, Qm) SIMD integer saturating addition.
   // Instruction details available in ARM DDI 0406C.b, A8-996.
-  emit(EncodeNeonBinOp(VQADD, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VQADD, dt, dst, src1, src2));
 }
 
 void Assembler::vsub(QwNeonRegister dst, QwNeonRegister src1,
@@ -4491,7 +4493,7 @@ void Assembler::vsub(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vsub(Qn, Qm) SIMD integer subtraction.
   // Instruction details available in ARM DDI 0406C.b, A8-1084.
-  emit(EncodeNeonBinOp(VSUB, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VSUB, size, dst, src1, src2));
 }
 
 void Assembler::vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
@@ -4499,7 +4501,7 @@ void Assembler::vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vqsub(Qn, Qm) SIMD integer saturating subtraction.
   // Instruction details available in ARM DDI 0406C.b, A8-1020.
-  emit(EncodeNeonBinOp(VQSUB, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VQSUB, dt, dst, src1, src2));
 }
 
 void Assembler::vmlal(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
@@ -4534,7 +4536,7 @@ void Assembler::vmul(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vadd(Qn, Qm) SIMD integer multiply.
   // Instruction details available in ARM DDI 0406C.b, A8-960.
-  emit(EncodeNeonBinOp(VMUL, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VMUL, size, dst, src1, src2));
 }
 
 void Assembler::vmull(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src1,
@@ -4567,7 +4569,7 @@ void Assembler::vmin(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vmin(Qn, Qm) SIMD integer MIN.
   // Instruction details available in ARM DDI 0406C.b, A8-926.
-  emit(EncodeNeonBinOp(VMIN, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VMIN, dt, dst, src1, src2));
 }
 
 void Assembler::vmax(QwNeonRegister dst, QwNeonRegister src1,
@@ -4583,7 +4585,7 @@ void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vmax(Qn, Qm) SIMD integer MAX.
   // Instruction details available in ARM DDI 0406C.b, A8-926.
-  emit(EncodeNeonBinOp(VMAX, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VMAX, dt, dst, src1, src2));
 }
 
 enum NeonShiftOp { VSHL, VSHR, VSLI, VSRI, VSRA };
@@ -4860,7 +4862,7 @@ void Assembler::vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vtst(Qn, Qm) SIMD test integer operands.
   // Instruction details available in ARM DDI 0406C.b, A8-1098.
-  emit(EncodeNeonBinOp(VTST, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VTST, size, dst, src1, src2));
 }
 
 void Assembler::vceq(QwNeonRegister dst, QwNeonRegister src1,
@@ -4876,7 +4878,7 @@ void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vceq(Qn, Qm) SIMD integer compare equal.
   // Instruction details available in ARM DDI 0406C.b, A8-844.
-  emit(EncodeNeonBinOp(VCEQ, size, dst, src1, src2));
+  emit(EncodeNeonSizeBinOp(VCEQ, size, dst, src1, src2));
 }
 
 void Assembler::vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
@@ -4901,7 +4903,7 @@ void Assembler::vcge(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vcge(Qn, Qm) SIMD integer compare greater or equal.
   // Instruction details available in ARM DDI 0406C.b, A8-848.
-  emit(EncodeNeonBinOp(VCGE, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VCGE, dt, dst, src1, src2));
 }
 
 void Assembler::vcgt(QwNeonRegister dst, QwNeonRegister src1,
@@ -4917,7 +4919,7 @@ void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vcgt(Qn, Qm) SIMD integer compare greater than.
   // Instruction details available in ARM DDI 0406C.b, A8-852.
-  emit(EncodeNeonBinOp(VCGT, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VCGT, dt, dst, src1, src2));
 }
 
 void Assembler::vclt(NeonSize size, QwNeonRegister dst, QwNeonRegister src,
@@ -4934,7 +4936,7 @@ void Assembler::vrhadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
   DCHECK(IsEnabled(NEON));
   // Qd = vrhadd(Qn, Qm) SIMD integer rounding halving add.
   // Instruction details available in ARM DDI 0406C.b, A8-1030.
-  emit(EncodeNeonBinOp(VRHADD, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VRHADD, dt, dst, src1, src2));
 }
 
 void Assembler::vext(QwNeonRegister dst, QwNeonRegister src1,
@@ -5044,7 +5046,7 @@ void Assembler::vqrdmulh(NeonDataType dt, QwNeonRegister dst,
                          QwNeonRegister src1, QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
   DCHECK(dt == NeonS16 || dt == NeonS32);
-  emit(EncodeNeonBinOp(VQRDMULH, dt, dst, src1, src2));
+  emit(EncodeNeonDataTypeBinOp(VQRDMULH, dt, dst, src1, src2));
 }
 
 void Assembler::vcnt(QwNeonRegister dst, QwNeonRegister src) {

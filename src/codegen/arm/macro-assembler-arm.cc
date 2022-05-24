@@ -392,11 +392,6 @@ void TurboAssembler::Drop(Register count, Condition cond) {
   add(sp, sp, Operand(count, LSL, kPointerSizeLog2), LeaveCC, cond);
 }
 
-void TurboAssembler::Ret(int drop, Condition cond) {
-  Drop(drop, cond);
-  Ret(cond);
-}
-
 void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
                                                         Register scratch) {
   ldr(scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
