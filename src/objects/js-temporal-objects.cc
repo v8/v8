@@ -2496,20 +2496,22 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
 
 // #sec-temporal-totemporaldurationrecord
 Maybe<DurationRecord> ToTemporalDurationRecord(
-    Isolate* isolate, Handle<Object> temporal_duration_like,
+    Isolate* isolate, Handle<Object> temporal_duration_like_obj,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. If Type(temporalDurationLike) is not Object, then
-  if (!temporal_duration_like->IsJSReceiver()) {
+  if (!temporal_duration_like_obj->IsJSReceiver()) {
     // a. Let string be ? ToString(temporalDurationLike).
     Handle<String> string;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, string, Object::ToString(isolate, temporal_duration_like),
+        isolate, string, Object::ToString(isolate, temporal_duration_like_obj),
         Nothing<DurationRecord>());
     // b. Let result be ? ParseTemporalDurationString(string).
     return ParseTemporalDurationString(isolate, string);
   }
+  Handle<JSReceiver> temporal_duration_like =
+      Handle<JSReceiver>::cast(temporal_duration_like_obj);
   // 2. If temporalDurationLike has an [[InitializedTemporalDuration]] internal
   // slot, then
   if (temporal_duration_like->IsJSTemporalDuration()) {
@@ -2555,8 +2557,7 @@ Maybe<DurationRecord> ToTemporalDurationRecord(
     // b. Let val be ? Get(temporalDurationLike, prop).
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, val,
-        Object::GetPropertyOrElement(isolate, temporal_duration_like,
-                                     row.first),
+        JSReceiver::GetProperty(isolate, temporal_duration_like, row.first),
         Nothing<DurationRecord>());
     // c. If val is undefined, then
     if (val->IsUndefined()) {
@@ -3852,10 +3853,10 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
   if (!new_keys_has_month_or_month_code) {
     // a. Let month be ? Get(fields, "month").
     Handle<Object> month;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, month,
-                               JSReceiver::GetPropertyOrElement(
-                                   isolate, fields, factory->month_string()),
-                               JSReceiver);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, month,
+        JSReceiver::GetProperty(isolate, fields, factory->month_string()),
+        JSReceiver);
     // b. If month is not undefined, then
     if (!month->IsUndefined()) {
       // i. Perform ! CreateDataPropertyOrThrow(merged, "month", month).
@@ -3868,8 +3869,7 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
     Handle<Object> month_code;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, month_code,
-        JSReceiver::GetPropertyOrElement(isolate, fields,
-                                         factory->monthCode_string()),
+        JSReceiver::GetProperty(isolate, fields, factory->monthCode_string()),
         JSReceiver);
     // d. If monthCode is not undefined, then
     if (!month_code->IsUndefined()) {
@@ -4250,7 +4250,7 @@ Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
     // b. Let value be ? Get(temporalTimeLike, property).
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, value,
-        Object::GetPropertyOrElement(isolate, temporal_time_like, row.first),
+        JSReceiver::GetProperty(isolate, temporal_time_like, row.first),
         Nothing<TimeRecord>());
     // c. If value is not undefined, then
     if (!value->IsUndefined()) {
@@ -5674,15 +5674,15 @@ Maybe<DateRecordCommon> ISOMonthDayFromFields(Isolate* isolate,
       Nothing<DateRecordCommon>());
   // 4. Let month be ! Get(fields, "month").
   Handle<Object> month_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->month_string())
+      JSReceiver::GetProperty(isolate, fields, factory->month_string())
           .ToHandleChecked();
   // 5. Let monthCode be ! Get(fields, "monthCode").
   Handle<Object> month_code_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->monthCode_string())
+      JSReceiver::GetProperty(isolate, fields, factory->monthCode_string())
           .ToHandleChecked();
   // 6. Let year be ! Get(fields, "year").
   Handle<Object> year_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->year_string())
+      JSReceiver::GetProperty(isolate, fields, factory->year_string())
           .ToHandleChecked();
   // 7. If month is not undefined, and monthCode and year are both undefined,
   // then
@@ -5700,7 +5700,7 @@ Maybe<DateRecordCommon> ISOMonthDayFromFields(Isolate* isolate,
 
   // 9. Let day be ! Get(fields, "day").
   Handle<Object> day_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->day_string())
+      JSReceiver::GetProperty(isolate, fields, factory->day_string())
           .ToHandleChecked();
   // 10. If day is undefined, throw a TypeError exception.
   if (day_obj->IsUndefined(isolate)) {
@@ -6108,11 +6108,11 @@ Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
   Factory* factory = isolate->factory();
   // 1. Let month be ! Get(fields, "month").
   Handle<Object> month_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->month_string())
+      JSReceiver::GetProperty(isolate, fields, factory->month_string())
           .ToHandleChecked();
   // 2. Let monthCode be ! Get(fields, "monthCode").
   Handle<Object> month_code_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->monthCode_string())
+      JSReceiver::GetProperty(isolate, fields, factory->monthCode_string())
           .ToHandleChecked();
   // 3. If monthCode is undefined, then
   if (month_code_obj->IsUndefined(isolate)) {
@@ -6203,7 +6203,7 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
 
   // 4. Let year be ! Get(fields, "year").
   Handle<Object> year_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->year_string())
+      JSReceiver::GetProperty(isolate, fields, factory->year_string())
           .ToHandleChecked();
   // 5. If year is undefined, throw a TypeError exception.
   if (year_obj->IsUndefined(isolate)) {
@@ -6223,7 +6223,7 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
 
   // 7. Let day be ! Get(fields, "day").
   Handle<Object> day_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->day_string())
+      JSReceiver::GetProperty(isolate, fields, factory->day_string())
           .ToHandleChecked();
   // 8. If day is undefined, throw a TypeError exception.
   if (day_obj->IsUndefined(isolate)) {
@@ -6491,7 +6491,7 @@ Maybe<DateRecordCommon> ISOYearMonthFromFields(Isolate* isolate,
 
   // 4. Let year be ! Get(fields, "year").
   Handle<Object> year_obj =
-      Object::GetPropertyOrElement(isolate, fields, factory->year_string())
+      JSReceiver::GetProperty(isolate, fields, factory->year_string())
           .ToHandleChecked();
   // 5. If year is undefined, throw a TypeError exception.
   if (year_obj->IsUndefined(isolate)) {
@@ -8872,20 +8872,19 @@ MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
     Handle<Object> month;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, month,
-        Object::GetPropertyOrElement(isolate, fields, factory->month_string()),
+        JSReceiver::GetProperty(isolate, fields, factory->month_string()),
         Handle<JSTemporalPlainMonthDay>());
     // g. Let monthCode be ? Get(fields, "monthCode").
     Handle<Object> month_code;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, month_code,
-        Object::GetPropertyOrElement(isolate, fields,
-                                     factory->monthCode_string()),
+        JSReceiver::GetProperty(isolate, fields, factory->monthCode_string()),
         Handle<JSTemporalPlainMonthDay>());
     // h. Let year be ? Get(fields, "year").
     Handle<Object> year;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, year,
-        Object::GetPropertyOrElement(isolate, fields, factory->year_string()),
+        JSReceiver::GetProperty(isolate, fields, factory->year_string()),
         Handle<JSTemporalPlainMonthDay>());
     // i. If calendarAbsent is true, and month is not undefined, and monthCode
     // is undefined and year is undefined, then
@@ -9345,6 +9344,92 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
   return CreateTemporalTime(
       isolate, target, new_target,
       {hour, minute, second, millisecond, microsecond, nanosecond});
+}
+
+// #sec-temporal.plaintime.prototype.tozoneddatetime
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainTime::ToZonedDateTime(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> item_obj) {
+  const char* method_name = "Temporal.PlainTime.prototype.toZonedDateTime";
+  Factory* factory = isolate->factory();
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalTime,
+  // [[InitializedTemporalTime]]).
+  // 3. If Type(item) is not Object, then
+  if (!item_obj->IsJSReceiver()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalZonedDateTime);
+  }
+  Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
+  // 4. Let temporalDateLike be ? Get(item, "plainDate").
+  Handle<Object> temporal_date_like;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date_like,
+      JSReceiver::GetProperty(isolate, item, factory->plainDate_string()),
+      JSTemporalZonedDateTime);
+  // 5. If temporalDateLike is undefined, then
+  if (temporal_date_like->IsUndefined()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalZonedDateTime);
+  }
+  // 6. Let temporalDate be ? ToTemporalDate(temporalDateLike).
+  Handle<JSTemporalPlainDate> temporal_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date,
+      ToTemporalDate(isolate, temporal_date_like, method_name),
+      JSTemporalZonedDateTime);
+  // 7. Let temporalTimeZoneLike be ? Get(item, "timeZone").
+  Handle<Object> temporal_time_zone_like;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_time_zone_like,
+      JSReceiver::GetProperty(isolate, item, factory->timeZone_string()),
+      JSTemporalZonedDateTime);
+  // 8. If temporalTimeZoneLike is undefined, then
+  if (temporal_time_zone_like->IsUndefined()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalZonedDateTime);
+  }
+  // 9. Let timeZone be ? ToTemporalTimeZone(temporalTimeZoneLike).
+  Handle<JSReceiver> time_zone;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone,
+                             temporal::ToTemporalTimeZone(
+                                 isolate, temporal_time_zone_like, method_name),
+                             JSTemporalZonedDateTime);
+  // 10. Let temporalDateTime be ?
+  // CreateTemporalDateTime(temporalDate.[[ISOYear]], temporalDate.[[ISOMonth]],
+  // temporalDate.[[ISODay]], temporalTime.[[ISOHour]],
+  // temporalTime.[[ISOMinute]], temporalTime.[[ISOSecond]],
+  // temporalTime.[[ISOMillisecond]], temporalTime.[[ISOMicrosecond]],
+  // temporalTime.[[ISONanosecond]], temporalDate.[[Calendar]]).
+  Handle<JSReceiver> calendar(temporal_date->calendar(), isolate);
+  Handle<JSTemporalPlainDateTime> temporal_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date_time,
+      temporal::CreateTemporalDateTime(
+          isolate,
+          {{temporal_date->iso_year(), temporal_date->iso_month(),
+            temporal_date->iso_day()},
+           {temporal_time->iso_hour(), temporal_time->iso_minute(),
+            temporal_time->iso_second(), temporal_time->iso_millisecond(),
+            temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()}},
+          calendar),
+      JSTemporalZonedDateTime);
+  // 11. Let instant be ? BuiltinTimeZoneGetInstantFor(timeZone,
+  // temporalDateTime, "compatible").
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      BuiltinTimeZoneGetInstantFor(isolate, time_zone, temporal_date_time,
+                                   Disambiguation::kCompatible, method_name),
+      JSTemporalZonedDateTime);
+  // 12. Return ? CreateTemporalZonedDateTime(instant.[[Nanoseconds]], timeZone,
+  // temporalDate.[[Calendar]]).
+  return CreateTemporalZonedDateTime(
+      isolate, Handle<BigInt>(instant->nanoseconds(), isolate), time_zone,
+      calendar);
 }
 
 // #sec-temporal.now.plaintimeiso
@@ -10008,7 +10093,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTime(
   Handle<Object> calendar_like;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, calendar_like,
-      Object::GetPropertyOrElement(isolate, item, factory->calendar_string()),
+      JSReceiver::GetProperty(isolate, item, factory->calendar_string()),
       JSTemporalZonedDateTime);
   // 5. If calendarLike is undefined, then
   if (calendar_like->IsUndefined()) {
@@ -10027,7 +10112,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTime(
   Handle<Object> temporal_time_zone_like;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temporal_time_zone_like,
-      Object::GetPropertyOrElement(isolate, item, factory->timeZone_string()),
+      JSReceiver::GetProperty(isolate, item, factory->timeZone_string()),
       JSTemporalZonedDateTime);
   // 8. If temporalTimeZoneLike is undefined, then
   if (calendar_like->IsUndefined()) {
@@ -10063,7 +10148,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTimeISO(
     Handle<Object> time_zone_property;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, time_zone_property,
-        Object::GetPropertyOrElement(isolate, item, factory->timeZone_string()),
+        JSReceiver::GetProperty(isolate, item, factory->timeZone_string()),
         JSTemporalZonedDateTime);
     // b. If timeZoneProperty is not undefined, then
     if (!time_zone_property->IsUndefined()) {

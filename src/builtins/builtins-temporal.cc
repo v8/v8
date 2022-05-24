@@ -70,8 +70,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeRound)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeEquals)
 /* Temporal #sec-temporal.plaintime.prototype.toplaindatetime */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToPlainDateTime)
-/* Temporal #sec-temporal.plaintime.prototype.tozoneddatetime */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToZonedDateTime)
 /* Temporal #sec-temporal.plaintime.prototype.tolocalestring */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToLocaleString)
 /* Temporal #sec-temporal.plaintime.prototype.tostring */
@@ -440,6 +438,7 @@ TEMPORAL_GET_SMI(PlainTime, Millisecond, iso_millisecond)
 TEMPORAL_GET_SMI(PlainTime, Microsecond, iso_microsecond)
 TEMPORAL_GET_SMI(PlainTime, Nanosecond, iso_nanosecond)
 TEMPORAL_METHOD2(PlainTime, From)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)
