@@ -2913,7 +2913,6 @@ uint8_t vsew_switch(VSew vsew) {
 
 void Assembler::vl(VRegister vd, Register rs1, uint8_t lumop, VSew vsew,
                    MaskType mask) {
-  std::cout << "vl" << std::endl;
   uint8_t width = vsew_switch(vsew);
   GenInstrV(LOAD_FP, width, vd, rs1, lumop, mask, 0b00, 0, 0b000);
 }
