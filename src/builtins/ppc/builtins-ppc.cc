@@ -1464,7 +1464,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
 
     // Drop the frame created by the baseline call.
-    __ Pop(r0, fp);
+    if (FLAG_enable_embedded_constant_pool) {
+      __ Pop(r0, fp, kConstantPoolRegister);
+    } else {
+      __ Pop(r0, fp);
+    }
     __ mtlr(r0);
     MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                  feedback_vector);
