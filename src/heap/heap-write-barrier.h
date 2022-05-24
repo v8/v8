@@ -42,8 +42,6 @@ void CombinedEphemeronWriteBarrier(EphemeronHashTable object, ObjectSlot slot,
                                    Object value, WriteBarrierMode mode);
 
 // Generational write barrier.
-void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
-                         MaybeObject value);
 void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 
 // Shared heap write barrier.

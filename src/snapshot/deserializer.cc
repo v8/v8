@@ -70,9 +70,7 @@ class SlotAccessorForHeapObject {
   int Write(MaybeObject value, int slot_offset = 0) {
     MaybeObjectSlot current_slot = slot() + slot_offset;
     current_slot.Relaxed_Store(value);
-    WriteBarrier::Marking(*object_, current_slot, value);
-    // No need for a generational write barrier.
-    DCHECK(!Heap::InYoungGeneration(value));
+    CombinedWriteBarrier(*object_, current_slot, value, UPDATE_WRITE_BARRIER);
     return 1;
   }
   int Write(HeapObject value, HeapObjectReferenceType ref_type,
@@ -82,26 +80,6 @@ class SlotAccessorForHeapObject {
   int Write(Handle<HeapObject> value, HeapObjectReferenceType ref_type,
             int slot_offset = 0) {
     return Write(*value, ref_type, slot_offset);
-  }
-
-  // Same as Write, but additionally with a generational barrier.
-  int WriteWithGenerationalBarrier(MaybeObject value) {
-    MaybeObjectSlot current_slot = slot();
-    current_slot.Relaxed_Store(value);
-    WriteBarrier::Marking(*object_, current_slot, value);
-    if (Heap::InYoungGeneration(value)) {
-      GenerationalBarrier(*object_, current_slot, value);
-    }
-    return 1;
-  }
-  int WriteWithGenerationalBarrier(HeapObject value,
-                                   HeapObjectReferenceType ref_type) {
-    return WriteWithGenerationalBarrier(
-        HeapObjectReference::From(value, ref_type));
-  }
-  int WriteWithGenerationalBarrier(Handle<HeapObject> value,
-                                   HeapObjectReferenceType ref_type) {
-    return WriteWithGenerationalBarrier(*value, ref_type);
   }
 
  private:
@@ -137,17 +115,6 @@ class SlotAccessorForRootSlots {
     return Write(*value, ref_type, slot_offset);
   }
 
-  int WriteWithGenerationalBarrier(MaybeObject value) { return Write(value); }
-  int WriteWithGenerationalBarrier(HeapObject value,
-                                   HeapObjectReferenceType ref_type) {
-    return WriteWithGenerationalBarrier(
-        HeapObjectReference::From(value, ref_type));
-  }
-  int WriteWithGenerationalBarrier(Handle<HeapObject> value,
-                                   HeapObjectReferenceType ref_type) {
-    return WriteWithGenerationalBarrier(*value, ref_type);
-  }
-
  private:
   const FullMaybeObjectSlot slot_;
 };
@@ -178,15 +145,6 @@ class SlotAccessorForHandle {
     DCHECK_EQ(ref_type, HeapObjectReferenceType::STRONG);
     *handle_ = value;
     return 1;
-  }
-
-  int WriteWithGenerationalBarrier(HeapObject value,
-                                   HeapObjectReferenceType ref_type) {
-    return Write(value, ref_type);
-  }
-  int WriteWithGenerationalBarrier(Handle<HeapObject> value,
-                                   HeapObjectReferenceType ref_type) {
-    return Write(value, ref_type);
   }
 
  private:
@@ -1035,11 +993,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     case kAttachedReference: {
       int index = source_.GetInt();
       Handle<HeapObject> heap_object = attached_objects_[index];
-
-      // This is the only case where we might encounter new space objects, so
-      // maybe emit a generational write barrier.
-      return slot_accessor.WriteWithGenerationalBarrier(
-          heap_object, GetAndResetNextReferenceType());
+      return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
     }
 
     case kNop:

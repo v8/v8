@@ -92,21 +92,6 @@ struct MemoryChunk {
   V8_INLINE bool InCodeSpace() const { return GetFlags() & kIsExecutableBit; }
 };
 
-inline void GenerationalBarrierInternal(HeapObject object, Address slot,
-                                        HeapObject value) {
-  DCHECK(Heap_PageFlagsAreConsistent(object));
-  heap_internals::MemoryChunk* value_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(value);
-  heap_internals::MemoryChunk* object_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
-
-  if (!value_chunk->InYoungGeneration() || object_chunk->InYoungGeneration()) {
-    return;
-  }
-
-  Heap_GenerationalBarrierSlow(object, slot, value);
-}
-
 inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
                                          HeapObject value,
                                          WriteBarrierMode mode) {
@@ -226,15 +211,6 @@ inline void CombinedEphemeronWriteBarrier(EphemeronHashTable host,
     WriteBarrier::MarkingSlow(host_chunk->GetHeap(), host, HeapObjectSlot(slot),
                               heap_object_value);
   }
-}
-
-inline void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
-                                MaybeObject value) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  HeapObject value_heap_object;
-  if (!value->GetHeapObject(&value_heap_object)) return;
-  heap_internals::GenerationalBarrierInternal(object, slot.address(),
-                                              value_heap_object);
 }
 
 inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
