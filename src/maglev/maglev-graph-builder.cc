@@ -69,8 +69,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
     int offset = offset_and_info.first;
     const compiler::LoopInfo& loop_info = offset_and_info.second;
 
-    const compiler::BytecodeLivenessState* liveness =
-        bytecode_analysis().GetInLivenessFor(offset);
+    const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(offset);
 
     merge_states_[offset] = zone()->New<MergePointInterpreterFrameState>(
         *compilation_unit_, offset, NumPredecessors(offset), liveness,
@@ -1286,8 +1285,7 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
                                              int target) {
   if (merge_states_[target] == nullptr) {
     DCHECK(!bytecode_analysis().IsLoopHeader(target));
-    const compiler::BytecodeLivenessState* liveness =
-        bytecode_analysis().GetInLivenessFor(target);
+    const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(target);
     // If there's no target frame state, allocate a new one.
     merge_states_[target] = zone()->New<MergePointInterpreterFrameState>(
         *compilation_unit_, current_interpreter_frame_, target,
@@ -1315,8 +1313,7 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
   if (merge_states_[target] == nullptr) {
     // All returns should have the same liveness, which is that only the
     // accumulator is live.
-    const compiler::BytecodeLivenessState* liveness =
-        bytecode_analysis().GetInLivenessFor(iterator_.current_offset());
+    const compiler::BytecodeLivenessState* liveness = GetInLiveness();
     DCHECK(liveness->AccumulatorIsLive());
     DCHECK_EQ(liveness->live_value_count(), 1);
 
@@ -1326,9 +1323,8 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
         NumPredecessors(target), predecessor, liveness);
   } else {
     // Again, all returns should have the same liveness, so double check this.
-    DCHECK(bytecode_analysis()
-               .GetInLivenessFor(iterator_.current_offset())
-               ->Equals(*merge_states_[target]->frame_state().liveness()));
+    DCHECK(GetInLiveness()->Equals(
+        *merge_states_[target]->frame_state().liveness()));
     merge_states_[target]->Merge(*compilation_unit_, current_interpreter_frame_,
                                  predecessor, target);
   }

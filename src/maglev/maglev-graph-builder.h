@@ -491,10 +491,16 @@ class MaglevGraphBuilder {
     return iterator_.current_offset() + iterator_.current_bytecode_size();
   }
   const compiler::BytecodeLivenessState* GetInLiveness() const {
-    return bytecode_analysis().GetInLivenessFor(iterator_.current_offset());
+    return GetInLivenessFor(iterator_.current_offset());
+  }
+  const compiler::BytecodeLivenessState* GetInLivenessFor(int offset) const {
+    return bytecode_analysis().GetInLivenessFor(offset);
   }
   const compiler::BytecodeLivenessState* GetOutLiveness() const {
-    return bytecode_analysis().GetOutLivenessFor(iterator_.current_offset());
+    return GetOutLivenessFor(iterator_.current_offset());
+  }
+  const compiler::BytecodeLivenessState* GetOutLivenessFor(int offset) const {
+    return bytecode_analysis().GetOutLivenessFor(offset);
   }
 
   void StartNewBlock(int offset) {
