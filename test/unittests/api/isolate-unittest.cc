@@ -144,7 +144,11 @@ void CrashKeyCallback(v8::CrashKeyId id, const std::string& value) {
 }  // namespace
 TEST_F(IsolateTest, SetAddCrashKeyCallback) {
   isolate()->SetAddCrashKeyCallback(CrashKeyCallback);
-  EXPECT_EQ(crash_keys.size(), 6u);
+
+  internal::Isolate* i_isolate =
+      reinterpret_cast<internal::Isolate*>(isolate());
+  const bool has_map_space = i_isolate->heap()->map_space() != nullptr;
+  EXPECT_EQ(crash_keys.size(), has_map_space ? 6u : 5u);
 }
 
 }  // namespace v8

@@ -582,6 +582,7 @@ class OldGenerationMemoryChunkIterator {
   PageIterator old_iterator_;
   PageIterator code_iterator_;
   PageIterator map_iterator_;
+  const PageIterator map_iterator_end_;
   LargePageIterator lo_iterator_;
   LargePageIterator code_lo_iterator_;
 };
