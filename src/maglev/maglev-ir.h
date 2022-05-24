@@ -99,12 +99,12 @@ class CompactInterpreterFrameState;
   /*V(Float64Negate) */                 \
   /*V(Float64Increment)*/               \
   /*V(Float64Decrement)*/               \
-  /*V(Float64Equal)*/                   \
-  /*V(Float64StrictEqual)*/             \
-  /*V(Float64LessThan)*/                \
-  /*V(Float64LessThanOrEqual)*/         \
-  /*V(Float64GreaterThan)*/             \
-  /*V(Float64GreaterThanOrEqual)*/
+  V(Float64Equal)                       \
+  V(Float64StrictEqual)                 \
+  V(Float64LessThan)                    \
+  V(Float64LessThanOrEqual)             \
+  V(Float64GreaterThan)                 \
+  V(Float64GreaterThanOrEqual)
 
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
@@ -150,7 +150,8 @@ class CompactInterpreterFrameState;
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
   V(BranchIfTrue)                        \
   V(BranchIfToBooleanTrue)               \
-  V(BranchIfInt32Compare)
+  V(BranchIfInt32Compare)                \
+  V(BranchIfFloat64Compare)
 
 #define UNCONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Jump)                                  \
@@ -1269,6 +1270,47 @@ DEF_FLOAT64_BINARY_NODE(Divide)
 // DEF_FLOAT64_BINARY_NODE(GreaterThanOrEqual)
 #undef DEF_FLOAT64_BINARY_NODE
 
+template <class Derived, Operation kOperation>
+class Float64CompareNode : public FixedInputValueNodeT<2, Derived> {
+  using Base = FixedInputValueNodeT<2, Derived>;
+
+ public:
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return Node::input(kLeftIndex); }
+  Input& right_input() { return Node::input(kRightIndex); }
+
+ protected:
+  explicit Float64CompareNode(uint32_t bitfield) : Base(bitfield) {}
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+#define DEF_OPERATION_NODE(Name, Super, OpName)                            \
+  class Name : public Super<Name, Operation::k##OpName> {                  \
+    using Base = Super<Name, Operation::k##OpName>;                        \
+                                                                           \
+   public:                                                                 \
+    explicit Name(uint32_t bitfield) : Base(bitfield) {}                   \
+    void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&); \
+    void GenerateCode(MaglevCodeGenState*, const ProcessingState&);        \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}         \
+  };
+
+#define DEF_FLOAT64_COMPARE_NODE(Name) \
+  DEF_OPERATION_NODE(Float64##Name, Float64CompareNode, Name)
+DEF_FLOAT64_COMPARE_NODE(Equal)
+DEF_FLOAT64_COMPARE_NODE(StrictEqual)
+DEF_FLOAT64_COMPARE_NODE(LessThan)
+DEF_FLOAT64_COMPARE_NODE(LessThanOrEqual)
+DEF_FLOAT64_COMPARE_NODE(GreaterThan)
+DEF_FLOAT64_COMPARE_NODE(GreaterThanOrEqual)
+#undef DEF_FLOAT64_COMPARE_NODE
+
+#undef DEF_OPERATION_NODE
+
 class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
   using Base = FixedInputValueNodeT<1, CheckedSmiTag>;
 
@@ -2273,6 +2315,29 @@ class BranchIfInt32Compare
   explicit BranchIfInt32Compare(uint32_t bitfield, Operation operation,
                                 BasicBlockRef* if_true_refs,
                                 BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Operation operation_;
+};
+
+class BranchIfFloat64Compare
+    : public ConditionalControlNodeT<2, BranchIfFloat64Compare> {
+  using Base = ConditionalControlNodeT<2, BranchIfFloat64Compare>;
+
+ public:
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return NodeBase::input(kLeftIndex); }
+  Input& right_input() { return NodeBase::input(kRightIndex); }
+
+  explicit BranchIfFloat64Compare(uint32_t bitfield, Operation operation,
+                                  BasicBlockRef* if_true_refs,
+                                  BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);

@@ -167,6 +167,13 @@ class MaglevGraphVerifier {
       case Opcode::kFloat64Subtract:
       case Opcode::kFloat64Multiply:
       case Opcode::kFloat64Divide:
+      case Opcode::kFloat64Equal:
+      case Opcode::kFloat64StrictEqual:
+      case Opcode::kFloat64LessThan:
+      case Opcode::kFloat64LessThanOrEqual:
+      case Opcode::kFloat64GreaterThan:
+      case Opcode::kFloat64GreaterThanOrEqual:
+      case Opcode::kBranchIfFloat64Compare:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         CheckValueInputIs(node, 1, ValueRepresentation::kFloat64);

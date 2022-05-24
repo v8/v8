@@ -1133,7 +1133,7 @@ void Int32ShiftRightLogical::GenerateCode(MaglevCodeGenState* code_gen_state,
 
 namespace {
 
-constexpr Condition Int32ConditionFor(Operation operation) {
+constexpr Condition ConditionFor(Operation operation) {
   switch (operation) {
     case Operation::kEqual:
     case Operation::kStrictEqual:
@@ -1170,7 +1170,7 @@ void Int32CompareNode<Derived, kOperation>::GenerateCode(
   Label is_true, end;
   __ cmpl(left, right);
   // TODO(leszeks): Investigate using cmov here.
-  __ j(Int32ConditionFor(kOperation), &is_true);
+  __ j(ConditionFor(kOperation), &is_true);
   // TODO(leszeks): Investigate loading existing materialisations of roots here,
   // if available.
   __ LoadRoot(result, RootIndex::kFalseValue);
@@ -1254,6 +1254,52 @@ void Float64Divide::GenerateCode(MaglevCodeGenState* code_gen_state,
   DoubleRegister right = ToDoubleRegister(right_input());
   __ Divsd(left, right);
 }
+
+template <class Derived, Operation kOperation>
+void Float64CompareNode<Derived, kOperation>::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(vreg_state, this);
+}
+
+template <class Derived, Operation kOperation>
+void Float64CompareNode<Derived, kOperation>::GenerateCode(
+    MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  Register result = ToRegister(this->result());
+  Label is_true, end;
+  __ Ucomisd(left, right);
+  // TODO(leszeks): Investigate using cmov here.
+  __ j(ConditionFor(kOperation), &is_true);
+  // TODO(leszeks): Investigate loading existing materialisations of roots here,
+  // if available.
+  __ LoadRoot(result, RootIndex::kFalseValue);
+  __ jmp(&end);
+  {
+    __ bind(&is_true);
+    __ LoadRoot(result, RootIndex::kTrueValue);
+  }
+  __ bind(&end);
+}
+
+#define DEF_OPERATION(Name)                                      \
+  void Name::AllocateVreg(MaglevVregAllocationState* vreg_state, \
+                          const ProcessingState& state) {        \
+    Base::AllocateVreg(vreg_state, state);                       \
+  }                                                              \
+  void Name::GenerateCode(MaglevCodeGenState* code_gen_state,    \
+                          const ProcessingState& state) {        \
+    Base::GenerateCode(code_gen_state, state);                   \
+  }
+DEF_OPERATION(Float64Equal)
+DEF_OPERATION(Float64StrictEqual)
+DEF_OPERATION(Float64LessThan)
+DEF_OPERATION(Float64LessThanOrEqual)
+DEF_OPERATION(Float64GreaterThan)
+DEF_OPERATION(Float64GreaterThanOrEqual)
+#undef DEF_OPERATION
 
 void CheckedSmiUntag::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                    const ProcessingState& state) {
@@ -1665,10 +1711,43 @@ void BranchIfInt32Compare::GenerateCode(MaglevCodeGenState* code_gen_state,
   // over whatever the next block emitted is.
   if (if_false() == next_block) {
     // Jump over the false block if true, otherwise fall through into it.
-    __ j(Int32ConditionFor(operation_), if_true()->label());
+    __ j(ConditionFor(operation_), if_true()->label());
   } else {
     // Jump to the false block if true.
-    __ j(NegateCondition(Int32ConditionFor(operation_)), if_false()->label());
+    __ j(NegateCondition(ConditionFor(operation_)), if_false()->label());
+    // Jump to the true block if it's not the next block.
+    if (if_true() != next_block) {
+      __ jmp(if_true()->label());
+    }
+  }
+}
+void BranchIfFloat64Compare::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation_ << ")";
+}
+
+void BranchIfFloat64Compare::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                          const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void BranchIfFloat64Compare::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                          const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+
+  auto* next_block = state.next_block();
+
+  __ Ucomisd(left, right);
+
+  // We don't have any branch probability information, so try to jump
+  // over whatever the next block emitted is.
+  if (if_false() == next_block) {
+    // Jump over the false block if true, otherwise fall through into it.
+    __ j(ConditionFor(operation_), if_true()->label());
+  } else {
+    // Jump to the false block if true.
+    __ j(NegateCondition(ConditionFor(operation_)), if_false()->label());
     // Jump to the true block if it's not the next block.
     if (if_true() != next_block) {
       __ jmp(if_true()->label());
