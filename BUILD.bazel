@@ -3336,8 +3336,6 @@ py_binary(
         "third_party/inspector_protocol/lib/ValueConversions_h.template",
         "third_party/inspector_protocol/lib/Values_cpp.template",
         "third_party/inspector_protocol/lib/Values_h.template",
-        "third_party/inspector_protocol/lib/base_string_adapter_cc.template",
-        "third_party/inspector_protocol/lib/base_string_adapter_h.template",
         "third_party/inspector_protocol/templates/Exported_h.template",
         "third_party/inspector_protocol/templates/Imported_h.template",
         "third_party/inspector_protocol/templates/TypeBuilder_cpp.template",
