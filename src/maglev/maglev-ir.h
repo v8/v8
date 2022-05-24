@@ -125,6 +125,7 @@ class CompactInterpreterFrameState;
   V(LoadGlobal)                   \
   V(LoadNamedGeneric)             \
   V(SetNamedGeneric)              \
+  V(DefineNamedOwnGeneric)        \
   V(Phi)                          \
   V(RegisterInput)                \
   V(CheckedSmiTag)                \
@@ -1769,6 +1770,38 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
  public:
   explicit SetNamedGeneric(uint32_t bitfield, const compiler::NameRef& name,
                            const compiler::FeedbackSource& feedback)
+      : Base(bitfield), name_(name), feedback_(feedback) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  compiler::NameRef name() const { return name_; }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  static constexpr int kContextIndex = 0;
+  static constexpr int kObjectIndex = 1;
+  static constexpr int kValueIndex = 2;
+  Input& context() { return input(kContextIndex); }
+  Input& object_input() { return input(kObjectIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::NameRef name_;
+  const compiler::FeedbackSource feedback_;
+};
+
+class DefineNamedOwnGeneric
+    : public FixedInputValueNodeT<3, DefineNamedOwnGeneric> {
+  using Base = FixedInputValueNodeT<3, DefineNamedOwnGeneric>;
+
+ public:
+  explicit DefineNamedOwnGeneric(uint32_t bitfield,
+                                 const compiler::NameRef& name,
+                                 const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
   // The implementation currently calls runtime.

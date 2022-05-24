@@ -781,7 +781,7 @@ void LoadNamedGeneric::PrintParams(std::ostream& os,
 
 void SetNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state,
                                    const ProcessingState& state) {
-  using D = StoreWithVectorDescriptor;
+  using D = CallInterfaceDescriptorFor<Builtin::kStoreIC>::type;
   UseFixed(context(), kContextRegister);
   UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
   UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
@@ -789,7 +789,7 @@ void SetNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state,
 }
 void SetNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
                                    const ProcessingState& state) {
-  using D = StoreWithVectorDescriptor;
+  using D = CallInterfaceDescriptorFor<Builtin::kStoreIC>::type;
   DCHECK_EQ(ToRegister(context()), kContextRegister);
   DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
   DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
@@ -802,6 +802,32 @@ void SetNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
 }
 void SetNamedGeneric::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name_ << ")";
+}
+
+void DefineNamedOwnGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                         const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void DefineNamedOwnGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                         const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
+  __ Move(D::GetRegisterParameter(D::kName), name().object());
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          Smi::FromInt(feedback().slot.ToInt()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kDefineNamedOwnIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+void DefineNamedOwnGeneric::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << name_ << ")";
 }
 

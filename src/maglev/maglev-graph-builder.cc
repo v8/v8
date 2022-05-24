@@ -808,7 +808,55 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
                                              feedback_source));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(DefineNamedOwnProperty)
+void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
+  // DefineNamedOwnProperty <object> <name_index> <slot>
+  ValueNode* object = LoadRegisterTagged(0);
+  compiler::NameRef name = GetRefOperand<Name>(1);
+  FeedbackSlot slot = GetSlotOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kStore, name);
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      EmitUnconditionalDeopt();
+      return;
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      const compiler::NamedAccessFeedback& named_feedback =
+          processed_feedback.AsNamedAccess();
+      if (named_feedback.maps().size() == 1) {
+        // Monomorphic store, check the handler.
+        // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
+        MaybeObjectHandle handler =
+            FeedbackNexusForSlot(slot).FindHandlerForMap(
+                named_feedback.maps()[0].object());
+        if (!handler.is_null() && handler->IsSmi()) {
+          int smi_handler = handler->ToSmi().value();
+          StoreHandler::Kind kind = StoreHandler::KindBits::decode(smi_handler);
+          if (kind == StoreHandler::Kind::kField) {
+            AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
+            ValueNode* value = GetAccumulatorTagged();
+            AddNewNode<StoreField>({object, value}, smi_handler);
+            return;
+          }
+        }
+      }
+    } break;
+
+    default:
+      break;
+  }
+
+  // Create a generic store in the fallthrough.
+  ValueNode* context = GetContext();
+  ValueNode* value = GetAccumulatorTagged();
+  SetAccumulator(AddNewNode<DefineNamedOwnGeneric>({context, object, value},
+                                                   name, feedback_source));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(SetKeyedProperty)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnProperty)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaInArrayLiteral)
