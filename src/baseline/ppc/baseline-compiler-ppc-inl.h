@@ -27,8 +27,6 @@ void BaselineCompiler::Prologue() {
   PrologueFillFrame();
 }
 
-void BaselineCompiler::PrologueFillFrame() { PrologueFillFrame(); }
-
 void BaselineCompiler::PrologueFillFrame() {
   ASM_CODE_COMMENT(&masm_);
   // Inlined register frame fill
