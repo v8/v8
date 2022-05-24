@@ -571,6 +571,7 @@
   F(MC_MARK_FINISH_INCREMENTAL)                      \
   F(MC_MARK_FULL_CLOSURE_PARALLEL)                   \
   F(MC_MARK_FULL_CLOSURE_PARALLEL_JOIN)              \
+  F(MC_MARK_RETAIN_MAPS)                             \
   F(MC_MARK_ROOTS)                                   \
   F(MC_MARK_FULL_CLOSURE)                            \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)          \

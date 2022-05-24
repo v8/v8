@@ -6330,10 +6330,8 @@ void Heap::AddRetainedMap(Handle<NativeContext> context, Handle<Map> map) {
   if (array->IsFull()) {
     CompactRetainedMaps(*array);
   }
-  array =
-      WeakArrayList::AddToEnd(isolate(), array, MaybeObjectHandle::Weak(map));
   array = WeakArrayList::AddToEnd(
-      isolate(), array,
+      isolate(), array, MaybeObjectHandle::Weak(map),
       MaybeObjectHandle(Smi::FromInt(FLAG_retain_maps_for_n_gc), isolate()));
   if (*array != context->retained_maps()) {
     context->set_retained_maps(*array);

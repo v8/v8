@@ -235,11 +235,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void PauseBlackAllocation();
   void FinishBlackAllocation();
 
-  bool ShouldRetainMap(Map map, int age);
-  // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
-  // increase chances of reusing of map transition tree in future.
-  void RetainMaps();
-
   void PublishWriteBarrierWorklists();
 
   // Updates scheduled_bytes_to_mark_ to ensure marking progress based on

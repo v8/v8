@@ -2445,6 +2445,74 @@ void MarkCompactCollector::RecordObjectStats() {
   heap()->dead_object_stats_->ClearObjectStats();
 }
 
+namespace {
+
+bool ShouldRetainMap(MarkCompactCollector::MarkingState* marking_state, Map map,
+                     int age) {
+  if (age == 0) {
+    // The map has aged. Do not retain this map.
+    return false;
+  }
+  Object constructor = map.GetConstructor();
+  if (!constructor.IsHeapObject() ||
+      marking_state->IsWhite(HeapObject::cast(constructor))) {
+    // The constructor is dead, no new objects with this map can
+    // be created. Do not retain this map.
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
+void MarkCompactCollector::RetainMaps() {
+  // Retaining maps increases the chances of reusing map transitions at some
+  // memory cost, hence disable it when trying to reduce memory footprint more
+  // aggressively.
+  const bool should_retain_maps =
+      !heap()->ShouldReduceMemory() && FLAG_retain_maps_for_n_gc != 0;
+
+  for (WeakArrayList retained_maps : heap()->FindAllRetainedMaps()) {
+    DCHECK_EQ(0, retained_maps.length() % 2);
+    for (int i = 0; i < retained_maps.length(); i += 2) {
+      MaybeObject value = retained_maps.Get(i);
+      HeapObject map_heap_object;
+      if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
+        continue;
+      }
+      int age = retained_maps.Get(i + 1).ToSmi().value();
+      int new_age;
+      Map map = Map::cast(map_heap_object);
+      if (should_retain_maps && marking_state()->IsWhite(map)) {
+        if (ShouldRetainMap(marking_state(), map, age)) {
+          if (marking_state()->WhiteToGrey(map)) {
+            local_marking_worklists()->Push(map);
+          }
+          if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+            heap_->AddRetainingRoot(Root::kRetainMaps, map);
+          }
+        }
+        Object prototype = map.prototype();
+        if (age > 0 && prototype.IsHeapObject() &&
+            marking_state()->IsWhite(HeapObject::cast(prototype))) {
+          // The prototype is not marked, age the map.
+          new_age = age - 1;
+        } else {
+          // The prototype and the constructor are marked, this map keeps only
+          // transition tree alive, not JSObjects. Do not age the map.
+          new_age = age;
+        }
+      } else {
+        new_age = FLAG_retain_maps_for_n_gc;
+      }
+      // Compact the array and update the age.
+      if (new_age != age) {
+        retained_maps.Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
+      }
+    }
+  }
+}
+
 void MarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
   // The recursive GC marker detects when it is nearing stack overflow,
@@ -2479,6 +2547,11 @@ void MarkCompactCollector::MarkLiveObjects() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_CLIENT_HEAPS);
     MarkObjectsFromClientHeaps();
+  }
+
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_RETAIN_MAPS);
+    RetainMaps();
   }
 
   if (FLAG_parallel_marking) {
