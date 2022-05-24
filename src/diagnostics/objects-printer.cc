@@ -1257,6 +1257,11 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kSetNamedStrict:
     case FeedbackSlotKind::kDefineNamedOwn: {
       os << InlineCacheState2String(ic_state());
+      if (kind() == FeedbackSlotKind::kLoadProperty &&
+          ic_state() == InlineCacheState::MONOMORPHIC) {
+        os << "\n   ";
+        LoadHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(), os);
+      }
       break;
     }
     case FeedbackSlotKind::kBinaryOp: {
@@ -2852,7 +2857,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
 #ifdef OBJECT_PRINT
   i::StdoutStream os;
   i::LoadHandler::PrintHandler(GetObjectFromRaw(object), os);
-  os << std::flush;
+  os << std::endl << std::flush;
 #endif
 }
 

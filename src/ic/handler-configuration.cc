@@ -514,7 +514,7 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
     int raw_handler = handler.ToSmi().value();
     os << "LoadHandler(Smi)(";
     PrintSmiLoadHandler(raw_handler, os);
-    os << ")" << std::endl;
+    os << ")";
   } else {
     LoadHandler load_handler = LoadHandler::cast(handler);
     int raw_handler = load_handler.smi_handler().ToSmi().value();
@@ -536,7 +536,7 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
     }
     os << ", validity cell = ";
     load_handler.validity_cell().ShortPrint(os);
-    os << ")" << std::endl;
+    os << ")";
   }
 }
 

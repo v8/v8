@@ -159,6 +159,16 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 
+  if (FLAG_print_maglev_code || FLAG_print_maglev_graph ||
+      FLAG_trace_maglev_regalloc) {
+    MaglevCompilationUnit* top_level_unit =
+        compilation_info->toplevel_compilation_unit();
+    std::cout << "Compiling " << Brief(*top_level_unit->function().object())
+              << " with Maglev\n";
+    top_level_unit->bytecode().object()->Disassemble(std::cout);
+    top_level_unit->feedback().object()->Print(std::cout);
+  }
+
   // TODO(v8:7700): Support exceptions in maglev. We currently bail if exception
   // handler table is non-empty.
   if (compilation_info->toplevel_compilation_unit()
@@ -180,11 +190,6 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
   }
 
   if (FLAG_print_maglev_graph) {
-    MaglevCompilationUnit* top_level_unit =
-        compilation_info->toplevel_compilation_unit();
-    std::cout << "Compiling " << Brief(*top_level_unit->function().object())
-              << " with Maglev\n";
-    top_level_unit->bytecode().object()->Disassemble(std::cout);
     std::cout << "\nAfter graph buiding" << std::endl;
     PrintGraph(std::cout, compilation_info, graph_builder.graph());
   }
