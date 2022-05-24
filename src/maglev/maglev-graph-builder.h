@@ -151,6 +151,10 @@ class MaglevGraphBuilder {
         // Loops that are unreachable aside from their back-edge are going to
         // be entirely unreachable, thanks to irreducibility.
         if (!merge_states_[iterator_.current_offset()]->is_unreachable_loop()) {
+          // We might be falling through into this merge state, so merge in that
+          // fallthrough as dead, if necessary.
+          merge_states_[iterator_.current_offset()]->MaybeMergeDeadFallthrough(
+              *compilation_unit_, iterator_.current_offset());
           break;
         }
       }
