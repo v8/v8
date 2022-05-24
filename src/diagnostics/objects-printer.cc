@@ -1947,6 +1947,9 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   for (int i = 0; i < tables().length(); i++) {
     os << "\n - table " << i << ": " << Brief(tables().get(i));
   }
+  if (has_indirect_function_tables()) {
+    os << "\n - indirect_function_table: " << Brief(indirect_function_tables());
+  }
   os << "\n - imported_function_refs: " << Brief(imported_function_refs());
   if (has_indirect_function_table_refs()) {
     os << "\n - indirect_function_table_refs: "
@@ -1959,10 +1962,26 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   if (has_tags_table()) {
     os << "\n - tags table: " << Brief(tags_table());
   }
+  if (has_wasm_internal_functions()) {
+    os << "\n - wasm internal functions: " << Brief(wasm_internal_functions());
+  }
   os << "\n - managed object maps: " << Brief(managed_object_maps());
   os << "\n - feedback vectors: " << Brief(feedback_vectors());
   os << "\n - memory_start: " << static_cast<void*>(memory_start());
   os << "\n - memory_size: " << memory_size();
+  os << "\n - isolate root: " << reinterpret_cast<void*>(isolate_root());
+  os << "\n - stack limit address: "
+     << reinterpret_cast<void*>(stack_limit_address());
+  os << "\n - real stack limit address: "
+     << reinterpret_cast<void*>(real_stack_limit_address());
+  os << "\n - new allocation limit address: "
+     << reinterpret_cast<void*>(new_allocation_limit_address());
+  os << "\n - new allocation top address: "
+     << reinterpret_cast<void*>(new_allocation_top_address());
+  os << "\n - old allocation limit address: "
+     << reinterpret_cast<void*>(old_allocation_limit_address());
+  os << "\n - old allocation top address: "
+     << reinterpret_cast<void*>(old_allocation_top_address());
   os << "\n - imported_function_targets: "
      << static_cast<void*>(imported_function_targets());
   os << "\n - globals_start: " << static_cast<void*>(globals_start());
@@ -1973,6 +1992,18 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
      << static_cast<void*>(indirect_function_table_sig_ids());
   os << "\n - indirect_function_table_targets: "
      << static_cast<void*>(indirect_function_table_targets());
+  os << "\n - jump table start: "
+     << reinterpret_cast<void*>(jump_table_start());
+  os << "\n - data segment starts: "
+     << static_cast<void*>(data_segment_starts());
+  os << "\n - data segment sizes: " << static_cast<void*>(data_segment_sizes());
+  os << "\n - dropped_elem_segments: "
+     << static_cast<void*>(dropped_elem_segments());
+  os << "\n - hook on function call address: "
+     << reinterpret_cast<void*>(hook_on_function_call_address());
+  os << "\n - tiering budget array: "
+     << static_cast<void*>(tiering_budget_array());
+  os << "\n - break_on_entry: " << break_on_entry();
   JSObjectPrintBody(os, *this);
   os << "\n";
 }
