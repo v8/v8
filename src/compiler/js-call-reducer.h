@@ -111,6 +111,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayIndexOf(Node* node);
   Reduction ReduceArrayIsArray(Node* node);
   Reduction ReduceArrayMap(Node* node, const SharedFunctionInfoRef& shared);
+  Reduction ReduceArrayPrototypeAt(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
