@@ -205,8 +205,7 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
     KeyedAccessStoreMode store_mode, MaybeHandle<Object> prev_validity_cell) {
-  Handle<Object> code =
-      MakeCodeHandler(isolate, ElementsTransitionAndStoreBuiltin(store_mode));
+  Handle<Object> code = ElementsTransitionAndStoreBuiltin(isolate, store_mode);
   Handle<Object> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =

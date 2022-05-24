@@ -354,10 +354,12 @@ class StoreHandler final : public DataHandler {
   // Creates a Smi-handler for storing a property to an interceptor.
   static inline Handle<Smi> StoreInterceptor(Isolate* isolate);
 
-  static inline Builtin StoreSloppyArgumentsBuiltin(KeyedAccessStoreMode mode);
-  static inline Builtin StoreFastElementBuiltin(KeyedAccessStoreMode mode);
-  static inline Builtin ElementsTransitionAndStoreBuiltin(
-      KeyedAccessStoreMode mode);
+  static inline Handle<CodeT> StoreSloppyArgumentsBuiltin(
+      Isolate* isolate, KeyedAccessStoreMode mode);
+  static inline Handle<CodeT> StoreFastElementBuiltin(
+      Isolate* isolate, KeyedAccessStoreMode mode);
+  static inline Handle<CodeT> ElementsTransitionAndStoreBuiltin(
+      Isolate* isolate, KeyedAccessStoreMode mode);
 
   // Creates a Smi-handler for storing a property.
   static inline Handle<Smi> StoreSlow(

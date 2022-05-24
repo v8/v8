@@ -924,10 +924,6 @@ Handle<Smi> MakeLoadWasmStructFieldHandler(Isolate* isolate,
 
 }  // namespace
 
-Handle<Object> IC::CodeHandler(Builtin builtin) {
-  return MakeCodeHandler(isolate(), builtin);
-}
-
 Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   ReadOnlyRoots roots(isolate());
@@ -940,13 +936,13 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
     if (lookup_start_object->IsString() &&
         *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
-      return CodeHandler(Builtin::kLoadIC_StringLength);
+      return BUILTIN_CODE(isolate(), LoadIC_StringLength);
     }
 
     if (lookup_start_object->IsStringWrapper() &&
         *lookup->name() == roots.length_string()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_StringWrapperLength);
-      return CodeHandler(Builtin::kLoadIC_StringWrapperLength);
+      return BUILTIN_CODE(isolate(), LoadIC_StringWrapperLength);
     }
 
     // Use specialized code for getting prototype of functions.
@@ -955,7 +951,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         !JSFunction::cast(*lookup_start_object)
              .PrototypeRequiresRuntimeLookup()) {
       TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
-      return CodeHandler(Builtin::kLoadIC_FunctionPrototype);
+      return BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype);
     }
   }
 
@@ -1356,8 +1352,8 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
       !receiver_map->GetIndexedInterceptor().non_masking()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
-    return IsAnyHas() ? CodeHandler(Builtin::kHasIndexedInterceptorIC)
-                      : CodeHandler(Builtin::kLoadIndexedInterceptorIC);
+    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIndexedInterceptorIC)
+                      : BUILTIN_CODE(isolate(), LoadIndexedInterceptorIC);
   }
 
   InstanceType instance_type = receiver_map->instance_type();
@@ -1385,8 +1381,8 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   if (IsSloppyArgumentsElementsKind(elements_kind)) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
-    return IsAnyHas() ? CodeHandler(Builtin::kKeyedHasIC_SloppyArguments)
-                      : CodeHandler(Builtin::kKeyedLoadIC_SloppyArguments);
+    return IsAnyHas() ? BUILTIN_CODE(isolate(), KeyedHasIC_SloppyArguments)
+                      : BUILTIN_CODE(isolate(), KeyedLoadIC_SloppyArguments);
   }
   bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
@@ -2345,13 +2341,13 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   if (receiver_map->has_sloppy_arguments_elements()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
-    code = CodeHandler(StoreHandler::StoreSloppyArgumentsBuiltin(store_mode));
+    code = StoreHandler::StoreSloppyArgumentsBuiltin(isolate(), store_mode);
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_sealed_elements() ||
              receiver_map->has_nonextensible_elements() ||
              receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
-    code = CodeHandler(StoreHandler::StoreFastElementBuiltin(store_mode));
+    code = StoreHandler::StoreFastElementBuiltin(isolate(), store_mode);
     if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
       return code;
     }
