@@ -209,6 +209,13 @@ class Simulator : public SimulatorBase {
   // for each native thread.
   V8_EXPORT_PRIVATE static Simulator* current(v8::internal::Isolate* isolate);
 
+  float ceil(float value);
+  float floor(float value);
+  float trunc(float value);
+  double ceil(double value);
+  double floor(double value);
+  double trunc(double value);
+
   // Accessors for register state. Reading the pc value adheres to the LOONG64
   // architecture specification and is off by a 8 from the currently executing
   // instruction.

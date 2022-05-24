@@ -884,6 +884,36 @@ Simulator* Simulator::current(Isolate* isolate) {
   return sim;
 }
 
+#define FloatPoint_Covert_F32(func)                  \
+  float Simulator::func(float value) {               \
+    float result = std::func(value);                 \
+    if (std::isnan(result)) {                        \
+      uint32_t q_nan, nan;                           \
+      nan = *reinterpret_cast<uint32_t*>(&result);   \
+      q_nan = nan | 0x400000;                        \
+      *reinterpret_cast<uint32_t*>(&result) = q_nan; \
+    }                                                \
+    return result;                                   \
+  }
+#define FloatPoint_Covert_F64(func)                  \
+  FloatPoint_Covert_F32(func)                        \
+  double Simulator::func(double value) {             \
+    double result = std::func(value);                \
+    if (std::isnan(result)) {                        \
+      uint64_t q_nan, nan;                           \
+      nan = *reinterpret_cast<uint64_t*>(&value);    \
+      q_nan = nan | 0x8000000000000;                 \
+      *reinterpret_cast<uint64_t*>(&result) = q_nan; \
+    }                                                \
+    return result;                                   \
+  }
+
+FloatPoint_Covert_F64(ceil)
+FloatPoint_Covert_F64(floor)
+FloatPoint_Covert_F64(trunc)
+#undef FloatPoint_Covert_F32
+#undef FloatPoint_Covert_F64
+
 // Sets the register in the architecture state. It will also deal with updating
 // Simulator internal state for special registers such as PC.
 void Simulator::set_register(int reg, int64_t value) {
@@ -1289,7 +1319,7 @@ void Simulator::round_according_to_fcsr(double toRound, double* rounded,
   // switch ((FCSR_ >> 8) & 3) {
   switch (FCSR_ & kFPURoundingModeMask) {
     case kRoundToNearest:
-      *rounded = std::floor(toRound + 0.5);
+      *rounded = floor(toRound + 0.5);
       *rounded_int = static_cast<int32_t>(*rounded);
       if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
@@ -1303,11 +1333,11 @@ void Simulator::round_according_to_fcsr(double toRound, double* rounded,
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      *rounded = std::ceil(toRound);
+      *rounded = ceil(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      *rounded = std::floor(toRound);
+      *rounded = floor(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
   }
@@ -1330,7 +1360,7 @@ void Simulator::round64_according_to_fcsr(double toRound, double* rounded,
   // the next representable value down.
   switch (FCSR_ & kFPURoundingModeMask) {
     case kRoundToNearest:
-      *rounded = std::floor(toRound + 0.5);
+      *rounded = floor(toRound + 0.5);
       *rounded_int = static_cast<int64_t>(*rounded);
       if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
@@ -1340,15 +1370,15 @@ void Simulator::round64_according_to_fcsr(double toRound, double* rounded,
       }
       break;
     case kRoundToZero:
-      *rounded = std::trunc(toRound);
+      *rounded = trunc(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      *rounded = std::ceil(toRound);
+      *rounded = ceil(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      *rounded = std::floor(toRound);
+      *rounded = floor(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
   }
@@ -1371,7 +1401,7 @@ void Simulator::round_according_to_fcsr(float toRound, float* rounded,
   // the next representable value down.
   switch (FCSR_ & kFPURoundingModeMask) {
     case kRoundToNearest:
-      *rounded = std::floor(toRound + 0.5);
+      *rounded = floor(toRound + 0.5);
       *rounded_int = static_cast<int32_t>(*rounded);
       if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
@@ -1381,15 +1411,15 @@ void Simulator::round_according_to_fcsr(float toRound, float* rounded,
       }
       break;
     case kRoundToZero:
-      *rounded = std::trunc(toRound);
+      *rounded = trunc(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      *rounded = std::ceil(toRound);
+      *rounded = ceil(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      *rounded = std::floor(toRound);
+      *rounded = floor(toRound);
       *rounded_int = static_cast<int32_t>(*rounded);
       break;
   }
@@ -1412,7 +1442,7 @@ void Simulator::round64_according_to_fcsr(float toRound, float* rounded,
   // the next representable value down.
   switch (FCSR_ & kFPURoundingModeMask) {
     case kRoundToNearest:
-      *rounded = std::floor(toRound + 0.5);
+      *rounded = floor(toRound + 0.5);
       *rounded_int = static_cast<int64_t>(*rounded);
       if ((*rounded_int & 1) != 0 && *rounded_int - toRound == 0.5) {
         // If the number is halfway between two integers,
@@ -1426,11 +1456,11 @@ void Simulator::round64_according_to_fcsr(float toRound, float* rounded,
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToPlusInf:
-      *rounded = std::ceil(toRound);
+      *rounded = ceil(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
     case kRoundToMinusInf:
-      *rounded = std::floor(toRound);
+      *rounded = floor(toRound);
       *rounded_int = static_cast<int64_t>(*rounded);
       break;
   }
@@ -4830,7 +4860,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::floor(fj);
+      float rounded = floor(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4843,7 +4873,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::floor(fj);
+      double rounded = floor(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4856,7 +4886,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::floor(fj);
+      float rounded = floor(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4869,7 +4899,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::floor(fj);
+      double rounded = floor(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4882,7 +4912,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::ceil(fj);
+      float rounded = ceil(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4895,7 +4925,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::ceil(fj);
+      double rounded = ceil(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4908,7 +4938,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::ceil(fj);
+      float rounded = ceil(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4921,7 +4951,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::ceil(fj);
+      double rounded = ceil(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4934,7 +4964,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::trunc(fj);
+      float rounded = trunc(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4947,7 +4977,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::trunc(fj);
+      double rounded = trunc(fj);
       int32_t result = static_cast<int32_t>(rounded);
       SetFPUWordResult(fd_reg(), result);
       if (set_fcsr_round_error(fj, rounded)) {
@@ -4960,7 +4990,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::trunc(fj);
+      float rounded = trunc(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4973,7 +5003,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::trunc(fj);
+      double rounded = trunc(fj);
       int64_t result = static_cast<int64_t>(rounded);
       SetFPUResult(fd_reg(), result);
       if (set_fcsr_round64_error(fj, rounded)) {
@@ -4986,7 +5016,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::floor(fj + 0.5);
+      float rounded = floor(fj + 0.5);
       int32_t result = static_cast<int32_t>(rounded);
       if ((result & 1) != 0 && result - fj == 0.5) {
         // If the number is halfway between two integers,
@@ -5004,7 +5034,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::floor(fj + 0.5);
+      double rounded = floor(fj + 0.5);
       int32_t result = static_cast<int32_t>(rounded);
       if ((result & 1) != 0 && result - fj == 0.5) {
         // If the number is halfway between two integers,
@@ -5022,7 +5052,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_float());
       float fj = fj_float();
-      float rounded = std::floor(fj + 0.5);
+      float rounded = floor(fj + 0.5);
       int64_t result = static_cast<int64_t>(rounded);
       if ((result & 1) != 0 && result - fj == 0.5) {
         // If the number is halfway between two integers,
@@ -5040,7 +5070,7 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fd_reg()), fd_double(),
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
-      double rounded = std::floor(fj + 0.5);
+      double rounded = floor(fj + 0.5);
       int64_t result = static_cast<int64_t>(rounded);
       if ((result & 1) != 0 && result - fj == 0.5) {
         // If the number is halfway between two integers,
@@ -5148,8 +5178,8 @@ void Simulator::DecodeTypeOp22() {
       float fj = fj_float();
       float result, temp_result;
       double temp;
-      float upper = std::ceil(fj);
-      float lower = std::floor(fj);
+      float upper = ceil(fj);
+      float lower = floor(fj);
       switch (get_fcsr_rounding_mode()) {
         case kRoundToNearest:
           printf_instr(" kRoundToNearest\n");
@@ -5190,8 +5220,8 @@ void Simulator::DecodeTypeOp22() {
                    FPURegisters::Name(fj_reg()), fj_double());
       double fj = fj_double();
       double result, temp, temp_result;
-      double upper = std::ceil(fj);
-      double lower = std::floor(fj);
+      double upper = ceil(fj);
+      double lower = floor(fj);
       switch (get_fcsr_rounding_mode()) {
         case kRoundToNearest:
           printf_instr(" kRoundToNearest\n");
