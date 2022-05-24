@@ -8,6 +8,36 @@
 
 d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
 
+(function TestObjectReferencingObject() {
+  function createObjects() {
+    globalThis.foo = {
+      bar: { baz: 11525 }
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(11525, foo.bar.baz);
+})();
+
+(function TestInPlaceStringsInObject() {
+  function createObjects() {
+    globalThis.foo = {a: 'foo', b: 'bar', c: 'baz'};
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  // We cannot test that the strings are really in-place; that's covered by
+  // cctests.
+  assertEquals('foobarbaz', foo.a + foo.b + foo.c);
+})();
+
+(function TestRepeatedInPlaceStringsInObject() {
+  function createObjects() {
+    globalThis.foo = {a: 'foo', b: 'bar', c: 'foo'};
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  // We cannot test that the strings are really in-place; that's covered by
+  // cctests.
+  assertEquals('foobarfoo', foo.a + foo.b + foo.c);
+})();
+
 (function TestObjectWithPackedElements() {
   function createObjects() {
     globalThis.foo = {
@@ -118,4 +148,14 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   for (let i = 0; i < 2000; i++){
     assertEquals(`value${i}`, foo[`key${i}`]);
   }
+})();
+
+(function TwoExportedObjects() {
+  function createObjects() {
+    globalThis.one = {x: 1};
+    globalThis.two = {x: 2};
+  }
+  const { one, two } = takeAndUseWebSnapshot(createObjects, ['one', 'two']);
+  assertEquals(1, one.x);
+  assertEquals(2, two.x);
 })();

@@ -8,6 +8,83 @@
 
 d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
 
+(function TestFunctionWithContext() {
+  function createObjects() {
+    globalThis.foo = {
+      key: (function () {
+        let result = 'bar';
+        function inner() { return result; }
+        return inner;
+      })(),
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('bar', foo.key());
+})();
+
+(function TestInnerFunctionWithContextAndParentContext() {
+  function createObjects() {
+    globalThis.foo = {
+      key: (function () {
+        let part1 = 'snap';
+        function inner() {
+          let part2 = 'shot';
+          function innerinner() {
+            return part1 + part2;
+          }
+          return innerinner;
+        }
+        return inner();
+      })()
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('snapshot', foo.key());
+})();
+
+(function TestTopLevelFunctionWithContext() {
+  function createObjects() {
+    globalThis.foo = (function () {
+      let result = 'bar';
+      function inner() { return result; }
+      return inner;
+    })();
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('bar', foo());
+})();
+
+(function TestContextTree() {
+  function createObjects() {
+    (function outer() {
+      let a = 10;
+      let b = 20;
+      (function inner1() {
+        let c = 5;
+        globalThis.f1 = function() { return a + b + c; };
+      })();
+      (function inner2() {
+        let d = 10;
+        globalThis.f2 = function() { return a - b - d; };
+      })();
+    })();
+  }
+  const {f1, f2} = takeAndUseWebSnapshot(createObjects, ['f1', 'f2']);
+  assertEquals(35, f1());
+  assertEquals(-20, f2());
+})();
+
+(function TestContextReferringToFunction() {
+  function createObjects() {
+    (function outer() {
+      let a = function() { return 10; }
+      globalThis.f = function() { return a(); };
+    })();
+  }
+  const {f} = takeAndUseWebSnapshot(createObjects, ['f']);
+  assertEquals(10, f());
+})();
+
 (function TestNonInlinedScopeInfoInContext() {
   function createObjects() {
     globalThis.bar = (function() {
@@ -336,40 +413,32 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals('bar', foo());
 })();
 
-(function TestNonGlobalSymbol() {
+(function TestContextReferencingArray() {
   function createObjects() {
-    const s = Symbol('description');
-    globalThis.foo = {mySymbol: s, innerObject: { symbolHereToo: s}};
+    function outer() {
+      let o = [11525];
+      function inner() { return o; }
+      return inner;
+    }
+    globalThis.foo = {
+      func: outer()
+    };
   }
-  const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(foo.mySymbol, foo.innerObject.symbolHereToo);
-  assertEquals('description', foo.mySymbol.description);
-  assertNotEquals(foo.mySymbol, Symbol('description'));
-  assertNotEquals(foo.mySymbol, Symbol.for('description'));
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(11525, foo.func()[0]);
 })();
 
-(function TestGlobalSymbol() {
+(function TestContextReferencingObject() {
   function createObjects() {
-    const s = Symbol.for('this is global');
-    globalThis.foo = {mySymbol: s, innerObject: { symbolHereToo: s}};
+    function outer() {
+      let o = { value: 11525 };
+      function inner() { return o; }
+      return inner;
+    }
+    globalThis.foo = {
+      func: outer()
+    };
   }
-  const {foo} = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(foo.mySymbol, foo.innerObject.symbolHereToo);
-  assertEquals('this is global', foo.mySymbol.description);
-  assertEquals(Symbol.for('this is global'), foo.mySymbol);
-})();
-
-(function TestSymbolAsMapKey() {
-  function createObjects() {
-    globalThis.obj1 = {};
-    const global_symbol = Symbol.for('this is global');
-    obj1[global_symbol] = 'global symbol value';
-    globalThis.obj2 = {};
-    const nonglobal_symbol = Symbol('this is not global');
-    obj2[nonglobal_symbol] = 'nonglobal symbol value';
-  }
-  const {obj1, obj2} = takeAndUseWebSnapshot(createObjects, ['obj1', 'obj2']);
-  assertEquals('global symbol value', obj1[Symbol.for('this is global')]);
-  const nonglobal_symbol = Object.getOwnPropertySymbols(obj2)[0];
-  assertEquals('nonglobal symbol value', obj2[nonglobal_symbol]);
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(11525, foo.func().value);
 })();

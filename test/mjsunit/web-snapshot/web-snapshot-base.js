@@ -20,55 +20,12 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals(42, foo.n);
 })();
 
-(function TestDefaultObjectProto() {
-  function createObjects() {
-    globalThis.foo = {
-      str: 'hello',
-      n: 42,
-    };
-  }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(Object.prototype, Object.getPrototypeOf(foo));
-})();
-
 (function TestEmptyObject() {
   function createObjects() {
     globalThis.foo = {};
   }
   const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
   assertEquals([], Object.keys(foo));
-})();
-
-(function TestEmptyObjectProto() {
-  function createObjects() {
-    globalThis.foo = {};
-  }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(Object.prototype, Object.getPrototypeOf(foo));
-})();
-
-(function TestObjectProto() {
-  function createObjects() {
-    globalThis.foo = {
-      __proto__ : {x : 10},
-      y: 11
-    };
-  }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals(10, Object.getPrototypeOf(foo).x);
-})();
-
-(function TestObjectProtoInSnapshot() {
-  function createObjects() {
-    globalThis.o1 = { x: 10};
-    globalThis.o2 = {
-      __proto__ : o1,
-      y: 11
-    };
-  }
-  const { o1, o2 } = takeAndUseWebSnapshot(createObjects, ['o1', 'o2']);
-  assertEquals(o1, Object.getPrototypeOf(o2));
-  assertEquals(Object.prototype, Object.getPrototypeOf(o1));
 })();
 
 (function TestNumbers() {
@@ -153,62 +110,6 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals(108, s.charCodeAt(0));
   assertEquals(0, s.charCodeAt(1));
   assertEquals(108, s.charCodeAt(2));
-})();
-
-(function TestFunction() {
-  function createObjects() {
-    globalThis.foo = {
-      key: function () { return 'bar'; },
-    };
-  }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals('bar', foo.key());
-})();
-
-(function TestFunctionWithContext() {
-  function createObjects() {
-    globalThis.foo = {
-      key: (function () {
-        let result = 'bar';
-        function inner() { return result; }
-        return inner;
-      })(),
-    };
-  }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals('bar', foo.key());
-})();
-
-(function TestInnerFunctionWithContextAndParentContext() {
-  function createObjects() {
-    globalThis.foo = {
-      key: (function () {
-        let part1 = 'snap';
-        function inner() {
-          let part2 = 'shot';
-          function innerinner() {
-            return part1 + part2;
-          }
-          return innerinner;
-        }
-        return inner();
-      })()
-    };
-  }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals('snapshot', foo.key());
-})();
-
-(function TestTopLevelFunctionWithContext() {
-  function createObjects() {
-    globalThis.foo = (function () {
-      let result = 'bar';
-      function inner() { return result; }
-      return inner;
-    })();
-  }
-  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
-  assertEquals('bar', foo());
 })();
 
 (function TestRegExp() {
