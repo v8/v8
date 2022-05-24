@@ -965,9 +965,6 @@ DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,
             "enable experimental feedback collection in generic lowering.")
 DEFINE_BOOL(isolate_script_cache_ageing, true,
             "enable ageing of the isolate script cache.")
-DEFINE_BOOL(isolate_script_cache_recompilation, false,
-            "enable recompiling an existing Script from the Isolate cache when "
-            "there is not a compiled top-level SharedFunctionInfo")
 
 DEFINE_FLOAT(script_delay, 0, "busy wait [ms] on every Script::Run")
 DEFINE_FLOAT(script_delay_once, 0, "busy wait [ms] on the first Script::Run")

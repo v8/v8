@@ -239,12 +239,6 @@ Object HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::SetKeyAt(InternalIndex entry, Object value,
-                                         WriteBarrierMode mode) {
-  set_key(EntryToIndex(entry), value, mode);
-}
-
-template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::set_key(int index, Object value) {
   DCHECK(!IsEphemeronHashTable());
   FixedArray::set(index, value);

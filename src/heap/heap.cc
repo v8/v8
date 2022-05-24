@@ -2673,6 +2673,8 @@ void Heap::MarkCompactPrologue() {
   RegExpResultsCache::Clear(string_split_cache());
   RegExpResultsCache::Clear(regexp_multiple_cache());
 
+  isolate_->compilation_cache()->MarkCompactPrologue();
+
   FlushNumberStringCache();
 }
 
