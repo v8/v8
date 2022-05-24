@@ -7945,6 +7945,118 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::With(
       "Temporal.PlainDate.prototype.with");
 }
 
+// #sec-temporal.plaindate.prototype.tozoneddatetime
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Handle<Object> item_obj) {
+  const char* method_name = "Temporal.PlainDate.prototype.toZonedDateTime";
+  Factory* factory = isolate->factory();
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+  // 3. If Type(item) is Object, then
+  Handle<JSReceiver> time_zone;
+  Handle<Object> temporal_time_obj;
+  if (item_obj->IsJSReceiver()) {
+    Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
+    // a. Let timeZoneLike be ? Get(item, "timeZone").
+    Handle<Object> time_zone_like;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time_zone_like,
+        JSReceiver::GetProperty(isolate, item, factory->timeZone_string()),
+        JSTemporalZonedDateTime);
+    // b. If timeZoneLike is undefined, then
+    if (time_zone_like->IsUndefined()) {
+      // i. Let timeZone be ? ToTemporalTimeZone(item).
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, time_zone,
+          temporal::ToTemporalTimeZone(isolate, item, method_name),
+          JSTemporalZonedDateTime);
+      // ii. Let temporalTime be undefined.
+      temporal_time_obj = factory->undefined_value();
+      // c. Else,
+    } else {
+      // i. Let timeZone be ? ToTemporalTimeZone(timeZoneLike).
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, time_zone,
+          temporal::ToTemporalTimeZone(isolate, time_zone_like, method_name),
+          JSTemporalZonedDateTime);
+      // ii. Let temporalTime be ? Get(item, "plainTime").
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, temporal_time_obj,
+          JSReceiver::GetProperty(isolate, item, factory->plainTime_string()),
+          JSTemporalZonedDateTime);
+    }
+    // 4. Else,
+  } else {
+    // a. Let timeZone be ? ToTemporalTimeZone(item).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time_zone,
+        temporal::ToTemporalTimeZone(isolate, item_obj, method_name),
+        JSTemporalZonedDateTime);
+    // b. Let temporalTime be undefined.
+    temporal_time_obj = factory->undefined_value();
+  }
+  // 5. If temporalTime is undefined, then
+  Handle<JSTemporalPlainDateTime> temporal_date_time;
+  Handle<JSReceiver> calendar(temporal_date->calendar(), isolate);
+  if (temporal_time_obj->IsUndefined()) {
+    // a. Let temporalDateTime be ?
+    // CreateTemporalDateTime(temporalDate.[[ISOYear]],
+    // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]], 0, 0, 0, 0, 0, 0,
+    // temporalDate.[[Calendar]]).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_time,
+        temporal::CreateTemporalDateTime(
+            isolate,
+            {{temporal_date->iso_year(), temporal_date->iso_month(),
+              temporal_date->iso_day()},
+             {0, 0, 0, 0, 0, 0}},
+            calendar),
+        JSTemporalZonedDateTime);
+    // 6. Else,
+  } else {
+    Handle<JSTemporalPlainTime> temporal_time;
+    // a. Set temporalTime to ? ToTemporalTime(temporalTime).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_time,
+        temporal::ToTemporalTime(isolate, temporal_time_obj,
+                                 ShowOverflow::kConstrain, method_name),
+        JSTemporalZonedDateTime);
+    // b. Let temporalDateTime be ?
+    // CreateTemporalDateTime(temporalDate.[[ISOYear]],
+    // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]],
+    // temporalTime.[[ISOHour]], temporalTime.[[ISOMinute]],
+    // temporalTime.[[ISOSecond]], temporalTime.[[ISOMillisecond]],
+    // temporalTime.[[ISOMicrosecond]], temporalTime.[[ISONanosecond]],
+    // temporalDate.[[Calendar]]).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_time,
+        temporal::CreateTemporalDateTime(
+            isolate,
+            {{temporal_date->iso_year(), temporal_date->iso_month(),
+              temporal_date->iso_day()},
+             {temporal_time->iso_hour(), temporal_time->iso_minute(),
+              temporal_time->iso_second(), temporal_time->iso_millisecond(),
+              temporal_time->iso_microsecond(),
+              temporal_time->iso_nanosecond()}},
+            calendar),
+        JSTemporalZonedDateTime);
+  }
+  // 7. Let instant be ? BuiltinTimeZoneGetInstantFor(timeZone,
+  // temporalDateTime, "compatible").
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      BuiltinTimeZoneGetInstantFor(isolate, time_zone, temporal_date_time,
+                                   Disambiguation::kCompatible, method_name),
+      JSTemporalZonedDateTime);
+  // 8. Return ? CreateTemporalZonedDateTime(instant.[[Nanoseconds]], timeZone,
+  // temporalDate.[[Calendar]]).
+  return CreateTemporalZonedDateTime(
+      isolate, handle(instant->nanoseconds(), isolate), time_zone, calendar);
+}
+
 // #sec-temporal.now.plaindate
 MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Now(
     Isolate* isolate, Handle<Object> calendar_like,

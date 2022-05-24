@@ -287,6 +287,11 @@ class JSTemporalPlainDate
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainMonthDay>
   ToPlainMonthDay(Isolate* isolate, Handle<JSTemporalPlainDate> plain_date);
 
+  // #sec-temporal.plaindate.prototype.tozoneddatetime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime>
+  ToZonedDateTime(Isolate* isolate, Handle<JSTemporalPlainDate> plain_date,
+                  Handle<Object> item);
+
   // #sec-temporal.now.plaindate
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> Now(
       Isolate* isolate, Handle<Object> calendar_like,
