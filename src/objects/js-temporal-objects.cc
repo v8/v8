@@ -10080,6 +10080,60 @@ MaybeHandle<String> JSTemporalZonedDateTime::Offset(
       "Temporal.ZonedDateTime.prototype.offset");
 }
 
+// #sec-temporal.zoneddatetime.prototype.startofday
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::StartOfDay(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.ZonedDateTime.prototype.startOfDay";
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Let timeZone be zonedDateTime.[[TimeZone]].
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
+  // 4. Let calendar be zonedDateTime.[[Calendar]].
+  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
+  // 5. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
+  Handle<JSTemporalInstant> instant =
+      temporal::CreateTemporalInstant(
+          isolate, handle(zoned_date_time->nanoseconds(), isolate))
+          .ToHandleChecked();
+  // 6. Let temporalDateTime be ?
+  // BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant, calendar).
+  Handle<JSTemporalPlainDateTime> temporal_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date_time,
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, instant,
+                                                   calendar, method_name),
+      JSTemporalZonedDateTime);
+  // 7. Let startDateTime be ?
+  // CreateTemporalDateTime(temporalDateTime.[[ISOYear]],
+  // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]], 0, 0, 0, 0, 0,
+  // 0, calendar).
+  Handle<JSTemporalPlainDateTime> start_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, start_date_time,
+      temporal::CreateTemporalDateTime(
+          isolate,
+          {{temporal_date_time->iso_year(), temporal_date_time->iso_month(),
+            temporal_date_time->iso_day()},
+           {0, 0, 0, 0, 0, 0}},
+          calendar),
+      JSTemporalZonedDateTime);
+  // 8. Let startInstant be ? BuiltinTimeZoneGetInstantFor(timeZone,
+  // startDateTime, "compatible").
+  Handle<JSTemporalInstant> start_instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, start_instant,
+      BuiltinTimeZoneGetInstantFor(isolate, time_zone, start_date_time,
+                                   Disambiguation::kCompatible, method_name),
+      JSTemporalZonedDateTime);
+  // 9. Return ? CreateTemporalZonedDateTime(startInstant.[[Nanoseconds]],
+  // timeZone, calendar).
+  return CreateTemporalZonedDateTime(
+      isolate, handle(start_instant->nanoseconds(), isolate), time_zone,
+      calendar);
+}
+
 // #sec-temporal.instant
 MaybeHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
