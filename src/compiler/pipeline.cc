@@ -104,6 +104,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
+#include "src/compiler/wasm-gc-lowering.h"
 #include "src/compiler/wasm-inlining.h"
 #include "src/compiler/wasm-loop-peeling.h"
 #include "src/wasm/function-body-decoder.h"
@@ -2044,6 +2045,22 @@ struct TurboshaftRecreateSchedulePhase {
 };
 
 #if V8_ENABLE_WEBASSEMBLY
+struct WasmGCLoweringPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmGCLowering)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
+    WasmGCLowering lowering(&graph_reducer, data->mcgraph());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
+    AddReducer(data, &graph_reducer, &lowering);
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    graph_reducer.ReduceGraph();
+  }
+};
+
 struct WasmOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
 
@@ -3238,6 +3255,11 @@ void Pipeline::GenerateCodeForWasmFunction(
     pipeline.RunPrintAndVerify(WasmLoopUnrollingPhase::phase_name(), true);
   }
   const bool is_asm_js = is_asmjs_module(module);
+
+  if (FLAG_experimental_wasm_gc) {
+    pipeline.Run<WasmGCLoweringPhase>();
+    pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
+  }
 
   if (FLAG_wasm_opt || is_asm_js) {
     pipeline.Run<WasmOptimizationPhase>(is_asm_js);

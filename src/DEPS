@@ -12,6 +12,7 @@ include_rules = [
   "-src/compiler",
   "+src/compiler/pipeline.h",
   "+src/compiler/code-assembler.h",
+  "+src/compiler/wasm-compiler-definitions.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",
   "+src/heap/basic-memory-chunk.h",

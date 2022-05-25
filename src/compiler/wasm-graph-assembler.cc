@@ -6,6 +6,7 @@
 
 #include "src/compiler/diamond.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/wasm-compiler-definitions.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -345,6 +346,31 @@ Node* WasmGraphAssembler::IsDataRefMap(Node* map) {
   return Uint32LessThanOrEqual(
       comparison_value,
       Int32Constant(LAST_WASM_OBJECT_TYPE - FIRST_WASM_OBJECT_TYPE));
+}
+
+Node* WasmGraphAssembler::WasmTypeCheck(Node* object, Node* rtt,
+                                        WasmTypeCheckConfig config) {
+  return AddNode(graph()->NewNode(simplified_.WasmTypeCheck(config), object,
+                                  rtt, effect(), control()));
+}
+
+Node* WasmGraphAssembler::WasmTypeCast(Node* object, Node* rtt,
+                                       WasmTypeCheckConfig config) {
+  return AddNode(graph()->NewNode(simplified_.WasmTypeCast(config), object, rtt,
+                                  effect(), control()));
+}
+
+Node* WasmGraphAssembler::Null() {
+  return AddNode(graph()->NewNode(simplified_.Null()));
+}
+
+Node* WasmGraphAssembler::IsNull(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.IsNull(), object));
+}
+
+Node* WasmGraphAssembler::AssertNotNull(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.AssertNotNull(), object, effect(),
+                                  control()));
 }
 
 // Generic HeapObject helpers.

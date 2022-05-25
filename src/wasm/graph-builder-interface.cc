@@ -4,6 +4,7 @@
 
 #include "src/wasm/graph-builder-interface.h"
 
+#include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
@@ -24,6 +25,8 @@ namespace internal {
 namespace wasm {
 
 namespace {
+
+using TFNode = compiler::Node;
 
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
@@ -1179,12 +1182,12 @@ class WasmGraphBuildingInterface {
     result->node = builder_->RttCanon(type_index);
   }
 
-  using StaticKnowledge = compiler::WasmGraphBuilder::ObjectReferenceKnowledge;
+  using WasmTypeCheckConfig = v8::internal::compiler::WasmTypeCheckConfig;
 
-  StaticKnowledge ComputeStaticKnowledge(ValueType object_type,
-                                         ValueType rtt_type,
-                                         const WasmModule* module) {
-    StaticKnowledge result;
+  WasmTypeCheckConfig ComputeWasmTypeCheckConfig(ValueType object_type,
+                                                 ValueType rtt_type,
+                                                 const WasmModule* module) {
+    WasmTypeCheckConfig result;
     result.object_can_be_null = object_type.is_nullable();
     DCHECK(object_type.is_object_reference());  // Checked by validation.
     // In the bottom case, the result is irrelevant.
@@ -1197,27 +1200,27 @@ class WasmGraphBuildingInterface {
 
   void RefTest(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
-    StaticKnowledge config =
-        ComputeStaticKnowledge(object.type, rtt.type, decoder->module_);
+    WasmTypeCheckConfig config =
+        ComputeWasmTypeCheckConfig(object.type, rtt.type, decoder->module_);
     result->node = builder_->RefTest(object.node, rtt.node, config);
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
-    StaticKnowledge config =
-        ComputeStaticKnowledge(object.type, rtt.type, decoder->module_);
+    WasmTypeCheckConfig config =
+        ComputeWasmTypeCheckConfig(object.type, rtt.type, decoder->module_);
     result->node =
         builder_->RefCast(object.node, rtt.node, config, decoder->position());
   }
 
   template <void (compiler::WasmGraphBuilder::*branch_function)(
-      TFNode*, TFNode*, StaticKnowledge, TFNode**, TFNode**, TFNode**,
+      TFNode*, TFNode*, WasmTypeCheckConfig, TFNode**, TFNode**, TFNode**,
       TFNode**)>
   void BrOnCastAbs(FullDecoder* decoder, const Value& object, const Value& rtt,
                    Value* forwarding_value, uint32_t br_depth,
                    bool branch_on_match) {
-    StaticKnowledge config =
-        ComputeStaticKnowledge(object.type, rtt.type, decoder->module_);
+    WasmTypeCheckConfig config =
+        ComputeWasmTypeCheckConfig(object.type, rtt.type, decoder->module_);
     SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
     SsaEnv* no_branch_env = Steal(decoder->zone(), ssa_env_);
     no_branch_env->SetNotMerged();

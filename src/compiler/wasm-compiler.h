@@ -45,14 +45,12 @@ enum class TrapId : uint32_t;
 struct Int64LoweringSpecialCase;
 template <size_t VarCount>
 class GraphAssemblerLabel;
+struct WasmTypeCheckConfig;
 }  // namespace compiler
 
 namespace wasm {
 class AssemblerBufferCache;
 struct DecodeStruct;
-// Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
-using TFNode = compiler::Node;
-using TFGraph = compiler::MachineGraph;
 class WasmCode;
 class WasmFeatures;
 class WireBytesStorage;
@@ -223,10 +221,6 @@ class WasmGraphBuilder {
     kInstanceMode,
     kWasmApiFunctionRefMode,
     kNoSpecialParameterMode
-  };
-  struct ObjectReferenceKnowledge {
-    bool object_can_be_null;
-    uint8_t rtt_depth;
   };
   enum EnforceBoundsCheck : bool {  // --
     kNeedsBoundsCheck = true,
@@ -513,33 +507,33 @@ class WasmGraphBuilder {
   Node* I31GetU(Node* input);
   Node* RttCanon(uint32_t type_index);
 
-  Node* RefTest(Node* object, Node* rtt, ObjectReferenceKnowledge config);
-  Node* RefCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+  Node* RefTest(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* RefCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 wasm::WasmCodePosition position);
-  void BrOnCast(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+  void BrOnCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
   Node* RefIsData(Node* object, bool object_can_be_null);
   Node* RefAsData(Node* object, bool object_can_be_null,
                   wasm::WasmCodePosition position);
-  void BrOnData(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+  void BrOnData(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
   Node* RefIsFunc(Node* object, bool object_can_be_null);
   Node* RefAsFunc(Node* object, bool object_can_be_null,
                   wasm::WasmCodePosition position);
-  void BrOnFunc(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+  void BrOnFunc(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
   Node* RefIsArray(Node* object, bool object_can_be_null);
   Node* RefAsArray(Node* object, bool object_can_be_null,
                    wasm::WasmCodePosition position);
-  void BrOnArray(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+  void BrOnArray(Node* object, Node* rtt, WasmTypeCheckConfig config,
                  Node** match_control, Node** match_effect,
                  Node** no_match_control, Node** no_match_effect);
   Node* RefIsI31(Node* object);
   Node* RefAsI31(Node* object, wasm::WasmCodePosition position);
-  void BrOnI31(Node* object, Node* rtt, ObjectReferenceKnowledge config,
+  void BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config,
                Node** match_control, Node** match_effect,
                Node** no_match_control, Node** no_match_effect);
 
@@ -700,6 +694,8 @@ class WasmGraphBuilder {
 
   Node* IsNull(Node* object);
 
+  Node* AssertNotNull(Node* object, wasm::WasmCodePosition position);
+
   void GetGlobalBaseAndOffset(const wasm::WasmGlobal&, Node** base_node,
                               Node** offset_node);
 
@@ -711,9 +707,9 @@ class WasmGraphBuilder {
   };
 
   // This type is used to collect control/effect nodes we need to merge at the
-  // end of BrOn* functions. Nodes are collected in {TypeCheck} etc. by calling
-  // the passed callbacks succeed_if, fail_if and fail_if_not. We have up to 5
-  // control nodes to merge; the EffectPhi needs an additional input.
+  // end of BrOn* functions. Nodes are collected by calling the passed callbacks
+  // succeed_if, fail_if and fail_if_not. We have up to 5 control nodes to
+  // merge; the EffectPhi needs an additional input.
   using SmallNodeVector = base::SmallVector<Node*, 6>;
 
   Callbacks TestCallbacks(GraphAssemblerLabel<1>* label);
@@ -724,8 +720,6 @@ class WasmGraphBuilder {
                             SmallNodeVector& match_controls,
                             SmallNodeVector& match_effects);
 
-  void TypeCheck(Node* object, Node* rtt, ObjectReferenceKnowledge config,
-                 bool null_succeeds, Callbacks callbacks);
   void DataCheck(Node* object, bool object_can_be_null, Callbacks callbacks);
   void ManagedObjectInstanceCheck(Node* object, bool object_can_be_null,
                                   InstanceType instance_type,

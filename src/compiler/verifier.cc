@@ -1639,6 +1639,14 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Any());
       CheckValueInputIs(node, 0, Type::Any());  // callee
       break;
+    case IrOpcode::kWasmTypeCheck:
+    case IrOpcode::kWasmTypeCast:
+    case IrOpcode::kRttCanon:
+    case IrOpcode::kNull:
+    case IrOpcode::kIsNull:
+    case IrOpcode::kAssertNotNull:
+      // TODO(manoskouk): What are the constraints here?
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Machine operators

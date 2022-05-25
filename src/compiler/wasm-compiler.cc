@@ -37,6 +37,7 @@
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/wasm-compiler-definitions.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/compiler/zone-stats.h"
 #include "src/execution/isolate-inl.h"
@@ -294,7 +295,11 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
                           effects_and_control);
 }
 
-Node* WasmGraphBuilder::RefNull() { return LOAD_ROOT(NullValue, null_value); }
+Node* WasmGraphBuilder::RefNull() {
+  return (FLAG_experimental_wasm_gc && parameter_mode_ == kInstanceMode)
+             ? gasm_->Null()
+             : LOAD_ROOT(NullValue, null_value);
+}
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
   return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmRefFunc,
@@ -304,10 +309,7 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
 
 Node* WasmGraphBuilder::RefAsNonNull(Node* arg,
                                      wasm::WasmCodePosition position) {
-  if (!FLAG_experimental_wasm_skip_null_checks) {
-    TrapIfTrue(wasm::kTrapIllegalCast, IsNull(arg), position);
-  }
-  return arg;
+  return AssertNotNull(arg, position);
 }
 
 Node* WasmGraphBuilder::NoContextConstant() {
@@ -377,7 +379,7 @@ void WasmGraphBuilder::StackCheck(
 
     constexpr Operator::Properties properties =
         Operator::kNoThrow | Operator::kNoWrite;
-    // If we ever want to mark this call as  kNoDeopt, we'll have to make it
+    // If we ever want to mark this call as kNoDeopt, we'll have to make it
     // non-eliminatable some other way.
     static_assert((properties & Operator::kEliminatable) !=
                   Operator::kEliminatable);
@@ -1125,6 +1127,14 @@ void WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
   TrapId trap_id = GetTrapIdForTrap(reason);
   Node* node = gasm_->TrapUnless(cond, trap_id);
   SetSourcePosition(node, position);
+}
+
+Node* WasmGraphBuilder::AssertNotNull(Node* object,
+                                      wasm::WasmCodePosition position) {
+  if (FLAG_experimental_wasm_skip_null_checks) return object;
+  Node* result = gasm_->AssertNotNull(object);
+  SetSourcePosition(result, position);
+  return result;
 }
 
 // Add a check that traps if {node} is equal to {val}.
@@ -2589,7 +2599,9 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 }
 
 Node* WasmGraphBuilder::IsNull(Node* object) {
-  return gasm_->TaggedEqual(object, RefNull());
+  return (FLAG_experimental_wasm_gc && parameter_mode_ == kInstanceMode)
+             ? gasm_->IsNull(object)
+             : gasm_->TaggedEqual(object, RefNull());
 }
 
 template <typename... Args>
@@ -2914,7 +2926,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
                                      IsReturnCall continuation,
                                      wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
-    TrapIfTrue(wasm::kTrapNullDereference, IsNull(args[0]), position);
+    args[0] = AssertNotNull(args[0], position);
   }
 
   Node* function = args[0];
@@ -5266,11 +5278,7 @@ Node* WasmGraphBuilder::ArrayInitFromData(const wasm::ArrayType* type,
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
-  Node* maps_list =
-      LOAD_INSTANCE_FIELD(ManagedObjectMaps, MachineType::TaggedPointer());
-  return gasm_->LoadImmutable(
-      MachineType::TaggedPointer(), maps_list,
-      wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index));
+  return graph()->NewNode(gasm_->simplified()->RttCanon(type_index));
 }
 
 WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(
@@ -5338,40 +5346,6 @@ WasmGraphBuilder::Callbacks WasmGraphBuilder::BranchCallbacks(
       }};
 }
 
-void WasmGraphBuilder::TypeCheck(
-    Node* object, Node* rtt, WasmGraphBuilder::ObjectReferenceKnowledge config,
-    bool null_succeeds, Callbacks callbacks) {
-  if (config.object_can_be_null) {
-    (null_succeeds ? callbacks.succeed_if : callbacks.fail_if)(
-        IsNull(object), BranchHint::kFalse);
-  }
-
-  Node* map = gasm_->LoadMap(object);
-
-  // First, check if types happen to be equal. This has been shown to give large
-  // speedups.
-  callbacks.succeed_if(gasm_->TaggedEqual(map, rtt), BranchHint::kTrue);
-
-  Node* type_info = gasm_->LoadWasmTypeInfo(map);
-  Node* supertypes = gasm_->LoadSupertypes(type_info);
-  Node* rtt_depth = gasm_->UintPtrConstant(config.rtt_depth);
-
-  // If the depth of the rtt is known to be less that the minimum supertype
-  // array length, we can access the supertype without bounds-checking the
-  // supertype array.
-  if (config.rtt_depth >= wasm::kMinimumSupertypeArraySize) {
-    Node* supertypes_length = gasm_->BuildChangeSmiToIntPtr(
-        gasm_->LoadFixedArrayLengthAsSmi(supertypes));
-    callbacks.fail_if_not(gasm_->UintLessThan(rtt_depth, supertypes_length),
-                          BranchHint::kTrue);
-  }
-  Node* maybe_match = gasm_->LoadImmutableFixedArrayElement(
-      supertypes, rtt_depth, MachineType::TaggedPointer());
-
-  callbacks.fail_if_not(gasm_->TaggedEqual(maybe_match, rtt),
-                        BranchHint::kTrue);
-}
-
 void WasmGraphBuilder::DataCheck(Node* object, bool object_can_be_null,
                                  Callbacks callbacks) {
   if (object_can_be_null) {
@@ -5407,51 +5381,58 @@ void WasmGraphBuilder::BrOnCastAbs(
   match_effects.emplace_back(effect());
 
   // Wire up the control/effect nodes.
-  unsigned count = static_cast<unsigned>(match_controls.size());
   DCHECK_EQ(match_controls.size(), match_effects.size());
-  *match_control = Merge(count, match_controls.data());
-  // EffectPhis need their control dependency as an additional input.
-  match_effects.emplace_back(*match_control);
-  *match_effect = EffectPhi(count, match_effects.data());
+  unsigned match_count = static_cast<unsigned>(match_controls.size());
+  if (match_count == 1) {
+    *match_control = match_controls[0];
+    *match_effect = match_effects[0];
+  } else {
+    *match_control = Merge(match_count, match_controls.data());
+    // EffectPhis need their control dependency as an additional input.
+    match_effects.emplace_back(*match_control);
+    *match_effect = EffectPhi(match_count, match_effects.data());
+  }
+
   DCHECK_EQ(no_match_controls.size(), no_match_effects.size());
-  // Range is 2..4, so casting to unsigned is safe.
-  count = static_cast<unsigned>(no_match_controls.size());
-  *no_match_control = Merge(count, no_match_controls.data());
-  // EffectPhis need their control dependency as an additional input.
-  no_match_effects.emplace_back(*no_match_control);
-  *no_match_effect = EffectPhi(count, no_match_effects.data());
+  unsigned no_match_count = static_cast<unsigned>(no_match_controls.size());
+  if (no_match_count == 1) {
+    *no_match_control = no_match_controls[0];
+    *no_match_effect = no_match_effects[0];
+  } else {
+    // Range is 2..4, so casting to unsigned is safe.
+    *no_match_control = Merge(no_match_count, no_match_controls.data());
+    // EffectPhis need their control dependency as an additional input.
+    no_match_effects.emplace_back(*no_match_control);
+    *no_match_effect = EffectPhi(no_match_count, no_match_effects.data());
+  }
 }
 
 Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
-                                ObjectReferenceKnowledge config) {
-  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  TypeCheck(object, rtt, config, false, TestCallbacks(&done));
-  gasm_->Goto(&done, Int32Constant(1));
-  gasm_->Bind(&done);
-  return done.PhiAt(0);
+                                WasmTypeCheckConfig config) {
+  return gasm_->WasmTypeCheck(object, rtt, config);
 }
 
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
-                                ObjectReferenceKnowledge config,
+                                WasmTypeCheckConfig config,
                                 wasm::WasmCodePosition position) {
-  if (!FLAG_experimental_wasm_assume_ref_cast_succeeds) {
-    auto done = gasm_->MakeLabel();
-    TypeCheck(object, rtt, config, true, CastCallbacks(&done, position));
-    gasm_->Goto(&done);
-    gasm_->Bind(&done);
-  }
-  return object;
+  return FLAG_experimental_wasm_assume_ref_cast_succeeds
+             ? object
+             : gasm_->WasmTypeCast(object, rtt, config);
 }
 
 void WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
-                                ObjectReferenceKnowledge config,
+                                WasmTypeCheckConfig config,
                                 Node** match_control, Node** match_effect,
                                 Node** no_match_control,
                                 Node** no_match_effect) {
-  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
-              [=](Callbacks callbacks) -> void {
-                return TypeCheck(object, rtt, config, false, callbacks);
-              });
+  Node* true_node;
+  Node* false_node;
+  BranchNoHint(gasm_->WasmTypeCheck(object, rtt, config), &true_node,
+               &false_node);
+
+  *match_effect = *no_match_effect = effect();
+  *match_control = true_node;
+  *no_match_control = false_node;
 }
 
 Node* WasmGraphBuilder::RefIsData(Node* object, bool object_can_be_null) {
@@ -5472,7 +5453,7 @@ Node* WasmGraphBuilder::RefAsData(Node* object, bool object_can_be_null,
 }
 
 void WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
-                                ObjectReferenceKnowledge config,
+                                WasmTypeCheckConfig config,
                                 Node** match_control, Node** match_effect,
                                 Node** no_match_control,
                                 Node** no_match_effect) {
@@ -5503,7 +5484,7 @@ Node* WasmGraphBuilder::RefAsFunc(Node* object, bool object_can_be_null,
 }
 
 void WasmGraphBuilder::BrOnFunc(Node* object, Node* /*rtt*/,
-                                ObjectReferenceKnowledge config,
+                                WasmTypeCheckConfig config,
                                 Node** match_control, Node** match_effect,
                                 Node** no_match_control,
                                 Node** no_match_effect) {
@@ -5535,7 +5516,7 @@ Node* WasmGraphBuilder::RefAsArray(Node* object, bool object_can_be_null,
 }
 
 void WasmGraphBuilder::BrOnArray(Node* object, Node* /*rtt*/,
-                                 ObjectReferenceKnowledge config,
+                                 WasmTypeCheckConfig config,
                                  Node** match_control, Node** match_effect,
                                  Node** no_match_control,
                                  Node** no_match_effect) {
@@ -5556,13 +5537,12 @@ Node* WasmGraphBuilder::RefAsI31(Node* object,
 }
 
 void WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
-                               ObjectReferenceKnowledge /* config */,
+                               WasmTypeCheckConfig /* config */,
                                Node** match_control, Node** match_effect,
                                Node** no_match_control,
                                Node** no_match_effect) {
   gasm_->Branch(gasm_->IsI31(object), match_control, no_match_control,
                 BranchHint::kTrue);
-
   SetControl(*no_match_control);
   *match_effect = effect();
   *no_match_effect = effect();
@@ -5574,7 +5554,7 @@ Node* WasmGraphBuilder::StructGet(Node* struct_object,
                                   bool is_signed,
                                   wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
-    TrapIfTrue(wasm::kTrapNullDereference, IsNull(struct_object), position);
+    struct_object = AssertNotNull(struct_object, position);
   }
   // It is not enough to invoke ValueType::machine_type(), because the
   // signedness has to be determined by {is_signed}.
@@ -5593,7 +5573,7 @@ void WasmGraphBuilder::StructSet(Node* struct_object,
                                  CheckForNull null_check,
                                  wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
-    TrapIfTrue(wasm::kTrapNullDereference, IsNull(struct_object), position);
+    struct_object = AssertNotNull(struct_object, position);
   }
   gasm_->StoreStructField(struct_object, struct_type, field_index, field_value);
 }
@@ -5623,7 +5603,7 @@ Node* WasmGraphBuilder::ArrayGet(Node* array_object,
                                  CheckForNull null_check, bool is_signed,
                                  wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
-    TrapIfTrue(wasm::kTrapNullDereference, IsNull(array_object), position);
+    array_object = AssertNotNull(array_object, position);
   }
   BoundsCheckArray(array_object, index, position);
   MachineType machine_type = MachineType::TypeForRepresentation(
@@ -5640,7 +5620,7 @@ void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,
                                 CheckForNull null_check,
                                 wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
-    TrapIfTrue(wasm::kTrapNullDereference, IsNull(array_object), position);
+    array_object = AssertNotNull(array_object, position);
   }
   BoundsCheckArray(array_object, index, position);
   Node* offset = gasm_->WasmArrayElementOffset(index, type->element_type());
@@ -5651,7 +5631,7 @@ void WasmGraphBuilder::ArraySet(Node* array_object, const wasm::ArrayType* type,
 Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
                                  wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck) {
-    TrapIfTrue(wasm::kTrapNullDereference, IsNull(array_object), position);
+    array_object = AssertNotNull(array_object, position);
   }
   return gasm_->LoadWasmArrayLength(array_object);
 }
@@ -5664,10 +5644,10 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
                                  Node* length,
                                  wasm::WasmCodePosition position) {
   if (dst_null_check == kWithNullCheck) {
-    TrapIfTrue(wasm::kTrapNullDereference, IsNull(dst_array), position);
+    dst_array = AssertNotNull(dst_array, position);
   }
   if (src_null_check == kWithNullCheck) {
-    TrapIfTrue(wasm::kTrapNullDereference, IsNull(src_array), position);
+    src_array = AssertNotNull(src_array, position);
   }
   BoundsCheckArrayCopy(dst_array, dst_index, length, position);
   BoundsCheckArrayCopy(src_array, src_index, length, position);

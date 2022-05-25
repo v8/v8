@@ -16,6 +16,10 @@
 #include "src/objects/name.h"
 #include "src/objects/objects-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-compiler-definitions.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -1141,6 +1145,31 @@ struct SimplifiedOperatorGlobalCache final {
   };
   LoadStackArgumentOperator kLoadStackArgument;
 
+#if V8_ENABLE_WEBASSEMBLY
+  struct IsNullOperator final : public Operator {
+    IsNullOperator()
+        : Operator(IrOpcode::kIsNull, Operator::kPure, "IsNull", 1, 0, 0, 1, 0,
+                   0) {}
+  };
+  IsNullOperator kIsNull;
+
+  struct NullOperator final : public Operator {
+    NullOperator()
+        : Operator(IrOpcode::kNull, Operator::kPure, "Null", 0, 0, 0, 1, 0, 0) {
+    }
+  };
+  NullOperator kNull;
+
+  struct AssertNotNullOperator final : public Operator {
+    AssertNotNullOperator()
+        : Operator(
+              IrOpcode::kAssertNotNull,
+              Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
+              "AssertNotNull", 1, 1, 1, 1, 0, 1) {}
+  };
+  AssertNotNullOperator kAssertNotNull;
+#endif
+
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
   template <NumberOperationHint kHint>                                      \
   struct Name##Operator final : public Operator1<NumberOperationHint> {     \
@@ -1302,6 +1331,36 @@ const Operator* SimplifiedOperatorBuilder::VerifyType() {
                                Operator::kNoThrow | Operator::kNoDeopt,
                                "VerifyType", 1, 0, 0, 1, 0, 0);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+const Operator* SimplifiedOperatorBuilder::WasmTypeCheck(
+    WasmTypeCheckConfig config) {
+  return zone_->New<Operator1<WasmTypeCheckConfig>>(
+      IrOpcode::kWasmTypeCheck, Operator::kEliminatable | Operator::kIdempotent,
+      "WasmTypeCheck", 2, 1, 1, 1, 1, 1, config);
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmTypeCast(
+    WasmTypeCheckConfig config) {
+  return zone_->New<Operator1<WasmTypeCheckConfig>>(
+      IrOpcode::kWasmTypeCast,
+      Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
+      "WasmTypeCast", 2, 1, 1, 1, 1, 1, config);
+}
+
+const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {
+  return zone()->New<Operator1<int>>(IrOpcode::kRttCanon, Operator::kPure,
+                                     "RttCanon", 0, 0, 0, 1, 0, 0, index);
+}
+
+const Operator* SimplifiedOperatorBuilder::Null() { return &cache_.kNull; }
+
+const Operator* SimplifiedOperatorBuilder::AssertNotNull() {
+  return &cache_.kAssertNotNull;
+}
+
+const Operator* SimplifiedOperatorBuilder::IsNull() { return &cache_.kIsNull; }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(
     DeoptimizeReason reason, const FeedbackSource& feedback) {

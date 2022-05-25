@@ -240,7 +240,17 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* IsDataRefMap(Node* map);
 
-  // Generic HeapObject helpers.
+  Node* WasmTypeCheck(Node* object, Node* rtt, WasmTypeCheckConfig config);
+
+  Node* WasmTypeCast(Node* object, Node* rtt, WasmTypeCheckConfig config);
+
+  Node* Null();
+
+  Node* IsNull(Node* object);
+
+  Node* AssertNotNull(Node* object);
+
+  // Generic helpers.
 
   Node* HasInstanceType(Node* heap_object, InstanceType type);
 

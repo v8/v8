@@ -36,9 +36,10 @@ class Zone;
 namespace compiler {
 
 // Forward declarations.
+class CallDescriptor;
 class Operator;
 struct SimplifiedOperatorGlobalCache;
-class CallDescriptor;
+struct WasmTypeCheckConfig;
 
 enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 
@@ -1059,6 +1060,15 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // Abort if the value does not match the node's computed type after
   // SimplifiedLowering.
   const Operator* VerifyType();
+
+#if V8_ENABLE_WEBASSEMBLY
+  const Operator* AssertNotNull();
+  const Operator* IsNull();
+  const Operator* Null();
+  const Operator* RttCanon(int index);
+  const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
+  const Operator* WasmTypeCast(WasmTypeCheckConfig config);
+#endif
 
   const Operator* DateNow();
 
