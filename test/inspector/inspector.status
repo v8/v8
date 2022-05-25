@@ -431,6 +431,7 @@
   'print-method-not-found': [SKIP],
   'regress/regress-crbug-1147552': [SKIP],
   'regress/regress-crbug-1183664': [SKIP],
+  'regress/regress-crbug-1328453': [SKIP],
   'runtime/add-binding': [SKIP],
   'runtime/await-promise': [SKIP],
   'runtime/call-function-on-async': [SKIP],
