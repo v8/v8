@@ -1458,6 +1458,14 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     ReduceNewSpaceSize();
   }
 
+  // Ensure that unmapper task isn't running during full GC. We need access to
+  // those pages for accessing page flags when processing old-to-new slots.
+  DCHECK_IMPLIES(collector == GarbageCollector::MARK_COMPACTOR,
+                 !memory_allocator()->unmapper()->IsRunning());
+
+  // Start concurrent unmapper tasks to free pages queued during GC.
+  memory_allocator()->unmapper()->FreeQueuedChunks();
+
   // Remove CollectionRequested flag from main thread state, as the collection
   // was just performed.
   safepoint()->AssertActive();

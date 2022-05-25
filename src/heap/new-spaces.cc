@@ -161,7 +161,6 @@ void SemiSpace::Uncommit() {
   DCHECK_EQ(CommittedMemory(), removed_page_size);
   DCHECK_EQ(CommittedPhysicalMemory(), 0);
   AccountUncommitted(removed_page_size);
-  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   DCHECK(!IsCommitted());
 }
 
@@ -225,7 +224,6 @@ void SemiSpace::ShrinkTo(size_t new_capacity) {
     int delta_pages = static_cast<int>(delta / Page::kPageSize);
     RewindPages(delta_pages);
     AccountUncommitted(delta);
-    heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
   }
   target_capacity_ = new_capacity;
 }

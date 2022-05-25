@@ -1107,11 +1107,10 @@ void MarkCompactCollector::Finish() {
 
   sweeper()->StartSweeperTasks();
 
-  // Give pages that are queued to be freed back to the OS. Ensure unmapper
-  // tasks are stopped such that queued pages aren't freed before this point. We
-  // still need all pages to be accessible for the "update pointers" phase.
+  // Ensure unmapper tasks are stopped such that queued pages aren't freed
+  // before this point. We still need all pages to be accessible for the "update
+  // pointers" phase.
   DCHECK(!heap_->memory_allocator()->unmapper()->IsRunning());
-  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 
   // Shrink pages if possible after processing and filtering slots.
   ShrinkPagesToObjectSizes(heap(), heap()->lo_space());
@@ -5777,8 +5776,6 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
 void MinorMarkCompactCollector::EvacuateEpilogue() {
   SemiSpaceNewSpace::From(heap()->new_space())
       ->set_age_mark(heap()->new_space()->top());
-  // Give pages that are queued to be freed back to the OS.
-  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
 
 int MinorMarkCompactCollector::CollectToSpaceUpdatingItems(

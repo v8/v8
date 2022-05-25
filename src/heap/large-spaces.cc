@@ -522,14 +522,12 @@ void NewLargeObjectSpace::FreeDeadObjects(
     const std::function<bool(HeapObject)>& is_dead) {
   bool is_marking = heap()->incremental_marking()->IsMarking();
   size_t surviving_object_size = 0;
-  bool freed_pages = false;
   PtrComprCageBase cage_base(heap()->isolate());
   for (auto it = begin(); it != end();) {
     LargePage* page = *it;
     it++;
     HeapObject object = page->GetObject();
     if (is_dead(object)) {
-      freed_pages = true;
       RemovePage(page);
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
                                        page);
@@ -543,9 +541,6 @@ void NewLargeObjectSpace::FreeDeadObjects(
   // Right-trimming does not update the objects_size_ counter. We are lazily
   // updating it after every GC.
   objects_size_ = surviving_object_size;
-  if (freed_pages) {
-    heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
-  }
 }
 
 void NewLargeObjectSpace::SetCapacity(size_t capacity) {
