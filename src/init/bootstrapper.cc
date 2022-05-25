@@ -5355,6 +5355,18 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 #undef INSTALL_TEMPORAL_CTOR_AND_PROTOTYPE
 #undef INSTALL_TEMPORAL_FUNC
 
+  {  // -- D a t e
+    // #sec-date.prototype.totemporalinstant
+    Handle<JSFunction> date_func(native_context()->date_function(), isolate());
+    // Setup %DatePrototype%.
+    Handle<JSObject> date_prototype(
+        JSObject::cast(date_func->instance_prototype()), isolate());
+
+    // Install the Date.prototype.toTemporalInstant().
+    SimpleInstallFunction(isolate_, date_prototype, "toTemporalInstant",
+                          Builtin::kDatePrototypeToTemporalInstant, 0, false);
+  }
+
   // The StringListFromIterable functions is created but not
   // exposed, as it is used internally by CalendarFields.
   {
