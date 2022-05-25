@@ -4090,6 +4090,18 @@ class LiftoffCompiler {
       case wasm::kExprI16x8RelaxedQ15MulRS:
         return EmitBinOp<kS128, kS128>(
             &LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s);
+      case wasm::kExprI32x4RelaxedTruncF32x4S:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_s);
+      case wasm::kExprI32x4RelaxedTruncF32x4U:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_u);
+      case wasm::kExprI32x4RelaxedTruncF64x2SZero:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_s_zero);
+      case wasm::kExprI32x4RelaxedTruncF64x2UZero:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero);
       default:
         unsupported(decoder, kSimd, "simd");
     }
