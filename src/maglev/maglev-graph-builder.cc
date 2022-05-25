@@ -431,12 +431,10 @@ bool MaglevGraphBuilder::TryBuildCompareOperationBranch(Operation operation,
     case interpreter::Bytecode::kJumpIfToBooleanFalseConstant:
       // This jump must kill the accumulator, otherwise we need to
       // materialize the actual boolean value.
-      if (GetOutLiveness()->AccumulatorIsLive()) return false;
-
+      if (GetOutLivenessFor(next_offset())->AccumulatorIsLive()) return false;
       // Advance the iterator past the test to the jump, skipping
       // emitting the test.
       iterator_.Advance();
-
       true_offset = next_offset();
       false_offset = iterator_.GetJumpTargetOffset();
       break;
@@ -446,16 +444,13 @@ bool MaglevGraphBuilder::TryBuildCompareOperationBranch(Operation operation,
     case interpreter::Bytecode::kJumpIfToBooleanTrueConstant:
       // This jump must kill the accumulator, otherwise we need to
       // materialize the actual boolean value.
-      if (GetOutLiveness()->AccumulatorIsLive()) return false;
-
+      if (GetOutLivenessFor(next_offset())->AccumulatorIsLive()) return false;
       // Advance the iterator past the test to the jump, skipping
       // emitting the test.
       iterator_.Advance();
-
       true_offset = iterator_.GetJumpTargetOffset();
       false_offset = next_offset();
       break;
-
     default:
       return false;
   }
