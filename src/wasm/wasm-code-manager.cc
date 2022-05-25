@@ -2308,9 +2308,6 @@ void NativeModule::SampleCodeSize(
     case kAfterBaseline:
       histogram = counters->wasm_module_code_size_mb_after_baseline();
       break;
-    case kAfterTopTier:
-      histogram = counters->wasm_module_code_size_mb_after_top_tier();
-      break;
     case kSampling: {
       histogram = counters->wasm_module_code_size_mb();
       // If this is a wasm module of >= 2MB, also sample the freed code size,

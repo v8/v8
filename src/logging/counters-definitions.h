@@ -71,9 +71,6 @@ namespace internal {
   /* code size per module after baseline compilation */                        \
   HR(wasm_module_code_size_mb_after_baseline,                                  \
      V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 64)                            \
-  /* code size per module after top-tier compilation */                        \
-  HR(wasm_module_code_size_mb_after_top_tier, V8.WasmModuleCodeSizeTopTierMiB, \
-     0, 1024, 64)                                                              \
   /* percent of freed code size per module, collected on GC */                 \
   HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
      0, 100, 32)                                                               \

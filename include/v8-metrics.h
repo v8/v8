@@ -125,7 +125,9 @@ struct WasmModuleInstantiated {
   int64_t wall_clock_duration_in_us = -1;
 };
 
-struct WasmModuleTieredUp {
+struct V8_DEPRECATE_SOON(
+    "With dynamic tiering, there is no point any more where the module is "
+    "fully tiered up") WasmModuleTieredUp {
   bool lazy = false;
   size_t code_size_in_bytes = 0;
   int64_t wall_clock_duration_in_us = -1;
@@ -188,6 +190,10 @@ class V8_EXPORT Recorder {
   ADD_MAIN_THREAD_EVENT(WasmModuleDecoded)
   ADD_MAIN_THREAD_EVENT(WasmModuleCompiled)
   ADD_MAIN_THREAD_EVENT(WasmModuleInstantiated)
+
+  V8_DEPRECATE_SOON(
+      "With dynamic tiering, there is no point any more where the module is "
+      "fully tiered up")
   ADD_MAIN_THREAD_EVENT(WasmModuleTieredUp)
 #undef ADD_MAIN_THREAD_EVENT
 

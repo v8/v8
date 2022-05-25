@@ -805,7 +805,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode::RuntimeStubId GetRuntimeStubId(Address runtime_stub_target) const;
 
   // Sample the current code size of this modules to the given counters.
-  enum CodeSamplingTime : int8_t { kAfterBaseline, kAfterTopTier, kSampling };
+  enum CodeSamplingTime : int8_t { kAfterBaseline, kSampling };
   void SampleCodeSize(Counters*, CodeSamplingTime) const;
 
   V8_WARN_UNUSED_RESULT std::unique_ptr<WasmCode> AddCompiledCode(

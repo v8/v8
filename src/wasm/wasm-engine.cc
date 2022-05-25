@@ -1316,40 +1316,6 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
   native_modules_.erase(module);
 }
 
-namespace {
-class SampleTopTierCodeSizeTask : public CancelableTask {
- public:
-  SampleTopTierCodeSizeTask(Isolate* isolate,
-                            std::weak_ptr<NativeModule> native_module)
-      : CancelableTask(isolate),
-        isolate_(isolate),
-        native_module_(std::move(native_module)) {}
-
-  void RunInternal() override {
-    if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
-      native_module->SampleCodeSize(isolate_->counters(),
-                                    NativeModule::kAfterTopTier);
-    }
-  }
-
- private:
-  Isolate* const isolate_;
-  const std::weak_ptr<NativeModule> native_module_;
-};
-}  // namespace
-
-void WasmEngine::SampleTopTierCodeSizeInAllIsolates(
-    const std::shared_ptr<NativeModule>& native_module) {
-  base::MutexGuard lock(&mutex_);
-  DCHECK_EQ(1, native_modules_.count(native_module.get()));
-  for (Isolate* isolate : native_modules_[native_module.get()]->isolates) {
-    DCHECK_EQ(1, isolates_.count(isolate));
-    IsolateInfo* info = isolates_[isolate].get();
-    info->foreground_task_runner->PostTask(
-        std::make_unique<SampleTopTierCodeSizeTask>(isolate, native_module));
-  }
-}
-
 void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
                                      base::Vector<WasmCode*> live_code) {
   TRACE_EVENT0("v8.wasm", "wasm.ReportLiveCodeForGC");

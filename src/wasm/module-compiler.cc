@@ -1821,18 +1821,6 @@ class CompilationTimeCallback : public CompilationEventCallback {
               native_module->baseline_compilation_cpu_duration())};
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
-    if (compilation_event == CompilationEvent::kFinishedTopTierCompilation) {
-      TimedHistogram* histogram = async_counters_->wasm_tier_up_module_time();
-      histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
-
-      v8::metrics::WasmModuleTieredUp event{
-          FLAG_wasm_lazy_compilation,           // lazy
-          native_module->turbofan_code_size(),  // code_size_in_bytes
-          duration.InMicroseconds(),            // wall_clock_duration_in_us
-          static_cast<int64_t>(                 // cpu_time_duration_in_us
-              native_module->tier_up_cpu_duration())};
-      metrics_recorder_->DelayMainThreadEvent(event, context_id_);
-    }
     if (compilation_event == CompilationEvent::kFailedCompilation) {
       v8::metrics::WasmModuleCompiled event{
           (compile_mode_ != kSynchronous),         // async
@@ -2699,25 +2687,6 @@ class AsyncCompileJob::CompileFailed : public CompileStep {
   }
 };
 
-namespace {
-class SampleTopTierCodeSizeCallback : public CompilationEventCallback {
- public:
-  explicit SampleTopTierCodeSizeCallback(
-      std::weak_ptr<NativeModule> native_module)
-      : native_module_(std::move(native_module)) {}
-
-  void call(CompilationEvent event) override {
-    if (event != CompilationEvent::kFinishedTopTierCompilation) return;
-    if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
-      GetWasmEngine()->SampleTopTierCodeSizeInAllIsolates(native_module);
-    }
-  }
-
- private:
-  std::weak_ptr<NativeModule> native_module_;
-};
-}  // namespace
-
 //==========================================================================
 // Step 3b (sync): Compilation finished.
 //==========================================================================
@@ -2736,10 +2705,6 @@ class AsyncCompileJob::CompileFinished : public CompileStep {
       // Sample the generated code size when baseline compilation finished.
       job->native_module_->SampleCodeSize(job->isolate_->counters(),
                                           NativeModule::kAfterBaseline);
-      // Also, set a callback to sample the code size after top-tier compilation
-      // finished. This callback will *not* keep the NativeModule alive.
-      job->native_module_->compilation_state()->AddCallback(
-          std::make_unique<SampleTopTierCodeSizeCallback>(job->native_module_));
     }
     // Then finalize and publish the generated module.
     job->FinishCompile(cached_native_module_ != nullptr);
