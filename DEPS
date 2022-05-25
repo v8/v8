@@ -104,7 +104,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'host_os == "linux"',
+    'condition': 'host_os == "linux" and host_cpu != "s390" and host_cpu != "ppc"',
   },
   'buildtools/mac': {
     'packages': [
