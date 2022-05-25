@@ -2,19 +2,42 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "FAILED_STEPS_EXCLUDE")
+load("//lib/lib.star", "FAILED_STEPS_EXCLUDE", "v8_notifier")
 
-luci.notifier(
-    name = "beta/stable notifier",
+v8_notifier(
+    name = "sheriffs",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
     notify_emails = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
         "mtv-sf-v8-sheriff@grotations.appspotmail.com",
+        "v8-infra-alerts-cc@google.com",
     ],
 )
 
-luci.notifier(
+v8_notifier(
+    name = "sheriffs on new failure",
+    on_new_status = ["FAILURE", "INFRA_FAILURE"],
+    notify_emails = [
+        "v8-waterfall-sheriff@grotations.appspotmail.com",
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
+        "v8-infra-alerts-cc@google.com",
+    ],
+)
+
+v8_notifier(
+    name = "blamelist",
+    on_new_status = ["FAILURE"],
+    notify_blamelist = True,
+)
+
+v8_notifier(
+    name = "v8-infra-cc",
+    on_new_status = ["FAILURE"],
+    notify_emails = ["v8-infra-alerts-cc@google.com"],
+)
+
+v8_notifier(
     name = "infra",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
@@ -23,7 +46,7 @@ luci.notifier(
     ],
 )
 
-luci.notifier(
+v8_notifier(
     name = "infra-failure",
     on_occurrence = ["INFRA_FAILURE"],
     notify_emails = [
@@ -31,16 +54,17 @@ luci.notifier(
     ],
 )
 
-luci.notifier(
+v8_notifier(
     name = "memory sheriffs",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
     notify_emails = [
         "v8-memory-sheriffs@google.com",
+        "v8-infra-alerts-cc@google.com",
     ],
 )
 
-luci.notifier(
+v8_notifier(
     name = "NumFuzz maintainer",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = [
@@ -59,15 +83,17 @@ luci.notifier(
     ],
     notify_emails = [
         "almuthanna@chromium.org",
+        "v8-infra-alerts-cc@google.com",
     ],
 )
 
-luci.notifier(
+v8_notifier(
     name = "jsvu/esvu maintainer",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
     notify_emails = [
         "mathiasb@google.com",
+        "v8-infra-alerts-cc@google.com",
     ],
 )
 
@@ -93,25 +119,29 @@ luci.tree_closer(
     ],
 )
 
-luci.notifier(
+v8_notifier(
     name = "api stability notifier",
     on_new_status = ["FAILURE"],
     notify_emails = [
         "machenbach@chromium.org",
         "hablich@chromium.org",
+        "v8-infra-alerts-cc@google.com",
     ],
     notified_by = [
         "Linux V8 API Stability",
     ],
 )
 
-luci.notifier(
+v8_notifier(
     name = "vtunejit notifier",
     on_occurrence = ["FAILURE"],
     failed_step_regexp = [
         "gclient runhooks",
         "compile",
     ],
-    notify_emails = ["chunyang.dai@intel.com"],
+    notify_emails = [
+        "chunyang.dai@intel.com",
+        "v8-infra-alerts-cc@google.com",
+    ],
     notified_by = ["ci/V8 Linux - vtunejit"],
 )

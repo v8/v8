@@ -295,6 +295,7 @@ def v8_builder(defaults = None, **kwargs):
     parent_builder = kwargs.pop("parent_builder", None)
     if parent_builder:
         resolve_parent_tiggering(kwargs, bucket_name, parent_builder)
+    kwargs["repo"] = "https://chromium.googlesource.com/v8/v8"
     v8_basic_builder(defaults, **kwargs)
     if in_console:
         splited = in_console.split("/")
@@ -370,7 +371,7 @@ def multibranch_builder(**kwargs):
                 notifies.append("v8 tree closer")
                 args["notifies"] = notifies
         else:
-            args["notifies"] = ["beta/stable notifier"]
+            args["notifies"] = ["sheriffs"]
             if _builder_is_not_supported(branch.bucket, first_branch_version):
                 continue
         v8_basic_builder(defaults_ci, bucket = branch.bucket, **args)
@@ -492,7 +493,7 @@ def ci_pair_factory(func):
 
         to_notify = kwargs.pop("to_notify", None)
         if to_notify:
-            v8_notifier(
+            v8_failure_notifier(
                 name = "notification for %s" % tester_name,
                 notify_emails = to_notify,
                 notified_by = [builder_name, tester_name],
@@ -557,8 +558,18 @@ FAILED_STEPS_EXCLUDE = [
     ".* \\(without patch\\)",
 ]
 
-def v8_notifier(**kwargs):
+def v8_notifier(notify_emails = [], **kwargs):
+    emails = list(notify_emails)
+    infra_cc = "v8-infra-alerts-cc@google.com"
+    if not infra_cc in emails:
+        emails.append("v8-infra-alerts-cc@google.com")
     luci.notifier(
+        notify_emails = emails,
+        **kwargs
+    )
+
+def v8_failure_notifier(**kwargs):
+    v8_notifier(
         on_new_status = ["FAILURE", "INFRA_FAILURE"],
         **kwargs
     )

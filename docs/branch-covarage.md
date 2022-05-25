@@ -15,7 +15,7 @@ These consoles are the beta/stable branch counterparts of the [main](https://ci.
 Monitoring
 ======================
 
-V8 sherrifs will be notified on any failures in builders under [beta.main](https://ci.chromium.org/p/v8/g/br.beta/console) and [stable.main](https://ci.chromium.org/p/v8/g/br.stable/console) consoles
+V8 sheriffs will be notified on any failures in builders under [beta.main](https://ci.chromium.org/p/v8/g/br.beta/console) and [stable.main](https://ci.chromium.org/p/v8/g/br.stable/console) consoles
 
 Updating the Beta/Stable branch references
 ======================
