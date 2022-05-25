@@ -132,22 +132,15 @@ bool Heap_PageFlagsAreConsistent(HeapObject object) {
   return Heap::PageFlagsAreConsistent(object);
 }
 
-bool Heap_ValueMightRequireGenerationalWriteBarrier(HeapObject value) {
-  if (!value.IsCode()) return true;
-  // Code objects are never in new space and thus don't require generational
-  // write barrier.
-  DCHECK(!ObjectInYoungGeneration(value));
-  return false;
+void Heap_CombinedGenerationalAndSharedBarrierSlow(HeapObject object,
+                                                   Address slot,
+                                                   HeapObject value) {
+  Heap::CombinedGenerationalAndSharedBarrierSlow(object, slot, value);
 }
 
-void Heap_GenerationalBarrierSlow(HeapObject object, Address slot,
-                                  HeapObject value) {
-  Heap::GenerationalBarrierSlow(object, slot, value);
-}
-
-void Heap_SharedHeapBarrierSlow(HeapObject object, Address slot,
-                                HeapObject value) {
-  Heap::SharedHeapBarrierSlow(object, slot, value);
+void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
+    EphemeronHashTable table, Address slot, HeapObject value) {
+  Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(table, slot, value);
 }
 
 void Heap_WriteBarrierForCodeSlow(Code host) {
@@ -162,12 +155,6 @@ void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
 void Heap_SharedHeapBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                        HeapObject object) {
   Heap::SharedHeapBarrierForCodeSlow(host, rinfo, object);
-}
-
-void Heap_GenerationalEphemeronKeyBarrierSlow(Heap* heap, HeapObject host,
-                                              Address slot) {
-  EphemeronHashTable table = EphemeronHashTable::cast(host);
-  heap->RecordEphemeronKeyWrite(table, slot);
 }
 
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
@@ -7298,6 +7285,43 @@ void Heap::WriteBarrierForCodeSlow(Code code) {
     HeapObject target_object = it.rinfo()->target_object(cage_base);
     GenerationalBarrierForCode(code, it.rinfo(), target_object);
     WriteBarrier::Marking(code, it.rinfo(), target_object);
+  }
+}
+
+void Heap::CombinedGenerationalAndSharedBarrierSlow(HeapObject object,
+                                                    Address slot,
+                                                    HeapObject value) {
+  MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
+
+  if (value_chunk->InYoungGeneration()) {
+    Heap::GenerationalBarrierSlow(object, slot, value);
+
+  } else {
+    DCHECK(value_chunk->InSharedHeap());
+
+    heap_internals::MemoryChunk* object_chunk =
+        heap_internals::MemoryChunk::FromHeapObject(object);
+    if (!object_chunk->InSharedHeap())
+      Heap::SharedHeapBarrierSlow(object, slot, value);
+  }
+}
+
+void Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(
+    EphemeronHashTable table, Address slot, HeapObject value) {
+  MemoryChunk* value_chunk = MemoryChunk::FromHeapObject(value);
+
+  if (value_chunk->InYoungGeneration()) {
+    MemoryChunk* table_chunk = MemoryChunk::FromHeapObject(table);
+    table_chunk->heap()->RecordEphemeronKeyWrite(table, slot);
+
+  } else {
+    DCHECK(value_chunk->InSharedHeap());
+
+    heap_internals::MemoryChunk* table_chunk =
+        heap_internals::MemoryChunk::FromHeapObject(table);
+    if (!table_chunk->InSharedHeap()) {
+      Heap::SharedHeapBarrierSlow(table, slot, value);
+    }
   }
 }
 

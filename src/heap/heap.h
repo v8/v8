@@ -492,9 +492,18 @@ class Heap {
 
   V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code host);
 
+  // Implements slow path of both generational & shared heap barrier.
+  V8_EXPORT_PRIVATE static void CombinedGenerationalAndSharedBarrierSlow(
+      HeapObject object, Address slot, HeapObject value);
+  V8_EXPORT_PRIVATE static void
+  CombinedGenerationalAndSharedEphemeronBarrierSlow(EphemeronHashTable table,
+                                                    Address slot,
+                                                    HeapObject value);
+
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
                                                         Address slot,
                                                         HeapObject value);
+
   V8_EXPORT_PRIVATE static void SharedHeapBarrierSlow(HeapObject object,
                                                       Address slot,
                                                       HeapObject value);
