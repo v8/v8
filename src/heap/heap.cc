@@ -2996,10 +2996,6 @@ void Heap::ProcessAllWeakReferences(WeakObjectRetainer* retainer) {
   ProcessDirtyJSFinalizationRegistries(retainer);
 }
 
-void Heap::ProcessYoungWeakReferences(WeakObjectRetainer* retainer) {
-  ProcessNativeContexts(retainer);
-}
-
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
   Object head = VisitWeakList<Context>(this, native_contexts_list(), retainer);
   // Update the head of the list of contexts.

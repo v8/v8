@@ -172,21 +172,6 @@ bool IsUnscavengedHeapObjectSlot(Heap* heap, FullObjectSlot p) {
 
 }  // namespace
 
-class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
- public:
-  Object RetainAs(Object object) override {
-    if (!Heap::InFromPage(object)) {
-      return object;
-    }
-
-    MapWord map_word = HeapObject::cast(object).map_word(kRelaxedLoad);
-    if (map_word.IsForwardingAddress()) {
-      return map_word.ToForwardingAddress();
-    }
-    return Object();
-  }
-};
-
 ScavengerCollector::JobTask::JobTask(
     ScavengerCollector* outer,
     std::vector<std::unique_ptr<Scavenger>>* scavengers,
@@ -695,8 +680,6 @@ void Scavenger::Process(JobDelegate* delegate) {
 
 void ScavengerCollector::ProcessWeakReferences(
     EphemeronTableList* ephemeron_table_list) {
-  ScavengeWeakObjectRetainer weak_object_retainer;
-  heap_->ProcessYoungWeakReferences(&weak_object_retainer);
   ClearYoungEphemerons(ephemeron_table_list);
   ClearOldEphemerons();
 }

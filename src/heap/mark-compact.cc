@@ -5713,30 +5713,6 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
   MinorMarkCompactCollector::NonAtomicMarkingState* marking_state_;
 };
 
-// Marked young generation objects and all old generation objects will be
-// retained.
-class MinorMarkCompactWeakObjectRetainer : public WeakObjectRetainer {
- public:
-  explicit MinorMarkCompactWeakObjectRetainer(
-      MinorMarkCompactCollector* collector)
-      : marking_state_(collector->non_atomic_marking_state()) {}
-
-  Object RetainAs(Object object) override {
-    HeapObject heap_object = HeapObject::cast(object);
-    if (!Heap::InYoungGeneration(heap_object)) return object;
-
-    // Young generation marking only marks to grey instead of black.
-    DCHECK(!marking_state_->IsBlack(heap_object));
-    if (marking_state_->IsGrey(heap_object)) {
-      return object;
-    }
-    return Object();
-  }
-
- private:
-  MinorMarkCompactCollector::NonAtomicMarkingState* marking_state_;
-};
-
 }  // namespace
 
 void MinorMarkCompactCollector::ClearNonLiveReferences() {
@@ -5749,13 +5725,6 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
     YoungGenerationExternalStringTableCleaner external_visitor(this);
     heap()->external_string_table_.IterateYoung(&external_visitor);
     heap()->external_string_table_.CleanUpYoung();
-  }
-
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_CLEAR_WEAK_LISTS);
-    // Process the weak references.
-    MinorMarkCompactWeakObjectRetainer retainer(this);
-    heap()->ProcessYoungWeakReferences(&retainer);
   }
 }
 
