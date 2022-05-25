@@ -187,8 +187,15 @@ using ExternalPointer_t = Address;
 
 #ifdef V8_SANDBOX_IS_AVAILABLE
 
-// Size of the sandbox, excluding the guard regions surrounding it.
+#ifdef V8_OS_ANDROID
+// On Android, most 64-bit devices seem to be configured with only 39 bits of
+// virtual address space for userspace. As such, limit the sandbox to 128GB (a
+// quarter of the total available address space).
+constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
+#else
+// Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
+#endif  // V8_OS_ANDROID
 constexpr size_t kSandboxSize = 1ULL << kSandboxSizeLog2;
 
 // Required alignment of the sandbox. For simplicity, we require the
