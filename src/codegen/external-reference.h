@@ -186,6 +186,9 @@ class StatsCounter;
   V(external_two_byte_string_get_chars, "external_two_byte_string_get_chars")  \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function")  \
   V(string_to_array_index_function, "String::ToArrayIndex")                    \
+  V(array_indexof_includes_smi_or_object,                                      \
+    "array_indexof_includes_smi_or_object")                                    \
+  V(array_indexof_includes_double, "array_indexof_includes_double")            \
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
   V(string_from_forward_table, "string_from_forward_table")                    \
