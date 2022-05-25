@@ -2963,7 +2963,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // ip now holds the jump table slot where we want to jump to in the end.
 
     // Restore registers.
-    __ MultiPopF64OrV128(fp_regs, ip);
+    __ MultiPopF64OrV128(fp_regs, r1);
     __ MultiPop(gp_regs);
   }
 
