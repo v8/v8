@@ -1963,6 +1963,7 @@ void V8DebuggerAgentImpl::reset() {
   m_scripts.clear();
   m_cachedScripts.clear();
   m_cachedScriptSize = 0;
+  m_debugger->allAsyncTasksCanceled();
 }
 
 void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {

@@ -217,6 +217,7 @@
   'regress/regress-crbug-1197392': [SKIP],
   'debugger/command-line-api-with-arrow-function': [SKIP],
   'regress/regress-crbug-1199919': [SKIP],
+  'console/clear-async-stack-on-context-reset': [SKIP],
   'console/destroy-context-during-log': [SKIP],
   'console/scoped-variables': [SKIP],
   'cpu-profiler/console-profile': [SKIP],
