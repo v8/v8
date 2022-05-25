@@ -1089,6 +1089,20 @@ int FeedbackNexus::ExtractMapsAndFeedback(
   return found;
 }
 
+MaybeObjectHandle FeedbackNexus::ExtractMegaDOMHandler() {
+  DCHECK(ic_state() == InlineCacheState::MEGADOM);
+  DisallowGarbageCollection no_gc;
+
+  auto pair = GetFeedbackPair();
+  MaybeObject maybe_handler = pair.second;
+  if (!maybe_handler->IsCleared()) {
+    MaybeObjectHandle handler = config()->NewHandle(maybe_handler);
+    return handler;
+  }
+
+  return MaybeObjectHandle();
+}
+
 int FeedbackNexus::ExtractMapsAndHandlers(
     std::vector<MapAndHandler>* maps_and_handlers,
     TryUpdateHandler map_handler) const {

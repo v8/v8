@@ -89,6 +89,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   bool DependOnPromiseHookProtector();
   bool DependOnPromiseSpeciesProtector();
   bool DependOnPromiseThenProtector();
+  bool DependOnMegaDOMProtector();
 
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(const AllocationSiteRef& site);

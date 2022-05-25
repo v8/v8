@@ -1064,6 +1064,11 @@ bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
   return true;
 }
 
+bool CompilationDependencies::DependOnMegaDOMProtector() {
+  return DependOnProtector(
+      MakeRef(broker_, broker_->isolate()->factory()->mega_dom_protector()));
+}
+
 bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
   return DependOnProtector(MakeRef(
       broker_,

@@ -1508,6 +1508,10 @@ bool FunctionTemplateInfoRef::is_signature_undefined() const {
 }
 
 HEAP_ACCESSOR_C(FunctionTemplateInfo, bool, accept_any_receiver)
+HEAP_ACCESSOR_C(FunctionTemplateInfo, int16_t,
+                allowed_receiver_instance_type_range_start)
+HEAP_ACCESSOR_C(FunctionTemplateInfo, int16_t,
+                allowed_receiver_instance_type_range_end)
 
 HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
     MapRef receiver_map) {

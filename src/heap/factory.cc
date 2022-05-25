@@ -3527,7 +3527,7 @@ Handle<MegaDomHandler> Factory::NewMegaDomHandler(MaybeObjectHandle accessor,
   Handle<Map> map = read_only_roots().mega_dom_handler_map_handle();
   MegaDomHandler handler = MegaDomHandler::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  handler.set_accessor(*accessor);
+  handler.set_accessor(*accessor, kReleaseStore);
   handler.set_context(*context);
   return handle(handler, isolate());
 }

@@ -1656,6 +1656,14 @@ void PerIsolateData::SetSnapshotObjectCtor(Local<FunctionTemplate> ctor) {
   snapshot_object_ctor_.Reset(isolate_, ctor);
 }
 
+Local<FunctionTemplate> PerIsolateData::GetDomNodeCtor() const {
+  return dom_node_ctor_.Get(isolate_);
+}
+
+void PerIsolateData::SetDomNodeCtor(Local<FunctionTemplate> ctor) {
+  dom_node_ctor_.Reset(isolate_, ctor);
+}
+
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_count_ = 1;
   data_->realm_current_ = 0;
@@ -2992,26 +3000,58 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
 
 void Shell::NodeTypeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  // TODO(mslekova): Enable this once we have signature check in TF.
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  CHECK(data->GetDomNodeCtor()->HasInstance(args.This()));
+
   args.GetReturnValue().Set(v8::Number::New(isolate, 1));
 }
 
-Local<FunctionTemplate> Shell::CreateNodeTemplates(Isolate* isolate) {
-  Local<FunctionTemplate> node = FunctionTemplate::New(isolate);
+Local<FunctionTemplate> NewDOMFunctionTemplate(Isolate* isolate,
+                                               uint16_t instance_type) {
+  return FunctionTemplate::New(
+      isolate, nullptr, Local<Value>(), Local<Signature>(), 0,
+      ConstructorBehavior::kAllow, SideEffectType::kHasSideEffect, nullptr,
+      instance_type);
+}
+
+Local<FunctionTemplate> Shell::CreateEventTargetTemplate(Isolate* isolate) {
+  Local<FunctionTemplate> event_target =
+      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 1);
+  return event_target;
+}
+
+Local<FunctionTemplate> Shell::CreateNodeTemplates(
+    Isolate* isolate, Local<FunctionTemplate> event_target) {
+  Local<FunctionTemplate> node =
+      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 2);
+  node->Inherit(event_target);
+
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  data->SetDomNodeCtor(node);
+
   Local<ObjectTemplate> proto_template = node->PrototypeTemplate();
   Local<Signature> signature = v8::Signature::New(isolate, node);
   Local<FunctionTemplate> nodeType = FunctionTemplate::New(
-      isolate, NodeTypeCallback, Local<Value>(), signature);
+      isolate, NodeTypeCallback, Local<Value>(), signature, 0,
+      ConstructorBehavior::kThrow, SideEffectType::kHasSideEffect, nullptr,
+      i::Internals::kFirstJSApiObjectType,
+      i::Internals::kFirstJSApiObjectType + 3,
+      i::Internals::kFirstJSApiObjectType + 5);
   nodeType->SetAcceptAnyReceiver(false);
   proto_template->SetAccessorProperty(
       String::NewFromUtf8Literal(isolate, "nodeType"), nodeType);
 
-  Local<FunctionTemplate> element = FunctionTemplate::New(isolate);
+  Local<FunctionTemplate> element =
+      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 3);
   element->Inherit(node);
 
-  Local<FunctionTemplate> html_element = FunctionTemplate::New(isolate);
+  Local<FunctionTemplate> html_element =
+      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 4);
   html_element->Inherit(element);
 
-  Local<FunctionTemplate> div_element = FunctionTemplate::New(isolate);
+  Local<FunctionTemplate> div_element =
+      NewDOMFunctionTemplate(isolate, i::Internals::kFirstJSApiObjectType + 5);
   div_element->Inherit(html_element);
 
   return div_element;
@@ -3210,7 +3250,11 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
   }
   {
     Local<ObjectTemplate> dom_template = ObjectTemplate::New(isolate);
-    dom_template->Set(isolate, "Div", Shell::CreateNodeTemplates(isolate));
+    Local<FunctionTemplate> event_target =
+        Shell::CreateEventTargetTemplate(isolate);
+    dom_template->Set(isolate, "EventTarget", event_target);
+    dom_template->Set(isolate, "Div",
+                      Shell::CreateNodeTemplates(isolate, event_target));
     d8_template->Set(isolate, "dom", dom_template);
   }
   {

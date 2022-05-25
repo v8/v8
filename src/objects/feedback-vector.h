@@ -818,6 +818,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
       Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
 
   void ConfigureMegaDOM(const MaybeObjectHandle& handler);
+  MaybeObjectHandle ExtractMegaDOMHandler();
 
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;

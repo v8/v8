@@ -1037,6 +1037,98 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   }
 }
 
+Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
+    Node* node, Node* value, MegaDOMPropertyAccessFeedback const& feedback,
+    FeedbackSource const& source) {
+  DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
+         node->opcode() == IrOpcode::kJSLoadProperty);
+  // TODO(mslekova): Add support and tests for kJSLoadNamedFromSuper.
+  static_assert(JSLoadNamedNode::ObjectIndex() == 0 &&
+                    JSLoadPropertyNode::ObjectIndex() == 0,
+                "Assumptions about ObjectIndex have changed, please update "
+                "this function.");
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+
+  Node* lookup_start_object = NodeProperties::GetValueInput(node, 0);
+
+  if (!dependencies()->DependOnMegaDOMProtector()) {
+    return NoChange();
+  }
+
+  FunctionTemplateInfoRef function_template_info = feedback.info();
+  int16_t range_start =
+      function_template_info.allowed_receiver_instance_type_range_start();
+  int16_t range_end =
+      function_template_info.allowed_receiver_instance_type_range_end();
+  DCHECK_IMPLIES(range_start == 0, range_end == 0);
+  DCHECK_LE(range_start, range_end);
+
+  // TODO(mslekova): This could be a new InstanceTypeCheck operator
+  // that gets lowered later on (e.g. during generic lowering).
+  Node* receiver_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       lookup_start_object, effect, control);
+  Node* receiver_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+      receiver_map, effect, control);
+
+  if (FLAG_embedder_instance_types && range_start != 0) {
+    // Embedder instance ID is set, doing a simple range check.
+    Node* diff_to_start =
+        graph()->NewNode(simplified()->NumberSubtract(), receiver_instance_type,
+                         jsgraph()->Constant(range_start));
+    Node* range_length = jsgraph()->Constant(range_end - range_start);
+
+    // TODO(mslekova): Once we have the InstanceTypeCheck operator, we could
+    // lower it to Uint32LessThan later on to perform what is done in bounds.h.
+    Node* check = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
+                                   diff_to_start, range_length);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kWrongInstanceType), check,
+        effect, control);
+  } else if (function_template_info.is_signature_undefined()) {
+    // Signature is undefined, enough to check if the receiver is a JSApiObject.
+    Node* check =
+        graph()->NewNode(simplified()->NumberEqual(), receiver_instance_type,
+                         jsgraph()->Constant(JS_API_OBJECT_TYPE));
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kWrongInstanceType), check,
+        effect, control);
+  } else {
+    // Calling out to builtin to do signature check.
+    Callable callable = Builtins::CallableFor(
+        isolate(), Builtin::kCallFunctionTemplate_CheckCompatibleReceiver);
+    int stack_arg_count = callable.descriptor().GetStackParameterCount() +
+                          1 /* implicit receiver */;
+
+    CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(), stack_arg_count,
+        CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+
+    Node* inputs[8] = {jsgraph()->HeapConstant(callable.code()),
+                       jsgraph()->Constant(function_template_info),
+                       jsgraph()->Constant(stack_arg_count),
+                       lookup_start_object,
+                       jsgraph()->Constant(native_context()),
+                       frame_state,
+                       effect,
+                       control};
+
+    value = effect = control =
+        graph()->NewNode(common()->Call(call_descriptor), 8, inputs);
+    return Replace(value);
+  }
+
+  value = InlineApiCall(lookup_start_object, lookup_start_object, frame_state,
+                        nullptr /*value*/, &effect, &control,
+                        function_template_info);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, NamedAccessFeedback const& feedback,
     AccessMode access_mode, Node* key) {
@@ -2047,6 +2139,11 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     case ProcessedFeedback::kNamedAccess:
       return ReduceNamedAccess(node, value, feedback.AsNamedAccess(),
                                access_mode, key);
+    case ProcessedFeedback::kMegaDOMPropertyAccess:
+      DCHECK_EQ(access_mode, AccessMode::kLoad);
+      DCHECK_NULL(key);
+      return ReduceMegaDOMPropertyAccess(
+          node, value, feedback.AsMegaDOMPropertyAccess(), source);
     case ProcessedFeedback::kElementAccess:
       DCHECK_EQ(feedback.AsElementAccess().keyed_mode().access_mode(),
                 access_mode);

@@ -1386,6 +1386,16 @@ Local<FunctionTemplate> FunctionTemplate::New(
     return Local<FunctionTemplate>();
   }
 
+  if (instance_type != 0) {
+    if (!Utils::ApiCheck(
+            instance_type >= i::Internals::kFirstJSApiObjectType &&
+                instance_type <= i::Internals::kLastJSApiObjectType,
+            "FunctionTemplate::New",
+            "instance_type is outside the range of valid JSApiObject types.")) {
+      return Local<FunctionTemplate>();
+    }
+  }
+
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   return FunctionTemplateNew(
       i_isolate, callback, data, signature, length, behavior, false,

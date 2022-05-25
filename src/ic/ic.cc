@@ -642,9 +642,16 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
   Handle<Context> accessor_context(call_optimization.GetAccessorContext(*map),
                                    isolate());
 
+  Handle<FunctionTemplateInfo> fti;
+  if (accessor_obj->IsJSFunction()) {
+    fti = handle(JSFunction::cast(*accessor_obj).shared().get_api_func_data(),
+                 isolate());
+  } else {
+    fti = Handle<FunctionTemplateInfo>::cast(accessor_obj);
+  }
+
   Handle<MegaDomHandler> new_handler = isolate()->factory()->NewMegaDomHandler(
-      MaybeObjectHandle::Weak(accessor_obj),
-      MaybeObjectHandle::Weak(accessor_context));
+      MaybeObjectHandle::Weak(fti), MaybeObjectHandle::Weak(accessor_context));
   nexus()->ConfigureMegaDOM(MaybeObjectHandle(new_handler));
   return true;
 }

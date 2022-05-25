@@ -4,28 +4,28 @@
 //
 // Flags: --enable-mega-dom-ic --allow-natives-syntax
 
-// This tests checks that load property access using megadom IC returns
-// correct results on API.
+// This tests checks that load property access using megadom IC
+// handles correctly the error of signature mismatch.
 
 function load(obj) {
   return obj.nodeType;
 }
 %PrepareFunctionForOptimization(load);
 
-var a = new d8.dom.Div();
-var b = new d8.dom.Div();
+let a = new d8.dom.Div();
+let b = new d8.dom.Div();
 b.b = 1;
 
-var c = new d8.dom.Div();
+let c = new d8.dom.Div();
 c.c = 1;
 
-var d = new d8.dom.Div();
+let d = new d8.dom.Div();
 d.d = 1;
 
-var e = new d8.dom.Div();
+let e = new d8.dom.Div();
 e.e = 1;
 
-var f = new d8.dom.Div();
+let f = new d8.dom.Div();
 f.f = 1;
 
 const objs = [
@@ -38,8 +38,16 @@ function test() {
     result += load(objs[i]);
   }
 
+  try {
+    load(new d8.dom.EventTarget());
+  } catch (err) {
+    assertInstanceof(err, TypeError);
+    assertEquals("Illegal invocation", err.message, 'Error message');
+  }
+
   return result;
 }
+
 %PrepareFunctionForOptimization(test);
 let result = test();
 assertEquals(6, result);

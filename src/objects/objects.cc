@@ -178,6 +178,11 @@ bool ComparisonResultToBool(Operation op, ComparisonResult result) {
 }
 
 std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
+  if (InstanceTypeChecker::IsJSApiObject(instance_type)) {
+    return os << "[api object] "
+              << static_cast<int16_t>(instance_type) -
+                     i::Internals::kFirstJSApiObjectType;
+  }
   switch (instance_type) {
 #define WRITE_TYPE(TYPE) \
   case TYPE:             \
@@ -2133,7 +2138,7 @@ void Tuple2::BriefPrintDetails(std::ostream& os) {
 }
 
 void MegaDomHandler::BriefPrintDetails(std::ostream& os) {
-  os << " " << Brief(accessor()) << ", " << Brief(context());
+  os << " " << Brief(accessor(kAcquireLoad)) << ", " << Brief(context());
 }
 
 void ClassPositions::BriefPrintDetails(std::ostream& os) {
