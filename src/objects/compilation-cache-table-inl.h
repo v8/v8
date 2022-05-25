@@ -26,6 +26,26 @@ CompilationCacheTable::CompilationCacheTable(Address ptr)
 NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
 CAST_ACCESSOR(CompilationCacheTable)
 
+Object CompilationCacheTable::PrimaryValueAt(InternalIndex entry) {
+  return get(EntryToIndex(entry) + 1);
+}
+
+void CompilationCacheTable::SetPrimaryValueAt(InternalIndex entry, Object value,
+                                              WriteBarrierMode mode) {
+  set(EntryToIndex(entry) + 1, value, mode);
+}
+
+Object CompilationCacheTable::EvalFeedbackValueAt(InternalIndex entry) {
+  static_assert(CompilationCacheShape::kEntrySize == 3);
+  return get(EntryToIndex(entry) + 2);
+}
+
+void CompilationCacheTable::SetEvalFeedbackValueAt(InternalIndex entry,
+                                                   Object value,
+                                                   WriteBarrierMode mode) {
+  set(EntryToIndex(entry) + 2, value, mode);
+}
+
 uint32_t CompilationCacheShape::RegExpHash(String string, Smi flags) {
   return string.EnsureHash() + flags.value();
 }

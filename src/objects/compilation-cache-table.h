@@ -126,10 +126,18 @@ class CompilationCacheTable
   void Remove(Object value);
   void Age(Isolate* isolate);
 
+  inline Object PrimaryValueAt(InternalIndex entry);
+  inline void SetPrimaryValueAt(InternalIndex entry, Object value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Object EvalFeedbackValueAt(InternalIndex entry);
+  inline void SetEvalFeedbackValueAt(
+      InternalIndex entry, Object value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_CAST(CompilationCacheTable)
 
  private:
-  void RemoveEntry(int entry_index);
+  void RemoveEntry(InternalIndex entry);
 
   OBJECT_CONSTRUCTORS(CompilationCacheTable,
                       HashTable<CompilationCacheTable, CompilationCacheShape>);

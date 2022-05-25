@@ -165,6 +165,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   inline Object KeyAt(PtrComprCageBase cage_base, InternalIndex entry,
                       RelaxedLoadTag tag);
 
+  inline void SetKeyAt(InternalIndex entry, Object value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;
   static_assert(kEntrySize > 0);
