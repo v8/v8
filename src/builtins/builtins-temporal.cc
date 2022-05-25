@@ -52,8 +52,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeSince)
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeEquals)
 
 /* Temporal.PlaneTime */
-/* Temporal #sec-temporal.plaintime.compare */
-TO_BE_IMPLEMENTED(TemporalPlainTimeCompare)
 /* Temporal #sec-temporal.plaintime.prototype.add */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeAdd)
 /* Temporal #sec-temporal.plaintime.prototype.subtract */
@@ -66,8 +64,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeSince)
 /* Temporal #sec-temporal.plaintime.prototype.round */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeRound)
-/* Temporal #sec-temporal.plaintime.prototype.equals */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeEquals)
 /* Temporal #sec-temporal.plaintime.prototype.toplaindatetime */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToPlainDateTime)
 /* Temporal #sec-temporal.plaintime.prototype.tolocalestring */
@@ -435,6 +431,8 @@ TEMPORAL_GET_SMI(PlainTime, Microsecond, iso_microsecond)
 TEMPORAL_GET_SMI(PlainTime, Nanosecond, iso_nanosecond)
 TEMPORAL_METHOD2(PlainTime, From)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToZonedDateTime, toZonedDateTime)
+TEMPORAL_METHOD2(PlainTime, Compare)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)

@@ -9462,6 +9462,116 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainTime::ToZonedDateTime(
       calendar);
 }
 
+namespace {
+// #sec-temporal-comparetemporaltime
+int32_t CompareTemporalTime(const TimeRecordCommon& time1,
+                            const TimeRecordCommon& time2) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: h1, min1, s1, ms1, mus1, ns1, h2, min2, s2, ms2, mus2, and ns2
+  // are integers.
+  // 2. If h1 > h2, return 1.
+  if (time1.hour > time2.hour) return 1;
+  // 3. If h1 < h2, return -1.
+  if (time1.hour < time2.hour) return -1;
+  // 4. If min1 > min2, return 1.
+  if (time1.minute > time2.minute) return 1;
+  // 5. If min1 < min2, return -1.
+  if (time1.minute < time2.minute) return -1;
+  // 6. If s1 > s2, return 1.
+  if (time1.second > time2.second) return 1;
+  // 7. If s1 < s2, return -1.
+  if (time1.second < time2.second) return -1;
+  // 8. If ms1 > ms2, return 1.
+  if (time1.millisecond > time2.millisecond) return 1;
+  // 9. If ms1 < ms2, return -1.
+  if (time1.millisecond < time2.millisecond) return -1;
+  // 10. If mus1 > mus2, return 1.
+  if (time1.microsecond > time2.microsecond) return 1;
+  // 11. If mus1 < mus2, return -1.
+  if (time1.microsecond < time2.microsecond) return -1;
+  // 12. If ns1 > ns2, return 1.
+  if (time1.nanosecond > time2.nanosecond) return 1;
+  // 13. If ns1 < ns2, return -1.
+  if (time1.nanosecond < time2.nanosecond) return -1;
+  // 14. Return 0.
+  return 0;
+}
+}  // namespace
+
+// #sec-temporal.plaintime.compare
+MaybeHandle<Smi> JSTemporalPlainTime::Compare(Isolate* isolate,
+                                              Handle<Object> one_obj,
+                                              Handle<Object> two_obj) {
+  const char* method_name = "Temporal.PainTime.compare";
+  // 1. Set one to ? ToTemporalTime(one).
+  Handle<JSTemporalPlainTime> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one,
+      temporal::ToTemporalTime(isolate, one_obj, ShowOverflow::kConstrain,
+                               method_name),
+      Smi);
+  // 2. Set two to ? ToTemporalTime(two).
+  Handle<JSTemporalPlainTime> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two,
+      temporal::ToTemporalTime(isolate, two_obj, ShowOverflow::kConstrain,
+                               method_name),
+      Smi);
+  // 3. Return 𝔽(! CompareTemporalTime(one.[[ISOHour]], one.[[ISOMinute]],
+  // one.[[ISOSecond]], one.[[ISOMillisecond]], one.[[ISOMicrosecond]],
+  // one.[[ISONanosecond]], two.[[ISOHour]], two.[[ISOMinute]],
+  // two.[[ISOSecond]], two.[[ISOMillisecond]], two.[[ISOMicrosecond]],
+  // two.[[ISONanosecond]])).
+  return handle(Smi::FromInt(CompareTemporalTime(
+                    {one->iso_hour(), one->iso_minute(), one->iso_second(),
+                     one->iso_millisecond(), one->iso_microsecond(),
+                     one->iso_nanosecond()},
+                    {two->iso_hour(), two->iso_minute(), two->iso_second(),
+                     two->iso_millisecond(), two->iso_microsecond(),
+                     two->iso_nanosecond()})),
+                isolate);
+}
+
+// #sec-temporal.plaintime.prototype.equals
+MaybeHandle<Oddball> JSTemporalPlainTime::Equals(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> other_obj) {
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalTime,
+  // [[InitializedTemporalTime]]).
+  // 3. Set other to ? ToTemporalTime(other).
+  Handle<JSTemporalPlainTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      temporal::ToTemporalTime(isolate, other_obj, ShowOverflow::kConstrain,
+                               "Temporal.PlainTime.prototype.equals"),
+      Oddball);
+  // 4. If temporalTime.[[ISOHour]] ≠ other.[[ISOHour]], return false.
+  if (temporal_time->iso_hour() != other->iso_hour())
+    return isolate->factory()->false_value();
+  // 5. If temporalTime.[[ISOMinute]] ≠ other.[[ISOMinute]], return false.
+  if (temporal_time->iso_minute() != other->iso_minute())
+    return isolate->factory()->false_value();
+  // 6. If temporalTime.[[ISOSecond]] ≠ other.[[ISOSecond]], return false.
+  if (temporal_time->iso_second() != other->iso_second())
+    return isolate->factory()->false_value();
+  // 7. If temporalTime.[[ISOMillisecond]] ≠ other.[[ISOMillisecond]], return
+  // false.
+  if (temporal_time->iso_millisecond() != other->iso_millisecond())
+    return isolate->factory()->false_value();
+  // 8. If temporalTime.[[ISOMicrosecond]] ≠ other.[[ISOMicrosecond]], return
+  // false.
+  if (temporal_time->iso_microsecond() != other->iso_microsecond())
+    return isolate->factory()->false_value();
+  // 9. If temporalTime.[[ISONanosecond]] ≠ other.[[ISONanosecond]], return
+  // false.
+  if (temporal_time->iso_nanosecond() != other->iso_nanosecond())
+    return isolate->factory()->false_value();
+  // 10. Return true.
+  return isolate->factory()->true_value();
+}
+
 // #sec-temporal.now.plaintimeiso
 MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::NowISO(
     Isolate* isolate, Handle<Object> temporal_time_zone_like) {

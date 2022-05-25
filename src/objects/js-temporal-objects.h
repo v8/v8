@@ -455,6 +455,16 @@ class JSTemporalPlainTime
       Handle<Object> second, Handle<Object> millisecond,
       Handle<Object> microsecond, Handle<Object> nanosecond);
 
+  // #sec-temporal.plaintime.compare
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Compare(Isolate* isolate,
+                                                        Handle<Object> one,
+                                                        Handle<Object> two);
+
+  // #sec-temporal.plaintime.prototype.equals
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Oddball> Equals(
+      Isolate* isolate, Handle<JSTemporalPlainTime> plain_date,
+      Handle<Object> other);
+
   // #sec-temporal.plaintime.from
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> From(
       Isolate* isolate, Handle<Object> item, Handle<Object> options);
