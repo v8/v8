@@ -1927,85 +1927,60 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
 }
 
 void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
+#define PRINT_WASM_INSTANCE_FIELD(name, convert) \
+  os << "\n - " #name ": " << convert(name());
+#define PRINT_OPTIONAL_WASM_INSTANCE_FIELD(name, convert) \
+  if (has_##name()) os << "\n - " #name ": " << convert(name());
+
+  auto to_void_ptr = [](auto value) {
+    static_assert(sizeof(value) == kSystemPointerSize);
+    return reinterpret_cast<void*>(value);
+  };
+
   JSObjectPrintHeader(os, *this, "WasmInstanceObject");
-  os << "\n - module_object: " << Brief(module_object());
-  os << "\n - exports_object: " << Brief(exports_object());
-  os << "\n - native_context: " << Brief(native_context());
-  if (has_memory_object()) {
-    os << "\n - memory_object: " << Brief(memory_object());
-  }
-  if (has_untagged_globals_buffer()) {
-    os << "\n - untagged_globals_buffer: " << Brief(untagged_globals_buffer());
-  }
-  if (has_tagged_globals_buffer()) {
-    os << "\n - tagged_globals_buffer: " << Brief(tagged_globals_buffer());
-  }
-  if (has_imported_mutable_globals_buffers()) {
-    os << "\n - imported_mutable_globals_buffers: "
-       << Brief(imported_mutable_globals_buffers());
-  }
-  for (int i = 0; i < tables().length(); i++) {
-    os << "\n - table " << i << ": " << Brief(tables().get(i));
-  }
-  if (has_indirect_function_tables()) {
-    os << "\n - indirect_function_table: " << Brief(indirect_function_tables());
-  }
-  os << "\n - imported_function_refs: " << Brief(imported_function_refs());
-  if (has_indirect_function_table_refs()) {
-    os << "\n - indirect_function_table_refs: "
-       << Brief(indirect_function_table_refs());
-  }
-  if (has_managed_native_allocations()) {
-    os << "\n - managed_native_allocations: "
-       << Brief(managed_native_allocations());
-  }
-  if (has_tags_table()) {
-    os << "\n - tags table: " << Brief(tags_table());
-  }
-  if (has_wasm_internal_functions()) {
-    os << "\n - wasm internal functions: " << Brief(wasm_internal_functions());
-  }
-  os << "\n - managed object maps: " << Brief(managed_object_maps());
-  os << "\n - feedback vectors: " << Brief(feedback_vectors());
-  os << "\n - memory_start: " << static_cast<void*>(memory_start());
-  os << "\n - memory_size: " << memory_size();
-  os << "\n - isolate root: " << reinterpret_cast<void*>(isolate_root());
-  os << "\n - stack limit address: "
-     << reinterpret_cast<void*>(stack_limit_address());
-  os << "\n - real stack limit address: "
-     << reinterpret_cast<void*>(real_stack_limit_address());
-  os << "\n - new allocation limit address: "
-     << reinterpret_cast<void*>(new_allocation_limit_address());
-  os << "\n - new allocation top address: "
-     << reinterpret_cast<void*>(new_allocation_top_address());
-  os << "\n - old allocation limit address: "
-     << reinterpret_cast<void*>(old_allocation_limit_address());
-  os << "\n - old allocation top address: "
-     << reinterpret_cast<void*>(old_allocation_top_address());
-  os << "\n - imported_function_targets: "
-     << static_cast<void*>(imported_function_targets());
-  os << "\n - globals_start: " << static_cast<void*>(globals_start());
-  os << "\n - imported_mutable_globals: "
-     << static_cast<void*>(imported_mutable_globals());
-  os << "\n - indirect_function_table_size: " << indirect_function_table_size();
-  os << "\n - indirect_function_table_sig_ids: "
-     << static_cast<void*>(indirect_function_table_sig_ids());
-  os << "\n - indirect_function_table_targets: "
-     << static_cast<void*>(indirect_function_table_targets());
-  os << "\n - jump table start: "
-     << reinterpret_cast<void*>(jump_table_start());
-  os << "\n - data segment starts: "
-     << static_cast<void*>(data_segment_starts());
-  os << "\n - data segment sizes: " << static_cast<void*>(data_segment_sizes());
-  os << "\n - dropped_elem_segments: "
-     << static_cast<void*>(dropped_elem_segments());
-  os << "\n - hook on function call address: "
-     << reinterpret_cast<void*>(hook_on_function_call_address());
-  os << "\n - tiering budget array: "
-     << static_cast<void*>(tiering_budget_array());
-  os << "\n - break_on_entry: " << break_on_entry();
+  PRINT_WASM_INSTANCE_FIELD(module_object, Brief);
+  PRINT_WASM_INSTANCE_FIELD(exports_object, Brief);
+  PRINT_WASM_INSTANCE_FIELD(native_context, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(memory_object, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(untagged_globals_buffer, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tagged_globals_buffer, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(imported_mutable_globals_buffers, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tables, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(indirect_function_tables, Brief);
+  PRINT_WASM_INSTANCE_FIELD(imported_function_refs, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(indirect_function_table_refs, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(managed_native_allocations, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tags_table, Brief);
+  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
+  PRINT_WASM_INSTANCE_FIELD(managed_object_maps, Brief);
+  PRINT_WASM_INSTANCE_FIELD(feedback_vectors, Brief);
+  PRINT_WASM_INSTANCE_FIELD(memory_start, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(memory_size, +);
+  PRINT_WASM_INSTANCE_FIELD(isolate_root, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(stack_limit_address, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(real_stack_limit_address, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(new_allocation_limit_address, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(new_allocation_top_address, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(old_allocation_limit_address, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(old_allocation_top_address, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(imported_function_targets, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_size, +);
+  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_sig_ids, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_targets, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(data_segment_starts, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(data_segment_sizes, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(dropped_elem_segments, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(hook_on_function_call_address, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(break_on_entry, static_cast<int>);
   JSObjectPrintBody(os, *this);
   os << "\n";
+
+#undef PRINT_OPTIONAL_WASM_INSTANCE_FIELD
+#undef PRINT_WASM_INSTANCE_FIELD
 }
 
 // Never called directly, as WasmFunctionData is an "abstract" class.
