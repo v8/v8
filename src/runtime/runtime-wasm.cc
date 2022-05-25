@@ -713,10 +713,6 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// Returns
-// - the new array if the operation succeeds,
-// - Smi(0) if the requested array length is too large,
-// - Smi(1) if the data segment ran out-of-bounds.
 RUNTIME_FUNCTION(Runtime_WasmArrayInitFromData) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
@@ -730,14 +726,15 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitFromData) {
   uint32_t length_in_bytes = length * element_size;
 
   if (length > static_cast<uint32_t>(WasmArray::MaxLength(element_size))) {
-    return Smi::FromInt(wasm::kArrayInitFromDataArrayTooLargeErrorCode);
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapArrayTooLarge);
   }
   // The check above implies no overflow.
   DCHECK_EQ(length_in_bytes / element_size, length);
   if (!base::IsInBounds<uint32_t>(
           offset, length_in_bytes,
           instance->data_segment_sizes()[data_segment])) {
-    return Smi::FromInt(wasm::kArrayInitFromDataSegmentOutOfBoundsErrorCode);
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
 
   Address source = instance->data_segment_starts()[data_segment] + offset;

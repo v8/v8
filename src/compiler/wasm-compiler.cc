@@ -5260,21 +5260,9 @@ Node* WasmGraphBuilder::ArrayInitFromData(const wasm::ArrayType* type,
                                           uint32_t data_segment, Node* offset,
                                           Node* length, Node* rtt,
                                           wasm::WasmCodePosition position) {
-  Node* array = gasm_->CallBuiltin(
+  return gasm_->CallBuiltin(
       Builtin::kWasmArrayInitFromData, Operator::kNoDeopt | Operator::kNoThrow,
       gasm_->Uint32Constant(data_segment), offset, length, rtt);
-  TrapIfTrue(wasm::kTrapArrayTooLarge,
-             gasm_->TaggedEqual(
-                 array, gasm_->NumberConstant(
-                            wasm::kArrayInitFromDataArrayTooLargeErrorCode)),
-             position);
-  TrapIfTrue(
-      wasm::kTrapDataSegmentOutOfBounds,
-      gasm_->TaggedEqual(
-          array, gasm_->NumberConstant(
-                     wasm::kArrayInitFromDataSegmentOutOfBoundsErrorCode)),
-      position);
-  return array;
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {

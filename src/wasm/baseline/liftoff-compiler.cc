@@ -3329,6 +3329,8 @@ class LiftoffCompiler {
     return values;
   }
 
+  // Call this after emitting a runtime call that can show up in a stack trace
+  // (e.g. because it can trap).
   void RegisterDebugSideTableEntry(
       FullDecoder* decoder,
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
@@ -5563,20 +5565,11 @@ class LiftoffCompiler {
                     },
                     decoder->position());
 
-    LiftoffRegister result(kReturnRegister0);
-    // Reuse the data segment register for error handling.
-    LiftoffRegister error_smi = data_segment_reg;
-    LoadSmi(error_smi, kArrayInitFromDataArrayTooLargeErrorCode);
-    Label* trap_label_array_too_large =
-        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayTooLarge);
-    __ emit_cond_jump(kEqual, trap_label_array_too_large, kRef, result.gp(),
-                      error_smi.gp());
-    LoadSmi(error_smi, kArrayInitFromDataSegmentOutOfBoundsErrorCode);
-    Label* trap_label_segment_out_of_bounds = AddOutOfLineTrap(
-        decoder, WasmCode::kThrowWasmTrapDataSegmentOutOfBounds);
-    __ emit_cond_jump(kEqual, trap_label_segment_out_of_bounds, kRef,
-                      result.gp(), error_smi.gp());
+    // Pop parameters from the value stack.
+    __ cache_state()->stack_state.pop_back(3);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
+    LiftoffRegister result(kReturnRegister0);
     __ PushRegister(kRef, result);
   }
 
