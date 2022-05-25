@@ -5983,8 +5983,26 @@ class LiftoffCompiler {
 
   void StringNewWtf8(FullDecoder* decoder,
                      const MemoryIndexImmediate<validate>& imm,
-                     const Value& index, const Value& bytes, Value* result) {
-    UNIMPLEMENTED();
+                     const Value& offset, const Value& size, Value* result) {
+    LiftoffRegList pinned;
+    LiftoffRegister memory_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(memory_reg, WasmValue(static_cast<int32_t>(imm.index)));
+    LiftoffAssembler::VarState memory_var(kI32, memory_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringNewWtf8,
+                    MakeSig::Returns(kRef).Params(kI32, kI32, kI32),
+                    {
+                        memory_var,
+                        __ cache_state()->stack_state.end()[-2],  // offset
+                        __ cache_state()->stack_state.end()[-1]   // size
+                    },
+                    decoder->position());
+    __ cache_state()->stack_state.pop_back(2);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void StringNewWtf16(FullDecoder* decoder,

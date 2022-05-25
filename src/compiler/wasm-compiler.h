@@ -536,6 +536,7 @@ class WasmGraphBuilder {
   void BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config,
                Node** match_control, Node** match_effect,
                Node** no_match_control, Node** no_match_effect);
+  Node* StringNewWtf8(uint32_t memory, Node* offset, Node* size);
 
   bool has_simd() const { return has_simd_; }
 

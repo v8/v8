@@ -5670,6 +5670,12 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
   gasm_->Bind(&skip);
 }
 
+Node* WasmGraphBuilder::StringNewWtf8(uint32_t memory, Node* offset,
+                                      Node* size) {
+  return gasm_->CallBuiltin(Builtin::kWasmStringNewWtf8, Operator::kNoDeopt,
+                            gasm_->Uint32Constant(memory), offset, size);
+}
+
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
 constexpr int kI31To32BitSmiShift = 33;
 

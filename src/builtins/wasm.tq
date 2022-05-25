@@ -38,6 +38,8 @@ extern runtime WasmArrayCopy(
     Context, WasmArray, Smi, WasmArray, Smi, Smi): JSAny;
 extern runtime WasmArrayInitFromData(
     Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
+extern runtime WasmStringNewWtf8(
+    Context, WasmInstanceObject, Smi, Number, Number): String;
 }
 
 namespace unsafe {
@@ -797,5 +799,13 @@ transitioning javascript builtin ExperimentalWasmConvertStringToArray(
   } label InvalidArgument deferred {
     ThrowTypeError(MessageTemplate::kInvalidArgument);
   }
+}
+
+builtin WasmStringNewWtf8(
+    memory: uint32, offset: uint32, size: uint32): String {
+  const instance = LoadInstanceFromFrame();
+  tail runtime::WasmStringNewWtf8(
+      LoadContextFromInstance(instance), instance, SmiFromUint32(memory),
+      WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
 }
 }

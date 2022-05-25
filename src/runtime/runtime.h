@@ -611,7 +611,8 @@ namespace internal {
   F(WasmArrayInitFromData, 5, 1)      \
   F(WasmAllocateContinuation, 1, 1)   \
   F(WasmSyncStackLimit, 0, 1)         \
-  F(WasmCreateResumePromise, 2, 1)
+  F(WasmCreateResumePromise, 2, 1)    \
+  F(WasmStringNewWtf8, 4, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I) \
   F(DeserializeWasmModule, 2, 1)           \

@@ -26,6 +26,7 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
+#include "src/wasm/wtf8.h"
 
 namespace v8 {
 namespace internal {
@@ -822,6 +823,56 @@ RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
            .ToHandle(&result);
   // TODO(thibaudm): Propagate exception.
   CHECK(!has_pending_exception);
+  return *result;
+}
+
+// Returns the new string if the operation succeeds.  Otherwise throws an
+// exception and returns an empty result.
+RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(4, args.length());
+  HandleScope scope(isolate);
+  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+  uint32_t memory = args.positive_smi_value_at(1);
+  uint32_t offset = NumberToUint32(args[2]);
+  uint32_t size = NumberToUint32(args[3]);
+
+  DCHECK_EQ(memory, 0);
+  USE(memory);
+
+  uint64_t mem_size = instance->memory_size();
+  if (!base::IsInBounds<uint64_t>(offset, size, mem_size)) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
+  }
+
+  const base::Vector<const uint8_t> bytes{instance->memory_start() + offset,
+                                          size};
+  wasm::Wtf8Decoder decoder(bytes);
+  if (!decoder.is_valid()) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapStringInvalidWtf8);
+  }
+
+  if (decoder.utf16_length() == 0) return *isolate->factory()->empty_string();
+
+  if (decoder.is_one_byte()) {
+    if (size == 1) {
+      return *isolate->factory()->LookupSingleCharacterStringFromCode(bytes[0]);
+    }
+    Handle<SeqOneByteString> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        isolate->factory()->NewRawOneByteString(decoder.utf16_length()));
+    DisallowGarbageCollection no_gc;
+    decoder.Decode(result->GetChars(no_gc), bytes);
+    return *result;
+  }
+
+  Handle<SeqTwoByteString> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewRawTwoByteString(decoder.utf16_length()));
+  DisallowGarbageCollection no_gc;
+  decoder.Decode(result->GetChars(no_gc), bytes);
   return *result;
 }
 

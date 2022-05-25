@@ -13,6 +13,7 @@
 #include <cstdarg>
 #include <memory>
 
+#include "src/base/vector.h"
 #include "src/strings/unicode.h"
 
 namespace v8 {
@@ -34,6 +35,36 @@ class Wtf8 {
   // this function checks for a valid "generalized UTF-8" sequence, with the
   // additional constraint that surrogate pairs are not allowed.
   static bool ValidateEncoding(const byte* str, size_t length);
+};
+
+// Like Utf8Decoder, except that instead of replacing invalid sequences with
+// U+FFFD, we have a separate Encoding::kInvalid state.
+class Wtf8Decoder {
+ public:
+  enum class Encoding : uint8_t { kAscii, kLatin1, kUtf16, kInvalid };
+
+  explicit Wtf8Decoder(const base::Vector<const uint8_t>& data);
+
+  bool is_valid() const { return encoding_ != Encoding::kInvalid; }
+  bool is_ascii() const { return encoding_ == Encoding::kAscii; }
+  bool is_one_byte() const { return encoding_ <= Encoding::kLatin1; }
+  int utf16_length() const {
+    DCHECK(is_valid());
+    return utf16_length_;
+  }
+  int non_ascii_start() const {
+    DCHECK(is_valid());
+    return non_ascii_start_;
+  }
+
+  template <typename Char>
+  V8_EXPORT_PRIVATE void Decode(Char* out,
+                                const base::Vector<const uint8_t>& data);
+
+ private:
+  Encoding encoding_;
+  int non_ascii_start_;
+  int utf16_length_;
 };
 
 }  // namespace wasm
