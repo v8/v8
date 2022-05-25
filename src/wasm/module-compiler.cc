@@ -858,11 +858,6 @@ void CompilationState::AddCallback(
   return Impl(this)->AddCallback(std::move(callback));
 }
 
-void CompilationState::WaitForTopTierFinished() {
-  Impl(this)->WaitForCompilationEvent(
-      CompilationEvent::kFinishedTopTierCompilation);
-}
-
 void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
 
 void CompilationState::InitializeAfterDeserialization(

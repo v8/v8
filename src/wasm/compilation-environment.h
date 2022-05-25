@@ -164,9 +164,6 @@ class V8_EXPORT_PRIVATE CompilationState {
       base::Vector<const int> lazy_functions,
       base::Vector<const int> liftoff_functions);
 
-  // Wait until top tier compilation finished, or compilation failed.
-  void WaitForTopTierFinished();
-
   // Set a higher priority for the compilation job.
   void SetHighPriority();
 
