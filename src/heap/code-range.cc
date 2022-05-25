@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
+#include "src/codegen/constants-arch.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
@@ -204,8 +205,13 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   size_t allocate_code_size =
       RoundUp(embedded_blob_code_size, kAllocatePageSize);
 
-  // Allocate the re-embedded code blob in the end.
-  void* hint = reinterpret_cast<void*>(code_region.end() - allocate_code_size);
+  // Allocate the re-embedded code blob in such a way that it will be reachable
+  // by PC-relative addressing from biggest possible region.
+  const size_t max_pc_relative_code_range = kMaxPCRelativeCodeRangeInMB * MB;
+  size_t hint_offset =
+      std::min(max_pc_relative_code_range, code_region.size()) -
+      allocate_code_size;
+  void* hint = reinterpret_cast<void*>(code_region.begin() + hint_offset);
 
   embedded_blob_code_copy =
       reinterpret_cast<uint8_t*>(page_allocator()->AllocatePages(
@@ -215,6 +221,25 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   if (!embedded_blob_code_copy) {
     V8::FatalProcessOutOfMemory(
         isolate, "Can't allocate space for re-embedded builtins");
+  }
+  CHECK_EQ(embedded_blob_code_copy, hint);
+
+  if (code_region.size() > max_pc_relative_code_range) {
+    // The re-embedded code blob might not be reachable from the end part of
+    // the code range, so ensure that code pages will never be allocated in
+    // the "unreachable" area.
+    Address unreachable_start =
+        reinterpret_cast<Address>(embedded_blob_code_copy) +
+        max_pc_relative_code_range;
+
+    if (code_region.contains(unreachable_start)) {
+      size_t unreachable_size = code_region.end() - unreachable_start;
+
+      void* result = page_allocator()->AllocatePages(
+          reinterpret_cast<void*>(unreachable_start), unreachable_size,
+          kAllocatePageSize, PageAllocator::kNoAccess);
+      CHECK_EQ(reinterpret_cast<Address>(result), unreachable_start);
+    }
   }
 
   size_t code_size = RoundUp(embedded_blob_code_size, kCommitPageSize);

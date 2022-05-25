@@ -304,7 +304,8 @@ constexpr bool kPlatformRequiresCodeRange = true;
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
 constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #elif V8_TARGET_ARCH_ARM64
-constexpr size_t kMaximalCodeRangeSize = 128 * MB;
+constexpr size_t kMaximalCodeRangeSize =
+    V8_EXTERNAL_CODE_SPACE_BOOL ? 256 * MB : 128 * MB;
 constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #else
 constexpr size_t kMaximalCodeRangeSize =
