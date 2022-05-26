@@ -1962,7 +1962,6 @@ TEST(li_estimate) {
       -256,      -255,          0,         255,        8192,      0x7FFFFFFF,
       INT32_MIN, INT32_MAX / 2, INT32_MAX, UINT32_MAX, INT64_MAX, INT64_MAX / 2,
       INT64_MIN};
-  // Test jump tables with backward jumps and embedded heap objects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
