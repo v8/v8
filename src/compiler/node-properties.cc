@@ -622,8 +622,6 @@ bool NodeProperties::IsFreshObject(Node* node) {
       // fresh object. E.g. kWasmAllocateFixedArray may return the canonical
       // empty array.
       return callee == Builtin::kWasmAllocateArray_Uninitialized ||
-             callee == Builtin::kWasmAllocateArray_InitNull ||
-             callee == Builtin::kWasmAllocateArray_InitZero ||
              callee == Builtin::kWasmAllocateStructWithRtt ||
              callee == Builtin::kWasmAllocateObjectWrapper;
     }

@@ -538,10 +538,14 @@ int32_t memory_fill_wrapper(Address data) {
 }
 
 namespace {
+inline void* ArrayElementAddress(Address array, uint32_t index,
+                                 int element_size_bytes) {
+  return reinterpret_cast<void*>(array + WasmArray::kHeaderSize -
+                                 kHeapObjectTag + index * element_size_bytes);
+}
 inline void* ArrayElementAddress(WasmArray array, uint32_t index,
                                  int element_size_bytes) {
-  return reinterpret_cast<void*>(array.ptr() + WasmArray::kHeaderSize -
-                                 kHeapObjectTag + index * element_size_bytes);
+  return ArrayElementAddress(array.ptr(), index, element_size_bytes);
 }
 }  // namespace
 
@@ -583,6 +587,14 @@ void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
       MemCopy(dst, src, copy_size);
     }
   }
+}
+
+void array_fill_with_zeroes_wrapper(Address raw_array, uint32_t length,
+                                    uint32_t element_size_bytes) {
+  ThreadNotInWasmScope thread_not_in_wasm_scope;
+  DisallowGarbageCollection no_gc;
+  std::memset(ArrayElementAddress(raw_array, 0, element_size_bytes), 0,
+              length * element_size_bytes);
 }
 
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;

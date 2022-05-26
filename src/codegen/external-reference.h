@@ -238,6 +238,7 @@ class StatsCounter;
   IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
   IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
+  IF_WASM(V, wasm_array_fill_with_zeroes, "wasm::array_fill_with_zeroes")      \
   V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
   V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \

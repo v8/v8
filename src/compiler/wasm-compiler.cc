@@ -5154,6 +5154,31 @@ void WasmGraphBuilder::TableFill(uint32_t table_index, Node* start, Node* value,
       count, value);
 }
 
+Node* WasmGraphBuilder::DefaultValue(wasm::ValueType type) {
+  DCHECK(type.is_defaultable());
+  switch (type.kind()) {
+    case wasm::kI8:
+    case wasm::kI16:
+    case wasm::kI32:
+      return Int32Constant(0);
+    case wasm::kI64:
+      return Int64Constant(0);
+    case wasm::kF32:
+      return Float32Constant(0);
+    case wasm::kF64:
+      return Float64Constant(0);
+    case wasm::kS128:
+      return S128Zero();
+    case wasm::kOptRef:
+      return RefNull();
+    case wasm::kRtt:
+    case wasm::kVoid:
+    case wasm::kBottom:
+    case wasm::kRef:
+      UNREACHABLE();
+  }
+}
+
 Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
                                          const wasm::StructType* type,
                                          Node* rtt,
@@ -5176,18 +5201,6 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
   return s;
 }
 
-Builtin ChooseArrayAllocationBuiltin(wasm::ValueType element_type,
-                                     Node* initial_value) {
-  if (initial_value != nullptr) {
-    // {initial_value} will be used for initialization after allocation.
-    return Builtin::kWasmAllocateArray_Uninitialized;
-  }
-  if (element_type.is_reference()) {
-    return Builtin::kWasmAllocateArray_InitNull;
-  }
-  return Builtin::kWasmAllocateArray_InitZero;
-}
-
 Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                                         const wasm::ArrayType* type,
                                         Node* length, Node* initial_value,
@@ -5198,50 +5211,98 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                   length, gasm_->Uint32Constant(WasmArray::MaxLength(type))),
               position);
   wasm::ValueType element_type = type->element_type();
-  // TODO(7748): Consider using gasm_->Allocate().
-  Builtin stub = ChooseArrayAllocationBuiltin(element_type, initial_value);
-  // Do NOT mark this as Operator::kEliminatable, because that would cause the
-  // Call node to have no control inputs, which means it could get scheduled
-  // before the check/trap above.
-  Node* a =
-      gasm_->CallBuiltin(stub, Operator::kNoDeopt | Operator::kNoThrow, rtt,
-                         length, Int32Constant(element_type.value_kind_size()));
-  if (initial_value != nullptr) {
-    // TODO(manoskouk): If the loop is ever removed here, we have to update
-    // ArrayNewWithRtt() in graph-builder-interface.cc to not mark the current
-    // loop as non-innermost.
-    auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
-    auto done = gasm_->MakeLabel();
-    Node* start_offset =
-        Int32Constant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize));
-    Node* element_size = Int32Constant(element_type.value_kind_size());
-    Node* end_offset =
-        gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
+
+  // RoundUp(length * value_size, kObjectAlignment) =
+  //   RoundDown(length * value_size + kObjectAlignment - 1,
+  //             kObjectAlignment);
+  Node* padded_length = gasm_->Word32And(
+      gasm_->Int32Add(
+          gasm_->Int32Mul(length,
+                          Int32Constant(element_type.value_kind_size())),
+          Int32Constant(kObjectAlignment - 1)),
+      Int32Constant(-kObjectAlignment));
+  Node* a = gasm_->Allocate(
+      gasm_->Int32Add(padded_length, Int32Constant(WasmArray::kHeaderSize)));
+
+  // Initialize the array header.
+  gasm_->StoreMap(a, rtt);
+  gasm_->InitializeImmutableInObject(
+      ObjectAccess(MachineType::TaggedPointer(), kNoWriteBarrier), a,
+      wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
+      LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
+  gasm_->InitializeImmutableInObject(
+      ObjectAccess(MachineType::Uint32(), kNoWriteBarrier), a,
+      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset), length);
+
+  // Initialize the array elements. Use memset for large arrays initialized with
+  // zeroes (through an external function), and a loop for all other ones. The
+  // size limit was determined by running array-copy-benchmark.js.
+  auto done = gasm_->MakeLabel();
+  // TODO(manoskouk): If the loop is ever removed here, we have to update
+  // ArrayNewWithRtt() in graph-builder-interface.cc to not mark the current
+  // loop as non-innermost.
+  auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
+  Node* start_offset = gasm_->IntPtrConstant(
+      wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize));
+  Node* element_size = gasm_->IntPtrConstant(element_type.value_kind_size());
+  Node* end_offset =
+      gasm_->IntAdd(start_offset, gasm_->IntMul(element_size, length));
+
+  if (initial_value == nullptr && element_type.is_numeric()) {
+    constexpr uint32_t kArrayNewMinimumSizeForMemSet = 10;
+    gasm_->GotoIf(gasm_->Uint32LessThan(
+                      length, Int32Constant(kArrayNewMinimumSizeForMemSet)),
+                  &loop, BranchHint::kNone, start_offset);
+    Node* function = gasm_->ExternalConstant(
+        ExternalReference::wasm_array_fill_with_zeroes());
+    MachineType arg_types[]{MachineType::TaggedPointer(), MachineType::Uint32(),
+                            MachineType::Uint32()};
+    MachineSignature sig(0, 3, arg_types);
+    BuildCCall(&sig, function, a, length,
+               Int32Constant(element_type.value_kind_size()));
+    gasm_->Goto(&done);
+  } else {
     gasm_->Goto(&loop, start_offset);
-    gasm_->Bind(&loop);
-    {
-      Node* offset = loop.PhiAt(0);
-      Node* check = gasm_->Uint32LessThan(offset, end_offset);
-      gasm_->GotoIfNot(check, &done);
-      gasm_->StoreToObject(ObjectAccessForGCStores(type->element_type()), a,
-                           offset, initial_value);
-      offset = gasm_->Int32Add(offset, element_size);
-      gasm_->Goto(&loop, offset);
-    }
-    gasm_->Bind(&done);
   }
+  gasm_->Bind(&loop);
+  auto object_access = ObjectAccessForGCStores(element_type);
+  if (initial_value == nullptr) {
+    initial_value = DefaultValue(element_type);
+    object_access.write_barrier_kind = kNoWriteBarrier;
+  }
+  {
+    Node* offset = loop.PhiAt(0);
+    Node* check = gasm_->UintLessThan(offset, end_offset);
+    gasm_->GotoIfNot(check, &done);
+    if (type->mutability()) {
+      gasm_->StoreToObject(object_access, a, offset, initial_value);
+    } else {
+      gasm_->InitializeImmutableInObject(object_access, a, offset,
+                                         initial_value);
+    }
+    offset = gasm_->IntAdd(offset, element_size);
+    gasm_->Goto(&loop, offset);
+  }
+  gasm_->Bind(&done);
   return a;
 }
 
 Node* WasmGraphBuilder::ArrayInit(const wasm::ArrayType* type, Node* rtt,
                                   base::Vector<Node*> elements) {
   wasm::ValueType element_type = type->element_type();
-  // TODO(7748): Consider using gasm_->Allocate().
-  Node* array =
-      gasm_->CallBuiltin(Builtin::kWasmAllocateArray_Uninitialized,
-                         Operator::kNoDeopt | Operator::kNoThrow, rtt,
-                         Int32Constant(static_cast<int32_t>(elements.size())),
-                         Int32Constant(element_type.value_kind_size()));
+  Node* array = gasm_->Allocate(RoundUp(element_type.value_kind_size() *
+                                            static_cast<int>(elements.size()),
+                                        kObjectAlignment) +
+                                WasmArray::kHeaderSize);
+  gasm_->StoreMap(array, rtt);
+  gasm_->InitializeImmutableInObject(
+      ObjectAccess(MachineType::TaggedPointer(), kNoWriteBarrier), array,
+      wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
+      LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
+  gasm_->InitializeImmutableInObject(
+      ObjectAccess(MachineType::Uint32(), kNoWriteBarrier), array,
+      wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset),
+      Int32Constant(static_cast<int>(elements.size())));
   for (int i = 0; i < static_cast<int>(elements.size()); i++) {
     Node* offset =
         gasm_->WasmArrayElementOffset(Int32Constant(i), element_type);

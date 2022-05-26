@@ -1445,34 +1445,6 @@ TNode<BoolT> CodeStubAssembler::IsRegularHeapObjectSize(TNode<IntPtrT> size) {
                                 IntPtrConstant(kMaxRegularHeapObjectSize));
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-TNode<HeapObject> CodeStubAssembler::AllocateWasmArray(
-    TNode<IntPtrT> size_in_bytes, int initialization) {
-  TNode<HeapObject> array =
-      Allocate(size_in_bytes, AllocationFlag::kAllowLargeObjectAllocation);
-  if (initialization == kUninitialized) return array;
-
-  TNode<IntPtrT> array_address = BitcastTaggedToWord(array);
-  TNode<IntPtrT> start = IntPtrAdd(
-      array_address, IntPtrConstant(WasmArray::kHeaderSize - kHeapObjectTag));
-  TNode<IntPtrT> limit = IntPtrAdd(
-      array_address, IntPtrSub(size_in_bytes, IntPtrConstant(kHeapObjectTag)));
-
-  TNode<Object> value;
-  if (initialization == kInitializeToZero) {
-    // A pointer-sized zero pattern is just what we need for numeric Wasm
-    // arrays (their object size is rounded up to a multiple of kPointerSize).
-    value = SmiConstant(0);
-  } else if (initialization == kInitializeToNull) {
-    value = NullConstant();
-  } else {
-    UNREACHABLE();
-  }
-  StoreFieldsNoWriteBarrier(start, limit, value);
-  return array;
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 void CodeStubAssembler::BranchIfToBooleanIsTrue(TNode<Object> value,
                                                 Label* if_true,
                                                 Label* if_false) {

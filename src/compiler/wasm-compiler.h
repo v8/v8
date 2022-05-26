@@ -544,6 +544,8 @@ class WasmGraphBuilder {
     return env_->bounds_checks;
   }
 
+  Node* DefaultValue(wasm::ValueType type);
+
   MachineGraph* mcgraph() { return mcgraph_; }
   Graph* graph();
   Zone* graph_zone();

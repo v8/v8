@@ -106,3 +106,92 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     print("loop copy: " + (after - before) + "ms");
   }
 })();
+
+// The following two benchmarks measure the efficiency of array allocation.
+// Change the three first parameters of each benchmarks to measure different
+// array sizes, iterations, and element types.
+(function ArrayNewDefaultBenchmark() {
+  let array_length = 10;
+  let iterations = 1
+  let test_object_type = false;
+
+  var builder = new WasmModuleBuilder();
+  let struct_index = builder.addStruct([makeField(kWasmI32, true),
+                                        makeField(kWasmI8, false)]);
+  let array_type = test_object_type ? wasmOptRefType(struct_index) : kWasmI32;
+  var array_index = builder.addArray(array_type, true);
+
+  let array_new = builder.addFunction(
+      "array_new", makeSig([], [wasmOptRefType(array_index)]))
+    .addBody([
+      ...wasmI32Const(array_length),
+      kGCPrefix, kExprRttCanon, array_index,
+      kGCPrefix, kExprArrayNewDefaultWithRtt, array_index])
+    .exportFunc();
+
+  builder.addFunction("loop_array_new", kSig_v_v)
+    .addLocals(wasmOptRefType(array_index), 1)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprCallFunction, array_new.index,
+        kExprLocalSet, 0,
+        kExprLocalGet, 1, kExprI32Const, 1, kExprI32Add, kExprLocalTee, 1,
+        ...wasmI32Const(iterations), kExprI32LtS,
+        kExprBrIf, 0,
+      kExprEnd])
+    .exportFunc();
+
+  var instance = builder.instantiate({});
+
+  print(`Type: ${test_object_type ? "object" : "i32"}, array length: ` +
+        `${array_length}, #iterations: ${iterations}`);
+  let before = Date.now();
+  instance.exports.loop_array_new();
+  let after = Date.now();
+  print(`array.new_default: ${after - before} ms`);
+})();
+
+(function ArrayNewBenchmark() {
+  let array_length = 10;
+  let iterations = 1;
+  let test_object_type = true;
+
+  var builder = new WasmModuleBuilder();
+  let struct_index = builder.addStruct([makeField(kWasmI32, true),
+                                        makeField(kWasmI8, false)]);
+  let array_type = test_object_type ? wasmOptRefType(struct_index) : kWasmI32;
+  var array_index = builder.addArray(array_type, true);
+
+  let array_new = builder.addFunction(
+      "array_new", makeSig([], [wasmOptRefType(array_index)]))
+    .addBody([
+      ...(test_object_type ? [kGCPrefix, kExprStructNewDefault, struct_index]
+                           : wasmI32Const(10)),
+      ...wasmI32Const(array_length),
+      kGCPrefix, kExprRttCanon, array_index,
+      kGCPrefix, kExprArrayNewWithRtt, array_index])
+    .exportFunc();
+
+  builder.addFunction("loop_array_new", kSig_v_v)
+    .addLocals(wasmOptRefType(array_index), 1)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprCallFunction, array_new.index,
+        kExprLocalSet, 0,
+        kExprLocalGet, 1, kExprI32Const, 1, kExprI32Add, kExprLocalTee, 1,
+        ...wasmI32Const(iterations), kExprI32LtS,
+        kExprBrIf, 0,
+      kExprEnd])
+    .exportFunc();
+
+  var instance = builder.instantiate({});
+
+  print(`Type: ${test_object_type ? "object" : "i32"}, array length: ` +
+        `${array_length}, #iterations: ${iterations}`);
+  let before = Date.now();
+  instance.exports.loop_array_new();
+  let after = Date.now();
+  print(`array.new: ${after - before} ms`);
+})();

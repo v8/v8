@@ -169,7 +169,7 @@ class WasmGraphBuildingInterface {
         // illegal uses more obvious.
         node = builder_->RefNull();
       } else {
-        node = DefaultValue(type);
+        node = builder_->DefaultValue(type);
       }
       while (index < num_locals && decoder->local_type(index) == type) {
         // Do a whole run of like-typed locals at a time.
@@ -1072,7 +1072,7 @@ class WasmGraphBuildingInterface {
     uint32_t field_count = imm.struct_type->field_count();
     NodeVector arg_nodes(field_count);
     for (uint32_t i = 0; i < field_count; i++) {
-      arg_nodes[i] = DefaultValue(imm.struct_type->field(i));
+      arg_nodes[i] = builder_->DefaultValue(imm.struct_type->field(i));
     }
     result->node = builder_->StructNewWithRtt(
         imm.index, imm.struct_type, rtt.node, base::VectorOf(arg_nodes));
@@ -1109,8 +1109,7 @@ class WasmGraphBuildingInterface {
   void ArrayNewDefault(FullDecoder* decoder,
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& rtt, Value* result) {
-    // This will cause the default value to be chosen automatically based
-    // on the element type.
+    // This will be set in {builder_}.
     TFNode* initial_value = nullptr;
     result->node =
         builder_->ArrayNewWithRtt(imm.index, imm.array_type, length.node,
@@ -1613,31 +1612,6 @@ class WasmGraphBuildingInterface {
 
     SetEnv(success_env);
     return node;
-  }
-
-  TFNode* DefaultValue(ValueType type) {
-    DCHECK(type.is_defaultable());
-    switch (type.kind()) {
-      case kI8:
-      case kI16:
-      case kI32:
-        return builder_->Int32Constant(0);
-      case kI64:
-        return builder_->Int64Constant(0);
-      case kF32:
-        return builder_->Float32Constant(0);
-      case kF64:
-        return builder_->Float64Constant(0);
-      case kS128:
-        return builder_->S128Zero();
-      case kOptRef:
-        return builder_->RefNull();
-      case kRtt:
-      case kVoid:
-      case kBottom:
-      case kRef:
-        UNREACHABLE();
-    }
   }
 
   void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge,

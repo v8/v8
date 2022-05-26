@@ -437,6 +437,8 @@ IF_WASM(FUNCTION_REFERENCE, wasm_float64_pow, wasm::float64_pow_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_call_trap_callback_for_testing,
         wasm::call_trap_callback_for_testing)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
+IF_WASM(FUNCTION_REFERENCE, wasm_array_fill_with_zeroes,
+        wasm::array_fill_with_zeroes_wrapper)
 
 static void f64_acos_wrapper(Address data) {
   double input = ReadUnalignedValue<double>(data);

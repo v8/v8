@@ -5360,50 +5360,46 @@ class LiftoffCompiler {
           __ cache_state()->stack_state.end()[-2];
       __ LoadConstant(elem_size_reg, WasmValue(elem_size));
       LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
-
-      WasmCode::RuntimeStubId stub_id =
-          initial_value_on_stack
-              ? WasmCode::kWasmAllocateArray_Uninitialized
-              : is_reference(elem_kind) ? WasmCode::kWasmAllocateArray_InitNull
-                                        : WasmCode::kWasmAllocateArray_InitZero;
-      CallRuntimeStub(
-          stub_id, MakeSig::Returns(kRef).Params(rtt_kind, kI32, kI32),
-          {rtt_var, length_var, elem_size_var}, decoder->position());
+      CallRuntimeStub(WasmCode::kWasmAllocateArray_Uninitialized,
+                      MakeSig::Returns(kRef).Params(rtt_kind, kI32, kI32),
+                      {rtt_var, length_var, elem_size_var},
+                      decoder->position());
       // Drop the RTT.
       __ cache_state()->stack_state.pop_back(1);
     }
 
     LiftoffRegister obj(kReturnRegister0);
+    LiftoffRegList pinned = {obj};
+    LiftoffRegister length = pinned.set(__ PopToModifiableRegister(pinned));
+    LiftoffRegister value =
+        pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
     if (initial_value_on_stack) {
-      LiftoffRegList pinned = {obj};
-      LiftoffRegister length = pinned.set(__ PopToModifiableRegister(pinned));
-      LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-
-      // Initialize the array's elements.
-      LiftoffRegister offset = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ LoadConstant(
-          offset,
-          WasmValue(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)));
-      LiftoffRegister end_offset = length;
-      if (value_kind_size_log2(elem_kind) != 0) {
-        __ emit_i32_shli(end_offset.gp(), length.gp(),
-                         value_kind_size_log2(elem_kind));
-      }
-      __ emit_i32_add(end_offset.gp(), end_offset.gp(), offset.gp());
-      Label loop, done;
-      __ bind(&loop);
-      __ emit_cond_jump(kUnsignedGreaterEqual, &done, kI32, offset.gp(),
-                        end_offset.gp());
-      StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind);
-      __ emit_i32_addi(offset.gp(), offset.gp(), elem_size);
-      __ emit_jump(&loop);
-
-      __ bind(&done);
+      __ PopToFixedRegister(value);
     } else {
       if (!CheckSupportedType(decoder, elem_kind, "default value")) return;
-      // Drop the length.
-      __ cache_state()->stack_state.pop_back(1);
+      SetDefaultValue(value, elem_kind, pinned);
     }
+    // Initialize the array's elements.
+    LiftoffRegister offset = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(
+        offset,
+        WasmValue(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)));
+    LiftoffRegister end_offset = length;
+    if (value_kind_size_log2(elem_kind) != 0) {
+      __ emit_i32_shli(end_offset.gp(), length.gp(),
+                       value_kind_size_log2(elem_kind));
+    }
+    __ emit_i32_add(end_offset.gp(), end_offset.gp(), offset.gp());
+    Label loop, done;
+    __ bind(&loop);
+    __ emit_cond_jump(kUnsignedGreaterEqual, &done, kI32, offset.gp(),
+                      end_offset.gp());
+    StoreObjectField(obj.gp(), offset.gp(), 0, value, pinned, elem_kind);
+    __ emit_i32_addi(offset.gp(), offset.gp(), elem_size);
+    __ emit_jump(&loop);
+
+    __ bind(&done);
+
     __ PushRegister(kRef, obj);
   }
 
