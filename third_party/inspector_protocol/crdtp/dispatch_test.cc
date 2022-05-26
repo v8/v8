@@ -27,6 +27,13 @@ TEST(DispatchResponseTest, ServerError) {
   EXPECT_EQ("Oops!", error.Message());
 }
 
+TEST(DispatchResponseTest, SessionNotFound) {
+  DispatchResponse error = DispatchResponse::SessionNotFound("OMG!");
+  EXPECT_FALSE(error.IsSuccess());
+  EXPECT_EQ(DispatchCode::SESSION_NOT_FOUND, error.Code());
+  EXPECT_EQ("OMG!", error.Message());
+}
+
 TEST(DispatchResponseTest, InternalError) {
   DispatchResponse error = DispatchResponse::InternalError();
   EXPECT_FALSE(error.IsSuccess());
