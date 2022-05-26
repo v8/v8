@@ -400,9 +400,6 @@
   # BUG(v8:12561)
   'spread-large-map': [SKIP],
 
-  # BUG(v8:12907)
-  'temporal/plain-date-time-to-plain-time': [SKIP],
-
   # Flaky tests due to GC interferring with optimization.
   'compiler/regress-crbug-1323114': [SKIP],
 }],  # 'gc_stress'

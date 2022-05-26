@@ -9628,6 +9628,36 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
   return temporal::ToTemporalTime(isolate, item_obj, overflow, method_name);
 }
 
+// #sec-temporal.plaintime.prototype.toplaindatetime
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainTime::ToPlainDateTime(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> temporal_date_like) {
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalTime,
+  // [[InitializedTemporalTime]]).
+  // 3. Set temporalDate to ? ToTemporalDate(temporalDate).
+  Handle<JSTemporalPlainDate> temporal_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date,
+      ToTemporalDate(isolate, temporal_date_like,
+                     "Temporal.PlainTime.prototype.toPlainDateTime"),
+      JSTemporalPlainDateTime);
+  // 4. Return ? CreateTemporalDateTime(temporalDate.[[ISOYear]],
+  // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]],
+  // temporalTime.[[ISOHour]], temporalTime.[[ISOMinute]],
+  // temporalTime.[[ISOSecond]], temporalTime.[[ISOMillisecond]],
+  // temporalTime.[[ISOMicrosecond]], temporalTime.[[ISONanosecond]],
+  // temporalDate.[[Calendar]]).
+  return temporal::CreateTemporalDateTime(
+      isolate,
+      {{temporal_date->iso_year(), temporal_date->iso_month(),
+        temporal_date->iso_day()},
+       {temporal_time->iso_hour(), temporal_time->iso_minute(),
+        temporal_time->iso_second(), temporal_time->iso_millisecond(),
+        temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()}},
+      handle(temporal_date->calendar(), isolate));
+}
+
 // #sec-temporal.plaintime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainTime::GetISOFields(
     Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time) {

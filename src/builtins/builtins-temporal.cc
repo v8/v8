@@ -64,8 +64,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeSince)
 /* Temporal #sec-temporal.plaintime.prototype.round */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeRound)
-/* Temporal #sec-temporal.plaintime.prototype.toplaindatetime */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToPlainDateTime)
 /* Temporal #sec-temporal.plaintime.prototype.tolocalestring */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToLocaleString)
 /* Temporal #sec-temporal.plaintime.prototype.tostring */
@@ -432,6 +430,7 @@ TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_METHOD2(PlainTime, Compare)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToPlainDateTime, toPlainDateTime)
 TEMPORAL_VALUE_OF(PlainTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)
 
