@@ -48,7 +48,6 @@
   'temporal/calendar-week-of-year': [FAIL],
   'temporal/duration-add': [FAIL],
   'temporal/duration-to-json': [FAIL],
-  'temporal/duration-with': [FAIL],
   'temporal/instant-add': [FAIL],
   'temporal/instant-compare': [FAIL],
   'temporal/instant-constructor': [FAIL],

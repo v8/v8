@@ -2494,6 +2494,47 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
   return CreateTemporalTime(isolate, result.time);
 }
 
+// Helper function to loop through Table 8 Duration Record Fields
+// This function implement
+// "For each row of Table 8, except the header row, in table order, do"
+// loop. It is designed to be used to implement the common part of
+// ToPartialDuration, ToLimitedTemporalDuration, ToTemporalDurationRecord
+Maybe<bool> IterateDurationRecordFieldsTable(
+    Isolate* isolate, Handle<JSReceiver> temporal_duration_like,
+    Maybe<bool> (*RowFunction)(Isolate*,
+                               Handle<JSReceiver> temporal_duration_like,
+                               Handle<String>, double*),
+    DurationRecord* record) {
+  Factory* factory = isolate->factory();
+  std::array<std::pair<Handle<String>, double*>, 10> table8 = {
+      {{factory->days_string(), &record->time_duration.days},
+       {factory->hours_string(), &record->time_duration.hours},
+       {factory->microseconds_string(), &record->time_duration.microseconds},
+       {factory->milliseconds_string(), &record->time_duration.milliseconds},
+       {factory->minutes_string(), &record->time_duration.minutes},
+       {factory->months_string(), &record->months},
+       {factory->nanoseconds_string(), &record->time_duration.nanoseconds},
+       {factory->seconds_string(), &record->time_duration.seconds},
+       {factory->weeks_string(), &record->weeks},
+       {factory->years_string(), &record->years}}};
+
+  // x. Let any be false.
+  bool any = false;
+  // x+1. For each row of Table 8, except the header row, in table order, do
+  for (const auto& row : table8) {
+    bool result;
+    // row.first is prop: the Property Name value of the current row
+    // row.second is the address of result's field whose name is the Field Name
+    // value of the current row
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        RowFunction(isolate, temporal_duration_like, row.first, row.second),
+        Nothing<bool>());
+    any |= result;
+  }
+  return Just(any);
+}
+
 // #sec-temporal-totemporaldurationrecord
 Maybe<DurationRecord> ToTemporalDurationRecord(
     Isolate* isolate, Handle<Object> temporal_duration_like_obj,
@@ -2532,50 +2573,46 @@ Maybe<DurationRecord> ToTemporalDurationRecord(
         duration->microseconds().Number(), duration->nanoseconds().Number());
   }
   // 3. Let result be a new Record with all the internal slots given in the
-  // Internal Slot column in Table 7.
+  // Internal Slot column in Table 8.
+  DurationRecord result;
   // 4. Let any be false.
   bool any = false;
 
-  // 5. For each row of Table 7, except the header row, in table order, do
-  DurationRecord record;
-  Factory* factory = isolate->factory();
-  std::array<std::pair<Handle<String>, double*>, 10> table7 = {
-      {{factory->days_string(), &record.time_duration.days},
-       {factory->hours_string(), &record.time_duration.hours},
-       {factory->microseconds_string(), &record.time_duration.microseconds},
-       {factory->milliseconds_string(), &record.time_duration.milliseconds},
-       {factory->minutes_string(), &record.time_duration.minutes},
-       {factory->months_string(), &record.months},
-       {factory->nanoseconds_string(), &record.time_duration.nanoseconds},
-       {factory->seconds_string(), &record.time_duration.seconds},
-       {factory->weeks_string(), &record.weeks},
-       {factory->years_string(), &record.years}}};
-
-  for (const auto& row : table7) {
-    Handle<Object> val;
-    // a. Let prop be the Property value of the current row.
-    // b. Let val be ? Get(temporalDurationLike, prop).
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, val,
-        JSReceiver::GetProperty(isolate, temporal_duration_like, row.first),
-        Nothing<DurationRecord>());
-    // c. If val is undefined, then
-    if (val->IsUndefined()) {
-      // i. Set result's internal slot whose name is the Internal Slot
-      // value of the current row to 0.
-      *(row.second) = 0;
-      // d. Else,
-    } else {
-      // i. Set any to true.
-      any = true;
-      // ii. Let val be 𝔽(? ToIntegerWithoutRounding(val)).
-      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, *(row.second), ToIntegerWithoutRounding(isolate, val),
-          Nothing<DurationRecord>());
-      // iii. Set result's field whose name is the Field Name value of the
-      // current row to val.
-    }
-  }
+  // 5. For each row of Table 8, except the header row, in table order, do
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, any,
+      IterateDurationRecordFieldsTable(
+          isolate, temporal_duration_like,
+          [](Isolate* isolate, Handle<JSReceiver> temporal_duration_like,
+             Handle<String> prop, double* field) -> Maybe<bool> {
+            bool not_undefined = false;
+            // a. Let prop be the Property value of the current row.
+            Handle<Object> val;
+            // b. Let val be ? Get(temporalDurationLike, prop).
+            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                isolate, val,
+                JSReceiver::GetProperty(isolate, temporal_duration_like, prop),
+                Nothing<bool>());
+            // c. If val is undefined, then
+            if (val->IsUndefined()) {
+              // i. Set result's internal slot whose name is the Internal Slot
+              // value of the current row to 0.
+              *field = 0;
+              // d. Else,
+            } else {
+              // i. Set any to true.
+              not_undefined = true;
+              // ii. Let val be 𝔽(? ToIntegerWithoutRounding(val)).
+              // iii. Set result's field whose name is the Field Name value of
+              // the current row to val.
+              MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                  isolate, *field, ToIntegerWithoutRounding(isolate, val),
+                  Nothing<bool>());
+            }
+            return Just(not_undefined);
+          },
+          &result),
+      Nothing<DurationRecord>());
 
   // 6. If any is false, then
   if (!any) {
@@ -2587,14 +2624,14 @@ Maybe<DurationRecord> ToTemporalDurationRecord(
   // result.[[Weeks]] result.[[Days]], result.[[Hours]], result.[[Minutes]],
   // result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]],
   // result.[[Nanoseconds]]) is false, then
-  if (!IsValidDuration(isolate, record)) {
+  if (!IsValidDuration(isolate, result)) {
     // a. Throw a RangeError exception.
     THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DurationRecord>());
   }
   // 8. Return result.
-  return Just(record);
+  return Just(result);
 }
 
 // #sec-temporal-totemporalduration
@@ -5839,6 +5876,96 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::From(Isolate* isolate,
   }
   // 2. Return ? ToTemporalDuration(item).
   return temporal::ToTemporalDuration(isolate, item, "Temporal.Duration.from");
+}
+
+namespace temporal {
+// #sec-temporal-topartialduration
+Maybe<DurationRecord> ToPartialDuration(
+    Isolate* isolate, Handle<Object> temporal_duration_like_obj,
+    const DurationRecord& input) {
+  // 1. If Type(temporalDurationLike) is not Object, then
+  if (!temporal_duration_like_obj->IsJSReceiver()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  Handle<JSReceiver> temporal_duration_like =
+      Handle<JSReceiver>::cast(temporal_duration_like_obj);
+
+  // 2. Let result be a new partial Duration Record with each field set to
+  // undefined.
+  DurationRecord result = input;
+
+  // 3. Let any be false.
+  bool any = false;
+
+  // Table 8: Duration Record Fields
+  // #table-temporal-duration-record-fields
+  // 4. For each row of Table 8, except the header row, in table order, do
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, any,
+      IterateDurationRecordFieldsTable(
+          isolate, temporal_duration_like,
+          [](Isolate* isolate, Handle<JSReceiver> temporal_duration_like,
+             Handle<String> prop, double* field) -> Maybe<bool> {
+            bool not_undefined = false;
+            // a. Let prop be the Property value of the current row.
+            Handle<Object> val;
+            // b. Let val be ? Get(temporalDurationLike, prop).
+            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                isolate, val,
+                JSReceiver::GetProperty(isolate, temporal_duration_like, prop),
+                Nothing<bool>());
+            // c. If val is not undefined, then
+            if (!val->IsUndefined()) {
+              // i. Set any to true.
+              not_undefined = true;
+              // ii. Let val be 𝔽(? ToIntegerWithoutRounding(val)).
+              // iii. Set result's field whose name is the Field Name value of
+              // the current row to val.
+              MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                  isolate, *field, ToIntegerWithoutRounding(isolate, val),
+                  Nothing<bool>());
+            }
+            return Just(not_undefined);
+          },
+          &result),
+      Nothing<DurationRecord>());
+
+  // 5. If any is false, then
+  if (!any) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 6. Return result.
+  return Just(result);
+}
+
+}  // namespace temporal
+
+// #sec-temporal.duration.prototype.with
+MaybeHandle<JSTemporalDuration> JSTemporalDuration::With(
+    Isolate* isolate, Handle<JSTemporalDuration> duration,
+    Handle<Object> temporal_duration_like) {
+  DurationRecord partial;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, partial,
+      temporal::ToPartialDuration(
+          isolate, temporal_duration_like,
+          {duration->years().Number(),
+           duration->months().Number(),
+           duration->weeks().Number(),
+           {duration->days().Number(), duration->hours().Number(),
+            duration->minutes().Number(), duration->seconds().Number(),
+            duration->milliseconds().Number(),
+            duration->microseconds().Number(),
+            duration->nanoseconds().Number()}}),
+      Handle<JSTemporalDuration>());
+
+  // 24. Return ? CreateTemporalDuration(years, months, weeks, days, hours,
+  // minutes, seconds, milliseconds, microseconds, nanoseconds).
+  return CreateTemporalDuration(isolate, partial);
 }
 
 // #sec-get-temporal.duration.prototype.sign
