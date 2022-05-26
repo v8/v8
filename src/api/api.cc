@@ -162,6 +162,10 @@
 #endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
 
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#include "src/diagnostics/system-jit-win.h"
+#endif
+
 // Has to be the last include (doesn't have include guards):
 #include "src/api/api-macros.h"
 
@@ -2099,6 +2103,20 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
                                              i_isolate);
   i::AggregatingHistogramTimerScope histogram_timer(
       i_isolate->counters()->compile_lazy());
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  // In case ETW has been activated, tasks to log existing code are
+  // created. But in case the task runner does not run those before
+  // starting to execute code (as it happens in d8, that will run
+  // first the code from prompt), then that code will not have
+  // JIT instrumentation on time.
+  //
+  // To avoid this, on running scripts check first if JIT code log is
+  // pending and generate immediately.
+  if (i::FLAG_enable_system_instrumentation) {
+    i::ETWJITInterface::MaybeSetHandlerNow(i_isolate);
+  }
+#endif
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
 
   // TODO(crbug.com/1193459): remove once ablation study is completed
