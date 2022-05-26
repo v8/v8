@@ -5616,9 +5616,9 @@ v8_source_set("v8_heap_base") {
     }
   } else if (is_win) {
     if (current_cpu == "x64") {
-      sources += [ "src/heap/base/asm/x64/push_registers_masm.S" ]
+      sources += [ "src/heap/base/asm/x64/push_registers_masm.asm" ]
     } else if (current_cpu == "x86") {
-      sources += [ "src/heap/base/asm/ia32/push_registers_masm.S" ]
+      sources += [ "src/heap/base/asm/ia32/push_registers_masm.asm" ]
     } else if (current_cpu == "arm64") {
       sources += [ "src/heap/base/asm/arm64/push_registers_masm.S" ]
     }
