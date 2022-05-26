@@ -63,6 +63,8 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   bool IdleTasksEnabled(Isolate* isolate) override;
   std::unique_ptr<JobHandle> PostJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_state) override;
+  std::unique_ptr<JobHandle> CreateJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_state) override;
   double MonotonicallyIncreasingTime() override;
   double CurrentClockTimeMillis() override;
   v8::TracingController* GetTracingController() override;

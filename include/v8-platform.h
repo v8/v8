@@ -1056,17 +1056,33 @@ class Platform {
    * thread (A=>B/B=>A deadlock) and [2] JobTask::Run or
    * JobTask::GetMaxConcurrency may be invoked synchronously from JobHandle
    * (B=>JobHandle::foo=>B deadlock).
+   */
+  virtual std::unique_ptr<JobHandle> PostJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
+    auto handle = CreateJob(priority, std::move(job_task));
+    handle->NotifyConcurrencyIncrease();
+    return handle;
+  }
+
+  /**
+   * Creates and returns a JobHandle associated with a Job. Unlike PostJob(),
+   * this doesn't immediately schedules |worker_task| to run; the Job is then
+   * scheduled by calling either NotifyConcurrencyIncrease() or Join().
    *
-   * A sufficient PostJob() implementation that uses the default Job provided in
-   * libplatform looks like:
-   *  std::unique_ptr<JobHandle> PostJob(
+   * A sufficient CreateJob() implementation that uses the default Job provided
+   * in libplatform looks like:
+   *  std::unique_ptr<JobHandle> CreateJob(
    *      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
    *    return v8::platform::NewDefaultJobHandle(
    *        this, priority, std::move(job_task), NumberOfWorkerThreads());
    * }
+   *
+   * TODO(etiennep): Make pure virtual once custom embedders implement it.
    */
-  virtual std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) = 0;
+  virtual std::unique_ptr<JobHandle> CreateJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
+    return nullptr;
+  }
 
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in

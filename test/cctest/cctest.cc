@@ -498,6 +498,11 @@ std::unique_ptr<v8::JobHandle> TestPlatform::PostJob(
   return CcTest::default_platform()->PostJob(priority, std::move(job_task));
 }
 
+std::unique_ptr<v8::JobHandle> TestPlatform::CreateJob(
+    v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task) {
+  return CcTest::default_platform()->CreateJob(priority, std::move(job_task));
+}
+
 double TestPlatform::MonotonicallyIncreasingTime() {
   return CcTest::default_platform()->MonotonicallyIncreasingTime();
 }

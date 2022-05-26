@@ -229,6 +229,13 @@ bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
 
 std::unique_ptr<JobHandle> DefaultPlatform::PostJob(
     TaskPriority priority, std::unique_ptr<JobTask> job_task) {
+  std::unique_ptr<JobHandle> handle = CreateJob(priority, std::move(job_task));
+  handle->NotifyConcurrencyIncrease();
+  return handle;
+}
+
+std::unique_ptr<JobHandle> DefaultPlatform::CreateJob(
+    TaskPriority priority, std::unique_ptr<JobTask> job_task) {
   size_t num_worker_threads = NumberOfWorkerThreads();
   if (priority == TaskPriority::kBestEffort && num_worker_threads > 2) {
     num_worker_threads = 2;

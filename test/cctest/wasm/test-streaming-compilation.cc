@@ -37,6 +37,14 @@ class MockPlatform final : public TestPlatform {
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override {
+    auto job_handle = CreateJob(priority, std::move(job_task));
+    job_handle->NotifyConcurrencyIncrease();
+    return job_handle;
+  }
+
+  std::unique_ptr<v8::JobHandle> CreateJob(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::JobTask> job_task) override {
     auto orig_job_handle = v8::platform::NewDefaultJobHandle(
         this, priority, std::move(job_task), 1);
     auto job_handle =
