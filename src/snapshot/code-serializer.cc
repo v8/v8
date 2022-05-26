@@ -310,6 +310,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);
+    Script::InitLineEnds(isolate, script);
     int line_num = script->GetLineNumber(info->StartPosition()) + 1;
     int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
     PROFILE(isolate,
