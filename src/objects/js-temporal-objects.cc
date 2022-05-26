@@ -8558,7 +8558,6 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithPlainTime(
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithCalendar(
     Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
     Handle<Object> calendar_like) {
-  const char* method_name = "Temporal.PlainDateTime.prototype.withCalendar";
   // 1. Let temporalDateTime be the this value.
   // 2. Perform ? RequireInternalSlot(temporalDateTime,
   // [[InitializedTemporalDateTime]]).
@@ -8566,7 +8565,9 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithCalendar(
   Handle<JSReceiver> calendar;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, calendar,
-      temporal::ToTemporalCalendar(isolate, calendar_like, method_name),
+      temporal::ToTemporalCalendar(
+          isolate, calendar_like,
+          "Temporal.PlainDateTime.prototype.withCalendar"),
       JSTemporalPlainDateTime);
   // 4. Return ? CreateTemporalDateTime(temporalDateTime.[[ISOYear]],
   // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]],
@@ -8641,6 +8642,78 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainDateTime::ToZonedDateTime(
   return CreateTemporalZonedDateTime(
       isolate, Handle<BigInt>(instant->nanoseconds(), isolate), time_zone,
       Handle<JSReceiver>(date_time->calendar(), isolate));
+}
+
+namespace {
+
+// #sec-temporal-consolidatecalendars
+MaybeHandle<JSReceiver> ConsolidateCalendars(Isolate* isolate,
+                                             Handle<JSReceiver> one,
+                                             Handle<JSReceiver> two) {
+  Factory* factory = isolate->factory();
+  // 1. If one and two are the same Object value, return two.
+  if (one.is_identical_to(two)) return two;
+
+  // 2. Let calendarOne be ? ToString(one).
+  Handle<String> calendar_one;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar_one,
+                             Object::ToString(isolate, one), JSReceiver);
+  // 3. Let calendarTwo be ? ToString(two).
+  Handle<String> calendar_two;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar_two,
+                             Object::ToString(isolate, two), JSReceiver);
+  // 4. If calendarOne is calendarTwo, return two.
+  if (String::Equals(isolate, calendar_one, calendar_two)) {
+    return two;
+  }
+  // 5. If calendarOne is "iso8601", return two.
+  if (String::Equals(isolate, calendar_one, factory->iso8601_string())) {
+    return two;
+  }
+  // 6. If calendarTwo is "iso8601", return one.
+  if (String::Equals(isolate, calendar_two, factory->iso8601_string())) {
+    return one;
+  }
+  // 7. Throw a RangeError exception.
+  THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), JSReceiver);
+}
+
+}  // namespace
+
+// #sec-temporal.plaindatetime.prototype.withplaindate
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithPlainDate(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> temporal_date_like) {
+  // 1. Let temporalDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. Let plainDate be ? ToTemporalDate(plainDateLike).
+  Handle<JSTemporalPlainDate> plain_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, plain_date,
+      ToTemporalDate(isolate, temporal_date_like,
+                     "Temporal.PlainDateTime.prototype.withPlainDate"),
+      JSTemporalPlainDateTime);
+  // 4. Let calendar be ? ConsolidateCalendars(temporalDateTime.[[Calendar]],
+  // plainDate.[[Calendar]]).
+  Handle<JSReceiver> calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      ConsolidateCalendars(isolate, handle(date_time->calendar(), isolate),
+                           handle(plain_date->calendar(), isolate)),
+      JSTemporalPlainDateTime);
+  // 5. Return ? CreateTemporalDateTime(plainDate.[[ISOYear]],
+  // plainDate.[[ISOMonth]], plainDate.[[ISODay]], temporalDateTime.[[ISOHour]],
+  // temporalDateTime.[[ISOMinute]], temporalDateTime.[[ISOSecond]],
+  // temporalDateTime.[[ISOMillisecond]], temporalDateTime.[[ISOMicrosecond]],
+  // temporalDateTime.[[ISONanosecond]], calendar).
+  return temporal::CreateTemporalDateTime(
+      isolate,
+      {{plain_date->iso_year(), plain_date->iso_month(), plain_date->iso_day()},
+       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+        date_time->iso_millisecond(), date_time->iso_microsecond(),
+        date_time->iso_nanosecond()}},
+      calendar);
 }
 
 // #sec-temporal.now.plaindatetime

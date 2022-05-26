@@ -365,6 +365,11 @@ class JSTemporalPlainDateTime
                   Handle<Object> temporal_time_zone_like,
                   Handle<Object> options_obj);
 
+  // #sec-temporal.plaindatetime.prototype.withplaindate
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime>
+  WithPlainDate(Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+                Handle<Object> temporal_date_date_like);
+
   // #sec-temporal.plaindatetime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time);
