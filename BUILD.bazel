@@ -1819,8 +1819,6 @@ filegroup(
         "src/objects/shared-function-info-inl.h",
         "src/objects/shared-function-info.cc",
         "src/objects/shared-function-info.h",
-        "src/objects/simd.cc",
-        "src/objects/simd.h",
         "src/objects/slots-atomic-inl.h",
         "src/objects/slots-inl.h",
         "src/objects/slots.h",

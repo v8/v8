@@ -11,12 +11,10 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/codegen/tnode.h"
 #include "src/execution/frame-constants.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
-#include "src/objects/elements-kind.h"
 #include "src/objects/property-cell.h"
 
 namespace v8 {
@@ -590,15 +588,12 @@ class ArrayIncludesIndexofAssembler : public CodeStubAssembler {
 
   enum SearchVariant { kIncludes, kIndexOf };
 
-  enum class SimpleElementKind { kSmiOrHole, kAny };
-
   void Generate(SearchVariant variant, TNode<IntPtrT> argc,
                 TNode<Context> context);
   void GenerateSmiOrObject(SearchVariant variant, TNode<Context> context,
                            TNode<FixedArray> elements,
                            TNode<Object> search_element,
-                           TNode<Smi> array_length, TNode<Smi> from_index,
-                           SimpleElementKind array_kind);
+                           TNode<Smi> array_length, TNode<Smi> from_index);
   void GeneratePackedDoubles(SearchVariant variant,
                              TNode<FixedDoubleArray> elements,
                              TNode<Object> search_element,
@@ -614,22 +609,6 @@ class ArrayIncludesIndexofAssembler : public CodeStubAssembler {
     Return(value);
     BIND(&done);
   }
-
- private:
-  // Use SIMD code for arrays larger than kSIMDThreshold (in builtins that have
-  // SIMD implementations).
-  const int kSIMDThreshold = 48;
-
-  // For now, we can vectorize if:
-  //   - SSE3/AVX are present (x86/x64). Note that if __AVX__ is defined, then
-  //     __SSE3__ will be as well, so we just check __SSE3__.
-  //   - Neon is present and the architecture is 64-bit (because Neon on 32-bit
-  //     architecture lacks some instructions).
-#if defined(__SSE3__) || defined(V8_HOST_ARCH_ARM64)
-  const bool kCanVectorize = true;
-#else
-  const bool kCanVectorize = false;
-#endif
 };
 
 void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
@@ -702,8 +681,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
   GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), array_length_untagged),
          &return_not_found);
 
-  Label if_smi(this), if_smiorobjects(this), if_packed_doubles(this),
-      if_holey_doubles(this);
+  Label if_smiorobjects(this), if_packed_doubles(this), if_holey_doubles(this);
 
   TNode<Int32T> elements_kind = LoadElementsKind(array);
   TNode<FixedArrayBase> elements = LoadElements(array);
@@ -711,8 +689,6 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
   static_assert(HOLEY_SMI_ELEMENTS == 1);
   static_assert(PACKED_ELEMENTS == 2);
   static_assert(HOLEY_ELEMENTS == 3);
-  GotoIf(IsElementsKindLessThanOrEqual(elements_kind, HOLEY_SMI_ELEMENTS),
-         &if_smi);
   GotoIf(IsElementsKindLessThanOrEqual(elements_kind, HOLEY_ELEMENTS),
          &if_smiorobjects);
   GotoIf(
@@ -724,16 +700,6 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
                                        LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND),
          &if_smiorobjects);
   Goto(&return_not_found);
-
-  BIND(&if_smi);
-  {
-    Callable callable = Builtins::CallableFor(
-        isolate(), (variant == kIncludes) ? Builtin::kArrayIncludesSmi
-                                          : Builtin::kArrayIndexOfSmi);
-    TNode<Object> result = CallStub(callable, context, elements, search_element,
-                                    array_length, SmiTag(index_var.value()));
-    args.PopAndReturn(result);
-  }
 
   BIND(&if_smiorobjects);
   {
@@ -794,7 +760,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
 void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     SearchVariant variant, TNode<Context> context, TNode<FixedArray> elements,
     TNode<Object> search_element, TNode<Smi> array_length,
-    TNode<Smi> from_index, SimpleElementKind array_kind) {
+    TNode<Smi> from_index) {
   TVARIABLE(IntPtrT, index_var, SmiUntag(from_index));
   TVARIABLE(Float64T, search_num);
   TNode<IntPtrT> array_length_untagged = SmiUntag(array_length);
@@ -821,27 +787,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
   TNode<Uint16T> search_type = LoadMapInstanceType(map);
   GotoIf(IsStringInstanceType(search_type), &string_loop);
   GotoIf(IsBigIntInstanceType(search_type), &bigint_loop);
-
-  if (kCanVectorize) {
-    Label simd_call(this);
-    Branch(
-        UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
-        &ident_loop, &simd_call);
-    BIND(&simd_call);
-    TNode<ExternalReference> simd_function = ExternalConstant(
-        ExternalReference::array_indexof_includes_smi_or_object());
-    TNode<IntPtrT> result = UncheckedCast<IntPtrT>(CallCFunction(
-        simd_function, MachineType::UintPtr(),
-        std::make_pair(MachineType::TaggedPointer(), elements),
-        std::make_pair(MachineType::UintPtr(), array_length_untagged),
-        std::make_pair(MachineType::UintPtr(), index_var.value()),
-        std::make_pair(MachineType::TaggedPointer(), search_element)));
-    index_var = ReinterpretCast<IntPtrT>(result);
-    Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
-           &return_not_found, &return_found);
-  } else {
-    Goto(&ident_loop);
-  }
+  Goto(&ident_loop);
 
   BIND(&ident_loop);
   {
@@ -873,31 +819,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
   {
     Label nan_loop(this, &index_var), not_nan_loop(this, &index_var);
     Label* nan_handling = variant == kIncludes ? &nan_loop : &return_not_found;
-    GotoIfNot(Float64Equal(search_num.value(), search_num.value()),
-              nan_handling);
-
-    if (kCanVectorize && array_kind == SimpleElementKind::kSmiOrHole) {
-      Label smi_check(this), simd_call(this);
-      Branch(UintPtrLessThan(array_length_untagged,
-                             IntPtrConstant(kSIMDThreshold)),
-             &not_nan_loop, &smi_check);
-      BIND(&smi_check);
-      Branch(TaggedIsSmi(search_element), &simd_call, &not_nan_loop);
-      BIND(&simd_call);
-      TNode<ExternalReference> simd_function = ExternalConstant(
-          ExternalReference::array_indexof_includes_smi_or_object());
-      TNode<IntPtrT> result = UncheckedCast<IntPtrT>(CallCFunction(
-          simd_function, MachineType::UintPtr(),
-          std::make_pair(MachineType::TaggedPointer(), elements),
-          std::make_pair(MachineType::UintPtr(), array_length_untagged),
-          std::make_pair(MachineType::UintPtr(), index_var.value()),
-          std::make_pair(MachineType::TaggedPointer(), search_element)));
-      index_var = ReinterpretCast<IntPtrT>(result);
-      Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
-             &return_not_found, &return_found);
-    } else {
-      Goto(&not_nan_loop);
-    }
+    BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
 
     BIND(&not_nan_loop);
     {
@@ -1015,15 +937,15 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
   TVARIABLE(IntPtrT, index_var, SmiUntag(from_index));
   TNode<IntPtrT> array_length_untagged = SmiUntag(array_length);
 
-  Label nan_loop(this, &index_var), not_nan_case(this),
-      not_nan_loop(this, &index_var), hole_loop(this, &index_var),
-      search_notnan(this), return_found(this), return_not_found(this);
+  Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
+      hole_loop(this, &index_var), search_notnan(this), return_found(this),
+      return_not_found(this);
   TVARIABLE(Float64T, search_num);
   search_num = Float64Constant(0);
 
   GotoIfNot(TaggedIsSmi(search_element), &search_notnan);
   search_num = SmiToFloat64(CAST(search_element));
-  Goto(&not_nan_case);
+  Goto(&not_nan_loop);
 
   BIND(&search_notnan);
   GotoIfNot(IsHeapNumber(CAST(search_element)), &return_not_found);
@@ -1031,29 +953,7 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
   search_num = LoadHeapNumberValue(CAST(search_element));
 
   Label* nan_handling = variant == kIncludes ? &nan_loop : &return_not_found;
-  BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_case);
-
-  BIND(&not_nan_case);
-  if (kCanVectorize) {
-    Label simd_call(this);
-    Branch(
-        UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
-        &not_nan_loop, &simd_call);
-    BIND(&simd_call);
-    TNode<ExternalReference> simd_function =
-        ExternalConstant(ExternalReference::array_indexof_includes_double());
-    TNode<IntPtrT> result = UncheckedCast<IntPtrT>(CallCFunction(
-        simd_function, MachineType::UintPtr(),
-        std::make_pair(MachineType::TaggedPointer(), elements),
-        std::make_pair(MachineType::UintPtr(), array_length_untagged),
-        std::make_pair(MachineType::UintPtr(), index_var.value()),
-        std::make_pair(MachineType::TaggedPointer(), search_element)));
-    index_var = ReinterpretCast<IntPtrT>(result);
-    Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
-           &return_not_found, &return_found);
-  } else {
-    Goto(&not_nan_loop);
-  }
+  BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
 
   BIND(&not_nan_loop);
   {
@@ -1105,15 +1005,15 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
   TVARIABLE(IntPtrT, index_var, SmiUntag(from_index));
   TNode<IntPtrT> array_length_untagged = SmiUntag(array_length);
 
-  Label nan_loop(this, &index_var), not_nan_case(this),
-      not_nan_loop(this, &index_var), hole_loop(this, &index_var),
-      search_notnan(this), return_found(this), return_not_found(this);
+  Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
+      hole_loop(this, &index_var), search_notnan(this), return_found(this),
+      return_not_found(this);
   TVARIABLE(Float64T, search_num);
   search_num = Float64Constant(0);
 
   GotoIfNot(TaggedIsSmi(search_element), &search_notnan);
   search_num = SmiToFloat64(CAST(search_element));
-  Goto(&not_nan_case);
+  Goto(&not_nan_loop);
 
   BIND(&search_notnan);
   if (variant == kIncludes) {
@@ -1124,29 +1024,7 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
   search_num = LoadHeapNumberValue(CAST(search_element));
 
   Label* nan_handling = variant == kIncludes ? &nan_loop : &return_not_found;
-  BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_case);
-
-  BIND(&not_nan_case);
-  if (kCanVectorize) {
-    Label simd_call(this);
-    Branch(
-        UintPtrLessThan(array_length_untagged, IntPtrConstant(kSIMDThreshold)),
-        &not_nan_loop, &simd_call);
-    BIND(&simd_call);
-    TNode<ExternalReference> simd_function =
-        ExternalConstant(ExternalReference::array_indexof_includes_double());
-    TNode<IntPtrT> result = UncheckedCast<IntPtrT>(CallCFunction(
-        simd_function, MachineType::UintPtr(),
-        std::make_pair(MachineType::TaggedPointer(), elements),
-        std::make_pair(MachineType::UintPtr(), array_length_untagged),
-        std::make_pair(MachineType::UintPtr(), index_var.value()),
-        std::make_pair(MachineType::TaggedPointer(), search_element)));
-    index_var = ReinterpretCast<IntPtrT>(result);
-    Branch(IntPtrLessThan(index_var.value(), IntPtrConstant(0)),
-           &return_not_found, &return_found);
-  } else {
-    Goto(&not_nan_loop);
-  }
+  BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
 
   BIND(&not_nan_loop);
   {
@@ -1220,17 +1098,6 @@ TF_BUILTIN(ArrayIncludes, ArrayIncludesIndexofAssembler) {
   Generate(kIncludes, argc, context);
 }
 
-TF_BUILTIN(ArrayIncludesSmi, ArrayIncludesIndexofAssembler) {
-  auto context = Parameter<Context>(Descriptor::kContext);
-  auto elements = Parameter<FixedArray>(Descriptor::kElements);
-  auto search_element = Parameter<Object>(Descriptor::kSearchElement);
-  auto array_length = Parameter<Smi>(Descriptor::kLength);
-  auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
-
-  GenerateSmiOrObject(kIncludes, context, elements, search_element,
-                      array_length, from_index, SimpleElementKind::kSmiOrHole);
-}
-
 TF_BUILTIN(ArrayIncludesSmiOrObject, ArrayIncludesIndexofAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto elements = Parameter<FixedArray>(Descriptor::kElements);
@@ -1239,7 +1106,7 @@ TF_BUILTIN(ArrayIncludesSmiOrObject, ArrayIncludesIndexofAssembler) {
   auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
 
   GenerateSmiOrObject(kIncludes, context, elements, search_element,
-                      array_length, from_index, SimpleElementKind::kAny);
+                      array_length, from_index);
 }
 
 TF_BUILTIN(ArrayIncludesPackedDoubles, ArrayIncludesIndexofAssembler) {
@@ -1272,17 +1139,6 @@ TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) {
   Generate(kIndexOf, argc, context);
 }
 
-TF_BUILTIN(ArrayIndexOfSmi, ArrayIncludesIndexofAssembler) {
-  auto context = Parameter<Context>(Descriptor::kContext);
-  auto elements = Parameter<FixedArray>(Descriptor::kElements);
-  auto search_element = Parameter<Object>(Descriptor::kSearchElement);
-  auto array_length = Parameter<Smi>(Descriptor::kLength);
-  auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
-
-  GenerateSmiOrObject(kIndexOf, context, elements, search_element, array_length,
-                      from_index, SimpleElementKind::kSmiOrHole);
-}
-
 TF_BUILTIN(ArrayIndexOfSmiOrObject, ArrayIncludesIndexofAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto elements = Parameter<FixedArray>(Descriptor::kElements);
@@ -1291,7 +1147,7 @@ TF_BUILTIN(ArrayIndexOfSmiOrObject, ArrayIncludesIndexofAssembler) {
   auto from_index = Parameter<Smi>(Descriptor::kFromIndex);
 
   GenerateSmiOrObject(kIndexOf, context, elements, search_element, array_length,
-                      from_index, SimpleElementKind::kAny);
+                      from_index);
 }
 
 TF_BUILTIN(ArrayIndexOfPackedDoubles, ArrayIncludesIndexofAssembler) {
