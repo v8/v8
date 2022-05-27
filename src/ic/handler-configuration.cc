@@ -514,6 +514,9 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
     os << "LoadHandler(Smi)(";
     PrintSmiLoadHandler(raw_handler, os);
     os << ")";
+  } else if (handler.IsCodeT()) {
+    os << "LoadHandler(Code)("
+       << Builtins::name(CodeT::cast(handler).builtin_id()) << ")";
   } else {
     LoadHandler load_handler = LoadHandler::cast(handler);
     int raw_handler = load_handler.smi_handler().ToSmi().value();
