@@ -318,7 +318,7 @@ TEST(IsValidPositiveSmi) {
 #endif
 }
 
-TEST(ConvertToRelativeIndex) {
+TEST(ConvertAndClampRelativeIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 3;
@@ -335,7 +335,7 @@ TEST(ConvertToRelativeIndex) {
     TNode<UintPtrT> expected =
         m.ChangeUintPtrNumberToUintPtr(expected_relative_index);
 
-    TNode<UintPtrT> result = m.ConvertToRelativeIndex(index, length);
+    TNode<UintPtrT> result = m.ConvertAndClampRelativeIndex(index, length);
 
     m.Return(m.SelectBooleanConstant(m.WordEqual(result, expected)));
   }
