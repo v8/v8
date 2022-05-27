@@ -413,10 +413,10 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
 }
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       CompilationEnv* module, const FunctionSig* sig,
+                       CompilationEnv* env, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end) {
-  compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
+  compiler::WasmGraphBuilder builder(env, zone, jsgraph, sig,
                                      source_position_table);
   TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
 }

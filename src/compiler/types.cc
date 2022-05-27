@@ -13,6 +13,10 @@
 #include "src/objects/turbofan-types.h"
 #include "src/utils/ostreams.h"
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-subtyping.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -572,6 +576,16 @@ bool Type::SlowIs(Type that) const {
   }
   if (this->IsRange()) return false;
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+  if (this->IsWasm()) {
+    if (!that.IsWasm()) return false;
+    wasm::TypeInModule this_type = this->AsWasm();
+    wasm::TypeInModule that_type = that.AsWasm();
+    return wasm::IsSubtypeOf(this_type.type, that_type.type, this_type.module,
+                             that_type.module);
+  }
+#endif
+
   return this->SimplyEquals(that);
 }
 
@@ -1062,6 +1076,10 @@ void Type::PrintTo(std::ostream& os) const {
       os << type_i;
     }
     os << ">";
+#ifdef V8_ENABLE_WEBASSEMBLY
+  } else if (this->IsWasm()) {
+    os << "Wasm:" << this->AsWasm().type.name();
+#endif
   } else {
     UNREACHABLE();
   }
@@ -1145,6 +1163,25 @@ const UnionType* Type::AsUnion() const {
   DCHECK(IsKind(TypeBase::kUnion));
   return static_cast<const UnionType*>(ToTypeBase());
 }
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+// static
+Type Type::Wasm(wasm::ValueType value_type, const wasm::WasmModule* module,
+                Zone* zone) {
+  return FromTypeBase(WasmType::New(value_type, module, zone));
+}
+
+// static
+Type Type::Wasm(wasm::TypeInModule type_in_module, Zone* zone) {
+  return Wasm(type_in_module.type, type_in_module.module, zone);
+}
+
+wasm::TypeInModule Type::AsWasm() const {
+  DCHECK(IsKind(TypeBase::kWasm));
+  auto wasm_type = static_cast<const WasmType*>(ToTypeBase());
+  return {wasm_type->value_type(), wasm_type->module()};
+}
+#endif
 
 std::ostream& operator<<(std::ostream& os, Type type) {
   type.PrintTo(os);

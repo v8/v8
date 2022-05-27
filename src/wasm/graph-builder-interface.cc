@@ -26,6 +26,7 @@ namespace wasm {
 
 namespace {
 
+// Expose {compiler::Node} opaquely as {wasm::TFNode}.
 using TFNode = compiler::Node;
 
 // An SsaEnv environment carries the current local variable renaming
@@ -156,7 +157,8 @@ class WasmGraphBuildingInterface {
     // the instance parameter.
     uint32_t index = 0;
     for (; index < decoder->sig_->parameter_count(); ++index) {
-      ssa_env->locals[index] = builder_->Param(index + 1);
+      ssa_env->locals[index] = builder_->SetType(
+          builder_->Param(index + 1), decoder->sig_->GetParam(index));
     }
     while (index < num_locals) {
       ValueType type = decoder->local_type(index);
@@ -167,16 +169,16 @@ class WasmGraphBuildingInterface {
         DCHECK(type.is_reference());
         // TODO(jkummerow): Consider using "the hole" instead, to make any
         // illegal uses more obvious.
-        node = builder_->RefNull();
+        node = builder_->SetType(builder_->RefNull(), type);
       } else {
-        node = builder_->DefaultValue(type);
+        node = builder_->SetType(builder_->DefaultValue(type), type);
       }
       while (index < num_locals && decoder->local_type(index) == type) {
         // Do a whole run of like-typed locals at a time.
         ssa_env->locals[index++] = node;
       }
     }
-    LoadContextIntoSsa(ssa_env);
+    LoadContextIntoSsa(ssa_env, decoder);
 
     if (FLAG_trace_wasm && inlined_status_ == kRegularFunction) {
       builder_->TraceFunctionEntry(decoder->position());
@@ -184,8 +186,16 @@ class WasmGraphBuildingInterface {
   }
 
   // Reload the instance cache entries into the Ssa Environment.
-  void LoadContextIntoSsa(SsaEnv* ssa_env) {
-    if (ssa_env) builder_->InitInstanceCache(&ssa_env->instance_cache);
+  void LoadContextIntoSsa(SsaEnv* ssa_env, FullDecoder* decoder) {
+    if (ssa_env != nullptr) {
+      builder_->InitInstanceCache(&ssa_env->instance_cache);
+      TFNode* mem_size = ssa_env->instance_cache.mem_size;
+      if (mem_size != nullptr) {
+        bool is_memory64 =
+            decoder->module_ != nullptr && decoder->module_->is_memory64;
+        builder_->SetType(mem_size, is_memory64 ? kWasmI64 : kWasmI32);
+      }
+    }
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
@@ -259,7 +269,9 @@ class WasmGraphBuildingInterface {
     for (int i = decoder->num_locals() - 1; i >= 0; i--) {
       if (!assigned->Contains(i)) continue;
       TFNode* inputs[] = {ssa_env_->locals[i], control()};
-      ssa_env_->locals[i] = builder_->Phi(decoder->local_type(i), 1, inputs);
+      ssa_env_->locals[i] =
+          builder_->SetType(builder_->Phi(decoder->local_type(i), 1, inputs),
+                            decoder->local_type(i));
     }
     // Introduce phis for instance cache pointers if necessary.
     if (assigned->Contains(instance_cache_index)) {
@@ -279,7 +291,7 @@ class WasmGraphBuildingInterface {
     for (uint32_t i = 0; i < block->start_merge.arity; ++i) {
       Value& val = block->start_merge[i];
       TFNode* inputs[] = {val.node, block->merge_env->control};
-      val.node = builder_->Phi(val.type, 1, inputs);
+      SetAndTypeNode(&val, builder_->Phi(val.type, 1, inputs));
     }
   }
 
@@ -342,8 +354,9 @@ class WasmGraphBuildingInterface {
           Value* stack_base = decoder->stack_value(arity);
           for (uint32_t i = 0; i < arity; i++) {
             Value* val = stack_base + i;
-            val->node = builder_->LoopExitValue(
-                val->node, val->type.machine_representation());
+            SetAndTypeNode(val,
+                           builder_->LoopExitValue(
+                               val->node, val->type.machine_representation()));
           }
         }
       }
@@ -365,47 +378,52 @@ class WasmGraphBuildingInterface {
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
-    result->node = builder_->Unop(opcode, value.node, decoder->position());
+    SetAndTypeNode(result,
+                   builder_->Unop(opcode, value.node, decoder->position()));
   }
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
     TFNode* node =
         builder_->Binop(opcode, lhs.node, rhs.node, decoder->position());
-    if (result) result->node = node;
+    if (result) SetAndTypeNode(result, node);
   }
 
   void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
-    result->node = builder_->Int32Constant(value);
+    SetAndTypeNode(result, builder_->Int32Constant(value));
   }
 
   void I64Const(FullDecoder* decoder, Value* result, int64_t value) {
-    result->node = builder_->Int64Constant(value);
+    SetAndTypeNode(result, builder_->Int64Constant(value));
   }
 
   void F32Const(FullDecoder* decoder, Value* result, float value) {
-    result->node = builder_->Float32Constant(value);
+    SetAndTypeNode(result, builder_->Float32Constant(value));
   }
 
   void F64Const(FullDecoder* decoder, Value* result, double value) {
-    result->node = builder_->Float64Constant(value);
+    SetAndTypeNode(result, builder_->Float64Constant(value));
   }
 
   void S128Const(FullDecoder* decoder, const Simd128Immediate<validate>& imm,
                  Value* result) {
-    result->node = builder_->Simd128Constant(imm.value);
+    SetAndTypeNode(result, builder_->Simd128Constant(imm.value));
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
-    result->node = builder_->RefNull();
+    SetAndTypeNode(result, builder_->RefNull());
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    result->node = builder_->RefFunc(function_index);
+    SetAndTypeNode(result, builder_->RefFunc(function_index));
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    result->node = builder_->RefAsNonNull(arg.node, decoder->position());
+    TFNode* cast_node =
+        FLAG_experimental_wasm_skip_null_checks
+            ? builder_->TypeGuard(arg.node, result->type)
+            : builder_->RefAsNonNull(arg.node, decoder->position());
+    SetAndTypeNode(result, cast_node);
   }
 
   void Drop(FullDecoder* decoder) {}
@@ -430,7 +448,8 @@ class WasmGraphBuildingInterface {
     ZoneVector<TFNode*>* locals = &ssa_env_->locals;
     locals->insert(locals->begin(), local_values.size(), nullptr);
     for (uint32_t i = 0; i < local_values.size(); i++) {
-      (*locals)[i] = local_values[i].node;
+      (*locals)[i] =
+          builder_->SetType(local_values[i].node, local_values[i].type);
     }
   }
 
@@ -441,7 +460,7 @@ class WasmGraphBuildingInterface {
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
-    result->node = builder_->GlobalGet(imm.index);
+    SetAndTypeNode(result, builder_->GlobalGet(imm.index));
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
@@ -451,8 +470,8 @@ class WasmGraphBuildingInterface {
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
                 const IndexImmediate<validate>& imm) {
-    result->node =
-        builder_->TableGet(imm.index, index.node, decoder->position());
+    SetAndTypeNode(
+        result, builder_->TableGet(imm.index, index.node, decoder->position()));
   }
 
   void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
@@ -465,11 +484,8 @@ class WasmGraphBuildingInterface {
   }
 
   void AssertNull(FullDecoder* decoder, const Value& obj, Value* result) {
-    builder_->TrapIfFalse(
-        wasm::TrapReason::kTrapIllegalCast,
-        builder_->Binop(kExprRefEq, obj.node, builder_->RefNull(),
-                        decoder->position()),
-        decoder->position());
+    builder_->TrapIfFalse(wasm::TrapReason::kTrapIllegalCast,
+                          builder_->IsNull(obj.node), decoder->position());
     result->node = obj.node;
   }
 
@@ -477,8 +493,8 @@ class WasmGraphBuildingInterface {
 
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
-    result->node =
-      builder_->Select(cond.node, tval.node, fval.node, result->type);
+    SetAndTypeNode(result, builder_->Select(cond.node, tval.node, fval.node,
+                                            result->type));
   }
 
   ValueVector CopyStackValues(FullDecoder* decoder, uint32_t count,
@@ -601,26 +617,28 @@ class WasmGraphBuildingInterface {
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate<validate>& imm, const Value& index,
                Value* result) {
-    result->node =
-        builder_->LoadMem(type.value_type(), type.mem_type(), index.node,
-                          imm.offset, imm.alignment, decoder->position());
+    SetAndTypeNode(result, builder_->LoadMem(
+                               type.value_type(), type.mem_type(), index.node,
+                               imm.offset, imm.alignment, decoder->position()));
   }
 
   void LoadTransform(FullDecoder* decoder, LoadType type,
                      LoadTransformationKind transform,
                      const MemoryAccessImmediate<validate>& imm,
                      const Value& index, Value* result) {
-    result->node = builder_->LoadTransform(type.value_type(), type.mem_type(),
+    SetAndTypeNode(result,
+                   builder_->LoadTransform(type.value_type(), type.mem_type(),
                                            transform, index.node, imm.offset,
-                                           imm.alignment, decoder->position());
+                                           imm.alignment, decoder->position()));
   }
 
   void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,
                 const Value& index, const MemoryAccessImmediate<validate>& imm,
                 const uint8_t laneidx, Value* result) {
-    result->node = builder_->LoadLane(
-        type.value_type(), type.mem_type(), value.node, index.node, imm.offset,
-        imm.alignment, laneidx, decoder->position());
+    SetAndTypeNode(
+        result, builder_->LoadLane(
+                    type.value_type(), type.mem_type(), value.node, index.node,
+                    imm.offset, imm.alignment, laneidx, decoder->position()));
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
@@ -639,13 +657,13 @@ class WasmGraphBuildingInterface {
   }
 
   void CurrentMemoryPages(FullDecoder* decoder, Value* result) {
-    result->node = builder_->CurrentMemoryPages();
+    SetAndTypeNode(result, builder_->CurrentMemoryPages());
   }
 
   void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result) {
-    result->node = builder_->MemoryGrow(value.node);
+    SetAndTypeNode(result, builder_->MemoryGrow(value.node));
     // Always reload the instance cache after growing memory.
-    LoadContextIntoSsa(ssa_env_);
+    LoadContextIntoSsa(ssa_env_, decoder);
   }
 
   void CallDirect(FullDecoder* decoder,
@@ -734,6 +752,9 @@ class WasmGraphBuildingInterface {
       ssa_env_->control = success_control;
       Value* returns_direct =
           decoder->zone()->NewArray<Value>(sig->return_count());
+      for (size_t i = 0; i < sig->return_count(); i++) {
+        returns_direct[i].type = returns[i].type;
+      }
       DoCall(decoder,
              CallInfo::CallDirect(expected_function_index,
                                   feedback->call_count(i)),
@@ -747,6 +768,9 @@ class WasmGraphBuildingInterface {
       ssa_env_->control = failure_control;
     }
     Value* returns_ref = decoder->zone()->NewArray<Value>(sig->return_count());
+    for (size_t i = 0; i < sig->return_count(); i++) {
+      returns_ref[i].type = returns[i].type;
+    }
     DoCall(decoder, CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)),
            sig, args, returns_ref);
 
@@ -768,8 +792,9 @@ class WasmGraphBuildingInterface {
       }
       phi_args.push_back(returns_ref[i].node);
       phi_args.push_back(control);
-      returns[i].node =
-          builder_->Phi(sig->GetReturn(i), num_cases + 1, phi_args.data());
+      SetAndTypeNode(
+          &returns[i],
+          builder_->Phi(sig->GetReturn(i), num_cases + 1, phi_args.data()));
     }
   }
 
@@ -834,7 +859,9 @@ class WasmGraphBuildingInterface {
     SetEnv(true_env);
     BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
     SetEnv(false_env);
-    result_on_fallthrough->node = ref_object.node;
+    SetAndTypeNode(
+        result_on_fallthrough,
+        builder_->TypeGuard(ref_object.node, result_on_fallthrough->type));
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,
@@ -855,7 +882,7 @@ class WasmGraphBuildingInterface {
     NodeVector inputs(args.size());
     GetNodes(inputs.begin(), args);
     TFNode* node = builder_->SimdOp(opcode, inputs.begin());
-    if (result) result->node = node;
+    if (result) SetAndTypeNode(result, node);
   }
 
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
@@ -863,7 +890,8 @@ class WasmGraphBuildingInterface {
                   base::Vector<Value> inputs, Value* result) {
     NodeVector nodes(inputs.size());
     GetNodes(nodes.begin(), inputs);
-    result->node = builder_->SimdLaneOp(opcode, imm.lane, nodes.begin());
+    SetAndTypeNode(result,
+                   builder_->SimdLaneOp(opcode, imm.lane, nodes.begin()));
   }
 
   void Simd8x16ShuffleOp(FullDecoder* decoder,
@@ -871,7 +899,7 @@ class WasmGraphBuildingInterface {
                          const Value& input0, const Value& input1,
                          Value* result) {
     TFNode* input_nodes[] = {input0.node, input1.node};
-    result->node = builder_->Simd8x16ShuffleOp(imm.value, input_nodes);
+    SetAndTypeNode(result, builder_->Simd8x16ShuffleOp(imm.value, input_nodes));
   }
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate<validate>& imm,
@@ -934,7 +962,7 @@ class WasmGraphBuildingInterface {
     base::Vector<TFNode*> caught_vector = base::VectorOf(caught_values);
     builder_->GetExceptionValues(exception, imm.tag, caught_vector);
     for (size_t i = 0, e = values.size(); i < e; ++i) {
-      values[i].node = caught_values[i];
+      SetAndTypeNode(&values[i], caught_values[i]);
     }
   }
 
@@ -995,7 +1023,7 @@ class WasmGraphBuildingInterface {
     GetNodes(inputs.begin(), args);
     TFNode* node = builder_->AtomicOp(opcode, inputs.begin(), imm.alignment,
                                       imm.offset, decoder->position());
-    if (result) result->node = node;
+    if (result) SetAndTypeNode(result, node);
   }
 
   void AtomicFence(FullDecoder* decoder) { builder_->AtomicFence(); }
@@ -1042,12 +1070,13 @@ class WasmGraphBuildingInterface {
 
   void TableGrow(FullDecoder* decoder, const IndexImmediate<validate>& imm,
                  const Value& value, const Value& delta, Value* result) {
-    result->node = builder_->TableGrow(imm.index, value.node, delta.node);
+    SetAndTypeNode(result,
+                   builder_->TableGrow(imm.index, value.node, delta.node));
   }
 
   void TableSize(FullDecoder* decoder, const IndexImmediate<validate>& imm,
                  Value* result) {
-    result->node = builder_->TableSize(imm.index);
+    SetAndTypeNode(result, builder_->TableSize(imm.index));
   }
 
   void TableFill(FullDecoder* decoder, const IndexImmediate<validate>& imm,
@@ -1063,8 +1092,9 @@ class WasmGraphBuildingInterface {
     for (uint32_t i = 0; i < field_count; i++) {
       arg_nodes[i] = args[i].node;
     }
-    result->node = builder_->StructNewWithRtt(
-        imm.index, imm.struct_type, rtt.node, base::VectorOf(arg_nodes));
+    SetAndTypeNode(
+        result, builder_->StructNewWithRtt(imm.index, imm.struct_type, rtt.node,
+                                           base::VectorOf(arg_nodes)));
   }
   void StructNewDefault(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
@@ -1072,18 +1102,23 @@ class WasmGraphBuildingInterface {
     uint32_t field_count = imm.struct_type->field_count();
     NodeVector arg_nodes(field_count);
     for (uint32_t i = 0; i < field_count; i++) {
-      arg_nodes[i] = builder_->DefaultValue(imm.struct_type->field(i));
+      ValueType field_type = imm.struct_type->field(i);
+      arg_nodes[i] = builder_->SetType(builder_->DefaultValue(field_type),
+                                       field_type.Unpacked());
     }
-    result->node = builder_->StructNewWithRtt(
-        imm.index, imm.struct_type, rtt.node, base::VectorOf(arg_nodes));
+    SetAndTypeNode(
+        result, builder_->StructNewWithRtt(imm.index, imm.struct_type, rtt.node,
+                                           base::VectorOf(arg_nodes)));
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate<validate>& field, bool is_signed,
                  Value* result) {
-    result->node = builder_->StructGet(
-        struct_object.node, field.struct_imm.struct_type, field.field_imm.index,
-        NullCheckFor(struct_object.type), is_signed, decoder->position());
+    SetAndTypeNode(result, builder_->StructGet(struct_object.node,
+                                               field.struct_imm.struct_type,
+                                               field.field_imm.index,
+                                               NullCheckFor(struct_object.type),
+                                               is_signed, decoder->position()));
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
@@ -1098,9 +1133,10 @@ class WasmGraphBuildingInterface {
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& initial_value,
                        const Value& rtt, Value* result) {
-    result->node = builder_->ArrayNewWithRtt(imm.index, imm.array_type,
+    SetAndTypeNode(result,
+                   builder_->ArrayNewWithRtt(imm.index, imm.array_type,
                                              length.node, initial_value.node,
-                                             rtt.node, decoder->position());
+                                             rtt.node, decoder->position()));
     // array.new_with_rtt introduces a loop. Therefore, we have to mark the
     // immediately nesting loop (if any) as non-innermost.
     if (!loop_infos_.empty()) loop_infos_.back().can_be_innermost = false;
@@ -1111,17 +1147,18 @@ class WasmGraphBuildingInterface {
                        const Value& length, const Value& rtt, Value* result) {
     // This will be set in {builder_}.
     TFNode* initial_value = nullptr;
-    result->node =
-        builder_->ArrayNewWithRtt(imm.index, imm.array_type, length.node,
-                                  initial_value, rtt.node, decoder->position());
+    SetAndTypeNode(result, builder_->ArrayNewWithRtt(
+                               imm.index, imm.array_type, length.node,
+                               initial_value, rtt.node, decoder->position()));
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate<validate>& imm, const Value& index,
                 bool is_signed, Value* result) {
-    result->node = builder_->ArrayGet(array_obj.node, imm.array_type,
-                                      index.node, NullCheckFor(array_obj.type),
-                                      is_signed, decoder->position());
+    SetAndTypeNode(
+        result, builder_->ArrayGet(array_obj.node, imm.array_type, index.node,
+                                   NullCheckFor(array_obj.type), is_signed,
+                                   decoder->position()));
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
@@ -1132,8 +1169,9 @@ class WasmGraphBuildingInterface {
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    result->node = builder_->ArrayLen(
-        array_obj.node, NullCheckFor(array_obj.type), decoder->position());
+    SetAndTypeNode(
+        result, builder_->ArrayLen(array_obj.node, NullCheckFor(array_obj.type),
+                                   decoder->position()));
   }
 
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
@@ -1151,8 +1189,8 @@ class WasmGraphBuildingInterface {
     for (uint32_t i = 0; i < elements.size(); i++) {
       element_nodes[i] = elements[i].node;
     }
-    result->node =
-        builder_->ArrayInit(imm.array_type, rtt.node, VectorOf(element_nodes));
+    SetAndTypeNode(result, builder_->ArrayInit(imm.array_type, rtt.node,
+                                               VectorOf(element_nodes)));
   }
 
   void ArrayInitFromData(FullDecoder* decoder,
@@ -1160,25 +1198,26 @@ class WasmGraphBuildingInterface {
                          const IndexImmediate<validate>& data_segment,
                          const Value& offset, const Value& length,
                          const Value& rtt, Value* result) {
-    result->node = builder_->ArrayInitFromData(
-        array_imm.array_type, data_segment.index, offset.node, length.node,
-        rtt.node, decoder->position());
+    SetAndTypeNode(result,
+                   builder_->ArrayInitFromData(
+                       array_imm.array_type, data_segment.index, offset.node,
+                       length.node, rtt.node, decoder->position()));
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
-    result->node = builder_->I31New(input.node);
+    SetAndTypeNode(result, builder_->I31New(input.node));
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    result->node = builder_->I31GetS(input.node);
+    SetAndTypeNode(result, builder_->I31GetS(input.node));
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    result->node = builder_->I31GetU(input.node);
+    SetAndTypeNode(result, builder_->I31GetU(input.node));
   }
 
   void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {
-    result->node = builder_->RttCanon(type_index);
+    SetAndTypeNode(result, builder_->RttCanon(type_index));
   }
 
   using WasmTypeCheckConfig = v8::internal::compiler::WasmTypeCheckConfig;
@@ -1201,15 +1240,18 @@ class WasmGraphBuildingInterface {
                Value* result) {
     WasmTypeCheckConfig config =
         ComputeWasmTypeCheckConfig(object.type, rtt.type, decoder->module_);
-    result->node = builder_->RefTest(object.node, rtt.node, config);
+    SetAndTypeNode(result, builder_->RefTest(object.node, rtt.node, config));
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, const Value& rtt,
                Value* result) {
     WasmTypeCheckConfig config =
         ComputeWasmTypeCheckConfig(object.type, rtt.type, decoder->module_);
-    result->node =
-        builder_->RefCast(object.node, rtt.node, config, decoder->position());
+    TFNode* cast_node = FLAG_experimental_wasm_assume_ref_cast_succeeds
+                            ? builder_->TypeGuard(object.node, result->type)
+                            : builder_->RefCast(object.node, rtt.node, config,
+                                                decoder->position());
+    SetAndTypeNode(result, cast_node);
   }
 
   template <void (compiler::WasmGraphBuilder::*branch_function)(
@@ -1230,7 +1272,8 @@ class WasmGraphBuildingInterface {
                                  &no_match_env->control, &no_match_env->effect);
     builder_->SetControl(no_branch_env->control);
     SetEnv(branch_env);
-    forwarding_value->node = object.node;
+    SetAndTypeNode(forwarding_value,
+                   builder_->TypeGuard(object.node, forwarding_value->type));
     // Currently, br_on_* instructions modify the value stack before calling
     // the interface function, so we don't need to drop any values here.
     BrOrRet(decoder, br_depth, 0);
@@ -1250,12 +1293,15 @@ class WasmGraphBuildingInterface {
   }
 
   void RefIsData(FullDecoder* decoder, const Value& object, Value* result) {
-    result->node = builder_->RefIsData(object.node, object.type.is_nullable());
+    SetAndTypeNode(result,
+                   builder_->RefIsData(object.node, object.type.is_nullable()));
   }
 
   void RefAsData(FullDecoder* decoder, const Value& object, Value* result) {
-    result->node = builder_->RefAsData(object.node, object.type.is_nullable(),
-                                       decoder->position());
+    TFNode* cast_object = builder_->RefAsData(
+        object.node, object.type.is_nullable(), decoder->position());
+    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
+    SetAndTypeNode(result, rename);
   }
 
   void BrOnData(FullDecoder* decoder, const Value& object,
@@ -1273,12 +1319,15 @@ class WasmGraphBuildingInterface {
   }
 
   void RefIsFunc(FullDecoder* decoder, const Value& object, Value* result) {
-    result->node = builder_->RefIsFunc(object.node, object.type.is_nullable());
+    SetAndTypeNode(result,
+                   builder_->RefIsFunc(object.node, object.type.is_nullable()));
   }
 
   void RefAsFunc(FullDecoder* decoder, const Value& object, Value* result) {
-    result->node = builder_->RefAsFunc(object.node, object.type.is_nullable(),
-                                       decoder->position());
+    TFNode* cast_object = builder_->RefAsFunc(
+        object.node, object.type.is_nullable(), decoder->position());
+    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
+    SetAndTypeNode(result, rename);
   }
 
   void BrOnFunc(FullDecoder* decoder, const Value& object,
@@ -1296,12 +1345,15 @@ class WasmGraphBuildingInterface {
   }
 
   void RefIsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    result->node = builder_->RefIsArray(object.node, object.type.is_nullable());
+    SetAndTypeNode(
+        result, builder_->RefIsArray(object.node, object.type.is_nullable()));
   }
 
   void RefAsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    result->node = builder_->RefAsArray(object.node, object.type.is_nullable(),
-                                        decoder->position());
+    TFNode* cast_object = builder_->RefAsArray(
+        object.node, object.type.is_nullable(), decoder->position());
+    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
+    SetAndTypeNode(result, rename);
   }
 
   void BrOnArray(FullDecoder* decoder, const Value& object,
@@ -1319,11 +1371,13 @@ class WasmGraphBuildingInterface {
   }
 
   void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    result->node = builder_->RefIsI31(object.node);
+    SetAndTypeNode(result, builder_->RefIsI31(object.node));
   }
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    result->node = builder_->RefAsI31(object.node, decoder->position());
+    TFNode* cast_object = builder_->RefAsI31(object.node, decoder->position());
+    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
+    SetAndTypeNode(result, rename);
   }
 
   void BrOnI31(FullDecoder* decoder, const Value& object,
@@ -1570,6 +1624,7 @@ class WasmGraphBuildingInterface {
 
     TFNode* if_success = nullptr;
     TFNode* if_exception = nullptr;
+    // TODO(manoskouk): Can we assign a wasm type to the exception value?
     if (!builder_->ThrowsException(node, &if_success, &if_exception)) {
       return node;
     }
@@ -1877,12 +1932,12 @@ class WasmGraphBuildingInterface {
         break;
     }
     for (size_t i = 0; i < return_count; ++i) {
-      returns[i].node = return_nodes[i];
+      SetAndTypeNode(&returns[i], return_nodes[i]);
     }
     if (decoder->module_->initial_pages != decoder->module_->maximum_pages) {
       // The invoked function could have used grow_memory, so we need to
       // reload mem_size and mem_start.
-      LoadContextIntoSsa(ssa_env_);
+      LoadContextIntoSsa(ssa_env_, decoder);
     }
   }
 
@@ -1990,11 +2045,14 @@ class WasmGraphBuildingInterface {
       BuildLoopExits(decoder, control);
       for (Value& value : stack_values) {
         if (value.node != nullptr) {
-          value.node = builder_->LoopExitValue(
-              value.node, value.type.machine_representation());
+          value.node = builder_->SetType(
+              builder_->LoopExitValue(value.node,
+                                      value.type.machine_representation()),
+              value.type);
         }
       }
       if (exception_value != nullptr) {
+        // TODO(manoskouk): Can we assign a wasm type to the exception value?
         *exception_value = builder_->LoopExitValue(
             *exception_value, MachineRepresentation::kWord32);
       }
@@ -2009,6 +2067,12 @@ class WasmGraphBuildingInterface {
     return (!FLAG_experimental_wasm_skip_null_checks && type.is_nullable())
                ? CheckForNull::kWithNullCheck
                : CheckForNull::kWithoutNullCheck;
+  }
+
+  void SetAndTypeNode(Value* value, TFNode* node) {
+    // This DCHECK will help us catch uninitialized values.
+    DCHECK_LT(value->type.kind(), kBottom);
+    value->node = builder_->SetType(node, value->type);
   }
 };
 

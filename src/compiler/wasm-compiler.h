@@ -418,6 +418,8 @@ class WasmGraphBuilder {
     return effect_and_control;
   }
 
+  Node* SetType(Node* node, wasm::ValueType type);
+
   // Utilities to manipulate sets of instance cache nodes.
   void InitInstanceCache(WasmInstanceCacheNodes* instance_cache);
   void PrepareInstanceCacheForLoop(WasmInstanceCacheNodes* instance_cache,
@@ -537,6 +539,8 @@ class WasmGraphBuilder {
                Node** match_control, Node** match_effect,
                Node** no_match_control, Node** no_match_effect);
   Node* StringNewWtf8(uint32_t memory, Node* offset, Node* size);
+  Node* IsNull(Node* object);
+  Node* TypeGuard(Node* value, wasm::ValueType type);
 
   bool has_simd() const { return has_simd_; }
 
@@ -694,8 +698,6 @@ class WasmGraphBuilder {
 
   void MemTypeToUintPtrOrOOBTrap(std::initializer_list<Node**> nodes,
                                  wasm::WasmCodePosition position);
-
-  Node* IsNull(Node* object);
 
   Node* AssertNotNull(Node* object, wasm::WasmCodePosition position);
 

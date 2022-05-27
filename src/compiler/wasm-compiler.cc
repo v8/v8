@@ -5464,9 +5464,7 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 WasmTypeCheckConfig config,
                                 wasm::WasmCodePosition position) {
-  return FLAG_experimental_wasm_assume_ref_cast_succeeds
-             ? object
-             : gasm_->WasmTypeCast(object, rtt, config);
+  return gasm_->WasmTypeCast(object, rtt, config);
 }
 
 void WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
@@ -5595,6 +5593,13 @@ void WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
   SetControl(*no_match_control);
   *match_effect = effect();
   *no_match_effect = effect();
+}
+
+Node* WasmGraphBuilder::TypeGuard(Node* value, wasm::ValueType type) {
+  DCHECK_NOT_NULL(env_);
+  return SetEffect(graph()->NewNode(mcgraph()->common()->TypeGuard(Type::Wasm(
+                                        type, env_->module, graph()->zone())),
+                                    value, effect(), control()));
 }
 
 Node* WasmGraphBuilder::StructGet(Node* struct_object,
@@ -5756,6 +5761,19 @@ Node* WasmGraphBuilder::I31GetU(Node* input) {
   DCHECK(SmiValuesAre32Bits());
   return gasm_->BuildTruncateIntPtrToInt32(
       gasm_->WordShr(input, gasm_->IntPtrConstant(kI31To32BitSmiShift)));
+}
+
+Node* WasmGraphBuilder::SetType(Node* node, wasm::ValueType type) {
+  DCHECK_NOT_NULL(env_);
+  if (!compiler::NodeProperties::IsTyped(node)) {
+    compiler::NodeProperties::SetType(
+        node, compiler::Type::Wasm(type, env_->module, graph_zone()));
+  } else {
+    // We might try to set the type twice since some nodes are cached in the
+    // graph assembler, but we should never change the type.
+    DCHECK_EQ(compiler::NodeProperties::GetType(node).AsWasm().type, type);
+  }
+  return node;
 }
 
 class WasmDecorator final : public GraphDecorator {

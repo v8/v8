@@ -2089,11 +2089,16 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
                             &machine);
   const FunctionSig* sig = WasmOpcodes::Signature(opcode);
+  WasmModule module;
+  WasmFeatures enabled;
+  CompilationEnv env(&module, BoundsCheckStrategy::kExplicitBoundsChecks,
+                     RuntimeExceptionSupport::kRuntimeExceptionSupport, enabled,
+                     DynamicTiering::kDynamicTiering);
 
   if (sig->parameter_count() == 1) {
     byte code[] = {WASM_NO_LOCALS, kExprLocalGet, 0, static_cast<byte>(opcode),
                    WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
+    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
                       code + arraysize(code));
   } else {
     CHECK_EQ(2, sig->parameter_count());
@@ -2104,7 +2109,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
                    1,
                    static_cast<byte>(opcode),
                    WASM_END};
-    TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
+    TestBuildingGraph(&zone, &jsgraph, &env, sig, nullptr, code,
                       code + arraysize(code));
   }
 }

@@ -95,6 +95,12 @@ V8_EXPORT_PRIVATE bool ValidSubtypeDefinition(uint32_t subtype_index,
                                               uint32_t supertype_index,
                                               const WasmModule* sub_module,
                                               const WasmModule* super_module);
+
+struct TypeInModule {
+  ValueType type;
+  const WasmModule* module;
+};
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

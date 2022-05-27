@@ -52,6 +52,8 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceIsNull(node);
     case IrOpcode::kRttCanon:
       return ReduceRttCanon(node);
+    case IrOpcode::kTypeGuard:
+      return ReduceTypeGuard(node);
     default:
       return NoChange();
   }
@@ -201,6 +203,7 @@ Reduction WasmGCLowering::ReduceIsNull(Node* node) {
 }
 
 Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kRttCanon);
   int type_index = OpParameter<int>(node->op());
   Node* maps_list = gasm_.LoadImmutable(
       MachineType::TaggedPointer(), instance_node_,
@@ -208,6 +211,14 @@ Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
   return Replace(gasm_.LoadImmutable(
       MachineType::TaggedPointer(), maps_list,
       wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index)));
+}
+
+Reduction WasmGCLowering::ReduceTypeGuard(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kTypeGuard);
+  Node* alias = NodeProperties::GetValueInput(node, 0);
+  ReplaceWithValue(node, alias);
+  node->Kill();
+  return Replace(alias);
 }
 
 }  // namespace compiler

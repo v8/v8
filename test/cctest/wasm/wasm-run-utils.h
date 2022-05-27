@@ -310,7 +310,7 @@ class TestingModuleBuilder {
 };
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       CompilationEnv* module, const FunctionSig* sig,
+                       CompilationEnv* env, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end);
 
