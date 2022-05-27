@@ -55,11 +55,9 @@ class CompilationCacheScript : public CompilationCacheEvalOrScript {
       : CompilationCacheEvalOrScript(isolate) {}
 
   MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                         const ScriptDetails& script_details,
-                                         LanguageMode language_mode);
+                                         const ScriptDetails& script_details);
 
-  void Put(Handle<String> source, LanguageMode language_mode,
-           Handle<SharedFunctionInfo> function_info);
+  void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
   void Age();
 
@@ -214,6 +212,11 @@ class V8_EXPORT_PRIVATE CompilationCache {
 
   bool IsEnabledScriptAndEval() const {
     return FLAG_compilation_cache && enabled_script_and_eval_;
+  }
+  bool IsEnabledScript(LanguageMode language_mode) {
+    // Tests can change FLAG_use_strict at runtime. The compilation cache only
+    // contains scripts which were compiled with the default language mode.
+    return IsEnabledScriptAndEval() && language_mode == LanguageMode::kSloppy;
   }
 
   Isolate* isolate() const { return isolate_; }

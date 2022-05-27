@@ -71,7 +71,7 @@ void CompilationCacheScript::Age() {
   for (InternalIndex entry : table.IterateEntries()) {
     Object key;
     if (!table.ToKey(isolate(), entry, &key)) continue;
-    DCHECK(key.IsFixedArray());
+    DCHECK(key.IsWeakFixedArray());
 
     Object value = table.PrimaryValueAt(entry);
     if (!value.IsUndefined(isolate())) {
@@ -208,8 +208,7 @@ bool HasOrigin(Isolate* isolate, Handle<SharedFunctionInfo> function_info,
 // will be cached, but subsequent code from different source / line
 // won't.
 MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
-    Handle<String> source, const ScriptDetails& script_details,
-    LanguageMode language_mode) {
+    Handle<String> source, const ScriptDetails& script_details) {
   MaybeHandle<SharedFunctionInfo> result;
 
   // Probe the script generation tables. Make sure not to leak handles
@@ -217,8 +216,8 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
   {
     HandleScope scope(isolate());
     Handle<CompilationCacheTable> table = GetTable();
-    MaybeHandle<SharedFunctionInfo> probe = CompilationCacheTable::LookupScript(
-        table, source, language_mode, isolate());
+    MaybeHandle<SharedFunctionInfo> probe =
+        CompilationCacheTable::LookupScript(table, source, isolate());
     Handle<SharedFunctionInfo> function_info;
     if (probe.ToHandle(&function_info)) {
       // Break when we've found a suitable shared function info that
@@ -246,12 +245,11 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
 }
 
 void CompilationCacheScript::Put(Handle<String> source,
-                                 LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetTable();
-  table_ = *CompilationCacheTable::PutScript(table, source, language_mode,
-                                             function_info, isolate());
+  table_ = *CompilationCacheTable::PutScript(table, source, function_info,
+                                             isolate());
 }
 
 InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
@@ -333,8 +331,8 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
     Handle<String> source, const ScriptDetails& script_details,
     LanguageMode language_mode) {
-  if (!IsEnabledScriptAndEval()) return MaybeHandle<SharedFunctionInfo>();
-  return script_.Lookup(source, script_details, language_mode);
+  if (!IsEnabledScript(language_mode)) return MaybeHandle<SharedFunctionInfo>();
+  return script_.Lookup(source, script_details);
 }
 
 InfoCellPair CompilationCache::LookupEval(Handle<String> source,
@@ -375,10 +373,10 @@ MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
 void CompilationCache::PutScript(Handle<String> source,
                                  LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
-  if (!IsEnabledScriptAndEval()) return;
+  if (!IsEnabledScript(language_mode)) return;
   LOG(isolate(), CompilationCacheEvent("put", "script", *function_info));
 
-  script_.Put(source, language_mode, function_info);
+  script_.Put(source, function_info);
 }
 
 void CompilationCache::PutEval(Handle<String> source,

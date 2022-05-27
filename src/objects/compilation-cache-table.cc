@@ -129,8 +129,8 @@ FeedbackCell SearchLiteralsMap(CompilationCacheTable cache,
   return result;
 }
 
-// StringSharedKeys are used as keys in the eval cache.
-class StringSharedKey : public HashTableKey {
+// EvalCacheKeys are used as keys in the eval cache.
+class EvalCacheKey : public HashTableKey {
  public:
   // This tuple unambiguously identifies calls to eval() or
   // CreateDynamicFunction() (such as through the Function() constructor).
@@ -142,22 +142,14 @@ class StringSharedKey : public HashTableKey {
   // * When positive, position is the position in the source where eval is
   //   called. When negative, position is the negation of the position in the
   //   dynamic function's effective source where the ')' ends the parameters.
-  StringSharedKey(Handle<String> source, Handle<SharedFunctionInfo> shared,
-                  LanguageMode language_mode, int position)
-      : HashTableKey(CompilationCacheShape::StringSharedHash(
-            *source, *shared, language_mode, position)),
+  EvalCacheKey(Handle<String> source, Handle<SharedFunctionInfo> shared,
+               LanguageMode language_mode, int position)
+      : HashTableKey(CompilationCacheShape::EvalHash(*source, *shared,
+                                                     language_mode, position)),
         source_(source),
         shared_(shared),
         language_mode_(language_mode),
         position_(position) {}
-
-  // This tuple unambiguously identifies script compilation.
-  StringSharedKey(Handle<String> source, LanguageMode language_mode)
-      : HashTableKey(
-            CompilationCacheShape::StringSharedHash(*source, language_mode)),
-        source_(source),
-        language_mode_(language_mode),
-        position_(kNoSourcePosition) {}
 
   bool IsMatch(Object other) override {
     DisallowGarbageCollection no_gc;
@@ -167,14 +159,8 @@ class StringSharedKey : public HashTableKey {
       return Hash() == other_hash;
     }
     FixedArray other_array = FixedArray::cast(other);
-    DCHECK(other_array.get(0).IsSharedFunctionInfo() ||
-           other_array.get(0) == Smi::zero());
-    Handle<SharedFunctionInfo> shared;
-    if (shared_.ToHandle(&shared)) {
-      if (*shared != other_array.get(0)) return false;
-    } else {
-      if (Smi::zero() != other_array.get(0)) return false;
-    }
+    DCHECK(other_array.get(0).IsSharedFunctionInfo());
+    if (*shared_ != other_array.get(0)) return false;
     int language_unchecked = Smi::ToInt(other_array.get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
@@ -187,12 +173,7 @@ class StringSharedKey : public HashTableKey {
 
   Handle<Object> AsHandle(Isolate* isolate) {
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(4);
-    Handle<SharedFunctionInfo> shared;
-    if (shared_.ToHandle(&shared)) {
-      array->set(0, *shared);
-    } else {
-      array->set(0, Smi::zero());
-    }
+    array->set(0, *shared_);
     array->set(1, *source_);
     array->set(2, Smi::FromEnum(language_mode_));
     array->set(3, Smi::FromInt(position_));
@@ -202,7 +183,7 @@ class StringSharedKey : public HashTableKey {
 
  private:
   Handle<String> source_;
-  MaybeHandle<SharedFunctionInfo> shared_;
+  Handle<SharedFunctionInfo> shared_;
   LanguageMode language_mode_;
   int position_;
 };
@@ -244,14 +225,41 @@ class CodeKey : public HashTableKey {
 
 }  // namespace
 
+ScriptCacheKey::ScriptCacheKey(Handle<String> source)
+    : HashTableKey(source->EnsureHash()), source_(source) {
+  // Hash values must fit within a Smi.
+  static_assert(Name::HashBits::kSize <= kSmiValueSize);
+  DCHECK_EQ(
+      static_cast<uint32_t>(Smi::ToInt(Smi::FromInt(static_cast<int>(Hash())))),
+      Hash());
+}
+
+bool ScriptCacheKey::IsMatch(Object other) {
+  DisallowGarbageCollection no_gc;
+  base::Optional<String> other_source = SourceFromObject(other);
+  return other_source && other_source->Equals(*source_);
+}
+
+Handle<Object> ScriptCacheKey::AsHandle(Isolate* isolate,
+                                        Handle<SharedFunctionInfo> shared) {
+  Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(kEnd);
+  // Any SharedFunctionInfo being stored in the script cache should have a
+  // Script.
+  DCHECK(shared->script().IsScript());
+  array->Set(kHash,
+             MaybeObject::FromObject(Smi::FromInt(static_cast<int>(Hash()))));
+  array->Set(kWeakScript,
+             MaybeObject::MakeWeak(MaybeObject::FromObject(shared->script())));
+  return array;
+}
+
 MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
-    Handle<CompilationCacheTable> table, Handle<String> src,
-    LanguageMode language_mode, Isolate* isolate) {
+    Handle<CompilationCacheTable> table, Handle<String> src, Isolate* isolate) {
   src = String::Flatten(isolate, src);
-  StringSharedKey key(src, language_mode);
+  ScriptCacheKey key(src);
   InternalIndex entry = table->FindEntry(isolate, &key);
   if (entry.is_not_found()) return MaybeHandle<SharedFunctionInfo>();
-  DCHECK(table->KeyAt(entry).IsFixedArray());
+  DCHECK(table->KeyAt(entry).IsWeakFixedArray());
   Object obj = table->PrimaryValueAt(entry);
   if (obj.IsSharedFunctionInfo()) {
     return handle(SharedFunctionInfo::cast(obj), isolate);
@@ -267,7 +275,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
 
-  StringSharedKey key(src, outer_info, language_mode, position);
+  EvalCacheKey key(src, outer_info, language_mode, position);
   InternalIndex entry = table->FindEntry(isolate, &key);
   if (entry.is_not_found()) return empty_result;
 
@@ -293,11 +301,10 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
-    LanguageMode language_mode, Handle<SharedFunctionInfo> value,
-    Isolate* isolate) {
+    Handle<SharedFunctionInfo> value, Isolate* isolate) {
   src = String::Flatten(isolate, src);
-  StringSharedKey key(src, language_mode);
-  Handle<Object> k = key.AsHandle(isolate);
+  ScriptCacheKey key(src);
+  Handle<Object> k = key.AsHandle(isolate, value);
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());
   cache->SetKeyAt(entry, *k);
@@ -313,7 +320,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     int position) {
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
-  StringSharedKey key(src, outer_info, value->language_mode(), position);
+  EvalCacheKey key(src, outer_info, value->language_mode(), position);
 
   // This block handles 'real' insertions, i.e. the initial dummy insert
   // (below) has already happened earlier.
