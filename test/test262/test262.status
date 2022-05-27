@@ -297,10 +297,6 @@
   'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence': [FAIL],
   'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence': [FAIL],
 
-  # Reject invalid date
-  # https://github.com/tc39/test262/issues/3252
-  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/basic': [FAIL],
-
   # -0
   'built-ins/Temporal/PlainDate/prototype/subtract/balance-smaller-units': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/since/roundingmode-undefined': [FAIL],
@@ -1010,12 +1006,6 @@
   'built-ins/Temporal/PlainMonthDay/prototype/equals/calendars': [FAIL],
   'built-ins/Temporal/PlainMonthDay/prototype/equals/calendar-temporal-object': [FAIL],
   'built-ins/Temporal/PlainMonthDay/prototype/equals/infinity-throws-rangeerror': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/argument-not-object': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/branding': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/calendar-fields-iterable': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/calendar-merge-fields-returns-primitive': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/copies-merge-fields-object': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/infinity-throws-rangeerror': [FAIL],
   'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/limits': [FAIL],
   'built-ins/Temporal/PlainMonthDay/prototype/with/basic': [FAIL],
   'built-ins/Temporal/PlainMonthDay/prototype/with/calendar-arguments': [FAIL],
@@ -1219,12 +1209,6 @@
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/overflow-undefined': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/overflow-wrong-type': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/subclassing-ignored': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/argument-not-object': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/branding': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/calendar-fields-iterable': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/calendar-merge-fields-returns-primitive': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/copies-merge-fields-object': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/infinity-throws-rangeerror': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/limits': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/until/argument-string-with-utc-designator': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/until/branding': [FAIL],
@@ -1607,7 +1591,6 @@
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/options-undefined': [FAIL],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/resolved-time-zone': [FAIL],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
-  'intl402/Temporal/PlainMonthDay/prototype/toPlainDate/infinity-throws-rangeerror': [FAIL],
   'intl402/Temporal/PlainTime/prototype/toLocaleString/locales-undefined': [FAIL],
   'intl402/Temporal/PlainTime/prototype/toLocaleString/options-conflict': [FAIL],
   'intl402/Temporal/PlainTime/prototype/toLocaleString/options-undefined': [FAIL],
@@ -1848,7 +1831,6 @@
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/limits': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/month-length': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/subtract/options-invalid': [FAIL],
-  'built-ins/Temporal/PlainYearMonth/prototype/toPlainDate/basic': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/until/argument-casting': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/until/arguments-missing-throws': [FAIL],
   'built-ins/Temporal/PlainYearMonth/prototype/until/largestunit-auto': [FAIL],

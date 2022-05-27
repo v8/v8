@@ -176,16 +176,12 @@ TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeSince)
 /* Temporal #sec-temporal.plainyearmonth.prototype.equals */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeEquals)
-/* Temporal #sec-temporal.plainyearmonth.prototype.toplaindate */
-TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeToPlainDate)
 
 /* Temporal.PlainMonthDay */
 /* There is no compare for PlainMonthDay. See
  * https://github.com/tc39/proposal-temporal/issues/1547 */
 /* Temporal #sec-temporal.plainmonthday.prototype.equals */
 TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeEquals)
-/* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */
-TO_BE_IMPLEMENTED(TemporalPlainMonthDayPrototypeToPlainDate)
 
 /* Temporal.Calendar */
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
@@ -499,6 +495,7 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, MonthsInYear,
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, InLeapYear, inLeapYear)
 TEMPORAL_METHOD2(PlainYearMonth, From)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, With, with)
+TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, ToPlainDate, toPlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(PlainYearMonth, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainYearMonth)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, ToLocaleString, toLocaleString)
@@ -521,6 +518,7 @@ TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, MonthCode, monthCode)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainMonthDay, Day, day)
 TEMPORAL_METHOD2(PlainMonthDay, From)
 TEMPORAL_PROTOTYPE_METHOD2(PlainMonthDay, With, with)
+TEMPORAL_PROTOTYPE_METHOD1(PlainMonthDay, ToPlainDate, toPlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD0(PlainMonthDay, ToJSON, toJSON)
