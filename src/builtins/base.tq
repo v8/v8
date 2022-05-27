@@ -830,6 +830,8 @@ extern macro IsElementsKindInRange(
 extern macro IsFastElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro IsDoubleElementsKind(constexpr ElementsKind): constexpr bool;
 
+extern macro GetNonRabGsabElementsKind(ElementsKind): ElementsKind;
+
 extern macro IsFastAliasedArgumentsMap(implicit context: Context)(Map): bool;
 extern macro IsSlowAliasedArgumentsMap(implicit context: Context)(Map): bool;
 extern macro IsSloppyArgumentsMap(implicit context: Context)(Map): bool;
