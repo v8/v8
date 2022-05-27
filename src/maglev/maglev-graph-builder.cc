@@ -46,7 +46,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
           bytecode().length() + 1)),
       current_interpreter_frame_(*compilation_unit_) {
   memset(merge_states_, 0,
-         bytecode().length() * sizeof(InterpreterFrameState*));
+         (bytecode().length() + 1) * sizeof(InterpreterFrameState*));
   // Default construct basic block refs.
   // TODO(leszeks): This could be a memset of nullptr to ..._jump_targets_.
   for (int i = 0; i < bytecode().length(); ++i) {

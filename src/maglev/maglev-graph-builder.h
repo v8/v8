@@ -140,21 +140,10 @@ class MaglevGraphBuilder {
     BasicBlock* block = CreateBlock<Deopt>({});
     ResolveJumpsToBlockAtOffset(block, block_offset_);
 
-    // Skip any bytecodes remaining in the block, up to the next merge point
-    // with non-dead predecessors.
-    int saved_offset = iterator_.current_offset();
+    // Consider any bytecodes from here onwards dead, up to the next merge point
+    // with non-dead predecessors. Any control flow encountered is also
+    // considered dead and should mark its successors as dead.
     while (true) {
-      iterator_.Advance();
-      if (iterator_.done()) break;
-
-      if (IsOffsetAMergePoint(iterator_.current_offset())) {
-        // Loops that are unreachable aside from their back-edge are going to
-        // be entirely unreachable, thanks to irreducibility.
-        if (!merge_states_[iterator_.current_offset()]->is_unreachable_loop()) {
-          break;
-        }
-      }
-
       // If the current bytecode is a jump to elsewhere, then this jump is
       // also dead and we should make sure to merge it as a dead predecessor.
       interpreter::Bytecode bytecode = iterator_.current_bytecode();
@@ -182,12 +171,30 @@ class MaglevGraphBuilder {
         // fallthrough.
         MergeDeadIntoFrameState(iterator_.next_offset());
       }
-      saved_offset = iterator_.current_offset();
-    }
 
-    // Restore the offset to before the Advance, so that the bytecode visiting
-    // loop can Advance it again.
-    iterator_.SetOffset(saved_offset);
+      // If the next offset is a merge point, that means another live bytecode
+      // created its merge state and it is reachable. We should stop iterating.
+      if (IsOffsetAMergePoint(iterator_.next_offset())) {
+        // The exception is loops that are unreachable aside from their
+        // back-edge. This back-edge will itself not be reachable, thanks to
+        // irreducibility, so in this case the loop header will still be dead.
+        if (!merge_states_[iterator_.next_offset()]->is_unreachable_loop()) {
+          break;
+        }
+      }
+
+      // Otherwise, move on to the next bytecode. Save the offset in case we
+      // want to rewind the Advance, which we need to do if we fall off the end
+      // of the iterator.
+      // TODO(leszeks): Not having to save the offset would be more elegant, but
+      // then we need to play nicer with the BuildBody loop.
+      int saved_offset = iterator_.current_offset();
+      iterator_.Advance();
+      if (iterator_.done()) {
+        iterator_.SetOffset(saved_offset);
+        break;
+      }
+    }
   }
 
   void VisitSingleBytecode() {
