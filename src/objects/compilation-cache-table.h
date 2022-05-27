@@ -124,7 +124,7 @@ class CompilationCacheTable
       JSRegExp::Flags flags, Handle<FixedArray> value);
 
   void Remove(Object value);
-  void Age(Isolate* isolate);
+  void RemoveEntry(InternalIndex entry);
 
   inline Object PrimaryValueAt(InternalIndex entry);
   inline void SetPrimaryValueAt(InternalIndex entry, Object value,
@@ -134,11 +134,12 @@ class CompilationCacheTable
       InternalIndex entry, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  // The initial placeholder insertion of the eval cache survives this many GCs.
+  static constexpr int kHashGenerations = 10;
+
   DECL_CAST(CompilationCacheTable)
 
  private:
-  void RemoveEntry(InternalIndex entry);
-
   OBJECT_CONSTRUCTORS(CompilationCacheTable,
                       HashTable<CompilationCacheTable, CompilationCacheShape>);
 };

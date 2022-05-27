@@ -17,9 +17,6 @@ const int kLiteralInitialLength = 2;
 const int kLiteralContextOffset = 0;
 const int kLiteralLiteralsOffset = 1;
 
-// The initial placeholder insertion of the eval cache survives this many GCs.
-const int kHashGenerations = 10;
-
 int SearchLiteralsMapEntry(CompilationCacheTable cache,
                            InternalIndex cache_entry, Context native_context) {
   DisallowGarbageCollection no_gc;
@@ -358,36 +355,6 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
   cache->SetPrimaryValueAt(entry, *value);
   cache->ElementAdded();
   return cache;
-}
-
-void CompilationCacheTable::Age(Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  for (InternalIndex entry : IterateEntries()) {
-    Object key = KeyAt(entry);
-    if (key.IsNumber()) {
-      // The ageing mechanism for the initial dummy entry in the eval cache.
-      // The 'key' is the hash represented as a Number. The 'value' is a smi
-      // counting down from kHashGenerations. On reaching zero, the entry is
-      // cleared.
-      // Note: The following static assert only establishes an explicit
-      // connection between initialization- and use-sites of the smi value
-      // field.
-      static_assert(kHashGenerations);
-      const int new_count = Smi::ToInt(PrimaryValueAt(entry)) - 1;
-      if (new_count == 0) {
-        RemoveEntry(entry);
-      } else {
-        DCHECK_GT(new_count, 0);
-        SetPrimaryValueAt(entry, Smi::FromInt(new_count), SKIP_WRITE_BARRIER);
-      }
-    } else if (key.IsFixedArray()) {
-      // The ageing mechanism for script and eval caches.
-      SharedFunctionInfo info = SharedFunctionInfo::cast(PrimaryValueAt(entry));
-      if (info.HasBytecodeArray() && info.GetBytecodeArray(isolate).IsOld()) {
-        RemoveEntry(entry);
-      }
-    }
-  }
 }
 
 void CompilationCacheTable::Remove(Object value) {

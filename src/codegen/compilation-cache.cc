@@ -18,9 +18,6 @@
 namespace v8 {
 namespace internal {
 
-// The number of generations for each sub cache.
-static const int kRegExpGenerations = 2;
-
 // Initial size of each compilation cache table allocated.
 static const int kInitialCacheSize = 64;
 
@@ -29,17 +26,18 @@ CompilationCache::CompilationCache(Isolate* isolate)
       script_(isolate),
       eval_global_(isolate),
       eval_contextual_(isolate),
-      reg_exp_(isolate, kRegExpGenerations),
-      enabled_script_and_eval_(true) {
-  CompilationSubCache* subcaches[kSubCacheCount] = {
-      &script_, &eval_global_, &eval_contextual_, &reg_exp_};
-  for (int i = 0; i < kSubCacheCount; ++i) {
-    subcaches_[i] = subcaches[i];
+      reg_exp_(isolate),
+      enabled_script_and_eval_(true) {}
+
+Handle<CompilationCacheTable> CompilationCacheEvalOrScript::GetTable() {
+  if (table_.IsUndefined(isolate())) {
+    return CompilationCacheTable::New(isolate(), kInitialCacheSize);
   }
+  return handle(CompilationCacheTable::cast(table_), isolate());
 }
 
-Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
-  DCHECK_LT(generation, generations());
+Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
+  DCHECK_LT(generation, kGenerations);
   Handle<CompilationCacheTable> result;
   if (tables_[generation].IsUndefined(isolate())) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
@@ -52,58 +50,102 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   return result;
 }
 
-// static
-void CompilationSubCache::AgeByGeneration(CompilationSubCache* c) {
-  DCHECK_GT(c->generations(), 1);
+void CompilationCacheRegExp::Age() {
+  static_assert(kGenerations > 1);
 
   // Age the generations implicitly killing off the oldest.
-  for (int i = c->generations() - 1; i > 0; i--) {
-    c->tables_[i] = c->tables_[i - 1];
+  for (int i = kGenerations - 1; i > 0; i--) {
+    tables_[i] = tables_[i - 1];
   }
 
   // Set the first generation as unborn.
-  c->tables_[0] = ReadOnlyRoots(c->isolate()).undefined_value();
-}
-
-// static
-void CompilationSubCache::AgeCustom(CompilationSubCache* c) {
-  DCHECK_EQ(c->generations(), 1);
-  if (c->tables_[0].IsUndefined(c->isolate())) return;
-  CompilationCacheTable::cast(c->tables_[0]).Age(c->isolate());
+  tables_[0] = ReadOnlyRoots(isolate()).undefined_value();
 }
 
 void CompilationCacheScript::Age() {
-  if (FLAG_isolate_script_cache_ageing) AgeCustom(this);
-}
-void CompilationCacheEval::Age() { AgeCustom(this); }
-void CompilationCacheRegExp::Age() { AgeByGeneration(this); }
+  DisallowGarbageCollection no_gc;
+  if (!FLAG_isolate_script_cache_ageing) return;
+  if (table_.IsUndefined(isolate())) return;
+  CompilationCacheTable table = CompilationCacheTable::cast(table_);
 
-void CompilationSubCache::Iterate(RootVisitor* v) {
-  v->VisitRootPointers(Root::kCompilationCache, nullptr,
-                       FullObjectSlot(&tables_[0]),
-                       FullObjectSlot(&tables_[generations()]));
-}
+  for (InternalIndex entry : table.IterateEntries()) {
+    Object key;
+    if (!table.ToKey(isolate(), entry, &key)) continue;
+    DCHECK(key.IsFixedArray());
 
-void CompilationSubCache::Clear() {
-  MemsetPointer(reinterpret_cast<Address*>(tables_),
-                ReadOnlyRoots(isolate()).undefined_value().ptr(),
-                generations());
-}
-
-void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
-  // Probe the script generation tables. Make sure not to leak handles
-  // into the caller's handle scope.
-  {
-    HandleScope scope(isolate());
-    for (int generation = 0; generation < generations(); generation++) {
-      Handle<CompilationCacheTable> table = GetTable(generation);
-      table->Remove(*function_info);
+    Object value = table.PrimaryValueAt(entry);
+    if (!value.IsUndefined(isolate())) {
+      SharedFunctionInfo info = SharedFunctionInfo::cast(value);
+      if (info.HasBytecodeArray() && info.GetBytecodeArray(isolate()).IsOld()) {
+        table.RemoveEntry(entry);
+      }
     }
   }
 }
 
-CompilationCacheScript::CompilationCacheScript(Isolate* isolate)
-    : CompilationSubCache(isolate, 1) {}
+void CompilationCacheEval::Age() {
+  DisallowGarbageCollection no_gc;
+  if (table_.IsUndefined(isolate())) return;
+  CompilationCacheTable table = CompilationCacheTable::cast(table_);
+
+  for (InternalIndex entry : table.IterateEntries()) {
+    Object key;
+    if (!table.ToKey(isolate(), entry, &key)) continue;
+
+    if (key.IsNumber(isolate())) {
+      // The ageing mechanism for the initial dummy entry in the eval cache.
+      // The 'key' is the hash represented as a Number. The 'value' is a smi
+      // counting down from kHashGenerations. On reaching zero, the entry is
+      // cleared.
+      // Note: The following static assert only establishes an explicit
+      // connection between initialization- and use-sites of the smi value
+      // field.
+      static_assert(CompilationCacheTable::kHashGenerations);
+      const int new_count = Smi::ToInt(table.PrimaryValueAt(entry)) - 1;
+      if (new_count == 0) {
+        table.RemoveEntry(entry);
+      } else {
+        DCHECK_GT(new_count, 0);
+        table.SetPrimaryValueAt(entry, Smi::FromInt(new_count),
+                                SKIP_WRITE_BARRIER);
+      }
+    } else {
+      DCHECK(key.IsFixedArray());
+      // The ageing mechanism for eval caches.
+      SharedFunctionInfo info =
+          SharedFunctionInfo::cast(table.PrimaryValueAt(entry));
+      if (info.HasBytecodeArray() && info.GetBytecodeArray(isolate()).IsOld()) {
+        table.RemoveEntry(entry);
+      }
+    }
+  }
+}
+
+void CompilationCacheEvalOrScript::Iterate(RootVisitor* v) {
+  v->VisitRootPointer(Root::kCompilationCache, nullptr,
+                      FullObjectSlot(&table_));
+}
+
+void CompilationCacheRegExp::Iterate(RootVisitor* v) {
+  v->VisitRootPointers(Root::kCompilationCache, nullptr,
+                       FullObjectSlot(&tables_[0]),
+                       FullObjectSlot(&tables_[kGenerations]));
+}
+
+void CompilationCacheEvalOrScript::Clear() {
+  table_ = ReadOnlyRoots(isolate()).undefined_value();
+}
+
+void CompilationCacheRegExp::Clear() {
+  MemsetPointer(reinterpret_cast<Address*>(tables_),
+                ReadOnlyRoots(isolate()).undefined_value().ptr(), kGenerations);
+}
+
+void CompilationCacheEvalOrScript::Remove(
+    Handle<SharedFunctionInfo> function_info) {
+  if (table_.IsUndefined(isolate())) return;
+  CompilationCacheTable::cast(table_).Remove(*function_info);
+}
 
 namespace {
 
@@ -174,9 +216,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
   // into the caller's handle scope.
   {
     HandleScope scope(isolate());
-    const int generation = 0;
-    DCHECK_EQ(generations(), 1);
-    Handle<CompilationCacheTable> table = GetTable(generation);
+    Handle<CompilationCacheTable> table = GetTable();
     MaybeHandle<SharedFunctionInfo> probe = CompilationCacheTable::LookupScript(
         table, source, language_mode, isolate());
     Handle<SharedFunctionInfo> function_info;
@@ -209,9 +249,9 @@ void CompilationCacheScript::Put(Handle<String> source,
                                  LanguageMode language_mode,
                                  Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
-  Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(CompilationCacheTable::PutScript(table, source, language_mode,
-                                                 function_info, isolate()));
+  Handle<CompilationCacheTable> table = GetTable();
+  table_ = *CompilationCacheTable::PutScript(table, source, language_mode,
+                                             function_info, isolate());
 }
 
 InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
@@ -224,9 +264,7 @@ InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
   InfoCellPair result;
-  const int generation = 0;
-  DCHECK_EQ(generations(), 1);
-  Handle<CompilationCacheTable> table = GetTable(generation);
+  Handle<CompilationCacheTable> table = GetTable();
   result = CompilationCacheTable::LookupEval(
       table, source, outer_info, native_context, language_mode, position);
   if (result.has_shared()) {
@@ -244,11 +282,10 @@ void CompilationCacheEval::Put(Handle<String> source,
                                Handle<FeedbackCell> feedback_cell,
                                int position) {
   HandleScope scope(isolate());
-  Handle<CompilationCacheTable> table = GetFirstTable();
-  table =
-      CompilationCacheTable::PutEval(table, source, outer_info, function_info,
-                                     native_context, feedback_cell, position);
-  SetFirstTable(table);
+  Handle<CompilationCacheTable> table = GetTable();
+  table_ =
+      *CompilationCacheTable::PutEval(table, source, outer_info, function_info,
+                                      native_context, feedback_cell, position);
 }
 
 MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
@@ -259,7 +296,7 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
   // having cleared the cache.
   Handle<Object> result = isolate()->factory()->undefined_value();
   int generation;
-  for (generation = 0; generation < generations(); generation++) {
+  for (generation = 0; generation < kGenerations; generation++) {
     Handle<CompilationCacheTable> table = GetTable(generation);
     result = table->LookupRegExp(source, flags);
     if (result->IsFixedArray()) break;
@@ -280,9 +317,9 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
 void CompilationCacheRegExp::Put(Handle<String> source, JSRegExp::Flags flags,
                                  Handle<FixedArray> data) {
   HandleScope scope(isolate());
-  Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(
-      CompilationCacheTable::PutRegExp(isolate(), table, source, flags, data));
+  Handle<CompilationCacheTable> table = GetTable(0);
+  tables_[0] =
+      *CompilationCacheTable::PutRegExp(isolate(), table, source, flags, data);
 }
 
 void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
@@ -374,21 +411,24 @@ void CompilationCache::PutRegExp(Handle<String> source, JSRegExp::Flags flags,
 }
 
 void CompilationCache::Clear() {
-  for (int i = 0; i < kSubCacheCount; i++) {
-    subcaches_[i]->Clear();
-  }
+  script_.Clear();
+  eval_global_.Clear();
+  eval_contextual_.Clear();
+  reg_exp_.Clear();
 }
 
 void CompilationCache::Iterate(RootVisitor* v) {
-  for (int i = 0; i < kSubCacheCount; i++) {
-    subcaches_[i]->Iterate(v);
-  }
+  script_.Iterate(v);
+  eval_global_.Iterate(v);
+  eval_contextual_.Iterate(v);
+  reg_exp_.Iterate(v);
 }
 
 void CompilationCache::MarkCompactPrologue() {
-  for (int i = 0; i < kSubCacheCount; i++) {
-    subcaches_[i]->Age();
-  }
+  script_.Age();
+  eval_global_.Age();
+  eval_contextual_.Age();
+  reg_exp_.Age();
 }
 
 void CompilationCache::EnableScriptAndEval() {
