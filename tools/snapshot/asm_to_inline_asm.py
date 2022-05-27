@@ -7,7 +7,7 @@
 '''
 Converts a given file in clang assembly syntax to a corresponding
 representation in inline assembly. Specifically, this is used to convert
-embedded.S to embedded.cc for Windows clang builds.
+embedded.asm to embedded.cc for Windows clang builds.
 '''
 
 import argparse

@@ -1527,7 +1527,7 @@ config("v8_gcov_coverage_ldflags") {
 # Actions
 #
 
-# Only for Windows clang builds. Converts the embedded.S file produced by
+# Only for Windows clang builds. Converts the embedded.asm file produced by
 # mksnapshot into an embedded.cc file with corresponding inline assembly.
 template("asm_to_inline_asm") {
   name = target_name
@@ -1544,11 +1544,11 @@ template("asm_to_inline_asm") {
 
     script = "tools/snapshot/asm_to_inline_asm.py"
     deps = [ ":run_mksnapshot_" + name ]
-    sources = [ "$target_gen_dir/embedded${suffix}.S" ]
+    sources = [ "$target_gen_dir/embedded${suffix}.asm" ]
     outputs = [ "$target_gen_dir/embedded${suffix}.cc" ]
     args = invoker.args
     args += [
-      rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
+      rebase_path("$target_gen_dir/embedded${suffix}.asm", root_build_dir),
       rebase_path("$target_gen_dir/embedded${suffix}.cc", root_build_dir),
     ]
   }
@@ -2086,7 +2086,7 @@ action("generate_bytecode_builtins_list") {
 # Template to generate different V8 snapshots based on different runtime flags.
 # Can be invoked with run_mksnapshot(<name>). The target will resolve to
 # run_mksnapshot_<name>. If <name> is "default", no file suffixes will be used.
-# Otherwise files are suffixed, e.g. embedded_<name>.S and
+# Otherwise files are suffixed, e.g. embedded_<name>.asm and
 # snapshot_blob_<name>.bin.
 #
 # The template exposes the variables:
@@ -2131,7 +2131,7 @@ template("run_mksnapshot") {
       "--target_arch=$current_cpu",
 
       "--embedded_src",
-      rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
+      rebase_path("$target_gen_dir/embedded${suffix}.asm", root_build_dir),
     ]
 
     if (v8_enable_builtins_profiling) {
@@ -2157,7 +2157,7 @@ template("run_mksnapshot") {
 
     args += invoker.args
 
-    outputs += [ "$target_gen_dir/embedded${suffix}.S" ]
+    outputs += [ "$target_gen_dir/embedded${suffix}.asm" ]
     if (invoker.embedded_variant != "") {
       args += [
         "--embedded_variant",
@@ -2320,7 +2320,7 @@ v8_source_set("v8_snapshot") {
     deps += [ ":asm_to_inline_asm_default" ]
     sources += [ "$target_gen_dir/embedded.cc" ]
   } else {
-    sources += [ "$target_gen_dir/embedded.S" ]
+    sources += [ "$target_gen_dir/embedded.asm" ]
   }
 
   configs = [ ":internal_config" ]

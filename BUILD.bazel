@@ -3240,11 +3240,11 @@ filegroup(
         "src/init/setup-isolate-deserialize.cc",
     ] + select({
         "@v8//bazel/config:v8_target_arm": [
-            "google3/snapshots/arm/noicu/embedded.S",
+            "google3/snapshots/arm/noicu/embedded.asm",
             "google3/snapshots/arm/noicu/snapshot.cc",
         ],
         "@v8//bazel/config:v8_target_ia32": [
-            "google3/snapshots/ia32/noicu/embedded.S",
+            "google3/snapshots/ia32/noicu/embedded.asm",
             "google3/snapshots/ia32/noicu/snapshot.cc",
         ],
         "//conditions:default": [":noicu/generated_snapshot_files"],
@@ -3257,11 +3257,11 @@ filegroup(
         "src/init/setup-isolate-deserialize.cc",
     ] + select({
         "@v8//bazel/config:v8_target_arm": [
-            "google3/snapshots/arm/icu/embedded.S",
+            "google3/snapshots/arm/icu/embedded.asm",
             "google3/snapshots/arm/icu/snapshot.cc",
         ],
         "@v8//bazel/config:v8_target_ia32": [
-            "google3/snapshots/ia32/icu/embedded.S",
+            "google3/snapshots/ia32/icu/embedded.asm",
             "google3/snapshots/ia32/icu/snapshot.cc",
         ],
         "//conditions:default": [":icu/generated_snapshot_files"],
