@@ -56,8 +56,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeEquals)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeAdd)
 /* Temporal #sec-temporal.plaintime.prototype.subtract */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeSubtract)
-/* Temporal #sec-temporal.plaintime.prototype.with */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeWith)
 /* Temporal #sec-temporal.plaintime.prototype.until */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeUntil)
 /* Temporal #sec-temporal.plaintime.prototype.since */
@@ -72,8 +70,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToString)
 /* Temporal.PlaneDateTime */
 /* Temporal #sec-temporal.plaindatetime.compare */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimeCompare)
-/* Temporal #sec-temporal.plaindatetime.prototype.with */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeWith)
 /* Temporal #sec-temporal.plaindatetime.prototype.add */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeAdd)
 /* Temporal #sec-temporal.plaindatetime.prototype.subtract */
@@ -427,6 +423,7 @@ TEMPORAL_METHOD2(PlainTime, Compare)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToPlainDateTime, toPlainDateTime)
+TEMPORAL_PROTOTYPE_METHOD2(PlainTime, With, with)
 TEMPORAL_VALUE_OF(PlainTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)
 
@@ -475,6 +472,7 @@ TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainMonthDay, toPlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, GetISOFields, getISOFields)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, WithPlainDate, withPlainDate)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, With, with)
 TEMPORAL_VALUE_OF(PlainDateTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainDate, toPlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainTime, toPlainTime)

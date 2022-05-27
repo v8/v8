@@ -67,7 +67,6 @@
   'temporal/plain-date-time-equals': [FAIL],
   'temporal/plain-date-time-subtract': [FAIL],
   'temporal/plain-date-time-to-json': [FAIL],
-  'temporal/plain-date-time-with': [FAIL],
   'temporal/plain-date-to-plain-date-time': [FAIL],
   'temporal/plain-date-with': [FAIL],
 

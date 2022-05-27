@@ -303,9 +303,9 @@ double TotalDurationNanoseconds(Isolate* isolate,
                                 double offset_shift);
 
 // #sec-temporal-totemporaltimerecord
-Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
-                                       Handle<JSReceiver> temporal_time_like,
-                                       const char* method_name);
+Maybe<TimeRecordCommon> ToTemporalTimeRecord(
+    Isolate* isolate, Handle<JSReceiver> temporal_time_like,
+    const char* method_name);
 // Calendar Operations
 
 // #sec-temporal-calendardateadd
@@ -2148,6 +2148,23 @@ MaybeHandle<JSReceiver> ToTemporalCalendarWithISODefault(
                                       method_name);
 }
 
+// Create «  "day", "hour", "microsecond", "millisecond", "minute", "month",
+// "monthCode", "nanosecond", "second", "year" » in several AOs.
+Handle<FixedArray> All10UnitsInFixedArray(Isolate* isolate) {
+  Handle<FixedArray> field_names = isolate->factory()->NewFixedArray(10);
+  field_names->set(0, ReadOnlyRoots(isolate).day_string());
+  field_names->set(1, ReadOnlyRoots(isolate).hour_string());
+  field_names->set(2, ReadOnlyRoots(isolate).microsecond_string());
+  field_names->set(3, ReadOnlyRoots(isolate).millisecond_string());
+  field_names->set(4, ReadOnlyRoots(isolate).minute_string());
+  field_names->set(5, ReadOnlyRoots(isolate).month_string());
+  field_names->set(6, ReadOnlyRoots(isolate).monthCode_string());
+  field_names->set(7, ReadOnlyRoots(isolate).nanosecond_string());
+  field_names->set(8, ReadOnlyRoots(isolate).second_string());
+  field_names->set(9, ReadOnlyRoots(isolate).year_string());
+  return field_names;
+}
+
 // Create « "day", "month", "monthCode", "year" » in several AOs.
 Handle<FixedArray> DayMonthMonthCodeYearInFixedArray(Isolate* isolate) {
   Handle<FixedArray> field_names = isolate->factory()->NewFixedArray(4);
@@ -2334,8 +2351,9 @@ Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
 namespace temporal {
 
 // #sec-temporal-regulatetime
-Maybe<TimeRecord> RegulateTime(Isolate* isolate, const TimeRecord& time,
-                               ShowOverflow overflow) {
+Maybe<TimeRecordCommon> RegulateTime(Isolate* isolate,
+                                     const TimeRecordCommon& time,
+                                     ShowOverflow overflow) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: hour, minute, second, millisecond, microsecond and nanosecond
@@ -2343,29 +2361,26 @@ Maybe<TimeRecord> RegulateTime(Isolate* isolate, const TimeRecord& time,
   // 2. Assert: overflow is either "constrain" or "reject".
   switch (overflow) {
     case ShowOverflow::kConstrain: {
-      TimeRecord result(time);
+      TimeRecordCommon result(time);
       // 3. If overflow is "constrain", then
       // a. Return ! ConstrainTime(hour, minute, second, millisecond,
       // microsecond, nanosecond).
-      result.time.hour = std::max(std::min(result.time.hour, 23), 0);
-      result.time.minute = std::max(std::min(result.time.minute, 59), 0);
-      result.time.second = std::max(std::min(result.time.second, 59), 0);
-      result.time.millisecond =
-          std::max(std::min(result.time.millisecond, 999), 0);
-      result.time.microsecond =
-          std::max(std::min(result.time.microsecond, 999), 0);
-      result.time.nanosecond =
-          std::max(std::min(result.time.nanosecond, 999), 0);
+      result.hour = std::max(std::min(result.hour, 23), 0);
+      result.minute = std::max(std::min(result.minute, 59), 0);
+      result.second = std::max(std::min(result.second, 59), 0);
+      result.millisecond = std::max(std::min(result.millisecond, 999), 0);
+      result.microsecond = std::max(std::min(result.microsecond, 999), 0);
+      result.nanosecond = std::max(std::min(result.nanosecond, 999), 0);
       return Just(result);
     }
     case ShowOverflow::kReject:
       // 4. If overflow is "reject", then
       // a. If ! IsValidTime(hour, minute, second, millisecond, microsecond,
       // nanosecond) is false, throw a RangeError exception.
-      if (!IsValidTime(isolate, time.time)) {
+      if (!IsValidTime(isolate, time)) {
         THROW_NEW_ERROR_RETURN_VALUE(isolate,
                                      NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                     Nothing<TimeRecord>());
+                                     Nothing<TimeRecordCommon>());
       }
       // b. Return the new Record { [[Hour]]: hour, [[Minute]]: minute,
       // [[Second]]: second, [[Millisecond]]: millisecond, [[Microsecond]]:
@@ -2456,13 +2471,13 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
     }
     // f. Let result be ? ToTemporalTimeRecord(item).
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, result, ToTemporalTimeRecord(isolate, item, method_name),
+        isolate, result.time, ToTemporalTimeRecord(isolate, item, method_name),
         Handle<JSTemporalPlainTime>());
     // g. Set result to ? RegulateTime(result.[[Hour]], result.[[Minute]],
     // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
     // result.[[Nanosecond]], overflow).
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, result, RegulateTime(isolate, result, overflow),
+        isolate, result.time, RegulateTime(isolate, result.time, overflow),
         Handle<JSTemporalPlainTime>());
   } else {
     // 4. Else,
@@ -4258,13 +4273,16 @@ Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
 }
 #endif  // V8_INTL_SUPPORT
 
+// Common routine shared by ToTemporalTimeRecord and ToPartialTime
+// #sec-temporal-topartialtime
 // #sec-temporal-totemporaltimerecord
-Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
-                                       Handle<JSReceiver> temporal_time_like,
-                                       const char* method_name) {
+Maybe<TimeRecordCommon> ToTemporalTimeRecordOrPartialTime(
+    Isolate* isolate, Handle<JSReceiver> temporal_time_like,
+    const TimeRecordCommon& time, bool skip_undefined,
+    const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
-  TimeRecord result;
+  TimeRecordCommon result(time);
   Factory* factory = isolate->factory();
   // 1. Assert: Type(temporalTimeLike) is Object.
   // 2. Let result be the new Record { [[Hour]]: undefined, [[Minute]]:
@@ -4273,33 +4291,36 @@ Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
   // See https://github.com/tc39/proposal-temporal/pull/1862
   // 3. Let _any_ be *false*.
   bool any = false;
-  // 4. For each row of Table 3, except the header row, in table order, do
-  std::array<std::pair<Handle<String>, int32_t*>, 6> table3 = {
-      {{factory->hour_string(), &result.time.hour},
-       {factory->microsecond_string(), &result.time.microsecond},
-       {factory->millisecond_string(), &result.time.millisecond},
-       {factory->minute_string(), &result.time.minute},
-       {factory->nanosecond_string(), &result.time.nanosecond},
-       {factory->second_string(), &result.time.second}}};
-  for (const auto& row : table3) {
+  // 4. For each row of Table 4, except the header row, in table order, do
+  std::array<std::pair<Handle<String>, int32_t*>, 6> table4 = {
+      {{factory->hour_string(), &result.hour},
+       {factory->microsecond_string(), &result.microsecond},
+       {factory->millisecond_string(), &result.millisecond},
+       {factory->minute_string(), &result.minute},
+       {factory->nanosecond_string(), &result.nanosecond},
+       {factory->second_string(), &result.second}}};
+  for (const auto& row : table4) {
     Handle<Object> value;
     // a. Let property be the Property value of the current row.
     // b. Let value be ? Get(temporalTimeLike, property).
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, value,
         JSReceiver::GetProperty(isolate, temporal_time_like, row.first),
-        Nothing<TimeRecord>());
+        Nothing<TimeRecordCommon>());
     // c. If value is not undefined, then
     if (!value->IsUndefined()) {
       // i. Set _any_ to *true*.
       any = true;
+      // If it is inside ToPartialTime, we only continue if it is not undefined.
+    } else if (skip_undefined) {
+      continue;
     }
-    // d. Set value to ? ToIntegerThrowOnOInfinity(value).
+    // d. / ii. Set value to ? ToIntegerThrowOnOInfinity(value).
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
                                      ToIntegerThrowOnInfinity(isolate, value),
-                                     Nothing<TimeRecord>());
-    // e. Set result's internal slot whose name is the Internal Slot value of
-    // the current row to value.
+                                     Nothing<TimeRecordCommon>());
+    // e. / iii. Set result's internal slot whose name is the Internal Slot
+    // value of the current row to value.
     *(row.second) = value->Number();
   }
 
@@ -4307,10 +4328,29 @@ Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
   if (!any) {
     // a. Throw a *TypeError* exception.
     THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<TimeRecord>());
+                                 Nothing<TimeRecordCommon>());
   }
   // 4. Return result.
   return Just(result);
+}
+
+// #sec-temporal-topartialtime
+Maybe<TimeRecordCommon> ToPartialTime(Isolate* isolate,
+                                      Handle<JSReceiver> temporal_time_like,
+                                      const TimeRecordCommon& time,
+                                      const char* method_name) {
+  return ToTemporalTimeRecordOrPartialTime(isolate, temporal_time_like, time,
+                                           true, method_name);
+}
+
+// #sec-temporal-totemporaltimerecord
+Maybe<TimeRecordCommon> ToTemporalTimeRecord(
+    Isolate* isolate, Handle<JSReceiver> temporal_time_like,
+    const char* method_name) {
+  return ToTemporalTimeRecordOrPartialTime(
+      isolate, temporal_time_like,
+      {kMinInt31, kMinInt31, kMinInt31, kMinInt31, kMinInt31, kMinInt31}, false,
+      method_name);
 }
 
 // #sec-temporal-mergelargestunitoption
@@ -8406,7 +8446,7 @@ Maybe<DateTimeRecord> InterpretTemporalDateTimeFields(
   TEMPORAL_ENTER_FUNC();
 
   // 1. Let timeResult be ? ToTemporalTimeRecord(fields).
-  TimeRecord time_result;
+  TimeRecordCommon time_result;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, time_result, ToTemporalTimeRecord(isolate, fields, method_name),
       Nothing<DateTimeRecord>());
@@ -8441,7 +8481,7 @@ Maybe<DateTimeRecord> InterpretTemporalDateTimeFields(
   DateTimeRecord result = {
       {temporal_date->iso_year(), temporal_date->iso_month(),
        temporal_date->iso_day()},
-      time_result.time,
+      time_result,
       Handle<String>()};
   return Just(result);
 }
@@ -8639,6 +8679,91 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
   }
   // 3. Return ? ToTemporalDateTime(item, options).
   return ToTemporalDateTime(isolate, item, options, method_name);
+}
+
+// #sec-temporal.plaindatetime.prototype.with
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::With(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> temporal_date_time_like_obj, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainDateTime.prototype.with";
+  // 1. Let dateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. If Type(temporalDateTimeLike) is not Object, then
+  if (!temporal_date_time_like_obj->IsJSReceiver()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalPlainDateTime);
+  }
+  Handle<JSReceiver> temporal_date_time_like =
+      Handle<JSReceiver>::cast(temporal_date_time_like_obj);
+  // 4. Perform ? RejectObjectWithCalendarOrTimeZone(temporalTimeLike).
+  MAYBE_RETURN(
+      RejectObjectWithCalendarOrTimeZone(isolate, temporal_date_time_like),
+      Handle<JSTemporalPlainDateTime>());
+  // 5. Let calendar be dateTime.[[Calendar]].
+  Handle<JSReceiver> calendar =
+      Handle<JSReceiver>(date_time->calendar(), isolate);
+  // 6. Let fieldNames be ? CalendarFields(calendar, « "day", "hour",
+  // "microsecond", "millisecond", "minute", "month", "monthCode", "nanosecond",
+  // "second", "year" »).
+  Handle<FixedArray> field_names = All10UnitsInFixedArray(isolate);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
+                             CalendarFields(isolate, calendar, field_names),
+                             JSTemporalPlainDateTime);
+
+  // 7. Let partialDateTime be ?
+  // PreparePartialTemporalFields(temporalDateTimeLike, fieldNames).
+  Handle<JSReceiver> partial_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, partial_date_time,
+                             PreparePartialTemporalFields(
+                                 isolate, temporal_date_time_like, field_names),
+                             JSTemporalPlainDateTime);
+
+  // 8. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainDateTime);
+  // 9. Let fields be ? PrepareTemporalFields(dateTime, fieldNames, «»).
+  Handle<JSReceiver> fields;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, fields,
+      PrepareTemporalFields(isolate, date_time, field_names,
+                            RequiredFields::kNone),
+      JSTemporalPlainDateTime);
+
+  // 10. Set fields to ? CalendarMergeFields(calendar, fields, partialDateTime).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, fields,
+      CalendarMergeFields(isolate, calendar, fields, partial_date_time),
+      JSTemporalPlainDateTime);
+  // 11. Set fields to ? PrepareTemporalFields(fields, fieldNames, «»).
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, fields,
+                             PrepareTemporalFields(isolate, fields, field_names,
+                                                   RequiredFields::kNone),
+                             JSTemporalPlainDateTime);
+  // 12. Let result be ? InterpretTemporalDateTimeFields(calendar, fields,
+  // options).
+  DateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      InterpretTemporalDateTimeFields(isolate, calendar, fields, options,
+                                      method_name),
+      Handle<JSTemporalPlainDateTime>());
+  // 13. Assert: ! IsValidISODate(result.[[Year]], result.[[Month]],
+  // result.[[Day]]) is true.
+  DCHECK(IsValidISODate(isolate, result.date));
+  // 14. Assert: ! IsValidTime(result.[[Hour]], result.[[Minute]],
+  // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+  // result.[[Nanosecond]]) is true.
+  DCHECK(IsValidTime(isolate, result.time));
+  // 15. Return ? CreateTemporalDateTime(result.[[Year]], result.[[Month]],
+  // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
+  // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]],
+  // calendar).
+  return temporal::CreateTemporalDateTime(isolate, {result.date, result.time},
+                                          calendar);
 }
 
 // #sec-temporal.plaindatetime.prototype.withplaintime
@@ -9770,6 +9895,59 @@ MaybeHandle<Oddball> JSTemporalPlainTime::Equals(
     return isolate->factory()->false_value();
   // 10. Return true.
   return isolate->factory()->true_value();
+}
+
+// #sec-temporal.plaintime.prototype.with
+MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> temporal_time_like_obj, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainTime.prototype.with";
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalTime,
+  // [[InitializedTemporalTime]]).
+  // 3. If Type(temporalTimeLike) is not Object, then
+  if (!temporal_time_like_obj->IsJSReceiver()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalPlainTime);
+  }
+  Handle<JSReceiver> temporal_time_like =
+      Handle<JSReceiver>::cast(temporal_time_like_obj);
+  // 4. Perform ? RejectObjectWithCalendarOrTimeZone(temporalTimeLike).
+  MAYBE_RETURN(RejectObjectWithCalendarOrTimeZone(isolate, temporal_time_like),
+               Handle<JSTemporalPlainTime>());
+  // 5. Let partialTime be ? ToPartialTime(temporalTimeLike).
+  TimeRecordCommon result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      ToPartialTime(
+          isolate, temporal_time_like,
+          {temporal_time->iso_hour(), temporal_time->iso_minute(),
+           temporal_time->iso_second(), temporal_time->iso_millisecond(),
+           temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()},
+          method_name),
+      Handle<JSTemporalPlainTime>());
+
+  // 6. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainTime);
+  // 7. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Handle<JSTemporalPlainTime>());
+
+  // 20. Let result be ? RegulateTime(hour, minute, second, millisecond,
+  // microsecond, nanosecond, overflow).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, temporal::RegulateTime(isolate, result, overflow),
+      Handle<JSTemporalPlainTime>());
+  // 25. Return ? CreateTemporalTime(result.[[Hour]], result.[[Minute]],
+  // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+  // result.[[Nanosecond]]).
+  return CreateTemporalTime(isolate, result);
 }
 
 // #sec-temporal.now.plaintimeiso

@@ -379,6 +379,11 @@ class JSTemporalPlainDateTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time);
 
+  // #sec-temporal.plaindatetime.prototype.with
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> With(
+      Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+      Handle<Object> temporal_date_time_like, Handle<Object> options);
+
   // #sec-temporal.now.plaindatetime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Now(
       Isolate* isolate, Handle<Object> calendar_like,
@@ -492,6 +497,11 @@ class JSTemporalPlainTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime>
   ToPlainDateTime(Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
                   Handle<Object> temporal_date);
+
+  // #sec-temporal.plaintime.prototype.with
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> With(
+      Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
+      Handle<Object> temporal_time_like, Handle<Object> options);
 
   // #sec-temporal.now.plaintimeiso
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> NowISO(
