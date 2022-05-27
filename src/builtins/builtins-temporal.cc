@@ -38,8 +38,6 @@ namespace internal {
         JSTemporal##T::NowISO(isolate, args.atOrUndefined(isolate, 1))); \
   }
 
-/* Temporal #sec-temporal.plaindate.compare */
-TO_BE_IMPLEMENTED(TemporalPlainDateCompare)
 /* Temporal #sec-temporal.plaindate.prototype.add */
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeAdd)
 /* Temporal #sec-temporal.plaindate.prototype.substract */
@@ -48,8 +46,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeSubtract)
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeUntil)
 /* Temporal #sec-temporal.plaindate.prototype.since */
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeSince)
-/* Temporal #sec-temporal.plaindate.prototype.equals */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeEquals)
 
 /* Temporal.PlaneTime */
 /* Temporal #sec-temporal.plaintime.prototype.add */
@@ -68,8 +64,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToLocaleString)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToString)
 
 /* Temporal.PlaneDateTime */
-/* Temporal #sec-temporal.plaindatetime.compare */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimeCompare)
 /* Temporal #sec-temporal.plaindatetime.prototype.add */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeAdd)
 /* Temporal #sec-temporal.plaindatetime.prototype.subtract */
@@ -80,8 +74,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeSince)
 /* Temporal #sec-temporal.plaindatetime.prototype.round */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeRound)
-/* Temporal #sec-temporal.plaindatetime.prototype.equals */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeEquals)
 /* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToLocaleString)
 /* Temporal #sec-temporal.plaindatetime.prototype.tostring */
@@ -368,6 +360,7 @@ BUILTIN(TemporalPlainDateConstructor) {
                    args.atOrUndefined(isolate, 4)));  // calendar_like
 }
 TEMPORAL_METHOD2(PlainDate, From)
+TEMPORAL_METHOD2(PlainDate, Compare)
 TEMPORAL_GET(PlainDate, Calendar, calendar)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Year, year)
 TEMPORAL_GET_BY_FORWARD_CALENDAR(PlainDate, Month, month)
@@ -388,6 +381,7 @@ TEMPORAL_PROTOTYPE_METHOD2(PlainDate, With, with)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, GetISOFields, getISOFields)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDate, ToPlainDateTime, toPlainDateTime)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDate, ToZonedDateTime, toZonedDateTime)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDate, Equals, equals)
 TEMPORAL_VALUE_OF(PlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToJSON, toJSON)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDate, ToLocaleString, toLocaleString)
@@ -463,6 +457,8 @@ TEMPORAL_GET_SMI(PlainDateTime, Millisecond, iso_millisecond)
 TEMPORAL_GET_SMI(PlainDateTime, Microsecond, iso_microsecond)
 TEMPORAL_GET_SMI(PlainDateTime, Nanosecond, iso_nanosecond)
 TEMPORAL_METHOD2(PlainDateTime, From)
+TEMPORAL_METHOD2(PlainDateTime, Compare)
+TEMPORAL_PROTOTYPE_METHOD1(PlainDateTime, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainYearMonth, toPlainYearMonth)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainMonthDay, toPlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, ToZonedDateTime, toZonedDateTime)

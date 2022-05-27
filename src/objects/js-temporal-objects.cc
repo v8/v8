@@ -235,7 +235,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddZonedDateTime(
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddZonedDateTime(
     Isolate* isolate, Handle<BigInt> eopch_nanoseconds,
     Handle<JSReceiver> time_zone, Handle<JSReceiver> calendar,
-    const DurationRecord& addend, Handle<JSReceiver> options,
+    const DurationRecord& addend, Handle<Object> options,
     const char* method_name);
 
 // #sec-temporal-isvalidepochnanoseconds
@@ -278,7 +278,7 @@ bool IsValidTime(Isolate* isolate, const TimeRecordCommon& time);
 bool IsValidISODate(Isolate* isolate, const DateRecordCommon& date);
 
 // #sec-temporal-compareisodate
-int32_t CompareISODate(Isolate* isolate, const DateRecordCommon& date1,
+int32_t CompareISODate(const DateRecordCommon& date1,
                        const DateRecordCommon& date2);
 
 // #sec-temporal-balanceisoyearmonth
@@ -3720,6 +3720,29 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
   return id;
 }
 
+// #sec-temporal-calendarequals
+MaybeHandle<Oddball> CalendarEquals(Isolate* isolate, Handle<JSReceiver> one,
+                                    Handle<JSReceiver> two) {
+  // 1. If one and two are the same Object value, return true.
+  if (one.is_identical_to(two)) {
+    return isolate->factory()->true_value();
+  }
+  // 2. Let calendarOne be ? ToString(one).
+  Handle<String> calendar_one;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar_one,
+                             Object::ToString(isolate, one), Oddball);
+  // 3. Let calendarTwo be ? ToString(two).
+  Handle<String> calendar_two;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar_two,
+                             Object::ToString(isolate, two), Oddball);
+  // 4. If calendarOne is calendarTwo, return true.
+  if (String::Equals(isolate, calendar_one, calendar_two)) {
+    return isolate->factory()->true_value();
+  }
+  // 5. Return false.
+  return isolate->factory()->false_value();
+}
+
 // #sec-temporal-calendarfields
 MaybeHandle<FixedArray> CalendarFields(Isolate* isolate,
                                        Handle<JSReceiver> calendar,
@@ -4356,14 +4379,22 @@ Maybe<TimeRecordCommon> ToTemporalTimeRecord(
 
 // #sec-temporal-mergelargestunitoption
 MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
-                                             Handle<JSReceiver> options,
+                                             Handle<Object> options_obj,
                                              Unit largest_unit) {
   TEMPORAL_ENTER_FUNC();
-  // 1. Let merged be ! OrdinaryObjectCreate(%Object.prototype%).
+  DCHECK(options_obj->IsUndefined() || options_obj->IsJSReceiver());
+  // 1. If options is undefined, set options to OrdinaryObjectCreate(null).
+  Handle<Object> options;
+  if (options_obj->IsUndefined()) {
+    options = isolate->factory()->NewJSObjectWithNullProto();
+  } else {
+    options = Handle<JSReceiver>::cast(options_obj);
+  }
+  // 2. Let merged be ! OrdinaryObjectCreate(%Object.prototype%).
   Handle<JSObject> merged =
       isolate->factory()->NewJSObject(isolate->object_function());
-  // 2. Let keys be ? EnumerableOwnPropertyNames(options, key).
-  // 3. For each element nextKey of keys, do
+  // 3. Let keys be ? EnumerableOwnPropertyNames(options, key).
+  // 4. For each element nextKey of keys, do
   // a. Let propValue be ? Get(options, nextKey).
   // b. Perform ! CreateDataPropertyOrThrow(merged, nextKey, propValue).
   JSReceiver::SetOrCopyDataProperties(
@@ -4371,7 +4402,7 @@ MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
       nullptr, false)
       .Check();
 
-  // 4. Perform ! CreateDataPropertyOrThrow(merged, "largestUnit", largestUnit).
+  // 5. Perform ! CreateDataPropertyOrThrow(merged, "largestUnit", largestUnit).
   CHECK(JSReceiver::CreateDataProperty(
             isolate, merged, isolate->factory()->largestUnit_string(),
             UnitToString(isolate, largest_unit), Just(kThrowOnError))
@@ -4811,7 +4842,7 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
       duration.microseconds * sign, duration.nanoseconds * sign);
 }
 
-// #sec-temporal-addinstant
+// #sec-temporal-addzoneddatetime
 MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
                                      Handle<BigInt> epoch_nanoseconds,
                                      Handle<JSReceiver> time_zone,
@@ -4820,10 +4851,10 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
                                      const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
-  // 1. If options is not present, set options to ! OrdinaryObjectCreate(null).
-  Handle<JSReceiver> options = isolate->factory()->NewJSObjectWithNullProto();
+  // 1. If options is not present, set options to undefined.
   return AddZonedDateTime(isolate, epoch_nanoseconds, time_zone, calendar,
-                          duration, options, method_name);
+                          duration, isolate->factory()->undefined_value(),
+                          method_name);
 }
 
 // #sec-temporal-addzoneddatetime
@@ -4832,7 +4863,7 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
                                      Handle<JSReceiver> time_zone,
                                      Handle<JSReceiver> calendar,
                                      const DurationRecord& duration,
-                                     Handle<JSReceiver> options,
+                                     Handle<Object> options,
                                      const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
@@ -5143,24 +5174,15 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
   return Just(result);
 }
 
+// #sec-temporal-differenceisodatetime
 Maybe<DurationRecord> DifferenceISODateTime(
     Isolate* isolate, const DateTimeRecordCommon& date_time1,
     const DateTimeRecordCommon& date_time2, Handle<JSReceiver> calendar,
-    Unit largest_unit, Handle<Object> options_obj, const char* method_name) {
+    Unit largest_unit, Handle<Object> options, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
-
-  Factory* factory = isolate->factory();
   DurationRecord result;
-  // 1. Assert: y1, mon1, d1, h1, min1, s1, ms1, mus1, ns1, y2, mon2, d2, h2,
-  // min2, s2, ms2, mus2, and ns2 are integers.
-  // 2. If options is not present, set options to ! OrdinaryObjectCreate(null).
-  Handle<JSReceiver> options;
-  if (options_obj->IsUndefined()) {
-    options = factory->NewJSObjectWithNullProto();
-  } else {
-    DCHECK(options_obj->IsJSReceiver());
-    options = Handle<JSReceiver>::cast(options_obj);
-  }
+  // 2. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 3. Let timeDifference be ! DifferenceTime(h1, min1, s1, ms1, mus1, ns1, h2,
   // min2, s2, ms2, mus2, ns2).
   TimeDurationRecord time_difference;
@@ -5178,7 +5200,7 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]]).
   double time_sign = DurationSign(isolate, {0, 0, 0, time_difference});
   // 5. Let dateSign be ! CompareISODate(y2, mon2, d2, y1, mon1, d1).
-  double date_sign = CompareISODate(isolate, date_time2.date, date_time1.date);
+  double date_sign = CompareISODate(date_time2.date, date_time1.date);
   // 6. Let balanceResult be ! BalanceISODate(y1, mon1, d1 +
   // timeDifference.[[Days]]).
   DateRecordCommon balanced = BalanceISODate(
@@ -5537,25 +5559,43 @@ bool IsValidISODate(Isolate* isolate, const DateRecordCommon& date) {
 }
 
 // #sec-temporal-compareisodate
-int32_t CompareISODate(Isolate* isolate, const DateRecordCommon& date1,
-                       const DateRecordCommon& date2) {
+int32_t CompareISODate(const DateRecordCommon& one,
+                       const DateRecordCommon& two) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: y1, m1, d1, y2, m2, and d2 are integers.
   // 2. If y1 > y2, return 1.
-  if (date1.year > date2.year) return 1;
+  if (one.year > two.year) return 1;
   // 3. If y1 < y2, return -1.
-  if (date1.year < date2.year) return -1;
+  if (one.year < two.year) return -1;
   // 4. If m1 > m2, return 1.
-  if (date1.month > date2.month) return 1;
+  if (one.month > two.month) return 1;
   // 5. If m1 < m2, return -1.
-  if (date1.month < date2.month) return -1;
+  if (one.month < two.month) return -1;
   // 6. If d1 > d2, return 1.
-  if (date1.day > date2.day) return 1;
+  if (one.day > two.day) return 1;
   // 7. If d1 < d2, return -1.
-  if (date1.day < date2.day) return -1;
+  if (one.day < two.day) return -1;
   // 8. Return 0.
   return 0;
+}
+
+int32_t CompareTemporalTime(const TimeRecordCommon& time1,
+                            const TimeRecordCommon& time2);
+
+// #sec-temporal-compareisodatetime
+int32_t CompareISODateTime(const DateTimeRecordCommon& one,
+                           const DateTimeRecordCommon& two) {
+  // 2. Let dateResult be ! CompareISODate(y1, mon1, d1, y2, mon2, d2).
+  int32_t date_result = CompareISODate(one.date, two.date);
+  // 3. If dateResult is not 0, then
+  if (date_result != 0) {
+    // a. Return dateResult.
+    return date_result;
+  }
+  // 4. Return ! CompareTemporalTime(h1, min1, s1, ms1, mus1, ns1, h2, min2, s2,
+  // ms2, mus2, ns2).
+  return CompareTemporalTime(one.time, two.time);
 }
 
 inline int32_t floor_divid(int32_t a, int32_t b) {
@@ -6457,7 +6497,7 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
     case Unit::kYear:
     case Unit::kMonth: {
       // a. Let sign be -(! CompareISODate(y1, m1, d1, y2, m2, d2)).
-      int32_t sign = -CompareISODate(isolate, date1, date2);
+      int32_t sign = -CompareISODate(date1, date2);
       // b. If sign is 0, return ! CreateDateDurationRecord(0, 0, 0, 0).
       if (sign == 0) {
         return DateDurationRecord::Create(isolate, 0, 0, 0, 0);
@@ -6482,7 +6522,7 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
 
       // g. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
       // mid.[[Day]], y2, m2, d2)).
-      int32_t mid_sign = -CompareISODate(isolate, mid, date2);
+      int32_t mid_sign = -CompareISODate(mid, date2);
 
       // h. If midSign is 0, then
       if (mid_sign == 0) {
@@ -6512,7 +6552,7 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
           Nothing<DateDurationRecord>());
       // l. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
       // mid.[[Day]], y2, m2, d2)).
-      mid_sign = -CompareISODate(isolate, mid, date2);
+      mid_sign = -CompareISODate(mid, date2);
       // m. If midSign is 0, then
       if (mid_sign == 0) {
         // 1. i. If largestUnit is "year", return !
@@ -6544,7 +6584,7 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
             Nothing<DateDurationRecord>());
         // iv. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
         // mid.[[Day]], y2, m2, d2)).
-        mid_sign = -CompareISODate(isolate, mid, date2);
+        mid_sign = -CompareISODate(mid, date2);
       }
       // o. Let days be 0.
       double days = 0;
@@ -6581,7 +6621,7 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
       DateRecordCommon smaller, greater;
       // a. If ! CompareISODate(y1, m1, d1, y2, m2, d2) < 0, then
       int32_t sign;
-      if (CompareISODate(isolate, date1, date2) < 0) {
+      if (CompareISODate(date1, date2) < 0) {
         // i. Let smaller be the Record { [[Year]]: y1, [[Month]]: m1, [[Day]]:
         // d1
         // }.
@@ -7846,6 +7886,58 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
                             {iso_year, iso_month, iso_day}, calendar);
 }
 
+// #sec-temporal.plaindate.compare
+MaybeHandle<Smi> JSTemporalPlainDate::Compare(Isolate* isolate,
+                                              Handle<Object> one_obj,
+                                              Handle<Object> two_obj) {
+  const char* method_name = "Temporal.PlainDate.compare";
+  // 1. Set one to ? ToTemporalDate(one).
+  Handle<JSTemporalPlainDate> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one, ToTemporalDate(isolate, one_obj, method_name), Smi);
+  // 2. Set two to ? ToTemporalDate(two).
+  Handle<JSTemporalPlainDate> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two, ToTemporalDate(isolate, two_obj, method_name), Smi);
+  // 3. Return 𝔽(! CompareISODate(one.[[ISOYear]], one.[[ISOMonth]],
+  // one.[[ISODay]], two.[[ISOYear]], two.[[ISOMonth]], two.[[ISODay]])).
+  return Handle<Smi>(Smi::FromInt(CompareISODate(
+                         {one->iso_year(), one->iso_month(), one->iso_day()},
+                         {two->iso_year(), two->iso_month(), two->iso_day()})),
+                     isolate);
+}
+
+// #sec-temporal.plaindate.prototype.equals
+MaybeHandle<Oddball> JSTemporalPlainDate::Equals(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Handle<Object> other_obj) {
+  Factory* factory = isolate->factory();
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+  // 3. Set other to ? ToTemporalDate(other).
+  Handle<JSTemporalPlainDate> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      ToTemporalDate(isolate, other_obj, "Temporal.PlainDate.prototype.equals"),
+      Oddball);
+  // 4. If temporalDate.[[ISOYear]] ≠ other.[[ISOYear]], return false.
+  if (temporal_date->iso_year() != other->iso_year()) {
+    return factory->false_value();
+  }
+  // 5. If temporalDate.[[ISOMonth]] ≠ other.[[ISOMonth]], return false.
+  if (temporal_date->iso_month() != other->iso_month()) {
+    return factory->false_value();
+  }
+  // 6. If temporalDate.[[ISODay]] ≠ other.[[ISODay]], return false.
+  if (temporal_date->iso_day() != other->iso_day()) {
+    return factory->false_value();
+  }
+  // 7. Return ? CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]).
+  return CalendarEquals(isolate, handle(temporal_date->calendar(), isolate),
+                        handle(other->calendar(), isolate));
+}
+
 // #sec-temporal.plaindate.prototype.withcalendar
 MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
     Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
@@ -8680,6 +8772,84 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
   }
   // 3. Return ? ToTemporalDateTime(item, options).
   return ToTemporalDateTime(isolate, item, options, method_name);
+}
+
+// #sec-temporal.plaindatetime.compare
+MaybeHandle<Smi> JSTemporalPlainDateTime::Compare(Isolate* isolate,
+                                                  Handle<Object> one_obj,
+                                                  Handle<Object> two_obj) {
+  const char* method_name = "Temporal.PlainDateTime.compare";
+  // 1. Set one to ? ToTemporalDateTime(one).
+  Handle<JSTemporalPlainDateTime> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one, ToTemporalDateTime(isolate, one_obj, method_name), Smi);
+  // 2. Set two to ? ToTemporalDateTime(two).
+  Handle<JSTemporalPlainDateTime> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two, ToTemporalDateTime(isolate, two_obj, method_name), Smi);
+  // 3. Return 𝔽(! CompareISODateTime(one.[[ISOYear]], one.[[ISOMonth]],
+  // one.[[ISODay]], one.[[ISOHour]], one.[[ISOMinute]], one.[[ISOSecond]],
+  // one.[[ISOMillisecond]], one.[[ISOMicrosecond]], one.[[ISONanosecond]],
+  // two.[[ISOYear]], two.[[ISOMonth]], two.[[ISODay]], two.[[ISOHour]],
+  // two.[[ISOMinute]], two.[[ISOSecond]], two.[[ISOMillisecond]],
+  // two.[[ISOMicrosecond]], two.[[ISONanosecond]])).
+  return Handle<Smi>(
+      Smi::FromInt(CompareISODateTime(
+          {
+              {one->iso_year(), one->iso_month(), one->iso_day()},
+              {one->iso_hour(), one->iso_minute(), one->iso_second(),
+               one->iso_millisecond(), one->iso_microsecond(),
+               one->iso_nanosecond()},
+          },
+          {
+              {two->iso_year(), two->iso_month(), two->iso_day()},
+              {two->iso_hour(), two->iso_minute(), two->iso_second(),
+               two->iso_millisecond(), two->iso_microsecond(),
+               two->iso_nanosecond()},
+          })),
+      isolate);
+}
+
+// #sec-temporal.plaindatetime.prototype.equals
+MaybeHandle<Oddball> JSTemporalPlainDateTime::Equals(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> other_obj) {
+  // 1. Let dateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. Set other to ? ToTemporalDateTime(other).
+  Handle<JSTemporalPlainDateTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      ToTemporalDateTime(isolate, other_obj,
+                         "Temporal.PlainDateTime.prototype.equals"),
+      Oddball);
+  // 4. Let result be ! CompareISODateTime(dateTime.[[ISOYear]],
+  // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+  // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+  // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+  // dateTime.[[ISONanosecond]], other.[[ISOYear]], other.[[ISOMonth]],
+  // other.[[ISODay]], other.[[ISOHour]], other.[[ISOMinute]],
+  // other.[[ISOSecond]], other.[[ISOMillisecond]], other.[[ISOMicrosecond]],
+  // other.[[ISONanosecond]]).
+  int32_t result = CompareISODateTime(
+      {
+          {date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+          {date_time->iso_hour(), date_time->iso_minute(),
+           date_time->iso_second(), date_time->iso_millisecond(),
+           date_time->iso_microsecond(), date_time->iso_nanosecond()},
+      },
+      {
+          {other->iso_year(), other->iso_month(), other->iso_day()},
+          {other->iso_hour(), other->iso_minute(), other->iso_second(),
+           other->iso_millisecond(), other->iso_microsecond(),
+           other->iso_nanosecond()},
+      });
+  // 5. If result is not 0, return false.
+  if (result != 0) return isolate->factory()->false_value();
+  // 6. Return ? CalendarEquals(dateTime.[[Calendar]], other.[[Calendar]]).
+  return CalendarEquals(isolate, handle(date_time->calendar(), isolate),
+                        handle(other->calendar(), isolate));
 }
 
 // #sec-temporal.plaindatetime.prototype.with
