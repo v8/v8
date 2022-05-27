@@ -1240,8 +1240,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<Smi> subject_length, TNode<Number> limit_number) {
   CSA_DCHECK(this, SmiGreaterThan(subject_length, SmiConstant(0)));
 
-  Label done(this), call_runtime(this, Label::kDeferred),
-      fill_thehole_and_call_runtime(this, Label::kDeferred);
+  Label done(this), call_runtime(this, Label::kDeferred);
   TVARIABLE(JSArray, result_array);
 
   TNode<Uint16T> instance_type = LoadInstanceType(subject_string);
@@ -1266,10 +1265,9 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<FixedArray> elements = CAST(AllocateFixedArray(
         PACKED_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation));
     // Don't allocate anything while {string_data} is live!
-    TNode<RawPtrT> string_data =
-        to_direct.PointerToData(&fill_thehole_and_call_runtime);
+    TNode<RawPtrT> string_data = to_direct.PointerToData(&call_runtime);
     TNode<IntPtrT> string_data_offset = to_direct.offset();
-    TNode<FixedArray> cache = SingleCharacterStringCacheConstant();
+    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
 
     BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
@@ -1285,9 +1283,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
           TNode<UintPtrT> code_index = ChangeUint32ToWord(char_code);
           TNode<Object> entry = LoadFixedArrayElement(cache, code_index);
 
-          // If we cannot find a char in the cache, fill the hole for the fixed
-          // array, and call runtime.
-          GotoIf(IsUndefined(entry), &fill_thehole_and_call_runtime);
+          CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
 
           StoreFixedArrayElement(elements, index, entry);
         },
@@ -1296,13 +1292,6 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
     result_array = AllocateJSArray(array_map, elements, length_smi);
     Goto(&done);
-
-    BIND(&fill_thehole_and_call_runtime);
-    {
-      FillFixedArrayWithValue(PACKED_ELEMENTS, elements, IntPtrConstant(0),
-                              length, RootIndex::kTheHoleValue);
-      Goto(&call_runtime);
-    }
   }
 
   BIND(&call_runtime);

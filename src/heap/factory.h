@@ -307,7 +307,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                   MaybeHandle<Map>* shared_map);
 
   // Creates a single character string where the character has given code.
-  // A cache is used for Latin1 codes.
+  // A table is used for Latin1 codes.
   Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
 
   // Create or lookup a single characters tring made up of a utf16 surrogate

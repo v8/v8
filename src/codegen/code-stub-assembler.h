@@ -114,8 +114,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ShadowRealmImportValueFulfilledSFI,                                        \
     shadow_realm_import_value_fulfilled_sfi,                                   \
     ShadowRealmImportValueFulfilledSFI)                                        \
-  V(SingleCharacterStringCache, single_character_string_cache,                 \
-    SingleCharacterStringCache)                                                \
+  V(SingleCharacterStringTable, single_character_string_table,                 \
+    SingleCharacterStringTable)                                                \
   V(StringIteratorProtector, string_iterator_protector,                        \
     StringIteratorProtector)                                                   \
   V(TypedArraySpeciesProtector, typed_array_species_protector,                 \
