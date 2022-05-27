@@ -1072,9 +1072,11 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayForEachLoopContinuation:
     case Builtin::kArrayIncludesHoleyDoubles:
     case Builtin::kArrayIncludesPackedDoubles:
+    case Builtin::kArrayIncludesSmi:
     case Builtin::kArrayIncludesSmiOrObject:
     case Builtin::kArrayIndexOfHoleyDoubles:
     case Builtin::kArrayIndexOfPackedDoubles:
+    case Builtin::kArrayIndexOfSmi:
     case Builtin::kArrayIndexOfSmiOrObject:
     case Builtin::kArrayMapLoopContinuation:
     case Builtin::kArrayReduceLoopContinuation:
