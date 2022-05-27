@@ -737,6 +737,23 @@ class JSTemporalZonedDateTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> StartOfDay(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
 
+  // #sec-temporal.zoneddatetime.prototype.toinstant
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> ToInstant(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.zoneddatetime.prototype.toplaindate
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> ToPlainDate(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.zoneddatetime.prototype.toplaintime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> ToPlainTime(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.zoneddatetime.prototype.toplaindatetime
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime>
+  ToPlainDateTime(Isolate* isolate,
+                  Handle<JSTemporalZonedDateTime> zoned_date_time);
+
   DECL_PRINTER(JSTemporalZonedDateTime)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalZonedDateTime)
@@ -777,8 +794,7 @@ DECLARE_CALENDAR_ABSTRACT_OPERATION(EraYear)
 #undef DECLARE_CALENDAR_ABSTRACT_OPERATION
 
 // #sec-temporal-getiso8601calendar
-V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalCalendar> GetISO8601Calendar(
-    Isolate* isolate);
+Handle<JSTemporalCalendar> GetISO8601Calendar(Isolate* isolate);
 
 // #sec-temporal-builtintimezonegetplaindatetimefor
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDateTime>
