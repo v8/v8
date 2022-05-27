@@ -517,7 +517,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // script associated with |data| and can be finalized with FinalizeScript.
   // Note: does not take ownership of |data|.
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
-                        v8::ScriptType type);
+                        v8::ScriptType type,
+                        ScriptCompiler::CompileOptions options);
   BackgroundCompileTask(const BackgroundCompileTask&) = delete;
   BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();

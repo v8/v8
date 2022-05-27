@@ -1527,12 +1527,16 @@ DeferredFinalizationJobData::DeferredFinalizationJobData(
     : function_handle_(isolate->heap()->NewPersistentHandle(function_handle)),
       job_(std::move(job)) {}
 
-BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
-                                             Isolate* isolate, ScriptType type)
+BackgroundCompileTask::BackgroundCompileTask(
+    ScriptStreamingData* streamed_data, Isolate* isolate, ScriptType type,
+    ScriptCompiler::CompileOptions options)
     : isolate_for_local_isolate_(isolate),
       flags_(UnoptimizedCompileFlags::ForToplevelCompile(
           isolate, true, construct_language_mode(FLAG_use_strict),
-          REPLMode::kNo, type, FLAG_lazy_streaming)),
+          REPLMode::kNo, type,
+          options == ScriptCompiler::CompileOptions::kEagerCompile
+              ? false
+              : FLAG_lazy_streaming)),
       character_stream_(ScannerStream::For(streamed_data->source_stream.get(),
                                            streamed_data->encoding)),
       stack_size_(i::FLAG_stack_size),
@@ -2834,8 +2838,9 @@ class StressBackgroundCompileThread : public base::Thread {
         source_(source),
         streamed_source_(std::make_unique<SourceStream>(source, isolate),
                          v8::ScriptCompiler::StreamedSource::UTF8) {
-    data()->task =
-        std::make_unique<i::BackgroundCompileTask>(data(), isolate, type);
+    data()->task = std::make_unique<i::BackgroundCompileTask>(
+        data(), isolate, type,
+        ScriptCompiler::CompileOptions::kNoCompileOptions);
   }
 
   void Run() override { data()->task->Run(); }

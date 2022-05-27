@@ -587,7 +587,8 @@ class V8_EXPORT ScriptCompiler {
    */
   static ScriptStreamingTask* StartStreaming(
       Isolate* isolate, StreamedSource* source,
-      ScriptType type = ScriptType::kClassic);
+      ScriptType type = ScriptType::kClassic,
+      CompileOptions options = kNoCompileOptions);
 
   static ConsumeCodeCacheTask* StartConsumingCodeCache(
       Isolate* isolate, std::unique_ptr<CachedData> source);
