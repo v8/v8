@@ -1948,6 +1948,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address external_pointer_table_address() {
     return reinterpret_cast<Address>(&isolate_data_.external_pointer_table_);
   }
+
+  Maybe<ExternalPointer_t> GetWaiterQueueNodeExternalPointer() const {
+    return waiter_queue_node_external_pointer_;
+  }
+
+  ExternalPointer_t EncodeWaiterQueueNodeAsExternalPointer(Address node);
 #endif
 
   struct PromiseHookFields {
@@ -2410,6 +2416,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Stores the shared isolate for this client isolate. nullptr for shared
   // isolates or when no shared isolate is used.
   Isolate* shared_isolate_ = nullptr;
+
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  // A pointer to Isolate's main thread's WaiterQueueNode. It is used to wait
+  // for JS-exposed mutex or condition variable.
+  Maybe<ExternalPointer_t> waiter_queue_node_external_pointer_ =
+      Nothing<ExternalPointer_t>();
+#endif
 
 #if DEBUG
   // Set to true once during isolate initialization right when attaching to the

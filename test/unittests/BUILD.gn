@@ -382,6 +382,7 @@ v8_source_set("unittests_sources") {
     "interpreter/constant-array-builder-unittest.cc",
     "interpreter/interpreter-assembler-unittest.cc",
     "interpreter/interpreter-assembler-unittest.h",
+    "js-atomics/js-atomics-mutex-unittest.cc",
     "libplatform/default-job-unittest.cc",
     "libplatform/default-platform-unittest.cc",
     "libplatform/default-worker-threads-task-runner-unittest.cc",

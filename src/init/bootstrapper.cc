@@ -41,6 +41,7 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-atomics-synchronization.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
 #include "src/objects/js-collator.h"
@@ -513,6 +514,33 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
   return InstallFunction(isolate, target,
                          isolate->factory()->InternalizeUtf8String(name), type,
                          instance_size, inobject_properties, prototype, call);
+}
+
+V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
+    Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
+    Builtin builtin) {
+  Factory* factory = isolate->factory();
+  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
+      name, builtin, FunctionKind::kNormalFunction);
+  info->set_language_mode(LanguageMode::kStrict);
+  Handle<JSFunction> constructor =
+      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
+          .set_map(isolate->strict_function_map())
+          .Build();
+  constexpr int in_object_properties = 0;
+  Handle<Map> instance_map =
+      factory->NewMap(type, instance_size, TERMINAL_FAST_ELEMENTS_KIND,
+                      in_object_properties, AllocationType::kSharedMap);
+  // Shared objects have fixed layout ahead of time, so there's no slack.
+  instance_map->SetInObjectUnusedPropertyFields(0);
+  // Shared objects are not extensible and have a null prototype.
+  instance_map->set_is_extensible(false);
+  JSFunction::SetInitialMap(isolate, constructor, instance_map,
+                            factory->null_value());
+  // The constructor itself is not a shared object, so the shared map should not
+  // point to it.
+  instance_map->set_constructor_or_back_pointer(*factory->null_value());
+  return constructor;
 }
 
 // This sets a constructor instance type on the constructor map which will be
@@ -4602,6 +4630,26 @@ void Genesis::InitializeGlobal_harmony_struct() {
   shared_struct_type_fun->shared().set_length(1);
   JSObject::AddProperty(isolate(), global, "SharedStructType",
                         shared_struct_type_fun, DONT_ENUM);
+
+  {  // Atomics.Mutex
+    // TODO(syg): Make a single canonical copy of the map.
+    Handle<String> mutex_str =
+        isolate()->factory()->InternalizeUtf8String("Mutex");
+    Handle<JSFunction> mutex_fun = CreateSharedObjectConstructor(
+        isolate(), mutex_str, JS_ATOMICS_MUTEX_TYPE,
+        JSAtomicsMutex::kHeaderSize, Builtin::kAtomicsMutexConstructor);
+    mutex_fun->shared().set_internal_formal_parameter_count(
+        JSParameterCount(0));
+    mutex_fun->shared().set_length(0);
+    native_context()->set_js_atomics_mutex_map(mutex_fun->initial_map());
+    JSObject::AddProperty(isolate(), isolate()->atomics_object(), mutex_str,
+                          mutex_fun, DONT_ENUM);
+
+    SimpleInstallFunction(isolate(), mutex_fun, "lock",
+                          Builtin::kAtomicsMutexLock, 2, true);
+    SimpleInstallFunction(isolate(), mutex_fun, "tryLock",
+                          Builtin::kAtomicsMutexTryLock, 2, true);
+  }
 }
 
 void Genesis::InitializeGlobal_harmony_array_find_last() {

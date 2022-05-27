@@ -593,6 +593,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSError(Handle<JSObject>::cast(receiver));
     case JS_SHARED_STRUCT_TYPE:
       return WriteJSSharedStruct(Handle<JSSharedStruct>::cast(receiver));
+    case JS_ATOMICS_MUTEX_TYPE:
+      return WriteSharedObject(receiver);
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));

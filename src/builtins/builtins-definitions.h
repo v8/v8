@@ -993,9 +993,12 @@ namespace internal {
   TFS(WeakCollectionDelete, kCollection, kKey)                                 \
   TFS(WeakCollectionSet, kCollection, kKey, kValue)                            \
                                                                                \
-  /* JS Structs */                                                             \
+  /* JS Structs and friends */                                                 \
   CPP(SharedStructTypeConstructor)                                             \
   CPP(SharedStructConstructor)                                                 \
+  CPP(AtomicsMutexConstructor)                                                 \
+  CPP(AtomicsMutexLock)                                                        \
+  CPP(AtomicsMutexTryLock)                                                     \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \
