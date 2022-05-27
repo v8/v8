@@ -240,7 +240,7 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'af29db7ec28d6df1c7f0f745186884091e602e07',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '1c67b4e7d31b800b4d02349fe42744417b34eed8',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '165825933050109d8331d0faa56cc9f52460fbbf',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'e09c4b66b6e87116eb190651421f1a6e2f3b9c52',
   'third_party/ittapi': {
