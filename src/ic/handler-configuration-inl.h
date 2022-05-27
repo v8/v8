@@ -136,6 +136,15 @@ Handle<Smi> LoadHandler::LoadWasmArrayElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
+DEF_GETTER(LoadHandler, smi_handler, Smi) {
+  // Only StoreHandler smi_handler can ever be a Code object.
+  return Smi::cast(DataHandler::smi_handler(cage_base));
+}
+
+void LoadHandler::set_smi_handler(Smi value) {
+  DataHandler::set_smi_handler(value, SKIP_WRITE_BARRIER);
+}
+
 OBJECT_CONSTRUCTORS_IMPL(StoreHandler, DataHandler)
 
 CAST_ACCESSOR(StoreHandler)

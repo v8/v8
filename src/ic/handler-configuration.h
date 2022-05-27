@@ -232,6 +232,9 @@ class LoadHandler final : public DataHandler {
   static void PrintHandler(Object handler, std::ostream& os);
 #endif  // defined(OBJECT_PRINT)
 
+  DECL_GETTER(smi_handler, Smi)
+  inline void set_smi_handler(Smi value);
+
   OBJECT_CONSTRUCTORS(LoadHandler, DataHandler);
 };
 
