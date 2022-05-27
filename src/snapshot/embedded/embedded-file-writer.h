@@ -23,7 +23,7 @@
 
 namespace v8 {
 namespace internal {
-// Generates the embedded.asm file which is later compiled into the final v8
+// Generates the embedded.S file which is later compiled into the final v8
 // binary. Its contents are exported through two symbols:
 //
 // v8_<variant>_embedded_blob_ (intptr_t):

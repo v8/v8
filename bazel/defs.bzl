@@ -409,7 +409,7 @@ v8_target_cpu_transition = transition(
 def _mksnapshot(ctx):
     outs = [
         ctx.actions.declare_file(ctx.attr.prefix + "/snapshot.cc"),
-        ctx.actions.declare_file(ctx.attr.prefix + "/embedded.asm"),
+        ctx.actions.declare_file(ctx.attr.prefix + "/embedded.S"),
     ]
     ctx.actions.run(
         outputs = outs,

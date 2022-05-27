@@ -45,7 +45,7 @@ enum class EmbeddedTargetArch {
 };
 
 // The platform-dependent logic for emitting assembly code for the generated
-// embedded.asm file.
+// embedded.S file.
 class PlatformEmbeddedFileWriterBase {
  public:
   virtual ~PlatformEmbeddedFileWriterBase() = default;
