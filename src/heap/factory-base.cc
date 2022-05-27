@@ -977,7 +977,7 @@ HeapObject FactoryBase<Impl>::AllocateRawWithImmortalMap(
     AllocationAlignment alignment) {
   // TODO(delphick): Potentially you could also pass a immortal immovable Map
   // from MAP_SPACE here, like external_map or message_object_map, but currently
-  // noone does so this check is sufficient.
+  // no one does so this check is sufficient.
   DCHECK(ReadOnlyHeap::Contains(map));
   HeapObject result = AllocateRaw(size, allocation, alignment);
   DisallowGarbageCollection no_gc;

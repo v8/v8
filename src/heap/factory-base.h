@@ -194,7 +194,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
                                           int32_t end_position,
                                           Handle<PreparseData>);
 
-  // Allocates a FeedbackMedata object and zeroes the data section.
+  // Allocates a FeedbackMetadata object and zeroes the data section.
   Handle<FeedbackMetadata> NewFeedbackMetadata(
       int slot_count, int create_closure_slot_count,
       AllocationType allocation = AllocationType::kOld);

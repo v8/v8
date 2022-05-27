@@ -88,7 +88,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   ~LocalEmbedderHeapTracer() {
     if (remote_tracer_) remote_tracer_->v8_isolate_ = nullptr;
-    // CppHeap is not detached from Isolate here. Detaching is done explciitly
+    // CppHeap is not detached from Isolate here. Detaching is done explicitly
     // on Isolate/Heap/CppHeap destruction.
   }
 

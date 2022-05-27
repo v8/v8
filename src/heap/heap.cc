@@ -3772,7 +3772,7 @@ bool Heap::HasHighFragmentation() {
 bool Heap::HasHighFragmentation(size_t used, size_t committed) {
   const size_t kSlack = 16 * MB;
   // Fragmentation is high if committed > 2 * used + kSlack.
-  // Rewrite the exression to avoid overflow.
+  // Rewrite the expression to avoid overflow.
   DCHECK_GE(committed, used);
   return committed - used > used + kSlack;
 }
