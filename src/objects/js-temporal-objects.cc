@@ -8371,6 +8371,65 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
       isolate, handle(instant->nanoseconds(), isolate), time_zone, calendar);
 }
 
+// #sec-temporal.plaindate.prototype.add
+MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Add(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Handle<Object> temporal_duration_like, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainDate.prototype.add";
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+  // 3. Let duration be ? ToTemporalDuration(temporalDurationLike).
+  Handle<JSTemporalDuration> duration;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, duration,
+                             temporal::ToTemporalDuration(
+                                 isolate, temporal_duration_like, method_name),
+                             JSTemporalPlainDate);
+
+  // 4. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainDate);
+  // 5. Return ? CalendarDateAdd(temporalDate.[[Calendar]], temporalDate,
+  // duration, options).
+  return CalendarDateAdd(isolate, handle(temporal_date->calendar(), isolate),
+                         temporal_date, duration, options,
+                         isolate->factory()->undefined_value());
+}
+
+// #sec-temporal.plaindate.prototype.subtract
+MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
+    Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
+    Handle<Object> temporal_duration_like, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainDate.prototype.subtract";
+  // 1. Let temporalDate be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalDate,
+  // [[InitializedTemporalDate]]).
+  // 3. Let duration be ? ToTemporalDuration(temporalDurationLike).
+  Handle<JSTemporalDuration> duration;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, duration,
+                             temporal::ToTemporalDuration(
+                                 isolate, temporal_duration_like, method_name),
+                             JSTemporalPlainDate);
+
+  // 4. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainDate);
+
+  // 5. Let negatedDuration be ! CreateNegatedTemporalDuration(duration).
+  Handle<JSTemporalDuration> negated_duration =
+      CreateNegatedTemporalDuration(isolate, duration).ToHandleChecked();
+
+  // 6. Return ? CalendarDateAdd(temporalDate.[[Calendar]], temporalDate,
+  // negatedDuration, options).
+  return CalendarDateAdd(isolate, handle(temporal_date->calendar(), isolate),
+                         temporal_date, negated_duration, options,
+                         isolate->factory()->undefined_value());
+}
+
 // #sec-temporal.now.plaindate
 MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Now(
     Isolate* isolate, Handle<Object> calendar_like,

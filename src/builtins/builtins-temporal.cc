@@ -38,10 +38,6 @@ namespace internal {
         JSTemporal##T::NowISO(isolate, args.atOrUndefined(isolate, 1))); \
   }
 
-/* Temporal #sec-temporal.plaindate.prototype.add */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeAdd)
-/* Temporal #sec-temporal.plaindate.prototype.substract */
-TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeSubtract)
 /* Temporal #sec-temporal.plaindate.prototype.until */
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeUntil)
 /* Temporal #sec-temporal.plaindate.prototype.since */
@@ -360,6 +356,8 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, MonthsInYear, monthsInYear)
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainDate, InLeapYear, inLeapYear)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToPlainYearMonth, toPlainYearMonth)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, ToPlainMonthDay, toPlainMonthDay)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDate, Add, add)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDate, Subtract, subtract)
 TEMPORAL_PROTOTYPE_METHOD1(PlainDate, WithCalendar, withCalendar)
 TEMPORAL_PROTOTYPE_METHOD2(PlainDate, With, with)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDate, GetISOFields, getISOFields)

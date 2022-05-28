@@ -59,7 +59,6 @@
   'temporal/instant-subtract': [FAIL],
   'temporal/instant-to-json': [FAIL],
   'temporal/instant-toJSON': [FAIL],
-  'temporal/plain-date-add': [FAIL],
   'temporal/plain-date-time-add': [FAIL],
   'temporal/plain-date-time-subtract': [FAIL],
   'temporal/plain-date-time-to-json': [FAIL],

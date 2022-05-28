@@ -290,6 +290,16 @@ class JSTemporalPlainDate
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> From(
       Isolate* isolate, Handle<Object> item, Handle<Object> options);
 
+  // #sec-temporal.plaindate.prototype.add
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> Add(
+      Isolate* isolate, Handle<JSTemporalPlainDate> plain_date,
+      Handle<Object> temporal_duration_like, Handle<Object> options);
+
+  // #sec-temporal.plaindate.prototype.subtract
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDate> Subtract(
+      Isolate* isolate, Handle<JSTemporalPlainDate> plain_date,
+      Handle<Object> temporal_duration_like, Handle<Object> options);
+
   // #sec-temporal.plaindate.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainDate> plain_date);
