@@ -751,6 +751,10 @@ class JSTemporalZonedDateTime
                Handle<JSTemporalZonedDateTime> zoned_date_time,
                Handle<Object> time_zone_like);
 
+  // #sec-get-temporal.zoneddatetime.prototype.hoursinday
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> HoursInDay(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
+
   // #sec-temporal.zoneddatetime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
