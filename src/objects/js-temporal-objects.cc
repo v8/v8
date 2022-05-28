@@ -9347,6 +9347,97 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
                         method_name);
 }
 
+namespace {
+
+enum class Arithmetic { kAdd, kSubtract };
+
+MaybeHandle<JSTemporalPlainDateTime>
+AddDurationToOrSubtractDurationFromPlainDateTime(
+    Isolate* isolate, Arithmetic operation,
+    Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> temporal_duration_like, Handle<Object> options_obj,
+    const char* method_name) {
+  // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == Arithmetic::kSubtract ? -1.0 : 1.0;
+  // 2. Let duration be ? ToTemporalDurationRecord(temporalDurationLike).
+  DurationRecord duration;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, duration,
+      temporal::ToTemporalDurationRecord(isolate, temporal_duration_like,
+                                         method_name),
+      Handle<JSTemporalPlainDateTime>());
+
+  TimeDurationRecord& time_duration = duration.time_duration;
+
+  // 3. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainDateTime);
+  // 4. Let result be ? AddDateTime(dateTime.[[ISOYear]], dateTime.[[ISOMonth]],
+  // dateTime.[[ISODay]], dateTime.[[ISOHour]], dateTime.[[ISOMinute]],
+  // dateTime.[[ISOSecond]], dateTime.[[ISOMillisecond]],
+  // dateTime.[[ISOMicrosecond]], dateTime.[[ISONanosecond]],
+  // dateTime.[[Calendar]], duration.[[Years]], duration.[[Months]],
+  // duration.[[Weeks]], duration.[[Days]], duration.[[Hours]],
+  // duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]],
+  // duration.[[Microseconds]], duration.[[Nanoseconds]], options).
+  DateTimeRecordCommon result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      AddDateTime(isolate,
+                  {{date_time->iso_year(), date_time->iso_month(),
+                    date_time->iso_day()},
+                   {date_time->iso_hour(), date_time->iso_minute(),
+                    date_time->iso_second(), date_time->iso_millisecond(),
+                    date_time->iso_microsecond(), date_time->iso_nanosecond()}},
+                  handle(date_time->calendar(), isolate),
+                  {sign * duration.years,
+                   sign * duration.months,
+                   sign * duration.weeks,
+                   {sign * time_duration.days, sign * time_duration.hours,
+                    sign * time_duration.minutes, sign * time_duration.seconds,
+                    sign * time_duration.milliseconds,
+                    sign * time_duration.microseconds,
+                    sign * time_duration.nanoseconds}},
+                  options),
+      Handle<JSTemporalPlainDateTime>());
+
+  // 5. Assert: ! IsValidISODate(result.[[Year]], result.[[Month]],
+  // result.[[Day]]) is true.
+  DCHECK(IsValidISODate(isolate, result.date));
+  // 6. Assert: ! IsValidTime(result.[[Hour]], result.[[Minute]],
+  // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+  // result.[[Nanosecond]]) is true.
+  DCHECK(IsValidTime(isolate, result.time));
+  // 7. Return ? CreateTemporalDateTime(result.[[Year]], result.[[Month]],
+  // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
+  // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]],
+  // dateTime.[[Calendar]]).
+  return temporal::CreateTemporalDateTime(
+      isolate, result, handle(date_time->calendar(), isolate));
+}
+
+}  // namespace
+
+// #sec-temporal.plaindatetime.prototype.add
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Add(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> temporal_duration_like, Handle<Object> options) {
+  return AddDurationToOrSubtractDurationFromPlainDateTime(
+      isolate, Arithmetic::kAdd, date_time, temporal_duration_like, options,
+      "Temporal.PlainDateTime.prototype.add");
+}
+
+// #sec-temporal.plaindatetime.prototype.subtract
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Subtract(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> temporal_duration_like, Handle<Object> options) {
+  return AddDurationToOrSubtractDurationFromPlainDateTime(
+      isolate, Arithmetic::kSubtract, date_time, temporal_duration_like,
+      options, "Temporal.PlainDateTime.prototype.subtract");
+}
+
 // #sec-temporal.plaindatetime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainDateTime::GetISOFields(
     Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {

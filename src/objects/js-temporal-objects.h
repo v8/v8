@@ -423,6 +423,16 @@ class JSTemporalPlainDateTime
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
       Handle<Object> locales, Handle<Object> options);
 
+  // #sec-temporal.plaindatetime.prototype.add
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Add(
+      Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+      Handle<Object> temporal_duration_like, Handle<Object> options);
+
+  // #sec-temporal.plaindatetime.prototype.subtract
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Subtract(
+      Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+      Handle<Object> temporal_duration_like, Handle<Object> options);
+
   // #sec-temporal.now.plaindatetime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Now(
       Isolate* isolate, Handle<Object> calendar_like,
