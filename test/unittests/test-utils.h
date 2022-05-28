@@ -59,18 +59,10 @@ using CounterMap = std::map<std::string, int>;
 
 enum CountersMode { kNoCounters, kEnableCounters };
 
-enum IsolateSharedMode { kStandaloneIsolate, kSharedIsolate, kClientIsolate };
-
 // RAII-like Isolate instance wrapper.
-//
-// It is the caller's responsibility to ensure that the shared Isolate outlives
-// all client Isolates.
 class IsolateWrapper final {
  public:
-  IsolateWrapper(CountersMode counters_mode,
-                 IsolateSharedMode shared_mode = kStandaloneIsolate,
-                 v8::Isolate* shared_isolate_if_client = nullptr);
-
+  explicit IsolateWrapper(CountersMode counters_mode);
   ~IsolateWrapper();
   IsolateWrapper(const IsolateWrapper&) = delete;
   IsolateWrapper& operator=(const IsolateWrapper&) = delete;
@@ -86,11 +78,10 @@ class IsolateWrapper final {
 //
 // A set of mixins from which the test fixtures will be constructed.
 //
-template <typename TMixin, CountersMode kCountersMode = kNoCounters,
-          IsolateSharedMode kSharedMode = kStandaloneIsolate>
+template <typename TMixin, CountersMode kCountersMode = kNoCounters>
 class WithIsolateMixin : public TMixin {
  public:
-  WithIsolateMixin() : isolate_wrapper_(kCountersMode, kSharedMode) {}
+  WithIsolateMixin() : isolate_wrapper_(kCountersMode) {}
 
   v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
 
@@ -394,11 +385,6 @@ using TestWithNativeContextAndZone =               //
                     WithIsolateMixin<              //
                         WithDefaultPlatformMixin<  //
                             ::testing::Test>>>>>>;
-
-using TestWithSharedIsolate =                       //
-    WithIsolateMixin<                               //
-        WithDefaultPlatformMixin<::testing::Test>,  //
-        kNoCounters, kSharedIsolate>;
 
 class V8_NODISCARD SaveFlags {
  public:

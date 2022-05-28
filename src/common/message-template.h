@@ -41,8 +41,6 @@ namespace internal {
   T(AwaitNotInDebugEvaluate,                                                   \
     "await can not be used when evaluating code "                              \
     "while paused in the debugger")                                            \
-  T(AtomicsMutexLockNotAllowed,                                                \
-    "Atomics.Mutex.lock cannot be called in this context")                     \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \
@@ -128,6 +126,8 @@ namespace internal {
   T(LocaleBadParameters, "Incorrect locale information provided")              \
   T(ListFormatBadParameters, "Incorrect ListFormat information provided")      \
   T(MapperFunctionNonCallable, "flatMap mapper function is not callable")      \
+  T(MethodCalledOnWrongObject,                                                 \
+    "Method % called on a non-object or on a wrong type of object.")           \
   T(MethodInvokedOnWrongType, "Method invoked on an object that is not %.")    \
   T(NoAccess, "no access")                                                     \
   T(NonCallableInInstanceOfCheck,                                              \

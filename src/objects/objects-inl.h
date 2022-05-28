@@ -1180,7 +1180,6 @@ bool Object::IsShared() const {
     case SHARED_STRING_TYPE:
     case SHARED_ONE_BYTE_STRING_TYPE:
     case JS_SHARED_STRUCT_TYPE:
-    case JS_ATOMICS_MUTEX_TYPE:
       DCHECK(object.InSharedHeap());
       return true;
     case INTERNALIZED_STRING_TYPE:

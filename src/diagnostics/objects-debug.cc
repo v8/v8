@@ -32,7 +32,6 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/turbofan-types-inl.h"
@@ -1238,17 +1237,6 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
     CHECK(
         RawFastPropertyAt(FieldIndex::ForDescriptor(struct_map, i)).IsShared());
   }
-}
-
-void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
-  CHECK(IsJSAtomicsMutex());
-  CHECK(InSharedHeap());
-  JSObjectVerify(isolate);
-  Map mutex_map = map();
-  CHECK(mutex_map.InSharedHeap());
-  CHECK(mutex_map.GetBackPointer().IsUndefined(isolate));
-  CHECK(!mutex_map.is_extensible());
-  CHECK(!mutex_map.is_prototype_map());
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {

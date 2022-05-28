@@ -20,7 +20,6 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-number.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects.h"
@@ -664,26 +663,6 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   }
 };
 
-class JSAtomicsMutex::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    if (offset < kEndOfTaggedFieldsOffset) return true;
-    if (offset < kHeaderSize) return false;
-    return IsValidJSObjectSlotImpl(map, obj, offset);
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
-    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) {
-    return map.instance_size();
-  }
-};
-
 class Foreign::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
@@ -1275,8 +1254,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(JSWeakRef);
     case JS_PROXY_TYPE:
       return CALL_APPLY(JSProxy);
-    case JS_ATOMICS_MUTEX_TYPE:
-      return CALL_APPLY(JSAtomicsMutex);
     case FOREIGN_TYPE:
       return CALL_APPLY(Foreign);
     case MAP_TYPE:
