@@ -307,14 +307,15 @@ constexpr uint64_t kExternalPointerTagShift = 48;
 // clang-format off
 enum ExternalPointerTag : uint64_t {
   kExternalPointerNullTag =         MAKE_TAG(0b0000000000000000),
-  kExternalPointerFreeEntryTag =    MAKE_TAG(0b0111111110000000),
-  kExternalStringResourceTag =      MAKE_TAG(0b1000000011111111),
-  kExternalStringResourceDataTag =  MAKE_TAG(0b1000000101111111),
-  kForeignForeignAddressTag =       MAKE_TAG(0b1000000110111111),
-  kNativeContextMicrotaskQueueTag = MAKE_TAG(0b1000000111011111),
-  kEmbedderDataSlotPayloadTag =     MAKE_TAG(0b1000000111101111),
-  kCodeEntryPointTag =              MAKE_TAG(0b1000000111110111),
-  kExternalObjectValueTag =         MAKE_TAG(0b1000000111111011),
+  kExternalPointerFreeEntryTag =    MAKE_TAG(0b0111111100000000),
+  kWaiterQueueNodeTag =             MAKE_TAG(0b1000000111111111),
+  kExternalStringResourceTag =      MAKE_TAG(0b1000001011111111),
+  kExternalStringResourceDataTag =  MAKE_TAG(0b1000001101111111),
+  kForeignForeignAddressTag =       MAKE_TAG(0b1000001110111111),
+  kNativeContextMicrotaskQueueTag = MAKE_TAG(0b1000001111011111),
+  kEmbedderDataSlotPayloadTag =     MAKE_TAG(0b1000001111101111),
+  kCodeEntryPointTag =              MAKE_TAG(0b1000001111110111),
+  kExternalObjectValueTag =         MAKE_TAG(0b1000001111111011),
 };
 // clang-format on
 #undef MAKE_TAG

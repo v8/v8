@@ -524,7 +524,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // points to the site.
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
-  Handle<JSObject> NewJSObjectFromMap(
+  inline Handle<JSObject> NewJSObjectFromMap(
+      Handle<Map> map, AllocationType allocation = AllocationType::kYoung,
+      Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+  inline Handle<JSObject> NewSystemPointerAlignedJSObjectFromMap(
       Handle<Map> map, AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
   // Like NewJSObjectFromMap, but includes allocating a properties dictionary.
@@ -1051,7 +1054,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   HeapObject AllocateRawWithAllocationSite(
       Handle<Map> map, AllocationType allocation,
-      Handle<AllocationSite> allocation_site);
+      Handle<AllocationSite> allocation_site,
+      AllocationAlignment alignment = kTaggedAligned);
+
+  Handle<JSObject> NewJSObjectFromMapInternal(
+      Handle<Map> map, AllocationType allocation,
+      Handle<AllocationSite> allocation_site, AllocationAlignment alignment);
 
   Handle<JSArrayBufferView> NewJSArrayBufferView(
       Handle<Map> map, Handle<FixedArrayBase> elements,

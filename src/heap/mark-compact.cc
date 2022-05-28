@@ -1214,6 +1214,8 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
 // alive other code objects reachable through the weak list but they should
 // keep alive its embedded pointers (which would otherwise be dropped).
 // - Prefix of the string table.
+// - If V8_SANDBOXED_EXTERNAL_POINTERS, client Isolates' waiter queue node
+// ExternalPointer_t in shared Isolates.
 class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     : public ObjectVisitorWithCageBases {
  public:
@@ -2090,6 +2092,17 @@ void MarkCompactCollector::MarkObjectsFromClientHeaps() {
              obj = iterator.Next()) {
           obj.IterateFast(cage_base, &visitor);
         }
+
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+        // Custom marking for the external pointer table entry used to hold
+        // client Isolates' WaiterQueueNode, which is used by JS mutexes and
+        // condition variables.
+        ExternalPointer_t waiter_queue_ext;
+        if (client->GetWaiterQueueNodeExternalPointer().To(&waiter_queue_ext)) {
+          uint32_t index = waiter_queue_ext >> kExternalPointerIndexShift;
+          client->shared_isolate()->external_pointer_table().Mark(index);
+        }
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
       });
 }
 

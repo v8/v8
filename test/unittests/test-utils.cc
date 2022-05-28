@@ -22,7 +22,9 @@ namespace {
 CounterMap* kCurrentCounterMap = nullptr;
 }  // namespace
 
-IsolateWrapper::IsolateWrapper(CountersMode counters_mode)
+IsolateWrapper::IsolateWrapper(CountersMode counters_mode,
+                               IsolateSharedMode shared_mode,
+                               v8::Isolate* shared_isolate_if_client)
     : array_buffer_allocator_(
           v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {
   CHECK_NULL(kCurrentCounterMap);
@@ -46,7 +48,17 @@ IsolateWrapper::IsolateWrapper(CountersMode counters_mode)
     };
   }
 
-  isolate_ = v8::Isolate::New(create_params);
+  if (shared_mode == kSharedIsolate) {
+    isolate_ = reinterpret_cast<v8::Isolate*>(
+        internal::Isolate::NewShared(create_params));
+  } else {
+    if (shared_mode == kClientIsolate) {
+      CHECK_NOT_NULL(shared_isolate_if_client);
+      create_params.experimental_attach_to_shared_isolate =
+          shared_isolate_if_client;
+    }
+    isolate_ = v8::Isolate::New(create_params);
+  }
   CHECK_NOT_NULL(isolate());
 }
 
