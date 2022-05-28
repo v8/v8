@@ -536,6 +536,16 @@ class JSTemporalPlainTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
       Isolate* isolate, Handle<JSTemporalPlainTime> plain_time);
 
+  // #sec-temporal.plaintime.prototype.tostring
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
+      Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
+      Handle<Object> options);
+
+  // #sec-temporal.plaintime.prototype.tolocalestring
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleString(
+      Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
+      Handle<Object> locales, Handle<Object> options);
+
   DECL_PRINTER(JSTemporalPlainTime)
 
   DEFINE_TORQUE_GENERATED_JS_TEMPORAL_HOUR_MINUTE_SECOND()

@@ -58,10 +58,6 @@ TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeSince)
 /* Temporal #sec-temporal.plaintime.prototype.round */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeRound)
-/* Temporal #sec-temporal.plaintime.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToLocaleString)
-/* Temporal #sec-temporal.plaintime.prototype.tostring */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeToString)
 
 /* Temporal.PlaneDateTime */
 /* Temporal #sec-temporal.plaindatetime.prototype.add */
@@ -408,6 +404,8 @@ TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToPlainDateTime, toPlainDateTime)
 TEMPORAL_PROTOTYPE_METHOD2(PlainTime, With, with)
 TEMPORAL_VALUE_OF(PlainTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)
+TEMPORAL_PROTOTYPE_METHOD2(PlainTime, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToString, toString)
 
 // PlainDateTime
 BUILTIN(TemporalPlainDateTimeConstructor) {

@@ -43,7 +43,6 @@
   V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \
   V(_, fractionalSecond_string, "fractionalSecond")                 \
-  V(_, fractionalSecondDigits_string, "fractionalSecondDigits")     \
   V(_, full_string, "full")                                         \
   V(_, granularity_string, "granularity")                           \
   V(_, grapheme_string, "grapheme")                                 \
@@ -239,6 +238,7 @@
   V(_, flags_string, "flags")                                         \
   V(_, Float32Array_string, "Float32Array")                           \
   V(_, Float64Array_string, "Float64Array")                           \
+  V(_, fractionalSecondDigits_string, "fractionalSecondDigits")       \
   V(_, from_string, "from")                                           \
   V(_, Function_string, "Function")                                   \
   V(_, function_native_code_string, "function () { [native code] }")  \

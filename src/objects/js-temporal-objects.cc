@@ -169,6 +169,9 @@ enum class ShowCalendar { kAuto, kAlways, kNever };
 
 enum class Precision { k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, kAuto, kMinute };
 
+// sec-temporal-totemporalroundingmode
+enum class RoundingMode { kCeil, kFloor, kTrunc, kHalfExpand };
+
 // ISO8601 String Parsing
 
 // #sec-temporal-parsetemporalcalendarstring
@@ -1404,25 +1407,34 @@ void FormatSecondsStringPart(IncrementalStringBuilder* builder, int32_t second,
 
 // #sec-temporal-temporaltimetostring
 Handle<String> TemporalTimeToString(Isolate* isolate,
-                                    Handle<JSTemporalPlainTime> temporal_time,
+                                    const TimeRecordCommon& time,
                                     Precision precision) {
   // 1. Assert: hour, minute, second, millisecond, microsecond and nanosecond
   // are integers.
   IncrementalStringBuilder builder(isolate);
   // 2. Let hour be ToZeroPaddedDecimalString(hour, 2).
-  ToZeroPaddedDecimalString(&builder, temporal_time->iso_hour(), 2);
+  ToZeroPaddedDecimalString(&builder, time.hour, 2);
   builder.AppendCharacter('-');
   // 3. Let minute be ToZeroPaddedDecimalString(minute, 2).
-  ToZeroPaddedDecimalString(&builder, temporal_time->iso_minute(), 2);
+  ToZeroPaddedDecimalString(&builder, time.minute, 2);
   // 4. Let seconds be ! FormatSecondsStringPart(second, millisecond,
   // microsecond, nanosecond, precision).
-  FormatSecondsStringPart(&builder, temporal_time->iso_second(),
-                          temporal_time->iso_millisecond(),
-                          temporal_time->iso_microsecond(),
-                          temporal_time->iso_nanosecond(), precision);
+  FormatSecondsStringPart(&builder, time.second, time.millisecond,
+                          time.microsecond, time.nanosecond, precision);
   // 5. Return the string-concatenation of hour, the code unit 0x003A (COLON),
   // minute, and seconds.
   return builder.Finish().ToHandleChecked();
+}
+
+Handle<String> TemporalTimeToString(Isolate* isolate,
+                                    Handle<JSTemporalPlainTime> temporal_time,
+                                    Precision precision) {
+  return TemporalTimeToString(
+      isolate,
+      {temporal_time->iso_hour(), temporal_time->iso_minute(),
+       temporal_time->iso_second(), temporal_time->iso_millisecond(),
+       temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()},
+      precision);
 }
 
 }  // namespace
@@ -1971,6 +1983,19 @@ Maybe<bool> ToTemporalOverflowForSideEffects(Isolate* isolate,
       Nothing<bool>());
   USE(overflow);
   return Just(true);
+}
+
+// sec-temporal-totemporalroundingmode
+Maybe<RoundingMode> ToTemporalRoundingMode(Isolate* isolate,
+                                           Handle<JSReceiver> options,
+                                           RoundingMode fallback,
+                                           const char* method_name) {
+  return GetStringOption<RoundingMode>(
+      isolate, options, "roundingMode", method_name,
+      {"ceil", "floor", "trunc", "halfExpand"},
+      {RoundingMode::kCeil, RoundingMode::kFloor, RoundingMode::kTrunc,
+       RoundingMode::kHalfExpand},
+      fallback);
 }
 
 // #sec-temporal-totemporaldisambiguation
@@ -4356,6 +4381,54 @@ Maybe<TimeRecordCommon> ToTemporalTimeRecord(
       isolate, temporal_time_like,
       {kMinInt31, kMinInt31, kMinInt31, kMinInt31, kMinInt31, kMinInt31}, false,
       method_name);
+}
+
+// #sec-temporal-tolargesttemporalunit
+Maybe<Unit> ToSmallestTemporalUnit(Isolate* isolate,
+                                   Handle<JSReceiver> normalized_options,
+                                   const std::set<Unit>& disallowed_units,
+                                   Unit fallback, const char* method_name) {
+  // 1. Assert: disallowedUnits does not contain fallback.
+  DCHECK_EQ(disallowed_units.find(fallback), disallowed_units.end());
+  // 2. Let smallestUnit be ? GetOption(normalizedOptions, "smallestUnit", «
+  // String », « "year", "years", "month", "months", "week", "weeks", "day",
+  // "days", "hour", "hours", "minute", "minutes", "second", "seconds",
+  // "millisecond", "milliseconds", "microsecond", "microseconds", "nanosecond",
+  // "nanoseconds" », fallback).
+  Unit smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      GetStringOption<Unit>(
+          isolate, normalized_options, "smallestUnit", method_name,
+          {"year",        "years",        "month",       "months",
+           "week",        "weeks",        "day",         "days",
+           "hour",        "hours",        "minute",      "minutes",
+           "second",      "seconds",      "millisecond", "milliseconds",
+           "microsecond", "microseconds", "nanosecond",  "nanoseconds"},
+          {Unit::kYear,        Unit::kYear,        Unit::kMonth,
+           Unit::kMonth,       Unit::kWeek,        Unit::kWeek,
+           Unit::kDay,         Unit::kDay,         Unit::kHour,
+           Unit::kHour,        Unit::kMinute,      Unit::kMinute,
+           Unit::kSecond,      Unit::kSecond,      Unit::kMillisecond,
+           Unit::kMillisecond, Unit::kMicrosecond, Unit::kMicrosecond,
+           Unit::kNanosecond,  Unit::kNanosecond},
+          fallback),
+      Nothing<Unit>());
+  // 3. If smallestUnit is in the Plural column of Table 12, then
+  // a. Set smallestUnit to the corresponding Singular value of the same row.
+  // 4. If disallowedUnits contains smallestUnit, then
+  if (disallowed_units.find(smallest_unit) != disallowed_units.end()) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidUnit,
+            isolate->factory()->NewStringFromAsciiChecked(method_name),
+            isolate->factory()->smallestUnit_string()),
+        Nothing<Unit>());
+  }
+  // 5. Return smallestUnit.
+  return Just(smallest_unit);
 }
 
 // #sec-temporal-mergelargestunitoption
@@ -10357,6 +10430,415 @@ MaybeHandle<JSReceiver> JSTemporalPlainTime::GetISOFields(
 MaybeHandle<String> JSTemporalPlainTime::ToJSON(
     Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time) {
   return TemporalTimeToString(isolate, temporal_time, Precision::kAuto);
+}
+
+// #sup-temporal.plaintime.prototype.tolocalestring
+MaybeHandle<String> JSTemporalPlainTime::ToLocaleString(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> locales, Handle<Object> options) {
+  // TODO(ftang) Implement #sup-temporal.plaintime.prototype.tolocalestring
+  return TemporalTimeToString(isolate, temporal_time, Precision::kAuto);
+}
+
+namespace {
+
+double RoundNumberToIncrement(Isolate* isolate, double x, double increment,
+                              RoundingMode rounding_mode) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 3. Let quotient be x / increment.
+  double rounded;
+  switch (rounding_mode) {
+    // 4. If roundingMode is "ceil", then
+    case RoundingMode::kCeil:
+      // a. Let rounded be −floor(−quotient).
+      rounded = -std::floor(-x / increment);
+      break;
+    // 5. Else if roundingMode is "floor", then
+    case RoundingMode::kFloor:
+      // a. Let rounded be floor(quotient).
+      rounded = std::floor(x / increment);
+      break;
+    // 6. Else if roundingMode is "trunc", then
+    case RoundingMode::kTrunc:
+      // a. Let rounded be the integral part of quotient, removing any
+      // fractional digits.
+      rounded =
+          (x > 0) ? std::floor(x / increment) : -std::floor(-x / increment);
+      break;
+      // 7. Else,
+    default:
+      // a. Let rounded be ! RoundHalfAwayFromZero(quotient).
+      rounded = std::round(x / increment);
+      break;
+  }
+  // 8. Return rounded × increment.
+  return rounded * increment;
+}
+
+DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
+                               double increment, Unit unit,
+                               RoundingMode rounding_mode,
+                               double day_length_ns) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: hour, minute, second, millisecond, microsecond, nanosecond, and
+  // increment are integers.
+  // 2. Let fractionalSecond be nanosecond × 10^−9 + microsecond × 10^−6 +
+  // millisecond × 10−3 + second.
+  double fractional_second =
+      static_cast<double>(time.nanosecond) / 100000000.0 +
+      static_cast<double>(time.microsecond) / 1000000.0 +
+      static_cast<double>(time.millisecond) / 1000.0 +
+      static_cast<double>(time.second);
+  double quantity;
+  switch (unit) {
+    // 3. If unit is "day", then
+    case Unit::kDay:
+      // a. If dayLengthNs is not present, set it to 8.64 × 10^13.
+      // b. Let quantity be (((((hour × 60 + minute) × 60 + second) × 1000 +
+      // millisecond) × 1000 + microsecond) × 1000 + nanosecond) / dayLengthNs.
+      quantity =
+          (((((time.hour * 60.0 + time.minute) * 60.0 + time.second) * 1000.0 +
+             time.millisecond) *
+                1000.0 +
+            time.microsecond) *
+               1000.0 +
+           time.nanosecond) /
+          day_length_ns;
+      break;
+    // 4. Else if unit is "hour", then
+    case Unit::kHour:
+      // a. Let quantity be (fractionalSecond / 60 + minute) / 60 + hour.
+      quantity = (fractional_second / 60.0 + time.minute) / 60.0 + time.hour;
+      break;
+    // 5. Else if unit is "minute", then
+    case Unit::kMinute:
+      // a. Let quantity be fractionalSecond / 60 + minute.
+      quantity = fractional_second / 60.0 + time.minute;
+      break;
+    // 6. Else if unit is "second", then
+    case Unit::kSecond:
+      // a. Let quantity be fractionalSecond.
+      quantity = fractional_second;
+      break;
+    // 7. Else if unit is "millisecond", then
+    case Unit::kMillisecond:
+      // a. Let quantity be nanosecond × 10^−6 + microsecond × 10^−3 +
+      // millisecond.
+      quantity = time.nanosecond / 1000000.0 + time.microsecond / 1000.0 +
+                 time.millisecond;
+      break;
+    // 8. Else if unit is "microsecond", then
+    case Unit::kMicrosecond:
+      // a. Let quantity be nanosecond × 10^−3 + microsecond.
+      quantity = time.nanosecond / 1000.0 + time.microsecond;
+      break;
+    // 9. Else,
+    default:
+      // a. Assert: unit is "nanosecond".
+      DCHECK_EQ(unit, Unit::kNanosecond);
+      // b. Let quantity be nanosecond.
+      quantity = time.nanosecond;
+      break;
+  }
+  // 10. Let result be ! RoundNumberToIncrement(quantity, increment,
+  // roundingMode).
+  int32_t result =
+      RoundNumberToIncrement(isolate, quantity, increment, rounding_mode);
+
+  switch (unit) {
+    // 11. If unit is "day", then
+    case Unit::kDay:
+      // a. Return the Record { [[Days]]: result, [[Hour]]: 0, [[Minute]]: 0,
+      // [[Second]]: 0, [[Millisecond]]: 0, [[Microsecond]]: 0, [[Nanosecond]]:
+      // 0 }.
+      return {{0, 0, result}, {0, 0, 0, 0, 0, 0}};
+    // 12. If unit is "hour", then
+    case Unit::kHour:
+      // a. Return ! BalanceTime(result, 0, 0, 0, 0, 0).
+      return BalanceTime({result, 0, 0, 0, 0, 0});
+    // 13. If unit is "minute", then
+    case Unit::kMinute:
+      // a. Return ! BalanceTime(hour, result, 0, 0, 0, 0).
+      return BalanceTime({time.hour, result, 0, 0, 0, 0});
+    // 14. If unit is "second", then
+    case Unit::kSecond:
+      // a. Return ! BalanceTime(hour, minute, result, 0, 0, 0).
+      return BalanceTime({time.hour, time.minute, result, 0, 0, 0});
+    // 15. If unit is "millisecond", then
+    case Unit::kMillisecond:
+      // a. Return ! BalanceTime(hour, minute, second, result, 0, 0).
+      return BalanceTime({time.hour, time.minute, time.second, result, 0, 0});
+    // 16. If unit is "microsecond", then
+    case Unit::kMicrosecond:
+      // a. Return ! BalanceTime(hour, minute, second, millisecond, result, 0).
+      return BalanceTime(
+          {time.hour, time.minute, time.second, time.millisecond, result, 0});
+    default:
+      // 17. Assert: unit is "nanosecond".
+      DCHECK_EQ(unit, Unit::kNanosecond);
+      // 18. Return ! BalanceTime(hour, minute, second, millisecond,
+      // microsecond, result).
+      return BalanceTime({time.hour, time.minute, time.second, time.millisecond,
+                          time.microsecond, result});
+  }
+}
+
+DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
+                               double increment, Unit unit,
+                               RoundingMode rounding_mode) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 3-a. If dayLengthNs is not present, set it to 8.64 × 10^13.
+  return RoundTime(isolate, time, increment, unit, rounding_mode,
+                   86400000000000LLU);
+}
+
+// GetOption wihle the types is << Number, String >> and values is empty.
+// #sec-getoption
+MaybeHandle<Object> GetOption_NumberOrString(Isolate* isolate,
+                                             Handle<JSReceiver> options,
+                                             Handle<String> property,
+                                             Handle<Object> fallback,
+                                             const char* method) {
+  // 3. Let value be ? Get(options, property).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property),
+      Object);
+  // 4. If value is undefined, return fallback.
+  if (value->IsUndefined()) {
+    return fallback;
+  }
+  // 5. If types contains Type(value), then
+  // a. Let type be Type(value).
+  // 6. Else,
+  // a. Let type be the last element of types.
+  // 7. If type is Boolean, then
+  // a. Set value to ! ToBoolean(value).
+  // 8. Else if type is Number, then
+  if (value->IsNumber()) {
+    // a. Set value to ? ToNumber(value).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::ToNumber(isolate, value),
+                               Object);
+    // b. If value is NaN, throw a RangeError exception.
+    if (value->IsNaN()) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
+          Object);
+    }
+    return value;
+  }
+  // 9. Else,
+  // a. Set value to ? ToString(value).
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::ToString(isolate, value),
+                             Object);
+  return value;
+}
+
+// In #sec-temporal-tosecondsstringprecision
+// ToSecondsStringPrecision ( normalizedOptions )
+// 8. Let digits be ? GetStringOrNumberOption(normalizedOptions,
+// "fractionalSecondDigits", « "auto" », 0, 9, "auto").
+Maybe<Precision> GetFractionalSecondDigits(Isolate* isolate,
+                                           Handle<JSReceiver> options,
+                                           const char* method_name) {
+  Factory* factory = isolate->factory();
+  // 2. Let value be ? GetOption(options, property, « Number, String », empty,
+  // fallback).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      GetOption_NumberOrString(isolate, options,
+                               factory->fractionalSecondDigits_string(),
+                               factory->auto_string(), method_name),
+      Nothing<Precision>());
+
+  // 3. If Type(value) is Number, then
+  if (value->IsNumber()) {
+    // a. If value < minimum or value > maximum, throw a RangeError exception.
+    double value_num = value->Number();
+    if (value_num < 0 || value_num > 9) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                        factory->fractionalSecondDigits_string()),
+          Nothing<Precision>());
+    }
+    // b. Return floor(ℝ(value)).
+    int32_t v = std::floor(value_num);
+    return Just(static_cast<Precision>(v));
+  }
+  // 4. Assert: Type(value) is String.
+  DCHECK(value->IsString());
+  // 5. If stringValues does not contain value, throw a RangeError exception.
+  Handle<String> string_value = Handle<String>::cast(value);
+  if (!String::Equals(isolate, string_value, factory->auto_string())) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                      factory->fractionalSecondDigits_string()),
+        Nothing<Precision>());
+  }
+  // 6. Return value.
+  return Just(Precision::kAuto);
+}
+
+// #sec-temporal-tosecondsstringprecision
+struct StringPrecision {
+  Precision precision;
+  Unit unit;
+  double increment;
+};
+
+// #sec-temporal-tosecondsstringprecision
+Maybe<StringPrecision> ToSecondsStringPrecision(
+    Isolate* isolate, Handle<JSReceiver> normalized_options,
+    const char* method_name) {
+  // 1. Let smallestUnit be ? ToSmallestTemporalUnit(normalizedOptions, «
+  // "year", "month", "week", "day", "hour" », undefined).
+  Unit smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      ToSmallestTemporalUnit(
+          isolate, normalized_options,
+          std::set<Unit>({Unit::kYear, Unit::kMonth, Unit::kWeek, Unit::kDay,
+                          Unit::kHour}),
+          Unit::kNotPresent, method_name),
+      Nothing<StringPrecision>());
+
+  switch (smallest_unit) {
+    // 2. If smallestUnit is "minute", then
+    case Unit::kMinute:
+      // a. Return the new Record { [[Precision]]: "minute", [[Unit]]: "minute",
+      // [[Increment]]: 1 }.
+      return Just(StringPrecision({Precision::kMinute, Unit::kMinute, 1}));
+    // 3. If smallestUnit is "second", then
+    case Unit::kSecond:
+      // a. Return the new Record { [[Precision]]: 0, [[Unit]]: "second",
+      // [[Increment]]: 1 }.
+      return Just(StringPrecision({Precision::k0, Unit::kSecond, 1}));
+    // 4. If smallestUnit is "millisecond", then
+    case Unit::kMillisecond:
+      // a. Return the new Record { [[Precision]]: 3, [[Unit]]: "millisecond",
+      // [[Increment]]: 1 }.
+      return Just(StringPrecision({Precision::k3, Unit::kMillisecond, 1}));
+    // 5. If smallestUnit is "microsecond", then
+    case Unit::kMicrosecond:
+      // a. Return the new Record { [[Precision]]: 6, [[Unit]]: "microsecond",
+      // [[Increment]]: 1 }.
+      return Just(StringPrecision({Precision::k6, Unit::kMicrosecond, 1}));
+    // 6. If smallestUnit is "nanosecond", then
+    case Unit::kNanosecond:
+      // a. Return the new Record { [[Precision]]: 9, [[Unit]]: "nanosecond",
+      // [[Increment]]: 1 }.
+      return Just(StringPrecision({Precision::k9, Unit::kNanosecond, 1}));
+    default:
+      break;
+  }
+  // 7. Assert: smallestUnit is undefined.
+  DCHECK(smallest_unit == Unit::kNotPresent);
+  // 8. Let digits be ? GetStringOrNumberOption(normalizedOptions,
+  // "fractionalSecondDigits", « "auto" », 0, 9, "auto").
+  Precision digits;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, digits,
+      GetFractionalSecondDigits(isolate, normalized_options, method_name),
+      Nothing<StringPrecision>());
+
+  switch (digits) {
+    // 9. If digits is "auto", then
+    case Precision::kAuto:
+      // a. Return the new Record { [[Precision]]: "auto", [[Unit]]:
+      // "nanosecond", [[Increment]]: 1 }.
+      return Just(StringPrecision({Precision::kAuto, Unit::kNanosecond, 1}));
+      // 10. If digits is 0, then
+    case Precision::k0:
+      // a. Return the new Record { [[Precision]]: 0, [[Unit]]: "second",
+      // [[Increment]]: 1 }.
+      return Just(StringPrecision({Precision::k0, Unit::kSecond, 1}));
+    // 11. If digits is 1, 2, or 3, then
+    // a. Return the new Record { [[Precision]]: digits, [[Unit]]:
+    // "millisecond", [[Increment]]: 10^3 − digits }.
+    case Precision::k1:
+      return Just(StringPrecision({Precision::k1, Unit::kMillisecond, 100}));
+    case Precision::k2:
+      return Just(StringPrecision({Precision::k2, Unit::kMillisecond, 10}));
+    case Precision::k3:
+      return Just(StringPrecision({Precision::k3, Unit::kMillisecond, 1}));
+      // 12. If digits is 4, 5, or 6, then
+      // a. Return the new Record { [[Precision]]: digits, [[Unit]]:
+      // "microsecond", [[Increment]]: 10^6 − digits }.
+    case Precision::k4:
+      return Just(StringPrecision({Precision::k4, Unit::kMicrosecond, 100}));
+    case Precision::k5:
+      return Just(StringPrecision({Precision::k5, Unit::kMicrosecond, 10}));
+    case Precision::k6:
+      return Just(StringPrecision({Precision::k6, Unit::kMicrosecond, 1}));
+      // 13. Assert: digits is 7, 8, or 9.
+      // 14. Return the new Record { [[Precision]]: digits, [[Unit]]:
+      // "nanosecond", [[Increment]]: 10^9 − digits }.
+    case Precision::k7:
+      return Just(StringPrecision({Precision::k7, Unit::kNanosecond, 100}));
+    case Precision::k8:
+      return Just(StringPrecision({Precision::k8, Unit::kNanosecond, 10}));
+    case Precision::k9:
+      return Just(StringPrecision({Precision::k9, Unit::kNanosecond, 1}));
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // namespace
+
+// #sec-temporal.plaintime.prototype.tostring
+MaybeHandle<String> JSTemporalPlainTime::ToString(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainTime.prototype.toString";
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalTime,
+  // [[InitializedTemporalTime]]).
+  // 3. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      String);
+
+  // 4. Let precision be ? ToSecondsStringPrecision(options).
+  StringPrecision precision;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, precision,
+      ToSecondsStringPrecision(isolate, options, method_name),
+      Handle<String>());
+
+  // 5. Let roundingMode be ? ToTemporalRoundingMode(options, "trunc").
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      ToTemporalRoundingMode(isolate, options, RoundingMode::kTrunc,
+                             method_name),
+      Handle<String>());
+
+  // 6. Let roundResult be ! RoundTime(temporalTime.[[ISOHour]],
+  // temporalTime.[[ISOMinute]], temporalTime.[[ISOSecond]],
+  // temporalTime.[[ISOMillisecond]], temporalTime.[[ISOMicrosecond]],
+  // temporalTime.[[ISONanosecond]], precision.[[Increment]],
+  // precision.[[Unit]], roundingMode).
+
+  DateTimeRecordCommon round_result = RoundTime(
+      isolate,
+      {temporal_time->iso_hour(), temporal_time->iso_minute(),
+       temporal_time->iso_second(), temporal_time->iso_millisecond(),
+       temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()},
+      precision.increment, precision.unit, rounding_mode);
+  // 7. Return ! TemporalTimeToString(roundResult.[[Hour]],
+  // roundResult.[[Minute]], roundResult.[[Second]],
+  // roundResult.[[Millisecond]], roundResult.[[Microsecond]],
+  // roundResult.[[Nanosecond]], precision.[[Precision]]).
+  return TemporalTimeToString(isolate, round_result.time, precision.precision);
 }
 
 // #sec-temporal.zoneddatetime
