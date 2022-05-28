@@ -10612,6 +10612,71 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainTime::ToPlainDateTime(
       handle(temporal_date->calendar(), isolate));
 }
 
+namespace {
+
+enum class Arithmetic { kAdd, kSubtract };
+
+// #sec-temporal-adddurationtoorsubtractdurationfromplaintime
+MaybeHandle<JSTemporalPlainTime> AddDurationToOrSubtractDurationFromPlainTime(
+    Isolate* isolate, Arithmetic operation,
+    Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> temporal_duration_like, const char* method_name) {
+  // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == Arithmetic::kSubtract ? -1.0 : 1.0;
+  // 2. Let duration be ? ToTemporalDurationRecord(temporalDurationLike).
+  DurationRecord duration;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, duration,
+      temporal::ToTemporalDurationRecord(isolate, temporal_duration_like,
+                                         method_name),
+      Handle<JSTemporalPlainTime>());
+  TimeDurationRecord& time_duration = duration.time_duration;
+
+  // 3. Let result be ! AddTime(temporalTime.[[ISOHour]],
+  // temporalTime.[[ISOMinute]], temporalTime.[[ISOSecond]],
+  // temporalTime.[[ISOMillisecond]], temporalTime.[[ISOMicrosecond]],
+  // temporalTime.[[ISONanosecond]], sign x duration.[[Hours]], sign x
+  // duration.[[Minutes]], sign x duration.[[Seconds]], sign x
+  // duration.[[Milliseconds]], sign x duration.[[Microseconds]], sign x
+  // duration.[[Nanoseconds]]).
+  DateTimeRecordCommon result = AddTime(
+      isolate,
+      {temporal_time->iso_hour(), temporal_time->iso_minute(),
+       temporal_time->iso_second(), temporal_time->iso_millisecond(),
+       temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()},
+      {0, sign * time_duration.hours, sign * time_duration.minutes,
+       sign * time_duration.seconds, sign * time_duration.milliseconds,
+       sign * time_duration.microseconds, sign * time_duration.nanoseconds});
+  // 4. Assert: ! IsValidTime(result.[[Hour]], result.[[Minute]],
+  // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+  // result.[[Nanosecond]]) is true.
+  DCHECK(IsValidTime(isolate, result.time));
+  // 5. Return ? CreateTemporalTime(result.[[Hour]], result.[[Minute]],
+  // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+  // result.[[Nanosecond]]).
+  return CreateTemporalTime(isolate, result.time);
+}
+
+}  // namespace
+
+// #sec-temporal.plaintime.prototype.add
+MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Add(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> temporal_duration_like) {
+  return AddDurationToOrSubtractDurationFromPlainTime(
+      isolate, Arithmetic::kAdd, temporal_time, temporal_duration_like,
+      "Temporal.PlainTime.prototype.add");
+}
+
+// #sec-temporal.plaintime.prototype.subtract
+MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> temporal_duration_like) {
+  return AddDurationToOrSubtractDurationFromPlainTime(
+      isolate, Arithmetic::kSubtract, temporal_time, temporal_duration_like,
+      "Temporal.PlainTime.prototype.subtract");
+}
+
 // #sec-temporal.plaintime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainTime::GetISOFields(
     Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time) {

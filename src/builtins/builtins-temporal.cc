@@ -44,10 +44,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeSince)
 
 /* Temporal.PlaneTime */
-/* Temporal #sec-temporal.plaintime.prototype.add */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeAdd)
-/* Temporal #sec-temporal.plaintime.prototype.subtract */
-TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeSubtract)
 /* Temporal #sec-temporal.plaintime.prototype.until */
 TO_BE_IMPLEMENTED(TemporalPlainTimePrototypeUntil)
 /* Temporal #sec-temporal.plaintime.prototype.since */
@@ -389,13 +385,15 @@ TEMPORAL_METHOD2(PlainTime, From)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_METHOD2(PlainTime, Compare)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Equals, equals)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Add, add)
+TEMPORAL_PROTOTYPE_METHOD1(PlainTime, Subtract, subtract)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToPlainDateTime, toPlainDateTime)
-TEMPORAL_PROTOTYPE_METHOD2(PlainTime, With, with)
-TEMPORAL_VALUE_OF(PlainTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, ToJSON, toJSON)
 TEMPORAL_PROTOTYPE_METHOD2(PlainTime, ToLocaleString, toLocaleString)
 TEMPORAL_PROTOTYPE_METHOD1(PlainTime, ToString, toString)
+TEMPORAL_PROTOTYPE_METHOD2(PlainTime, With, with)
+TEMPORAL_VALUE_OF(PlainTime)
 
 // PlainDateTime
 BUILTIN(TemporalPlainDateTimeConstructor) {

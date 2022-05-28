@@ -543,6 +543,16 @@ class JSTemporalPlainTime
   ToZonedDateTime(Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
                   Handle<Object> item);
 
+  // #sec-temporal.plaintime.prototype.add
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> Add(
+      Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
+      Handle<Object> temporal_duration_like);
+
+  // #sec-temporal.plaintime.prototype.subtract
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> Subtract(
+      Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
+      Handle<Object> temporal_duration_like);
+
   // #sec-temporal.plaintime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainTime> plain_time);
