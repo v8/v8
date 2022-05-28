@@ -70,12 +70,8 @@ TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeSince)
 /* Temporal #sec-temporal.plaindatetime.prototype.round */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeRound)
-/* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToLocaleString)
 /* Temporal #sec-temporal.plaindatetime.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToString)
-/* Temporal #sec-temporal.plainddatetimeprototype.tojson */
-TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeToJSON)
 
 /* Temporal.ZonedDateTime */
 /* Temporal #sec-temporal.zoneddatetime.from */
@@ -458,6 +454,8 @@ TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, With, with)
 TEMPORAL_VALUE_OF(PlainDateTime)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainDate, toPlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToPlainTime, toPlainTime)
+TEMPORAL_PROTOTYPE_METHOD0(PlainDateTime, ToJSON, toJSON)
+TEMPORAL_PROTOTYPE_METHOD2(PlainDateTime, ToLocaleString, toLocaleString)
 
 // PlainYearMonth
 BUILTIN(TemporalPlainYearMonthConstructor) {

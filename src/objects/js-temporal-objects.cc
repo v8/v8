@@ -9190,6 +9190,83 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithPlainDate(
       calendar);
 }
 
+namespace {
+MaybeHandle<String> TemporalDateTimeToString(
+    Isolate* isolate, const DateTimeRecordCommon& date_time,
+    Handle<JSReceiver> calendar, Precision precision,
+    ShowCalendar show_calendar) {
+  IncrementalStringBuilder builder(isolate);
+  // 1. Assert: isoYear, isoMonth, isoDay, hour, minute, second, millisecond,
+  // microsecond, and nanosecond are integers.
+  // 2. Let year be ! PadISOYear(isoYear).
+  PadISOYear(&builder, date_time.date.year);
+
+  // 3. Let month be ToZeroPaddedDecimalString(isoMonth, 2).
+  builder.AppendCharacter('-');
+  ToZeroPaddedDecimalString(&builder, date_time.date.month, 2);
+
+  // 4. Let day be ToZeroPaddedDecimalString(isoDay, 2).
+  builder.AppendCharacter('-');
+  ToZeroPaddedDecimalString(&builder, date_time.date.day, 2);
+  // 5. Let hour be ToZeroPaddedDecimalString(hour, 2).
+  builder.AppendCharacter('T');
+  ToZeroPaddedDecimalString(&builder, date_time.time.hour, 2);
+
+  // 6. Let minute be ToZeroPaddedDecimalString(minute, 2).
+  builder.AppendCharacter(':');
+  ToZeroPaddedDecimalString(&builder, date_time.time.minute, 2);
+
+  // 7. Let seconds be ! FormatSecondsStringPart(second, millisecond,
+  // microsecond, nanosecond, precision).
+  FormatSecondsStringPart(
+      &builder, date_time.time.second, date_time.time.millisecond,
+      date_time.time.microsecond, date_time.time.nanosecond, precision);
+  // 8. Let calendarID be ? ToString(calendar).
+  Handle<String> calendar_id;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar_id,
+                             Object::ToString(isolate, calendar), String);
+
+  // 9. Let calendarString be ! FormatCalendarAnnotation(calendarID,
+  // showCalendar).
+  Handle<String> calendar_string =
+      FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
+
+  // 10. Return the string-concatenation of year, the code unit 0x002D
+  // (HYPHEN-MINUS), month, the code unit 0x002D (HYPHEN-MINUS), day, 0x0054
+  // (LATIN CAPITAL LETTER T), hour, the code unit 0x003A (COLON), minute,
+  builder.AppendString(calendar_string);
+  return builder.Finish().ToHandleChecked();
+}
+}  // namespace
+
+// #sec-temporal.plaindatetime.prototype.tojson
+MaybeHandle<String> JSTemporalPlainDateTime::ToJSON(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
+  return TemporalDateTimeToString(
+      isolate,
+      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+        date_time->iso_millisecond(), date_time->iso_microsecond(),
+        date_time->iso_nanosecond()}},
+      Handle<JSReceiver>(date_time->calendar(), isolate), Precision::kAuto,
+      ShowCalendar::kAuto);
+}
+
+// #sec-temporal.plaindatetime.prototype.tolocalestring
+MaybeHandle<String> JSTemporalPlainDateTime::ToLocaleString(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> locales, Handle<Object> options) {
+  // TODO(ftang) Implement #sup-temporal.plaindatetime.prototype.tolocalestring
+  return TemporalDateTimeToString(
+      isolate,
+      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+        date_time->iso_millisecond(), date_time->iso_microsecond(),
+        date_time->iso_nanosecond()}},
+      Handle<JSReceiver>(date_time->calendar(), isolate), Precision::kAuto,
+      ShowCalendar::kAuto);
+}
+
 // #sec-temporal.now.plaindatetime
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Now(
     Isolate* isolate, Handle<Object> calendar_like,
