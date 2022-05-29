@@ -321,6 +321,7 @@ v8_source_set("unittests_sources") {
     "compiler/state-values-utils-unittest.cc",
     "compiler/typed-optimization-unittest.cc",
     "compiler/typer-unittest.cc",
+    "compiler/types-unittest.cc",
     "compiler/value-numbering-reducer-unittest.cc",
     "compiler/zone-stats-unittest.cc",
     "date/date-cache-unittest.cc",

@@ -239,7 +239,6 @@ v8_source_set("cctest_sources") {
     "test-transitions.cc",
     "test-transitions.h",
     "test-typedarrays.cc",
-    "test-types.cc",
     "test-unscopables-hidden-prototype.cc",
     "test-unwinder-code-pages.cc",
     "test-usecounters.cc",

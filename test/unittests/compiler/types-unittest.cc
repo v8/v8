@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/types.h"
+
 #include <vector>
 
 #include "src/base/strings.h"
-#include "src/compiler/types.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/objects.h"
-#include "test/cctest/cctest.h"
 #include "test/common/types-fuzz.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
@@ -21,29 +23,23 @@ namespace {
 
 // Testing auxiliaries (breaking the Type abstraction).
 
-
 static bool IsInteger(double x) {
   return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
 }
 
 using bitset = Type::bitset;
 
-struct Tests {
+class TypesTest : public TestWithNativeContextAndZone {
+ public:
   using TypeIterator = Types::TypeVector::iterator;
   using ValueIterator = Types::ValueVector::iterator;
-
-  Isolate* isolate;
-  HandleScope tests_scope;
   CanonicalHandleScope canonical;
-  Zone zone;
   Types T;
 
-  Tests()
-      : isolate(CcTest::InitIsolateOnce()),
-        tests_scope(isolate),
-        canonical(isolate),
-        zone(isolate->allocator(), ZONE_NAME),
-        T(&zone, isolate, isolate->random_number_generator()) {}
+  TypesTest()
+      : TestWithNativeContextAndZone(),
+        canonical(isolate()),
+        T(zone(), isolate(), isolate()->random_number_generator()) {}
 
   bool IsBitset(Type type) { return type.IsBitset(); }
   bool IsUnion(Type type) { return type.IsUnionForTesting(); }
@@ -75,8 +71,8 @@ struct Tests {
   void CheckSubOrEqual(Type type1, Type type2) {
     CHECK(type1.Is(type2));
     if (this->IsBitset(type1) && this->IsBitset(type2)) {
-      CHECK((this->AsBitset(type1) | this->AsBitset(type2))
-            == this->AsBitset(type2));
+      CHECK((this->AsBitset(type1) | this->AsBitset(type2)) ==
+            this->AsBitset(type2));
     }
   }
 
@@ -156,9 +152,8 @@ struct Tests {
         Type type2 = *it2;
         Type union12 = T.Union(type1, type2);
         if (this->IsBitset(type1) && this->IsBitset(type2)) {
-          CHECK(
-              (this->AsBitset(type1) | this->AsBitset(type2)) ==
-              this->AsBitset(union12));
+          CHECK((this->AsBitset(type1) | this->AsBitset(type2)) ==
+                this->AsBitset(union12));
         }
       }
     }
@@ -226,7 +221,7 @@ struct Tests {
     }
 
     // Typing of numbers
-    Factory* fac = isolate->factory();
+    Factory* fac = isolate()->factory();
     CHECK(T.Constant(fac->NewNumber(0)).Is(T.UnsignedSmall));
     CHECK(T.Constant(fac->NewNumber(1)).Is(T.UnsignedSmall));
     CHECK(T.Constant(fac->NewNumber(42)).Equals(T.Range(42, 42)));
@@ -319,14 +314,11 @@ struct Tests {
 
     // Functionality & Injectivity:
     // Range(min1, max1) = Range(min2, max2) <=> min1 = min2 /\ max1 = max2
-    for (ValueIterator i1 = T.integers.begin();
-        i1 != T.integers.end(); ++i1) {
-      for (ValueIterator j1 = i1;
-          j1 != T.integers.end(); ++j1) {
-        for (ValueIterator i2 = T.integers.begin();
-            i2 != T.integers.end(); ++i2) {
-          for (ValueIterator j2 = i2;
-              j2 != T.integers.end(); ++j2) {
+    for (ValueIterator i1 = T.integers.begin(); i1 != T.integers.end(); ++i1) {
+      for (ValueIterator j1 = i1; j1 != T.integers.end(); ++j1) {
+        for (ValueIterator i2 = T.integers.begin(); i2 != T.integers.end();
+             ++i2) {
+          for (ValueIterator j2 = i2; j2 != T.integers.end(); ++j2) {
             double min1 = (*i1)->Number();
             double max1 = (*j1)->Number();
             double min2 = (*i2)->Number();
@@ -529,14 +521,11 @@ struct Tests {
 
   void Is2() {
     // Range(X1, Y1).Is(Range(X2, Y2)) iff X1 >= X2 /\ Y1 <= Y2
-    for (ValueIterator i1 = T.integers.begin();
-        i1 != T.integers.end(); ++i1) {
-      for (ValueIterator j1 = i1;
-          j1 != T.integers.end(); ++j1) {
-        for (ValueIterator i2 = T.integers.begin();
-             i2 != T.integers.end(); ++i2) {
-          for (ValueIterator j2 = i2;
-               j2 != T.integers.end(); ++j2) {
+    for (ValueIterator i1 = T.integers.begin(); i1 != T.integers.end(); ++i1) {
+      for (ValueIterator j1 = i1; j1 != T.integers.end(); ++j1) {
+        for (ValueIterator i2 = T.integers.begin(); i2 != T.integers.end();
+             ++i2) {
+          for (ValueIterator j2 = i2; j2 != T.integers.end(); ++j2) {
             double min1 = (*i1)->Number();
             double max1 = (*j1)->Number();
             double min2 = (*i2)->Number();
@@ -584,7 +573,6 @@ struct Tests {
         CHECK(lub.Is(T.PlainNumber));
       }
     }
-
 
     // Subtyping between concrete basic types
 
@@ -869,7 +857,7 @@ struct Tests {
   void Union3() {
     // Monotonicity: T1.Is(T2) or T1.Is(T3) implies T1.Is(Union(T2, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      HandleScope scope(isolate);
+      HandleScope scope(isolate());
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = it2; it3 != T.types.end(); ++it3) {
           Type type1 = *it1;
@@ -887,34 +875,29 @@ struct Tests {
     CheckSub(T.Union(T.ObjectConstant1, T.ObjectConstant2), T.Object);
     CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.OtherObject);
     CheckOverlap(T.Union(T.ObjectConstant1, T.ArrayConstant), T.OtherObject);
-    CheckDisjoint(
-        T.Union(T.ObjectConstant1, T.ArrayConstant), T.Number);
+    CheckDisjoint(T.Union(T.ObjectConstant1, T.ArrayConstant), T.Number);
 
     // Bitset-constant
-    CheckSub(
-        T.Union(T.ObjectConstant1, T.Signed32), T.Union(T.Object, T.Number));
+    CheckSub(T.Union(T.ObjectConstant1, T.Signed32),
+             T.Union(T.Object, T.Number));
     CheckSub(T.Union(T.ObjectConstant1, T.OtherObject), T.Object);
     CheckUnordered(T.Union(T.ObjectConstant1, T.String), T.OtherObject);
     CheckOverlap(T.Union(T.ObjectConstant1, T.String), T.Object);
     CheckDisjoint(T.Union(T.ObjectConstant1, T.String), T.Number);
 
     // Constant-union
+    CheckEqual(T.Union(T.ObjectConstant1,
+                       T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+               T.Union(T.ObjectConstant2, T.ObjectConstant1));
     CheckEqual(
-        T.Union(
-            T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2)),
-        T.Union(T.ObjectConstant2, T.ObjectConstant1));
-    CheckEqual(
-        T.Union(
-            T.Union(T.ArrayConstant, T.ObjectConstant2), T.ObjectConstant1),
-        T.Union(
-            T.ObjectConstant2, T.Union(T.ArrayConstant, T.ObjectConstant1)));
+        T.Union(T.Union(T.ArrayConstant, T.ObjectConstant2), T.ObjectConstant1),
+        T.Union(T.ObjectConstant2,
+                T.Union(T.ArrayConstant, T.ObjectConstant1)));
 
     // Union-union
-    CheckEqual(
-        T.Union(
-            T.Union(T.ObjectConstant2, T.ObjectConstant1),
-            T.Union(T.ObjectConstant1, T.ObjectConstant2)),
-        T.Union(T.ObjectConstant2, T.ObjectConstant1));
+    CheckEqual(T.Union(T.Union(T.ObjectConstant2, T.ObjectConstant1),
+                       T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+               T.Union(T.ObjectConstant2, T.ObjectConstant1));
   }
 
   void Intersect() {
@@ -962,7 +945,7 @@ struct Tests {
 
     // Monotonicity: T1.Is(T2) and T1.Is(T3) implies T1.Is(Intersect(T2, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
-      HandleScope scope(isolate);
+      HandleScope scope(isolate());
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
           Type type1 = *it1;
@@ -975,20 +958,16 @@ struct Tests {
     }
 
     // Constant-union
-    CheckEqual(
-        T.Intersect(
-            T.ObjectConstant1, T.Union(T.ObjectConstant1, T.ObjectConstant2)),
-        T.ObjectConstant1);
-    CheckEqual(
-        T.Intersect(T.SmiConstant, T.Union(T.Number, T.ObjectConstant2)),
-        T.SmiConstant);
+    CheckEqual(T.Intersect(T.ObjectConstant1,
+                           T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+               T.ObjectConstant1);
+    CheckEqual(T.Intersect(T.SmiConstant, T.Union(T.Number, T.ObjectConstant2)),
+               T.SmiConstant);
 
     // Union-union
-    CheckEqual(
-        T.Intersect(
-            T.Union(T.ObjectConstant2, T.ObjectConstant1),
-            T.Union(T.ObjectConstant1, T.ObjectConstant2)),
-        T.Union(T.ObjectConstant2, T.ObjectConstant1));
+    CheckEqual(T.Intersect(T.Union(T.ObjectConstant2, T.ObjectConstant1),
+                           T.Union(T.ObjectConstant1, T.ObjectConstant2)),
+               T.Union(T.ObjectConstant2, T.ObjectConstant1));
   }
 
   void Distributivity() {
@@ -1055,23 +1034,23 @@ struct Tests {
 
 }  // namespace
 
-TEST(IsSomeType) { Tests().IsSomeType(); }
-TEST(BitsetType) { Tests().Bitset(); }
-TEST(ConstantType) { Tests().Constant(); }
-TEST(RangeType) { Tests().Range(); }
-TEST(MinMax) { Tests().MinMax(); }
-TEST(BitsetGlb) { Tests().BitsetGlb(); }
-TEST(BitsetLub) { Tests().BitsetLub(); }
-TEST(Is1) { Tests().Is1(); }
-TEST(Is2) { Tests().Is2(); }
-TEST(Maybe) { Tests().Maybe(); }
-TEST(Union1) { Tests().Union1(); }
-TEST(Union2) { Tests().Union2(); }
-TEST(Union3) { Tests().Union3(); }
-TEST(Union4) { Tests().Union4(); }
-TEST(Intersect) { Tests().Intersect(); }
-TEST(Distributivity) { Tests().Distributivity(); }
-TEST(GetRange) { Tests().GetRange(); }
+TEST_F(TypesTest, IsSomeType) { IsSomeType(); }
+TEST_F(TypesTest, BitsetType) { Bitset(); }
+TEST_F(TypesTest, ConstantType) { Constant(); }
+TEST_F(TypesTest, RangeType) { Range(); }
+TEST_F(TypesTest, MinMax) { MinMax(); }
+TEST_F(TypesTest, BitsetGlb) { BitsetGlb(); }
+TEST_F(TypesTest, BitsetLub) { BitsetLub(); }
+TEST_F(TypesTest, Is1) { Is1(); }
+TEST_F(TypesTest, Is2) { Is2(); }
+TEST_F(TypesTest, Maybe) { Maybe(); }
+TEST_F(TypesTest, Union1) { Union1(); }
+TEST_F(TypesTest, Union2) { Union2(); }
+TEST_F(TypesTest, Union3) { Union3(); }
+TEST_F(TypesTest, Union4) { Union4(); }
+TEST_F(TypesTest, Intersect) { Intersect(); }
+TEST_F(TypesTest, Distributivity) { Distributivity(); }
+TEST_F(TypesTest, GetRange) { GetRange(); }
 
 }  // namespace compiler
 }  // namespace internal
