@@ -25,25 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/base/numbers/strtod.h"
+
 #include <stdlib.h>
 
 #include "src/base/numbers/bignum.h"
 #include "src/base/numbers/diy-fp.h"
 #include "src/base/numbers/double.h"
-#include "src/base/numbers/strtod.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace base {
-namespace test_strtod {
+
+using StrtodTest = ::testing::Test;
 
 static double StrtodChar(const char* str, int exponent) {
   return Strtod(CStrVector(str), exponent);
 }
 
-TEST(Strtod) {
+TEST_F(StrtodTest, Strtod) {
   Vector<const char> vector;
 
   vector = CStrVector("0");
@@ -295,7 +298,8 @@ TEST(Strtod) {
                       "6640064319118728664842287477491068264828851624402189317"
                       "2769161449825765517353755844373640588822904791244190695"
                       "2998382932630754670573838138825217065450843010498555058"
-                      "88186560731", -1035));
+                      "88186560731",
+                      -1035));
 
   // Boundary cases. Boundaries themselves should round to even.
   //
@@ -363,13 +367,12 @@ TEST(Strtod) {
                       "22321503775666622503982534335974568884423900265498198385"
                       "48794829220689472168983109969836584681402285424333066033"
                       "98508864458040010349339704275671864433837704860378616227"
-                      "71738545623065874679014086723327636718751", -1076));
+                      "71738545623065874679014086723327636718751",
+                      -1076));
 }
 
-
 static int CompareBignumToDiyFp(const Bignum& bignum_digits,
-                                int bignum_exponent,
-                                DiyFp diy_fp) {
+                                int bignum_exponent, DiyFp diy_fp) {
   Bignum bignum;
   bignum.AssignBignum(bignum_digits);
   Bignum other;
@@ -411,10 +414,10 @@ static bool CheckDouble(Vector<const char> buffer, int exponent,
   d.NormalizedBoundaries(&lower_boundary, &upper_boundary);
   if ((d.Significand() & 1) == 0) {
     return CompareBignumToDiyFp(input_digits, exponent, lower_boundary) >= 0 &&
-        CompareBignumToDiyFp(input_digits, exponent, upper_boundary) <= 0;
+           CompareBignumToDiyFp(input_digits, exponent, upper_boundary) <= 0;
   } else {
     return CompareBignumToDiyFp(input_digits, exponent, lower_boundary) > 0 &&
-        CompareBignumToDiyFp(input_digits, exponent, upper_boundary) < 0;
+           CompareBignumToDiyFp(input_digits, exponent, upper_boundary) < 0;
   }
 }
 
@@ -435,12 +438,11 @@ static uint32_t DeterministicRandom() {
   return (hi << 16) + (lo & 0xFFFF);
 }
 
-
 static const int kBufferSize = 1024;
 static const int kShortStrtodRandomCount = 2;
 static const int kLargeStrtodRandomCount = 2;
 
-TEST(RandomStrtod) {
+TEST_F(StrtodTest, RandomStrtod) {
   base::RandomNumberGenerator rng;
   char buffer[kBufferSize];
   for (int length = 1; length < 15; length++) {
@@ -449,7 +451,7 @@ TEST(RandomStrtod) {
       for (int j = 0; j < length; ++j) {
         buffer[pos++] = rng.NextInt(10) + '0';
       }
-      int exponent = DeterministicRandom() % (25*2 + 1) - 25 - length;
+      int exponent = DeterministicRandom() % (25 * 2 + 1) - 25 - length;
       buffer[pos] = '\0';
       Vector<const char> vector(buffer, pos);
       double strtod_result = Strtod(vector, exponent);
@@ -462,7 +464,7 @@ TEST(RandomStrtod) {
       for (int j = 0; j < length; ++j) {
         buffer[pos++] = rng.NextInt(10) + '0';
       }
-      int exponent = DeterministicRandom() % (308*2 + 1) - 308 - length;
+      int exponent = DeterministicRandom() % (308 * 2 + 1) - 308 - length;
       buffer[pos] = '\0';
       Vector<const char> vector(buffer, pos);
       double strtod_result = Strtod(vector, exponent);
@@ -471,6 +473,5 @@ TEST(RandomStrtod) {
   }
 }
 
-}  // namespace test_strtod
 }  // namespace base
 }  // namespace v8

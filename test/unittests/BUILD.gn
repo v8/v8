@@ -394,6 +394,7 @@ v8_source_set("unittests_sources") {
     "logging/log-unittest.cc",
     "numbers/bigint-unittest.cc",
     "numbers/conversions-unittest.cc",
+    "numbers/strtod-unittest.cc",
     "objects/array-list-unittest.cc",
     "objects/concurrent-descriptor-array-unittest.cc",
     "objects/concurrent-feedback-vector-unittest.cc",

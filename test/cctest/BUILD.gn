@@ -229,7 +229,6 @@ v8_source_set("cctest_sources") {
     "test-shared-strings.cc",
     "test-smi-lexicographic-compare.cc",
     "test-strings.cc",
-    "test-strtod.cc",
     "test-swiss-name-dictionary-csa.cc",
     "test-swiss-name-dictionary-infra.cc",
     "test-swiss-name-dictionary.cc",
