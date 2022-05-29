@@ -246,7 +246,6 @@ v8_source_set("cctest_sources") {
     "test-usecounters.cc",
     "test-utils.cc",
     "test-verifiers.cc",
-    "test-version.cc",
     "test-weakmaps.cc",
     "test-weaksets.cc",
     "test-web-snapshots.cc",

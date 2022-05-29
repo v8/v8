@@ -25,14 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/init/v8.h"
-
 #include "src/utils/version.h"
-#include "test/cctest/cctest.h"
 
+#include "src/init/v8.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using VersionTest = ::testing::Test;
 
 void SetVersion(int major, int minor, int build, int patch,
                 const char* embedder, bool candidate, const char* soname) {
@@ -68,8 +70,7 @@ static void CheckVersion(int major, int minor, int build, int patch,
   CHECK_EQ(0, strcmp(soname, soname_str.begin()));
 }
 
-
-TEST(VersionString) {
+TEST_F(VersionTest, VersionString) {
   CheckVersion(0, 0, 0, 0, "", false, "0.0.0", "libv8-0.0.0.so");
   CheckVersion(0, 0, 0, 0, "", true, "0.0.0 (candidate)",
                "libv8-0.0.0-candidate.so");

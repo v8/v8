@@ -446,6 +446,7 @@ v8_source_set("unittests_sources") {
     "utils/locked-queue-unittest.cc",
     "utils/sparse-bit-vector-unittest.cc",
     "utils/utils-unittest.cc",
+    "utils/version-unittest.cc",
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
