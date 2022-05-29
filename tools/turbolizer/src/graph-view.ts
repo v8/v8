@@ -239,7 +239,7 @@ export class GraphView extends PhaseView {
       input.setAttribute("id", id);
       input.setAttribute("type", "image");
       input.setAttribute("title", title);
-      input.setAttribute("src", `img/${id}-icon.png`);
+      input.setAttribute("src", `img/toolbox/${id}-icon.png`);
       input.className = "button-input graph-toolbox-item";
       input.addEventListener("click", onClick);
       return input;

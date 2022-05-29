@@ -4,8 +4,7 @@
 
 import typescript from 'rollup-plugin-typescript2';
 import node from 'rollup-plugin-node-resolve';
-
-import path from 'path'
+import path from 'path';
 
 const onwarn = warning => {
   // Silence circular dependency warning for moment package
