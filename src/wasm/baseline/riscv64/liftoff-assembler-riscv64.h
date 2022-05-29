@@ -2387,7 +2387,7 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
   vmfeq_vv(v0, src.fp().toV(), src.fp().toV());
   vmv_vv(kSimd128ScratchReg3, src.fp().toV());
   VU.set(kScratchReg, E32, m1);
-  VU.set(RoundingMode::RTZ);
+  VU.set(FPURoundingMode::RTZ);
   vfncvt_x_f_w(kSimd128ScratchReg, kSimd128ScratchReg3, MaskType::Mask);
   vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
@@ -2399,7 +2399,7 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
   vmfeq_vv(v0, src.fp().toV(), src.fp().toV());
   vmv_vv(kSimd128ScratchReg3, src.fp().toV());
   VU.set(kScratchReg, E32, m1);
-  VU.set(RoundingMode::RTZ);
+  VU.set(FPURoundingMode::RTZ);
   vfncvt_xu_f_w(kSimd128ScratchReg, kSimd128ScratchReg3, MaskType::Mask);
   vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
@@ -3072,7 +3072,7 @@ void LiftoffAssembler::emit_f32x4_sub(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_f32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   VU.set(kScratchReg, E32, m1);
-  VU.set(RoundingMode::RTZ);
+  VU.set(FPURoundingMode::RTZ);
   vfmul_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
@@ -3263,7 +3263,7 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   VU.set(kScratchReg, E32, m1);
-  VU.set(RoundingMode::RTZ);
+  VU.set(FPURoundingMode::RTZ);
   vmfeq_vv(v0, src.fp().toV(), src.fp().toV());
   vmv_vx(dst.fp().toV(), zero_reg);
   vfcvt_x_f_v(dst.fp().toV(), src.fp().toV(), Mask);
@@ -3272,7 +3272,7 @@ void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   VU.set(kScratchReg, E32, m1);
-  VU.set(RoundingMode::RTZ);
+  VU.set(FPURoundingMode::RTZ);
   vmfeq_vv(v0, src.fp().toV(), src.fp().toV());
   vmv_vx(dst.fp().toV(), zero_reg);
   vfcvt_xu_f_v(dst.fp().toV(), src.fp().toV(), Mask);
@@ -3281,14 +3281,14 @@ void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,
 void LiftoffAssembler::emit_f32x4_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   VU.set(kScratchReg, E32, m1);
-  VU.set(RoundingMode::RTZ);
+  VU.set(FPURoundingMode::RTZ);
   vfcvt_f_x_v(dst.fp().toV(), src.fp().toV());
 }
 
 void LiftoffAssembler::emit_f32x4_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
   VU.set(kScratchReg, E32, m1);
-  VU.set(RoundingMode::RTZ);
+  VU.set(FPURoundingMode::RTZ);
   vfcvt_f_xu_v(dst.fp().toV(), src.fp().toV());
 }
 
@@ -3299,7 +3299,7 @@ void LiftoffAssembler::emit_i8x16_sconvert_i16x8(LiftoffRegister dst,
   vmv_vv(v26, lhs.fp().toV());
   vmv_vv(v27, lhs.fp().toV());
   VU.set(kScratchReg, E8, m1);
-  VU.set(RoundingMode::RNE);
+  VU.set(FPURoundingMode::RNE);
   vnclip_vi(dst.fp().toV(), v26, 0);
 }
 
@@ -3312,7 +3312,7 @@ void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
   VU.set(kScratchReg, E16, m2);
   vmax_vx(v26, v26, zero_reg);
   VU.set(kScratchReg, E8, m1);
-  VU.set(RoundingMode::RNE);
+  VU.set(FPURoundingMode::RNE);
   vnclipu_vi(dst.fp().toV(), v26, 0);
 }
 
@@ -3323,7 +3323,7 @@ void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
   vmv_vv(v26, lhs.fp().toV());
   vmv_vv(v27, lhs.fp().toV());
   VU.set(kScratchReg, E16, m1);
-  VU.set(RoundingMode::RNE);
+  VU.set(FPURoundingMode::RNE);
   vnclip_vi(dst.fp().toV(), v26, 0);
 }
 
@@ -3336,7 +3336,7 @@ void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
   VU.set(kScratchReg, E32, m2);
   vmax_vx(v26, v26, zero_reg);
   VU.set(kScratchReg, E16, m1);
-  VU.set(RoundingMode::RNE);
+  VU.set(FPURoundingMode::RNE);
   vnclipu_vi(dst.fp().toV(), v26, 0);
 }
 

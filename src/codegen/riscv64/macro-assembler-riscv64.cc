@@ -1986,7 +1986,7 @@ void TurboAssembler::Floor_w_d(Register rd, FPURegister fs, Register result) {
 // handling is needed by NaN, +/-Infinity, +/-0
 template <typename F>
 void TurboAssembler::RoundHelper(FPURegister dst, FPURegister src,
-                                 FPURegister fpu_scratch, RoundingMode frm) {
+                                 FPURegister fpu_scratch, FPURoundingMode frm) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   UseScratchRegisterScope temps(this);
   Register scratch2 = temps.Acquire();
@@ -2106,7 +2106,7 @@ void TurboAssembler::RoundHelper(FPURegister dst, FPURegister src,
 // handling is needed by NaN, +/-Infinity, +/-0
 template <typename F>
 void TurboAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
-                                 VRegister v_scratch, RoundingMode frm) {
+                                 VRegister v_scratch, FPURoundingMode frm) {
   VU.set(scratch, std::is_same<F, float>::value ? E32 : E64, m1);
   // if src is NaN/+-Infinity/+-Zero or if the exponent is larger than # of bits
   // in mantissa, the result is the same as src, so move src to dest  (to avoid

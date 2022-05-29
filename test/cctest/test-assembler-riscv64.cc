@@ -2621,7 +2621,7 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
 #define UTEST_RVV_VNCLIP_E32M2_E16M1(instr_name, sign)                       \
   TEST(RISCV_UTEST_##instr_name##_E32M2_E16M1) {                             \
     if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
-    constexpr RoundingMode vxrm = RNE;                                       \
+    constexpr FPURoundingMode vxrm = RNE;                                    \
     CcTest::InitializeVM();                                                  \
     Isolate* isolate = CcTest::i_isolate();                                  \
     HandleScope scope(isolate);                                              \

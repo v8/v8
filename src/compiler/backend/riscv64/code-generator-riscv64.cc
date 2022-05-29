@@ -2294,7 +2294,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
       __ vmv_vv(kSimd128ScratchReg3, i.InputSimd128Register(0));
       __ VU.set(kScratchReg, E32, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vfncvt_x_f_w(kSimd128ScratchReg, kSimd128ScratchReg3, MaskType::Mask);
       __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
@@ -2305,7 +2305,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
       __ vmv_vv(kSimd128ScratchReg3, i.InputSimd128Register(0));
       __ VU.set(kScratchReg, E32, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vfncvt_xu_f_w(kSimd128ScratchReg, kSimd128ScratchReg3, MaskType::Mask);
       __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
@@ -2936,7 +2936,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvF64x2Mul: {
       __ VU.set(kScratchReg, E64, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vfmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
@@ -3067,26 +3067,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvF32x4UConvertI32x4: {
       __ VU.set(kScratchReg, E32, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_xu_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kRiscvF32x4SConvertI32x4: {
       __ VU.set(kScratchReg, E32, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_x_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kRiscvF32x4Div: {
       __ VU.set(kScratchReg, E32, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vfdiv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvF32x4Mul: {
       __ VU.set(kScratchReg, E32, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vfmul_vv(i.OutputSimd128Register(), i.InputSimd128Register(1),
                   i.InputSimd128Register(0));
       break;
@@ -3231,7 +3231,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI32x4SConvertF32x4: {
       __ VU.set(kScratchReg, E32, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
       if (i.OutputSimd128Register() != i.InputSimd128Register(0)) {
         __ vmv_vx(i.OutputSimd128Register(), zero_reg);
@@ -3246,7 +3246,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI32x4UConvertF32x4: {
       __ VU.set(kScratchReg, E32, m1);
-      __ VU.set(RoundingMode::RTZ);
+      __ VU.set(FPURoundingMode::RTZ);
       __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
       if (i.OutputSimd128Register() != i.InputSimd128Register(0)) {
         __ vmv_vx(i.OutputSimd128Register(), zero_reg);
@@ -3303,7 +3303,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vv(v26, i.InputSimd128Register(0));
       __ vmv_vv(v27, i.InputSimd128Register(1));
       __ VU.set(kScratchReg, E8, m1);
-      __ VU.set(RoundingMode::RNE);
+      __ VU.set(FPURoundingMode::RNE);
       __ vnclip_vi(i.OutputSimd128Register(), v26, 0);
       break;
     }
@@ -3314,7 +3314,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.set(kScratchReg, E16, m2);
       __ vmax_vx(v26, v26, zero_reg);
       __ VU.set(kScratchReg, E8, m1);
-      __ VU.set(RoundingMode::RNE);
+      __ VU.set(FPURoundingMode::RNE);
       __ vnclipu_vi(i.OutputSimd128Register(), v26, 0);
       break;
     }
@@ -3323,7 +3323,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vv(v26, i.InputSimd128Register(0));
       __ vmv_vv(v27, i.InputSimd128Register(1));
       __ VU.set(kScratchReg, E16, m1);
-      __ VU.set(RoundingMode::RNE);
+      __ VU.set(FPURoundingMode::RNE);
       __ vnclip_vi(i.OutputSimd128Register(), v26, 0);
       break;
     }
@@ -3334,7 +3334,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ VU.set(kScratchReg, E32, m2);
       __ vmax_vx(v26, v26, zero_reg);
       __ VU.set(kScratchReg, E16, m1);
-      __ VU.set(RoundingMode::RNE);
+      __ VU.set(FPURoundingMode::RNE);
       __ vnclipu_vi(i.OutputSimd128Register(), v26, 0);
       break;
     }
