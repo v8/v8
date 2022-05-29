@@ -33,24 +33,23 @@
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/name-inl.h"
-#include "src/utils/ostreams.h"
 #include "src/objects/objects.h"
-#include "test/cctest/cctest.h"
+#include "src/utils/ostreams.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
-TEST(Create) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
+using SymbolsTest = TestWithIsolate;
 
+TEST_F(SymbolsTest, Create) {
   const int kNumSymbols = 30;
   Handle<Symbol> symbols[kNumSymbols];
 
   StdoutStream os;
   for (int i = 0; i < kNumSymbols; ++i) {
-    symbols[i] = isolate->factory()->NewSymbol();
+    symbols[i] = isolate()->factory()->NewSymbol();
     CHECK(symbols[i]->IsName());
     CHECK(symbols[i]->IsSymbol());
     CHECK(symbols[i]->HasHashCode());
@@ -61,12 +60,12 @@ TEST(Create) {
     symbols[i]->Print(os);
 #endif
 #if VERIFY_HEAP
-    symbols[i]->ObjectVerify(isolate);
+    symbols[i]->ObjectVerify(isolate());
 #endif
   }
 
-  CcTest::CollectGarbage(i::NEW_SPACE);
-  CcTest::CollectAllGarbage();
+  CollectGarbage(i::NEW_SPACE);
+  CollectAllGarbage();
 
   // All symbols should be distinct.
   for (int i = 0; i < kNumSymbols; ++i) {
